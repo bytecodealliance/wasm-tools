@@ -1745,8 +1745,12 @@ impl Module {
                     choices.push(Box::new(arbitrary_extended_const));
                 }
             }
-            ValType::F32 => choices.push(Box::new(|u, _| Ok(ConstExpr::f32_const(u.arbitrary()?)))),
-            ValType::F64 => choices.push(Box::new(|u, _| Ok(ConstExpr::f64_const(u.arbitrary()?)))),
+            ValType::F32 => choices.push(Box::new(|u, _| {
+                Ok(ConstExpr::f32_const(u.arbitrary::<f32>()?.into()))
+            })),
+            ValType::F64 => choices.push(Box::new(|u, _| {
+                Ok(ConstExpr::f64_const(u.arbitrary::<f64>()?.into()))
+            })),
             ValType::V128 => {
                 choices.push(Box::new(|u, _| Ok(ConstExpr::v128_const(u.arbitrary()?))))
             }
@@ -2612,14 +2616,14 @@ impl Module {
                 u.arbitrary()?
             })),
             ValType::F32 => Ok(Instruction::F32Const(if u.arbitrary()? {
-                f32::from_bits(*u.choose(&self.interesting_values32)?)
+                f32::from_bits(*u.choose(&self.interesting_values32)?).into()
             } else {
-                u.arbitrary()?
+                u.arbitrary::<f32>()?.into()
             })),
             ValType::F64 => Ok(Instruction::F64Const(if u.arbitrary()? {
-                f64::from_bits(*u.choose(&self.interesting_values64)?)
+                f64::from_bits(*u.choose(&self.interesting_values64)?).into()
             } else {
-                u.arbitrary()?
+                u.arbitrary::<f64>()?.into()
             })),
             ValType::V128 => Ok(Instruction::V128Const(if u.arbitrary()? {
                 let upper = (*u.choose(&self.interesting_values64)? as i128) << 64;

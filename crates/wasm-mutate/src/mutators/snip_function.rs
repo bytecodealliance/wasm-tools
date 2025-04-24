@@ -52,10 +52,10 @@ impl Mutator for SnipMutator {
                                 f.instructions().i64_const(0);
                             }
                             PrimitiveTypeInfo::F32 => {
-                                f.instructions().f32_const(0.0);
+                                f.instructions().f32_const(0.0.into());
                             }
                             PrimitiveTypeInfo::F64 => {
-                                f.instructions().f64_const(0.0);
+                                f.instructions().f64_const(0.0.into());
                             }
                             PrimitiveTypeInfo::V128 => {
                                 f.instructions().v128_const(0);

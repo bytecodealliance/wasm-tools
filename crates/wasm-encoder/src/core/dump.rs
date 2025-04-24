@@ -1,4 +1,4 @@
-use crate::{CustomSection, Encode, Section};
+use crate::{CustomSection, Encode, Ieee32, Ieee64, Section};
 use alloc::borrow::Cow;
 use alloc::string::String;
 use alloc::vec;
@@ -305,9 +305,9 @@ pub enum CoreDumpValue {
     /// An i64 value
     I64(i64),
     /// An f32 value
-    F32(f32),
+    F32(Ieee32),
     /// An f64 value
-    F64(f64),
+    F64(Ieee64),
 }
 
 impl Encode for CoreDumpValue {

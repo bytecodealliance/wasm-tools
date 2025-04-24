@@ -117,8 +117,8 @@ impl<'cfg, 'wasm> Reencode for InitTranslator<'cfg, 'wasm> {
             T::I32 if should_zero => CE::i32_const(0),
             T::I64 if should_zero => CE::i64_const(0),
             T::V128 if should_zero => CE::v128_const(0),
-            T::F32 if should_zero => CE::f32_const(0.0),
-            T::F64 if should_zero => CE::f64_const(0.0),
+            T::F32 if should_zero => CE::f32_const(0.0.into()),
+            T::F64 if should_zero => CE::f64_const(0.0.into()),
             T::I32 => CE::i32_const(if let O::I32Const { value } = op {
                 let range = if value < 0 { value..0 } else { 0..value };
                 self.config.rng().gen_range(range)
@@ -137,14 +137,14 @@ impl<'cfg, 'wasm> Reencode for InitTranslator<'cfg, 'wasm> {
                 self.config.rng().r#gen()
             }),
             T::F32 => CE::f32_const(if let O::F32Const { value } = op {
-                f32::from_bits(value.bits()) / 2.0
+                (f32::from_bits(value.bits()) / 2.0).into()
             } else {
-                f32::from_bits(self.config.rng().r#gen())
+                f32::from_bits(self.config.rng().r#gen()).into()
             }),
             T::F64 => CE::f64_const(if let O::F64Const { value } = op {
-                f64::from_bits(value.bits()) / 2.0
+                (f64::from_bits(value.bits()) / 2.0).into()
             } else {
-                f64::from_bits(self.config.rng().r#gen())
+                f64::from_bits(self.config.rng().r#gen()).into()
             }),
             T::FuncRef => CE::ref_null(wasm_encoder::HeapType::FUNC),
             T::ExternRef => CE::ref_null(wasm_encoder::HeapType::EXTERN),

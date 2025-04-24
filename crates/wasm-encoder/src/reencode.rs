@@ -173,6 +173,14 @@ pub trait Reencode {
         utils::memory_type(self, memory_ty)
     }
 
+    fn ieee32_arg(&mut self, arg: wasmparser::Ieee32) -> crate::Ieee32 {
+        utils::ieee32_arg(self, arg)
+    }
+
+    fn ieee64_arg(&mut self, arg: wasmparser::Ieee64) -> crate::Ieee64 {
+        utils::ieee64_arg(self, arg)
+    }
+
     fn mem_arg(&mut self, arg: wasmparser::MemArg) -> crate::MemArg {
         utils::mem_arg(self, arg)
     }
@@ -883,6 +891,20 @@ pub mod utils {
 
     pub fn memory_index<T: ?Sized + Reencode>(_reencoder: &mut T, memory: u32) -> u32 {
         memory
+    }
+
+    pub fn ieee32_arg<T: ?Sized + Reencode>(
+        _reencoder: &mut T,
+        arg: wasmparser::Ieee32,
+    ) -> crate::Ieee32 {
+        crate::Ieee32(arg.bits())
+    }
+
+    pub fn ieee64_arg<T: ?Sized + Reencode>(
+        _reencoder: &mut T,
+        arg: wasmparser::Ieee64,
+    ) -> crate::Ieee64 {
+        crate::Ieee64(arg.bits())
     }
 
     pub fn mem_arg<T: ?Sized + Reencode>(
@@ -1649,8 +1671,8 @@ pub mod utils {
             (build TypedSelectMulti $arg:ident) => (Instruction::TypedSelectMulti(Cow::from($arg)));
             (build I32Const $arg:ident) => (Instruction::I32Const($arg));
             (build I64Const $arg:ident) => (Instruction::I64Const($arg));
-            (build F32Const $arg:ident) => (Instruction::F32Const(f32::from_bits($arg.bits())));
-            (build F64Const $arg:ident) => (Instruction::F64Const(f64::from_bits($arg.bits())));
+            (build F32Const $arg:ident) => (Instruction::F32Const($arg.into()));
+            (build F64Const $arg:ident) => (Instruction::F64Const($arg.into()));
             (build V128Const $arg:ident) => (Instruction::V128Const($arg.i128()));
             (build TryTable $table:ident) => (Instruction::TryTable(reencoder.block_type($table.ty)?, {
                 $table.catches.into_iter().map(|c| reencoder.catch(c)).collect::<Vec<_>>().into()
@@ -1805,6 +1827,18 @@ pub mod utils {
             ret.append(map_index(naming.index), &name_map(naming.names, |i| i)?);
         }
         Ok(ret)
+    }
+}
+
+impl From<wasmparser::Ieee32> for crate::Ieee32 {
+    fn from(arg: wasmparser::Ieee32) -> Self {
+        RoundtripReencoder.ieee32_arg(arg)
+    }
+}
+
+impl From<wasmparser::Ieee64> for crate::Ieee64 {
+    fn from(arg: wasmparser::Ieee64) -> Self {
+        RoundtripReencoder.ieee64_arg(arg)
     }
 }
 
