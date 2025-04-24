@@ -2,7 +2,7 @@ use crate::{BinaryReader, BinaryReaderError, NameMap, Result, Subsection, Subsec
 use core::ops::Range;
 
 /// Type used to iterate and parse the contents of the `component-name` custom
-/// section in compnents, similar to the `name` section of core modules.
+/// section in components, similar to the `name` section of core modules.
 pub type ComponentNameSectionReader<'a> = Subsections<'a, ComponentName<'a>>;
 
 /// Represents a name read from the names custom section.
