@@ -80,6 +80,7 @@ impl OperatorsReader<'_> {
 
 /// The operator_arity macro interprets the annotations in the for_each_operator macro
 /// to compute the arity of each operator. It needs access to a ModuleArity implementation.
+#[cfg_attr(not(feature = "simd"), allow(unused_macro_rules))]
 macro_rules! operator_arity {
     (arity $self:ident $({ $($arg:ident: $argty:ty),* })? arity $($ann:tt)*) => {
 	{
