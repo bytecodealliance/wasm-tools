@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, bail, Context, Result};
 use id_arena::{Arena, Id};
+use indexmap::map::Entry;
 use indexmap::{IndexMap, IndexSet};
 use semver::Version;
 #[cfg(feature = "serde")]
@@ -3404,13 +3405,13 @@ impl Remap {
         assert_eq!(world.includes.len(), spans.includes.len());
         let includes = mem::take(&mut world.includes);
         let include_names = mem::take(&mut world.include_names);
-        for (((stability, include_world), span), names) in includes
+        for (((include_stability, include_world), span), names) in includes
             .into_iter()
             .zip(&spans.includes)
             .zip(&include_names)
         {
             if !resolve
-                .include_stability(&stability, pkg_id, Some(*span))
+                .include_stability(&include_stability, pkg_id, Some(*span))
                 .with_context(|| {
                     format!(
                         "failed to process feature gate for included world [{}] in package [{}]",
@@ -3421,7 +3422,14 @@ impl Remap {
             {
                 continue;
             }
-            self.resolve_include(world, include_world, names, *span, resolve)?;
+            self.resolve_include(
+                world,
+                include_world,
+                names,
+                *span,
+                resolve,
+                &include_stability,
+            )?;
         }
 
         Ok(())
@@ -3444,6 +3452,7 @@ impl Remap {
         names: &[IncludeName],
         span: Span,
         resolve: &Resolve,
+        include_stability: &Stability,
     ) -> Result<()> {
         let include_world_id = self.map_world(include_world, Some(span))?;
         let include_world = &resolve.worlds[include_world_id];
@@ -3465,11 +3474,25 @@ impl Remap {
 
         // copy the imports and exports from the included world into the current world
         for import in include_world.imports.iter() {
-            self.resolve_include_item(names, &mut world.imports, import, span, "import")?;
+            self.resolve_include_item(
+                names,
+                &mut world.imports,
+                import,
+                span,
+                "import",
+                &include_stability,
+            )?;
         }
 
         for export in include_world.exports.iter() {
-            self.resolve_include_item(names, &mut world.exports, export, span, "export")?;
+            self.resolve_include_item(
+                names,
+                &mut world.exports,
+                export,
+                span,
+                "export",
+                &include_stability,
+            )?;
         }
         Ok(())
     }
@@ -3481,6 +3504,7 @@ impl Remap {
         item: (&WorldKey, &WorldItem),
         span: Span,
         item_type: &str,
+        include_stability: &Stability,
     ) -> Result<()> {
         match item.0 {
             WorldKey::Name(n) => {
@@ -3502,20 +3526,23 @@ impl Remap {
                 }
             }
             key @ WorldKey::Interface(_) => {
-                let prev = items.entry(key.clone()).or_insert(item.1.clone());
+                let (prev, new) = match items.entry(key.clone()) {
+                    Entry::Occupied(entry) => (entry.into_mut(), false),
+                    Entry::Vacant(entry) => (entry.insert(item.1.clone()), true),
+                };
                 match (&item.1, prev) {
                     (
                         WorldItem::Interface {
                             id: aid,
-                            stability: astability,
+                            stability: _,
                         },
                         WorldItem::Interface {
                             id: bid,
-                            stability: bstability,
+                            stability: item_stability,
                         },
                     ) => {
                         assert_eq!(*aid, *bid);
-                        merge_stability(astability, bstability)?;
+                        merge_include_stability(include_stability, item_stability, new)?;
                     }
                     (WorldItem::Interface { .. }, _) => unreachable!(),
                     (WorldItem::Function(_), _) => unreachable!(),
@@ -3948,24 +3975,35 @@ fn update_stability(from: &Stability, into: &mut Stability) -> Result<()> {
     bail!("mismatch in stability from '{:?}' to '{:?}'", from, into)
 }
 
-/// Compares the two attributes and if the `from` is more stable than the `into` then
-/// it will elevate the `into` to the same stability.
-/// This should be used after its already been confirmed that the types are the same and
-/// should be apart of the component because versions/features are enabled.
-fn merge_stability(from: &Stability, into: &mut Stability) -> Result<()> {
+/// Merges the stability annotation from an `include`` statement into target included items.
+///
+/// the `includes` stability takes precedent since we can't use another packages stability.
+/// The behavior depends on whether the item is newly added to the world or was already added via another include (or already existed).  
+/// If it was already added then we only update to the greater stability.
+fn merge_include_stability(
+    include_stability: &Stability,
+    item_stability: &mut Stability,
+    is_new: bool,
+) -> Result<()> {
     // If the two stability annotations are equal then
     // there's nothing to do here.
-    if from == into {
+    if include_stability == item_stability {
         return Ok(());
     }
 
-    // if the from is more stable elevate stability of into
-    if from > into {
-        *into = from.clone();
+    // if this is the first time the item is added then we want to forcefully override with the include stability
+    if is_new {
+        *item_stability = include_stability.clone();
         return Ok(());
     }
 
-    // otherwise `into`` already has higher stability
+    // if it is already in the world then it got the include_stability from the previous include
+    // update only if this include stability is higher
+    if include_stability > item_stability {
+        *item_stability = include_stability.clone();
+        return Ok(());
+    }
+
     return Ok(());
 }
 

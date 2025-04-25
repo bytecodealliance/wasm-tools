@@ -76,17 +76,29 @@
         },
         "interface-0": {
           "interface": {
-            "id": 0,
-            "stability": {
-              "unstable": {
-                "feature": "active"
-              }
-            }
+            "id": 0
           }
         }
       },
       "exports": {},
       "package": 3,
+      "stability": {
+        "stable": {
+          "since": "0.2.0"
+        }
+      }
+    },
+    {
+      "name": "imports",
+      "imports": {
+        "interface-3": {
+          "interface": {
+            "id": 3
+          }
+        }
+      },
+      "exports": {},
+      "package": 4,
       "stability": {
         "stable": {
           "since": "0.2.0"
@@ -133,11 +145,11 @@
           "type": 4
         },
         "unstable-resource": {
-          "type": 5
+          "type": 6
         }
       },
       "exports": {},
-      "package": 4,
+      "package": 5,
       "stability": {
         "unstable": {
           "feature": "active"
@@ -151,8 +163,8 @@
           "interface": {
             "id": 2,
             "stability": {
-              "stable": {
-                "since": "0.2.0"
+              "unstable": {
+                "feature": "active"
               }
             }
           }
@@ -184,21 +196,99 @@
           "type": 4
         },
         "unstable-resource": {
-          "type": 5
+          "type": 6
+        },
+        "interface-3": {
+          "interface": {
+            "id": 3
+          }
         }
       },
       "exports": {},
-      "package": 5
+      "package": 6
     },
     {
       "name": "test-ordered",
+      "imports": {
+        "interface-3": {
+          "interface": {
+            "id": 3
+          }
+        },
+        "interface-2": {
+          "interface": {
+            "id": 2,
+            "stability": {
+              "unstable": {
+                "feature": "active"
+              }
+            }
+          }
+        },
+        "interface-1": {
+          "interface": {
+            "id": 1,
+            "stability": {
+              "unstable": {
+                "feature": "active"
+              }
+            }
+          }
+        },
+        "interface-0": {
+          "interface": {
+            "id": 0,
+            "stability": {
+              "unstable": {
+                "feature": "active"
+              }
+            }
+          }
+        },
+        "stable-resource": {
+          "type": 4
+        },
+        "unversioned-resource": {
+          "type": 5
+        },
+        "unstable-resource": {
+          "type": 6
+        }
+      },
+      "exports": {},
+      "package": 6
+    },
+    {
+      "name": "test-onlystable",
+      "imports": {
+        "interface-2": {
+          "interface": {
+            "id": 2
+          }
+        },
+        "interface-1": {
+          "interface": {
+            "id": 1
+          }
+        },
+        "interface-0": {
+          "interface": {
+            "id": 0
+          }
+        }
+      },
+      "exports": {},
+      "package": 6
+    },
+    {
+      "name": "test-onlystable-with-feature",
       "imports": {
         "interface-2": {
           "interface": {
             "id": 2,
             "stability": {
-              "stable": {
-                "since": "0.2.0"
+              "unstable": {
+                "feature": "active"
               }
             }
           }
@@ -222,19 +312,10 @@
               }
             }
           }
-        },
-        "stable-resource": {
-          "type": 3
-        },
-        "unversioned-resource": {
-          "type": 4
-        },
-        "unstable-resource": {
-          "type": 5
         }
       },
       "exports": {},
-      "package": 5
+      "package": 6
     }
   ],
   "interfaces": [
@@ -267,10 +348,23 @@
       "functions": {},
       "stability": {
         "stable": {
-          "since": "0.2.1"
+          "since": "0.2.0"
         }
       },
       "package": 2
+    },
+    {
+      "name": "someother",
+      "types": {
+        "someother-resource": 3
+      },
+      "functions": {},
+      "stability": {
+        "stable": {
+          "since": "0.2.0"
+        }
+      },
+      "package": 4
     }
   ],
   "types": [
@@ -301,12 +395,24 @@
       }
     },
     {
+      "name": "someother-resource",
+      "kind": "resource",
+      "owner": {
+        "interface": 3
+      },
+      "stability": {
+        "stable": {
+          "since": "0.2.0"
+        }
+      }
+    },
+    {
       "name": "stable-resource",
       "kind": {
         "type": 2
       },
       "owner": {
-        "world": 4
+        "world": 5
       },
       "stability": {
         "unstable": {
@@ -320,7 +426,7 @@
         "type": 1
       },
       "owner": {
-        "world": 4
+        "world": 5
       },
       "stability": {
         "unstable": {
@@ -334,7 +440,7 @@
         "type": 0
       },
       "owner": {
-        "world": 4
+        "world": 5
       },
       "stability": {
         "unstable": {
@@ -379,18 +485,29 @@
       }
     },
     {
+      "name": "wasi:someother@0.2.3",
+      "interfaces": {
+        "someother": 3
+      },
+      "worlds": {
+        "imports": 4
+      }
+    },
+    {
       "name": "wasi:unstable@0.2.3",
       "interfaces": {},
       "worlds": {
-        "imports": 4
+        "imports": 5
       }
     },
     {
       "name": "wasmtime:test",
       "interfaces": {},
       "worlds": {
-        "test": 5,
-        "test-ordered": 6
+        "test": 6,
+        "test-ordered": 7,
+        "test-onlystable": 8,
+        "test-onlystable-with-feature": 9
       }
     }
   ]
