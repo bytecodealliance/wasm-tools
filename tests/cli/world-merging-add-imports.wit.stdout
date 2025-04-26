@@ -4,8 +4,8 @@ world root {
   import a:b/b;
   import a: interface {
   }
-  import c: func() -> t;
   use a:b/b.{t};
+  import c: func() -> t;
 }
 package a:b {
   interface b {
@@ -17,7 +17,7 @@ package a:b {
     import b;
     import a: interface {
     }
-    import c: func() -> t;
     use b.{t};
+    import c: func() -> t;
   }
 }

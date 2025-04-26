@@ -75,11 +75,11 @@ world fail1 {
 }
 world trim-imports {
   import a;
-  import foo: func();
   import bar: interface {
   }
 
   type t = u32;
+  import foo: func();
 
   export b;
 }
@@ -90,8 +90,8 @@ world tricky-import {
   export f: func() -> t;
 }
 world simple-toplevel-importized {
-  import foo: func();
   import something: interface {
     foo: func();
   }
+  import foo: func();
 }

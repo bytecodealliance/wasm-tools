@@ -71,30 +71,8 @@ pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentTyp
     let world = &resolve.worlds[world_id];
     log::trace!("encoding world {}", world.name);
 
-    // This sort is similar in purpose to the sort below in
-    // `encode_instance`, but different in its sort. The purpose here is
-    // to ensure that when a document is either printed as WIT or
-    // encoded as wasm that decoding from those artifacts produces the
-    // same WIT package. Namely both encoding processes should encode
-    // things in the same order.
-    //
-    // When printing worlds in WIT freestanding function imports are
-    // printed first, then types. Resource functions are attached to
-    // types which means that they all come last. Sort all
-    // resource-related functions here to the back of the `imports` list
-    // while keeping everything else in front, using a stable sort to
-    // preserve preexisting ordering.
-    let mut imports = world.imports.iter().collect::<Vec<_>>();
-    imports.sort_by_key(|(_name, import)| match import {
-        WorldItem::Function(f) => match f.kind {
-            FunctionKind::Freestanding | FunctionKind::AsyncFreestanding => 0,
-            _ => 1,
-        },
-        _ => 0,
-    });
-
     // Encode the imports
-    for (name, import) in imports {
+    for (name, import) in world.imports.iter() {
         let name = resolve.name_world_key(name);
         log::trace!("encoding import {name}");
         let ty = match import {
