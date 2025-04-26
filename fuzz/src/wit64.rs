@@ -118,3 +118,8 @@ fn write_file(path: &str, contents: impl AsRef<[u8]>) {
         std::fs::write(path, wasmprinter::print_bytes(&contents).unwrap()).unwrap();
     }
 }
+
+#[test]
+fn smoke() {
+    super::test::test_n_times(100, run);
+}

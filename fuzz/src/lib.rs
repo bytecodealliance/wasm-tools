@@ -105,3 +105,39 @@ pub fn log_wasm(wasm: &[u8], config: impl Debug) {
         drop(std::fs::remove_file(&wat_file));
     }
 }
+#[cfg(test)]
+mod test {
+    use arbitrary::{Result, Unstructured};
+    use rand::{rngs::SmallRng, RngCore, SeedableRng};
+
+    fn gen_until_pass(mut f: impl FnMut(&mut Unstructured<'_>) -> Result<bool>) -> bool {
+        let mut rng = SmallRng::seed_from_u64(0);
+        let mut buf = vec![0; 2048];
+        let n = 3000;
+        for _ in 0..n {
+            rng.fill_bytes(&mut buf);
+            let mut u = Unstructured::new(&buf);
+
+            if f(&mut u).unwrap() {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Runs `f` with random data until it returns `Ok(())` `iters` times.
+    pub fn test_n_times(
+        iters: u32,
+        mut f: impl FnMut(&mut Unstructured<'_>) -> arbitrary::Result<()>,
+    ) {
+        let mut to_test = 0..iters;
+        let ok = gen_until_pass(|b| {
+            if f(b).is_ok() {
+                Ok(to_test.next().is_none())
+            } else {
+                Ok(false)
+            }
+        });
+        assert!(ok);
+    }
+}

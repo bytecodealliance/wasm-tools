@@ -109,3 +109,8 @@ fn validate_all(u: &mut Unstructured<'_>, mut validator: Validator, wasm: &[u8])
 
     Ok(())
 }
+
+#[test]
+fn smoke() {
+    super::test::test_n_times(100, run);
+}

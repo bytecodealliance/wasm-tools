@@ -188,3 +188,8 @@ impl Reencode for RemoveImports<'_, '_> {
         }
     }
 }
+
+#[test]
+fn smoke() {
+    super::test::test_n_times(100, run);
+}

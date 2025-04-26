@@ -122,3 +122,8 @@ fn validate_module(wasm_bytes: &Vec<u8>) {
         panic!("Invalid module: {e}");
     }
 }
+
+#[test]
+fn smoke() {
+    super::test::test_n_times(100, run);
+}

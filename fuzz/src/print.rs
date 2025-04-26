@@ -13,3 +13,8 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     let _ = cfg.print(&data, &mut wasmprinter::PrintFmtWrite(&mut dst));
     Ok(())
 }
+
+#[test]
+fn smoke() {
+    super::test::test_n_times(100, run);
+}
