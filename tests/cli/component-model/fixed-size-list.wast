@@ -52,3 +52,28 @@
   )
   "invalid u32 number: constant out of range"
 )
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (list s32 10))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (list u32 9))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "type mismatch for import `x`")
+
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (list s32 10))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (list u32))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "type mismatch for import `x`")

@@ -26,6 +26,20 @@
       "filename": "fixed-size-list.3.wat",
       "module_type": "text",
       "text": "invalid u32 number: constant out of range"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 57,
+      "filename": "fixed-size-list.4.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for import `x`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 70,
+      "filename": "fixed-size-list.5.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for import `x`"
     }
   ]
 }
