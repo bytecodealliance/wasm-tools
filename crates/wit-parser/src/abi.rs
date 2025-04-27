@@ -133,6 +133,9 @@ pub enum AbiVariant {
 }
 
 impl Resolve {
+    const MAX_FLAT_PARAMS: usize = 16;
+    const MAX_FLAT_RESULTS: usize = 1;
+
     /// Get the WebAssembly type signature for this interface function
     ///
     /// The first entry returned is the list of parameters and the second entry
@@ -147,16 +150,13 @@ impl Resolve {
             };
         }
 
-        const MAX_FLAT_PARAMS: usize = 16;
-        const MAX_FLAT_RESULTS: usize = 1;
-
         let mut params = Vec::new();
         let mut indirect_params = false;
         for (_, param) in func.params.iter() {
             self.push_flat(param, &mut params);
         }
 
-        if params.len() > MAX_FLAT_PARAMS {
+        if params.len() > Self::MAX_FLAT_PARAMS {
             params.truncate(0);
             params.push(WasmType::Pointer);
             indirect_params = true;
@@ -212,7 +212,7 @@ impl Resolve {
         // would have multiple results then instead truncate it. Imports take a
         // return pointer to write into and exports return a pointer they wrote
         // into.
-        if results.len() > MAX_FLAT_RESULTS {
+        if results.len() > Self::MAX_FLAT_RESULTS {
             retptr = true;
             results.truncate(0);
             match variant {
@@ -289,7 +289,10 @@ impl Resolve {
                 }
 
                 TypeDefKind::FixedSizeList(ty, size) => {
-                    for _ in 0..*size {
+                    for _ in 0..usize::try_from(*size)
+                        .unwrap_or(Self::MAX_FLAT_PARAMS)
+                        .min(Self::MAX_FLAT_PARAMS)
+                    {
                         self.push_flat(ty, result);
                     }
                 }

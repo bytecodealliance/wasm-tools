@@ -1177,7 +1177,10 @@ impl ComponentDefinedType {
             ),
             Self::List(_) => lowered_types.push(ValType::I32) && lowered_types.push(ValType::I32),
             Self::FixedSizeList(ty, length) => {
-                (0..(*length).min(8192)).all(|_n| ty.push_wasm_types(types, lowered_types))
+                if *length as usize > lowered_types.max {
+                    return false;
+                }
+                (0..*length).all(|_n| ty.push_wasm_types(types, lowered_types))
             }
             Self::Tuple(t) => t
                 .types
