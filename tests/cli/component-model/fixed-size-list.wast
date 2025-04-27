@@ -23,18 +23,32 @@
   )
 )
 
-;; no easy way to check for an invalid u32?
-;;(assert_invalid
-;;  (component
-;;    (core module $m
-;;      (memory (export "memory") 1)
-;;      (func (export "ret-list") (result i32) unreachable)
-;;    )
-;;    (core instance $i (instantiate $m))
-;;
-;;    (func (export "ret-list") (result (list u32 10000000000))
-;;      (canon lift (core func $i "ret-list") (memory $i "memory"))
-;;    )
-;;  )
-;;  "invalid u32 number: constant out of range"
-;;)
+(assert_invalid
+  (component
+    (core module $m
+      (memory (export "memory") 1)
+      (func (export "ret-list") (result i32) unreachable)
+    )
+    (core instance $i (instantiate $m))
+
+    (func (export "ret-list") (result (list u32 0))
+      (canon lift (core func $i "ret-list") (memory $i "memory"))
+    )
+  )
+  "Fixed size lists must have more than zero elements (at offset 0x54)"
+)
+
+(assert_malformed
+  (component quote
+    "(core module $m"
+      "(memory (export \"memory\") 1)"
+      "(func (export \"ret-list\") (result i32) unreachable)"
+    ")"
+    "(core instance $i (instantiate $m))"
+
+    "(func (export \"ret-list\") (result (list u32 10000000000))"
+      "(canon lift (core func $i \"ret-list\") (memory $i \"memory\"))"
+    ")"
+  )
+  "invalid u32 number: constant out of range"
+)
