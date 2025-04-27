@@ -547,8 +547,11 @@ impl<'a> Resolver<'a> {
                     }
                 }
             }
-            ComponentDefinedType::List(List{element: t}) 
-            | ComponentDefinedType::FixedSizeList(FixedSizeList{element: t, elements :_}) => {
+            ComponentDefinedType::List(List { element: t })
+            | ComponentDefinedType::FixedSizeList(FixedSizeList {
+                element: t,
+                elements: _,
+            }) => {
                 self.component_val_type(t)?;
             }
             ComponentDefinedType::Tuple(t) => {

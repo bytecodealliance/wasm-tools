@@ -601,9 +601,12 @@ fn parse_list<'a>(parser: Parser<'a>) -> Result<ComponentDefinedType<'a>> {
     let tp = parser.parse()?;
     let elements = parser.parse::<Option<u32>>()?;
     if let Some(elements) = elements {
-        Ok(ComponentDefinedType::FixedSizeList(FixedSizeList { element: Box::new(tp), elements }))
+        Ok(ComponentDefinedType::FixedSizeList(FixedSizeList {
+            element: Box::new(tp),
+            elements,
+        }))
     } else {
-        Ok(ComponentDefinedType::List(List{
+        Ok(ComponentDefinedType::List(List {
             element: Box::new(tp),
         }))
     }

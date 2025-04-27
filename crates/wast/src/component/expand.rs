@@ -532,8 +532,11 @@ impl<'a> Expander<'a> {
                     }
                 }
             }
-            ComponentDefinedType::List(List{element: t}) 
-            | ComponentDefinedType::FixedSizeList(FixedSizeList{element: t, elements :_}) => {
+            ComponentDefinedType::List(List { element: t })
+            | ComponentDefinedType::FixedSizeList(FixedSizeList {
+                element: t,
+                elements: _,
+            }) => {
                 self.expand_component_val_ty(t);
             }
             ComponentDefinedType::Tuple(t) => {
