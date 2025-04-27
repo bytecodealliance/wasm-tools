@@ -109,8 +109,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
                 let push_count = self.validator.pop_push_count.1 - pop_push_snapshot.1;
 
                 if pop_count != params || push_count != results {
-                    panic!("arity mismatch in validation. Expecting {} operands popped, {} pushed, but got {} popped, {} pushed.",
-                           params, results, pop_count, push_count);
+                    panic!("arity mismatch in validation. Expecting {params} operands popped, {results} pushed, but got {pop_count} popped, {push_count} pushed.");
                 }
             }
         }

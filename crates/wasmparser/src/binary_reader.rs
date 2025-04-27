@@ -175,7 +175,7 @@ impl<'a> BinaryReader<'a> {
     ///
     /// The `features` argument provided controls which WebAssembly features are
     /// active when parsing this data. Wasm features typically don't affect
-    /// parsing too too much and are generally more applicable during
+    /// parsing too much and are generally more applicable during
     /// validation, but features and proposals will often reinterpret
     /// previously-invalid constructs as now-valid things meaning something
     /// slightly different. This means that invalid bytes before a feature may

@@ -80,6 +80,7 @@ impl OperatorsReader<'_> {
 
 /// The operator_arity macro interprets the annotations in the for_each_operator macro
 /// to compute the arity of each operator. It needs access to a ModuleArity implementation.
+#[cfg_attr(not(feature = "simd"), allow(unused_macro_rules))]
 macro_rules! operator_arity {
     (arity $self:ident $({ $($arg:ident: $argty:ty),* })? arity $($ann:tt)*) => {
 	{
@@ -200,6 +201,12 @@ macro_rules! operator_arity {
 	operator_arity!(count $self { relative_depth: u32 } br)
     }};
 
+    (count $self:ident { $select_tys:ident: $($_:tt)* } select) => {{
+        operator_arity!(select_tys $select_tys);
+	let result_count = $select_tys.len();
+	Some((1 + 2 * result_count, result_count))
+    }};
+
     (tag_index tag_index $($_:tt)*) => {};
     (func_index function_index $($_:tt)*) => {};
     (type_index type_index $($_:tt)*) => {};
@@ -212,6 +219,7 @@ macro_rules! operator_arity {
     (blockty blockty $($_:tt)*) => {};
     (try_table try_table $($_:tt)*) => {};
     (br_table targets $($_:tt)*) => {};
+    (select_tys tys $($_:tt)*) => {};
 
     (fixed load lane $($_:tt)*)        => {(2, 1)};
     (fixed load $($_:tt)*)             => {(1, 1)};

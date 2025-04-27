@@ -1117,7 +1117,7 @@ impl<'a> Resolver<'a> {
             AstItem::World(_) => {
                 bail!(Error::new(
                     span,
-                    format!("name `{}` is defined as a world, not an interface", name),
+                    format!("name `{name}` is defined as a world, not an interface"),
                 ))
             }
         }
@@ -1129,7 +1129,7 @@ impl<'a> Resolver<'a> {
             AstItem::Interface(_) => {
                 bail!(Error::new(
                     span,
-                    format!("name `{}` is defined as an interface, not a world", name),
+                    format!("name `{name}` is defined as an interface, not a world"),
                 ))
             }
         }

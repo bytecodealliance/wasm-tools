@@ -1527,7 +1527,7 @@ impl<'a> EncodingState<'a> {
                 // For import modules that are a "bag of names" iterate over
                 // each name and materialize it into this component with the
                 // `materialize_import` helper. This is then all bottled up into
-                // a bag-of-exports instances which is then used for
+                // a bag-of-exports instance which is then used for
                 // instantiation.
                 ImportInstance::Names(names) => {
                     let mut exports = Vec::new();
@@ -1586,7 +1586,7 @@ impl<'a> EncodingState<'a> {
                 ))
             }
 
-            // Adapters might uset he main module's memory, in which case it
+            // Adapters might use the main module's memory, in which case it
             // should have been previously instantiated.
             Import::MainModuleMemory => {
                 let index = self
@@ -2682,7 +2682,7 @@ pub struct ComponentEncoder {
 impl ComponentEncoder {
     /// Set the core module to encode as a component.
     /// This method will also parse any component type information stored in custom sections
-    /// inside the module, and add them as the interface, imports, and exports.
+    /// inside the module and add them as the interface, imports, and exports.
     /// It will also add any producers information inside the component type information to the
     /// core module.
     pub fn module(mut self, module: &[u8]) -> Result<Self> {

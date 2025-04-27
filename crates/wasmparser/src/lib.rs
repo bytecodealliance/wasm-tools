@@ -331,6 +331,8 @@ macro_rules! _for_each_operator_group {
             // https://github.com/WebAssembly/reference-types
             @reference_types {
                 TypedSelect { ty: $crate::ValType } => visit_typed_select (arity 3 -> 1)
+                // multi-result select is currently invalid, but can be parsed and printed
+                TypedSelectMulti { tys: Vec<$crate::ValType> } => visit_typed_select_multi (arity select -> select)
                 RefNull { hty: $crate::HeapType } => visit_ref_null (arity 0 -> 1)
                 RefIsNull => visit_ref_is_null (arity 1 -> 1)
                 RefFunc { function_index: u32 } => visit_ref_func (arity 0 -> 1)
@@ -1187,7 +1189,7 @@ pub use _for_each_operator_impl as for_each_operator;
 ///     }
 /// }
 /// # // to get this example to compile another macro is used here to define
-/// # // visit methods for all mvp oeprators.
+/// # // visit methods for all mvp operators.
 /// # macro_rules! visit_mvp {
 /// #     ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
 /// #         $(

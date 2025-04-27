@@ -46,6 +46,24 @@ members = [
 
 [workspace.lints.rust]
 unsafe_code = "deny"
+# Turn on some lints which are otherwise allow-by-default in rustc.
+unused_extern_crates = 'warn'
+unstable_features = 'warn'
+unused_import_braces = 'warn'
+unused-lifetimes = 'warn'
+unused-macro-rules = 'warn'
+
+# Lints that are part of the `rust-2024-compatibility` group. This group is a
+# bit too noisy to enable wholesale but some selective items are ones we want to
+# opt-in to.
+keyword_idents_2024 = 'warn'
+unsafe-attr-outside-unsafe = 'warn'
+deprecated-safe-2024 = 'warn'
+rust-2024-guarded-string-incompatible-syntax = 'warn'
+rust-2024-prelude-collisions = 'warn'
+rust-2024-incompatible-pat = 'warn'
+missing-unsafe-on-extern = 'warn'
+unsafe-op-in-unsafe-fn = 'warn'
 
 [workspace.lints.clippy]
 # The default set of lints in Clippy is viewed as "too noisy" right now so
@@ -56,6 +74,11 @@ clone_on_copy = 'warn'
 map_clone = 'warn'
 unnecessary_to_owned = 'warn'
 manual_strip = 'warn'
+uninlined_format_args = 'warn'
+unnecessary_mut_passed = 'warn'
+unnecessary_fallible_conversions = 'warn'
+unnecessary_cast = 'warn'
+allow_attributes_without_reason = 'warn'
 
 [workspace.package]
 edition = '2021'

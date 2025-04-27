@@ -26,7 +26,7 @@ pub enum wasm_tools_error {
 }
 use wasm_tools_error::*;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn wasm_tools_byte_vec_delete(bytes: &mut wasm_tools_byte_vec_t) {
     unsafe {
         Vec::from_raw_parts(bytes.data, bytes.size, bytes.size);
@@ -38,7 +38,7 @@ pub extern "C" fn wasm_tools_byte_vec_delete(bytes: &mut wasm_tools_byte_vec_t) 
 /// # Safety
 ///
 /// `seed` must be a valid pointer to `seed_len` bytes of memory.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn wasm_smith_create(
     seed: *const u8,
     seed_len: usize,

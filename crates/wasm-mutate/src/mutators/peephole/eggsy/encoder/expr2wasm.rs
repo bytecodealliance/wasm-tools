@@ -116,8 +116,8 @@ pub fn expr2wasm(
                     Lang::I64Load32S(memarg, _) => insn.i64_load32_s(memarg.into()),
                     Lang::RandI32 => insn.i32_const(config.rng().r#gen()),
                     Lang::RandI64 => insn.i64_const(config.rng().r#gen()),
-                    Lang::RandF32 => insn.f32_const(f32::from_bits(config.rng().r#gen())),
-                    Lang::RandF64 => insn.f64_const(f64::from_bits(config.rng().r#gen())),
+                    Lang::RandF32 => insn.f32_const(f32::from_bits(config.rng().r#gen()).into()),
+                    Lang::RandF64 => insn.f64_const(f64::from_bits(config.rng().r#gen()).into()),
                     Lang::Undef => {
                         // Do nothing
                         insn
@@ -130,13 +130,12 @@ pub fn expr2wasm(
 
                                 let r: i32 = config.rng().r#gen();
                                 insn.i32_const(r);
-                                insn.i32_const((Wrapping(*value as i32) - Wrapping(r)).0);
+                                insn.i32_const((Wrapping(*value) - Wrapping(r)).0);
                                 insn.i32_add();
                             }
                             _ => {
                                 return Err(Error::other(format!(
-                                    "The current eterm cannot be unfolded {:?}.\n expr {}",
-                                    child, expr
+                                    "The current eterm cannot be unfolded {child:?}.\n expr {expr}"
                                 )));
                             }
                         }
@@ -155,8 +154,7 @@ pub fn expr2wasm(
                             }
                             _ => {
                                 return Err(Error::other(format!(
-                                    "The current eterm cannot be unfolded {:?}.\n expr {}",
-                                    child, expr
+                                    "The current eterm cannot be unfolded {child:?}.\n expr {expr}"
                                 )))
                             }
                         }
@@ -164,8 +162,8 @@ pub fn expr2wasm(
                     }
                     Lang::I32(v) => insn.i32_const(*v),
                     Lang::I64(v) => insn.i64_const(*v),
-                    Lang::F32(v) => insn.f32_const(v.to_f32()),
-                    Lang::F64(v) => insn.f64_const(v.to_f64()),
+                    Lang::F32(v) => insn.f32_const(v.to_f32().into()),
+                    Lang::F64(v) => insn.f64_const(v.to_f64().into()),
                     Lang::V128(v) => insn.v128_const(*v),
                     Lang::I32Add(_) => insn.i32_add(),
                     Lang::I64Add(_) => insn.i64_add(),

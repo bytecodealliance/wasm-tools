@@ -53,10 +53,10 @@ impl Mutator for AddFunctionMutator {
                     func.instructions().i64_const(0);
                 }
                 PrimitiveTypeInfo::F32 => {
-                    func.instructions().f32_const(0.0);
+                    func.instructions().f32_const(0.0.into());
                 }
                 PrimitiveTypeInfo::F64 => {
-                    func.instructions().f64_const(0.0);
+                    func.instructions().f64_const(0.0.into());
                 }
                 PrimitiveTypeInfo::V128 => {
                     func.instructions().v128_const(0);

@@ -947,7 +947,7 @@ fn resolve_symbols<'a>(
 
 /// Recursively add a library (represented by its offset) and its dependency to the specified set, maintaining
 /// topological order (modulo cycles).
-fn topo_add<'a>(
+fn topo_add(
     sorted: &mut IndexSet<usize>,
     dependencies: &IndexMap<usize, IndexSet<usize>>,
     element: usize,

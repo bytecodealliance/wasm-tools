@@ -162,20 +162,6 @@ impl Encode for i64 {
     }
 }
 
-impl Encode for f32 {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        let bits = self.to_bits();
-        sink.extend(bits.to_le_bytes())
-    }
-}
-
-impl Encode for f64 {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        let bits = self.to_bits();
-        sink.extend(bits.to_le_bytes())
-    }
-}
-
 fn encode_vec<T, V>(elements: V, sink: &mut Vec<u8>)
 where
     T: Encode,

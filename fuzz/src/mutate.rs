@@ -63,7 +63,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
             Ok(w) => w,
             Err(e) => match e.kind() {
                 wasm_mutate::ErrorKind::NoMutationsApplicable => continue,
-                _ => panic!("Unexpected mutation failure: {}", e),
+                _ => panic!("Unexpected mutation failure: {e}"),
             },
         };
 

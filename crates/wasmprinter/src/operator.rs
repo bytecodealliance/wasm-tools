@@ -32,6 +32,7 @@ pub struct PrintOperator<'printer, 'state, 'a, 'b> {
     pub(super) printer: &'printer mut Printer<'a, 'b>,
     state: &'state mut State,
     operator_state: &'printer mut OperatorState,
+    suppress_label_comments: bool,
 }
 
 struct FoldedInstruction {
@@ -55,6 +56,7 @@ pub struct PrintOperatorFolded<'printer, 'state, 'a, 'b> {
     pub(super) printer: &'printer mut Printer<'a, 'b>,
     state: &'state mut State,
     operator_state: &'printer mut OperatorState,
+    suppress_label_comments: bool,
     control: Vec<Block>,
     branch_hint: Option<FoldedInstruction>,
     original_separator: OperatorSeparator,
@@ -78,6 +80,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
             printer,
             state,
             operator_state,
+            suppress_label_comments: false,
         }
     }
 
@@ -171,11 +174,11 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
     }
 
     fn maybe_blockty_label_comment(&mut self, has_name: bool) -> Result<()> {
-        if !has_name {
+        if !has_name && !self.suppress_label_comments {
             let depth = self.cur_depth();
             self.push_str(" ")?;
             self.result().start_comment()?;
-            write!(self.result(), ";; label = @{}", depth)?;
+            write!(self.result(), ";; label = @{depth}")?;
             self.result().reset_color()?;
         }
 
@@ -291,7 +294,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
     fn local_index(&mut self, idx: u32) -> Result<()> {
         self.push_str(" ")?;
         self.printer
-            .print_local_idx(self.state, self.state.core.funcs as u32, idx)
+            .print_local_idx(self.state, self.state.core.funcs, idx)
     }
 
     fn global_index(&mut self, idx: u32) -> Result<()> {
@@ -406,11 +409,8 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
             write!(self.result(), " offset={}", memarg.offset)?;
         }
         if memarg.align != memarg.max_align {
-            if memarg.align >= 32 {
-                bail!("alignment in memarg too large");
-            }
-            let align = 1 << memarg.align;
-            write!(self.result(), " align={}", align)?;
+            let align = 1_u64 << memarg.align;
+            write!(self.result(), " align={align}")?;
         }
         Ok(())
     }
@@ -560,10 +560,16 @@ macro_rules! define_visit {
         $self.push_str(" ")?;
         $self.printer.print_idx(&$self.state.core.type_names, $ty)?;
     );
-    (payload $self:ident TypedSelect $ty:ident) => (
+    (payload $self:ident TypedSelect $select_ty:ident) => (
         $self.push_str(" ")?;
         $self.printer.start_group("result ")?;
-        $self.printer.print_valtype($self.state, $ty)?;
+        $self.printer.print_valtype($self.state, $select_ty)?;
+        $self.printer.end_group()?;
+    );
+    (payload $self:ident TypedSelectMulti $select_tys:ident) => (
+        $self.push_str(" ")?;
+        $self.printer.start_group("result")?;
+        $self.printer.print_valtypes($self.state, $select_tys)?;
         $self.printer.end_group()?;
     );
     (payload $self:ident RefNull $hty:ident) => (
@@ -715,12 +721,6 @@ macro_rules! define_visit {
         $self.push_str(" ")?;
         $self.printer.print_field_idx($self.state, $ty, $field)?;
     );
-    (payload $self:ident StructAtomicSet $order:ident $ty:ident $field:ident) => (
-        $self.ordering($order)?;
-        $self.struct_type_index($ty)?;
-        $self.push_str(" ")?;
-        $self.printer.print_field_idx($self.state, $ty, $field)?;
-    );
     (payload $self:ident StructAtomicRmwAdd $order:ident $ty:ident $field:ident) => (
         $self.ordering($order)?;
         $self.struct_type_index($ty)?;
@@ -789,6 +789,7 @@ macro_rules! define_visit {
     (name Drop) => ("drop");
     (name Select) => ("select");
     (name TypedSelect) => ("select");
+    (name TypedSelectMulti) => ("select");
     (name LocalGet) => ("local.get");
     (name LocalSet) => ("local.set");
     (name LocalTee) => ("local.tee");
@@ -1405,6 +1406,7 @@ pub trait OpPrinter {
     fn branch_hint(&mut self, offset: usize, taken: bool) -> Result<()>;
     fn set_offset(&mut self, offset: usize);
     fn visit_operator(&mut self, reader: &mut OperatorsReader<'_>) -> Result<()>;
+    fn suppress_label_comments(&mut self);
 }
 
 impl OpPrinter for PrintOperator<'_, '_, '_, '_> {
@@ -1423,6 +1425,10 @@ impl OpPrinter for PrintOperator<'_, '_, '_, '_> {
 
     fn visit_operator(&mut self, reader: &mut OperatorsReader<'_>) -> Result<()> {
         reader.visit_operator(self)?
+    }
+
+    fn suppress_label_comments(&mut self) {
+        self.suppress_label_comments = true;
     }
 }
 
@@ -1444,11 +1450,13 @@ impl OpPrinter for PrintOperatorFolded<'_, '_, '_, '_> {
         self.operator_state.op_offset = offset;
     }
 
+    fn suppress_label_comments(&mut self) {
+        self.suppress_label_comments = true;
+    }
+
     fn visit_operator(&mut self, reader: &mut OperatorsReader<'_>) -> Result<()> {
         let operator = reader.clone().read()?;
-        let (params, results) = operator
-            .operator_arity(self)
-            .ok_or_else(|| anyhow::anyhow!("could not calculate operator arity"))?;
+        let (params, results) = operator.operator_arity(self).unwrap_or((0, 0));
         let use_color = self.printer.result.supports_async_color();
         let mut buf_color = PrintTermcolor(Ansi::new(Vec::new()));
         let mut buf_nocolor = PrintTermcolor(NoColor::new(Vec::new()));
@@ -1568,6 +1576,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperatorFolded<'printer, 'state, 'a, 'b> {
             printer,
             state,
             operator_state,
+            suppress_label_comments: false,
             control: Vec::new(),
             branch_hint: None,
             original_separator,

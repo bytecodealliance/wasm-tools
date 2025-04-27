@@ -979,20 +979,20 @@ impl fmt::Debug for RefType {
                 let name = ty.as_str(nullable);
                 match (nullable, shared) {
                     // Print the shortened form if nullable; i.e., `*ref`.
-                    (true, true) => write!(f, "(shared {}ref)", name),
-                    (true, false) => write!(f, "{}ref", name),
+                    (true, true) => write!(f, "(shared {name}ref)"),
+                    (true, false) => write!(f, "{name}ref"),
                     // Print the long form otherwise; i.e., `(ref *)`.
-                    (false, true) => write!(f, "(ref (shared {}))", name),
-                    (false, false) => write!(f, "(ref {})", name),
+                    (false, true) => write!(f, "(ref (shared {name}))"),
+                    (false, false) => write!(f, "(ref {name})"),
                 }
             }
             // Handle concrete types separately; they always use the long form
             // and don't show `shared`-ness.
             HeapType::Concrete(index) => {
                 if self.is_nullable() {
-                    write!(f, "(ref null {})", index)
+                    write!(f, "(ref null {index})")
                 } else {
-                    write!(f, "(ref {})", index)
+                    write!(f, "(ref {index})")
                 }
             }
         }

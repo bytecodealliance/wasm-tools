@@ -364,7 +364,7 @@ impl<'a> TypeEncoder<'a> {
                 EntityType::Function(idx)
             }
             wasmparser::types::EntityType::Table(ty) => EntityType::Table(ty.try_into().unwrap()),
-            wasmparser::types::EntityType::Memory(ty) => EntityType::Memory(ty.try_into().unwrap()),
+            wasmparser::types::EntityType::Memory(ty) => EntityType::Memory(ty.into()),
             wasmparser::types::EntityType::Global(ty) => EntityType::Global(ty.try_into().unwrap()),
             wasmparser::types::EntityType::Tag(id) => {
                 let ty = &self.0.types[id];

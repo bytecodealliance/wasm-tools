@@ -410,7 +410,7 @@ impl<'a> LinkingSectionReader<'a> {
         let version = reader.read_var_u32()?;
         if version != 2 {
             return Err(BinaryReaderError::new(
-                format!("unsupported linking section version: {}", version),
+                format!("unsupported linking section version: {version}"),
                 offset,
             ));
         }

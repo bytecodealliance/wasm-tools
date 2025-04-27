@@ -156,7 +156,14 @@ struct State {
     core: CoreState,
     #[cfg(feature = "component-model")]
     component: ComponentState,
-    custom_section_place: Option<&'static str>,
+    custom_section_place: Option<(&'static str, usize)>,
+    // `custom_section_place` stores the text representation of the location where
+    // a custom section should be serialized in the binary format.
+    // The tuple elements are a str (e.g. "after elem") and the line number
+    // where the custom section place was set. `update_custom_section_place` won't
+    // update the custom section place unless the line number changes; this prevents
+    // printing a place "after xxx" where the xxx section doesn't appear in the text format
+    // (e.g. because it was present but empty in the binary format).
 }
 
 impl State {
@@ -430,7 +437,8 @@ impl Printer<'_, '_> {
                     match encoding {
                         Encoding::Module => {
                             states.push(State::new(Encoding::Module));
-                            states.last_mut().unwrap().custom_section_place = Some("before first");
+                            states.last_mut().unwrap().custom_section_place =
+                                Some(("before first", self.line));
                             if states.len() > 1 {
                                 self.start_group("core module")?;
                             } else {
@@ -490,48 +498,58 @@ impl Printer<'_, '_> {
                         self.result
                             .print_custom_section(c.name(), c.data_offset(), c.data())?;
                     if printed {
+                        self.update_custom_section_line(&mut states);
                         continue;
                     }
 
                     // If this wasn't handled specifically above then try to
                     // print the known custom builtin sections. If this fails
-                    // because the custom section is malformed then don't fail
-                    // the whole print.
+                    // because the custom section is malformed then print the
+                    // raw contents instead.
                     let state = states.last().unwrap();
                     let start = self.nesting;
-                    let err = match self.print_custom_section(state, c.clone()) {
-                        Ok(()) => continue,
-                        Err(e) if !e.is::<BinaryReaderError>() => return Err(e),
-                        Err(e) => e,
-                    };
-
-                    // Restore the nesting level to what it was prior to
-                    // starting to print the custom section. Then emit a comment
-                    // indicating why the custom section failed to parse.
-                    //
-                    // This may leave broken syntax in the output module but
-                    // it's probably better than swallowing the error.
-                    while self.nesting > start {
-                        self.end_group()?;
+                    match c.as_known() {
+                        KnownCustom::Unknown => self.print_raw_custom_section(state, c.clone())?,
+                        _ => {
+                            match (Printer {
+                                config: self.config,
+                                result: &mut PrintFmtWrite(String::new()),
+                                nesting: 0,
+                                line: 0,
+                                group_lines: Vec::new(),
+                                code_section_hints: Vec::new(),
+                            })
+                            .print_known_custom_section(c.clone())
+                            {
+                                Ok(()) => self.print_known_custom_section(c.clone())?,
+                                Err(e) if !e.is::<BinaryReaderError>() => return Err(e),
+                                Err(e) => {
+                                    let msg = format!(
+                                        "failed to parse custom section `{}`: {e}",
+                                        c.name()
+                                    );
+                                    for line in msg.lines() {
+                                        self.newline(c.data_offset())?;
+                                        write!(self.result, ";; {line}")?;
+                                    }
+                                    self.print_raw_custom_section(state, c.clone())?
+                                }
+                            }
+                        }
                     }
-                    let msg = format!("failed to parse custom section `{}`: {err}", c.name());
-                    for line in msg.lines() {
-                        self.newline(c.data_offset())?;
-                        write!(self.result, ";; {line}")?;
-                    }
-                    self.newline(c.range().end)?;
+                    assert!(self.nesting == start);
+                    self.update_custom_section_line(&mut states);
                 }
                 Payload::TypeSection(s) => {
-                    self.update_custom_section_place(&mut states, "after type");
                     self.print_types(states.last_mut().unwrap(), s)?;
+                    self.update_custom_section_place(&mut states, "after type");
                 }
                 Payload::ImportSection(s) => {
-                    self.update_custom_section_place(&mut states, "after import");
                     Self::ensure_module(&states)?;
-                    self.print_imports(states.last_mut().unwrap(), s)?
+                    self.print_imports(states.last_mut().unwrap(), s)?;
+                    self.update_custom_section_place(&mut states, "after import");
                 }
                 Payload::FunctionSection(reader) => {
-                    self.update_custom_section_place(&mut states, "after func");
                     Self::ensure_module(&states)?;
                     if reader.count() > MAX_WASM_FUNCTIONS {
                         bail!(
@@ -543,60 +561,61 @@ impl Printer<'_, '_> {
                     for ty in reader {
                         states.last_mut().unwrap().core.func_to_type.push(Some(ty?))
                     }
+                    self.update_custom_section_place(&mut states, "after func");
                 }
                 Payload::TableSection(s) => {
-                    self.update_custom_section_place(&mut states, "after table");
                     Self::ensure_module(&states)?;
-                    self.print_tables(states.last_mut().unwrap(), s)?
+                    self.print_tables(states.last_mut().unwrap(), s)?;
+                    self.update_custom_section_place(&mut states, "after table");
                 }
                 Payload::MemorySection(s) => {
-                    self.update_custom_section_place(&mut states, "after memory");
                     Self::ensure_module(&states)?;
-                    self.print_memories(states.last_mut().unwrap(), s)?
+                    self.print_memories(states.last_mut().unwrap(), s)?;
+                    self.update_custom_section_place(&mut states, "after memory");
                 }
                 Payload::TagSection(s) => {
-                    self.update_custom_section_place(&mut states, "after tag");
                     Self::ensure_module(&states)?;
-                    self.print_tags(states.last_mut().unwrap(), s)?
+                    self.print_tags(states.last_mut().unwrap(), s)?;
+                    self.update_custom_section_place(&mut states, "after tag");
                 }
                 Payload::GlobalSection(s) => {
-                    self.update_custom_section_place(&mut states, "after global");
                     Self::ensure_module(&states)?;
-                    self.print_globals(states.last_mut().unwrap(), s)?
+                    self.print_globals(states.last_mut().unwrap(), s)?;
+                    self.update_custom_section_place(&mut states, "after global");
                 }
                 Payload::ExportSection(s) => {
-                    self.update_custom_section_place(&mut states, "after export");
                     Self::ensure_module(&states)?;
-                    self.print_exports(states.last().unwrap(), s)?
+                    self.print_exports(states.last().unwrap(), s)?;
+                    self.update_custom_section_place(&mut states, "after export");
                 }
                 Payload::StartSection { func, range } => {
-                    self.update_custom_section_place(&mut states, "after start");
                     Self::ensure_module(&states)?;
                     self.newline(range.start)?;
                     self.start_group("start ")?;
                     self.print_idx(&states.last().unwrap().core.func_names, func)?;
                     self.end_group()?;
+                    self.update_custom_section_place(&mut states, "after start");
                 }
                 Payload::ElementSection(s) => {
-                    self.update_custom_section_place(&mut states, "after element");
                     Self::ensure_module(&states)?;
                     self.print_elems(states.last_mut().unwrap(), s)?;
+                    self.update_custom_section_place(&mut states, "after elem");
                 }
                 Payload::CodeSectionStart { .. } => {
-                    self.update_custom_section_place(&mut states, "after code");
                     Self::ensure_module(&states)?;
                 }
                 Payload::CodeSectionEntry(body) => {
-                    self.print_code_section_entry(states.last_mut().unwrap(), &body)?
+                    self.print_code_section_entry(states.last_mut().unwrap(), &body)?;
+                    self.update_custom_section_place(&mut states, "after code");
                 }
                 Payload::DataCountSection { .. } => {
                     Self::ensure_module(&states)?;
                     // not part of the text format
                 }
                 Payload::DataSection(s) => {
-                    self.update_custom_section_place(&mut states, "after data");
                     Self::ensure_module(&states)?;
                     self.print_data(states.last_mut().unwrap(), s)?;
+                    self.update_custom_section_place(&mut states, "after data");
                 }
 
                 #[cfg(feature = "component-model")]
@@ -702,8 +721,19 @@ impl Printer<'_, '_> {
 
     fn update_custom_section_place(&self, states: &mut Vec<State>, place: &'static str) {
         if let Some(last) = states.last_mut() {
-            if let Some(prev) = &mut last.custom_section_place {
-                *prev = place;
+            if let Some((prev, prev_line)) = &mut last.custom_section_place {
+                if *prev_line != self.line {
+                    *prev = place;
+                    *prev_line = self.line;
+                }
+            }
+        }
+    }
+
+    fn update_custom_section_line(&self, states: &mut Vec<State>) {
+        if let Some(last) = states.last_mut() {
+            if let Some((_, prev_line)) = &mut last.custom_section_place {
+                *prev_line = self.line;
             }
         }
     }
@@ -1014,6 +1044,14 @@ impl Printer<'_, '_> {
         Ok(())
     }
 
+    fn print_valtypes(&mut self, state: &State, tys: Vec<ValType>) -> Result<()> {
+        for ty in tys {
+            self.result.write_str(" ")?;
+            self.print_valtype(state, ty)?;
+        }
+        Ok(())
+    }
+
     fn print_reftype(&mut self, state: &State, ty: RefType) -> Result<()> {
         if ty.is_nullable() {
             match ty.as_non_null() {
@@ -1201,9 +1239,9 @@ impl Printer<'_, '_> {
         T: fmt::Display,
     {
         self.result.start_literal()?;
-        write!(self.result, "{}", initial)?;
+        write!(self.result, "{initial}")?;
         if let Some(max) = maximum {
-            write!(self.result, " {}", max)?;
+            write!(self.result, " {max}")?;
         }
         self.result.reset_color()?;
         Ok(())
@@ -1501,6 +1539,10 @@ impl Printer<'_, '_> {
         Ok(())
     }
 
+    // Note: in the text format, modules can use identifiers that are defined anywhere, but
+    // components can only use previously-defined identifiers. In the binary format,
+    // invalid components can make forward references to an index that appears in the name section;
+    // these can be printed but the output won't parse.
     fn print_idx<K>(&mut self, names: &NamingMap<u32, K>, idx: u32) -> Result<()>
     where
         K: NamingNamespace,
@@ -1524,7 +1566,7 @@ impl Printer<'_, '_> {
         match state.core.local_names.index_to_name.get(&(func, idx)) {
             Some(name) => name.write_identifier(self)?,
             None if self.config.name_unnamed => write!(self.result, "$#local{idx}")?,
-            None => write!(self.result, "{}", idx)?,
+            None => write!(self.result, "{idx}")?,
         }
         self.result.reset_color()?;
         Ok(())
@@ -1535,7 +1577,7 @@ impl Printer<'_, '_> {
         match state.core.field_names.index_to_name.get(&(ty, idx)) {
             Some(name) => name.write_identifier(self)?,
             None if self.config.name_unnamed => write!(self.result, "$#field{idx}")?,
-            None => write!(self.result, "{}", idx)?,
+            None => write!(self.result, "{idx}")?,
         }
         self.result.reset_color()?;
         Ok(())
@@ -1688,6 +1730,7 @@ impl Printer<'_, '_> {
             folded_printer.finalize()?;
         } else {
             let mut op_printer = PrintOperator::new(self, state, &mut operator_state);
+            op_printer.suppress_label_comments();
             Self::print_operators(&mut reader, &[], 0, &mut op_printer)?;
         }
 
@@ -1735,11 +1778,7 @@ impl Printer<'_, '_> {
         Ok(())
     }
 
-    fn print_custom_section(
-        &mut self,
-        state: &State,
-        section: CustomSectionReader<'_>,
-    ) -> Result<()> {
+    fn print_known_custom_section(&mut self, section: CustomSectionReader<'_>) -> Result<()> {
         match section.as_known() {
             // For now `wasmprinter` has invented syntax for `producers` and
             // `dylink.0` below to use in tests. Note that this syntax is not
@@ -1759,10 +1798,9 @@ impl Printer<'_, '_> {
             #[cfg(feature = "component-model")]
             KnownCustom::ComponentName(_) => Ok(()),
 
-            // Custom sections without a text format at this time and unknown
-            // custom sections get a `@custom` annotation printed.
-            _ => self.print_raw_custom_section(state, section),
-        }
+            _ => bail!("unknown custom section"),
+        }?;
+        Ok(())
     }
 
     fn print_raw_custom_section(
@@ -1773,7 +1811,7 @@ impl Printer<'_, '_> {
         self.newline(section.range().start)?;
         self.start_group("@custom ")?;
         self.print_str(section.name())?;
-        if let Some(place) = state.custom_section_place {
+        if let Some((place, _)) = state.custom_section_place {
             write!(self.result, " ({place})")?;
         }
         self.result.write_str(" ")?;
@@ -1894,7 +1932,7 @@ impl Printer<'_, '_> {
             ABSOLUTE = "absolute"
         }
         if !flags.is_empty() {
-            write!(self.result, " {:#x}", flags)?;
+            write!(self.result, " {flags:#x}")?;
         }
         Ok(())
     }

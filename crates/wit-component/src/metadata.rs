@@ -33,12 +33,12 @@
 //!
 //! This means that the top-level `encode` function takes a `Resolve`, a
 //! `WorldId`, and a `StringEncoding`. Note that the top-level `decode` function
-//! is slightly difference because it's taking all custom sections in a core
+//! is slightly different because it's taking all custom sections in a core
 //! wasm binary, possibly from multiple invocations of bindgen, and unioning
 //! them all together. This means that the output is a `Bindgen` which
 //! represents the union of all previous bindings.
 //!
-//! The dual of `encode` is the `decode_custom_section` fucntion which decodes
+//! The dual of `encode` is the `decode_custom_section` function which decodes
 //! the three arguments originally passed to `encode`.
 
 use crate::{DecodedWasm, StringEncoding};

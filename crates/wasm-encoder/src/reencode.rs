@@ -17,6 +17,9 @@ mod component;
 #[cfg(feature = "component-model")]
 pub use self::component::*;
 
+#[cfg(feature = "wasmparser")]
+use alloc::vec::Vec;
+
 #[allow(missing_docs)] // FIXME
 pub trait Reencode {
     type Error;
@@ -170,6 +173,14 @@ pub trait Reencode {
         utils::memory_type(self, memory_ty)
     }
 
+    fn ieee32_arg(&mut self, arg: wasmparser::Ieee32) -> crate::Ieee32 {
+        utils::ieee32_arg(self, arg)
+    }
+
+    fn ieee64_arg(&mut self, arg: wasmparser::Ieee64) -> crate::Ieee64 {
+        utils::ieee64_arg(self, arg)
+    }
+
     fn mem_arg(&mut self, arg: wasmparser::MemArg) -> crate::MemArg {
         utils::mem_arg(self, arg)
     }
@@ -226,6 +237,16 @@ pub trait Reencode {
         val_ty: wasmparser::ValType,
     ) -> Result<crate::ValType, Error<Self::Error>> {
         utils::val_type(self, val_ty)
+    }
+
+    fn val_types(
+        &mut self,
+        val_tys: Vec<wasmparser::ValType>,
+    ) -> Result<Vec<crate::ValType>, Error<Self::Error>> {
+        val_tys
+            .iter()
+            .map(|ty| utils::val_type(self, *ty))
+            .collect()
     }
 
     /// Parses the input `section` given from the `wasmparser` crate and
@@ -535,7 +556,7 @@ pub enum Error<E = Infallible> {
     InvalidCodeSectionSize,
     /// There was a section that does not belong into a core wasm module.
     UnexpectedNonCoreModuleSection,
-    /// There was a section that does not belong into a compoennt module.
+    /// There was a section that does not belong into a component module.
     UnexpectedNonComponentSection,
     /// A core type definition was found in a component that's not supported.
     UnsupportedCoreTypeInComponent,
@@ -870,6 +891,20 @@ pub mod utils {
 
     pub fn memory_index<T: ?Sized + Reencode>(_reencoder: &mut T, memory: u32) -> u32 {
         memory
+    }
+
+    pub fn ieee32_arg<T: ?Sized + Reencode>(
+        _reencoder: &mut T,
+        arg: wasmparser::Ieee32,
+    ) -> crate::Ieee32 {
+        crate::Ieee32(arg.bits())
+    }
+
+    pub fn ieee64_arg<T: ?Sized + Reencode>(
+        _reencoder: &mut T,
+        arg: wasmparser::Ieee64,
+    ) -> crate::Ieee64 {
+        crate::Ieee64(arg.bits())
     }
 
     pub fn mem_arg<T: ?Sized + Reencode>(
@@ -1558,6 +1593,7 @@ pub mod utils {
         arg: wasmparser::Operator<'a>,
     ) -> Result<crate::Instruction<'a>, Error<T::Error>> {
         use crate::Instruction;
+        use alloc::borrow::Cow;
 
         macro_rules! translate {
             ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
@@ -1606,6 +1642,7 @@ pub mod utils {
                 $arg.default(),
             ));
             (map $arg:ident ty) => (reencoder.val_type($arg)?);
+            (map $arg:ident tys) => (reencoder.val_types($arg)?);
             (map $arg:ident hty) => (reencoder.heap_type($arg)?);
             (map $arg:ident from_ref_type) => (reencoder.ref_type($arg)?);
             (map $arg:ident to_ref_type) => (reencoder.ref_type($arg)?);
@@ -1631,10 +1668,11 @@ pub mod utils {
             // wasm-encoder.
             (build $op:ident) => (Instruction::$op);
             (build BrTable $arg:ident) => (Instruction::BrTable($arg.0, $arg.1));
+            (build TypedSelectMulti $arg:ident) => (Instruction::TypedSelectMulti(Cow::from($arg)));
             (build I32Const $arg:ident) => (Instruction::I32Const($arg));
             (build I64Const $arg:ident) => (Instruction::I64Const($arg));
-            (build F32Const $arg:ident) => (Instruction::F32Const(f32::from_bits($arg.bits())));
-            (build F64Const $arg:ident) => (Instruction::F64Const(f64::from_bits($arg.bits())));
+            (build F32Const $arg:ident) => (Instruction::F32Const($arg.into()));
+            (build F64Const $arg:ident) => (Instruction::F64Const($arg.into()));
             (build V128Const $arg:ident) => (Instruction::V128Const($arg.i128()));
             (build TryTable $table:ident) => (Instruction::TryTable(reencoder.block_type($table.ty)?, {
                 $table.catches.into_iter().map(|c| reencoder.catch(c)).collect::<Vec<_>>().into()
@@ -1789,6 +1827,18 @@ pub mod utils {
             ret.append(map_index(naming.index), &name_map(naming.names, |i| i)?);
         }
         Ok(ret)
+    }
+}
+
+impl From<wasmparser::Ieee32> for crate::Ieee32 {
+    fn from(arg: wasmparser::Ieee32) -> Self {
+        RoundtripReencoder.ieee32_arg(arg)
+    }
+}
+
+impl From<wasmparser::Ieee64> for crate::Ieee64 {
+    fn from(arg: wasmparser::Ieee64) -> Self {
+        RoundtripReencoder.ieee64_arg(arg)
     }
 }
 

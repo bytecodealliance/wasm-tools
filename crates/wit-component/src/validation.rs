@@ -124,7 +124,7 @@ pub enum ImportInstance {
 /// `future` intrinsics as core module function imports refers to a specific
 /// `stream` or `future` type by naming an imported or exported component
 /// function which has that type as a parameter or return type (where the
-/// specific type is refered to using an ordinal numbering scheme).  Not only
+/// specific type is referred to using an ordinal numbering scheme).  Not only
 /// does this approach unambiguously indicate the type of interest, but it
 /// allows us to reuse the `realloc`, string encoding, memory, etc. used by that
 /// function when emitting intrinsic declarations.
@@ -181,7 +181,9 @@ impl Hash for PayloadInfo {
 /// The different kinds of items that a module or an adapter can import.
 ///
 /// This is intended to be an exhaustive definition of what can be imported into
-/// core modules within a component that wit-component supports.
+/// core modules within a component that wit-component supports. This doesn't
+/// get down to the level of storing any idx numbers; at its most specific, it
+/// gives a name.
 #[derive(Debug, Clone)]
 pub enum Import {
     /// A top-level world function, with the name provided here, is imported
@@ -317,13 +319,13 @@ pub enum Import {
 
     /// A `canon stream.read` intrinsic.
     ///
-    /// This allows the guest to read the next values (if any) from the specifed
+    /// This allows the guest to read the next values (if any) from the specified
     /// stream.
     StreamRead { async_: bool, info: PayloadInfo },
 
     /// A `canon stream.write` intrinsic.
     ///
-    /// This allows the guest to write one or more values to the specifed
+    /// This allows the guest to write one or more values to the specified
     /// stream.
     StreamWrite { async_: bool, info: PayloadInfo },
 
@@ -356,13 +358,13 @@ pub enum Import {
 
     /// A `canon future.read` intrinsic.
     ///
-    /// This allows the guest to read the value (if any) from the specifed
+    /// This allows the guest to read the value (if any) from the specified
     /// future.
     FutureRead { async_: bool, info: PayloadInfo },
 
     /// A `canon future.write` intrinsic.
     ///
-    /// This allows the guest to write a value to the specifed future.
+    /// This allows the guest to write a value to the specified future.
     FutureWrite { async_: bool, info: PayloadInfo },
 
     /// A `canon future.cancel-read` intrinsic.
@@ -449,7 +451,8 @@ impl ImportMap {
         &self.names
     }
 
-    /// Helper function used during validation to build up this `ImportMap`.
+    /// Classify an import and call `insert_import()` on it. Used during
+    /// validation to build up this `ImportMap`.
     fn add(
         &mut self,
         import: wasmparser::Import<'_>,
@@ -469,6 +472,11 @@ impl ImportMap {
         self.insert_import(import, item)
     }
 
+    /// Determines what kind of thing is being imported: maps it from the
+    /// module/name/type triple in the raw wasm module to an enum.
+    ///
+    /// Handles a few special cases, then delegates to
+    /// `classify_component_model_import()`.
     fn classify(
         &self,
         import: wasmparser::Import<'_>,
@@ -980,6 +988,9 @@ impl ImportMap {
         Ok(true)
     }
 
+    /// Map an imported item, by module and field name in `self.names`, to the
+    /// kind of `Import` it is: for example, a certain-typed function from an
+    /// adapter.
     fn insert_import(&mut self, import: wasmparser::Import<'_>, item: Import) -> Result<()> {
         let entry = self
             .names

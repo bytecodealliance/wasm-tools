@@ -574,7 +574,7 @@ impl Index<'_> {
     fn unwrap_u32(&self) -> u32 {
         match self {
             Index::Num(n, _) => *n,
-            Index::Id(n) => panic!("unresolved index in emission: {:?}", n),
+            Index::Id(n) => panic!("unresolved index in emission: {n:?}"),
         }
     }
 }

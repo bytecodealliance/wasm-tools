@@ -8,7 +8,7 @@ fn test_wasm_smith() {
     if let Ok(module) = Module::new(Config::default(), &mut u) {
         let wasm_buffer = module.to_bytes();
         if let Ok(wat) = print_bytes(wasm_buffer) {
-            println!("{}", wat);
+            println!("{wat}");
         }
     }
 }

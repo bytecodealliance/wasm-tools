@@ -346,7 +346,7 @@ pub enum ValidPayload<'a> {
     /// This result indicates that the specified parser should be used instead
     /// of the currently-used parser until this returned one ends.
     Parser(Parser),
-    /// A function was found to be validate.
+    /// A function was found to be validated.
     Func(FuncToValidate<ValidatorResources>, FunctionBody<'a>),
     /// The end payload was validated and the types known to the validator
     /// are provided.
@@ -440,7 +440,7 @@ impl Validator {
             // they are using the same validation context, even after resetting.
             id: _,
 
-            // Don't mess with `types`, we specifically want to reuse canonicalizations.
+            // Don't mess with `types`, we specifically want to reuse canonicalization.
             types: _,
 
             // Also leave features as they are. While this is perhaps not
@@ -1353,7 +1353,7 @@ impl Validator {
 
                 // If there's a parent component, pop the stack, add it to the parent,
                 // and continue to validate the component
-                let ty = component.finish(&mut self.types, offset)?;
+                let ty = component.finish(&self.types, offset)?;
                 if let Some(parent) = self.components.last_mut() {
                     parent.add_component(ty, &mut self.types)?;
                     self.state = State::Component;

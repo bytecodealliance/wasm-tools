@@ -128,7 +128,7 @@ back_to_enum! {
         MemoryAddrRelSleb = 11,
 
         /// A function address (table index) relative to the __table_base wasm
-        /// global. Used in position indepenent code (-fPIC) where absolute
+        /// global. Used in position independent code (-fPIC) where absolute
         /// function addresses are not known at link time.
         TableIndexRelSleb = 12,
 

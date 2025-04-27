@@ -441,6 +441,12 @@ impl<'a> Module<'a> {
         }
     }
 
+    fn valtys(&mut self, tys: &[ValType]) {
+        for i in tys {
+            self.valty(*i);
+        }
+    }
+
     fn refty(&mut self, ty: RefType) {
         self.heapty(ty.heap_type())
     }
@@ -952,7 +958,6 @@ macro_rules! define_visit {
     (mark_live $self:ident $arg:ident dst_table) => {$self.table($arg);};
     (mark_live $self:ident $arg:ident table_index) => {$self.table($arg);};
     (mark_live $self:ident $arg:ident table) => {$self.table($arg);};
-    (mark_live $self:ident $arg:ident table_index) => {$self.table($arg);};
     (mark_live $self:ident $arg:ident global_index) => {$self.global($arg);};
     (mark_live $self:ident $arg:ident function_index) => {$self.func($arg);};
     (mark_live $self:ident $arg:ident mem) => {$self.memory($arg);};
@@ -961,12 +966,12 @@ macro_rules! define_visit {
     (mark_live $self:ident $arg:ident memarg) => {$self.memory($arg.memory);};
     (mark_live $self:ident $arg:ident blockty) => {$self.blockty($arg);};
     (mark_live $self:ident $arg:ident ty) => {$self.valty($arg)};
+    (mark_live $self:ident $arg:ident tys) => {$self.valtys(&$arg)};
     (mark_live $self:ident $arg:ident hty) => {$self.heapty($arg)};
     (mark_live $self:ident $arg:ident from_ref_type) => {$self.refty($arg);};
     (mark_live $self:ident $arg:ident to_ref_type) => {$self.refty($arg);};
     (mark_live $self:ident $arg:ident lane) => {};
     (mark_live $self:ident $arg:ident lanes) => {};
-    (mark_live $self:ident $arg:ident flags) => {};
     (mark_live $self:ident $arg:ident value) => {};
     (mark_live $self:ident $arg:ident local_index) => {};
     (mark_live $self:ident $arg:ident relative_depth) => {};
@@ -978,8 +983,6 @@ macro_rules! define_visit {
     (mark_live $self:ident $arg:ident array_elem_index) => {};
     (mark_live $self:ident $arg:ident array_size) => {};
     (mark_live $self:ident $arg:ident field_index) => {};
-    (mark_live $self:ident $arg:ident from_type_nullable) => {};
-    (mark_live $self:ident $arg:ident to_type_nullable) => {};
     (mark_live $self:ident $arg:ident ordering) => {};
     (mark_live $self:ident $arg:ident try_table) => {unimplemented!();};
     (mark_live $self:ident $arg:ident argument_index) => {};

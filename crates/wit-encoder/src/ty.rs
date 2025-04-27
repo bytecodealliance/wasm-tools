@@ -105,7 +105,7 @@ impl Display for Type {
             Type::F64 => write!(f, "f64"),
             Type::Char => write!(f, "char"),
             Type::String => write!(f, "string"),
-            Type::Named(name) => write!(f, "{}", name),
+            Type::Named(name) => write!(f, "{name}"),
             Type::Borrow(type_) => {
                 write!(f, "borrow<{type_}>")
             }

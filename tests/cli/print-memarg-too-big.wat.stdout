@@ -1,2 +1,3 @@
 (module
-  (data (;0;) (i32.load16_s
+  (data (;0;) (i32.load16_s align=9223372036854775808) "")
+)

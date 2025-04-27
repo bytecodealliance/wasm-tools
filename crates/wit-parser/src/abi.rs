@@ -12,7 +12,7 @@ pub struct WasmSignature {
     /// Whether or not this signature is passing all of its parameters
     /// indirectly through a pointer within `params`.
     ///
-    /// Note that `params` still reflects the true wasm paramters of this
+    /// Note that `params` still reflects the true wasm parameters of this
     /// function, this is auxiliary information for code generators if
     /// necessary.
     pub indirect_params: bool,

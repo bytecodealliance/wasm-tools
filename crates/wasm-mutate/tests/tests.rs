@@ -11,7 +11,7 @@ fn validate(validator: &mut Validator, bytes: &[u8]) {
         drop(std::fs::write("test.wat", &text));
     }
 
-    panic!("Wasm failed to validate: {:?}", err);
+    panic!("Wasm failed to validate: {err:?}");
 }
 
 #[test]
@@ -53,7 +53,7 @@ fn integration_test() {
             // Down here is the validation for the correct mutation
             let mutated = mutated.unwrap();
             let text = wasmprinter::print_bytes(&mutated).unwrap();
-            println!("{}", text);
+            println!("{text}");
             let mut validator = Validator::new();
             validate(&mut validator, &mutated);
             count += 1;

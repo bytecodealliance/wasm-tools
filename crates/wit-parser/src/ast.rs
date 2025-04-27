@@ -486,7 +486,7 @@ impl<'a> ExternKind<'a> {
         // If neither a function nor an interface appears here though then the
         // clone is thrown away and the original token stream is parsed for an
         // interface. This will redo the original ID parse and the original
-        // colon parse, but that shouldn't be too too bad perf-wise.
+        // colon parse, but that shouldn't be too bad perf-wise.
         let mut clone = tokens.clone();
         let id = parse_id(&mut clone)?;
         if clone.eat(Token::Colon)? {
@@ -1560,10 +1560,7 @@ fn err_expected(
             span,
             format!("expected {}, found {}", expected, token.describe()),
         ),
-        None => Error::new(
-            tokens.eof_span(),
-            format!("expected {}, found eof", expected),
-        ),
+        None => Error::new(tokens.eof_span(), format!("expected {expected}, found eof")),
     }
 }
 
