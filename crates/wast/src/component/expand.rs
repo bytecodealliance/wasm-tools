@@ -532,8 +532,9 @@ impl<'a> Expander<'a> {
                     }
                 }
             }
-            ComponentDefinedType::List(t) => {
-                self.expand_component_val_ty(&mut t.element);
+            ComponentDefinedType::List(List{element: t}) 
+            | ComponentDefinedType::FixedSizeList(FixedSizeList{element: t, elements :_}) => {
+                self.expand_component_val_ty(t);
             }
             ComponentDefinedType::Tuple(t) => {
                 for field in t.fields.iter_mut() {

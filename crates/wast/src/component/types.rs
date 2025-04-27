@@ -386,6 +386,7 @@ pub enum ComponentDefinedType<'a> {
     Record(Record<'a>),
     Variant(Variant<'a>),
     List(List<'a>),
+    FixedSizeList(FixedSizeList<'a>),
     Tuple(Tuple<'a>),
     Flags(Flags<'a>),
     Enum(Enum<'a>),
@@ -405,7 +406,7 @@ impl<'a> ComponentDefinedType<'a> {
         } else if l.peek::<kw::variant>()? {
             Ok(Self::Variant(parser.parse()?))
         } else if l.peek::<kw::list>()? {
-            Ok(Self::List(parser.parse()?))
+            parse_list(parser)
         } else if l.peek::<kw::tuple>()? {
             Ok(Self::Tuple(parser.parse()?))
         } else if l.peek::<kw::flags>()? {
@@ -584,19 +585,27 @@ impl<'a> Parse<'a> for Refinement<'a> {
 pub struct List<'a> {
     /// The element type of the array.
     pub element: Box<ComponentValType<'a>>,
-    /// Optional fixed size
-    pub elements: Option<u32>,
 }
 
-impl<'a> Parse<'a> for List<'a> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::list>()?;
-        let tp = parser.parse()?;
-        let elements = parser.parse()?;
-        Ok(Self {
+/// A fixed size list type.
+#[derive(Debug)]
+pub struct FixedSizeList<'a> {
+    /// The element type of the array.
+    pub element: Box<ComponentValType<'a>>,
+    /// Number of Elements
+    pub elements: u32,
+}
+
+fn parse_list<'a>(parser: Parser<'a>) -> Result<ComponentDefinedType<'a>> {
+    parser.parse::<kw::list>()?;
+    let tp = parser.parse()?;
+    let elements = parser.parse::<Option<u32>>()?;
+    if let Some(elements) = elements {
+        Ok(ComponentDefinedType::FixedSizeList(FixedSizeList { element: Box::new(tp), elements }))
+    } else {
+        Ok(ComponentDefinedType::List(List{
             element: Box::new(tp),
-            elements,
-        })
+        }))
     }
 }
 

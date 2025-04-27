@@ -25,7 +25,8 @@ pub enum Type {
     Borrow(Ident),
     Option(Box<Type>),
     Result(Box<Result_>),
-    List(Box<Type>, Option<u32>),
+    List(Box<Type>),
+    FixedSizeList(Box<Type>, u32),
     Tuple(Tuple),
     Future(Option<Box<Type>>),
     Stream(Option<Box<Type>>),
@@ -55,8 +56,11 @@ impl Type {
     pub fn result_empty() -> Self {
         Type::Result(Box::new(Result_::empty()))
     }
-    pub fn list(type_: Type, size: Option<u32>) -> Self {
-        Type::List(Box::new(type_), size)
+    pub fn list(type_: Type) -> Self {
+        Type::List(Box::new(type_))
+    }
+    pub fn fixed_size_list(type_: Type, size: u32) -> Self {
+        Type::FixedSizeList(Box::new(type_), size)
     }
     pub fn tuple(types: impl IntoIterator<Item = Type>) -> Self {
         Type::Tuple(Tuple {
@@ -113,12 +117,11 @@ impl Display for Type {
                 write!(f, "option<{type_}>")
             }
             Type::Result(result) => result.fmt(f),
-            Type::List(type_, size) => {
-                if let Some(size) = size {
-                    write!(f, "list<{type_}, {size}>")
-                } else {
-                    write!(f, "list<{type_}>")
-                }
+            Type::List(type_) => {
+                write!(f, "list<{type_}>")
+            }
+            Type::FixedSizeList(type_, size) => {
+                write!(f, "list<{type_}, {size}>")
             }
             Type::Tuple(tuple) => tuple.fmt(f),
             Type::Future(None) => {

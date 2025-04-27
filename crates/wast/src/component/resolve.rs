@@ -547,8 +547,9 @@ impl<'a> Resolver<'a> {
                     }
                 }
             }
-            ComponentDefinedType::List(l) => {
-                self.component_val_type(&mut l.element)?;
+            ComponentDefinedType::List(List{element: t}) 
+            | ComponentDefinedType::FixedSizeList(FixedSizeList{element: t, elements :_}) => {
+                self.component_val_type(t)?;
             }
             ComponentDefinedType::Tuple(t) => {
                 for field in t.fields.iter_mut() {
