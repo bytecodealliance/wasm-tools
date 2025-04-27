@@ -754,6 +754,7 @@ enum Type<'a> {
     String(Span),
     Name(Id<'a>),
     List(List<'a>),
+    FixedSizeList(FixedSizeList<'a>),
     Handle(Handle<'a>),
     Resource(Resource<'a>),
     Record(Record<'a>),
@@ -903,7 +904,12 @@ struct Option_<'a> {
 struct List<'a> {
     span: Span,
     ty: Box<Type<'a>>,
-    fixed_size: Option<u32>,
+}
+
+struct FixedSizeList<'a> {
+    span: Span,
+    ty: Box<Type<'a>>,
+    size: u32,
 }
 
 struct Future<'a> {
@@ -1380,11 +1386,18 @@ impl<'a> Type<'a> {
                     None
                 };
                 tokens.expect(Token::GreaterThan)?;
-                Ok(Type::List(List {
-                    span,
-                    ty: Box::new(ty),
-                    fixed_size: size,
-                }))
+                if let Some(size) = size {
+                    Ok(Type::FixedSizeList(FixedSizeList {
+                        span,
+                        ty: Box::new(ty),
+                        size,
+                    }))
+                } else {
+                    Ok(Type::List(List {
+                        span,
+                        ty: Box::new(ty),
+                    }))
+                }
             }
 
             // option<T>
@@ -1497,6 +1510,7 @@ impl<'a> Type<'a> {
             | Type::ErrorContext(span) => *span,
             Type::Name(id) => id.span,
             Type::List(l) => l.span,
+            Type::FixedSizeList(l) => l.span,
             Type::Handle(h) => h.span(),
             Type::Resource(r) => r.span,
             Type::Record(r) => r.span,

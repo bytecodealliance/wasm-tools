@@ -1173,11 +1173,11 @@ impl<'a> Resolver<'a> {
             }
             ast::Type::List(list) => {
                 let ty = self.resolve_type(&list.ty, stability)?;
-                if let Some(elements) = list.fixed_size {
-                    TypeDefKind::FixedSizeList(ty, elements)
-                } else {
-                    TypeDefKind::List(ty)
-                }
+                TypeDefKind::List(ty)
+            }
+            ast::Type::FixedSizeList(list) => {
+                let ty = self.resolve_type(&list.ty, stability)?;
+                TypeDefKind::FixedSizeList(ty, list.size)
             }
             ast::Type::Handle(handle) => TypeDefKind::Handle(match handle {
                 ast::Handle::Own { resource } => Handle::Own(self.validate_resource(resource)?),
@@ -1686,9 +1686,9 @@ fn collect_deps<'a>(ty: &ast::Type<'a>, deps: &mut Vec<ast::Id<'a>>) {
                 }
             }
         }
-        ast::Type::Option(ast::Option_ { ty, .. }) | ast::Type::List(ast::List { ty, .. }) => {
-            collect_deps(ty, deps)
-        }
+        ast::Type::Option(ast::Option_ { ty, .. })
+        | ast::Type::List(ast::List { ty, .. })
+        | ast::Type::FixedSizeList(ast::FixedSizeList { ty, .. }) => collect_deps(ty, deps),
         ast::Type::Result(r) => {
             if let Some(ty) = &r.ok {
                 collect_deps(ty, deps);
