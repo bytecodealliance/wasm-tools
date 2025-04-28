@@ -367,10 +367,10 @@ impl<'a> FromReader<'a> for CanonicalFunction {
             },
             0x22 => CanonicalFunction::WaitableSetDrop,
             0x23 => CanonicalFunction::WaitableJoin,
-            0x24 => CanonicalFunction::SubtaskCancel {
+            0x06 => CanonicalFunction::SubtaskCancel {
                 async_: reader.read()?,
             },
-            0x25 => CanonicalFunction::TaskCancel,
+            0x05 => CanonicalFunction::TaskCancel,
             0x40 => CanonicalFunction::ThreadSpawnRef {
                 func_ty_index: reader.read()?,
             },

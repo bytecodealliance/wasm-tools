@@ -182,7 +182,7 @@
 ;; yield
 (component
   (core module $m
-    (import "" "yield" (func $yield))
+    (import "" "yield" (func $yield (result i32)))
   )
   (core func $yield (canon yield async))
   (core instance $i (instantiate $m (with "" (instance (export "yield" (func $yield))))))

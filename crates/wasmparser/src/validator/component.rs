@@ -1268,7 +1268,7 @@ impl ComponentState {
         }
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([], []), offset));
+            .push(types.intern_func_type(FuncType::new([], [ValType::I32]), offset));
         Ok(())
     }
 
