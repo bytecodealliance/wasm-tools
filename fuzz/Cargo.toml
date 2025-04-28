@@ -14,7 +14,6 @@ workspace = true
 anyhow = { workspace = true }
 arbitrary = { workspace = true }
 env_logger = { workspace = true }
-libfuzzer-sys = { workspace = true }
 log = { workspace = true }
 tempfile = "3.0"
 wasm-encoder = { workspace = true }
@@ -36,6 +35,9 @@ version = '0.214.0'
 [dependencies.wit-component-old]
 package = 'wit-component'
 version = '0.214.0'
+
+[target.'cfg(fuzzing)'.dependencies]
+libfuzzer-sys = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }

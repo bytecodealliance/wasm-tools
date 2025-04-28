@@ -1,8 +1,18 @@
-#![no_main]
+#![cfg_attr(fuzzing, no_main)]
 
 use arbitrary::Unstructured;
-use libfuzzer_sys::fuzz_target;
 use std::sync::OnceLock;
+
+#[cfg(fuzzing)]
+use libfuzzer_sys::fuzz_target;
+#[cfg(not(fuzzing))]
+macro_rules! fuzz_target {
+    ($e:expr) => {
+        fn main() {
+            let _ = $e(&[]);
+        }
+    };
+}
 
 // Helper macro which takes a static list of fuzzers as input which are then
 // delegated to internally based on the fuzz target selected.

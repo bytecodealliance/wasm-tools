@@ -1,4 +1,4 @@
-use libfuzzer_sys::arbitrary::{Result, Unstructured};
+use arbitrary::{Result, Unstructured};
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 use wasm_smith::{Component, Config, Module};

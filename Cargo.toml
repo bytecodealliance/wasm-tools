@@ -65,6 +65,8 @@ rust-2024-incompatible-pat = 'warn'
 missing-unsafe-on-extern = 'warn'
 unsafe-op-in-unsafe-fn = 'warn'
 
+unexpected_cfgs = { level = 'warn', check-cfg = ['cfg(fuzzing)'] }
+
 [workspace.lints.clippy]
 # The default set of lints in Clippy is viewed as "too noisy" right now so
 # they're all turned off by default. Selective lints are then enabled below as
