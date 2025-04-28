@@ -2376,8 +2376,8 @@ impl ComponentState {
             (true, _, true) => {
                 bail!(offset, "cannot specify post-return function in async")
             }
-            (false, _, _) => Concurrency::Sync,
-            (true, callback, _) => Concurrency::Async { callback },
+            (false, None, _) => Concurrency::Sync,
+            (true, callback, false) => Concurrency::Async { callback },
         };
 
         Ok(CanonicalOptions {
