@@ -75,6 +75,16 @@ impl<W: Write> Writer<W> {
                 }
                 self.write_str("]")
             }
+            WasmTypeKind::FixedSizeList => {
+                self.write_str("[")?;
+                for (idx, val) in val.unwrap_list().enumerate() {
+                    if idx != 0 {
+                        self.write_str(", ")?;
+                    }
+                    self.write_value(&*val)?;
+                }
+                self.write_str("]")
+            }
             WasmTypeKind::Record => {
                 self.write_str("{")?;
                 let mut first = true;

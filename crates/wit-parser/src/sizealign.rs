@@ -260,6 +260,17 @@ impl SizeAlign {
     fn calculate(&self, ty: &TypeDef) -> ElementInfo {
         match &ty.kind {
             TypeDefKind::Type(t) => ElementInfo::new(self.size(t), self.align(t)),
+            TypeDefKind::FixedSizeList(t, size) => {
+                let field_align = self.align(t);
+                let field_size = self.size(t);
+                ElementInfo::new(
+                    ArchitectureSize::new(
+                        field_size.bytes.checked_mul(*size as usize).unwrap(),
+                        field_size.pointers.checked_mul(*size as usize).unwrap(),
+                    ),
+                    field_align,
+                )
+            }
             TypeDefKind::List(_) => {
                 ElementInfo::new(ArchitectureSize::new(0, 2), Alignment::Pointer)
             }

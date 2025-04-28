@@ -649,6 +649,9 @@ impl<'a> TypeEncoder<'a> {
             ComponentDefinedType::Record(r) => self.record(state, r),
             ComponentDefinedType::Variant(v) => self.variant(state, v),
             ComponentDefinedType::List(ty) => self.list(state, *ty),
+            ComponentDefinedType::FixedSizeList(ty, elements) => {
+                self.fixed_size_list(state, *ty, *elements)
+            }
             ComponentDefinedType::Tuple(t) => self.tuple(state, t),
             ComponentDefinedType::Flags(names) => Self::flags(&mut state.cur.encodable, names),
             ComponentDefinedType::Enum(cases) => Self::enum_type(&mut state.cur.encodable, cases),
@@ -706,6 +709,23 @@ impl<'a> TypeEncoder<'a> {
         let ty = self.component_val_type(state, ty);
         let index = state.cur.encodable.type_count();
         state.cur.encodable.ty().defined_type().list(ty);
+        index
+    }
+
+    fn fixed_size_list(
+        &self,
+        state: &mut TypeState<'a>,
+        ty: ct::ComponentValType,
+        elements: u32,
+    ) -> u32 {
+        let ty = self.component_val_type(state, ty);
+        let index = state.cur.encodable.type_count();
+        state
+            .cur
+            .encodable
+            .ty()
+            .defined_type()
+            .fixed_size_list(ty, elements);
         index
     }
 
@@ -1228,7 +1248,9 @@ impl DependencyRegistrar<'_, '_> {
             ComponentDefinedType::Primitive(_)
             | ComponentDefinedType::Enum(_)
             | ComponentDefinedType::Flags(_) => {}
-            ComponentDefinedType::List(t) | ComponentDefinedType::Option(t) => self.val_type(*t),
+            ComponentDefinedType::List(t)
+            | ComponentDefinedType::FixedSizeList(t, _)
+            | ComponentDefinedType::Option(t) => self.val_type(*t),
             ComponentDefinedType::Own(r) | ComponentDefinedType::Borrow(r) => {
                 self.ty(ComponentAnyTypeId::Resource(*r))
             }

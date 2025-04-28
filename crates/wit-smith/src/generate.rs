@@ -847,6 +847,7 @@ impl<'a> InterfaceGenerator<'a> {
             Option,
             Result,
             List,
+            FixedSizeList,
             Stream,
             Future,
             ErrorContext,
@@ -927,6 +928,16 @@ impl<'a> InterfaceGenerator<'a> {
                     dst.push_str("list<");
                     self.gen_type(u, fuel, dst)?;
                     dst.push_str(">");
+                }
+                Kind::FixedSizeList => {
+                    *fuel = match fuel.checked_sub(1) {
+                        Some(fuel) => fuel,
+                        None => continue,
+                    };
+                    let elements = u.int_in_range(1..=self.config.max_type_parts as u32)?;
+                    dst.push_str("list<");
+                    self.gen_type(u, fuel, dst)?;
+                    dst.push_str(&format!(", {elements}>"));
                 }
                 Kind::Result => {
                     *fuel = match fuel.checked_sub(2) {

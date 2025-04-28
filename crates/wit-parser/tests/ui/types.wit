@@ -50,6 +50,8 @@ interface types {
   type t48 = stream<u32>;
   type t49 = future<u32>;
   type t50 = future;
+  type t51a = list<u32, 4>;
+  type t51b = list<list<u32, 4>, 2>;
 
   /// type order doesn't matter
   type foo = bar;

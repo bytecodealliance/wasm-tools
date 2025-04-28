@@ -53,8 +53,10 @@
         "t48": 49,
         "t49": 50,
         "t50": 51,
-        "bar": 52,
-        "foo": 53
+        "t51a": 52,
+        "t51b": 54,
+        "bar": 55,
+        "foo": 56
       },
       "functions": {},
       "package": 0
@@ -699,6 +701,40 @@
       }
     },
     {
+      "name": "t51a",
+      "kind": {
+        "fixed-size-list": [
+          "u32",
+          4
+        ]
+      },
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "name": null,
+      "kind": {
+        "fixed-size-list": [
+          "u32",
+          4
+        ]
+      },
+      "owner": null
+    },
+    {
+      "name": "t51b",
+      "kind": {
+        "fixed-size-list": [
+          53,
+          2
+        ]
+      },
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
       "name": "bar",
       "kind": {
         "type": "u32"
@@ -710,7 +746,7 @@
     {
       "name": "foo",
       "kind": {
-        "type": 52
+        "type": 55
       },
       "owner": {
         "interface": 0
