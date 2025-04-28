@@ -3171,6 +3171,7 @@ impl FromStr for InstructionKind {
 
 // Conversions from `wasmparser` to `wasm-smith`. Currently, only type conversions
 // have been implemented.
+#[cfg(feature = "wasmparser")]
 impl From<wasmparser::FuncType> for FuncType {
     fn from(value: wasmparser::FuncType) -> Self {
         FuncType {
@@ -3190,6 +3191,7 @@ impl From<wasmparser::FuncType> for FuncType {
     }
 }
 
+#[cfg(feature = "wasmparser")]
 impl From<wasmparser::CompositeType> for CompositeType {
     fn from(value: wasmparser::CompositeType) -> Self {
         let inner_type = match value.inner {
@@ -3214,6 +3216,7 @@ impl From<wasmparser::CompositeType> for CompositeType {
     }
 }
 
+#[cfg(feature = "wasmparser")]
 impl From<wasmparser::SubType> for SubType {
     fn from(value: wasmparser::SubType) -> Self {
         let supertype_idx = value
