@@ -1,0 +1,32 @@
+{
+  "source_filename": "tests/cli/component-model-gc/core-type.wat",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "core-type.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 10,
+      "filename": "core-type.1.wasm",
+      "module_type": "binary",
+      "text": "canonical option `core type` is not allowed in `canon lift`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 26,
+      "filename": "core-type.2.wasm",
+      "module_type": "binary",
+      "text": "declared core type has `[I64, I32]` parameter types, but actual lowering has `[I32, I32]` parameter types"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 35,
+      "filename": "core-type.3.wasm",
+      "module_type": "binary",
+      "text": "declared core type has `[I64]` result types, but actual lowering has `[I32]` result types"
+    }
+  ]
+}

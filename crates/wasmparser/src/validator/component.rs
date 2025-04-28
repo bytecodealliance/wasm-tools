@@ -238,6 +238,7 @@ pub(crate) struct CanonicalOptions {
     pub(crate) realloc: Option<u32>,
     pub(crate) post_return: Option<u32>,
     pub(crate) concurrency: Concurrency,
+    pub(crate) core_type: Option<CoreTypeId>,
 }
 
 impl CanonicalOptions {
@@ -341,7 +342,49 @@ impl CanonicalOptions {
             }
         }
 
+        if self.core_type.is_some() {
+            bail!(
+                offset,
+                "canonical option `core type` is not allowed in `canon lift`"
+            )
+        }
+
         Ok(self)
+    }
+
+    pub(crate) fn check_core_type(
+        &self,
+        types: &mut TypeAlloc,
+        actual: FuncType,
+        offset: usize,
+    ) -> Result<CoreTypeId> {
+        if let Some(declared_id) = self.core_type {
+            let declared = types[declared_id].unwrap_func();
+
+            if actual.params() != declared.params() {
+                bail!(
+                    offset,
+                    "declared core type has `{:?}` parameter types, but actual lowering has \
+                     `{:?}` parameter types",
+                    declared.params(),
+                    actual.params(),
+                );
+            }
+
+            if actual.results() != declared.results() {
+                bail!(
+                    offset,
+                    "declared core type has `{:?}` result types, but actual lowering has \
+                     `{:?}` result types",
+                    declared.results(),
+                    actual.results(),
+                );
+            }
+
+            Ok(declared_id)
+        } else {
+            Ok(types.intern_func_type(actual, offset))
+        }
     }
 }
 
@@ -1185,6 +1228,7 @@ impl ComponentState {
         let options = self.check_options(types, options, offset)?;
         options.check_lift(types, self, core_ty, offset)?;
         let func_ty = ty.lower(types, &options, Abi::Lift, offset)?;
+        debug_assert!(options.core_type.is_none());
         let lowered_core_ty_id = types.intern_func_type(func_ty, offset);
 
         if core_ty_id == lowered_core_ty_id {
@@ -1241,9 +1285,9 @@ impl ComponentState {
         let options = self.check_options(types, options, offset)?;
         options.check_lower(offset)?;
         let func_ty = ty.lower(types, &options, Abi::Lower, offset)?;
-        let core_ty_id = types.intern_func_type(func_ty, offset);
+        let ty_id = options.check_core_type(types, func_ty, offset)?;
 
-        self.core_funcs.push(core_ty_id);
+        self.core_funcs.push(ty_id);
         Ok(())
     }
 
@@ -1349,9 +1393,9 @@ impl ComponentState {
 
         let func_ty = func_ty.lower(types, &options, Abi::Lower, offset)?;
         assert!(func_ty.results().is_empty());
+        let ty_id = options.check_core_type(types, func_ty, offset)?;
 
-        self.core_funcs
-            .push(types.intern_func_type(func_ty, offset));
+        self.core_funcs.push(ty_id);
         Ok(())
     }
 
@@ -1485,13 +1529,18 @@ impl ComponentState {
             bail!(offset, "`stream.read` requires a stream type")
         };
 
-        self.check_options(types, options, offset)?
+        let ty_id = self
+            .check_options(types, options, offset)?
             .require_memory(offset)?
             .require_realloc_if(offset, || elem_ty.is_some_and(|ty| ty.contains_ptr(types)))?
-            .check_lower(offset)?;
+            .check_lower(offset)?
+            .check_core_type(
+                types,
+                FuncType::new([ValType::I32; 3], [ValType::I32]),
+                offset,
+            )?;
 
-        self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32; 3], [ValType::I32]), offset));
+        self.core_funcs.push(ty_id);
         Ok(())
     }
 
@@ -1514,12 +1563,17 @@ impl ComponentState {
             bail!(offset, "`stream.write` requires a stream type")
         };
 
-        self.check_options(types, options, offset)?
+        let ty_id = self
+            .check_options(types, options, offset)?
             .require_memory(offset)?
-            .check_lower(offset)?;
+            .check_lower(offset)?
+            .check_core_type(
+                types,
+                FuncType::new([ValType::I32; 3], [ValType::I32]),
+                offset,
+            )?;
 
-        self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32; 3], [ValType::I32]), offset));
+        self.core_funcs.push(ty_id);
         Ok(())
     }
 
@@ -1666,13 +1720,18 @@ impl ComponentState {
             bail!(offset, "`future.read` requires a future type")
         };
 
-        self.check_options(types, options, offset)?
+        let ty_id = self
+            .check_options(types, options, offset)?
             .require_memory(offset)?
             .require_realloc_if(offset, || elem_ty.is_some_and(|ty| ty.contains_ptr(types)))?
-            .check_lower(offset)?;
+            .check_lower(offset)?
+            .check_core_type(
+                types,
+                FuncType::new([ValType::I32; 2], [ValType::I32]),
+                offset,
+            )?;
 
-        self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32; 2], [ValType::I32]), offset));
+        self.core_funcs.push(ty_id);
         Ok(())
     }
 
@@ -1695,12 +1754,17 @@ impl ComponentState {
             bail!(offset, "`future.write` requires a future type")
         };
 
-        self.check_options(types, &options, offset)?
+        let ty_id = self
+            .check_options(types, &options, offset)?
             .require_memory(offset)?
-            .check_lower(offset)?;
+            .check_lower(offset)?
+            .check_core_type(
+                types,
+                FuncType::new([ValType::I32; 2], [ValType::I32]),
+                offset,
+            )?;
 
-        self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32; 2], [ValType::I32]), offset));
+        self.core_funcs.push(ty_id);
         Ok(())
     }
 
@@ -1823,13 +1887,18 @@ impl ComponentState {
             )
         }
 
-        self.check_options(types, &options, offset)?
+        let ty_id = self
+            .check_options(types, &options, offset)?
             .require_memory(offset)?
             .require_sync(offset, "error-context.new")?
-            .check_lower(offset)?;
+            .check_lower(offset)?
+            .check_core_type(
+                types,
+                FuncType::new([ValType::I32; 2], [ValType::I32]),
+                offset,
+            )?;
 
-        self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32; 2], [ValType::I32]), offset));
+        self.core_funcs.push(ty_id);
         Ok(())
     }
 
@@ -1846,14 +1915,15 @@ impl ComponentState {
             )
         }
 
-        self.check_options(types, &options, offset)?
+        let ty_id = self
+            .check_options(types, &options, offset)?
             .require_memory(offset)?
             .require_realloc(offset)?
             .require_sync(offset, "error-context.debug-message")?
-            .check_lower(offset)?;
+            .check_lower(offset)?
+            .check_core_type(types, FuncType::new([ValType::I32; 2], []), offset)?;
 
-        self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32; 2], []), offset));
+        self.core_funcs.push(ty_id);
         Ok(())
     }
 
@@ -2264,6 +2334,7 @@ impl ComponentState {
                 CanonicalOption::PostReturn(_) => "post-return",
                 CanonicalOption::Async => "async",
                 CanonicalOption::Callback(_) => "callback",
+                CanonicalOption::CoreType(_) => "core type",
             }
         }
 
@@ -2273,6 +2344,7 @@ impl ComponentState {
         let mut post_return = None;
         let mut is_async = false;
         let mut callback = None;
+        let mut core_type = None;
 
         for option in options {
             match option {
@@ -2366,6 +2438,43 @@ impl ComponentState {
                         }
                     }
                 }
+                CanonicalOption::CoreType(idx) => {
+                    core_type = match core_type {
+                        None => {
+                            if !self.features.cm_gc() {
+                                bail!(
+                                    offset,
+                                    "canonical option `core type` requires the component model gc feature"
+                                )
+                            }
+                            let ty = match self.core_type_at(*idx, offset)? {
+                                ComponentCoreTypeId::Sub(ty) => ty,
+                                ComponentCoreTypeId::Module(_) => return Err(BinaryReaderError::new(
+                                    "canonical option `core type` must reference a core function \
+                                     type",
+                                    offset,
+                                )),
+                            };
+                            match &types[ty].composite_type.inner {
+                                CompositeInnerType::Func(_) => {}
+                                CompositeInnerType::Array(_) |
+                                CompositeInnerType::Struct(_) |
+                                CompositeInnerType::Cont(_) => return Err(BinaryReaderError::new(
+                                    "canonical option `core type` must reference a core function \
+                                     type",
+                                    offset,
+                                )),
+                            }
+                            Some(ty)
+                        }
+                        Some(_) => {
+                            return Err(BinaryReaderError::new(
+                                "canonical option `core type` is specified more than once",
+                                offset,
+                            ))
+                        }
+                    };
+                }
             }
         }
 
@@ -2385,6 +2494,7 @@ impl ComponentState {
             realloc,
             post_return,
             concurrency,
+            core_type,
         })
     }
 

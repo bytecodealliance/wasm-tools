@@ -486,6 +486,7 @@ impl<'a> Resolver<'a> {
                 CanonOpt::Realloc(r) | CanonOpt::PostReturn(r) | CanonOpt::Callback(r) => {
                     self.core_item_ref(r)?
                 }
+                CanonOpt::CoreType(t) => self.core_item_ref(t)?,
             }
         }
 

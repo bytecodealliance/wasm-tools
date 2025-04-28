@@ -27,6 +27,8 @@ pub enum CanonicalOption {
     /// The function to use if the async lifting of a function should receive task/stream/future progress events
     /// using a callback.
     Callback(u32),
+    /// The core function type to lower a component function into.
+    CoreType(u32),
 }
 
 impl Encode for CanonicalOption {
@@ -52,6 +54,10 @@ impl Encode for CanonicalOption {
             }
             Self::Callback(idx) => {
                 sink.push(0x07);
+                idx.encode(sink);
+            }
+            Self::CoreType(idx) => {
+                sink.push(0x08);
                 idx.encode(sink);
             }
         }

@@ -949,6 +949,14 @@ pub enum CanonOpt<'a> {
     Async,
     /// Use the specified function to deliver async events to stackless coroutines.
     Callback(CoreItemRef<'a, kw::func>),
+    /// Lower this component function into the specified core function type.
+    CoreType(CoreItemRef<'a, kw::r#type>),
+}
+
+impl Default for kw::r#type {
+    fn default() -> Self {
+        Self(Span::from_offset(0))
+    }
 }
 
 impl<'a> Parse<'a> for CanonOpt<'a> {
@@ -986,6 +994,12 @@ impl<'a> Parse<'a> for CanonOpt<'a> {
                     Ok(CanonOpt::Callback(
                         parser.parse::<IndexOrCoreRef<'_, _>>()?.0,
                     ))
+                } else if l.peek::<kw::core>()? {
+                    parser.parse::<kw::core>()?;
+                    parser.parse::<kw::r#type>()?;
+                    Ok(CanonOpt::CoreType(
+                        parser.parse::<IndexOrCoreRef<'_, _>>()?.0,
+                    ))
                 } else {
                     Err(l.error())
                 }
@@ -1008,6 +1022,7 @@ impl Peek for CanonOpt<'_> {
                         || kw::realloc::peek(next)?
                         || kw::post_return::peek(next)?
                         || kw::callback::peek(next)?
+                        || kw::core::peek(next)?
                 }
                 None => false,
             })
