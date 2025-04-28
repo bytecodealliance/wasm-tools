@@ -1656,9 +1656,7 @@ impl Module {
                     return Ok(false);
                 }
                 let ty = arbitrary_table_type(u, self.config(), Some(self))?;
-                let init = self.arbitrary_table_init(u, ty.element_type)?;
-                self.defined_tables.push(init);
-                self.tables.push(ty);
+                self.add_arbitrary_table_of_type(ty, u)?;
                 Ok(true)
             },
         )
@@ -1683,7 +1681,9 @@ impl Module {
         if ty.nullable && u.arbitrary()? {
             return Ok(None);
         }
-        let expr = self.arbitrary_const_expr(ValType::Ref(ty), u)?;
+        // Only imported globals are allowed in the constant initialization
+        // expressions for tables.
+        let expr = self.arbitrary_const_expr(ValType::Ref(ty), u, false)?;
         Ok(Some(expr))
     }
 
@@ -1696,8 +1696,8 @@ impl Module {
                 if !self.can_add_local_or_import_memory() {
                     return Ok(false);
                 }
-                self.num_defined_memories += 1;
-                self.memories.push(arbitrary_memtype(u, self.config())?);
+                let ty = arbitrary_memtype(u, self.config())?;
+                self.add_arbitrary_memory_of_type(ty)?;
                 Ok(true)
             },
         )
@@ -1709,22 +1709,44 @@ impl Module {
         ty: GlobalType,
         u: &mut Unstructured,
     ) -> Result<u32> {
-        let expr = self.arbitrary_const_expr(ty.val_type, u)?;
+        let expr = self.arbitrary_const_expr(ty.val_type, u, true)?;
         let global_idx = self.globals.len() as u32;
         self.globals.push(ty);
         self.defined_globals.push((global_idx, expr));
         Ok(global_idx)
     }
 
+    /// Add a new memory of the given type and return its memory index.
+    fn add_arbitrary_memory_of_type(&mut self, ty: MemoryType) -> Result<u32> {
+        let memory_idx = self.memories.len() as u32;
+        self.num_defined_memories += 1;
+        self.memories.push(ty);
+        Ok(memory_idx)
+    }
+
+    /// Add a new table of the given type and return its table index.
+    fn add_arbitrary_table_of_type(&mut self, ty: TableType, u: &mut Unstructured) -> Result<u32> {
+        let expr = self.arbitrary_table_init(u, ty.element_type)?;
+        let table_idx = self.tables.len() as u32;
+        self.tables.push(ty);
+        self.defined_tables.push(expr);
+        Ok(table_idx)
+    }
+
     /// Generates an arbitrary constant expression of the type `ty`.
-    fn arbitrary_const_expr(&mut self, ty: ValType, u: &mut Unstructured) -> Result<ConstExpr> {
+    fn arbitrary_const_expr(
+        &mut self,
+        ty: ValType,
+        u: &mut Unstructured,
+        allow_defined_globals: bool,
+    ) -> Result<ConstExpr> {
         let mut choices = mem::take(&mut self.const_expr_choices);
         choices.clear();
 
         // MVP wasm can `global.get` any immutable imported global in a
         // constant expression, and the GC proposal enables this for all
         // globals, so make all matching globals a candidate.
-        for i in self.globals_for_const_expr(ty) {
+        for i in self.globals_for_const_expr(ty, allow_defined_globals) {
             choices.push(Box::new(move |_, _| Ok(ConstExpr::global_get(i))));
         }
 
@@ -1980,13 +2002,65 @@ impl Module {
                 wasmparser::types::EntityType::Global(global_type) => {
                     self.add_arbitrary_global_of_type(global_type.try_into().unwrap(), u)?
                 }
-                wasmparser::types::EntityType::Table(_)
-                | wasmparser::types::EntityType::Memory(_)
-                | wasmparser::types::EntityType::Tag(_) => {
-                    panic!(
-                        "Config `exports` has an export of type {:?} which cannot yet be handled.",
-                        export.kind
-                    )
+                // For memories, add a new memory.
+                wasmparser::types::EntityType::Memory(memory_type) => {
+                    self.add_arbitrary_memory_of_type(memory_type.into())?
+                }
+                // For tables, add a new table.
+                wasmparser::types::EntityType::Table(table_type) => {
+                    self.add_arbitrary_table_of_type(table_type.try_into().unwrap(), u)?
+                }
+                // For tags, add the type.
+                wasmparser::types::EntityType::Tag(id) => {
+                    let subtype = exports_types.get(id).unwrap_or_else(|| {
+                        panic!("Unable to get subtype for tag {id:?} in `exports` Wasm")
+                    });
+                    match &subtype.composite_type.inner {
+                        wasmparser::CompositeInnerType::Func(func_type) => {
+                            assert!(
+                                subtype.is_final,
+                                "Subtype {subtype:?} from `exports` Wasm is not final"
+                            );
+                            assert!(
+                                subtype.supertype_idx.is_none(),
+                                "Subtype {subtype:?} from `exports` Wasm has non-empty supertype"
+                            );
+                            assert!(
+                                func_type.results().is_empty(),
+                                "Subtype {subtype:?} for tag {id:?} from `exports` Wasm has non-empty results"
+                            );
+                            let new_type = Rc::new(FuncType {
+                                params: func_type
+                                    .params()
+                                    .iter()
+                                    .copied()
+                                    .map(|t| t.try_into().unwrap())
+                                    .collect(),
+                                results: vec![],
+                            });
+                            self.rec_groups.push(self.types.len()..self.types.len() + 1);
+                            let type_index = self.add_type(SubType {
+                                is_final: true,
+                                supertype: None,
+                                depth: 1,
+                                composite_type: CompositeType::new_func(
+                                    Rc::clone(&new_type),
+                                    subtype.composite_type.shared,
+                                ),
+                            });
+                            let tag_index = self.tags.len() as u32;
+                            self.tags.push(TagType {
+                                func_type_idx: type_index,
+                                func_type: new_type,
+                            });
+                            self.num_defined_tags += 1;
+                            tag_index
+                        }
+                        _ => panic!(
+                            "Unable to handle type {:?} from `exports` Wasm",
+                            subtype.composite_type
+                        ),
+                    }
                 }
             };
             self.exports
@@ -2102,10 +2176,10 @@ impl Module {
         let mut global_i32 = vec![];
         let mut global_i64 = vec![];
         if !self.config.disallow_traps {
-            for i in self.globals_for_const_expr(ValType::I32) {
+            for i in self.globals_for_const_expr(ValType::I32, true) {
                 global_i32.push(i);
             }
-            for i in self.globals_for_const_expr(ValType::I64) {
+            for i in self.globals_for_const_expr(ValType::I64, true) {
                 global_i64.push(i);
             }
         }
@@ -2264,7 +2338,7 @@ impl Module {
                 } else {
                     let mut init = vec![];
                     arbitrary_loop(u, self.config.min_elements, max, |u| {
-                        init.push(self.arbitrary_const_expr(ValType::Ref(ty), u)?);
+                        init.push(self.arbitrary_const_expr(ValType::Ref(ty), u, true)?);
                         Ok(true)
                     })?;
                     Elements::Expressions(init)
@@ -2349,10 +2423,10 @@ impl Module {
             ))
         }));
         if !self.config.disallow_traps {
-            for i in self.globals_for_const_expr(ValType::I32) {
+            for i in self.globals_for_const_expr(ValType::I32, true) {
                 choices32.push(Box::new(move |_, _, _| Ok(Offset::Global(i))));
             }
-            for i in self.globals_for_const_expr(ValType::I64) {
+            for i in self.globals_for_const_expr(ValType::I64, true) {
                 choices64.push(Box::new(move |_, _, _| Ok(Offset::Global(i))));
             }
         }
@@ -2442,11 +2516,15 @@ impl Module {
 
     /// Returns an iterator of all globals which can be used in constant
     /// expressions for a value of type `ty` specified.
-    fn globals_for_const_expr(&self, ty: ValType) -> impl Iterator<Item = u32> + '_ {
+    fn globals_for_const_expr(
+        &self,
+        ty: ValType,
+        allow_defined_globals: bool,
+    ) -> impl Iterator<Item = u32> + '_ {
         // Before the GC proposal only imported globals could be referenced, but
         // the GC proposal relaxed this feature to allow any global.
         let num_imported_globals = self.globals.len() - self.defined_globals.len();
-        let max_global = if self.config.gc_enabled {
+        let max_global = if self.config.gc_enabled && allow_defined_globals {
             self.globals.len()
         } else {
             num_imported_globals
