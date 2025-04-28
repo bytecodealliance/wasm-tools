@@ -1310,18 +1310,26 @@ impl Module {
         // First, parse the module-by-example to collect the types and imports.
         //
         // `available_types` will map from a signature index (which is the same as the index into
-        // this vector) as it appears in the parsed code, to the type itself as well as to the
-        // index in our newly generated module. Initially the option is `None` and will become a
-        // `Some` when we encounter an import that uses this signature in the next portion of this
-        // function. See also the `make_func_type` closure below.
-        let mut available_types = Vec::new();
+        // this vector) as it appears in the parsed code, to the type itself. We copy all the types
+        // from module-by-example into the module being constructed for the sake of simplicity
+        // and for this reason, [`Self::config::max_types`] may be surpassed.
+        let mut new_recgrps = Vec::<usize>::new();
+        let mut available_types = Vec::<SubType>::new();
         let mut available_imports = Vec::<wasmparser::Import>::new();
         for payload in wasmparser::Parser::new(0).parse_all(&example_module) {
             match payload.expect("could not parse the available import payload") {
                 wasmparser::Payload::TypeSection(type_reader) => {
-                    for ty in type_reader.into_iter_err_on_gc_types() {
-                        let ty = ty.expect("could not parse type section");
-                        available_types.push((ty, None));
+                    for recgrp in type_reader {
+                        let recgrp = recgrp.expect("could not read recursive group");
+                        new_recgrps.push(recgrp.types().len());
+                        for subtype in recgrp.into_types() {
+                            let mut subtype: SubType = subtype.into();
+                            if let Some(supertype_idx) = subtype.supertype {
+                                assert!(supertype_idx < (available_types.len() as u32));
+                                subtype.depth = available_types[supertype_idx as usize].depth + 1;
+                            }
+                            available_types.push(subtype);
+                        }
                     }
                 }
                 wasmparser::Payload::ImportSection(import_reader) => {
@@ -1340,73 +1348,32 @@ impl Module {
             }
         }
 
-        // In this function we need to place imported function/tag types in the types section and
-        // generate import entries (which refer to said types) at the same time.
-        let max_types = self.config.max_types;
-        let multi_value_enabled = self.config.multi_value_enabled;
+        // We then generate import entries which refer to the imported types. Since this function
+        // is called at the very beginning of the module generation process and all types from the
+        // module-by-example are copied into the current module, no further adjustments are needed
+        // for type indices.
         let mut new_imports = Vec::with_capacity(available_imports.len());
-        let first_type_index = self.types.len();
-        let mut new_types = Vec::<SubType>::new();
-
-        // Returns the index to the translated type in the to-be type section, and the reference to
-        // the type itself.
-        let mut make_func_type = |module: &Self, parsed_sig_idx: u32| {
-            let serialized_sig_idx = match available_types.get_mut(parsed_sig_idx as usize) {
-                None => panic!("signature index refers to a type out of bounds"),
-                Some((_, Some(idx))) => *idx as usize,
-                Some((func_type, index_store)) => {
-                    let multi_value_required = func_type.results().len() > 1;
-                    let new_index = first_type_index + new_types.len();
-                    if new_index >= max_types || (multi_value_required && !multi_value_enabled) {
-                        return None;
-                    }
-                    let func_type = Rc::new(FuncType {
-                        params: func_type
-                            .params()
-                            .iter()
-                            .map(|t| (*t).try_into().unwrap())
-                            .collect(),
-                        results: func_type
-                            .results()
-                            .iter()
-                            .map(|t| (*t).try_into().unwrap())
-                            .collect(),
-                    });
-                    index_store.replace(new_index as u32);
-                    let shared = module.arbitrary_shared(u).ok()?;
-                    new_types.push(SubType {
-                        is_final: true,
-                        supertype: None,
-                        composite_type: CompositeType::new_func(Rc::clone(&func_type), shared),
-                        depth: 1,
-                    });
-                    new_index
-                }
-            };
-            match &new_types[serialized_sig_idx - first_type_index]
-                .composite_type
-                .inner
-            {
-                CompositeInnerType::Func(f) => Some((serialized_sig_idx as u32, Rc::clone(f))),
-                _ => unimplemented!(),
-            }
-        };
-
         for import in available_imports {
             let type_size_budget = self.config.max_type_size - self.type_size;
             let entity_type = match &import.ty {
                 wasmparser::TypeRef::Func(sig_idx) => {
                     if self.funcs.len() >= self.config.max_funcs {
                         continue;
-                    } else if let Some((sig_idx, func_type)) = make_func_type(&self, *sig_idx) {
-                        let entity = EntityType::Func(sig_idx, Rc::clone(&func_type));
-                        if type_size_budget < entity.size() {
-                            continue;
-                        }
-                        self.funcs.push((sig_idx, func_type));
-                        entity
                     } else {
-                        continue;
+                        match available_types.get(*sig_idx as usize) {
+                            None => panic!("signature index refers to a type out of bounds"),
+                            Some(ty) => match &ty.composite_type.inner {
+                                CompositeInnerType::Func(func_type) => {
+                                    let entity = EntityType::Func(*sig_idx, Rc::clone(func_type));
+                                    if type_size_budget < entity.size() {
+                                        continue;
+                                    }
+                                    self.funcs.push((*sig_idx, Rc::clone(func_type)));
+                                    entity
+                                }
+                                _ => panic!("a function type is required for function import"),
+                            },
+                        }
                     }
                 }
 
@@ -1414,20 +1381,27 @@ impl Module {
                     let can_add_tag = self.tags.len() < self.config.max_tags;
                     if !self.config.exceptions_enabled || !can_add_tag {
                         continue;
-                    } else if let Some((sig_idx, func_type)) = make_func_type(&self, *func_type_idx)
-                    {
-                        let tag_type = TagType {
-                            func_type_idx: sig_idx,
-                            func_type,
-                        };
-                        let entity = EntityType::Tag(tag_type.clone());
-                        if type_size_budget < entity.size() {
-                            continue;
-                        }
-                        self.tags.push(tag_type);
-                        entity
                     } else {
-                        continue;
+                        match available_types.get(*func_type_idx as usize) {
+                            None => {
+                                panic!("function type index for tag refers to a type out of bounds")
+                            }
+                            Some(ty) => match &ty.composite_type.inner {
+                                CompositeInnerType::Func(func_type) => {
+                                    let tag_type = TagType {
+                                        func_type_idx: *func_type_idx,
+                                        func_type: Rc::clone(func_type),
+                                    };
+                                    let entity = EntityType::Tag(tag_type.clone());
+                                    if type_size_budget < entity.size() {
+                                        continue;
+                                    }
+                                    self.tags.push(tag_type);
+                                    entity
+                                }
+                                _ => panic!("a function type is required for tag import"),
+                            },
+                        }
                     }
                 }
 
@@ -1456,7 +1430,7 @@ impl Module {
                 }
 
                 wasmparser::TypeRef::Global(global_ty) => {
-                    let global_ty = (*global_ty).try_into().unwrap();
+                    let global_ty = GlobalType::try_from(*global_ty).unwrap();
                     let entity = EntityType::Global(global_ty);
                     let type_size = entity.size();
                     if type_size_budget < type_size || !self.can_add_local_or_import_global() {
@@ -1476,8 +1450,13 @@ impl Module {
         }
 
         // Finally, add the entities we just generated.
-        for ty in new_types {
-            self.rec_groups.push(self.types.len()..self.types.len() + 1);
+        let mut recgrp_start_idx = self.types.len();
+        for size in new_recgrps {
+            self.rec_groups
+                .push(recgrp_start_idx..recgrp_start_idx + size);
+            recgrp_start_idx += size;
+        }
+        for ty in available_types {
             self.add_type(ty);
         }
         self.imports.extend(new_imports);
@@ -3186,6 +3165,68 @@ impl FromStr for InstructionKind {
             "memory" => Ok(InstructionKind::Memory),
             "control" => Ok(InstructionKind::Control),
             _ => Err(format!("unknown instruction kind: {s}")),
+        }
+    }
+}
+
+// Conversions from `wasmparser` to `wasm-smith`. Currently, only type conversions
+// have been implemented.
+impl From<wasmparser::FuncType> for FuncType {
+    fn from(value: wasmparser::FuncType) -> Self {
+        FuncType {
+            params: value
+                .params()
+                .iter()
+                .copied()
+                .map(|ty| ty.try_into().unwrap())
+                .collect(),
+            results: value
+                .results()
+                .iter()
+                .copied()
+                .map(|ty| ty.try_into().unwrap())
+                .collect(),
+        }
+    }
+}
+
+impl From<wasmparser::CompositeType> for CompositeType {
+    fn from(value: wasmparser::CompositeType) -> Self {
+        let inner_type = match value.inner {
+            wasmparser::CompositeInnerType::Func(func_type) => {
+                CompositeInnerType::Func(Rc::new(func_type.into()))
+            }
+            wasmparser::CompositeInnerType::Array(array_type) => {
+                CompositeInnerType::Array(array_type.try_into().unwrap())
+            }
+            wasmparser::CompositeInnerType::Struct(struct_type) => {
+                CompositeInnerType::Struct(struct_type.try_into().unwrap())
+            }
+            wasmparser::CompositeInnerType::Cont(_) => {
+                panic!("continuation type is not supported by wasm-smith currently.")
+            }
+        };
+
+        CompositeType {
+            inner: inner_type,
+            shared: value.shared,
+        }
+    }
+}
+
+impl From<wasmparser::SubType> for SubType {
+    fn from(value: wasmparser::SubType) -> Self {
+        let supertype_idx = value
+            .supertype_idx
+            .map(|i| i.unpack().as_module_index().unwrap());
+
+        SubType {
+            is_final: value.is_final,
+            supertype: supertype_idx,
+            composite_type: value.composite_type.into(),
+            // We cannot determine the depth of current subtype here, set it to 1
+            // temporarily and fix it later.
+            depth: 1,
         }
     }
 }
