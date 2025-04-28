@@ -16,7 +16,7 @@
     (import "$root" "[waitable-set-poll]" (func (;6;) (type 4)))
     (import "$root" "[waitable-set-drop]" (func (;7;) (type 0)))
     (import "$root" "[waitable-join]" (func (;8;) (type 2)))
-    (import "$root" "[yield]" (func (;9;) (type 1)))
+    (import "$root" "[yield]" (func (;9;) (type 3)))
     (import "$root" "[subtask-drop]" (func (;10;) (type 0)))
     (import "$root" "[subtask-cancel]" (func (;11;) (type 5)))
     (import "$root" "[error-context-new-utf8]" (func (;12;) (type 4)))
