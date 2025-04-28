@@ -12,7 +12,7 @@
       "line": 17,
       "filename": "lift.1.wasm",
       "module_type": "binary",
-      "text": "cannot specify post-return function when lifting async"
+      "text": "cannot specify post-return function in async"
     },
     {
       "type": "module",
@@ -32,7 +32,7 @@
       "line": 62,
       "filename": "lift.4.wasm",
       "module_type": "binary",
-      "text": "cannot specify post-return function when lifting async"
+      "text": "cannot specify post-return function in async"
     },
     {
       "type": "assert_invalid",
@@ -53,7 +53,7 @@
       "line": 110,
       "filename": "lift.7.wasm",
       "module_type": "binary",
-      "text": "cannot specify callback without lifting async"
+      "text": "cannot specify callback without async"
     }
   ]
 }

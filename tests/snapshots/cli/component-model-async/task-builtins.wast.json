@@ -32,7 +32,7 @@
       "line": 38,
       "filename": "task-builtins.4.wasm",
       "module_type": "binary",
-      "text": "cannot specify `callback` option on `task.return`"
+      "text": "cannot specify callback without async"
     },
     {
       "type": "assert_invalid",

@@ -7,8 +7,8 @@ use super::{
         ComponentCoreModuleTypeId, ComponentCoreTypeId, ComponentDefinedType,
         ComponentDefinedTypeId, ComponentEntityType, ComponentFuncType, ComponentFuncTypeId,
         ComponentInstanceType, ComponentInstanceTypeId, ComponentType, ComponentTypeId,
-        ComponentValType, Context, CoreInstanceTypeKind, InstanceType, LoweringInfo, ModuleType,
-        RecordType, Remap, Remapping, ResourceId, SubtypeCx, TupleType, VariantCase, VariantType,
+        ComponentValType, Context, CoreInstanceTypeKind, InstanceType, ModuleType, RecordType,
+        Remap, Remapping, ResourceId, SubtypeCx, TupleType, VariantCase, VariantType,
     },
     core::{InternRecGroup, Module},
     types::{CoreTypeId, EntityType, TypeAlloc, TypeInfo, TypeList},
@@ -204,6 +204,144 @@ impl ExternKind {
             ExternKind::Import => "import",
             ExternKind::Export => "export",
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum Concurrency {
+    /// Synchronous.
+    #[default]
+    Sync,
+
+    /// Asynchronous.
+    Async {
+        /// When present, this is the function index of the async callback. When
+        /// omitted, we are either using stack-switching based asynchrony or are
+        /// in an operation that does not support the `callback` option (like
+        /// lowering).
+        callback: Option<u32>,
+    },
+}
+
+impl Concurrency {
+    pub(crate) fn is_sync(&self) -> bool {
+        matches!(self, Self::Sync)
+    }
+
+    pub(crate) fn is_async(&self) -> bool {
+        !self.is_sync()
+    }
+}
+
+pub(crate) struct CanonicalOptions {
+    pub(crate) memory: Option<u32>,
+    pub(crate) realloc: Option<u32>,
+    pub(crate) post_return: Option<u32>,
+    pub(crate) concurrency: Concurrency,
+}
+
+impl CanonicalOptions {
+    pub(crate) fn require_sync(&self, offset: usize, where_: &str) -> Result<&Self> {
+        if !self.concurrency.is_sync() {
+            bail!(offset, "cannot specify `async` option on `{where_}`")
+        }
+        Ok(self)
+    }
+
+    pub(crate) fn require_memory(&self, offset: usize) -> Result<&Self> {
+        if self.memory.is_none() {
+            bail!(offset, "canonical option `memory` is required");
+        }
+        Ok(self)
+    }
+
+    pub(crate) fn require_realloc(&self, offset: usize) -> Result<&Self> {
+        // Memory is always required when `realloc` is required.
+        self.require_memory(offset)?;
+
+        if self.realloc.is_none() {
+            bail!(offset, "canonical option `realloc` is required")
+        }
+
+        Ok(self)
+    }
+
+    pub(crate) fn require_memory_if(
+        &self,
+        offset: usize,
+        when: impl Fn() -> bool,
+    ) -> Result<&Self> {
+        if self.memory.is_none() && when() {
+            self.require_memory(offset)?;
+        }
+        Ok(self)
+    }
+
+    pub(crate) fn require_realloc_if(
+        &self,
+        offset: usize,
+        when: impl Fn() -> bool,
+    ) -> Result<&Self> {
+        if self.realloc.is_none() && when() {
+            self.require_realloc(offset)?;
+        }
+        Ok(self)
+    }
+
+    pub(crate) fn check_lower(&self, offset: usize) -> Result<&Self> {
+        if self.post_return.is_some() {
+            bail!(
+                offset,
+                "canonical option `post-return` cannot be specified for lowerings"
+            );
+        }
+
+        if let Concurrency::Async { callback: Some(_) } = self.concurrency {
+            bail!(
+                offset,
+                "canonical option `callback` cannot be specified for lowerings"
+            );
+        }
+
+        Ok(self)
+    }
+
+    pub(crate) fn check_lift(
+        &self,
+        types: &TypeList,
+        state: &ComponentState,
+        core_ty: &FuncType,
+        offset: usize,
+    ) -> Result<&Self> {
+        if let Some(idx) = self.post_return {
+            let func_ty = types[state.core_function_at(idx, offset)?].unwrap_func();
+            if func_ty.params() != core_ty.results() || !func_ty.results().is_empty() {
+                bail!(offset, "canonical option `post-return` uses a core function with an incorrect signature");
+            }
+        }
+
+        match self.concurrency {
+            Concurrency::Sync => {}
+
+            Concurrency::Async { callback: None } if !state.features.cm_async_stackful() => {
+                bail!(offset, "requires the async stackful feature")
+            }
+            Concurrency::Async { callback: None } => {}
+
+            Concurrency::Async {
+                callback: Some(idx),
+            } => {
+                let func_ty = types[state.core_function_at(idx, offset)?].unwrap_func();
+                if func_ty.params() != [ValType::I32; 3] && func_ty.params() != [ValType::I32] {
+                    return Err(BinaryReaderError::new(
+                        "canonical option `callback` uses a core function with an incorrect signature",
+                        offset,
+                    ));
+                }
+            }
+        }
+
+        Ok(self)
     }
 }
 
@@ -1035,41 +1173,58 @@ impl ComponentState {
         core_func_index: u32,
         type_index: u32,
         options: &[CanonicalOption],
-        types: &TypeList,
+        types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
         let ty = self.function_type_at(type_index, types, offset)?;
-        let core_ty = types[self.core_function_at(core_func_index, offset)?].unwrap_func();
+        let core_ty_id = self.core_function_at(core_func_index, offset)?;
+        let core_ty = types[core_ty_id].unwrap_func();
 
         // Lifting a function is for an export, so match the expected canonical ABI
         // export signature
-        let info = ty.lower(types, Abi::for_lift(options));
-        self.check_options(Some(core_ty), &info, options, types, offset, true)?;
+        let options = self.check_options(types, options, offset)?;
+        options.check_lift(types, self, core_ty, offset)?;
+        let func_ty = ty.lower(types, &options, Abi::Lift, offset)?;
+        let lowered_core_ty_id = types.intern_func_type(func_ty, offset);
 
-        if core_ty.params() != info.params.as_slice() {
+        if core_ty_id == lowered_core_ty_id {
+            self.funcs
+                .push(self.types[type_index as usize].unwrap_func());
+            return Ok(());
+        }
+
+        let ty = types[core_ty_id].unwrap_func();
+        let lowered_ty = types[lowered_core_ty_id].unwrap_func();
+
+        if lowered_ty.params() != ty.params() {
             bail!(
                 offset,
-                "lowered parameter types `{:?}` do not match parameter types \
-                 `{:?}` of core function {core_func_index}",
-                info.params.as_slice(),
-                core_ty.params(),
+                "lowered parameter types `{:?}` do not match parameter types `{:?}` of \
+                     core function {core_func_index}",
+                lowered_ty.params(),
+                ty.params()
             );
         }
 
-        if core_ty.results() != info.results.as_slice() {
+        if lowered_ty.results() != ty.results() {
             bail!(
                 offset,
-                "lowered result types `{:?}` do not match result types \
-                 `{:?}` of core function {core_func_index}",
-                info.results.as_slice(),
-                core_ty.results()
+                "lowered result types `{:?}` do not match result types `{:?}` of \
+                     core function {core_func_index}",
+                lowered_ty.results(),
+                ty.results()
             );
         }
 
-        self.funcs
-            .push(self.types[type_index as usize].unwrap_func());
-
-        Ok(())
+        // Otherwise, must be different rec groups or subtyping (which isn't
+        // supported yet) or something.
+        bail!(
+            offset,
+            "lowered function type `{:?}` does not match type `{:?}` of \
+                 core function {core_func_index}",
+            types[lowered_core_ty_id],
+            types[core_ty_id],
+        );
     }
 
     fn lower_function(
@@ -1083,20 +1238,12 @@ impl ComponentState {
 
         // Lowering a function is for an import, so use a function type that matches
         // the expected canonical ABI import signature.
-        let info = ty.lower(
-            types,
-            if options.contains(&CanonicalOption::Async) {
-                Abi::LowerAsync
-            } else {
-                Abi::LowerSync
-            },
-        );
+        let options = self.check_options(types, options, offset)?;
+        options.check_lower(offset)?;
+        let func_ty = ty.lower(types, &options, Abi::Lower, offset)?;
+        let core_ty_id = types.intern_func_type(func_ty, offset);
 
-        self.check_options(None, &info, options, types, offset, true)?;
-
-        let id = types.intern_func_type(info.into_func_type(), offset);
-        self.core_funcs.push(id);
-
+        self.core_funcs.push(core_ty_id);
         Ok(())
     }
 
@@ -1166,21 +1313,7 @@ impl ComponentState {
             )
         }
 
-        for option in options {
-            let invalid = match option {
-                CanonicalOption::UTF8
-                | CanonicalOption::UTF16
-                | CanonicalOption::CompactUTF16
-                | CanonicalOption::Memory(_) => continue,
-                CanonicalOption::Realloc(_) => "realloc",
-                CanonicalOption::PostReturn(_) => "post-return",
-                CanonicalOption::Async => "async",
-                CanonicalOption::Callback(_) => "callback",
-            };
-            bail!(offset, "cannot specify `{invalid}` option on `task.return`")
-        }
-
-        let info = ComponentFuncType {
+        let func_ty = ComponentFuncType {
             info: TypeInfo::new(),
             params: result
                 .iter()
@@ -1199,15 +1332,26 @@ impl ComponentState {
                 })
                 .collect::<Result<_>>()?,
             result: None,
+        };
+
+        let options = self.check_options(types, options, offset)?;
+        if options.realloc.is_some() {
+            bail!(offset, "cannot specify `realloc` option on `task.return`")
         }
-        .lower(types, Abi::LowerSync);
+        if options.post_return.is_some() {
+            bail!(
+                offset,
+                "cannot specify `post-return` option on `task.return`"
+            )
+        }
+        options.check_lower(offset)?;
+        options.require_sync(offset, "task.return")?;
 
-        self.check_options(None, &info, options, types, offset, true)?;
-
-        assert!(info.results.iter().next().is_none());
+        let func_ty = func_ty.lower(types, &options, Abi::Lower, offset)?;
+        assert!(func_ty.results().is_empty());
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new(info.params.iter(), []), offset));
+            .push(types.intern_func_type(func_ty, offset));
         Ok(())
     }
 
@@ -1337,16 +1481,14 @@ impl ComponentState {
         }
 
         let ty = self.defined_type_at(ty, offset)?;
-        let ComponentDefinedType::Stream(payload_type) = &types[ty] else {
+        let ComponentDefinedType::Stream(elem_ty) = &types[ty] else {
             bail!(offset, "`stream.read` requires a stream type")
         };
 
-        let mut info = LoweringInfo::default();
-        info.requires_memory = true;
-        info.requires_realloc = payload_type
-            .map(|ty| ty.contains_ptr(types))
-            .unwrap_or_default();
-        self.check_options(None, &info, options, types, offset, true)?;
+        self.check_options(types, options, offset)?
+            .require_memory(offset)?
+            .require_realloc_if(offset, || elem_ty.is_some_and(|ty| ty.contains_ptr(types)))?
+            .check_lower(offset)?;
 
         self.core_funcs
             .push(types.intern_func_type(FuncType::new([ValType::I32; 3], [ValType::I32]), offset));
@@ -1372,10 +1514,9 @@ impl ComponentState {
             bail!(offset, "`stream.write` requires a stream type")
         };
 
-        let mut info = LoweringInfo::default();
-        info.requires_memory = true;
-        info.requires_realloc = false;
-        self.check_options(None, &info, options, types, offset, true)?;
+        self.check_options(types, options, offset)?
+            .require_memory(offset)?
+            .check_lower(offset)?;
 
         self.core_funcs
             .push(types.intern_func_type(FuncType::new([ValType::I32; 3], [ValType::I32]), offset));
@@ -1521,16 +1662,14 @@ impl ComponentState {
         }
 
         let ty = self.defined_type_at(ty, offset)?;
-        let ComponentDefinedType::Future(payload_type) = &types[ty] else {
+        let ComponentDefinedType::Future(elem_ty) = &types[ty] else {
             bail!(offset, "`future.read` requires a future type")
         };
 
-        let mut info = LoweringInfo::default();
-        info.requires_memory = true;
-        info.requires_realloc = payload_type
-            .map(|ty| ty.contains_ptr(types))
-            .unwrap_or_default();
-        self.check_options(None, &info, options, types, offset, true)?;
+        self.check_options(types, options, offset)?
+            .require_memory(offset)?
+            .require_realloc_if(offset, || elem_ty.is_some_and(|ty| ty.contains_ptr(types)))?
+            .check_lower(offset)?;
 
         self.core_funcs
             .push(types.intern_func_type(FuncType::new([ValType::I32; 2], [ValType::I32]), offset));
@@ -1556,10 +1695,9 @@ impl ComponentState {
             bail!(offset, "`future.write` requires a future type")
         };
 
-        let mut info = LoweringInfo::default();
-        info.requires_memory = true;
-        info.requires_realloc = false;
-        self.check_options(None, &info, &options, types, offset, true)?;
+        self.check_options(types, &options, offset)?
+            .require_memory(offset)?
+            .check_lower(offset)?;
 
         self.core_funcs
             .push(types.intern_func_type(FuncType::new([ValType::I32; 2], [ValType::I32]), offset));
@@ -1685,10 +1823,10 @@ impl ComponentState {
             )
         }
 
-        let mut info = LoweringInfo::default();
-        info.requires_memory = true;
-        info.requires_realloc = false;
-        self.check_options(None, &info, &options, types, offset, false)?;
+        self.check_options(types, &options, offset)?
+            .require_memory(offset)?
+            .require_sync(offset, "error-context.new")?
+            .check_lower(offset)?;
 
         self.core_funcs
             .push(types.intern_func_type(FuncType::new([ValType::I32; 2], [ValType::I32]), offset));
@@ -1708,10 +1846,11 @@ impl ComponentState {
             )
         }
 
-        let mut info = LoweringInfo::default();
-        info.requires_memory = true;
-        info.requires_realloc = true;
-        self.check_options(None, &info, &options, types, offset, false)?;
+        self.check_options(types, &options, offset)?
+            .require_memory(offset)?
+            .require_realloc(offset)?
+            .require_sync(offset, "error-context.debug-message")?
+            .check_lower(offset)?;
 
         self.core_funcs
             .push(types.intern_func_type(FuncType::new([ValType::I32; 2], []), offset));
@@ -2111,13 +2250,10 @@ impl ComponentState {
 
     fn check_options(
         &self,
-        core_ty: Option<&FuncType>,
-        info: &LoweringInfo,
-        options: &[CanonicalOption],
         types: &TypeList,
+        options: &[CanonicalOption],
         offset: usize,
-        allow_async: bool,
-    ) -> Result<()> {
+    ) -> Result<CanonicalOptions> {
         fn display(option: CanonicalOption) -> &'static str {
             match option {
                 CanonicalOption::UTF8 => "utf8",
@@ -2135,7 +2271,7 @@ impl ComponentState {
         let mut memory = None;
         let mut realloc = None;
         let mut post_return = None;
-        let mut async_ = false;
+        let mut is_async = false;
         let mut callback = None;
 
         for option in options {
@@ -2170,10 +2306,11 @@ impl ComponentState {
                 CanonicalOption::Realloc(idx) => {
                     realloc = match realloc {
                         None => {
-                            let ty = types[self.core_function_at(*idx, offset)?].unwrap_func();
-                            if ty.params()
+                            let ty_id = self.core_function_at(*idx, offset)?;
+                            let func_ty = types[ty_id].unwrap_func();
+                            if func_ty.params()
                                 != [ValType::I32, ValType::I32, ValType::I32, ValType::I32]
-                                || ty.results() != [ValType::I32]
+                                || func_ty.results() != [ValType::I32]
                             {
                                 return Err(BinaryReaderError::new(
                                     "canonical option `realloc` uses a core function with an incorrect signature",
@@ -2192,24 +2329,7 @@ impl ComponentState {
                 }
                 CanonicalOption::PostReturn(idx) => {
                     post_return = match post_return {
-                        None => {
-                            let core_ty = core_ty.ok_or_else(|| {
-                                BinaryReaderError::new(
-                                    "canonical option `post-return` cannot be specified for lowerings",
-                                    offset,
-                                )
-                            })?;
-
-                            let ty = types[self.core_function_at(*idx, offset)?].unwrap_func();
-
-                            if ty.params() != core_ty.results() || !ty.results().is_empty() {
-                                return Err(BinaryReaderError::new(
-                                    "canonical option `post-return` uses a core function with an incorrect signature",
-                                    offset,
-                                ));
-                            }
-                            Some(*idx)
-                        }
+                        None => Some(*idx),
                         Some(_) => {
                             return Err(BinaryReaderError::new(
                                 "canonical option `post-return` is specified more than once",
@@ -2219,7 +2339,7 @@ impl ComponentState {
                     }
                 }
                 CanonicalOption::Async => {
-                    if async_ {
+                    if is_async {
                         return Err(BinaryReaderError::new(
                             "canonical option `async` is specified more than once",
                             offset,
@@ -2232,29 +2352,12 @@ impl ComponentState {
                             );
                         }
 
-                        async_ = true;
+                        is_async = true;
                     }
                 }
                 CanonicalOption::Callback(idx) => {
                     callback = match callback {
-                        None => {
-                            if core_ty.is_none() {
-                                return Err(BinaryReaderError::new(
-                                    "canonical option `callback` cannot be specified for lowerings",
-                                    offset,
-                                ));
-                            }
-
-                            let ty = types[self.core_function_at(*idx, offset)?].unwrap_func();
-
-                            if ty.params() != [ValType::I32; 3] && ty.params() != [ValType::I32] {
-                                return Err(BinaryReaderError::new(
-                                    "canonical option `callback` uses a core function with an incorrect signature",
-                                    offset,
-                                ));
-                            }
-                            Some(*idx)
-                        }
+                        None => Some(*idx),
                         Some(_) => {
                             return Err(BinaryReaderError::new(
                                 "canonical option `callback` is specified more than once",
@@ -2266,62 +2369,23 @@ impl ComponentState {
             }
         }
 
-        // Validate various combinations of options with respect to async.
-        // Modeled as a `match` here to double-check that everything is
-        // exhaustive at compile-time.
-        match (
-            async_,
-            allow_async,
-            callback.is_some(),
-            core_ty,
-            post_return.is_some(),
-        ) {
-            (true, false, ..) => bail!(offset, "async option not allowed here"),
-            (false, _, true, _, _) => {
-                bail!(offset, "cannot specify callback without lifting async")
+        let concurrency = match (is_async, callback, post_return.is_some()) {
+            (false, Some(_), _) => {
+                bail!(offset, "cannot specify callback without async")
             }
-            (true, true, _, _, true) => {
-                bail!(
-                    offset,
-                    "cannot specify post-return function when lifting async"
-                )
+            (true, _, true) => {
+                bail!(offset, "cannot specify post-return function in async")
             }
+            (false, _, _) => Concurrency::Sync,
+            (true, callback, _) => Concurrency::Async { callback },
+        };
 
-            // Async + allowed + this is a lift (core_ty present) + stackful ABI
-            (true, true, false, Some(_), false) => {
-                if !self.features.cm_async_stackful() {
-                    bail!(
-                        offset,
-                        "`async` without `callback` requires the async stackful feature"
-                    )
-                }
-            }
-
-            // Async + allowed + this is a lower (no core_ty)
-            (true, true, false, None, false) => {}
-
-            // Not async, no callback, this is ok
-            (false, _, false, _, _) => {}
-
-            // Async + allowed + callback ABI
-            (true, true, true, _, false) => {}
-        }
-
-        if info.requires_memory && memory.is_none() {
-            return Err(BinaryReaderError::new(
-                "canonical option `memory` is required",
-                offset,
-            ));
-        }
-
-        if info.requires_realloc && realloc.is_none() {
-            return Err(BinaryReaderError::new(
-                "canonical option `realloc` is required",
-                offset,
-            ));
-        }
-
-        Ok(())
+        Ok(CanonicalOptions {
+            memory,
+            realloc,
+            post_return,
+            concurrency,
+        })
     }
 
     fn check_type_ref(
