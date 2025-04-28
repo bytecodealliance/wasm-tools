@@ -994,9 +994,8 @@ impl<'a> Parse<'a> for CanonOpt<'a> {
                     Ok(CanonOpt::Callback(
                         parser.parse::<IndexOrCoreRef<'_, _>>()?.0,
                     ))
-                } else if l.peek::<kw::core>()? {
-                    parser.parse::<kw::core>()?;
-                    parser.parse::<kw::r#type>()?;
+                } else if l.peek::<kw::core_type>()? {
+                    parser.parse::<kw::core_type>()?;
                     Ok(CanonOpt::CoreType(
                         parser.parse::<IndexOrCoreRef<'_, _>>()?.0,
                     ))
@@ -1022,7 +1021,7 @@ impl Peek for CanonOpt<'_> {
                         || kw::realloc::peek(next)?
                         || kw::post_return::peek(next)?
                         || kw::callback::peek(next)?
-                        || kw::core::peek(next)?
+                        || kw::core_type::peek(next)?
                 }
                 None => false,
             })

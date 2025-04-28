@@ -345,7 +345,7 @@ impl CanonicalOptions {
         if self.core_type.is_some() {
             bail!(
                 offset,
-                "canonical option `core type` is not allowed in `canon lift`"
+                "canonical option `core-type` is not allowed in `canon lift`"
             )
         }
 

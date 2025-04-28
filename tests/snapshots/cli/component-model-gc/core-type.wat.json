@@ -12,7 +12,7 @@
       "line": 10,
       "filename": "core-type.1.wasm",
       "module_type": "binary",
-      "text": "canonical option `core type` is not allowed in `canon lift`"
+      "text": "canonical option `core-type` is not allowed in `canon lift`"
     },
     {
       "type": "assert_invalid",
