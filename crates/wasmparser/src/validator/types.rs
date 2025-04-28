@@ -947,7 +947,7 @@ impl TypeList {
     /// [`Self::intern_canonical_rec_group`].
     pub fn intern_sub_type(&mut self, sub_ty: SubType, offset: usize) -> CoreTypeId {
         let (_is_new, group_id) =
-            self.intern_canonical_rec_group(false, RecGroup::implicit(offset, sub_ty));
+            self.intern_canonical_rec_group(true, RecGroup::implicit(offset, sub_ty));
         self[group_id].start
     }
 

@@ -1,6 +1,7 @@
 //! Types relating to type information provided by validation.
 
 use super::component::ExternKind;
+use super::{CanonicalOptions, Concurrency};
 use crate::prelude::*;
 use crate::validator::names::KebabString;
 use crate::validator::types::{
@@ -8,8 +9,7 @@ use crate::validator::types::{
     Types, TypesKind, TypesRef, TypesRefKind,
 };
 use crate::{
-    BinaryReaderError, CanonicalOption, FuncType, MemoryType, PrimitiveValType, Result, TableType,
-    ValType,
+    BinaryReaderError, FuncType, MemoryType, PrimitiveValType, Result, TableType, ValType,
 };
 use core::fmt;
 use core::ops::Index;
@@ -96,16 +96,15 @@ impl fmt::Debug for LoweredTypes {
     }
 }
 
-/// Represents information about a component function type lowering.
+/// Represents a component function type's in-progress lowering into a core
+/// type.
 #[derive(Debug)]
-pub(crate) struct LoweringInfo {
-    pub(crate) params: LoweredTypes,
-    pub(crate) results: LoweredTypes,
-    pub(crate) requires_memory: bool,
-    pub(crate) requires_realloc: bool,
+struct LoweredSignature {
+    params: LoweredTypes,
+    results: LoweredTypes,
 }
 
-impl LoweringInfo {
+impl LoweredSignature {
     pub(crate) fn into_func_type(self) -> FuncType {
         FuncType::new(
             self.params.as_slice().iter().copied(),
@@ -114,13 +113,11 @@ impl LoweringInfo {
     }
 }
 
-impl Default for LoweringInfo {
+impl Default for LoweredSignature {
     fn default() -> Self {
         Self {
             params: LoweredTypes::new(MAX_FLAT_FUNC_PARAMS),
             results: LoweredTypes::new(MAX_FLAT_FUNC_RESULTS),
-            requires_memory: false,
-            requires_realloc: false,
         }
     }
 }
@@ -903,67 +900,35 @@ impl TypeData for ComponentFuncType {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Abi {
-    /// Use to generate the core wasm signature of a component model function
-    /// that is `canon lower`'d with the synchronous ABI option set.
-    LowerSync,
-    /// Use to generate the core wasm signature of a component model function
-    /// that is `canon lower`'d with the asynchronous ABI option set.
-    LowerAsync,
-    /// Use to generate the core wasm signature that when `canon lift`'d with
-    /// the synchronous ABI option set will generate a component model function
-    /// type.
-    LiftSync,
-    /// Use to generate the core wasm signature that when `canon lift`'d with
-    /// the asynchronous + callback ABI options set will generate a component
-    /// model function type.
-    LiftAsync,
-    /// Use to generate the core wasm signature that when `canon lift`'d with
-    /// the asynchronou ABI option set will generate a component
-    /// model function type.
-    LiftAsyncStackful,
-}
-
-impl Abi {
-    pub(crate) fn for_lift(options: &[CanonicalOption]) -> Abi {
-        if options.contains(&CanonicalOption::Async) {
-            if options
-                .iter()
-                .any(|v| matches!(v, CanonicalOption::Callback(_)))
-            {
-                Abi::LiftAsync
-            } else {
-                Abi::LiftAsyncStackful
-            }
-        } else {
-            Abi::LiftSync
-        }
-    }
+    Lift,
+    Lower,
 }
 
 impl ComponentFuncType {
     /// Lowers the component function type to core parameter and result types for the
     /// canonical ABI.
-    pub(crate) fn lower(&self, types: &TypeList, abi: Abi) -> LoweringInfo {
-        let mut info = LoweringInfo::default();
+    pub(crate) fn lower(
+        &self,
+        types: &TypeList,
+        options: &CanonicalOptions,
+        abi: Abi,
+        offset: usize,
+    ) -> Result<FuncType> {
+        let mut sig = LoweredSignature::default();
 
-        let is_lower = match abi {
-            Abi::LowerAsync => {
-                for _ in 0..2 {
-                    info.params.push(ValType::I32);
-                }
-                info.results.push(ValType::I32);
-                info.requires_memory = true;
-                info.requires_realloc = self
-                    .result
-                    .map(|ty| ty.contains_ptr(types))
-                    .unwrap_or(false);
-                return info;
+        if abi == Abi::Lower && options.concurrency.is_async() {
+            for _ in 0..2 {
+                sig.params.push(ValType::I32);
             }
-            Abi::LowerSync => true,
-            Abi::LiftSync | Abi::LiftAsync | Abi::LiftAsyncStackful => false,
-        };
+            sig.results.push(ValType::I32);
+            options.require_memory(offset)?;
+            if self.result.is_some_and(|ty| ty.contains_ptr(types)) {
+                options.require_realloc(offset)?;
+            }
+            return Ok(sig.into_func_type());
+        }
 
         for (_, ty) in self.params.iter() {
             // Check to see if `ty` has a pointer somewhere in it, needed for
@@ -972,68 +937,70 @@ impl ComponentFuncType {
             // lifted functions must specify `realloc` as well. Lifted functions
             // gain their memory requirement through the final clause of this
             // function.
-            if is_lower {
-                if !info.requires_memory {
-                    info.requires_memory = ty.contains_ptr(types);
+            match abi {
+                Abi::Lower => {
+                    options.require_memory_if(offset, || ty.contains_ptr(types))?;
                 }
-            } else {
-                if !info.requires_realloc {
-                    info.requires_realloc = ty.contains_ptr(types);
+                Abi::Lift => {
+                    options.require_realloc_if(offset, || ty.contains_ptr(types))?;
                 }
             }
 
-            if !ty.push_wasm_types(types, &mut info.params) {
+            if !ty.push_wasm_types(types, &mut sig.params) {
                 // Too many parameters to pass directly
                 // Function will have a single pointer parameter to pass the arguments
                 // via linear memory
-                info.params.clear();
-                assert!(info.params.push(ValType::I32));
-                info.requires_memory = true;
+                sig.params.clear();
+                assert!(sig.params.push(ValType::I32));
+                options.require_memory(offset)?;
 
                 // We need realloc as well when lifting a function
-                if !is_lower {
-                    info.requires_realloc = true;
+                if let Abi::Lift = abi {
+                    options.require_realloc(offset)?;
                 }
                 break;
             }
         }
 
-        match abi {
-            Abi::LowerAsync => unreachable!(),
-            Abi::LowerSync | Abi::LiftSync => {
+        match (abi, options.concurrency) {
+            (Abi::Lower, Concurrency::Async { .. }) => {
+                unreachable!("special-cased at the start of the function")
+            }
+            (Abi::Lower | Abi::Lift, Concurrency::Sync) => {
                 if let Some(ty) = &self.result {
                     // Results of lowered functions that contains pointers must be
                     // allocated by the callee meaning that realloc is required.
                     // Results of lifted function are allocated by the guest which
                     // means that no realloc option is necessary.
-                    if is_lower && !info.requires_realloc {
-                        info.requires_realloc = ty.contains_ptr(types);
-                    }
+                    options.require_realloc_if(offset, || {
+                        abi == Abi::Lower && ty.contains_ptr(types)
+                    })?;
 
-                    if !ty.push_wasm_types(types, &mut info.results) {
-                        // Too many results to return directly, either a retptr parameter will be used (import)
-                        // or a single pointer will be returned (export)
-                        info.results.clear();
-                        if is_lower {
-                            info.params.max = MAX_LOWERED_TYPES;
-                            assert!(info.params.push(ValType::I32));
-                        } else {
-                            assert!(info.results.push(ValType::I32));
+                    if !ty.push_wasm_types(types, &mut sig.results) {
+                        // Too many results to return directly, either a retptr
+                        // parameter will be used (import) or a single pointer
+                        // will be returned (export).
+                        sig.results.clear();
+                        options.require_memory(offset)?;
+                        match abi {
+                            Abi::Lower => {
+                                sig.params.max = MAX_LOWERED_TYPES;
+                                assert!(sig.params.push(ValType::I32));
+                            }
+                            Abi::Lift => {
+                                assert!(sig.results.push(ValType::I32));
+                            }
                         }
-                        info.requires_memory = true;
                     }
                 }
             }
-            Abi::LiftAsync => {
-                info.results.push(ValType::I32);
+            (Abi::Lift, Concurrency::Async { callback: Some(_) }) => {
+                sig.results.push(ValType::I32);
             }
-            Abi::LiftAsyncStackful => {}
+            (Abi::Lift, Concurrency::Async { callback: None }) => {}
         }
 
-        // Memory is always required when realloc is required
-        info.requires_memory |= info.requires_realloc;
-
-        info
+        Ok(sig.into_func_type())
     }
 }
 

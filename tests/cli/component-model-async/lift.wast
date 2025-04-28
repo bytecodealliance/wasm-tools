@@ -25,7 +25,7 @@
       (canon lift (core func $i "foo") async (post-return (func $i "post-return-foo")))
     )
   )
-  "cannot specify post-return function when lifting async"
+  "cannot specify post-return function in async"
 )
 
 ;; async lift; with callback
@@ -71,7 +71,7 @@
       (canon lift (core func $i "foo") async (callback (func $i "callback")) (post-return (func $i "post-return-foo")))
     )
   )
-  "cannot specify post-return function when lifting async"
+  "cannot specify post-return function in async"
 )
 
 ;; async lift; with incorrectly-typed core function
@@ -118,5 +118,5 @@
       (canon lift (core func $i "foo") (callback (func $i "callback")))
     )
   )
-  "cannot specify callback without lifting async"
+  "cannot specify callback without async"
 )

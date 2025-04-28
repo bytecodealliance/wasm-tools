@@ -39,7 +39,7 @@
     (core func $f (canon backpressure.set))
     (core func $task-return (canon task.return (result u32) (callback $f)))
   )
-  "cannot specify `callback` option on `task.return`")
+  "cannot specify callback without async")
 
 (assert_invalid
   (component
