@@ -1,9 +1,9 @@
 package root:root;
 
 world root {
-  import a:b/b;
   import a: interface {
   }
+  import a:b/b;
   use a:b/b.{t};
   import c: func() -> t;
 }
@@ -14,9 +14,9 @@ package a:b {
   world into {
   }
   world %from {
-    import b;
     import a: interface {
     }
+    import b;
     use b.{t};
     import c: func() -> t;
   }
