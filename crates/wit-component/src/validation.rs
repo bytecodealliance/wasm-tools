@@ -607,7 +607,7 @@ impl ImportMap {
             }
 
             if Some(name) == names.yield_() {
-                let expected = FuncType::new([], []);
+                let expected = FuncType::new([], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::Yield { async_ });
             }

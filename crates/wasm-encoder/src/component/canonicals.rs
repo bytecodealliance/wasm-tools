@@ -212,7 +212,7 @@ impl CanonicalFunctionSection {
 
     /// Defines a function to acknowledge cancellation of the current task.
     pub fn task_cancel(&mut self) -> &mut Self {
-        self.bytes.push(0x25);
+        self.bytes.push(0x05);
         self.num_added += 1;
         self
     }
@@ -255,7 +255,7 @@ impl CanonicalFunctionSection {
 
     /// Defines a function to cancel an in-progress task.
     pub fn subtask_cancel(&mut self, async_: bool) -> &mut Self {
-        self.bytes.push(0x24);
+        self.bytes.push(0x06);
         self.bytes.push(if async_ { 1 } else { 0 });
         self.num_added += 1;
         self
