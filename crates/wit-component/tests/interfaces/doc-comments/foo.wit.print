@@ -60,11 +60,10 @@ interface other-comment-forms {
 
 /// world docs
 world coverage-world {
-  /// world func import docs
-  import imp: func();
-
   /// world typedef docs
   type t = u32;
+  /// world func import docs
+  import imp: func();
 
   /// world func export docs
   export exp: func();

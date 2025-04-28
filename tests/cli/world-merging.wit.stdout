@@ -2,8 +2,8 @@ package root:root;
 
 world root {
   import a:b/x;
-  import a: func() -> t;
   use a:b/x.{t};
+  import a: func() -> t;
 
   export y: func();
   export a:b/x;
@@ -16,8 +16,8 @@ package a:b {
   }
   world foo {
     import x;
-    import a: func() -> t;
     use x.{t};
+    import a: func() -> t;
 
     export y: func();
     export x;

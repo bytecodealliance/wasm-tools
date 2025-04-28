@@ -19,3 +19,8 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn smoke() {
+    super::test::test_n_times(100, run);
+}

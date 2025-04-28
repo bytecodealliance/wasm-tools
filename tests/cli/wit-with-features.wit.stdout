@@ -39,14 +39,14 @@ interface another-interface {
 world the-world {
   @unstable(feature = foo)
   import foo;
-  @unstable(feature = foo)
-  import x: func();
 
   @unstable(feature = foo)
   resource thing {
     @unstable(feature = foo)
     constructor();
   }
+  @unstable(feature = foo)
+  import x: func();
 
   @unstable(feature = foo)
   export y: func();

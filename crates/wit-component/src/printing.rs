@@ -383,12 +383,32 @@ impl<O: Output> WitPrinter<O> {
         Ok(())
     }
 
+    /// Prints the world `id` within `resolve`.
+    ///
+    /// This is a little tricky to preserve round-tripping that WIT wants. This
+    /// function inherently can't preserve ordering of imports because resource
+    /// functions aren't guaranteed to be all adjacent to the resource itself
+    /// they're attached to. That means that at the very least, when printing
+    /// resource functions, items may be printed out-of-order.
+    ///
+    /// To help solve this the printing here is kept in sync with WIT encoding
+    /// of worlds which is to print items in the order of:
+    ///
+    /// * Any imported interface. Ordering between interfaces is preserved.
+    /// * Any types, including resource functions on those types. Ordering
+    ///   between types is preserved.
+    /// * Any functions, which may refer to those types. Ordering between
+    ///   functions is preserved.
+    ///
+    /// This keeps things printed in a roughly topological fashion and makes
+    /// round-tripping a bit more reliable.
     fn print_world(&mut self, resolve: &Resolve, id: WorldId) -> Result<()> {
         let prev_items = mem::replace(&mut self.any_items, false);
         let world = &resolve.worlds[id];
         let pkgid = world.package.unwrap();
         let mut types = Vec::new();
         let mut resource_funcs = HashMap::new();
+        let mut function_imports_to_print = Vec::new();
         for (name, import) in world.imports.iter() {
             match import {
                 WorldItem::Type(t) => match name {
@@ -401,6 +421,8 @@ impl<O: Output> WitPrinter<O> {
                             resource_funcs.entry(id).or_insert(Vec::new()).push(f);
                             continue;
                         }
+                        function_imports_to_print.push((name, import));
+                        continue;
                     }
                     self.print_world_item(resolve, name, import, pkgid, "import")?;
                     // Don't put a blank line between imports, but count
@@ -416,6 +438,11 @@ impl<O: Output> WitPrinter<O> {
             types.into_iter(),
             &resource_funcs,
         )?;
+
+        for (name, import) in function_imports_to_print {
+            self.print_world_item(resolve, name, import, pkgid, "import")?;
+            self.any_items = true;
+        }
         if !world.exports.is_empty() {
             self.new_item();
         }

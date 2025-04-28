@@ -25,13 +25,13 @@ world w {
   @since(version = 1.0.0)
   import foo;
   @since(version = 1.0.0)
-  import f: func();
-  @since(version = 1.0.0)
   import a: interface {
   }
 
   @since(version = 1.0.0)
   type t = u32;
+  @since(version = 1.0.0)
+  import f: func();
 
   @since(version = 1.0.0)
   export f: func();

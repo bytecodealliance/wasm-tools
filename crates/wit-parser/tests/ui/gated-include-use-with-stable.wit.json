@@ -106,9 +106,6 @@
             }
           }
         },
-        "stable-resource": {
-          "type": 3
-        },
         "interface-1": {
           "interface": {
             "id": 1,
@@ -119,9 +116,6 @@
             }
           }
         },
-        "unversioned-resource": {
-          "type": 4
-        },
         "interface-0": {
           "interface": {
             "id": 0,
@@ -131,6 +125,12 @@
               }
             }
           }
+        },
+        "stable-resource": {
+          "type": 3
+        },
+        "unversioned-resource": {
+          "type": 4
         },
         "unstable-resource": {
           "type": 5
@@ -157,9 +157,6 @@
             }
           }
         },
-        "stable-resource": {
-          "type": 3
-        },
         "interface-1": {
           "interface": {
             "id": 1,
@@ -170,9 +167,6 @@
             }
           }
         },
-        "unversioned-resource": {
-          "type": 4
-        },
         "interface-0": {
           "interface": {
             "id": 0,
@@ -182,6 +176,12 @@
               }
             }
           }
+        },
+        "stable-resource": {
+          "type": 3
+        },
+        "unversioned-resource": {
+          "type": 4
         },
         "unstable-resource": {
           "type": 5
