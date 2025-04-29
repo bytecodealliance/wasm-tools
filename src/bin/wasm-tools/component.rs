@@ -10,7 +10,7 @@ use wasm_encoder::reencode::{Error, Reencode, ReencodeComponent, RoundtripReenco
 use wasm_encoder::ModuleType;
 use wasm_tools::Output;
 use wasmparser::types::{CoreTypeId, EntityType, Types};
-use wasmparser::{Payload, ValidPayload};
+use wasmparser::{Payload, ValidPayload, WasmFeatures};
 use wat::Detect;
 use wit_component::{
     embed_component_metadata, metadata, ComponentEncoder, DecodedWasm, Linker, StringEncoding,
@@ -831,7 +831,7 @@ impl WitOpts {
         let decoded_package = decoded.package();
         let bytes = wit_component::encode(decoded.resolve(), decoded_package)?;
         if !self.skip_validation {
-            wasmparser::Validator::new().validate_all(&bytes)?;
+            wasmparser::Validator::new_with_features(WasmFeatures::all()).validate_all(&bytes)?;
         }
         self.output.output_wasm(&self.general, &bytes, self.wat)?;
         Ok(())

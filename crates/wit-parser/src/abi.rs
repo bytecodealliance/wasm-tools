@@ -132,6 +132,40 @@ pub enum AbiVariant {
     GuestExportAsyncStackful,
 }
 
+pub struct FlatTypes<'a> {
+    types: &'a mut [WasmType],
+    cur: usize,
+    overflow: bool,
+}
+
+impl<'a> FlatTypes<'a> {
+    pub fn new(types: &'a mut [WasmType]) -> FlatTypes<'a> {
+        FlatTypes {
+            types,
+            cur: 0,
+            overflow: false,
+        }
+    }
+
+    pub fn push(&mut self, ty: WasmType) -> bool {
+        match self.types.get_mut(self.cur) {
+            Some(next) => {
+                *next = ty;
+                self.cur += 1;
+                true
+            }
+            None => {
+                self.overflow = true;
+                false
+            }
+        }
+    }
+
+    pub fn to_vec(&self) -> Vec<WasmType> {
+        self.types[..self.cur].to_vec()
+    }
+}
+
 impl Resolve {
     const MAX_FLAT_PARAMS: usize = 16;
     const MAX_FLAT_RESULTS: usize = 1;
@@ -150,16 +184,17 @@ impl Resolve {
             };
         }
 
-        let mut params = Vec::new();
-        let mut indirect_params = false;
-        for (_, param) in func.params.iter() {
-            self.push_flat(param, &mut params);
-        }
+        // Note that one extra parameter is allocated in case a return pointer
+        // is needed down below for imports.
+        let mut storage = [WasmType::I32; Self::MAX_FLAT_PARAMS + 1];
+        let mut params = FlatTypes::new(&mut storage);
+        let ok = self.push_flat_list(func.params.iter().map(|(_, param)| param), &mut params);
+        assert_eq!(ok, !params.overflow);
 
-        if params.len() > Self::MAX_FLAT_PARAMS {
-            params.truncate(0);
-            params.push(WasmType::Pointer);
-            indirect_params = true;
+        let indirect_params = !ok || params.cur > Self::MAX_FLAT_PARAMS;
+        if indirect_params {
+            params.types[0] = WasmType::Pointer;
+            params.cur = 1;
         } else {
             if matches!(
                 (&func.kind, variant),
@@ -176,15 +211,15 @@ impl Resolve {
                 // resource Handles and then use either I32 or Pointer in abi::push_flat().
                 // But this contextual information isn't available, yet.
                 // See https://github.com/bytecodealliance/wasm-tools/pull/1438 for more details.
-                assert!(matches!(params[0], WasmType::I32));
-                params[0] = WasmType::Pointer;
+                assert!(matches!(params.types[0], WasmType::I32));
+                params.types[0] = WasmType::Pointer;
             }
         }
 
         match variant {
             AbiVariant::GuestExportAsync => {
                 return WasmSignature {
-                    params,
+                    params: params.to_vec(),
                     indirect_params,
                     results: vec![WasmType::Pointer],
                     retptr: false,
@@ -192,7 +227,7 @@ impl Resolve {
             }
             AbiVariant::GuestExportAsyncStackful => {
                 return WasmSignature {
-                    params,
+                    params: params.to_vec(),
                     indirect_params,
                     results: Vec::new(),
                     retptr: false,
@@ -201,42 +236,50 @@ impl Resolve {
             _ => {}
         }
 
-        let mut results = Vec::new();
+        let mut storage = [WasmType::I32; Self::MAX_FLAT_RESULTS];
+        let mut results = FlatTypes::new(&mut storage);
         if let Some(ty) = &func.result {
-            self.push_flat(ty, &mut results)
+            self.push_flat(ty, &mut results);
         }
 
-        let mut retptr = false;
+        let retptr = results.overflow;
 
         // Rust/C don't support multi-value well right now, so if a function
         // would have multiple results then instead truncate it. Imports take a
         // return pointer to write into and exports return a pointer they wrote
         // into.
-        if results.len() > Self::MAX_FLAT_RESULTS {
-            retptr = true;
-            results.truncate(0);
+        if retptr {
+            results.cur = 0;
             match variant {
                 AbiVariant::GuestImport => {
-                    params.push(WasmType::Pointer);
+                    assert!(params.push(WasmType::Pointer));
                 }
                 AbiVariant::GuestExport => {
-                    results.push(WasmType::Pointer);
+                    assert!(results.push(WasmType::Pointer));
                 }
                 _ => unreachable!(),
             }
         }
 
         WasmSignature {
-            params,
+            params: params.to_vec(),
             indirect_params,
-            results,
+            results: results.to_vec(),
             retptr,
         }
     }
 
+    fn push_flat_list<'a>(
+        &self,
+        mut list: impl Iterator<Item = &'a Type>,
+        result: &mut FlatTypes<'_>,
+    ) -> bool {
+        list.all(|ty| self.push_flat(ty, result))
+    }
+
     /// Appends the flat wasm types representing `ty` onto the `result`
     /// list provided.
-    pub fn push_flat(&self, ty: &Type, result: &mut Vec<WasmType>) {
+    pub fn push_flat(&self, ty: &Type, result: &mut FlatTypes<'_>) -> bool {
         match ty {
             Type::Bool
             | Type::S8
@@ -251,76 +294,53 @@ impl Resolve {
             Type::U64 | Type::S64 => result.push(WasmType::I64),
             Type::F32 => result.push(WasmType::F32),
             Type::F64 => result.push(WasmType::F64),
-            Type::String => {
-                result.push(WasmType::Pointer);
-                result.push(WasmType::Length);
-            }
+            Type::String => result.push(WasmType::Pointer) && result.push(WasmType::Length),
 
             Type::Id(id) => match &self.types[*id].kind {
                 TypeDefKind::Type(t) => self.push_flat(t, result),
 
                 TypeDefKind::Handle(Handle::Own(_) | Handle::Borrow(_)) => {
-                    result.push(WasmType::I32);
+                    result.push(WasmType::I32)
                 }
 
                 TypeDefKind::Resource => todo!(),
 
                 TypeDefKind::Record(r) => {
-                    for field in r.fields.iter() {
-                        self.push_flat(&field.ty, result);
-                    }
+                    self.push_flat_list(r.fields.iter().map(|f| &f.ty), result)
                 }
 
-                TypeDefKind::Tuple(t) => {
-                    for ty in t.types.iter() {
-                        self.push_flat(ty, result);
-                    }
-                }
+                TypeDefKind::Tuple(t) => self.push_flat_list(t.types.iter(), result),
 
                 TypeDefKind::Flags(r) => {
-                    for _ in 0..r.repr().count() {
-                        result.push(WasmType::I32);
-                    }
+                    self.push_flat_list((0..r.repr().count()).map(|_| &Type::U32), result)
                 }
 
                 TypeDefKind::List(_) => {
-                    result.push(WasmType::Pointer);
-                    result.push(WasmType::Length);
+                    result.push(WasmType::Pointer) && result.push(WasmType::Length)
                 }
 
                 TypeDefKind::FixedSizeList(ty, size) => {
-                    for _ in 0..usize::try_from(*size)
-                        .unwrap_or(Self::MAX_FLAT_PARAMS)
-                        .min(Self::MAX_FLAT_PARAMS)
-                    {
-                        self.push_flat(ty, result);
-                    }
+                    self.push_flat_list((0..*size).map(|_| ty), result)
                 }
 
                 TypeDefKind::Variant(v) => {
-                    result.push(v.tag().into());
-                    self.push_flat_variants(v.cases.iter().map(|c| c.ty.as_ref()), result);
+                    result.push(v.tag().into())
+                        && self.push_flat_variants(v.cases.iter().map(|c| c.ty.as_ref()), result)
                 }
 
                 TypeDefKind::Enum(e) => result.push(e.tag().into()),
 
                 TypeDefKind::Option(t) => {
-                    result.push(WasmType::I32);
-                    self.push_flat_variants([None, Some(t)], result);
+                    result.push(WasmType::I32) && self.push_flat_variants([None, Some(t)], result)
                 }
 
                 TypeDefKind::Result(r) => {
-                    result.push(WasmType::I32);
-                    self.push_flat_variants([r.ok.as_ref(), r.err.as_ref()], result);
+                    result.push(WasmType::I32)
+                        && self.push_flat_variants([r.ok.as_ref(), r.err.as_ref()], result)
                 }
 
-                TypeDefKind::Future(_) => {
-                    result.push(WasmType::I32);
-                }
-
-                TypeDefKind::Stream(_) => {
-                    result.push(WasmType::I32);
-                }
+                TypeDefKind::Future(_) => result.push(WasmType::I32),
+                TypeDefKind::Stream(_) => result.push(WasmType::I32),
 
                 TypeDefKind::Unknown => unreachable!(),
             },
@@ -330,10 +350,11 @@ impl Resolve {
     fn push_flat_variants<'a>(
         &self,
         tys: impl IntoIterator<Item = Option<&'a Type>>,
-        result: &mut Vec<WasmType>,
-    ) {
-        let mut temp = Vec::new();
-        let start = result.len();
+        result: &mut FlatTypes<'_>,
+    ) -> bool {
+        let mut temp = result.types[result.cur..].to_vec();
+        let mut temp = FlatTypes::new(&mut temp);
+        let start = result.cur;
 
         // Push each case's type onto a temporary vector, and then
         // merge that vector into our final list starting at
@@ -343,15 +364,27 @@ impl Resolve {
         // `i32` might be the `f32` bitcasted.
         for ty in tys {
             if let Some(ty) = ty {
-                self.push_flat(ty, &mut temp);
+                if !self.push_flat(ty, &mut temp) {
+                    result.overflow = true;
+                    return false;
+                }
 
-                for (i, ty) in temp.drain(..).enumerate() {
-                    match result.get_mut(start + i) {
-                        Some(prev) => *prev = join(*prev, ty),
-                        None => result.push(ty),
+                for (i, ty) in temp.types[..temp.cur].iter().enumerate() {
+                    let i = i + start;
+                    if i < result.cur {
+                        result.types[i] = join(result.types[i], *ty);
+                    } else if result.cur == result.types.len() {
+                        result.overflow = true;
+                        return false;
+                    } else {
+                        result.types[i] = *ty;
+                        result.cur += 1;
                     }
                 }
+                temp.cur = 0;
             }
         }
+
+        true
     }
 }

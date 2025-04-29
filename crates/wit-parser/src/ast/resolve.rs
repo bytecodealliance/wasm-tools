@@ -1339,7 +1339,10 @@ impl<'a> Resolver<'a> {
                 if !matches!(&ty.stability, Stability::Unknown) {
                     Some(&ty.stability)
                 } else {
-                    find_in_kind(types, &ty.kind)
+                    // Note that this type isn't searched recursively since the
+                    // creation of `id` should already have searched its
+                    // recursive edges, so there's no need to search again.
+                    None
                 }
             } else {
                 None
