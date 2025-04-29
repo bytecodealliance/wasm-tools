@@ -52,6 +52,9 @@ pub trait TypeData: core::fmt::Debug {
     /// The identifier for this type data.
     type Id: TypeIdentifier<Data = Self>;
 
+    /// Is this type a core sub type (or rec group of sub types)?
+    const IS_CORE_SUB_TYPE: bool;
+
     /// Get the info for this type.
     #[doc(hidden)]
     fn type_info(&self, types: &TypeList) -> TypeInfo;
@@ -134,7 +137,7 @@ impl TypeIdentifier for CoreTypeId {
 
 impl TypeData for SubType {
     type Id = CoreTypeId;
-
+    const IS_CORE_SUB_TYPE: bool = true;
     fn type_info(&self, _types: &TypeList) -> TypeInfo {
         // TODO(#1036): calculate actual size for func, array, struct.
         let size = 1 + match &self.composite_type.inner {
@@ -156,7 +159,7 @@ define_type_id!(
 
 impl TypeData for Range<CoreTypeId> {
     type Id = RecGroupId;
-
+    const IS_CORE_SUB_TYPE: bool = true;
     fn type_info(&self, _types: &TypeList) -> TypeInfo {
         let size = self.end.index() - self.start.index();
         TypeInfo::core(u32::try_from(size).unwrap())
