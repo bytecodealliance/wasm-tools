@@ -14,7 +14,7 @@ use std::{collections::VecDeque, ffi::OsStr, path::Path};
 use wasmparser::{
     component_types::{ComponentEntityType, ComponentInstanceTypeId},
     types::TypesRef,
-    ComponentExternalKind, ComponentTypeRef,
+    ComponentExternalKind, ComponentTypeRef, Validator, WasmFeatures,
 };
 
 /// The root component name used in configuration.
@@ -69,12 +69,19 @@ struct CompositionGraphBuilder<'a> {
     instances: IndexMap<String, InstanceId>,
     /// The definition components in the graph.
     definitions: Vec<(ComponentId, Option<InstanceId>)>,
+    /// Wasm validator and shared type arenas.
+    validator: Validator,
 }
 
 impl<'a> CompositionGraphBuilder<'a> {
     fn new(root_path: &Path, config: &'a Config) -> Result<Self> {
         let mut graph = CompositionGraph::new();
-        graph.add_component(Component::from_file(ROOT_COMPONENT_NAME, root_path)?)?;
+        let mut validator = Validator::new_with_features(WasmFeatures::all());
+        graph.add_component(Component::from_file(
+            &mut validator,
+            ROOT_COMPONENT_NAME,
+            root_path,
+        )?)?;
 
         let definitions = config
             .definitions
@@ -87,7 +94,7 @@ impl<'a> CompositionGraphBuilder<'a> {
                     )
                 })?;
 
-                let component = Component::from_file(name, config.dir.join(path))?;
+                let component = Component::from_file(&mut validator, name, config.dir.join(path))?;
 
                 Ok((graph.add_component(component)?, None))
             })
@@ -98,6 +105,7 @@ impl<'a> CompositionGraphBuilder<'a> {
             graph,
             instances: Default::default(),
             definitions,
+            validator,
         })
     }
 
@@ -117,7 +125,7 @@ impl<'a> CompositionGraphBuilder<'a> {
     }
 
     /// Finds the component with the given name on disk.
-    fn find_component(&self, name: &str) -> Result<Option<Component<'a>>> {
+    fn find_component(&mut self, name: &str) -> Result<Option<Component<'a>>> {
         // Check the config for an explicit path (must be a valid component)
         if let Some(dep) = self.config.dependencies.get(name) {
             log::debug!(
@@ -125,6 +133,7 @@ impl<'a> CompositionGraphBuilder<'a> {
                 path = dep.path.display()
             );
             return Ok(Some(Component::from_file(
+                &mut self.validator,
                 name,
                 self.config.dir.join(&dep.path),
             )?));
@@ -133,7 +142,7 @@ impl<'a> CompositionGraphBuilder<'a> {
         // Otherwise, search the paths for a valid component with the same name
         log::info!("searching for a component with name `{name}`");
         for dir in std::iter::once(&self.config.dir).chain(self.config.search_paths.iter()) {
-            if let Some(component) = Self::parse_component(dir, name)? {
+            if let Some(component) = Self::parse_component(&mut self.validator, dir, name)? {
                 return Ok(Some(component));
             }
         }
@@ -144,7 +153,11 @@ impl<'a> CompositionGraphBuilder<'a> {
     /// Parses a component from the given directory, if it exists.
     ///
     /// Returns `Ok(None)` if the component does not exist.
-    fn parse_component(dir: &Path, name: &str) -> Result<Option<Component<'a>>> {
+    fn parse_component(
+        validator: &mut Validator,
+        dir: &Path,
+        name: &str,
+    ) -> Result<Option<Component<'a>>> {
         let mut path = dir.join(name);
 
         for ext in ["wasm", "wat"] {
@@ -154,7 +167,7 @@ impl<'a> CompositionGraphBuilder<'a> {
                 continue;
             }
 
-            return Ok(Some(Component::from_file(name, &path)?));
+            return Ok(Some(Component::from_file(validator, name, &path)?));
         }
 
         Ok(None)

@@ -391,6 +391,14 @@ impl Validator {
     /// [`CoreTypeId`][crate::types::CoreTypeId]) for the same types that are
     /// defined multiple times across different modules and components.
     ///
+    /// # Panics
+    ///
+    /// This function will panic if the validator was mid-way through
+    /// validating a binary. Validation must complete entirely or not have
+    /// started at all for this method to be called.
+    ///
+    /// # Examples
+    ///
     /// ```
     /// fn foo() -> anyhow::Result<()> {
     /// use wasmparser::Validator;
@@ -458,7 +466,7 @@ impl Validator {
         } = self;
 
         assert!(
-            matches!(state, State::End),
+            matches!(state, State::End) || matches!(state, State::Unparsed(None)),
             "cannot reset a validator that did not successfully complete validation"
         );
         assert!(module.is_none());
@@ -1601,5 +1609,10 @@ mod tests {
         assert!(std::ptr::eq(&types[t_id], &types[a2_id],));
 
         Ok(())
+    }
+
+    #[test]
+    fn reset_fresh_validator() {
+        Validator::new().reset();
     }
 }

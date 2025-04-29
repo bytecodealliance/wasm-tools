@@ -18,7 +18,7 @@ use wasmparser::{
     names::ComponentName,
     types::{Types, TypesRef},
     Chunk, ComponentExternalKind, ComponentTypeRef, Encoding, Parser, Payload, ValidPayload,
-    Validator, WasmFeatures,
+    Validator,
 };
 
 pub(crate) fn type_desc(item: ComponentEntityType) -> &'static str {
@@ -50,10 +50,15 @@ pub struct Component<'a> {
 
 impl<'a> Component<'a> {
     /// Constructs a new component from reading the given file.
-    pub fn from_file(name: &str, path: impl AsRef<Path>) -> Result<Self> {
+    pub fn from_file(
+        validator: &mut Validator,
+        name: &str,
+        path: impl AsRef<Path>,
+    ) -> Result<Self> {
         let path = path.as_ref();
         log::info!("parsing WebAssembly component file `{}`", path.display());
         let component = Self::parse(
+            validator,
             ComponentName::new(name, 0)?.to_string(),
             Some(path.to_owned()),
             wat::parse_file(path)
@@ -73,7 +78,11 @@ impl<'a> Component<'a> {
     }
 
     /// Constructs a new component from the given bytes.
-    pub fn from_bytes(name: impl Into<String>, bytes: impl Into<Cow<'a, [u8]>>) -> Result<Self> {
+    pub fn from_bytes(
+        validator: &mut Validator,
+        name: impl Into<String>,
+        bytes: impl Into<Cow<'a, [u8]>>,
+    ) -> Result<Self> {
         let mut bytes = bytes.into();
 
         match wat::parse_bytes(bytes.as_ref()).context("failed to parse component")? {
@@ -85,6 +94,7 @@ impl<'a> Component<'a> {
 
         log::info!("parsing WebAssembly component from bytes");
         let component = Self::parse(
+            validator,
             ComponentName::new(&name.into(), 0)?.to_string(),
             None,
             bytes,
@@ -96,12 +106,18 @@ impl<'a> Component<'a> {
         Ok(component)
     }
 
-    fn parse(name: String, path: Option<PathBuf>, bytes: Cow<'a, [u8]>) -> Result<Self> {
+    fn parse(
+        validator: &mut Validator,
+        name: String,
+        path: Option<PathBuf>,
+        bytes: Cow<'a, [u8]>,
+    ) -> Result<Self> {
         let mut parser = Parser::new(0);
         let mut parsers = Vec::new();
-        let mut validator = Validator::new_with_features(WasmFeatures::all());
         let mut imports = IndexMap::new();
         let mut exports = IndexMap::new();
+
+        validator.reset();
 
         let mut cur = bytes.as_ref();
         loop {
@@ -1036,7 +1052,8 @@ mod test {
 
     #[test]
     fn it_rejects_modules() -> Result<()> {
-        match Component::from_bytes("a", b"(module)".as_ref()) {
+        let mut validator = Validator::new();
+        match Component::from_bytes(&mut validator, "a", b"(module)".as_ref()) {
             Ok(_) => panic!("expected a failure to parse"),
             Err(e) => assert_eq!(
                 format!("{e:#}"),
@@ -1049,7 +1066,8 @@ mod test {
 
     #[test]
     fn it_rejects_invalid_components() -> Result<()> {
-        match Component::from_bytes("a", b"(component (export \"x\" (func 0)))".as_ref()) {
+        let mut validator = Validator::new();
+        match Component::from_bytes(&mut validator, "a", b"(component (export \"x\" (func 0)))".as_ref()) {
             Ok(_) => panic!("expected a failure to parse"),
             Err(e) => assert_eq!(format!("{e:#}"), "failed to parse component: unknown function 0: function index out of bounds (at offset 0xb)"),
         }
@@ -1060,9 +1078,18 @@ mod test {
     #[test]
     fn it_ensures_unique_component_names() -> Result<()> {
         let mut graph = CompositionGraph::new();
-        graph.add_component(Component::from_bytes("a", b"(component)".as_ref())?)?;
+        let mut validator = Validator::new();
+        graph.add_component(Component::from_bytes(
+            &mut validator,
+            "a",
+            b"(component)".as_ref(),
+        )?)?;
 
-        match graph.add_component(Component::from_bytes("a", b"(component)".as_ref())?) {
+        match graph.add_component(Component::from_bytes(
+            &mut validator,
+            "a",
+            b"(component)".as_ref(),
+        )?) {
             Ok(_) => panic!("expected a failure to add component"),
             Err(e) => assert_eq!(format!("{e:#}"), "a component with name `a` already exists"),
         }
@@ -1084,7 +1111,12 @@ mod test {
     #[test]
     fn it_instantiates_a_component() -> Result<()> {
         let mut graph = CompositionGraph::new();
-        let id = graph.add_component(Component::from_bytes("a", b"(component)".as_ref())?)?;
+        let mut validator = Validator::new();
+        let id = graph.add_component(Component::from_bytes(
+            &mut validator,
+            "a",
+            b"(component)".as_ref(),
+        )?)?;
         let id = graph.instantiate(id)?;
         assert_eq!(graph.get_component_of_instance(id).unwrap().1.name(), "a");
         Ok(())
@@ -1100,7 +1132,12 @@ mod test {
     #[test]
     fn it_gets_a_component() -> Result<()> {
         let mut graph = CompositionGraph::new();
-        let id = graph.add_component(Component::from_bytes("a", b"(component)".as_ref())?)?;
+        let mut validator = Validator::new();
+        let id = graph.add_component(Component::from_bytes(
+            &mut validator,
+            "a",
+            b"(component)".as_ref(),
+        )?)?;
         assert_eq!(graph.get_component(id).unwrap().name(), "a");
         assert_eq!(graph.get_component_by_name("a").unwrap().1.name(), "a");
         Ok(())
@@ -1109,11 +1146,14 @@ mod test {
     #[test]
     fn it_removes_a_component() -> Result<()> {
         let mut graph = CompositionGraph::new();
+        let mut validator = Validator::new();
         let a = graph.add_component(Component::from_bytes(
+            &mut validator,
             "a",
             b"(component (import \"x\" (func)))".as_ref(),
         )?)?;
         let b = graph.add_component(Component::from_bytes(
+            &mut validator,
             "b",
             b"(component (import \"x\" (func)) (export \"y\" (func 0)))".as_ref(),
         )?)?;
@@ -1142,11 +1182,14 @@ mod test {
     #[test]
     fn it_removes_a_connection() -> Result<()> {
         let mut graph = CompositionGraph::new();
+        let mut validator = Validator::new();
         let a = graph.add_component(Component::from_bytes(
+            &mut validator,
             "a",
             b"(component (import \"x\" (func)))".as_ref(),
         )?)?;
         let b = graph.add_component(Component::from_bytes(
+            &mut validator,
             "b",
             b"(component (import \"x\" (func)) (export \"y\" (func 0)))".as_ref(),
         )?)?;
@@ -1167,11 +1210,14 @@ mod test {
     #[test]
     fn it_requires_source_to_disconnect() -> Result<()> {
         let mut graph = CompositionGraph::new();
+        let mut validator = Validator::new();
         let a = graph.add_component(Component::from_bytes(
+            &mut validator,
             "a",
             b"(component (import \"x\" (func)))".as_ref(),
         )?)?;
         let b = graph.add_component(Component::from_bytes(
+            &mut validator,
             "b",
             b"(component (import \"x\" (func)) (export \"y\" (func 0)))".as_ref(),
         )?)?;
@@ -1193,11 +1239,14 @@ mod test {
     #[test]
     fn it_requires_a_target_to_disconnect() -> Result<()> {
         let mut graph = CompositionGraph::new();
+        let mut validator = Validator::new();
         let a = graph.add_component(Component::from_bytes(
+            &mut validator,
             "a",
             b"(component (import \"x\" (func)))".as_ref(),
         )?)?;
         let b = graph.add_component(Component::from_bytes(
+            &mut validator,
             "b",
             b"(component (import \"x\" (func)) (export \"y\" (func 0)))".as_ref(),
         )?)?;
@@ -1219,12 +1268,15 @@ mod test {
     #[test]
     fn it_validates_connections() -> Result<()> {
         let mut graph = CompositionGraph::new();
+        let mut validator = Validator::new();
         let a = graph.add_component(Component::from_bytes(
+            &mut validator,
             "a",
             b"(component (import \"i1\" (func)) (import \"i2\" (instance (export \"no\" (func)))))"
                 .as_ref(),
         )?)?;
         let b = graph.add_component(Component::from_bytes(
+            &mut validator,
             "b",
             b"(component (import \"i1\" (func)) (import \"i2\" (core module)) (export \"e1\" (func 0)) (export \"e2\" (core module 0)))".as_ref(),
         )?)?;
@@ -1300,11 +1352,14 @@ mod test {
     #[test]
     fn it_cannot_encode_a_cycle() -> Result<()> {
         let mut graph = CompositionGraph::new();
+        let mut validator = Validator::new();
         let a = graph.add_component(Component::from_bytes(
+            &mut validator,
             "a",
             b"(component (import \"i1\" (func)) (export \"e1\" (func 0)))".as_ref(),
         )?)?;
         let b = graph.add_component(Component::from_bytes(
+            &mut validator,
             "b",
             b"(component (import \"i1\" (func)) (export \"e1\" (func 0)))".as_ref(),
         )?)?;
@@ -1329,8 +1384,17 @@ mod test {
     #[test]
     fn it_encodes_an_empty_component() -> Result<()> {
         let mut graph = CompositionGraph::new();
-        graph.add_component(Component::from_bytes("a", b"(component)".as_ref())?)?;
-        graph.add_component(Component::from_bytes("b", b"(component)".as_ref())?)?;
+        let mut validator = Validator::new();
+        graph.add_component(Component::from_bytes(
+            &mut validator,
+            "a",
+            b"(component)".as_ref(),
+        )?)?;
+        graph.add_component(Component::from_bytes(
+            &mut validator,
+            "b",
+            b"(component)".as_ref(),
+        )?)?;
 
         let encoded = graph.encode(EncodeOptions {
             define_components: false,
@@ -1351,9 +1415,18 @@ mod test {
     #[test]
     fn it_encodes_component_imports() -> Result<()> {
         let mut graph = CompositionGraph::new();
+        let mut validator = Validator::new();
         // Add a component that doesn't get instantiated (shouldn't be imported)
-        graph.add_component(Component::from_bytes("a", b"(component)".as_ref())?)?;
-        let b = graph.add_component(Component::from_bytes("b", b"(component)".as_ref())?)?;
+        graph.add_component(Component::from_bytes(
+            &mut validator,
+            "a",
+            b"(component)".as_ref(),
+        )?)?;
+        let b = graph.add_component(Component::from_bytes(
+            &mut validator,
+            "b",
+            b"(component)".as_ref(),
+        )?)?;
         graph.instantiate(b)?;
 
         let encoded = graph.encode(EncodeOptions {
@@ -1381,9 +1454,18 @@ mod test {
     #[test]
     fn it_encodes_defined_components() -> Result<()> {
         let mut graph = CompositionGraph::new();
+        let mut validator = Validator::new();
         // Add a component that doesn't get instantiated (shouldn't be imported)
-        graph.add_component(Component::from_bytes("a", b"(component)".as_ref())?)?;
-        let b = graph.add_component(Component::from_bytes("b", b"(component)".as_ref())?)?;
+        graph.add_component(Component::from_bytes(
+            &mut validator,
+            "a",
+            b"(component)".as_ref(),
+        )?)?;
+        let b = graph.add_component(Component::from_bytes(
+            &mut validator,
+            "b",
+            b"(component)".as_ref(),
+        )?)?;
         graph.instantiate(b)?;
 
         let encoded = graph.encode(EncodeOptions {
@@ -1408,7 +1490,9 @@ mod test {
     #[test]
     fn it_encodes_a_simple_composition() -> Result<()> {
         let mut graph = CompositionGraph::new();
+        let mut validator = Validator::new();
         let a = graph.add_component(Component::from_bytes(
+            &mut validator,
             "a",
             b"(component
   (type (tuple u32 u32))
@@ -1426,6 +1510,7 @@ mod test {
             .as_ref(),
         )?)?;
         let b = graph.add_component(Component::from_bytes(
+            &mut validator,
             "b",
             b"(component
   (type (tuple u32 u32))
