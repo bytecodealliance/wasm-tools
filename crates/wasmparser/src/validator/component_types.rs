@@ -534,7 +534,7 @@ pub enum ComponentValType {
 
 impl TypeData for ComponentValType {
     type Id = ComponentValueTypeId;
-
+    const IS_CORE_SUB_TYPE: bool = false;
     fn type_info(&self, types: &TypeList) -> TypeInfo {
         match self {
             ComponentValType::Primitive(_) => TypeInfo::new(),
@@ -641,7 +641,7 @@ pub struct ModuleType {
 
 impl TypeData for ModuleType {
     type Id = ComponentCoreModuleTypeId;
-
+    const IS_CORE_SUB_TYPE: bool = false;
     fn type_info(&self, _types: &TypeList) -> TypeInfo {
         self.info
     }
@@ -677,7 +677,7 @@ pub struct InstanceType {
 
 impl TypeData for InstanceType {
     type Id = ComponentCoreInstanceTypeId;
-
+    const IS_CORE_SUB_TYPE: bool = false;
     fn type_info(&self, _types: &TypeList) -> TypeInfo {
         self.info
     }
@@ -817,7 +817,7 @@ pub struct ComponentType {
 
 impl TypeData for ComponentType {
     type Id = ComponentTypeId;
-
+    const IS_CORE_SUB_TYPE: bool = false;
     fn type_info(&self, _types: &TypeList) -> TypeInfo {
         self.info
     }
@@ -875,7 +875,7 @@ pub struct ComponentInstanceType {
 
 impl TypeData for ComponentInstanceType {
     type Id = ComponentInstanceTypeId;
-
+    const IS_CORE_SUB_TYPE: bool = false;
     fn type_info(&self, _types: &TypeList) -> TypeInfo {
         self.info
     }
@@ -894,7 +894,7 @@ pub struct ComponentFuncType {
 
 impl TypeData for ComponentFuncType {
     type Id = ComponentFuncTypeId;
-
+    const IS_CORE_SUB_TYPE: bool = false;
     fn type_info(&self, _types: &TypeList) -> TypeInfo {
         self.info
     }
@@ -1080,7 +1080,7 @@ pub enum ComponentDefinedType {
 
 impl TypeData for ComponentDefinedType {
     type Id = ComponentDefinedTypeId;
-
+    const IS_CORE_SUB_TYPE: bool = false;
     fn type_info(&self, types: &TypeList) -> TypeInfo {
         match self {
             Self::Primitive(_)
@@ -3364,6 +3364,10 @@ impl Remap for SubtypeArena<'_> {
     where
         T: TypeData,
     {
+        assert!(
+            !T::IS_CORE_SUB_TYPE,
+            "cannot push core sub types into `SubtypeArena`s, that would break type canonicalization"
+        );
         let index = T::Id::list(&self.list).len() + T::Id::list(self.types).len();
         let index = u32::try_from(index).unwrap();
         self.list.push(ty);
