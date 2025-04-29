@@ -1,0 +1,17 @@
+// FAIL[parse]: component wit % -t
+// FAIL[abi]: component embed --dummy % | component new
+
+package a:b;
+
+world tuples {
+  type t = tuple<t2,t2,t2,t2,t2,t2,t2,t2,t2,t2,t2,t2,t2,t2,t2,t2,>;
+  type t2 = tuple<t3,t3,t3,t3,t3,t3,t3,t3,t3,t3,t3,t3,t3,t3,t3,t3,>;
+  type t3 = tuple<t4,t4,t4,t4,t4,t4,t4,t4,t4,t4,t4,t4,t4,t4,t4,t4,>;
+  type t4 = tuple<t5,t5,t5,t5,t5,t5,t5,t5,t5,t5,t5,t5,t5,t5,t5,t5,>;
+  type t5 = tuple<t6,t6,t6,t6,t6,t6,t6,t6,t6,t6,t6,t6,t6,t6,t6,t6,>;
+  type t6 = tuple<t7,t7,t7,t7,t7,t7,t7,t7,t7,t7,t7,t7,t7,t7,t7,t7,>;
+  type t7 = tuple<t8,t8,t8,t8,t8,t8,t8,t8,t8,t8,t8,t8,t8,t8,t8,t8,>;
+  type t8 = tuple<u8,u8,u8,u8,u8,u8,u8,u8,u8,u8,u8,u8,u8,u8,u8,u8,>;
+
+  import x: func(t: t);
+}

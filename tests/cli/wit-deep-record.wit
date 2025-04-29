@@ -1,0 +1,42 @@
+// FAIL[parse]: component wit % -t
+// FAIL[abi]: component embed --dummy % | component new
+
+package a:b;
+
+world records {
+  record t1 {
+    f1: t2, f2: t2, f3: t2, f4: t2, f5: t2, f6: t2, f7: t2, f8: t2,
+    f9: t2, f10: t2, f11: t2, f12: t2, f13: t2, f14: t2, f15: t2, f16: t2,
+  }
+  record t2 {
+    f1: t3, f2: t3, f3: t3, f4: t3, f5: t3, f6: t3, f7: t3, f8: t3,
+    f9: t3, f10: t3, f11: t3, f12: t3, f13: t3, f14: t3, f15: t3, f16: t3,
+  }
+  record t3 {
+    f1: t4, f2: t4, f3: t4, f4: t4, f5: t4, f6: t4, f7: t4, f8: t4,
+    f9: t4, f10: t4, f11: t4, f12: t4, f13: t4, f14: t4, f15: t4, f16: t4,
+  }
+  record t4 {
+    f1: t5, f2: t5, f3: t5, f4: t5, f5: t5, f6: t5, f7: t5, f8: t5,
+    f9: t5, f10: t5, f11: t5, f12: t5, f13: t5, f14: t5, f15: t5, f16: t5,
+  }
+  record t5 {
+    f1: t6, f2: t6, f3: t6, f4: t6, f5: t6, f6: t6, f7: t6, f8: t6,
+    f9: t6, f10: t6, f11: t6, f12: t6, f13: t6, f14: t6, f15: t6, f16: t6,
+  }
+  record t6 {
+    f1: t7, f2: t7, f3: t7, f4: t7, f5: t7, f6: t7, f7: t7, f8: t7,
+    f9: t7, f10: t7, f11: t7, f12: t7, f13: t7, f14: t7, f15: t7, f16: t7,
+  }
+  record t7 {
+    f1: t8, f2: t8, f3: t8, f4: t8, f5: t8, f6: t8, f7: t8, f8: t8,
+    f9: t8, f10: t8, f11: t8, f12: t8, f13: t8, f14: t8, f15: t8, f16: t8,
+  }
+  record t8 {
+    f1: u8, f2: u8, f3: u8, f4: u8, f5: u8, f6: u8, f7: u8, f8: u8,
+    f9: u8, f10: u8, f11: u8, f12: u8, f13: u8, f14: u8, f15: u8, f16: u8,
+  }
+
+  import x: func(t: t1);
+}
+

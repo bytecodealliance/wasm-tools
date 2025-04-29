@@ -1,0 +1,4 @@
+error: decoding custom section component-type
+
+Caused by:
+    0: effective type size exceeds the limit of 1000000 (at offset 0x27)
