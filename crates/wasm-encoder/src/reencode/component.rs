@@ -1367,6 +1367,9 @@ pub mod component_utils {
             wasmparser::CanonicalOption::Callback(u) => {
                 crate::component::CanonicalOption::Callback(reencoder.function_index(u))
             }
+            wasmparser::CanonicalOption::CoreType(u) => {
+                crate::component::CanonicalOption::CoreType(reencoder.type_index(u))
+            }
         }
     }
 

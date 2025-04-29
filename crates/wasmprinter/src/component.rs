@@ -830,6 +830,11 @@ impl Printer<'_, '_> {
                     self.print_idx(&state.core.func_names, *idx)?;
                     self.end_group()?;
                 }
+                CanonicalOption::CoreType(idx) => {
+                    self.start_group("core-type ")?;
+                    self.print_idx(&state.core.type_names, *idx)?;
+                    self.end_group()?;
+                }
             }
         }
         Ok(())
