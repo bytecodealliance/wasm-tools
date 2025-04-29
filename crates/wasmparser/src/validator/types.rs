@@ -783,7 +783,13 @@ impl<T> Index<usize> for SnapshotList<T> {
 
     #[inline]
     fn index(&self, index: usize) -> &T {
-        self.get(index).unwrap()
+        match self.get(index) {
+            Some(x) => x,
+            None => panic!(
+                "out-of-bounds indexing into `SnapshotList`: index is {index}, but length is {}",
+                self.len()
+            ),
+        }
     }
 }
 

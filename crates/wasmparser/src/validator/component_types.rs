@@ -730,7 +730,13 @@ pub enum ComponentEntityType {
 
 impl ComponentEntityType {
     /// Determines if component entity type `a` is a subtype of `b`.
-    pub fn is_subtype_of(a: &Self, at: TypesRef, b: &Self, bt: TypesRef) -> bool {
+    ///
+    /// # Panics
+    ///
+    /// Panics if the two given `TypesRef`s are not associated with the same
+    /// `Validator`.
+    pub fn is_subtype_of(a: &Self, at: TypesRef<'_>, b: &Self, bt: TypesRef<'_>) -> bool {
+        assert_eq!(at.id(), bt.id());
         SubtypeCx::new(at.list, bt.list)
             .component_entity_type(a, b, 0)
             .is_ok()
@@ -2150,6 +2156,9 @@ where
 {
     /// Pushes a new anonymous type within this object, returning an identifier
     /// which can be used to refer to it.
+    ///
+    /// For internal use only!
+    #[doc(hidden)]
     fn push_ty<T>(&mut self, ty: T) -> T::Id
     where
         T: TypeData;
@@ -2496,7 +2505,13 @@ macro_rules! limits_match {
 
 impl<'a> SubtypeCx<'a> {
     /// Create a new instance with the specified type lists
+    ///
+    /// # Panics
+    ///
+    /// Panics if the two given `TypesRef`s are not associated with the same
+    /// `Validator`.
     pub fn new_with_refs(a: TypesRef<'a>, b: TypesRef<'a>) -> SubtypeCx<'a> {
+        assert_eq!(a.id(), b.id());
         Self::new(a.list, b.list)
     }
 
