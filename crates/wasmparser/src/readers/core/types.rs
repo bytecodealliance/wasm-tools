@@ -546,39 +546,6 @@ impl SubType {
         }
         Ok(())
     }
-
-    #[cfg(all(feature = "validate", feature = "component-model"))]
-    pub(crate) fn desc(&self) -> String {
-        use core::fmt::Write;
-        let mut s = String::new();
-
-        let needs_explicit_sub = self.supertype_idx.is_some() || !self.is_final;
-        if needs_explicit_sub {
-            write!(&mut s, "(sub ").unwrap();
-            if self.is_final {
-                s.push_str("final ");
-            }
-            if let Some(idx) = self.supertype_idx {
-                write!(&mut s, "{idx} ").unwrap();
-            }
-        }
-
-        if self.composite_type.shared {
-            write!(&mut s, "(shared ").unwrap();
-        }
-
-        s.push_str(&self.composite_type.inner.desc());
-
-        if self.composite_type.shared {
-            write!(&mut s, ")").unwrap();
-        }
-
-        if needs_explicit_sub {
-            write!(&mut s, ")").unwrap();
-        }
-
-        s
-    }
 }
 
 /// A [`CompositeType`] can contain one of these types.
@@ -594,14 +561,13 @@ pub enum CompositeInnerType {
     Cont(ContType),
 }
 
-impl CompositeInnerType {
-    #[cfg(all(feature = "validate", feature = "component-model"))]
-    pub(crate) fn desc(&self) -> String {
+impl fmt::Display for CompositeInnerType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CompositeInnerType::Func(ty) => ty.desc(),
-            CompositeInnerType::Array(ty) => ty.desc(),
-            CompositeInnerType::Struct(ty) => ty.desc(),
-            CompositeInnerType::Cont(ty) => ty.desc(),
+            CompositeInnerType::Func(ty) => write!(f, "{ty}"),
+            CompositeInnerType::Array(ty) => write!(f, "{ty}"),
+            CompositeInnerType::Struct(ty) => write!(f, "{ty}"),
+            CompositeInnerType::Cont(ty) => write!(f, "{ty}"),
         }
     }
 }
@@ -618,16 +584,10 @@ pub struct CompositeType {
 
 impl fmt::Display for CompositeType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use CompositeInnerType::*;
         if self.shared {
             write!(f, "(shared ")?;
         }
-        match self.inner {
-            Array(_) => write!(f, "(array ...)"),
-            Func(_) => write!(f, "(func ...)"),
-            Struct(_) => write!(f, "(struct ...)"),
-            Cont(_) => write!(f, "(cont ...)"),
-        }?;
+        write!(f, "{}", self.inner)?;
         if self.shared {
             write!(f, ")")?;
         }
@@ -687,6 +647,28 @@ impl fmt::Debug for FuncType {
     }
 }
 
+impl fmt::Display for FuncType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "(func")?;
+        if self.params().len() > 0 {
+            write!(f, " (param")?;
+            for p in self.params() {
+                write!(f, " {p}")?;
+            }
+            write!(f, ")")?;
+        }
+        if self.results().len() > 0 {
+            write!(f, " (result")?;
+            for p in self.results() {
+                write!(f, " {p}")?;
+            }
+            write!(f, ")")?;
+        }
+        write!(f, ")")?;
+        Ok(())
+    }
+}
+
 impl FuncType {
     /// Creates a new [`FuncType`] from the given `params` and `results`.
     pub fn new<P, R>(params: P, results: R) -> Self
@@ -743,39 +725,15 @@ impl FuncType {
     pub(crate) fn results_mut(&mut self) -> &mut [ValType] {
         &mut self.params_results[self.len_params..]
     }
-
-    #[cfg(all(feature = "validate", feature = "component-model"))]
-    pub(crate) fn desc(&self) -> String {
-        use core::fmt::Write;
-
-        let mut s = String::new();
-        s.push_str("[");
-        for (i, param) in self.params().iter().enumerate() {
-            if i > 0 {
-                s.push_str(" ");
-            }
-            write!(s, "{param}").unwrap();
-        }
-        s.push_str("] -> [");
-        for (i, result) in self.results().iter().enumerate() {
-            if i > 0 {
-                s.push_str(" ");
-            }
-            write!(s, "{result}").unwrap();
-        }
-        s.push_str("]");
-        s
-    }
 }
 
 /// Represents a type of an array in a WebAssembly module.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct ArrayType(pub FieldType);
 
-impl ArrayType {
-    #[cfg(all(feature = "validate", feature = "component-model"))]
-    pub(crate) fn desc(&self) -> String {
-        format!("(array {})", self.0.desc())
+impl fmt::Display for ArrayType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "(array {})", self.0)
     }
 }
 
@@ -788,6 +746,16 @@ pub struct FieldType {
     pub mutable: bool,
 }
 
+impl fmt::Display for FieldType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.mutable {
+            write!(f, "(mut {})", self.element_type)
+        } else {
+            fmt::Display::fmt(&self.element_type, f)
+        }
+    }
+}
+
 impl FieldType {
     /// Maps any `UnpackedIndex` via the specified closure.
     #[cfg(feature = "validate")]
@@ -798,15 +766,6 @@ impl FieldType {
         match &mut self.element_type {
             StorageType::I8 | StorageType::I16 => Ok(()),
             StorageType::Val(ty) => ty.remap_indices(f),
-        }
-    }
-
-    #[cfg(all(feature = "validate", feature = "component-model"))]
-    pub(crate) fn desc(&self) -> String {
-        if self.mutable {
-            format!("(mut {})", self.element_type)
-        } else {
-            self.element_type.to_string()
         }
     }
 }
@@ -859,22 +818,26 @@ pub struct StructType {
     pub fields: Box<[FieldType]>,
 }
 
-impl StructType {
-    #[cfg(all(feature = "validate", feature = "component-model"))]
-    pub(crate) fn desc(&self) -> String {
-        let mut s = String::from("(struct");
-        for f in self.fields.iter() {
-            s.push(' ');
-            s.push_str(&f.desc());
+impl fmt::Display for StructType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "(struct")?;
+        for field in self.fields.iter() {
+            write!(f, " {field}")?;
         }
-        s.push_str(")");
-        s
+        write!(f, ")")?;
+        Ok(())
     }
 }
 
 /// Represents a type of a continuation in a WebAssembly module.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct ContType(pub PackedIndex);
+
+impl fmt::Display for ContType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "(cont {})", self.0)
+    }
+}
 
 impl ContType {
     /// Maps any `UnpackedIndex` via the specified closure.
@@ -885,11 +848,6 @@ impl ContType {
     ) -> Result<()> {
         map(&mut self.0)?;
         Ok(())
-    }
-
-    #[cfg(all(feature = "validate", feature = "component-model"))]
-    pub(crate) fn desc(&self) -> String {
-        format!("(cont {})", self.0)
     }
 }
 

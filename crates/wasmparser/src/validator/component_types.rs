@@ -3102,8 +3102,8 @@ impl<'a> SubtypeCx<'a> {
                 offset,
                 "expected: {}\n\
                  found:    {}",
-                self.b[b].desc(),
-                self.a[a].desc(),
+                self.b[b],
+                self.a[a],
             )
         }
     }
