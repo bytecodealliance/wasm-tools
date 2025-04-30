@@ -3093,7 +3093,7 @@ impl<'a> SubtypeCx<'a> {
     fn core_func_type(&self, a: CoreTypeId, b: CoreTypeId, offset: usize) -> Result<()> {
         debug_assert!(self.a.get(a).is_some());
         debug_assert!(self.b.get(b).is_some());
-        if a == b {
+        if self.a.id_is_subtype(a, b) {
             debug_assert!(self.a.get(b).is_some());
             debug_assert!(self.b.get(a).is_some());
             Ok(())
@@ -3366,6 +3366,18 @@ impl<'a> SubtypeArena<'a> {
             let temp_index = u32::try_from(temp_index).unwrap();
             let temp_id = T::from_index(temp_index);
             self.list.get(temp_id)
+        }
+    }
+
+    /// Is `a == b` or was `a` declared (potentially transitively) to be a
+    /// subtype of `b`?
+    fn id_is_subtype(&self, a: CoreTypeId, b: CoreTypeId) -> bool {
+        self.get(a).is_some() && self.get(b).is_some() && {
+            // NB: we can query `self.types.id_is_subtype` directly, and ignore
+            // `self.list`, because `self.list` should never contain core types.
+            debug_assert!(a.index() < CoreTypeId::list(self.types).len());
+            debug_assert!(b.index() < CoreTypeId::list(self.types).len());
+            self.types.id_is_subtype(a, b)
         }
     }
 }

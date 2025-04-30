@@ -82,3 +82,113 @@
   )
   "type mismatch for export `b` of module instantiation argument `a`"
 )
+
+;; Satisfying an import with an exact subtype should succeed.
+(component
+  (import "f" (func $f (param "x" u32) (param "y" u32) (result u32)))
+
+  (core type $super_ty (sub (func (param i32 i32) (result i32))))
+  (core type $sub_ty (sub $super_ty (func (param i32 i32) (result i32))))
+
+  (core func $f (canon lower (func $f) (core-type $sub_ty)))
+
+  (core module $m
+    (type $super_ty (sub (func (param i32 i32) (result i32))))
+    (type $sub_ty (sub $super_ty (func (param i32 i32) (result i32))))
+    (import "a" "b" (func (type $sub_ty)))
+  )
+
+  (core instance (instantiate $m (with "a" (instance (export "b" (func $f))))))
+)
+
+;; Satisfying an import with a subtype should succeed.
+(component
+  (import "f" (func $f (param "x" u32) (param "y" u32) (result u32)))
+
+  (core type $super_ty (sub (func (param i32 i32) (result i32))))
+  (core type $sub_ty (sub $super_ty (func (param i32 i32) (result i32))))
+
+  (core func $f (canon lower (func $f) (core-type $sub_ty)))
+
+  (core module $m
+    (type $super_ty (sub (func (param i32 i32) (result i32))))
+    (import "a" "b" (func (type $super_ty)))
+  )
+
+  (core instance (instantiate $m (with "a" (instance (export "b" (func $f))))))
+)
+
+;; Satisfying an import with the "same" type but from a different subtyping
+;; hierarchy should fail.
+(assert_invalid
+  (component
+    (import "f" (func $f (param "x" u32) (param "y" u32) (result u32)))
+
+    (core type $ty (func (param i32 i32) (result i32)))
+    (core func $f (canon lower (func $f) (core-type $ty)))
+
+    (core module $m
+      (type $super_ty (sub (func (param i32 i32) (result i32))))
+      (type $sub_ty (sub $super_ty (func (param i32 i32) (result i32))))
+      (import "a" "b" (func (type $sub_ty)))
+    )
+
+    (core instance (instantiate $m (with "a" (instance (export "b" (func $f))))))
+  )
+  "type mismatch for export `b` of module instantiation argument `a`"
+)
+
+;; Satisfying an import with the "same" type but is a supertype, rather than a
+;; subtype, should fail.
+(assert_invalid
+  (component
+    (import "f" (func $f (param "x" u32) (param "y" u32) (result u32)))
+
+    (core type $super_ty (sub (func (param i32 i32) (result i32))))
+    (core func $f (canon lower (func $f) (core-type $super_ty)))
+
+    (core module $m
+      (type $super_ty (sub (func (param i32 i32) (result i32))))
+      (type $sub_ty (sub $super_ty (func (param i32 i32) (result i32))))
+      (import "a" "b" (func (type $sub_ty)))
+    )
+
+    (core instance (instantiate $m (with "a" (instance (export "b" (func $f))))))
+  )
+  "type mismatch for export `b` of module instantiation argument `a`"
+)
+
+;; Satisfying an import with the "same" type but with the wrong finality should
+;; fail.
+(assert_invalid
+  (component
+    (import "f" (func $f (param "x" u32) (param "y" u32) (result u32)))
+
+    (core type $ty (sub final (func (param i32 i32) (result i32))))
+    (core func $f (canon lower (func $f) (core-type $ty)))
+
+    (core module $m
+      (type $ty (sub (func (param i32 i32) (result i32))))
+      (import "a" "b" (func (type $ty)))
+    )
+
+    (core instance (instantiate $m (with "a" (instance (export "b" (func $f))))))
+  )
+  "type mismatch for export `b` of module instantiation argument `a`"
+)
+(assert_invalid
+  (component
+    (import "f" (func $f (param "x" u32) (param "y" u32) (result u32)))
+
+    (core type $ty (sub (func (param i32 i32) (result i32))))
+    (core func $f (canon lower (func $f) (core-type $ty)))
+
+    (core module $m
+      (type $ty (sub final (func (param i32 i32) (result i32))))
+      (import "a" "b" (func (type $ty)))
+    )
+
+    (core instance (instantiate $m (with "a" (instance (export "b" (func $f))))))
+  )
+  "type mismatch for export `b` of module instantiation argument `a`"
+)

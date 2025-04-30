@@ -40,6 +40,46 @@
       "filename": "core-type.5.wasm",
       "module_type": "binary",
       "text": "type mismatch for export `b` of module instantiation argument `a`"
+    },
+    {
+      "type": "module",
+      "line": 87,
+      "filename": "core-type.6.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 105,
+      "filename": "core-type.7.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 124,
+      "filename": "core-type.8.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `b` of module instantiation argument `a`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 144,
+      "filename": "core-type.9.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `b` of module instantiation argument `a`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 164,
+      "filename": "core-type.10.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `b` of module instantiation argument `a`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 180,
+      "filename": "core-type.11.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `b` of module instantiation argument `a`"
     }
   ]
 }
