@@ -24,10 +24,13 @@
   (core func $parallelism (canon thread.available_parallelism))
 
   (core module $m
-    (type $st (shared (func (param $context i32))))
-    (import "" "spawn_ref" (func (param (ref null $st)) (param i32) (result i32)))
-    (import "" "spawn_indirect" (func (param i32) (param i32) (result i32)))
-    (import "" "parallelism" (func (result i32)))
+    (type $spawned_func_ty (shared (func (param $context i32))))
+    (type $spawn_ref_ty (shared (func (param (ref null $spawned_func_ty)) (param i32) (result i32))))
+    (type $spawn_indirect_ty (shared (func (param i32) (param i32) (result i32))))
+    (type $parallelism_ty (shared (func (result i32))))
+    (import "" "spawn_ref" (func (type $spawn_ref_ty)))
+    (import "" "spawn_indirect" (func (type $spawn_indirect_ty)))
+    (import "" "parallelism" (func (type $parallelism_ty)))
   )
 
   (core instance (instantiate $m

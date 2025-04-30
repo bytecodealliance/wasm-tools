@@ -3030,9 +3030,7 @@ impl<'a> SubtypeCx<'a> {
 
     pub(crate) fn entity_type(&self, a: &EntityType, b: &EntityType, offset: usize) -> Result<()> {
         match (a, b) {
-            (EntityType::Func(a), EntityType::Func(b)) => {
-                self.core_func_type(self.a[*a].unwrap_func(), self.b[*b].unwrap_func(), offset)
-            }
+            (EntityType::Func(a), EntityType::Func(b)) => self.core_func_type(*a, *b, offset),
             (EntityType::Func(_), b) => bail!(offset, "expected {}, found func", b.desc()),
             (EntityType::Table(a), EntityType::Table(b)) => Self::table_type(a, b, offset),
             (EntityType::Table(_), b) => bail!(offset, "expected {}, found table", b.desc()),
@@ -3054,9 +3052,7 @@ impl<'a> SubtypeCx<'a> {
                 }
             }
             (EntityType::Global(_), b) => bail!(offset, "expected {}, found global", b.desc()),
-            (EntityType::Tag(a), EntityType::Tag(b)) => {
-                self.core_func_type(self.a[*a].unwrap_func(), self.b[*b].unwrap_func(), offset)
-            }
+            (EntityType::Tag(a), EntityType::Tag(b)) => self.core_func_type(*a, *b, offset),
             (EntityType::Tag(_), b) => bail!(offset, "expected {}, found tag", b.desc()),
         }
     }
@@ -3094,7 +3090,7 @@ impl<'a> SubtypeCx<'a> {
         }
     }
 
-    fn core_func_type(&self, a: &FuncType, b: &FuncType, offset: usize) -> Result<()> {
+    fn core_func_type(&self, a: CoreTypeId, b: CoreTypeId, offset: usize) -> Result<()> {
         if a == b {
             Ok(())
         } else {
@@ -3102,8 +3098,8 @@ impl<'a> SubtypeCx<'a> {
                 offset,
                 "expected: {}\n\
                  found:    {}",
-                b.desc(),
-                a.desc(),
+                self.b[b].desc(),
+                self.a[a].desc(),
             )
         }
     }

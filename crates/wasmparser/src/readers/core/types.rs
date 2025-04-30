@@ -546,16 +546,39 @@ impl SubType {
         }
         Ok(())
     }
-}
 
-/// Represents a composite type in a WebAssembly module.
-#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct CompositeType {
-    /// The type defined inside the composite type.
-    pub inner: CompositeInnerType,
-    /// Is the composite type shared? This is part of the
-    /// shared-everything-threads proposal.
-    pub shared: bool,
+    #[cfg(all(feature = "validate", feature = "component-model"))]
+    pub(crate) fn desc(&self) -> String {
+        use core::fmt::Write;
+        let mut s = String::new();
+
+        let needs_explicit_sub = self.supertype_idx.is_some() || !self.is_final;
+        if needs_explicit_sub {
+            write!(&mut s, "(sub ").unwrap();
+            if self.is_final {
+                s.push_str("final ");
+            }
+            if let Some(idx) = self.supertype_idx {
+                write!(&mut s, "{idx} ").unwrap();
+            }
+        }
+
+        if self.composite_type.shared {
+            write!(&mut s, "(shared ").unwrap();
+        }
+
+        s.push_str(&self.composite_type.inner.desc());
+
+        if self.composite_type.shared {
+            write!(&mut s, ")").unwrap();
+        }
+
+        if needs_explicit_sub {
+            write!(&mut s, ")").unwrap();
+        }
+
+        s
+    }
 }
 
 /// A [`CompositeType`] can contain one of these types.
@@ -569,6 +592,28 @@ pub enum CompositeInnerType {
     Struct(StructType),
     /// The type is for a continuation.
     Cont(ContType),
+}
+
+impl CompositeInnerType {
+    #[cfg(all(feature = "validate", feature = "component-model"))]
+    pub(crate) fn desc(&self) -> String {
+        match self {
+            CompositeInnerType::Func(ty) => ty.desc(),
+            CompositeInnerType::Array(ty) => ty.desc(),
+            CompositeInnerType::Struct(ty) => ty.desc(),
+            CompositeInnerType::Cont(ty) => ty.desc(),
+        }
+    }
+}
+
+/// Represents a composite type in a WebAssembly module.
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct CompositeType {
+    /// The type defined inside the composite type.
+    pub inner: CompositeInnerType,
+    /// Is the composite type shared? This is part of the
+    /// shared-everything-threads proposal.
+    pub shared: bool,
 }
 
 impl fmt::Display for CompositeType {
@@ -727,6 +772,13 @@ impl FuncType {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct ArrayType(pub FieldType);
 
+impl ArrayType {
+    #[cfg(all(feature = "validate", feature = "component-model"))]
+    pub(crate) fn desc(&self) -> String {
+        format!("(array {})", self.0.desc())
+    }
+}
+
 /// Represents a field type of an array or a struct.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct FieldType {
@@ -746,6 +798,15 @@ impl FieldType {
         match &mut self.element_type {
             StorageType::I8 | StorageType::I16 => Ok(()),
             StorageType::Val(ty) => ty.remap_indices(f),
+        }
+    }
+
+    #[cfg(all(feature = "validate", feature = "component-model"))]
+    pub(crate) fn desc(&self) -> String {
+        if self.mutable {
+            format!("(mut {})", self.element_type)
+        } else {
+            self.element_type.to_string()
         }
     }
 }
@@ -798,6 +859,19 @@ pub struct StructType {
     pub fields: Box<[FieldType]>,
 }
 
+impl StructType {
+    #[cfg(all(feature = "validate", feature = "component-model"))]
+    pub(crate) fn desc(&self) -> String {
+        let mut s = String::from("(struct");
+        for f in self.fields.iter() {
+            s.push(' ');
+            s.push_str(&f.desc());
+        }
+        s.push_str(")");
+        s
+    }
+}
+
 /// Represents a type of a continuation in a WebAssembly module.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct ContType(pub PackedIndex);
@@ -811,6 +885,11 @@ impl ContType {
     ) -> Result<()> {
         map(&mut self.0)?;
         Ok(())
+    }
+
+    #[cfg(all(feature = "validate", feature = "component-model"))]
+    pub(crate) fn desc(&self) -> String {
+        format!("(cont {})", self.0)
     }
 }
 

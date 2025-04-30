@@ -15,35 +15,35 @@
     },
     {
       "type": "assert_invalid",
-      "line": 43,
+      "line": 46,
       "filename": "builtins.2.wasm",
       "module_type": "binary",
       "text": "spawn type must be shared"
     },
     {
       "type": "assert_invalid",
-      "line": 51,
+      "line": 54,
       "filename": "builtins.3.wasm",
       "module_type": "binary",
       "text": "unknown table 0: table index out of bounds"
     },
     {
       "type": "assert_invalid",
-      "line": 61,
+      "line": 64,
       "filename": "builtins.4.wasm",
       "module_type": "binary",
       "text": "spawn function must take a single `i32` argument (currently)"
     },
     {
       "type": "assert_invalid",
-      "line": 69,
+      "line": 72,
       "filename": "builtins.5.wasm",
       "module_type": "binary",
       "text": "spawn function must take a single `i32` argument (currently)"
     },
     {
       "type": "assert_invalid",
-      "line": 79,
+      "line": 82,
       "filename": "builtins.6.wasm",
       "module_type": "binary",
       "text": "mismatch in the shared flag for tables"
