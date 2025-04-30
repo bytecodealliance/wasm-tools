@@ -3091,7 +3091,11 @@ impl<'a> SubtypeCx<'a> {
     }
 
     fn core_func_type(&self, a: CoreTypeId, b: CoreTypeId, offset: usize) -> Result<()> {
+        debug_assert!(self.a.list.get(a).is_some());
+        debug_assert!(self.b.list.get(b).is_some());
         if a == b {
+            debug_assert!(self.a.list.get(b).is_some());
+            debug_assert!(self.b.list.get(a).is_some());
             Ok(())
         } else {
             bail!(
