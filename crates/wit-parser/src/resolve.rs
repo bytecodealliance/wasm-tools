@@ -7,7 +7,6 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, bail, Context, Result};
 use id_arena::{Arena, Id};
-use indexmap::map::Entry;
 use indexmap::{IndexMap, IndexSet};
 use semver::Version;
 #[cfg(feature = "serde")]
@@ -3405,13 +3404,13 @@ impl Remap {
         assert_eq!(world.includes.len(), spans.includes.len());
         let includes = mem::take(&mut world.includes);
         let include_names = mem::take(&mut world.include_names);
-        for (((include_stability, include_world), span), names) in includes
+        for (((stability, include_world), span), names) in includes
             .into_iter()
             .zip(&spans.includes)
             .zip(&include_names)
         {
             if !resolve
-                .include_stability(&include_stability, pkg_id, Some(*span))
+                .include_stability(&stability, pkg_id, Some(*span))
                 .with_context(|| {
                     format!(
                         "failed to process feature gate for included world [{}] in package [{}]",
@@ -3422,14 +3421,7 @@ impl Remap {
             {
                 continue;
             }
-            self.resolve_include(
-                world,
-                include_world,
-                names,
-                *span,
-                resolve,
-                &include_stability,
-            )?;
+            self.resolve_include(world, include_world, names, *span, resolve)?;
         }
 
         Ok(())
@@ -3452,11 +3444,11 @@ impl Remap {
         names: &[IncludeName],
         span: Span,
         resolve: &Resolve,
-        include_stability: &Stability,
     ) -> Result<()> {
         let include_world_id = self.map_world(include_world, Some(span))?;
         let include_world = &resolve.worlds[include_world_id];
         let mut names_ = names.to_owned();
+        let is_external_include = world.package != include_world.package;
 
         // remove all imports and exports that match the names we're including
         for import in include_world.imports.iter() {
@@ -3480,7 +3472,7 @@ impl Remap {
                 import,
                 span,
                 "import",
-                &include_stability,
+                is_external_include,
             )?;
         }
 
@@ -3491,7 +3483,7 @@ impl Remap {
                 export,
                 span,
                 "export",
-                &include_stability,
+                is_external_include,
             )?;
         }
         Ok(())
@@ -3504,7 +3496,7 @@ impl Remap {
         item: (&WorldKey, &WorldItem),
         span: Span,
         item_type: &str,
-        include_stability: &Stability,
+        is_external_include: bool,
     ) -> Result<()> {
         match item.0 {
             WorldKey::Name(n) => {
@@ -3526,23 +3518,20 @@ impl Remap {
                 }
             }
             key @ WorldKey::Interface(_) => {
-                let (prev, new) = match items.entry(key.clone()) {
-                    Entry::Occupied(entry) => (entry.into_mut(), false),
-                    Entry::Vacant(entry) => (entry.insert(item.1.clone()), true),
-                };
+                let prev = items.entry(key.clone()).or_insert(item.1.clone());
                 match (&item.1, prev) {
                     (
                         WorldItem::Interface {
                             id: aid,
-                            stability: _,
+                            stability: astability,
                         },
                         WorldItem::Interface {
                             id: bid,
-                            stability: item_stability,
+                            stability: bstability,
                         },
                     ) => {
                         assert_eq!(*aid, *bid);
-                        merge_include_stability(include_stability, item_stability, new)?;
+                        merge_include_stability(astability, bstability, is_external_include)?;
                     }
                     (WorldItem::Interface { .. }, _) => unreachable!(),
                     (WorldItem::Function(_), _) => unreachable!(),
@@ -3975,36 +3964,18 @@ fn update_stability(from: &Stability, into: &mut Stability) -> Result<()> {
     bail!("mismatch in stability from '{:?}' to '{:?}'", from, into)
 }
 
-/// Merges the stability annotation from an `include`` statement into target included items.
-///
-/// the `includes` stability takes precedent since we can't use another packages stability.
-/// The behavior depends on whether the item is newly added to the world or was already added via another include (or already existed).  
-/// If it was already added then we only update to the greater stability.
 fn merge_include_stability(
-    include_stability: &Stability,
-    item_stability: &mut Stability,
-    is_new: bool,
+    from: &Stability,
+    into: &mut Stability,
+    is_external_include: bool,
 ) -> Result<()> {
-    // If the two stability annotations are equal then
-    // there's nothing to do here.
-    if include_stability == item_stability {
+    if is_external_include && from.is_stable() {
+        log::trace!("dropped stability from external package");
+        *into = Stability::Unknown;
         return Ok(());
     }
 
-    // if this is the first time the item is added then we want to forcefully override with the include stability
-    if is_new {
-        *item_stability = include_stability.clone();
-        return Ok(());
-    }
-
-    // if it is already in the world then it got the include_stability from the previous include
-    // update only if this include stability is higher
-    if include_stability > item_stability {
-        *item_stability = include_stability.clone();
-        return Ok(());
-    }
-
-    return Ok(());
+    return update_stability(from, into);
 }
 
 /// An error that can be returned during "world elaboration" during various

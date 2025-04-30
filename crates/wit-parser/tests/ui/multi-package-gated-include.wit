@@ -7,19 +7,31 @@ world test{
     include wasi:someother/imports@0.2.3;
 }
 
-world test-ordered{
+world test-ordered {
     include wasi:someother/imports@0.2.3;
     include wasi:foo/imports@0.2.3;
     @unstable(feature = active)
     include wasi:unstable/imports@0.2.3; 
 }
 
-world test-onlystable {
+world test-no-stability {
+    include wasi:someother/imports@0.2.3;
+    include wasi:foo/imports@0.2.3;
+    include wasi:unstable/imports@0.2.3; 
+}
+
+world test-only-stable {
     include wasi:foo/imports@0.2.3;
 }
 
-world test-onlystable-with-feature {
+world test-only-stable-with-feature {
     @unstable(feature = active)
+    include wasi:foo/imports@0.2.3;
+}
+
+// in test this results in world with nothing
+world test-only-stable-with-in-active-feature {
+    @unstable(feature = in-active)
     include wasi:foo/imports@0.2.3;
 }
 

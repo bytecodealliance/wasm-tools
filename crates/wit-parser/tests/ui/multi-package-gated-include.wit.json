@@ -61,12 +61,7 @@
       "imports": {
         "interface-2": {
           "interface": {
-            "id": 2,
-            "stability": {
-              "stable": {
-                "since": "0.2.0"
-              }
-            }
+            "id": 2
           }
         },
         "interface-1": {
@@ -76,7 +71,12 @@
         },
         "interface-0": {
           "interface": {
-            "id": 0
+            "id": 0,
+            "stability": {
+              "unstable": {
+                "feature": "active"
+              }
+            }
           }
         }
       },
@@ -139,10 +139,10 @@
           }
         },
         "stable-resource": {
-          "type": 3
+          "type": 4
         },
         "unversioned-resource": {
-          "type": 4
+          "type": 5
         },
         "unstable-resource": {
           "type": 6
@@ -189,19 +189,19 @@
             }
           }
         },
-        "stable-resource": {
-          "type": 3
-        },
-        "unversioned-resource": {
-          "type": 4
-        },
-        "unstable-resource": {
-          "type": 6
-        },
         "interface-3": {
           "interface": {
             "id": 3
           }
+        },
+        "stable-resource": {
+          "type": 4
+        },
+        "unversioned-resource": {
+          "type": 5
+        },
+        "unstable-resource": {
+          "type": 6
         }
       },
       "exports": {},
@@ -259,30 +259,13 @@
       "package": 6
     },
     {
-      "name": "test-onlystable",
+      "name": "test-no-stability",
       "imports": {
-        "interface-2": {
+        "interface-3": {
           "interface": {
-            "id": 2
+            "id": 3
           }
         },
-        "interface-1": {
-          "interface": {
-            "id": 1
-          }
-        },
-        "interface-0": {
-          "interface": {
-            "id": 0
-          }
-        }
-      },
-      "exports": {},
-      "package": 6
-    },
-    {
-      "name": "test-onlystable-with-feature",
-      "imports": {
         "interface-2": {
           "interface": {
             "id": 2,
@@ -312,10 +295,82 @@
               }
             }
           }
+        },
+        "stable-resource": {
+          "type": 4
+        },
+        "unversioned-resource": {
+          "type": 5
+        },
+        "unstable-resource": {
+          "type": 6
         }
       },
       "exports": {},
       "package": 6
+    },
+    {
+      "name": "test-only-stable",
+      "imports": {
+        "interface-2": {
+          "interface": {
+            "id": 2
+          }
+        },
+        "interface-1": {
+          "interface": {
+            "id": 1
+          }
+        },
+        "interface-0": {
+          "interface": {
+            "id": 0,
+            "stability": {
+              "unstable": {
+                "feature": "active"
+              }
+            }
+          }
+        }
+      },
+      "exports": {},
+      "package": 6
+    },
+    {
+      "name": "test-only-stable-with-feature",
+      "imports": {
+        "interface-2": {
+          "interface": {
+            "id": 2
+          }
+        },
+        "interface-1": {
+          "interface": {
+            "id": 1
+          }
+        },
+        "interface-0": {
+          "interface": {
+            "id": 0,
+            "stability": {
+              "unstable": {
+                "feature": "active"
+              }
+            }
+          }
+        }
+      },
+      "exports": {},
+      "package": 6
+    },
+    {
+      "name": "test-only-stable-with-in-active-feature",
+      "imports": {},
+      "exports": {},
+      "package": 6,
+      "docs": {
+        "contents": "in test this results in world with nothing"
+      }
     }
   ],
   "interfaces": [
@@ -506,8 +561,10 @@
       "worlds": {
         "test": 6,
         "test-ordered": 7,
-        "test-onlystable": 8,
-        "test-onlystable-with-feature": 9
+        "test-no-stability": 8,
+        "test-only-stable": 9,
+        "test-only-stable-with-feature": 10,
+        "test-only-stable-with-in-active-feature": 11
       }
     }
   ]
