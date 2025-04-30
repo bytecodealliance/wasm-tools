@@ -1323,7 +1323,7 @@ impl Module {
                         let recgrp = recgrp.expect("could not read recursive group");
                         new_recgrps.push(recgrp.types().len());
                         for subtype in recgrp.into_types() {
-                            let mut subtype: SubType = subtype.into();
+                            let mut subtype: SubType = subtype.try_into().unwrap();
                             if let Some(supertype_idx) = subtype.supertype {
                                 assert!(supertype_idx < (available_types.len() as u32));
                                 subtype.depth = available_types[supertype_idx as usize].depth + 1;
@@ -1921,6 +1921,52 @@ impl Module {
 
         // For each export, add necessary prerequisites to the module.
         let exports_types = exports_types.as_ref();
+        let check_and_get_func_type =
+            |id: wasmparser::types::CoreTypeId| -> (Rc<FuncType>, SubType) {
+                let subtype = exports_types.get(id).unwrap_or_else(|| {
+                    panic!("Unable to get subtype for {id:?} in `exports` Wasm")
+                });
+                match &subtype.composite_type.inner {
+                    wasmparser::CompositeInnerType::Func(func_type) => {
+                        assert!(
+                            subtype.is_final,
+                            "Subtype {subtype:?} from `exports` Wasm is not final"
+                        );
+                        assert!(
+                            subtype.supertype_idx.is_none(),
+                            "Subtype {subtype:?} from `exports` Wasm has non-empty supertype"
+                        );
+                        let func_type = Rc::new(FuncType {
+                            params: func_type
+                                .params()
+                                .iter()
+                                .copied()
+                                .map(|t| t.try_into().unwrap())
+                                .collect(),
+                            results: func_type
+                                .results()
+                                .iter()
+                                .copied()
+                                .map(|t| t.try_into().unwrap())
+                                .collect(),
+                        });
+                        let subtype = SubType {
+                            is_final: true,
+                            supertype: None,
+                            depth: 1,
+                            composite_type: CompositeType::new_func(
+                                Rc::clone(&func_type),
+                                subtype.composite_type.shared,
+                            ),
+                        };
+                        (func_type, subtype)
+                    }
+                    _ => panic!(
+                        "Unable to handle type {:?} from `exports` Wasm",
+                        subtype.composite_type
+                    ),
+                }
+            };
         for export in required_exports {
             let new_index = match exports_types
                 .entity_type_from_export(&export)
@@ -1929,53 +1975,13 @@ impl Module {
                 }) {
                 // For functions, add the type and a function with that type.
                 wasmparser::types::EntityType::Func(id) => {
-                    let subtype = exports_types.get(id).unwrap_or_else(|| {
-                        panic!("Unable to get subtype for function {id:?} in `exports` Wasm")
-                    });
-                    match &subtype.composite_type.inner {
-                        wasmparser::CompositeInnerType::Func(func_type) => {
-                            assert!(
-                                subtype.is_final,
-                                "Subtype {subtype:?} from `exports` Wasm is not final"
-                            );
-                            assert!(
-                                subtype.supertype_idx.is_none(),
-                                "Subtype {subtype:?} from `exports` Wasm has non-empty supertype"
-                            );
-                            let new_type = Rc::new(FuncType {
-                                params: func_type
-                                    .params()
-                                    .iter()
-                                    .copied()
-                                    .map(|t| t.try_into().unwrap())
-                                    .collect(),
-                                results: func_type
-                                    .results()
-                                    .iter()
-                                    .copied()
-                                    .map(|t| t.try_into().unwrap())
-                                    .collect(),
-                            });
-                            self.rec_groups.push(self.types.len()..self.types.len() + 1);
-                            let type_index = self.add_type(SubType {
-                                is_final: true,
-                                supertype: None,
-                                depth: 1,
-                                composite_type: CompositeType::new_func(
-                                    Rc::clone(&new_type),
-                                    subtype.composite_type.shared,
-                                ),
-                            });
-                            let func_index = self.funcs.len() as u32;
-                            self.funcs.push((type_index, new_type));
-                            self.num_defined_funcs += 1;
-                            func_index
-                        }
-                        _ => panic!(
-                            "Unable to handle type {:?} from `exports` Wasm",
-                            subtype.composite_type
-                        ),
-                    }
+                    let (func_type, subtype) = check_and_get_func_type(id);
+                    self.rec_groups.push(self.types.len()..self.types.len() + 1);
+                    let type_index = self.add_type(subtype);
+                    let func_index = self.funcs.len() as u32;
+                    self.funcs.push((type_index, func_type));
+                    self.num_defined_funcs += 1;
+                    func_index
                 }
                 // For globals, add a new global.
                 wasmparser::types::EntityType::Global(global_type) => {
@@ -1991,55 +1997,16 @@ impl Module {
                 }
                 // For tags, add the type.
                 wasmparser::types::EntityType::Tag(id) => {
-                    let subtype = exports_types.get(id).unwrap_or_else(|| {
-                        panic!("Unable to get subtype for tag {id:?} in `exports` Wasm")
+                    let (func_type, subtype) = check_and_get_func_type(id);
+                    self.rec_groups.push(self.types.len()..self.types.len() + 1);
+                    let type_index = self.add_type(subtype);
+                    let tag_index = self.tags.len() as u32;
+                    self.tags.push(TagType {
+                        func_type_idx: type_index,
+                        func_type: func_type,
                     });
-                    match &subtype.composite_type.inner {
-                        wasmparser::CompositeInnerType::Func(func_type) => {
-                            assert!(
-                                subtype.is_final,
-                                "Subtype {subtype:?} from `exports` Wasm is not final"
-                            );
-                            assert!(
-                                subtype.supertype_idx.is_none(),
-                                "Subtype {subtype:?} from `exports` Wasm has non-empty supertype"
-                            );
-                            assert!(
-                                func_type.results().is_empty(),
-                                "Subtype {subtype:?} for tag {id:?} from `exports` Wasm has non-empty results"
-                            );
-                            let new_type = Rc::new(FuncType {
-                                params: func_type
-                                    .params()
-                                    .iter()
-                                    .copied()
-                                    .map(|t| t.try_into().unwrap())
-                                    .collect(),
-                                results: vec![],
-                            });
-                            self.rec_groups.push(self.types.len()..self.types.len() + 1);
-                            let type_index = self.add_type(SubType {
-                                is_final: true,
-                                supertype: None,
-                                depth: 1,
-                                composite_type: CompositeType::new_func(
-                                    Rc::clone(&new_type),
-                                    subtype.composite_type.shared,
-                                ),
-                            });
-                            let tag_index = self.tags.len() as u32;
-                            self.tags.push(TagType {
-                                func_type_idx: type_index,
-                                func_type: new_type,
-                            });
-                            self.num_defined_tags += 1;
-                            tag_index
-                        }
-                        _ => panic!(
-                            "Unable to handle type {:?} from `exports` Wasm",
-                            subtype.composite_type
-                        ),
-                    }
+                    self.num_defined_tags += 1;
+                    tag_index
                 }
             };
             self.exports
@@ -3172,64 +3139,69 @@ impl FromStr for InstructionKind {
 // Conversions from `wasmparser` to `wasm-smith`. Currently, only type conversions
 // have been implemented.
 #[cfg(feature = "wasmparser")]
-impl From<wasmparser::FuncType> for FuncType {
-    fn from(value: wasmparser::FuncType) -> Self {
-        FuncType {
+impl TryFrom<wasmparser::FuncType> for FuncType {
+    type Error = ();
+
+    fn try_from(value: wasmparser::FuncType) -> Result<Self, Self::Error> {
+        Ok(FuncType {
             params: value
                 .params()
                 .iter()
                 .copied()
-                .map(|ty| ty.try_into().unwrap())
-                .collect(),
+                .map(|ty| ty.try_into().map_err(|_| ()))
+                .collect::<Result<Vec<_>, _>>()?,
             results: value
                 .results()
                 .iter()
                 .copied()
-                .map(|ty| ty.try_into().unwrap())
-                .collect(),
-        }
+                .map(|ty| ty.try_into().map_err(|_| ()))
+                .collect::<Result<Vec<_>, _>>()?,
+        })
     }
 }
 
 #[cfg(feature = "wasmparser")]
-impl From<wasmparser::CompositeType> for CompositeType {
-    fn from(value: wasmparser::CompositeType) -> Self {
+impl TryFrom<wasmparser::CompositeType> for CompositeType {
+    type Error = ();
+
+    fn try_from(value: wasmparser::CompositeType) -> Result<Self, Self::Error> {
         let inner_type = match value.inner {
             wasmparser::CompositeInnerType::Func(func_type) => {
-                CompositeInnerType::Func(Rc::new(func_type.into()))
+                CompositeInnerType::Func(Rc::new(func_type.try_into()?))
             }
             wasmparser::CompositeInnerType::Array(array_type) => {
-                CompositeInnerType::Array(array_type.try_into().unwrap())
+                CompositeInnerType::Array(array_type.try_into().map_err(|_| ())?)
             }
             wasmparser::CompositeInnerType::Struct(struct_type) => {
-                CompositeInnerType::Struct(struct_type.try_into().unwrap())
+                CompositeInnerType::Struct(struct_type.try_into().map_err(|_| ())?)
             }
             wasmparser::CompositeInnerType::Cont(_) => {
                 panic!("continuation type is not supported by wasm-smith currently.")
             }
         };
 
-        CompositeType {
+        Ok(CompositeType {
             inner: inner_type,
             shared: value.shared,
-        }
+        })
     }
 }
 
 #[cfg(feature = "wasmparser")]
-impl From<wasmparser::SubType> for SubType {
-    fn from(value: wasmparser::SubType) -> Self {
-        let supertype_idx = value
-            .supertype_idx
-            .map(|i| i.unpack().as_module_index().unwrap());
+impl TryFrom<wasmparser::SubType> for SubType {
+    type Error = ();
 
-        SubType {
+    fn try_from(value: wasmparser::SubType) -> Result<Self, Self::Error> {
+        Ok(SubType {
             is_final: value.is_final,
-            supertype: supertype_idx,
-            composite_type: value.composite_type.into(),
+            supertype: value
+                .supertype_idx
+                .map(|idx| idx.as_module_index().ok_or(()))
+                .transpose()?,
+            composite_type: value.composite_type.try_into()?,
             // We cannot determine the depth of current subtype here, set it to 1
             // temporarily and fix it later.
             depth: 1,
-        }
+        })
     }
 }
