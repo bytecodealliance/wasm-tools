@@ -55,7 +55,7 @@ macro_rules! define_config {
             /// module. The implementation (e.g. function bodies, global
             /// initializers) of each export in the generated module will be
             /// random and unrelated to the implementation in the provided
-            /// module. Only globals and functions are supported.
+            /// module.
             ///
             ///
             /// Defaults to `None` which means arbitrary exports will be
@@ -73,12 +73,13 @@ macro_rules! define_config {
             ///
             /// # Module Limits
             ///
-            /// All types, functions, globals, and exports that are needed to
-            /// provide the required exports will be generated, even if it
-            /// causes the resulting module to exceed the limits defined in
-            /// [`Self::max_type_size`], [`Self::max_types`],
-            /// [`Self::max_funcs`], [`Self::max_globals`], or
-            /// [`Self::max_exports`].
+            /// All types, functions, globals, memories, tables, tags, and exports
+            /// that are needed to provide the required exports will be generated,
+            /// even if it causes the resulting module to exceed the limits defined
+            /// in [`Self::max_type_size`], [`Self::max_types`],
+            /// [`Self::max_funcs`], [`Self::max_globals`],
+            /// [`Self::max_memories`], [`Self::max_tables`],
+            /// [`Self::max_tags`], or [`Self::max_exports`].
             ///
             /// # Example
             ///
@@ -90,6 +91,9 @@ macro_rules! define_config {
             ///     (module
             ///         (func (export "foo") (param i32) (result i64) unreachable)
             ///         (global (export "bar") f32 f32.const 0)
+            ///         (memory (export "baz") 1 10)
+            ///         (table (export "qux") 5 10 (ref null extern))
+            ///         (tag (export "quux") (param f32))
             ///     )
             /// "#));
             /// ```
@@ -141,7 +145,7 @@ macro_rules! define_config {
             /// module. The implementation (e.g. function bodies, global
             /// initializers) of each export in the generated module will be
             /// random and unrelated to the implementation in the provided
-            /// module. Only globals and functions are supported.
+            /// module.
             ///
             /// Defaults to `None` which means arbitrary exports will be
             /// generated.
@@ -158,12 +162,13 @@ macro_rules! define_config {
             ///
             /// # Module Limits
             ///
-            /// All types, functions, globals, and exports that are needed to
-            /// provide the required exports will be generated, even if it
-            /// causes the resulting module to exceed the limits defined in
-            /// [`Self::max_type_size`], [`Self::max_types`],
-            /// [`Self::max_funcs`], [`Self::max_globals`], or
-            /// [`Self::max_exports`].
+            /// All types, functions, globals, memories, tables, tags, and exports
+            /// that are needed to provide the required exports will be generated,
+            /// even if it causes the resulting module to exceed the limits defined
+            /// in [`Self::max_type_size`], [`Self::max_types`],
+            /// [`Self::max_funcs`], [`Self::max_globals`],
+            /// [`Self::max_memories`], [`Self::max_tables`],
+            /// [`Self::max_tags`], or [`Self::max_exports`].
             ///
             #[cfg_attr(feature = "clap", clap(long))]
             exports: Option<std::path::PathBuf>,

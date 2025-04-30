@@ -573,9 +573,7 @@ impl<'a> TypesRef<'a> {
                 ExternalKind::Global => {
                     EntityType::Global(*module.globals.get(export.index as usize)?)
                 }
-                ExternalKind::Tag => EntityType::Tag(
-                    module.types[*module.functions.get(export.index as usize)? as usize],
-                ),
+                ExternalKind::Tag => EntityType::Tag(*module.tags.get(export.index as usize)?),
             }),
             #[cfg(feature = "component-model")]
             TypesRefKind::Component(_) => None,
