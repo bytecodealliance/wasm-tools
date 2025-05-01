@@ -163,13 +163,13 @@ impl<'a> Dump<'a> {
                 })?,
                 Payload::StartSection { func, range } => {
                     write!(self.state, "start section")?;
-                    self.print(range.start)?;
+                    self.color_print(range.start)?;
                     write!(self.state, "start function {func}")?;
                     self.print(range.end)?;
                 }
                 Payload::DataCountSection { count, range } => {
                     write!(self.state, "data count section")?;
-                    self.print(range.start)?;
+                    self.color_print(range.start)?;
                     write!(self.state, "data count {count}")?;
                     self.print(range.end)?;
                 }
