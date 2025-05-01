@@ -67,7 +67,13 @@ impl LoweredTypes {
         }
     }
 
-    fn push(&mut self, ty: ValType) -> bool {
+    #[track_caller]
+    fn assert_push(&mut self, ty: ValType) {
+        assert!(self.try_push(ty));
+    }
+
+    #[must_use = "value is not actually pushed when maxed"]
+    fn try_push(&mut self, ty: ValType) -> bool {
         if self.maxed() {
             return false;
         }
@@ -132,12 +138,12 @@ fn push_primitive_wasm_types(ty: &PrimitiveValType, lowered_types: &mut LoweredT
         | PrimitiveValType::S32
         | PrimitiveValType::U32
         | PrimitiveValType::Char
-        | PrimitiveValType::ErrorContext => lowered_types.push(ValType::I32),
-        PrimitiveValType::S64 | PrimitiveValType::U64 => lowered_types.push(ValType::I64),
-        PrimitiveValType::F32 => lowered_types.push(ValType::F32),
-        PrimitiveValType::F64 => lowered_types.push(ValType::F64),
+        | PrimitiveValType::ErrorContext => lowered_types.try_push(ValType::I32),
+        PrimitiveValType::S64 | PrimitiveValType::U64 => lowered_types.try_push(ValType::I64),
+        PrimitiveValType::F32 => lowered_types.try_push(ValType::F32),
+        PrimitiveValType::F64 => lowered_types.try_push(ValType::F64),
         PrimitiveValType::String => {
-            lowered_types.push(ValType::I32) && lowered_types.push(ValType::I32)
+            lowered_types.try_push(ValType::I32) && lowered_types.try_push(ValType::I32)
         }
     }
 }
@@ -926,9 +932,9 @@ impl ComponentFuncType {
 
         if abi == Abi::Lower && options.concurrency.is_async() {
             for _ in 0..2 {
-                sig.params.push(ValType::I32);
+                sig.params.assert_push(ValType::I32);
             }
-            sig.results.push(ValType::I32);
+            sig.results.assert_push(ValType::I32);
             options.require_memory(offset)?;
             if self.result.is_some_and(|ty| ty.contains_ptr(types)) {
                 options.require_realloc(offset)?;
@@ -957,7 +963,7 @@ impl ComponentFuncType {
                 // Function will have a single pointer parameter to pass the arguments
                 // via linear memory
                 sig.params.clear();
-                assert!(sig.params.push(ValType::I32));
+                assert!(sig.params.try_push(ValType::I32));
                 options.require_memory(offset)?;
 
                 // We need realloc as well when lifting a function
@@ -991,17 +997,17 @@ impl ComponentFuncType {
                         match abi {
                             Abi::Lower => {
                                 sig.params.max = MAX_LOWERED_TYPES;
-                                assert!(sig.params.push(ValType::I32));
+                                assert!(sig.params.try_push(ValType::I32));
                             }
                             Abi::Lift => {
-                                assert!(sig.results.push(ValType::I32));
+                                assert!(sig.results.try_push(ValType::I32));
                             }
                         }
                     }
                 }
             }
             (Abi::Lift, Concurrency::Async { callback: Some(_) }) => {
-                sig.results.push(ValType::I32);
+                sig.results.assert_push(ValType::I32);
             }
             (Abi::Lift, Concurrency::Async { callback: None }) => {}
         }
@@ -1148,7 +1154,9 @@ impl ComponentDefinedType {
                 types,
                 lowered_types,
             ),
-            Self::List(_) => lowered_types.push(ValType::I32) && lowered_types.push(ValType::I32),
+            Self::List(_) => {
+                lowered_types.try_push(ValType::I32) && lowered_types.try_push(ValType::I32)
+            }
             Self::FixedSizeList(ty, length) => {
                 (0..*length).all(|_n| ty.push_wasm_types(types, lowered_types))
             }
@@ -1157,10 +1165,10 @@ impl ComponentDefinedType {
                 .iter()
                 .all(|ty| ty.push_wasm_types(types, lowered_types)),
             Self::Flags(names) => {
-                (0..(names.len() + 31) / 32).all(|_| lowered_types.push(ValType::I32))
+                (0..(names.len() + 31) / 32).all(|_| lowered_types.try_push(ValType::I32))
             }
             Self::Enum(_) | Self::Own(_) | Self::Borrow(_) | Self::Future(_) | Self::Stream(_) => {
-                lowered_types.push(ValType::I32)
+                lowered_types.try_push(ValType::I32)
             }
             Self::Option(ty) => {
                 Self::push_variant_wasm_types([ty].into_iter(), types, lowered_types)
@@ -1177,7 +1185,7 @@ impl ComponentDefinedType {
         lowered_types: &mut LoweredTypes,
     ) -> bool {
         // Push the discriminant
-        if !lowered_types.push(ValType::I32) {
+        if !lowered_types.try_push(ValType::I32) {
             return false;
         }
 
@@ -1194,7 +1202,7 @@ impl ComponentDefinedType {
                 match lowered_types.get_mut(start + i) {
                     Some(prev) => *prev = Self::join_types(*prev, ty),
                     None => {
-                        if !lowered_types.push(ty) {
+                        if !lowered_types.try_push(ty) {
                             return false;
                         }
                     }
