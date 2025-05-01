@@ -173,14 +173,14 @@
       "line": 282,
       "filename": "instantiate.26.wasm",
       "module_type": "binary",
-      "text": "expected: [] -> []"
+      "text": "expected: (func)"
     },
     {
       "type": "assert_invalid",
       "line": 290,
       "filename": "instantiate.27.wasm",
       "module_type": "binary",
-      "text": "expected: [] -> []"
+      "text": "expected: (func)"
     },
     {
       "type": "assert_invalid",

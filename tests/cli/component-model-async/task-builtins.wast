@@ -265,14 +265,14 @@
     (core func $f (canon context.get i32 0))
     (core instance $i (instantiate $m (with "" (instance (export "" (func $f))))))
   )
-  "found:    [] -> [i32]")
+  "found:    (func (result i32))")
 (assert_invalid
   (component
     (core module $m (import "" "" (func (param i32) (result i32))))
     (core func $f (canon context.set i32 0))
     (core instance $i (instantiate $m (with "" (instance (export "" (func $f))))))
   )
-  "found:    [i32] -> []")
+  "found:    (func (param i32))")
 (assert_invalid
   (component
     (core func (canon context.get i32 1)))

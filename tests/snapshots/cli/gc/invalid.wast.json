@@ -20,7 +20,7 @@
       "line": 36,
       "filename": "invalid.2.wasm",
       "module_type": "binary",
-      "text": "expected struct type at index 0, found (func ...)"
+      "text": "expected struct type at index 0, found (func)"
     },
     {
       "type": "assert_invalid",
@@ -41,7 +41,7 @@
       "line": 53,
       "filename": "invalid.5.wasm",
       "module_type": "binary",
-      "text": "expected array type at index 0, found (struct ...)"
+      "text": "expected array type at index 0, found (struct)"
     },
     {
       "type": "assert_invalid",
@@ -62,7 +62,7 @@
       "line": 70,
       "filename": "invalid.8.wasm",
       "module_type": "binary",
-      "text": "expected func type at index 0, found (struct ...)"
+      "text": "expected func type at index 0, found (struct)"
     },
     {
       "type": "assert_invalid",

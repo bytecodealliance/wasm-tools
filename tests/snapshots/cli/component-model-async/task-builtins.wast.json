@@ -175,14 +175,14 @@
       "line": 263,
       "filename": "task-builtins.26.wasm",
       "module_type": "binary",
-      "text": "found:    [] -> [i32]"
+      "text": "found:    (func (result i32))"
     },
     {
       "type": "assert_invalid",
       "line": 270,
       "filename": "task-builtins.27.wasm",
       "module_type": "binary",
-      "text": "found:    [i32] -> []"
+      "text": "found:    (func (param i32))"
     },
     {
       "type": "assert_invalid",

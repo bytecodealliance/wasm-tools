@@ -36,7 +36,7 @@
   (module
     (type $t (func))
     (func struct.new $t drop))
-  "expected struct type at index 0, found (func ...)")
+  "expected struct type at index 0, found (func)")
 
 (assert_invalid
   (module
@@ -53,7 +53,7 @@
   (module
     (type $t (struct))
     (func array.new $t drop))
-  "expected array type at index 0, found (struct ...)")
+  "expected array type at index 0, found (struct)")
 
 (assert_invalid
   (module
@@ -70,7 +70,7 @@
   (module
     (type $t (struct))
     (func block (type $t) end))
-  "expected func type at index 0, found (struct ...)")
+  "expected func type at index 0, found (struct)")
 
 (assert_invalid
   (module

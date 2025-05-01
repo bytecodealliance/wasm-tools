@@ -39,3 +39,46 @@
   )
   "declared core type has `[I64]` result types, but actual lowering has `[I32]` result types"
 )
+
+(component
+  (import "f" (func $f (param "x" u32) (param "y" u32) (result u32)))
+
+  (core rec
+    (type (func))
+    (type $ty (func (param i32 i32) (result i32)))
+  )
+
+  (core func $f (canon lower (func $f) (core-type $ty)))
+
+  (core module $m
+    (rec
+      (type (func))
+      (type $ty (func (param i32 i32) (result i32)))
+    )
+    (import "a" "b" (func (type $ty)))
+  )
+
+  (core instance (instantiate $m (with "a" (instance (export "b" (func $f))))))
+)
+
+;; Satisfying an import with the "same" type but from the wrong rec group should
+;; fail.
+(assert_invalid
+  (component
+    (import "f" (func $f (param "x" u32) (param "y" u32) (result u32)))
+
+    (core type $ty (func (param i32 i32) (result i32)))
+    (core func $f (canon lower (func $f) (core-type $ty)))
+
+    (core module $m
+      (rec
+        (type (func))
+        (type $ty (func (param i32 i32) (result i32)))
+      )
+      (import "a" "b" (func (type $ty)))
+    )
+
+    (core instance (instantiate $m (with "a" (instance (export "b" (func $f))))))
+  )
+  "type mismatch for export `b` of module instantiation argument `a`"
+)

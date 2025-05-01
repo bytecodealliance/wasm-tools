@@ -3030,9 +3030,7 @@ impl<'a> SubtypeCx<'a> {
 
     pub(crate) fn entity_type(&self, a: &EntityType, b: &EntityType, offset: usize) -> Result<()> {
         match (a, b) {
-            (EntityType::Func(a), EntityType::Func(b)) => {
-                self.core_func_type(self.a[*a].unwrap_func(), self.b[*b].unwrap_func(), offset)
-            }
+            (EntityType::Func(a), EntityType::Func(b)) => self.core_func_type(*a, *b, offset),
             (EntityType::Func(_), b) => bail!(offset, "expected {}, found func", b.desc()),
             (EntityType::Table(a), EntityType::Table(b)) => Self::table_type(a, b, offset),
             (EntityType::Table(_), b) => bail!(offset, "expected {}, found table", b.desc()),
@@ -3054,9 +3052,7 @@ impl<'a> SubtypeCx<'a> {
                 }
             }
             (EntityType::Global(_), b) => bail!(offset, "expected {}, found global", b.desc()),
-            (EntityType::Tag(a), EntityType::Tag(b)) => {
-                self.core_func_type(self.a[*a].unwrap_func(), self.b[*b].unwrap_func(), offset)
-            }
+            (EntityType::Tag(a), EntityType::Tag(b)) => self.core_func_type(*a, *b, offset),
             (EntityType::Tag(_), b) => bail!(offset, "expected {}, found tag", b.desc()),
         }
     }
@@ -3094,16 +3090,20 @@ impl<'a> SubtypeCx<'a> {
         }
     }
 
-    fn core_func_type(&self, a: &FuncType, b: &FuncType, offset: usize) -> Result<()> {
+    fn core_func_type(&self, a: CoreTypeId, b: CoreTypeId, offset: usize) -> Result<()> {
+        debug_assert!(self.a.get(a).is_some());
+        debug_assert!(self.b.get(b).is_some());
         if a == b {
+            debug_assert!(self.a.get(b).is_some());
+            debug_assert!(self.b.get(a).is_some());
             Ok(())
         } else {
             bail!(
                 offset,
                 "expected: {}\n\
                  found:    {}",
-                b.desc(),
-                a.desc(),
+                self.b[b],
+                self.a[a],
             )
         }
     }
@@ -3353,6 +3353,21 @@ impl<'a> SubtypeArena<'a> {
             list: TypeList::default(),
         }
     }
+
+    fn get<T>(&self, id: T) -> Option<&T::Data>
+    where
+        T: TypeIdentifier,
+    {
+        let index = id.index();
+        if index < T::list(self.types).len() {
+            self.types.get(id)
+        } else {
+            let temp_index = index - T::list(self.types).len();
+            let temp_index = u32::try_from(temp_index).unwrap();
+            let temp_id = T::from_index(temp_index);
+            self.list.get(temp_id)
+        }
+    }
 }
 
 impl<T> Index<T> for SubtypeArena<'_>
@@ -3362,15 +3377,7 @@ where
     type Output = T::Data;
 
     fn index(&self, id: T) -> &T::Data {
-        let index = id.index();
-        if index < T::list(self.types).len() {
-            &self.types[id]
-        } else {
-            let temp_index = index - T::list(self.types).len();
-            let temp_index = u32::try_from(temp_index).unwrap();
-            let temp_id = T::from_index(temp_index);
-            &self.list[temp_id]
-        }
+        self.get(id).unwrap()
     }
 }
 

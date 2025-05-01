@@ -285,7 +285,7 @@
     (core instance $i (instantiate $m2))
     (core instance (instantiate $m1 (with "" (instance $i))))
   )
-  "expected: [] -> []")
+  "expected: (func)")
 (assert_invalid
   (component
     (import "m1" (core module $m1 (import "" "" (func))))
@@ -293,7 +293,7 @@
     (core instance $i (instantiate $m2))
     (core instance (instantiate $m1 (with "" (instance $i))))
   )
-  "expected: [] -> []")
+  "expected: (func)")
 (assert_invalid
   (component
     (import "m1" (core module $m1 (import "" "" (global i32))))
