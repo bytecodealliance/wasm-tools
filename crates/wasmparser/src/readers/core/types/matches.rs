@@ -207,6 +207,27 @@ impl<'a> Matches for WithRecGroup<&'a FuncType> {
     }
 }
 
+impl<'a> Matches for &'a FuncType {
+    fn matches(types: &TypeList, a: Self, b: Self) -> bool {
+        if a.params().len() != b.params().len() || a.results().len() != b.results().len() {
+            return false;
+        }
+
+        let params_match = a.params().iter().zip(b.params()).all(|(a, b)| {
+            // Parameters are contravariant.
+            Matches::matches(types, *b, *a)
+        });
+        if !params_match {
+            return false;
+        }
+
+        a.results().iter().zip(b.results()).all(|(a, b)| {
+            // Results are covariant.
+            Matches::matches(types, *a, *b)
+        })
+    }
+}
+
 impl Matches for WithRecGroup<ArrayType> {
     fn matches(types: &TypeList, a: Self, b: Self) -> bool {
         Matches::matches(
@@ -309,6 +330,19 @@ impl Matches for WithRecGroup<ValType> {
     }
 }
 
+impl Matches for ValType {
+    fn matches(types: &TypeList, a: Self, b: Self) -> bool {
+        match (a, b) {
+            (ValType::Ref(a), ValType::Ref(b)) => Matches::matches(types, a, b),
+            (ValType::Ref(_), _) => false,
+
+            (ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128, _) => {
+                a == b
+            }
+        }
+    }
+}
+
 impl Matches for WithRecGroup<RefType> {
     fn matches(types: &TypeList, a: Self, b: Self) -> bool {
         types.reftype_is_subtype_impl(
@@ -317,5 +351,11 @@ impl Matches for WithRecGroup<RefType> {
             *b,
             Some(WithRecGroup::rec_group(b)),
         )
+    }
+}
+
+impl Matches for RefType {
+    fn matches(types: &TypeList, a: Self, b: Self) -> bool {
+        types.reftype_is_subtype_impl(a, None, b, None)
     }
 }

@@ -13,7 +13,7 @@ use super::{
     core::{InternRecGroup, Module},
     types::{CoreTypeId, EntityType, TypeAlloc, TypeInfo, TypeList},
 };
-use crate::collections::index_map::Entry;
+use crate::{collections::index_map::Entry, Matches};
 use crate::limits::*;
 use crate::prelude::*;
 use crate::validator::names::{ComponentName, ComponentNameKind, KebabStr, KebabString};
@@ -359,25 +359,16 @@ impl CanonicalOptions {
         offset: usize,
     ) -> Result<CoreTypeId> {
         if let Some(declared_id) = self.core_type {
-            let declared = types[declared_id].unwrap_func();
+            let expected = types[declared_id].unwrap_func();
 
-            if actual.params() != declared.params() {
+            if !Matches::matches(types, &actual, expected) {
                 bail!(
                     offset,
-                    "declared core type has `{:?}` parameter types, but actual lowering has \
-                     `{:?}` parameter types",
-                    declared.params(),
-                    actual.params(),
-                );
-            }
-
-            if actual.results() != declared.results() {
-                bail!(
-                    offset,
-                    "declared core type has `{:?}` result types, but actual lowering has \
-                     `{:?}` result types",
-                    declared.results(),
-                    actual.results(),
+                    "type mismatch when checking `core-type` canonical option\n\
+                     expected: {}\n\
+                     actual:   {}",
+                    expected,
+                    actual,
                 );
             }
 

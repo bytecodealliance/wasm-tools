@@ -28,7 +28,7 @@
     (core type $ty (func (param i64 i32) (result i32)))
     (core func (canon lower (func $f) (core-type $ty)))
   )
-  "declared core type has `[I64, I32]` parameter types, but actual lowering has `[I32, I32]` parameter types"
+  "type mismatch when checking `core-type` canonical option"
 )
 
 (assert_invalid
@@ -37,7 +37,7 @@
     (core type $ty (func (param i32 i32) (result i64)))
     (core func (canon lower (func $f) (core-type $ty)))
   )
-  "declared core type has `[I64]` result types, but actual lowering has `[I32]` result types"
+  "type mismatch when checking `core-type` canonical option"
 )
 
 (component
