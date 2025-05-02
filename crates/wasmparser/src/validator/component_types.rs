@@ -184,10 +184,7 @@ impl<'a> LoweredTypes<'a> {
 
     /// Try to push `ty` onto this list of lowered types.
     ///
-    /// Returns `Err(_)` on type mismatch.
-    ///
-    /// The boolena is whether the type was actually pushed, or if we ran out of
-    /// capacity in this list.
+    /// Returns `Err(_)` on type mismatch or out-of-capacity.
     fn try_push(&mut self, ty: ValType) -> LowerResult {
         if let Some(expected) = self.expected.as_mut() {
             expected.match_ty(ty)?;
