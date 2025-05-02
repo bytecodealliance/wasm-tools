@@ -63,6 +63,7 @@ impl Remappings {
         for import in import_section.into_iter() {
             let import = import?;
             let TypeRef::Func(_) = import.ty else {
+                dupes.push(false);
                 continue;
             };
             let path = ImportPath {
@@ -286,6 +287,30 @@ mod test {
                 .collect::<Vec<_>>(),
             vec![0, 0, 1, 2, 2, 2, 3, 2, 4, 5]
         );
+        Ok(())
+    }
+
+    /// Show that non-function imports don't throw off the `is_duplicate()`
+    /// positions of later imports.
+    #[test]
+    fn remappings_non_function_imports() -> Result<(), BinaryReaderError> {
+        let imports = vec![
+            func("A", "a"),
+            Ok(Import {
+                module: "non",
+                name: "function",
+                ty: TypeRef::Global(GlobalType {
+                    content_type: ValType::I32,
+                    mutable: false,
+                    shared: false,
+                }),
+            }),
+            func("A", "a"),
+        ];
+        let mut remappings = Remappings::default();
+        remappings.imports(imports)?;
+        assert!(!remappings.is_duplicate(1));
+        assert!(remappings.is_duplicate(2));
         Ok(())
     }
 }
