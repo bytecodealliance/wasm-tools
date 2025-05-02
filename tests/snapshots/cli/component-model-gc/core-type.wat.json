@@ -19,14 +19,14 @@
       "line": 26,
       "filename": "core-type.2.wasm",
       "module_type": "binary",
-      "text": "declared core type has `[I64, I32]` parameter types, but actual lowering has `[I32, I32]` parameter types"
+      "text": "type mismatch when checking `core-type` canonical option"
     },
     {
       "type": "assert_invalid",
       "line": 35,
       "filename": "core-type.3.wasm",
       "module_type": "binary",
-      "text": "declared core type has `[I64]` result types, but actual lowering has `[I32]` result types"
+      "text": "type mismatch when checking `core-type` canonical option"
     },
     {
       "type": "module",
@@ -80,6 +80,46 @@
       "filename": "core-type.11.wasm",
       "module_type": "binary",
       "text": "type mismatch for export `b` of module instantiation argument `a`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 198,
+      "filename": "core-type.12.wasm",
+      "module_type": "binary",
+      "text": "type mismatch when checking `core-type` canonical option"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 208,
+      "filename": "core-type.13.wasm",
+      "module_type": "binary",
+      "text": "type mismatch when checking `core-type` canonical option"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 218,
+      "filename": "core-type.14.wasm",
+      "module_type": "binary",
+      "text": "type mismatch when checking `core-type` canonical option"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 228,
+      "filename": "core-type.15.wasm",
+      "module_type": "binary",
+      "text": "type mismatch when checking `core-type` canonical option"
+    },
+    {
+      "type": "module",
+      "line": 237,
+      "filename": "core-type.16.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 268,
+      "filename": "core-type.17.wasm",
+      "module_type": "binary"
     }
   ]
 }

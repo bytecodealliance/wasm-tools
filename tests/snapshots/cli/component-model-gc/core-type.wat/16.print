@@ -1,0 +1,12 @@
+(component
+  (type (;0;) (func (param "p0" u32) (param "p1" u32) (param "p2" u32) (param "p3" u32) (param "p4" u32) (param "p5" u32) (param "p6" u32) (param "p7" u32) (param "p8" u32) (param "p9" u32) (param "p10" u32) (param "p11" u32) (param "p12" u32) (param "p13" u32) (param "p14" u32) (param "p15" u32) (param "p16" u32)))
+  (import "f" (func $f (;0;) (type 0)))
+  (core module $m (;0;)
+    (memory (;0;) 1 1)
+    (export "memory" (memory 0))
+  )
+  (core instance $i (;0;) (instantiate $m))
+  (core type $ty (;0;) (func (param i32)))
+  (alias core export $i "memory" (core memory (;0;)))
+  (core func (;0;) (canon lower (func $f) (core-type $ty) (memory 0)))
+)

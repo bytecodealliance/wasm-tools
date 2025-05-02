@@ -2,12 +2,12 @@
 
 use super::component::ExternKind;
 use super::{CanonicalOptions, Concurrency};
-use crate::prelude::*;
 use crate::validator::names::KebabString;
 use crate::validator::types::{
     CoreTypeId, EntityType, SnapshotList, TypeAlloc, TypeData, TypeIdentifier, TypeInfo, TypeList,
     Types, TypesKind, TypesRef, TypesRefKind,
 };
+use crate::{prelude::*, Matches};
 use crate::{
     BinaryReaderError, FuncType, MemoryType, PrimitiveValType, Result, TableType, ValType,
 };
@@ -19,6 +19,7 @@ use core::{
     hash::{Hash, Hasher},
     mem,
 };
+use smallvec::SmallVec;
 
 /// The maximum number of parameters in the canonical ABI that can be passed by value.
 ///
@@ -34,56 +35,177 @@ const MAX_FLAT_FUNC_RESULTS: usize = 1;
 /// The maximum lowered types, including a possible type for a return pointer parameter.
 const MAX_LOWERED_TYPES: usize = MAX_FLAT_FUNC_PARAMS + 1;
 
+/// Error used when we are in the process of lowering a component signature to a
+/// core signature and we need to keep retry lowering in a different mode
+/// (e.g. flat vs indirect in linear memory) only for certain kinds of errors.
+enum LowerError {
+    OutOfCapacity,
+    TypeMismatch(BinaryReaderError),
+    Other(BinaryReaderError),
+}
+
+impl From<BinaryReaderError> for LowerError {
+    fn from(v: BinaryReaderError) -> Self {
+        Self::Other(v)
+    }
+}
+
+impl LowerError {
+    #[track_caller]
+    fn unwrap_binary_reader_error(self) -> BinaryReaderError {
+        match self {
+            LowerError::TypeMismatch(e) | LowerError::Other(e) => e,
+            LowerError::OutOfCapacity => panic!(),
+        }
+    }
+}
+
+type LowerResult<T = ()> = Result<T, LowerError>;
+
+enum Variance {
+    Covariant,
+    Contravariant,
+}
+
+/// A list of expected types and how to validate them.
+struct ExpectedLoweredTypes<'a> {
+    types: &'a TypeList,
+    offset: usize,
+
+    /// The expected types themselves.
+    expected: smallvec::SmallVec<[ValType; MAX_LOWERED_TYPES]>,
+
+    /// The index of the next type to check.
+    index: usize,
+
+    /// The description of this type list (for example "parameters") for use in
+    /// error messages.
+    desc: &'static str,
+
+    /// The kind of variance that should be used when type checking the actual
+    /// vs expected type.
+    variance: Variance,
+}
+
+impl<'a> ExpectedLoweredTypes<'a> {
+    fn new(
+        types: &'a TypeList,
+        desc: &'static str,
+        variance: Variance,
+        offset: usize,
+        expected: &[ValType],
+    ) -> Self {
+        Self {
+            types,
+            expected: expected.iter().copied().collect(),
+            index: 0,
+            desc,
+            variance,
+            offset,
+        }
+    }
+
+    fn reset(&mut self) {
+        self.index = 0;
+    }
+
+    fn peek(&self) -> Option<ValType> {
+        self.expected.get(self.index).copied()
+    }
+
+    fn match_ty(&mut self, actual: ValType) -> LowerResult {
+        let expected = match self.peek() {
+            Some(e) => e,
+            // Arity mismatch, but ignore it for now. The arity check at the
+            // end of `ComponentFuncType::lower` will catch this and can
+            // give a more descriptive error than we can here.
+            None => return Ok(()),
+        };
+
+        let (expected, actual) = match self.variance {
+            Variance::Covariant => (expected, actual),
+            Variance::Contravariant => (actual, expected),
+        };
+
+        if Matches::matches(self.types, actual, expected) {
+            self.index += 1;
+            return Ok(());
+        }
+
+        let desc = self.desc;
+        let index = self.index;
+        Err(LowerError::TypeMismatch(format_err!(
+            self.offset,
+            "type mismatch when checking `core-type` canonical option in {desc}[{index}]:\n\
+             expected: {expected}\n\
+             actual:   {actual}",
+        )))
+    }
+}
+
 /// A simple alloc-free list of types used for calculating lowered function signatures.
-pub(crate) struct LoweredTypes {
+struct LoweredTypes<'a> {
+    expected: Option<ExpectedLoweredTypes<'a>>,
     types: [ValType; MAX_LOWERED_TYPES],
     len: usize,
     max: usize,
 }
 
-impl LoweredTypes {
-    fn new(max: usize) -> Self {
+impl<'a> LoweredTypes<'a> {
+    fn new(expected: Option<ExpectedLoweredTypes<'a>>, max: usize) -> Self {
         assert!(max <= MAX_LOWERED_TYPES);
         Self {
+            expected,
             types: [ValType::I32; MAX_LOWERED_TYPES],
             len: 0,
             max,
         }
     }
 
-    fn len(&self) -> usize {
-        self.len
+    fn clone_without_expected_types(&self) -> Self {
+        Self {
+            expected: None,
+            types: self.types,
+            len: self.len,
+            max: self.max,
+        }
     }
 
     fn maxed(&self) -> bool {
         self.len == self.max
     }
 
-    fn get_mut(&mut self, index: usize) -> Option<&mut ValType> {
-        if index < self.len {
-            Some(&mut self.types[index])
-        } else {
-            None
-        }
-    }
-
+    /// Like `try_push` but asserts that this list has capacity for the type.
     #[track_caller]
-    fn assert_push(&mut self, ty: ValType) {
-        assert!(self.try_push(ty));
+    fn assert_push(&mut self, ty: ValType) -> Result<()> {
+        self.try_push(ty)
+            .map_err(|e| e.unwrap_binary_reader_error())
     }
 
-    #[must_use = "value is not actually pushed when maxed"]
-    fn try_push(&mut self, ty: ValType) -> bool {
+    /// Try to push `ty` onto this list of lowered types.
+    ///
+    /// Returns `Err(_)` on type mismatch.
+    ///
+    /// The boolena is whether the type was actually pushed, or if we ran out of
+    /// capacity in this list.
+    fn try_push(&mut self, ty: ValType) -> LowerResult {
+        if let Some(expected) = self.expected.as_mut() {
+            expected.match_ty(ty)?;
+        }
+
         if self.maxed() {
-            return false;
+            return Err(LowerError::OutOfCapacity);
         }
 
         self.types[self.len] = ty;
         self.len += 1;
-        true
+        Ok(())
     }
 
     fn clear(&mut self) {
+        if let Some(e) = self.expected.as_mut() {
+            e.reset();
+        }
         self.len = 0;
     }
 
@@ -96,7 +218,7 @@ impl LoweredTypes {
     }
 }
 
-impl fmt::Debug for LoweredTypes {
+impl fmt::Debug for LoweredTypes<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.as_slice().fmt(f)
     }
@@ -105,13 +227,36 @@ impl fmt::Debug for LoweredTypes {
 /// Represents a component function type's in-progress lowering into a core
 /// type.
 #[derive(Debug)]
-struct LoweredSignature {
-    params: LoweredTypes,
-    results: LoweredTypes,
+struct LoweredSignature<'a> {
+    params: LoweredTypes<'a>,
+    results: LoweredTypes<'a>,
 }
 
-impl LoweredSignature {
-    pub(crate) fn into_func_type(self) -> FuncType {
+impl<'a> LoweredSignature<'a> {
+    fn new(types: &'a TypeList, options: &CanonicalOptions, offset: usize) -> Self {
+        let expected = options.core_type.map(|ty| types[ty].unwrap_func());
+
+        let expected_params = expected.map(|e| {
+            ExpectedLoweredTypes::new(
+                types,
+                "parameters",
+                Variance::Contravariant,
+                offset,
+                e.params(),
+            )
+        });
+
+        let expected_results = expected.map(|e| {
+            ExpectedLoweredTypes::new(types, "results", Variance::Covariant, offset, e.results())
+        });
+
+        Self {
+            params: LoweredTypes::new(expected_params, MAX_FLAT_FUNC_PARAMS),
+            results: LoweredTypes::new(expected_results, MAX_FLAT_FUNC_RESULTS),
+        }
+    }
+
+    fn to_func_type(&self) -> FuncType {
         FuncType::new(
             self.params.as_slice().iter().copied(),
             self.results.as_slice().iter().copied(),
@@ -119,31 +264,25 @@ impl LoweredSignature {
     }
 }
 
-impl Default for LoweredSignature {
-    fn default() -> Self {
-        Self {
-            params: LoweredTypes::new(MAX_FLAT_FUNC_PARAMS),
-            results: LoweredTypes::new(MAX_FLAT_FUNC_RESULTS),
-        }
-    }
-}
-
-fn push_primitive_wasm_types(ty: &PrimitiveValType, lowered_types: &mut LoweredTypes) -> bool {
-    match ty {
-        PrimitiveValType::Bool
-        | PrimitiveValType::S8
-        | PrimitiveValType::U8
-        | PrimitiveValType::S16
-        | PrimitiveValType::U16
-        | PrimitiveValType::S32
-        | PrimitiveValType::U32
-        | PrimitiveValType::Char
-        | PrimitiveValType::ErrorContext => lowered_types.try_push(ValType::I32),
-        PrimitiveValType::S64 | PrimitiveValType::U64 => lowered_types.try_push(ValType::I64),
-        PrimitiveValType::F32 => lowered_types.try_push(ValType::F32),
-        PrimitiveValType::F64 => lowered_types.try_push(ValType::F64),
-        PrimitiveValType::String => {
-            lowered_types.try_push(ValType::I32) && lowered_types.try_push(ValType::I32)
+impl PrimitiveValType {
+    fn push_wasm_types(&self, lowered_types: &mut LoweredTypes) -> LowerResult {
+        match self {
+            PrimitiveValType::Bool
+            | PrimitiveValType::S8
+            | PrimitiveValType::U8
+            | PrimitiveValType::S16
+            | PrimitiveValType::U16
+            | PrimitiveValType::S32
+            | PrimitiveValType::U32
+            | PrimitiveValType::Char
+            | PrimitiveValType::ErrorContext => lowered_types.try_push(ValType::I32),
+            PrimitiveValType::S64 | PrimitiveValType::U64 => lowered_types.try_push(ValType::I64),
+            PrimitiveValType::F32 => lowered_types.try_push(ValType::F32),
+            PrimitiveValType::F64 => lowered_types.try_push(ValType::F64),
+            PrimitiveValType::String => {
+                lowered_types.try_push(ValType::I32)?;
+                lowered_types.try_push(ValType::I32)
+            }
         }
     }
 }
@@ -557,9 +696,9 @@ impl ComponentValType {
         }
     }
 
-    fn push_wasm_types(&self, types: &TypeList, lowered_types: &mut LoweredTypes) -> bool {
+    fn push_wasm_types(&self, types: &TypeList, lowered_types: &mut LoweredTypes) -> LowerResult {
         match self {
-            Self::Primitive(ty) => push_primitive_wasm_types(ty, lowered_types),
+            Self::Primitive(ty) => ty.push_wasm_types(lowered_types),
             Self::Type(id) => types[*id].push_wasm_types(types, lowered_types),
         }
     }
@@ -928,20 +1067,106 @@ impl ComponentFuncType {
         abi: Abi,
         offset: usize,
     ) -> Result<FuncType> {
-        let mut sig = LoweredSignature::default();
+        let mut sig = LoweredSignature::new(types, options, offset);
 
+        // When async-lowering we always lower to the same core signature,
+        // regardless of the component function's signature, so special-case
+        // this scenario here.
         if abi == Abi::Lower && options.concurrency.is_async() {
             for _ in 0..2 {
-                sig.params.assert_push(ValType::I32);
+                sig.params.assert_push(ValType::I32)?;
             }
-            sig.results.assert_push(ValType::I32);
+            sig.results.assert_push(ValType::I32)?;
             options.require_memory(offset)?;
             if self.result.is_some_and(|ty| ty.contains_ptr(types)) {
                 options.require_realloc(offset)?;
             }
-            return Ok(sig.into_func_type());
+            return Ok(sig.to_func_type());
         }
 
+        self.lower_params(types, options, abi, offset, &mut sig)?;
+        self.lower_results(types, options, abi, offset, &mut sig)?;
+
+        let func_ty = sig.to_func_type();
+
+        // Check expected arity: shouldn't have any left-over expected types
+        // that we haven't matched against yet because we stopped pushing types.
+        //
+        // Note that we also delay reporting `len(actual) > len(expected)`
+        // arity-mismatch errors until this point -- even though we can
+        // technically detect them earlier -- because we can craft better error
+        // messages with the context available here.
+        if let Some(e) = sig.params.expected.as_ref() {
+            let actual_len = func_ty.params().len();
+            let expected_len = e.expected.len();
+            if actual_len != expected_len {
+                bail!(
+                    offset,
+                    "type mismatch when checking `core-type` canonical option\n\
+                     arity mismatch: expected {expected_len} parameters, found {actual_len} parameters\n\
+                     expected = {}\n\
+                     actual   = {func_ty}",
+                    types[options.core_type.unwrap()].unwrap_func(),
+                );
+            }
+        }
+        if let Some(e) = sig.results.expected.as_ref() {
+            let actual_len = func_ty.results().len();
+            let expected_len = e.expected.len();
+            if actual_len != expected_len {
+                bail!(
+                    offset,
+                    "type mismatch when checking `core-type` canonical option\n\
+                     arity mismatch: expected {expected_len} results, found {actual_len} results\n\
+                     expected = {}\n\
+                     actual   = {func_ty}",
+                    types[options.core_type.unwrap()].unwrap_func(),
+                );
+            }
+        }
+
+        #[cfg(debug_assertions)]
+        if let Some(expected) = options.core_type {
+            let expected = types[expected].unwrap_func();
+            debug_assert!(
+                Matches::matches(types, &func_ty, expected),
+                "should have validated that the actual lowered type matches the \
+                 expected type in the process of lowering!\n\
+                 \n\
+                 expected = {expected}\n\
+                 actual   = {func_ty}"
+            );
+        }
+
+        Ok(func_ty)
+    }
+
+    fn lower_params(
+        &self,
+        types: &TypeList,
+        options: &CanonicalOptions,
+        abi: Abi,
+        offset: usize,
+        sig: &mut LoweredSignature<'_>,
+    ) -> Result<()> {
+        match self.lower_params_flat(types, options, abi, offset, sig) {
+            Ok(()) => Ok(()),
+            Err(LowerError::OutOfCapacity) => self.lower_params_indirect(options, abi, offset, sig),
+            Err(LowerError::TypeMismatch(e)) => self
+                .lower_params_indirect(options, abi, offset, sig)
+                .with_context(|| e.to_string()),
+            Err(LowerError::Other(e)) => Err(e),
+        }
+    }
+
+    fn lower_params_flat(
+        &self,
+        types: &TypeList,
+        options: &CanonicalOptions,
+        abi: Abi,
+        offset: usize,
+        sig: &mut LoweredSignature<'_>,
+    ) -> LowerResult {
         for (_, ty) in self.params.iter() {
             // Check to see if `ty` has a pointer somewhere in it, needed for
             // any type that transitively contains either a string or a list.
@@ -958,25 +1183,64 @@ impl ComponentFuncType {
                 }
             }
 
-            if !ty.push_wasm_types(types, &mut sig.params) {
-                // Too many parameters to pass directly
-                // Function will have a single pointer parameter to pass the arguments
-                // via linear memory
-                sig.params.clear();
-                assert!(sig.params.try_push(ValType::I32));
-                options.require_memory(offset)?;
-
-                // We need realloc as well when lifting a function
-                if let Abi::Lift = abi {
-                    options.require_realloc(offset)?;
-                }
-                break;
-            }
+            ty.push_wasm_types(types, &mut sig.params)?;
         }
 
+        Ok(())
+    }
+
+    /// Too many parameters to pass directly. Use a single pointer parameter to
+    /// pass the arguments via linear memory.
+    fn lower_params_indirect(
+        &self,
+        options: &CanonicalOptions,
+        abi: Abi,
+        offset: usize,
+        sig: &mut LoweredSignature<'_>,
+    ) -> Result<()> {
+        sig.params.clear();
+        sig.params.assert_push(ValType::I32)?;
+        options.require_memory(offset)?;
+
+        // We need realloc as well when lifting a function
+        if let Abi::Lift = abi {
+            options.require_realloc(offset)?;
+        }
+
+        Ok(())
+    }
+
+    fn lower_results(
+        &self,
+        types: &TypeList,
+        options: &CanonicalOptions,
+        abi: Abi,
+        offset: usize,
+        sig: &mut LoweredSignature<'_>,
+    ) -> Result<()> {
+        match self.lower_results_flat(types, options, abi, offset, sig) {
+            Ok(()) => Ok(()),
+            Err(LowerError::OutOfCapacity) => {
+                self.lower_results_indirect(options, abi, offset, sig)
+            }
+            Err(LowerError::TypeMismatch(e)) => self
+                .lower_results_indirect(options, abi, offset, sig)
+                .with_context(|| e.to_string()),
+            Err(LowerError::Other(e)) => Err(e),
+        }
+    }
+
+    fn lower_results_flat(
+        &self,
+        types: &TypeList,
+        options: &CanonicalOptions,
+        abi: Abi,
+        offset: usize,
+        sig: &mut LoweredSignature<'_>,
+    ) -> LowerResult {
         match (abi, options.concurrency) {
             (Abi::Lower, Concurrency::Async { .. }) => {
-                unreachable!("special-cased at the start of the function")
+                unreachable!("special-cased at the start of `lower`")
             }
             (Abi::Lower | Abi::Lift, Concurrency::Sync) => {
                 if let Some(ty) = &self.result {
@@ -988,31 +1252,39 @@ impl ComponentFuncType {
                         abi == Abi::Lower && ty.contains_ptr(types)
                     })?;
 
-                    if !ty.push_wasm_types(types, &mut sig.results) {
-                        // Too many results to return directly, either a retptr
-                        // parameter will be used (import) or a single pointer
-                        // will be returned (export).
-                        sig.results.clear();
-                        options.require_memory(offset)?;
-                        match abi {
-                            Abi::Lower => {
-                                sig.params.max = MAX_LOWERED_TYPES;
-                                assert!(sig.params.try_push(ValType::I32));
-                            }
-                            Abi::Lift => {
-                                assert!(sig.results.try_push(ValType::I32));
-                            }
-                        }
-                    }
+                    ty.push_wasm_types(types, &mut sig.results)?;
                 }
             }
             (Abi::Lift, Concurrency::Async { callback: Some(_) }) => {
-                sig.results.assert_push(ValType::I32);
+                sig.results.try_push(ValType::I32)?;
             }
             (Abi::Lift, Concurrency::Async { callback: None }) => {}
         }
 
-        Ok(sig.into_func_type())
+        Ok(())
+    }
+
+    /// Too many results to return directly, either a retptr parameter will be
+    /// used (import) or a single pointer will be returned (export).
+    fn lower_results_indirect(
+        &self,
+        options: &CanonicalOptions,
+        abi: Abi,
+        offset: usize,
+        sig: &mut LoweredSignature<'_>,
+    ) -> Result<()> {
+        sig.results.clear();
+        options.require_memory(offset)?;
+        match abi {
+            Abi::Lower => {
+                sig.params.max = MAX_LOWERED_TYPES;
+                sig.params.assert_push(ValType::I32)?;
+            }
+            Abi::Lift => {
+                sig.results.assert_push(ValType::I32)?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -1142,31 +1414,34 @@ impl ComponentDefinedType {
         }
     }
 
-    fn push_wasm_types(&self, types: &TypeList, lowered_types: &mut LoweredTypes) -> bool {
+    fn push_wasm_types(&self, types: &TypeList, lowered_types: &mut LoweredTypes) -> LowerResult {
         match self {
-            Self::Primitive(ty) => push_primitive_wasm_types(ty, lowered_types),
+            Self::Primitive(ty) => ty.push_wasm_types(lowered_types),
             Self::Record(r) => r
                 .fields
                 .iter()
-                .all(|(_, ty)| ty.push_wasm_types(types, lowered_types)),
+                .map(|(_, ty)| ty.push_wasm_types(types, lowered_types))
+                .collect(),
             Self::Variant(v) => Self::push_variant_wasm_types(
                 v.cases.iter().filter_map(|(_, case)| case.ty.as_ref()),
                 types,
                 lowered_types,
             ),
             Self::List(_) => {
-                lowered_types.try_push(ValType::I32) && lowered_types.try_push(ValType::I32)
+                lowered_types.try_push(ValType::I32)?;
+                lowered_types.try_push(ValType::I32)
             }
-            Self::FixedSizeList(ty, length) => {
-                (0..*length).all(|_n| ty.push_wasm_types(types, lowered_types))
-            }
+            Self::FixedSizeList(ty, length) => (0..*length)
+                .map(|_n| ty.push_wasm_types(types, lowered_types))
+                .collect(),
             Self::Tuple(t) => t
                 .types
                 .iter()
-                .all(|ty| ty.push_wasm_types(types, lowered_types)),
-            Self::Flags(names) => {
-                (0..(names.len() + 31) / 32).all(|_| lowered_types.try_push(ValType::I32))
-            }
+                .map(|ty| ty.push_wasm_types(types, lowered_types))
+                .collect(),
+            Self::Flags(names) => (0..(names.len() + 31) / 32)
+                .map(|_| lowered_types.try_push(ValType::I32))
+                .collect(),
             Self::Enum(_) | Self::Own(_) | Self::Borrow(_) | Self::Future(_) | Self::Stream(_) => {
                 lowered_types.try_push(ValType::I32)
             }
@@ -1183,34 +1458,40 @@ impl ComponentDefinedType {
         cases: impl Iterator<Item = &'a ComponentValType>,
         types: &TypeList,
         lowered_types: &mut LoweredTypes,
-    ) -> bool {
+    ) -> LowerResult {
         // Push the discriminant
-        if !lowered_types.try_push(ValType::I32) {
-            return false;
-        }
+        lowered_types.try_push(ValType::I32)?;
 
-        let start = lowered_types.len();
-
+        // First, simultaneously check that the `lowered_types` has capacity for
+        // the variants' types and join the `i`th type from each variant
+        // together to get the actual types we will push onto
+        // `lowered_types`. This phase ignores the expected types, if any, since
+        // we don't know what we will actually push onto `lowered_types` until
+        // after all the joining has taken place.
+        let mut joined_tys = SmallVec::<[_; MAX_FLAT_FUNC_PARAMS]>::new();
         for ty in cases {
-            let mut temp = LoweredTypes::new(lowered_types.max);
-
-            if !ty.push_wasm_types(types, &mut temp) {
-                return false;
-            }
-
-            for (i, ty) in temp.iter().enumerate() {
-                match lowered_types.get_mut(start + i) {
+            let initial_len = lowered_types.len;
+            let mut temp = lowered_types.clone_without_expected_types();
+            ty.push_wasm_types(types, &mut temp)?;
+            for (i, ty) in temp.iter().skip(initial_len).enumerate() {
+                match joined_tys.get_mut(i) {
                     Some(prev) => *prev = Self::join_types(*prev, ty),
                     None => {
-                        if !lowered_types.try_push(ty) {
-                            return false;
-                        }
+                        debug_assert_eq!(i, joined_tys.len());
+                        joined_tys.push(ty)
                     }
                 }
             }
         }
 
-        true
+        // Now that we've finalized the joined types and they won't change
+        // anymore, push them `lowered_types` and actually do the matching
+        // against the expected types (if any).
+        for ty in joined_tys {
+            lowered_types.try_push(ty)?;
+        }
+
+        Ok(())
     }
 
     fn join_types(a: ValType, b: ValType) -> ValType {

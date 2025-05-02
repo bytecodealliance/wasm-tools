@@ -28,7 +28,7 @@
     (core type $ty (func (param i64 i32) (result i32)))
     (core func (canon lower (func $f) (core-type $ty)))
   )
-  "declared core type has `[I64, I32]` parameter types, but actual lowering has `[I32, I32]` parameter types"
+  "type mismatch when checking `core-type` canonical option"
 )
 
 (assert_invalid
@@ -37,7 +37,7 @@
     (core type $ty (func (param i32 i32) (result i64)))
     (core func (canon lower (func $f) (core-type $ty)))
   )
-  "declared core type has `[I64]` result types, but actual lowering has `[I32]` result types"
+  "type mismatch when checking `core-type` canonical option"
 )
 
 (component
@@ -191,4 +191,88 @@
     (core instance (instantiate $m (with "a" (instance (export "b" (func $f))))))
   )
   "type mismatch for export `b` of module instantiation argument `a`"
+)
+
+;; Too few parameters in declared `core-type`.
+(assert_invalid
+  (component
+    (import "f" (func $f (param "x" u32) (param "y" u32) (result u32)))
+    (core type $ty (func (param i32) (result i32)))
+    (core func (canon lower (func $f) (core-type $ty)))
+  )
+  "type mismatch when checking `core-type` canonical option"
+)
+
+;; Too few results in declared `core-type`.
+(assert_invalid
+  (component
+    (import "f" (func $f (param "x" u32) (param "y" u32) (result u32)))
+    (core type $ty (func (param i32 i32) (result)))
+    (core func (canon lower (func $f) (core-type $ty)))
+  )
+  "type mismatch when checking `core-type` canonical option"
+)
+
+;; Too many parameters in declared `core-type`.
+(assert_invalid
+  (component
+    (import "f" (func $f (param "x" u32) (param "y" u32) (result u32)))
+    (core type $ty (func (param i32 i32 i32) (result i32)))
+    (core func (canon lower (func $f) (core-type $ty)))
+  )
+  "type mismatch when checking `core-type` canonical option"
+)
+
+;; Too many results in declared `core-type`.
+(assert_invalid
+  (component
+    (import "f" (func $f (param "x" u32) (param "y" u32) (result u32)))
+    (core type $ty (func (param i32 i32) (result i32 i32)))
+    (core func (canon lower (func $f) (core-type $ty)))
+  )
+  "type mismatch when checking `core-type` canonical option"
+)
+
+;; Too many parameters to be passed flat, in combination with a `core-type` option.
+(component
+  (import "f" (func $f
+    (param "p0" u32)
+    (param "p1" u32)
+    (param "p2" u32)
+    (param "p3" u32)
+    (param "p4" u32)
+    (param "p5" u32)
+    (param "p6" u32)
+    (param "p7" u32)
+    (param "p8" u32)
+    (param "p9" u32)
+    (param "p10" u32)
+    (param "p11" u32)
+    (param "p12" u32)
+    (param "p13" u32)
+    (param "p14" u32)
+    (param "p15" u32)
+    (param "p16" u32)
+  ))
+
+  (core module $m
+    (memory (export "memory") 1 1)
+  )
+  (core instance $i (instantiate $m))
+
+  (core type $ty (func (param i32)))
+  (core func (canon lower (func $f) (core-type $ty) (memory $i "memory")))
+)
+
+;; Too many results to be passed flat, in combination with a `core-type` option.
+(component
+  (import "f" (func $f (result (tuple u32 u32 u32 u32))))
+
+  (core module $m
+    (memory (export "memory") 1 1)
+  )
+  (core instance $i (instantiate $m))
+
+  (core type $ty (func (param i32)))
+  (core func (canon lower (func $f) (core-type $ty) (memory $i "memory")))
 )

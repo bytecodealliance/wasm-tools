@@ -13,10 +13,10 @@ use super::{
     core::{InternRecGroup, Module},
     types::{CoreTypeId, EntityType, TypeAlloc, TypeInfo, TypeList},
 };
-use crate::collections::index_map::Entry;
 use crate::limits::*;
 use crate::prelude::*;
 use crate::validator::names::{ComponentName, ComponentNameKind, KebabStr, KebabString};
+use crate::{collections::index_map::Entry, Matches};
 use crate::{
     BinaryReaderError, CanonicalFunction, CanonicalOption, ComponentExportName,
     ComponentExternalKind, ComponentOuterAliasKind, ComponentTypeRef, CompositeInnerType,
@@ -358,30 +358,13 @@ impl CanonicalOptions {
         actual: FuncType,
         offset: usize,
     ) -> Result<CoreTypeId> {
-        if let Some(declared_id) = self.core_type {
-            let declared = types[declared_id].unwrap_func();
-
-            if actual.params() != declared.params() {
-                bail!(
-                    offset,
-                    "declared core type has `{:?}` parameter types, but actual lowering has \
-                     `{:?}` parameter types",
-                    declared.params(),
-                    actual.params(),
-                );
-            }
-
-            if actual.results() != declared.results() {
-                bail!(
-                    offset,
-                    "declared core type has `{:?}` result types, but actual lowering has \
-                     `{:?}` result types",
-                    declared.results(),
-                    actual.results(),
-                );
-            }
-
-            Ok(declared_id)
+        if let Some(declared) = self.core_type {
+            debug_assert!(
+                Matches::matches(types, &actual, types[declared].unwrap_func()),
+                "should have validated that the lowered type matches the \
+                 declared type in the process of lowering",
+            );
+            Ok(declared)
         } else {
             Ok(types.intern_func_type(actual, offset))
         }

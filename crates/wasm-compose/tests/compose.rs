@@ -27,8 +27,14 @@ use wasmparser::{Validator, WasmFeatures};
 /// either `composed.wat` or `error.txt` depending on the outcome of the composition.
 #[test]
 fn component_composing() -> Result<()> {
-    for entry in fs::read_dir("tests/compositions")? {
-        let path = entry?.path();
+    // Ensure deterministic test ordering.
+    let mut entries = fs::read_dir("tests/compositions")?
+        .map(|e| Ok(e?))
+        .collect::<Result<Vec<_>>>()?;
+    entries.sort_by_key(|e| e.path());
+
+    for entry in entries {
+        let path = entry.path();
         if !path.is_dir() {
             continue;
         }

@@ -2174,6 +2174,7 @@ dependencies = [
  "rayon",
  "semver",
  "serde",
+ "smallvec",
  "wasm-encoder 0.229.0",
  "wast",
  "wat",

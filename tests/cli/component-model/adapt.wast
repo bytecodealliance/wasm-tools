@@ -285,3 +285,28 @@
     "(func (export \"foo\") (canon lift (core func $f)))"
   )
   "unknown core func: failed to find name `$f`")
+
+(component
+  (import "a" (instance $imp
+    (type $record (record (field "a" s8)))
+    (export $eq-record "record" (type (eq $record)))
+
+    (type $option (option $eq-record))
+    (export $eq-option "option" (type (eq $option)))
+
+    (export "f" (func (param "x" $eq-option)))
+  ))
+
+  (core module $m
+    (type $ty (func (param i32 i32)))
+    (import "" "" (func (type $ty)))
+  )
+
+  (core func $f (canon lower (func $imp "f")))
+
+  (core instance
+    (instantiate $m
+      (with "" (instance (export "" (func $f))))
+    )
+  )
+)

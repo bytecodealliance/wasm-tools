@@ -1,0 +1,13 @@
+(component
+  (type (;0;) (tuple u32 u32 u32 u32))
+  (type (;1;) (func (result 0)))
+  (import "f" (func $f (;0;) (type 1)))
+  (core module $m (;0;)
+    (memory (;0;) 1 1)
+    (export "memory" (memory 0))
+  )
+  (core instance $i (;0;) (instantiate $m))
+  (core type $ty (;0;) (func (param i32)))
+  (alias core export $i "memory" (core memory (;0;)))
+  (core func (;0;) (canon lower (func $f) (core-type $ty) (memory 0)))
+)

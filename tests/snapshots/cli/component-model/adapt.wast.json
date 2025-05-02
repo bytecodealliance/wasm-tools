@@ -131,6 +131,12 @@
       "filename": "adapt.18.wat",
       "module_type": "text",
       "text": "unknown core func: failed to find name `$f`"
+    },
+    {
+      "type": "module",
+      "line": 289,
+      "filename": "adapt.19.wasm",
+      "module_type": "binary"
     }
   ]
 }

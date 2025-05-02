@@ -25,6 +25,7 @@ hashbrown = { workspace = true, optional = true }
 indexmap = { workspace = true, optional = true }
 semver = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
+smallvec = { workspace = true, optional = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
@@ -81,7 +82,7 @@ features = []
 # A feature that enables parsing and validating the component-model proposal for
 # WebAssembly. This is enabled by default but if your use case is only
 # interested in working with core modules then this feature can be disabled.
-component-model = ['dep:semver']
+component-model = ['dep:semver', 'dep:smallvec']
 
 # A feature that enables parsing and validating the `simd` and `relaxed-simd`
 # proposals for WebAssembly. This is enabled by default but if your use case is
