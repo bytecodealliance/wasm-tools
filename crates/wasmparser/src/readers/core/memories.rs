@@ -35,14 +35,14 @@ impl<'a> FromReader<'a> for MemoryType {
         Ok(MemoryType {
             memory64,
             shared,
-            initial: if reader.memory64() {
+            initial: if memory64 {
                 reader.read_var_u64()?
             } else {
                 reader.read_var_u32()?.into()
             },
             maximum: if !has_max {
                 None
-            } else if reader.memory64() {
+            } else if memory64 {
                 Some(reader.read_var_u64()?)
             } else {
                 Some(reader.read_var_u32()?.into())

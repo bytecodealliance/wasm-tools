@@ -78,14 +78,14 @@ impl<'a> FromReader<'a> for TableType {
         Ok(TableType {
             element_type,
             table64,
-            initial: if reader.memory64() {
+            initial: if table64 {
                 reader.read_var_u64()?
             } else {
                 reader.read_var_u32()?.into()
             },
             maximum: if !has_max {
                 None
-            } else if reader.memory64() {
+            } else if table64 {
                 Some(reader.read_var_u64()?)
             } else {
                 Some(reader.read_var_u32()?.into())
