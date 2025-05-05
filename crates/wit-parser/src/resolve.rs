@@ -3448,6 +3448,7 @@ impl Remap {
         let include_world_id = self.map_world(include_world, Some(span))?;
         let include_world = &resolve.worlds[include_world_id];
         let mut names_ = names.to_owned();
+        let is_external_include = world.package != include_world.package;
 
         // remove all imports and exports that match the names we're including
         for import in include_world.imports.iter() {
@@ -3465,11 +3466,25 @@ impl Remap {
 
         // copy the imports and exports from the included world into the current world
         for import in include_world.imports.iter() {
-            self.resolve_include_item(names, &mut world.imports, import, span, "import")?;
+            self.resolve_include_item(
+                names,
+                &mut world.imports,
+                import,
+                span,
+                "import",
+                is_external_include,
+            )?;
         }
 
         for export in include_world.exports.iter() {
-            self.resolve_include_item(names, &mut world.exports, export, span, "export")?;
+            self.resolve_include_item(
+                names,
+                &mut world.exports,
+                export,
+                span,
+                "export",
+                is_external_include,
+            )?;
         }
         Ok(())
     }
@@ -3481,6 +3496,7 @@ impl Remap {
         item: (&WorldKey, &WorldItem),
         span: Span,
         item_type: &str,
+        is_external_include: bool,
     ) -> Result<()> {
         match item.0 {
             WorldKey::Name(n) => {
@@ -3515,7 +3531,7 @@ impl Remap {
                         },
                     ) => {
                         assert_eq!(*aid, *bid);
-                        merge_stability(astability, bstability)?;
+                        merge_include_stability(astability, bstability, is_external_include)?;
                     }
                     (WorldItem::Interface { .. }, _) => unreachable!(),
                     (WorldItem::Function(_), _) => unreachable!(),
@@ -3948,25 +3964,18 @@ fn update_stability(from: &Stability, into: &mut Stability) -> Result<()> {
     bail!("mismatch in stability from '{:?}' to '{:?}'", from, into)
 }
 
-/// Compares the two attributes and if the `from` is more stable than the `into` then
-/// it will elevate the `into` to the same stability.
-/// This should be used after its already been confirmed that the types are the same and
-/// should be apart of the component because versions/features are enabled.
-fn merge_stability(from: &Stability, into: &mut Stability) -> Result<()> {
-    // If the two stability annotations are equal then
-    // there's nothing to do here.
-    if from == into {
+fn merge_include_stability(
+    from: &Stability,
+    into: &mut Stability,
+    is_external_include: bool,
+) -> Result<()> {
+    if is_external_include && from.is_stable() {
+        log::trace!("dropped stability from external package");
+        *into = Stability::Unknown;
         return Ok(());
     }
 
-    // if the from is more stable elevate stability of into
-    if from > into {
-        *into = from.clone();
-        return Ok(());
-    }
-
-    // otherwise `into`` already has higher stability
-    return Ok(());
+    return update_stability(from, into);
 }
 
 /// An error that can be returned during "world elaboration" during various

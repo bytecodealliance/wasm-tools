@@ -1243,6 +1243,10 @@ impl Stability {
     pub fn is_unknown(&self) -> bool {
         matches!(self, Stability::Unknown)
     }
+
+    pub fn is_stable(&self) -> bool {
+        matches!(self, Stability::Stable { .. })
+    }
 }
 
 impl Default for Stability {
