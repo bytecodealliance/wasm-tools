@@ -13,7 +13,7 @@ use std::{
 };
 use wasm_encoder::{
     self,
-    reencode::{utils::parse_custom_section, Reencode},
+    reencode::{self, utils::parse_custom_section, Reencode},
 };
 use wasmparser::{self, BinaryReaderError, Import, KnownCustom, Parser, TypeRef};
 
@@ -138,7 +138,7 @@ struct DedupingReencoder {
     remappings: Remappings,
 }
 
-type DeduperError = wasm_encoder::reencode::Error<NoDuplicatesFound>;
+type DeduperError = reencode::Error<NoDuplicatesFound>;
 
 impl Reencode for DedupingReencoder {
     type Error = NoDuplicatesFound;
@@ -149,7 +149,7 @@ impl Reencode for DedupingReencoder {
         &mut self,
         imports: &mut wasm_encoder::ImportSection,
         section: wasmparser::ImportSectionReader<'_>,
-    ) -> Result<(), wasm_encoder::reencode::Error<Self::Error>> {
+    ) -> Result<(), reencode::Error<Self::Error>> {
         self.remappings.imports(section.clone())?;
 
         // If no duplicates, take the fast path out.
@@ -165,8 +165,8 @@ impl Reencode for DedupingReencoder {
         Ok(())
     }
 
-    fn function_index(&mut self, func_idx: u32) -> u32 {
-        self.remappings.new_index_for(func_idx)
+    fn function_index(&mut self, func_idx: u32) -> Result<u32, reencode::Error<Self::Error>> {
+        Ok(self.remappings.new_index_for(func_idx))
     }
 
     // Strip all but known-safe custom sections.
@@ -181,7 +181,7 @@ impl Reencode for DedupingReencoder {
         &mut self,
         module: &mut wasm_encoder::Module,
         section: wasmparser::CustomSectionReader<'_>,
-    ) -> Result<(), wasm_encoder::reencode::Error<Self::Error>> {
+    ) -> Result<(), reencode::Error<Self::Error>> {
         match section.as_known() {
             KnownCustom::Name(_) | KnownCustom::Producers(_) => {
                 // Keep this section verbatim:

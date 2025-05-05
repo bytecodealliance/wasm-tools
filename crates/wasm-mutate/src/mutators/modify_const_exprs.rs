@@ -40,14 +40,14 @@ impl<'cfg, 'wasm> Reencode for InitTranslator<'cfg, 'wasm> {
 
     /// Handle `elem`s with values of the `ElementItem::Func` kind. This function will not be
     /// called for values of the `ElementItem::Expr` kind.
-    fn function_index(&mut self, idx: u32) -> u32 {
+    fn function_index(&mut self, idx: u32) -> ReencodeResult<u32> {
         if self.kind != ConstExpressionMutator::ElementFunc || !self.should_process() {
-            return idx;
+            return Ok(idx);
         }
 
         log::trace!("... replacing referenced function index with 0");
         // FIXME: generate random function indices when `!config.reduce`.
-        0
+        Ok(0)
     }
 
     /// Handle `global` initializers and `elem`s with values of the `ElementItem::Expr` kind.

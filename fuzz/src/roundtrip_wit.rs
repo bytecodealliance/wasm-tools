@@ -171,8 +171,8 @@ struct RemoveImports<'a, 'b> {
 impl Reencode for RemoveImports<'_, '_> {
     type Error = std::convert::Infallible;
 
-    fn function_index(&mut self, idx: u32) -> u32 {
-        idx - self.removed_funcs
+    fn function_index(&mut self, idx: u32) -> Result<u32, reencode::Error<Self::Error>> {
+        Ok(idx - self.removed_funcs)
     }
 
     fn parse_import(

@@ -538,10 +538,10 @@ impl<'a> Module<'a> {
             let ty = map.memory_type(mem.ty);
             match &mem.def {
                 Definition::Import(m, n) => {
-                    imports.import(m, n, ty);
+                    imports.import(m, n, ty?);
                 }
                 Definition::Local(()) => {
-                    memories.memory(ty);
+                    memories.memory(ty?);
                 }
             }
             num_memories += 1;
@@ -1030,23 +1030,25 @@ struct Encoder {
     tables: Remap,
 }
 
+type ReencodeResult<T> = Result<T, wasm_encoder::reencode::Error<Infallible>>;
+
 impl Reencode for Encoder {
     type Error = Infallible;
 
-    fn type_index(&mut self, i: u32) -> u32 {
-        self.types.remap(i)
+    fn type_index(&mut self, i: u32) -> ReencodeResult<u32> {
+        Ok(self.types.remap(i))
     }
-    fn function_index(&mut self, i: u32) -> u32 {
-        self.funcs.remap(i)
+    fn function_index(&mut self, i: u32) -> ReencodeResult<u32> {
+        Ok(self.funcs.remap(i))
     }
-    fn memory_index(&mut self, i: u32) -> u32 {
-        self.memories.remap(i)
+    fn memory_index(&mut self, i: u32) -> ReencodeResult<u32> {
+        Ok(self.memories.remap(i))
     }
-    fn global_index(&mut self, i: u32) -> u32 {
-        self.globals.remap(i)
+    fn global_index(&mut self, i: u32) -> ReencodeResult<u32> {
+        Ok(self.globals.remap(i))
     }
-    fn table_index(&mut self, i: u32) -> u32 {
-        self.tables.remap(i)
+    fn table_index(&mut self, i: u32) -> ReencodeResult<u32> {
+        Ok(self.tables.remap(i))
     }
 }
 
