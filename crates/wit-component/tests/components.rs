@@ -19,7 +19,9 @@ use wit_parser::{PackageId, Resolve, UnresolvedPackageGroup};
 ///   encoded as a component.  If one or more `lib-$name.wat` and/or
 ///   `dlopen-lib-$name.wat` files exist, they will be linked using `Linker`
 ///   such that the `lib-` ones are not `dlopen`-able but the `dlopen-lib-` ones
-///   are.
+///   are. If the first line of `module.wat` is `;; options:
+///   deduplicate-imports`, the equivalent of wasm-tools' `component new
+///   --deduplicate-imports` option will be applied.
 /// * [required] `module.wit` *or* `lib-$name.wat` and `dlopen-lib-$name.wat`
 ///   corresponding to the WAT files above - WIT package(s) describing the
 ///   interfaces of the `module.wat` or `lib-$name.wat` and
@@ -87,11 +89,18 @@ fn run_test(path: &Path) -> Result<()> {
     let module_path = path.join("module.wat");
     let mut adapters = glob::glob(path.join("adapt-*.wat").to_str().unwrap())?;
     let result = if module_path.is_file() {
+        let should_deduplicate = fs::read_to_string(&module_path)?
+            .lines()
+            .next()
+            .unwrap_or("")
+            == ";; options: deduplicate-imports";
         let module = read_core_module(&module_path, &resolve, pkg_id)
             .with_context(|| format!("failed to read core module at {module_path:?}"))?;
         adapters
             .try_fold(
-                ComponentEncoder::default().module(&module)?,
+                ComponentEncoder::default()
+                    .deduplicate_imports(should_deduplicate)
+                    .module(&module)?,
                 |encoder, path| {
                     let (name, wasm) = read_name_and_module("adapt-", &path?, &resolve, pkg_id)?;
                     Ok::<_, Error>(encoder.adapter(&name, &wasm)?)

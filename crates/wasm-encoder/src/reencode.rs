@@ -554,9 +554,9 @@ pub enum Error<E = Infallible> {
     InvalidConstExpr,
     /// The code section size listed was not valid for the wasm binary provided.
     InvalidCodeSectionSize,
-    /// There was a section that does not belong into a core wasm module.
+    /// There was a section that does not belong in a core wasm module.
     UnexpectedNonCoreModuleSection,
-    /// There was a section that does not belong into a component module.
+    /// There was a section that does not belong in a component module.
     UnexpectedNonComponentSection,
     /// A core type definition was found in a component that's not supported.
     UnsupportedCoreTypeInComponent,
@@ -582,11 +582,11 @@ impl<E: core::fmt::Display> core::fmt::Display for Error<E> {
             Self::InvalidConstExpr => write!(fmt, "The const expression was invalid"),
             Self::UnexpectedNonCoreModuleSection => write!(
                 fmt,
-                "There was a section that does not belong into a core wasm module"
+                "There was a section that does not belong in a core wasm module"
             ),
             Self::UnexpectedNonComponentSection => write!(
                 fmt,
-                "There was a section that does not belong into a component"
+                "There was a section that does not belong in a component"
             ),
             Self::CanonicalizedHeapTypeReference => write!(
                 fmt,
