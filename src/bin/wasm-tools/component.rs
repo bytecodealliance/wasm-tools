@@ -1273,12 +1273,12 @@ struct ModuleExtractor<'a> {
 impl Reencode for ModuleExtractor<'_> {
     type Error = std::convert::Infallible;
 
-    fn type_index(&mut self, index: u32) -> u32 {
-        if self.depth == 0 {
+    fn type_index(&mut self, index: u32) -> Result<u32, Error<Self::Error>> {
+        Ok(if self.depth == 0 {
             index + self.extra_core_types
         } else {
             index
-        }
+        })
     }
 }
 
@@ -1291,12 +1291,12 @@ impl ReencodeComponent for ModuleExtractor<'_> {
         }
     }
 
-    fn outer_type_index(&mut self, count: u32, index: u32) -> u32 {
-        if self.depth == count {
+    fn outer_type_index(&mut self, count: u32, index: u32) -> Result<u32, Error<Self::Error>> {
+        Ok(if self.depth == count {
             index + self.extra_core_types
         } else {
             index
-        }
+        })
     }
 
     fn outer_module_index(&mut self, count: u32, index: u32) -> u32 {

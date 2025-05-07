@@ -1,5 +1,6 @@
 use crate::reencode::{Error, Reencode, RoundtripReencoder};
 use alloc::boxed::Box;
+use core::convert::Infallible;
 
 #[allow(missing_docs)] // FIXME
 pub trait ReencodeComponent: Reencode {
@@ -31,7 +32,7 @@ pub trait ReencodeComponent: Reencode {
         ty
     }
 
-    fn outer_type_index(&mut self, count: u32, ty: u32) -> u32 {
+    fn outer_type_index(&mut self, count: u32, ty: u32) -> Result<u32, Error<Self::Error>> {
         let _ = count;
         self.type_index(ty)
     }
@@ -321,7 +322,7 @@ pub trait ReencodeComponent: Reencode {
     fn component_type_ref(
         &mut self,
         ty: wasmparser::ComponentTypeRef,
-    ) -> crate::component::ComponentTypeRef {
+    ) -> Result<crate::component::ComponentTypeRef, Error<Self::Error>> {
         component_utils::component_type_ref(self, ty)
     }
 
@@ -360,7 +361,7 @@ pub trait ReencodeComponent: Reencode {
     fn canonical_option(
         &mut self,
         ty: wasmparser::CanonicalOption,
-    ) -> crate::component::CanonicalOption {
+    ) -> Result<crate::component::CanonicalOption, Error<Self::Error>> {
         component_utils::canonical_option(self, ty)
     }
 
@@ -582,7 +583,7 @@ pub mod component_utils {
                 component.section(&reencoder.custom_component_name_section(name)?);
             }
             _ => {
-                component.section(&reencoder.custom_section(section));
+                component.section(&reencoder.custom_section(section)?);
             }
         }
         Ok(())
@@ -621,7 +622,7 @@ pub mod component_utils {
             }
             wasmparser::ComponentType::Resource { rep, dtor } => {
                 let rep = reencoder.val_type(rep)?;
-                let dtor = dtor.map(|i| reencoder.function_index(i));
+                let dtor = dtor.map(|i| reencoder.function_index(i)).transpose()?;
                 dst.resource(rep, dtor);
             }
         }
@@ -659,7 +660,7 @@ pub mod component_utils {
                 Ok(())
             }
             wasmparser::InstanceTypeDeclaration::Export { name, ty } => {
-                let ty = reencoder.component_type_ref(ty);
+                let ty = reencoder.component_type_ref(ty)?;
                 instance.export(name.0, ty);
                 Ok(())
             }
@@ -713,12 +714,12 @@ pub mod component_utils {
                 Ok(())
             }
             wasmparser::ComponentTypeDeclaration::Export { name, ty } => {
-                let ty = reencoder.component_type_ref(ty);
+                let ty = reencoder.component_type_ref(ty)?;
                 component.export(name.0, ty);
                 Ok(())
             }
             wasmparser::ComponentTypeDeclaration::Import(import) => {
-                let ty = reencoder.component_type_ref(import.ty);
+                let ty = reencoder.component_type_ref(import.ty)?;
                 component.import(import.name.0, ty);
                 Ok(())
             }
@@ -833,7 +834,7 @@ pub mod component_utils {
                 count,
                 index,
             } => {
-                let index = reencoder.outer_type_index(count, index);
+                let index = reencoder.outer_type_index(count, index)?;
                 module.alias_outer_core_type(count, index);
             }
             wasmparser::ModuleTypeDeclaration::Import(import) => {
@@ -878,7 +879,7 @@ pub mod component_utils {
                         reencoder.outer_module_index(count, index)
                     }
                     wasmparser::ComponentOuterAliasKind::CoreType => {
-                        reencoder.outer_type_index(count, index)
+                        reencoder.outer_type_index(count, index)?
                     }
                     wasmparser::ComponentOuterAliasKind::Type => {
                         reencoder.outer_component_type_index(count, index)
@@ -898,7 +899,7 @@ pub mod component_utils {
     ) -> Result<(), Error<T::Error>> {
         for import in section {
             let import = import?;
-            imports.import(import.name.0, reencoder.component_type_ref(import.ty));
+            imports.import(import.name.0, reencoder.component_type_ref(import.ty)?);
         }
         Ok(())
     }
@@ -925,20 +926,24 @@ pub mod component_utils {
                 type_index,
                 options,
             } => {
-                let func = reencoder.function_index(core_func_index);
+                let func = reencoder.function_index(core_func_index)?;
                 let ty = reencoder.component_type_index(type_index);
-                section.lift(
-                    func,
-                    ty,
-                    options.iter().map(|o| reencoder.canonical_option(*o)),
-                );
+                let options = options
+                    .iter()
+                    .map(|o| reencoder.canonical_option(*o))
+                    .collect::<Result<Vec<_>, _>>()?;
+                section.lift(func, ty, options);
             }
             wasmparser::CanonicalFunction::Lower {
                 func_index,
                 options,
             } => {
                 let func = reencoder.component_func_index(func_index);
-                section.lower(func, options.iter().map(|o| reencoder.canonical_option(*o)));
+                let options = options
+                    .iter()
+                    .map(|o| reencoder.canonical_option(*o))
+                    .collect::<Result<Vec<_>, _>>()?;
+                section.lower(func, options);
             }
             wasmparser::CanonicalFunction::ResourceNew { resource } => {
                 let resource = reencoder.component_type_index(resource);
@@ -957,15 +962,15 @@ pub mod component_utils {
                 section.resource_rep(resource);
             }
             wasmparser::CanonicalFunction::ThreadSpawnRef { func_ty_index } => {
-                let func_ty = reencoder.type_index(func_ty_index);
+                let func_ty = reencoder.type_index(func_ty_index)?;
                 section.thread_spawn_ref(func_ty);
             }
             wasmparser::CanonicalFunction::ThreadSpawnIndirect {
                 func_ty_index,
                 table_index,
             } => {
-                let func_ty = reencoder.type_index(func_ty_index);
-                let table_index = reencoder.table_index(table_index);
+                let func_ty = reencoder.type_index(func_ty_index)?;
+                let table_index = reencoder.table_index(table_index)?;
                 section.thread_spawn_indirect(func_ty, table_index);
             }
             wasmparser::CanonicalFunction::ThreadAvailableParallelism => {
@@ -975,10 +980,11 @@ pub mod component_utils {
                 section.backpressure_set();
             }
             wasmparser::CanonicalFunction::TaskReturn { result, options } => {
-                section.task_return(
-                    result.map(|ty| reencoder.component_val_type(ty)),
-                    options.iter().map(|o| reencoder.canonical_option(*o)),
-                );
+                let options = options
+                    .iter()
+                    .map(|o| reencoder.canonical_option(*o))
+                    .collect::<Result<Vec<_>, _>>()?;
+                section.task_return(result.map(|ty| reencoder.component_val_type(ty)), options);
             }
             wasmparser::CanonicalFunction::TaskCancel => {
                 section.task_cancel();
@@ -1002,16 +1008,18 @@ pub mod component_utils {
                 section.stream_new(reencoder.component_type_index(ty));
             }
             wasmparser::CanonicalFunction::StreamRead { ty, options } => {
-                section.stream_read(
-                    reencoder.component_type_index(ty),
-                    options.iter().map(|o| reencoder.canonical_option(*o)),
-                );
+                let options = options
+                    .iter()
+                    .map(|o| reencoder.canonical_option(*o))
+                    .collect::<Result<Vec<_>, _>>()?;
+                section.stream_read(reencoder.component_type_index(ty), options);
             }
             wasmparser::CanonicalFunction::StreamWrite { ty, options } => {
-                section.stream_write(
-                    reencoder.component_type_index(ty),
-                    options.iter().map(|o| reencoder.canonical_option(*o)),
-                );
+                let options = options
+                    .iter()
+                    .map(|o| reencoder.canonical_option(*o))
+                    .collect::<Result<Vec<_>, _>>()?;
+                section.stream_write(reencoder.component_type_index(ty), options);
             }
             wasmparser::CanonicalFunction::StreamCancelRead { ty, async_ } => {
                 section.stream_cancel_read(ty, async_);
@@ -1029,16 +1037,18 @@ pub mod component_utils {
                 section.future_new(reencoder.component_type_index(ty));
             }
             wasmparser::CanonicalFunction::FutureRead { ty, options } => {
-                section.future_read(
-                    reencoder.component_type_index(ty),
-                    options.iter().map(|o| reencoder.canonical_option(*o)),
-                );
+                let options = options
+                    .iter()
+                    .map(|o| reencoder.canonical_option(*o))
+                    .collect::<Result<Vec<_>, _>>()?;
+                section.future_read(reencoder.component_type_index(ty), options);
             }
             wasmparser::CanonicalFunction::FutureWrite { ty, options } => {
-                section.future_write(
-                    reencoder.component_type_index(ty),
-                    options.iter().map(|o| reencoder.canonical_option(*o)),
-                );
+                let options = options
+                    .iter()
+                    .map(|o| reencoder.canonical_option(*o))
+                    .collect::<Result<Vec<_>, _>>()?;
+                section.future_write(reencoder.component_type_index(ty), options);
             }
             wasmparser::CanonicalFunction::FutureCancelRead { ty, async_ } => {
                 section.future_cancel_read(ty, async_);
@@ -1053,12 +1063,18 @@ pub mod component_utils {
                 section.future_close_writable(reencoder.component_type_index(ty));
             }
             wasmparser::CanonicalFunction::ErrorContextNew { options } => {
-                section.error_context_new(options.iter().map(|o| reencoder.canonical_option(*o)));
+                let options = options
+                    .iter()
+                    .map(|o| reencoder.canonical_option(*o))
+                    .collect::<Result<Vec<_>, _>>()?;
+                section.error_context_new(options);
             }
             wasmparser::CanonicalFunction::ErrorContextDebugMessage { options } => {
-                section.error_context_debug_message(
-                    options.iter().map(|o| reencoder.canonical_option(*o)),
-                );
+                let options = options
+                    .iter()
+                    .map(|o| reencoder.canonical_option(*o))
+                    .collect::<Result<Vec<_>, _>>()?;
+                section.error_context_debug_message(options);
             }
             wasmparser::CanonicalFunction::ErrorContextDrop => {
                 section.error_context_drop();
@@ -1067,10 +1083,10 @@ pub mod component_utils {
                 section.waitable_set_new();
             }
             wasmparser::CanonicalFunction::WaitableSetWait { async_, memory } => {
-                section.waitable_set_wait(async_, reencoder.memory_index(memory));
+                section.waitable_set_wait(async_, reencoder.memory_index(memory)?);
             }
             wasmparser::CanonicalFunction::WaitableSetPoll { async_, memory } => {
-                section.waitable_set_poll(async_, reencoder.memory_index(memory));
+                section.waitable_set_poll(async_, reencoder.memory_index(memory)?);
             }
             wasmparser::CanonicalFunction::WaitableSetDrop => {
                 section.waitable_set_drop();
@@ -1167,13 +1183,17 @@ pub mod component_utils {
                 );
             }
             wasmparser::Instance::FromExports(exports) => {
-                instances.export_items(exports.iter().map(|export| {
-                    (
-                        export.name,
-                        reencoder.export_kind(export.kind),
-                        reencoder.external_index(export.kind, export.index),
-                    )
-                }));
+                let exports = exports
+                    .iter()
+                    .map(|export| {
+                        Ok((
+                            export.name,
+                            reencoder.export_kind(export.kind)?,
+                            reencoder.external_index(export.kind, export.index)?,
+                        ))
+                    })
+                    .collect::<Result<Vec<_>, Error<T::Error>>>()?;
+                instances.export_items(exports);
             }
         }
         Ok(())
@@ -1210,7 +1230,10 @@ pub mod component_utils {
             export.name.0,
             export.kind.into(),
             reencoder.component_external_index(export.kind, export.index),
-            export.ty.map(|t| reencoder.component_type_ref(t)),
+            export
+                .ty
+                .map(|t| reencoder.component_type_ref(t))
+                .transpose()?,
         );
         Ok(())
     }
@@ -1235,10 +1258,10 @@ pub mod component_utils {
     pub fn component_type_ref<T: ?Sized + ReencodeComponent>(
         reencoder: &mut T,
         ty: wasmparser::ComponentTypeRef,
-    ) -> crate::component::ComponentTypeRef {
-        match ty {
+    ) -> Result<crate::component::ComponentTypeRef, Error<T::Error>> {
+        Ok(match ty {
             wasmparser::ComponentTypeRef::Module(u) => {
-                crate::component::ComponentTypeRef::Module(reencoder.type_index(u))
+                crate::component::ComponentTypeRef::Module(reencoder.type_index(u)?)
             }
             wasmparser::ComponentTypeRef::Func(u) => {
                 crate::component::ComponentTypeRef::Func(reencoder.component_type_index(u))
@@ -1255,7 +1278,7 @@ pub mod component_utils {
             wasmparser::ComponentTypeRef::Component(u) => {
                 crate::component::ComponentTypeRef::Component(reencoder.component_type_index(u))
             }
-        }
+        })
     }
 
     pub fn component_primitive_val_type<T: ?Sized + ReencodeComponent>(
@@ -1347,30 +1370,30 @@ pub mod component_utils {
     pub fn canonical_option<T: ?Sized + ReencodeComponent>(
         reencoder: &mut T,
         ty: wasmparser::CanonicalOption,
-    ) -> crate::component::CanonicalOption {
-        match ty {
+    ) -> Result<crate::component::CanonicalOption, Error<T::Error>> {
+        Ok(match ty {
             wasmparser::CanonicalOption::UTF8 => crate::component::CanonicalOption::UTF8,
             wasmparser::CanonicalOption::UTF16 => crate::component::CanonicalOption::UTF16,
             wasmparser::CanonicalOption::CompactUTF16 => {
                 crate::component::CanonicalOption::CompactUTF16
             }
             wasmparser::CanonicalOption::Memory(u) => {
-                crate::component::CanonicalOption::Memory(reencoder.memory_index(u))
+                crate::component::CanonicalOption::Memory(reencoder.memory_index(u)?)
             }
             wasmparser::CanonicalOption::Realloc(u) => {
-                crate::component::CanonicalOption::Realloc(reencoder.function_index(u))
+                crate::component::CanonicalOption::Realloc(reencoder.function_index(u)?)
             }
             wasmparser::CanonicalOption::PostReturn(u) => {
-                crate::component::CanonicalOption::PostReturn(reencoder.function_index(u))
+                crate::component::CanonicalOption::PostReturn(reencoder.function_index(u)?)
             }
             wasmparser::CanonicalOption::Async => crate::component::CanonicalOption::Async,
             wasmparser::CanonicalOption::Callback(u) => {
-                crate::component::CanonicalOption::Callback(reencoder.function_index(u))
+                crate::component::CanonicalOption::Callback(reencoder.function_index(u)?)
             }
             wasmparser::CanonicalOption::CoreType(u) => {
-                crate::component::CanonicalOption::CoreType(reencoder.type_index(u))
+                crate::component::CanonicalOption::CoreType(reencoder.type_index(u)?)
             }
-        }
+        })
     }
 
     pub fn custom_component_name_section<T: ?Sized + ReencodeComponent>(
@@ -1409,28 +1432,30 @@ pub mod component_utils {
                 names.core_tags(&name_map(map, |i| reencoder.tag_index(i))?);
             }
             wasmparser::ComponentName::CoreModules(map) => {
-                names.core_modules(&name_map(map, |i| reencoder.module_index(i))?);
+                names.core_modules(&name_map(map, |i| Ok(reencoder.module_index(i)))?);
             }
             wasmparser::ComponentName::CoreInstances(map) => {
-                names.core_instances(&name_map(map, |i| reencoder.instance_index(i))?);
+                names.core_instances(&name_map(map, |i| Ok(reencoder.instance_index(i)))?);
             }
             wasmparser::ComponentName::CoreTypes(map) => {
                 names.core_types(&name_map(map, |i| reencoder.type_index(i))?);
             }
             wasmparser::ComponentName::Types(map) => {
-                names.types(&name_map(map, |i| reencoder.component_type_index(i))?);
+                names.types(&name_map(map, |i| Ok(reencoder.component_type_index(i)))?);
             }
             wasmparser::ComponentName::Instances(map) => {
-                names.instances(&name_map(map, |i| reencoder.component_instance_index(i))?);
+                names.instances(&name_map(map, |i| {
+                    Ok(reencoder.component_instance_index(i))
+                })?);
             }
             wasmparser::ComponentName::Components(map) => {
-                names.components(&name_map(map, |i| reencoder.component_index(i))?);
+                names.components(&name_map(map, |i| Ok(reencoder.component_index(i)))?);
             }
             wasmparser::ComponentName::Funcs(map) => {
-                names.funcs(&name_map(map, |i| reencoder.component_func_index(i))?);
+                names.funcs(&name_map(map, |i| Ok(reencoder.component_func_index(i)))?);
             }
             wasmparser::ComponentName::Values(map) => {
-                names.values(&name_map(map, |i| reencoder.component_value_index(i))?);
+                names.values(&name_map(map, |i| Ok(reencoder.component_value_index(i)))?);
             }
             wasmparser::ComponentName::Unknown { ty, data, .. } => {
                 names.raw(ty, data);
@@ -1454,7 +1479,7 @@ impl From<wasmparser::TypeBounds> for crate::TypeBounds {
 
 impl From<wasmparser::CanonicalOption> for crate::CanonicalOption {
     fn from(opt: wasmparser::CanonicalOption) -> Self {
-        RoundtripReencoder.canonical_option(opt)
+        Result::<_, Error<Infallible>>::unwrap(RoundtripReencoder.canonical_option(opt))
     }
 }
 
@@ -1472,7 +1497,7 @@ impl From<wasmparser::ComponentOuterAliasKind> for crate::ComponentOuterAliasKin
 
 impl From<wasmparser::ComponentTypeRef> for crate::ComponentTypeRef {
     fn from(ty: wasmparser::ComponentTypeRef) -> Self {
-        RoundtripReencoder.component_type_ref(ty)
+        Result::<_, Error<Infallible>>::unwrap(RoundtripReencoder.component_type_ref(ty))
     }
 }
 

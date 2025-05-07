@@ -187,7 +187,7 @@ impl RemoveItem<'_> {
     ///   try something else.
     /// * Finally our index is larger than the one being removed which means we
     ///   now decrement it by one to account for the removed item.
-    fn remap(&mut self, item: Item, idx: u32) -> u32 {
+    fn remap(&mut self, item: Item, idx: u32) -> ReencodeResult<u32> {
         // If we're before the code section then all function references, no
         // matter where they are, are considered "referencing functions" so we
         // save the indices of that which is referenced.
@@ -197,7 +197,7 @@ impl RemoveItem<'_> {
             }
         }
 
-        if item != self.item || idx < self.idx {
+        Ok(if item != self.item || idx < self.idx {
             // Different kind of item or a later item was removed, index doesn't change
             idx
         } else if idx == self.idx {
@@ -210,42 +210,42 @@ impl RemoveItem<'_> {
             // Otherwise this item comes after the item being removed, so
             // this item's index has decreased by one.
             idx - 1
-        }
+        })
     }
 }
 
 impl Reencode for RemoveItem<'_> {
     type Error = Error;
 
-    fn function_index(&mut self, idx: u32) -> u32 {
+    fn function_index(&mut self, idx: u32) -> ReencodeResult<u32> {
         self.remap(Item::Function, idx)
     }
 
-    fn table_index(&mut self, idx: u32) -> u32 {
+    fn table_index(&mut self, idx: u32) -> ReencodeResult<u32> {
         self.remap(Item::Table, idx)
     }
 
-    fn memory_index(&mut self, idx: u32) -> u32 {
+    fn memory_index(&mut self, idx: u32) -> ReencodeResult<u32> {
         self.remap(Item::Memory, idx)
     }
 
-    fn tag_index(&mut self, idx: u32) -> u32 {
+    fn tag_index(&mut self, idx: u32) -> ReencodeResult<u32> {
         self.remap(Item::Tag, idx)
     }
 
-    fn global_index(&mut self, idx: u32) -> u32 {
+    fn global_index(&mut self, idx: u32) -> ReencodeResult<u32> {
         self.remap(Item::Global, idx)
     }
 
-    fn type_index(&mut self, idx: u32) -> u32 {
+    fn type_index(&mut self, idx: u32) -> ReencodeResult<u32> {
         self.remap(Item::Type, idx)
     }
 
-    fn data_index(&mut self, idx: u32) -> u32 {
+    fn data_index(&mut self, idx: u32) -> ReencodeResult<u32> {
         self.remap(Item::Data, idx)
     }
 
-    fn element_index(&mut self, idx: u32) -> u32 {
+    fn element_index(&mut self, idx: u32) -> ReencodeResult<u32> {
         self.remap(Item::Element, idx)
     }
 
@@ -312,7 +312,7 @@ impl Reencode for RemoveItem<'_> {
         section: wasmparser::FunctionSectionReader<'_>,
     ) -> ReencodeResult<()> {
         self.filter_out(section, Item::Function, |me, func| {
-            funcs.function(me.type_index(func));
+            funcs.function(me.type_index(func)?);
             Ok(())
         })
     }
@@ -334,7 +334,7 @@ impl Reencode for RemoveItem<'_> {
         section: wasmparser::MemorySectionReader<'_>,
     ) -> ReencodeResult<()> {
         self.filter_out(section, Item::Memory, |me, memory| {
-            memories.memory(me.memory_type(memory));
+            memories.memory(me.memory_type(memory)?);
             Ok(())
         })
     }
@@ -378,23 +378,23 @@ impl Reencode for RemoveItem<'_> {
         section: wasmparser::TagSectionReader<'_>,
     ) -> ReencodeResult<()> {
         self.filter_out(section, Item::Tag, |me, tag| {
-            tags.tag(me.tag_type(tag));
+            tags.tag(me.tag_type(tag)?);
             Ok(())
         })
     }
 
-    fn data_count(&mut self, count: u32) -> u32 {
+    fn data_count(&mut self, count: u32) -> ReencodeResult<u32> {
         // Note that the data count section is decremented here if
         // we're removing a data item, otherwise it's preserved
         // as-is.
-        if self.item == Item::Data {
+        Ok(if self.item == Item::Data {
             count - 1
         } else {
             count
-        }
+        })
     }
 
-    fn start_section(&mut self, func: u32) -> u32 {
+    fn start_section(&mut self, func: u32) -> ReencodeResult<u32> {
         self.function_reference_action = Funcref::Skip;
         let func = self.remap(Item::Function, func);
         self.function_reference_action = Funcref::Save;
