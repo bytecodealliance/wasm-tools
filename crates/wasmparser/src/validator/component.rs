@@ -2492,6 +2492,12 @@ impl ComponentState {
                             offset,
                         ));
                     }
+                    if !self.features.cm_gc() {
+                        return Err(BinaryReaderError::new(
+                            "canonical option `gc` requires the `cm-gc` feature",
+                            offset,
+                        ));
+                    }
                     gc = true;
                 }
             }
