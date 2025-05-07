@@ -835,6 +835,7 @@ impl Printer<'_, '_> {
                     self.print_idx(&state.core.type_names, *idx)?;
                     self.end_group()?;
                 }
+                CanonicalOption::Gc => self.result.write_str("gc")?,
             }
         }
         Ok(())

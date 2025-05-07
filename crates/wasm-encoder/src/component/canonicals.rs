@@ -29,6 +29,8 @@ pub enum CanonicalOption {
     Callback(u32),
     /// The core function type to lower a component function into.
     CoreType(u32),
+    /// Use the GC variant of the canonical ABI.
+    Gc,
 }
 
 impl Encode for CanonicalOption {
@@ -59,6 +61,9 @@ impl Encode for CanonicalOption {
             Self::CoreType(idx) => {
                 sink.push(0x08);
                 idx.encode(sink);
+            }
+            Self::Gc => {
+                sink.push(0x09);
             }
         }
     }

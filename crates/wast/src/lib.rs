@@ -545,6 +545,7 @@ pub mod kw {
     custom_keyword!(with);
     custom_keyword!(core);
     custom_keyword!(core_type = "core-type");
+    custom_keyword!(gc);
     custom_keyword!(true_ = "true");
     custom_keyword!(false_ = "false");
     custom_keyword!(language);

@@ -951,6 +951,8 @@ pub enum CanonOpt<'a> {
     Callback(CoreItemRef<'a, kw::func>),
     /// Lower this component function into the specified core function type.
     CoreType(CoreItemRef<'a, kw::r#type>),
+    /// Use the GC variant of the canonical ABI.
+    Gc,
 }
 
 impl Default for kw::r#type {
@@ -974,6 +976,9 @@ impl<'a> Parse<'a> for CanonOpt<'a> {
         } else if l.peek::<kw::r#async>()? {
             parser.parse::<kw::r#async>()?;
             Ok(Self::Async)
+        } else if l.peek::<kw::gc>()? {
+            parser.parse::<kw::gc>()?;
+            Ok(Self::Gc)
         } else if l.peek::<LParen>()? {
             parser.parens(|parser| {
                 let mut l = parser.lookahead1();
@@ -1015,6 +1020,7 @@ impl Peek for CanonOpt<'_> {
             || kw::string_utf16::peek(cursor)?
             || kw::string_latin1_utf16::peek(cursor)?
             || kw::r#async::peek(cursor)?
+            || kw::gc::peek(cursor)?
             || match cursor.lparen()? {
                 Some(next) => {
                     kw::memory::peek(next)?

@@ -481,7 +481,8 @@ impl<'a> Resolver<'a> {
                 CanonOpt::StringUtf8
                 | CanonOpt::StringUtf16
                 | CanonOpt::StringLatin1Utf16
-                | CanonOpt::Async => {}
+                | CanonOpt::Async
+                | CanonOpt::Gc => {}
                 CanonOpt::Memory(r) => self.core_item_ref(r)?,
                 CanonOpt::Realloc(r) | CanonOpt::PostReturn(r) | CanonOpt::Callback(r) => {
                     self.core_item_ref(r)?
