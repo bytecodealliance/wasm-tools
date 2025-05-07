@@ -1393,6 +1393,7 @@ pub mod component_utils {
             wasmparser::CanonicalOption::CoreType(u) => {
                 crate::component::CanonicalOption::CoreType(reencoder.type_index(u)?)
             }
+            wasmparser::CanonicalOption::Gc => crate::component::CanonicalOption::Gc,
         })
     }
 

@@ -976,6 +976,7 @@ impl From<&CanonOpt<'_>> for wasm_encoder::CanonicalOption {
             CanonOpt::Async => Self::Async,
             CanonOpt::Callback(f) => Self::Callback(f.idx.into()),
             CanonOpt::CoreType(t) => Self::CoreType(t.idx.into()),
+            CanonOpt::Gc => Self::Gc,
         }
     }
 }

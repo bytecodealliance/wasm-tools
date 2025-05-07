@@ -239,6 +239,7 @@ pub(crate) struct CanonicalOptions {
     pub(crate) post_return: Option<u32>,
     pub(crate) concurrency: Concurrency,
     pub(crate) core_type: Option<CoreTypeId>,
+    pub(crate) gc: bool,
 }
 
 impl CanonicalOptions {
@@ -302,6 +303,13 @@ impl CanonicalOptions {
                 offset,
                 "canonical option `callback` cannot be specified for lowerings"
             );
+        }
+
+        if self.gc && self.core_type.is_none() {
+            bail!(
+                offset,
+                "cannot specify `gc` without also specifying a `core-type` for lowerings"
+            )
         }
 
         Ok(self)
@@ -2334,7 +2342,8 @@ impl ComponentState {
                 CanonicalOption::PostReturn(_) => "post-return",
                 CanonicalOption::Async => "async",
                 CanonicalOption::Callback(_) => "callback",
-                CanonicalOption::CoreType(_) => "core type",
+                CanonicalOption::CoreType(_) => "core-type",
+                CanonicalOption::Gc => "gc",
             }
         }
 
@@ -2345,6 +2354,7 @@ impl ComponentState {
         let mut is_async = false;
         let mut callback = None;
         let mut core_type = None;
+        let mut gc = false;
 
         for option in options {
             match option {
@@ -2475,6 +2485,21 @@ impl ComponentState {
                         }
                     };
                 }
+                CanonicalOption::Gc => {
+                    if gc {
+                        return Err(BinaryReaderError::new(
+                            "canonical option `gc` is specified more than once",
+                            offset,
+                        ));
+                    }
+                    if !self.features.cm_gc() {
+                        return Err(BinaryReaderError::new(
+                            "canonical option `gc` requires the `cm-gc` feature",
+                            offset,
+                        ));
+                    }
+                    gc = true;
+                }
             }
         }
 
@@ -2489,12 +2514,17 @@ impl ComponentState {
             (true, callback, false) => Concurrency::Async { callback },
         };
 
+        if !gc && core_type.is_some() {
+            bail!(offset, "cannot specify `core-type` without `gc`")
+        }
+
         Ok(CanonicalOptions {
             memory,
             realloc,
             post_return,
             concurrency,
             core_type,
+            gc,
         })
     }
 
