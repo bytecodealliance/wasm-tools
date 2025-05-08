@@ -1,0 +1,32 @@
+{
+  "source_filename": "tests/cli/component-model-gc/tuple-types.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "tuple-types.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 18,
+      "filename": "tuple-types.1.wasm",
+      "module_type": "binary",
+      "text": "core `struct` has 1 fields, but component tuple has 2 fields"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 34,
+      "filename": "tuple-types.2.wasm",
+      "module_type": "binary",
+      "text": "core `struct` has 3 fields, but component tuple has 2 fields"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 52,
+      "filename": "tuple-types.3.wasm",
+      "module_type": "binary",
+      "text": "expected to lower component tuple type to core `(ref null? (struct ...))`, but found `i32`"
+    }
+  ]
+}

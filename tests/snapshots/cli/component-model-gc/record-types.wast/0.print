@@ -1,0 +1,17 @@
+(component
+  (type $record (;0;) (record (field "a" bool) (field "b" u8) (field "c" s8) (field "d" u16) (field "e" s16) (field "f" u32) (field "g" s32) (field "h" u64) (field "i" s64) (field "j" f32) (field "k" f64) (field "l" char) (field "m" string)))
+  (core type $string (;0;) (array i8))
+  (core type $record (;1;) (struct (field i8) (field i8) (field i8) (field i16) (field i16) (field i32) (field i32) (field i64) (field i64) (field f32) (field f64) (field i32) (field (ref $string))))
+  (core type $ty (;2;) (func (param (ref $record))))
+  (type (;1;)
+    (instance
+      (alias outer 1 $record (type (;0;)))
+      (export (;1;) "ty" (type (eq 0)))
+      (type (;2;) (func (param "x" 1)))
+      (export (;0;) "f" (func (type 2)))
+    )
+  )
+  (import "i" (instance $i (;0;) (type 1)))
+  (alias export $i "f" (func (;0;)))
+  (core func (;0;) (canon lower (func 0) gc string-encoding=utf8 (core-type $ty)))
+)
