@@ -1,0 +1,31 @@
+{
+  "source_filename": "tests/cli/component-model-gc/resource-types.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "resource-types.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 13,
+      "filename": "resource-types.1.wasm",
+      "module_type": "binary",
+      "text": "expected to lower component `own` type into core `(ref null? extern)` type, but found `anyref`"
+    },
+    {
+      "type": "module",
+      "line": 24,
+      "filename": "resource-types.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 34,
+      "filename": "resource-types.3.wasm",
+      "module_type": "binary",
+      "text": "expected to lower component `borrow` type into core `(ref null? extern)` type, but found `anyref`"
+    }
+  ]
+}

@@ -1286,6 +1286,15 @@ macro_rules! bail {
     ($($arg:tt)*) => {return Err(format_err!($($arg)*))}
 }
 
+#[cfg(feature = "component-model")] // Only used in component-model code right now.
+macro_rules! ensure {
+    ($cond:expr, $($arg:tt)*) => {
+        if !$cond {
+            bail!($($arg)*);
+        }
+    }
+}
+
 pub use crate::arity::*;
 pub use crate::binary_reader::{BinaryReader, BinaryReaderError, Result};
 pub use crate::features::*;

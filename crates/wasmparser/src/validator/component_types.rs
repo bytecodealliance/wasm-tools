@@ -2,12 +2,12 @@
 
 use super::component::ExternKind;
 use super::{CanonicalOptions, Concurrency};
-use crate::prelude::*;
 use crate::validator::names::KebabString;
 use crate::validator::types::{
     CoreTypeId, EntityType, SnapshotList, TypeAlloc, TypeData, TypeIdentifier, TypeInfo, TypeList,
     Types, TypesKind, TypesRef, TypesRefKind,
 };
+use crate::{prelude::*, AbstractHeapType, CompositeInnerType, HeapType, RefType, StorageType};
 use crate::{
     BinaryReaderError, FuncType, MemoryType, PrimitiveValType, Result, TableType, ValType,
 };
@@ -573,6 +573,20 @@ impl ComponentValType {
             Self::Type(id) => types[*id].type_info(types),
         }
     }
+
+    fn lower_gc(
+        &self,
+        types: &TypeList,
+        abi: Abi,
+        options: &CanonicalOptions,
+        offset: usize,
+        core: ArgOrField,
+    ) -> Result<()> {
+        match self {
+            ComponentValType::Primitive(ty) => ty.lower_gc(types, abi, options, offset, core),
+            ComponentValType::Type(ty) => types[*ty].lower_gc(types, abi, options, offset, core),
+        }
+    }
 }
 
 trait ModuleImportKey {
@@ -921,6 +935,87 @@ pub(crate) enum Abi {
     Lower,
 }
 
+impl Abi {
+    fn invert(&self) -> Self {
+        match self {
+            Abi::Lift => Abi::Lower,
+            Abi::Lower => Abi::Lift,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub(crate) enum ArgOrField {
+    /// Lifting to, or lowering from, an argument value.
+    Arg(ValType),
+    /// Lifting to, or lowering from, a struct field or array element.
+    Field(StorageType),
+}
+
+impl From<ValType> for ArgOrField {
+    fn from(v: ValType) -> Self {
+        Self::Arg(v)
+    }
+}
+
+impl From<StorageType> for ArgOrField {
+    fn from(v: StorageType) -> Self {
+        Self::Field(v)
+    }
+}
+
+impl core::fmt::Display for ArgOrField {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ArgOrField::Arg(ty) => core::fmt::Display::fmt(ty, f),
+            ArgOrField::Field(ty) => core::fmt::Display::fmt(ty, f),
+        }
+    }
+}
+
+impl ArgOrField {
+    pub(crate) fn as_val_type(self) -> Option<ValType> {
+        match self {
+            ArgOrField::Arg(ty) | ArgOrField::Field(StorageType::Val(ty)) => Some(ty),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn as_ref_type(self) -> Option<RefType> {
+        match self {
+            ArgOrField::Arg(ValType::Ref(r))
+            | ArgOrField::Field(StorageType::Val(ValType::Ref(r))) => Some(r),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn as_concrete_ref(self) -> Option<CoreTypeId> {
+        match self.as_ref_type()?.heap_type() {
+            HeapType::Abstract { .. } => None,
+            HeapType::Concrete(idx) => {
+                let id = idx
+                    .as_core_type_id()
+                    .expect("validation only sees core type ids");
+                Some(id)
+            }
+        }
+    }
+}
+
+pub(crate) enum LoweredFuncType {
+    New(FuncType),
+    Existing(CoreTypeId),
+}
+
+impl LoweredFuncType {
+    pub(crate) fn intern(self, types: &mut TypeAlloc, offset: usize) -> CoreTypeId {
+        match self {
+            LoweredFuncType::New(ty) => types.intern_func_type(ty, offset),
+            LoweredFuncType::Existing(id) => id,
+        }
+    }
+}
+
 impl ComponentFuncType {
     /// Lowers the component function type to core parameter and result types for the
     /// canonical ABI.
@@ -930,8 +1025,12 @@ impl ComponentFuncType {
         options: &CanonicalOptions,
         abi: Abi,
         offset: usize,
-    ) -> Result<FuncType> {
+    ) -> Result<LoweredFuncType> {
         let mut sig = LoweredSignature::default();
+
+        if options.gc {
+            return self.lower_gc(types, abi, options, offset);
+        }
 
         if abi == Abi::Lower && options.concurrency.is_async() {
             sig.params.max = MAX_FLAT_ASYNC_PARAMS;
@@ -1013,7 +1112,48 @@ impl ComponentFuncType {
             }
         }
 
-        Ok(sig.into_func_type())
+        Ok(LoweredFuncType::New(sig.into_func_type()))
+    }
+
+    fn lower_gc(
+        &self,
+        types: &TypeList,
+        abi: Abi,
+        options: &CanonicalOptions,
+        offset: usize,
+    ) -> Result<LoweredFuncType> {
+        let core_type_id = options.core_type.unwrap();
+        let core_func_ty = types[core_type_id].unwrap_func();
+
+        ensure!(
+            core_func_ty.params().len() == self.params.len(),
+            offset,
+            "declared `core-type` has {} parameters, but component function has {} parameters",
+            core_func_ty.params().len(),
+            self.params.len(),
+        );
+        for (core, (_name, comp)) in core_func_ty.params().iter().zip(&self.params) {
+            comp.lower_gc(types, abi.invert(), options, offset, (*core).into())?;
+        }
+
+        ensure!(
+            core_func_ty.results().len() == usize::from(self.result.is_some()),
+            offset,
+            "declared `core-type` has {} results, but component function has {} results",
+            core_func_ty.results().len(),
+            usize::from(self.result.is_some()),
+        );
+        if let Some(result) = self.result {
+            result.lower_gc(
+                types,
+                abi,
+                options,
+                offset,
+                core_func_ty.results()[0].into(),
+            )?;
+        }
+
+        Ok(LoweredFuncType::Existing(core_type_id))
     }
 }
 
@@ -1034,6 +1174,46 @@ pub struct RecordType {
     /// The map of record fields.
     pub fields: IndexMap<KebabString, ComponentValType>,
 }
+impl RecordType {
+    fn lower_gc(
+        &self,
+        types: &TypeList,
+        abi: Abi,
+        options: &CanonicalOptions,
+        offset: usize,
+        core: ArgOrField,
+    ) -> Result<()> {
+        let id = match core.as_concrete_ref() {
+            Some(id) => id,
+            None => bail!(
+                offset,
+                "expected to lower component `record` type to core `(ref null? (struct ...))`, \
+                 but found `{core}`",
+            ),
+        };
+
+        match &types[id].composite_type.inner {
+            CompositeInnerType::Struct(ty) => {
+                ensure!(
+                    ty.fields.len() == self.fields.len(),
+                    offset,
+                    "core `struct` has {} fields, but component `record` has {} fields",
+                    ty.fields.len(),
+                    self.fields.len(),
+                );
+                for (core, comp) in ty.fields.iter().zip(self.fields.values()) {
+                    comp.lower_gc(types, abi, options, offset, core.element_type.into())?;
+                }
+                Ok(())
+            }
+            other => bail!(
+                offset,
+                "expected to lower component `record` type to core `(ref null? (struct ...))`, \
+                 but found `{other}`",
+            ),
+        }
+    }
+}
 
 /// Represents a variant type.
 #[derive(Debug, Clone)]
@@ -1043,6 +1223,19 @@ pub struct VariantType {
     /// The map of variant cases.
     pub cases: IndexMap<KebabString, VariantCase>,
 }
+impl VariantType {
+    fn lower_gc(
+        &self,
+        types: &TypeList,
+        abi: Abi,
+        options: &CanonicalOptions,
+        offset: usize,
+        core: ArgOrField,
+    ) -> core::result::Result<(), BinaryReaderError> {
+        let _ = (types, abi, options, offset, core);
+        todo!("variant types and CM+GC")
+    }
+}
 
 /// Represents a tuple type.
 #[derive(Debug, Clone)]
@@ -1051,6 +1244,46 @@ pub struct TupleType {
     pub(crate) info: TypeInfo,
     /// The types of the tuple.
     pub types: Box<[ComponentValType]>,
+}
+impl TupleType {
+    fn lower_gc(
+        &self,
+        types: &TypeList,
+        abi: Abi,
+        options: &CanonicalOptions,
+        offset: usize,
+        core: ArgOrField,
+    ) -> core::result::Result<(), BinaryReaderError> {
+        let id = match core.as_concrete_ref() {
+            Some(id) => id,
+            None => bail!(
+                offset,
+                "expected to lower component tuple type to core `(ref null? (struct ...))`, \
+                 but found `{core}`",
+            ),
+        };
+
+        match &types[id].composite_type.inner {
+            CompositeInnerType::Struct(ty) => {
+                ensure!(
+                    ty.fields.len() == self.types.len(),
+                    offset,
+                    "core `struct` has {} fields, but component tuple has {} fields",
+                    ty.fields.len(),
+                    self.types.len(),
+                );
+                for (core, comp) in ty.fields.iter().zip(&self.types) {
+                    comp.lower_gc(types, abi, options, offset, core.element_type.into())?;
+                }
+                Ok(())
+            }
+            other => bail!(
+                offset,
+                "expected to lower component tuple type to core `(ref null? (struct ...))`, \
+                 but found `{other}`",
+            ),
+        }
+    }
 }
 
 /// Represents a component defined type.
@@ -1241,6 +1474,95 @@ impl ComponentDefinedType {
             ComponentDefinedType::Borrow(_) => "borrow",
             ComponentDefinedType::Future(_) => "future",
             ComponentDefinedType::Stream(_) => "stream",
+        }
+    }
+
+    fn lower_gc(
+        &self,
+        types: &TypeList,
+        abi: Abi,
+        options: &CanonicalOptions,
+        offset: usize,
+        core: ArgOrField,
+    ) -> Result<()> {
+        match self {
+            ComponentDefinedType::Primitive(ty) => ty.lower_gc(types, abi, options, offset, core),
+
+            ComponentDefinedType::Record(ty) => ty.lower_gc(types, abi, options, offset, core),
+
+            ComponentDefinedType::Variant(ty) => ty.lower_gc(types, abi, options, offset, core),
+
+            ComponentDefinedType::List(ty) | ComponentDefinedType::FixedSizeList(ty, _) => {
+                let id = match core.as_concrete_ref() {
+                    Some(id) => id,
+                    None => bail!(
+                        offset,
+                        "expected to lower component `list` type into `(ref null? (array ...))`, but \
+                         found `{core}`",
+                    ),
+                };
+                let array_ty = match types[id].composite_type.inner {
+                    CompositeInnerType::Array(ty) => ty,
+                    _ => bail!(
+                        offset,
+                        "expected to lower component `list` type into `(ref null? (array ...))`, but \
+                         found `{core}`",
+                    ),
+                };
+                ty.lower_gc(types, abi, options, offset, array_ty.0.element_type.into())
+            }
+
+            ComponentDefinedType::Tuple(ty) => ty.lower_gc(types, abi, options, offset, core),
+
+            ComponentDefinedType::Flags(flags) => {
+                assert!(flags.len() <= 32, "required by validation");
+                if core.as_val_type() == Some(ValType::I32) {
+                    Ok(())
+                } else {
+                    bail!(
+                        offset,
+                        "expected to lower component `flags` type into core `i32` type, but \
+                         found `{core}`",
+                    )
+                }
+            }
+
+            ComponentDefinedType::Enum(_) => {
+                if core.as_val_type() == Some(ValType::I32) {
+                    Ok(())
+                } else {
+                    bail!(
+                        offset,
+                        "expected to lower component `enum` type into core `i32` type, but \
+                         found `{core}`",
+                    )
+                }
+            }
+
+            ComponentDefinedType::Option(_) => todo!("option types and CM+GC"),
+
+            ComponentDefinedType::Result { .. } => todo!("result types and CM+GC"),
+
+            ComponentDefinedType::Own(_)
+            | ComponentDefinedType::Borrow(_)
+            | ComponentDefinedType::Future(_)
+            | ComponentDefinedType::Stream(_) => {
+                if let Some(r) = core.as_ref_type() {
+                    if let HeapType::Abstract {
+                        shared: _,
+                        ty: AbstractHeapType::Extern,
+                    } = r.heap_type()
+                    {
+                        return Ok(());
+                    }
+                }
+                bail!(
+                    offset,
+                    "expected to lower component `{}` type into core `(ref null? extern)` type, but \
+                     found `{core}`",
+                    self.desc()
+                )
+            }
         }
     }
 }

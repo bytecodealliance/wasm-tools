@@ -1,0 +1,15 @@
+(component
+  (type $flags (;0;) (flags "a" "b" "c"))
+  (core type $ty (;0;) (func (param i32)))
+  (type (;1;)
+    (instance
+      (alias outer 1 $flags (type (;0;)))
+      (export (;1;) "ty" (type (eq 0)))
+      (type (;2;) (func (param "x" 1)))
+      (export (;0;) "f" (func (type 2)))
+    )
+  )
+  (import "i" (instance $i (;0;) (type 1)))
+  (alias export $i "f" (func (;0;)))
+  (core func (;0;) (canon lower (func 0) gc string-encoding=utf8 (core-type $ty)))
+)

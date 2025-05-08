@@ -1,0 +1,6 @@
+(component
+  (type (;0;) (func (param "x" u32)))
+  (import "f" (func $f (;0;) (type 0)))
+  (core type $ty (;0;) (func (param i32)))
+  (core func (;0;) (canon lower (func $f) gc (core-type $ty)))
+)
