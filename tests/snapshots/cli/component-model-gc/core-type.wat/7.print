@@ -1,0 +1,23 @@
+(component
+  (type (;0;) (func (param "x" u32) (param "y" u32) (result u32)))
+  (import "f" (func $f (;0;) (type 0)))
+  (core rec
+    (type (;0;) (func))
+    (type $ty (;1;) (func (param i32 i32) (result i32)))
+  )
+  (core func $f (;0;) (canon lower (func $f) gc (core-type $ty)))
+  (core module $m (;0;)
+    (rec
+      (type (;0;) (func))
+      (type $ty (;1;) (func (param i32 i32) (result i32)))
+    )
+    (import "a" "b" (func (;0;) (type $ty)))
+  )
+  (core instance (;0;)
+    (export "b" (func $f))
+  )
+  (core instance (;1;) (instantiate $m
+      (with "a" (instance 0))
+    )
+  )
+)
