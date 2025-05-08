@@ -1132,7 +1132,7 @@ impl ComponentFuncType {
             core_func_ty.params().len(),
             self.params.len(),
         );
-        for (core, (_name, comp)) in core_func_ty.params().iter().zip(&self.params) {
+        for (core, (_name, comp)) in core_func_ty.params().iter().zip(self.params.iter()) {
             comp.lower_gc(types, abi.invert(), options, offset, (*core).into())?;
         }
 
@@ -1272,7 +1272,7 @@ impl TupleType {
                     ty.fields.len(),
                     self.types.len(),
                 );
-                for (core, comp) in ty.fields.iter().zip(&self.types) {
+                for (core, comp) in ty.fields.iter().zip(self.types.iter()) {
                     comp.lower_gc(types, abi, options, offset, core.element_type.into())?;
                 }
                 Ok(())
