@@ -1,14 +1,17 @@
-use crate::component_types::Abi;
-use crate::component_types::ArgOrField;
 use crate::limits::*;
 use crate::prelude::*;
-use crate::types::TypeList;
 use crate::{
-    BinaryReader, CanonicalOptions, ComponentAlias, ComponentExportName, ComponentImport,
-    ComponentTypeRef, CompositeInnerType, FromReader, Import, RecGroup, Result, SectionLimited,
-    StorageType, StringEncoding, TypeRef, ValType,
+    BinaryReader, ComponentAlias, ComponentExportName, ComponentImport, ComponentTypeRef,
+    FromReader, Import, RecGroup, Result, SectionLimited, TypeRef, ValType,
 };
 use core::fmt;
+
+#[cfg(all(feature = "component-model", feature = "validate"))]
+use crate::{
+    component_types::{Abi, ArgOrField},
+    types::TypeList,
+    CanonicalOptions,
+};
 
 /// Represents the kind of an outer core alias in a WebAssembly component.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -230,6 +233,7 @@ impl PrimitiveValType {
         a == b
     }
 
+    #[cfg(all(feature = "component-model", feature = "validate"))]
     pub(crate) fn lower_gc(
         &self,
         types: &TypeList,
@@ -238,6 +242,8 @@ impl PrimitiveValType {
         offset: usize,
         core: ArgOrField,
     ) -> Result<()> {
+        use crate::{CompositeInnerType, StorageType, StringEncoding};
+
         match (self, core) {
             (
                 PrimitiveValType::Bool,
