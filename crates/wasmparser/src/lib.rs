@@ -827,12 +827,6 @@ macro_rules! define_for_each_non_simd_operator {
                 $m! { $($t)* }
             }
         }
-
-        // When simd is disabled then this macro is additionally the
-        // `for_each_operator!` macro implementation
-        #[cfg(not(feature = "simd"))]
-        #[doc(hidden)]
-        pub use _for_each_visit_operator_impl as _for_each_operator_impl;
     };
 }
 _for_each_operator_group!(define_for_each_non_simd_operator);
@@ -840,8 +834,7 @@ _for_each_operator_group!(define_for_each_non_simd_operator);
 /// When the simd feature is enabled then `_for_each_operator_impl` is defined
 /// to be the same as the above `define_for_each_non_simd_operator` macro except
 /// with all proposals thrown in.
-#[cfg(feature = "simd")]
-macro_rules! define_for_each_operator_impl_with_simd {
+macro_rules! define_for_each_operator_impl {
     (
         $(
             @$proposal:ident {
@@ -864,14 +857,12 @@ macro_rules! define_for_each_operator_impl_with_simd {
         }
     };
 }
-#[cfg(feature = "simd")]
-_for_each_operator_group!(define_for_each_operator_impl_with_simd);
+_for_each_operator_group!(define_for_each_operator_impl);
 
 /// Helper macro to define the `_for_each_simd_operator_impl` macro.
 ///
 /// This is basically the same as `define_for_each_non_simd_operator` above
 /// except that it's filtering on different proposals.
-#[cfg(feature = "simd")]
 macro_rules! define_for_each_simd_operator {
     // Switch to "tt muncher" mode
     (@ $($t:tt)*) => {define_for_each_simd_operator!(filter [] @ $($t)*);};
@@ -924,7 +915,7 @@ macro_rules! define_for_each_simd_operator {
         }
     };
 }
-#[cfg(feature = "simd")]
+
 _for_each_operator_group!(define_for_each_simd_operator);
 
 /// Used to implement routines for the [`Operator`] enum.
@@ -1085,10 +1076,10 @@ pub use _for_each_operator_impl as for_each_operator;
 /// - `@stack_switching`: [Wasm `stack-switching` proposal]
 /// - `@wide_arithmetic`: [Wasm `wide-arithmetic` proposal]
 ///
-/// Note that this macro does not iterate over the SIMD-related proposals. Those
-/// are provided in [`VisitSimdOperator`] and [`for_each_visit_simd_operator`].
-/// This macro only handles non-SIMD related operators and so users wanting to
-/// handle the SIMD-class of operators need to use that trait/macro as well.
+/// Note that this macro does not iterate over the SIMD-related proposals. To include SIMD
+/// instructions use [`for_each_visit_simd_operator`] or [`for_each_operator`] instead. This macro
+/// only handles non-SIMD related operators and so users wanting to handle the SIMD-class of
+/// operators need to use that trait/macro as well.
 ///
 /// [Wasm `exception-handling` proposal]:
 /// https://github.com/WebAssembly/exception-handling
@@ -1218,7 +1209,7 @@ pub use _for_each_operator_impl as for_each_operator;
 #[doc(inline)]
 pub use _for_each_visit_operator_impl as for_each_visit_operator;
 
-/// Used to implement the [`VisitSimdOperator`] trait.
+/// Used to implement the methods for simd extension of `VisitOperator` trait.
 ///
 /// The list of specializable Wasm proposals is as follows:
 ///
@@ -1234,22 +1225,12 @@ pub use _for_each_visit_operator_impl as for_each_visit_operator;
 /// [Wasm `relaxed-simd` proposal]:
 /// https://github.com/WebAssembly/relaxed-simd
 ///
-/// [`VisitSimdOperator`]: crate::VisitSimdOperator
-///
 /// ```
 /// # macro_rules! define_visit_operator {
 /// #     ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
 /// #         $( fn $visit(&mut self $($(,$arg: $argty)*)?) {} )*
 /// #     }
 /// # }
-/// pub struct VisitAndDoNothing;
-///
-/// impl<'a> wasmparser::VisitOperator<'a> for VisitAndDoNothing {
-///     type Output = ();
-///
-///     // implement all the visit methods ..
-///     # wasmparser::for_each_visit_operator!(define_visit_operator);
-/// }
 ///
 /// macro_rules! define_visit_simd_operator {
 ///     // The outer layer of repetition represents how all operators are
@@ -1267,12 +1248,16 @@ pub use _for_each_visit_operator_impl as for_each_visit_operator;
 ///         )*
 ///     }
 /// }
+/// pub struct VisitAndDoNothing;
 ///
-/// impl<'a> wasmparser::VisitSimdOperator<'a> for VisitAndDoNothing {
+/// impl<'a> wasmparser::VisitOperator<'a> for VisitAndDoNothing {
+///     type Output = ();
+///
+///     // implement all the visit methods ..
+///     wasmparser::for_each_visit_operator!(define_visit_operator);
 ///     wasmparser::for_each_visit_simd_operator!(define_visit_simd_operator);
 /// }
 /// ```
-#[cfg(feature = "simd")]
 #[doc(inline)]
 pub use _for_each_visit_simd_operator_impl as for_each_visit_simd_operator;
 
