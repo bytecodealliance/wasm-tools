@@ -10,8 +10,6 @@ use super::{
     operators::{ty_to_str, OperatorValidator, OperatorValidatorAllocations},
     types::{CoreTypeId, EntityType, RecGroupId, TypeAlloc, TypeList},
 };
-#[cfg(feature = "simd")]
-use crate::VisitSimdOperator;
 use crate::{
     limits::*, BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind,
     FuncType, Global, GlobalType, HeapType, MemoryType, RecGroup, RefType, Result, SubType, Table,
@@ -234,6 +232,15 @@ impl ModuleState {
                 self.ops.with_resources(&self.resources, self.offset)
             }
 
+            #[cold]
+            #[cfg(not(feature = "simd"))]
+            fn simd_unavailable(&mut self) -> Result<()> {
+                Err(BinaryReaderError::new(
+                    format!("SIMD not enabled at compile time"),
+                    self.offset,
+                ))
+            }
+
             fn validate_extended_const(&mut self, op: &str) -> Result<()> {
                 if self.ops.features.extended_const() {
                     Ok(())
@@ -326,12 +333,28 @@ impl ModuleState {
         #[cfg_attr(not(feature = "simd"), allow(unused_macro_rules))]
         macro_rules! define_visit_operator {
             ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
-                $(
-                    #[allow(unused_variables)]
-                    fn $visit(&mut self $($(,$arg: $argty)*)?) -> Self::Output {
-                        define_visit_operator!(@visit self $visit $($($arg)*)?)
-                    }
-                )*
+                $(define_visit_operator!(expand @$proposal $op $({ $($arg: $argty),* })? => $visit ($($ann)*));)*
+            };
+
+            (expand @simd $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*)) => {
+                #[cfg(not(feature = "simd"))]
+                #[allow(unused_variables)]
+                fn $visit(&mut self $($(,$arg: $argty)*)?) -> Self::Output {
+                    self.simd_unavailable()
+                }
+
+                #[cfg(feature = "simd")]
+                #[allow(unused_variables)]
+                fn $visit(&mut self $($(,$arg: $argty)*)?) -> Self::Output {
+                    define_visit_operator!(@visit self $visit $($($arg)*)?)
+                }
+            };
+
+            (expand @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*)) => {
+                #[allow(unused_variables)]
+                fn $visit(&mut self $($(,$arg: $argty)*)?) -> Self::Output {
+                    define_visit_operator!(@visit self $visit $($($arg)*)?)
+                }
             };
 
             // These are always valid in const expressions
@@ -348,7 +371,7 @@ impl ModuleState {
                 $self.validator().visit_f64_const($val)
             }};
             (@visit $self:ident visit_v128_const $val:ident) => {{
-                $self.validator().simd_visitor().unwrap().visit_v128_const($val)
+                $self.validator().visit_v128_const($val)
             }};
             (@visit $self:ident visit_ref_null $val:ident) => {{
                 $self.validator().visit_ref_null($val)
@@ -444,18 +467,7 @@ impl ModuleState {
         impl<'a> VisitOperator<'a> for VisitConstOperator<'a> {
             type Output = Result<()>;
 
-            #[cfg(feature = "simd")]
-            fn simd_visitor(
-                &mut self,
-            ) -> Option<&mut dyn crate::VisitSimdOperator<'a, Output = Self::Output>> {
-                Some(self)
-            }
-
             crate::for_each_visit_operator!(define_visit_operator);
-        }
-
-        #[cfg(feature = "simd")]
-        impl<'a> VisitSimdOperator<'a> for VisitConstOperator<'a> {
             crate::for_each_visit_simd_operator!(define_visit_operator);
         }
     }

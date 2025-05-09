@@ -1,7 +1,6 @@
 use super::{Config, Print, PrintTermcolor, Printer, State};
 use anyhow::{anyhow, bail, Result};
 use termcolor::{Ansi, NoColor};
-use wasmparser::VisitSimdOperator;
 use wasmparser::{
     BlockType, BrTable, Catch, CompositeInnerType, ContType, FrameKind, FuncType, Handle, MemArg,
     ModuleArity, Operator, OperatorsReader, Ordering, RefType, ResumeTable, SubType, TryTable,
@@ -1391,14 +1390,7 @@ macro_rules! define_visit {
 impl<'a> VisitOperator<'a> for PrintOperator<'_, '_, '_, '_> {
     type Output = Result<()>;
 
-    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = Self::Output>> {
-        Some(self)
-    }
-
     wasmparser::for_each_visit_operator!(define_visit);
-}
-
-impl<'a> VisitSimdOperator<'a> for PrintOperator<'_, '_, '_, '_> {
     wasmparser::for_each_visit_simd_operator!(define_visit);
 }
 

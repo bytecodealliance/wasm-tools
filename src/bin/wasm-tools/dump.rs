@@ -864,13 +864,5 @@ macro_rules! define_visit_operator {
 impl<'a> VisitOperator<'a> for Dump<'_> {
     type Output = ();
 
-    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = Self::Output>> {
-        Some(self)
-    }
-
-    wasmparser::for_each_visit_operator!(define_visit_operator);
-}
-
-impl<'a> VisitSimdOperator<'a> for Dump<'_> {
-    wasmparser::for_each_visit_simd_operator!(define_visit_operator);
+    wasmparser::for_each_operator!(define_visit_operator);
 }

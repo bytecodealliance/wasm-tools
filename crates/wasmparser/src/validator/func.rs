@@ -176,17 +176,6 @@ impl<T: WasmModuleResources> FuncValidator<T> {
         self.validator.with_resources(&self.resources, offset)
     }
 
-    /// Same as [`FuncValidator::visitor`] except that the returned type
-    /// implements the [`VisitSimdOperator`](crate::VisitSimdOperator) trait as
-    /// well.
-    #[cfg(feature = "simd")]
-    pub fn simd_visitor<'this, 'a: 'this>(
-        &'this mut self,
-        offset: usize,
-    ) -> impl crate::VisitSimdOperator<'a, Output = Result<()>> + ModuleArity + 'this {
-        self.validator.with_resources_simd(&self.resources, offset)
-    }
-
     /// Returns the Wasm features enabled for this validator.
     pub fn features(&self) -> &WasmFeatures {
         &self.validator.features

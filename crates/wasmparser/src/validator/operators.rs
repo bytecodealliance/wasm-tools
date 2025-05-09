@@ -22,8 +22,6 @@
 // confusing it's recommended to read over that section to see how it maps to
 // the various methods here.
 
-#[cfg(feature = "simd")]
-use crate::VisitSimdOperator;
 use crate::{
     limits::MAX_WASM_FUNCTION_LOCALS, AbstractHeapType, BinaryReaderError, BlockType, BrTable,
     Catch, ContType, FieldType, FrameKind, FuncType, GlobalType, Handle, HeapType, Ieee32, Ieee64,
@@ -477,25 +475,6 @@ impl OperatorValidator {
         resources: &'resources T,
         offset: usize,
     ) -> impl VisitOperator<'a, Output = Result<()>> + ModuleArity + 'validator
-    where
-        T: WasmModuleResources,
-        'resources: 'validator,
-    {
-        WasmProposalValidator(OperatorValidatorTemp {
-            offset,
-            inner: self,
-            resources,
-        })
-    }
-
-    /// Same as `with_resources` above but guarantees it's able to visit simd
-    /// operators as well.
-    #[cfg(feature = "simd")]
-    pub fn with_resources_simd<'a, 'validator, 'resources, T>(
-        &'validator mut self,
-        resources: &'resources T,
-        offset: usize,
-    ) -> impl VisitSimdOperator<'a, Output = Result<()>> + ModuleArity + 'validator
     where
         T: WasmModuleResources,
         'resources: 'validator,
@@ -996,6 +975,12 @@ where
             bail!(self.offset, "floating-point instruction disallowed");
         }
         Ok(())
+    }
+
+    #[cold]
+    #[cfg(not(feature = "simd"))]
+    fn simd_unavailable(&self) -> Result<()> {
+        bail!(self.offset, "SIMD not compiled-in");
     }
 
     fn check_shared_memarg(&self, memarg: MemArg) -> Result<ValType> {
@@ -1693,7 +1678,6 @@ impl<T> WasmProposalValidator<'_, '_, T> {
     }
 }
 
-#[cfg_attr(not(feature = "simd"), allow(unused_macro_rules))]
 macro_rules! validate_proposal {
     ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
         $(
@@ -1732,21 +1716,7 @@ where
     T: WasmModuleResources,
 {
     type Output = Result<()>;
-
-    #[cfg(feature = "simd")]
-    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = Self::Output>> {
-        Some(self)
-    }
-
-    crate::for_each_visit_operator!(validate_proposal);
-}
-
-#[cfg(feature = "simd")]
-impl<'a, T> VisitSimdOperator<'a> for WasmProposalValidator<'_, '_, T>
-where
-    T: WasmModuleResources,
-{
-    crate::for_each_visit_simd_operator!(validate_proposal);
+    crate::for_each_operator!(validate_proposal);
 }
 
 #[track_caller]
@@ -1764,16 +1734,28 @@ fn debug_assert_type_indices_are_ids(ty: ValType) {
     }
 }
 
+macro_rules! delegate_to_simd {
+    ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
+        $(
+            #[cfg(feature = "simd")]
+            fn $visit(&mut self $($(,$arg: $argty)*)?) -> Result<()> {
+                simd::SimdOperatorValidatorTemp(self).$visit($( $($arg),* )?)
+            }
+
+            #[cfg(not(feature = "simd"))]
+            #[allow(unused_variables)]
+            fn $visit(&mut self $($(,$arg: $argty)*)?) -> Result<()> {
+                self.simd_unavailable()
+            }
+        )*
+    };
+}
+
 impl<'a, T> VisitOperator<'a> for OperatorValidatorTemp<'_, '_, T>
 where
     T: WasmModuleResources,
 {
     type Output = Result<()>;
-
-    #[cfg(feature = "simd")]
-    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = Self::Output>> {
-        Some(self)
-    }
 
     fn visit_nop(&mut self) -> Self::Output {
         Ok(())
@@ -4197,6 +4179,8 @@ where
     fn visit_i64_mul_wide_u(&mut self) -> Result<()> {
         self.check_i64_mul_wide()
     }
+
+    crate::for_each_visit_simd_operator!(delegate_to_simd);
 }
 
 #[derive(Clone, Debug)]
