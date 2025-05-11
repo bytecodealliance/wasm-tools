@@ -147,11 +147,28 @@ define_wasm_features! {
         /// The WebAssembly `sign-extension-ops` proposal.
         pub sign_extension: SIGN_EXTENSION(1 << 2) = true;
         /// The WebAssembly reference types proposal.
-        pub reference_types: REFERENCE_TYPES(1 << 3) = true;
+        //
+        // Note that this is two bits, one for the proposal itself and one which
+        // is the overlong call-indirect encoding. This is split across two bits
+        // since the "lime1" feature set below only encompasses some of this
+        // feature, not all of it. Enabling reference types always enabled
+        // call-indirect-overlong, but not vice-versa.
+        //
+        // Also note that this goes against the recommendation of the
+        // `bitflags!` macro since the lone `1 << 3` bit here doesn't actually
+        // correspond to any named flag. That means it's possible to technically
+        // create a `WasmFeatures` that only has the `1 << 3` bit set, which
+        // doesn't actually mean anything, but that in theory shouldn't be too
+        // harmful and is esoteric enough we don't have to worry much about it.
+        pub reference_types: REFERENCE_TYPES((1 << 3) | Self::CALL_INDIRECT_OVERLONG.bits()) = true;
         /// The WebAssembly multi-value proposal.
         pub multi_value: MULTI_VALUE(1 << 4) = true;
         /// The WebAssembly bulk memory operations proposal.
-        pub bulk_memory: BULK_MEMORY(1 << 5) = true;
+        //
+        // Note that this proposal is split in two the same way
+        // `REFERENCE_TYPES` is split above. See more words there for why and
+        // rationale.
+        pub bulk_memory: BULK_MEMORY((1 << 5) | Self::BULK_MEMORY_OPT.bits()) = true;
         /// The WebAssembly SIMD proposal.
         pub simd: SIMD(1 << 6) = true;
         /// The WebAssembly Relaxed SIMD proposal.
@@ -264,6 +281,20 @@ define_wasm_features! {
         /// Corresponds to the 🛸 character in
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
         pub cm_gc: CM_GC(1 << 32) = false;
+
+        /// Subset of the reference-types WebAssembly proposal which only
+        /// encompasses the leb-encoding of the table immediate to the
+        /// `call_indirect` instruction, enabling over-long encodings of an
+        /// integer for example.
+        ///
+        /// This is a subcomponent of the "lime1" feature.
+        pub call_indirect_overlong: CALL_INDIRECT_OVERLONG(1 << 33) = true;
+
+        /// Subset of the bulk-memory proposal covering just the `memory.copy`
+        /// and `memory.fill` instructions.
+        ///
+        /// This is a subcomponent of the "lime1" feature.
+        pub bulk_memory_opt: BULK_MEMORY_OPT(1 << 34) = true;
     }
 }
 
@@ -320,6 +351,23 @@ impl WasmFeatures {
         .union(WasmFeatures::THREADS)
         .union(WasmFeatures::EXCEPTIONS)
         .union(WasmFeatures::MEMORY64);
+
+    /// The feature set associated with the "lime1" set of features.
+    ///
+    /// Here "lime1" stands for "linear memory version 1" and is a stable set of
+    /// features agreed on by both producers and consumers which is more than
+    /// the MVP but does not include some more weighty engine features such as
+    /// reference types, gc, etc.
+    ///
+    /// <https://github.com/WebAssembly/tool-conventions/blob/main/Lime.md>
+    #[cfg(feature = "features")]
+    pub const LIME1: WasmFeatures = WasmFeatures::WASM1
+        .union(WasmFeatures::MULTI_VALUE)
+        .union(WasmFeatures::SIGN_EXTENSION)
+        .union(WasmFeatures::SATURATING_FLOAT_TO_INT)
+        .union(WasmFeatures::BULK_MEMORY_OPT)
+        .union(WasmFeatures::EXTENDED_CONST)
+        .union(WasmFeatures::CALL_INDIRECT_OVERLONG);
 }
 
 #[cfg(feature = "features")]

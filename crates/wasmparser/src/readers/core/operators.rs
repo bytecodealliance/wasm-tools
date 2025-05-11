@@ -547,7 +547,7 @@ impl<'a> OperatorsReader<'a> {
             0x10 => visitor.visit_call(self.reader.read_var_u32()?),
             0x11 => {
                 let index = self.reader.read_var_u32()?;
-                let table = self.read_table_index_or_zero_if_not_reference_types()?;
+                let table = self.read_call_indirect_table_immediate()?;
                 visitor.visit_call_indirect(index, table)
             }
             0x12 => visitor.visit_return_call(self.reader.read_var_u32()?),
@@ -1677,16 +1677,19 @@ impl<'a> OperatorsReader<'a> {
         }
     }
 
-    fn read_table_index_or_zero_if_not_reference_types(&mut self) -> Result<u32> {
-        if self.reader.reference_types() {
-            self.reader.read_var_u32()
-        } else {
-            // Before reference types this byte was required to be a single zero
-            // byte, not a LEB-encoded zero, so require a precise zero byte.
-            match self.reader.read_u8()? {
-                0 => Ok(0),
-                _ => bail!(self.original_position() - 1, "zero byte expected"),
-            }
+    fn read_call_indirect_table_immediate(&mut self) -> Result<u32> {
+        // If the `call_indirect_overlong` feature is enabled, then read this
+        // immediate as a LEB. This feature is enabled as part of the
+        // `reference_types` feature or the `lime1` feature.
+        if self.reader.call_indirect_overlong() {
+            return self.reader.read_var_u32();
+        }
+
+        // Before reference types this byte was required to be a single zero
+        // byte, not a LEB-encoded zero, so require a precise zero byte.
+        match self.reader.read_u8()? {
+            0 => Ok(0),
+            _ => bail!(self.original_position() - 1, "zero byte expected"),
         }
     }
 }

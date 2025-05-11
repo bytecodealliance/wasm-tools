@@ -236,6 +236,7 @@ fn parse_features(arg: &str) -> Result<Vec<FeatureAction>> {
         ("wasm1", WasmFeatures::WASM1),
         ("wasm2", WasmFeatures::WASM2),
         ("wasm3", WasmFeatures::WASM3),
+        ("lime1", WasmFeatures::LIME1),
     ];
 
     enum Action {

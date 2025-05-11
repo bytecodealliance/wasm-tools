@@ -102,7 +102,15 @@ impl ModuleState {
 
     pub fn add_data_segment(&mut self, data: Data, types: &TypeList, offset: usize) -> Result<()> {
         match data.kind {
-            DataKind::Passive => Ok(()),
+            DataKind::Passive => {
+                if !self.module.features.bulk_memory() {
+                    bail!(
+                        offset,
+                        "passive data segments require the bulk-memory proposal"
+                    );
+                }
+                Ok(())
+            }
             DataKind::Active {
                 memory_index,
                 offset_expr,

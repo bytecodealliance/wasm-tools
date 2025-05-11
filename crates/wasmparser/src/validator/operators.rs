@@ -1659,6 +1659,13 @@ where
         self.push_operand(ValType::I64)?;
         Ok(())
     }
+
+    fn check_enabled(&self, flag: bool, desc: &str) -> Result<()> {
+        if flag {
+            return Ok(());
+        }
+        bail!(self.offset, "{desc} support is not enabled");
+    }
 }
 
 pub fn ty_to_str(ty: ValType) -> &'static str {
@@ -1684,29 +1691,27 @@ struct WasmProposalValidator<'validator, 'resources, T>(
     OperatorValidatorTemp<'validator, 'resources, T>,
 );
 
-impl<T> WasmProposalValidator<'_, '_, T> {
-    fn check_enabled(&self, flag: bool, desc: &str) -> Result<()> {
-        if flag {
-            return Ok(());
-        }
-        bail!(self.0.offset, "{desc} support is not enabled");
-    }
-}
-
 #[cfg_attr(not(feature = "simd"), allow(unused_macro_rules))]
 macro_rules! validate_proposal {
     ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
         $(
             fn $visit(&mut self $($(,$arg: $argty)*)?) -> Result<()> {
-                validate_proposal!(validate self $proposal);
+                validate_proposal!(validate self $proposal / $op);
                 self.0.$visit($( $($arg),* )?)
             }
         )*
     };
 
-    (validate self mvp) => {};
-    (validate $self:ident $proposal:ident) => {
-        $self.check_enabled($self.0.features.$proposal(), validate_proposal!(desc $proposal))?
+    (validate self mvp / $op:ident) => {};
+
+    // These opcodes are handled specially below as they were introduced in the
+    // bulk memory proposal but are gated by the `bulk_memory_opt`
+    // "sub-proposal".
+    (validate self $proposal:ident / MemoryFill) => {};
+    (validate self $proposal:ident / MemoryCopy) => {};
+
+    (validate $self:ident $proposal:ident / $op:ident) => {
+        $self.0.check_enabled($self.0.features.$proposal(), validate_proposal!(desc $proposal))?
     };
 
     (desc simd) => ("SIMD");
@@ -3072,6 +3077,7 @@ where
         Ok(())
     }
     fn visit_memory_copy(&mut self, dst: u32, src: u32) -> Self::Output {
+        self.check_enabled(self.features.bulk_memory_opt(), "bulk memory")?;
         let dst_ty = self.check_memory_index(dst)?;
         let src_ty = self.check_memory_index(src)?;
 
@@ -3089,6 +3095,7 @@ where
         Ok(())
     }
     fn visit_memory_fill(&mut self, mem: u32) -> Self::Output {
+        self.check_enabled(self.features.bulk_memory_opt(), "bulk memory")?;
         let ty = self.check_memory_index(mem)?;
         self.pop_operand(Some(ty))?;
         self.pop_operand(Some(ValType::I32))?;
