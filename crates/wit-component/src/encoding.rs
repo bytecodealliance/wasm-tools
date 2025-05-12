@@ -99,7 +99,7 @@ mod world;
 use world::{ComponentWorld, ImportedInterface, Lowering};
 
 mod dedupe;
-use dedupe::dedupe_imports;
+pub(crate) use dedupe::ModuleImportMap;
 
 fn to_val_type(ty: &WasmType) -> ValType {
     match ty {
@@ -1535,8 +1535,9 @@ impl<'a> EncodingState<'a> {
                 ImportInstance::Names(names) => {
                     let mut exports = Vec::new();
                     for (name, import) in names {
+                        log::trace!("attempting to materialize import of `{core_wasm_name}::{name}` for {for_module:?}");
                         let (kind, index) = self
-                            .materialize_import(&shims, for_module, core_wasm_name, name, import)
+                            .materialize_import(&shims, for_module, import)
                             .with_context(|| {
                                 format!("failed to satisfy import `{core_wasm_name}::{name}`")
                             })?;
@@ -1569,24 +1570,19 @@ impl<'a> EncodingState<'a> {
         &mut self,
         shims: &Shims<'_>,
         for_module: CustomModule<'_>,
-        module: &str,
-        field: &str,
         import: &'a Import,
     ) -> Result<(ExportKind, u32)> {
-        log::trace!("attempting to materialize import of `{module}::{field}` for {for_module:?}");
         let resolve = &self.info.encoder.metadata.resolve;
         match import {
             // Main module dependencies on an adapter in use are done with an
             // indirection here, so load the shim function and use that.
-            Import::AdapterExport(_) => {
-                assert!(self.info.encoder.adapters.contains_key(module));
-                Ok(self.materialize_shim_import(
-                    shims,
-                    &ShimKind::Adapter {
-                        adapter: module,
-                        func: field,
-                    },
-                ))
+            Import::AdapterExport {
+                adapter,
+                func,
+                ty: _,
+            } => {
+                assert!(self.info.encoder.adapters.contains_key(adapter));
+                Ok(self.materialize_shim_import(shims, &ShimKind::Adapter { adapter, func }))
             }
 
             // Adapters might use the main module's memory, in which case it
@@ -2374,7 +2370,7 @@ impl<'a> Shims<'a> {
 
                 // Adapter imports into the main module must got through an
                 // indirection, so that's registered here.
-                Import::AdapterExport(ty) => {
+                Import::AdapterExport { adapter, func, ty } => {
                     let name = self.shims.len().to_string();
                     log::debug!("shim {name} is adapter `{module}::{field}`");
                     self.push(Shim {
@@ -2384,10 +2380,7 @@ impl<'a> Shims<'a> {
                         // memory in one form or another. While this isn't
                         // technically true it's true enough for WASI.
                         options: RequiredOptions::MEMORY,
-                        kind: ShimKind::Adapter {
-                            adapter: module,
-                            func: field,
-                        },
+                        kind: ShimKind::Adapter { adapter, func },
                         sig: WasmSignature {
                             params: ty.params().iter().map(to_wasm_type).collect(),
                             results: ty.results().iter().map(to_wasm_type).collect(),
@@ -2672,6 +2665,7 @@ pub(super) struct Adapter {
 #[derive(Default)]
 pub struct ComponentEncoder {
     module: Vec<u8>,
+    module_import_map: Option<ModuleImportMap>,
     pub(super) metadata: Bindgen,
     validate: bool,
     pub(super) main_module_exports: IndexSet<WorldKey>,
@@ -2680,7 +2674,6 @@ pub struct ComponentEncoder {
     realloc_via_memory_grow: bool,
     merge_imports_based_on_semver: Option<bool>,
     pub(super) reject_legacy_names: bool,
-    deduplicate_imports: bool,
 }
 
 impl ComponentEncoder {
@@ -2691,11 +2684,7 @@ impl ComponentEncoder {
     /// core module.
     pub fn module(mut self, module: &[u8]) -> Result<Self> {
         let (wasm, metadata) = self.decode(module.as_ref())?;
-        let wasm = if self.deduplicate_imports {
-            dedupe_imports(wasm.as_ref())?
-        } else {
-            wasm
-        };
+        let (wasm, module_import_map) = ModuleImportMap::new(wasm)?;
         let exports = self
             .merge_metadata(metadata)
             .context("failed merge WIT metadata for module with previous metadata")?;
@@ -2705,6 +2694,7 @@ impl ComponentEncoder {
         } else {
             wasm.to_vec()
         };
+        self.module_import_map = module_import_map;
         Ok(self)
     }
 
@@ -2748,19 +2738,6 @@ impl ComponentEncoder {
     /// This is disabled by default.
     pub fn reject_legacy_names(mut self, reject: bool) -> Self {
         self.reject_legacy_names = reject;
-        self
-    }
-
-    /// Sets whether to remove duplicate function imports to support turning
-    /// otherwise-illegal core modules into components.
-    ///
-    /// While multiple imports of the same module/name pair are legal in core
-    /// modules, they are illegal in components.
-    ///
-    /// This is disabled by default due to the quiet stripping of possibly
-    /// invalidated custom sections.
-    pub fn deduplicate_imports(mut self, dedupe: bool) -> Self {
-        self.deduplicate_imports = dedupe;
         self
     }
 

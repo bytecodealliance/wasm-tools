@@ -1,4 +1,4 @@
-use crate::encoding::{Instance, Item, LibraryInfo, MainOrAdapter};
+use crate::encoding::{Instance, Item, LibraryInfo, MainOrAdapter, ModuleImportMap};
 use crate::{ComponentEncoder, StringEncoding};
 use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{map::Entry, IndexMap, IndexSet};
@@ -56,6 +56,7 @@ impl ValidatedModule {
         encoder: &ComponentEncoder,
         bytes: &[u8],
         exports: &IndexSet<WorldKey>,
+        import_map: Option<&ModuleImportMap>,
         info: Option<&LibraryInfo>,
     ) -> Result<ValidatedModule> {
         let mut validator = Validator::new();
@@ -76,7 +77,7 @@ impl ValidatedModule {
                 Payload::ImportSection(s) => {
                     for import in s {
                         let import = import?;
-                        ret.imports.add(import, encoder, info, types)?;
+                        ret.imports.add(import, encoder, import_map, info, types)?;
                     }
                 }
                 Payload::ExportSection(s) => {
@@ -230,7 +231,11 @@ pub enum Import {
     /// This is used for when the main module imports an adapter function. The
     /// adapter name and function name match the module's own import, and the
     /// type must match that listed here.
-    AdapterExport(FuncType),
+    AdapterExport {
+        adapter: String,
+        func: String,
+        ty: FuncType,
+    },
 
     /// An adapter is importing the memory of the main module.
     ///
@@ -418,14 +423,12 @@ impl ImportMap {
         };
         names
             .iter()
-            .map(|(name, import)| {
-                (
-                    name.clone(),
-                    match import {
-                        Import::AdapterExport(ty) => ty.clone(),
-                        _ => unreachable!(),
-                    },
-                )
+            .map(|(_, import)| match import {
+                Import::AdapterExport { ty, func, adapter } => {
+                    assert_eq!(adapter, name);
+                    (func.clone(), ty.clone())
+                }
+                _ => unreachable!(),
             })
             .collect()
     }
@@ -457,18 +460,27 @@ impl ImportMap {
         &mut self,
         import: wasmparser::Import<'_>,
         encoder: &ComponentEncoder,
+        import_map: Option<&ModuleImportMap>,
         library_info: Option<&LibraryInfo>,
         types: TypesRef<'_>,
     ) -> Result<()> {
         if self.classify_import_with_library(import, library_info)? {
             return Ok(());
         }
-        let item = self.classify(import, encoder, types).with_context(|| {
-            format!(
-                "failed to resolve import `{}::{}`",
-                import.module, import.name,
-            )
-        })?;
+        let mut import_to_classify = import.clone();
+        if let Some(map) = import_map {
+            if let Some(original_name) = map.original_name(&import) {
+                import_to_classify.name = original_name;
+            }
+        }
+        let item = self
+            .classify(import_to_classify, encoder, types)
+            .with_context(|| {
+                format!(
+                    "failed to resolve import `{}::{}`",
+                    import.module, import.name,
+                )
+            })?;
         self.insert_import(import, item)
     }
 
@@ -512,7 +524,11 @@ impl ImportMap {
         // Handle main module imports that match known adapters and set it up as
         // an import of an adapter export.
         if encoder.adapters.contains_key(import.module) {
-            return Ok(Import::AdapterExport(ty.clone()));
+            return Ok(Import::AdapterExport {
+                adapter: import.module.to_string(),
+                func: import.name.to_string(),
+                ty: ty.clone(),
+            });
         }
 
         let (module, names) = match import.module.strip_prefix("cm32p2") {
@@ -1951,8 +1967,18 @@ impl NameMangling for Legacy {
 /// The `ValidatedModule` return value contains the metadata which describes the
 /// input module on success. This is then further used to generate a component
 /// for this module.
-pub fn validate_module(encoder: &ComponentEncoder, bytes: &[u8]) -> Result<ValidatedModule> {
-    ValidatedModule::new(encoder, bytes, &encoder.main_module_exports, None)
+pub fn validate_module(
+    encoder: &ComponentEncoder,
+    bytes: &[u8],
+    import_map: Option<&ModuleImportMap>,
+) -> Result<ValidatedModule> {
+    ValidatedModule::new(
+        encoder,
+        bytes,
+        &encoder.main_module_exports,
+        import_map,
+        None,
+    )
 }
 
 /// This function will validate the `bytes` provided as a wasm adapter module.
@@ -1979,7 +2005,7 @@ pub fn validate_adapter_module(
     exports: &IndexSet<WorldKey>,
     library_info: Option<&LibraryInfo>,
 ) -> Result<ValidatedModule> {
-    let ret = ValidatedModule::new(encoder, bytes, exports, library_info)?;
+    let ret = ValidatedModule::new(encoder, bytes, exports, None, library_info)?;
 
     for (name, required_ty) in required_by_import {
         let actual = match ret.exports.raw_exports.get(name) {
