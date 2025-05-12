@@ -467,7 +467,7 @@ impl ImportMap {
         if self.classify_import_with_library(import, library_info)? {
             return Ok(());
         }
-        let mut import_to_classify = import.clone();
+        let mut import_to_classify = import;
         if let Some(map) = import_map {
             if let Some(original_name) = map.original_name(&import) {
                 import_to_classify.name = original_name;

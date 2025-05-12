@@ -140,7 +140,7 @@ impl ModuleImportMap {
 
         // Now that `new_name` is unique, record the import in the new import
         // section.
-        let mut new_import = import.clone();
+        let mut new_import = import;
         new_import.name = &new_name;
         RoundtripReencoder.parse_import(new_import_section, new_import)?;
 
