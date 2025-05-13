@@ -385,3 +385,7 @@
   (core func (canon context.set i32 0))
   (canon context.set i32 0 (core func))
 )
+
+(component
+  (canon task.return (result (stream u8)) (core func))
+)
