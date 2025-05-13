@@ -245,6 +245,12 @@
       "line": 318,
       "filename": "task-builtins.36.wasm",
       "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 389,
+      "filename": "task-builtins.37.wasm",
+      "module_type": "binary"
     }
   ]
 }

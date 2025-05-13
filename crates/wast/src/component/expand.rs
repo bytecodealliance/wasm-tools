@@ -264,11 +264,14 @@ impl<'a> Expander<'a> {
             CanonicalFuncKind::Lift { ty, .. } => {
                 self.expand_component_type_use(ty);
             }
-            CanonicalFuncKind::Core(_) => {}
+            CanonicalFuncKind::Core(func) => {
+                self.expand_core_func_kind(func);
+            }
         }
     }
 
-    fn expand_core_func(&mut self, func: CoreFunc<'a>) -> ComponentField<'a> {
+    fn expand_core_func(&mut self, mut func: CoreFunc<'a>) -> ComponentField<'a> {
+        self.expand_core_func_kind(&mut func.kind);
         match func.kind {
             CoreFuncKind::Alias(a) => ComponentField::Alias(Alias {
                 span: func.span,
@@ -286,6 +289,19 @@ impl<'a> Expander<'a> {
                 name: func.name,
                 kind: CanonicalFuncKind::Core(other),
             }),
+        }
+    }
+
+    fn expand_core_func_kind(&mut self, func: &mut CoreFuncKind<'a>) {
+        match func {
+            CoreFuncKind::TaskReturn(f) => {
+                if let Some(ty) = &mut f.result {
+                    self.expand_component_val_ty(ty);
+                }
+            }
+
+            // Other core funcs don't need expansion at this time
+            _ => {}
         }
     }
 
