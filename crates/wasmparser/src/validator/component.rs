@@ -208,6 +208,14 @@ impl ExternKind {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum StringEncoding {
+    #[default]
+    Utf8,
+    Utf16,
+    CompactUtf16,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) enum Concurrency {
     /// Synchronous.
     #[default]
@@ -234,6 +242,7 @@ impl Concurrency {
 }
 
 pub(crate) struct CanonicalOptions {
+    pub(crate) string_encoding: StringEncoding,
     pub(crate) memory: Option<u32>,
     pub(crate) realloc: Option<u32>,
     pub(crate) post_return: Option<u32>,
@@ -1237,7 +1246,7 @@ impl ComponentState {
         options.check_lift(types, self, core_ty, offset)?;
         let func_ty = ty.lower(types, &options, Abi::Lift, offset)?;
         debug_assert!(options.core_type.is_none());
-        let lowered_core_ty_id = types.intern_func_type(func_ty, offset);
+        let lowered_core_ty_id = func_ty.intern(types, offset);
 
         if core_ty_id == lowered_core_ty_id {
             self.funcs
@@ -1293,7 +1302,7 @@ impl ComponentState {
         let options = self.check_options(types, options, offset)?;
         options.check_lower(offset)?;
         let func_ty = ty.lower(types, &options, Abi::Lower, offset)?;
-        let ty_id = options.check_core_type(types, func_ty, offset)?;
+        let ty_id = func_ty.intern(types, offset);
 
         self.core_funcs.push(ty_id);
         Ok(())
@@ -1400,8 +1409,7 @@ impl ComponentState {
         options.require_sync(offset, "task.return")?;
 
         let func_ty = func_ty.lower(types, &options, Abi::Lower, offset)?;
-        assert!(func_ty.results().is_empty());
-        let ty_id = options.check_core_type(types, func_ty, offset)?;
+        let ty_id = func_ty.intern(types, offset);
 
         self.core_funcs.push(ty_id);
         Ok(())
@@ -2503,6 +2511,14 @@ impl ComponentState {
             }
         }
 
+        let string_encoding = match encoding {
+            None => StringEncoding::default(),
+            Some(CanonicalOption::UTF8) => StringEncoding::Utf8,
+            Some(CanonicalOption::UTF16) => StringEncoding::Utf16,
+            Some(CanonicalOption::CompactUTF16) => StringEncoding::CompactUtf16,
+            Some(_) => unreachable!(),
+        };
+
         let concurrency = match (is_async, callback, post_return.is_some()) {
             (false, Some(_), _) => {
                 bail!(offset, "cannot specify callback without async")
@@ -2519,6 +2535,7 @@ impl ComponentState {
         }
 
         Ok(CanonicalOptions {
+            string_encoding,
             memory,
             realloc,
             post_return,

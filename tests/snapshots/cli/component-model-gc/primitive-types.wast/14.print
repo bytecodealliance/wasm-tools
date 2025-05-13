@@ -1,0 +1,8 @@
+(component
+  (type (;0;) (list u16))
+  (type (;1;) (func (param "x" 0)))
+  (import "f" (func $f (;0;) (type 1)))
+  (core type $list (;0;) (array i16))
+  (core type $ty (;1;) (func (param (ref $list))))
+  (core func (;0;) (canon lower (func $f) gc (core-type $ty)))
+)
