@@ -63,7 +63,8 @@ pub enum Lowering {
 
 impl<'a> ComponentWorld<'a> {
     pub fn new(encoder: &'a ComponentEncoder) -> Result<Self> {
-        let info = validate_module(encoder, &encoder.module).context("module was not valid")?;
+        let info = validate_module(encoder, &encoder.module, encoder.module_import_map.as_ref())
+            .context("module was not valid")?;
 
         let mut ret = ComponentWorld {
             encoder,
@@ -408,7 +409,7 @@ impl<'a> ComponentWorld<'a> {
 
                 // Intrinsics that don't need to refer to WIT types can be
                 // skipped here.
-                Import::AdapterExport(_)
+                Import::AdapterExport { .. }
                 | Import::MainModuleMemory
                 | Import::MainModuleExport { .. }
                 | Import::Item(_)
