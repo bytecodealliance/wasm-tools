@@ -3,8 +3,10 @@ use arbitrary::{Arbitrary, Result, Unstructured};
 use indexmap::{IndexMap, IndexSet};
 use semver::Version;
 use std::collections::hash_map::{Entry, HashMap};
+use std::collections::hash_set::Intersection;
 use std::collections::HashSet;
 use std::fmt::Write;
+use std::hash::RandomState;
 use std::mem;
 use std::rc::Rc;
 use std::str;
@@ -16,12 +18,18 @@ pub struct Generator {
     next_interface_id: u32,
 }
 
+#[derive(PartialEq, Eq, Hash)]
+pub struct PackageWorldKey {
+    package_name: String,
+    world_name: String,
+}
+
 struct InterfaceGenerator<'a> {
-    generator: &'a Generator,
+    generator: &'a mut Generator,
     file: &'a mut File,
-    config: &'a Config,
     unique_names: HashSet<String>,
     types_in_interface: Vec<Type>,
+    package_name: &'a str,
 }
 
 #[derive(Clone)]
@@ -36,6 +44,52 @@ struct Packages {
     list: Vec<Package>,
     packages_with_interfaces: Vec<usize>,
     packages_with_worlds: Vec<usize>,
+    package_unique_names: IndexMap<PackageWorldKey, HashSet<String>>,
+}
+
+impl Packages {
+    fn add_name(&mut self, package_name: String, world_name: String, name: String) {
+        let key = PackageWorldKey {
+            package_name,
+            world_name,
+        };
+        let world_names = self
+            .package_unique_names
+            .entry(key)
+            .or_insert_with(HashSet::new);
+        world_names.insert(name);
+    }
+
+    fn contains_name(&self, package_name: String, world_name: String, name: &str) -> bool {
+        let key = PackageWorldKey {
+            package_name,
+            world_name,
+        };
+        if let Some(world_names) = self.package_unique_names.get(&key) {
+            return world_names.contains(name);
+        }
+        false
+    }
+
+    fn intersect(
+        &self,
+        current_world: PackageWorldKey,
+        include_world: PackageWorldKey,
+    ) -> Option<Intersection<'_, String, RandomState>> {
+        let current_world_names = self.package_unique_names.get(&current_world);
+        let include_world_names = self.package_unique_names.get(&include_world);
+
+        if let (Some(current_world_names), Some(include_world_names)) =
+            (current_world_names, include_world_names)
+        {
+            let intersection = current_world_names.intersection(include_world_names);
+            if intersection.clone().count() > 0 {
+                return Some(intersection);
+            }
+        }
+
+        return None;
+    }
 }
 
 pub struct Package {
@@ -82,7 +136,8 @@ impl Generator {
         names: &mut HashSet<String>,
     ) -> Result<Package> {
         let namespace = gen_unique_name(u, names)?;
-        let name = gen_unique_name(u, names)?;
+        let package_name = gen_unique_name(u, names)?;
+
         let version = if u.arbitrary()? {
             Some(gen_version(u)?)
         } else {
@@ -91,7 +146,7 @@ impl Generator {
         let mut ret = Package {
             name: PackageName {
                 namespace,
-                name,
+                name: package_name.clone(),
                 version,
             },
             file: File::default(),
@@ -137,26 +192,26 @@ impl Generator {
 
             match generate {
                 Generate::World => {
-                    let name =
+                    let world_name =
                         file.gen_unique_package_name(u, &mut package_names, DefinitionKind::World)?;
-                    log::debug!("new world `{name}` in {i}");
-                    let world = self.gen_world(u, &name, file)?;
+                    log::debug!("new world `{world_name}` in {i}");
+                    let world = self.gen_world(u, &world_name, file, &package_name)?;
                     file.items.push(world);
 
                     // Insert the world at the package and file level, asserting
                     // uniqueness.
-                    assert!(ret.file.worlds.insert(name.clone()));
-                    assert!(file.worlds.insert(name.clone()));
+                    assert!(ret.file.worlds.insert(world_name.clone()));
+                    assert!(file.worlds.insert(world_name.clone()));
                     let prev = ret.file.namespace.insert(
-                        name.clone(),
+                        world_name.clone(),
                         (DefinitionLevel::Package, DefinitionKind::World),
                     );
                     assert!(prev.is_none());
 
                     // Insert the definition into all other files as well.
                     for file in files.iter_mut() {
-                        if file.insert_definition(&name, DefinitionKind::World) {
-                            assert!(file.worlds.insert(name.clone()));
+                        if file.insert_definition(&world_name, DefinitionKind::World) {
+                            assert!(file.worlds.insert(world_name.clone()));
                         }
                     }
 
@@ -171,7 +226,8 @@ impl Generator {
                     log::debug!("new interface `{name}` in {i}");
                     let id = self.next_interface_id;
                     self.next_interface_id += 1;
-                    let (src, types) = self.gen_interface(u, Some(&name), file)?;
+                    let (src, types) =
+                        self.gen_interface(u, Some(&name), file, &package_name, None)?;
                     file.items.push(src);
                     if types.is_empty() {
                         continue;
@@ -295,8 +351,9 @@ impl Generator {
         u: &mut Unstructured<'_>,
         name: &str,
         file: &mut File,
+        package_name: &str,
     ) -> Result<String> {
-        InterfaceGenerator::new(self, file).gen_world(u, name)
+        InterfaceGenerator::new(self, file, package_name).gen_world(u, name)
     }
 
     fn gen_interface(
@@ -304,9 +361,11 @@ impl Generator {
         u: &mut Unstructured<'_>,
         name: Option<&str>,
         file: &mut File,
+        package_name: &str,
+        world_name: Option<&str>,
     ) -> Result<(String, Vec<Type>)> {
-        let mut generator = InterfaceGenerator::new(self, file);
-        let ret = generator.gen_interface(u, name)?;
+        let mut generator = InterfaceGenerator::new(self, file, package_name);
+        let ret = generator.gen_interface(u, name, world_name)?;
         Ok((ret, generator.types_in_interface))
     }
 
@@ -373,6 +432,7 @@ impl Generator {
         u: &mut Unstructured<'_>,
         file: &'a mut File,
         dst: &mut String,
+        includes: &mut HashSet<String>,
     ) -> Result<Option<&'a str>> {
         enum Choice {
             Worlds,
@@ -393,11 +453,17 @@ impl Generator {
             Choice::Worlds => {
                 let i = u.int_in_range(0..=file.worlds.len() - 1)?;
                 let name = &file.worlds[i];
+
+                if !includes.insert(name.to_string()) {
+                    return Ok(None);
+                }
+
                 dst.push_str("%");
                 dst.push_str(&name);
                 // Same as `gen_interface_path`, once a name is used as a world
                 // it's forced to always be a world so update its definition to
                 // be a file-level world.
+
                 file.namespace
                     .insert(name.clone(), (DefinitionLevel::File, DefinitionKind::World));
                 Some(name)
@@ -425,19 +491,28 @@ impl Generator {
 }
 
 impl<'a> InterfaceGenerator<'a> {
-    fn new(generator: &'a Generator, file: &'a mut File) -> InterfaceGenerator<'a> {
+    fn new(
+        generator: &'a mut Generator,
+        file: &'a mut File,
+        package_name: &'a str,
+    ) -> InterfaceGenerator<'a> {
         InterfaceGenerator {
             generator,
             file,
-            config: &generator.config,
             types_in_interface: Vec::new(),
             // Claim the name `memory` to avoid conflicting with the canonical
             // ABI always using a linear memory named `memory`.
             unique_names: HashSet::from_iter(["memory".to_string()]),
+            package_name: package_name,
         }
     }
 
-    fn gen_interface(&mut self, u: &mut Unstructured<'_>, name: Option<&str>) -> Result<String> {
+    fn gen_interface(
+        &mut self,
+        u: &mut Unstructured<'_>,
+        name: Option<&str>,
+        world_name: Option<&str>,
+    ) -> Result<String> {
         let mut ret = String::new();
         ret.push_str("interface ");
         if let Some(name) = name {
@@ -455,11 +530,11 @@ impl<'a> InterfaceGenerator<'a> {
         }
 
         let mut parts = Vec::new();
-        while parts.len() < self.config.max_interface_items && u.arbitrary()? {
+        while parts.len() < self.generator.config.max_interface_items && u.arbitrary()? {
             match u.arbitrary()? {
                 Generate::Use => {
                     let mut part = String::new();
-                    if self.gen_use(u, &mut part)? {
+                    if self.gen_use(u, &mut part, world_name)? {
                         parts.push(part);
                     }
                 }
@@ -495,10 +570,10 @@ impl<'a> InterfaceGenerator<'a> {
         Ok(ret)
     }
 
-    fn gen_world(&mut self, u: &mut Unstructured<'_>, name: &str) -> Result<String> {
+    fn gen_world(&mut self, u: &mut Unstructured<'_>, world_name: &str) -> Result<String> {
         let mut ret = String::new();
         ret.push_str("world %");
-        ret.push_str(name);
+        ret.push_str(world_name);
         ret.push_str(" {\n");
 
         #[derive(Arbitrary, Copy, Clone)]
@@ -520,12 +595,16 @@ impl<'a> InterfaceGenerator<'a> {
         let mut parts = Vec::new();
         let mut imported_interfaces = HashSet::new();
         let mut exported_interfaces = HashSet::new();
+        let mut includes: HashSet<String> = HashSet::new();
 
         // Claim the name `memory` to avoid conflicting with the canonical
         // ABI always using a linear memory named `memory`.
         let mut export_names = HashSet::from_iter(["memory".to_string()]);
 
-        while parts.len() < self.config.max_world_items && !u.is_empty() && u.arbitrary()? {
+        while parts.len() < self.generator.config.max_world_items
+            && !u.is_empty()
+            && u.arbitrary()?
+        {
             let kind = u.arbitrary::<ItemKind>()?;
             let (direction, named) = match kind {
                 ItemKind::Func(dir) | ItemKind::AnonInterface(dir) => (Some(dir), true),
@@ -548,12 +627,31 @@ impl<'a> InterfaceGenerator<'a> {
                     Some(Direction::Import) | None => &mut self.unique_names,
                     Some(Direction::Export) => &mut export_names,
                 };
-                let name = gen_unique_name(u, names)?;
+                let mut name = gen_unique_name(u, names)?;
+
+                // check to see if any includes have a name clash, if so regenerate the name
+                // this does have potential to throw away add a few names but that should be fine
+                for i in includes.iter() {
+                    if self.generator.packages.contains_name(
+                        self.package_name.to_string(),
+                        i.to_string(),
+                        &name,
+                    ) {
+                        name = gen_unique_name(u, names)?;
+                    }
+                }
+
                 if direction.is_some() {
                     part.push_str("%");
                     part.push_str(&name);
                     part.push_str(": ");
                 }
+
+                self.generator.packages.add_name(
+                    self.package_name.to_string(),
+                    world_name.to_string(),
+                    name.to_string(),
+                );
                 Some(name)
             } else {
                 None
@@ -587,8 +685,9 @@ impl<'a> InterfaceGenerator<'a> {
                     part.push_str(";");
                 }
                 ItemKind::AnonInterface(_) => {
-                    let iface = InterfaceGenerator::new(self.generator, self.file)
-                        .gen_interface(u, None)?;
+                    let iface =
+                        InterfaceGenerator::new(self.generator, self.file, self.package_name)
+                            .gen_interface(u, None, Some(world_name))?;
                     part.push_str(&iface);
                 }
 
@@ -612,23 +711,55 @@ impl<'a> InterfaceGenerator<'a> {
                 }
 
                 ItemKind::Use => {
-                    if !self.gen_use(u, &mut part)? {
+                    if !self.gen_use(u, &mut part, Some(world_name))? {
                         continue;
                     }
                 }
 
                 ItemKind::Include => {
                     part.push_str("include ");
-                    if self
+                    let name = match self.generator.gen_world_path(
+                        u,
+                        self.file,
+                        &mut part,
+                        &mut includes,
+                    )? {
+                        Some(name) => name,
+                        None => continue,
+                    };
+
+                    // rename things if there is an naming conflict with the include and the world we are going into
+                    // this is a best effort, there are some edge cases where we might not catch something
+                    // in that case we just throw away the generated world for fuzzing
+                    let current_world = PackageWorldKey {
+                        package_name: self.package_name.to_owned(),
+                        world_name: world_name.to_owned(),
+                    };
+                    let include_world = PackageWorldKey {
+                        package_name: self.package_name.to_owned(),
+                        world_name: name.to_owned(),
+                    };
+                    let intersection = self
                         .generator
-                        .gen_world_path(u, self.file, &mut part)?
-                        .is_none()
-                    {
-                        // If an interface couldn't be chosen or wasn't
-                        // chosen then skip this include.
-                        continue;
+                        .packages
+                        .intersect(current_world, include_world);
+                    if let Some(names) = intersection {
+                        part.push_str(" with { %");
+
+                        for n in names {
+                            part.push_str(n);
+                            part.push_str(" as %");
+                            // we know it is in one of the worlds, lets add it here just for good measure
+                            self.unique_names.insert(n.to_string());
+                            let new_name = gen_unique_name(u, &mut self.unique_names)?;
+                            part.push_str(&new_name);
+                            part.push_str(",");
+                        }
+                        part.push_str("}");
+                    } else {
+                        // ; is only used if not renaming
+                        part.push_str(";");
                     }
-                    part.push_str(";");
                 }
             }
             parts.push(part);
@@ -664,7 +795,10 @@ impl<'a> InterfaceGenerator<'a> {
         let mut has_constructor = false;
         let mut names = HashSet::new();
         names.insert(resource_name.to_string());
-        while parts.len() < self.config.max_resource_items && !u.is_empty() && u.arbitrary()? {
+        while parts.len() < self.generator.config.max_resource_items
+            && !u.is_empty()
+            && u.arbitrary()?
+        {
             match u.arbitrary()? {
                 Item::Constructor if has_constructor => {}
                 Item::Constructor => {
@@ -700,7 +834,12 @@ impl<'a> InterfaceGenerator<'a> {
         Ok(())
     }
 
-    fn gen_use(&mut self, u: &mut Unstructured<'_>, part: &mut String) -> Result<bool> {
+    fn gen_use(
+        &mut self,
+        u: &mut Unstructured<'_>,
+        part: &mut String,
+        world_name: Option<&str>,
+    ) -> Result<bool> {
         let mut path = String::new();
         let (_name, _id, types) =
             match self.generator.gen_interface_path(u, self.file, &mut path)? {
@@ -719,6 +858,14 @@ impl<'a> InterfaceGenerator<'a> {
             part.push_str(" as %");
             let name = self.gen_unique_name(u)?;
             part.push_str(&name);
+            // if we name something then we need track it at the package level for includes
+            if let Some(world_name) = world_name {
+                self.generator.packages.add_name(
+                    self.package_name.to_string(),
+                    world_name.to_string(),
+                    name.to_string(),
+                );
+            }
             name
         } else {
             assert!(self.unique_names.insert(ty.name.clone()));
@@ -744,7 +891,7 @@ impl<'a> InterfaceGenerator<'a> {
             Resource,
         }
 
-        let mut fuel = self.config.max_type_size;
+        let mut fuel = self.generator.config.max_type_size;
         let mut ret = String::new();
         let mut is_resource = false;
         match u.arbitrary()? {
@@ -752,7 +899,7 @@ impl<'a> InterfaceGenerator<'a> {
                 ret.push_str("record %");
                 ret.push_str(name);
                 ret.push_str(" {\n");
-                for _ in 0..u.int_in_range(1..=self.config.max_type_parts)? {
+                for _ in 0..u.int_in_range(1..=self.generator.config.max_type_parts)? {
                     ret.push_str("  %");
                     ret.push_str(&self.gen_unique_name(u)?);
                     ret.push_str(": ");
@@ -765,7 +912,7 @@ impl<'a> InterfaceGenerator<'a> {
                 ret.push_str("variant %");
                 ret.push_str(name);
                 ret.push_str(" {\n");
-                for _ in 0..u.int_in_range(1..=self.config.max_type_parts)? {
+                for _ in 0..u.int_in_range(1..=self.generator.config.max_type_parts)? {
                     ret.push_str("  %");
                     ret.push_str(&self.gen_unique_name(u)?);
                     if u.arbitrary()? {
@@ -781,7 +928,7 @@ impl<'a> InterfaceGenerator<'a> {
                 ret.push_str("enum %");
                 ret.push_str(name);
                 ret.push_str(" {\n");
-                for _ in 0..u.int_in_range(1..=self.config.max_type_parts)? {
+                for _ in 0..u.int_in_range(1..=self.generator.config.max_type_parts)? {
                     ret.push_str("  %");
                     ret.push_str(&self.gen_unique_name(u)?);
                     ret.push_str(",\n");
@@ -792,7 +939,7 @@ impl<'a> InterfaceGenerator<'a> {
                 ret.push_str("flags %");
                 ret.push_str(name);
                 ret.push_str(" {\n");
-                for _ in 0..u.int_in_range(1..=self.config.max_type_parts)? {
+                for _ in 0..u.int_in_range(1..=self.generator.config.max_type_parts)? {
                     ret.push_str("  %");
                     ret.push_str(&self.gen_unique_name(u)?);
                     ret.push_str(",\n");
@@ -814,7 +961,7 @@ impl<'a> InterfaceGenerator<'a> {
         }
 
         let ty = Type {
-            size: self.config.max_type_size - fuel,
+            size: self.generator.config.max_type_size - fuel,
             is_resource,
             name: name.to_string(),
         };
@@ -897,7 +1044,7 @@ impl<'a> InterfaceGenerator<'a> {
                     }
                 }
                 Kind::Tuple => {
-                    let fields = u.int_in_range(1..=self.config.max_type_parts)?;
+                    let fields = u.int_in_range(1..=self.generator.config.max_type_parts)?;
                     *fuel = match fuel.checked_sub(fields) {
                         Some(fuel) => fuel,
                         None => continue,
@@ -934,7 +1081,8 @@ impl<'a> InterfaceGenerator<'a> {
                         Some(fuel) => fuel,
                         None => continue,
                     };
-                    let elements = u.int_in_range(1..=self.config.max_type_parts as u32)?;
+                    let elements =
+                        u.int_in_range(1..=self.generator.config.max_type_parts as u32)?;
                     dst.push_str("list<");
                     self.gen_type(u, fuel, dst)?;
                     dst.push_str(&format!(", {elements}>"));
@@ -1020,7 +1168,7 @@ impl<'a> InterfaceGenerator<'a> {
         self.gen_params(u, dst, method)?;
         if u.arbitrary()? {
             dst.push_str(" -> ");
-            let mut fuel = self.config.max_type_size;
+            let mut fuel = self.generator.config.max_type_size;
             self.gen_type(u, &mut fuel, dst)?;
         }
         dst.push_str(";");
@@ -1038,8 +1186,8 @@ impl<'a> InterfaceGenerator<'a> {
         if method {
             names.insert("self".to_string());
         }
-        let mut fuel = self.config.max_type_size;
-        for i in 0..u.int_in_range(0..=self.config.max_type_parts)? {
+        let mut fuel = self.generator.config.max_type_size;
+        for i in 0..u.int_in_range(0..=self.generator.config.max_type_parts)? {
             if i > 0 {
                 dst.push_str(", ");
             }
