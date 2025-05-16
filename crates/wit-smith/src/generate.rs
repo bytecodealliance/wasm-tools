@@ -22,6 +22,7 @@ struct InterfaceGenerator<'a> {
     config: &'a Config,
     unique_names: HashSet<String>,
     types_in_interface: Vec<Type>,
+    version: Option<Version>,
 }
 
 #[derive(Clone)]
@@ -92,7 +93,7 @@ impl Generator {
             name: PackageName {
                 namespace,
                 name,
-                version,
+                version: version.clone(),
             },
             file: File::default(),
             sources: SourceMap::new(),
@@ -140,7 +141,7 @@ impl Generator {
                     let name =
                         file.gen_unique_package_name(u, &mut package_names, DefinitionKind::World)?;
                     log::debug!("new world `{name}` in {i}");
-                    let world = self.gen_world(u, &name, file)?;
+                    let world = self.gen_world(u, &name, file, version.clone())?;
                     file.items.push(world);
 
                     // Insert the world at the package and file level, asserting
@@ -171,7 +172,7 @@ impl Generator {
                     log::debug!("new interface `{name}` in {i}");
                     let id = self.next_interface_id;
                     self.next_interface_id += 1;
-                    let (src, types) = self.gen_interface(u, Some(&name), file)?;
+                    let (src, types) = self.gen_interface(u, Some(&name), file, None)?;
                     file.items.push(src);
                     if types.is_empty() {
                         continue;
@@ -295,8 +296,9 @@ impl Generator {
         u: &mut Unstructured<'_>,
         name: &str,
         file: &mut File,
+        version: Option<Version>,
     ) -> Result<String> {
-        InterfaceGenerator::new(self, file).gen_world(u, name)
+        InterfaceGenerator::new(self, file, version).gen_world(u, name)
     }
 
     fn gen_interface(
@@ -304,8 +306,9 @@ impl Generator {
         u: &mut Unstructured<'_>,
         name: Option<&str>,
         file: &mut File,
+        version: Option<Version>,
     ) -> Result<(String, Vec<Type>)> {
-        let mut generator = InterfaceGenerator::new(self, file);
+        let mut generator = InterfaceGenerator::new(self, file, version);
         let ret = generator.gen_interface(u, name)?;
         Ok((ret, generator.types_in_interface))
     }
@@ -425,7 +428,11 @@ impl Generator {
 }
 
 impl<'a> InterfaceGenerator<'a> {
-    fn new(generator: &'a Generator, file: &'a mut File) -> InterfaceGenerator<'a> {
+    fn new(
+        generator: &'a Generator,
+        file: &'a mut File,
+        version: Option<Version>,
+    ) -> InterfaceGenerator<'a> {
         InterfaceGenerator {
             generator,
             file,
@@ -434,11 +441,59 @@ impl<'a> InterfaceGenerator<'a> {
             // Claim the name `memory` to avoid conflicting with the canonical
             // ABI always using a linear memory named `memory`.
             unique_names: HashSet::from_iter(["memory".to_string()]),
+            version,
+        }
+    }
+
+    // Generate a feature gate annotation (@since, @unstable, or @deprecated)
+    // If version is provided, ensures the annotation is compatible with the version
+    fn gen_feature_annotation(&self, u: &mut Unstructured<'_>) -> Result<Option<String>> {
+        if u.arbitrary()? {
+            return Ok(None);
+        }
+
+        let feature_names = ["active", "inactive"];
+        #[derive(Arbitrary)]
+        enum AnnotationType {
+            Since,
+            Unstable,
+            Deprecated,
+        }
+
+        match self.version {
+            None => {
+                // No package version available
+                return Ok(None);
+            }
+            Some(_) => match u.arbitrary()? {
+                AnnotationType::Since => {
+                    let v = gen_version_less_than(u, &self.version)?;
+                    Ok(Some(format!("@since(version = {v})")))
+                }
+                AnnotationType::Unstable => {
+                    let feature = u.choose(&feature_names)?;
+                    Ok(Some(format!("@unstable(feature = {feature})")))
+                }
+                AnnotationType::Deprecated => {
+                    let depreciation_version = gen_version_less_than(u, &self.version)?;
+                    let since_version =
+                        gen_version_less_than(u, &Some(depreciation_version.clone()))?;
+                    Ok(Some(format!(
+                        "@deprecated(version = {depreciation_version})\n@since(version = {since_version})",
+                    )))
+                }
+            },
         }
     }
 
     fn gen_interface(&mut self, u: &mut Unstructured<'_>, name: Option<&str>) -> Result<String> {
         let mut ret = String::new();
+
+        if let Some(annotation) = self.gen_feature_annotation(u)? {
+            ret.push_str(&annotation);
+            ret.push_str("\n");
+        }
+
         ret.push_str("interface ");
         if let Some(name) = name {
             ret.push_str("%");
@@ -501,7 +556,7 @@ impl<'a> InterfaceGenerator<'a> {
         ret.push_str(name);
         ret.push_str(" {\n");
 
-        #[derive(Arbitrary, Copy, Clone)]
+        #[derive(Arbitrary, Copy, Clone, Debug)]
         enum Direction {
             Import,
             Export,
@@ -536,6 +591,12 @@ impl<'a> InterfaceGenerator<'a> {
             };
 
             let mut part = String::new();
+
+            if let Some(annotation) = self.gen_feature_annotation(u)? {
+                part.push_str(&annotation);
+                part.push_str("\n");
+            }
+
             if let Some(dir) = direction {
                 part.push_str(match dir {
                     Direction::Import => "import ",
@@ -587,7 +648,7 @@ impl<'a> InterfaceGenerator<'a> {
                     part.push_str(";");
                 }
                 ItemKind::AnonInterface(_) => {
-                    let iface = InterfaceGenerator::new(self.generator, self.file)
+                    let iface = InterfaceGenerator::new(self.generator, self.file, None)
                         .gen_interface(u, None)?;
                     part.push_str(&iface);
                 }
@@ -595,7 +656,6 @@ impl<'a> InterfaceGenerator<'a> {
                 ItemKind::Type => {
                     let name = name.unwrap();
                     let (ty, typedef) = self.gen_typedef(u, &name)?;
-                    assert!(part.is_empty());
                     part = typedef;
                     let is_resource = ty.is_resource;
                     self.types_in_interface.push(ty);
@@ -669,20 +729,41 @@ impl<'a> InterfaceGenerator<'a> {
                 Item::Constructor if has_constructor => {}
                 Item::Constructor => {
                     has_constructor = true;
-                    let mut part = format!("constructor");
+                    let mut part = String::new();
+
+                    if let Some(annotation) = self.gen_feature_annotation(u)? {
+                        part.push_str(&annotation);
+                        part.push_str("\n");
+                    }
+
+                    part.push_str("constructor");
                     self.gen_params(u, &mut part, false)?;
                     part.push_str(";");
                     parts.push(part);
                 }
                 Item::Static => {
-                    let mut part = format!("%");
+                    let mut part = String::new();
+
+                    if let Some(annotation) = self.gen_feature_annotation(u)? {
+                        part.push_str(&annotation);
+                        part.push_str("\n");
+                    }
+
+                    part.push_str("%");
                     part.push_str(&gen_unique_name(u, &mut names)?);
                     part.push_str(": static ");
                     self.gen_func_sig(u, &mut part, false)?;
                     parts.push(part);
                 }
                 Item::Method => {
-                    let mut part = format!("%");
+                    let mut part = String::new();
+
+                    if let Some(annotation) = self.gen_feature_annotation(u)? {
+                        part.push_str(&annotation);
+                        part.push_str("\n");
+                    }
+
+                    part.push_str("%");
                     part.push_str(&gen_unique_name(u, &mut names)?);
                     part.push_str(": ");
                     self.gen_func_sig(u, &mut part, true)?;
@@ -701,6 +782,11 @@ impl<'a> InterfaceGenerator<'a> {
     }
 
     fn gen_use(&mut self, u: &mut Unstructured<'_>, part: &mut String) -> Result<bool> {
+        if let Some(annotation) = self.gen_feature_annotation(u)? {
+            part.push_str(&annotation);
+            part.push_str("\n");
+        }
+
         let mut path = String::new();
         let (_name, _id, types) =
             match self.generator.gen_interface_path(u, self.file, &mut path)? {
@@ -746,6 +832,12 @@ impl<'a> InterfaceGenerator<'a> {
 
         let mut fuel = self.config.max_type_size;
         let mut ret = String::new();
+
+        if let Some(annotation) = self.gen_feature_annotation(u)? {
+            ret.push_str(&annotation);
+            ret.push_str("\n");
+        }
+
         let mut is_resource = false;
         match u.arbitrary()? {
             Kind::Record => {
@@ -1000,7 +1092,14 @@ impl<'a> InterfaceGenerator<'a> {
     }
 
     fn gen_func(&mut self, u: &mut Unstructured<'_>) -> Result<String> {
-        let mut ret = "%".to_string();
+        let mut ret = String::new();
+
+        if let Some(annotation) = self.gen_feature_annotation(u)? {
+            ret.push_str(&annotation);
+            ret.push_str("\n");
+        }
+
+        ret.push_str("%");
         ret.push_str(&self.gen_unique_name(u)?);
         ret.push_str(": ");
         self.gen_func_sig(u, &mut ret, false)?;
@@ -1203,20 +1302,45 @@ impl File {
     }
 }
 
-fn gen_version(u: &mut Unstructured<'_>) -> Result<Version> {
-    Ok(Version {
-        major: u.int_in_range(0..=10)?,
-        minor: u.int_in_range(0..=10)?,
-        patch: u.int_in_range(0..=10)?,
-        pre: if u.arbitrary()? {
+fn gen_version_less_than(
+    u: &mut Unstructured<'_>,
+    existing_version: &Option<Version>,
+) -> Result<Version> {
+    const MAX_VERSION_RANGE: u64 = 10;
+    let (major, minor, patch) = match existing_version {
+        Some(v) => (v.major, v.minor, v.patch),
+        None => (MAX_VERSION_RANGE, MAX_VERSION_RANGE, MAX_VERSION_RANGE),
+    };
+
+    let new_version = Version {
+        major: u.int_in_range(0..=major)?,
+        minor: u.int_in_range(0..=minor)?,
+        patch: u.int_in_range(0..=patch)?,
+        pre: if (u.arbitrary()? && existing_version.is_none())
+            || existing_version.as_ref().is_some_and(|x| !x.pre.is_empty())
+        {
             semver::Prerelease::new("alpha.0").unwrap()
         } else {
             semver::Prerelease::EMPTY
         },
-        build: if u.arbitrary()? {
+        build: if (u.arbitrary()? && existing_version.is_none())
+            || existing_version
+                .as_ref()
+                .is_some_and(|x| !x.build.is_empty())
+        {
             semver::BuildMetadata::new("1.2.0").unwrap()
         } else {
             semver::BuildMetadata::EMPTY
         },
-    })
+    };
+
+    if let Some(v) = existing_version {
+        assert!(&new_version <= v, "{} <= {}", &new_version, v);
+    }
+
+    Ok(new_version)
+}
+
+fn gen_version(u: &mut Unstructured<'_>) -> Result<Version> {
+    gen_version_less_than(u, &None)
 }
