@@ -126,6 +126,7 @@ fn roundtrip_through_printing(file: &str, resolve: &Resolve, pkg: PackageId, was
     // Print to a single string, using nested `package ... { .. }` statements,
     // and then parse that in a new `Resolve`.
     let mut new_resolve = Resolve::default();
+    new_resolve.all_features = true;
     let package_deps = resolve
         .packages
         .iter()
