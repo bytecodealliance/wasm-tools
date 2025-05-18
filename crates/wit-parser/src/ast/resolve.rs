@@ -630,21 +630,18 @@ impl<'a> Resolver<'a> {
 
         let mut export_spans = Vec::new();
         let mut import_spans = Vec::new();
-        let mut import_names = HashMap::new();
-        let mut export_names = HashMap::new();
         for (name, (item, span)) in self.type_lookup.iter() {
             match *item {
                 TypeOrItem::Type(id) => {
-                    let prev = import_names.insert(*name, "import");
-                    if let Some(prev) = prev {
-                        bail!(Error::new(
-                            *span,
-                            format!("import `{name}` conflicts with prior {prev} of same name",),
-                        ))
-                    }
-                    self.worlds[world_id]
+                    let prev = self.worlds[world_id]
                         .imports
                         .insert(WorldKey::Name(name.to_string()), WorldItem::Type(id));
+                    if prev.is_some() {
+                        bail!(Error::new(
+                            *span,
+                            format!("import `{name}` conflicts with prior import of same name"),
+                        ))
+                    }
                     import_spans.push(*span);
                 }
                 TypeOrItem::Item(_) => unreachable!(),
@@ -654,7 +651,7 @@ impl<'a> Resolver<'a> {
         let mut imported_interfaces = HashSet::new();
         let mut exported_interfaces = HashSet::new();
         for item in world.items.iter() {
-            let (docs, attrs, kind, desc, spans, interfaces, names) = match item {
+            let (docs, attrs, kind, desc, spans, interfaces) = match item {
                 ast::WorldItem::Import(import) => (
                     &import.docs,
                     &import.attributes,
@@ -662,7 +659,6 @@ impl<'a> Resolver<'a> {
                     "import",
                     &mut import_spans,
                     &mut imported_interfaces,
-                    &mut import_names,
                 ),
                 ast::WorldItem::Export(export) => (
                     &export.docs,
@@ -671,7 +667,6 @@ impl<'a> Resolver<'a> {
                     "export",
                     &mut export_spans,
                     &mut exported_interfaces,
-                    &mut export_names,
                 ),
 
                 ast::WorldItem::Type(ast::TypeDef {
@@ -698,27 +693,29 @@ impl<'a> Resolver<'a> {
                     continue
                 }
             };
+
+            let world_item = self.resolve_world_item(docs, attrs, kind)?;
             let key = match kind {
-                ast::ExternKind::Interface(name, _) | ast::ExternKind::Func(name, _) => {
-                    let prev = names.insert(name.name, desc);
-                    if let Some(prev) = prev {
-                        bail!(Error::new(
-                            kind.span(),
-                            format!(
-                                "{desc} `{name}` conflicts with prior {prev} of same name",
-                                name = name.name
-                            ),
-                        ))
-                    }
-                    WorldKey::Name(name.name.to_string())
+                // Interfaces are always named exactly as they are in the WIT.
+                ast::ExternKind::Interface(name, _) => WorldKey::Name(name.name.to_string()),
+
+                // Functions, however, might get mangled (e.g. with async)
+                // meaning that the item's name comes from the function, not
+                // from the in-WIT name.
+                ast::ExternKind::Func(..) => {
+                    let func = match &world_item {
+                        WorldItem::Function(f) => f,
+                        _ => unreachable!(),
+                    };
+                    WorldKey::Name(func.name.clone())
                 }
+
                 ast::ExternKind::Path(path) => {
                     let (item, name, span) = self.resolve_ast_item_path(path)?;
                     let id = self.extract_iface_from_item(&item, &name, span)?;
                     WorldKey::Interface(id)
                 }
             };
-            let world_item = self.resolve_world_item(docs, attrs, kind)?;
             if let WorldItem::Interface { id, .. } = world_item {
                 if !interfaces.insert(id) {
                     bail!(Error::new(
@@ -732,8 +729,22 @@ impl<'a> Resolver<'a> {
             } else {
                 &mut self.worlds[world_id].exports
             };
-            let prev = dst.insert(key, world_item);
-            assert!(prev.is_none());
+            let prev = dst.insert(key.clone(), world_item);
+            if let Some(prev) = prev {
+                let prev = match prev {
+                    WorldItem::Interface { .. } => "interface",
+                    WorldItem::Function(..) => "func",
+                    WorldItem::Type(..) => "type",
+                };
+                let name = match key {
+                    WorldKey::Name(name) => name,
+                    WorldKey::Interface(..) => unreachable!(),
+                };
+                bail!(Error::new(
+                    kind.span(),
+                    format!("{desc} `{name}` conflicts with prior {prev} of same name",),
+                ))
+            }
             spans.push(kind.span());
         }
         self.world_spans[world_id.index()].imports = import_spans;

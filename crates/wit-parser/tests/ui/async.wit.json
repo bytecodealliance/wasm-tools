@@ -3,7 +3,7 @@
     {
       "name": "y",
       "imports": {
-        "x": {
+        "[async]x": {
           "function": {
             "name": "[async]x",
             "kind": "async-freestanding",
@@ -19,7 +19,7 @@
         }
       },
       "exports": {
-        "x": {
+        "[async]x": {
           "function": {
             "name": "[async]x",
             "kind": "async-freestanding",

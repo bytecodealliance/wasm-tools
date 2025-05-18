@@ -99,7 +99,7 @@ pub struct Package {
     file: File,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PackageName {
     pub namespace: String,
     pub name: String,
@@ -117,7 +117,9 @@ impl Generator {
 
     pub fn generate(&mut self, u: &mut Unstructured<'_>) -> Result<Vec<Package>> {
         let mut names = HashSet::new();
-        while self.packages.list.len() < self.config.max_packages && self.packages.list.is_empty() {
+        while self.packages.list.len() < self.config.max_packages
+            && (self.packages.list.is_empty() || u.arbitrary()?)
+        {
             let pkg = self.gen_package(u, &mut names)?;
             let i = self.packages.list.len();
             if pkg.file.interfaces.len() > 0 {
