@@ -8,10 +8,53 @@ use wit_parser::{
 };
 
 /// Represents a key type for interface function definitions.
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Hash, PartialEq, Eq, Clone)]
 pub struct FunctionKey<'a> {
     params: &'a [(String, Type)],
     result: &'a Option<Type>,
+}
+
+#[derive(Default, Clone)]
+pub struct TypeEncodingMaps<'a> {
+    pub id_to_index: HashMap<TypeId, u32>,
+    pub def_to_index: HashMap<&'a TypeDefKind, u32>,
+    pub func_type_map: HashMap<FunctionKey<'a>, u32>,
+}
+
+impl<'a> TypeEncodingMaps<'a> {
+    /// Returns the index used to encode `id`, if it has been previously
+    /// encoded.
+    fn lookup(&self, resolve: &'a Resolve, id: TypeId) -> Option<u32> {
+        // If this exact id has been encoded before, use that.
+        if let Some(index) = self.id_to_index.get(&id) {
+            return Some(*index);
+        }
+
+        // If this is an anonymous type, or one where the name of the type is
+        // `none`, then consult the `def_to_index` map as well.
+        let ty = &resolve.types[id];
+        if ty.name.is_none() {
+            if let Some(index) = self.def_to_index.get(&ty.kind) {
+                return Some(*index);
+            }
+        }
+
+        // Failing all that this hasn't previously been encoded.
+        None
+    }
+
+    /// Inserts that `id` was encoded as `index`.
+    fn insert(&mut self, resolve: &'a Resolve, id: TypeId, index: u32) {
+        // Always record the id=>index mapping.
+        self.id_to_index.insert(id, index);
+
+        // Conditionally record the kind=>index mapping if the type is anonymous
+        // and thus a candidate to use.
+        let ty = &resolve.types[id];
+        if ty.name.is_none() {
+            self.def_to_index.insert(&ty.kind, index);
+        }
+    }
 }
 
 /// Support for encoding a wit-parser type into a component.
@@ -40,8 +83,9 @@ pub trait ValtypeEncoder<'a> {
     /// returning the type index that refers to the fresh type created.
     fn export_resource(&mut self, name: &'a str) -> u32;
 
-    /// Returns a map of all types previously defined in this type index space.
-    fn type_map(&mut self) -> &mut HashMap<TypeId, u32>;
+    /// Returns the encoding maps used to encoding types such as id-to-index
+    /// maps.
+    fn type_encoding_maps(&mut self) -> &mut TypeEncodingMaps<'a>;
 
     /// Imports `id` from a different interface, returning the index of the
     /// imported type into this index space.
@@ -50,10 +94,6 @@ pub trait ValtypeEncoder<'a> {
     /// Returns the identifier of the interface that generation is for.
     fn interface(&self) -> Option<InterfaceId>;
 
-    /// Returns the map of already-defined function types in this type index
-    /// space.
-    fn func_type_map(&mut self) -> &mut HashMap<FunctionKey<'a>, u32>;
-
     /// Encodes a new function type which is defined within the provided
     /// document.
     fn encode_func_type(&mut self, resolve: &'a Resolve, func: &'a Function) -> Result<u32> {
@@ -61,7 +101,7 @@ pub trait ValtypeEncoder<'a> {
             params: &func.params,
             result: &func.result,
         };
-        if let Some(index) = self.func_type_map().get(&key) {
+        if let Some(index) = self.type_encoding_maps().func_type_map.get(&key) {
             return Ok(*index);
         }
 
@@ -76,7 +116,7 @@ pub trait ValtypeEncoder<'a> {
         // Encode the function type
         let (index, mut f) = self.define_function_type();
         f.params(params).result(result);
-        let prev = self.func_type_map().insert(key, index);
+        let prev = self.type_encoding_maps().func_type_map.insert(key, index);
         assert!(prev.is_none());
         Ok(index)
     }
@@ -116,16 +156,17 @@ pub trait ValtypeEncoder<'a> {
             Type::Id(id) => {
                 // If this id has already been prior defined into this section
                 // refer to that definition.
-                if let Some(index) = self.type_map().get(&id) {
-                    return Ok(ComponentValType::Type(*index));
+                if let Some(index) = self.type_encoding_maps().lookup(resolve, id) {
+                    return Ok(ComponentValType::Type(index));
                 }
+
+                let ty = &resolve.types[id];
 
                 // If this type is imported from another interface then return
                 // it as it was bound here with an alias.
-                let ty = &resolve.types[id];
                 log::trace!("encode type name={:?} {:?}", ty.name, &ty.kind);
                 if let Some(index) = self.maybe_import_type(resolve, id) {
-                    self.type_map().insert(id, index);
+                    self.type_encoding_maps().insert(resolve, id, index);
                     return Ok(ComponentValType::Type(index));
                 }
 
@@ -157,7 +198,7 @@ pub trait ValtypeEncoder<'a> {
                     TypeDefKind::Resource => {
                         let name = ty.name.as_ref().expect("resources must be named");
                         let index = self.export_resource(name);
-                        self.type_map().insert(id, index);
+                        self.type_encoding_maps().id_to_index.insert(id, index);
                         return Ok(ComponentValType::Type(index));
                     }
                     TypeDefKind::Handle(Handle::Own(id)) => {
@@ -197,7 +238,7 @@ pub trait ValtypeEncoder<'a> {
                 }
 
                 if let ComponentValType::Type(index) = encoded {
-                    self.type_map().insert(id, index);
+                    self.type_encoding_maps().insert(resolve, id, index);
                 }
 
                 encoded
@@ -386,18 +427,11 @@ impl<'a> ValtypeEncoder<'a> for RootTypeEncoder<'_, 'a> {
         }
         self.state.alias_imported_type(interface, id)
     }
-    fn type_map(&mut self) -> &mut HashMap<TypeId, u32> {
+    fn type_encoding_maps(&mut self) -> &mut TypeEncodingMaps<'a> {
         if self.import_types {
-            &mut self.state.import_type_map
+            &mut self.state.import_type_encoding_maps
         } else {
-            &mut self.state.export_type_map
-        }
-    }
-    fn func_type_map(&mut self) -> &mut HashMap<FunctionKey<'a>, u32> {
-        if self.import_types {
-            &mut self.state.import_func_type_map
-        } else {
-            &mut self.state.export_func_type_map
+            &mut self.state.export_type_encoding_maps
         }
     }
 }
@@ -405,8 +439,7 @@ impl<'a> ValtypeEncoder<'a> for RootTypeEncoder<'_, 'a> {
 pub struct InstanceTypeEncoder<'state, 'a> {
     pub state: &'state mut EncodingState<'a>,
     pub interface: InterfaceId,
-    pub type_map: HashMap<TypeId, u32>,
-    pub func_type_map: HashMap<FunctionKey<'a>, u32>,
+    pub type_encoding_maps: TypeEncodingMaps<'a>,
     pub ty: InstanceType,
 }
 
@@ -429,8 +462,8 @@ impl<'a> ValtypeEncoder<'a> for InstanceTypeEncoder<'_, 'a> {
             .export(name, ComponentTypeRef::Type(TypeBounds::SubResource));
         ret
     }
-    fn type_map(&mut self) -> &mut HashMap<TypeId, u32> {
-        &mut self.type_map
+    fn type_encoding_maps(&mut self) -> &mut TypeEncodingMaps<'a> {
+        &mut self.type_encoding_maps
     }
     fn interface(&self) -> Option<InterfaceId> {
         Some(self.interface)
@@ -442,8 +475,5 @@ impl<'a> ValtypeEncoder<'a> for InstanceTypeEncoder<'_, 'a> {
             kind: ComponentOuterAliasKind::Type,
         });
         self.ty.type_count() - 1
-    }
-    fn func_type_map(&mut self) -> &mut HashMap<FunctionKey<'a>, u32> {
-        &mut self.func_type_map
     }
 }
