@@ -1,9 +1,9 @@
 (component
   (import (interface "a:b/type-def") (instance $type-def
     (type $r1' (record (field "f" u32)))
-    (export $r1 "r1" (type (eq $r1')))
+    (export "r1" (type $r1 (eq $r1')))
     (type $r2' (record (field "r1" $r1)))
-    (export $r2 "r2" (type (eq $r2')))
+    (export "r2" (type $r2 (eq $r2')))
   ))
   (alias export $type-def "r1" (type $r1))
   (alias export $type-def "r2" (type $r2))
@@ -14,8 +14,8 @@
 
   (import (interface "a:b/type-use-in-same-interface") (instance
     (type $t1' u32)
-    (export $t1 "t1" (type (eq $t1')))
-    (export $t2 "t2" (type (eq $t1)))
+    (export "t1" (type $t1 (eq $t1')))
+    (export "t2" (type $t2 (eq $t1)))
   ))
 
   (import (interface "a:b/diamond-base") (instance $diamond-base

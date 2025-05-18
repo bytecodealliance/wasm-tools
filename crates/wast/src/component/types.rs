@@ -829,15 +829,8 @@ pub struct ComponentExportType<'a> {
 impl<'a> Parse<'a> for ComponentExportType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::export>()?.0;
-        let id = parser.parse()?;
-        let debug_name = parser.parse()?;
         let name = parser.parse()?;
-        let item = parser.parens(|p| {
-            let mut item = p.parse::<ItemSigNoName<'_>>()?.0;
-            item.id = id;
-            item.name = debug_name;
-            Ok(item)
-        })?;
+        let item = parser.parens(|p| p.parse())?;
         Ok(Self { span, name, item })
     }
 }
