@@ -1,4 +1,4 @@
-use crate::encoding::types::{FunctionKey, ValtypeEncoder};
+use crate::encoding::types::{TypeEncodingMaps, ValtypeEncoder};
 use anyhow::Result;
 use indexmap::IndexSet;
 use std::collections::HashMap;
@@ -223,9 +223,8 @@ struct InterfaceEncoder<'a> {
     resolve: &'a Resolve,
     outer: ComponentType,
     ty: Option<InstanceType>,
-    func_type_map: HashMap<FunctionKey<'a>, u32>,
-    type_map: HashMap<TypeId, u32>,
-    saved_types: Option<(HashMap<TypeId, u32>, HashMap<FunctionKey<'a>, u32>)>,
+    type_encoding_maps: TypeEncodingMaps<'a>,
+    saved_maps: Option<TypeEncodingMaps<'a>>,
     import_map: HashMap<InterfaceId, u32>,
     outer_type_map: HashMap<TypeId, u32>,
     instances: u32,
@@ -239,12 +238,11 @@ impl InterfaceEncoder<'_> {
             resolve,
             outer: ComponentType::new(),
             ty: None,
-            type_map: Default::default(),
-            func_type_map: Default::default(),
+            type_encoding_maps: Default::default(),
             import_map: Default::default(),
             outer_type_map: Default::default(),
             instances: 0,
-            saved_types: None,
+            saved_maps: None,
             import_types: false,
             interface: None,
         }
@@ -297,18 +295,14 @@ impl InterfaceEncoder<'_> {
 
     fn push_instance(&mut self) {
         assert!(self.ty.is_none());
-        assert!(self.saved_types.is_none());
-        self.saved_types = Some((
-            mem::take(&mut self.type_map),
-            mem::take(&mut self.func_type_map),
-        ));
+        assert!(self.saved_maps.is_none());
+        self.saved_maps = Some(mem::take(&mut self.type_encoding_maps));
         self.ty = Some(InstanceType::default());
     }
 
     fn pop_instance(&mut self) -> InstanceType {
-        let (types, funcs) = self.saved_types.take().unwrap();
-        self.type_map = types;
-        self.func_type_map = funcs;
+        let maps = self.saved_maps.take().unwrap();
+        self.type_encoding_maps = maps;
         mem::take(&mut self.ty).unwrap()
     }
 }
@@ -365,8 +359,8 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
             }
         }
     }
-    fn type_map(&mut self) -> &mut HashMap<TypeId, u32> {
-        &mut self.type_map
+    fn type_encoding_maps(&mut self) -> &mut TypeEncodingMaps<'a> {
+        &mut self.type_encoding_maps
     }
     fn interface(&self) -> Option<InterfaceId> {
         self.interface
@@ -395,8 +389,5 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
             }
             None => outer_idx,
         }
-    }
-    fn func_type_map(&mut self) -> &mut HashMap<FunctionKey<'a>, u32> {
-        &mut self.func_type_map
     }
 }

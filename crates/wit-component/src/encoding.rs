@@ -94,7 +94,7 @@ mod wit;
 pub use wit::{encode, encode_world};
 
 mod types;
-use types::{InstanceTypeEncoder, RootTypeEncoder, ValtypeEncoder};
+use types::{InstanceTypeEncoder, RootTypeEncoder, TypeEncodingMaps, ValtypeEncoder};
 mod world;
 use world::{ComponentWorld, ImportedInterface, Lowering};
 
@@ -375,10 +375,8 @@ pub struct EncodingState<'a> {
     /// Note that imports and exports are stored in separate maps since they
     /// need fresh hierarchies of types in case the same interface is both
     /// imported and exported.
-    import_type_map: HashMap<TypeId, u32>,
-    import_func_type_map: HashMap<types::FunctionKey<'a>, u32>,
-    export_type_map: HashMap<TypeId, u32>,
-    export_func_type_map: HashMap<types::FunctionKey<'a>, u32>,
+    import_type_encoding_maps: TypeEncodingMaps<'a>,
+    export_type_encoding_maps: TypeEncodingMaps<'a>,
 
     /// Cache of items that have been aliased from core instances.
     ///
@@ -439,8 +437,7 @@ impl<'a> EncodingState<'a> {
         InstanceTypeEncoder {
             state: self,
             interface,
-            type_map: Default::default(),
-            func_type_map: Default::default(),
+            type_encoding_maps: Default::default(),
             ty: Default::default(),
         }
     }
@@ -626,7 +623,7 @@ impl<'a> EncodingState<'a> {
             // If this resource is owned by a world then it's a top-level
             // resource which means it must have already been translated so
             // it's available for lookup in `import_type_map`.
-            TypeOwner::World(_) => self.import_type_map[&id],
+            TypeOwner::World(_) => self.import_type_encoding_maps.id_to_index[&id],
             TypeOwner::Interface(i) => {
                 let instance = self.imported_instances[&i];
                 let name = ty.name.as_ref().expect("resources must be named");
@@ -743,8 +740,7 @@ impl<'a> EncodingState<'a> {
         // functions through type ascription on each `func` item.
         let mut nested = NestedComponentTypeEncoder {
             component: ComponentBuilder::default(),
-            type_map: Default::default(),
-            func_type_map: Default::default(),
+            type_encoding_maps: Default::default(),
             export_types: false,
             interface: export,
             state: self,
@@ -792,7 +788,7 @@ impl<'a> EncodingState<'a> {
         // Record the map of types imported to their index at where they were
         // imported. This is used after imports are encoded as exported types
         // will refer to these.
-        let imported_types = nested.type_map.clone();
+        let imported_type_maps = nested.type_encoding_maps.clone();
 
         // Handle resource types for this instance specially, namely importing
         // them into the nested component. This models how the resource is
@@ -828,10 +824,12 @@ impl<'a> EncodingState<'a> {
         // the inner component is translated to a `TypeId` via `reverse_map`
         // which is then translated back to our own index space via `type_map`.
         let reverse_map = nested
-            .type_map
+            .type_encoding_maps
+            .id_to_index
             .drain()
             .map(|p| (p.1, p.0))
             .collect::<HashMap<_, _>>();
+        nested.type_encoding_maps.def_to_index.clear();
         for (name, idx) in nested.imports.drain(..) {
             let id = reverse_map[&idx];
             let owner = match resolve.types[id].owner {
@@ -840,10 +838,10 @@ impl<'a> EncodingState<'a> {
             };
             let idx = if owner == export || exports_used.contains(&owner) {
                 log::trace!("consulting exports for {id:?}");
-                nested.state.export_type_map[&id]
+                nested.state.export_type_encoding_maps.id_to_index[&id]
             } else {
                 log::trace!("consulting imports for {id:?}");
-                nested.state.import_type_map[&id]
+                nested.state.import_type_encoding_maps.id_to_index[&id]
             };
             imports.push((name, ComponentExportKind::Type, idx))
         }
@@ -852,7 +850,7 @@ impl<'a> EncodingState<'a> {
         // from foreign interfaces. This will enable any encoded types below to
         // refer to imports which, after type substitution, will point to the
         // correct type in the outer component context.
-        nested.type_map = imported_types;
+        nested.type_encoding_maps = imported_type_maps;
 
         // Next the component reexports all of its imports, but notably uses the
         // type ascription feature to change the type of the function. Note that
@@ -861,7 +859,7 @@ impl<'a> EncodingState<'a> {
         // new type index space. Hence the `export_types = true` flag here which
         // flows through the type encoding and when types are emitted.
         nested.export_types = true;
-        nested.func_type_map.clear();
+        nested.type_encoding_maps.func_type_map.clear();
 
         // To start off all type information is encoded. This will be used by
         // functions below but notably this also has special handling for
@@ -878,7 +876,7 @@ impl<'a> EncodingState<'a> {
                         resources[id],
                         None,
                     );
-                    nested.type_map.insert(*id, idx);
+                    nested.type_encoding_maps.id_to_index.insert(*id, idx);
                 }
                 _ => {
                     nested.encode_valtype(resolve, &Type::Id(*id))?;
@@ -919,15 +917,17 @@ impl<'a> EncodingState<'a> {
         // necessary via aliases from the exported instance which is the new
         // source of truth for all these types.
         for (_name, id) in resolve.interfaces[export].types.iter() {
-            self.export_type_map.remove(id);
+            self.export_type_encoding_maps.id_to_index.remove(id);
+            self.export_type_encoding_maps
+                .def_to_index
+                .remove(&resolve.types[*id].kind);
         }
 
         return Ok(());
 
         struct NestedComponentTypeEncoder<'state, 'a> {
             component: ComponentBuilder,
-            type_map: HashMap<TypeId, u32>,
-            func_type_map: HashMap<types::FunctionKey<'a>, u32>,
+            type_encoding_maps: TypeEncodingMaps<'a>,
             export_types: bool,
             interface: InterfaceId,
             state: &'state mut EncodingState<'a>,
@@ -971,11 +971,8 @@ impl<'a> EncodingState<'a> {
             fn import_type(&mut self, _: InterfaceId, _id: TypeId) -> u32 {
                 unreachable!()
             }
-            fn type_map(&mut self) -> &mut HashMap<TypeId, u32> {
-                &mut self.type_map
-            }
-            fn func_type_map(&mut self) -> &mut HashMap<types::FunctionKey<'a>, u32> {
-                &mut self.func_type_map
+            fn type_encoding_maps(&mut self) -> &mut TypeEncodingMaps<'a> {
+                &mut self.type_encoding_maps
             }
             fn interface(&self) -> Option<InterfaceId> {
                 Some(self.interface)
@@ -1474,7 +1471,10 @@ impl<'a> EncodingState<'a> {
                         // our internal map. This should be the first and only time this
                         // type is inserted into this map.
                         let resource_idx = self.component.type_resource(ValType::I32, dtor);
-                        let prev = self.export_type_map.insert(*ty, resource_idx);
+                        let prev = self
+                            .export_type_encoding_maps
+                            .id_to_index
+                            .insert(*ty, resource_idx);
                         assert!(prev.is_none());
                     }
                     _other => {
@@ -1616,15 +1616,21 @@ impl<'a> EncodingState<'a> {
             // handled here using the resource types created during
             // `declare_types_for_imported_intrinsics` above.
             Import::ExportedResourceDrop(_key, id) => {
-                let index = self.component.resource_drop(self.export_type_map[id]);
+                let index = self
+                    .component
+                    .resource_drop(self.export_type_encoding_maps.id_to_index[id]);
                 Ok((ExportKind::Func, index))
             }
             Import::ExportedResourceRep(_key, id) => {
-                let index = self.component.resource_rep(self.export_type_map[id]);
+                let index = self
+                    .component
+                    .resource_rep(self.export_type_encoding_maps.id_to_index[id]);
                 Ok((ExportKind::Func, index))
             }
             Import::ExportedResourceNew(_key, id) => {
-                let index = self.component.resource_new(self.export_type_map[id]);
+                let index = self
+                    .component
+                    .resource_new(self.export_type_encoding_maps.id_to_index[id]);
                 Ok((ExportKind::Func, index))
             }
 
@@ -2878,10 +2884,8 @@ impl ComponentEncoder {
             fixups_module_index: None,
             adapter_modules: IndexMap::new(),
             adapter_instances: IndexMap::new(),
-            import_type_map: HashMap::new(),
-            import_func_type_map: HashMap::new(),
-            export_type_map: HashMap::new(),
-            export_func_type_map: HashMap::new(),
+            import_type_encoding_maps: Default::default(),
+            export_type_encoding_maps: Default::default(),
             imported_instances: Default::default(),
             imported_funcs: Default::default(),
             exported_instances: Default::default(),
