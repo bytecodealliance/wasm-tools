@@ -36,8 +36,6 @@ pub struct ModuleImportMap {
     /// This map is built during `ModuleImportMap::new` and serves double-duty
     /// to actually track duplicate imports.
     renamed_to_original: HashMap<String, HashMap<String, Option<String>>>,
-
-    found_duplicate_imports: bool,
 }
 
 impl ModuleImportMap {
@@ -55,6 +53,7 @@ impl ModuleImportMap {
     pub fn new<'a>(wasm: Cow<'a, [u8]>) -> Result<(Cow<'a, [u8]>, Option<ModuleImportMap>)> {
         let mut module = wasm_encoder::Module::new();
         let mut ret = ModuleImportMap::default();
+        let mut found_duplicate_imports = false;
 
         for payload in Parser::new(0).parse_all(&wasm) {
             let payload = payload?;
@@ -62,7 +61,7 @@ impl ModuleImportMap {
                 Version { encoding, .. } if *encoding == wasmparser::Encoding::Component => {
                     // if this is a component let someone else deal with the
                     // error, we'll punt that up the stack.
-                    assert!(!ret.found_duplicate_imports);
+                    assert!(!found_duplicate_imports);
                     break;
                 }
 
@@ -73,7 +72,9 @@ impl ModuleImportMap {
                 ImportSection(i) => {
                     let mut new_import_section = ImportSection::new();
                     for import in i.clone() {
-                        ret.push_import(&mut new_import_section, import?)?;
+                        found_duplicate_imports = ret
+                            .push_import(&mut new_import_section, import?)?
+                            || found_duplicate_imports;
                     }
                     module.section(&new_import_section);
                 }
@@ -92,18 +93,20 @@ impl ModuleImportMap {
             }
         }
 
-        if ret.found_duplicate_imports {
+        if found_duplicate_imports {
             Ok((module.finish().into(), Some(ret)))
         } else {
             Ok((wasm, None))
         }
     }
 
+    /// Returns `Ok(true)` if this is a duplicate import, or `Ok(false)` if it's
+    /// a unique import for the first time.
     fn push_import(
         &mut self,
         new_import_section: &mut ImportSection,
         import: wasmparser::Import<'_>,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         let module_map = self
             .renamed_to_original
             .entry(import.module.to_string())
@@ -115,10 +118,8 @@ impl ModuleImportMap {
             let prev = module_map.insert(import.name.to_string(), None);
             assert!(prev.is_none());
             RoundtripReencoder.parse_import(new_import_section, import)?;
-            return Ok(());
+            return Ok(false);
         }
-
-        self.found_duplicate_imports = true;
 
         // FIXME: this is technically O(n^2), but it's also only applicable when
         // a module has lots of imports, and surely that won't happen often...
@@ -148,16 +149,13 @@ impl ModuleImportMap {
         // for later lookup in `original_names` below.
         let prev = module_map.insert(new_name, Some(import.name.to_string()));
         assert!(prev.is_none());
-        Ok(())
+        Ok(true)
     }
 
     /// Returns the original `name` that `import` should use, if any.
     ///
     /// If `None` is returned then `import.name` should be used.
     pub fn original_name(&self, import: &wasmparser::Import<'_>) -> Option<&str> {
-        if !self.found_duplicate_imports {
-            return None;
-        }
         self.renamed_to_original
             .get(import.module)?
             .get(import.name)?
