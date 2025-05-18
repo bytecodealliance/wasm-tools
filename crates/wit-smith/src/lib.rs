@@ -21,6 +21,7 @@ pub fn smith(config: &Config, u: &mut Unstructured<'_>) -> Result<Vec<u8>> {
     let mut resolve = Resolve::default();
     let mut last = None;
     for pkg in pkgs {
+        log::trace!("appending package {:?}", pkg.name);
         let group = pkg.sources.parse().unwrap();
         let id = match resolve.push_group(group) {
             Ok(id) => id,

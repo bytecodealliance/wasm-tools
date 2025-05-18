@@ -33,7 +33,7 @@
       "imports": {
         "b": {
           "function": {
-            "name": "a",
+            "name": "b",
             "kind": "freestanding",
             "params": []
           }
