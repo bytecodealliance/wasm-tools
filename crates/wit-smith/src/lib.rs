@@ -29,6 +29,7 @@ pub fn smith(config: &Config, u: &mut Unstructured<'_>) -> Result<Vec<u8>> {
                     return Err(arbitrary::Error::IncorrectFormat);
                 }
                 if e.to_string().contains("shadows previously") {
+                    log::error!("{e}");
                     return Err(arbitrary::Error::IncorrectFormat);
                 }
                 panic!("bad wit parse: {e:?}")
