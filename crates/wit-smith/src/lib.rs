@@ -19,6 +19,7 @@ mod generate;
 pub fn smith(config: &Config, u: &mut Unstructured<'_>) -> Result<Vec<u8>> {
     let pkgs = generate::Generator::new(config.clone()).generate(u)?;
     let mut resolve = Resolve::default();
+    resolve.all_features = true;
     let mut last = None;
     for pkg in pkgs {
         let group = pkg.sources.parse().unwrap();
