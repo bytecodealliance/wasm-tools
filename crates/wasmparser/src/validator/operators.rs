@@ -31,6 +31,7 @@ use crate::{
     TryTable, UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources,
 };
 use crate::{prelude::*, CompositeInnerType, Ordering};
+use core::{cmp, iter};
 use core::ops::{Deref, DerefMut};
 
 #[cfg(feature = "simd")]
@@ -159,7 +160,7 @@ impl LocalInits {
 
 // No science was performed in the creation of this number, feel free to change
 // it if you so like.
-const MAX_LOCALS_TO_TRACK: usize = 50;
+const MAX_LOCALS_TO_TRACK: u32 = 50;
 
 pub(super) struct Locals {
     // Total number of locals in the function.
@@ -4262,20 +4263,23 @@ impl Locals {
     /// definition is unsuccessful in case the amount of total variables
     /// after definition exceeds the allowed maximum number.
     fn define(&mut self, count: u32, ty: ValType) -> bool {
+        if count == 0 {
+            return true
+        }
+        let vacant_first = MAX_LOCALS_TO_TRACK.saturating_sub(self.num_locals);
         match self.num_locals.checked_add(count) {
-            Some(n) => self.num_locals = n,
+            Some(num_locals) if num_locals > MAX_WASM_FUNCTION_LOCALS => return false,
             None => return false,
+            Some(num_locals) => self.num_locals = num_locals,
+        };
+        let push_to_first = cmp::min(vacant_first, count);
+        self.first.extend(iter::repeat_n(ty, push_to_first as usize));
+        let remaining_count = count - push_to_first;
+        let remaining_index = self.num_locals - 1;
+        if remaining_count > 0 {
+            self.uncached
+                .push((remaining_index, ty));
         }
-        if self.num_locals > (MAX_WASM_FUNCTION_LOCALS as u32) {
-            return false;
-        }
-        for _ in 0..count {
-            if self.first.len() >= MAX_LOCALS_TO_TRACK {
-                break;
-            }
-            self.first.push(ty);
-        }
-        self.uncached.push((self.num_locals - 1, ty));
         true
     }
 
