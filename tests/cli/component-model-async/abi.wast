@@ -92,11 +92,22 @@
     (memory (export "memory") 1)
     (func (export "cb") (param i32 i32 i32) (result i32) unreachable)
     (func (export "realloc") (param i32 i32 i32 i32) (result i32) unreachable)
-    (func (export "f") (param i32) (result i32) unreachable))
+    (func (export "f") (param i32 i32 i32 i32 i32 i32 i32 i32) (result i32) unreachable))
   (core instance $m6 (instantiate $m6))
   (func (param "x" (list string 4))
     (canon lift (core func $m6 "f") async (callback (func $m6 "cb"))
       (memory $m6 "memory") (realloc (func $m6 "realloc"))))
+
+  ;; func(x: list<string; 10>)
+  (core module $m7
+    (memory (export "memory") 1)
+    (func (export "cb") (param i32 i32 i32) (result i32) unreachable)
+    (func (export "realloc") (param i32 i32 i32 i32) (result i32) unreachable)
+    (func (export "f") (param i32) (result i32) unreachable))
+  (core instance $m7 (instantiate $m7))
+  (func (param "x" (list string 10))
+    (canon lift (core func $m7 "f") async (callback (func $m7 "cb"))
+      (memory $m7 "memory") (realloc (func $m7 "realloc"))))
 )
 
 ;; async lift, stackful abi
@@ -143,9 +154,19 @@
   (core module $m6
     (memory (export "memory") 1)
     (func (export "realloc") (param i32 i32 i32 i32) (result i32) unreachable)
-    (func (export "f") (param i32) unreachable))
+    (func (export "f") (param i32 i32 i32 i32 i32 i32 i32 i32) unreachable))
   (core instance $m6 (instantiate $m6))
   (func (param "x" (list string 4))
     (canon lift (core func $m6 "f") async
       (memory $m6 "memory") (realloc (func $m6 "realloc"))))
+
+  ;; func(x: list<string; 10>)
+  (core module $m7
+    (memory (export "memory") 1)
+    (func (export "realloc") (param i32 i32 i32 i32) (result i32) unreachable)
+    (func (export "f") (param i32) unreachable))
+  (core instance $m7 (instantiate $m7))
+  (func (param "x" (list string 10))
+    (canon lift (core func $m7 "f") async
+      (memory $m7 "memory") (realloc (func $m7 "realloc"))))
 )

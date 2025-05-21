@@ -15,7 +15,7 @@
     },
     {
       "type": "module",
-      "line": 103,
+      "line": 114,
       "filename": "abi.2.wasm",
       "module_type": "binary"
     }

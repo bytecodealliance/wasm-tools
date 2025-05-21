@@ -933,7 +933,7 @@ impl ComponentFuncType {
     ) -> Result<FuncType> {
         let mut sig = LoweredSignature::default();
 
-        if options.concurrency.is_async() {
+        if abi == Abi::Lower && options.concurrency.is_async() {
             sig.params.max = MAX_FLAT_ASYNC_PARAMS;
         }
 

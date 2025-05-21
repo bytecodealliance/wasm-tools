@@ -184,10 +184,11 @@ impl Resolve {
         assert_eq!(ok, !params.overflow);
 
         let max = match variant {
-            AbiVariant::GuestImport | AbiVariant::GuestExport => Self::MAX_FLAT_PARAMS,
-            AbiVariant::GuestImportAsync
+            AbiVariant::GuestImport
+            | AbiVariant::GuestExport
             | AbiVariant::GuestExportAsync
-            | AbiVariant::GuestExportAsyncStackful => Self::MAX_FLAT_ASYNC_PARAMS,
+            | AbiVariant::GuestExportAsyncStackful => Self::MAX_FLAT_PARAMS,
+            AbiVariant::GuestImportAsync => Self::MAX_FLAT_ASYNC_PARAMS,
         };
 
         let indirect_params = !ok || params.cur > max;
