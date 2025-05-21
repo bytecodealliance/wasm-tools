@@ -25,6 +25,9 @@ use core::{
 /// Functions that exceed this limit will instead pass parameters indirectly from
 /// linear memory via a single pointer parameter.
 const MAX_FLAT_FUNC_PARAMS: usize = 16;
+/// The maximum number of parameters in the canonical ABI that can be passed by
+/// value in async function imports/exports.
+const MAX_FLAT_ASYNC_PARAMS: usize = 4;
 /// The maximum number of results in the canonical ABI that can be returned by a function.
 ///
 /// Functions that exceed this limit have their results written to linear memory via an
@@ -931,15 +934,7 @@ impl ComponentFuncType {
         let mut sig = LoweredSignature::default();
 
         if abi == Abi::Lower && options.concurrency.is_async() {
-            for _ in 0..2 {
-                sig.params.assert_push(ValType::I32);
-            }
-            sig.results.assert_push(ValType::I32);
-            options.require_memory(offset)?;
-            if self.result.is_some_and(|ty| ty.contains_ptr(types)) {
-                options.require_realloc(offset)?;
-            }
-            return Ok(sig.into_func_type());
+            sig.params.max = MAX_FLAT_ASYNC_PARAMS;
         }
 
         for (_, ty) in self.params.iter() {
@@ -975,9 +970,6 @@ impl ComponentFuncType {
         }
 
         match (abi, options.concurrency) {
-            (Abi::Lower, Concurrency::Async { .. }) => {
-                unreachable!("special-cased at the start of the function")
-            }
             (Abi::Lower | Abi::Lift, Concurrency::Sync) => {
                 if let Some(ty) = &self.result {
                     // Results of lowered functions that contains pointers must be
@@ -1006,10 +998,19 @@ impl ComponentFuncType {
                     }
                 }
             }
-            (Abi::Lift, Concurrency::Async { callback: Some(_) }) => {
+            (Abi::Lower, Concurrency::Async { callback: _ }) => {
+                if self.result.is_some() {
+                    sig.params.max = MAX_LOWERED_TYPES;
+                    sig.params.assert_push(ValType::I32);
+                    options.require_memory(offset)?;
+                }
                 sig.results.assert_push(ValType::I32);
             }
-            (Abi::Lift, Concurrency::Async { callback: None }) => {}
+            (Abi::Lift, Concurrency::Async { callback }) => {
+                if callback.is_some() {
+                    sig.results.assert_push(ValType::I32);
+                }
+            }
         }
 
         Ok(sig.into_func_type())
