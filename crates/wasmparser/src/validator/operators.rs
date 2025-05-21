@@ -31,8 +31,8 @@ use crate::{
     TryTable, UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources,
 };
 use crate::{prelude::*, CompositeInnerType, Ordering};
-use core::{cmp, iter};
 use core::ops::{Deref, DerefMut};
+use core::{cmp, iter};
 
 #[cfg(feature = "simd")]
 mod simd;
@@ -4264,7 +4264,7 @@ impl Locals {
     /// after definition exceeds the allowed maximum number.
     fn define(&mut self, count: u32, ty: ValType) -> bool {
         if count == 0 {
-            return true
+            return true;
         }
         let vacant_first = MAX_LOCALS_TO_TRACK.saturating_sub(self.num_locals);
         match self.num_locals.checked_add(count) {
@@ -4273,12 +4273,12 @@ impl Locals {
             Some(num_locals) => self.num_locals = num_locals,
         };
         let push_to_first = cmp::min(vacant_first, count);
-        self.first.extend(iter::repeat_n(ty, push_to_first as usize));
+        self.first
+            .extend(iter::repeat_n(ty, push_to_first as usize));
         let num_uncached = count - push_to_first;
         if num_uncached > 0 {
             let max_uncached_idx = self.num_locals - 1;
-            self.uncached
-                .push((max_uncached_idx, ty));
+            self.uncached.push((max_uncached_idx, ty));
         }
         true
     }
