@@ -218,7 +218,7 @@ pub struct OperatorValidatorAllocations {
     operands: Vec<MaybeType>,
     local_inits: LocalInits,
     locals_first: Vec<ValType>,
-    locals_all: Vec<(u32, ValType)>,
+    locals_uncached: Vec<(u32, ValType)>,
 }
 
 /// Type storage within the validator.
@@ -323,7 +323,7 @@ impl OperatorValidator {
             operands,
             local_inits,
             locals_first,
-            locals_all,
+            locals_uncached,
         } = allocs;
         debug_assert!(popped_types_tmp.is_empty());
         debug_assert!(control.is_empty());
@@ -331,12 +331,12 @@ impl OperatorValidator {
         debug_assert!(local_inits.is_empty());
         debug_assert!(local_inits.is_empty());
         debug_assert!(locals_first.is_empty());
-        debug_assert!(locals_all.is_empty());
+        debug_assert!(locals_uncached.is_empty());
         OperatorValidator {
             locals: Locals {
                 num_locals: 0,
                 first: locals_first,
-                uncached: locals_all,
+                uncached: locals_uncached,
             },
             local_inits,
             features: *features,
@@ -521,7 +521,7 @@ impl OperatorValidator {
                 self.local_inits
             },
             locals_first: clear(self.locals.first),
-            locals_all: clear(self.locals.uncached),
+            locals_uncached: clear(self.locals.uncached),
         }
     }
 
