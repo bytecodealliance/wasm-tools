@@ -168,6 +168,7 @@ impl<'a> FlatTypes<'a> {
 
 impl Resolve {
     const MAX_FLAT_PARAMS: usize = 16;
+    const MAX_FLAT_ASYNC_PARAMS: usize = 4;
     const MAX_FLAT_RESULTS: usize = 1;
 
     /// Get the WebAssembly type signature for this interface function
@@ -175,15 +176,6 @@ impl Resolve {
     /// The first entry returned is the list of parameters and the second entry
     /// is the list of results for the wasm function signature.
     pub fn wasm_signature(&self, variant: AbiVariant, func: &Function) -> WasmSignature {
-        if let AbiVariant::GuestImportAsync = variant {
-            return WasmSignature {
-                params: vec![WasmType::Pointer; 2],
-                indirect_params: true,
-                results: vec![WasmType::I32],
-                retptr: true,
-            };
-        }
-
         // Note that one extra parameter is allocated in case a return pointer
         // is needed down below for imports.
         let mut storage = [WasmType::I32; Self::MAX_FLAT_PARAMS + 1];
@@ -191,7 +183,14 @@ impl Resolve {
         let ok = self.push_flat_list(func.params.iter().map(|(_, param)| param), &mut params);
         assert_eq!(ok, !params.overflow);
 
-        let indirect_params = !ok || params.cur > Self::MAX_FLAT_PARAMS;
+        let max = match variant {
+            AbiVariant::GuestImport | AbiVariant::GuestExport => Self::MAX_FLAT_PARAMS,
+            AbiVariant::GuestImportAsync
+            | AbiVariant::GuestExportAsync
+            | AbiVariant::GuestExportAsyncStackful => Self::MAX_FLAT_ASYNC_PARAMS,
+        };
+
+        let indirect_params = !ok || params.cur > max;
         if indirect_params {
             params.types[0] = WasmType::Pointer;
             params.cur = 1;
@@ -216,48 +215,53 @@ impl Resolve {
             }
         }
 
-        match variant {
-            AbiVariant::GuestExportAsync => {
-                return WasmSignature {
-                    params: params.to_vec(),
-                    indirect_params,
-                    results: vec![WasmType::Pointer],
-                    retptr: false,
-                };
-            }
-            AbiVariant::GuestExportAsyncStackful => {
-                return WasmSignature {
-                    params: params.to_vec(),
-                    indirect_params,
-                    results: Vec::new(),
-                    retptr: false,
-                };
-            }
-            _ => {}
-        }
-
         let mut storage = [WasmType::I32; Self::MAX_FLAT_RESULTS];
         let mut results = FlatTypes::new(&mut storage);
-        if let Some(ty) = &func.result {
-            self.push_flat(ty, &mut results);
-        }
+        let mut retptr = false;
+        match variant {
+            AbiVariant::GuestImport | AbiVariant::GuestExport => {
+                if let Some(ty) = &func.result {
+                    self.push_flat(ty, &mut results);
+                }
+                retptr = results.overflow;
 
-        let retptr = results.overflow;
-
-        // Rust/C don't support multi-value well right now, so if a function
-        // would have multiple results then instead truncate it. Imports take a
-        // return pointer to write into and exports return a pointer they wrote
-        // into.
-        if retptr {
-            results.cur = 0;
-            match variant {
-                AbiVariant::GuestImport => {
+                // Rust/C don't support multi-value well right now, so if a
+                // function would have multiple results then instead truncate
+                // it. Imports take a return pointer to write into and exports
+                // return a pointer they wrote into.
+                if retptr {
+                    results.cur = 0;
+                    match variant {
+                        AbiVariant::GuestImport => {
+                            assert!(params.push(WasmType::Pointer));
+                        }
+                        AbiVariant::GuestExport => {
+                            assert!(results.push(WasmType::Pointer));
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+            }
+            AbiVariant::GuestImportAsync => {
+                // If this function has a result, a pointer must be passed to
+                // get filled in by the async runtime.
+                if func.result.is_some() {
                     assert!(params.push(WasmType::Pointer));
+                    retptr = true;
                 }
-                AbiVariant::GuestExport => {
-                    assert!(results.push(WasmType::Pointer));
-                }
-                _ => unreachable!(),
+
+                // The result of this function is a status code.
+                assert!(results.push(WasmType::I32));
+            }
+            AbiVariant::GuestExportAsync => {
+                // The result of this function is a status code. Note that the
+                // function results are entirely ignored here as they aren't
+                // part of the ABI and are handled in the `task.return`
+                // intrinsic.
+                assert!(results.push(WasmType::I32));
+            }
+            AbiVariant::GuestExportAsyncStackful => {
+                // No status code, and like async exports no result handling.
             }
         }
 
