@@ -4274,11 +4274,11 @@ impl Locals {
         };
         let push_to_first = cmp::min(vacant_first, count);
         self.first.extend(iter::repeat_n(ty, push_to_first as usize));
-        let remaining_count = count - push_to_first;
-        let remaining_index = self.num_locals - 1;
-        if remaining_count > 0 {
+        let num_uncached = count - push_to_first;
+        if num_uncached > 0 {
+            let max_uncached_idx = self.num_locals - 1;
             self.uncached
-                .push((remaining_index, ty));
+                .push((max_uncached_idx, ty));
         }
         true
     }
