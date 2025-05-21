@@ -181,7 +181,7 @@ pub(super) struct Locals {
     // `local.{get,set,tee}`. We do a binary search for the index desired, and
     // it either lies in a "hole" where the maximum index is specified later,
     // or it's at the end of the list meaning it's out of bounds.
-    all: Vec<(u32, ValType)>,
+    uncached: Vec<(u32, ValType)>,
 }
 
 /// A Wasm control flow block on the control flow stack during Wasm validation.
@@ -336,7 +336,7 @@ impl OperatorValidator {
             locals: Locals {
                 num_locals: 0,
                 first: locals_first,
-                all: locals_all,
+                uncached: locals_all,
             },
             local_inits,
             features: *features,
@@ -521,7 +521,7 @@ impl OperatorValidator {
                 self.local_inits
             },
             locals_first: clear(self.locals.first),
-            locals_all: clear(self.locals.all),
+            locals_all: clear(self.locals.uncached),
         }
     }
 
@@ -4275,7 +4275,7 @@ impl Locals {
             }
             self.first.push(ty);
         }
-        self.all.push((self.num_locals - 1, ty));
+        self.uncached.push((self.num_locals - 1, ty));
         true
     }
 
@@ -4294,17 +4294,17 @@ impl Locals {
     }
 
     fn get_bsearch(&self, idx: u32) -> Option<ValType> {
-        match self.all.binary_search_by_key(&idx, |(idx, _)| *idx) {
+        match self.uncached.binary_search_by_key(&idx, |(idx, _)| *idx) {
             // If this index would be inserted at the end of the list, then the
             // index is out of bounds and we return an error.
-            Err(i) if i == self.all.len() => None,
+            Err(i) if i == self.uncached.len() => None,
 
             // If `Ok` is returned we found the index exactly, or if `Err` is
             // returned the position is the one which is the least index
             // greater that `idx`, which is still the type of `idx` according
             // to our "compressed" representation. In both cases we access the
             // list at index `i`.
-            Ok(i) | Err(i) => Some(self.all[i].1),
+            Ok(i) | Err(i) => Some(self.uncached[i].1),
         }
     }
 }
