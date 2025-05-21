@@ -86,8 +86,22 @@ allow_attributes_without_reason = 'warn'
 edition = '2021'
 license = "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"
 version = "0.231.0"
-# Current policy for wasm-tools is the same as Wasmtime which is that this
-# number can be no larger than the current stable release of Rust minus 2.
+# Current thinking for wasm-tools is that the minimum supported Rust version
+# (MSRV), or this number here, is no larger than the current stable release of
+# Rust minus 10. This is more conservative than Wasmtime's policy which is
+# stable minus two and is due to the nature of this repository and how the
+# crates are expected to be used in more situations and places than Wasmtime.
+#
+# Note that this number is not proactively updated whenever a new release of
+# Rust comes out. Instead if you run into this, for example a PR on CI is
+# failing due to needing a newer feature of Rust, you're welcome to update this
+# at any time so longer that it's no greater than the current release of Rust
+# minus 10.
+#
+# If this window is too restrictive please leave a comment on your PR or send a
+# message to wasm-tools maintainers to discuss. In some cases it's possible to
+# add version detection to build scripts but in other cases this may not be
+# reasonable to expect.
 #
 # NB: if this number increases to 1.81-or-later delete
 # `crates/wasmparser/build.rs` and `crates/wasm-encoder/build.rs` scripts
