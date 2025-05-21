@@ -4274,7 +4274,7 @@ impl Locals {
         };
         let push_to_first = cmp::min(vacant_first, count);
         self.first
-            .extend(iter::repeat_n(ty, push_to_first as usize));
+            .extend(iter::repeat(ty).take(push_to_first as usize));
         let num_uncached = count - push_to_first;
         if num_uncached > 0 {
             let max_uncached_idx = self.num_locals - 1;
