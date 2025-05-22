@@ -180,7 +180,7 @@
 (component
   (type (component
     (import "x" (instance $i
-      (export $t "t" (type (sub resource)))
+      (export "t" (type $t (sub resource)))
       (export "f" (func (result (own $t))))
     ))
     (alias export $i "t" (type $t))
@@ -190,7 +190,7 @@
 
 (component
   (import "fancy-fs" (instance $fancy-fs
-    (export $fs "fs" (instance
+    (export "fs" (instance $fs
       (export "file" (type (sub resource)))
     ))
     (alias export $fs "file" (type $file))
@@ -211,8 +211,8 @@
     (export "h" (func (result $U)))
     (import "T" (type $T (sub resource)))
     (import "i" (func (param "x" (list (own $T)))))
-    (export $T' "T2" (type (eq $T)))
-    (export $U' "U" (type (sub resource)))
+    (export "T2" (type $T' (eq $T)))
+    (export "U" (type $U' (sub resource)))
     (export "j" (func (param "x" (borrow $T')) (result (own $U'))))
   ))
 )
@@ -251,7 +251,7 @@
 (component
   (import "C" (component $C
     (export "T1" (type (sub resource)))
-    (export $T2 "T2" (type (sub resource)))
+    (export "T2" (type $T2 (sub resource)))
     (export "T3" (type (eq $T2)))
   ))
   (instance $c (instantiate $C))
@@ -294,7 +294,7 @@
 
 (component
   (type (component
-    (export $r1 "r1" (type (sub resource)))
+    (export "r1" (type $r1 (sub resource)))
     (export "r2" (type (eq $r1)))
   ))
 )
@@ -541,7 +541,7 @@
 (assert_invalid
   (component
     (type (component
-      (export $x "x" (type (sub resource)))
+      (export "x" (type $x (sub resource)))
       (import "f" (func (result (own $x))))
     ))
   )
@@ -670,7 +670,7 @@
 
 (component
   (type $i (instance
-    (export $r "r" (type (sub resource)))
+    (export "r" (type $r (sub resource)))
     (export "f" (func (result (own $r))))
   ))
   (import "i1" (instance $i1 (type $i)))
@@ -694,7 +694,7 @@
 (assert_invalid
   (component
     (type $i (instance
-      (export $r "r" (type (sub resource)))
+      (export "r" (type $r (sub resource)))
       (export "f" (func (result (own $r))))
     ))
     (import "i1" (instance $i1 (type $i)))
@@ -835,7 +835,7 @@
       (export "t" (type $t))
     )
     (component $F
-      (import "x" (component (export $t "t" (type (sub resource)))))
+      (import "x" (component (export "t" (type $t (sub resource)))))
     )
     (instance $x1 (instantiate $X))
     (instance $f1 (instantiate $F (with "x" (instance $x1))))
@@ -871,7 +871,7 @@
     (export "t" (type $t))
   )
   (component $F
-    (import "x" (instance $i (export $t "t" (type (sub resource)))))
+    (import "x" (instance $i (export "t" (type $t (sub resource)))))
     (alias export $i "t" (type $t))
     (export "t" (type $t))
   )
@@ -1108,7 +1108,7 @@
     (type $t' (instance
       (export "r" (type (sub resource)))
     ))
-    (export $t "t" (instance (type $t')))
+    (export "t" (instance $t (type $t')))
     (alias export $t "r" (type $r))
     (type $t2' (instance
       (export "r2" (type (eq $r)))

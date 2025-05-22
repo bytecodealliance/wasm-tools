@@ -398,15 +398,15 @@
 (component $C
   (import "foo" (instance $i
     (type $baz' (record (field "f" u32)))
-    (export $baz "baz" (type (eq $baz')))
+    (export "baz" (type $baz (eq $baz')))
     (type $bar' (record (field "baz" $baz)))
-    (export $bar "bar" (type (eq $bar')))
+    (export "bar" (type $bar (eq $bar')))
   ))
   (alias export $i "bar" (type $bar))
   (import "bar" (instance
     (alias outer $C $bar (type $bar'))
-    (export $bar "bar" (type (eq $bar')))
-    (export $f "a" (func (result $bar)))
+    (export "bar" (type $bar (eq $bar')))
+    (export "a" (func $f (result $bar)))
   ))
 )
 
