@@ -251,6 +251,12 @@ impl Opts {
                     // two error messages are swapped to `assert_invalid`.
                     "malformed mutability",
                     "integer too large",
+                    // The upstream specification requires that the legacy
+                    // exceptions proposal is textually invalid (e.g.
+                    // `assert_malformed`). This crate supports it though as
+                    // "just another proposal", so it's not malformed but it's
+                    // invalid.
+                    "unexpected token",
                 ];
                 if self.assert(Assert::Permissive) && permissive_error_messages.contains(&message) {
                     return self.test_wast_directive(
