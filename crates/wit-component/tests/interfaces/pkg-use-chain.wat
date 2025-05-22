@@ -63,7 +63,7 @@
     )
   )
   (export (;5;) "foo" (type 4))
-  (@custom "package-docs" "\00{}")
+  (@custom "package-docs" "\01{}")
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
