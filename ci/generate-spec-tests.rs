@@ -44,9 +44,19 @@ fn copy_test(src: &Path, dst: &Path) {
     contents.push_str(";;      --assert default \\\n");
 
     // Allow certain assert_malformed tests to be interpreted as assert_invalid
-    if src.ends_with("binary.wast") || src.ends_with("global.wast") || src.ends_with("select.wast")
+    if src.ends_with("binary.wast")
+        || src.ends_with("global.wast")
+        || src.ends_with("select.wast")
+        || src.ends_with("try_table.wast")
     {
         contents.push_str(";;      --assert permissive \\\n");
+    }
+
+    // For this test it has legacy instructions which, for roundabout reasons,
+    // are attempted to be printed in the folded format but that doesn't work.
+    // Exclude this test for now.
+    if src.ends_with("try_table.wast") {
+        contents.push_str(";;      --assert no-test-folded \\\n");
     }
 
     contents.push_str(";;      --snapshot tests/snapshots \\\n");

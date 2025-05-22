@@ -336,7 +336,13 @@ crate::for_each_operator!(define_operator);
 #[derive(Clone)]
 pub struct OperatorsReader<'a> {
     reader: BinaryReader<'a>,
-    blocks: Vec<FrameKind>,
+    /// Block depth this reader is currently operating at.
+    ///
+    /// Increments for instructions like `block` and decrements for instructions
+    /// like `end`. Used to rule out syntactically invalid modules (as defined
+    /// by the wasm spec currently) in a cheap but not 100% rigorous fashion.
+    /// More checks are still performed in the validator about block depth.
+    depth: u32,
     data_index_occurred: Option<usize>,
 }
 
@@ -345,7 +351,7 @@ impl<'a> OperatorsReader<'a> {
     pub fn new(reader: BinaryReader<'a>) -> OperatorsReader<'a> {
         OperatorsReader {
             reader,
-            blocks: vec![FrameKind::Block],
+            depth: 1,
             data_index_occurred: None,
         }
     }
@@ -377,7 +383,7 @@ impl<'a> OperatorsReader<'a> {
     }
 
     fn ensure_stack_empty(&self) -> Result<()> {
-        if !self.blocks.is_empty() {
+        if self.depth != 0 {
             bail!(
                 self.original_position(),
                 "control frames remain at end of function body or expression"
@@ -408,33 +414,6 @@ impl<'a> OperatorsReader<'a> {
     pub fn read_with_offset(&mut self) -> Result<(Operator<'a>, usize)> {
         let pos = self.reader.original_position();
         Ok((self.read()?, pos))
-    }
-
-    fn enter(&mut self, k: FrameKind) {
-        self.blocks.push(k)
-    }
-
-    fn expect_block(&mut self, k: FrameKind, found: &str) -> Result<()> {
-        match self.blocks.last() {
-            None => bail!(
-                self.original_position(),
-                "empty stack found where {:?} expected",
-                k
-            ),
-            Some(x) if *x == k => Ok(()),
-            Some(_) => bail!(
-                self.original_position(),
-                "`{}` found outside `{:?}` block",
-                found,
-                k
-            ),
-        }
-    }
-
-    fn end(&mut self) -> Result<()> {
-        assert!(!self.blocks.is_empty());
-        self.blocks.pop();
-        Ok(())
     }
 
     /// Visit the next available operator with the specified [`VisitOperator`] instance.
@@ -486,7 +465,7 @@ impl<'a> OperatorsReader<'a> {
     where
         T: VisitOperator<'a>,
     {
-        if self.blocks.is_empty() {
+        if self.depth == 0 {
             bail!(
                 self.original_position(),
                 "operators remaining after end of function body or expression"
@@ -498,46 +477,28 @@ impl<'a> OperatorsReader<'a> {
             0x00 => visitor.visit_unreachable(),
             0x01 => visitor.visit_nop(),
             0x02 => {
-                self.enter(FrameKind::Block);
+                self.depth += 1;
                 visitor.visit_block(self.reader.read_block_type()?)
             }
             0x03 => {
-                self.enter(FrameKind::Loop);
+                self.depth += 1;
                 visitor.visit_loop(self.reader.read_block_type()?)
             }
             0x04 => {
-                self.enter(FrameKind::If);
+                self.depth += 1;
                 visitor.visit_if(self.reader.read_block_type()?)
             }
-            0x05 => {
-                self.expect_block(FrameKind::If, "else")?;
-                visitor.visit_else()
-            }
+            0x05 => visitor.visit_else(),
             0x06 => {
-                if !self.reader.legacy_exceptions() {
-                    bail!(
-                        pos,
-                        "legacy_exceptions feature required for try instruction"
-                    );
-                }
-                self.enter(FrameKind::LegacyTry);
+                self.depth += 1;
                 visitor.visit_try(self.reader.read_block_type()?)
             }
-            0x07 => {
-                if !self.reader.legacy_exceptions() {
-                    bail!(
-                        pos,
-                        "legacy_exceptions feature required for catch instruction"
-                    );
-                }
-                self.expect_block(FrameKind::LegacyTry, "catch")?;
-                visitor.visit_catch(self.reader.read_var_u32()?)
-            }
+            0x07 => visitor.visit_catch(self.reader.read_var_u32()?),
             0x08 => visitor.visit_throw(self.reader.read_var_u32()?),
             0x09 => visitor.visit_rethrow(self.reader.read_var_u32()?),
             0x0a => visitor.visit_throw_ref(),
             0x0b => {
-                self.end()?;
+                self.depth -= 1;
                 visitor.visit_end()
             }
             0x0c => visitor.visit_br(self.reader.read_var_u32()?),
@@ -558,20 +519,10 @@ impl<'a> OperatorsReader<'a> {
             0x14 => visitor.visit_call_ref(self.reader.read()?),
             0x15 => visitor.visit_return_call_ref(self.reader.read()?),
             0x18 => {
-                self.expect_block(FrameKind::LegacyTry, "delegate")?;
-                self.blocks.pop();
+                self.depth -= 1;
                 visitor.visit_delegate(self.reader.read_var_u32()?)
             }
-            0x19 => {
-                if !self.reader.legacy_exceptions() {
-                    bail!(
-                        pos,
-                        "legacy_exceptions feature required for catch_all instruction"
-                    );
-                }
-                self.expect_block(FrameKind::LegacyTry, "catch_all")?;
-                visitor.visit_catch_all()
-            }
+            0x19 => visitor.visit_catch_all(),
             0x1a => visitor.visit_drop(),
             0x1b => visitor.visit_select(),
             0x1c => {
@@ -590,7 +541,7 @@ impl<'a> OperatorsReader<'a> {
                 }
             }
             0x1f => {
-                self.enter(FrameKind::TryTable);
+                self.depth += 1;
                 visitor.visit_try_table(self.reader.read()?)
             }
 

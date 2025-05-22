@@ -1,4 +1,4 @@
-;; RUN: wast --assert default --snapshot tests/snapshots %
+;; RUN: wast --assert default,no-test-folded --snapshot tests/snapshots %
 
 (assert_invalid
   (module
@@ -6,7 +6,7 @@
     (func table.init 0 100))
   "unknown elem segment")
 
-(assert_malformed
+(assert_invalid
   (module
     (func else))
-  "`else` found outside `If` block")
+  "else found outside of an `if` block ")

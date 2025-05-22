@@ -1,4 +1,4 @@
-;; FAIL: print %
+;; RUN: print %
 
 (module
     (func else)
