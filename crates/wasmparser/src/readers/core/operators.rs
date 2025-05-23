@@ -337,7 +337,6 @@ crate::for_each_operator!(define_operator);
 pub struct OperatorsReader<'a> {
     reader: BinaryReader<'a>,
     blocks: Vec<FrameKind>,
-    data_index_occurred: Option<usize>,
 }
 
 impl<'a> OperatorsReader<'a> {
@@ -346,7 +345,6 @@ impl<'a> OperatorsReader<'a> {
         OperatorsReader {
             reader,
             blocks: vec![FrameKind::Block],
-            data_index_occurred: None,
         }
     }
 
@@ -857,8 +855,6 @@ impl<'a> OperatorsReader<'a> {
                 visitor.visit_array_new_fixed(type_index, n)
             }
             0x09 => {
-                self.data_index_occurred
-                    .get_or_insert(self.original_position());
                 let type_index = self.reader.read_var_u32()?;
                 let data_index = self.reader.read_var_u32()?;
                 visitor.visit_array_new_data(type_index, data_index)
@@ -895,8 +891,6 @@ impl<'a> OperatorsReader<'a> {
                 visitor.visit_array_copy(type_index_dst, type_index_src)
             }
             0x12 => {
-                self.data_index_occurred
-                    .get_or_insert(self.original_position());
                 let type_index = self.reader.read_var_u32()?;
                 let data_index = self.reader.read_var_u32()?;
                 visitor.visit_array_init_data(type_index, data_index)
@@ -988,15 +982,11 @@ impl<'a> OperatorsReader<'a> {
             0x07 => visitor.visit_i64_trunc_sat_f64_u(),
 
             0x08 => {
-                self.data_index_occurred
-                    .get_or_insert(self.original_position());
                 let segment = self.reader.read_var_u32()?;
                 let mem = self.reader.read_var_u32()?;
                 visitor.visit_memory_init(segment, mem)
             }
             0x09 => {
-                self.data_index_occurred
-                    .get_or_insert(self.original_position());
                 let segment = self.reader.read_var_u32()?;
                 visitor.visit_data_drop(segment)
             }
