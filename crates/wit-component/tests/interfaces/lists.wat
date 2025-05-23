@@ -204,7 +204,7 @@
     )
   )
   (export (;3;) "lists-world" (type 2))
-  (@custom "package-docs" "\00{}")
+  (@custom "package-docs" "\01{}")
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

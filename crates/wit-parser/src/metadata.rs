@@ -43,7 +43,7 @@ const PACKAGE_DOCS_SECTION_VERSION: u8 = 1;
 /// tools we'll still try to emit the v0 format by default, if the input is
 /// compatible. This will be turned off in the future once enough published
 /// versions support the v1 format.
-const TRY_TO_EMIT_V0_BY_DEFAULT: bool = true;
+const TRY_TO_EMIT_V0_BY_DEFAULT: bool = false;
 
 /// Represents serializable doc comments parsed from a WIT package.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
