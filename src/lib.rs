@@ -317,10 +317,11 @@ pub fn parse_binary_wasm(parser: wasmparser::Parser, bytes: &[u8]) -> Result<()>
             wasmparser::Payload::ElementSection(s) => parse_section(s)?,
             wasmparser::Payload::DataSection(s) => parse_section(s)?,
             wasmparser::Payload::CodeSectionEntry(body) => {
-                for item in body.get_locals_reader()? {
+                let mut locals = body.get_locals_reader()?.into_iter();
+                for item in locals.by_ref() {
                     let _ = item?;
                 }
-                let mut ops = body.get_operators_reader()?;
+                let mut ops = locals.into_operators_reader();
                 while !ops.eof() {
                     ops.read()?;
                 }

@@ -266,7 +266,7 @@ impl<'a> Dump<'a> {
                         write!(self.state, "{amt} locals of type {ty:?}")?;
                         self.print(locals.original_position())?;
                     }
-                    self.print_ops(body.get_operators_reader()?)?;
+                    self.print_ops(OperatorsReader::new(locals.get_binary_reader()))?;
                 }
 
                 // Component sections

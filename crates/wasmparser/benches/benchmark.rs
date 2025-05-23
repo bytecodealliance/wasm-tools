@@ -157,10 +157,11 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
                 }
             }
             CodeSectionEntry(body) => {
-                for item in body.get_locals_reader()? {
+                let mut locals = body.get_locals_reader()?.into_iter();
+                for item in locals.by_ref() {
                     let _ = item?;
                 }
-                let mut ops = body.get_operators_reader()?;
+                let mut ops = locals.into_operators_reader();
                 while !ops.eof() {
                     ops.visit_operator(&mut NopVisit)?;
                 }
