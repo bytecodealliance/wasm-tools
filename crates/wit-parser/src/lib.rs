@@ -5,6 +5,7 @@ use indexmap::IndexMap;
 use semver::Version;
 use std::borrow::Cow;
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::path::Path;
 
 #[cfg(feature = "decoding")]
@@ -439,7 +440,7 @@ pub struct IncludeName {
 
 /// The key to the import/export maps of a world. Either a kebab-name or a
 /// unique interface.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[cfg_attr(feature = "serde", serde(into = "String"))]
 pub enum WorldKey {
@@ -447,6 +448,61 @@ pub enum WorldKey {
     Name(String),
     /// An interface which is assigned no kebab-name.
     Interface(InterfaceId),
+}
+
+/// Helper type to deduplicate kebab strings in maps.
+///
+/// The component model doesn't allow importing both `x` and `[async]x` and this
+/// type is what helps encapsulate that rule. This is similar ish to `KebabStr`
+/// inside of `wasmparser` except that it's only used here for hashing/equality
+/// of `WorldKey` to ensure that world items all hash/dedupe as expected.
+#[derive(PartialEq, Hash)]
+enum KebabDedupe<'a> {
+    Normal(&'a str),
+}
+
+impl<'a> From<&'a str> for KebabDedupe<'a> {
+    fn from(s: &'a str) -> KebabDedupe<'a> {
+        // If the name starts with `[async]` then strip it off. That conflicts
+        // with names without `[async]` so pretend it's the same.
+        if let Some(s) = s.strip_prefix("[async]") {
+            return KebabDedupe::Normal(s);
+        }
+
+        // Note that at this time there's no handling of `[method]` or
+        // `[static]` or similar. In theory that might work here but that's
+        // already handled via other means in `wit-parser` at this time and
+        // `[async]` is chosen to be handled here.
+        KebabDedupe::Normal(s)
+    }
+}
+
+impl Hash for WorldKey {
+    fn hash<H: Hasher>(&self, hasher: &mut H) {
+        match self {
+            WorldKey::Name(s) => {
+                0u8.hash(hasher);
+                KebabDedupe::from(s.as_str()).hash(hasher);
+            }
+            WorldKey::Interface(i) => {
+                1u8.hash(hasher);
+                i.hash(hasher);
+            }
+        }
+    }
+}
+
+impl PartialEq for WorldKey {
+    fn eq(&self, other: &WorldKey) -> bool {
+        match (self, other) {
+            (WorldKey::Name(a), WorldKey::Name(b)) => {
+                KebabDedupe::from(a.as_str()) == KebabDedupe::from(b.as_str())
+            }
+            (WorldKey::Name(_), _) => false,
+            (WorldKey::Interface(a), WorldKey::Interface(b)) => a == b,
+            (WorldKey::Interface(_), _) => false,
+        }
+    }
 }
 
 impl From<WorldKey> for String {
@@ -555,7 +611,7 @@ pub struct TypeDef {
     pub stability: Stability,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum TypeDefKind {
@@ -660,13 +716,13 @@ pub enum Int {
     U64,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Record {
     pub fields: Vec<Field>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Field {
     pub name: String,
@@ -676,13 +732,13 @@ pub struct Field {
     pub docs: Docs,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Flags {
     pub flags: Vec<Flag>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Flag {
     pub name: String,
@@ -718,19 +774,19 @@ impl FlagsRepr {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Tuple {
     pub types: Vec<Type>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Variant {
     pub cases: Vec<Case>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Case {
     pub name: String,
@@ -746,13 +802,13 @@ impl Variant {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Enum {
     pub cases: Vec<EnumCase>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct EnumCase {
     pub name: String,
@@ -777,14 +833,14 @@ fn discriminant_type(num_cases: usize) -> Int {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Result_ {
     pub ok: Option<Type>,
     pub err: Option<Type>,
 }
 
-#[derive(Clone, Default, Debug, PartialEq, Eq)]
+#[derive(Clone, Default, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Docs {
     pub contents: Option<String>,

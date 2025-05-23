@@ -524,7 +524,12 @@ package {name} is defined in two different locations:\n\
         unresolved: UnresolvedPackage,
         source_map: &SourceMap,
     ) -> Result<PackageId> {
-        source_map.rewrite_error(|| Remap::default().append(self, unresolved))
+        let ret = source_map.rewrite_error(|| Remap::default().append(self, unresolved));
+        if ret.is_ok() {
+            #[cfg(debug_assertions)]
+            self.assert_valid();
+        }
+        ret
     }
 
     /// Appends new [`UnresolvedPackageGroup`] to this [`Resolve`], creating a
@@ -1112,9 +1117,24 @@ package {name} is defined in two different locations:\n\
     ///
     /// Note that `f` may be called with the same id multiple times.
     fn foreach_interface_dep(&self, id: InterfaceId, f: &mut dyn FnMut(InterfaceId)) {
+        self._foreach_interface_dep(id, f, &mut HashSet::new())
+    }
+
+    // Internal detail of `foreach_interface_dep` which uses a hash map to prune
+    // the visit tree to ensure that this doesn't visit an exponential number of
+    // interfaces.
+    fn _foreach_interface_dep(
+        &self,
+        id: InterfaceId,
+        f: &mut dyn FnMut(InterfaceId),
+        visited: &mut HashSet<InterfaceId>,
+    ) {
+        if !visited.insert(id) {
+            return;
+        }
         f(id);
         for dep in self.interface_direct_deps(id) {
-            self.foreach_interface_dep(dep, f);
+            self._foreach_interface_dep(dep, f, visited);
         }
     }
 
@@ -2859,9 +2879,9 @@ impl Remap {
             }
         }
 
-        // Perform a weighty step of full resolution of worlds. This will fully
-        // expand imports/exports for a world and create the topological
-        // ordering necessary for this.
+        // Expand worlds. Note that this does NOT process `include` statements,
+        // that's handled below. Instead this just handles world item updates
+        // and resolves references to types/items within `Resolve`.
         //
         // This is done after types/interfaces are fully settled so the
         // transitive relation between interfaces, through types, is understood
@@ -2890,16 +2910,6 @@ impl Remap {
             let new_id = resolve.worlds.alloc(world);
             assert_eq!(self.worlds.len(), id.index());
             self.worlds.push(Some(new_id));
-
-            resolve.elaborate_world(new_id).with_context(|| {
-                Error::new(
-                    span.span,
-                    format!(
-                        "failed to elaborate world imports/exports of `{}`",
-                        resolve.worlds[new_id].name
-                    ),
-                )
-            })?;
         }
 
         // As with interfaces, now update the ids of world-owned types.
@@ -2918,6 +2928,45 @@ impl Remap {
                 }
                 TypeOwner::Interface(_) | TypeOwner::None => {}
             }
+        }
+
+        // After the above, process `include` statements for worlds and
+        // additionally fully elaborate them. Processing of `include` is
+        // deferred until after the steps above so the fully resolved state of
+        // local types in this package are all available. This is required
+        // because `include` may copy types between worlds when the type is
+        // defined in the world itself.
+        //
+        // This step, after processing `include`, will also use
+        // `elaborate_world` to fully expand the world in terms of
+        // imports/exports and ensure that all necessary imports/exports are all
+        // listed.
+        //
+        // Note that `self.worlds` is already sorted in topological order so if
+        // one world refers to another via `include` then it's guaranteed that
+        // the one we're referring to is already expanded and ready to be
+        // included.
+        assert_eq!(self.worlds.len(), unresolved.world_spans.len());
+        for (id, span) in self
+            .worlds
+            .iter()
+            .zip(unresolved.world_spans.iter())
+            .skip(foreign_worlds)
+        {
+            let Some(id) = *id else {
+                continue;
+            };
+            self.process_world_includes(id, resolve, &pkgid, &span)?;
+
+            resolve.elaborate_world(id).with_context(|| {
+                Error::new(
+                    span.span,
+                    format!(
+                        "failed to elaborate world imports/exports of `{}`",
+                        resolve.worlds[id].name
+                    ),
+                )
+            })?;
         }
 
         // Fixup "parent" ids now that everything has been identified
@@ -3399,6 +3448,17 @@ impl Remap {
             assert!(prev.is_none());
         }
 
+        Ok(())
+    }
+
+    fn process_world_includes(
+        &self,
+        id: WorldId,
+        resolve: &mut Resolve,
+        pkg_id: &PackageId,
+        spans: &WorldSpan,
+    ) -> Result<()> {
+        let world = &mut resolve.worlds[id];
         // Resolve all `include` statements of the world which will add more
         // entries to the imports/exports list for this world.
         assert_eq!(world.includes.len(), spans.includes.len());
@@ -3421,7 +3481,7 @@ impl Remap {
             {
                 continue;
             }
-            self.resolve_include(world, include_world, names, *span, resolve)?;
+            self.resolve_include(id, include_world, names, *span, pkg_id, resolve)?;
         }
 
         Ok(())
@@ -3439,14 +3499,16 @@ impl Remap {
 
     fn resolve_include(
         &self,
-        world: &mut World,
-        include_world: WorldId,
+        id: WorldId,
+        include_world_id_orig: WorldId,
         names: &[IncludeName],
         span: Span,
-        resolve: &Resolve,
+        pkg_id: &PackageId,
+        resolve: &mut Resolve,
     ) -> Result<()> {
-        let include_world_id = self.map_world(include_world, Some(span))?;
-        let include_world = &resolve.worlds[include_world_id];
+        let world = &resolve.worlds[id];
+        let include_world_id = self.map_world(include_world_id_orig, Some(span))?;
+        let include_world = resolve.worlds[include_world_id].clone();
         let mut names_ = names.to_owned();
         let is_external_include = world.package != include_world.package;
 
@@ -3464,11 +3526,24 @@ impl Remap {
             ));
         }
 
+        let mut cloner = clone::Cloner::new(
+            resolve,
+            TypeOwner::World(if is_external_include {
+                include_world_id
+            } else {
+                include_world_id
+                // include_world_id_orig
+            }),
+            TypeOwner::World(id),
+        );
+        cloner.new_package = Some(*pkg_id);
+
         // copy the imports and exports from the included world into the current world
         for import in include_world.imports.iter() {
             self.resolve_include_item(
+                &mut cloner,
                 names,
-                &mut world.imports,
+                |resolve| &mut resolve.worlds[id].imports,
                 import,
                 span,
                 "import",
@@ -3478,8 +3553,9 @@ impl Remap {
 
         for export in include_world.exports.iter() {
             self.resolve_include_item(
+                &mut cloner,
                 names,
-                &mut world.exports,
+                |resolve| &mut resolve.worlds[id].exports,
                 export,
                 span,
                 "export",
@@ -3491,8 +3567,9 @@ impl Remap {
 
     fn resolve_include_item(
         &self,
+        cloner: &mut clone::Cloner<'_>,
         names: &[IncludeName],
-        items: &mut IndexMap<WorldKey, WorldItem>,
+        get_items: impl Fn(&mut Resolve) -> &mut IndexMap<WorldKey, WorldItem>,
         item: (&WorldKey, &WorldItem),
         span: Span,
         item_type: &str,
@@ -3509,7 +3586,19 @@ impl Remap {
                     n.clone()
                 };
 
-                let prev = items.insert(WorldKey::Name(n.clone()), item.1.clone());
+                // When the `with` option to the `include` directive is
+                // specified and is used to rename a function that means that
+                // the function's own original name needs to be updated, so
+                // reflect the change not only in the world key but additionally
+                // in the function itself.
+                let mut new_item = item.1.clone();
+                if let WorldItem::Function(f) = &mut new_item {
+                    f.name = n.clone();
+                }
+                let key = WorldKey::Name(n.clone());
+                cloner.world_item(&key, &mut new_item);
+
+                let prev = get_items(cloner.resolve).insert(key, new_item);
                 if prev.is_some() {
                     bail!(Error::new(
                         span,
@@ -3518,7 +3607,9 @@ impl Remap {
                 }
             }
             key @ WorldKey::Interface(_) => {
-                let prev = items.entry(key.clone()).or_insert(item.1.clone());
+                let prev = get_items(cloner.resolve)
+                    .entry(key.clone())
+                    .or_insert(item.1.clone());
                 match (&item.1, prev) {
                     (
                         WorldItem::Interface {
@@ -3539,6 +3630,7 @@ impl Remap {
                 }
             }
         };
+
         Ok(())
     }
 
