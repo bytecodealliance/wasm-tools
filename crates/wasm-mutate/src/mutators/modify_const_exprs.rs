@@ -62,7 +62,7 @@ impl<'cfg, 'wasm> Reencode for InitTranslator<'cfg, 'wasm> {
             return reencode::utils::const_expr(self, e);
         }
 
-        let mut reader = e.get_operators_reader();
+        let mut reader = e.get_operators_reader(Default::default());
 
         if !self.config.reduce {
             // FIXME: implement non-reducing mutations for constant expressions.

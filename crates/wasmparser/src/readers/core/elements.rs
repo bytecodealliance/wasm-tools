@@ -14,8 +14,8 @@
  */
 
 use crate::{
-    BinaryReader, BinaryReaderError, ConstExpr, ExternalKind, FromReader, OperatorsReader, RefType,
-    Result, SectionLimited,
+    BinaryReader, BinaryReaderError, ConstExpr, ExternalKind, FromReader, OperatorsReader,
+    OperatorsReaderAllocations, RefType, Result, SectionLimited,
 };
 use core::ops::Range;
 
@@ -120,11 +120,14 @@ impl<'a> FromReader<'a> for Element<'a> {
         // FIXME(#188) ideally wouldn't have to do skips here
         let data = reader.skip(|reader| {
             let items_count = reader.read_var_u32()?;
+            let mut allocs = OperatorsReaderAllocations::default();
             if exprs {
                 for _ in 0..items_count {
-                    let mut ops = OperatorsReader::new(reader.clone());
+                    let mut ops =
+                        OperatorsReader::new(reader.clone(), core::mem::take(&mut allocs));
                     ops.skip_const_expr()?;
                     *reader = ops.get_binary_reader();
+                    allocs = ops.into_allocations();
                 }
             } else {
                 for _ in 0..items_count {

@@ -80,6 +80,7 @@ fn collect_test_files(path: &Path, list: &mut Vec<BenchmarkInput>) -> Result<()>
 /// so that we can report better errors in case of failures.
 fn read_all_wasm(wasm: &[u8]) -> Result<()> {
     use Payload::*;
+    let mut allocs = wasmparser::OperatorsReaderAllocations::default();
     for item in Parser::new(0).parse_all(wasm) {
         match item? {
             TypeSection(s) => {
@@ -114,9 +115,14 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
             }
             GlobalSection(s) => {
                 for item in s {
-                    for op in item?.init_expr.get_operators_reader() {
+                    let mut ops = item?
+                        .init_expr
+                        .get_operators_reader(std::mem::take(&mut allocs))
+                        .into_iter();
+                    for op in ops.by_ref() {
                         op?;
                     }
+                    allocs = ops.into_allocations();
                 }
             }
             ExportSection(s) => {
@@ -128,9 +134,13 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
                 for item in s {
                     let item = item?;
                     if let ElementKind::Active { offset_expr, .. } = item.kind {
-                        for op in offset_expr.get_operators_reader() {
+                        let mut ops = offset_expr
+                            .get_operators_reader(std::mem::take(&mut allocs))
+                            .into_iter();
+                        for op in ops.by_ref() {
                             op?;
                         }
+                        allocs = ops.into_allocations();
                     }
                     match item.items {
                         wasmparser::ElementItems::Functions(r) => {
@@ -150,9 +160,13 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
                 for item in s {
                     let item = item?;
                     if let DataKind::Active { offset_expr, .. } = item.kind {
-                        for op in offset_expr.get_operators_reader() {
+                        let mut ops = offset_expr
+                            .get_operators_reader(std::mem::take(&mut allocs))
+                            .into_iter();
+                        for op in ops.by_ref() {
                             op?;
                         }
+                        allocs = ops.into_allocations();
                     }
                 }
             }
@@ -161,11 +175,12 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
                 for item in locals.by_ref() {
                     let _ = item?;
                 }
-                let mut ops = locals.into_operators_reader();
+                let mut ops = locals.into_operators_reader(std::mem::take(&mut allocs));
                 while !ops.eof() {
                     ops.visit_operator(&mut NopVisit)?;
                 }
                 ops.finish()?;
+                allocs = ops.into_allocations();
             }
 
             // Component sections

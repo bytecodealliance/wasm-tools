@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-use crate::{BinaryReader, FromReader, OperatorsReader, Result};
+use crate::{BinaryReader, FromReader, OperatorsReader, OperatorsReaderAllocations, Result};
 use core::fmt;
 
 /// Represents an initialization expression.
@@ -41,9 +41,9 @@ impl<'a> ConstExpr<'a> {
         self.reader.clone()
     }
 
-    /// Gets an operators reader for the initialization expression.
-    pub fn get_operators_reader(&self) -> OperatorsReader<'a> {
-        OperatorsReader::new(self.get_binary_reader())
+    /// Gets an operators parser for the initialization expression.
+    pub fn get_operators_reader(&self, allocs: OperatorsReaderAllocations) -> OperatorsReader<'a> {
+        OperatorsReader::new(self.get_binary_reader(), allocs)
     }
 }
 
@@ -51,7 +51,7 @@ impl<'a> FromReader<'a> for ConstExpr<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         // FIXME(#188) ideally shouldn't need to skip here
         let reader = reader.skip(|reader| {
-            let mut ops = OperatorsReader::new(reader.clone());
+            let mut ops = OperatorsReader::new(reader.clone(), Default::default());
             ops.skip_const_expr()?;
             *reader = ops.get_binary_reader();
             Ok(())

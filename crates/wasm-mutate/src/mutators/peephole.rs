@@ -122,7 +122,7 @@ impl PeepholeMutator {
             }
 
             let reader = readers[function_to_mutate as usize].clone();
-            let operatorreader = reader.get_operators_reader()?;
+            let operatorreader = reader.get_operators_reader(Default::default())?;
             let mut localsreader = reader.get_locals_reader()?;
             let operators = operatorreader
                 .into_iter_with_offsets()
@@ -490,7 +490,7 @@ macro_rules! match_code_mutation {
                     });
                 }
                 Payload::CodeSectionEntry(reader) => {
-                    let operatorsreader = reader.get_operators_reader().unwrap();
+                    let operatorsreader = reader.get_operators_reader(Default::default()).unwrap();
                     let range = operatorsreader.get_binary_reader().range();
                     let operators = operatorsreader
                         .into_iter_with_offsets()

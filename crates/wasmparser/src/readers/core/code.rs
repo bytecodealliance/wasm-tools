@@ -13,7 +13,10 @@
  * limitations under the License.
  */
 
-use crate::{BinaryReader, FromReader, OperatorsReader, Result, SectionLimited, ValType};
+use crate::{
+    BinaryReader, FromReader, OperatorsReader, OperatorsReaderAllocations, Result, SectionLimited,
+    ValType,
+};
 use core::ops::Range;
 
 /// A reader for the code section of a WebAssembly module.
@@ -56,11 +59,23 @@ impl<'a> FunctionBody<'a> {
         })
     }
 
-    /// Gets the operators reader for this function body, after skipping locals.
-    pub fn get_operators_reader(&self) -> Result<OperatorsReader<'a>> {
+    /// Gets a binary reader for this function body, after skipping locals.
+    pub fn get_binary_reader_for_operators(&self) -> Result<BinaryReader<'a>> {
         let mut reader = self.reader.clone();
         Self::skip_locals(&mut reader)?;
-        Ok(OperatorsReader::new(reader))
+        Ok(reader)
+    }
+
+    /// Gets the operators reader for this function body, after skipping locals.
+    /// A pre-existing [`OperatorsReaderAllocations`] instance can be used to reuse allocations
+    /// from a previous operators reader. It is also sufficient to pass `Default::default()`.
+    pub fn get_operators_reader(
+        &self,
+        allocs: OperatorsReaderAllocations,
+    ) -> Result<OperatorsReader<'a>> {
+        let mut reader = self.reader.clone();
+        Self::skip_locals(&mut reader)?;
+        Ok(OperatorsReader::new(reader, allocs))
     }
 
     /// Gets the range of the function body.
@@ -157,8 +172,14 @@ impl<'a> Iterator for LocalsIterator<'a> {
 
 impl<'a> LocalsIterator<'a> {
     /// After reading the locals, the BinaryReader is ready to read the operators.
-    pub fn into_operators_reader(self) -> OperatorsReader<'a> {
+    pub fn into_binary_reader_for_operators(self) -> BinaryReader<'a> {
         debug_assert!(self.err || self.left == 0);
-        OperatorsReader::new(self.reader.get_binary_reader())
+        self.reader.get_binary_reader()
+    }
+
+    /// After reading the locals, the BinaryReader is ready to read the operators.
+    pub fn into_operators_reader(self, allocs: OperatorsReaderAllocations) -> OperatorsReader<'a> {
+        debug_assert!(self.err || self.left == 0);
+        OperatorsReader::new(self.reader.get_binary_reader(), allocs)
     }
 }

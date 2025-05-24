@@ -13,10 +13,10 @@ use super::{
 #[cfg(feature = "simd")]
 use crate::VisitSimdOperator;
 use crate::{
-    BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind, FuncType,
-    Global, GlobalType, HeapType, MemoryType, RecGroup, RefType, Result, SubType, Table, TableInit,
-    TableType, TagType, TypeRef, UnpackedIndex, ValType, VisitOperator, WasmFeatures,
-    WasmModuleResources, limits::*,
+    BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind, FrameKind,
+    FrameStack, FuncType, Global, GlobalType, HeapType, MemoryType, RecGroup, RefType, Result,
+    SubType, Table, TableInit, TableType, TagType, TypeRef, UnpackedIndex, ValType, VisitOperator,
+    WasmFeatures, WasmModuleResources, limits::*,
 };
 use crate::{CompositeInnerType, prelude::*};
 use alloc::sync::Arc;
@@ -217,7 +217,7 @@ impl ModuleState {
             },
         };
 
-        let mut ops = expr.get_operators_reader();
+        let mut ops = expr.get_binary_reader();
         while !ops.eof() {
             validator.offset = ops.original_position();
             ops.visit_operator(&mut validator)??;
@@ -465,6 +465,12 @@ impl ModuleState {
         #[cfg(feature = "simd")]
         impl<'a> VisitSimdOperator<'a> for VisitConstOperator<'a> {
             crate::for_each_visit_simd_operator!(define_visit_operator);
+        }
+
+        impl<'a> FrameStack for VisitConstOperator<'a> {
+            fn current_frame(&self) -> Option<&FrameKind> {
+                Some(&self.ops.get_frame(0)?.kind)
+            }
         }
     }
 }
