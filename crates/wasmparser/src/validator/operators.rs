@@ -26,9 +26,10 @@
 use crate::VisitSimdOperator;
 use crate::{
     limits::MAX_WASM_FUNCTION_LOCALS, AbstractHeapType, BinaryReaderError, BlockType, BrTable,
-    Catch, ContType, FieldType, FrameKind, FuncType, GlobalType, Handle, HeapType, Ieee32, Ieee64,
-    MemArg, ModuleArity, RefType, Result, ResumeTable, StorageType, StructType, SubType, TableType,
-    TryTable, UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources,
+    Catch, ContType, FieldType, FrameKind, FrameStack, FuncType, GlobalType, Handle, HeapType,
+    Ieee32, Ieee64, MemArg, ModuleArity, RefType, Result, ResumeTable, StorageType, StructType,
+    SubType, TableType, TryTable, UnpackedIndex, ValType, VisitOperator, WasmFeatures,
+    WasmModuleResources,
 };
 use crate::{prelude::*, CompositeInnerType, Ordering};
 use core::ops::{Deref, DerefMut};
@@ -477,7 +478,7 @@ impl OperatorValidator {
         &'validator mut self,
         resources: &'resources T,
         offset: usize,
-    ) -> impl VisitOperator<'a, Output = Result<()>> + ModuleArity + 'validator
+    ) -> impl VisitOperator<'a, Output = Result<()>> + ModuleArity + FrameStack + 'validator
     where
         T: WasmModuleResources,
         'resources: 'validator,
@@ -4347,5 +4348,14 @@ where
 
     fn label_block(&self, depth: u32) -> Option<(BlockType, FrameKind)> {
         self.0.jump(depth).ok()
+    }
+}
+
+impl<R> FrameStack for WasmProposalValidator<'_, '_, R>
+where
+    R: WasmModuleResources,
+{
+    fn current_frame(&self) -> Option<&FrameKind> {
+        Some(&self.0.control.last()?.kind)
     }
 }
