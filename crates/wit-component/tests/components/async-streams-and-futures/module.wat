@@ -1,6 +1,6 @@
 (module
-  (func (import "$root" "[async-lower]foo") (param i32 i32) (result i32))
-  (func (import "foo:foo/bar" "[async-lower]foo") (param i32 i32) (result i32))
+  (func (import "$root" "[async-lower]foo") (param i32 i32 i32) (result i32))
+  (func (import "foo:foo/bar" "[async-lower]foo") (param i32 i32 i32) (result i32))
   (func (import "$root" "[stream-new-2]foo") (result i64))
   (func (import "$root" "[stream-read-2]foo") (param i32 i32 i32) (result i32))
   (func (import "$root" "[stream-write-2]foo") (param i32 i32 i32) (result i32))

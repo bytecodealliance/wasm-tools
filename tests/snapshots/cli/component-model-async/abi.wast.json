@@ -1,0 +1,23 @@
+{
+  "source_filename": "tests/cli/component-model-async/abi.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 4,
+      "filename": "abi.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 46,
+      "filename": "abi.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 114,
+      "filename": "abi.2.wasm",
+      "module_type": "binary"
+    }
+  ]
+}
