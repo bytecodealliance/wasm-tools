@@ -1,0 +1,27 @@
+# In this project, we use CODEOWNERS to identify people who are likely to know
+# who should review a pull request.
+#
+# People listed in this file are committing to respond in a timely fashion to
+# PRs in the selected areas. However, that response doesn't have to be a full
+# code review; it could also take any of these forms:
+#
+# - "I intend to review this but I can't yet. Please leave me a message if I
+#   haven't responded by (a specific date in the near future)."
+#
+# - "I think (a specific other contributor) should review this." (Note that the
+#   best reviewer for a PR may not necessarily be listed in this file.)
+#
+# People must only be added to this file if they've agreed to provide one of
+# the above responses in a reasonable amount of time for every PR to which
+# they're assigned.
+#
+# We only ask for this commitment from people who are employed full-time to
+# work on this project. We gratefully welcome reviews from other contributors,
+# but we don't believe it's fair to ask volunteers to respond quickly.
+
+* @bytecodealliance/wasm-tools-default-reviewers
+
+# If, in the future, someone's interested in helping out with one crate but not
+# others then something like this would be configured:
+#
+# /crates/wasmparser   @bytecodealliance/wasm-tools-wasmparser-reviewers
