@@ -584,33 +584,38 @@ impl<'a> InterfaceGenerator<'a> {
 
         let mut parts = Vec::new();
         while parts.len() < self.generator.config.max_interface_items && u.arbitrary()? {
+            let mut part = String::new();
+            if let Some(annotation) = self.gen_feature_annotation(u)? {
+                part.push_str(&annotation);
+                part.push_str("\n");
+            }
+
             match u.arbitrary()? {
                 Generate::Use => {
-                    let mut part = String::new();
-                    if self.gen_use(u, &mut part, world_name)? {
-                        parts.push(part);
+                    if !self.gen_use(u, &mut part, world_name)? {
+                        continue;
                     }
                 }
                 Generate::Type => {
                     let name = self.gen_unique_name(u)?;
-                    let (ty, mut typedef) = self.gen_typedef(u, &name)?;
+                    let ty = self.gen_typedef(u, &name, &mut part)?;
                     let is_resource = ty.is_resource;
                     self.types_in_interface.push(ty);
                     if is_resource {
                         if u.arbitrary()? {
-                            typedef.push_str(" {\n");
-                            self.gen_resource_funcs(&name, u, &mut typedef)?;
-                            typedef.push_str("}");
+                            part.push_str(" {\n");
+                            self.gen_resource_funcs(&name, u, &mut part)?;
+                            part.push_str("}");
                         } else {
-                            typedef.push_str(";");
+                            part.push_str(";");
                         }
                     }
-                    parts.push(typedef);
                 }
                 Generate::Function => {
-                    parts.push(self.gen_func(u)?);
+                    self.gen_func(u, &mut part)?;
                 }
             }
+            parts.push(part);
         }
 
         shuffle(u, &mut parts)?;
@@ -752,8 +757,7 @@ impl<'a> InterfaceGenerator<'a> {
 
                 ItemKind::Type => {
                     let name = name.unwrap();
-                    let (ty, typedef) = self.gen_typedef(u, &name)?;
-                    part = typedef;
+                    let ty = self.gen_typedef(u, &name, &mut part)?;
                     let is_resource = ty.is_resource;
                     self.types_in_interface.push(ty);
 
@@ -919,11 +923,6 @@ impl<'a> InterfaceGenerator<'a> {
         part: &mut String,
         world_name: Option<&str>,
     ) -> Result<bool> {
-        if let Some(annotation) = self.gen_feature_annotation(u)? {
-            part.push_str(&annotation);
-            part.push_str("\n");
-        }
-
         let mut path = String::new();
         let (_name, _id, types) =
             match self.generator.gen_interface_path(u, self.file, &mut path)? {
@@ -964,7 +963,12 @@ impl<'a> InterfaceGenerator<'a> {
         Ok(true)
     }
 
-    fn gen_typedef(&mut self, u: &mut Unstructured<'_>, name: &str) -> Result<(Type, String)> {
+    fn gen_typedef(
+        &mut self,
+        u: &mut Unstructured<'_>,
+        name: &str,
+        ret: &mut String,
+    ) -> Result<Type> {
         #[derive(Arbitrary)]
         pub enum Kind {
             Record,
@@ -976,12 +980,6 @@ impl<'a> InterfaceGenerator<'a> {
         }
 
         let mut fuel = self.generator.config.max_type_size;
-        let mut ret = String::new();
-
-        if let Some(annotation) = self.gen_feature_annotation(u)? {
-            ret.push_str(&annotation);
-            ret.push_str("\n");
-        }
 
         let mut is_resource = false;
         match u.arbitrary()? {
@@ -993,7 +991,7 @@ impl<'a> InterfaceGenerator<'a> {
                     ret.push_str("  %");
                     ret.push_str(&self.gen_unique_name(u)?);
                     ret.push_str(": ");
-                    self.gen_type(u, &mut fuel, &mut ret)?;
+                    self.gen_type(u, &mut fuel, ret)?;
                     ret.push_str(",\n");
                 }
                 ret.push_str("}");
@@ -1007,7 +1005,7 @@ impl<'a> InterfaceGenerator<'a> {
                     ret.push_str(&self.gen_unique_name(u)?);
                     if u.arbitrary()? {
                         ret.push_str("(");
-                        self.gen_type(u, &mut fuel, &mut ret)?;
+                        self.gen_type(u, &mut fuel, ret)?;
                         ret.push_str(")");
                     }
                     ret.push_str(",\n");
@@ -1040,7 +1038,7 @@ impl<'a> InterfaceGenerator<'a> {
                 ret.push_str("type %");
                 ret.push_str(name);
                 ret.push_str(" = ");
-                self.gen_type(u, &mut fuel, &mut ret)?;
+                self.gen_type(u, &mut fuel, ret)?;
                 ret.push_str(";");
             }
             Kind::Resource => {
@@ -1050,12 +1048,11 @@ impl<'a> InterfaceGenerator<'a> {
             }
         }
 
-        let ty = Type {
+        Ok(Type {
             size: self.generator.config.max_type_size - fuel,
             is_resource,
             name: name.to_string(),
-        };
-        Ok((ty, ret))
+        })
     }
 
     fn gen_type(
@@ -1237,19 +1234,12 @@ impl<'a> InterfaceGenerator<'a> {
         Ok(())
     }
 
-    fn gen_func(&mut self, u: &mut Unstructured<'_>) -> Result<String> {
-        let mut ret = String::new();
-
-        if let Some(annotation) = self.gen_feature_annotation(u)? {
-            ret.push_str(&annotation);
-            ret.push_str("\n");
-        }
-
+    fn gen_func(&mut self, u: &mut Unstructured<'_>, ret: &mut String) -> Result<()> {
         ret.push_str("%");
         ret.push_str(&self.gen_unique_name(u)?);
         ret.push_str(": ");
-        self.gen_func_sig(u, &mut ret, false)?;
-        Ok(ret)
+        self.gen_func_sig(u, ret, false)?;
+        Ok(())
     }
 
     fn gen_func_sig(
