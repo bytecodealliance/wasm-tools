@@ -9,396 +9,396 @@
     },
     {
       "type": "module",
-      "line": 35,
+      "line": 39,
       "filename": "data.1.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 39,
+      "line": 43,
       "filename": "data.2.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 44,
+      "line": 48,
       "filename": "data.3.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 52,
+      "line": 56,
       "filename": "data.4.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 62,
+      "line": 66,
       "filename": "data.5.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 67,
+      "line": 71,
       "filename": "data.6.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 73,
+      "line": 77,
       "filename": "data.7.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 78,
+      "line": 82,
       "filename": "data.8.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 85,
+      "line": 89,
       "filename": "data.9.wasm",
       "module_type": "binary",
       "text": "unknown global"
     },
     {
       "type": "assert_invalid",
-      "line": 89,
+      "line": 93,
       "filename": "data.10.wasm",
       "module_type": "binary",
       "text": "unknown global"
     },
     {
       "type": "module",
-      "line": 96,
+      "line": 100,
       "filename": "data.11.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 101,
+      "line": 105,
       "filename": "data.12.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 107,
+      "line": 111,
       "filename": "data.13.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 112,
+      "line": 116,
       "filename": "data.14.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 116,
+      "line": 120,
       "filename": "data.15.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 121,
+      "line": 125,
       "filename": "data.16.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 126,
+      "line": 130,
       "filename": "data.17.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 131,
+      "line": 135,
       "filename": "data.18.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 135,
+      "line": 139,
       "filename": "data.19.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 140,
+      "line": 144,
       "filename": "data.20.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 145,
+      "line": 149,
       "filename": "data.21.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 150,
+      "line": 154,
       "filename": "data.22.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 155,
+      "line": 159,
       "filename": "data.23.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 161,
+      "line": 165,
       "filename": "data.24.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 167,
+      "line": 171,
       "filename": "data.25.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 172,
+      "line": 176,
       "filename": "data.26.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_uninstantiable",
-      "line": 180,
+      "line": 184,
       "filename": "data.27.wasm",
       "module_type": "binary",
       "text": "out of bounds memory access"
     },
     {
       "type": "assert_uninstantiable",
-      "line": 188,
+      "line": 192,
       "filename": "data.28.wasm",
       "module_type": "binary",
       "text": "out of bounds memory access"
     },
     {
       "type": "assert_uninstantiable",
-      "line": 196,
+      "line": 200,
       "filename": "data.29.wasm",
       "module_type": "binary",
       "text": "out of bounds memory access"
     },
     {
       "type": "assert_uninstantiable",
-      "line": 203,
+      "line": 207,
       "filename": "data.30.wasm",
       "module_type": "binary",
       "text": "out of bounds memory access"
     },
     {
       "type": "assert_uninstantiable",
-      "line": 210,
+      "line": 214,
       "filename": "data.31.wasm",
       "module_type": "binary",
       "text": "out of bounds memory access"
     },
     {
       "type": "assert_uninstantiable",
-      "line": 227,
+      "line": 231,
       "filename": "data.32.wasm",
       "module_type": "binary",
       "text": "out of bounds memory access"
     },
     {
       "type": "assert_uninstantiable",
-      "line": 236,
+      "line": 240,
       "filename": "data.33.wasm",
       "module_type": "binary",
       "text": "out of bounds memory access"
     },
     {
       "type": "assert_uninstantiable",
-      "line": 243,
+      "line": 247,
       "filename": "data.34.wasm",
       "module_type": "binary",
       "text": "out of bounds memory access"
     },
     {
       "type": "assert_uninstantiable",
-      "line": 251,
+      "line": 255,
       "filename": "data.35.wasm",
       "module_type": "binary",
       "text": "out of bounds memory access"
     },
     {
       "type": "assert_uninstantiable",
-      "line": 259,
+      "line": 263,
       "filename": "data.36.wasm",
       "module_type": "binary",
       "text": "out of bounds memory access"
     },
     {
       "type": "assert_uninstantiable",
-      "line": 267,
+      "line": 271,
       "filename": "data.37.wasm",
       "module_type": "binary",
       "text": "out of bounds memory access"
     },
     {
       "type": "assert_uninstantiable",
-      "line": 274,
+      "line": 278,
       "filename": "data.38.wasm",
       "module_type": "binary",
       "text": "out of bounds memory access"
     },
     {
       "type": "assert_uninstantiable",
-      "line": 282,
+      "line": 286,
       "filename": "data.39.wasm",
       "module_type": "binary",
       "text": "out of bounds memory access"
     },
     {
       "type": "assert_uninstantiable",
-      "line": 289,
+      "line": 293,
       "filename": "data.40.wasm",
       "module_type": "binary",
       "text": "out of bounds memory access"
     },
     {
       "type": "assert_invalid",
-      "line": 299,
+      "line": 303,
       "filename": "data.41.wasm",
       "module_type": "binary",
       "text": "unknown memory"
     },
     {
       "type": "assert_invalid",
-      "line": 307,
+      "line": 311,
       "filename": "data.42.wasm",
       "module_type": "binary",
       "text": "unknown memory 1"
     },
     {
       "type": "assert_invalid",
-      "line": 320,
+      "line": 324,
       "filename": "data.43.wasm",
       "module_type": "binary",
       "text": "unknown memory 0"
     },
     {
       "type": "assert_invalid",
-      "line": 331,
+      "line": 335,
       "filename": "data.44.wasm",
       "module_type": "binary",
       "text": "unknown memory 1"
     },
     {
       "type": "assert_invalid",
-      "line": 343,
+      "line": 347,
       "filename": "data.45.wasm",
       "module_type": "binary",
       "text": "unknown memory 1"
     },
     {
       "type": "assert_invalid",
-      "line": 365,
+      "line": 369,
       "filename": "data.46.wasm",
       "module_type": "binary",
       "text": "unknown memory 1"
     },
     {
       "type": "assert_invalid",
-      "line": 384,
+      "line": 388,
       "filename": "data.47.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 392,
+      "line": 396,
       "filename": "data.48.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 400,
+      "line": 404,
       "filename": "data.49.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 408,
+      "line": 412,
       "filename": "data.50.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 416,
+      "line": 420,
       "filename": "data.51.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 425,
+      "line": 429,
       "filename": "data.52.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 434,
+      "line": 438,
       "filename": "data.53.wasm",
       "module_type": "binary",
       "text": "constant expression required"
     },
     {
       "type": "assert_invalid",
-      "line": 442,
+      "line": 446,
       "filename": "data.54.wasm",
       "module_type": "binary",
       "text": "constant expression required"
     },
     {
       "type": "assert_invalid",
-      "line": 450,
+      "line": 454,
       "filename": "data.55.wasm",
       "module_type": "binary",
       "text": "constant expression required"
     },
     {
       "type": "assert_invalid",
-      "line": 458,
+      "line": 462,
       "filename": "data.56.wasm",
       "module_type": "binary",
       "text": "constant expression required"
     },
     {
       "type": "assert_invalid",
-      "line": 466,
+      "line": 470,
       "filename": "data.57.wasm",
       "module_type": "binary",
       "text": "constant expression required"
     },
     {
       "type": "assert_invalid",
-      "line": 475,
+      "line": 479,
       "filename": "data.58.wasm",
       "module_type": "binary",
       "text": "unknown global 0"
     },
     {
       "type": "assert_invalid",
-      "line": 483,
+      "line": 487,
       "filename": "data.59.wasm",
       "module_type": "binary",
       "text": "unknown global 1"
     },
     {
       "type": "assert_invalid",
-      "line": 492,
+      "line": 496,
       "filename": "data.60.wasm",
       "module_type": "binary",
       "text": "constant expression required"
