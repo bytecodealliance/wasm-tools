@@ -100,7 +100,7 @@
     )
   )
   (export (;7;) "w3" (type 6))
-  (@custom "package-docs" "\00{}")
+  (@custom "package-docs" "\01{}")
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
