@@ -21,7 +21,7 @@ use crate::*;
 use std::collections::HashMap;
 
 pub struct Cloner<'a> {
-    resolve: &'a mut Resolve,
+    pub resolve: &'a mut Resolve,
     prev_owner: TypeOwner,
     new_owner: TypeOwner,
 
@@ -29,6 +29,9 @@ pub struct Cloner<'a> {
     /// types. This deduplicates copying types to ensure that they're only
     /// copied at most once.
     types: HashMap<TypeId, TypeId>,
+
+    /// If `None` then it's inferred from `self.new_owner`.
+    pub new_package: Option<PackageId>,
 }
 
 impl<'a> Cloner<'a> {
@@ -42,6 +45,7 @@ impl<'a> Cloner<'a> {
             new_owner,
             resolve,
             types: Default::default(),
+            new_package: None,
         }
     }
 
@@ -181,11 +185,11 @@ impl<'a> Cloner<'a> {
         for func in new.functions.values_mut() {
             clone.function(func);
         }
-        new.package = Some(match self.new_owner {
+        new.package = Some(self.new_package.unwrap_or_else(|| match self.new_owner {
             TypeOwner::Interface(id) => self.resolve.interfaces[id].package.unwrap(),
             TypeOwner::World(id) => self.resolve.worlds[id].package.unwrap(),
             TypeOwner::None => unreachable!(),
-        });
+        }));
         *id = self.resolve.interfaces.alloc(new);
         assert_eq!(*id, next_id);
     }

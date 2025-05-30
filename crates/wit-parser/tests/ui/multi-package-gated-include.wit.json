@@ -195,13 +195,13 @@
           }
         },
         "stable-resource": {
-          "type": 4
+          "type": 7
         },
         "unversioned-resource": {
-          "type": 5
+          "type": 8
         },
         "unstable-resource": {
-          "type": 6
+          "type": 9
         }
       },
       "exports": {},
@@ -246,13 +246,13 @@
           }
         },
         "stable-resource": {
-          "type": 4
+          "type": 10
         },
         "unversioned-resource": {
-          "type": 5
+          "type": 11
         },
         "unstable-resource": {
-          "type": 6
+          "type": 12
         }
       },
       "exports": {},
@@ -297,13 +297,13 @@
           }
         },
         "stable-resource": {
-          "type": 4
+          "type": 13
         },
         "unversioned-resource": {
-          "type": 5
+          "type": 14
         },
         "unstable-resource": {
-          "type": 6
+          "type": 15
         }
       },
       "exports": {},
@@ -496,6 +496,132 @@
       },
       "owner": {
         "world": 5
+      },
+      "stability": {
+        "unstable": {
+          "feature": "active"
+        }
+      }
+    },
+    {
+      "name": "stable-resource",
+      "kind": {
+        "type": 2
+      },
+      "owner": {
+        "world": 6
+      },
+      "stability": {
+        "unstable": {
+          "feature": "active"
+        }
+      }
+    },
+    {
+      "name": "unversioned-resource",
+      "kind": {
+        "type": 1
+      },
+      "owner": {
+        "world": 6
+      },
+      "stability": {
+        "unstable": {
+          "feature": "active"
+        }
+      }
+    },
+    {
+      "name": "unstable-resource",
+      "kind": {
+        "type": 0
+      },
+      "owner": {
+        "world": 6
+      },
+      "stability": {
+        "unstable": {
+          "feature": "active"
+        }
+      }
+    },
+    {
+      "name": "stable-resource",
+      "kind": {
+        "type": 2
+      },
+      "owner": {
+        "world": 7
+      },
+      "stability": {
+        "unstable": {
+          "feature": "active"
+        }
+      }
+    },
+    {
+      "name": "unversioned-resource",
+      "kind": {
+        "type": 1
+      },
+      "owner": {
+        "world": 7
+      },
+      "stability": {
+        "unstable": {
+          "feature": "active"
+        }
+      }
+    },
+    {
+      "name": "unstable-resource",
+      "kind": {
+        "type": 0
+      },
+      "owner": {
+        "world": 7
+      },
+      "stability": {
+        "unstable": {
+          "feature": "active"
+        }
+      }
+    },
+    {
+      "name": "stable-resource",
+      "kind": {
+        "type": 2
+      },
+      "owner": {
+        "world": 8
+      },
+      "stability": {
+        "unstable": {
+          "feature": "active"
+        }
+      }
+    },
+    {
+      "name": "unversioned-resource",
+      "kind": {
+        "type": 1
+      },
+      "owner": {
+        "world": 8
+      },
+      "stability": {
+        "unstable": {
+          "feature": "active"
+        }
+      }
+    },
+    {
+      "name": "unstable-resource",
+      "kind": {
+        "type": 0
+      },
+      "owner": {
+        "world": 8
       },
       "stability": {
         "unstable": {
