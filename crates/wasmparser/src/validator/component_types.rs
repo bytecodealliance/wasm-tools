@@ -284,10 +284,22 @@ impl PrimitiveValType {
                 }
             }
 
-            (PrimitiveValType::ErrorContext, _) => bail!(
-                offset,
-                "GC support for error-context is not yet implemented",
-            ),
+            (PrimitiveValType::ErrorContext, _) => {
+                if let Some(r) = core.as_ref_type() {
+                    if let HeapType::Abstract {
+                        shared: _,
+                        ty: AbstractHeapType::Extern,
+                    } = r.heap_type()
+                    {
+                        return Ok(());
+                    }
+                }
+                bail!(
+                    offset,
+                    "expected to lower component `error-context` type into core `(ref null? extern)` type, but \
+                     found `{core}`",
+                )
+            }
         }
     }
 }
