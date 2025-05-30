@@ -7,7 +7,10 @@ use crate::validator::types::{
     CoreTypeId, EntityType, SnapshotList, TypeAlloc, TypeData, TypeIdentifier, TypeInfo, TypeList,
     Types, TypesKind, TypesRef, TypesRefKind,
 };
-use crate::{prelude::*, AbstractHeapType, CompositeInnerType, HeapType, RefType, StorageType};
+use crate::{
+    prelude::*, AbstractHeapType, CompositeInnerType, HeapType, RefType, StorageType,
+    StringEncoding,
+};
 use crate::{
     BinaryReaderError, FuncType, MemoryType, PrimitiveValType, Result, TableType, ValType,
 };
@@ -127,6 +130,164 @@ impl Default for LoweredSignature {
         Self {
             params: LoweredTypes::new(MAX_FLAT_FUNC_PARAMS),
             results: LoweredTypes::new(MAX_FLAT_FUNC_RESULTS),
+        }
+    }
+}
+
+impl PrimitiveValType {
+    pub(crate) fn lower_gc(
+        &self,
+        types: &TypeList,
+        _abi: Abi,
+        options: &CanonicalOptions,
+        offset: usize,
+        core: ArgOrField,
+    ) -> Result<()> {
+        match (self, core) {
+            (
+                PrimitiveValType::Bool,
+                ArgOrField::Field(StorageType::I8) | ArgOrField::Arg(ValType::I32),
+            ) => Ok(()),
+            (PrimitiveValType::Bool, ArgOrField::Arg(_)) => bail!(
+                offset,
+                "expected to lower component `bool` type to core `i32` type, found `{core}`"
+            ),
+            (PrimitiveValType::Bool, ArgOrField::Field(_)) => bail!(
+                offset,
+                "expected to lower component `bool` type to core `i8` type, found `{core}`"
+            ),
+
+            (
+                PrimitiveValType::S8,
+                ArgOrField::Field(StorageType::I8) | ArgOrField::Arg(ValType::I32),
+            ) => Ok(()),
+            (PrimitiveValType::S8, ArgOrField::Arg(_)) => bail!(
+                offset,
+                "expected to lower component `s8` type to core `i32` type, found `{core}`"
+            ),
+            (PrimitiveValType::S8, ArgOrField::Field(_)) => bail!(
+                offset,
+                "expected to lower component `s8` type to core `i8` type, found `{core}`"
+            ),
+
+            (
+                PrimitiveValType::U8,
+                ArgOrField::Field(StorageType::I8) | ArgOrField::Arg(ValType::I32),
+            ) => Ok(()),
+            (PrimitiveValType::U8, ArgOrField::Arg(_)) => bail!(
+                offset,
+                "expected to lower component `u8` type to core `i32` type, found `{core}`"
+            ),
+            (PrimitiveValType::U8, ArgOrField::Field(_)) => bail!(
+                offset,
+                "expected to lower component `u8` type to core `i8` type, found `{core}`"
+            ),
+
+            (
+                PrimitiveValType::S16,
+                ArgOrField::Field(StorageType::I16) | ArgOrField::Arg(ValType::I32),
+            ) => Ok(()),
+            (PrimitiveValType::S16, ArgOrField::Arg(_)) => bail!(
+                offset,
+                "expected to lower component `s16` type to core `i32` type, found `{core}`"
+            ),
+            (PrimitiveValType::S16, ArgOrField::Field(_)) => bail!(
+                offset,
+                "expected to lower component `s16` type to core `i16` type, found `{core}`"
+            ),
+
+            (
+                PrimitiveValType::U16,
+                ArgOrField::Field(StorageType::I16) | ArgOrField::Arg(ValType::I32),
+            ) => Ok(()),
+            (PrimitiveValType::U16, ArgOrField::Arg(_)) => bail!(
+                offset,
+                "expected to lower component `u16` type to core `i32` type, found `{core}`"
+            ),
+            (PrimitiveValType::U16, ArgOrField::Field(_)) => bail!(
+                offset,
+                "expected to lower component `u16` type to core `i16` type, found `{core}`"
+            ),
+
+            (PrimitiveValType::S32, _) if core.as_val_type() == Some(ValType::I32) => Ok(()),
+            (PrimitiveValType::S32, _) => bail!(
+                offset,
+                "expected to lower component `s32` type to core `i32` type, found `{core}`"
+            ),
+
+            (PrimitiveValType::U32, _) if core.as_val_type() == Some(ValType::I32) => Ok(()),
+            (PrimitiveValType::U32, _) => bail!(
+                offset,
+                "expected to lower component `u32` type to core `i32` type, found `{core}`"
+            ),
+
+            (PrimitiveValType::S64, _) if core.as_val_type() == Some(ValType::I64) => Ok(()),
+            (PrimitiveValType::S64, _) => bail!(
+                offset,
+                "expected to lower component `s64` type to core `i64` type, found `{core}`"
+            ),
+
+            (PrimitiveValType::U64, _) if core.as_val_type() == Some(ValType::I64) => Ok(()),
+            (PrimitiveValType::U64, _) => bail!(
+                offset,
+                "expected to lower component `u64` type to core `i64` type, found `{core}`"
+            ),
+
+            (PrimitiveValType::F32, _) if core.as_val_type() == Some(ValType::F32) => Ok(()),
+            (PrimitiveValType::F32, _) => bail!(
+                offset,
+                "expected to lower component `f32` type to core `f32` type, found `{core}`"
+            ),
+
+            (PrimitiveValType::F64, _) if core.as_val_type() == Some(ValType::F64) => Ok(()),
+            (PrimitiveValType::F64, _) => bail!(
+                offset,
+                "expected to lower component `f64` type to core `f64` type, found `{core}`"
+            ),
+
+            (PrimitiveValType::Char, _) if core.as_val_type() == Some(ValType::I32) => Ok(()),
+            (PrimitiveValType::Char, _) => bail!(
+                offset,
+                "expected to lower component `char` type to core `i32` type, found `{core}`"
+            ),
+
+            (PrimitiveValType::String, _) => {
+                let type_mismatch_err = || {
+                    let expected = match options.string_encoding {
+                        StringEncoding::Utf8 | StringEncoding::CompactUtf16 => {
+                            "(ref null? (array (mut? i8)))"
+                        }
+                        StringEncoding::Utf16 => "(ref null? (array (mut? i16)))",
+                    };
+                    bail!(
+                        offset,
+                        "expected to lower component `string` type to core `{expected}` \
+                         type, found `{core}`"
+                    )
+                };
+
+                match core.as_concrete_ref() {
+                    Some(id) => match types[id].composite_type.inner {
+                        CompositeInnerType::Array(ty) => {
+                            match (options.string_encoding, ty.0.element_type) {
+                                (
+                                    StringEncoding::Utf8 | StringEncoding::CompactUtf16,
+                                    StorageType::I8,
+                                )
+                                | (StringEncoding::Utf16, StorageType::I16) => Ok(()),
+                                _ => type_mismatch_err(),
+                            }
+                        }
+                        _ => type_mismatch_err(),
+                    },
+                    _ => type_mismatch_err(),
+                }
+            }
+
+            (PrimitiveValType::ErrorContext, _) => bail!(
+                offset,
+                "GC support for error-context is not yet implemented",
+            ),
         }
     }
 }
