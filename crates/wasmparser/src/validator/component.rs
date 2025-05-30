@@ -215,6 +215,16 @@ pub(crate) enum StringEncoding {
     CompactUtf16,
 }
 
+impl core::fmt::Display for StringEncoding {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(match self {
+            Self::Utf8 => "utf8",
+            Self::Utf16 => "utf16",
+            Self::CompactUtf16 => "latin1-utf16",
+        })
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) enum Concurrency {
     /// Synchronous.
@@ -2371,12 +2381,18 @@ impl ComponentState {
                         Some(existing) => {
                             bail!(
                                 offset,
-                                "canonical encoding option `{}` conflicts with option `{}`",
-                                display(existing),
+                                "canonical encoding option `{existing}` conflicts with option `{}`",
                                 display(*option),
                             )
                         }
-                        None => encoding = Some(*option),
+                        None => {
+                            encoding = Some(match option {
+                                CanonicalOption::UTF8 => StringEncoding::Utf8,
+                                CanonicalOption::UTF16 => StringEncoding::Utf16,
+                                CanonicalOption::CompactUTF16 => StringEncoding::CompactUtf16,
+                                _ => unreachable!(),
+                            });
+                        }
                     }
                 }
                 CanonicalOption::Memory(idx) => {
@@ -2511,13 +2527,7 @@ impl ComponentState {
             }
         }
 
-        let string_encoding = match encoding {
-            None => StringEncoding::default(),
-            Some(CanonicalOption::UTF8) => StringEncoding::Utf8,
-            Some(CanonicalOption::UTF16) => StringEncoding::Utf16,
-            Some(CanonicalOption::CompactUTF16) => StringEncoding::CompactUtf16,
-            Some(_) => unreachable!(),
-        };
+        let string_encoding = encoding.unwrap_or_default();
 
         let concurrency = match (is_async, callback, post_return.is_some()) {
             (false, Some(_), _) => {
