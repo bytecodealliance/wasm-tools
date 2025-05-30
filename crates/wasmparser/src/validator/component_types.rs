@@ -1153,11 +1153,7 @@ impl ArgOrField {
     }
 
     pub(crate) fn as_ref_type(self) -> Option<RefType> {
-        match self {
-            ArgOrField::Arg(ValType::Ref(r))
-            | ArgOrField::Field(StorageType::Val(ValType::Ref(r))) => Some(r),
-            _ => None,
-        }
+        self.as_val_type()?.as_reference_type()
     }
 
     pub(crate) fn as_concrete_ref(self) -> Option<CoreTypeId> {
