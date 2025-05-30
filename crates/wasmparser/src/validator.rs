@@ -50,8 +50,6 @@ fn test_validate() {
 #[cfg(feature = "component-model")]
 mod component;
 #[cfg(feature = "component-model")]
-pub(crate) use component::{CanonicalOptions, StringEncoding};
-#[cfg(feature = "component-model")]
 pub mod component_types;
 mod core;
 mod func;

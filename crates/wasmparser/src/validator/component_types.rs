@@ -7,10 +7,8 @@ use crate::validator::types::{
     CoreTypeId, EntityType, SnapshotList, TypeAlloc, TypeData, TypeIdentifier, TypeInfo, TypeList,
     Types, TypesKind, TypesRef, TypesRefKind,
 };
-use crate::{
-    prelude::*, AbstractHeapType, CompositeInnerType, HeapType, RefType, StorageType,
-    StringEncoding,
-};
+use crate::validator::StringEncoding;
+use crate::{prelude::*, AbstractHeapType, CompositeInnerType, HeapType, RefType, StorageType};
 use crate::{
     BinaryReaderError, FuncType, MemoryType, PrimitiveValType, Result, TableType, ValType,
 };
