@@ -439,7 +439,7 @@ impl Generator {
         file: &'a mut File,
         dst: &mut String,
         includes: &mut HashSet<String>,
-    ) -> Result<Option<&'a str>> {
+    ) -> Result<WorldPath<'a>> {
         enum Choice {
             Worlds,
             Packages,
@@ -453,7 +453,7 @@ impl Generator {
         }
 
         if choices.is_empty() {
-            return Ok(None);
+            return Ok(WorldPath::None);
         }
         Ok(match u.choose(&choices)? {
             Choice::Worlds => {
@@ -461,7 +461,7 @@ impl Generator {
                 let name = &file.worlds[i];
 
                 if !includes.insert(name.to_string()) {
-                    return Ok(None);
+                    return Ok(WorldPath::None);
                 }
 
                 dst.push_str("%");
@@ -472,7 +472,7 @@ impl Generator {
 
                 file.namespace
                     .insert(name.clone(), (DefinitionLevel::File, DefinitionKind::World));
-                Some(name)
+                WorldPath::Local(name)
             }
             Choice::Packages => {
                 let pkg = u.choose(&self.packages.packages_with_worlds)?;
@@ -490,7 +490,7 @@ impl Generator {
                 if let Some(version) = &pkg.name.version {
                     dst.push_str(&format!("@{version}"));
                 }
-                Some(w)
+                WorldPath::Remote
             }
         })
     }
@@ -782,48 +782,52 @@ impl<'a> InterfaceGenerator<'a> {
 
                 ItemKind::Include => {
                     part.push_str("include ");
-                    let name = match self.generator.gen_world_path(
-                        u,
-                        self.file,
-                        &mut part,
-                        &mut includes,
-                    )? {
-                        Some(name) => name,
-                        None => continue,
-                    };
-
-                    // rename things if there is an naming conflict with the include and the world we are going into
-                    // this is a best effort, there are some edge cases where we might not catch something
-                    // in that case we just throw away the generated world for fuzzing
-                    let current_world = PackageWorldKey {
-                        package_name: self.package_name.to_owned(),
-                        world_name: world_name.to_owned(),
-                    };
-                    let include_world = PackageWorldKey {
-                        package_name: self.package_name.to_owned(),
-                        world_name: name.to_owned(),
-                    };
-                    let intersection = self
+                    match self
                         .generator
-                        .packages
-                        .intersect(current_world, include_world);
-                    if let Some(names) = intersection {
-                        part.push_str(" with { %");
+                        .gen_world_path(u, self.file, &mut part, &mut includes)?
+                    {
+                        WorldPath::Local(name) => {
+                            // rename things if there is an naming conflict with
+                            // the include and the world we are going into this
+                            // is a best effort, there are some edge cases where
+                            // we might not catch something in that case we just
+                            // throw away the generated world for fuzzing
+                            let current_world = PackageWorldKey {
+                                package_name: self.package_name.to_owned(),
+                                world_name: world_name.to_owned(),
+                            };
+                            let include_world = PackageWorldKey {
+                                package_name: self.package_name.to_owned(),
+                                world_name: name.to_owned(),
+                            };
+                            let intersection = self
+                                .generator
+                                .packages
+                                .intersect(current_world, include_world);
+                            if let Some(names) = intersection {
+                                part.push_str(" with { %");
 
-                        for n in names {
-                            part.push_str(n);
-                            part.push_str(" as %");
-                            // we know it is in one of the worlds, lets add it here just for good measure
-                            self.unique_names.insert(n.to_string());
-                            let new_name = gen_unique_name(u, &mut self.unique_names)?;
-                            part.push_str(&new_name);
-                            part.push_str(",");
+                                for n in names {
+                                    part.push_str(n);
+                                    part.push_str(" as %");
+                                    // we know it is in one of the worlds, lets
+                                    // add it here just for good measure
+                                    self.unique_names.insert(n.to_string());
+                                    let new_name = gen_unique_name(u, &mut self.unique_names)?;
+                                    part.push_str(&new_name);
+                                    part.push_str(",");
+                                }
+                                part.push_str("}");
+                            } else {
+                                // ; is only used if not renaming
+                                part.push_str(";");
+                            }
                         }
-                        part.push_str("}");
-                    } else {
-                        // ; is only used if not renaming
-                        part.push_str(";");
-                    }
+                        WorldPath::Remote => {
+                            part.push_str(";");
+                        }
+                        WorldPath::None => continue,
+                    };
                 }
             }
             parts.push(part);
@@ -1361,6 +1365,12 @@ enum DefinitionLevel {
 enum DefinitionKind {
     World,
     Interface,
+}
+
+enum WorldPath<'a> {
+    None,
+    Local(&'a str),
+    Remote,
 }
 
 impl File {
