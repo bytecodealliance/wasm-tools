@@ -1,0 +1,12 @@
+(component
+  (core type $ty (;0;) (func (param externref)))
+  (type (;0;)
+    (instance
+      (type (;0;) (func (param "x" error-context)))
+      (export (;0;) "f" (func (type 0)))
+    )
+  )
+  (import "i" (instance $i (;0;) (type 0)))
+  (alias export $i "f" (func (;0;)))
+  (core func (;0;) (canon lower (func 0) gc (core-type $ty)))
+)

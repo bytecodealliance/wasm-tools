@@ -1,0 +1,7 @@
+(component
+  (type (;0;) (func (param "x" string)))
+  (import "f" (func $f (;0;) (type 0)))
+  (core type $s (;0;) (array i8))
+  (core type $ty (;1;) (func (param (ref $s))))
+  (core func (;0;) (canon lower (func $f) gc string-encoding=latin1+utf16 (core-type $ty)))
+)

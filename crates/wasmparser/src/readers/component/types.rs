@@ -1,9 +1,8 @@
 use crate::limits::*;
 use crate::prelude::*;
-use crate::RecGroup;
 use crate::{
     BinaryReader, ComponentAlias, ComponentExportName, ComponentImport, ComponentTypeRef,
-    FromReader, Import, Result, SectionLimited, TypeRef, ValType,
+    FromReader, Import, RecGroup, Result, SectionLimited, TypeRef, ValType,
 };
 use core::fmt;
 
