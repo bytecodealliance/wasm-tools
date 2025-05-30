@@ -27,7 +27,7 @@
                           (export "f" (func (param "x" $tup')))))
     (core func (canon lower (func $i "f") gc string-encoding=utf8 (core-type $ty)))
   )
-  "core `struct` has 1 fields, but component tuple has 2 fields"
+  "core `struct` has 1 fields, but component `tuple` has 2 fields"
 )
 
 (assert_invalid
@@ -45,7 +45,7 @@
                           (export "f" (func (param "x" $tup')))))
     (core func (canon lower (func $i "f") gc string-encoding=utf8 (core-type $ty)))
   )
-  "core `struct` has 3 fields, but component tuple has 2 fields"
+  "core `struct` has 3 fields, but component `tuple` has 2 fields"
 )
 
 (assert_invalid
@@ -59,5 +59,5 @@
                           (export "f" (func (param "x" $tup')))))
     (core func (canon lower (func $i "f") gc string-encoding=utf8 (core-type $ty)))
   )
-  "expected to lower component tuple type to core `(ref null? (struct ...))`, but found `i32`"
+  "expected to lower component `tuple` type to core `(ref null? (struct ...))`, but found `i32`"
 )

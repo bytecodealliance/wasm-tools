@@ -1350,35 +1350,15 @@ impl RecordType {
         offset: usize,
         core: ArgOrField,
     ) -> Result<()> {
-        let id = match core.as_concrete_ref() {
-            Some(id) => id,
-            None => bail!(
-                offset,
-                "expected to lower component `record` type to core `(ref null? (struct ...))`, \
-                 but found `{core}`",
-            ),
-        };
-
-        match &types[id].composite_type.inner {
-            CompositeInnerType::Struct(ty) => {
-                ensure!(
-                    ty.fields.len() == self.fields.len(),
-                    offset,
-                    "core `struct` has {} fields, but component `record` has {} fields",
-                    ty.fields.len(),
-                    self.fields.len(),
-                );
-                for (core, comp) in ty.fields.iter().zip(self.fields.values()) {
-                    comp.lower_gc(types, abi, options, offset, core.element_type.into())?;
-                }
-                Ok(())
-            }
-            other => bail!(
-                offset,
-                "expected to lower component `record` type to core `(ref null? (struct ...))`, \
-                 but found `{other}`",
-            ),
-        }
+        lower_gc_product_type(
+            self.fields.values(),
+            types,
+            abi,
+            options,
+            offset,
+            core,
+            "record",
+        )
     }
 }
 
@@ -1421,35 +1401,15 @@ impl TupleType {
         offset: usize,
         core: ArgOrField,
     ) -> core::result::Result<(), BinaryReaderError> {
-        let id = match core.as_concrete_ref() {
-            Some(id) => id,
-            None => bail!(
-                offset,
-                "expected to lower component tuple type to core `(ref null? (struct ...))`, \
-                 but found `{core}`",
-            ),
-        };
-
-        match &types[id].composite_type.inner {
-            CompositeInnerType::Struct(ty) => {
-                ensure!(
-                    ty.fields.len() == self.types.len(),
-                    offset,
-                    "core `struct` has {} fields, but component tuple has {} fields",
-                    ty.fields.len(),
-                    self.types.len(),
-                );
-                for (core, comp) in ty.fields.iter().zip(self.types.iter()) {
-                    comp.lower_gc(types, abi, options, offset, core.element_type.into())?;
-                }
-                Ok(())
-            }
-            other => bail!(
-                offset,
-                "expected to lower component tuple type to core `(ref null? (struct ...))`, \
-                 but found `{other}`",
-            ),
-        }
+        lower_gc_product_type(
+            self.types.iter(),
+            types,
+            abi,
+            options,
+            offset,
+            core,
+            "tuple",
+        )
     }
 }
 
@@ -1732,6 +1692,46 @@ impl ComponentDefinedType {
             }
         }
     }
+}
+
+/// Shared helper for lowering component record and tuple types to core GC
+/// types.
+fn lower_gc_product_type<'a, I>(
+    fields: I,
+    types: &TypeList,
+    abi: Abi,
+    options: &CanonicalOptions,
+    offset: usize,
+    core: ArgOrField,
+    kind: &str,
+) -> core::result::Result<(), BinaryReaderError>
+where
+    I: IntoIterator<Item = &'a ComponentValType>,
+    I::IntoIter: ExactSizeIterator,
+{
+    let fields = fields.into_iter();
+    let fields_len = fields.len();
+
+    if let Some(id) = core.as_concrete_ref() {
+        if let CompositeInnerType::Struct(ty) = &types[id].composite_type.inner {
+            ensure!(
+                ty.fields.len() == fields_len,
+                offset,
+                "core `struct` has {} fields, but component `{kind}` has {fields_len} fields",
+                ty.fields.len(),
+            );
+            for (core, comp) in ty.fields.iter().zip(fields) {
+                comp.lower_gc(types, abi, options, offset, core.element_type.into())?;
+            }
+            return Ok(());
+        }
+    }
+
+    bail!(
+        offset,
+        "expected to lower component `{kind}` type to core `(ref null? (struct ...))`, \
+         but found `{core}`",
+    )
 }
 
 /// An opaque identifier intended to be used to distinguish whether two
