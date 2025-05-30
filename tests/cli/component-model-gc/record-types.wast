@@ -32,7 +32,7 @@
   (core type $ty (func (param (ref $record))))
 
   (import "i" (instance $i
-                (export $record' "ty" (type (eq $record)))
+                (export "ty" (type $record' (eq $record)))
                 (export "f" (func (param "x" $record')))))
   (core func (canon lower (func $i "f") gc string-encoding=utf8 (core-type $ty)))
 )
@@ -46,7 +46,7 @@
     (core type $ty (func (param (ref $record))))
 
     (import "i" (instance $i
-                  (export $record' "ty" (type (eq $record)))
+                  (export "ty" (type  $record' (eq $record)))
                   (export "f" (func (param "x" $record')))))
     (core func (canon lower (func $i "f") gc string-encoding=utf8 (core-type $ty)))
   )
@@ -62,7 +62,7 @@
     (core type $ty (func (param (ref $record))))
 
     (import "i" (instance $i
-                  (export $record' "ty" (type (eq $record)))
+                  (export "ty" (type $record' (eq $record)))
                   (export "f" (func (param "x" $record')))))
     (core func (canon lower (func $i "f") gc string-encoding=utf8 (core-type $ty)))
   )
@@ -77,7 +77,7 @@
     (core type $ty (func (param i32)))
 
     (import "i" (instance $i
-                  (export $record' "ty" (type (eq $record)))
+                  (export "ty" (type $record' (eq $record)))
                   (export "f" (func (param "x" $record')))))
     (core func (canon lower (func $i "f") gc string-encoding=utf8 (core-type $ty)))
   )

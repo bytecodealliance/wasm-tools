@@ -4,7 +4,7 @@
   (core type $ty (func (param externref)))
 
   (import "i" (instance $i
-                        (export $resource "r" (type (sub resource)))
+                        (export "r" (type $resource (sub resource)))
                         (export "f" (func (param "x" (own $resource))))))
   (core func (canon lower (func $i "f") gc string-encoding=utf8 (core-type $ty)))
 )
@@ -14,7 +14,7 @@
      (core type $ty (func (param anyref)))
 
      (import "i" (instance $i
-                           (export $resource "r" (type (sub resource)))
+                           (export "r" (type $resource (sub resource)))
                            (export "f" (func (param "x" (own $resource))))))
      (core func (canon lower (func $i "f") gc string-encoding=utf8 (core-type $ty)))
   )
@@ -25,7 +25,7 @@
   (core type $ty (func (param externref)))
 
   (import "i" (instance $i
-                        (export $resource "r" (type (sub resource)))
+                        (export "r" (type $resource (sub resource)))
                         (export "f" (func (param "x" (borrow $resource))))))
   (core func (canon lower (func $i "f") gc string-encoding=utf8 (core-type $ty)))
 )
@@ -35,7 +35,7 @@
      (core type $ty (func (param anyref)))
 
      (import "i" (instance $i
-                           (export $resource "r" (type (sub resource)))
+                           (export "r" (type $resource (sub resource)))
                            (export "f" (func (param "x" (borrow $resource))))))
      (core func (canon lower (func $i "f") gc string-encoding=utf8 (core-type $ty)))
   )

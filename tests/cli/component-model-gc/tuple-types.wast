@@ -9,7 +9,7 @@
   (core type $ty (func (param (ref $tup))))
 
   (import "i" (instance $i
-                (export $tup' "ty" (type (eq $tup)))
+                (export "ty" (type $tup' (eq $tup)))
                 (export "f" (func (param "x" $tup')))))
   (core func (canon lower (func $i "f") gc string-encoding=utf8 (core-type $ty)))
 )
@@ -23,7 +23,7 @@
     (core type $ty (func (param (ref $tup))))
 
     (import "i" (instance $i
-                          (export $tup' "ty" (type (eq $tup)))
+                          (export "ty" (type $tup' (eq $tup)))
                           (export "f" (func (param "x" $tup')))))
     (core func (canon lower (func $i "f") gc string-encoding=utf8 (core-type $ty)))
   )
@@ -41,7 +41,7 @@
     (core type $ty (func (param (ref $tup))))
 
     (import "i" (instance $i
-                          (export $tup' "ty" (type (eq $tup)))
+                          (export "ty" (type $tup' (eq $tup)))
                           (export "f" (func (param "x" $tup')))))
     (core func (canon lower (func $i "f") gc string-encoding=utf8 (core-type $ty)))
   )
@@ -55,7 +55,7 @@
     (core type $ty (func (param i32)))
 
     (import "i" (instance $i
-                          (export $tup' "ty" (type (eq $tup)))
+                          (export "ty" (type $tup' (eq $tup)))
                           (export "f" (func (param "x" $tup')))))
     (core func (canon lower (func $i "f") gc string-encoding=utf8 (core-type $ty)))
   )

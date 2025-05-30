@@ -8,7 +8,7 @@
   (core type $ty (func (param (ref $list))))
 
   (import "i" (instance $i
-                (export $list' "ty" (type (eq $list)))
+                (export "ty" (type $list' (eq $list)))
                 (export "f" (func (param "x" $list')))))
   (core func (canon lower (func $i "f") gc string-encoding=utf8 (core-type $ty)))
 )
@@ -20,7 +20,7 @@
     (core type $ty (func (param i32)))
 
     (import "i" (instance $i
-                          (export $list' "ty" (type (eq $list)))
+                          (export "ty" (type $list' (eq $list)))
                           (export "f" (func (param "x" $list')))))
     (core func (canon lower (func $i "f") gc string-encoding=utf8 (core-type $ty)))
   )

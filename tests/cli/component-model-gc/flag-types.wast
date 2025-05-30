@@ -6,7 +6,7 @@
   (core type $ty (func (param i32)))
 
   (import "i" (instance $i
-                (export $flags' "ty" (type (eq $flags)))
+                (export "ty" (type $flags' (eq $flags)))
                 (export "f" (func (param "x" $flags')))))
   (core func (canon lower (func $i "f") gc string-encoding=utf8 (core-type $ty)))
 )
@@ -18,7 +18,7 @@
     (core type $ty (func (param anyref)))
 
     (import "i" (instance $i
-                  (export $flags' "ty" (type (eq $flags)))
+                  (export "ty" (type $flags' (eq $flags)))
                   (export "f" (func (param "x" $flags')))))
     (core func (canon lower (func $i "f") gc string-encoding=utf8 (core-type $ty)))
   )
