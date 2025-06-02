@@ -3592,11 +3592,13 @@ impl Remap {
                 // reflect the change not only in the world key but additionally
                 // in the function itself.
                 let mut new_item = item.1.clone();
-                if let WorldItem::Function(f) = &mut new_item {
-                    f.name = n.clone();
-                }
                 let key = WorldKey::Name(n.clone());
                 cloner.world_item(&key, &mut new_item);
+                match &mut new_item {
+                    WorldItem::Function(f) => f.name = n.clone(),
+                    WorldItem::Type(id) => cloner.resolve.types[*id].name = Some(n.clone()),
+                    WorldItem::Interface { .. } => {}
+                }
 
                 let prev = get_items(cloner.resolve).insert(key, new_item);
                 if prev.is_some() {

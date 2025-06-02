@@ -1,0 +1,11 @@
+// RUN: component wit % -t | validate
+
+package a:b;
+
+world a {
+  resource foo;
+}
+
+world b {
+  include a with { foo as bar }
+}
