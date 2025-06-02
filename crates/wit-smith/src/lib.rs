@@ -30,7 +30,8 @@ pub fn smith(config: &Config, u: &mut Unstructured<'_>) -> Result<Vec<u8>> {
                 if e.is::<InvalidTransitiveDependency>() {
                     return Err(arbitrary::Error::IncorrectFormat);
                 }
-                if e.to_string().contains("shadows previously") {
+                let err = e.to_string();
+                if err.contains("shadows previously") || err.contains("mismatch in stability") {
                     log::error!("{e}");
                     return Err(arbitrary::Error::IncorrectFormat);
                 }
