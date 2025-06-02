@@ -23,7 +23,7 @@ use crate::mutators::{
     modify_const_exprs::ConstExpressionMutator, modify_data::ModifyDataMutator,
     peephole::PeepholeMutator, remove_export::RemoveExportMutator, remove_item::RemoveItemMutator,
     remove_section::RemoveSection, rename_export::RenameExportMutator, snip_function::SnipMutator,
-    Item,
+    start::RemoveStartSection, Item,
 };
 use info::ModuleInfo;
 use mutators::Mutator;
@@ -237,6 +237,7 @@ impl<'wasm> WasmMutate<'wasm> {
             &ModifyDataMutator {
                 max_data_size: 10 << 20, // 10MB
             },
+            &RemoveStartSection,
         ];
 
         // Attempt all mutators, but start at an arbitrary index.
