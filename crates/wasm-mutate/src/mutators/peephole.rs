@@ -444,9 +444,9 @@ impl Mutator for PeepholeMutator {
     }
 }
 
-// This macro is meant to be used for testing deep mutators
-// It receives the original wat text variable, the expression returning the mutated function and the expected wat
-// For an example, look at SwapCommutativeOperator
+/// This macro is meant to be used for testing deep mutators
+/// It receives the original wat text variable, the expression returning the mutated function and the expected wat
+/// For an example, look at SwapCommutativeOperator
 #[cfg(test)]
 #[macro_export]
 macro_rules! match_code_mutation {
