@@ -26,7 +26,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
+      - uses: ./.github/actions/install-rust
       - uses: cargo-bins/cargo-binstall@v1.6.9
       - run: cargo binstall cargo-component@0.20.0 -y
       - run: rustup component add rustfmt # needed for cargo-component, apparently?
