@@ -1,7 +1,7 @@
 (component
   (type $variant (;0;) (variant (case "a" bool) (case "b" bool) (case "c" u8)))
   (core type $base (;0;) (sub (struct)))
-  (core type $variant (;1;) (sub $base (struct (field i32))))
+  (core type $variant (;1;) (sub $base (struct)))
   (core type $ty (;2;) (func (param (ref null $variant))))
   (type (;1;)
     (instance

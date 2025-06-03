@@ -1,7 +1,7 @@
 (component
   (type $result (;0;) (result u32 (error u8)))
   (core type $base (;0;) (sub (struct)))
-  (core type $result (;1;) (sub $base (struct (field i8))))
+  (core type $result (;1;) (sub $base (struct)))
   (core type $ty (;2;) (func (param (ref null $result))))
   (type (;1;)
     (instance

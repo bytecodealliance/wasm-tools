@@ -1381,22 +1381,13 @@ impl VariantType {
         offset: usize,
         core: ArgOrField,
     ) -> Result<()> {
-        lower_gc_sum_type(
-            Some(StorageType::Val(ValType::I32)),
-            types,
-            abi,
-            options,
-            offset,
-            core,
-            "variant",
-        )
+        lower_gc_sum_type(types, abi, options, offset, core, "variant")
     }
 }
 
 /// Common helper for lowering sum types (variants, options, and results) to
 /// core GC types.
 fn lower_gc_sum_type(
-    discriminant: Option<StorageType>,
     types: &TypeList,
     _abi: Abi,
     _options: &CanonicalOptions,
@@ -1406,7 +1397,7 @@ fn lower_gc_sum_type(
 ) -> Result<()> {
     if let Some(id) = core.as_concrete_ref() {
         if let CompositeInnerType::Struct(ty) = &types[id].composite_type.inner {
-            if ty.fields.len() <= 1 && ty.fields.get(0).map(|f| f.element_type) == discriminant {
+            if ty.fields.is_empty() {
                 return Ok(());
             }
         }
@@ -1414,9 +1405,8 @@ fn lower_gc_sum_type(
 
     bail!(
         offset,
-        "expected to lower component `{kind}` type to core `(ref null? (struct{disc_field}))`, \
+        "expected to lower component `{kind}` type to core `(ref null? (struct))`, \
          but found `{core}`",
-        disc_field = discriminant.map_or("".to_string(), |ty| format!(" (field {ty})")),
     )
 }
 
@@ -1704,18 +1694,12 @@ impl ComponentDefinedType {
             }
 
             ComponentDefinedType::Option(_) => {
-                lower_gc_sum_type(None, types, abi, options, offset, core, "option")
+                lower_gc_sum_type(types, abi, options, offset, core, "option")
             }
 
-            ComponentDefinedType::Result { .. } => lower_gc_sum_type(
-                Some(StorageType::I8),
-                types,
-                abi,
-                options,
-                offset,
-                core,
-                "result",
-            ),
+            ComponentDefinedType::Result { .. } => {
+                lower_gc_sum_type(types, abi, options, offset, core, "result")
+            }
 
             ComponentDefinedType::Own(_)
             | ComponentDefinedType::Borrow(_)

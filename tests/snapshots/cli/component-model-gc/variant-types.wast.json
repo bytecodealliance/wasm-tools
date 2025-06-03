@@ -30,28 +30,14 @@
       "line": 67,
       "filename": "variant-types.4.wasm",
       "module_type": "binary",
-      "text": "expected to lower component `variant` type to core `(ref null? (struct (field i32)))`"
+      "text": "expected to lower component `variant` type to core `(ref null? (struct))`"
     },
     {
       "type": "assert_invalid",
       "line": 85,
       "filename": "variant-types.5.wasm",
       "module_type": "binary",
-      "text": "expected to lower component `variant` type to core `(ref null? (struct (field i32)))`"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 103,
-      "filename": "variant-types.6.wasm",
-      "module_type": "binary",
-      "text": "expected to lower component `variant` type to core `(ref null? (struct (field i32)))`"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 121,
-      "filename": "variant-types.7.wasm",
-      "module_type": "binary",
-      "text": "expected to lower component `variant` type to core `(ref null? (struct (field i32)))`"
+      "text": "expected to lower component `variant` type to core `(ref null? (struct))`"
     }
   ]
 }

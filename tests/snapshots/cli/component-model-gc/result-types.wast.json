@@ -30,28 +30,14 @@
       "line": 59,
       "filename": "result-types.4.wasm",
       "module_type": "binary",
-      "text": "expected to lower component `result` type to core `(ref null? (struct (field i8)))`"
+      "text": "expected to lower component `result` type to core `(ref null? (struct))`"
     },
     {
       "type": "assert_invalid",
       "line": 75,
       "filename": "result-types.5.wasm",
       "module_type": "binary",
-      "text": "expected to lower component `result` type to core `(ref null? (struct (field i8)))`"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 91,
-      "filename": "result-types.6.wasm",
-      "module_type": "binary",
-      "text": "expected to lower component `result` type to core `(ref null? (struct (field i8)))`"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 107,
-      "filename": "result-types.7.wasm",
-      "module_type": "binary",
-      "text": "expected to lower component `result` type to core `(ref null? (struct (field i8)))`"
+      "text": "expected to lower component `result` type to core `(ref null? (struct))`"
     }
   ]
 }
