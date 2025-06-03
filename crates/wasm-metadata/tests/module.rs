@@ -13,10 +13,15 @@ fn add_to_empty_module() {
     add.sdk = vec![];
     add.authors = AddMetadataField::Set(Authors::new("Chashu Cat"));
     add.description = AddMetadataField::Set(Description::new("Chashu likes tuna"));
-    add.licenses =
-        AddMetadataField::Set(Licenses::new("Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT").unwrap());
-    add.source = AddMetadataField::Set(Source::new("https://github.com/bytecodealliance/wasm-tools").unwrap());
-    add.homepage = AddMetadataField::Set(Homepage::new("https://github.com/bytecodealliance/wasm-tools").unwrap());
+    add.licenses = AddMetadataField::Set(
+        Licenses::new("Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT").unwrap(),
+    );
+    add.source = AddMetadataField::Set(
+        Source::new("https://github.com/bytecodealliance/wasm-tools").unwrap(),
+    );
+    add.homepage = AddMetadataField::Set(
+        Homepage::new("https://github.com/bytecodealliance/wasm-tools").unwrap(),
+    );
     add.revision = AddMetadataField::Set(Revision::new("de978e17a80c1118f606fce919ba9b7d5a04a5ad"));
     add.version = AddMetadataField::Set(Version::new("1.0.0"));
 
