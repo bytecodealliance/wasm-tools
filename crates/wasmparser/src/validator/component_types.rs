@@ -1341,6 +1341,7 @@ pub struct RecordType {
     /// The map of record fields.
     pub fields: IndexMap<KebabString, ComponentValType>,
 }
+
 impl RecordType {
     fn lower_gc(
         &self,
@@ -1370,6 +1371,7 @@ pub struct VariantType {
     /// The map of variant cases.
     pub cases: IndexMap<KebabString, VariantCase>,
 }
+
 impl VariantType {
     fn lower_gc(
         &self,
@@ -1378,10 +1380,44 @@ impl VariantType {
         options: &CanonicalOptions,
         offset: usize,
         core: ArgOrField,
-    ) -> core::result::Result<(), BinaryReaderError> {
-        let _ = (types, abi, options, offset, core);
-        todo!("variant types and CM+GC")
+    ) -> Result<()> {
+        lower_gc_sum_type(
+            Some(StorageType::Val(ValType::I32)),
+            types,
+            abi,
+            options,
+            offset,
+            core,
+            "variant",
+        )
     }
+}
+
+/// Common helper for lowering sum types (variants, options, and results) to
+/// core GC types.
+fn lower_gc_sum_type(
+    discriminant: Option<StorageType>,
+    types: &TypeList,
+    _abi: Abi,
+    _options: &CanonicalOptions,
+    offset: usize,
+    core: ArgOrField,
+    kind: &str,
+) -> Result<()> {
+    if let Some(id) = core.as_concrete_ref() {
+        if let CompositeInnerType::Struct(ty) = &types[id].composite_type.inner {
+            if ty.fields.len() <= 1 && ty.fields.get(0).map(|f| f.element_type) == discriminant {
+                return Ok(());
+            }
+        }
+    }
+
+    bail!(
+        offset,
+        "expected to lower component `{kind}` type to core `(ref null? (struct{disc_field}))`, \
+         but found `{core}`",
+        disc_field = discriminant.map_or("".to_string(), |ty| format!(" (field {ty})")),
+    )
 }
 
 /// Represents a tuple type.
@@ -1392,6 +1428,7 @@ pub struct TupleType {
     /// The types of the tuple.
     pub types: Box<[ComponentValType]>,
 }
+
 impl TupleType {
     fn lower_gc(
         &self,
@@ -1400,7 +1437,7 @@ impl TupleType {
         options: &CanonicalOptions,
         offset: usize,
         core: ArgOrField,
-    ) -> core::result::Result<(), BinaryReaderError> {
+    ) -> Result<()> {
         lower_gc_product_type(
             self.types.iter(),
             types,
@@ -1666,9 +1703,19 @@ impl ComponentDefinedType {
                 }
             }
 
-            ComponentDefinedType::Option(_) => todo!("option types and CM+GC"),
+            ComponentDefinedType::Option(_) => {
+                lower_gc_sum_type(None, types, abi, options, offset, core, "option")
+            }
 
-            ComponentDefinedType::Result { .. } => todo!("result types and CM+GC"),
+            ComponentDefinedType::Result { .. } => lower_gc_sum_type(
+                Some(StorageType::I8),
+                types,
+                abi,
+                options,
+                offset,
+                core,
+                "result",
+            ),
 
             ComponentDefinedType::Own(_)
             | ComponentDefinedType::Borrow(_)

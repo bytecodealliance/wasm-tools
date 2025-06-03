@@ -1,0 +1,16 @@
+(component
+  (type $result (;0;) (result u32 (error u8)))
+  (core type $result (;0;) (struct (field i8)))
+  (core type $ty (;1;) (func (param (ref $result))))
+  (type (;1;)
+    (instance
+      (alias outer 1 $result (type (;0;)))
+      (export (;1;) "ty" (type (eq 0)))
+      (type (;2;) (func (param "x" 1)))
+      (export (;0;) "f" (func (type 2)))
+    )
+  )
+  (import "i" (instance $i (;0;) (type 1)))
+  (alias export $i "f" (func (;0;)))
+  (core func (;0;) (canon lower (func 0) gc (core-type $ty)))
+)

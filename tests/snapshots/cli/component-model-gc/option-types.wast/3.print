@@ -1,0 +1,17 @@
+(component
+  (type $opt (;0;) (option u32))
+  (core type $base (;0;) (sub (struct)))
+  (core type $opt (;1;) (sub $base (struct)))
+  (core type $ty (;2;) (func (param (ref $opt))))
+  (type (;1;)
+    (instance
+      (alias outer 1 $opt (type (;0;)))
+      (export (;1;) "ty" (type (eq 0)))
+      (type (;2;) (func (param "x" 1)))
+      (export (;0;) "f" (func (type 2)))
+    )
+  )
+  (import "i" (instance $i (;0;) (type 1)))
+  (alias export $i "f" (func (;0;)))
+  (core func (;0;) (canon lower (func 0) gc (core-type $ty)))
+)
