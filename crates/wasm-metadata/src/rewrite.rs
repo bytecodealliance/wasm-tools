@@ -1,3 +1,4 @@
+use crate::add_metadata::AddMetadataField;
 use crate::{AddMetadata, ComponentNames, ModuleNames, Producers};
 use anyhow::Result;
 use std::mem;
@@ -62,7 +63,15 @@ pub(crate) fn rewrite_wasm(
                     KnownCustom::Name(_) => {
                         names_found = true;
                         let mut names = ModuleNames::from_bytes(c.data(), c.data_offset())?;
-                        names.merge(&ModuleNames::from_name(&metadata.name));
+                        match &metadata.name {
+                            AddMetadataField::Keep => {}
+                            AddMetadataField::Set(name) => {
+                                names.merge(&ModuleNames::from_name(&Some(name.clone())));
+                            }
+                            AddMetadataField::Clear => {
+                                names = ModuleNames::empty();
+                            }
+                        };
 
                         names.section()?.as_custom().append_to(&mut output);
                         continue;
@@ -70,63 +79,85 @@ pub(crate) fn rewrite_wasm(
                     KnownCustom::ComponentName(_) => {
                         names_found = true;
                         let mut names = ComponentNames::from_bytes(c.data(), c.data_offset())?;
-                        names.merge(&ComponentNames::from_name(&metadata.name));
+                        match &metadata.name {
+                            AddMetadataField::Keep => {}
+                            AddMetadataField::Set(name) => {
+                                names.merge(&ComponentNames::from_name(&Some(name.clone())));
+                            }
+                            AddMetadataField::Clear => {
+                                names = ComponentNames::empty();
+                            }
+                        };
                         names.section()?.as_custom().append_to(&mut output);
                         continue;
                     }
                     #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "author" => {
-                        if metadata.authors.is_none() {
+                        if metadata.authors.is_keep() {
                             let author = crate::Authors::parse_custom_section(c)?;
                             author.append_to(&mut output);
+                            continue;
+                        } else if metadata.authors.is_clear() {
                             continue;
                         }
                     }
                     #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "description" => {
-                        if metadata.description.is_none() {
+                        if metadata.description.is_keep() {
                             let description = crate::Description::parse_custom_section(c)?;
                             description.append_to(&mut output);
+                            continue;
+                        } else if metadata.description.is_clear() {
                             continue;
                         }
                     }
                     #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "licenses" => {
-                        if metadata.licenses.is_none() {
+                        if metadata.licenses.is_keep() {
                             let licenses = crate::Licenses::parse_custom_section(c)?;
                             licenses.append_to(&mut output);
+                            continue;
+                        } else if metadata.licenses.is_clear() {
                             continue;
                         }
                     }
                     #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "source" => {
-                        if metadata.source.is_none() {
+                        if metadata.source.is_keep() {
                             let source = crate::Source::parse_custom_section(c)?;
                             source.append_to(&mut output);
+                            continue;
+                        } else if metadata.source.is_clear() {
                             continue;
                         }
                     }
                     #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "homepage" => {
-                        if metadata.source.is_none() {
+                        if metadata.homepage.is_keep() {
                             let homepage = crate::Homepage::parse_custom_section(c)?;
                             homepage.append_to(&mut output);
+                            continue;
+                        } else if metadata.homepage.is_clear() {
                             continue;
                         }
                     }
                     #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "revision" => {
-                        if metadata.source.is_none() {
+                        if metadata.revision.is_keep() {
                             let revision = crate::Revision::parse_custom_section(c)?;
                             revision.append_to(&mut output);
+                            continue;
+                        } else if metadata.revision.is_clear() {
                             continue;
                         }
                     }
                     #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "version" => {
-                        if metadata.version.is_none() {
+                        if metadata.version.is_keep() {
                             let version = crate::Version::parse_custom_section(c)?;
                             version.append_to(&mut output);
+                            continue;
+                        } else if metadata.version.is_clear() {
                             continue;
                         }
                     }
@@ -143,13 +174,15 @@ pub(crate) fn rewrite_wasm(
             .append_to(&mut output);
         }
     }
-    if !names_found && metadata.name.is_some() {
-        if output.starts_with(&wasm_encoder::Component::HEADER) {
-            let names = ComponentNames::from_name(&metadata.name);
-            names.section()?.append_to_component(&mut output);
-        } else {
-            let names = ModuleNames::from_name(&metadata.name);
-            names.section()?.append_to(&mut output)
+    if !names_found {
+        if let AddMetadataField::Set(name) = &metadata.name {
+            if output.starts_with(&wasm_encoder::Component::HEADER) {
+                let names = ComponentNames::from_name(&Some(name.clone()));
+                names.section()?.append_to_component(&mut output);
+            } else {
+                let names = ModuleNames::from_name(&Some(name.clone()));
+                names.section()?.append_to(&mut output)
+            }
         }
     }
     if !producers_found && !add_producers.is_empty() {
@@ -160,31 +193,31 @@ pub(crate) fn rewrite_wasm(
         producers.section().append_to(&mut output);
     }
     #[cfg(feature = "oci")]
-    if let Some(author) = &metadata.authors {
+    if let AddMetadataField::Set(author) = &metadata.authors {
         author.append_to(&mut output);
     }
     #[cfg(feature = "oci")]
-    if let Some(description) = &metadata.description {
+    if let AddMetadataField::Set(description) = &metadata.description {
         description.append_to(&mut output);
     }
     #[cfg(feature = "oci")]
-    if let Some(licenses) = &metadata.licenses {
+    if let AddMetadataField::Set(licenses) = &metadata.licenses {
         licenses.append_to(&mut output);
     }
     #[cfg(feature = "oci")]
-    if let Some(source) = &metadata.source {
+    if let AddMetadataField::Set(source) = &metadata.source {
         source.append_to(&mut output);
     }
     #[cfg(feature = "oci")]
-    if let Some(homepage) = &metadata.homepage {
+    if let AddMetadataField::Set(homepage) = &metadata.homepage {
         homepage.append_to(&mut output);
     }
     #[cfg(feature = "oci")]
-    if let Some(revision) = &metadata.revision {
+    if let AddMetadataField::Set(revision) = &metadata.revision {
         revision.append_to(&mut output);
     }
     #[cfg(feature = "oci")]
-    if let Some(version) = &metadata.version {
+    if let AddMetadataField::Set(version) = &metadata.version {
         version.append_to(&mut output);
     }
     Ok(output)

@@ -7,18 +7,18 @@ use wasm_metadata::*;
 #[test]
 fn add_to_empty_module() {
     let mut add = AddMetadata::default();
-    add.name = Some("foo".to_owned());
+    add.name = AddMetadataField::Set("foo".to_owned());
     add.language = vec![("bar".to_owned(), "1.0".to_owned())];
     add.processed_by = vec![("baz".to_owned(), "1.0".to_owned())];
     add.sdk = vec![];
-    add.authors = Some(Authors::new("Chashu Cat"));
-    add.description = Some(Description::new("Chashu likes tuna"));
+    add.authors = AddMetadataField::Set(Authors::new("Chashu Cat"));
+    add.description = AddMetadataField::Set(Description::new("Chashu likes tuna"));
     add.licenses =
-        Some(Licenses::new("Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT").unwrap());
-    add.source = Some(Source::new("https://github.com/bytecodealliance/wasm-tools").unwrap());
-    add.homepage = Some(Homepage::new("https://github.com/bytecodealliance/wasm-tools").unwrap());
-    add.revision = Some(Revision::new("de978e17a80c1118f606fce919ba9b7d5a04a5ad"));
-    add.version = Some(Version::new("1.0.0"));
+        AddMetadataField::Set(Licenses::new("Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT").unwrap());
+    add.source = AddMetadataField::Set(Source::new("https://github.com/bytecodealliance/wasm-tools").unwrap());
+    add.homepage = AddMetadataField::Set(Homepage::new("https://github.com/bytecodealliance/wasm-tools").unwrap());
+    add.revision = AddMetadataField::Set(Revision::new("de978e17a80c1118f606fce919ba9b7d5a04a5ad"));
+    add.version = AddMetadataField::Set(Version::new("1.0.0"));
 
     let json_str = r#"{"packages":[{"name":"adler","version":"0.2.3","source":"registry"}]}"#;
     let info = VersionInfo::from_str(json_str).unwrap();
