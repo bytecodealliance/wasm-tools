@@ -53,6 +53,8 @@ pub use producers::{Producers, ProducersField};
 pub(crate) use rewrite::rewrite_wasm;
 
 mod add_metadata;
+#[cfg(feature = "clap")]
+mod clap;
 mod names;
 mod producers;
 mod rewrite;
@@ -73,5 +75,9 @@ mod metadata;
 pub use metadata::Metadata;
 #[cfg(feature = "oci")]
 mod payload;
+
 #[cfg(feature = "oci")]
 pub use payload::Payload;
+
+#[cfg(feature = "clap")]
+pub use clap::AddMetadataOpts;
