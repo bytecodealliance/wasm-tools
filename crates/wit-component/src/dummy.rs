@@ -189,18 +189,32 @@ fn push_imported_future_and_stream_intrinsics(
         .enumerate()
     {
         match &resolve.types[id].kind {
-            TypeDefKind::Future(_) => {
+            TypeDefKind::Future(ty) => {
+                let read_params = if ty.is_some() { "i32 i32" } else { "i32" };
+                let write_params = resolve
+                    .future_write_wasm_signature(*ty)
+                    .params
+                    .into_iter()
+                    .map(|ty| match ty {
+                        WasmType::I32 | WasmType::Pointer | WasmType::Length => "i32",
+                        WasmType::I64 | WasmType::PointerOrI64 => "i64",
+                        WasmType::F32 => "f32",
+                        WasmType::F64 => "f64",
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" ");
+
                 wat.push_str(&format!(
                     r#"
 (import {module:?} "[future-new-{i}]{name}" (func (result i64)))
-(import {module:?} "[future-read-{i}]{name}" (func (param i32 i32) (result i32)))
-(import {module:?} "[future-write-{i}]{name}" (func (param i32 i32) (result i32)))
+(import {module:?} "[future-read-{i}]{name}" (func (param {read_params}) (result i32)))
+(import {module:?} "[future-write-{i}]{name}" (func (param {write_params}) (result i32)))
 (import {module:?} "[future-cancel-read-{i}]{name}" (func (param i32) (result i32)))
 (import {module:?} "[future-cancel-write-{i}]{name}" (func (param i32) (result i32)))
-(import {module:?} "[future-close-readable-{i}]{name}" (func (param i32)))
-(import {module:?} "[future-close-writable-{i}]{name}" (func (param i32)))
-(import {module:?} "[async-lower][future-read-{i}]{name}" (func (param i32 i32) (result i32)))
-(import {module:?} "[async-lower][future-write-{i}]{name}" (func (param i32 i32) (result i32)))
+(import {module:?} "[future-drop-readable-{i}]{name}" (func (param i32)))
+(import {module:?} "[future-drop-writable-{i}]{name}" (func (param i32)))
+(import {module:?} "[async-lower][future-read-{i}]{name}" (func (param {read_params}) (result i32)))
+(import {module:?} "[async-lower][future-write-{i}]{name}" (func (param {write_params}) (result i32)))
 
 ;; deferred behind 🚝
 ;;(import {module:?} "[async-lower][future-cancel-read-{i}]{name}" (func (param i32) (result i32)))
@@ -216,8 +230,8 @@ fn push_imported_future_and_stream_intrinsics(
 (import {module:?} "[stream-write-{i}]{name}" (func (param i32 i32 i32) (result i32)))
 (import {module:?} "[stream-cancel-read-{i}]{name}" (func (param i32) (result i32)))
 (import {module:?} "[stream-cancel-write-{i}]{name}" (func (param i32) (result i32)))
-(import {module:?} "[stream-close-readable-{i}]{name}" (func (param i32)))
-(import {module:?} "[stream-close-writable-{i}]{name}" (func (param i32)))
+(import {module:?} "[stream-drop-readable-{i}]{name}" (func (param i32)))
+(import {module:?} "[stream-drop-writable-{i}]{name}" (func (param i32)))
 (import {module:?} "[async-lower][stream-read-{i}]{name}" (func (param i32 i32 i32) (result i32)))
 (import {module:?} "[async-lower][stream-write-{i}]{name}" (func (param i32 i32 i32) (result i32)))
 

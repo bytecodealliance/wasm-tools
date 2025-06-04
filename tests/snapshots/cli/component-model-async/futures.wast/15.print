@@ -1,12 +1,12 @@
 (component
   (core module $m (;0;)
     (type (;0;) (func (param i32)))
-    (import "" "future.close-writable" (func $future-close-writable (;0;) (type 0)))
+    (import "" "future.drop-writable" (func $future-drop-writable (;0;) (type 0)))
   )
   (type $future-type (;0;) (future u8))
-  (core func $future-close-writable (;0;) (canon future.close-writable $future-type))
+  (core func $future-drop-writable (;0;) (canon future.drop-writable $future-type))
   (core instance (;0;)
-    (export "future.close-writable" (func $future-close-writable))
+    (export "future.drop-writable" (func $future-drop-writable))
   )
   (core instance $i (;1;) (instantiate $m
       (with "" (instance 0))

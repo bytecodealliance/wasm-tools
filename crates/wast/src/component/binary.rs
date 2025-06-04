@@ -429,13 +429,13 @@ impl<'a> Encoder<'a> {
                     self.core_func_names.push(name);
                     self.funcs.stream_cancel_write(info.ty.into(), info.async_);
                 }
-                CoreFuncKind::StreamCloseReadable(info) => {
+                CoreFuncKind::StreamDropReadable(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.stream_close_readable(info.ty.into());
+                    self.funcs.stream_drop_readable(info.ty.into());
                 }
-                CoreFuncKind::StreamCloseWritable(info) => {
+                CoreFuncKind::StreamDropWritable(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.stream_close_writable(info.ty.into());
+                    self.funcs.stream_drop_writable(info.ty.into());
                 }
                 CoreFuncKind::FutureNew(info) => {
                     self.core_func_names.push(name);
@@ -459,13 +459,13 @@ impl<'a> Encoder<'a> {
                     self.core_func_names.push(name);
                     self.funcs.future_cancel_write(info.ty.into(), info.async_);
                 }
-                CoreFuncKind::FutureCloseReadable(info) => {
+                CoreFuncKind::FutureDropReadable(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.future_close_readable(info.ty.into());
+                    self.funcs.future_drop_readable(info.ty.into());
                 }
-                CoreFuncKind::FutureCloseWritable(info) => {
+                CoreFuncKind::FutureDropWritable(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.future_close_writable(info.ty.into());
+                    self.funcs.future_drop_writable(info.ty.into());
                 }
                 CoreFuncKind::ErrorContextNew(info) => {
                     self.core_func_names.push(name);

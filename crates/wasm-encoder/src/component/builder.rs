@@ -481,15 +481,15 @@ impl ComponentBuilder {
         inc(&mut self.core_funcs)
     }
 
-    /// Declares a new `stream.close-readable` intrinsic.
-    pub fn stream_close_readable(&mut self, ty: u32) -> u32 {
-        self.canonical_functions().stream_close_readable(ty);
+    /// Declares a new `stream.drop-readable` intrinsic.
+    pub fn stream_drop_readable(&mut self, ty: u32) -> u32 {
+        self.canonical_functions().stream_drop_readable(ty);
         inc(&mut self.core_funcs)
     }
 
-    /// Declares a new `stream.close-writable` intrinsic.
-    pub fn stream_close_writable(&mut self, ty: u32) -> u32 {
-        self.canonical_functions().stream_close_writable(ty);
+    /// Declares a new `stream.drop-writable` intrinsic.
+    pub fn stream_drop_writable(&mut self, ty: u32) -> u32 {
+        self.canonical_functions().stream_drop_writable(ty);
         inc(&mut self.core_funcs)
     }
 
@@ -531,15 +531,15 @@ impl ComponentBuilder {
         inc(&mut self.core_funcs)
     }
 
-    /// Declares a new `future.close-readable` intrinsic.
-    pub fn future_close_readable(&mut self, ty: u32) -> u32 {
-        self.canonical_functions().future_close_readable(ty);
+    /// Declares a new `future.drop-readable` intrinsic.
+    pub fn future_drop_readable(&mut self, ty: u32) -> u32 {
+        self.canonical_functions().future_drop_readable(ty);
         inc(&mut self.core_funcs)
     }
 
-    /// Declares a new `future.close-writable` intrinsic.
-    pub fn future_close_writable(&mut self, ty: u32) -> u32 {
-        self.canonical_functions().future_close_writable(ty);
+    /// Declares a new `future.drop-writable` intrinsic.
+    pub fn future_drop_writable(&mut self, ty: u32) -> u32 {
+        self.canonical_functions().future_drop_writable(ty);
         inc(&mut self.core_funcs)
     }
 

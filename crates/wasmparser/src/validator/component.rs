@@ -7,8 +7,8 @@ use super::{
         ComponentCoreModuleTypeId, ComponentCoreTypeId, ComponentDefinedType,
         ComponentDefinedTypeId, ComponentEntityType, ComponentFuncType, ComponentFuncTypeId,
         ComponentInstanceType, ComponentInstanceTypeId, ComponentType, ComponentTypeId,
-        ComponentValType, Context, CoreInstanceTypeKind, InstanceType, ModuleType, RecordType,
-        Remap, Remapping, ResourceId, SubtypeCx, TupleType, VariantCase, VariantType,
+        ComponentValType, Context, CoreInstanceTypeKind, InstanceType, LoweredFuncType, ModuleType,
+        RecordType, Remap, Remapping, ResourceId, SubtypeCx, TupleType, VariantCase, VariantType,
     },
     core::{InternRecGroup, Module},
     types::{CoreTypeId, EntityType, TypeAlloc, TypeInfo, TypeList},
@@ -23,6 +23,7 @@ use crate::{
     ExternalKind, FuncType, GlobalType, InstantiationArgKind, MemoryType, PackedIndex, RefType,
     Result, SubType, TableType, TypeBounds, ValType, WasmFeatures,
 };
+use core::iter;
 use core::mem;
 
 fn to_kebab_str<'a>(s: &'a str, desc: &str, offset: usize) -> Result<&'a KebabStr> {
@@ -344,7 +345,10 @@ impl CanonicalOptions {
         if let Some(idx) = self.post_return {
             let func_ty = types[state.core_function_at(idx, offset)?].unwrap_func();
             if func_ty.params() != core_ty.results() || !func_ty.results().is_empty() {
-                bail!(offset, "canonical option `post-return` uses a core function with an incorrect signature");
+                bail!(
+                    offset,
+                    "canonical option `post-return` uses a core function with an incorrect signature"
+                );
             }
         }
 
@@ -1194,11 +1198,11 @@ impl ComponentState {
             CanonicalFunction::StreamCancelWrite { ty, async_ } => {
                 self.stream_cancel_write(ty, async_, types, offset)
             }
-            CanonicalFunction::StreamCloseReadable { ty } => {
-                self.stream_close_readable(ty, types, offset)
+            CanonicalFunction::StreamDropReadable { ty } => {
+                self.stream_drop_readable(ty, types, offset)
             }
-            CanonicalFunction::StreamCloseWritable { ty } => {
-                self.stream_close_writable(ty, types, offset)
+            CanonicalFunction::StreamDropWritable { ty } => {
+                self.stream_drop_writable(ty, types, offset)
             }
             CanonicalFunction::FutureNew { ty } => self.future_new(ty, types, offset),
             CanonicalFunction::FutureRead { ty, options } => {
@@ -1213,11 +1217,11 @@ impl ComponentState {
             CanonicalFunction::FutureCancelWrite { ty, async_ } => {
                 self.future_cancel_write(ty, async_, types, offset)
             }
-            CanonicalFunction::FutureCloseReadable { ty } => {
-                self.future_close_readable(ty, types, offset)
+            CanonicalFunction::FutureDropReadable { ty } => {
+                self.future_drop_readable(ty, types, offset)
             }
-            CanonicalFunction::FutureCloseWritable { ty } => {
-                self.future_close_writable(ty, types, offset)
+            CanonicalFunction::FutureDropWritable { ty } => {
+                self.future_drop_writable(ty, types, offset)
             }
             CanonicalFunction::ErrorContextNew { options } => {
                 self.error_context_new(options.into_vec(), types, offset)
@@ -1663,7 +1667,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn stream_close_readable(
+    fn stream_drop_readable(
         &mut self,
         ty: u32,
         types: &mut TypeAlloc,
@@ -1672,13 +1676,13 @@ impl ComponentState {
         if !self.features.cm_async() {
             bail!(
                 offset,
-                "`stream.close-readable` requires the component model async feature"
+                "`stream.drop-readable` requires the component model async feature"
             )
         }
 
         let ty = self.defined_type_at(ty, offset)?;
         let ComponentDefinedType::Stream(_) = &types[ty] else {
-            bail!(offset, "`stream.close-readable` requires a stream type")
+            bail!(offset, "`stream.drop-readable` requires a stream type")
         };
 
         self.core_funcs
@@ -1686,7 +1690,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn stream_close_writable(
+    fn stream_drop_writable(
         &mut self,
         ty: u32,
         types: &mut TypeAlloc,
@@ -1695,13 +1699,13 @@ impl ComponentState {
         if !self.features.cm_async() {
             bail!(
                 offset,
-                "`stream.close-writable` requires the component model async feature"
+                "`stream.drop-writable` requires the component model async feature"
             )
         }
 
         let ty = self.defined_type_at(ty, offset)?;
         let ComponentDefinedType::Stream(_) = &types[ty] else {
-            bail!(offset, "`stream.close-writable` requires a stream type")
+            bail!(offset, "`stream.drop-writable` requires a stream type")
         };
 
         self.core_funcs
@@ -1753,7 +1757,10 @@ impl ComponentState {
             .check_lower(offset)?
             .check_core_type(
                 types,
-                FuncType::new([ValType::I32; 2], [ValType::I32]),
+                FuncType::new(
+                    iter::repeat_n(ValType::I32, if elem_ty.is_some() { 2 } else { 1 }),
+                    [ValType::I32],
+                ),
                 offset,
             )?;
 
@@ -1776,19 +1783,50 @@ impl ComponentState {
         }
 
         let ty = self.defined_type_at(ty, offset)?;
-        let ComponentDefinedType::Future(_) = &types[ty] else {
+        let ComponentDefinedType::Future(elem_ty) = &types[ty] else {
             bail!(offset, "`future.write` requires a future type")
         };
 
-        let ty_id = self
-            .check_options(types, &options, offset)?
-            .require_memory(offset)?
-            .check_lower(offset)?
-            .check_core_type(
-                types,
-                FuncType::new([ValType::I32; 2], [ValType::I32]),
-                offset,
-            )?;
+        let options = self.check_options(types, &options, offset)?;
+        options.check_lower(offset)?;
+
+        let LoweredFuncType::New(func_ty) = ComponentFuncType {
+            info: TypeInfo::new(),
+            params: if let Some(elem_ty) = elem_ty {
+                Box::new([(KebabString::new("p").unwrap(), *elem_ty)])
+            } else {
+                Box::new([])
+            },
+            result: None,
+        }
+        .lower(
+            types,
+            &CanonicalOptions {
+                string_encoding: StringEncoding::Utf8,
+                memory: options.memory,
+                realloc: None,
+                post_return: None,
+                concurrency: Concurrency::Async { callback: None },
+                core_type: None,
+                gc: false,
+            },
+            Abi::Lower,
+            offset,
+        )?
+        else {
+            // As of this writing, `ComponentFuncType::lower` returns
+            // `LoweredFuncType::New(_)` unless `options.gc` is true.
+            unreachable!()
+        };
+
+        let ty_id = options.check_core_type(
+            types,
+            FuncType::new(
+                iter::once(ValType::I32).chain(func_ty.params().iter().copied()),
+                [ValType::I32],
+            ),
+            offset,
+        )?;
 
         self.core_funcs.push(ty_id);
         Ok(())
@@ -1854,7 +1892,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn future_close_readable(
+    fn future_drop_readable(
         &mut self,
         ty: u32,
         types: &mut TypeAlloc,
@@ -1863,13 +1901,13 @@ impl ComponentState {
         if !self.features.cm_async() {
             bail!(
                 offset,
-                "`future.close-readable` requires the component model async feature"
+                "`future.drop-readable` requires the component model async feature"
             )
         }
 
         let ty = self.defined_type_at(ty, offset)?;
         let ComponentDefinedType::Future(_) = &types[ty] else {
-            bail!(offset, "`future.close-readable` requires a future type")
+            bail!(offset, "`future.drop-readable` requires a future type")
         };
 
         self.core_funcs
@@ -1877,7 +1915,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn future_close_writable(
+    fn future_drop_writable(
         &mut self,
         ty: u32,
         types: &mut TypeAlloc,
@@ -1886,13 +1924,13 @@ impl ComponentState {
         if !self.features.cm_async() {
             bail!(
                 offset,
-                "`future.close-writable` requires the component model async feature"
+                "`future.drop-writable` requires the component model async feature"
             )
         }
 
         let ty = self.defined_type_at(ty, offset)?;
         let ComponentDefinedType::Future(_) = &types[ty] else {
-            bail!(offset, "`future.close-writable` requires a future type")
+            bail!(offset, "`future.drop-writable` requires a future type")
         };
 
         self.core_funcs
@@ -2405,7 +2443,7 @@ impl ComponentState {
                             return Err(BinaryReaderError::new(
                                 "canonical option `memory` is specified more than once",
                                 offset,
-                            ))
+                            ));
                         }
                     }
                 }
@@ -2429,7 +2467,7 @@ impl ComponentState {
                             return Err(BinaryReaderError::new(
                                 "canonical option `realloc` is specified more than once",
                                 offset,
-                            ))
+                            ));
                         }
                     }
                 }
@@ -2440,7 +2478,7 @@ impl ComponentState {
                             return Err(BinaryReaderError::new(
                                 "canonical option `post-return` is specified more than once",
                                 offset,
-                            ))
+                            ));
                         }
                     }
                 }
@@ -2468,7 +2506,7 @@ impl ComponentState {
                             return Err(BinaryReaderError::new(
                                 "canonical option `callback` is specified more than once",
                                 offset,
-                            ))
+                            ));
                         }
                     }
                 }
@@ -2483,21 +2521,25 @@ impl ComponentState {
                             }
                             let ty = match self.core_type_at(*idx, offset)? {
                                 ComponentCoreTypeId::Sub(ty) => ty,
-                                ComponentCoreTypeId::Module(_) => return Err(BinaryReaderError::new(
-                                    "canonical option `core type` must reference a core function \
+                                ComponentCoreTypeId::Module(_) => {
+                                    return Err(BinaryReaderError::new(
+                                        "canonical option `core type` must reference a core function \
                                      type",
-                                    offset,
-                                )),
+                                        offset,
+                                    ));
+                                }
                             };
                             match &types[ty].composite_type.inner {
                                 CompositeInnerType::Func(_) => {}
-                                CompositeInnerType::Array(_) |
-                                CompositeInnerType::Struct(_) |
-                                CompositeInnerType::Cont(_) => return Err(BinaryReaderError::new(
-                                    "canonical option `core type` must reference a core function \
+                                CompositeInnerType::Array(_)
+                                | CompositeInnerType::Struct(_)
+                                | CompositeInnerType::Cont(_) => {
+                                    return Err(BinaryReaderError::new(
+                                        "canonical option `core type` must reference a core function \
                                      type",
-                                    offset,
-                                )),
+                                        offset,
+                                    ));
+                                }
                             }
                             Some(ty)
                         }
@@ -2505,7 +2547,7 @@ impl ComponentState {
                             return Err(BinaryReaderError::new(
                                 "canonical option `core type` is specified more than once",
                                 offset,
-                            ))
+                            ));
                         }
                     };
                 }

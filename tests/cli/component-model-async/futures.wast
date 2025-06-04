@@ -168,48 +168,48 @@
   "type mismatch for export `future.cancel-write` of module instantiation argument ``"
 )
 
-;; future.close-readable
+;; future.drop-readable
 (component
   (core module $m
-    (import "" "future.close-readable" (func $future-close-readable (param i32)))
+    (import "" "future.drop-readable" (func $future-drop-readable (param i32)))
   )
   (type $future-type (future u8))
-  (core func $future-close-readable (canon future.close-readable $future-type))
-  (core instance $i (instantiate $m (with "" (instance (export "future.close-readable" (func $future-close-readable))))))
+  (core func $future-drop-readable (canon future.drop-readable $future-type))
+  (core instance $i (instantiate $m (with "" (instance (export "future.drop-readable" (func $future-drop-readable))))))
 )
 
-;; future.close-readable; incorrect type
+;; future.drop-readable; incorrect type
 (assert_invalid
   (component
     (core module $m
-      (import "" "future.close-readable" (func $future-close-readable (param i32) (result i32)))
+      (import "" "future.drop-readable" (func $future-drop-readable (param i32) (result i32)))
     )
     (type $future-type (future u8))
-    (core func $future-close-readable (canon future.close-readable $future-type))
-    (core instance $i (instantiate $m (with "" (instance (export "future.close-readable" (func $future-close-readable))))))
+    (core func $future-drop-readable (canon future.drop-readable $future-type))
+    (core instance $i (instantiate $m (with "" (instance (export "future.drop-readable" (func $future-drop-readable))))))
   )
-  "type mismatch for export `future.close-readable` of module instantiation argument ``"
+  "type mismatch for export `future.drop-readable` of module instantiation argument ``"
 )
 
-;; future.close-writable
+;; future.drop-writable
 (component
   (core module $m
-    (import "" "future.close-writable" (func $future-close-writable (param i32)))
+    (import "" "future.drop-writable" (func $future-drop-writable (param i32)))
   )
   (type $future-type (future u8))
-  (core func $future-close-writable (canon future.close-writable $future-type))
-  (core instance $i (instantiate $m (with "" (instance (export "future.close-writable" (func $future-close-writable))))))
+  (core func $future-drop-writable (canon future.drop-writable $future-type))
+  (core instance $i (instantiate $m (with "" (instance (export "future.drop-writable" (func $future-drop-writable))))))
 )
 
-;; future.close-writable; incorrect type
+;; future.drop-writable; incorrect type
 (assert_invalid
   (component
     (core module $m
-      (import "" "future.close-writable" (func $future-close-writable (param i32 i32) (result i32)))
+      (import "" "future.drop-writable" (func $future-drop-writable (param i32 i32) (result i32)))
     )
     (type $future-type (future u8))
-    (core func $future-close-writable (canon future.close-writable $future-type))
-    (core instance $i (instantiate $m (with "" (instance (export "future.close-writable" (func $future-close-writable))))))
+    (core func $future-drop-writable (canon future.drop-writable $future-type))
+    (core instance $i (instantiate $m (with "" (instance (export "future.drop-writable" (func $future-drop-writable))))))
   )
-  "type mismatch for export `future.close-writable` of module instantiation argument ``"
+  "type mismatch for export `future.drop-writable` of module instantiation argument ``"
 )

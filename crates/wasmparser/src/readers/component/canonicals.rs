@@ -161,15 +161,15 @@ pub enum CanonicalFunction {
         /// `BLOCKED`.
         async_: bool,
     },
-    /// A function to close the readable end of a `stream` of the specified
+    /// A function to drop the readable end of a `stream` of the specified
     /// type.
-    StreamCloseReadable {
+    StreamDropReadable {
         /// The `stream` type to expect.
         ty: u32,
     },
-    /// A function to close the writable end of a `stream` of the specified
+    /// A function to drop the writable end of a `stream` of the specified
     /// type.
-    StreamCloseWritable {
+    StreamDropWritable {
         /// The `stream` type to expect.
         ty: u32,
     },
@@ -212,15 +212,15 @@ pub enum CanonicalFunction {
         /// `BLOCKED`.
         async_: bool,
     },
-    /// A function to close the readable end of a `future` of the specified
+    /// A function to drop the readable end of a `future` of the specified
     /// type.
-    FutureCloseReadable {
+    FutureDropReadable {
         /// The `future` type to expect.
         ty: u32,
     },
-    /// A function to close the writable end of a `future` of the specified
+    /// A function to drop the writable end of a `future` of the specified
     /// type.
-    FutureCloseWritable {
+    FutureDropWritable {
         /// The `future` type to expect.
         ty: u32,
     },
@@ -331,8 +331,8 @@ impl<'a> FromReader<'a> for CanonicalFunction {
                 ty: reader.read()?,
                 async_: reader.read()?,
             },
-            0x13 => CanonicalFunction::StreamCloseReadable { ty: reader.read()? },
-            0x14 => CanonicalFunction::StreamCloseWritable { ty: reader.read()? },
+            0x13 => CanonicalFunction::StreamDropReadable { ty: reader.read()? },
+            0x14 => CanonicalFunction::StreamDropWritable { ty: reader.read()? },
             0x15 => CanonicalFunction::FutureNew { ty: reader.read()? },
             0x16 => CanonicalFunction::FutureRead {
                 ty: reader.read()?,
@@ -350,8 +350,8 @@ impl<'a> FromReader<'a> for CanonicalFunction {
                 ty: reader.read()?,
                 async_: reader.read()?,
             },
-            0x1a => CanonicalFunction::FutureCloseReadable { ty: reader.read()? },
-            0x1b => CanonicalFunction::FutureCloseWritable { ty: reader.read()? },
+            0x1a => CanonicalFunction::FutureDropReadable { ty: reader.read()? },
+            0x1b => CanonicalFunction::FutureDropWritable { ty: reader.read()? },
             0x1c => CanonicalFunction::ErrorContextNew {
                 options: read_opts(reader)?,
             },

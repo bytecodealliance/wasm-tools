@@ -97,7 +97,7 @@
       "line": 183,
       "filename": "futures.14.wasm",
       "module_type": "binary",
-      "text": "type mismatch for export `future.close-readable` of module instantiation argument ``"
+      "text": "type mismatch for export `future.drop-readable` of module instantiation argument ``"
     },
     {
       "type": "module",
@@ -110,7 +110,7 @@
       "line": 206,
       "filename": "futures.16.wasm",
       "module_type": "binary",
-      "text": "type mismatch for export `future.close-writable` of module instantiation argument ``"
+      "text": "type mismatch for export `future.drop-writable` of module instantiation argument ``"
     }
   ]
 }
