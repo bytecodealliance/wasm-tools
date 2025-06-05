@@ -100,6 +100,7 @@ use world::{ComponentWorld, ImportedInterface, Lowering};
 
 mod dedupe;
 pub(crate) use dedupe::ModuleImportMap;
+use wasm_metadata::AddMetadataField;
 
 fn to_val_type(ty: &WasmType) -> ValType {
     match ty {
@@ -397,7 +398,7 @@ impl<'a> EncodingState<'a> {
 
         for (name, adapter) in self.info.adapters.iter() {
             let mut add_meta = wasm_metadata::AddMetadata::default();
-            add_meta.name = Some(if adapter.library_info.is_some() {
+            add_meta.name = AddMetadataField::Set(if adapter.library_info.is_some() {
                 name.to_string()
             } else {
                 format!("wit-component:adapter:{name}")

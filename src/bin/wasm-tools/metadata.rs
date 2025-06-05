@@ -6,7 +6,7 @@ use comfy_table::modifiers::UTF8_ROUND_CORNERS;
 use comfy_table::presets::UTF8_FULL;
 use comfy_table::{CellAlignment, ContentArrangement, Table};
 use termcolor::WriteColor;
-use wasm_metadata::{Metadata, Payload};
+use wasm_metadata::{AddMetadata, Metadata, Payload};
 
 /// Manipulate metadata (module name, producers) to a WebAssembly file.
 #[derive(clap::Parser)]
@@ -69,7 +69,7 @@ pub struct AddOpts {
     io: wasm_tools::InputOutput,
 
     #[clap(flatten)]
-    add_metadata: wasm_metadata::AddMetadata,
+    add_metadata: wasm_metadata::AddMetadataOpts,
 
     /// Output the text format of WebAssembly instead of the binary format
     #[clap(short = 't', long)]
@@ -84,7 +84,8 @@ impl AddOpts {
     pub fn run(&self) -> Result<()> {
         let input = self.io.get_input_wasm()?;
 
-        let output = self.add_metadata.to_wasm(&input)?;
+        let add_metadata: AddMetadata = self.add_metadata.clone().into();
+        let output = add_metadata.to_wasm(&input)?;
 
         self.io.output_wasm(&output, self.wat)?;
         Ok(())
