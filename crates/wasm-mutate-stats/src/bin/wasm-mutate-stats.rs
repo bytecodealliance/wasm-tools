@@ -97,7 +97,7 @@ struct State {
     engines: Vec<(wasmtime::Engine, OptLevel)>,
     // timeout_reached state
     timeout_reached: AtomicBool,
-    // To avoid generation of mutations, just print report over prexisting folders
+    // To avoid generation of mutations, just print report over preexisting folders
     do_not_generate: bool,
     // seed
     seed: u64,
@@ -404,7 +404,7 @@ impl State {
         for (entryidx, entry) in worklist.iter().enumerate() {
             let data = std::fs::read(entry).context("failed to read seed file")?;
             // Compile each configuration
-            // Spwan compilation
+            // Spawn compilation
             for (engine, optlevel) in &self.engines {
                 let module = wasmtime::Module::new(engine, &data).with_context(|| {
                     format!(
