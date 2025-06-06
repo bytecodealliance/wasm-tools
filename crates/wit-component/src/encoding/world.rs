@@ -387,15 +387,15 @@ impl<'a> ComponentWorld<'a> {
                 | Import::StreamWrite { info, async_: _ }
                 | Import::StreamCancelRead { info, async_: _ }
                 | Import::StreamCancelWrite { info, async_: _ }
-                | Import::StreamCloseReadable(info)
-                | Import::StreamCloseWritable(info)
+                | Import::StreamDropReadable(info)
+                | Import::StreamDropWritable(info)
                 | Import::FutureNew(info)
                 | Import::FutureRead { info, async_: _ }
                 | Import::FutureWrite { info, async_: _ }
                 | Import::FutureCancelRead { info, async_: _ }
                 | Import::FutureCancelWrite { info, async_: _ }
-                | Import::FutureCloseReadable(info)
-                | Import::FutureCloseWritable(info) => {
+                | Import::FutureDropReadable(info)
+                | Import::FutureDropWritable(info) => {
                     live.add_type_id(resolve, info.ty);
                 }
 

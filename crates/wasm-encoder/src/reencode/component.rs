@@ -436,7 +436,7 @@ pub mod component_utils {
                 ..
             } => (),
             wasmparser::Payload::Version { .. } => {
-                return Err(Error::UnexpectedNonComponentSection)
+                return Err(Error::UnexpectedNonComponentSection);
             }
             wasmparser::Payload::TypeSection(_)
             | wasmparser::Payload::ImportSection(_)
@@ -452,7 +452,7 @@ pub mod component_utils {
             | wasmparser::Payload::DataSection(_)
             | wasmparser::Payload::CodeSectionStart { .. }
             | wasmparser::Payload::CodeSectionEntry(_) => {
-                return Err(Error::UnexpectedNonComponentSection)
+                return Err(Error::UnexpectedNonComponentSection);
             }
             wasmparser::Payload::ComponentTypeSection(section) => {
                 let mut types = crate::ComponentTypeSection::new();
@@ -1027,11 +1027,11 @@ pub mod component_utils {
             wasmparser::CanonicalFunction::StreamCancelWrite { ty, async_ } => {
                 section.stream_cancel_write(ty, async_);
             }
-            wasmparser::CanonicalFunction::StreamCloseReadable { ty } => {
-                section.stream_close_readable(reencoder.component_type_index(ty));
+            wasmparser::CanonicalFunction::StreamDropReadable { ty } => {
+                section.stream_drop_readable(reencoder.component_type_index(ty));
             }
-            wasmparser::CanonicalFunction::StreamCloseWritable { ty } => {
-                section.stream_close_writable(reencoder.component_type_index(ty));
+            wasmparser::CanonicalFunction::StreamDropWritable { ty } => {
+                section.stream_drop_writable(reencoder.component_type_index(ty));
             }
             wasmparser::CanonicalFunction::FutureNew { ty } => {
                 section.future_new(reencoder.component_type_index(ty));
@@ -1056,11 +1056,11 @@ pub mod component_utils {
             wasmparser::CanonicalFunction::FutureCancelWrite { ty, async_ } => {
                 section.future_cancel_write(ty, async_);
             }
-            wasmparser::CanonicalFunction::FutureCloseReadable { ty } => {
-                section.future_close_readable(reencoder.component_type_index(ty));
+            wasmparser::CanonicalFunction::FutureDropReadable { ty } => {
+                section.future_drop_readable(reencoder.component_type_index(ty));
             }
-            wasmparser::CanonicalFunction::FutureCloseWritable { ty } => {
-                section.future_close_writable(reencoder.component_type_index(ty));
+            wasmparser::CanonicalFunction::FutureDropWritable { ty } => {
+                section.future_drop_writable(reencoder.component_type_index(ty));
             }
             wasmparser::CanonicalFunction::ErrorContextNew { options } => {
                 let options = options

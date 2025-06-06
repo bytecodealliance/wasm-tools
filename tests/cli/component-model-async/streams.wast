@@ -168,48 +168,48 @@
   "type mismatch for export `stream.cancel-write` of module instantiation argument ``"
 )
 
-;; stream.close-readable
+;; stream.drop-readable
 (component
   (core module $m
-    (import "" "stream.close-readable" (func $stream-close-readable (param i32)))
+    (import "" "stream.drop-readable" (func $stream-drop-readable (param i32)))
   )
   (type $stream-type (stream u8))
-  (core func $stream-close-readable (canon stream.close-readable $stream-type))
-  (core instance $i (instantiate $m (with "" (instance (export "stream.close-readable" (func $stream-close-readable))))))
+  (core func $stream-drop-readable (canon stream.drop-readable $stream-type))
+  (core instance $i (instantiate $m (with "" (instance (export "stream.drop-readable" (func $stream-drop-readable))))))
 )
 
-;; stream.close-readable; incorrect type
+;; stream.drop-readable; incorrect type
 (assert_invalid
   (component
     (core module $m
-      (import "" "stream.close-readable" (func $stream-close-readable (param i32) (result i32)))
+      (import "" "stream.drop-readable" (func $stream-drop-readable (param i32) (result i32)))
     )
     (type $stream-type (stream u8))
-    (core func $stream-close-readable (canon stream.close-readable $stream-type))
-    (core instance $i (instantiate $m (with "" (instance (export "stream.close-readable" (func $stream-close-readable))))))
+    (core func $stream-drop-readable (canon stream.drop-readable $stream-type))
+    (core instance $i (instantiate $m (with "" (instance (export "stream.drop-readable" (func $stream-drop-readable))))))
   )
-  "type mismatch for export `stream.close-readable` of module instantiation argument ``"
+  "type mismatch for export `stream.drop-readable` of module instantiation argument ``"
 )
 
-;; stream.close-writable
+;; stream.drop-writable
 (component
   (core module $m
-    (import "" "stream.close-writable" (func $stream-close-writable (param i32)))
+    (import "" "stream.drop-writable" (func $stream-drop-writable (param i32)))
   )
   (type $stream-type (stream u8))
-  (core func $stream-close-writable (canon stream.close-writable $stream-type))
-  (core instance $i (instantiate $m (with "" (instance (export "stream.close-writable" (func $stream-close-writable))))))
+  (core func $stream-drop-writable (canon stream.drop-writable $stream-type))
+  (core instance $i (instantiate $m (with "" (instance (export "stream.drop-writable" (func $stream-drop-writable))))))
 )
 
-;; stream.close-writable; incorrect type
+;; stream.drop-writable; incorrect type
 (assert_invalid
   (component
     (core module $m
-      (import "" "stream.close-writable" (func $stream-close-writable (param i32 i32) (result i32)))
+      (import "" "stream.drop-writable" (func $stream-drop-writable (param i32 i32) (result i32)))
     )
     (type $stream-type (stream u8))
-    (core func $stream-close-writable (canon stream.close-writable $stream-type))
-    (core instance $i (instantiate $m (with "" (instance (export "stream.close-writable" (func $stream-close-writable))))))
+    (core func $stream-drop-writable (canon stream.drop-writable $stream-type))
+    (core instance $i (instantiate $m (with "" (instance (export "stream.drop-writable" (func $stream-drop-writable))))))
   )
-  "type mismatch for export `stream.close-writable` of module instantiation argument ``"
+  "type mismatch for export `stream.drop-writable` of module instantiation argument ``"
 )

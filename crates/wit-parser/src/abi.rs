@@ -1,4 +1,5 @@
-use crate::{Function, Handle, Int, Resolve, Type, TypeDefKind};
+use crate::{Function, FunctionKind, Handle, Int, Resolve, Stability, Type, TypeDefKind};
+use core::iter;
 
 /// A core WebAssembly signature with params and results.
 #[derive(Clone, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
@@ -272,6 +273,28 @@ impl Resolve {
             results: results.to_vec(),
             retptr,
         }
+    }
+
+    /// Get the WebAssembly type signature for a `future.write` intrinsic with
+    /// the specified payload type.
+    pub fn future_write_wasm_signature(&self, payload: Option<Type>) -> WasmSignature {
+        let mut sig = self.wasm_signature(
+            AbiVariant::GuestImportAsync,
+            &Function {
+                name: String::new(),
+                kind: FunctionKind::Freestanding,
+                params: if let Some(payload) = payload {
+                    vec![(String::new(), payload)]
+                } else {
+                    Vec::new()
+                },
+                result: None,
+                docs: Default::default(),
+                stability: Stability::Unknown,
+            },
+        );
+        sig.params = iter::once(WasmType::I32).chain(sig.params).collect();
+        sig
     }
 
     fn push_flat_list<'a>(

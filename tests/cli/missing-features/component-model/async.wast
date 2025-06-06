@@ -217,28 +217,28 @@
   "requires the component model async feature"
 )
 
-;; stream.close-readable
+;; stream.drop-readable
 (assert_invalid
   (component
     (core module $m
-      (import "" "stream.close-readable" (func $stream-close-readable (param i32)))
+      (import "" "stream.drop-readable" (func $stream-drop-readable (param i32)))
     )
     (type $stream-type (stream u8))
-    (core func $stream-close-readable (canon stream.close-readable $stream-type))
-    (core instance $i (instantiate $m (with "" (instance (export "stream.close-readable" (func $stream-close-readable))))))
+    (core func $stream-drop-readable (canon stream.drop-readable $stream-type))
+    (core instance $i (instantiate $m (with "" (instance (export "stream.drop-readable" (func $stream-drop-readable))))))
   )
   "requires the component model async feature"
 )
 
-;; stream.close-writable
+;; stream.drop-writable
 (assert_invalid
   (component
     (core module $m
-      (import "" "stream.close-writable" (func $stream-close-writable (param i32 i32)))
+      (import "" "stream.drop-writable" (func $stream-drop-writable (param i32 i32)))
     )
     (type $stream-type (stream u8))
-    (core func $stream-close-writable (canon stream.close-writable $stream-type))
-    (core instance $i (instantiate $m (with "" (instance (export "stream.close-writable" (func $stream-close-writable))))))
+    (core func $stream-drop-writable (canon stream.drop-writable $stream-type))
+    (core instance $i (instantiate $m (with "" (instance (export "stream.drop-writable" (func $stream-drop-writable))))))
   )
   "requires the component model async feature"
 )
@@ -312,28 +312,28 @@
   "requires the component model async feature"
 )
 
-;; future.close-readable
+;; future.drop-readable
 (assert_invalid
   (component
     (core module $m
-      (import "" "future.close-readable" (func $future-close-readable (param i32)))
+      (import "" "future.drop-readable" (func $future-drop-readable (param i32)))
     )
     (type $future-type (future u8))
-    (core func $future-close-readable (canon future.close-readable $future-type))
-    (core instance $i (instantiate $m (with "" (instance (export "future.close-readable" (func $future-close-readable))))))
+    (core func $future-drop-readable (canon future.drop-readable $future-type))
+    (core instance $i (instantiate $m (with "" (instance (export "future.drop-readable" (func $future-drop-readable))))))
   )
   "requires the component model async feature"
 )
 
-;; future.close-writable
+;; future.drop-writable
 (assert_invalid
   (component
     (core module $m
-      (import "" "future.close-writable" (func $future-close-writable (param i32 i32)))
+      (import "" "future.drop-writable" (func $future-drop-writable (param i32 i32)))
     )
     (type $future-type (future u8))
-    (core func $future-close-writable (canon future.close-writable $future-type))
-    (core instance $i (instantiate $m (with "" (instance (export "future.close-writable" (func $future-close-writable))))))
+    (core func $future-drop-writable (canon future.drop-writable $future-type))
+    (core instance $i (instantiate $m (with "" (instance (export "future.drop-writable" (func $future-drop-writable))))))
   )
   "requires the component model async feature"
 )
