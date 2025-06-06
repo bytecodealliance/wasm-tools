@@ -1758,7 +1758,7 @@ impl ComponentState {
             .check_core_type(
                 types,
                 FuncType::new(
-                    iter::repeat_n(ValType::I32, if elem_ty.is_some() { 2 } else { 1 }),
+                    iter::repeat(ValType::I32).take(if elem_ty.is_some() { 2 } else { 1 }),
                     [ValType::I32],
                 ),
                 offset,
