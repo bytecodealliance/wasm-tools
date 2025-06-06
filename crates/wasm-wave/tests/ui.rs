@@ -109,8 +109,7 @@ fn ui() -> Result<()> {
                 .with_context(|| format!("failed to read {expected:?}"))?;
             assert_eq!(
                 expected, actual,
-                "expectation `{}` did not match actual `{}`",
-                expected, actual,
+                "expectation `{expected}` did not match actual `{actual}`",
             );
         }
     }

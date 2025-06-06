@@ -294,7 +294,7 @@ impl<'a> CompositionGraphBuilder<'a> {
     fn resolve_import_ref(
         &self,
         r: InstanceImportRef,
-    ) -> (&Component, &str, ComponentInstanceTypeId) {
+    ) -> (&Component<'_>, &str, ComponentInstanceTypeId) {
         let component = self.graph.get_component(r.component).unwrap();
         let (name, ty) = component.import(r.import).unwrap();
         match ty {

@@ -220,7 +220,7 @@ impl Function {
     }
 
     /// Get an instruction encoder for this function body.
-    pub fn instructions(&mut self) -> InstructionSink {
+    pub fn instructions(&mut self) -> InstructionSink<'_> {
         InstructionSink::new(&mut self.bytes)
     }
 

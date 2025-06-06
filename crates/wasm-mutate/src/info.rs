@@ -59,7 +59,7 @@ pub struct ModuleInfo<'a> {
 
 impl<'a> ModuleInfo<'a> {
     /// Parse the given Wasm bytes and fill out a `ModuleInfo` AST for it.
-    pub fn new(input_wasm: &[u8]) -> Result<ModuleInfo> {
+    pub fn new(input_wasm: &[u8]) -> Result<ModuleInfo<'_>> {
         let mut parser = Parser::new(0);
         let mut info = ModuleInfo::default();
         let mut wasm = input_wasm;

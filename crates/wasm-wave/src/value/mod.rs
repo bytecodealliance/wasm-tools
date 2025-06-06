@@ -325,16 +325,16 @@ impl WasmValue for Value {
         canonicalize_nan64(val)
     }
 
-    fn unwrap_string(&self) -> std::borrow::Cow<str> {
+    fn unwrap_string(&self) -> std::borrow::Cow<'_, str> {
         unwrap_val!(&self.0, ValueEnum::String, "string")
             .as_ref()
             .into()
     }
-    fn unwrap_list(&self) -> Box<dyn Iterator<Item = Cow<Self>> + '_> {
+    fn unwrap_list(&self) -> Box<dyn Iterator<Item = Cow<'_, Self>> + '_> {
         let list = unwrap_val!(&self.0, ValueEnum::List, "list");
         Box::new(list.elements.iter().map(cow))
     }
-    fn unwrap_record(&self) -> Box<dyn Iterator<Item = (Cow<str>, Cow<Self>)> + '_> {
+    fn unwrap_record(&self) -> Box<dyn Iterator<Item = (Cow<'_, str>, Cow<'_, Self>)> + '_> {
         let record = unwrap_val!(&self.0, ValueEnum::Record, "record");
         Box::new(
             record
@@ -345,32 +345,32 @@ impl WasmValue for Value {
                 .zip(record.fields.iter().map(cow)),
         )
     }
-    fn unwrap_tuple(&self) -> Box<dyn Iterator<Item = Cow<Self>> + '_> {
+    fn unwrap_tuple(&self) -> Box<dyn Iterator<Item = Cow<'_, Self>> + '_> {
         let tuple = unwrap_val!(&self.0, ValueEnum::Tuple, "tuple");
         Box::new(tuple.elements.iter().map(cow))
     }
-    fn unwrap_variant(&self) -> (Cow<str>, Option<Cow<Self>>) {
+    fn unwrap_variant(&self) -> (Cow<'_, str>, Option<Cow<'_, Self>>) {
         let variant = unwrap_val!(&self.0, ValueEnum::Variant, "variant");
         let (ref name, _) = variant.ty.cases[variant.case];
         (cow(name.as_ref()), variant.payload.as_deref().map(cow))
     }
-    fn unwrap_enum(&self) -> Cow<str> {
+    fn unwrap_enum(&self) -> Cow<'_, str> {
         let enum_ = unwrap_val!(&self.0, ValueEnum::Enum, "enum");
         cow(enum_.ty.cases[enum_.case].as_ref())
     }
-    fn unwrap_option(&self) -> Option<Cow<Self>> {
+    fn unwrap_option(&self) -> Option<Cow<'_, Self>> {
         unwrap_val!(&self.0, ValueEnum::Option, "option")
             .value
             .as_ref()
             .map(|v| cow(v.as_ref()))
     }
-    fn unwrap_result(&self) -> Result<Option<Cow<Self>>, Option<Cow<Self>>> {
+    fn unwrap_result(&self) -> Result<Option<Cow<'_, Self>>, Option<Cow<'_, Self>>> {
         match &unwrap_val!(&self.0, ValueEnum::Result, "result").value {
             Ok(val) => Ok(val.as_deref().map(cow)),
             Err(val) => Err(val.as_deref().map(cow)),
         }
     }
-    fn unwrap_flags(&self) -> Box<dyn Iterator<Item = Cow<str>> + '_> {
+    fn unwrap_flags(&self) -> Box<dyn Iterator<Item = Cow<'_, str>> + '_> {
         let flags = unwrap_val!(&self.0, ValueEnum::Flags, "flags");
         Box::new(
             flags
@@ -381,7 +381,7 @@ impl WasmValue for Value {
     }
 }
 
-fn cow<T: ToOwned + ?Sized>(t: &T) -> Cow<T> {
+fn cow<T: ToOwned + ?Sized>(t: &T) -> Cow<'_, T> {
     Cow::Borrowed(t)
 }
 

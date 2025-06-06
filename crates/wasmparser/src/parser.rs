@@ -1067,7 +1067,7 @@ impl Parser {
     ///
     /// # parse(&b"\0asm\x01\0\0\0"[..]).unwrap();
     /// ```
-    pub fn parse_all(self, mut data: &[u8]) -> impl Iterator<Item = Result<Payload>> {
+    pub fn parse_all(self, mut data: &[u8]) -> impl Iterator<Item = Result<Payload<'_>>> {
         let mut stack = Vec::new();
         let mut cur = self;
         let mut done = false;

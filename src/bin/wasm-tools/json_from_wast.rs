@@ -534,7 +534,7 @@ fn f64_to_string(f: F64) -> String {
     f.bits.to_string()
 }
 
-fn null_heap_ty(ty: HeapType<'_>) -> Result<json::Const> {
+fn null_heap_ty(ty: HeapType<'_>) -> Result<json::Const<'_>> {
     Ok(match ty {
         HeapType::Abstract { shared, ty } => {
             use AbstractHeapType::*;

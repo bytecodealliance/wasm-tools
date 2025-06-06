@@ -1073,7 +1073,7 @@ impl<O: Output> WitPrinter<O> {
         Ok(())
     }
 
-    fn escape_name(name: &str) -> Cow<str> {
+    fn escape_name(name: &str) -> Cow<'_, str> {
         if is_keyword(name) {
             Cow::Owned(format!("%{name}"))
         } else {

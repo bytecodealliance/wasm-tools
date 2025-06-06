@@ -215,7 +215,7 @@ impl WasmType for Type {
         Some(list.element.clone())
     }
 
-    fn record_fields(&self) -> Box<dyn Iterator<Item = (Cow<str>, Self)> + '_> {
+    fn record_fields(&self) -> Box<dyn Iterator<Item = (Cow<'_, str>, Self)> + '_> {
         let TypeEnum::Record(record) = &self.0 else {
             return Box::new(std::iter::empty());
         };
@@ -234,7 +234,7 @@ impl WasmType for Type {
         Box::new(tuple.elements.iter().cloned())
     }
 
-    fn variant_cases(&self) -> Box<dyn Iterator<Item = (Cow<str>, Option<Self>)> + '_> {
+    fn variant_cases(&self) -> Box<dyn Iterator<Item = (Cow<'_, str>, Option<Self>)> + '_> {
         let TypeEnum::Variant(variant) = &self.0 else {
             return Box::new(std::iter::empty());
         };
@@ -246,7 +246,7 @@ impl WasmType for Type {
         )
     }
 
-    fn enum_cases(&self) -> Box<dyn Iterator<Item = Cow<str>> + '_> {
+    fn enum_cases(&self) -> Box<dyn Iterator<Item = Cow<'_, str>> + '_> {
         let TypeEnum::Enum(enum_) = &self.0 else {
             return Box::new(std::iter::empty());
         };
@@ -263,7 +263,7 @@ impl WasmType for Type {
         Some((result.ok.clone(), result.err.clone()))
     }
 
-    fn flags_names(&self) -> Box<dyn Iterator<Item = Cow<str>> + '_> {
+    fn flags_names(&self) -> Box<dyn Iterator<Item = Cow<'_, str>> + '_> {
         let TypeEnum::Flags(flags) = &self.0 else {
             return Box::new(std::iter::empty());
         };

@@ -151,7 +151,7 @@ impl<'a> BrTable<'a> {
     ///     assert_eq!(targets, [1, 2]);
     /// }
     /// ```
-    pub fn targets(&self) -> BrTableTargets {
+    pub fn targets(&self) -> BrTableTargets<'_> {
         BrTableTargets {
             reader: self.reader.clone(),
             remaining: self.cnt,

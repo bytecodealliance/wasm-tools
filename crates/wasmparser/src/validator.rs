@@ -533,7 +533,7 @@ impl Validator {
     /// get the types of the component containing that module/component.
     ///
     /// Returns `None` if there is no module/component that many levels up.
-    pub fn types(&self, mut level: usize) -> Option<TypesRef> {
+    pub fn types(&self, mut level: usize) -> Option<TypesRef<'_>> {
         if let Some(module) = &self.module {
             if level == 0 {
                 return Some(TypesRef::from_module(self.id, &self.types, &module.module));

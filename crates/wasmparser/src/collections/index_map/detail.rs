@@ -298,7 +298,7 @@ impl<K, V> IndexMap<K, V> {
     }
 
     /// Gets the given key’s corresponding entry in the map for in-place manipulation.
-    pub fn entry(&mut self, key: K) -> Entry<K, V>
+    pub fn entry(&mut self, key: K) -> Entry<'_, K, V>
     where
         K: Ord + Clone,
     {
@@ -399,35 +399,35 @@ impl<K, V> IndexMap<K, V> {
     }
 
     /// Gets an iterator over the entries of the map, sorted by key.
-    pub fn iter(&self) -> Iter<K, V> {
+    pub fn iter(&self) -> Iter<'_, K, V> {
         Iter {
             iter: self.slots.iter(),
         }
     }
 
     /// Gets a mutable iterator over the entries of the map, sorted by key.
-    pub fn iter_mut(&mut self) -> IterMut<K, V> {
+    pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
         IterMut {
             iter: self.slots.iter_mut(),
         }
     }
 
     /// Gets an iterator over the values of the map, in order by key.
-    pub fn keys(&self) -> Keys<K, V> {
+    pub fn keys(&self) -> Keys<'_, K, V> {
         Keys {
             iter: self.slots.iter(),
         }
     }
 
     /// Gets an iterator over the values of the map, in order by key.
-    pub fn values(&self) -> Values<K, V> {
+    pub fn values(&self) -> Values<'_, K, V> {
         Values {
             iter: self.slots.iter(),
         }
     }
 
     /// Gets a mutable iterator over the values of the map, in order by key.
-    pub fn values_mut(&mut self) -> ValuesMut<K, V> {
+    pub fn values_mut(&mut self) -> ValuesMut<'_, K, V> {
         ValuesMut {
             iter: self.slots.iter_mut(),
         }
