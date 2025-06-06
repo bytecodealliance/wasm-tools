@@ -252,6 +252,7 @@ impl Concurrency {
     }
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct CanonicalOptions {
     pub(crate) string_encoding: StringEncoding,
     pub(crate) memory: Option<u32>,
@@ -1802,13 +1803,8 @@ impl ComponentState {
         .lower(
             types,
             &CanonicalOptions {
-                string_encoding: StringEncoding::Utf8,
-                memory: options.memory,
-                realloc: None,
-                post_return: None,
                 concurrency: Concurrency::Async { callback: None },
-                core_type: None,
-                gc: false,
+                ..options
             },
             Abi::Lower,
             offset,
@@ -1816,7 +1812,10 @@ impl ComponentState {
         else {
             // As of this writing, `ComponentFuncType::lower` returns
             // `LoweredFuncType::New(_)` unless `options.gc` is true.
-            unreachable!()
+            bail!(
+                offset,
+                "todo: `future.write` with `gc` option not yet supported"
+            )
         };
 
         let ty_id = options.check_core_type(
