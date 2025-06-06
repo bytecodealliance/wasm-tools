@@ -35,6 +35,18 @@
   (core instance $i (instantiate $m (with "" (instance (export "future.read" (func $future-read))))))
 )
 
+;; future.read; no payload
+(component
+  (core module $libc (memory (export "memory") 1))
+  (core instance $libc (instantiate $libc))
+  (core module $m
+    (import "" "future.read" (func $future-read (param i32) (result i32)))
+  )
+  (type $future-type (future))
+  (core func $future-read (canon future.read $future-type async))
+  (core instance $i (instantiate $m (with "" (instance (export "future.read" (func $future-read))))))
+)
+
 ;; future.read; with realloc
 (component
   (core module $libc
@@ -103,6 +115,42 @@
     (import "" "future.write" (func $future-write (param i32 i32) (result i32)))
   )
   (type $future-type (future u8))
+  (core func $future-write (canon future.write $future-type async))
+  (core instance $i (instantiate $m (with "" (instance (export "future.write" (func $future-write))))))
+)
+
+;; future.write; no payload
+(component
+  (core module $libc (memory (export "memory") 1))
+  (core instance $libc (instantiate $libc))
+  (core module $m
+    (import "" "future.write" (func $future-write (param i32) (result i32)))
+  )
+  (type $future-type (future))
+  (core func $future-write (canon future.write $future-type async))
+  (core instance $i (instantiate $m (with "" (instance (export "future.write" (func $future-write))))))
+)
+
+;; future.write; flat payload spanning four core parameters
+(component
+  (core module $libc (memory (export "memory") 1))
+  (core instance $libc (instantiate $libc))
+  (core module $m
+    (import "" "future.write" (func $future-write (param i32 i32 i64 f32 f64) (result i32)))
+  )
+  (type $future-type (future (tuple s32 s64 f32 f64)))
+  (core func $future-write (canon future.write $future-type async))
+  (core instance $i (instantiate $m (with "" (instance (export "future.write" (func $future-write))))))
+)
+
+;; future.write; indirect payload
+(component
+  (core module $libc (memory (export "memory") 1))
+  (core instance $libc (instantiate $libc))
+  (core module $m
+    (import "" "future.write" (func $future-write (param i32 i32) (result i32)))
+  )
+  (type $future-type (future (tuple s32 s64 f32 f64 s32)))
   (core func $future-write (canon future.write $future-type async (memory $libc "memory")))
   (core instance $i (instantiate $m (with "" (instance (export "future.write" (func $future-write))))))
 )

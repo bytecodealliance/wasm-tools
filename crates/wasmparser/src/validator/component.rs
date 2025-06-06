@@ -1753,7 +1753,7 @@ impl ComponentState {
 
         let ty_id = self
             .check_options(types, options, offset)?
-            .require_memory(offset)?
+            .require_memory_if(offset, || elem_ty.is_some())?
             .require_realloc_if(offset, || elem_ty.is_some_and(|ty| ty.contains_ptr(types)))?
             .check_lower(offset)?
             .check_core_type(
