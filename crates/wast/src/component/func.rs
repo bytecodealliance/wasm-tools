@@ -67,15 +67,15 @@ pub enum CoreFuncKind<'a> {
     StreamWrite(CanonStreamWrite<'a>),
     StreamCancelRead(CanonStreamCancelRead<'a>),
     StreamCancelWrite(CanonStreamCancelWrite<'a>),
-    StreamDropReadable(CanonStreamDropReadable<'a>),
-    StreamDropWritable(CanonStreamDropWritable<'a>),
+    StreamCloseReadable(CanonStreamCloseReadable<'a>),
+    StreamCloseWritable(CanonStreamCloseWritable<'a>),
     FutureNew(CanonFutureNew<'a>),
     FutureRead(CanonFutureRead<'a>),
     FutureWrite(CanonFutureWrite<'a>),
     FutureCancelRead(CanonFutureCancelRead<'a>),
     FutureCancelWrite(CanonFutureCancelWrite<'a>),
-    FutureDropReadable(CanonFutureDropReadable<'a>),
-    FutureDropWritable(CanonFutureDropWritable<'a>),
+    FutureCloseReadable(CanonFutureCloseReadable<'a>),
+    FutureCloseWritable(CanonFutureCloseWritable<'a>),
     ErrorContextNew(CanonErrorContextNew<'a>),
     ErrorContextDebugMessage(CanonErrorContextDebugMessage<'a>),
     ErrorContextDrop,
@@ -151,10 +151,10 @@ impl<'a> CoreFuncKind<'a> {
             Ok(CoreFuncKind::StreamCancelRead(parser.parse()?))
         } else if l.peek::<kw::stream_cancel_write>()? {
             Ok(CoreFuncKind::StreamCancelWrite(parser.parse()?))
-        } else if l.peek::<kw::stream_drop_readable>()? {
-            Ok(CoreFuncKind::StreamDropReadable(parser.parse()?))
-        } else if l.peek::<kw::stream_drop_writable>()? {
-            Ok(CoreFuncKind::StreamDropWritable(parser.parse()?))
+        } else if l.peek::<kw::stream_close_readable>()? {
+            Ok(CoreFuncKind::StreamCloseReadable(parser.parse()?))
+        } else if l.peek::<kw::stream_close_writable>()? {
+            Ok(CoreFuncKind::StreamCloseWritable(parser.parse()?))
         } else if l.peek::<kw::future_new>()? {
             Ok(CoreFuncKind::FutureNew(parser.parse()?))
         } else if l.peek::<kw::future_read>()? {
@@ -165,10 +165,10 @@ impl<'a> CoreFuncKind<'a> {
             Ok(CoreFuncKind::FutureCancelRead(parser.parse()?))
         } else if l.peek::<kw::future_cancel_write>()? {
             Ok(CoreFuncKind::FutureCancelWrite(parser.parse()?))
-        } else if l.peek::<kw::future_drop_readable>()? {
-            Ok(CoreFuncKind::FutureDropReadable(parser.parse()?))
-        } else if l.peek::<kw::future_drop_writable>()? {
-            Ok(CoreFuncKind::FutureDropWritable(parser.parse()?))
+        } else if l.peek::<kw::future_close_readable>()? {
+            Ok(CoreFuncKind::FutureCloseReadable(parser.parse()?))
+        } else if l.peek::<kw::future_close_writable>()? {
+            Ok(CoreFuncKind::FutureCloseWritable(parser.parse()?))
         } else if l.peek::<kw::error_context_new>()? {
             Ok(CoreFuncKind::ErrorContextNew(parser.parse()?))
         } else if l.peek::<kw::error_context_debug_message>()? {
@@ -729,16 +729,16 @@ impl<'a> Parse<'a> for CanonStreamCancelWrite<'a> {
     }
 }
 
-/// Information relating to the `stream.drop-readable` intrinsic.
+/// Information relating to the `stream.close-readable` intrinsic.
 #[derive(Debug)]
-pub struct CanonStreamDropReadable<'a> {
-    /// The stream type to drop.
+pub struct CanonStreamCloseReadable<'a> {
+    /// The stream type to close.
     pub ty: Index<'a>,
 }
 
-impl<'a> Parse<'a> for CanonStreamDropReadable<'a> {
+impl<'a> Parse<'a> for CanonStreamCloseReadable<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::stream_drop_readable>()?;
+        parser.parse::<kw::stream_close_readable>()?;
 
         Ok(Self {
             ty: parser.parse()?,
@@ -746,16 +746,16 @@ impl<'a> Parse<'a> for CanonStreamDropReadable<'a> {
     }
 }
 
-/// Information relating to the `stream.drop-writable` intrinsic.
+/// Information relating to the `stream.close-writable` intrinsic.
 #[derive(Debug)]
-pub struct CanonStreamDropWritable<'a> {
-    /// The stream type to drop.
+pub struct CanonStreamCloseWritable<'a> {
+    /// The stream type to close.
     pub ty: Index<'a>,
 }
 
-impl<'a> Parse<'a> for CanonStreamDropWritable<'a> {
+impl<'a> Parse<'a> for CanonStreamCloseWritable<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::stream_drop_writable>()?;
+        parser.parse::<kw::stream_close_writable>()?;
 
         Ok(Self {
             ty: parser.parse()?,
@@ -862,16 +862,16 @@ impl<'a> Parse<'a> for CanonFutureCancelWrite<'a> {
     }
 }
 
-/// Information relating to the `future.drop-readable` intrinsic.
+/// Information relating to the `future.close-readable` intrinsic.
 #[derive(Debug)]
-pub struct CanonFutureDropReadable<'a> {
-    /// The future type to drop.
+pub struct CanonFutureCloseReadable<'a> {
+    /// The future type to close.
     pub ty: Index<'a>,
 }
 
-impl<'a> Parse<'a> for CanonFutureDropReadable<'a> {
+impl<'a> Parse<'a> for CanonFutureCloseReadable<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::future_drop_readable>()?;
+        parser.parse::<kw::future_close_readable>()?;
 
         Ok(Self {
             ty: parser.parse()?,
@@ -879,16 +879,16 @@ impl<'a> Parse<'a> for CanonFutureDropReadable<'a> {
     }
 }
 
-/// Information relating to the `future.drop-writable` intrinsic.
+/// Information relating to the `future.close-writable` intrinsic.
 #[derive(Debug)]
-pub struct CanonFutureDropWritable<'a> {
-    /// The future type to drop.
+pub struct CanonFutureCloseWritable<'a> {
+    /// The future type to close.
     pub ty: Index<'a>,
 }
 
-impl<'a> Parse<'a> for CanonFutureDropWritable<'a> {
+impl<'a> Parse<'a> for CanonFutureCloseWritable<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::future_drop_writable>()?;
+        parser.parse::<kw::future_close_writable>()?;
 
         Ok(Self {
             ty: parser.parse()?,

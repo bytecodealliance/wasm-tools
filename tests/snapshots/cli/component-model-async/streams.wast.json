@@ -97,7 +97,7 @@
       "line": 183,
       "filename": "streams.14.wasm",
       "module_type": "binary",
-      "text": "type mismatch for export `stream.drop-readable` of module instantiation argument ``"
+      "text": "type mismatch for export `stream.close-readable` of module instantiation argument ``"
     },
     {
       "type": "module",
@@ -110,7 +110,7 @@
       "line": 206,
       "filename": "streams.16.wasm",
       "module_type": "binary",
-      "text": "type mismatch for export `stream.drop-writable` of module instantiation argument ``"
+      "text": "type mismatch for export `stream.close-writable` of module instantiation argument ``"
     }
   ]
 }

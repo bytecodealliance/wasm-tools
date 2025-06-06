@@ -11,9 +11,6 @@ categories = ["wasm", "encoding", "parser-implementations"]
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-wave"
 readme = "README.md"
 
-[lints]
-workspace = true
-
 [features]
 default = ["wit"]
 wit = ["dep:wit-parser"]

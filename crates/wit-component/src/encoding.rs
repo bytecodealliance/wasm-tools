@@ -1536,9 +1536,7 @@ impl<'a> EncodingState<'a> {
                 ImportInstance::Names(names) => {
                     let mut exports = Vec::new();
                     for (name, import) in names {
-                        log::trace!(
-                            "attempting to materialize import of `{core_wasm_name}::{name}` for {for_module:?}"
-                        );
+                        log::trace!("attempting to materialize import of `{core_wasm_name}::{name}` for {for_module:?}");
                         let (kind, index) = self
                             .materialize_import(&shims, for_module, import)
                             .with_context(|| {
@@ -1739,14 +1737,14 @@ impl<'a> EncodingState<'a> {
                 let index = self.component.stream_cancel_write(ty, *async_);
                 Ok((ExportKind::Func, index))
             }
-            Import::StreamDropReadable(info) => {
+            Import::StreamCloseReadable(info) => {
                 let type_index = self.payload_type_index(info)?;
-                let index = self.component.stream_drop_readable(type_index);
+                let index = self.component.stream_close_readable(type_index);
                 Ok((ExportKind::Func, index))
             }
-            Import::StreamDropWritable(info) => {
+            Import::StreamCloseWritable(info) => {
                 let type_index = self.payload_type_index(info)?;
-                let index = self.component.stream_drop_writable(type_index);
+                let index = self.component.stream_close_writable(type_index);
                 Ok((ExportKind::Func, index))
             }
             Import::FutureNew(info) => {
@@ -1776,14 +1774,14 @@ impl<'a> EncodingState<'a> {
                 let index = self.component.future_cancel_write(ty, *async_);
                 Ok((ExportKind::Func, index))
             }
-            Import::FutureDropReadable(info) => {
+            Import::FutureCloseReadable(info) => {
                 let type_index = self.payload_type_index(info)?;
-                let index = self.component.future_drop_readable(type_index);
+                let index = self.component.future_close_readable(type_index);
                 Ok((ExportKind::Func, index))
             }
-            Import::FutureDropWritable(info) => {
+            Import::FutureCloseWritable(info) => {
                 let type_index = self.payload_type_index(info)?;
-                let index = self.component.future_drop_writable(type_index);
+                let index = self.component.future_close_writable(type_index);
                 Ok((ExportKind::Func, index))
             }
             Import::ErrorContextNew { encoding } => Ok(self.materialize_shim_import(
@@ -2211,12 +2209,12 @@ impl<'a> Shims<'a> {
                 | Import::StreamNew(..)
                 | Import::FutureCancelRead { .. }
                 | Import::FutureCancelWrite { .. }
-                | Import::FutureDropWritable { .. }
-                | Import::FutureDropReadable { .. }
+                | Import::FutureCloseWritable { .. }
+                | Import::FutureCloseReadable { .. }
                 | Import::StreamCancelRead { .. }
                 | Import::StreamCancelWrite { .. }
-                | Import::StreamDropWritable { .. }
-                | Import::StreamDropReadable { .. }
+                | Import::StreamCloseWritable { .. }
+                | Import::StreamCloseReadable { .. }
                 | Import::WaitableSetNew
                 | Import::WaitableSetDrop
                 | Import::WaitableJoin
@@ -2265,9 +2263,7 @@ impl<'a> Shims<'a> {
                         *async_,
                         info,
                         PayloadFuncKind::FutureWrite,
-                        resolve
-                            .future_write_wasm_signature(info.payload(resolve))
-                            .params,
+                        vec![WasmType::I32; 2],
                         vec![WasmType::I32],
                     );
                 }
@@ -2279,14 +2275,7 @@ impl<'a> Shims<'a> {
                         *async_,
                         info,
                         PayloadFuncKind::FutureRead,
-                        vec![
-                            WasmType::I32;
-                            if info.payload(resolve).is_some() {
-                                2
-                            } else {
-                                1
-                            }
-                        ],
+                        vec![WasmType::I32; 2],
                         vec![WasmType::I32],
                     );
                 }

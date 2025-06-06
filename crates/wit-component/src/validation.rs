@@ -346,15 +346,15 @@ pub enum Import {
     /// (but which may have already partially or entirely completed).
     StreamCancelWrite { info: PayloadInfo, async_: bool },
 
-    /// A `canon stream.drop-readable` intrinsic.
+    /// A `canon stream.close-readable` intrinsic.
     ///
-    /// This allows the guest to drop the readable end of a `stream`.
-    StreamDropReadable(PayloadInfo),
+    /// This allows the guest to close the readable end of a `stream`.
+    StreamCloseReadable(PayloadInfo),
 
-    /// A `canon stream.drop-writable` intrinsic.
+    /// A `canon stream.close-writable` intrinsic.
     ///
-    /// This allows the guest to drop the writable end of a `stream`.
-    StreamDropWritable(PayloadInfo),
+    /// This allows the guest to close the writable end of a `stream`.
+    StreamCloseWritable(PayloadInfo),
 
     /// A `canon future.new` intrinsic.
     ///
@@ -384,15 +384,15 @@ pub enum Import {
     /// (but which may have already completed).
     FutureCancelWrite { info: PayloadInfo, async_: bool },
 
-    /// A `canon future.drop-readable` intrinsic.
+    /// A `canon future.close-readable` intrinsic.
     ///
-    /// This allows the guest to drop the readable end of a `future`.
-    FutureDropReadable(PayloadInfo),
+    /// This allows the guest to close the readable end of a `future`.
+    FutureCloseReadable(PayloadInfo),
 
-    /// A `canon future.drop-writable` intrinsic.
+    /// A `canon future.close-writable` intrinsic.
     ///
-    /// This allows the guest to drop the writable end of a `future`.
-    FutureDropWritable(PayloadInfo),
+    /// This allows the guest to close the writable end of a `future`.
+    FutureCloseWritable(PayloadInfo),
 
     /// A `canon error-context.new` intrinsic.
     ///
@@ -904,22 +904,10 @@ impl ImportMap {
             validate_func_sig(name, &FuncType::new([], [ValType::I64]), ty)?;
             Import::FutureNew(info)
         } else if let Some(info) = prefixed_payload("[future-write-") {
-            validate_func_sig(
-                name,
-                &wasm_sig_to_func_type(resolve.future_write_wasm_signature(info.payload(resolve))),
-                ty,
-            )?;
+            validate_func_sig(name, &FuncType::new([ValType::I32; 2], [ValType::I32]), ty)?;
             Import::FutureWrite { async_, info }
         } else if let Some(info) = prefixed_payload("[future-read-") {
-            validate_func_sig(
-                name,
-                &if info.payload(resolve).is_some() {
-                    FuncType::new([ValType::I32; 2], [ValType::I32])
-                } else {
-                    FuncType::new([ValType::I32], [ValType::I32])
-                },
-                ty,
-            )?;
+            validate_func_sig(name, &FuncType::new([ValType::I32; 2], [ValType::I32]), ty)?;
             Import::FutureRead { async_, info }
         } else if let Some(info) = prefixed_payload("[future-cancel-write-") {
             validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
@@ -927,18 +915,18 @@ impl ImportMap {
         } else if let Some(info) = prefixed_payload("[future-cancel-read-") {
             validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
             Import::FutureCancelRead { async_, info }
-        } else if let Some(info) = prefixed_payload("[future-drop-writable-") {
+        } else if let Some(info) = prefixed_payload("[future-close-writable-") {
             if async_ {
-                bail!("async `future.drop-writable` calls not supported");
+                bail!("async `future.close-writable` calls not supported");
             }
             validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
-            Import::FutureDropWritable(info)
-        } else if let Some(info) = prefixed_payload("[future-drop-readable-") {
+            Import::FutureCloseWritable(info)
+        } else if let Some(info) = prefixed_payload("[future-close-readable-") {
             if async_ {
-                bail!("async `future.drop-readable` calls not supported");
+                bail!("async `future.close-readable` calls not supported");
             }
             validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
-            Import::FutureDropReadable(info)
+            Import::FutureCloseReadable(info)
         } else if let Some(info) = prefixed_payload("[stream-new-") {
             if async_ {
                 bail!("async `stream.new` calls not supported");
@@ -957,18 +945,18 @@ impl ImportMap {
         } else if let Some(info) = prefixed_payload("[stream-cancel-read-") {
             validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
             Import::StreamCancelRead { async_, info }
-        } else if let Some(info) = prefixed_payload("[stream-drop-writable-") {
+        } else if let Some(info) = prefixed_payload("[stream-close-writable-") {
             if async_ {
-                bail!("async `stream.drop-writable` calls not supported");
+                bail!("async `stream.close-writable` calls not supported");
             }
             validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
-            Import::StreamDropWritable(info)
-        } else if let Some(info) = prefixed_payload("[stream-drop-readable-") {
+            Import::StreamCloseWritable(info)
+        } else if let Some(info) = prefixed_payload("[stream-close-readable-") {
             if async_ {
-                bail!("async `stream.drop-readable` calls not supported");
+                bail!("async `stream.close-readable` calls not supported");
             }
             validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
-            Import::StreamDropReadable(info)
+            Import::StreamCloseReadable(info)
         } else {
             return Ok(None);
         };

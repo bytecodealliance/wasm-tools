@@ -1028,13 +1028,13 @@ impl Printer<'_, '_> {
                         Ok(())
                     })?;
                 }
-                CanonicalFunction::StreamDropReadable { ty } => {
-                    self.print_intrinsic(state, "canon stream.drop-readable ", &|me, state| {
+                CanonicalFunction::StreamCloseReadable { ty } => {
+                    self.print_intrinsic(state, "canon stream.close-readable ", &|me, state| {
                         me.print_idx(&state.component.type_names, ty)
                     })?;
                 }
-                CanonicalFunction::StreamDropWritable { ty } => {
-                    self.print_intrinsic(state, "canon stream.drop-writable ", &|me, state| {
+                CanonicalFunction::StreamCloseWritable { ty } => {
+                    self.print_intrinsic(state, "canon stream.close-writable ", &|me, state| {
                         me.print_idx(&state.component.type_names, ty)
                     })?;
                 }
@@ -1073,13 +1073,13 @@ impl Printer<'_, '_> {
                         Ok(())
                     })?;
                 }
-                CanonicalFunction::FutureDropReadable { ty } => {
-                    self.print_intrinsic(state, "canon future.drop-readable ", &|me, state| {
+                CanonicalFunction::FutureCloseReadable { ty } => {
+                    self.print_intrinsic(state, "canon future.close-readable ", &|me, state| {
                         me.print_idx(&state.component.type_names, ty)
                     })?;
                 }
-                CanonicalFunction::FutureDropWritable { ty } => {
-                    self.print_intrinsic(state, "canon future.drop-writable ", &|me, state| {
+                CanonicalFunction::FutureCloseWritable { ty } => {
+                    self.print_intrinsic(state, "canon future.close-writable ", &|me, state| {
                         me.print_idx(&state.component.type_names, ty)
                     })?;
                 }

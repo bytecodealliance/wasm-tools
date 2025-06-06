@@ -327,18 +327,18 @@ impl CanonicalFunctionSection {
         self
     }
 
-    /// Defines a function to drop the readable end of a `stream` of the
+    /// Defines a function to close the readable end of a `stream` of the
     /// specified type.
-    pub fn stream_drop_readable(&mut self, ty: u32) -> &mut Self {
+    pub fn stream_close_readable(&mut self, ty: u32) -> &mut Self {
         self.bytes.push(0x13);
         ty.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }
 
-    /// Defines a function to drop the writable end of a `stream` of the
+    /// Defines a function to close the writable end of a `stream` of the
     /// specified type.
-    pub fn stream_drop_writable(&mut self, ty: u32) -> &mut Self {
+    pub fn stream_close_writable(&mut self, ty: u32) -> &mut Self {
         self.bytes.push(0x14);
         ty.encode(&mut self.bytes);
         self.num_added += 1;
@@ -400,18 +400,18 @@ impl CanonicalFunctionSection {
         self
     }
 
-    /// Defines a function to drop the readable end of a `future` of the
+    /// Defines a function to close the readable end of a `future` of the
     /// specified type.
-    pub fn future_drop_readable(&mut self, ty: u32) -> &mut Self {
+    pub fn future_close_readable(&mut self, ty: u32) -> &mut Self {
         self.bytes.push(0x1a);
         ty.encode(&mut self.bytes);
         self.num_added += 1;
         self
     }
 
-    /// Defines a function to drop the writable end of a `future` of the
+    /// Defines a function to close the writable end of a `future` of the
     /// specified type.
-    pub fn future_drop_writable(&mut self, ty: u32) -> &mut Self {
+    pub fn future_close_writable(&mut self, ty: u32) -> &mut Self {
         self.bytes.push(0x1b);
         ty.encode(&mut self.bytes);
         self.num_added += 1;

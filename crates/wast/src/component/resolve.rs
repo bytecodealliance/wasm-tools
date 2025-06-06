@@ -425,10 +425,10 @@ impl<'a> Resolver<'a> {
                 CoreFuncKind::StreamCancelWrite(info) => {
                     self.resolve_ns(&mut info.ty, Ns::Type)?;
                 }
-                CoreFuncKind::StreamDropReadable(info) => {
+                CoreFuncKind::StreamCloseReadable(info) => {
                     self.resolve_ns(&mut info.ty, Ns::Type)?;
                 }
-                CoreFuncKind::StreamDropWritable(info) => {
+                CoreFuncKind::StreamCloseWritable(info) => {
                     self.resolve_ns(&mut info.ty, Ns::Type)?;
                 }
                 CoreFuncKind::FutureNew(info) => {
@@ -448,10 +448,10 @@ impl<'a> Resolver<'a> {
                 CoreFuncKind::FutureCancelWrite(info) => {
                     self.resolve_ns(&mut info.ty, Ns::Type)?;
                 }
-                CoreFuncKind::FutureDropReadable(info) => {
+                CoreFuncKind::FutureCloseReadable(info) => {
                     self.resolve_ns(&mut info.ty, Ns::Type)?;
                 }
-                CoreFuncKind::FutureDropWritable(info) => {
+                CoreFuncKind::FutureCloseWritable(info) => {
                     self.resolve_ns(&mut info.ty, Ns::Type)?;
                 }
                 CoreFuncKind::ErrorContextNew(info) => {
@@ -861,7 +861,7 @@ impl<'a> Resolver<'a> {
                                     "outer item `{}` is not a module, type, or component",
                                     id.name(),
                                 ),
-                            ));
+                            ))
                         }
                     },
                 },

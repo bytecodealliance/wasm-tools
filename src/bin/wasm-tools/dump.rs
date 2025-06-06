@@ -440,15 +440,15 @@ impl<'a> Dump<'a> {
                             | CanonicalFunction::StreamWrite { .. }
                             | CanonicalFunction::StreamCancelRead { .. }
                             | CanonicalFunction::StreamCancelWrite { .. }
-                            | CanonicalFunction::StreamDropReadable { .. }
-                            | CanonicalFunction::StreamDropWritable { .. }
+                            | CanonicalFunction::StreamCloseReadable { .. }
+                            | CanonicalFunction::StreamCloseWritable { .. }
                             | CanonicalFunction::FutureNew { .. }
                             | CanonicalFunction::FutureRead { .. }
                             | CanonicalFunction::FutureWrite { .. }
                             | CanonicalFunction::FutureCancelRead { .. }
                             | CanonicalFunction::FutureCancelWrite { .. }
-                            | CanonicalFunction::FutureDropReadable { .. }
-                            | CanonicalFunction::FutureDropWritable { .. }
+                            | CanonicalFunction::FutureCloseReadable { .. }
+                            | CanonicalFunction::FutureCloseWritable { .. }
                             | CanonicalFunction::ErrorContextNew { .. }
                             | CanonicalFunction::ErrorContextDebugMessage { .. }
                             | CanonicalFunction::ErrorContextDrop => {
