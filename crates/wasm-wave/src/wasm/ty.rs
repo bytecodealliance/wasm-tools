@@ -82,7 +82,7 @@ pub trait WasmType: Clone + Sized {
     /// iterator will be empty iff `self` is not a record type.
     /// # Panics
     /// Panics if the type is not implemented (the trait default).
-    fn record_fields(&self) -> Box<dyn Iterator<Item = (Cow<str>, Self)> + '_> {
+    fn record_fields(&self) -> Box<dyn Iterator<Item = (Cow<'_, str>, Self)> + '_> {
         unimplemented!()
     }
     /// Returns an iterator of the tuple's field Types. The iterator will be
@@ -96,14 +96,14 @@ pub trait WasmType: Clone + Sized {
     /// Types. The iterator will be empty iff `self` is not a tuple type.
     /// # Panics
     /// Panics if the type is not implemented (the trait default).
-    fn variant_cases(&self) -> Box<dyn Iterator<Item = (Cow<str>, Option<Self>)> + '_> {
+    fn variant_cases(&self) -> Box<dyn Iterator<Item = (Cow<'_, str>, Option<Self>)> + '_> {
         unimplemented!()
     }
     /// Returns an iterator of the enum's case names. The iterator will be
     /// empty iff `self` is not an enum type.
     /// # Panics
     /// Panics if the type is not implemented (the trait default).
-    fn enum_cases(&self) -> Box<dyn Iterator<Item = Cow<str>> + '_> {
+    fn enum_cases(&self) -> Box<dyn Iterator<Item = Cow<'_, str>> + '_> {
         unimplemented!()
     }
     /// Returns the option's "some" type or `None` if `self` is not an option type.
@@ -123,7 +123,7 @@ pub trait WasmType: Clone + Sized {
     /// `self` is not a flags type.
     /// # Panics
     /// Panics if the type is not implemented (the trait default).
-    fn flags_names(&self) -> Box<dyn Iterator<Item = Cow<str>> + '_> {
+    fn flags_names(&self) -> Box<dyn Iterator<Item = Cow<'_, str>> + '_> {
         unimplemented!()
     }
 }

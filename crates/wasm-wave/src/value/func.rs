@@ -39,7 +39,7 @@ impl WasmFunc for FuncType {
         Box::new(self.params.iter().map(|(_, ty)| ty.clone()))
     }
 
-    fn param_names(&self) -> Box<dyn Iterator<Item = std::borrow::Cow<str>> + '_> {
+    fn param_names(&self) -> Box<dyn Iterator<Item = std::borrow::Cow<'_, str>> + '_> {
         Box::new(self.params.iter().map(|(name, _)| name.into()))
     }
 
@@ -47,7 +47,7 @@ impl WasmFunc for FuncType {
         Box::new(self.results.iter().map(|(_, ty)| ty.clone()))
     }
 
-    fn result_names(&self) -> Box<dyn Iterator<Item = std::borrow::Cow<str>> + '_> {
+    fn result_names(&self) -> Box<dyn Iterator<Item = std::borrow::Cow<'_, str>> + '_> {
         Box::new(
             self.results
                 .iter()

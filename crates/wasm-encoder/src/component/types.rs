@@ -33,7 +33,7 @@ impl ModuleType {
     ///
     /// The returned encoder must be used before adding another definition.
     #[must_use = "the encoder must be used to encode the type"]
-    pub fn ty(&mut self) -> CoreTypeEncoder {
+    pub fn ty(&mut self) -> CoreTypeEncoder<'_> {
         self.bytes.push(0x01);
         self.num_added += 1;
         self.types_added += 1;
@@ -178,7 +178,7 @@ impl ComponentType {
     ///
     /// The returned encoder must be used before adding another definition.
     #[must_use = "the encoder must be used to encode the type"]
-    pub fn core_type(&mut self) -> ComponentCoreTypeEncoder {
+    pub fn core_type(&mut self) -> ComponentCoreTypeEncoder<'_> {
         self.bytes.push(0x00);
         self.num_added += 1;
         self.core_types_added += 1;
@@ -189,7 +189,7 @@ impl ComponentType {
     ///
     /// The returned encoder must be used before adding another definition.
     #[must_use = "the encoder must be used to encode the type"]
-    pub fn ty(&mut self) -> ComponentTypeEncoder {
+    pub fn ty(&mut self) -> ComponentTypeEncoder<'_> {
         self.bytes.push(0x01);
         self.num_added += 1;
         self.types_added += 1;
@@ -291,7 +291,7 @@ impl InstanceType {
     ///
     /// The returned encoder must be used before adding another definition.
     #[must_use = "the encoder must be used to encode the type"]
-    pub fn core_type(&mut self) -> ComponentCoreTypeEncoder {
+    pub fn core_type(&mut self) -> ComponentCoreTypeEncoder<'_> {
         self.0.core_type()
     }
 
@@ -299,7 +299,7 @@ impl InstanceType {
     ///
     /// The returned encoder must be used before adding another definition.
     #[must_use = "the encoder must be used to encode the type"]
-    pub fn ty(&mut self) -> ComponentTypeEncoder {
+    pub fn ty(&mut self) -> ComponentTypeEncoder<'_> {
         self.0.ty()
     }
 

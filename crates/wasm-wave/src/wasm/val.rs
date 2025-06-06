@@ -265,55 +265,55 @@ pub trait WasmValue: Clone + Sized {
     /// Returns the underlying value of the WasmValue, panicing if it's the wrong type.
     /// # Panics
     /// Panics if `self` is not of the right type.
-    fn unwrap_string(&self) -> Cow<str> {
+    fn unwrap_string(&self) -> Cow<'_, str> {
         unimplemented!()
     }
     /// Returns an iterator of the element Vals of the list.
     /// # Panics
     /// Panics if `self` is not of the right type.
-    fn unwrap_list(&self) -> Box<dyn Iterator<Item = Cow<Self>> + '_> {
+    fn unwrap_list(&self) -> Box<dyn Iterator<Item = Cow<'_, Self>> + '_> {
         unimplemented!()
     }
     /// Returns an iterator of the field names and Vals of the record.
     /// # Panics
     /// Panics if `self` is not of the right type.
-    fn unwrap_record(&self) -> Box<dyn Iterator<Item = (Cow<str>, Cow<Self>)> + '_> {
+    fn unwrap_record(&self) -> Box<dyn Iterator<Item = (Cow<'_, str>, Cow<'_, Self>)> + '_> {
         unimplemented!()
     }
     /// Returns an iterator of the field Vals of the tuple.
     /// # Panics
     /// Panics if `self` is not of the right type.
-    fn unwrap_tuple(&self) -> Box<dyn Iterator<Item = Cow<Self>> + '_> {
+    fn unwrap_tuple(&self) -> Box<dyn Iterator<Item = Cow<'_, Self>> + '_> {
         unimplemented!()
     }
     /// Returns the variant case name and optional payload WasmValue of the variant.
     /// # Panics
     /// Panics if `self` is not of the right type.
-    fn unwrap_variant(&self) -> (Cow<str>, Option<Cow<Self>>) {
+    fn unwrap_variant(&self) -> (Cow<'_, str>, Option<Cow<'_, Self>>) {
         unimplemented!()
     }
     /// Returns the case name of the enum.
     /// # Panics
     /// Panics if `self` is not of the right type.
-    fn unwrap_enum(&self) -> Cow<str> {
+    fn unwrap_enum(&self) -> Cow<'_, str> {
         unimplemented!()
     }
     /// Returns the optional WasmValue.
     /// # Panics
     /// Panics if `self` is not of the right type.
-    fn unwrap_option(&self) -> Option<Cow<Self>> {
+    fn unwrap_option(&self) -> Option<Cow<'_, Self>> {
         unimplemented!()
     }
     /// Returns Ok(_) or Err(_) with the optional payload WasmValue.
     /// # Panics
     /// Panics if `self` is not of the right type.
-    fn unwrap_result(&self) -> Result<Option<Cow<Self>>, Option<Cow<Self>>> {
+    fn unwrap_result(&self) -> Result<Option<Cow<'_, Self>>, Option<Cow<'_, Self>>> {
         unimplemented!()
     }
     /// Returns an iterator of the names of the flags WasmValue.
     /// # Panics
     /// Panics if `self` is not of the right type.
-    fn unwrap_flags(&self) -> Box<dyn Iterator<Item = Cow<str>> + '_> {
+    fn unwrap_flags(&self) -> Box<dyn Iterator<Item = Cow<'_, str>> + '_> {
         unimplemented!()
     }
 }

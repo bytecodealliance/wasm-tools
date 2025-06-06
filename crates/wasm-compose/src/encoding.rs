@@ -61,7 +61,7 @@ impl Encodable {
         }
     }
 
-    fn ty(&mut self) -> ComponentTypeEncoder {
+    fn ty(&mut self) -> ComponentTypeEncoder<'_> {
         match self {
             Encodable::Component(t) => t.ty(),
             Encodable::Instance(t) => t.ty(),
@@ -69,7 +69,7 @@ impl Encodable {
         }
     }
 
-    fn core_type(&mut self) -> ComponentCoreTypeEncoder {
+    fn core_type(&mut self) -> ComponentCoreTypeEncoder<'_> {
         match self {
             Encodable::Component(t) => t.core_type(),
             Encodable::Instance(t) => t.core_type(),

@@ -203,7 +203,7 @@ impl<'a> Component<'a> {
     }
 
     /// Gets the type information of the component.
-    pub fn types(&self) -> TypesRef {
+    pub fn types(&self) -> TypesRef<'_> {
         self.types.as_ref()
     }
 
@@ -808,7 +808,7 @@ impl<'a> CompositionGraph<'a> {
     pub fn get_component_of_instance(
         &self,
         id: impl Into<InstanceId>,
-    ) -> Option<(ComponentId, &Component)> {
+    ) -> Option<(ComponentId, &Component<'_>)> {
         let id = id.into();
         let instance = self.instances.get(&id)?;
 

@@ -529,7 +529,7 @@ impl TypeSection {
 
     /// Encode a function type in this type section.
     #[must_use = "the encoder must be used to encode the type"]
-    pub fn ty(&mut self) -> CoreTypeEncoder {
+    pub fn ty(&mut self) -> CoreTypeEncoder<'_> {
         self.num_added += 1;
         CoreTypeEncoder {
             bytes: &mut self.bytes,

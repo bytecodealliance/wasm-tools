@@ -156,7 +156,7 @@ impl<'a> BinaryReader<'a> {
     /// The returned binary reader will have all features known to this crate
     /// enabled. To reject binaries that aren't valid unless a certain feature
     /// is enabled use the [`BinaryReader::new_features`] constructor instead.
-    pub fn new(data: &[u8], original_offset: usize) -> BinaryReader {
+    pub fn new(data: &[u8], original_offset: usize) -> BinaryReader<'_> {
         BinaryReader {
             buffer: data,
             position: 0,
@@ -201,7 +201,7 @@ impl<'a> BinaryReader<'a> {
         data: &[u8],
         original_offset: usize,
         features: WasmFeatures,
-    ) -> BinaryReader {
+    ) -> BinaryReader<'_> {
         BinaryReader {
             buffer: data,
             position: 0,

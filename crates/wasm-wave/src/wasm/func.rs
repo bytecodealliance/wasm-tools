@@ -17,7 +17,7 @@ pub trait WasmFunc {
     /// Returns an iterator of the func's parameter names. Must be the same
     /// length as the iterator returned by `params` or empty if this WasmFunc
     /// impl does not support param names.
-    fn param_names(&self) -> Box<dyn Iterator<Item = Cow<str>> + '_> {
+    fn param_names(&self) -> Box<dyn Iterator<Item = Cow<'_, str>> + '_> {
         Box::new(std::iter::empty())
     }
 
@@ -27,7 +27,7 @@ pub trait WasmFunc {
     /// Returns an iterator of the func's result names. Must be the same
     /// length as the iterator returned by `results` or empty if there are no
     /// named results or if this WasmFunc impl does not support result names.
-    fn result_names(&self) -> Box<dyn Iterator<Item = Cow<str>> + '_> {
+    fn result_names(&self) -> Box<dyn Iterator<Item = Cow<'_, str>> + '_> {
         Box::new(std::iter::empty())
     }
 }
