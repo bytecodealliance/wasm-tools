@@ -370,7 +370,7 @@ package {name} is defined in two different locations:\n\
     ///   contain a `deps` directory.
     /// * `$path/deps/my-package.wit` - a single-file WIT package. This is
     ///   parsed with [`Resolve::push_file`] and then added to `self` for
-    ///   name reoslution.
+    ///   name resolution.
     /// * `$path/deps/my-package.{wasm,wat}` - a wasm-encoded WIT package either
     ///   in the text for binary format.
     ///
