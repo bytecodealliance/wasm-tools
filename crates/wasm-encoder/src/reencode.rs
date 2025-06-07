@@ -676,7 +676,7 @@ pub mod utils {
         // accounting for various offsets. Then create a
         // `CodeSectionReader` (which notably the payload does not
         // give us here) and recurse with that. This means that
-        // users overridding `parse_code_section` always get that
+        // users overriding `parse_code_section` always get that
         // function called.
         let orig_offset = parser.offset() as usize;
         let get_original_section = |range: Range<usize>| {
@@ -838,7 +838,7 @@ pub mod utils {
                     // accounting for various offsets. Then create a
                     // `CodeSectionReader` (which notably the payload does not
                     // give us here) and recurse with that. This means that
-                    // users overridding `parse_code_section` always get that
+                    // users overriding `parse_code_section` always get that
                     // function called.
                     let section = get_original_section(range.clone())?;
                     let reader = wasmparser::BinaryReader::new(section, range.start);
