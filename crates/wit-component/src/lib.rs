@@ -17,7 +17,7 @@ mod printing;
 mod targets;
 mod validation;
 
-pub use encoding::{encode, ComponentEncoder};
+pub use encoding::{encode, ComponentEncoder, LibraryInfo};
 pub use linking::Linker;
 pub use printing::*;
 pub use targets::*;
