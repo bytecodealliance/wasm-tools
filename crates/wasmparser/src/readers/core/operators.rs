@@ -1014,6 +1014,7 @@ macro_rules! define_visit_operator_stack_adapter {
 impl<'x, 'a, T: VisitOperator<'a>> VisitOperator<'a> for FrameStackAdapter<'x, 'a, T> {
     type Output = T::Output;
 
+    #[cfg(feature = "simd")]
     fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = Self::Output>> {
         self.visitor.simd_visitor()
     }
@@ -1034,6 +1035,7 @@ macro_rules! define_passthrough_visit_operator {
 impl<'x, 'a, T: VisitOperator<'a>> VisitOperator<'a> for SingleFrameAdapter<'x, 'a, T> {
     type Output = T::Output;
 
+    #[cfg(feature = "simd")]
     fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = Self::Output>> {
         self.visitor.simd_visitor()
     }
