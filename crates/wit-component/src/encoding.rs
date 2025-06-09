@@ -2265,9 +2265,7 @@ impl<'a> Shims<'a> {
                         *async_,
                         info,
                         PayloadFuncKind::FutureWrite,
-                        resolve
-                            .future_write_wasm_signature(info.payload(resolve))
-                            .params,
+                        vec![WasmType::I32; 2],
                         vec![WasmType::I32],
                     );
                 }
@@ -2279,14 +2277,7 @@ impl<'a> Shims<'a> {
                         *async_,
                         info,
                         PayloadFuncKind::FutureRead,
-                        vec![
-                            WasmType::I32;
-                            if info.payload(resolve).is_some() {
-                                2
-                            } else {
-                                1
-                            }
-                        ],
+                        vec![WasmType::I32; 2],
                         vec![WasmType::I32],
                     );
                 }

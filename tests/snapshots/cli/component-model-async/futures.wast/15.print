@@ -1,12 +1,12 @@
 (component
   (core module $m (;0;)
-    (type (;0;) (func (param i32) (result i32)))
-    (import "" "future.cancel-write" (func $future-cancel-write (;0;) (type 0)))
+    (type (;0;) (func (param i32)))
+    (import "" "future.drop-readable" (func $future-drop-readable (;0;) (type 0)))
   )
   (type $future-type (;0;) (future u8))
-  (core func $future-cancel-write (;0;) (canon future.cancel-write $future-type async))
+  (core func $future-drop-readable (;0;) (canon future.drop-readable $future-type))
   (core instance (;0;)
-    (export "future.cancel-write" (func $future-cancel-write))
+    (export "future.drop-readable" (func $future-drop-readable))
   )
   (core instance $i (;1;) (instantiate $m
       (with "" (instance 0))

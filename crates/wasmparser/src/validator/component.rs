@@ -7,8 +7,8 @@ use super::{
         ComponentCoreModuleTypeId, ComponentCoreTypeId, ComponentDefinedType,
         ComponentDefinedTypeId, ComponentEntityType, ComponentFuncType, ComponentFuncTypeId,
         ComponentInstanceType, ComponentInstanceTypeId, ComponentType, ComponentTypeId,
-        ComponentValType, Context, CoreInstanceTypeKind, InstanceType, LoweredFuncType, ModuleType,
-        RecordType, Remap, Remapping, ResourceId, SubtypeCx, TupleType, VariantCase, VariantType,
+        ComponentValType, Context, CoreInstanceTypeKind, InstanceType, ModuleType, RecordType,
+        Remap, Remapping, ResourceId, SubtypeCx, TupleType, VariantCase, VariantType,
     },
     core::{InternRecGroup, Module},
     types::{CoreTypeId, EntityType, TypeAlloc, TypeInfo, TypeList},
@@ -23,7 +23,6 @@ use crate::{
     ExternalKind, FuncType, GlobalType, InstantiationArgKind, MemoryType, PackedIndex, RefType,
     Result, SubType, TableType, TypeBounds, ValType, WasmFeatures,
 };
-use core::iter;
 use core::mem;
 
 fn to_kebab_str<'a>(s: &'a str, desc: &str, offset: usize) -> Result<&'a KebabStr> {
@@ -1758,10 +1757,7 @@ impl ComponentState {
             .check_lower(offset)?
             .check_core_type(
                 types,
-                FuncType::new(
-                    iter::repeat(ValType::I32).take(if elem_ty.is_some() { 2 } else { 1 }),
-                    [ValType::I32],
-                ),
+                FuncType::new([ValType::I32; 2], [ValType::I32]),
                 offset,
             )?;
 
@@ -1788,44 +1784,14 @@ impl ComponentState {
             bail!(offset, "`future.write` requires a future type")
         };
 
-        let options = self.check_options(types, &options, offset)?;
-        options.check_lower(offset)?;
-
-        let LoweredFuncType::New(func_ty) = ComponentFuncType {
-            info: TypeInfo::new(),
-            params: if let Some(elem_ty) = elem_ty {
-                Box::new([(KebabString::new("p").unwrap(), *elem_ty)])
-            } else {
-                Box::new([])
-            },
-            result: None,
-        }
-        .lower(
-            types,
-            &CanonicalOptions {
-                concurrency: Concurrency::Async { callback: None },
-                ..options
-            },
-            Abi::Lower,
-            offset,
-        )?
-        else {
-            // As of this writing, `ComponentFuncType::lower` returns
-            // `LoweredFuncType::New(_)` unless `options.gc` is true.
-            bail!(
+        let ty_id = self
+            .check_options(types, &options, offset)?
+            .require_memory_if(offset, || elem_ty.is_some())?
+            .check_core_type(
+                types,
+                FuncType::new([ValType::I32; 2], [ValType::I32]),
                 offset,
-                "todo: `future.write` with `gc` option not yet supported"
-            )
-        };
-
-        let ty_id = options.check_core_type(
-            types,
-            FuncType::new(
-                iter::once(ValType::I32).chain(func_ty.params().iter().copied()),
-                [ValType::I32],
-            ),
-            offset,
-        )?;
+            )?;
 
         self.core_funcs.push(ty_id);
         Ok(())
