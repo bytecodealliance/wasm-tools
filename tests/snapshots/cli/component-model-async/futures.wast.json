@@ -28,111 +28,99 @@
     },
     {
       "type": "module",
-      "line": 51,
+      "line": 49,
       "filename": "futures.4.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 67,
+      "line": 65,
       "filename": "futures.5.wasm",
       "module_type": "binary",
       "text": "type mismatch for export `future.read` of module instantiation argument ``"
     },
     {
       "type": "assert_invalid",
-      "line": 82,
+      "line": 80,
       "filename": "futures.6.wasm",
       "module_type": "binary",
       "text": "`future.read` requires a future type"
     },
     {
       "type": "assert_invalid",
-      "line": 97,
+      "line": 95,
       "filename": "futures.7.wasm",
       "module_type": "binary",
       "text": "canonical option `realloc` is required"
     },
     {
       "type": "module",
-      "line": 111,
+      "line": 109,
       "filename": "futures.8.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 123,
+      "line": 121,
       "filename": "futures.9.wasm",
       "module_type": "binary"
     },
     {
-      "type": "module",
-      "line": 135,
-      "filename": "futures.10.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "module",
-      "line": 147,
-      "filename": "futures.11.wasm",
-      "module_type": "binary"
-    },
-    {
       "type": "assert_invalid",
-      "line": 160,
-      "filename": "futures.12.wasm",
+      "line": 132,
+      "filename": "futures.10.wasm",
       "module_type": "binary",
       "text": "type mismatch for export `future.write` of module instantiation argument ``"
     },
     {
       "type": "module",
-      "line": 174,
-      "filename": "futures.13.wasm",
+      "line": 146,
+      "filename": "futures.11.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 185,
-      "filename": "futures.14.wasm",
+      "line": 157,
+      "filename": "futures.12.wasm",
       "module_type": "binary",
       "text": "type mismatch for export `future.cancel-read` of module instantiation argument ``"
     },
     {
       "type": "module",
-      "line": 197,
-      "filename": "futures.15.wasm",
+      "line": 169,
+      "filename": "futures.13.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 208,
-      "filename": "futures.16.wasm",
+      "line": 180,
+      "filename": "futures.14.wasm",
       "module_type": "binary",
       "text": "type mismatch for export `future.cancel-write` of module instantiation argument ``"
     },
     {
       "type": "module",
-      "line": 220,
-      "filename": "futures.17.wasm",
+      "line": 192,
+      "filename": "futures.15.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 231,
-      "filename": "futures.18.wasm",
+      "line": 203,
+      "filename": "futures.16.wasm",
       "module_type": "binary",
       "text": "type mismatch for export `future.drop-readable` of module instantiation argument ``"
     },
     {
       "type": "module",
-      "line": 243,
-      "filename": "futures.19.wasm",
+      "line": 215,
+      "filename": "futures.17.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 254,
-      "filename": "futures.20.wasm",
+      "line": 226,
+      "filename": "futures.18.wasm",
       "module_type": "binary",
       "text": "type mismatch for export `future.drop-writable` of module instantiation argument ``"
     }

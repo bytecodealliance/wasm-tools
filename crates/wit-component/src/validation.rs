@@ -904,22 +904,10 @@ impl ImportMap {
             validate_func_sig(name, &FuncType::new([], [ValType::I64]), ty)?;
             Import::FutureNew(info)
         } else if let Some(info) = prefixed_payload("[future-write-") {
-            validate_func_sig(
-                name,
-                &wasm_sig_to_func_type(resolve.future_write_wasm_signature(info.payload(resolve))),
-                ty,
-            )?;
+            validate_func_sig(name, &FuncType::new([ValType::I32; 2], [ValType::I32]), ty)?;
             Import::FutureWrite { async_, info }
         } else if let Some(info) = prefixed_payload("[future-read-") {
-            validate_func_sig(
-                name,
-                &if info.payload(resolve).is_some() {
-                    FuncType::new([ValType::I32; 2], [ValType::I32])
-                } else {
-                    FuncType::new([ValType::I32], [ValType::I32])
-                },
-                ty,
-            )?;
+            validate_func_sig(name, &FuncType::new([ValType::I32; 2], [ValType::I32]), ty)?;
             Import::FutureRead { async_, info }
         } else if let Some(info) = prefixed_payload("[future-cancel-write-") {
             validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
