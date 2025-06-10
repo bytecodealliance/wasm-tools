@@ -1174,13 +1174,11 @@ impl WasmModuleResources for ValidatorResources {
 }
 
 const _: () = {
-    fn assert_send<T: Send>() {}
+    const fn assert_send<T: Send>() {}
 
     // Assert that `ValidatorResources` is Send so function validation
     // can be parallelizable
-    fn assert() {
-        assert_send::<ValidatorResources>();
-    }
+    assert_send::<ValidatorResources>();
 };
 
 mod arc {
