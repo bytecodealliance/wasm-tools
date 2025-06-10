@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/cli/component-model-gc/lift-func-no-params.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "name": "A",
+      "filename": "lift-func-no-params.0.wasm",
+      "module_type": "binary"
+    }
+  ]
+}
