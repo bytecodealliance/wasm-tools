@@ -336,15 +336,23 @@ impl CanonicalOptions {
     }
 
     pub(crate) fn check_lift(
-        &self,
+        &mut self,
         types: &TypeList,
         state: &ComponentState,
-        core_ty: &FuncType,
+        core_ty_id: CoreTypeId,
         offset: usize,
     ) -> Result<&Self> {
+        debug_assert!(matches!(
+            types[core_ty_id].composite_type.inner,
+            CompositeInnerType::Func(_)
+        ));
+
         if let Some(idx) = self.post_return {
-            let func_ty = types[state.core_function_at(idx, offset)?].unwrap_func();
-            if func_ty.params() != core_ty.results() || !func_ty.results().is_empty() {
+            let post_return_func_ty = types[state.core_function_at(idx, offset)?].unwrap_func();
+            let core_ty = types[core_ty_id].unwrap_func();
+            if post_return_func_ty.params() != core_ty.results()
+                || !post_return_func_ty.results().is_empty()
+            {
                 bail!(
                     offset,
                     "canonical option `post-return` uses a core function with an incorrect signature"
@@ -379,6 +387,7 @@ impl CanonicalOptions {
                 "canonical option `core-type` is not allowed in `canon lift`"
             )
         }
+        self.core_type = Some(core_ty_id);
 
         Ok(self)
     }
@@ -1252,14 +1261,12 @@ impl ComponentState {
     ) -> Result<()> {
         let ty = self.function_type_at(type_index, types, offset)?;
         let core_ty_id = self.core_function_at(core_func_index, offset)?;
-        let core_ty = types[core_ty_id].unwrap_func();
 
         // Lifting a function is for an export, so match the expected canonical ABI
         // export signature
-        let options = self.check_options(types, options, offset)?;
-        options.check_lift(types, self, core_ty, offset)?;
+        let mut options = self.check_options(types, options, offset)?;
+        options.check_lift(types, self, core_ty_id, offset)?;
         let func_ty = ty.lower(types, &options, Abi::Lift, offset)?;
-        debug_assert!(options.core_type.is_none());
         let lowered_core_ty_id = func_ty.intern(types, offset);
 
         if core_ty_id == lowered_core_ty_id {
