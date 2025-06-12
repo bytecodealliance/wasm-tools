@@ -468,6 +468,17 @@ impl OperatorValidator {
         self.control.len()
     }
 
+    /// Validates a relative jump to the `depth` specified.
+    ///
+    /// Returns the type signature of the block that we're jumping to as well
+    /// as the kind of block if the jump is valid. Otherwise returns an error.
+    pub(crate) fn jump(&self, depth: u32) -> Option<(BlockType, FrameKind)> {
+        assert!(!self.control.is_empty());
+        let i = (self.control.len() - 1).checked_sub(depth as usize)?;
+        let frame = &self.control[i];
+        Some((frame.block_type, frame.kind))
+    }
+
     pub fn get_frame(&self, depth: usize) -> Option<&Frame> {
         self.control.iter().rev().nth(depth)
     }
@@ -957,12 +968,8 @@ where
     /// Returns the type signature of the block that we're jumping to as well
     /// as the kind of block if the jump is valid. Otherwise returns an error.
     fn jump(&self, depth: u32) -> Result<(BlockType, FrameKind)> {
-        assert!(!self.control.is_empty());
-        match (self.control.len() - 1).checked_sub(depth as usize) {
-            Some(i) => {
-                let frame = &self.control[i];
-                Ok((frame.block_type, frame.kind))
-            }
+        match self.inner.jump(depth) {
+            Some(tup) => Ok(tup),
             None => bail!(self.offset, "unknown label: branch depth too large"),
         }
     }
@@ -1584,43 +1591,58 @@ where
                     // Pop the continuation reference.
                     match self.label_types(block.0, block.1)?.last() {
                         Some(ValType::Ref(rt)) if rt.is_concrete_type_ref() => {
-                            let sub_ty = self.resources.sub_type_at_id(rt.type_index().unwrap().as_core_type_id().expect("canonicalized index"));
-                            let new_cont =
-                                if let CompositeInnerType::Cont(cont) = &sub_ty.composite_type.inner {
-                                    cont
-                                } else {
-                                    bail!(self.offset, "non-continuation type");
-                                };
+                            let sub_ty = self.resources.sub_type_at_id(
+                                rt.type_index()
+                                    .unwrap()
+                                    .as_core_type_id()
+                                    .expect("canonicalized index"),
+                            );
+                            let new_cont = if let CompositeInnerType::Cont(cont) =
+                                &sub_ty.composite_type.inner
+                            {
+                                cont
+                            } else {
+                                bail!(self.offset, "non-continuation type");
+                            };
                             let new_func_ty = self.func_type_of_cont_type(&new_cont);
                             // Check that (ts2' -> ts2) <: $ft
-                            if new_func_ty.params().len() != tag_ty.results().len() || !self.is_subtype_many(new_func_ty.params(), tag_ty.results())
-                                || old_func_ty.results().len() != new_func_ty.results().len() || !self.is_subtype_many(old_func_ty.results(), new_func_ty.results()) {
+                            if new_func_ty.params().len() != tag_ty.results().len()
+                                || !self.is_subtype_many(new_func_ty.params(), tag_ty.results())
+                                || old_func_ty.results().len() != new_func_ty.results().len()
+                                || !self
+                                    .is_subtype_many(old_func_ty.results(), new_func_ty.results())
+                            {
                                 bail!(self.offset, "type mismatch in continuation type")
                             }
                             let expected_nargs = tag_ty.params().len() + 1;
-                            let actual_nargs = self
-                                .label_types(block.0, block.1)?
-                                .len();
+                            let actual_nargs = self.label_types(block.0, block.1)?.len();
                             if actual_nargs != expected_nargs {
-                                bail!(self.offset, "type mismatch: expected {expected_nargs} label result(s), but label is annotated with {actual_nargs} results")
+                                bail!(
+                                    self.offset,
+                                    "type mismatch: expected {expected_nargs} label result(s), but label is annotated with {actual_nargs} results"
+                                )
                             }
 
-                            let labeltys = self
-                                .label_types(block.0, block.1)?
-                                .take(expected_nargs - 1);
+                            let labeltys =
+                                self.label_types(block.0, block.1)?.take(expected_nargs - 1);
 
                             // Check that ts1'' <: ts1'.
                             for (tagty, &lblty) in labeltys.zip(tag_ty.params()) {
                                 if !self.resources.is_subtype(lblty, tagty) {
-                                    bail!(self.offset, "type mismatch between tag type and label type")
+                                    bail!(
+                                        self.offset,
+                                        "type mismatch between tag type and label type"
+                                    )
                                 }
                             }
                         }
                         Some(ty) => {
                             bail!(self.offset, "type mismatch: {}", ty_to_str(ty))
                         }
-                        _ => bail!(self.offset,
-                                   "type mismatch: instruction requires continuation reference type but label has none")
+                        _ => bail!(
+                            self.offset,
+                            "type mismatch: instruction requires continuation reference type but label has none"
+                        ),
                     }
                 }
                 Handle::OnSwitch { tag } => {
@@ -2095,7 +2117,10 @@ where
         let ty = self.global_type_at(global_index)?.content_type;
         let supertype = RefType::ANYREF.into();
         if !(ty == ValType::I32 || ty == ValType::I64 || self.resources.is_subtype(ty, supertype)) {
-            bail!(self.offset, "invalid type: `global.atomic.get` only allows `i32`, `i64` and subtypes of `anyref`");
+            bail!(
+                self.offset,
+                "invalid type: `global.atomic.get` only allows `i32`, `i64` and subtypes of `anyref`"
+            );
         }
         Ok(())
     }
@@ -2117,7 +2142,10 @@ where
         let ty = self.global_type_at(global_index)?.content_type;
         let supertype = RefType::ANYREF.into();
         if !(ty == ValType::I32 || ty == ValType::I64 || self.resources.is_subtype(ty, supertype)) {
-            bail!(self.offset, "invalid type: `global.atomic.set` only allows `i32`, `i64` and subtypes of `anyref`");
+            bail!(
+                self.offset,
+                "invalid type: `global.atomic.set` only allows `i32`, `i64` and subtypes of `anyref`"
+            );
         }
         Ok(())
     }
@@ -2171,7 +2199,10 @@ where
             || ty == ValType::I64
             || self.resources.is_subtype(ty, RefType::ANYREF.into()))
         {
-            bail!(self.offset, "invalid type: `global.atomic.rmw.xchg` only allows `i32`, `i64` and subtypes of `anyref`");
+            bail!(
+                self.offset,
+                "invalid type: `global.atomic.rmw.xchg` only allows `i32`, `i64` and subtypes of `anyref`"
+            );
         }
         self.check_unary_op(ty)
     }
@@ -2185,7 +2216,10 @@ where
             || ty == ValType::I64
             || self.resources.is_subtype(ty, RefType::EQREF.into()))
         {
-            bail!(self.offset, "invalid type: `global.atomic.rmw.cmpxchg` only allows `i32`, `i64` and subtypes of `eqref`");
+            bail!(
+                self.offset,
+                "invalid type: `global.atomic.rmw.cmpxchg` only allows `i32`, `i64` and subtypes of `eqref`"
+            );
         }
         self.check_binary_op(ty)
     }

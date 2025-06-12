@@ -63,6 +63,42 @@ pub struct FuncValidator<T> {
     index: u32,
 }
 
+impl<T: WasmModuleResources> ModuleArity for FuncValidator<T> {
+    fn sub_type_at(&self, type_idx: u32) -> Option<&crate::SubType> {
+        self.resources.sub_type_at(type_idx)
+    }
+
+    fn tag_type_arity(&self, at: u32) -> Option<(u32, u32)> {
+        let ty = self.resources.tag_at(at)?;
+        Some((
+            u32::try_from(ty.params().len()).unwrap(),
+            u32::try_from(ty.results().len()).unwrap(),
+        ))
+    }
+
+    fn type_index_of_function(&self, func_idx: u32) -> Option<u32> {
+        self.resources.type_index_of_function(func_idx)
+    }
+
+    fn func_type_of_cont_type(&self, cont_ty: &crate::ContType) -> Option<&crate::FuncType> {
+        let id = cont_ty.0.as_core_type_id()?;
+        Some(self.resources.sub_type_at_id(id).unwrap_func())
+    }
+
+    fn sub_type_of_ref_type(&self, rt: &crate::RefType) -> Option<&crate::SubType> {
+        let id = rt.type_index()?.as_core_type_id()?;
+        Some(self.resources.sub_type_at_id(id))
+    }
+
+    fn control_stack_height(&self) -> u32 {
+        u32::try_from(self.validator.control_stack_height()).unwrap()
+    }
+
+    fn label_block(&self, depth: u32) -> Option<(crate::BlockType, crate::FrameKind)> {
+        self.validator.jump(depth)
+    }
+}
+
 /// External handle to the internal allocations used during function validation.
 ///
 /// This is created with either the `Default` implementation or with
@@ -109,7 +145,9 @@ impl<T: WasmModuleResources> FuncValidator<T> {
                 let push_count = self.validator.pop_push_count.1 - pop_push_snapshot.1;
 
                 if pop_count != params || push_count != results {
-                    panic!("arity mismatch in validation. Expecting {params} operands popped, {results} pushed, but got {pop_count} popped, {push_count} pushed.");
+                    panic!(
+                        "arity mismatch in validation. Expecting {params} operands popped, {results} pushed, but got {pop_count} popped, {push_count} pushed."
+                    );
                 }
             }
         }
@@ -270,7 +308,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
 mod tests {
     use super::*;
     use crate::types::CoreTypeId;
-    use crate::{HeapType, RefType};
+    use crate::{HeapType, Parser, RefType, Validator};
 
     struct EmptyResources(crate::SubType);
 
@@ -369,5 +407,114 @@ mod tests {
         // Pushing another constant value makes use have two values on the stack.
         assert!(v.op(2, &Operator::I32Const { value: 99 }).is_ok());
         assert_eq!(v.operand_stack_height(), 2);
+    }
+
+    #[test]
+    fn arity_smoke_test() {
+        let wasm = wat::parse_str(
+            r#"
+                (module
+                    (type $pair (struct (field i32) (field i32)))
+
+                    (func $add (param i32 i32) (result i32)
+                        local.get 0
+                        local.get 1
+                        i32.add
+                    )
+
+                    (func $f (param i32 i32) (result (ref null $pair))
+                        local.get 0
+                        local.get 1
+                        call $add
+                        if (result (ref null $pair))
+                        local.get 0
+                        local.get 1
+                          struct.new $pair
+                        else
+                          unreachable
+                          i32.add
+                          unreachable
+                        end
+                    )
+                )
+            "#,
+        )
+        .unwrap();
+
+        let expected_arity = vec![
+            // $add
+            vec![
+                // local.get 0
+                (0, 1),
+                // local.get 1
+                (0, 1),
+                // i32.add
+                (2, 1),
+                // end
+                (1, 1),
+            ],
+            // $f
+            vec![
+                // local.get 0
+                (0, 1),
+                // local.get 1
+                (0, 1),
+                // call $add
+                (2, 1),
+                // if
+                (1, 0),
+                // local.get 0
+                (0, 1),
+                // local.get 1
+                (0, 1),
+                // struct.new $pair
+                (2, 1),
+                // else
+                (1, 0),
+                // unreachable,
+                (0, 0),
+                // i32.add
+                (2, 1),
+                // unreachable
+                (0, 0),
+                // end
+                (1, 1),
+                // end
+                (1, 1),
+            ],
+        ];
+
+        let parser = Parser::new(0);
+        let mut validator = Validator::new();
+
+        let mut actual_arity = vec![];
+
+        for payload in parser.parse_all(&wasm) {
+            let payload = payload.unwrap();
+            match payload {
+                crate::Payload::CodeSectionEntry(body) => {
+                    let mut arity = vec![];
+                    let mut func_validator = validator
+                        .code_section_entry(&body)
+                        .unwrap()
+                        .into_validator(FuncValidatorAllocations::default());
+                    let ops = body.get_operators_reader().unwrap();
+                    for op in ops.into_iter() {
+                        let op = op.unwrap();
+                        arity.push(
+                            op.operator_arity(&func_validator)
+                                .expect("valid operators should have arity"),
+                        );
+                        func_validator.op(usize::MAX, &op).expect("should be valid");
+                    }
+                    actual_arity.push(arity);
+                }
+                p => {
+                    validator.payload(&p).unwrap();
+                }
+            }
+        }
+
+        assert_eq!(actual_arity, expected_arity);
     }
 }
