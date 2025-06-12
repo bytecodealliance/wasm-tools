@@ -1,5 +1,5 @@
 use crate::abi::AbiVariant;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use id_arena::{Arena, Id};
 use indexmap::IndexMap;
 use semver::Version;
@@ -17,9 +17,9 @@ pub use metadata::PackageMetadata;
 
 pub mod abi;
 mod ast;
-use ast::lex::Span;
 pub use ast::SourceMap;
-pub use ast::{parse_use_path, ParsedUsePath};
+use ast::lex::Span;
+pub use ast::{ParsedUsePath, parse_use_path};
 mod sizealign;
 pub use sizealign::*;
 mod resolve;

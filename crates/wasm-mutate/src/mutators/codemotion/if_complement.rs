@@ -6,15 +6,15 @@ use rand::prelude::SliceRandom;
 use wasm_encoder::{Function, ValType};
 
 use crate::{
+    WasmMutate,
     module::map_block_type,
     mutators::{
-        codemotion::{
-            ir::{parse_context::Ast, AstWriter},
-            AstMutator,
-        },
         OperatorAndByteOffset,
+        codemotion::{
+            AstMutator,
+            ir::{AstWriter, parse_context::Ast},
+        },
     },
-    WasmMutate,
 };
 
 /// This mutator selects a random `if` construction in a function and swap its branches.

@@ -1,5 +1,5 @@
 use addr2line::LookupResult;
-use anyhow::{bail, Context as _, Result};
+use anyhow::{Context as _, Result, bail};
 use std::io::Write;
 use std::u64;
 use wasm_tools::addr2line::Addr2lineModules;

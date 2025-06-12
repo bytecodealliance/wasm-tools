@@ -3,7 +3,7 @@
 use std::borrow::Cow;
 
 use super::Mutator;
-use rand::{seq::SliceRandom, Rng};
+use rand::{Rng, seq::SliceRandom};
 
 #[derive(Clone, Copy)]
 pub struct CustomSectionMutator;

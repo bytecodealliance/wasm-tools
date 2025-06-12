@@ -17,17 +17,17 @@ mod mutators;
 pub use error::*;
 
 use crate::mutators::{
-    add_function::AddFunctionMutator, add_type::AddTypeMutator, codemotion::CodemotionMutator,
-    custom::AddCustomSectionMutator, custom::CustomSectionMutator,
+    Item, add_function::AddFunctionMutator, add_type::AddTypeMutator,
+    codemotion::CodemotionMutator, custom::AddCustomSectionMutator, custom::CustomSectionMutator,
     custom::ReorderCustomSectionMutator, function_body_unreachable::FunctionBodyUnreachable,
     modify_const_exprs::ConstExpressionMutator, modify_data::ModifyDataMutator,
     peephole::PeepholeMutator, remove_export::RemoveExportMutator, remove_item::RemoveItemMutator,
     remove_section::RemoveSection, rename_export::RenameExportMutator, snip_function::SnipMutator,
-    start::RemoveStartSection, Item,
+    start::RemoveStartSection,
 };
 use info::ModuleInfo;
 use mutators::Mutator;
-use rand::{rngs::SmallRng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng, rngs::SmallRng};
 use std::sync::Arc;
 
 #[cfg(feature = "clap")]

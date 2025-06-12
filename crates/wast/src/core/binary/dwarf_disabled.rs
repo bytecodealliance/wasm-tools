@@ -1,8 +1,8 @@
 //! Dummy version of dwarf emission that does nothing when the compile-time
 //! feature is disabled.
 
-use crate::core::binary::{EncodeOptions, Encoder, Names, RecOrType};
 use crate::core::Local;
+use crate::core::binary::{EncodeOptions, Encoder, Names, RecOrType};
 use crate::token::Span;
 
 pub struct Dwarf<'a> {

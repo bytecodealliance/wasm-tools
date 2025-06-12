@@ -24,8 +24,8 @@
 
 use {
     crate::encoding::{ComponentEncoder, Instance, Item, LibraryInfo, MainOrAdapter},
-    anyhow::{anyhow, bail, Context, Result},
-    indexmap::{map::Entry, IndexMap, IndexSet},
+    anyhow::{Context, Result, anyhow, bail},
+    indexmap::{IndexMap, IndexSet, map::Entry},
     metadata::{Export, ExportKey, FunctionType, GlobalType, Metadata, Type, ValueType},
     std::{
         collections::{BTreeMap, HashMap, HashSet},
@@ -257,7 +257,9 @@ impl<K: Hash + Eq + PartialEq + Debug, V: Debug> InsertUnique for HashMap<K, V> 
 
     fn insert_unique(&mut self, k: Self::Key, v: Self::Value) {
         if let Some(old_v) = self.get(&k) {
-            panic!("duplicate item inserted into map for key {k:?} (old value: {old_v:?}; new value: {v:?})");
+            panic!(
+                "duplicate item inserted into map for key {k:?} (old value: {old_v:?}; new value: {v:?})"
+            );
         }
         self.insert(k, v);
     }

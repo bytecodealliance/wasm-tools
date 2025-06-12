@@ -17,8 +17,8 @@ use std::{borrow::Cow, collections::HashMap, sync::Arc};
 use crate::{
     canonicalize_nan32, canonicalize_nan64,
     wasm::{
-        ensure_type_kind, maybe_unwrap_type, unwrap_val, WasmType, WasmTypeKind, WasmValue,
-        WasmValueError,
+        WasmType, WasmTypeKind, WasmValue, WasmValueError, ensure_type_kind, maybe_unwrap_type,
+        unwrap_val,
     },
 };
 

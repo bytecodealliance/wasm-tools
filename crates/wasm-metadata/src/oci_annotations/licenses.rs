@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::fmt::{self, Display};
 use std::str::FromStr;
 
-use anyhow::{ensure, Error, Result};
+use anyhow::{Error, Result, ensure};
 use serde::Serialize;
 use wasm_encoder::{ComponentSection, CustomSection, Encode, Section};
 use wasmparser::CustomSectionReader;

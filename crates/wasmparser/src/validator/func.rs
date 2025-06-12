@@ -394,14 +394,15 @@ mod tests {
         assert_eq!(v.operand_stack_height(), 1);
 
         // Entering a new control block does not affect the stack height.
-        assert!(v
-            .op(
+        assert!(
+            v.op(
                 1,
                 &Operator::Block {
                     blockty: crate::BlockType::Empty
                 }
             )
-            .is_ok());
+            .is_ok()
+        );
         assert_eq!(v.operand_stack_height(), 1);
 
         // Pushing another constant value makes use have two values on the stack.

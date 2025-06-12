@@ -69,9 +69,9 @@
 
 use super::{RecGroupId, TypeAlloc, TypeList};
 use crate::{
-    types::{CoreTypeId, TypeIdentifier},
     BinaryReaderError, CompositeInnerType, CompositeType, PackedIndex, RecGroup, Result,
     StorageType, UnpackedIndex, ValType, WasmFeatures,
+    types::{CoreTypeId, TypeIdentifier},
 };
 
 pub(crate) trait InternRecGroup {

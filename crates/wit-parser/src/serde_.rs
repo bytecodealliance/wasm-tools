@@ -3,7 +3,7 @@ use id_arena::{Arena, Id};
 use indexmap::IndexMap;
 use semver::Version;
 use serde::ser::{SerializeMap, SerializeSeq, Serializer};
-use serde::{de::Error, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::Error};
 
 pub fn serialize_none<S>(serializer: S) -> Result<S::Ok, S::Error>
 where

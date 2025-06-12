@@ -1,7 +1,7 @@
 #![cfg(feature = "component-model")]
 
 use arbitrary::{Arbitrary, Unstructured};
-use rand::{rngs::SmallRng, RngCore, SeedableRng};
+use rand::{RngCore, SeedableRng, rngs::SmallRng};
 use wasm_smith::Component;
 
 #[test]

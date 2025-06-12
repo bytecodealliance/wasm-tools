@@ -1,6 +1,6 @@
 //! Shared input/output routines amongst most `wasm-tools` subcommands
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::fs::File;
 use std::io::IsTerminal;
 use std::io::{BufWriter, Read, Write};
@@ -231,7 +231,9 @@ impl OutputArg {
                     None => {
                         let mut stdout = std::io::stdout();
                         if stdout.is_terminal() {
-                            bail!("cannot print binary wasm output to a terminal, pass the `-t` flag to print the text format");
+                            bail!(
+                                "cannot print binary wasm output to a terminal, pass the `-t` flag to print the text format"
+                            );
                         }
                         stdout
                             .write_all(bytes)

@@ -2,7 +2,7 @@ use super::{
     COMPONENT_SORT, CORE_MODULE_SORT, CORE_SORT, FUNCTION_SORT, INSTANCE_SORT, TYPE_SORT,
     VALUE_SORT,
 };
-use crate::{encode_section, ComponentSection, ComponentSectionId, ComponentTypeRef, Encode};
+use crate::{ComponentSection, ComponentSectionId, ComponentTypeRef, Encode, encode_section};
 use alloc::vec::Vec;
 
 /// Represents the kind of an export from a WebAssembly component.

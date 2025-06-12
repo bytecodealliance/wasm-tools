@@ -31,7 +31,7 @@ impl ComponentExternalKind {
                         x,
                         "component external kind",
                         offset + 1,
-                    ))
+                    ));
                 }
             },
             0x01 => ComponentExternalKind::Func,
@@ -44,7 +44,7 @@ impl ComponentExternalKind {
                     x,
                     "component external kind",
                     offset,
-                ))
+                ));
             }
         })
     }
@@ -93,7 +93,7 @@ impl<'a> FromReader<'a> for ComponentExport<'a> {
                         other,
                         "optional component export type",
                         reader.original_position() - 1,
-                    ))
+                    ));
                 }
             },
         })

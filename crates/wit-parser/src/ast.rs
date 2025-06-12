@@ -1,5 +1,5 @@
 use crate::{Error, PackageNotFoundError, UnresolvedPackageGroup};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use lex::{Span, Token, Tokenizer};
 use semver::Version;
 use std::borrow::Cow;

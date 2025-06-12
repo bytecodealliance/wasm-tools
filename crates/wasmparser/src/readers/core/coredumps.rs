@@ -1,5 +1,5 @@
-use crate::{prelude::*, Ieee32, Ieee64};
 use crate::{BinaryReader, FromReader, Result};
+use crate::{Ieee32, Ieee64, prelude::*};
 
 /// The data portion of a custom section representing a core dump. Per the
 /// tool-conventions repo, this section just specifies the executable name that

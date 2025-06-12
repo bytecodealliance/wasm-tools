@@ -14,8 +14,8 @@
  */
 
 use crate::{
-    types::CoreTypeId, BinaryReaderError, FuncType, GlobalType, HeapType, MemoryType, RefType,
-    SubType, TableType, ValType, WasmFeatures,
+    BinaryReaderError, FuncType, GlobalType, HeapType, MemoryType, RefType, SubType, TableType,
+    ValType, WasmFeatures, types::CoreTypeId,
 };
 
 /// Types that qualify as Wasm validation database.

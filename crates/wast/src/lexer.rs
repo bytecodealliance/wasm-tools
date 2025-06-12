@@ -24,8 +24,8 @@
 //!
 //! [`Lexer`]: crate::lexer::Lexer
 
-use crate::token::Span;
 use crate::Error;
+use crate::token::Span;
 use std::borrow::Cow;
 use std::char;
 use std::fmt;
@@ -669,7 +669,7 @@ impl<'a> Lexer<'a> {
                     has_underscores,
                     sign,
                     hex,
-                }))
+                }));
             }
         }
 
@@ -827,10 +827,10 @@ impl<'a> Lexer<'a> {
                     }
                 }
                 c if (c as u32) < 0x20 || c as u32 == 0x7f => {
-                    return Err(LexError::InvalidStringElement(c))
+                    return Err(LexError::InvalidStringElement(c));
                 }
                 c if !allow_confusing_unicode && is_confusing_unicode(c) => {
-                    return Err(LexError::ConfusingUnicode(c))
+                    return Err(LexError::ConfusingUnicode(c));
                 }
                 c => match &mut state {
                     State::Start => {}

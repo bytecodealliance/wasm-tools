@@ -1,6 +1,6 @@
 use crate::{
-    encode_section, Encode, GlobalType, MemoryType, Section, SectionId, TableType, TagType,
-    CORE_FUNCTION_SORT, CORE_GLOBAL_SORT, CORE_MEMORY_SORT, CORE_TABLE_SORT, CORE_TAG_SORT,
+    CORE_FUNCTION_SORT, CORE_GLOBAL_SORT, CORE_MEMORY_SORT, CORE_TABLE_SORT, CORE_TAG_SORT, Encode,
+    GlobalType, MemoryType, Section, SectionId, TableType, TagType, encode_section,
 };
 use alloc::vec::Vec;
 

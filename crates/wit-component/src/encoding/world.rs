@@ -1,15 +1,15 @@
 use super::{Adapter, ComponentEncoder, LibraryInfo, RequiredOptions};
 use crate::validation::{
-    validate_adapter_module, validate_module, Import, ImportMap, ValidatedModule,
+    Import, ImportMap, ValidatedModule, validate_adapter_module, validate_module,
 };
 use anyhow::{Context, Result};
 use indexmap::{IndexMap, IndexSet};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use wit_parser::{
-    abi::{AbiVariant, WasmSignature},
     Function, InterfaceId, LiveTypes, Resolve, TypeDefKind, TypeId, TypeOwner, WorldId, WorldItem,
     WorldKey,
+    abi::{AbiVariant, WasmSignature},
 };
 
 pub struct WorldAdapter<'a> {

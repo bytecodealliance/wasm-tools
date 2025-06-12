@@ -13,9 +13,9 @@
 //! don't need to match again; we just look at the declarations from now on.
 
 use crate::{
-    types::{CoreTypeId, RecGroupId, TypeList},
     ArrayType, CompositeInnerType, CompositeType, ContType, FieldType, FuncType, RefType,
     StorageType, StructType, SubType, ValType,
+    types::{CoreTypeId, RecGroupId, TypeList},
 };
 
 /// Wasm type matching.

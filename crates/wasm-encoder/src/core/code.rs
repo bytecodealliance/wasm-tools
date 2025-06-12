@@ -1,5 +1,5 @@
 use crate::{
-    encode_section, Encode, HeapType, InstructionSink, RefType, Section, SectionId, ValType,
+    Encode, HeapType, InstructionSink, RefType, Section, SectionId, ValType, encode_section,
 };
 use alloc::borrow::Cow;
 use alloc::vec;

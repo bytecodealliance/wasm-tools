@@ -1,7 +1,7 @@
 use arbitrary::{Arbitrary, Error, Unstructured};
 use rand::RngCore;
-use std::sync::atomic::{AtomicIsize, AtomicUsize, Ordering::SeqCst};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicIsize, AtomicUsize, Ordering::SeqCst};
 use wasmtime::*;
 
 struct State {

@@ -1,18 +1,18 @@
-use crate::binary_reader::WASM_MAGIC_NUMBER;
-use crate::prelude::*;
 #[cfg(feature = "features")]
 use crate::WasmFeatures;
-#[cfg(feature = "component-model")]
-use crate::{
-    limits::MAX_WASM_MODULE_SIZE, ComponentCanonicalSectionReader, ComponentExportSectionReader,
-    ComponentImportSectionReader, ComponentInstanceSectionReader, ComponentStartFunction,
-    ComponentTypeSectionReader, CoreTypeSectionReader, InstanceSectionReader, SectionLimited,
-};
+use crate::binary_reader::WASM_MAGIC_NUMBER;
+use crate::prelude::*;
 use crate::{
     BinaryReader, BinaryReaderError, CustomSectionReader, DataSectionReader, ElementSectionReader,
     ExportSectionReader, FromReader, FunctionBody, FunctionSectionReader, GlobalSectionReader,
     ImportSectionReader, MemorySectionReader, Result, TableSectionReader, TagSectionReader,
     TypeSectionReader,
+};
+#[cfg(feature = "component-model")]
+use crate::{
+    ComponentCanonicalSectionReader, ComponentExportSectionReader, ComponentImportSectionReader,
+    ComponentInstanceSectionReader, ComponentStartFunction, ComponentTypeSectionReader,
+    CoreTypeSectionReader, InstanceSectionReader, SectionLimited, limits::MAX_WASM_MODULE_SIZE,
 };
 use core::fmt;
 use core::iter;

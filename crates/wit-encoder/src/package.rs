@@ -2,7 +2,7 @@ use std::fmt;
 
 use semver::Version;
 
-use crate::{ident::Ident, Interface, Render, RenderOpts, World};
+use crate::{Interface, Render, RenderOpts, World, ident::Ident};
 
 /// A WIT package.
 ///

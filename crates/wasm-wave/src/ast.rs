@@ -5,7 +5,7 @@ use std::{borrow::Cow, collections::HashMap, str::FromStr};
 use crate::{
     lex::Span,
     parser::{ParserError, ParserErrorKind},
-    strings::{unescape, StringPartsIter},
+    strings::{StringPartsIter, unescape},
     wasm::{WasmType, WasmTypeKind, WasmValue, WasmValueError},
 };
 
@@ -230,7 +230,7 @@ impl Node {
             other => {
                 return Err(
                     self.wasm_value_error(WasmValueError::UnsupportedType(other.to_string()))
-                )
+                );
             }
         })
     }

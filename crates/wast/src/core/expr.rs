@@ -296,7 +296,7 @@ impl<'a> ExpressionParser<'a> {
                     }
                 }
                 Paren::None => {
-                    return Err(parser.error("expected to continue a folded instruction"))
+                    return Err(parser.error("expected to continue a folded instruction"));
                 }
             }
         }
@@ -1537,7 +1537,7 @@ impl<'a> MemArg<'a> {
         let offset = parse_field("offset", parser)?.unwrap_or(0);
         let align = match parse_field("align", parser)? {
             Some(n) if !n.is_power_of_two() => {
-                return Err(parser.error("alignment must be a power of two"))
+                return Err(parser.error("alignment must be a power of two"));
             }
             n => n.unwrap_or(default_align),
         };

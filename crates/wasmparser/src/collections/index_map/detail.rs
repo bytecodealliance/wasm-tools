@@ -39,7 +39,7 @@ mod impls {
 
 pub use self::impls::*;
 
-use alloc::collections::{btree_map, BTreeMap};
+use alloc::collections::{BTreeMap, btree_map};
 use alloc::vec::IntoIter as VecIntoIter;
 use alloc::vec::Vec;
 use core::borrow::Borrow;

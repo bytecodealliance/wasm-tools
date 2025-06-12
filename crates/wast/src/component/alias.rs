@@ -53,7 +53,7 @@ impl<'a> Alias<'a> {
             let mut kind: ComponentOuterAliasKind = parser.parse()?;
             match kind {
                 ComponentOuterAliasKind::CoreType => {
-                    return Err(parser.error("expected type for outer alias"))
+                    return Err(parser.error("expected type for outer alias"));
                 }
                 ComponentOuterAliasKind::Type => {
                     kind = ComponentOuterAliasKind::CoreType;

@@ -1,6 +1,6 @@
 use super::CORE_INSTANCE_SORT;
 use crate::{
-    encode_section, ComponentExportKind, ComponentSection, ComponentSectionId, Encode, ExportKind,
+    ComponentExportKind, ComponentSection, ComponentSectionId, Encode, ExportKind, encode_section,
 };
 use alloc::vec::Vec;
 

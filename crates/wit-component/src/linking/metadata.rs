@@ -2,7 +2,7 @@
 //! library](https://github.com/WebAssembly/tool-conventions/blob/main/DynamicLinking.md) modules.
 
 use {
-    anyhow::{bail, Context, Error, Result},
+    anyhow::{Context, Error, Result, bail},
     std::{
         collections::{BTreeSet, HashMap, HashSet},
         fmt,

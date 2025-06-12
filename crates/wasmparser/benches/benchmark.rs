@@ -1,5 +1,5 @@
 use anyhow::Result;
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use once_cell::unsync::Lazy;
 use std::fs;
 use std::path::Path;

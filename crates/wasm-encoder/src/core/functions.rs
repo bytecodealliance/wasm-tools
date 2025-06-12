@@ -1,4 +1,4 @@
-use crate::{encode_section, Encode, Section, SectionId};
+use crate::{Encode, Section, SectionId, encode_section};
 use alloc::vec::Vec;
 
 /// An encoder for the function section of WebAssembly modules.

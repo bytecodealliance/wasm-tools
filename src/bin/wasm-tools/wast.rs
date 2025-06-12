@@ -1,5 +1,5 @@
 use crate::validate::CliFeatures;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Parser;
 use rayon::prelude::*;
 use std::fs;

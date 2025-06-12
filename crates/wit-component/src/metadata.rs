@@ -42,7 +42,7 @@
 //! the three arguments originally passed to `encode`.
 
 use crate::{DecodedWasm, StringEncoding};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use indexmap::{IndexMap, IndexSet};
 use std::borrow::Cow;
 use wasm_encoder::{

@@ -2,14 +2,14 @@ use anyhow::Context;
 use clap::Parser;
 use core::sync::atomic::Ordering::{Relaxed, SeqCst};
 use rand::Rng;
-use rand::{rngs::SmallRng, SeedableRng};
+use rand::{SeedableRng, rngs::SmallRng};
 use std::collections::hash_map::DefaultHasher;
 use std::ffi::OsStr;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
+use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 use std::{collections::HashMap, sync::Arc};
 use std::{panic, process};
@@ -515,7 +515,10 @@ impl State {
                         // Saving report
                         let h1 = self.hash(&wasm);
                         self.save_crash(&wasm, None, seed, artifact_folder)?;
-                        anyhow::bail!(format!("Mutation invalid for entry {} seed {}.\n Crashing wasm is saved at crashes folder with name '<seed>.original.wasm'", h1, seed))
+                        anyhow::bail!(format!(
+                            "Mutation invalid for entry {} seed {}.\n Crashing wasm is saved at crashes folder with name '<seed>.original.wasm'",
+                            h1, seed
+                        ))
                     }
                 },
             };

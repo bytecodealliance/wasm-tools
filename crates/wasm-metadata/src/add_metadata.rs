@@ -1,4 +1,4 @@
-use crate::{rewrite_wasm, Producers};
+use crate::{Producers, rewrite_wasm};
 use anyhow::Result;
 use std::fmt::Debug;
 

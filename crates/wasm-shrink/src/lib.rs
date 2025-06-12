@@ -4,7 +4,7 @@
 //! See the [`WasmShrink`] type for details.
 
 use anyhow::{Context, Result};
-use rand::{rngs::SmallRng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng, rngs::SmallRng};
 use std::collections::HashSet;
 use wasm_mutate::WasmMutate;
 use wasmparser::WasmFeatures;

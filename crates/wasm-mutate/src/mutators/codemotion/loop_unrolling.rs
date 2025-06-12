@@ -7,18 +7,18 @@ use wasm_encoder::{Function, Instruction, ValType};
 use wasmparser::{BlockType, Operator};
 
 use crate::{
+    Error, WasmMutate,
     module::map_block_type,
     mutators::{
-        codemotion::{
-            ir::{
-                parse_context::{Ast, Node},
-                AstWriter,
-            },
-            AstMutator,
-        },
         OperatorAndByteOffset,
+        codemotion::{
+            AstMutator,
+            ir::{
+                AstWriter,
+                parse_context::{Ast, Node},
+            },
+        },
     },
-    Error, WasmMutate,
 };
 
 /// This mutator selects a random `loop` construction in a function and tries to unroll it.

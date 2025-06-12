@@ -6,7 +6,7 @@
 //! component link` arranges as part of component instantiation.
 
 use core::{
-    ffi::{c_char, c_int, c_void, CStr},
+    ffi::{CStr, c_char, c_int, c_void},
     ptr, slice,
 };
 
@@ -75,11 +75,7 @@ unsafe fn invalid_handle(library: *const c_void) -> bool {
 /// `dlopen`.
 #[no_mangle]
 pub unsafe extern "C" fn dlclose(library: *mut c_void) -> c_int {
-    if invalid_handle(library) {
-        -1
-    } else {
-        0
-    }
+    if invalid_handle(library) { -1 } else { 0 }
 }
 
 #[no_mangle]

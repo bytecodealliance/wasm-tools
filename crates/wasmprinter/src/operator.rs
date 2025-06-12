@@ -1,5 +1,5 @@
 use super::{Config, Print, PrintTermcolor, Printer, State};
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use termcolor::{Ansi, NoColor};
 use wasmparser::VisitSimdOperator;
 use wasmparser::{

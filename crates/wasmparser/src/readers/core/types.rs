@@ -1859,7 +1859,7 @@ impl<'a> FromReader<'a> for AbstractHeapType {
                 return Err(BinaryReaderError::invalid(
                     "invalid abstract heap type",
                     reader.original_position() - 1,
-                ))
+                ));
             }
         }
     }

@@ -25,12 +25,12 @@
 #[cfg(feature = "simd")]
 use crate::VisitSimdOperator;
 use crate::{
-    limits::MAX_WASM_FUNCTION_LOCALS, AbstractHeapType, BinaryReaderError, BlockType, BrTable,
-    Catch, ContType, FieldType, FrameKind, FuncType, GlobalType, Handle, HeapType, Ieee32, Ieee64,
-    MemArg, ModuleArity, RefType, Result, ResumeTable, StorageType, StructType, SubType, TableType,
-    TryTable, UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources,
+    AbstractHeapType, BinaryReaderError, BlockType, BrTable, Catch, ContType, FieldType, FrameKind,
+    FuncType, GlobalType, Handle, HeapType, Ieee32, Ieee64, MemArg, ModuleArity, RefType, Result,
+    ResumeTable, StorageType, StructType, SubType, TableType, TryTable, UnpackedIndex, ValType,
+    VisitOperator, WasmFeatures, WasmModuleResources, limits::MAX_WASM_FUNCTION_LOCALS,
 };
-use crate::{prelude::*, CompositeInnerType, Ordering};
+use crate::{CompositeInnerType, Ordering, prelude::*};
 use core::ops::{Deref, DerefMut};
 use core::{cmp, iter};
 

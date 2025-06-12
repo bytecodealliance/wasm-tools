@@ -1,10 +1,10 @@
 //! Helper methods for encoding eterm expressions to Wasm and back
 
+use crate::WasmMutate;
 use crate::mutators::peephole::dfg::MiniDFG;
 use crate::mutators::peephole::eggsy::encoder::expr2wasm::expr2wasm;
-use crate::mutators::peephole::{dfg::BBlock, OperatorAndByteOffset};
-use crate::mutators::peephole::{Lang, EG};
-use crate::WasmMutate;
+use crate::mutators::peephole::{EG, Lang};
+use crate::mutators::peephole::{OperatorAndByteOffset, dfg::BBlock};
 use egg::RecExpr;
 
 use wasm_encoder::Function;

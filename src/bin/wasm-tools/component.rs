@@ -1,20 +1,20 @@
 //! The WebAssembly component tool command line interface.
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Parser;
 use std::collections::HashMap;
 use std::io::Read;
 use std::mem;
 use std::path::{Path, PathBuf};
-use wasm_encoder::reencode::{Error, Reencode, ReencodeComponent, RoundtripReencoder};
 use wasm_encoder::ModuleType;
+use wasm_encoder::reencode::{Error, Reencode, ReencodeComponent, RoundtripReencoder};
 use wasm_tools::Output;
 use wasmparser::types::{CoreTypeId, EntityType, Types};
 use wasmparser::{Payload, ValidPayload, WasmFeatures};
 use wat::Detect;
 use wit_component::{
-    embed_component_metadata, metadata, ComponentEncoder, DecodedWasm, Linker, StringEncoding,
-    WitPrinter,
+    ComponentEncoder, DecodedWasm, Linker, StringEncoding, WitPrinter, embed_component_metadata,
+    metadata,
 };
 use wit_parser::{LiftLowerAbi, Mangling, ManglingAndAbi, PackageId, Resolve};
 
@@ -375,7 +375,9 @@ impl EmbedOpts {
                 match mangling {
                     Mangling::Standard32 => {
                         if self.async_callback || self.async_stackful {
-                            bail!("non-legacy mangling not yet supported when generating async dummy modules");
+                            bail!(
+                                "non-legacy mangling not yet supported when generating async dummy modules"
+                            );
                         }
                         ManglingAndAbi::Standard32
                     }

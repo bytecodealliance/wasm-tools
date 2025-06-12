@@ -15,8 +15,9 @@
 
 use crate::prelude::*;
 use crate::{
-    limits::*, AbstractHeapType, BinaryReaderError, Encoding, FromReader, FunctionBody, HeapType,
-    Parser, Payload, RefType, Result, SectionLimited, ValType, WasmFeatures, WASM_MODULE_VERSION,
+    AbstractHeapType, BinaryReaderError, Encoding, FromReader, FunctionBody, HeapType, Parser,
+    Payload, RefType, Result, SectionLimited, ValType, WASM_MODULE_VERSION, WasmFeatures,
+    limits::*,
 };
 use ::core::mem;
 use ::core::ops::Range;
@@ -318,7 +319,9 @@ impl WasmFeatures {
                         if self.exceptions() {
                             Ok(())
                         } else {
-                            Err("exception refs not supported without the exception handling feature")
+                            Err(
+                                "exception refs not supported without the exception handling feature",
+                            )
                         }
                     }
 
@@ -327,7 +330,9 @@ impl WasmFeatures {
                         if self.stack_switching() {
                             Ok(())
                         } else {
-                            Err("continuation refs not supported without the stack switching feature")
+                            Err(
+                                "continuation refs not supported without the stack switching feature",
+                            )
                         }
                     }
                 }
@@ -665,7 +670,7 @@ impl Validator {
                 return Err(BinaryReaderError::new(
                     "wasm version header out of order",
                     range.start,
-                ))
+                ));
             }
         }
 

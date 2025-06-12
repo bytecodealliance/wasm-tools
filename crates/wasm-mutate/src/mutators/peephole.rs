@@ -28,15 +28,15 @@ use self::{
     dfg::DFGBuilder,
     eggsy::{
         analysis::PeepholeMutationAnalysis,
-        encoder::{expr2wasm::ResourceRequest, Encoder},
+        encoder::{Encoder, expr2wasm::ResourceRequest},
         expr_enumerator::lazy_expand_aux,
         lang::*,
     },
 };
 use super::{Mutator, OperatorAndByteOffset};
 use crate::{
-    module::{map_type, PrimitiveTypeInfo},
     Error, ErrorKind, ModuleInfo, Result, WasmMutate,
+    module::{PrimitiveTypeInfo, map_type},
 };
 use egg::{Rewrite, Runner};
 use rand::Rng;
@@ -521,15 +521,15 @@ macro_rules! match_code_mutation {
 #[cfg(test)]
 mod tests {
     use crate::{
+        WasmMutate,
         info::ModuleInfo,
         module::PrimitiveTypeInfo,
-        mutators::{peephole::PeepholeMutator, Mutator},
-        WasmMutate,
+        mutators::{Mutator, peephole::PeepholeMutator},
     };
-    use egg::{rewrite, Id, Rewrite, Subst};
-    use rand::{rngs::SmallRng, SeedableRng};
+    use egg::{Id, Rewrite, Subst, rewrite};
+    use rand::{SeedableRng, rngs::SmallRng};
 
-    use super::{PeepholeMutationAnalysis, EG};
+    use super::{EG, PeepholeMutationAnalysis};
     use crate::mutators::peephole::Lang;
 
     /// Condition to apply the unfold operator

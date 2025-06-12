@@ -71,10 +71,10 @@
 //! otherwise there's no way to run a `wasi_snapshot_preview1` module within the
 //! component model.
 
+use crate::StringEncoding;
 use crate::metadata::{self, Bindgen, ModuleMetadata};
 use crate::validation::{Export, ExportMap, Import, ImportInstance, ImportMap, PayloadInfo};
-use crate::StringEncoding;
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use indexmap::{IndexMap, IndexSet};
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -83,9 +83,9 @@ use std::mem;
 use wasm_encoder::*;
 use wasmparser::{Validator, WasmFeatures};
 use wit_parser::{
-    abi::{AbiVariant, WasmSignature, WasmType},
     Function, FunctionKind, InterfaceId, LiveTypes, Resolve, Stability, Type, TypeDefKind, TypeId,
     TypeOwner, WorldItem, WorldKey,
+    abi::{AbiVariant, WasmSignature, WasmType},
 };
 
 const INDIRECT_TABLE_NAME: &str = "$imports";

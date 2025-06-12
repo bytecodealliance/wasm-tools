@@ -1,5 +1,5 @@
 use arbitrary::{Arbitrary, Unstructured};
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use wasm_smith::Module;
 
 pub fn benchmark_corpus(c: &mut Criterion) {

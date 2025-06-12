@@ -5,11 +5,11 @@
 
 use super::lang::Lang;
 use crate::mutators::peephole::{
-    eggsy::{encoder::rebuild::build_expr_inner, RandomExtractor},
     EG,
+    eggsy::{RandomExtractor, encoder::rebuild::build_expr_inner},
 };
 use egg::{AstSize, Id, Language, RecExpr};
-use rand::{prelude::SmallRng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng, prelude::SmallRng};
 use std::{cell::RefCell, rc::Rc};
 
 /// Returns a lazy iterator over all possible expressions that can be
@@ -180,12 +180,12 @@ pub fn lazy_expand_aux<'a>(
 
 #[cfg(test)]
 mod tests {
+    use crate::ModuleInfo;
     use crate::mutators::peephole::eggsy::{
         analysis::PeepholeMutationAnalysis, expr_enumerator::lazy_expand, lang::Lang,
     };
-    use crate::ModuleInfo;
-    use egg::{rewrite, AstSize, RecExpr, Rewrite, Runner};
-    use rand::{prelude::SmallRng, SeedableRng};
+    use egg::{AstSize, RecExpr, Rewrite, Runner, rewrite};
+    use rand::{SeedableRng, prelude::SmallRng};
     use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
     #[derive(Clone, Copy, Debug)]

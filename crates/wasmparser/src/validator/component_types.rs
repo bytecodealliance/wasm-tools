@@ -2,13 +2,13 @@
 
 use super::component::ExternKind;
 use super::{CanonicalOptions, Concurrency};
+use crate::validator::StringEncoding;
 use crate::validator::names::KebabString;
 use crate::validator::types::{
     CoreTypeId, EntityType, SnapshotList, TypeAlloc, TypeData, TypeIdentifier, TypeInfo, TypeList,
     Types, TypesKind, TypesRef, TypesRefKind,
 };
-use crate::validator::StringEncoding;
-use crate::{prelude::*, AbstractHeapType, CompositeInnerType, HeapType, RefType, StorageType};
+use crate::{AbstractHeapType, CompositeInnerType, HeapType, RefType, StorageType, prelude::*};
 use crate::{
     BinaryReaderError, FuncType, MemoryType, PrimitiveValType, Result, TableType, ValType,
 };

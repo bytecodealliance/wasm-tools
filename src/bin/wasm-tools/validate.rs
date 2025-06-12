@@ -1,5 +1,5 @@
 use addr2line::LookupResult;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use bitflags::Flags;
 use rayon::prelude::*;
 use std::fmt::Write;

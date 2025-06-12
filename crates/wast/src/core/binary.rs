@@ -1,9 +1,9 @@
+use crate::Wat;
 #[cfg(feature = "component-model")]
 use crate::component::Component;
 use crate::core::*;
 use crate::encode::Encode;
 use crate::token::*;
-use crate::Wat;
 use std::borrow::Cow;
 use std::marker;
 #[cfg(feature = "dwarf")]

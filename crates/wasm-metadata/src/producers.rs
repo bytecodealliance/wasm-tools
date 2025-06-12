@@ -1,9 +1,9 @@
 use anyhow::Result;
-use indexmap::{map::Entry, IndexMap};
+use indexmap::{IndexMap, map::Entry};
 use wasm_encoder::Encode;
 use wasmparser::{BinaryReader, KnownCustom, Parser, ProducersSectionReader};
 
-use crate::{rewrite_wasm, AddMetadata};
+use crate::{AddMetadata, rewrite_wasm};
 /// A representation of a WebAssembly producers section.
 ///
 /// Spec: <https://github.com/WebAssembly/tool-conventions/blob/main/ProducersSection.md>

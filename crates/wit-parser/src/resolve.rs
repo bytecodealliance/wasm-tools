@@ -5,7 +5,7 @@ use std::fmt;
 use std::mem;
 use std::path::{Path, PathBuf};
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use id_arena::{Arena, Id};
 use indexmap::{IndexMap, IndexSet};
 use semver::Version;
@@ -13,7 +13,7 @@ use semver::Version;
 use serde_derive::Serialize;
 
 use crate::ast::lex::Span;
-use crate::ast::{parse_use_path, ParsedUsePath};
+use crate::ast::{ParsedUsePath, parse_use_path};
 #[cfg(feature = "serde")]
 use crate::serde_::{serialize_arena, serialize_id_map};
 use crate::{
@@ -474,7 +474,7 @@ package {name} is defined in two different locations:\n\
         // wasm file.
         #[cfg(feature = "decoding")]
         {
-            use crate::decoding::{decode, DecodedWasm};
+            use crate::decoding::{DecodedWasm, decode};
 
             #[cfg(feature = "wat")]
             let is_wasm = wat::Detect::from_bytes(&contents).is_wasm();
@@ -1520,11 +1520,7 @@ package {name} is defined in two different locations:\n\
             }))
             .filter_map(move |iface_id| {
                 let pkg = self.interfaces[iface_id].package?;
-                if pkg == id {
-                    None
-                } else {
-                    Some(pkg)
-                }
+                if pkg == id { None } else { Some(pkg) }
             })
     }
 
@@ -3522,7 +3518,10 @@ impl Remap {
         if !names_.is_empty() {
             bail!(Error::new(
                 span,
-                format!("no import or export kebab-name `{}`. Note that an ID does not support renaming", names_[0].name),
+                format!(
+                    "no import or export kebab-name `{}`. Note that an ID does not support renaming",
+                    names_[0].name
+                ),
             ));
         }
 
@@ -4146,16 +4145,22 @@ mod tests {
         assert!(resolve.select_world(dummy, Some("xx")).is_err());
         assert!(resolve.select_world(dummy, Some("")).is_err());
         assert!(resolve.select_world(dummy, Some("foo:bar/foo")).is_ok());
-        assert!(resolve
-            .select_world(dummy, Some("foo:bar/foo@0.1.0"))
-            .is_ok());
+        assert!(
+            resolve
+                .select_world(dummy, Some("foo:bar/foo@0.1.0"))
+                .is_ok()
+        );
         assert!(resolve.select_world(dummy, Some("foo:baz/foo")).is_err());
-        assert!(resolve
-            .select_world(dummy, Some("foo:baz/foo@0.1.0"))
-            .is_ok());
-        assert!(resolve
-            .select_world(dummy, Some("foo:baz/foo@0.2.0"))
-            .is_ok());
+        assert!(
+            resolve
+                .select_world(dummy, Some("foo:baz/foo@0.1.0"))
+                .is_ok()
+        );
+        assert!(
+            resolve
+                .select_world(dummy, Some("foo:baz/foo@0.2.0"))
+                .is_ok()
+        );
         Ok(())
     }
 }

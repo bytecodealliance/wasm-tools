@@ -1,10 +1,10 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Parser;
 use std::path::{Path, PathBuf};
 use wast::core::{AbstractHeapType, HeapType, NanPattern, V128Const, V128Pattern, WastRetCore};
 use wast::lexer::Lexer;
 use wast::parser::{self, ParseBuffer};
-use wast::token::{Span, F32, F64};
+use wast::token::{F32, F64, Span};
 use wast::{
     QuoteWat, QuoteWatTest, Wast, WastArg, WastDirective, WastExecute, WastInvoke, WastRet,
 };
