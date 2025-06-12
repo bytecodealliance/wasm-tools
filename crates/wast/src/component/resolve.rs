@@ -1,10 +1,10 @@
+use crate::Error;
 use crate::component::*;
-use crate::core::{self, resolve::ResolveCoreType, ValType};
+use crate::core::{self, ValType, resolve::ResolveCoreType};
 use crate::kw;
 use crate::names::Namespace;
 use crate::token::Span;
 use crate::token::{Id, Index};
-use crate::Error;
 
 /// Resolve the fields of a component and everything nested within it, changing
 /// `Index::Id` to `Index::Num` and expanding alias syntax sugar.

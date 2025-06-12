@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use clap::Parser;
-use std::io::{stdin, Read};
+use std::io::{Read, stdin};
 use std::path::PathBuf;
 use std::process;
 use wasm_smith::Module;

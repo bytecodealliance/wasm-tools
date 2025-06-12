@@ -1,6 +1,6 @@
 use crate::core::*;
 use crate::token::Index;
-use crate::{gensym, Error};
+use crate::{Error, gensym};
 
 mod deinline_import_export;
 mod names;

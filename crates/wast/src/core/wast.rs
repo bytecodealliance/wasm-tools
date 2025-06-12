@@ -1,7 +1,7 @@
 use crate::core::{HeapType, V128Const};
 use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
-use crate::token::{Index, F32, F64};
+use crate::token::{F32, F64, Index};
 
 /// Expression that can be used inside of `invoke` expressions for core wasm
 /// functions.

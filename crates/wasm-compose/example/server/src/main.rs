@@ -2,16 +2,16 @@ use async_trait::async_trait;
 use clap::Parser;
 use std::path::{Path, PathBuf};
 use tide::{
+    Request, Response, StatusCode,
     http::{
         headers::{HeaderName, HeaderValue},
         mime,
     },
     utils::After,
-    Request, Response, StatusCode,
 };
 
-use wasmtime::{component::*, Config, Engine, Store};
-use wasmtime_wasi::preview2::{command, Table, WasiCtx, WasiCtxBuilder, WasiView};
+use wasmtime::{Config, Engine, Store, component::*};
+use wasmtime_wasi::preview2::{Table, WasiCtx, WasiCtxBuilder, WasiView, command};
 
 use example::service::{
     logging::{self, HostLogger},

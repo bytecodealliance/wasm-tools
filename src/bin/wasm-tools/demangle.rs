@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use wasm_encoder::{IndirectNameMap, NameMap, NameSection, RawSection};
 use wasmparser::{KnownCustom, Name, NameSectionReader, Parser, Payload::*};
 

@@ -1,8 +1,8 @@
+use crate::Error;
 use crate::core::resolve::Ns;
 use crate::core::*;
-use crate::names::{resolve_error, Namespace};
+use crate::names::{Namespace, resolve_error};
 use crate::token::{Id, Index};
-use crate::Error;
 use std::collections::HashMap;
 
 pub fn resolve<'a>(fields: &mut Vec<ModuleField<'a>>) -> Result<Resolver<'a>, Error> {
@@ -112,7 +112,7 @@ impl<'a> Resolver<'a> {
 
             // These fields don't define any items in any index space.
             ModuleField::Export(_) | ModuleField::Start(_) | ModuleField::Custom(_) => {
-                return Ok(())
+                return Ok(());
             }
         };
 
@@ -752,13 +752,13 @@ impl<'a> TypeReference<'a> for FunctionType<'a> {
                 return Err(Error::new(
                     idx.span(),
                     format!("invalid type: not a function type"),
-                ))
+                ));
             }
             _ => {
                 return Err(Error::new(
                     idx.span(),
                     format!("unknown type: type index out of bounds"),
-                ))
+                ));
             }
         };
 

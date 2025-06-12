@@ -74,11 +74,13 @@ fn main() {
                 bump_version(&krate, &crates, name == "bump-patch");
             }
             // update the lock file
-            assert!(Command::new("cargo")
-                .arg("fetch")
-                .status()
-                .unwrap()
-                .success());
+            assert!(
+                Command::new("cargo")
+                    .arg("fetch")
+                    .status()
+                    .unwrap()
+                    .success()
+            );
         }
 
         "publish" => {
