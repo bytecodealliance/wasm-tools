@@ -1,7 +1,7 @@
 use super::{
     CORE_FUNCTION_SORT, CORE_GLOBAL_SORT, CORE_MEMORY_SORT, CORE_TABLE_SORT, CORE_TAG_SORT,
 };
-use crate::{encode_section, Encode, Section, SectionId};
+use crate::{Encode, Section, SectionId, encode_section};
 use alloc::vec::Vec;
 
 /// Represents the kind of an export from a WebAssembly module.

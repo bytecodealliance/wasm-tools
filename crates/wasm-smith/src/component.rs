@@ -4,7 +4,7 @@
 // FIXME(#1000): component support in `wasm-smith` is a work in progress.
 #![allow(unused_variables, dead_code)]
 
-use crate::{arbitrary_loop, Config};
+use crate::{Config, arbitrary_loop};
 use arbitrary::{Arbitrary, Result, Unstructured};
 use std::collections::BTreeMap;
 use std::{

@@ -1,11 +1,11 @@
 use std::fmt::{self, Display};
-use std::io::{read_to_string, Read};
+use std::io::{Read, read_to_string};
 use std::str::FromStr;
 
-use anyhow::{ensure, Result};
+use anyhow::{Result, ensure};
 use auditable_serde::VersionInfo;
-use flate2::read::{ZlibDecoder, ZlibEncoder};
 use flate2::Compression;
+use flate2::read::{ZlibDecoder, ZlibEncoder};
 use serde::Serialize;
 use wasm_encoder::{ComponentSection, CustomSection, Encode, Section};
 use wasmparser::CustomSectionReader;

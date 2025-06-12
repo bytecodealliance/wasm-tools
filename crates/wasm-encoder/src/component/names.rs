@@ -2,7 +2,7 @@ use alloc::borrow::Cow;
 use alloc::vec::Vec;
 
 use super::*;
-use crate::{encoding_size, ExportKind, NameMap, SectionId};
+use crate::{ExportKind, NameMap, SectionId, encoding_size};
 
 /// Encoding for the `component-name` custom section which assigns
 /// human-readable names to items within a component.

@@ -1,8 +1,8 @@
 #[allow(unused_imports)]
 use crate::Instruction;
 use crate::{
-    encode_vec, BlockType, Catch, Encode, Handle, HeapType, Ieee32, Ieee64, Lane, MemArg, Ordering,
-    RefType, ValType,
+    BlockType, Catch, Encode, Handle, HeapType, Ieee32, Ieee64, Lane, MemArg, Ordering, RefType,
+    ValType, encode_vec,
 };
 use alloc::vec::Vec;
 

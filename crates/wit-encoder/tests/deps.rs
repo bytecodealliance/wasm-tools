@@ -1,6 +1,6 @@
 use anyhow::Result;
 use pretty_assertions::assert_eq;
-use wit_encoder::{packages_from_parsed, Package};
+use wit_encoder::{Package, packages_from_parsed};
 use wit_parser::Resolve;
 
 const MAIN_PACKAGE_SOURCE: &str = indoc::indoc! {"

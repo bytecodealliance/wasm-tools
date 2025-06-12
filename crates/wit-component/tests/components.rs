@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Error, Result};
+use anyhow::{Context, Error, Result, bail};
 use libtest_mimic::{Arguments, Trial};
 use pretty_assertions::assert_eq;
 use std::{borrow::Cow, fs, path::Path};

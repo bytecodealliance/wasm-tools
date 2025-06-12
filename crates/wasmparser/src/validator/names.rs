@@ -28,11 +28,7 @@ impl KebabStr {
     /// Returns `None` if the given string is not a valid kebab string.
     pub fn new<'a>(s: impl AsRef<str> + 'a) -> Option<&'a Self> {
         let s = Self::new_unchecked(s);
-        if s.is_kebab_case() {
-            Some(s)
-        } else {
-            None
-        }
+        if s.is_kebab_case() { Some(s) } else { None }
     }
 
     pub(crate) fn new_unchecked<'a>(s: impl AsRef<str> + 'a) -> &'a Self {

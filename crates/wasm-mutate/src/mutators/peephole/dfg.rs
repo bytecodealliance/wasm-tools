@@ -2,10 +2,10 @@
 //! intermediate representation.
 
 use super::eggsy::encoder::rebuild::build_expr;
+use crate::mutators::OperatorAndByteOffset;
 use crate::mutators::peephole::{
     Lang, MemArg, MemArgLane, MemoryCopy, MemoryInit, RefType, Shuffle, TableCopy, TableInit,
 };
-use crate::mutators::OperatorAndByteOffset;
 use crate::{ModuleInfo, WasmMutate};
 use egg::{Id, Language, RecExpr};
 use std::collections::HashMap;

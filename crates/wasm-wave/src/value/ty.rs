@@ -1,6 +1,6 @@
 use std::{borrow::Cow, sync::Arc};
 
-use crate::wasm::{maybe_unwrap_type, WasmType, WasmTypeKind};
+use crate::wasm::{WasmType, WasmTypeKind, maybe_unwrap_type};
 
 /// The [`WasmType`] of a [`Value`](super::Value).
 #[derive(Clone, Debug, PartialEq, Eq)]

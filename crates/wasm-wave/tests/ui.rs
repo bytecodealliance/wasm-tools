@@ -4,7 +4,7 @@ use std::{collections::HashMap, fmt::Write, fs, path::Path, sync::OnceLock};
 use wasm_wave::{
     parser::ParserError,
     untyped::UntypedFuncCall,
-    value::{resolve_wit_func_type, FuncType, Value},
+    value::{FuncType, Value, resolve_wit_func_type},
     wasm::{DisplayValue, WasmFunc},
 };
 use wit_parser::Resolve;

@@ -2,7 +2,7 @@
 
 use std::borrow::Cow;
 
-use crate::{ast::Node, lex::Keyword, parser::ParserError, Parser, WasmValue};
+use crate::{Parser, WasmValue, ast::Node, lex::Keyword, parser::ParserError};
 
 /// An UntypedValue is a parsed but not type-checked WAVE value.
 #[derive(Clone, Debug)]

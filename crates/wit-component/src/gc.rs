@@ -1,5 +1,5 @@
 use self::bitvec::BitVec;
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use indexmap::{IndexMap, IndexSet};
 use std::{
     borrow::Cow,
@@ -8,7 +8,7 @@ use std::{
     mem,
     ops::Deref,
 };
-use wasm_encoder::{reencode::Reencode, Encode, EntityType, RawCustomSection};
+use wasm_encoder::{Encode, EntityType, RawCustomSection, reencode::Reencode};
 use wasmparser::*;
 
 const PAGE_SIZE: i32 = 64 * 1024;
@@ -1013,11 +1013,7 @@ fn live_iter<'a, T>(
 ) -> impl Iterator<Item = (u32, T)> + 'a {
     iter.enumerate().filter_map(|(i, t)| {
         let i = i as u32;
-        if live.contains(i) {
-            Some((i, t))
-        } else {
-            None
-        }
+        if live.contains(i) { Some((i, t)) } else { None }
     })
 }
 

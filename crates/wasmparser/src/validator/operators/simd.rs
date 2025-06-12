@@ -1,6 +1,6 @@
 use super::OperatorValidatorTemp;
 use crate::{MemArg, Result, ValType, WasmModuleResources};
-use crate::{VisitSimdOperator, V128};
+use crate::{V128, VisitSimdOperator};
 
 impl<'resources, R> OperatorValidatorTemp<'_, 'resources, R>
 where

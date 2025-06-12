@@ -144,8 +144,8 @@ impl Config {
 mod de {
     use indexmap::IndexMap;
     use serde::{
-        de::{self, MapAccess, Visitor},
         Deserialize, Deserializer,
+        de::{self, MapAccess, Visitor},
     };
     use std::{fmt, hash::Hash, marker::PhantomData, str::FromStr};
 

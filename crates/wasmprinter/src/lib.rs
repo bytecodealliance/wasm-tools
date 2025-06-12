@@ -8,7 +8,7 @@
 
 #![deny(missing_docs)]
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use operator::{OpPrinter, OperatorSeparator, OperatorState, PrintOperator, PrintOperatorFolded};
 use std::collections::{HashMap, HashSet};
 use std::fmt;

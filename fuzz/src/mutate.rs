@@ -282,7 +282,7 @@ mod eval {
                 (Err(e), _) | (_, Err(e))
                     if e.downcast_ref() == Some(&wasmtime::Trap::OutOfFuel) =>
                 {
-                    return false
+                    return false;
                 }
                 (Err(orig), Err(mutated)) => {
                     log::debug!("original error {orig:?}");

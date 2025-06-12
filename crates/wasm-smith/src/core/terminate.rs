@@ -1,5 +1,5 @@
 use super::*;
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 impl Module {
     /// Ensure that all of this Wasm module's functions will terminate when

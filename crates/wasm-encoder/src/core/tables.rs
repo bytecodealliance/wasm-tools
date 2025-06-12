@@ -1,4 +1,4 @@
-use crate::{encode_section, ConstExpr, Encode, RefType, Section, SectionId, ValType};
+use crate::{ConstExpr, Encode, RefType, Section, SectionId, ValType, encode_section};
 use alloc::vec::Vec;
 
 /// An encoder for the table section.

@@ -1,9 +1,9 @@
 use std::fmt::Display;
 
 use crate::{
+    WasmValue,
     wasm::{WasmFunc, WasmType, WasmTypeKind},
     writer::Writer,
-    WasmValue,
 };
 
 /// Implements a WAVE-formatted [`Display`] for a [`WasmType`].

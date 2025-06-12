@@ -1,10 +1,10 @@
 use crate::{
+    Error, ModuleInfo,
     module::{PrimitiveTypeInfo, TypeInfo},
     mutators::peephole::{
-        eggsy::{lang::RefType, Lang},
         EG,
+        eggsy::{Lang, lang::RefType},
     },
-    Error, ModuleInfo,
 };
 use egg::{Analysis, EGraph, Id};
 

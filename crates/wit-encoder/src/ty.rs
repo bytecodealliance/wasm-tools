@@ -1,8 +1,8 @@
 use std::fmt::{self, Display};
 
 use crate::{
-    ident::Ident, Docs, Enum, EnumCase, Field, Flag, Flags, Record, Render, RenderOpts, Resource,
-    ResourceFunc, Result_, Tuple, Variant,
+    Docs, Enum, EnumCase, Field, Flag, Flags, Record, Render, RenderOpts, Resource, ResourceFunc,
+    Result_, Tuple, Variant, ident::Ident,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

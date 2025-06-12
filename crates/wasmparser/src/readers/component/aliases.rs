@@ -103,7 +103,7 @@ fn component_outer_alias_kind_from_bytes(
                     x,
                     "component outer alias kind",
                     offset + 1,
-                ))
+                ));
             }
         },
         0x03 => ComponentOuterAliasKind::Type,
@@ -113,7 +113,7 @@ fn component_outer_alias_kind_from_bytes(
                 x,
                 "component outer alias kind",
                 offset,
-            ))
+            ));
         }
     })
 }

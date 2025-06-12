@@ -1,4 +1,4 @@
-use crate::{encode_section, Encode, Section, SectionId};
+use crate::{Encode, Section, SectionId, encode_section};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 

@@ -1,7 +1,7 @@
 #![cfg(feature = "wasmparser")]
 
 use arbitrary::Unstructured;
-use rand::{rngs::SmallRng, RngCore, SeedableRng};
+use rand::{RngCore, SeedableRng, rngs::SmallRng};
 use std::collections::HashMap;
 use wasm_smith::{Config, Module};
 use wasmparser::Validator;
@@ -139,9 +139,9 @@ fn import_config(
     config.exceptions_enabled = u.arbitrary().expect("exceptions enabled for swarm");
     let available = {
         use {
-            wasmparser::{PackedIndex, RefType},
             AvailableImportKind::*,
             ValType::*,
+            wasmparser::{PackedIndex, RefType},
         };
         vec![
             ("env", "pi", Func(vec![I32], vec![])),

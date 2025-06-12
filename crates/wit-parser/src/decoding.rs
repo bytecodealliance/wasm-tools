@@ -5,6 +5,8 @@ use std::mem;
 use std::{collections::HashMap, io::Read};
 use wasmparser::Chunk;
 use wasmparser::{
+    ComponentExternalKind, Parser, Payload, PrimitiveValType, ValidPayload, Validator,
+    WasmFeatures,
     component_types::{
         ComponentAnyTypeId, ComponentDefinedType, ComponentEntityType, ComponentFuncType,
         ComponentInstanceType, ComponentType, ComponentValType,
@@ -12,8 +14,6 @@ use wasmparser::{
     names::{ComponentName, ComponentNameKind},
     types,
     types::Types,
-    ComponentExternalKind, Parser, Payload, PrimitiveValType, ValidPayload, Validator,
-    WasmFeatures,
 };
 
 /// Represents information about a decoded WebAssembly component.
@@ -1469,11 +1469,12 @@ impl WitPackageDecoder<'_> {
 
         let id = self.insert_package(package);
         assert!(self.resolve.worlds.iter().all(|(_, w)| w.package.is_some()));
-        assert!(self
-            .resolve
-            .interfaces
-            .iter()
-            .all(|(_, i)| i.package.is_some()));
+        assert!(
+            self.resolve
+                .interfaces
+                .iter()
+                .all(|(_, i)| i.package.is_some())
+        );
         (self.resolve, id)
     }
 

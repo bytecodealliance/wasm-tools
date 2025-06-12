@@ -692,7 +692,7 @@ pub mod utils {
                     ..
                 } => (),
                 wasmparser::Payload::Version { .. } => {
-                    return Err(Error::UnexpectedNonCoreModuleSection)
+                    return Err(Error::UnexpectedNonCoreModuleSection);
                 }
                 wasmparser::Payload::TypeSection(section) => {
                     handle_intersperse_section_hook(
@@ -864,7 +864,7 @@ pub mod utils {
                 | wasmparser::Payload::ComponentStartSection { .. }
                 | wasmparser::Payload::ComponentImportSection(_)
                 | wasmparser::Payload::ComponentExportSection(_) => {
-                    return Err(Error::UnexpectedNonCoreModuleSection)
+                    return Err(Error::UnexpectedNonCoreModuleSection);
                 }
                 wasmparser::Payload::CustomSection(section) => {
                     reencoder.parse_custom_section(module, section)?;

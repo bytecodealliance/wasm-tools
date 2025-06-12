@@ -8,13 +8,13 @@ use crate::{
         InstanceId,
     },
 };
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use indexmap::IndexMap;
 use std::{collections::VecDeque, ffi::OsStr, path::Path};
 use wasmparser::{
+    ComponentExternalKind, ComponentTypeRef, Validator, WasmFeatures,
     component_types::{ComponentEntityType, ComponentInstanceTypeId},
     types::TypesRef,
-    ComponentExternalKind, ComponentTypeRef, Validator, WasmFeatures,
 };
 
 /// The root component name used in configuration.
@@ -193,10 +193,14 @@ impl<'a> CompositionGraphBuilder<'a> {
             }
             None => {
                 if self.config.disallow_imports {
-                    bail!("a dependency named `{component_name}` could not be found and instance imports are not allowed");
+                    bail!(
+                        "a dependency named `{component_name}` could not be found and instance imports are not allowed"
+                    );
                 }
 
-                log::warn!("instance `{name}` will be imported because a dependency named `{component_name}` could not be found");
+                log::warn!(
+                    "instance `{name}` will be imported because a dependency named `{component_name}` could not be found"
+                );
                 Ok(None)
             }
         }
@@ -223,11 +227,15 @@ impl<'a> CompositionGraphBuilder<'a> {
         // Check if the instance or one of its exports is compatible with the expected import type
         if component.is_instance_subtype_of(ty, types) {
             // The instance itself can be used
-            log::debug!("instance `{instance_name}` can be used for argument `{arg_name}` of instance `{dependent_name}`");
+            log::debug!(
+                "instance `{instance_name}` can be used for argument `{arg_name}` of instance `{dependent_name}`"
+            );
             return Ok(None);
         }
 
-        log::debug!("searching for compatible export from instance `{instance_name}` for argument `{arg_name}` of instance `{dependent_name}`");
+        log::debug!(
+            "searching for compatible export from instance `{instance_name}` for argument `{arg_name}` of instance `{dependent_name}`"
+        );
 
         let export = component.find_compatible_export(ty, types, component_id, &self.graph).ok_or_else(|| {
             anyhow!(
@@ -407,7 +415,9 @@ impl<'a> CompositionGraphBuilder<'a> {
             }
             None => {
                 if let Some(export) = export {
-                    bail!("an explicit export `{export}` cannot be specified for imported instance `{name}`");
+                    bail!(
+                        "an explicit export `{export}` cannot be specified for imported instance `{name}`"
+                    );
                 }
                 Ok(None)
             }
@@ -423,7 +433,10 @@ impl<'a> CompositionGraphBuilder<'a> {
 
         // Push a dependency for every instance import
         'outer: for (import, name, _) in component.imports() {
-            log::debug!("adding dependency for argument `{name}` (import index {import}) from instance `{instance_name}` to the queue", import = import.0);
+            log::debug!(
+                "adding dependency for argument `{name}` (import index {import}) from instance `{instance_name}` to the queue",
+                import = import.0
+            );
 
             // Search for a matching definition export for this import
             for (index, (def_component_id, _)) in self.definitions.iter().enumerate() {

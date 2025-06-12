@@ -1,8 +1,8 @@
 //! Function to construct expressions
 use std::collections::HashMap;
 
-use crate::mutators::peephole::eggsy::encoder::TraversalEvent;
 use crate::mutators::peephole::Lang;
+use crate::mutators::peephole::eggsy::encoder::TraversalEvent;
 use egg::{Id, Language, RecExpr};
 
 /// Build RecExpr from tree information

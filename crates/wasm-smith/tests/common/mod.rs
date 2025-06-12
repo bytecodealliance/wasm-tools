@@ -1,4 +1,4 @@
-use wasmparser::{types::Types, Validator};
+use wasmparser::{Validator, types::Types};
 
 pub fn validate(validator: &mut Validator, bytes: &[u8]) -> Types {
     let err = match validator.validate_all(bytes) {

@@ -1,5 +1,5 @@
-use crate::{name_map, Naming, Printer, State};
-use anyhow::{bail, Result};
+use crate::{Naming, Printer, State, name_map};
+use anyhow::{Result, bail};
 use wasmparser::*;
 
 impl Printer<'_, '_> {

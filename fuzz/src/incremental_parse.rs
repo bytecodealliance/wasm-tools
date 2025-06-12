@@ -1,6 +1,6 @@
+use Payload::*;
 use arbitrary::{Result, Unstructured};
 use wasmparser::*;
-use Payload::*;
 
 // Simulate receiving chunks of data by fuzzing over a `Vec<Vec<u8>>` where each
 // element of the outer vec is a chunk of data we received.

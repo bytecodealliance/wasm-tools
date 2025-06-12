@@ -5,10 +5,10 @@ use std::{collections::HashSet, error::Error, fmt::Display};
 use indexmap::IndexMap;
 
 use crate::{
+    WasmValue,
     ast::{Node, NodeType},
     lex::{Keyword, Lexer, Span, Token},
     untyped::{UntypedFuncCall, UntypedValue},
-    WasmValue,
 };
 
 /// A Web Assembly Value Encoding parser.

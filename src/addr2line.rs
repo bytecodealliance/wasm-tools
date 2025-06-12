@@ -1,7 +1,7 @@
 //! Shared support for `addr2line` and `validate` to parse DWARF sections.
 
 use addr2line::Context;
-use anyhow::{bail, Context as _, Result};
+use anyhow::{Context as _, Result, bail};
 use gimli::EndianSlice;
 use std::collections::HashMap;
 use std::ops::Range;

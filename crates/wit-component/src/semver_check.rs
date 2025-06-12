@@ -1,8 +1,8 @@
 use crate::{
-    dummy_module, embed_component_metadata, encoding::encode_world, ComponentEncoder,
-    StringEncoding,
+    ComponentEncoder, StringEncoding, dummy_module, embed_component_metadata,
+    encoding::encode_world,
 };
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use wasm_encoder::{ComponentBuilder, ComponentExportKind, ComponentTypeRef};
 use wasmparser::Validator;
 use wit_parser::{ManglingAndAbi, Resolve, WorldId};
@@ -56,7 +56,9 @@ pub fn semver_check(mut resolve: Resolve, prev: WorldId, new: WorldId) -> Result
         .context("new world not in named package")?;
     let new_pkg_name = &resolve.packages[new_pkg_id].name;
     if old_pkg_name != new_pkg_name {
-        bail!("the old world is in package {old_pkg_name}, which is not the same as the new world, which is in package {new_pkg_name}", )
+        bail!(
+            "the old world is in package {old_pkg_name}, which is not the same as the new world, which is in package {new_pkg_name}",
+        )
     }
 
     // Component that will be validated at the end.

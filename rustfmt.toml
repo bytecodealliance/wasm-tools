@@ -1,0 +1,4 @@
+# This project isn't yet using the 2024 edition due to its MSRV requirement but
+# we're going ahead and opting into the 2024 style edition ahead of updating the
+# Rust edition itself.
+style_edition = '2024'

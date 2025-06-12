@@ -4,10 +4,10 @@ mod code_builder;
 pub(crate) mod encode;
 mod terminate;
 
-use crate::{arbitrary_loop, limited_string, unique_string, Config};
+use crate::{Config, arbitrary_loop, limited_string, unique_string};
 use arbitrary::{Arbitrary, Result, Unstructured};
 use code_builder::CodeBuilderAllocations;
-use flagset::{flags, FlagSet};
+use flagset::{FlagSet, flags};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::mem;

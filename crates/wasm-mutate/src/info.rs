@@ -1,6 +1,6 @@
 use crate::{
-    module::{PrimitiveTypeInfo, TypeInfo},
     Error, Result,
+    module::{PrimitiveTypeInfo, TypeInfo},
 };
 use std::collections::HashSet;
 use std::ops::Range;

@@ -6,7 +6,7 @@
 use std::str::FromStr;
 use std::{borrow::Cow, fmt::Display};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use wasm_encoder::{CanonicalOption, Encode, Section};
 use wit_parser::{Resolve, WorldId};
 
@@ -17,11 +17,11 @@ mod printing;
 mod targets;
 mod validation;
 
-pub use encoding::{encode, ComponentEncoder, LibraryInfo};
+pub use encoding::{ComponentEncoder, LibraryInfo, encode};
 pub use linking::Linker;
 pub use printing::*;
 pub use targets::*;
-pub use wit_parser::decoding::{decode, decode_reader, DecodedWasm};
+pub use wit_parser::decoding::{DecodedWasm, decode, decode_reader};
 
 pub mod metadata;
 
@@ -113,7 +113,7 @@ mod tests {
     use wasmparser::Payload;
     use wit_parser::Resolve;
 
-    use super::{embed_component_metadata, StringEncoding};
+    use super::{StringEncoding, embed_component_metadata};
 
     const MODULE_WAT: &str = r#"
 (module

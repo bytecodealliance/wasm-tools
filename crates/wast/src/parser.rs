@@ -62,9 +62,9 @@
 //! This module is heavily inspired by [`syn`](https://docs.rs/syn) so you can
 //! likely also draw inspiration from the excellent examples in the `syn` crate.
 
+use crate::Error;
 use crate::lexer::{Float, Integer, Lexer, Token, TokenKind};
 use crate::token::Span;
-use crate::Error;
 use bumpalo::Bump;
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
@@ -429,7 +429,7 @@ impl ParseBuffer<'_> {
             match token.kind {
                 // Always skip whitespace and comments.
                 TokenKind::Whitespace | TokenKind::LineComment | TokenKind::BlockComment => {
-                    continue
+                    continue;
                 }
 
                 // If an lparen is seen then this may be skipped if it's an

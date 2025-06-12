@@ -7,18 +7,18 @@ pub(crate) use canonical::InternRecGroup;
 use self::arc::MaybeOwned;
 use super::{
     check_max, combine_type_sizes,
-    operators::{ty_to_str, OperatorValidator, OperatorValidatorAllocations},
+    operators::{OperatorValidator, OperatorValidatorAllocations, ty_to_str},
     types::{CoreTypeId, EntityType, RecGroupId, TypeAlloc, TypeList},
 };
 #[cfg(feature = "simd")]
 use crate::VisitSimdOperator;
 use crate::{
-    limits::*, BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind,
-    FuncType, Global, GlobalType, HeapType, MemoryType, RecGroup, RefType, Result, SubType, Table,
-    TableInit, TableType, TagType, TypeRef, UnpackedIndex, ValType, VisitOperator, WasmFeatures,
-    WasmModuleResources,
+    BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind, FuncType,
+    Global, GlobalType, HeapType, MemoryType, RecGroup, RefType, Result, SubType, Table, TableInit,
+    TableType, TagType, TypeRef, UnpackedIndex, ValType, VisitOperator, WasmFeatures,
+    WasmModuleResources, limits::*,
 };
-use crate::{prelude::*, CompositeInnerType};
+use crate::{CompositeInnerType, prelude::*};
 use alloc::sync::Arc;
 use core::mem;
 
@@ -742,7 +742,10 @@ impl Module {
 
         let page_size = if let Some(page_size_log2) = ty.page_size_log2 {
             if !self.features().custom_page_sizes() {
-                return Err(BinaryReaderError::new("the custom page sizes proposal must be enabled to customize a memory's page size", offset));
+                return Err(BinaryReaderError::new(
+                    "the custom page sizes proposal must be enabled to customize a memory's page size",
+                    offset,
+                ));
             }
             // Currently 2**0 and 2**16 are the only valid page sizes, but this
             // may be relaxed to allow any power of two in the future.

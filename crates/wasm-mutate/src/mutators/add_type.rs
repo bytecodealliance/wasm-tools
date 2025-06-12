@@ -1,8 +1,8 @@
 //! A mutator to add a new type to a Wasm module.
 
 use super::Mutator;
-use crate::module::map_type;
 use crate::Result;
+use crate::module::map_type;
 use rand::Rng;
 use std::iter;
 

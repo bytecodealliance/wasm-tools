@@ -1,6 +1,6 @@
 use crate::{
-    encode_section, ComponentExportKind, ComponentSection, ComponentSectionId, ComponentValType,
-    Encode,
+    ComponentExportKind, ComponentSection, ComponentSectionId, ComponentValType, Encode,
+    encode_section,
 };
 use alloc::vec::Vec;
 

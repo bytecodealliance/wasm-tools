@@ -1,8 +1,8 @@
 //! Parsing and econding for code motion mutators.
 use crate::{
-    module::map_block_type,
-    mutators::{codemotion::ir::parse_context::ParseContext, OperatorAndByteOffset},
     Error,
+    module::map_block_type,
+    mutators::{OperatorAndByteOffset, codemotion::ir::parse_context::ParseContext},
 };
 use std::ops::Range;
 use wasm_encoder::Function;

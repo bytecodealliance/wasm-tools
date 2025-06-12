@@ -108,7 +108,7 @@ pub fn log_wasm(wasm: &[u8], config: impl Debug) {
 #[cfg(test)]
 mod test {
     use arbitrary::{Result, Unstructured};
-    use rand::{rngs::SmallRng, RngCore, SeedableRng};
+    use rand::{RngCore, SeedableRng, rngs::SmallRng};
 
     fn gen_until_pass(mut f: impl FnMut(&mut Unstructured<'_>) -> Result<bool>) -> bool {
         let mut rng = SmallRng::seed_from_u64(0);

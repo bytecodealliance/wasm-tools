@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use pretty_assertions::assert_eq;
 use std::fs;
 use std::io;

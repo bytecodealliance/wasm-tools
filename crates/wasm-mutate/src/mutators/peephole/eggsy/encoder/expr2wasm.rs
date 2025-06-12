@@ -1,9 +1,9 @@
 //! Helper to encode [Lang] expressions to Wasm.
 
 use crate::{
-    module::PrimitiveTypeInfo,
-    mutators::peephole::{eggsy::encoder::TraversalEvent, Lang, MemArg, EG},
     Error, Result, WasmMutate,
+    module::PrimitiveTypeInfo,
+    mutators::peephole::{EG, Lang, MemArg, eggsy::encoder::TraversalEvent},
 };
 use egg::{Id, Language, RecExpr};
 use rand::Rng;
@@ -155,7 +155,7 @@ pub fn expr2wasm(
                             _ => {
                                 return Err(Error::other(format!(
                                     "The current eterm cannot be unfolded {child:?}.\n expr {expr}"
-                                )))
+                                )));
                             }
                         }
                         insn

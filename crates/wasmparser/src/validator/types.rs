@@ -5,8 +5,8 @@ use super::core::Module;
 use crate::validator::component::ComponentState;
 #[cfg(feature = "component-model")]
 use crate::validator::component_types::{ComponentTypeAlloc, ComponentTypeList};
-use crate::{collections::map::Entry, AbstractHeapType};
-use crate::{prelude::*, CompositeInnerType};
+use crate::{AbstractHeapType, collections::map::Entry};
+use crate::{CompositeInnerType, prelude::*};
 use crate::{
     Export, ExternalKind, GlobalType, Import, Matches, MemoryType, PackedIndex, RecGroup, RefType,
     Result, SubType, TableType, TypeRef, UnpackedIndex, ValType, WithRecGroup,

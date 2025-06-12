@@ -2,7 +2,7 @@ use super::{
     CompositeInnerType, Elements, FuncType, Instruction, InstructionKind::*, InstructionKinds,
     Module, ValType,
 };
-use crate::{unique_string, MemoryOffsetChoices};
+use crate::{MemoryOffsetChoices, unique_string};
 use arbitrary::{Result, Unstructured};
 use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;

@@ -7,7 +7,7 @@
 //!
 //!     cargo test --test all foo.wit
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use libtest_mimic::{Arguments, Trial};
 use pretty_assertions::StrComparison;
 use std::env;

@@ -690,7 +690,7 @@ impl<'a> Resolver<'a> {
 
                 // handled in `resolve_types`
                 ast::WorldItem::Use(_) | ast::WorldItem::Type(_) | ast::WorldItem::Include(_) => {
-                    continue
+                    continue;
                 }
             };
 
@@ -1541,14 +1541,20 @@ impl<'a> Resolver<'a> {
                 deprecated: None,
             }),
 
-            [ast::Attribute::Since { version, .. }, ast::Attribute::Deprecated {
-                version: deprecated,
-                ..
-            }]
-            | [ast::Attribute::Deprecated {
-                version: deprecated,
-                ..
-            }, ast::Attribute::Since { version, .. }] => Ok(Stability::Stable {
+            [
+                ast::Attribute::Since { version, .. },
+                ast::Attribute::Deprecated {
+                    version: deprecated,
+                    ..
+                },
+            ]
+            | [
+                ast::Attribute::Deprecated {
+                    version: deprecated,
+                    ..
+                },
+                ast::Attribute::Since { version, .. },
+            ] => Ok(Stability::Stable {
                 since: version.clone(),
                 deprecated: Some(deprecated.clone()),
             }),
@@ -1558,13 +1564,17 @@ impl<'a> Resolver<'a> {
                 deprecated: None,
             }),
 
-            [ast::Attribute::Unstable { feature, .. }, ast::Attribute::Deprecated { version, .. }]
-            | [ast::Attribute::Deprecated { version, .. }, ast::Attribute::Unstable { feature, .. }] => {
-                Ok(Stability::Unstable {
-                    feature: feature.name.to_string(),
-                    deprecated: Some(version.clone()),
-                })
-            }
+            [
+                ast::Attribute::Unstable { feature, .. },
+                ast::Attribute::Deprecated { version, .. },
+            ]
+            | [
+                ast::Attribute::Deprecated { version, .. },
+                ast::Attribute::Unstable { feature, .. },
+            ] => Ok(Stability::Unstable {
+                feature: feature.name.to_string(),
+                deprecated: Some(version.clone()),
+            }),
             [ast::Attribute::Deprecated { span, .. }] => {
                 bail!(Error::new(
                     *span,

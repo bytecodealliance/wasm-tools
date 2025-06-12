@@ -1,24 +1,24 @@
 //! Module for WebAssembly composition graphs.
 use crate::encoding::{CompositionGraphEncoder, TypeEncoder};
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use indexmap::{IndexMap, IndexSet};
-use petgraph::{algo::toposort, graphmap::DiGraphMap, EdgeDirection};
+use petgraph::{EdgeDirection, algo::toposort, graphmap::DiGraphMap};
 use std::{
     borrow::Cow,
     cell::RefCell,
-    collections::{hash_map::Entry, HashMap, HashSet},
+    collections::{HashMap, HashSet, hash_map::Entry},
     path::{Path, PathBuf},
     sync::atomic::{AtomicUsize, Ordering},
 };
 use wasmparser::{
+    Chunk, ComponentExternalKind, ComponentTypeRef, Encoding, Parser, Payload, ValidPayload,
+    Validator,
     component_types::{
         ComponentAnyTypeId, ComponentEntityType, ComponentInstanceTypeId, Remap, Remapping,
         ResourceId, SubtypeCx,
     },
     names::ComponentName,
     types::{Types, TypesRef},
-    Chunk, ComponentExternalKind, ComponentTypeRef, Encoding, Parser, Payload, ValidPayload,
-    Validator,
 };
 
 pub(crate) fn type_desc(item: ComponentEntityType) -> &'static str {
@@ -867,8 +867,12 @@ impl<'a> CompositionGraph<'a> {
         let target_import = target_import.into();
 
         match source_export {
-            Some(export) => log::info!("connecting export {export} of instance {source} to import `{target_import}` of instance {target}"),
-            None => log::info!("connecting instance {source} to import {target_import} of instance {target}"),
+            Some(export) => log::info!(
+                "connecting export {export} of instance {source} to import `{target_import}` of instance {target}"
+            ),
+            None => log::info!(
+                "connecting instance {source} to import {target_import} of instance {target}"
+            ),
         }
 
         self.instances
@@ -1067,9 +1071,16 @@ mod test {
     #[test]
     fn it_rejects_invalid_components() -> Result<()> {
         let mut validator = Validator::new();
-        match Component::from_bytes(&mut validator, "a", b"(component (export \"x\" (func 0)))".as_ref()) {
+        match Component::from_bytes(
+            &mut validator,
+            "a",
+            b"(component (export \"x\" (func 0)))".as_ref(),
+        ) {
             Ok(_) => panic!("expected a failure to parse"),
-            Err(e) => assert_eq!(format!("{e:#}"), "failed to parse component: unknown function 0: function index out of bounds (at offset 0xb)"),
+            Err(e) => assert_eq!(
+                format!("{e:#}"),
+                "failed to parse component: unknown function 0: function index out of bounds (at offset 0xb)"
+            ),
         }
 
         Ok(())
@@ -1375,7 +1386,10 @@ mod test {
             validate: true,
         }) {
             Ok(_) => panic!("graph should not encode"),
-            Err(e) => assert_eq!(format!("{e:#}"), "an instantiation of component `b` and its dependencies form a cycle in the instantiation graph"),
+            Err(e) => assert_eq!(
+                format!("{e:#}"),
+                "an instantiation of component `b` and its dependencies form a cycle in the instantiation graph"
+            ),
         }
 
         Ok(())

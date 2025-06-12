@@ -1,7 +1,7 @@
 use super::CORE_TYPE_SORT;
 use crate::{
-    encode_section, Alias, ComponentExportKind, ComponentOuterAliasKind, ComponentSection,
-    ComponentSectionId, ComponentTypeRef, CoreTypeEncoder, Encode, EntityType, ValType,
+    Alias, ComponentExportKind, ComponentOuterAliasKind, ComponentSection, ComponentSectionId,
+    ComponentTypeRef, CoreTypeEncoder, Encode, EntityType, ValType, encode_section,
 };
 use alloc::vec::Vec;
 

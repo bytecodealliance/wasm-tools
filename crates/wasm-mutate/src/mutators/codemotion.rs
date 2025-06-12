@@ -22,16 +22,16 @@ pub mod loop_unrolling;
 use self::ir::parse_context::Ast;
 use super::Mutator;
 use crate::{
+    Error, Result, WasmMutate,
     module::map_type,
     mutators::{
+        OperatorAndByteOffset,
         codemotion::{
             if_complement::IfComplementMutator, ir::AstBuilder, loop_unrolling::LoopUnrollMutator,
         },
-        OperatorAndByteOffset,
     },
-    Error, Result, WasmMutate,
 };
-use rand::{prelude::SliceRandom, Rng};
+use rand::{Rng, prelude::SliceRandom};
 use wasm_encoder::{CodeSection, Function, Module, ValType};
 use wasmparser::{CodeSectionReader, FunctionBody};
 
@@ -167,7 +167,7 @@ impl Mutator for CodemotionMutator {
 
 #[cfg(test)]
 mod tests {
-    use crate::{mutators::codemotion::CodemotionMutator, WasmMutate};
+    use crate::{WasmMutate, mutators::codemotion::CodemotionMutator};
 
     fn test_motion_mutator(original: &str, expected: &str, seed: u64) {
         let mut config = WasmMutate::default();

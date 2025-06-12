@@ -48,7 +48,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
             Ok(m) => m,
             // Waiting on wasmtime to get published to fix this.
             Err(e) if format!("{e:?}").contains("unsupported init expr in element section") => {
-                return Ok(())
+                return Ok(());
             }
             Err(e) => panic!("failed to compile module {e:?}"),
         };

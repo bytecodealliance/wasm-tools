@@ -1,4 +1,4 @@
-use crate::{encoding_size, CustomSection, Encode, Section, SectionId};
+use crate::{CustomSection, Encode, Section, SectionId, encoding_size};
 use alloc::borrow::Cow;
 use alloc::vec;
 use alloc::vec::Vec;

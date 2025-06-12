@@ -1,14 +1,15 @@
 use crate::graph::{
-    type_desc, CompositionGraph, EncodeOptions, ExportIndex, ImportIndex, InstanceId,
+    CompositionGraph, EncodeOptions, ExportIndex, ImportIndex, InstanceId, type_desc,
 };
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use indexmap::{IndexMap, IndexSet};
 use petgraph::EdgeDirection;
 use smallvec::SmallVec;
-use std::collections::{hash_map::Entry, HashMap};
+use std::collections::{HashMap, hash_map::Entry};
 use std::mem;
 use wasm_encoder::*;
 use wasmparser::{
+    ComponentExternalKind,
     component_types::{
         self as ct, AnyTypeId, ComponentAnyTypeId, ComponentCoreModuleTypeId, ComponentCoreTypeId,
         ComponentDefinedType, ComponentDefinedTypeId, ComponentEntityType, ComponentFuncTypeId,
@@ -16,7 +17,7 @@ use wasmparser::{
         SubtypeCx, TupleType, VariantType,
     },
     names::KebabString,
-    types, ComponentExternalKind,
+    types,
 };
 
 fn type_ref_to_export_kind(ty: wasmparser::ComponentTypeRef) -> ComponentExportKind {
@@ -605,17 +606,17 @@ impl<'a> TypeEncoder<'a> {
         return match id {
             AnyTypeId::Core(ComponentCoreTypeId::Sub(_)) => unreachable!(),
             AnyTypeId::Core(ComponentCoreTypeId::Module(id)) => self.module_type(state, id),
-            AnyTypeId::Component(id) => {
-                match id {
-                    ComponentAnyTypeId::Resource(r) => {
-                        unreachable!("should have been handled in `TypeEncoder::component_entity_type`: {r:?}")
-                    }
-                    ComponentAnyTypeId::Defined(id) => self.defined_type(state, id),
-                    ComponentAnyTypeId::Func(id) => self.component_func_type(state, id),
-                    ComponentAnyTypeId::Instance(id) => self.component_instance_type(state, id),
-                    ComponentAnyTypeId::Component(id) => self.component_type(state, id),
+            AnyTypeId::Component(id) => match id {
+                ComponentAnyTypeId::Resource(r) => {
+                    unreachable!(
+                        "should have been handled in `TypeEncoder::component_entity_type`: {r:?}"
+                    )
                 }
-            }
+                ComponentAnyTypeId::Defined(id) => self.defined_type(state, id),
+                ComponentAnyTypeId::Func(id) => self.component_func_type(state, id),
+                ComponentAnyTypeId::Instance(id) => self.component_instance_type(state, id),
+                ComponentAnyTypeId::Component(id) => self.component_type(state, id),
+            },
         };
     }
 
@@ -1017,13 +1018,14 @@ impl<'a> ImportMap<'a> {
             .values()
             .filter(|e| !e.instances.is_empty())
         {
-            assert!(self
-                .0
-                .insert(
-                    &entry.component.name,
-                    ImportMapEntry::Component(&entry.component),
-                )
-                .is_none());
+            assert!(
+                self.0
+                    .insert(
+                        &entry.component.name,
+                        ImportMapEntry::Component(&entry.component),
+                    )
+                    .is_none()
+            );
         }
     }
 
@@ -1087,10 +1089,10 @@ impl<'a> ImportMap<'a> {
                             indexmap::map::Entry::Occupied(mut e) => match e.get_mut() {
                                 ImportMapEntry::Component(_) => {
                                     bail!(
-                                            "cannot import {ty} `{name}` for an instantiation argument of component `{cname}` because it conflicts with a component imported with the same name",
-                                            ty = type_desc(ty),
-                                            cname = entry.component.name,
-                                        );
+                                        "cannot import {ty} `{name}` for an instantiation argument of component `{cname}` because it conflicts with a component imported with the same name",
+                                        ty = type_desc(ty),
+                                        cname = entry.component.name,
+                                    );
                                 }
                                 ImportMapEntry::Argument(existing) => {
                                     existing.merge(arg, remapping)?;
@@ -1410,10 +1412,11 @@ impl<'a> CompositionGraphEncoder<'a> {
         let type_index = self.define_component_type(encoded, component);
         let index = self.import(encoded, name, ComponentTypeRef::Component(type_index));
 
-        assert!(self
-            .encoded_components
-            .insert(PtrKey(component), index)
-            .is_none());
+        assert!(
+            self.encoded_components
+                .insert(PtrKey(component), index)
+                .is_none()
+        );
 
         index
     }
@@ -1572,10 +1575,11 @@ impl<'a> CompositionGraphEncoder<'a> {
             .filter(|e| !e.instances.is_empty())
         {
             let index = self.define_component(encoded, &entry.component);
-            assert!(self
-                .encoded_components
-                .insert(PtrKey(&entry.component), index)
-                .is_none());
+            assert!(
+                self.encoded_components
+                    .insert(PtrKey(&entry.component), index)
+                    .is_none()
+            );
         }
     }
 

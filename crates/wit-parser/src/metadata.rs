@@ -18,7 +18,7 @@ use crate::{
     Docs, Function, InterfaceId, PackageId, Resolve, Stability, TypeDefKind, TypeId, WorldId,
     WorldItem, WorldKey,
 };
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use indexmap::IndexMap;
 #[cfg(feature = "serde")]
 use serde_derive::{Deserialize, Serialize};

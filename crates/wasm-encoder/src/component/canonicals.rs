@@ -1,4 +1,4 @@
-use crate::{encode_section, ComponentSection, ComponentSectionId, ComponentValType, Encode};
+use crate::{ComponentSection, ComponentSectionId, ComponentValType, Encode, encode_section};
 use alloc::vec::Vec;
 
 /// Represents options for canonical function definitions.

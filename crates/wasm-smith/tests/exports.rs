@@ -1,11 +1,11 @@
 #![cfg(feature = "wasmparser")]
 
 use arbitrary::Unstructured;
-use rand::{rngs::SmallRng, RngCore, SeedableRng};
+use rand::{RngCore, SeedableRng, rngs::SmallRng};
 use wasm_smith::{Config, Module};
 use wasmparser::{
-    types::EntityType, CompositeType, FuncType, GlobalType, MemoryType, Parser, TableType,
-    Validator, WasmFeatures,
+    CompositeType, FuncType, GlobalType, MemoryType, Parser, TableType, Validator, WasmFeatures,
+    types::EntityType,
 };
 
 mod common;

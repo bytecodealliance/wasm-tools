@@ -5,7 +5,7 @@
 //! directives and features of this test suite see the `tests/cli/readme.wat`
 //! file which has an explanatory comment at the top for what's going on.
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use indexmap::IndexMap;
 use libtest_mimic::{Arguments, Trial};
 use pretty_assertions::StrComparison;

@@ -1,19 +1,19 @@
 use crate::encoding::{Instance, Item, LibraryInfo, MainOrAdapter, ModuleImportMap};
 use crate::{ComponentEncoder, StringEncoding};
-use anyhow::{anyhow, bail, Context, Result};
-use indexmap::{map::Entry, IndexMap, IndexSet};
+use anyhow::{Context, Result, anyhow, bail};
+use indexmap::{IndexMap, IndexSet, map::Entry};
 use std::hash::{Hash, Hasher};
 use std::mem;
 use wasm_encoder::ExportKind;
 use wasmparser::names::{ComponentName, ComponentNameKind};
 use wasmparser::{
-    types::TypesRef, Encoding, ExternalKind, FuncType, Parser, Payload, TypeRef, ValType,
-    ValidPayload, Validator,
+    Encoding, ExternalKind, FuncType, Parser, Payload, TypeRef, ValType, ValidPayload, Validator,
+    types::TypesRef,
 };
 use wit_parser::{
-    abi::{AbiVariant, WasmSignature, WasmType},
     Function, InterfaceId, PackageName, Resolve, Type, TypeDefKind, TypeId, World, WorldId,
     WorldItem, WorldKey,
+    abi::{AbiVariant, WasmSignature, WasmType},
 };
 
 fn wasm_sig_to_func_type(signature: WasmSignature) -> FuncType {
@@ -1791,19 +1791,11 @@ impl NameMangling for Legacy {
     }
     fn context_get(&self, name: &str) -> Option<u32> {
         let (n, rest) = prefixed_integer(name, "[context-get-")?;
-        if rest.is_empty() {
-            Some(n)
-        } else {
-            None
-        }
+        if rest.is_empty() { Some(n) } else { None }
     }
     fn context_set(&self, name: &str) -> Option<u32> {
         let (n, rest) = prefixed_integer(name, "[context-set-")?;
-        if rest.is_empty() {
-            Some(n)
-        } else {
-            None
-        }
+        if rest.is_empty() { Some(n) } else { None }
     }
     fn module_to_interface(
         &self,

@@ -1,4 +1,4 @@
-use crate::{ident::Ident, Docs};
+use crate::{Docs, ident::Ident};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

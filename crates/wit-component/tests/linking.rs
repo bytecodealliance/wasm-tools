@@ -186,8 +186,8 @@ fn linking() -> Result<()> {
         use {
             anyhow::anyhow,
             wasmtime::{
-                component::{Component, Linker},
                 Config, Engine, Store,
+                component::{Component, Linker},
             },
         };
 
