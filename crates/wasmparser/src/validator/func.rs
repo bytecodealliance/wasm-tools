@@ -125,7 +125,8 @@ impl<T: WasmModuleResources> FuncValidator<T> {
             // In a debug build, verify that the validator's pops and pushes to and from
             // the operand stack match the operator's arity.
             #[cfg(debug_assertions)]
-            let (pop_push_snapshot, arity) = (
+            let (mut ops_before, pop_push_snapshot, arity) = (
+                ops.clone(),
                 self.validator.pop_push_count,
                 ops.clone()
                     .read()?
@@ -146,7 +147,12 @@ impl<T: WasmModuleResources> FuncValidator<T> {
 
                 if pop_count != params || push_count != results {
                     panic!(
-                        "arity mismatch in validation. Expecting {params} operands popped, {results} pushed, but got {pop_count} popped, {push_count} pushed."
+                        "\
+arity mismatch in validation
+    operator: {:?}
+    expected: {params} -> {results}
+    got       {pop_count} -> {push_count}",
+                        ops_before.read()?,
                     );
                 }
             }

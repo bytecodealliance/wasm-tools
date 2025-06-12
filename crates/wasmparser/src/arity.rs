@@ -13,9 +13,10 @@
  * limitations under the License.
  */
 
+use crate::prelude::*;
 use crate::{
-    BinaryReaderError, BlockType, CompositeInnerType, ContType, FrameKind, FuncType, Operator,
-    OperatorsReader, RefType, Result, SubType,
+    BinaryReaderError, BlockType, BrTable, CompositeInnerType, ContType, FrameKind, FuncType,
+    Operator, OperatorsReader, RefType, Result, ResumeTable, SubType, TryTable, ValType,
 };
 
 /// To compute the arity (param and result counts) of "variable-arity"
@@ -78,172 +79,15 @@ impl OperatorsReader<'_> {
     }
 }
 
-/// The operator_arity macro interprets the annotations in the for_each_operator macro
-/// to compute the arity of each operator. It needs access to a ModuleArity implementation.
-#[cfg_attr(not(feature = "simd"), allow(unused_macro_rules))]
-macro_rules! operator_arity {
-    (arity $self:ident $({ $($arg:ident: $argty:ty),* })? arity $($ann:tt)*) => {
-	{
-	    let params  = (|| -> Option<(i32, i32)> { operator_arity!(params  $self { $($($arg: $argty),*)? } $($ann)*) })();
-	    let results = (|| -> Option<(i32, i32)> { operator_arity!(results $self { $($($arg: $argty),*)? } $($ann)*) })();
-	    match (params, results) {
-		(Some((a,_)), Some((_,d))) if a >= 0 && d >= 0  => (Some((a as u32, d as u32))),
-		_ => None,
-	    }
-	}
-    };
-
-    (arity $self:ident $({ $($arg:ident: $argty:ty),* })? $cat:ident $($ann:tt)*) => {
-	    Some(operator_arity!(fixed $cat $($ann)*))
-    };
-
-    (params  $self:ident { $($arg:ident: $argty:ty),* } ~ $cat:ident $($tokens:tt)*) => { { let (a, b) = operator_arity!(count $self { $($arg: $argty),* } $cat)?;
-                                                                                            let (c, d) = operator_arity!(params $self { $($arg: $argty),* } $($tokens)*)?;
-                                                                                            Some((b as i32 + c as i32, a as i32 + d as i32)) } };
-    (params  $self:ident { $($arg:ident: $argty:ty),* } $val:literal $($tokens:tt)*) => { { let rest = operator_arity!(params $self { $($arg: $argty),* } $($tokens)*)?;
-											    Some(($val + rest.0, $val + rest.1)) } };
-    (params  $self:ident { $($arg:ident: $argty:ty),* } $cat:ident   $($tokens:tt)*) => { { let (a, b) = operator_arity!(count $self { $($arg: $argty),* } $cat)?;
-											    let (c, d) = operator_arity!(params $self { $($arg: $argty),* } $($tokens)*)?;
-											    Some((a as i32 + c as i32, b as i32 + d as i32)) } };
-    (params  $self:ident { $($arg:ident: $argty:ty),* } ->           $($tokens:tt)*) => { Some((0, 0)) };
-    (params  $self:ident { $($arg:ident: $argty:ty),* })                             => { Some((0, 0)) };
-
-    (results $self:ident { $($arg:ident: $argty:ty),* } ~            $($tokens:tt)*) => { operator_arity!(results $self { $($arg: $argty),* } $($tokens)*) };
-    (results $self:ident { $($arg:ident: $argty:ty),* } $val:literal $($tokens:tt)*) => { operator_arity!(results $self { $($arg: $argty),* } $($tokens)*) };
-    (results $self:ident { $($arg:ident: $argty:ty),* } $cat:ident   $($tokens:tt)*) => { operator_arity!(results $self { $($arg: $argty),* } $($tokens)*) };
-    (results $self:ident { $($arg:ident: $argty:ty),* } ->           $($tokens:tt)*) => { operator_arity!(params  $self { $($arg: $argty),* } $($tokens)*) };
-
-    (count $self:ident { $tag_index:ident: $_:ty } tag) => {{
-	operator_arity!(tag_index $tag_index);
-	$self.tag_type_arity($tag_index)
-    }};
-
-    (count $self:ident { $_1:ident: $_2:ty, $tag_index:ident: $($_3:tt)* } tag) => { operator_arity!(count $self { $tag_index: _ } tag) };
-
-    (count $self:ident { $func_index:ident: $_:ty } func) => {{
-	operator_arity!(func_index $func_index);
-	$self.sub_type_arity($self.sub_type_at($self.type_index_of_function($func_index)?)?)
-    }};
-
-    (count $self:ident { $type_index:ident: $($_:tt)* } type) => {{
-	operator_arity!(type_index $type_index);
-	$self.sub_type_arity($self.sub_type_at($type_index)?)
-    }};
-
-    (count $self:ident { $type_index:ident: $($_:tt)* } switch) => {{
-	operator_arity!(type_index $type_index);
-	let st = &$self.sub_type_at($type_index)?.composite_type.inner;
-	if let CompositeInnerType::Cont(ct) = &st {
-            let last_param = $self.func_type_of_cont_type(ct)?.params().last()?;
-            $self.sub_type_arity($self.sub_type_of_ref_type(&last_param.as_reference_type()?)?)
-	} else {
-	    None
-	}
-    }};
-
-    (count $self:ident { $type1_index:ident: $t1:ty, $type2_index:ident: $t2:ty } type_diff) => {{
-	operator_arity!(type_index $type1_index);
-	operator_arity!(type_index $type2_index);
-	let a = $self.sub_type_arity($self.sub_type_at($type1_index)?)?;
-	let b = $self.sub_type_arity($self.sub_type_at($type2_index)?)?;
-	Some((a.0.checked_sub(b.0)?, a.1.checked_sub(b.1)?))
-    }};
-
-    (count $self:ident { $arg1:ident: $argty:ty, $size:ident: $sizety:ty } size) => {{
-        operator_arity!(size_value $size);
-        Some(($size, $size))
-    }};
-
-    (count $self:ident { $depth:ident: $($_:tt)* } br) => {{
-        operator_arity!(depth $depth);
-	let (ty, kind) = $self.label_block($depth)?;
-	let (params, results) = $self.block_type_arity(ty)?;
-	let n = match kind {
-	    FrameKind::Loop => params,
-	    _ => results,
-	};
-	Some((n, n))
-    }};
-
-    (count $self:ident { $($_:ident: $__:ty),* } ret) => {{
-	let (ty, _) = $self.control_stack_height().checked_sub(1)
-	    .and_then(|x| $self.label_block(x))?;
-	$self.block_type_arity(ty)
-    }};
-
-    (count $self:ident { $blockty:ident: $($_:tt)* } block) => {{
-        operator_arity!(blockty $blockty);
-        $self.block_type_arity($blockty)
-    }};
-
-    (count $self:ident {} implicit_else) => {{
-	let (ty, kind) = $self.label_block(0)?;
-	let (params, results) = $self.block_type_arity(ty)?;
-	Some(match kind {
-	    FrameKind::If => (results, params),
-	    _ => (0, 0),
-	})
-    }};
-
-    (count $self:ident { $($_: ident: $__:ty),* } end) => {{
-	let (ty, _) = $self.label_block(0)?;
-	$self.block_type_arity(ty)
-    }};
-
-    (count $self:ident { $try_table:ident: $($_:tt)* } try_table) => {{
-        operator_arity!(try_table $try_table);
-        $self.block_type_arity($try_table.ty)
-    }};
-
-    (count $self:ident { $br_table:ident: $($_:tt)* } br_table) => {{
-        operator_arity!(br_table $br_table);
-	let relative_depth: u32 = $br_table.default();
-	operator_arity!(count $self { relative_depth: u32 } br)
-    }};
-
-    (count $self:ident { $select_tys:ident: $($_:tt)* } select) => {{
-        operator_arity!(select_tys $select_tys);
-	let result_count = $select_tys.len();
-	Some((1 + 2 * result_count, result_count))
-    }};
-
-    (tag_index tag_index $($_:tt)*) => {};
-    (func_index function_index $($_:tt)*) => {};
-    (type_index type_index $($_:tt)*) => {};
-    (type_index struct_type_index $($_:tt)*) => {};
-    (type_index argument_index $($_:tt)*) => {};
-    (type_index result_index $($_:tt)*) => {};
-    (type_index cont_type_index $($_:tt)*) => {};
-    (size_value array_size $($_:tt)*) => {};
-    (depth relative_depth $($_:tt)*) => {};
-    (blockty blockty $($_:tt)*) => {};
-    (try_table try_table $($_:tt)*) => {};
-    (br_table targets $($_:tt)*) => {};
-    (select_tys tys $($_:tt)*) => {};
-
-    (fixed load lane $($_:tt)*)        => {(2, 1)};
-    (fixed load $($_:tt)*)             => {(1, 1)};
-    (fixed store $($_:tt)*)            => {(2, 0)};
-    (fixed test $($_:tt)*)             => {(1, 1)};
-    (fixed unary $($_:tt)*)            => {(1, 1)};
-    (fixed binary $($_:tt)*)           => {(2, 1)};
-    (fixed cmp $($_:tt)*)              => {(2, 1)};
-    (fixed shift $($_:tt)*)            => {(2, 1)};
-    (fixed splat $($_:tt)*)            => {(1, 1)};
-    (fixed ternary $($_:tt)*)          => {(3, 1)};
-    (fixed conversion $($_:tt)*)       => {(1, 1)};
-    (fixed push $($_:tt)*)             => {(0, 1)};
-    (fixed extract $($_:tt)*)          => {(1, 1)};
-    (fixed replace $($_:tt)*)          => {(2, 1)};
-    (fixed atomic rmw array $($_:tt)*) => {(3, 1)};
-    (fixed atomic rmw $($_:tt)*)       => {(2, 1)};
-    (fixed atomic cmpxchg $($_:tt)*)   => {(3, 1)};
-}
-
 impl Operator<'_> {
     /// Compute the arity (param and result counts) of the operator, given
     /// an impl ModuleArity, which stores the necessary module state.
     pub fn operator_arity(&self, module: &impl ModuleArity) -> Option<(u32, u32)> {
+        #[cfg_attr(not(feature = "simd"), allow(unused_macro_rules))]
+        macro_rules! operator_arity {
+            ($visit:ident $args:tt arity $a:tt -> $b:tt) => (Some(($a, $b)));
+            ($visit:ident { $($args:ident)* } arity custom) => ($visit(module, $($args),*));
+        }
         macro_rules! define_arity {
             ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*) )*) => (
                 match self.clone() {
@@ -252,7 +96,7 @@ impl Operator<'_> {
                             $(
                                 $(let _ = $arg;)*
                             )?
-                            operator_arity!(arity module $({ $($arg: $argty),* })? $($ann)*)
+                            operator_arity!($visit {$( $($arg)* )?} $($ann)*)
                         }
                     )*
                 }
@@ -260,4 +104,200 @@ impl Operator<'_> {
         }
         crate::for_each_operator!(define_arity)
     }
+}
+
+fn visit_block(module: &dyn ModuleArity, block: BlockType) -> Option<(u32, u32)> {
+    let (params, _) = module.block_type_arity(block)?;
+    Some((params, params))
+}
+
+fn visit_loop(module: &dyn ModuleArity, block: BlockType) -> Option<(u32, u32)> {
+    visit_block(module, block)
+}
+
+fn visit_if(module: &dyn ModuleArity, block: BlockType) -> Option<(u32, u32)> {
+    let (params, results) = visit_block(module, block)?;
+    Some((params + 1, results))
+}
+
+fn visit_else(module: &dyn ModuleArity) -> Option<(u32, u32)> {
+    let (ty, _kind) = module.label_block(0)?;
+    let (params, results) = module.block_type_arity(ty)?;
+    Some((results, params))
+}
+
+fn visit_end(module: &dyn ModuleArity) -> Option<(u32, u32)> {
+    let (ty, kind) = module.label_block(0)?;
+    let (params, results) = module.block_type_arity(ty)?;
+    Some(match kind {
+        FrameKind::If => (results + params, params + results),
+        _ => (results, results),
+    })
+}
+
+fn visit_br(module: &dyn ModuleArity, depth: u32) -> Option<(u32, u32)> {
+    let (ty, kind) = module.label_block(depth)?;
+    let (params, results) = module.block_type_arity(ty)?;
+    let n = match kind {
+        FrameKind::Loop => params,
+        _ => results,
+    };
+    Some((n, 0))
+}
+
+fn visit_br_if(module: &dyn ModuleArity, depth: u32) -> Option<(u32, u32)> {
+    let (params, _) = visit_br(module, depth)?;
+    Some((params + 1, params))
+}
+
+fn visit_br_table(module: &dyn ModuleArity, table: BrTable<'_>) -> Option<(u32, u32)> {
+    let (params, results) = visit_br(module, table.default())?;
+    Some((params + 1, results))
+}
+
+fn visit_return(module: &dyn ModuleArity) -> Option<(u32, u32)> {
+    let height = module.control_stack_height().checked_sub(1)?;
+    let (ty, _) = module.label_block(height)?;
+    let (_, results) = module.block_type_arity(ty)?;
+    Some((results, 0))
+}
+
+fn visit_call(module: &dyn ModuleArity, func: u32) -> Option<(u32, u32)> {
+    module.sub_type_arity(module.sub_type_at(module.type_index_of_function(func)?)?)
+}
+
+fn visit_call_indirect(module: &dyn ModuleArity, ty: u32, _table: u32) -> Option<(u32, u32)> {
+    let (params, results) = module.sub_type_arity(module.sub_type_at(ty)?)?;
+    Some((params + 1, results))
+}
+
+fn visit_struct_new(module: &dyn ModuleArity, ty: u32) -> Option<(u32, u32)> {
+    let (params, _results) = module.sub_type_arity(module.sub_type_at(ty)?)?;
+    Some((params, 1))
+}
+
+fn visit_array_new_fixed(_module: &dyn ModuleArity, _ty: u32, size: u32) -> Option<(u32, u32)> {
+    Some((size, 1))
+}
+
+fn visit_br_on_cast(
+    module: &dyn ModuleArity,
+    depth: u32,
+    _from: RefType,
+    _to: RefType,
+) -> Option<(u32, u32)> {
+    let (params, _) = visit_br(module, depth)?;
+    Some((params, params))
+}
+
+fn visit_br_on_cast_fail(
+    module: &dyn ModuleArity,
+    depth: u32,
+    _from: RefType,
+    _to: RefType,
+) -> Option<(u32, u32)> {
+    let (params, _) = visit_br(module, depth)?;
+    Some((params, params))
+}
+
+fn visit_typed_select_multi(_module: &dyn ModuleArity, tys: Vec<ValType>) -> Option<(u32, u32)> {
+    let len = u32::try_from(tys.len()).unwrap();
+    Some((1 + 2 * len, len))
+}
+
+fn visit_return_call(module: &dyn ModuleArity, func: u32) -> Option<(u32, u32)> {
+    let (params, _) = visit_call(module, func)?;
+    Some((params, 0))
+}
+
+fn visit_return_call_indirect(module: &dyn ModuleArity, ty: u32, table: u32) -> Option<(u32, u32)> {
+    let (params, _) = visit_call_indirect(module, ty, table)?;
+    Some((params, 0))
+}
+
+fn visit_try_table(module: &dyn ModuleArity, table: TryTable) -> Option<(u32, u32)> {
+    let (params, _) = module.block_type_arity(table.ty)?;
+    Some((params, params))
+}
+
+fn visit_throw(module: &dyn ModuleArity, tag: u32) -> Option<(u32, u32)> {
+    let (params, _) = module.tag_type_arity(tag)?;
+    Some((params, 0))
+}
+
+fn visit_try(module: &dyn ModuleArity, ty: BlockType) -> Option<(u32, u32)> {
+    visit_block(module, ty)
+}
+
+fn visit_catch(module: &dyn ModuleArity, tag: u32) -> Option<(u32, u32)> {
+    let (params, _) = visit_end(module)?;
+    let (tag_params, _) = module.tag_type_arity(tag)?;
+    Some((params, tag_params))
+}
+
+fn visit_delegate(module: &dyn ModuleArity, _depth: u32) -> Option<(u32, u32)> {
+    visit_end(module)
+}
+
+fn visit_catch_all(module: &dyn ModuleArity) -> Option<(u32, u32)> {
+    let (params, _) = visit_end(module)?;
+    Some((params, 0))
+}
+
+fn visit_call_ref(module: &dyn ModuleArity, ty: u32) -> Option<(u32, u32)> {
+    let (params, results) = module.sub_type_arity(module.sub_type_at(ty)?)?;
+    Some((params + 1, results))
+}
+
+fn visit_return_call_ref(module: &dyn ModuleArity, ty: u32) -> Option<(u32, u32)> {
+    let (params, _) = visit_call_ref(module, ty)?;
+    Some((params, 0))
+}
+
+fn visit_br_on_null(module: &dyn ModuleArity, depth: u32) -> Option<(u32, u32)> {
+    let (params, _results) = visit_br(module, depth)?;
+    Some((params + 1, params + 1))
+}
+
+fn visit_br_on_non_null(module: &dyn ModuleArity, depth: u32) -> Option<(u32, u32)> {
+    let (params, _results) = visit_br(module, depth)?;
+    Some((params, params.checked_sub(1)?))
+}
+
+fn visit_cont_bind(module: &dyn ModuleArity, arg: u32, result: u32) -> Option<(u32, u32)> {
+    let (arg_params, _) = module.sub_type_arity(module.sub_type_at(arg)?)?;
+    let (result_params, _) = module.sub_type_arity(module.sub_type_at(result)?)?;
+    Some((arg_params.checked_sub(result_params)? + 1, 1))
+}
+
+fn visit_suspend(module: &dyn ModuleArity, tag: u32) -> Option<(u32, u32)> {
+    module.tag_type_arity(tag)
+}
+
+fn visit_resume(module: &dyn ModuleArity, cont: u32, _table: ResumeTable) -> Option<(u32, u32)> {
+    let (params, results) = module.sub_type_arity(module.sub_type_at(cont)?)?;
+    Some((params + 1, results))
+}
+
+fn visit_resume_throw(
+    module: &dyn ModuleArity,
+    cont: u32,
+    tag: u32,
+    _table: ResumeTable,
+) -> Option<(u32, u32)> {
+    let (params, _) = module.tag_type_arity(tag)?;
+    let (_, results) = module.sub_type_arity(module.sub_type_at(cont)?)?;
+    Some((params + 1, results))
+}
+
+fn visit_switch(module: &dyn ModuleArity, cont: u32, _tag: u32) -> Option<(u32, u32)> {
+    let (params, _) = module.sub_type_arity(module.sub_type_at(cont)?)?;
+    let st = &module.sub_type_at(cont)?.composite_type.inner;
+    let CompositeInnerType::Cont(ct) = &st else {
+        return None;
+    };
+    let last_param = module.func_type_of_cont_type(ct)?.params().last()?;
+    let (cont_params, _) =
+        module.sub_type_arity(module.sub_type_of_ref_type(&last_param.as_reference_type()?)?)?;
+    Some((params, cont_params))
 }
