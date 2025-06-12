@@ -32,7 +32,7 @@ use crate::{
 };
 use crate::{CompositeInnerType, Ordering, prelude::*};
 use core::ops::{Deref, DerefMut};
-use core::{cmp, iter};
+use core::{cmp, iter, mem};
 
 #[cfg(feature = "simd")]
 mod simd;
@@ -57,7 +57,7 @@ pub(crate) struct OperatorValidator {
     shared: bool,
 
     #[cfg(debug_assertions)]
-    pub(crate) pop_push_count: (u32, u32),
+    pub(crate) pop_push_log: Vec<bool>,
 }
 
 /// Captures the initialization of non-defaultable locals.
@@ -346,7 +346,7 @@ impl OperatorValidator {
             control,
             shared: false,
             #[cfg(debug_assertions)]
-            pop_push_count: (0, 0),
+            pop_push_log: vec![],
         }
     }
 
@@ -540,14 +540,14 @@ impl OperatorValidator {
     fn record_pop(&mut self) {
         #[cfg(debug_assertions)]
         {
-            self.pop_push_count.0 += 1;
+            self.pop_push_log.push(false);
         }
     }
 
     fn record_push(&mut self) {
         #[cfg(debug_assertions)]
         {
-            self.pop_push_count.1 += 1;
+            self.pop_push_log.push(true);
         }
     }
 }
@@ -786,14 +786,8 @@ where
         actual: ValType,
         expected: ValType,
     ) -> Result<(), BinaryReaderError> {
-        #[cfg(debug_assertions)]
-        let tmp = self.pop_push_count;
         self.push_operand(actual)?;
         self.pop_operand(Some(expected))?;
-        #[cfg(debug_assertions)]
-        {
-            self.pop_push_count = tmp;
-        }
         Ok(())
     }
 
@@ -802,21 +796,20 @@ where
         &mut self,
         expected_tys: impl PreciseIterator<Item = ValType> + 'resources,
     ) -> Result<()> {
-        debug_assert!(self.popped_types_tmp.is_empty());
-        self.popped_types_tmp.reserve(expected_tys.len());
-        #[cfg(debug_assertions)]
-        let tmp = self.pop_push_count;
+        let mut popped_types_tmp = mem::take(&mut self.popped_types_tmp);
+        debug_assert!(popped_types_tmp.is_empty());
+        popped_types_tmp.reserve(expected_tys.len());
+
         for expected_ty in expected_tys.rev() {
             let actual_ty = self.pop_operand(Some(expected_ty))?;
-            self.popped_types_tmp.push(actual_ty);
+            popped_types_tmp.push(actual_ty);
         }
-        for ty in self.inner.popped_types_tmp.drain(..).rev() {
-            self.inner.operands.push(ty.into());
+        for ty in popped_types_tmp.drain(..).rev() {
+            self.push_operand(ty)?;
         }
-        #[cfg(debug_assertions)]
-        {
-            self.pop_push_count = tmp;
-        }
+
+        debug_assert!(self.popped_types_tmp.is_empty());
+        self.popped_types_tmp = popped_types_tmp;
         Ok(())
     }
 
@@ -1075,18 +1068,12 @@ where
             self.pop_operand(Some(ty))?;
         }
 
-        // Match the results with this function's, but don't include in pop/push counts.
-        #[cfg(debug_assertions)]
-        let tmp = self.pop_push_count;
+        // Match the results with this function's.
         for &ty in ty.results() {
             debug_assert_type_indices_are_ids(ty);
             self.push_operand(ty)?;
         }
         self.check_return()?;
-        #[cfg(debug_assertions)]
-        {
-            self.pop_push_count = tmp;
-        }
 
         Ok(())
     }

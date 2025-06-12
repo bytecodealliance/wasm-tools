@@ -125,13 +125,11 @@ impl<T: WasmModuleResources> FuncValidator<T> {
             // In a debug build, verify that the validator's pops and pushes to and from
             // the operand stack match the operator's arity.
             #[cfg(debug_assertions)]
-            let (mut ops_before, pop_push_snapshot, arity) = (
-                ops.clone(),
-                self.validator.pop_push_count,
-                ops.clone()
-                    .read()?
-                    .operator_arity(&self.visitor(ops.original_position())),
-            );
+            let (mut ops_before, arity) = {
+                let op = ops.clone().read()?;
+                let arity = op.operator_arity(&self.visitor(ops.original_position()));
+                (ops.clone(), arity)
+            };
 
             ops.visit_operator(&mut self.visitor(ops.original_position()))??;
 
@@ -142,8 +140,15 @@ impl<T: WasmModuleResources> FuncValidator<T> {
                     "could not calculate operator arity"
                 ))?;
 
-                let pop_count = self.validator.pop_push_count.0 - pop_push_snapshot.0;
-                let push_count = self.validator.pop_push_count.1 - pop_push_snapshot.1;
+                let mut pop_count = 0;
+                let mut push_count = 0;
+                for op in self.validator.pop_push_log.drain(..) {
+                    match op {
+                        true => push_count += 1,
+                        false if push_count > 0 => push_count -= 1,
+                        false => pop_count += 1,
+                    }
+                }
 
                 if pop_count != params || push_count != results {
                     panic!(
@@ -315,6 +320,7 @@ mod tests {
     use super::*;
     use crate::types::CoreTypeId;
     use crate::{HeapType, Parser, RefType, Validator};
+    use alloc::vec::Vec;
 
     struct EmptyResources(crate::SubType);
 
@@ -416,85 +422,14 @@ mod tests {
         assert_eq!(v.operand_stack_height(), 2);
     }
 
-    #[test]
-    fn arity_smoke_test() {
-        let wasm = wat::parse_str(
-            r#"
-                (module
-                    (type $pair (struct (field i32) (field i32)))
-
-                    (func $add (param i32 i32) (result i32)
-                        local.get 0
-                        local.get 1
-                        i32.add
-                    )
-
-                    (func $f (param i32 i32) (result (ref null $pair))
-                        local.get 0
-                        local.get 1
-                        call $add
-                        if (result (ref null $pair))
-                        local.get 0
-                        local.get 1
-                          struct.new $pair
-                        else
-                          unreachable
-                          i32.add
-                          unreachable
-                        end
-                    )
-                )
-            "#,
-        )
-        .unwrap();
-
-        let expected_arity = vec![
-            // $add
-            vec![
-                // local.get 0
-                (0, 1),
-                // local.get 1
-                (0, 1),
-                // i32.add
-                (2, 1),
-                // end
-                (1, 1),
-            ],
-            // $f
-            vec![
-                // local.get 0
-                (0, 1),
-                // local.get 1
-                (0, 1),
-                // call $add
-                (2, 1),
-                // if
-                (1, 0),
-                // local.get 0
-                (0, 1),
-                // local.get 1
-                (0, 1),
-                // struct.new $pair
-                (2, 1),
-                // else
-                (1, 0),
-                // unreachable,
-                (0, 0),
-                // i32.add
-                (2, 1),
-                // unreachable
-                (0, 0),
-                // end
-                (1, 1),
-                // end
-                (1, 1),
-            ],
-        ];
+    fn assert_arity(wat: &str, expected: Vec<Vec<(u32, u32)>>) {
+        let wasm = wat::parse_str(wat).unwrap();
+        assert!(Validator::new().validate_all(&wasm).is_ok());
 
         let parser = Parser::new(0);
         let mut validator = Validator::new();
 
-        let mut actual_arity = vec![];
+        let mut actual = vec![];
 
         for payload in parser.parse_all(&wasm) {
             let payload = payload.unwrap();
@@ -514,7 +449,7 @@ mod tests {
                         );
                         func_validator.op(usize::MAX, &op).expect("should be valid");
                     }
-                    actual_arity.push(arity);
+                    actual.push(arity);
                 }
                 p => {
                     validator.payload(&p).unwrap();
@@ -522,6 +457,149 @@ mod tests {
             }
         }
 
-        assert_eq!(actual_arity, expected_arity);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn arity_smoke_test() {
+        let wasm = r#"
+            (module
+                (type $pair (struct (field i32) (field i32)))
+
+                (func $add (param i32 i32) (result i32)
+                    local.get 0
+                    local.get 1
+                    i32.add
+                )
+
+                (func $f (param i32 i32) (result (ref null $pair))
+                    local.get 0
+                    local.get 1
+                    call $add
+                    if (result (ref null $pair))
+                    local.get 0
+                    local.get 1
+                      struct.new $pair
+                    else
+                      unreachable
+                      i32.add
+                      unreachable
+                    end
+                )
+            )
+        "#;
+
+        assert_arity(
+            wasm,
+            vec![
+                // $add
+                vec![
+                    // local.get 0
+                    (0, 1),
+                    // local.get 1
+                    (0, 1),
+                    // i32.add
+                    (2, 1),
+                    // end
+                    (1, 1),
+                ],
+                // $f
+                vec![
+                    // local.get 0
+                    (0, 1),
+                    // local.get 1
+                    (0, 1),
+                    // call $add
+                    (2, 1),
+                    // if
+                    (1, 0),
+                    // local.get 0
+                    (0, 1),
+                    // local.get 1
+                    (0, 1),
+                    // struct.new $pair
+                    (2, 1),
+                    // else
+                    (1, 0),
+                    // unreachable,
+                    (0, 0),
+                    // i32.add
+                    (2, 1),
+                    // unreachable
+                    (0, 0),
+                    // end
+                    (1, 1),
+                    // implicit end
+                    (1, 1),
+                ],
+            ],
+        );
+    }
+
+    #[test]
+    fn arity_if_no_else_same_params_and_results() {
+        let wasm = r#"
+            (module
+                (func (export "f") (param i64 i32) (result i64)
+                    (local.get 0)
+                    (local.get 1)
+                    ;; If with no else. Same number of params and results.
+                    if (param i64) (result i64)
+                        drop
+                        i64.const -1
+                    end
+                )
+            )
+        "#;
+
+        assert_arity(
+            wasm,
+            vec![vec![
+                // local.get 0
+                (0, 1),
+                // local.get 1
+                (0, 1),
+                // if
+                (2, 1),
+                // drop
+                (1, 0),
+                // i64.const -1
+                (0, 1),
+                // end
+                (1, 1),
+                // implicit end
+                (1, 1),
+            ]],
+        );
+    }
+
+    #[test]
+    fn arity_br_table() {
+        let wasm = r#"
+            (module
+                (func (export "f") (result i32 i32)
+                    i32.const 0
+                    i32.const 1
+                    i32.const 2
+                    br_table 0 0
+                )
+            )
+        "#;
+
+        assert_arity(
+            wasm,
+            vec![vec![
+                // i32.const 0
+                (0, 1),
+                // i32.const 1
+                (0, 1),
+                // i32.const 2
+                (0, 1),
+                // br_table
+                (3, 0),
+                // implicit end
+                (2, 2),
+            ]],
+        );
     }
 }
