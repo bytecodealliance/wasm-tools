@@ -127,12 +127,9 @@ fn visit_else(module: &dyn ModuleArity) -> Option<(u32, u32)> {
 }
 
 fn visit_end(module: &dyn ModuleArity) -> Option<(u32, u32)> {
-    let (ty, kind) = module.label_block(0)?;
-    let (params, results) = module.block_type_arity(ty)?;
-    Some(match kind {
-        FrameKind::If => (results + params, params + results),
-        _ => (results, results),
-    })
+    let (ty, _kind) = module.label_block(0)?;
+    let (_params, results) = module.block_type_arity(ty)?;
+    Some((results, results))
 }
 
 fn visit_br(module: &dyn ModuleArity, depth: u32) -> Option<(u32, u32)> {
