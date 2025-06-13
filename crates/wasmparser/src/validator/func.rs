@@ -140,6 +140,10 @@ impl<T: WasmModuleResources> FuncValidator<T> {
                     "could not calculate operator arity"
                 ))?;
 
+                // Analyze the log to determine the actual, externally visible
+                // pop/push count. This allows us to hide the fact that we might
+                // push and then pop a temporary while validating an
+                // instruction, which shouldn't be visible from the outside.
                 let mut pop_count = 0;
                 let mut push_count = 0;
                 for op in self.validator.pop_push_log.drain(..) {

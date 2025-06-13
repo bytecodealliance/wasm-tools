@@ -56,6 +56,10 @@ pub(crate) struct OperatorValidator {
     /// Whether validation is happening in a shared context.
     shared: bool,
 
+    /// A trace of all operand push/pop operations performed while validating an
+    /// opcode. This is then compared to the arity that we report to double
+    /// check that arity report's correctness. `true` is "push" and `false` is
+    /// "pop".
     #[cfg(debug_assertions)]
     pub(crate) pop_push_log: Vec<bool>,
 }
