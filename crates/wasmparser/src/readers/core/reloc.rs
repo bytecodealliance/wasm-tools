@@ -229,7 +229,7 @@ pub struct RelocationEntry {
     /// Relocation entry type.
     pub ty: RelocationType,
     /// Offset in bytes from the start of the section indicated by
-    /// `RelocSectionReader::section` targetted by this relocation.
+    /// `RelocSectionReader::section` targeted by this relocation.
     pub offset: u32,
     /// Index in the symbol table contained in the linking section that
     /// corresponds to the value at `offset`.
@@ -241,7 +241,7 @@ pub struct RelocationEntry {
 
 impl RelocationEntry {
     /// Byte range relative to the start of the section indicated by
-    /// `RelocSectionReader::section` targetted by this relocation.
+    /// `RelocSectionReader::section` targeted by this relocation.
     pub fn relocation_range(&self) -> Range<usize> {
         (self.offset as usize)..(self.offset as usize + self.ty.extent())
     }
