@@ -985,7 +985,7 @@ pub struct ComponentType {
     /// `Vec<usize>` payload here. For more information about the indexes see
     /// the documentation on `ComponentState::imported_resources`.
     ///
-    /// This should technically be inferrable from the structure of `imports`,
+    /// This should technically be inferable from the structure of `imports`,
     /// but it's stored as an auxiliary set for subtype checking and
     /// instantiation.
     ///
