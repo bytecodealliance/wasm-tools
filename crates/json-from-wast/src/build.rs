@@ -1,13 +1,19 @@
+use crate::{AnyRef, ContRef, ExnRef, ExternRef, FuncRef, IntString, Opts, WasmFileType};
 use anyhow::{Context, Result, bail};
 use std::borrow::Cow;
 use std::path::Path;
-use wast::core::{AbstractHeapType, HeapType, NanPattern, V128Const, V128Pattern, WastRetCore};
-use wast::token::{F32, F64, Span};
+use wast::component::WastVal;
+use wast::core::{
+    AbstractHeapType, EncodeOptions, GenerateDwarf, HeapType, V128Const, V128Pattern, WastArgCore,
+    WastRetCore,
+};
+use wast::token::Span;
 use wast::{
     QuoteWat, QuoteWatTest, Wast, WastArg, WastDirective, WastExecute, WastInvoke, WastRet,
 };
 
 pub fn run<'a>(
+    opts: &Opts,
     source_filename: &'a str,
     contents: &'a str,
     wast: Wast<'a>,
@@ -22,6 +28,7 @@ pub fn run<'a>(
             commands: Vec::new(),
             wasms: Vec::new(),
         },
+        opts,
         line_end_offsets: Vec::new(),
     };
 
@@ -48,14 +55,15 @@ pub fn run<'a>(
     Ok(builder.ret)
 }
 
-struct JsonBuilder<'a> {
+struct JsonBuilder<'a, 'b> {
     files: u32,
     ret: crate::Wast<'a>,
     contents: &'a str,
     line_end_offsets: Vec<usize>,
+    opts: &'b Opts,
 }
 
-impl<'a> JsonBuilder<'a> {
+impl<'a> JsonBuilder<'a, '_> {
     fn directive(&mut self, directive: WastDirective<'a>) -> Result<crate::Command<'a>> {
         let line = self.lineno(directive.span());
         let command = match directive {
@@ -226,8 +234,8 @@ impl<'a> JsonBuilder<'a> {
     ) -> Result<(Option<&'a str>, crate::WasmFile<'static>)> {
         let name = module.name().map(|i| i.name());
         let (contents, module_type, ext) = match module.to_test()? {
-            QuoteWatTest::Text(s) => (s, "text", "wat"),
-            QuoteWatTest::Binary(s) => (s, "binary", "wasm"),
+            QuoteWatTest::Text(s) => (s, WasmFileType::Text, "wat"),
+            QuoteWatTest::Binary(s) => (s, WasmFileType::Binary, "wasm"),
         };
         let filename: &str = &self.ret.source_filename;
         let stem = Path::new(filename).file_stem().unwrap().to_str().unwrap();
@@ -237,12 +245,23 @@ impl<'a> JsonBuilder<'a> {
         let binary_filename = format!("{stem}.{fileno}.wasm");
         self.ret.wasms.push((filename.clone(), contents));
         let mut ret = crate::WasmFile {
-            module_type: module_type.into(),
+            module_type,
             filename: filename.into(),
             binary_filename: None,
         };
-        if module_type == "text" && !malformed {
-            if let Ok(bytes) = module.encode() {
+        if module_type == WasmFileType::Text && !malformed {
+            let bytes = match &mut module {
+                QuoteWat::Wat(wat) => {
+                    let mut opts = EncodeOptions::new();
+                    if self.opts.dwarf {
+                        let filename: &str = &self.ret.source_filename;
+                        opts.dwarf(filename.as_ref(), self.contents, GenerateDwarf::Lines);
+                    }
+                    opts.encode_wat(wat)
+                }
+                _ => module.encode(),
+            };
+            if let Ok(bytes) = bytes {
                 self.ret.wasms.push((binary_filename.clone(), bytes));
                 ret.binary_filename = Some(binary_filename.into());
             }
@@ -277,69 +296,122 @@ impl<'a> JsonBuilder<'a> {
     }
 
     fn args(&self, args: Vec<WastArg<'a>>) -> Result<Vec<crate::Const<'a>>> {
-        use wast::core::WastArgCore::*;
-
         let mut ret = Vec::new();
         for arg in args {
             let arg = match arg {
-                WastArg::Core(core) => core,
-                _ => bail!("encountered unsupported Wast argument: {arg:?}"),
+                WastArg::Core(core) => crate::Const::Core(self.core_arg(core)?),
+                WastArg::Component(arg) => crate::Const::Component(self.component_val(arg)?),
+                _ => bail!("unsupported arg {arg:?}"),
             };
-            let val = match arg {
-                I32(i) => crate::Const::I32 {
-                    value: self.print_i32(i).into(),
-                },
-                I64(i) => crate::Const::I64 {
-                    value: self.print_i64(i).into(),
-                },
-                F32(i) => crate::Const::F32 {
-                    value: f32_to_string(i).into(),
-                },
-                F64(i) => crate::Const::F64 {
-                    value: f64_to_string(i).into(),
-                },
-                V128(V128Const::I8x16(vals)) => crate::Const::V128 {
-                    lane_type: "i8".into(),
-                    value: vals.iter().map(|i| self.print_i8(*i).into()).collect(),
-                },
-                V128(V128Const::I16x8(vals)) => crate::Const::V128 {
-                    lane_type: "i16".into(),
-                    value: vals.iter().map(|i| self.print_i16(*i).into()).collect(),
-                },
-                V128(V128Const::I32x4(vals)) => crate::Const::V128 {
-                    lane_type: "i32".into(),
-                    value: vals.iter().map(|i| self.print_i32(*i).into()).collect(),
-                },
-                V128(V128Const::I64x2(vals)) => crate::Const::V128 {
-                    lane_type: "i64".into(),
-                    value: vals.iter().map(|i| self.print_i64(*i).into()).collect(),
-                },
-                V128(V128Const::F32x4(vals)) => crate::Const::V128 {
-                    lane_type: "f32".into(),
-                    value: vals.iter().map(|i| f32_to_string(*i).into()).collect(),
-                },
-                V128(V128Const::F64x2(vals)) => crate::Const::V128 {
-                    lane_type: "f64".into(),
-                    value: vals.iter().map(|i| f64_to_string(*i).into()).collect(),
-                },
-                RefNull(ty) => null_heap_ty(ty)?,
-                RefExtern(i) => crate::Const::ExternRef {
-                    value: i.to_string().into(),
-                },
-                RefHost(i) => crate::Const::AnyRef {
-                    value: Some(i.to_string().into()),
-                },
-            };
-            ret.push(val);
+            ret.push(arg);
         }
         Ok(ret)
+    }
+
+    fn core_arg(&self, arg: WastArgCore<'_>) -> Result<crate::CoreConst> {
+        use WastArgCore::*;
+        Ok(match arg {
+            I32(i) => crate::CoreConst::I32 {
+                value: IntString(i),
+            },
+            I64(i) => crate::CoreConst::I64 {
+                value: IntString(i),
+            },
+            F32(i) => crate::CoreConst::F32 { value: i.into() },
+            F64(i) => crate::CoreConst::F64 { value: i.into() },
+            V128(V128Const::I8x16(vals)) => crate::CoreConst::V128(crate::V128::I8 {
+                value: vals.map(IntString),
+            }),
+            V128(V128Const::I16x8(vals)) => crate::CoreConst::V128(crate::V128::I16 {
+                value: vals.map(IntString),
+            }),
+            V128(V128Const::I32x4(vals)) => crate::CoreConst::V128(crate::V128::I32 {
+                value: vals.map(IntString),
+            }),
+            V128(V128Const::I64x2(vals)) => crate::CoreConst::V128(crate::V128::I64 {
+                value: vals.map(IntString),
+            }),
+            V128(V128Const::F32x4(vals)) => crate::CoreConst::V128(crate::V128::F32 {
+                value: vals.map(|i| i.into()),
+            }),
+            V128(V128Const::F64x2(vals)) => crate::CoreConst::V128(crate::V128::F64 {
+                value: vals.map(|i| i.into()),
+            }),
+            RefNull(ty) => null_heap_ty(ty)?,
+            RefExtern(i) => crate::CoreConst::ExternRef {
+                value: Some(ExternRef::Host(IntString(i))),
+            },
+            RefHost(i) => crate::CoreConst::AnyRef {
+                value: Some(AnyRef::Host(IntString(i))),
+            },
+        })
+    }
+
+    fn component_val(&self, arg: WastVal<'a>) -> Result<crate::ComponentConst<'a>> {
+        Ok(match arg {
+            WastVal::Bool(b) => crate::ComponentConst::Bool(b),
+            WastVal::U8(i) => crate::ComponentConst::U8(IntString(i)),
+            WastVal::S8(i) => crate::ComponentConst::S8(IntString(i)),
+            WastVal::U16(i) => crate::ComponentConst::U16(IntString(i)),
+            WastVal::S16(i) => crate::ComponentConst::S16(IntString(i)),
+            WastVal::U32(i) => crate::ComponentConst::U32(IntString(i)),
+            WastVal::S32(i) => crate::ComponentConst::S32(IntString(i)),
+            WastVal::U64(i) => crate::ComponentConst::U64(IntString(i)),
+            WastVal::S64(i) => crate::ComponentConst::S64(IntString(i)),
+            WastVal::F32(i) => crate::ComponentConst::F32(IntString(i.bits)),
+            WastVal::F64(i) => crate::ComponentConst::F64(IntString(i.bits)),
+            WastVal::Char(c) => crate::ComponentConst::Char(c),
+            WastVal::String(s) => crate::ComponentConst::String(s.into()),
+            WastVal::List(s) => crate::ComponentConst::List(
+                s.into_iter()
+                    .map(|i| self.component_val(i))
+                    .collect::<Result<_>>()?,
+            ),
+            WastVal::Record(s) => crate::ComponentConst::Record(
+                s.into_iter()
+                    .map(|(name, i)| Ok((name.into(), self.component_val(i)?)))
+                    .collect::<Result<_>>()?,
+            ),
+            WastVal::Tuple(s) => crate::ComponentConst::Tuple(
+                s.into_iter()
+                    .map(|i| self.component_val(i))
+                    .collect::<Result<_>>()?,
+            ),
+            WastVal::Variant(case, value) => crate::ComponentConst::Variant {
+                case: case.into(),
+                payload: value
+                    .map(|i| self.component_val(*i))
+                    .transpose()?
+                    .map(Box::new),
+            },
+            WastVal::Enum(case) => crate::ComponentConst::Enum(case.into()),
+            WastVal::Option(val) => crate::ComponentConst::Option(
+                val.map(|i| self.component_val(*i))
+                    .transpose()?
+                    .map(Box::new),
+            ),
+            WastVal::Result(val) => crate::ComponentConst::Result(match val {
+                Ok(val) => Ok(val
+                    .map(|i| self.component_val(*i))
+                    .transpose()?
+                    .map(Box::new)),
+                Err(val) => Err(val
+                    .map(|i| self.component_val(*i))
+                    .transpose()?
+                    .map(Box::new)),
+            }),
+            WastVal::Flags(vals) => {
+                crate::ComponentConst::Flags(vals.into_iter().map(|v| v.into()).collect())
+            }
+        })
     }
 
     fn expected(&self, rets: Vec<WastRet<'a>>) -> Result<Vec<crate::Const<'a>>> {
         let mut ret = Vec::new();
         for r in rets {
             let r = match r {
-                WastRet::Core(core) => self.core_ret(core)?,
+                WastRet::Core(core) => crate::Const::Core(self.core_ret(core)?),
+                WastRet::Component(val) => crate::Const::Component(self.component_val(val)?),
                 _ => bail!("encountered unsupported Wast result: {r:?}"),
             };
             ret.push(r);
@@ -347,73 +419,57 @@ impl<'a> JsonBuilder<'a> {
         Ok(ret)
     }
 
-    fn core_ret(&self, ret: WastRetCore<'a>) -> Result<crate::Const<'a>> {
+    fn core_ret(&self, ret: WastRetCore<'a>) -> Result<crate::CoreConst> {
         use wast::core::WastRetCore::*;
 
         Ok(match ret {
-            I32(i) => crate::Const::I32 {
-                value: self.print_i32(i).into(),
+            I32(i) => crate::CoreConst::I32 {
+                value: IntString(i),
             },
-            I64(i) => crate::Const::I64 {
-                value: self.print_i64(i).into(),
+            I64(i) => crate::CoreConst::I64 {
+                value: IntString(i),
             },
-            F32(i) => crate::Const::F32 {
-                value: nan_pattern_to_string(i, f32_to_string).into(),
-            },
-            F64(i) => crate::Const::F64 {
-                value: nan_pattern_to_string(i, f64_to_string).into(),
-            },
-            V128(V128Pattern::I8x16(vals)) => crate::Const::V128 {
-                lane_type: "i8".into(),
-                value: vals.iter().map(|i| self.print_i8(*i).into()).collect(),
-            },
-            V128(V128Pattern::I16x8(vals)) => crate::Const::V128 {
-                lane_type: "i16".into(),
-                value: vals.iter().map(|i| self.print_i16(*i).into()).collect(),
-            },
-            V128(V128Pattern::I32x4(vals)) => crate::Const::V128 {
-                lane_type: "i32".into(),
-                value: vals.iter().map(|i| self.print_i32(*i).into()).collect(),
-            },
-            V128(V128Pattern::I64x2(vals)) => crate::Const::V128 {
-                lane_type: "i64".into(),
-                value: vals.iter().map(|i| self.print_i64(*i).into()).collect(),
-            },
-            V128(V128Pattern::F32x4(vals)) => crate::Const::V128 {
-                lane_type: "f32".into(),
-                value: vals
-                    .iter()
-                    .map(|i| nan_pattern_to_string(*i, f32_to_string).into())
-                    .collect(),
-            },
-            V128(V128Pattern::F64x2(vals)) => crate::Const::V128 {
-                lane_type: "f64".into(),
-                value: vals
-                    .iter()
-                    .map(|i| nan_pattern_to_string(*i, f64_to_string).into())
-                    .collect(),
-            },
+            F32(i) => crate::CoreConst::F32 { value: i.into() },
+            F64(i) => crate::CoreConst::F64 { value: i.into() },
+            V128(V128Pattern::I8x16(vals)) => crate::CoreConst::V128(crate::V128::I8 {
+                value: vals.map(IntString),
+            }),
+            V128(V128Pattern::I16x8(vals)) => crate::CoreConst::V128(crate::V128::I16 {
+                value: vals.map(IntString),
+            }),
+            V128(V128Pattern::I32x4(vals)) => crate::CoreConst::V128(crate::V128::I32 {
+                value: vals.map(IntString),
+            }),
+            V128(V128Pattern::I64x2(vals)) => crate::CoreConst::V128(crate::V128::I64 {
+                value: vals.map(IntString),
+            }),
+            V128(V128Pattern::F32x4(vals)) => crate::CoreConst::V128(crate::V128::F32 {
+                value: vals.map(|i| i.into()),
+            }),
+            V128(V128Pattern::F64x2(vals)) => crate::CoreConst::V128(crate::V128::F64 {
+                value: vals.map(|i| i.into()),
+            }),
 
             RefNull(Some(ty)) => null_heap_ty(ty)?,
-            RefNull(None) => crate::Const::RefNull,
-            RefExtern(None) => crate::Const::ExternRef {
-                value: "null".to_string().into(),
+            RefNull(None) => crate::CoreConst::RefNull,
+            RefExtern(None) => crate::CoreConst::ExternRef { value: None },
+            RefExtern(Some(i)) => crate::CoreConst::ExternRef {
+                value: Some(ExternRef::Host(IntString(i))),
             },
-            RefExtern(Some(i)) => crate::Const::ExternRef {
-                value: i.to_string().into(),
+            RefHost(i) => crate::CoreConst::AnyRef {
+                value: Some(AnyRef::Host(IntString(i))),
             },
-            RefHost(i) => crate::Const::AnyRef {
-                value: Some(i.to_string().into()),
+            RefFunc(None) => crate::CoreConst::FuncRef { value: None },
+            RefFunc(Some(i)) => crate::CoreConst::FuncRef {
+                value: Some(FuncRef::Index(i.into())),
             },
-            RefFunc(None) => crate::Const::FuncRef { value: None },
-            RefFunc(Some(_)) => bail!("TODO"),
-            RefAny => crate::Const::AnyRef { value: None },
-            RefEq => crate::Const::EqRef,
-            RefArray => crate::Const::ArrayRef,
-            RefStruct => crate::Const::StructRef,
-            RefI31 => crate::Const::I31Ref,
-            RefI31Shared => crate::Const::I31RefShared,
-            Either(either) => crate::Const::Either {
+            RefAny => crate::CoreConst::AnyRef { value: None },
+            RefEq => crate::CoreConst::EqRef,
+            RefArray => crate::CoreConst::ArrayRef,
+            RefStruct => crate::CoreConst::StructRef,
+            RefI31 => crate::CoreConst::I31Ref,
+            RefI31Shared => crate::CoreConst::I31RefShared,
+            Either(either) => crate::CoreConst::Either {
                 values: either
                     .into_iter()
                     .map(|i| self.core_ret(i))
@@ -421,41 +477,9 @@ impl<'a> JsonBuilder<'a> {
             },
         })
     }
-
-    fn print_i8(&self, i: i8) -> String {
-        i.to_string()
-    }
-
-    fn print_i16(&self, i: i16) -> String {
-        i.to_string()
-    }
-
-    fn print_i32(&self, i: i32) -> String {
-        i.to_string()
-    }
-
-    fn print_i64(&self, i: i64) -> String {
-        i.to_string()
-    }
 }
 
-fn nan_pattern_to_string<T>(pat: NanPattern<T>, to_string: fn(T) -> String) -> String {
-    match pat {
-        NanPattern::ArithmeticNan => "nan:arithmetic".to_string(),
-        NanPattern::CanonicalNan => "nan:canonical".to_string(),
-        NanPattern::Value(val) => to_string(val),
-    }
-}
-
-fn f32_to_string(f: F32) -> String {
-    f.bits.to_string()
-}
-
-fn f64_to_string(f: F64) -> String {
-    f.bits.to_string()
-}
-
-fn null_heap_ty(ty: HeapType<'_>) -> Result<crate::Const<'_>> {
+fn null_heap_ty(ty: HeapType<'_>) -> Result<crate::CoreConst> {
     Ok(match ty {
         HeapType::Abstract { shared, ty } => {
             use AbstractHeapType::*;
@@ -463,30 +487,30 @@ fn null_heap_ty(ty: HeapType<'_>) -> Result<crate::Const<'_>> {
                 bail!("shared abstract types are not supported in `ref.null`")
             }
             match ty {
-                Func => crate::Const::FuncRef {
-                    value: Some("null".to_string().into()),
+                Func => crate::CoreConst::FuncRef {
+                    value: Some(FuncRef::Null),
                 },
-                Extern => crate::Const::ExternRef {
-                    value: "null".to_string().into(),
+                Extern => crate::CoreConst::ExternRef {
+                    value: Some(ExternRef::Null),
                 },
-                Any => crate::Const::AnyRef {
-                    value: Some("null".to_string().into()),
+                Any => crate::CoreConst::AnyRef {
+                    value: Some(AnyRef::Null),
                 },
-                None => crate::Const::NullRef,
-                NoFunc => crate::Const::NullFuncRef,
-                NoExtern => crate::Const::NullExternRef,
-                Exn => crate::Const::ExnRef {
-                    value: Some("null".to_string().into()),
+                None => crate::CoreConst::NullRef,
+                NoFunc => crate::CoreConst::NullFuncRef,
+                NoExtern => crate::CoreConst::NullExternRef,
+                Exn => crate::CoreConst::ExnRef {
+                    value: Some(ExnRef::Null),
                 },
-                Eq => crate::Const::EqRef,
-                Struct => crate::Const::StructRef,
-                Array => crate::Const::ArrayRef,
-                I31 => crate::Const::I31Ref,
-                NoExn => crate::Const::NullExnRef,
-                Cont => crate::Const::ContRef {
-                    value: Some("null".to_string().into()),
+                Eq => crate::CoreConst::EqRef,
+                Struct => crate::CoreConst::StructRef,
+                Array => crate::CoreConst::ArrayRef,
+                I31 => crate::CoreConst::I31Ref,
+                NoExn => crate::CoreConst::NullExnRef,
+                Cont => crate::CoreConst::ContRef {
+                    value: Some(ContRef::Null),
                 },
-                NoCont => crate::Const::NullContRef,
+                NoCont => crate::CoreConst::NullContRef,
             }
         }
         _ => bail!("unsupported heap type found in `ref.null`"),

@@ -17,6 +17,6 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-serde = { workspace = true }
+serde = { workspace = true, features = ['derive'] }
 serde_derive = { workspace = true }
-wast = { workspace = true, features = ['wasm-module'] }
+wast = { workspace = true, features = ['wasm-module', 'dwarf', 'component-model'] }

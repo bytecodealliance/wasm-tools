@@ -136,8 +136,7 @@
       },
       "expected": [
         {
-          "type": "externref",
-          "value": "null"
+          "type": "externref"
         }
       ]
     },
@@ -156,8 +155,7 @@
       },
       "expected": [
         {
-          "type": "externref",
-          "value": "null"
+          "type": "externref"
         }
       ]
     },
@@ -176,8 +174,7 @@
       },
       "expected": [
         {
-          "type": "externref",
-          "value": "null"
+          "type": "externref"
         }
       ]
     },
@@ -196,8 +193,7 @@
       },
       "expected": [
         {
-          "type": "externref",
-          "value": "null"
+          "type": "externref"
         }
       ]
     },
