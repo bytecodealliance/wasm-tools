@@ -1092,6 +1092,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "json-from-wast"
+version = "0.234.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_derive",
+ "wast",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2055,6 +2065,7 @@ dependencies = [
  "gimli",
  "indexmap 2.7.1",
  "is_executable",
+ "json-from-wast",
  "libtest-mimic",
  "log",
  "pretty_assertions",

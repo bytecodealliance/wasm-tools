@@ -156,6 +156,7 @@ wit-component = { version = "0.235.0", path = "crates/wit-component" }
 wit-encoder = { version = "0.235.0", path = "crates/wit-encoder" }
 wit-parser = { version = "0.235.0", path = "crates/wit-parser" }
 wit-smith = { version = "0.235.0", path = "crates/wit-smith" }
+json-from-wast = { version = "0.235.0", path = "crates/json-from-wast" }
 
 [dependencies]
 anyhow = { workspace = true }
@@ -219,6 +220,9 @@ gimli = { workspace = true, optional = true }
 
 # Dependencies of `wast`
 pretty_assertions = { workspace = true, optional = true }
+
+# Dependencies of `json-from-wast`
+json-from-wast = { workspace = true, optional = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 is_executable = { version = "1.0.1", optional = true }
@@ -291,7 +295,7 @@ metadata = ['wasm-metadata', 'dep:serde_json']
 wit-smith = ['dep:wit-smith', 'arbitrary']
 addr2line = ['dep:addr2line', 'dep:gimli']
 completion = ['dep:clap_complete']
-json-from-wast = ['dep:serde_derive', 'dep:serde_json', 'dep:wast', 'dep:serde']
+json-from-wast = ['dep:json-from-wast', 'dep:wast', 'dep:serde_json']
 wast = [
   'dep:wast',
   'wasm-encoder/wasmparser',

@@ -599,9 +599,11 @@ impl<'a> Module<'a> {
             match &func.def {
                 Definition::Import(m, n) => {
                     let name = if is_realloc(*m, *n) {
-                        // The adapter is importing `cabi_realloc` from the main module, and the main module
-                        // exports that function, but possibly using a different name
-                        // (e.g. `canonical_abi_realloc`).  Update the name to match if necessary.
+                        // The adapter is importing `cabi_realloc` from the main
+                        // module, and the main module exports that function,
+                        // but possibly using a different name (e.g.
+                        // `canonical_abi_realloc`).  Update the name to match
+                        // if necessary.
                         realloc_index = Some(num_func_imports);
                         main_module_realloc.unwrap_or(n)
                     } else {
@@ -640,10 +642,13 @@ impl<'a> Module<'a> {
         let mut func_names = Vec::new();
 
         if let (Some(realloc), Some(_), None) = (main_module_realloc, sp, realloc_index) {
-            // The main module exports a realloc function, and although the adapter doesn't import it, we're going
-            // to add a function which calls it to allocate some stack space, so let's add an import now.
+            // The main module exports a realloc function, and although the
+            // adapter doesn't import it, we're going to add a function which
+            // calls it to allocate some stack space, so let's add an import
+            // now.
 
-            // Tell the function remapper we're reserving a slot for our extra import:
+            // Tell the function remapper we're reserving a slot for our extra
+            // import:
             map.funcs.next += 1;
 
             realloc_index = Some(num_func_imports);
@@ -661,8 +666,10 @@ impl<'a> Module<'a> {
             let ty = map.types.remap(func.ty);
             match &func.def {
                 Definition::Import(_, _) => {
-                    // The adapter is importing `cabi_realloc` from the main module, but the main module isn't
-                    // exporting it.  In this case, we need to define a local function it can call instead.
+                    // The adapter is importing `cabi_realloc` from the main
+                    // module, but the main module isn't exporting it.  In this
+                    // case, we need to define a local function it can call
+                    // instead.
                     realloc_index = Some(num_func_imports + funcs.len());
                     funcs.function(ty);
                     code.function(&realloc_via_memory_grow());
@@ -673,22 +680,26 @@ impl<'a> Module<'a> {
             }
         }
 
-        let lazy_stack_init_index =
-            if sp.is_some() && allocation_state.is_some() && main_module_realloc.is_some() {
-                // We have a stack pointer, a `cabi_realloc` function from the main module, and a global variable for
-                // keeping track of (and short-circuiting) reentrance.  That means we can (and should) do lazy stack
-                // allocation.
-                let index = num_func_imports + funcs.len();
+        let lazy_stack_init_index = if dbg!(sp.is_some())
+            && dbg!(allocation_state.is_some())
+            && dbg!(main_module_realloc.is_some())
+        {
+            // We have a stack pointer, a `cabi_realloc` function from the
+            // main module, and a global variable for keeping track of (and
+            // short-circuiting) reentrance.  That means we can (and should)
+            // do lazy stack allocation.
+            let index = num_func_imports + funcs.len();
 
-                // Tell the function remapper we're reserving a slot for our extra function:
-                map.funcs.next += 1;
+            // Tell the function remapper we're reserving a slot for our
+            // extra function:
+            map.funcs.next += 1;
 
-                funcs.function(add_empty_type(&mut types));
+            funcs.function(add_empty_type(&mut types));
 
-                Some(index)
-            } else {
-                None
-            };
+            Some(index)
+        } else {
+            None
+        };
 
         let exported_funcs = self
             .exports
@@ -732,15 +743,17 @@ impl<'a> Module<'a> {
         }
 
         if sp.is_some() && (realloc_index.is_none() || allocation_state.is_none()) {
-            // Either the main module does _not_ export a realloc function, or it is not safe to use for stack
-            // allocation because we have no way to short-circuit reentrance, so we'll use `memory.grow` instead.
+            // Either the main module does _not_ export a realloc function, or
+            // it is not safe to use for stack allocation because we have no way
+            // to short-circuit reentrance, so we'll use `memory.grow` instead.
             realloc_index = Some(num_func_imports + funcs.len());
             funcs.function(add_realloc_type(&mut types));
             code.function(&realloc_via_memory_grow());
         }
 
-        // Inject a start function to initialize the stack pointer which will be local to this module. This only
-        // happens if a memory is preserved, a stack pointer global is found, and we're not doing lazy stack
+        // Inject a start function to initialize the stack pointer which will be
+        // local to this module. This only happens if a memory is preserved, a
+        // stack pointer global is found, and we're not doing lazy stack
         // allocation.
         let mut start = None;
         if let (Some(sp), None) = (sp, lazy_stack_init_index) {
