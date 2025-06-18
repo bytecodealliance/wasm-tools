@@ -18,7 +18,7 @@ use crate::limits::{
 };
 use crate::prelude::*;
 use crate::{BinaryReader, BinaryReaderError, FromReader, RefType, Result, ValType};
-use core::fmt;
+use core::{fmt, mem};
 
 /// Represents a block type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -332,19 +332,56 @@ macro_rules! define_operator {
 }
 crate::for_each_operator!(define_operator);
 
+/// The Wasm control stack for the [`OperatorsReader`].
+#[derive(Debug, Default, Clone)]
+pub struct ControlStack {
+    /// All frames on the control stack exclusing the top-most frame.
+    frames: Vec<FrameKind>,
+    /// The top-most frame on the control stack if any.
+    top: Option<FrameKind>,
+}
+
+impl ControlStack {
+    /// Returns `true` if `self` is empty.
+    pub fn is_empty(&self) -> bool {
+        self.top.is_none()
+    }
+
+    /// Pushes the `frame` to `self`.
+    pub fn push(&mut self, frame: FrameKind) {
+        let old_top = self.top.replace(frame);
+        if let Some(old_top) = old_top {
+            self.frames.push(old_top);
+        }
+    }
+
+    /// Pops the top-most [`FrameKind`] from `self`.
+    pub fn pop(&mut self) -> Option<FrameKind> {
+        let new_top = self.frames.pop();
+        mem::replace(&mut self.top, new_top)
+    }
+
+    /// Returns the top-mot [`FrameKind`].
+    pub fn last(&self) -> Option<FrameKind> {
+        self.top
+    }
+}
+
 /// A reader for a core WebAssembly function's operators.
 #[derive(Clone)]
 pub struct OperatorsReader<'a> {
     reader: BinaryReader<'a>,
-    blocks: Vec<FrameKind>,
+    blocks: ControlStack,
 }
 
 impl<'a> OperatorsReader<'a> {
     /// Creates a new reader for an expression (instruction sequence)
     pub fn new(reader: BinaryReader<'a>) -> OperatorsReader<'a> {
+        let mut blocks = ControlStack::default();
+        blocks.push(FrameKind::Block);
         OperatorsReader {
             reader,
-            blocks: vec![FrameKind::Block],
+            blocks,
         }
     }
 
@@ -419,7 +456,7 @@ impl<'a> OperatorsReader<'a> {
                 "empty stack found where {:?} expected",
                 k
             ),
-            Some(x) if *x == k => Ok(()),
+            Some(x) if x == k => Ok(()),
             Some(_) => bail!(
                 self.original_position(),
                 "`{}` found outside `{:?}` block",
