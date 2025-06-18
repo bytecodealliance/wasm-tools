@@ -1,4 +1,5 @@
 use super::{Adapter, ComponentEncoder, LibraryInfo, RequiredOptions};
+use crate::gc::ReallocScheme;
 use crate::validation::{
     Import, ImportMap, ValidatedModule, validate_adapter_module, validate_module,
 };
@@ -24,7 +25,7 @@ pub struct WorldAdapter<'a> {
 /// `EncodingState` as this information doesn't change throughout the encoding
 /// process.
 pub struct ComponentWorld<'a> {
-    /// Encoder configuration with modules, the document ,etc.
+    /// Encoder configuration with modules, the document, etc.
     pub encoder: &'a ComponentEncoder,
     /// Validation information of the input module, or `None` in `--types-only`
     /// mode.
@@ -83,6 +84,23 @@ impl<'a> ComponentWorld<'a> {
         Ok(ret)
     }
 
+    /// Given that there is no realloc function exported from the main module,
+    /// returns the realloc scheme we should use.
+    fn fallback_realloc_scheme(&self) -> ReallocScheme {
+        if self.encoder.module_is_produced_by_tiny_go {
+            // TODO: Also check for cabi_realloc and bail if it's there.
+            // If it appears the module was emitted by TinyGo, we delegate to
+            // its `malloc()` function. (TinyGo assumes its GC has rein over the
+            // whole memory and quickly overwrites the adapter's
+            // `memory.grow`-allocated State struct unless we inform TinyGo's GC
+            // of the memory we use.)
+            ReallocScheme::Malloc("malloc")
+        } else {
+            // If it's not TinyGo, use `memory.grow` instead.
+            ReallocScheme::MemoryGrow
+        }
+    }
+
     /// Process adapters which are required here. Iterate over all
     /// adapters and figure out what functions are required from the
     /// adapter itself, either because the functions are imported by the
@@ -121,8 +139,8 @@ impl<'a> ComponentWorld<'a> {
             } else {
                 // Without `library_info` this means that this is an adapter.
                 // The goal of the adapter is to provide a suite of symbols that
-                // can be imported, but not all symbols may be imported. Here
-                // the module is trimmed down to only what's needed by the
+                // can be imported, but perhaps not all symbols are imported.
+                // Here the module is trimmed down to only what's needed by the
                 // original main module.
                 //
                 // The main module requires `required_by_import` above, but
@@ -163,17 +181,17 @@ impl<'a> ComponentWorld<'a> {
                     required.insert(name.to_string());
                 }
 
+                let realloc = if self.encoder.realloc_via_memory_grow {
+                    self.fallback_realloc_scheme()
+                } else {
+                    match self.info.exports.realloc_to_import_into_adapter() {
+                        Some(name) => ReallocScheme::Realloc(name),
+                        None => self.fallback_realloc_scheme(),
+                    }
+                };
                 Cow::Owned(
-                    crate::gc::run(
-                        wasm,
-                        &required,
-                        if self.encoder.realloc_via_memory_grow {
-                            None
-                        } else {
-                            self.info.exports.realloc_to_import_into_adapter()
-                        },
-                    )
-                    .context("failed to reduce input adapter module to its minimal size")?,
+                    crate::gc::run(wasm, &required, realloc)
+                        .context("failed to reduce input adapter module to its minimal size")?,
                 )
             };
             let info = validate_adapter_module(
