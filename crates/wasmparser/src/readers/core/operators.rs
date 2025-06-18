@@ -358,8 +358,7 @@ impl ControlStack {
 
     /// Pops the top-most [`FrameKind`] from `self`.
     pub fn pop(&mut self) -> Option<FrameKind> {
-        let new_top = self.frames.pop();
-        mem::replace(&mut self.top, new_top)
+        mem::replace(&mut self.top, self.frames.pop())
     }
 
     /// Returns the top-mot [`FrameKind`].
