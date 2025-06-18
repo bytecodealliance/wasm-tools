@@ -351,8 +351,7 @@ impl ControlStack {
     /// Pushes the `frame` to `self`.
     #[inline]
     pub fn push(&mut self, frame: FrameKind) {
-        let old_top = self.top.replace(frame);
-        if let Some(old_top) = old_top {
+        if let Some(old_top) = self.top.replace(frame) {
             self.frames.push(old_top);
         }
     }
