@@ -44,7 +44,7 @@ fn run_test(test: &Path, bless: bool) -> anyhow::Result<()> {
         .unwrap_or(String::new())
         .replace("\r\n", "\n");
 
-    // Compare normalize verisons which handles weirdness like path differences
+    // Compare normalize versions which handles weirdness like path differences
     if normalize(&assert) == normalize(&err) {
         return Ok(());
     }
