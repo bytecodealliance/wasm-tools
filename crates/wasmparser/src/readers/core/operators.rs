@@ -382,10 +382,7 @@ impl<'a> OperatorsReader<'a> {
     pub fn new(reader: BinaryReader<'a>) -> OperatorsReader<'a> {
         let mut blocks = ControlStack::default();
         blocks.push(FrameKind::Block);
-        OperatorsReader {
-            reader,
-            blocks,
-        }
+        OperatorsReader { reader, blocks }
     }
 
     /// Determines if the reader is at the end of the operators.
