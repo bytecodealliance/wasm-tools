@@ -343,11 +343,13 @@ pub struct ControlStack {
 
 impl ControlStack {
     /// Returns `true` if `self` is empty.
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.top.is_none()
     }
 
     /// Pushes the `frame` to `self`.
+    #[inline]
     pub fn push(&mut self, frame: FrameKind) {
         let old_top = self.top.replace(frame);
         if let Some(old_top) = old_top {
@@ -362,6 +364,7 @@ impl ControlStack {
     }
 
     /// Returns the top-mot [`FrameKind`].
+    #[inline]
     pub fn last(&self) -> Option<FrameKind> {
         self.top
     }
