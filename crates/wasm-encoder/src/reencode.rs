@@ -1594,7 +1594,7 @@ pub mod utils {
         reencoder: &mut T,
         const_expr: wasmparser::ConstExpr,
     ) -> Result<crate::ConstExpr, Error<T::Error>> {
-        let mut ops = const_expr.get_operators_reader();
+        let mut ops = const_expr.get_operators_reader(Default::default());
         let mut bytes = Vec::new();
 
         while !ops.is_end_then_eof() {
@@ -1740,7 +1740,7 @@ pub mod utils {
         func: wasmparser::FunctionBody<'_>,
     ) -> Result<(), Error<T::Error>> {
         let mut f = reencoder.new_function_with_parsed_locals(&func)?;
-        let mut reader = func.get_operators_reader()?;
+        let mut reader = func.get_operators_reader(Default::default())?;
         while !reader.eof() {
             f.instruction(&reencoder.parse_instruction(&mut reader)?);
         }

@@ -75,7 +75,7 @@ impl CodemotionMutator {
         for fidx in (function_to_mutate..function_count).chain(0..function_to_mutate) {
             config.consume_fuel(1)?;
             let reader = all_readers[fidx as usize].clone();
-            let operatorreader = reader.get_operators_reader()?;
+            let operatorreader = reader.get_operators_reader(Default::default())?;
 
             let operators = operatorreader
                 .into_iter_with_offsets()
