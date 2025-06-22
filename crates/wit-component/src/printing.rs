@@ -1234,7 +1234,7 @@ pub trait Output {
         assert!(!src.contains('\n'));
         let idented = self.indent_if_needed();
         if idented && src.starts_with(' ') {
-            panic!("cannot add a space at the begining of a line");
+            panic!("cannot add a space at the beginning of a line");
         }
         self.push_str(src);
     }
