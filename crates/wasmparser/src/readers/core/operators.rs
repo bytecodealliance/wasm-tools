@@ -332,7 +332,8 @@ crate::for_each_operator!(define_operator);
 
 /// A trait representing the stack of frames within a function.
 ///
-/// The [`BinaryReader::visit_operator`] and [`OperatorsReaders`] type use
+/// The [`BinaryReader::visit_operator`] and
+/// [`OperatorsReaders`](crate::OperatorsReader) type use
 /// information about the current frame kind to enforce the syntactic
 /// requirements of the binary format.
 pub trait FrameStack {
