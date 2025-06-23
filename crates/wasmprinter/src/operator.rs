@@ -32,7 +32,6 @@ pub struct PrintOperator<'printer, 'state, 'a, 'b> {
     pub(super) printer: &'printer mut Printer<'a, 'b>,
     state: &'state mut State,
     operator_state: &'printer mut OperatorState,
-    suppress_label_comments: bool,
 }
 
 struct FoldedInstruction {
@@ -56,7 +55,6 @@ pub struct PrintOperatorFolded<'printer, 'state, 'a, 'b> {
     pub(super) printer: &'printer mut Printer<'a, 'b>,
     state: &'state mut State,
     operator_state: &'printer mut OperatorState,
-    suppress_label_comments: bool,
     control: Vec<Block>,
     branch_hint: Option<FoldedInstruction>,
     original_separator: OperatorSeparator,
@@ -80,7 +78,6 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
             printer,
             state,
             operator_state,
-            suppress_label_comments: false,
         }
     }
 
@@ -174,11 +171,16 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
     }
 
     fn maybe_blockty_label_comment(&mut self, has_name: bool) -> Result<()> {
-        if !has_name && !self.suppress_label_comments {
+        if !has_name {
             let depth = self.cur_depth();
             self.push_str(" ")?;
             self.result().start_comment()?;
-            write!(self.result(), ";; label = @{depth}")?;
+            match self.operator_state.sep {
+                OperatorSeparator::Newline | OperatorSeparator::None => {
+                    write!(self.result(), ";; label = @{depth}")
+                }
+                _ => write!(self.result(), " (; label = @{depth} ;)"),
+            }?;
             self.result().reset_color()?;
         }
 
@@ -1405,8 +1407,13 @@ impl<'a> VisitSimdOperator<'a> for PrintOperator<'_, '_, '_, '_> {
 pub trait OpPrinter {
     fn branch_hint(&mut self, offset: usize, taken: bool) -> Result<()>;
     fn set_offset(&mut self, offset: usize);
-    fn visit_operator(&mut self, reader: &mut OperatorsReader<'_>) -> Result<()>;
-    fn suppress_label_comments(&mut self);
+    fn visit_operator(
+        &mut self,
+        reader: &mut OperatorsReader<'_>,
+        annotation: Option<&str>,
+    ) -> Result<()>;
+    fn finalize(&mut self, annotation: Option<&str>) -> Result<()>;
+    fn use_color(&self) -> bool;
 }
 
 impl OpPrinter for PrintOperator<'_, '_, '_, '_> {
@@ -1423,12 +1430,33 @@ impl OpPrinter for PrintOperator<'_, '_, '_, '_> {
         self.operator_state.op_offset = offset;
     }
 
-    fn visit_operator(&mut self, reader: &mut OperatorsReader<'_>) -> Result<()> {
-        reader.visit_operator(self)?
+    fn visit_operator(
+        &mut self,
+        reader: &mut OperatorsReader<'_>,
+        annotation: Option<&str>,
+    ) -> Result<()> {
+        reader.visit_operator(self)??;
+        if let Some(s) = annotation {
+            self.printer.newline_unknown_pos()?;
+            self.result().start_comment()?;
+            write!(self.result(), ";; {s}")?;
+            self.result().reset_color()?;
+        }
+        Ok(())
     }
 
-    fn suppress_label_comments(&mut self) {
-        self.suppress_label_comments = true;
+    fn finalize(&mut self, annotation: Option<&str>) -> Result<()> {
+        if let Some(s) = annotation {
+            self.printer.newline_unknown_pos()?;
+            self.result().start_comment()?;
+            write!(self.printer.result, ";; {s}")?;
+            self.result().reset_color()?;
+        }
+        Ok(())
+    }
+
+    fn use_color(&self) -> bool {
+        self.printer.result.supports_async_color()
     }
 }
 
@@ -1450,14 +1478,13 @@ impl OpPrinter for PrintOperatorFolded<'_, '_, '_, '_> {
         self.operator_state.op_offset = offset;
     }
 
-    fn suppress_label_comments(&mut self) {
-        self.suppress_label_comments = true;
-    }
-
-    fn visit_operator(&mut self, reader: &mut OperatorsReader<'_>) -> Result<()> {
+    fn visit_operator(
+        &mut self,
+        reader: &mut OperatorsReader<'_>,
+        annotation: Option<&str>,
+    ) -> Result<()> {
         let operator = reader.clone().read()?;
         let (params, results) = operator.operator_arity(self).unwrap_or((0, 0));
-        let use_color = self.printer.result.supports_async_color();
         let mut buf_color = PrintTermcolor(Ansi::new(Vec::new()));
         let mut buf_nocolor = PrintTermcolor(NoColor::new(Vec::new()));
         let internal_config = Config {
@@ -1466,7 +1493,7 @@ impl OpPrinter for PrintOperatorFolded<'_, '_, '_, '_> {
         };
         let mut internal_printer = Printer {
             config: &internal_config,
-            result: if use_color {
+            result: if self.use_color() {
                 &mut buf_color
             } else {
                 &mut buf_nocolor
@@ -1480,11 +1507,18 @@ impl OpPrinter for PrintOperatorFolded<'_, '_, '_, '_> {
         let mut op_printer =
             PrintOperator::new(&mut internal_printer, self.state, self.operator_state);
         reader.visit_operator(&mut op_printer)??;
+        if let Some(s) = annotation {
+            internal_printer.result.start_comment()?;
+            write!(internal_printer.result, " (; {s}")?;
+            internal_printer.result.start_comment()?;
+            write!(internal_printer.result, " ;)")?;
+            internal_printer.result.reset_color()?;
+        }
 
         self.printer.nesting = internal_printer.nesting;
         self.printer.line = internal_printer.line;
 
-        let inst = String::from_utf8(if use_color {
+        let inst = String::from_utf8(if self.use_color() {
             buf_color.0.into_inner()
         } else {
             buf_nocolor.0.into_inner()
@@ -1509,6 +1543,27 @@ impl OpPrinter for PrintOperatorFolded<'_, '_, '_, '_> {
             }
             _ => self.handle_plain(inst, params, results),
         }
+    }
+
+    // Recurse through the stack and print each folded instruction.
+    fn finalize(&mut self, annotation: Option<&str>) -> Result<()> {
+        if self.control.len() != 1 {
+            bail!("instruction sequence not closed");
+        }
+        for inst in &self.control.last().unwrap().folded {
+            PrintOperatorFolded::print(&mut self.printer, &mut self.original_separator, &inst)?;
+        }
+        if let Some(s) = annotation {
+            self.printer.newline_unknown_pos()?;
+            self.printer.result.start_comment()?;
+            write!(self.printer.result, ";; {s}")?;
+            self.printer.result.reset_color()?;
+        }
+        Ok(())
+    }
+
+    fn use_color(&self) -> bool {
+        self.printer.result.supports_async_color()
     }
 }
 
@@ -1576,7 +1631,6 @@ impl<'printer, 'state, 'a, 'b> PrintOperatorFolded<'printer, 'state, 'a, 'b> {
             printer,
             state,
             operator_state,
-            suppress_label_comments: false,
             control: Vec::new(),
             branch_hint: None,
             original_separator,
@@ -1652,17 +1706,6 @@ impl<'printer, 'state, 'a, 'b> PrintOperatorFolded<'printer, 'state, 'a, 'b> {
         }
         stack.folded.push(inst);
 
-        Ok(())
-    }
-
-    // Recurse through the stack and print each folded instruction.
-    pub fn finalize(&mut self) -> Result<()> {
-        if self.control.len() != 1 {
-            bail!("instruction sequence not closed");
-        }
-        for inst in &self.control.last().unwrap().folded {
-            PrintOperatorFolded::print(&mut self.printer, &mut self.original_separator, &inst)?;
-        }
         Ok(())
     }
 

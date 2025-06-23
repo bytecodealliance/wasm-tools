@@ -25,5 +25,6 @@ wasmparser = { workspace = true, features = ['std', 'simd'] }
 wat = { path = "../wat" }
 
 [features]
-default = ['component-model']
+default = ['component-model', 'validate']
 component-model = ['wasmparser/component-model']
+validate = ['wasmparser/validate']
