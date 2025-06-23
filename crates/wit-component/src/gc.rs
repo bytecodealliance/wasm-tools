@@ -680,26 +680,24 @@ impl<'a> Module<'a> {
             }
         }
 
-        let lazy_stack_init_index = if dbg!(sp.is_some())
-            && dbg!(allocation_state.is_some())
-            && dbg!(main_module_realloc.is_some())
-        {
-            // We have a stack pointer, a `cabi_realloc` function from the
-            // main module, and a global variable for keeping track of (and
-            // short-circuiting) reentrance.  That means we can (and should)
-            // do lazy stack allocation.
-            let index = num_func_imports + funcs.len();
+        let lazy_stack_init_index =
+            if sp.is_some() && allocation_state.is_some() && main_module_realloc.is_some() {
+                // We have a stack pointer, a `cabi_realloc` function from the
+                // main module, and a global variable for keeping track of (and
+                // short-circuiting) reentrance.  That means we can (and should)
+                // do lazy stack allocation.
+                let index = num_func_imports + funcs.len();
 
-            // Tell the function remapper we're reserving a slot for our
-            // extra function:
-            map.funcs.next += 1;
+                // Tell the function remapper we're reserving a slot for our
+                // extra function:
+                map.funcs.next += 1;
 
-            funcs.function(add_empty_type(&mut types));
+                funcs.function(add_empty_type(&mut types));
 
-            Some(index)
-        } else {
-            None
-        };
+                Some(index)
+            } else {
+                None
+            };
 
         let exported_funcs = self
             .exports
