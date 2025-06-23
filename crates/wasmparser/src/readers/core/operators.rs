@@ -142,7 +142,7 @@ impl<'a> BrTable<'a> {
     /// use wasmparser::{BinaryReader, OperatorsReader, Operator};
     ///
     /// let buf = [0x0e, 0x02, 0x01, 0x02, 0x00];
-    /// let mut reader = OperatorsReader::new(BinaryReader::new(&buf, 0), Default::default());
+    /// let mut reader = OperatorsReader::new(BinaryReader::new(&buf, 0));
     /// let op = reader.read().unwrap();
     /// if let Operator::BrTable { targets } = op {
     ///     let targets = targets.targets().collect::<Result<Vec<_>, _>>().unwrap();
@@ -567,7 +567,7 @@ impl<'a> IntoIterator for OperatorsReader<'a> {
     /// let code_reader = CodeSectionReader::new(reader).unwrap();
     /// for body in code_reader {
     ///     let body = body.expect("function body");
-    ///     let mut op_reader = body.get_operators_reader(Default::default()).expect("op reader");
+    ///     let mut op_reader = body.get_operators_reader().expect("op reader");
     ///     let ops = op_reader.into_iter().collect::<Result<Vec<Operator>>>().expect("ops");
     ///     assert!(
     ///         if let [Operator::Nop, Operator::End] = ops.as_slice() { true } else { false },
@@ -639,7 +639,7 @@ impl<'a> Iterator for OperatorsIteratorWithOffsets<'a> {
     /// let code_reader = CodeSectionReader::new(reader).unwrap();
     /// for body in code_reader {
     ///     let body = body.expect("function body");
-    ///     let mut op_reader = body.get_operators_reader(Default::default()).expect("op reader");
+    ///     let mut op_reader = body.get_operators_reader().expect("op reader");
     ///     let ops = op_reader.into_iter_with_offsets().collect::<Result<Vec<(Operator, usize)>>>().expect("ops");
     ///     assert!(
     ///         if let [(Operator::Nop, 23), (Operator::End, 24)] = ops.as_slice() { true } else { false },

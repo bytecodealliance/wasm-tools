@@ -490,7 +490,7 @@ macro_rules! match_code_mutation {
                     });
                 }
                 Payload::CodeSectionEntry(reader) => {
-                    let operatorsreader = reader.get_operators_reader(Default::default()).unwrap();
+                    let operatorsreader = reader.get_operators_reader().unwrap();
                     let range = operatorsreader.get_binary_reader().range();
                     let operators = operatorsreader
                         .into_iter_with_offsets()
