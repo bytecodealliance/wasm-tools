@@ -1314,7 +1314,7 @@ mod tests {
             match payload {
                 wasmparser::Payload::CodeSectionEntry(reader) => {
                     let operators = reader
-                        .get_operators_reader(Default::default())
+                        .get_operators_reader()
                         .unwrap()
                         .into_iter_with_offsets()
                         .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
@@ -1370,7 +1370,7 @@ mod tests {
             match payload {
                 wasmparser::Payload::CodeSectionEntry(reader) => {
                     let operators = reader
-                        .get_operators_reader(Default::default())
+                        .get_operators_reader()
                         .unwrap()
                         .into_iter_with_offsets()
                         .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
@@ -1452,7 +1452,7 @@ mod tests {
             match payload {
                 wasmparser::Payload::CodeSectionEntry(reader) => {
                     let operators = reader
-                        .get_operators_reader(Default::default())
+                        .get_operators_reader()
                         .unwrap()
                         .into_iter_with_offsets()
                         .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
@@ -1509,7 +1509,7 @@ mod tests {
             match payload {
                 wasmparser::Payload::CodeSectionEntry(reader) => {
                     let operators = reader
-                        .get_operators_reader(Default::default())
+                        .get_operators_reader()
                         .unwrap()
                         .into_iter_with_offsets()
                         .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()

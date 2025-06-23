@@ -443,7 +443,7 @@ mod tests {
                         .code_section_entry(&body)
                         .unwrap()
                         .into_validator(FuncValidatorAllocations::default());
-                    let ops = body.get_operators_reader(Default::default()).unwrap();
+                    let ops = body.get_operators_reader().unwrap();
                     for op in ops.into_iter() {
                         let op = op.unwrap();
                         arity.push(
