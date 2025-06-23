@@ -1,0 +1,21 @@
+[package]
+name = "json-from-wast"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/json-from-wast"
+homepage = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/json-from-wast"
+documentation = "https://docs.rs/json-from-wast"
+description = """
+Conversion from `*.wast` files to JSON.
+"""
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+serde = { workspace = true, features = ['derive'] }
+serde_derive = { workspace = true }
+wast = { workspace = true, features = ['wasm-module', 'dwarf', 'component-model'] }
