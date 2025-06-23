@@ -122,7 +122,7 @@ impl PeepholeMutator {
             }
 
             let reader = readers[function_to_mutate as usize].clone();
-            let operatorreader = reader.get_operators_reader(Default::default())?;
+            let operatorreader = reader.get_operators_reader()?;
             let mut localsreader = reader.get_locals_reader()?;
             let operators = operatorreader
                 .into_iter_with_offsets()

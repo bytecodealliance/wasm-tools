@@ -472,7 +472,7 @@ impl<'a> Module<'a> {
     }
 
     fn operators(&mut self, reader: BinaryReader<'a>) -> Result<()> {
-        let mut ops = OperatorsReader::new(reader, Default::default());
+        let mut ops = OperatorsReader::new(reader);
         while !ops.eof() {
             ops.visit_operator(self)?;
         }
@@ -711,7 +711,7 @@ impl<'a> Module<'a> {
                 (Some(lazy_stack_init_index), true) => {
                     let mut func = map.new_function_with_parsed_locals(&body)?;
                     func.instructions().call(lazy_stack_init_index);
-                    let mut reader = body.get_operators_reader(Default::default())?;
+                    let mut reader = body.get_operators_reader()?;
                     while !reader.eof() {
                         func.instruction(&map.parse_instruction(&mut reader)?);
                     }

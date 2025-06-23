@@ -123,8 +123,10 @@ impl<'a> FromReader<'a> for Element<'a> {
             let mut allocs = OperatorsReaderAllocations::default();
             if exprs {
                 for _ in 0..items_count {
-                    let mut ops =
-                        OperatorsReader::new(reader.clone(), core::mem::take(&mut allocs));
+                    let mut ops = OperatorsReader::new_with_allocs(
+                        reader.clone(),
+                        core::mem::take(&mut allocs),
+                    );
                     ops.skip_const_expr()?;
                     *reader = ops.get_binary_reader();
                     allocs = ops.into_allocations();

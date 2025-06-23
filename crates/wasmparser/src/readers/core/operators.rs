@@ -390,7 +390,17 @@ impl<'a> OperatorsReader<'a> {
     /// individual expression or function body. Note that it is also sufficient
     /// to call this method with `Default::default()` if no prior allocations are
     /// available.
-    pub fn new(reader: BinaryReader<'a>, mut allocs: OperatorsReaderAllocations) -> Self {
+    pub fn new(reader: BinaryReader<'a>) -> Self {
+        Self::new_with_allocs(reader, Default::default())
+    }
+
+    /// Same as [`OperatorsReader::new`] except that the
+    /// [`OperatorsReaderAllocations`] can be specified here to amortize the
+    /// cost of them over multiple readers.
+    pub fn new_with_allocs(
+        reader: BinaryReader<'a>,
+        mut allocs: OperatorsReaderAllocations,
+    ) -> Self {
         allocs.0.clear();
         allocs.0.push(FrameKind::Block);
         Self {

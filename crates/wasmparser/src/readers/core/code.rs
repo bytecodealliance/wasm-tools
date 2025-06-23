@@ -13,10 +13,7 @@
  * limitations under the License.
  */
 
-use crate::{
-    BinaryReader, FromReader, OperatorsReader, OperatorsReaderAllocations, Result, SectionLimited,
-    ValType,
-};
+use crate::{BinaryReader, FromReader, OperatorsReader, Result, SectionLimited, ValType};
 use core::ops::Range;
 
 /// A reader for the code section of a WebAssembly module.
@@ -66,16 +63,12 @@ impl<'a> FunctionBody<'a> {
         Ok(reader)
     }
 
-    /// Gets the operators reader for this function body, after skipping locals.
-    /// A pre-existing [`OperatorsReaderAllocations`] instance can be used to reuse allocations
-    /// from a previous operators reader. It is also sufficient to pass `Default::default()`.
-    pub fn get_operators_reader(
-        &self,
-        allocs: OperatorsReaderAllocations,
-    ) -> Result<OperatorsReader<'a>> {
-        let mut reader = self.reader.clone();
-        Self::skip_locals(&mut reader)?;
-        Ok(OperatorsReader::new(reader, allocs))
+    /// Uses [`FunctionBody::get_binary_reader_for_operators`] and then converts
+    /// that to an [`OperatorsReader`].
+    pub fn get_operators_reader(&self) -> Result<OperatorsReader<'a>> {
+        Ok(OperatorsReader::new(
+            self.get_binary_reader_for_operators()?,
+        ))
     }
 
     /// Gets the range of the function body.
@@ -178,8 +171,7 @@ impl<'a> LocalsIterator<'a> {
     }
 
     /// After reading the locals, the BinaryReader is ready to read the operators.
-    pub fn into_operators_reader(self, allocs: OperatorsReaderAllocations) -> OperatorsReader<'a> {
-        debug_assert!(self.err || self.left == 0);
-        OperatorsReader::new(self.reader.get_binary_reader(), allocs)
+    pub fn into_operators_reader(self) -> OperatorsReader<'a> {
+        OperatorsReader::new(self.reader.get_binary_reader())
     }
 }

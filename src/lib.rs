@@ -299,7 +299,6 @@ impl OutputArg {
 }
 
 pub fn parse_binary_wasm(parser: wasmparser::Parser, bytes: &[u8]) -> Result<()> {
-    let mut allocs = wasmparser::OperatorsReaderAllocations::default();
     for payload in parser.parse_all(&bytes) {
         match payload? {
             wasmparser::Payload::TypeSection(s) => parse_section(s)?,
@@ -317,12 +316,11 @@ pub fn parse_binary_wasm(parser: wasmparser::Parser, bytes: &[u8]) -> Result<()>
                 for item in locals.by_ref() {
                     let _ = item?;
                 }
-                let mut ops = locals.into_operators_reader(std::mem::take(&mut allocs));
+                let mut ops = locals.into_operators_reader();
                 while !ops.eof() {
                     ops.read()?;
                 }
                 ops.finish()?;
-                allocs = ops.into_allocations();
             }
 
             wasmparser::Payload::InstanceSection(s) => parse_section(s)?,

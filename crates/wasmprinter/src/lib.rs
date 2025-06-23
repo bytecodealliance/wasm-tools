@@ -1434,7 +1434,7 @@ impl Printer<'_, '_> {
         func_start: usize,
         op_printer: &mut O,
     ) -> Result<()> {
-        let mut ops = OperatorsReader::new(body.clone(), Default::default());
+        let mut ops = OperatorsReader::new(body.clone());
         while !ops.eof() {
             if ops.is_end_then_eof() {
                 ops.read()?; // final "end" opcode terminates instruction sequence
@@ -1705,7 +1705,7 @@ impl Printer<'_, '_> {
         explicit: &str,
     ) -> Result<()> {
         self.start_group("")?;
-        let mut reader = expr.get_operators_reader(Default::default());
+        let mut reader = expr.get_operators_reader();
 
         if reader.read().is_ok() && !reader.is_end_then_eof() {
             write!(self.result, "{explicit} ")?;

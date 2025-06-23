@@ -159,7 +159,7 @@ impl<'a> Dump<'a> {
                 Payload::GlobalSection(s) => self.section(s, "global", |me, _end, g| {
                     write!(me.state, "[global {}] {:?}", inc(&mut i.core_globals), g.ty)?;
                     me.print(g.init_expr.get_binary_reader().original_position())?;
-                    me.print_ops(g.init_expr.get_operators_reader(Default::default()))
+                    me.print_ops(g.init_expr.get_operators_reader())
                 })?,
                 Payload::StartSection { func, range } => {
                     write!(self.state, "start section")?;
@@ -189,7 +189,7 @@ impl<'a> Dump<'a> {
                         } => {
                             write!(me.state, " table[{table_index:?}]")?;
                             me.print(offset_expr.get_binary_reader().original_position())?;
-                            me.print_ops(offset_expr.get_operators_reader(Default::default()))?;
+                            me.print_ops(offset_expr.get_operators_reader())?;
                             write!(me.state, "{item_count} items")?;
                         }
                         ElementKind::Declared => {
@@ -231,7 +231,7 @@ impl<'a> Dump<'a> {
                         } => {
                             write!(me.state, "data memory[{memory_index}]")?;
                             me.print(offset_expr.get_binary_reader().original_position())?;
-                            me.print_ops(offset_expr.get_operators_reader(Default::default()))?;
+                            me.print_ops(offset_expr.get_operators_reader())?;
                         }
                     }
                     me.print_byte_header()?;
@@ -266,10 +266,7 @@ impl<'a> Dump<'a> {
                         write!(self.state, "{amt} locals of type {ty:?}")?;
                         self.print(locals.original_position())?;
                     }
-                    self.print_ops(OperatorsReader::new(
-                        locals.get_binary_reader(),
-                        Default::default(),
-                    ))?;
+                    self.print_ops(OperatorsReader::new(locals.get_binary_reader()))?;
                 }
 
                 // Component sections
