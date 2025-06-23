@@ -41,7 +41,7 @@ impl<'a> ConstExpr<'a> {
         self.reader.clone()
     }
 
-    /// Gets an operators reader for the initialization expression.
+    /// Gets an operators parser for the initialization expression.
     pub fn get_operators_reader(&self) -> OperatorsReader<'a> {
         OperatorsReader::new(self.get_binary_reader())
     }

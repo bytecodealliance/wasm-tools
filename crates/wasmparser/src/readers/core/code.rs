@@ -56,11 +56,19 @@ impl<'a> FunctionBody<'a> {
         })
     }
 
-    /// Gets the operators reader for this function body, after skipping locals.
-    pub fn get_operators_reader(&self) -> Result<OperatorsReader<'a>> {
+    /// Gets a binary reader for this function body, after skipping locals.
+    pub fn get_binary_reader_for_operators(&self) -> Result<BinaryReader<'a>> {
         let mut reader = self.reader.clone();
         Self::skip_locals(&mut reader)?;
-        Ok(OperatorsReader::new(reader))
+        Ok(reader)
+    }
+
+    /// Uses [`FunctionBody::get_binary_reader_for_operators`] and then converts
+    /// that to an [`OperatorsReader`].
+    pub fn get_operators_reader(&self) -> Result<OperatorsReader<'a>> {
+        Ok(OperatorsReader::new(
+            self.get_binary_reader_for_operators()?,
+        ))
     }
 
     /// Gets the range of the function body.
@@ -157,8 +165,13 @@ impl<'a> Iterator for LocalsIterator<'a> {
 
 impl<'a> LocalsIterator<'a> {
     /// After reading the locals, the BinaryReader is ready to read the operators.
-    pub fn into_operators_reader(self) -> OperatorsReader<'a> {
+    pub fn into_binary_reader_for_operators(self) -> BinaryReader<'a> {
         debug_assert!(self.err || self.left == 0);
+        self.reader.get_binary_reader()
+    }
+
+    /// After reading the locals, the BinaryReader is ready to read the operators.
+    pub fn into_operators_reader(self) -> OperatorsReader<'a> {
         OperatorsReader::new(self.reader.get_binary_reader())
     }
 }

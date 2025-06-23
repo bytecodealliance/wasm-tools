@@ -1,6 +1,6 @@
 use super::operators::{Frame, OperatorValidator, OperatorValidatorAllocations};
-use crate::{BinaryReader, OperatorsReader, Result, ValType, VisitOperator};
-use crate::{FunctionBody, ModuleArity, Operator, WasmFeatures, WasmModuleResources};
+use crate::{BinaryReader, Result, ValType, VisitOperator};
+use crate::{FrameStack, FunctionBody, ModuleArity, Operator, WasmFeatures, WasmModuleResources};
 
 /// Resources necessary to perform validation of a function.
 ///
@@ -120,23 +120,22 @@ impl<T: WasmModuleResources> FuncValidator<T> {
         {
             reader.set_features(self.validator.features);
         }
-        let mut ops = OperatorsReader::new(reader);
-        while !ops.eof() {
+        while !reader.eof() {
             // In a debug build, verify that the validator's pops and pushes to and from
             // the operand stack match the operator's arity.
             #[cfg(debug_assertions)]
-            let (mut ops_before, arity) = {
-                let op = ops.clone().read()?;
-                let arity = op.operator_arity(&self.visitor(ops.original_position()));
-                (ops.clone(), arity)
+            let (ops_before, arity) = {
+                let op = reader.peek_operator(&self.visitor(reader.original_position()))?;
+                let arity = op.operator_arity(&self.visitor(reader.original_position()));
+                (reader.clone(), arity)
             };
 
-            ops.visit_operator(&mut self.visitor(ops.original_position()))??;
+            reader.visit_operator(&mut self.visitor(reader.original_position()))??;
 
             #[cfg(debug_assertions)]
             {
                 let (params, results) = arity.ok_or(format_err!(
-                    ops.original_position(),
+                    reader.original_position(),
                     "could not calculate operator arity"
                 ))?;
 
@@ -161,12 +160,12 @@ arity mismatch in validation
     operator: {:?}
     expected: {params} -> {results}
     got       {pop_count} -> {push_count}",
-                        ops_before.read()?,
+                        ops_before.peek_operator(&self.visitor(ops_before.original_position()))?,
                     );
                 }
             }
         }
-        ops.finish()
+        reader.finish_expression(&self.visitor(reader.original_position()))
     }
 
     /// Reads the local definitions from the given `BinaryReader`, often sourced
@@ -214,18 +213,18 @@ arity mismatch in validation
     /// pub fn validate<R>(validator: &mut FuncValidator<R>, body: &FunctionBody<'_>) -> Result<()>
     /// where R: WasmModuleResources
     /// {
-    ///     let mut operator_reader = body.get_operators_reader()?;
+    ///     let mut operator_reader = body.get_binary_reader_for_operators()?;
     ///     while !operator_reader.eof() {
     ///         let mut visitor = validator.visitor(operator_reader.original_position());
     ///         operator_reader.visit_operator(&mut visitor)??;
     ///     }
-    ///     operator_reader.finish()
+    ///     operator_reader.finish_expression(&validator.visitor(operator_reader.original_position()))
     /// }
     /// ```
     pub fn visitor<'this, 'a: 'this>(
         &'this mut self,
         offset: usize,
-    ) -> impl VisitOperator<'a, Output = Result<()>> + ModuleArity + 'this {
+    ) -> impl VisitOperator<'a, Output = Result<()>> + ModuleArity + FrameStack + 'this {
         self.validator.with_resources(&self.resources, offset)
     }
 
