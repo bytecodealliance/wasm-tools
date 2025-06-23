@@ -239,7 +239,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
                     Some(name) if !name_conflict => name.write(self.printer)?,
 
                     // If there's no name conflict, and we're synthesizing
-                    // names, and this isn't targetting the function itself then
+                    // names, and this isn't targeting the function itself then
                     // print a synthesized names.
                     //
                     // Note that synthesized label names don't handle the
