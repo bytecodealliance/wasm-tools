@@ -339,25 +339,23 @@ pub trait FrameStack {
 }
 
 /// Adapters from VisitOperators to FrameStacks
-struct FrameStackAdapter<'x, 'a, T: VisitOperator<'a>> {
-    stack: &'x mut Vec<FrameKind>,
-    visitor: &'x mut T,
-    marker: core::marker::PhantomData<fn() -> &'a ()>,
+struct FrameStackAdapter<'a, T> {
+    stack: &'a mut Vec<FrameKind>,
+    visitor: &'a mut T,
 }
 
-impl<'x, 'a, T: VisitOperator<'a>> FrameStack for FrameStackAdapter<'x, 'a, T> {
+impl<T> FrameStack for FrameStackAdapter<'_, T> {
     fn current_frame(&self) -> Option<&FrameKind> {
         self.stack.last()
     }
 }
 
-struct SingleFrameAdapter<'x, 'a, T: VisitOperator<'a>> {
+struct SingleFrameAdapter<'a, T> {
     current_frame: FrameKind,
-    visitor: &'x mut T,
-    marker: core::marker::PhantomData<fn() -> &'a ()>,
+    visitor: &'a mut T,
 }
 
-impl<'x, 'a, T: VisitOperator<'a>> FrameStack for SingleFrameAdapter<'x, 'a, T> {
+impl<T> FrameStack for SingleFrameAdapter<'_, T> {
     fn current_frame(&self) -> Option<&FrameKind> {
         Some(&self.current_frame)
     }
@@ -503,7 +501,6 @@ impl<'a> OperatorsReader<'a> {
         self.reader.visit_operator(&mut FrameStackAdapter {
             stack: &mut self.stack,
             visitor,
-            marker: core::marker::PhantomData,
         })
     }
 
@@ -1021,7 +1018,7 @@ macro_rules! define_visit_operator_stack_adapter {
     };
 }
 
-impl<'x, 'a, T: VisitOperator<'a>> VisitOperator<'a> for FrameStackAdapter<'x, 'a, T> {
+impl<'a, T: VisitOperator<'a>> VisitOperator<'a> for FrameStackAdapter<'_, T> {
     type Output = T::Output;
 
     #[cfg(feature = "simd")]
@@ -1042,7 +1039,7 @@ macro_rules! define_passthrough_visit_operator {
     };
 }
 
-impl<'x, 'a, T: VisitOperator<'a>> VisitOperator<'a> for SingleFrameAdapter<'x, 'a, T> {
+impl<'a, T: VisitOperator<'a>> VisitOperator<'a> for SingleFrameAdapter<'_, T> {
     type Output = T::Output;
 
     #[cfg(feature = "simd")]
@@ -1069,7 +1066,6 @@ impl<'a> BinaryReader<'a> {
                 )
             })?,
             visitor: &mut OperatorFactory::new(),
-            marker: core::marker::PhantomData,
         })
     }
 }
