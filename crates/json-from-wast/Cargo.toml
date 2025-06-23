@@ -3,7 +3,6 @@ name = "json-from-wast"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-readme = "README.md"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/json-from-wast"
 homepage = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/json-from-wast"
 documentation = "https://docs.rs/json-from-wast"
