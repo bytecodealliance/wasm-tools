@@ -445,7 +445,7 @@ impl<'a> OperatorsReader<'a> {
     /// If `OperatorsReader` has less bytes remaining than required to parse
     /// the `Operator`, or if the input is malformed.
     pub fn read(&mut self) -> Result<Operator<'a>> {
-        self.visit_operator(&mut OperatorFactory::new())
+        self.visit_operator(&mut OperatorFactory)
     }
 
     /// Visit the next available operator with the specified [`VisitOperator`] instance.
@@ -912,18 +912,7 @@ impl<'a> FromReader<'a> for Handle {
 }
 
 /// A factory to construct [`Operator`] instances via the [`VisitOperator`] trait.
-struct OperatorFactory<'a> {
-    marker: core::marker::PhantomData<fn() -> &'a ()>,
-}
-
-impl<'a> OperatorFactory<'a> {
-    /// Creates a new [`OperatorFactory`].
-    fn new() -> Self {
-        Self {
-            marker: core::marker::PhantomData,
-        }
-    }
-}
+struct OperatorFactory;
 
 macro_rules! define_visit_operator {
     ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
@@ -935,7 +924,7 @@ macro_rules! define_visit_operator {
     }
 }
 
-impl<'a> VisitOperator<'a> for OperatorFactory<'a> {
+impl<'a> VisitOperator<'a> for OperatorFactory {
     type Output = Operator<'a>;
 
     #[cfg(feature = "simd")]
@@ -947,7 +936,7 @@ impl<'a> VisitOperator<'a> for OperatorFactory<'a> {
 }
 
 #[cfg(feature = "simd")]
-impl<'a> VisitSimdOperator<'a> for OperatorFactory<'a> {
+impl<'a> VisitSimdOperator<'a> for OperatorFactory {
     crate::for_each_visit_simd_operator!(define_visit_operator);
 }
 
@@ -1065,7 +1054,7 @@ impl<'a> BinaryReader<'a> {
                     "operators remaining after end of function body or expression"
                 )
             })?,
-            visitor: &mut OperatorFactory::new(),
+            visitor: &mut OperatorFactory,
         })
     }
 }
