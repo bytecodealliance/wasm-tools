@@ -452,7 +452,10 @@ impl<F: Float> FloatConst<F> {
     }
 }
 
-impl<'de, F: Float> Deserialize<'de> for FloatConst<F> {
+impl<'de, F: Float> Deserialize<'de> for FloatConst<F>
+where
+    <F::Bits as FromStr>::Err: fmt::Display,
+{
     fn deserialize<D>(d: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -494,7 +497,7 @@ impl<F: fmt::Debug> fmt::Debug for FloatConst<F> {
 }
 
 pub trait Float: Sized {
-    type Bits: fmt::Display + FromStr<Err: fmt::Display>;
+    type Bits: fmt::Display + FromStr;
     const ARITHMETIC_NAN: Self::Bits;
     const CANONICAL_NAN: Self::Bits;
     fn from_bits(bits: Self::Bits) -> Self;
@@ -505,7 +508,7 @@ impl Float for f32 {
     type Bits = u32;
 
     const ARITHMETIC_NAN: u32 = 0x7f80_0000;
-    const CANONICAL_NAN: u32 = f32::NAN.to_bits();
+    const CANONICAL_NAN: u32 = 0x7fc0_0000;
 
     fn from_bits(bits: u32) -> Self {
         f32::from_bits(bits)
@@ -520,7 +523,7 @@ impl Float for f64 {
     type Bits = u64;
 
     const ARITHMETIC_NAN: u64 = 0x7ff0_0000_0000_0000;
-    const CANONICAL_NAN: u64 = f64::NAN.to_bits();
+    const CANONICAL_NAN: u64 = 0x7ff8_0000_0000_0000;
 
     fn from_bits(bits: u64) -> Self {
         f64::from_bits(bits)
