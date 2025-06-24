@@ -4380,7 +4380,7 @@ impl<R> FrameStack for WasmProposalValidator<'_, '_, R>
 where
     R: WasmModuleResources,
 {
-    fn current_frame(&self) -> Option<&FrameKind> {
-        Some(&self.0.control.last()?.kind)
+    fn current_frame(&self) -> Option<FrameKind> {
+        Some(self.0.control.last()?.kind)
     }
 }
