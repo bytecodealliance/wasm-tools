@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Command, Output, Stdio};
 use std::thread;
 use std::time::Duration;
 
@@ -325,19 +325,17 @@ fn publish(krate: &Crate) -> bool {
 
     // First make sure the crate isn't already published at this version. This
     // script may be re-run and there's no need to re-attempt previous work.
-    let output = Command::new("curl")
-        .arg(&format!("https://crates.io/api/v1/crates/{}", krate.name))
-        .output()
-        .expect("failed to invoke `curl`");
-    if output.status.success()
-        && String::from_utf8_lossy(&output.stdout)
-            .contains(&format!("\"newest_version\":\"{}\"", krate.version))
-    {
-        println!(
-            "skip publish {} because {} is latest version",
-            krate.name, krate.version,
-        );
-        return true;
+    match curl(&format!("https://crates.io/api/v1/crates/{}", krate.name)) {
+        Some(output) => {
+            if output.contains(&format!("\"newest_version\":\"{}\"", krate.version)) {
+                println!(
+                    "skip publish {} because {} is latest version",
+                    krate.name, krate.version,
+                );
+                return true;
+            }
+        }
+        None => return false,
     }
 
     let status = Command::new("cargo")
@@ -354,21 +352,20 @@ fn publish(krate: &Crate) -> bool {
     // After we've published then make sure that the `wasmtime-publish` group is
     // added to this crate for future publications. If it's already present
     // though we can skip the `cargo owner` modification.
-    let output = Command::new("curl")
-        .arg(&format!(
-            "https://crates.io/api/v1/crates/{}/owners",
-            krate.name
-        ))
-        .output()
-        .expect("failed to invoke `curl`");
-    if output.status.success()
-        && String::from_utf8_lossy(&output.stdout).contains("wasmtime-publish")
-    {
-        println!(
-            "wasmtime-publish already listed as an owner of {}",
-            krate.name
-        );
-        return true;
+    match curl(&format!(
+        "https://crates.io/api/v1/crates/{}/owners",
+        krate.name
+    )) {
+        Some(output) => {
+            if output.contains("wasmtime-publish") {
+                println!(
+                    "wasmtime-publish already listed as an owner of {}",
+                    krate.name
+                );
+                return true;
+            }
+        }
+        None => return false,
     }
 
     // Note that the status is ignored here. This fails most of the time because
@@ -389,6 +386,21 @@ fn publish(krate: &Crate) -> bool {
     }
 
     true
+}
+
+fn curl(url: &str) -> Option<String> {
+    let output = cmd_output(
+        Command::new("curl")
+            .arg("--user-agent")
+            .arg("bytecodealliance/wasm-tools auto-publish script")
+            .arg(url),
+    );
+    if !output.status.success() {
+        println!("failed to curl: {}", output.status);
+        println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+        return None;
+    }
+    Some(String::from_utf8_lossy(&output.stdout).into())
 }
 
 // Verify the current tree is publish-able to crates.io. The intention here is
@@ -443,5 +455,13 @@ fn verify(crates: &[Crate]) {
             "{\"files\":{}}",
         )
         .unwrap();
+    }
+}
+
+fn cmd_output(cmd: &mut Command) -> Output {
+    eprintln!("Running: `{:?}`", cmd);
+    match cmd.output() {
+        Ok(o) => o,
+        Err(e) => panic!("Failed to run `{:?}`: {}", cmd, e),
     }
 }
