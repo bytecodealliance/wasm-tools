@@ -338,7 +338,7 @@ crate::for_each_operator!(define_operator);
 /// requirements of the binary format.
 pub trait FrameStack {
     /// The current frame kind.
-    fn current_frame(&self) -> Option<&FrameKind>;
+    fn current_frame(&self) -> Option<FrameKind>;
 }
 
 /// Adapters from VisitOperators to FrameStacks
@@ -348,8 +348,8 @@ struct FrameStackAdapter<'a, T> {
 }
 
 impl<T> FrameStack for FrameStackAdapter<'_, T> {
-    fn current_frame(&self) -> Option<&FrameKind> {
-        self.stack.last()
+    fn current_frame(&self) -> Option<FrameKind> {
+        self.stack.last().copied()
     }
 }
 
@@ -359,8 +359,8 @@ struct SingleFrameAdapter<'a, T> {
 }
 
 impl<T> FrameStack for SingleFrameAdapter<'_, T> {
-    fn current_frame(&self) -> Option<&FrameKind> {
-        Some(&self.current_frame)
+    fn current_frame(&self) -> Option<FrameKind> {
+        Some(self.current_frame)
     }
 }
 
@@ -547,8 +547,8 @@ impl<'a> OperatorsReader<'a> {
 }
 
 impl<'a> FrameStack for OperatorsReader<'a> {
-    fn current_frame(&self) -> Option<&FrameKind> {
-        self.stack.last()
+    fn current_frame(&self) -> Option<FrameKind> {
+        self.stack.last().copied()
     }
 }
 
@@ -1051,7 +1051,7 @@ impl<'a> BinaryReader<'a> {
     /// the `Operator`, or if the input is malformed.
     pub fn peek_operator<T: FrameStack>(&self, stack: &T) -> Result<Operator<'a>> {
         self.clone().visit_operator(&mut SingleFrameAdapter {
-            current_frame: *stack.current_frame().ok_or_else(|| {
+            current_frame: stack.current_frame().ok_or_else(|| {
                 format_err!(
                     self.original_position(),
                     "operators remaining after end of function body or expression"

@@ -468,8 +468,8 @@ impl ModuleState {
         }
 
         impl<'a> FrameStack for VisitConstOperator<'a> {
-            fn current_frame(&self) -> Option<&FrameKind> {
-                Some(&self.ops.get_frame(0)?.kind)
+            fn current_frame(&self) -> Option<FrameKind> {
+                Some(self.ops.get_frame(0)?.kind)
             }
         }
     }
