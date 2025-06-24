@@ -16,7 +16,7 @@
 use crate::limits::{MAX_WASM_CATCHES, MAX_WASM_HANDLERS};
 use crate::prelude::*;
 use crate::{BinaryReader, BinaryReaderError, FromReader, Result, ValType};
-use core::fmt;
+use core::{fmt, mem};
 
 /// Represents a block type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -341,15 +341,57 @@ pub trait FrameStack {
     fn current_frame(&self) -> Option<FrameKind>;
 }
 
+/// The Wasm control stack for the [`OperatorsReader`].
+#[derive(Debug, Default, Clone)]
+pub struct ControlStack {
+    /// All frames on the control stack exclusing the top-most frame.
+    frames: Vec<FrameKind>,
+    /// The top-most frame on the control stack if any.
+    top: Option<FrameKind>,
+}
+
+impl ControlStack {
+    /// Resets `self` but keeps heap allocations.
+    pub fn clear(&mut self) {
+        self.frames.clear();
+        self.top = None;
+    }
+
+    /// Returns `true` if `self` is empty.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.top.is_none()
+    }
+
+    /// Pushes the `frame` to `self`.
+    #[inline]
+    pub fn push(&mut self, frame: FrameKind) {
+        if let Some(old_top) = self.top.replace(frame) {
+            self.frames.push(old_top);
+        }
+    }
+
+    /// Pops the top-most [`FrameKind`] from `self`.
+    pub fn pop(&mut self) -> Option<FrameKind> {
+        mem::replace(&mut self.top, self.frames.pop())
+    }
+
+    /// Returns the top-mot [`FrameKind`].
+    #[inline]
+    pub fn last(&self) -> Option<FrameKind> {
+        self.top
+    }
+}
+
 /// Adapters from VisitOperators to FrameStacks
 struct FrameStackAdapter<'a, T> {
-    stack: &'a mut Vec<FrameKind>,
+    stack: &'a mut ControlStack,
     visitor: &'a mut T,
 }
 
 impl<T> FrameStack for FrameStackAdapter<'_, T> {
     fn current_frame(&self) -> Option<FrameKind> {
-        self.stack.last().copied()
+        self.stack.last()
     }
 }
 
@@ -371,7 +413,7 @@ impl<T> FrameStack for SingleFrameAdapter<'_, T> {
 #[derive(Clone)]
 pub struct OperatorsReader<'a> {
     reader: BinaryReader<'a>,
-    stack: Vec<FrameKind>,
+    stack: ControlStack,
 }
 
 /// External handle to the internal allocations used by the OperatorsReader
@@ -381,7 +423,7 @@ pub struct OperatorsReader<'a> {
 /// [`OperatorsReader::new`] to provide a means of reusing allocations
 /// between each expression or function body.
 #[derive(Default)]
-pub struct OperatorsReaderAllocations(Vec<FrameKind>);
+pub struct OperatorsReaderAllocations(ControlStack);
 
 impl<'a> OperatorsReader<'a> {
     /// Creates a new reader for an expression (instruction sequence).
@@ -548,7 +590,7 @@ impl<'a> OperatorsReader<'a> {
 
 impl<'a> FrameStack for OperatorsReader<'a> {
     fn current_frame(&self) -> Option<FrameKind> {
-        self.stack.last().copied()
+        self.stack.last()
     }
 }
 
