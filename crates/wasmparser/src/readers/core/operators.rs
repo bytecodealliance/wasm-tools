@@ -391,7 +391,7 @@ struct FrameStackAdapter<'a, T> {
 
 impl<T> FrameStack for FrameStackAdapter<'_, T> {
     fn current_frame(&self) -> Option<FrameKind> {
-        self.stack.last().copied()
+        self.stack.last()
     }
 }
 
@@ -590,7 +590,7 @@ impl<'a> OperatorsReader<'a> {
 
 impl<'a> FrameStack for OperatorsReader<'a> {
     fn current_frame(&self) -> Option<FrameKind> {
-        self.stack.last().copied()
+        self.stack.last()
     }
 }
 
