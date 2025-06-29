@@ -57,6 +57,8 @@ pub struct Config {
     name_unnamed: bool,
     fold_instructions: bool,
     indent_text: String,
+    #[cfg(feature = "validate")]
+    print_operand_stack: bool,
 }
 
 impl Default for Config {
@@ -67,6 +69,8 @@ impl Default for Config {
             name_unnamed: false,
             fold_instructions: false,
             indent_text: "  ".to_string(),
+            #[cfg(feature = "validate")]
+            print_operand_stack: false,
         }
     }
 }
@@ -246,6 +250,30 @@ impl Config {
         self
     }
 
+    /// Print the operand stack types within function bodies,
+    /// flagging newly pushed operands when color output is enabled. E.g.:
+    ///
+    /// ```wasm
+    /// (module
+    ///   (type (;0;) (func))
+    ///   (func (;0;) (type 0)
+    ///     i32.const 4
+    ///     ;; [i32]
+    ///     i32.const 5
+    ///     ;; [i32 i32]
+    ///     i32.add
+    ///     ;; [i32]
+    ///     drop
+    ///     ;; []
+    ///   )
+    /// )
+    /// ```
+    #[cfg(feature = "validate")]
+    pub fn print_operand_stack(&mut self, enable: bool) -> &mut Self {
+        self.print_operand_stack = enable;
+        self
+    }
+
     /// Select the string to use when indenting.
     ///
     /// The indent allowed here are arbitrary and unchecked. You should enter
@@ -415,6 +443,14 @@ impl Printer<'_, '_> {
         #[cfg(feature = "component-model")]
         let mut parsers = Vec::new();
 
+        #[cfg(feature = "validate")]
+        let mut validator = Validator::new();
+        #[cfg(feature = "validate")]
+        let mut func_validators = Vec::new();
+        #[cfg(feature = "component-model")]
+        #[cfg(feature = "validate")]
+        let mut validators: Vec<Validator> = Vec::new();
+
         loop {
             let payload = match parser.parse(bytes, true)? {
                 Chunk::NeedMoreData(_) => unreachable!(),
@@ -423,6 +459,19 @@ impl Printer<'_, '_> {
                     payload
                 }
             };
+            #[cfg(feature = "validate")]
+            if self.config.print_operand_stack {
+                match validator.payload(&payload) {
+                    Ok(ValidPayload::Func(f, _)) => {
+                        func_validators.push(f.into_validator(Default::default()));
+                    }
+                    Ok(_) => (),
+                    Err(e) => {
+                        self.newline_unknown_pos()?;
+                        write!(self.result, ";; module or component is invalid: {e}")?;
+                    }
+                };
+            }
             match payload {
                 Payload::Version { encoding, .. } => {
                     if let Some(e) = expected {
@@ -605,7 +654,12 @@ impl Printer<'_, '_> {
                     Self::ensure_module(&states)?;
                 }
                 Payload::CodeSectionEntry(body) => {
-                    self.print_code_section_entry(states.last_mut().unwrap(), &body)?;
+                    self.print_code_section_entry(
+                        states.last_mut().unwrap(),
+                        &body,
+                        #[cfg(feature = "validate")]
+                        func_validators.pop(),
+                    )?;
                     self.update_custom_section_place(&mut states, "after code");
                 }
                 Payload::DataCountSection { .. } => {
@@ -628,6 +682,12 @@ impl Printer<'_, '_> {
                     parsers.push(parser);
                     parser = inner;
                     self.newline(range.start)?;
+
+                    #[cfg(feature = "validate")]
+                    if self.config.print_operand_stack {
+                        validators.push(validator);
+                        validator = Validator::new();
+                    }
                 }
                 #[cfg(feature = "component-model")]
                 Payload::InstanceSection(s) => {
@@ -646,6 +706,12 @@ impl Printer<'_, '_> {
                     parsers.push(parser);
                     parser = inner;
                     self.newline(range.start)?;
+
+                    #[cfg(feature = "validate")]
+                    if self.config.print_operand_stack {
+                        validators.push(validator);
+                        validator = Validator::new();
+                    }
                 }
                 #[cfg(feature = "component-model")]
                 Payload::ComponentInstanceSection(s) => {
@@ -699,6 +765,12 @@ impl Printer<'_, '_> {
                                 }
                             }
                             parser = parsers.pop().unwrap();
+
+                            #[cfg(feature = "validate")]
+                            if self.config.print_operand_stack {
+                                validator = validators.pop().unwrap();
+                            }
+
                             continue;
                         }
                     }
@@ -1328,6 +1400,7 @@ impl Printer<'_, '_> {
         &mut self,
         state: &mut State,
         body: &FunctionBody<'_>,
+        #[cfg(feature = "validate")] validator: Option<FuncValidator<ValidatorResources>>,
     ) -> Result<()> {
         self.newline(body.get_binary_reader().original_position())?;
         self.start_group("func ")?;
@@ -1355,7 +1428,15 @@ impl Printer<'_, '_> {
         if self.config.print_skeleton {
             self.result.write_str(" ...")?;
         } else {
-            self.print_func_body(state, func_idx, params, &body, &hints)?;
+            self.print_func_body(
+                state,
+                func_idx,
+                params,
+                &body,
+                &hints,
+                #[cfg(feature = "validate")]
+                validator,
+            )?;
         }
 
         self.end_group()?;
@@ -1370,6 +1451,7 @@ impl Printer<'_, '_> {
         params: u32,
         body: &FunctionBody<'_>,
         branch_hints: &[(usize, BranchHint)],
+        #[cfg(feature = "validate")] mut validator: Option<FuncValidator<ValidatorResources>>,
     ) -> Result<()> {
         let mut first = true;
         let mut local_idx = 0;
@@ -1400,6 +1482,15 @@ impl Printer<'_, '_> {
         }
         locals.finish(self)?;
 
+        #[cfg(feature = "validate")]
+        if let Some(ref mut f) = validator {
+            if let Err(e) = f.read_locals(&mut body.get_binary_reader()) {
+                validator = None;
+                self.newline_unknown_pos()?;
+                write!(self.result, ";; locals are invalid: {e}")?;
+            }
+        }
+
         let nesting_start = self.nesting;
         let fold_instructions = self.config.fold_instructions;
         let mut operator_state = OperatorState::new(self, OperatorSeparator::Newline);
@@ -1408,11 +1499,24 @@ impl Printer<'_, '_> {
             let mut folded_printer = PrintOperatorFolded::new(self, state, &mut operator_state);
             folded_printer.set_offset(func_start);
             folded_printer.begin_function(func_idx)?;
-            Self::print_operators(&mut reader, branch_hints, func_start, &mut folded_printer)?;
-            folded_printer.finalize()?;
+            Self::print_operators(
+                &mut reader,
+                branch_hints,
+                func_start,
+                &mut folded_printer,
+                #[cfg(feature = "validate")]
+                validator,
+            )?;
         } else {
             let mut flat_printer = PrintOperator::new(self, state, &mut operator_state);
-            Self::print_operators(&mut reader, branch_hints, func_start, &mut flat_printer)?;
+            Self::print_operators(
+                &mut reader,
+                branch_hints,
+                func_start,
+                &mut flat_printer,
+                #[cfg(feature = "validate")]
+                validator,
+            )?;
         }
 
         // If this was an invalid function body then the nesting may not
@@ -1433,12 +1537,27 @@ impl Printer<'_, '_> {
         mut branch_hints: &[(usize, BranchHint)],
         func_start: usize,
         op_printer: &mut O,
+        #[cfg(feature = "validate")] mut validator: Option<FuncValidator<ValidatorResources>>,
     ) -> Result<()> {
         let mut ops = OperatorsReader::new(body.clone());
         while !ops.eof() {
             if ops.is_end_then_eof() {
+                #[allow(unused_mut)]
+                let mut annotation: Option<String> = None;
+                #[cfg(feature = "validate")]
+                if let Some(ref mut f) = validator {
+                    let res = ops
+                        .get_binary_reader()
+                        .visit_operator(&mut f.visitor(ops.original_position()));
+                    match res {
+                        Ok(Ok(_)) => (),
+                        _ => annotation = Some(String::from("type mismatch at end of expression")),
+                    }
+                }
+
                 ops.read()?; // final "end" opcode terminates instruction sequence
                 ops.finish()?;
+                op_printer.finalize(annotation.as_deref())?;
                 return Ok(());
             }
 
@@ -1450,12 +1569,103 @@ impl Printer<'_, '_> {
                     op_printer.branch_hint(*hint_offset, hint.taken)?;
                 }
             }
-
+            #[allow(unused_mut)]
+            let mut annotation: Option<String> = None;
+            #[cfg(feature = "validate")]
+            if let Some(ref mut f) = validator {
+                let res = ops
+                    .get_binary_reader()
+                    .visit_operator(&mut f.visitor(ops.original_position()));
+                if let Ok(Ok(_)) = res {
+                    if let Ok(op) = ops.clone().read() {
+                        let arity = op.operator_arity(&f.visitor(ops.original_position()));
+                        if let Some((_pop_count, push_count)) = arity {
+                            annotation = Some(visualize_operand_stack(
+                                &f,
+                                push_count,
+                                op_printer.use_color(),
+                            )?);
+                        }
+                    }
+                } else {
+                    validator = None;
+                    annotation = Some(String::from("(invalid)"));
+                }
+            }
             op_printer.set_offset(ops.original_position());
-            op_printer.visit_operator(&mut ops)?;
+            op_printer.visit_operator(&mut ops, annotation.as_deref())?;
         }
         ops.finish()?; // for the error message
         bail!("unexpected end of operators");
+
+        #[cfg(feature = "validate")]
+        fn visualize_operand_stack(
+            func: &FuncValidator<ValidatorResources>,
+            push_count: u32,
+            use_color: bool,
+        ) -> Result<String> {
+            let mut buf_color = PrintTermcolor(termcolor::Ansi::new(Vec::new()));
+            let mut buf_nocolor = PrintTermcolor(termcolor::NoColor::new(Vec::new()));
+
+            let stack_printer = Printer {
+                result: if use_color {
+                    &mut buf_color
+                } else {
+                    &mut buf_nocolor
+                },
+                config: &Config::new(),
+                nesting: 0,
+                line: 0,
+                group_lines: Vec::new(),
+                code_section_hints: Vec::new(),
+            };
+
+            if let Some(&Frame { height, .. }) = func.get_control_frame(0) {
+                stack_printer.result.start_comment()?;
+                stack_printer.result.write_str("[")?;
+                let max_height = func.operand_stack_height() as usize;
+                for depth in (height..max_height).rev() {
+                    if depth + 1 < max_height {
+                        stack_printer.result.write_str(" ")?;
+                    }
+                    if depth + 1 == height + push_count as usize {
+                        stack_printer.result.start_type()?;
+                    }
+                    match func.get_operand_type(depth) {
+                        Some(Some(ty)) => {
+                            stack_printer.result.write_str(&ty_to_str(ty))?;
+                        }
+                        Some(None) => {
+                            stack_printer.result.write_str("(unknown)")?;
+                        }
+                        None => {
+                            stack_printer.result.write_str("(invalid)")?;
+                        }
+                    }
+                }
+                stack_printer.result.start_comment()?;
+                stack_printer.result.write_str("]")?;
+                stack_printer.result.reset_color()?;
+            }
+
+            let ret = String::from_utf8(if use_color {
+                buf_color.0.into_inner()
+            } else {
+                buf_nocolor.0.into_inner()
+            })?;
+            return Ok(ret);
+
+            fn ty_to_str(ty: ValType) -> String {
+                match ty {
+                    ValType::I32 => String::from("i32"),
+                    ValType::I64 => String::from("i64"),
+                    ValType::F32 => String::from("f32"),
+                    ValType::F64 => String::from("f64"),
+                    ValType::V128 => String::from("v128"),
+                    ValType::Ref(r) => format!("{r}"),
+                }
+            }
+        }
     }
 
     fn newline(&mut self, offset: usize) -> Result<()> {
@@ -1726,12 +1936,24 @@ impl Printer<'_, '_> {
         if fold {
             let mut folded_printer = PrintOperatorFolded::new(self, state, &mut operator_state);
             folded_printer.begin_const_expr();
-            Self::print_operators(&mut reader, &[], 0, &mut folded_printer)?;
-            folded_printer.finalize()?;
+            Self::print_operators(
+                &mut reader,
+                &[],
+                0,
+                &mut folded_printer,
+                #[cfg(feature = "validate")]
+                None,
+            )?;
         } else {
             let mut op_printer = PrintOperator::new(self, state, &mut operator_state);
-            op_printer.suppress_label_comments();
-            Self::print_operators(&mut reader, &[], 0, &mut op_printer)?;
+            Self::print_operators(
+                &mut reader,
+                &[],
+                0,
+                &mut op_printer,
+                #[cfg(feature = "validate")]
+                None,
+            )?;
         }
 
         Ok(())

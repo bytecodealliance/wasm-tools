@@ -31,6 +31,10 @@ pub struct Opts {
     #[clap(short, long)]
     fold_instructions: bool,
 
+    /// Print the contents of the operand stack within function bodies
+    #[clap(long)]
+    print_operand_stack: bool,
+
     /// The string to use when indenting.
     #[clap(long)]
     indent_text: Option<String>,
@@ -52,6 +56,7 @@ impl Opts {
         config.print_skeleton(self.skeleton);
         config.name_unnamed(self.name_unnamed);
         config.fold_instructions(self.fold_instructions);
+        config.print_operand_stack(self.print_operand_stack);
         match self.indent_text.as_ref() {
             Some(s) => {
                 config.indent_text(s);
