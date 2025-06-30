@@ -27,4 +27,4 @@ wat = { path = "../wat" }
 [features]
 default = ['component-model', 'validate']
 component-model = ['wasmparser/component-model']
-validate = ['wasmparser/validate']
+validate = ['wasmparser/validate', 'wasmparser/features']
