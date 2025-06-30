@@ -1,0 +1,24 @@
+(component
+  (component (;0;)
+    (core module (;0;)
+      (type (;0;) (func))
+      (func (;0;) (type 0)
+        i32.const 0
+        ;; [i32]
+        drop
+        ;; []
+      )
+    )
+  )
+  (component (;1;)
+    (core module (;0;)
+      (type (;0;) (func))
+      (func (;0;) (type 0)
+        i32.const 0
+        ;; [i32]
+        drop
+        ;; []
+      )
+    )
+  )
+)
