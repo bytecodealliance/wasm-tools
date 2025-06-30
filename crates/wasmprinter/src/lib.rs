@@ -447,9 +447,6 @@ impl Printer<'_, '_> {
         let mut validator = Validator::new();
         #[cfg(feature = "validate")]
         let mut func_validators = Vec::new();
-        #[cfg(feature = "component-model")]
-        #[cfg(feature = "validate")]
-        let mut validators: Vec<Validator> = Vec::new();
 
         loop {
             let payload = match parser.parse(bytes, true)? {
@@ -682,12 +679,6 @@ impl Printer<'_, '_> {
                     parsers.push(parser);
                     parser = inner;
                     self.newline(range.start)?;
-
-                    #[cfg(feature = "validate")]
-                    if self.config.print_operand_stack {
-                        validators.push(validator);
-                        validator = Validator::new();
-                    }
                 }
                 #[cfg(feature = "component-model")]
                 Payload::InstanceSection(s) => {
@@ -706,12 +697,6 @@ impl Printer<'_, '_> {
                     parsers.push(parser);
                     parser = inner;
                     self.newline(range.start)?;
-
-                    #[cfg(feature = "validate")]
-                    if self.config.print_operand_stack {
-                        validators.push(validator);
-                        validator = Validator::new();
-                    }
                 }
                 #[cfg(feature = "component-model")]
                 Payload::ComponentInstanceSection(s) => {
@@ -765,11 +750,6 @@ impl Printer<'_, '_> {
                                 }
                             }
                             parser = parsers.pop().unwrap();
-
-                            #[cfg(feature = "validate")]
-                            if self.config.print_operand_stack {
-                                validator = validators.pop().unwrap();
-                            }
 
                             continue;
                         }
