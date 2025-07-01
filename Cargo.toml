@@ -175,7 +175,7 @@ bitflags = { workspace = true, optional = true }
 rayon = { workspace = true, optional = true }
 
 # Dependencies of `print`
-wasmprinter = { workspace = true, features = ['component-model'] }
+wasmprinter = { workspace = true, features = ['component-model', 'validate'] }
 
 # Dependencies of `smith`
 arbitrary = { workspace = true, optional = true }

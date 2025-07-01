@@ -7,6 +7,7 @@
 //! and debugging and such.
 
 #![deny(missing_docs)]
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 use anyhow::{Context, Result, anyhow, bail};
 use operator::{OpPrinter, OperatorSeparator, OperatorState, PrintOperator, PrintOperatorFolded};
@@ -25,6 +26,12 @@ const MAX_WASM_FUNCTION_SIZE: u32 = 128 * 1024;
 
 #[cfg(feature = "component-model")]
 mod component;
+#[cfg(feature = "validate")]
+mod operand_stack;
+#[cfg(not(feature = "validate"))]
+mod operand_stack_disabled;
+#[cfg(not(feature = "validate"))]
+use operand_stack_disabled as operand_stack;
 mod operator;
 mod print;
 
@@ -57,6 +64,7 @@ pub struct Config {
     name_unnamed: bool,
     fold_instructions: bool,
     indent_text: String,
+    print_operand_stack: bool,
 }
 
 impl Default for Config {
@@ -67,6 +75,7 @@ impl Default for Config {
             name_unnamed: false,
             fold_instructions: false,
             indent_text: "  ".to_string(),
+            print_operand_stack: false,
         }
     }
 }
@@ -246,6 +255,30 @@ impl Config {
         self
     }
 
+    /// Print the operand stack types within function bodies,
+    /// flagging newly pushed operands when color output is enabled. E.g.:
+    ///
+    /// ```wasm
+    /// (module
+    ///   (type (;0;) (func))
+    ///   (func (;0;) (type 0)
+    ///     i32.const 4
+    ///     ;; [i32]
+    ///     i32.const 5
+    ///     ;; [i32 i32]
+    ///     i32.add
+    ///     ;; [i32]
+    ///     drop
+    ///     ;; []
+    ///   )
+    /// )
+    /// ```
+    #[cfg(feature = "validate")]
+    pub fn print_operand_stack(&mut self, enable: bool) -> &mut Self {
+        self.print_operand_stack = enable;
+        self
+    }
+
     /// Select the string to use when indenting.
     ///
     /// The indent allowed here are arbitrary and unchecked. You should enter
@@ -415,6 +448,12 @@ impl Printer<'_, '_> {
         #[cfg(feature = "component-model")]
         let mut parsers = Vec::new();
 
+        let mut validator = if self.config.print_operand_stack {
+            operand_stack::Validator::new()
+        } else {
+            None
+        };
+
         loop {
             let payload = match parser.parse(bytes, true)? {
                 Chunk::NeedMoreData(_) => unreachable!(),
@@ -423,6 +462,15 @@ impl Printer<'_, '_> {
                     payload
                 }
             };
+            if let Some(validator) = &mut validator {
+                match validator.payload(&payload) {
+                    Ok(()) => {}
+                    Err(e) => {
+                        self.newline_unknown_pos()?;
+                        write!(self.result, ";; module or component is invalid: {e}")?;
+                    }
+                }
+            }
             match payload {
                 Payload::Version { encoding, .. } => {
                     if let Some(e) = expected {
@@ -605,7 +653,11 @@ impl Printer<'_, '_> {
                     Self::ensure_module(&states)?;
                 }
                 Payload::CodeSectionEntry(body) => {
-                    self.print_code_section_entry(states.last_mut().unwrap(), &body)?;
+                    self.print_code_section_entry(
+                        states.last_mut().unwrap(),
+                        &body,
+                        validator.as_mut().and_then(|v| v.next_func()),
+                    )?;
                     self.update_custom_section_place(&mut states, "after code");
                 }
                 Payload::DataCountSection { .. } => {
@@ -699,6 +751,7 @@ impl Printer<'_, '_> {
                                 }
                             }
                             parser = parsers.pop().unwrap();
+
                             continue;
                         }
                     }
@@ -1328,6 +1381,7 @@ impl Printer<'_, '_> {
         &mut self,
         state: &mut State,
         body: &FunctionBody<'_>,
+        validator: Option<operand_stack::FuncValidator>,
     ) -> Result<()> {
         self.newline(body.get_binary_reader().original_position())?;
         self.start_group("func ")?;
@@ -1355,7 +1409,7 @@ impl Printer<'_, '_> {
         if self.config.print_skeleton {
             self.result.write_str(" ...")?;
         } else {
-            self.print_func_body(state, func_idx, params, &body, &hints)?;
+            self.print_func_body(state, func_idx, params, &body, &hints, validator)?;
         }
 
         self.end_group()?;
@@ -1370,6 +1424,7 @@ impl Printer<'_, '_> {
         params: u32,
         body: &FunctionBody<'_>,
         branch_hints: &[(usize, BranchHint)],
+        mut validator: Option<operand_stack::FuncValidator>,
     ) -> Result<()> {
         let mut first = true;
         let mut local_idx = 0;
@@ -1400,6 +1455,14 @@ impl Printer<'_, '_> {
         }
         locals.finish(self)?;
 
+        if let Some(f) = &mut validator {
+            if let Err(e) = f.read_locals(body.get_binary_reader()) {
+                validator = None;
+                self.newline_unknown_pos()?;
+                write!(self.result, ";; locals are invalid: {e}")?;
+            }
+        }
+
         let nesting_start = self.nesting;
         let fold_instructions = self.config.fold_instructions;
         let mut operator_state = OperatorState::new(self, OperatorSeparator::Newline);
@@ -1408,11 +1471,22 @@ impl Printer<'_, '_> {
             let mut folded_printer = PrintOperatorFolded::new(self, state, &mut operator_state);
             folded_printer.set_offset(func_start);
             folded_printer.begin_function(func_idx)?;
-            Self::print_operators(&mut reader, branch_hints, func_start, &mut folded_printer)?;
-            folded_printer.finalize()?;
+            Self::print_operators(
+                &mut reader,
+                branch_hints,
+                func_start,
+                &mut folded_printer,
+                validator,
+            )?;
         } else {
             let mut flat_printer = PrintOperator::new(self, state, &mut operator_state);
-            Self::print_operators(&mut reader, branch_hints, func_start, &mut flat_printer)?;
+            Self::print_operators(
+                &mut reader,
+                branch_hints,
+                func_start,
+                &mut flat_printer,
+                validator,
+            )?;
         }
 
         // If this was an invalid function body then the nesting may not
@@ -1433,12 +1507,24 @@ impl Printer<'_, '_> {
         mut branch_hints: &[(usize, BranchHint)],
         func_start: usize,
         op_printer: &mut O,
+        mut validator: Option<operand_stack::FuncValidator>,
     ) -> Result<()> {
         let mut ops = OperatorsReader::new(body.clone());
         while !ops.eof() {
             if ops.is_end_then_eof() {
+                let mut annotation = None;
+                if let Some(f) = &mut validator {
+                    match f.visit_operator(&ops, true) {
+                        Ok(()) => {}
+                        Err(_) => {
+                            annotation = Some(String::from("type mismatch at end of expression"))
+                        }
+                    }
+                }
+
                 ops.read()?; // final "end" opcode terminates instruction sequence
                 ops.finish()?;
+                op_printer.finalize(annotation.as_deref())?;
                 return Ok(());
             }
 
@@ -1450,9 +1536,22 @@ impl Printer<'_, '_> {
                     op_printer.branch_hint(*hint_offset, hint.taken)?;
                 }
             }
-
+            let mut annotation = None;
+            if let Some(f) = &mut validator {
+                let result = f
+                    .visit_operator(&ops, false)
+                    .map_err(anyhow::Error::from)
+                    .and_then(|()| f.visualize_operand_stack(op_printer.use_color()));
+                match result {
+                    Ok(s) => annotation = Some(s),
+                    Err(_) => {
+                        validator = None;
+                        annotation = Some(String::from("(invalid)"));
+                    }
+                }
+            }
             op_printer.set_offset(ops.original_position());
-            op_printer.visit_operator(&mut ops)?;
+            op_printer.visit_operator(&mut ops, annotation.as_deref())?;
         }
         ops.finish()?; // for the error message
         bail!("unexpected end of operators");
@@ -1726,12 +1825,10 @@ impl Printer<'_, '_> {
         if fold {
             let mut folded_printer = PrintOperatorFolded::new(self, state, &mut operator_state);
             folded_printer.begin_const_expr();
-            Self::print_operators(&mut reader, &[], 0, &mut folded_printer)?;
-            folded_printer.finalize()?;
+            Self::print_operators(&mut reader, &[], 0, &mut folded_printer, None)?;
         } else {
             let mut op_printer = PrintOperator::new(self, state, &mut operator_state);
-            op_printer.suppress_label_comments();
-            Self::print_operators(&mut reader, &[], 0, &mut op_printer)?;
+            Self::print_operators(&mut reader, &[], 0, &mut op_printer, None)?;
         }
 
         Ok(())
