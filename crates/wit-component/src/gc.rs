@@ -13,15 +13,30 @@ use wasmparser::*;
 
 const PAGE_SIZE: i32 = 64 * 1024;
 
-/// This function will reduce the input core `wasm` module to only the set of
+/// The primitive allocation method we use to implement a realloc function,
+/// based on what the main module provides
+pub enum ReallocScheme<'a> {
+    /// The main module exports a ready-made realloc function with the given
+    /// name.
+    Realloc(&'a str),
+    /// The main module exports a `malloc(size: u32) -> u32` function with the
+    /// given name. We can wrap this in a thin shell to make realloc.
+    Malloc(&'a str),
+    /// The main module exports no realloc function or anything to make one out
+    /// of, so we should implement realloc in terms of `memory.grow`.
+    MemoryGrow,
+}
+use ReallocScheme::*;
+
+/// This function will reduce the input core `wasm` module (the adapter, I believe) to only the set of
 /// exports `required`.
 ///
 /// This internally performs a "gc" pass after removing exports to ensure that
 /// the resulting module imports the minimal set of functions necessary.
 pub fn run(
     wasm: &[u8],
-    required: &IndexSet<String>,
-    main_module_realloc: Option<&str>,
+    required: &IndexSet<String>, // cabi_import_realloc is the only alloc-related routine in here.
+    realloc_scheme: ReallocScheme,
 ) -> Result<Vec<u8>> {
     assert!(!required.is_empty());
 
@@ -45,8 +60,13 @@ pub fn run(
         module.exports.swap_remove(name);
     }
     assert!(!module.exports.is_empty());
-    module.liveness()?;
-    module.encode(main_module_realloc)
+    module.liveness()?; // Walks around and determines, using adapter's exports as roots, what needs to be kept. So it would seem realloc_via_malloc would have to be added before this, lest malloc get culled. [No, malloc is in the victim module.] It seems the caller passes in `required`, which it claims has any needed realloc function in it. Prove it by experiment. [It has only cabi_import_realloc.] Or maybe have the caller add "malloc" to that list. Or have this add it.
+    // √ And maybe do malloc import before we start keeping track of realloc_index.
+    // This code does NOT, as of before I messed with it, add an export for any of the reallocs. So maybe they're in the raw wasm? [The adapter alone imports (__main_module__, cabi_realloc), calls it only from State::new(), and exports cabi_import_realloc.] Maybe look at an adapted module. [Main doesn't import or export anything it didn't initially. Adapter exports cabi_import_realloc (which uses its own bump allocator). realloc_via_memory_grow() is there, called from State::new and allocate_stack. I don't see anything clearly call cabi_import_realloc, but it gets aliased, and it's hard to trace what might reference that.]
+    // So it seems like whatever realloc_via_* is made at adaptation time (as is readily apparent here).
+    // The wasip1 adapter tries to import cabi_realloc from main. If it's not there, this gins one up.
+    module.encode(realloc_scheme)
+    // The realloc_via_* is called only from State::new and allocate_stack.
 }
 
 /// This function generates a Wasm function body which implements `cabi_realloc` in terms of `memory.grow`.  It
@@ -500,9 +520,23 @@ impl<'a> Module<'a> {
         live_iter(&self.live_tables, self.tables.iter())
     }
 
+    /// Returns a new Wasm function body which implements `cabi_realloc` to call
+    /// a `malloc` that's exported from the main module. Pass in the index of
+    /// the `malloc` function within the adapter.
+    fn realloc_via_malloc(&self, malloc_index: u32) -> Result<wasm_encoder::Function> {
+        let mut func = wasm_encoder::Function::new([]);
+
+        func.instructions()
+            .local_get(3) // desired new size
+            .call(malloc_index)
+            .end();
+
+        Ok(func)
+    }
+
     /// Encodes this `Module` to a new wasm module which is gc'd and only
     /// contains the items that are live as calculated by the `liveness` pass.
-    fn encode(&mut self, main_module_realloc: Option<&str>) -> Result<Vec<u8>> {
+    fn encode(&mut self, realloc_scheme: ReallocScheme) -> Result<Vec<u8>> {
         // Data structure used to track the mapping of old index to new index
         // for all live items.
         let mut map = Encoder::default();
@@ -584,11 +618,38 @@ impl<'a> Module<'a> {
         let is_realloc =
             |m, n| m == "__main_module__" && matches!(n, "canonical_abi_realloc" | "cabi_realloc");
 
+        let add_malloc_type = |types: &mut wasm_encoder::TypeSection| {
+            let type_index = types.len();
+            types
+                .ty()
+                .function([wasm_encoder::ValType::I32], [wasm_encoder::ValType::I32]);
+            type_index
+        };
+
+        let mut malloc_index = None;
+        let mut func_names = Vec::new();
+
+        // Import malloc before we start keeping track of the realloc_index so
+        // we don't have to add num_func_imports every time we read it.
+        if let Malloc(malloc_name) = realloc_scheme {
+            imports.import(
+                "__main_module__",
+                malloc_name,
+                EntityType::Function(add_malloc_type(&mut types)),
+            );
+            malloc_index = Some(num_func_imports);
+            map.funcs.reserve();
+            func_names.push((num_func_imports, malloc_name));
+            num_func_imports += 1;
+        }
+
         let (imported, local) =
             self.live_funcs()
                 .partition::<Vec<_>, _>(|(_, func)| match &func.def {
                     Definition::Import(m, n) => {
-                        !is_realloc(*m, *n) || main_module_realloc.is_some()
+                        // Keep realloc function around iff we're going to use
+                        // it. Always keep other functions around.
+                        !is_realloc(*m, *n) || matches!(realloc_scheme, Realloc(_))
                     }
                     Definition::Local(_) => false,
                 });
@@ -603,7 +664,10 @@ impl<'a> Module<'a> {
                         // exports that function, but possibly using a different name
                         // (e.g. `canonical_abi_realloc`).  Update the name to match if necessary.
                         realloc_index = Some(num_func_imports);
-                        main_module_realloc.unwrap_or(n)
+                        match realloc_scheme {
+                            Realloc(name) => name,
+                            _ => n,
+                        }
                     } else {
                         n
                     };
@@ -637,22 +701,38 @@ impl<'a> Module<'a> {
         let sp = self.find_mut_i32_global("__stack_pointer")?;
         let allocation_state = self.find_mut_i32_global("allocation_state")?;
 
-        let mut func_names = Vec::new();
+        // Adds an import of a function with type `type_idx` from the main
+        // module to the adapter. Updates associated bookkeeping. Returns the
+        // index of the newly imported function.
+        //         let mut import_function_from_main = |name: &str, type_idx: u32| -> u32 {
+        //             // Tell the function remapper we're reserving a slot for our extra import:
+        //             map.funcs.next += 1;
+        //
+        //             imports.import("__main_module__", name, EntityType::Function(type_idx));
+        //             func_names.push((num_func_imports, name));
+        //
+        //             let func_idx = num_func_imports; // TODO: Make sure all this various bookkeeping is needed at every callsite.
+        //             num_func_imports += 1;
+        //             func_idx
+        //         };
 
-        if let (Some(realloc), Some(_), None) = (main_module_realloc, sp, realloc_index) {
+        if let (Realloc(realloc_name), Some(_), None) = (&realloc_scheme, sp, realloc_index) {
             // The main module exports a realloc function, and although the adapter doesn't import it, we're going
             // to add a function which calls it to allocate some stack space, so let's add an import now.
 
             // Tell the function remapper we're reserving a slot for our extra import:
-            map.funcs.next += 1;
+            map.funcs.reserve();
+
+            // let index = import_function_from_main(realloc_name, add_realloc_type(&mut types));
+            // realloc_index = Some(index);
 
             realloc_index = Some(num_func_imports);
             imports.import(
                 "__main_module__",
-                realloc,
+                realloc_name,
                 EntityType::Function(add_realloc_type(&mut types)),
             );
-            func_names.push((num_func_imports, realloc));
+            func_names.push((num_func_imports, realloc_name));
             num_func_imports += 1;
         }
 
@@ -665,7 +745,19 @@ impl<'a> Module<'a> {
                     // exporting it.  In this case, we need to define a local function it can call instead.
                     realloc_index = Some(num_func_imports + funcs.len());
                     funcs.function(ty);
-                    code.function(&realloc_via_memory_grow());
+                    let realloc_func = match realloc_scheme {
+                        Malloc(_) => {
+                            self.realloc_via_malloc(
+                                //import_function_from_main(malloc_name, add_malloc_type(&mut types)),
+                                malloc_index.expect("this was set above when the enum was Malloc"),
+                            )?
+                        }
+                        MemoryGrow => realloc_via_memory_grow(),
+                        Realloc(_) => bail!(
+                            "shouldn't get here, as we already know the main module doesn't export a realloc function"
+                        ),
+                    };
+                    code.function(&realloc_func);
                 }
                 Definition::Local(_) => {
                     funcs.function(ty);
@@ -673,22 +765,18 @@ impl<'a> Module<'a> {
             }
         }
 
-        let lazy_stack_init_index =
-            if sp.is_some() && allocation_state.is_some() && main_module_realloc.is_some() {
-                // We have a stack pointer, a `cabi_realloc` function from the main module, and a global variable for
+        let lazy_stack_init_index = match (&realloc_scheme, sp, allocation_state) {
+            (Realloc(_), Some(_), Some(_)) => {
+                // We have a `cabi_realloc` function from the main module, a stack pointer, and a global variable for
                 // keeping track of (and short-circuiting) reentrance.  That means we can (and should) do lazy stack
                 // allocation.
                 let index = num_func_imports + funcs.len();
-
-                // Tell the function remapper we're reserving a slot for our extra function:
-                map.funcs.next += 1;
-
+                map.funcs.reserve();
                 funcs.function(add_empty_type(&mut types));
-
                 Some(index)
-            } else {
-                None
-            };
+            }
+            _ => None,
+        };
 
         let exported_funcs = self
             .exports
@@ -733,10 +821,17 @@ impl<'a> Module<'a> {
 
         if sp.is_some() && (realloc_index.is_none() || allocation_state.is_none()) {
             // Either the main module does _not_ export a realloc function, or it is not safe to use for stack
-            // allocation because we have no way to short-circuit reentrance, so we'll use `memory.grow` instead.
+            // allocation because we have no way to short-circuit reentrance, so we'll provide our own realloc
+            // function instead.
             realloc_index = Some(num_func_imports + funcs.len());
-            funcs.function(add_realloc_type(&mut types));
-            code.function(&realloc_via_memory_grow());
+            funcs.function(add_realloc_type(&mut types)); // TODO: In every case, make sure my addition of a malloc import doesn't shift the function indices. (Function indices first count imports, then local funcs. May need to keep separate offsets and add them unless I can put all import additions first.) [I moved all the imports to the top, so this shouldn't be a problem now.]
+
+            let realloc_func = if let Some(index) = malloc_index {
+                self.realloc_via_malloc(index)?
+            } else {
+                realloc_via_memory_grow()
+            };
+            code.function(&realloc_func);
         }
 
         // Inject a start function to initialize the stack pointer which will be local to this module. This only
@@ -879,11 +974,12 @@ impl<'a> Module<'a> {
             section.push(code);
             subsection.encode(&mut section);
         };
-        if let (Some(realloc_index), true) = (
-            realloc_index,
-            main_module_realloc.is_none() || allocation_state.is_none(),
-        ) {
-            func_names.push((realloc_index, "realloc_via_memory_grow"));
+        if let Some(realloc_index) = realloc_index {
+            match realloc_scheme {
+                Malloc(_) => func_names.push((realloc_index, "realloc_via_malloc")),
+                MemoryGrow => func_names.push((realloc_index, "realloc_via_memory_grow")),
+                Realloc(_) => (), // The realloc routine is in another module.
+            }
         }
         if let Some(lazy_stack_init_index) = lazy_stack_init_index {
             func_names.push((lazy_stack_init_index, "allocate_stack"));
@@ -1115,6 +1211,14 @@ impl Remap {
     /// This will assign a new index for the old index provided.
     fn push(&mut self, old: u32) {
         self.map.insert(old, self.next);
+        self.next += 1;
+    }
+
+    /// Reserves the next "new index" for an item you are adding.
+    ///
+    /// For example, call this when you add a new function to a module and need
+    /// to avoid other functions getting remapped to its index.
+    fn reserve(&mut self) {
         self.next += 1;
     }
 
