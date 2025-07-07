@@ -63,7 +63,7 @@ impl Mutator for RenameExportMutator {
                 String::from(export.name)
             } else {
                 let new_name = self.limited_string(config, export.name)?;
-                log::debug!("Renaming export {:?} by {:?}", export, new_name);
+                log::debug!("Renaming export {export:?} by {new_name:?}");
                 new_name
             };
 

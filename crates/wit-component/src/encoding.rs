@@ -478,7 +478,7 @@ impl<'a> EncodingState<'a> {
         let interface_id = info.interface.as_ref().unwrap();
         let interface_id = *interface_id;
         let interface = &resolve.interfaces[interface_id];
-        log::trace!("encoding imports for `{name}` as {:?}", interface_id);
+        log::trace!("encoding imports for `{name}` as {interface_id:?}");
         let mut encoder = self.instance_type_encoder(interface_id);
 
         // First encode all type information

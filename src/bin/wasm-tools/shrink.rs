@@ -110,7 +110,7 @@ impl Opts {
                         Err(e) => {
                             // Ignore disassembly errors, since this isn't critical for
                             // shrinking.
-                            log::warn!("Error disassembling the shrunken Wasm into WAT: {}", e);
+                            log::warn!("Error disassembling the shrunken Wasm into WAT: {e}");
                         }
                         Ok(wat) => {
                             let wat_path = output.with_extension("wat");

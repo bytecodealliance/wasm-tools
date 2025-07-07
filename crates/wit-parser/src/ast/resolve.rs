@@ -470,7 +470,7 @@ impl<'a> Resolver<'a> {
         }
 
         let order = toposort("interface or world", &order)?;
-        log::debug!("toposort for interfaces and worlds in order: {:?}", order);
+        log::debug!("toposort for interfaces and worlds in order: {order:?}");
 
         // Allocate interfaces in-order now that the ordering is defined. This
         // is then used to build up internal maps for each AST which are stored

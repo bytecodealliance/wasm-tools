@@ -31,7 +31,7 @@ impl Mutator for FunctionBodyUnreachable {
 
             let f = f?;
             if i as u32 == function_to_mutate {
-                log::trace!("Mutating function {}", i);
+                log::trace!("Mutating function {i}");
                 let locals = vec![];
                 let mut f = Function::new(locals);
                 f.instructions().unreachable();

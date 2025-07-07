@@ -148,7 +148,7 @@ impl Mutator for CodemotionMutator {
         for (fidx, reader) in sectionreader.into_iter().enumerate() {
             let reader = reader?;
             if fidx as u32 == function_to_mutate {
-                log::trace!("Mutating function {}", fidx);
+                log::trace!("Mutating function {fidx}");
                 codes.function(&newfunc);
             } else {
                 codes.raw(reader.as_bytes());

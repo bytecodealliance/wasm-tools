@@ -131,10 +131,7 @@ impl PeepholeMutator {
 
             let mut opcode_to_mutate = config.rng().gen_range(0..operatorscount);
             log::trace!(
-                "Selecting operator {}/{} from function {}",
-                opcode_to_mutate,
-                operatorscount,
-                function_to_mutate,
+                "Selecting operator {opcode_to_mutate}/{operatorscount} from function {function_to_mutate}",
             );
             let locals = self.get_func_locals(
                 config.info(),
@@ -167,7 +164,7 @@ impl PeepholeMutator {
 
                 let minidfg = match minidfg {
                     None => {
-                        log::trace!("DFG cannot be constructed for opcode {}", opcode_to_mutate);
+                        log::trace!("DFG cannot be constructed for opcode {opcode_to_mutate}");
 
                         opcode_to_mutate = (opcode_to_mutate + 1) % operatorscount;
                         count += 1;
@@ -186,7 +183,7 @@ impl PeepholeMutator {
                 let start = minidfg.get_expr(opcode_to_mutate);
 
                 if !minidfg.is_subtree_consistent_from_root() {
-                    log::trace!("{} is not consistent", start);
+                    log::trace!("{start} is not consistent");
                     opcode_to_mutate = (opcode_to_mutate + 1) % operatorscount;
                     count += 1;
                     continue;
@@ -195,10 +192,8 @@ impl PeepholeMutator {
                 log::trace!(
                     "Trying to mutate\n\
                      {}\n\
-                     at opcode {} in function {}",
+                     at opcode {opcode_to_mutate} in function {function_to_mutate}",
                     start.pretty(30).trim(),
-                    opcode_to_mutate,
-                    function_to_mutate,
                 );
 
                 let analysis = PeepholeMutationAnalysis::new(config.info(), locals.clone());

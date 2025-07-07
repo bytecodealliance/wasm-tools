@@ -1114,7 +1114,7 @@ impl<'a> DFGBuilder {
                     // and determine which `undef` values became dead code and
                     // we need to insert `drop`s for before inserting the new
                     // code, and we don't currently have that infrastructure.
-                    log::warn!("Wasm operator not implemented: {:?}", op);
+                    log::warn!("Wasm operator not implemented: {op:?}");
                     return None;
                 }
             }

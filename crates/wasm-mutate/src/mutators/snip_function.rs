@@ -36,7 +36,7 @@ impl Mutator for SnipMutator {
                 continue;
             }
 
-            log::trace!("Snipping function {}", function_to_mutate);
+            log::trace!("Snipping function {function_to_mutate}");
 
             let locals = vec![];
             let mut f = Function::new(locals);

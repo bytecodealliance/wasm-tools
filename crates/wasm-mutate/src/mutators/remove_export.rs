@@ -27,7 +27,7 @@ impl Mutator for RemoveExportMutator {
             config.consume_fuel(1)?;
 
             if skip_at == i as u64 {
-                log::trace!("Removing export {:?} at index {}", export, skip_at);
+                log::trace!("Removing export {export:?} at index {skip_at}");
                 continue;
             }
 

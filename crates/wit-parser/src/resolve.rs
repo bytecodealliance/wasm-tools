@@ -2055,8 +2055,8 @@ package {name} is defined in two different locations:\n\
 
         // And with all that done the world is updated in-place with
         // imports/exports.
-        log::trace!("imports = {:?}", new_imports);
-        log::trace!("exports = {:?}", new_exports);
+        log::trace!("imports = {new_imports:?}");
+        log::trace!("exports = {new_exports:?}");
         let world = &mut self.worlds[world_id];
         world.imports = new_imports;
         world.exports = new_exports;
@@ -3780,14 +3780,14 @@ impl<'a> MergeMap<'a> {
             let into_interface_id = match into.interfaces.get(name) {
                 Some(id) => *id,
                 None => {
-                    log::trace!("adding unique interface {}", name);
+                    log::trace!("adding unique interface {name}");
                     self.interfaces_to_add
                         .push((name.clone(), into_id, *from_interface_id));
                     continue;
                 }
             };
 
-            log::trace!("merging duplicate interfaces {}", name);
+            log::trace!("merging duplicate interfaces {name}");
             self.build_interface(*from_interface_id, into_interface_id)
                 .with_context(|| format!("failed to merge interface `{name}`"))?;
         }
@@ -3796,14 +3796,14 @@ impl<'a> MergeMap<'a> {
             let into_world_id = match into.worlds.get(name) {
                 Some(id) => *id,
                 None => {
-                    log::trace!("adding unique world {}", name);
+                    log::trace!("adding unique world {name}");
                     self.worlds_to_add
                         .push((name.clone(), into_id, *from_world_id));
                     continue;
                 }
             };
 
-            log::trace!("merging duplicate worlds {}", name);
+            log::trace!("merging duplicate worlds {name}");
             self.build_world(*from_world_id, into_world_id)
                 .with_context(|| format!("failed to merge world `{name}`"))?;
         }

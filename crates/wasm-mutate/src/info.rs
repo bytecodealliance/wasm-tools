@@ -279,7 +279,7 @@ impl<'a> ModuleInfo<'a> {
         i: usize,
         new_section: &impl wasm_encoder::Section,
     ) -> wasm_encoder::Module {
-        log::trace!("inserting new section at {}", i);
+        log::trace!("inserting new section at {i}");
         let mut module = wasm_encoder::Module::new();
         self.raw_sections.iter().enumerate().for_each(|(j, s)| {
             if i == j {
@@ -295,11 +295,7 @@ impl<'a> ModuleInfo<'a> {
 
     /// Move a section from index `src_idx` to `dest_idx` in the Wasm module
     pub fn move_section(&self, src_idx: usize, dest_idx: usize) -> wasm_encoder::Module {
-        log::trace!(
-            "moving section from index {} to index {}",
-            src_idx,
-            dest_idx
-        );
+        log::trace!("moving section from index {src_idx} to index {dest_idx}");
         assert!(src_idx < self.raw_sections.len());
         assert!(dest_idx < self.raw_sections.len());
         assert_ne!(src_idx, dest_idx);
@@ -324,7 +320,7 @@ impl<'a> ModuleInfo<'a> {
         i: usize,
         new_section: &impl wasm_encoder::Section,
     ) -> wasm_encoder::Module {
-        log::trace!("replacing section {}", i);
+        log::trace!("replacing section {i}");
         let mut module = wasm_encoder::Module::new();
         for (j, s) in self.raw_sections.iter().enumerate() {
             if i == j {

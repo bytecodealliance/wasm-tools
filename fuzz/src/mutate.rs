@@ -23,7 +23,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
         config.shared_everything_threads_enabled = false;
         Ok(())
     })?;
-    log::debug!("seed = {}", seed);
+    log::debug!("seed = {seed}");
 
     // Keep track of how many runs we've done thus far and how many of those
     // runs had successful mutations.
@@ -33,10 +33,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
         let successful = NUM_SUCCESSFUL_MUTATIONS.load(Ordering::Relaxed);
         let percent = successful as f64 / old_num_runs as f64 * 100.0;
         log::info!(
-            "{} / {} ({:.2}%) successful mutations.",
-            successful,
-            old_num_runs,
-            percent
+            "{successful} / {old_num_runs} ({percent:.2}%) successful mutations."
         );
     }
 
@@ -51,7 +48,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     let iterator = match wasm_mutate.run(&wasm) {
         Ok(iterator) => iterator,
         Err(e) => {
-            log::warn!("Failed to mutate the Wasm: {}", e);
+            log::warn!("Failed to mutate the Wasm: {e}");
             return Ok(());
         }
     };

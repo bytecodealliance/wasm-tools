@@ -162,7 +162,7 @@ impl WasmMutate<'_> {
             if text.trim() == expected_text.trim() {
                 return;
             }
-            log::debug!("skipping mutation {}", text);
+            log::debug!("skipping mutation {text}");
             last_mutation = Some(text);
         }
 

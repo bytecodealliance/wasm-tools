@@ -150,7 +150,7 @@ impl<'cfg, 'wasm> Reencode for InitTranslator<'cfg, 'wasm> {
             T::ExternRef => CE::ref_null(wasm_encoder::HeapType::EXTERN),
             T::Empty => unreachable!(),
         };
-        log::trace!("... replacing original expression with {:?}", new_op);
+        log::trace!("... replacing original expression with {new_op:?}");
         Ok(new_op)
     }
 }
@@ -178,7 +178,7 @@ impl Mutator for ConstExpressionMutator {
                     translator.config.consume_fuel(1)?;
                     let global = global?;
                     if idx as u32 == mutate_idx {
-                        log::trace!("Modifying global at index {}...", idx);
+                        log::trace!("Modifying global at index {idx}...");
                         translator.parse_global(&mut new_section, global)?;
                     } else {
                         RoundtripReencoder.parse_global(&mut new_section, global)?;
