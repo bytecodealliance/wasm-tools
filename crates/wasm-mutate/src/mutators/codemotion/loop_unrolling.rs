@@ -2,7 +2,7 @@
 //! This mutator only works on empty-returning loops
 use std::{collections::HashMap, slice::Iter};
 
-use rand::prelude::SliceRandom;
+use rand::prelude::*;
 use wasm_encoder::{Function, Instruction, ValType};
 use wasmparser::{BlockType, Operator};
 

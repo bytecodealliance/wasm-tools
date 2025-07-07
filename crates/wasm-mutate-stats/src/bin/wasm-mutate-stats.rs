@@ -479,7 +479,7 @@ impl State {
         let wasmcp = wasm.clone();
 
         while !self.timeout_reached.load(Relaxed) {
-            let seed = rng.r#gen();
+            let seed = rng.random();
             wasmmutate.seed(seed);
             wasmmutate.fuel(1000);
             wasmmutate.preserve_semantics(true);

@@ -61,7 +61,7 @@ impl State {
     }
 
     fn run_worker(&self) {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut data = Vec::new();
 
         while self.remaining.fetch_sub(1, SeqCst) >= 0 {

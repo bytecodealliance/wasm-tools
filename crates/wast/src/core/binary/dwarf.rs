@@ -565,7 +565,7 @@ mod tests {
         // incremental update matches the precalculated position.
         let mut rand = SmallRng::seed_from_u64(102);
         for _ in 0..1000 {
-            let pos = rand.gen_range(0..contents.len());
+            let pos = rand.random_range(0..contents.len());
             dwarf.change_linecol(Span::from_offset(pos));
             let (line, col) = precalculated_linecols[pos];
 

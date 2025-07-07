@@ -3,7 +3,7 @@
 use std::borrow::Cow;
 
 use super::Mutator;
-use rand::{Rng, seq::SliceRandom};
+use rand::{Rng, prelude::*};
 
 #[derive(Clone, Copy)]
 pub struct CustomSectionMutator;
@@ -36,7 +36,7 @@ impl Mutator for CustomSectionMutator {
         let mut name = old_custom_section.name();
         let mut data = old_custom_section.data();
 
-        if config.rng().gen_ratio(1, 20) {
+        if config.rng().random_ratio(1, 20) {
             // Mutate the custom section's name.
             let mut new_name = name.to_string().into_bytes();
             config.raw_mutate(
@@ -92,7 +92,7 @@ impl Mutator for AddCustomSectionMutator {
         config: &'a mut crate::WasmMutate,
     ) -> crate::Result<Box<dyn Iterator<Item = crate::Result<wasm_encoder::Module>> + 'a>> {
         let num_sections = config.info().raw_sections.len();
-        let new_custom_section_idx = config.rng().gen_range(0..=num_sections);
+        let new_custom_section_idx = config.rng().random_range(0..=num_sections);
         let mut name = vec![];
         config.raw_mutate(&mut name, MAX_NEW_NAME_LEN)?;
         let name = String::from_utf8_lossy(&name);
@@ -135,7 +135,7 @@ impl Mutator for ReorderCustomSectionMutator {
         let num_sections = config.info().raw_sections.len();
         let mut dest_idx;
         loop {
-            dest_idx = config.rng().gen_range(0..num_sections);
+            dest_idx = config.rng().random_range(0..num_sections);
             if dest_idx != src_idx {
                 break;
             }
@@ -229,7 +229,7 @@ mod tests {
             CustomSectionMutator,
             r#"
                 (module
-                    (@custom "custom-nam" "data")
+                    (@custom "custom" "data")
                 )
             "#,
         );

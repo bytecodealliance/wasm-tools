@@ -31,7 +31,7 @@ use crate::{
         },
     },
 };
-use rand::{Rng, prelude::SliceRandom};
+use rand::{Rng, prelude::*};
 use wasm_encoder::{CodeSection, Function, Module, ValType};
 use wasmparser::{CodeSectionReader, FunctionBody};
 
@@ -66,7 +66,7 @@ impl CodemotionMutator {
         let reader = config.info().get_binary_reader(original_code_section);
         let sectionreader = CodeSectionReader::new(reader)?;
         let function_count = sectionreader.count();
-        let function_to_mutate = config.rng().gen_range(0..function_count);
+        let function_to_mutate = config.rng().random_range(0..function_count);
 
         // This split strategy will avoid very often mutating the first function
         // and very rarely mutating the last function

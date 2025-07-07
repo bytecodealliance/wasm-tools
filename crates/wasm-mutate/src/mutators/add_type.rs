@@ -17,7 +17,7 @@ pub struct AddTypeMutator {
 
 impl AddTypeMutator {
     fn random_valtype(&self, rng: &mut impl Rng) -> wasm_encoder::ValType {
-        match rng.gen_range(0..=6) {
+        match rng.random_range(0..=6) {
             0 => wasm_encoder::ValType::I32,
             1 => wasm_encoder::ValType::I64,
             2 => wasm_encoder::ValType::F32,
@@ -39,13 +39,13 @@ impl Mutator for AddTypeMutator {
         &self,
         config: &'a mut crate::WasmMutate,
     ) -> crate::Result<Box<dyn Iterator<Item = crate::Result<wasm_encoder::Module>> + 'a>> {
-        let count = config.rng().gen_range(0..=self.max_params);
+        let count = config.rng().random_range(0..=self.max_params);
         let mut params = Vec::with_capacity(count);
         for _ in 0..count {
             params.push(self.random_valtype(config.rng()));
         }
 
-        let count = config.rng().gen_range(0..=self.max_results);
+        let count = config.rng().random_range(0..=self.max_results);
         let mut results = Vec::with_capacity(count);
         for _ in 0..count {
             results.push(self.random_valtype(config.rng()));

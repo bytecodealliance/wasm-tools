@@ -2,7 +2,7 @@
 
 use super::Mutator;
 use crate::{Result, WasmMutate};
-use rand::seq::SliceRandom;
+use rand::prelude::*;
 use wasm_encoder::{Module, SectionId};
 
 /// A mutator that removes a section.

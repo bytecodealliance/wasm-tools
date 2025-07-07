@@ -24,7 +24,7 @@ impl Mutator for FunctionBodyUnreachable {
         let reader = CodeSectionReader::new(reader)?;
 
         let count = reader.count();
-        let function_to_mutate = config.rng().gen_range(0..count);
+        let function_to_mutate = config.rng().random_range(0..count);
 
         for (i, f) in reader.into_iter().enumerate() {
             config.consume_fuel(1)?;

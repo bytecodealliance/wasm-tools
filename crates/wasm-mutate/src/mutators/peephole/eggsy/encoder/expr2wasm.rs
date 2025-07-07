@@ -114,10 +114,10 @@ pub fn expr2wasm(
                     Lang::I64Load16S(memarg, _) => insn.i64_load16_s(memarg.into()),
                     Lang::I64Load32U(memarg, _) => insn.i64_load32_u(memarg.into()),
                     Lang::I64Load32S(memarg, _) => insn.i64_load32_s(memarg.into()),
-                    Lang::RandI32 => insn.i32_const(config.rng().r#gen()),
-                    Lang::RandI64 => insn.i64_const(config.rng().r#gen()),
-                    Lang::RandF32 => insn.f32_const(f32::from_bits(config.rng().r#gen()).into()),
-                    Lang::RandF64 => insn.f64_const(f64::from_bits(config.rng().r#gen()).into()),
+                    Lang::RandI32 => insn.i32_const(config.rng().random()),
+                    Lang::RandI64 => insn.i64_const(config.rng().random()),
+                    Lang::RandF32 => insn.f32_const(f32::from_bits(config.rng().random()).into()),
+                    Lang::RandF64 => insn.f64_const(f64::from_bits(config.rng().random()).into()),
                     Lang::Undef => {
                         // Do nothing
                         insn
@@ -128,7 +128,7 @@ pub fn expr2wasm(
                             Lang::I32(value) => {
                                 // Getting type from eclass.
 
-                                let r: i32 = config.rng().r#gen();
+                                let r: i32 = config.rng().random();
                                 insn.i32_const(r);
                                 insn.i32_const((Wrapping(*value) - Wrapping(r)).0);
                                 insn.i32_add();
@@ -147,7 +147,7 @@ pub fn expr2wasm(
                             Lang::I64(value) => {
                                 // Getting type from eclass.
 
-                                let r: i64 = config.rng().r#gen();
+                                let r: i64 = config.rng().random();
                                 insn.i64_const(r);
                                 insn.i64_const((Wrapping(*value) - Wrapping(r)).0);
                                 insn.i64_add();
