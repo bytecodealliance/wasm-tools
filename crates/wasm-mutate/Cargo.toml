@@ -15,7 +15,7 @@ clap = { workspace = true, optional = true }
 egg = "0.6.0"
 log = { workspace = true }
 rand = { workspace = true }
-thiserror = "1.0.28"
+thiserror = { workspace = true }
 wasm-encoder = { workspace = true, features = ['std', 'wasmparser'] }
 wasmparser = { workspace = true, features = ['std', 'simd'] }
 

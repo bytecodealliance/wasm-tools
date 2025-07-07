@@ -141,6 +141,7 @@ spdx = "0.10.1"
 termcolor = "1.2.0"
 url = "2.0.0"
 wasmtime = { version = "29.0.1", default-features = false, features = ['cranelift', 'component-model', 'runtime', 'gc-drc'] }
+thiserror = "2.0.12"
 
 wasm-compose = { version = "0.235.0", path = "crates/wasm-compose" }
 wasm-encoder = { version = "0.235.0", path = "crates/wasm-encoder", default-features = false }
