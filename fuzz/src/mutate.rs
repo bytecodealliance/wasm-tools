@@ -32,9 +32,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     if old_num_runs % 4096 == 4095 && log::log_enabled!(log::Level::Info) {
         let successful = NUM_SUCCESSFUL_MUTATIONS.load(Ordering::Relaxed);
         let percent = successful as f64 / old_num_runs as f64 * 100.0;
-        log::info!(
-            "{successful} / {old_num_runs} ({percent:.2}%) successful mutations."
-        );
+        log::info!("{successful} / {old_num_runs} ({percent:.2}%) successful mutations.");
     }
 
     // Mutate the Wasm with `wasm-mutate`. Assert that each mutation is still
