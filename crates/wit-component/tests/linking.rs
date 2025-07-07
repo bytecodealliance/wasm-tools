@@ -202,8 +202,8 @@ fn linking() -> Result<()> {
         let mut store = Store::new(&engine, ());
         let instance = linker.instantiate(&mut store, &Component::new(&engine, &component)?)?;
         let func = instance
-            .get_export(&mut store, None, "test:test/test")
-            .and_then(|i| instance.get_export(&mut store, Some(&i), "bar"))
+            .get_export_index(&mut store, None, "test:test/test")
+            .and_then(|i| instance.get_export_index(&mut store, Some(&i), "bar"))
             .and_then(|f| {
                 instance
                     .get_typed_func::<(i32,), (i32,)>(&mut store, &f)
