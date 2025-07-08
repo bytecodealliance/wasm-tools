@@ -771,22 +771,22 @@ impl<'a> Borrow<dyn ModuleImportKey + 'a> for (String, String) {
     }
 }
 
-impl Hash for (dyn ModuleImportKey + '_) {
+impl Hash for dyn ModuleImportKey + '_ {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.module().hash(state);
         self.name().hash(state);
     }
 }
 
-impl PartialEq for (dyn ModuleImportKey + '_) {
+impl PartialEq for dyn ModuleImportKey + '_ {
     fn eq(&self, other: &Self) -> bool {
         self.module() == other.module() && self.name() == other.name()
     }
 }
 
-impl Eq for (dyn ModuleImportKey + '_) {}
+impl Eq for dyn ModuleImportKey + '_ {}
 
-impl Ord for (dyn ModuleImportKey + '_) {
+impl Ord for dyn ModuleImportKey + '_ {
     fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         match self.module().cmp(other.module()) {
             core::cmp::Ordering::Equal => (),
@@ -796,7 +796,7 @@ impl Ord for (dyn ModuleImportKey + '_) {
     }
 }
 
-impl PartialOrd for (dyn ModuleImportKey + '_) {
+impl PartialOrd for dyn ModuleImportKey + '_ {
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
         Some(self.cmp(other))
     }

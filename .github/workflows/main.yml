@@ -98,7 +98,7 @@ jobs:
           # this is the rust nightly that oss-fuzz currently uses so we don't
           # want this to break.
           - os: ubuntu-latest
-            rust: nightly-2024-07-12
+            rust: nightly-2025-01-10
           # test that if `RUST_BACKTRACE=1` is set in the environment that all
           # tests with blessed error messages still pass.
           - os: ubuntu-latest

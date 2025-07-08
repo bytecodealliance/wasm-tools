@@ -112,7 +112,7 @@ impl<'cfg, 'wasm> Reencode for InitTranslator<'cfg, 'wasm> {
         // removing the offset) as other values may not necessarily be valid
         // (e.g. maximum table size is limited)
         let is_element_offset = matches!(self.kind, ConstExpressionMutator::ElementOffset);
-        let should_zero = is_element_offset || self.config.rng().r#gen::<u8>() & 0b11 == 0;
+        let should_zero = is_element_offset || self.config.rng().random::<u8>() & 0b11 == 0;
         let new_op = match ty {
             T::I32 if should_zero => CE::i32_const(0),
             T::I64 if should_zero => CE::i64_const(0),
@@ -121,36 +121,36 @@ impl<'cfg, 'wasm> Reencode for InitTranslator<'cfg, 'wasm> {
             T::F64 if should_zero => CE::f64_const(0.0.into()),
             T::I32 => CE::i32_const(if let O::I32Const { value } = op {
                 let range = if value < 0 { value..0 } else { 0..value };
-                self.config.rng().gen_range(range)
+                self.config.rng().random_range(range)
             } else {
-                self.config.rng().r#gen()
+                self.config.rng().random()
             }),
             T::I64 => CE::i64_const(if let O::I64Const { value } = op {
                 let range = if value < 0 { value..0 } else { 0..value };
-                self.config.rng().gen_range(range)
+                self.config.rng().random_range(range)
             } else {
-                self.config.rng().r#gen()
+                self.config.rng().random()
             }),
             T::V128 => CE::v128_const(if let O::V128Const { value } = op {
-                self.config.rng().gen_range(0..value.i128() as u128) as i128
+                self.config.rng().random_range(0..value.i128() as u128) as i128
             } else {
-                self.config.rng().r#gen()
+                self.config.rng().random()
             }),
             T::F32 => CE::f32_const(if let O::F32Const { value } = op {
                 (f32::from_bits(value.bits()) / 2.0).into()
             } else {
-                f32::from_bits(self.config.rng().r#gen()).into()
+                f32::from_bits(self.config.rng().random()).into()
             }),
             T::F64 => CE::f64_const(if let O::F64Const { value } = op {
                 (f64::from_bits(value.bits()) / 2.0).into()
             } else {
-                f64::from_bits(self.config.rng().r#gen()).into()
+                f64::from_bits(self.config.rng().random()).into()
             }),
             T::FuncRef => CE::ref_null(wasm_encoder::HeapType::FUNC),
             T::ExternRef => CE::ref_null(wasm_encoder::HeapType::EXTERN),
             T::Empty => unreachable!(),
         };
-        log::trace!("... replacing original expression with {:?}", new_op);
+        log::trace!("... replacing original expression with {new_op:?}");
         Ok(new_op)
     }
 }
@@ -164,7 +164,7 @@ impl Mutator for ConstExpressionMutator {
         match self {
             Self::Global => {
                 let num_total = config.info().num_local_globals();
-                let mutate_idx = config.rng().gen_range(0..num_total);
+                let mutate_idx = config.rng().random_range(0..num_total);
                 let section = config.info().globals.ok_or(skip_err)?;
                 let mut new_section = GlobalSection::new();
                 let reader = config.info().get_binary_reader(section);
@@ -178,7 +178,7 @@ impl Mutator for ConstExpressionMutator {
                     translator.config.consume_fuel(1)?;
                     let global = global?;
                     if idx as u32 == mutate_idx {
-                        log::trace!("Modifying global at index {}...", idx);
+                        log::trace!("Modifying global at index {idx}...");
                         translator.parse_global(&mut new_section, global)?;
                     } else {
                         RoundtripReencoder.parse_global(&mut new_section, global)?;
@@ -189,7 +189,7 @@ impl Mutator for ConstExpressionMutator {
             }
             Self::ElementOffset | Self::ElementFunc => {
                 let num_total = config.info().num_elements();
-                let mutate_idx = config.rng().gen_range(0..num_total);
+                let mutate_idx = config.rng().random_range(0..num_total);
                 let section = config.info().elements.ok_or(skip_err)?;
                 let mut new_section = ElementSection::new();
                 let reader = config.info().get_binary_reader(section);
@@ -211,7 +211,7 @@ impl Mutator for ConstExpressionMutator {
                                 wasmparser::ElementItems::Expressions(_, r) => r.count(),
                             };
                             if item_count > 0 {
-                                let skip = translator.config.rng().gen_range(0..item_count);
+                                let skip = translator.config.rng().random_range(0..item_count);
                                 translator.skip_inits = skip
                             } else {
                                 return Err(Error::no_mutations_applicable());

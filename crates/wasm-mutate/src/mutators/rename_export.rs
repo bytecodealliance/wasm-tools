@@ -52,7 +52,7 @@ impl Mutator for RenameExportMutator {
         let reader = config.info().get_binary_reader(exports_idx);
         let reader = ExportSectionReader::new(reader)?;
         let max_exports = u64::from(reader.count());
-        let skip_at = config.rng().gen_range(0..max_exports);
+        let skip_at = config.rng().random_range(0..max_exports);
 
         for (i, export) in reader.into_iter().enumerate() {
             let export = export?;
@@ -63,7 +63,7 @@ impl Mutator for RenameExportMutator {
                 String::from(export.name)
             } else {
                 let new_name = self.limited_string(config, export.name)?;
-                log::debug!("Renaming export {:?} by {:?}", export, new_name);
+                log::debug!("Renaming export {export:?} by {new_name:?}");
                 new_name
             };
 

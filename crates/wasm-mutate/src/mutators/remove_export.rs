@@ -20,14 +20,14 @@ impl Mutator for RemoveExportMutator {
         let reader = config.info().get_binary_reader(exports_idx);
         let reader = ExportSectionReader::new(reader)?;
         let max_exports = u64::from(reader.count());
-        let skip_at = config.rng().gen_range(0..max_exports);
+        let skip_at = config.rng().random_range(0..max_exports);
 
         for (i, export) in reader.into_iter().enumerate() {
             let export = export?;
             config.consume_fuel(1)?;
 
             if skip_at == i as u64 {
-                log::trace!("Removing export {:?} at index {}", export, skip_at);
+                log::trace!("Removing export {export:?} at index {skip_at}");
                 continue;
             }
 

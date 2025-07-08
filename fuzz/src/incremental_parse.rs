@@ -40,7 +40,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
                 continue;
             }
             Ok(Chunk::Parsed { consumed, payload }) => {
-                log::debug!("parsed {} bytes", consumed);
+                log::debug!("parsed {consumed} bytes");
                 pos += consumed;
                 payload
             }
@@ -58,7 +58,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
                 break;
             }
         };
-        log::debug!("parsed payload {:?}", payload);
+        log::debug!("parsed payload {payload:?}");
         let expected_payload = expected
             .next()
             .expect("full parse stopped early")

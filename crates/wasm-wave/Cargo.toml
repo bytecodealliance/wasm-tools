@@ -21,7 +21,7 @@ wit = ["dep:wit-parser"]
 [dependencies]
 indexmap.workspace = true
 logos = { version = "0.14.2", features = ["forbid_unsafe"] }
-thiserror = "1.0.48"
+thiserror = { workspace = true }
 wit-parser = { workspace = true, optional = true }
 
 [dev-dependencies]

@@ -2,7 +2,7 @@
 //! Since this mutator preserves the original semantic of the input Wasm,
 //! before the mutated if structure is encoded, a "negation" of the previous operand
 //! in the stack is written. The "negation" is encoded with a `i32.eqz` operator.
-use rand::prelude::SliceRandom;
+use rand::prelude::*;
 use wasm_encoder::{Function, ValType};
 
 use crate::{

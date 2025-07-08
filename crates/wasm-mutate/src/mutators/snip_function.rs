@@ -21,7 +21,7 @@ impl Mutator for SnipMutator {
         let reader = config.info().get_binary_reader(code_section);
         let reader = CodeSectionReader::new(reader)?;
         let count = reader.count();
-        let function_to_mutate = config.rng().gen_range(0..count);
+        let function_to_mutate = config.rng().random_range(0..count);
         let ftype = config
             .info()
             .get_functype_idx(function_to_mutate + config.info().num_imported_functions())
@@ -36,7 +36,7 @@ impl Mutator for SnipMutator {
                 continue;
             }
 
-            log::trace!("Snipping function {}", function_to_mutate);
+            log::trace!("Snipping function {function_to_mutate}");
 
             let locals = vec![];
             let mut f = Function::new(locals);

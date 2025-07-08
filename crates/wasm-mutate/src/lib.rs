@@ -241,7 +241,7 @@ impl<'wasm> WasmMutate<'wasm> {
         ];
 
         // Attempt all mutators, but start at an arbitrary index.
-        let start = self.rng().gen_range(0..MUTATORS.len());
+        let start = self.rng().random_range(0..MUTATORS.len());
         for m in MUTATORS.iter().cycle().skip(start).take(MUTATORS.len()) {
             let can_mutate = m.can_mutate(self);
             log::trace!("Can `{}` mutate? {}", m.name(), can_mutate);
@@ -289,31 +289,26 @@ impl<'wasm> WasmMutate<'wasm> {
         // subslice of data with a random slice of other data.
         //
         // First up start/end indices are picked.
-        let a = self.rng().gen_range(0..=data.len());
-        let b = self.rng().gen_range(0..=data.len());
+        let a = self.rng().random_range(0..=data.len());
+        let b = self.rng().random_range(0..=data.len());
         let start = a.min(b);
         let end = a.max(b);
 
         // Next a length of the replacement is chosen. Note that the replacement
         // is always smaller than the input if reduction is requested, otherwise
         // we choose some arbitrary length of bytes to insert.
-        let max_size = if self.reduce || self.rng().r#gen() {
+        let max_size = if self.reduce || self.rng().random() {
             0
         } else {
             max_size
         };
         let len = self
             .rng()
-            .gen_range(0..=end - start + max_size.saturating_sub(data.len()));
+            .random_range(0..=end - start + max_size.saturating_sub(data.len()));
 
         // With parameters chosen the `Vec::splice` method is used to replace
         // the data in the input.
-        data.splice(
-            start..end,
-            self.rng()
-                .sample_iter(rand::distributions::Standard)
-                .take(len),
-        );
+        data.splice(start..end, self.rng().random_iter().take(len));
 
         Ok(())
     }

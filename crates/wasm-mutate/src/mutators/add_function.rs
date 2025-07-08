@@ -16,7 +16,7 @@ impl Mutator for AddFunctionMutator {
         config: &'a mut WasmMutate,
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         let max_ty_idx = config.info().num_types() - 1;
-        let ty_idx = config.rng().gen_range(0..=max_ty_idx);
+        let ty_idx = config.rng().random_range(0..=max_ty_idx);
 
         // (Re)encode the function section and add this new entry.
         let mut func_sec_enc = wasm_encoder::FunctionSection::new();

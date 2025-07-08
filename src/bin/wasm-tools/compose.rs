@@ -59,7 +59,7 @@ impl Opts {
             "Please use `wac` instead. You can find more information about `wac` at https://github.com/bytecodealliance/wac."
         );
         let config = self.create_config()?;
-        log::debug!("configuration:\n{:#?}", config);
+        log::debug!("configuration:\n{config:#?}");
 
         let bytes = ComponentComposer::new(&self.component, &config).compose()?;
 

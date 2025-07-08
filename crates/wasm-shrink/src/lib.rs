@@ -199,7 +199,7 @@ impl ShrinkRun {
         new_interesting.len() < current.len() ||
             // With low probability, accept larger interesting Wasm test cases
             // to avoid getting stuck in local minima.
-            self.rng.gen_ratio(1, 100)
+            self.rng.random_ratio(1, 100)
     }
 
     fn on_new_interesting(
@@ -294,7 +294,7 @@ impl ShrinkRun {
             self.attempt += 1;
 
             let mut mutate = WasmMutate::default();
-            let seed = self.rng.r#gen();
+            let seed = self.rng.random();
             mutate.reduce(true).seed(seed);
             log::trace!("Attempt #{}: seed: {}", self.attempt, seed);
 
