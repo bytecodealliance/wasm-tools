@@ -3,10 +3,11 @@ use crate::gc::ReallocScheme;
 use crate::validation::{
     Import, ImportMap, ValidatedModule, validate_adapter_module, validate_module,
 };
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use indexmap::{IndexMap, IndexSet};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
+use wasmparser::{FuncType, ValType};
 use wit_parser::{
     Function, InterfaceId, LiveTypes, Resolve, TypeDefKind, TypeId, TypeOwner, WorldId, WorldItem,
     WorldKey,
@@ -86,17 +87,29 @@ impl<'a> ComponentWorld<'a> {
 
     /// Given that there is no realloc function exported from the main module,
     /// returns the realloc scheme we should use.
-    fn fallback_realloc_scheme(&self) -> ReallocScheme {
+    ///
+    /// Return an error if we need to use an exported malloc() and it wasn't
+    /// there.
+    fn fallback_realloc_scheme(&self) -> Result<ReallocScheme> {
         if self.encoder.module_is_produced_by_tiny_go {
             // If it appears the module was emitted by TinyGo, we delegate to
             // its `malloc()` function. (TinyGo assumes its GC has rein over the
             // whole memory and quickly overwrites the adapter's
             // `memory.grow`-allocated State struct, causing a crash. So we use
             // `malloc()` to inform TinyGo's GC of the memory we use.)
-            ReallocScheme::Malloc("malloc")
+            let malloc_type = FuncType::new([ValType::I32], [ValType::I32]);
+            match self.info.exports.get_func_type("malloc") {
+                Some(func_type) if *func_type == malloc_type => Ok(ReallocScheme::Malloc("malloc")),
+                Some(_) => bail!(
+                    "TinyGo-derived wasm had a malloc() export, but it lacked the expected type of malloc(i32) -> i32"
+                ),
+                None => bail!(
+                    "TinyGo-derived wasm lacked a malloc() export; we don't know how else to reserve space for the adapter's state from its GC"
+                ),
+            }
         } else {
             // If it's not TinyGo, use `memory.grow` instead.
-            ReallocScheme::MemoryGrow
+            Ok(ReallocScheme::MemoryGrow)
         }
     }
 
@@ -183,11 +196,11 @@ impl<'a> ComponentWorld<'a> {
                 let realloc = if self.encoder.realloc_via_memory_grow {
                     // User explicitly requested memory-grow-based realloc. We
                     // give them that unless it would definitely crash.
-                    self.fallback_realloc_scheme()
+                    self.fallback_realloc_scheme()?
                 } else {
                     match self.info.exports.realloc_to_import_into_adapter() {
                         Some(name) => ReallocScheme::Realloc(name),
-                        None => self.fallback_realloc_scheme(),
+                        None => self.fallback_realloc_scheme()?,
                     }
                 };
                 Cow::Owned(

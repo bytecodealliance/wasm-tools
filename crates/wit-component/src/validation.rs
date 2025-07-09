@@ -1103,6 +1103,12 @@ impl ExportMap {
         Ok(())
     }
 
+    /// Returns the type of the given exported function, None if an exported
+    /// function of that name does not exist.
+    pub(crate) fn get_func_type<'a>(&'a self, name: &str) -> Option<&'a FuncType> {
+        self.raw_exports.get(name)
+    }
+
     fn classify(
         &mut self,
         export: wasmparser::Export<'_>,
