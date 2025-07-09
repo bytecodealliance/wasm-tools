@@ -88,12 +88,11 @@ impl<'a> ComponentWorld<'a> {
     /// returns the realloc scheme we should use.
     fn fallback_realloc_scheme(&self) -> ReallocScheme {
         if self.encoder.module_is_produced_by_tiny_go {
-            // TODO: Also check for cabi_realloc and bail if it's there.
             // If it appears the module was emitted by TinyGo, we delegate to
             // its `malloc()` function. (TinyGo assumes its GC has rein over the
             // whole memory and quickly overwrites the adapter's
-            // `memory.grow`-allocated State struct unless we inform TinyGo's GC
-            // of the memory we use.)
+            // `memory.grow`-allocated State struct, causing a crash. So we use
+            // `malloc()` to inform TinyGo's GC of the memory we use.)
             ReallocScheme::Malloc("malloc")
         } else {
             // If it's not TinyGo, use `memory.grow` instead.
@@ -182,6 +181,8 @@ impl<'a> ComponentWorld<'a> {
                 }
 
                 let realloc = if self.encoder.realloc_via_memory_grow {
+                    // User explicitly requested memory-grow-based realloc. We
+                    // give them that unless it would definitely crash.
                     self.fallback_realloc_scheme()
                 } else {
                     match self.info.exports.realloc_to_import_into_adapter() {
