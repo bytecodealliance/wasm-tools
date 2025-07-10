@@ -90,7 +90,7 @@ impl<'a> ComponentWorld<'a> {
     ///
     /// Return an error if we need to use an exported malloc() and it wasn't
     /// there.
-    fn fallback_realloc_scheme(&self) -> Result<ReallocScheme> {
+    fn fallback_realloc_scheme(&self) -> Result<ReallocScheme<'_>> {
         if self.encoder.module_is_produced_by_tiny_go {
             // If it appears the module was emitted by TinyGo, we delegate to
             // its `malloc()` function. (TinyGo assumes its GC has rein over the
