@@ -99,6 +99,47 @@ macro_rules! define_config {
             /// ```
             pub exports: Option<Vec<u8>>,
 
+            /// If provided, the generated module will have imports and exports
+            /// with exactly the same names and types as those in the provided
+            /// WebAssembly module.
+            ///
+            /// Defaults to `None` which means arbitrary imports and exports will be
+            /// generated.
+            ///
+            /// Note that [`Self::available_imports`] and [`Self::exports`] are
+            /// ignored when `module_shape` is enabled.
+            ///
+            /// The provided value must be a valid binary encoding of a
+            /// WebAssembly module. `wasm-smith` will panic if the module cannot
+            /// be parsed.
+            ///
+            /// # Module Limits
+            ///
+            /// All types, functions, globals, memories, tables, tags, imports, and exports
+            /// that are needed to provide the required imports and exports will be generated,
+            /// even if it causes the resulting module to exceed the limits defined in
+            /// [`Self::max_type_size`], [`Self::max_types`], [`Self::max_funcs`],
+            /// [`Self::max_globals`], [`Self::max_memories`], [`Self::max_tables`],
+            /// [`Self::max_tags`], [`Self::max_imports`], or [`Self::max_exports`].
+            ///
+            /// # Example
+            ///
+            /// As for [`Self::available_imports`] and [`Self::exports`], the
+            /// `wat` crate can be used to provide a human-readable description of the
+            /// module shape:
+            ///
+            /// ```rust
+            /// Some(wat::parse_str(r#"
+            ///     (module
+            ///         (import "env" "ping" (func (param i32)))
+            ///         (import "env" "memory" (memory 1))
+            ///         (func (export "foo") (param anyref) (result structref) unreachable)
+            ///         (global (export "bar") arrayref (ref.null array))
+            ///     )
+            /// "#));
+            /// ```
+            pub module_shape: Option<Vec<u8>>,
+
             $(
                 $(#[$field_attr])*
                 pub $field: $field_ty,
@@ -110,6 +151,7 @@ macro_rules! define_config {
                 Config {
                     available_imports: None,
                     exports: None,
+                    module_shape: None,
 
                     $(
                         $field: $default,
@@ -173,6 +215,31 @@ macro_rules! define_config {
             #[cfg_attr(feature = "clap", clap(long))]
             exports: Option<std::path::PathBuf>,
 
+            /// If provided, the generated module will have imports and exports
+            /// with exactly the same names and types as those in the provided
+            /// WebAssembly module.
+            ///
+            /// Defaults to `None` which means arbitrary imports and exports will be
+            /// generated.
+            ///
+            /// Note that [`Self::available_imports`] and [`Self::exports`] are
+            /// ignored when `module_shape` is enabled.
+            ///
+            /// The provided value must be a valid binary encoding of a
+            /// WebAssembly module. `wasm-smith` will panic if the module cannot
+            /// be parsed.
+            ///
+            /// # Module Limits
+            ///
+            /// All types, functions, globals, memories, tables, tags, imports, and exports
+            /// that are needed to provide the required imports and exports will be generated,
+            /// even if it causes the resulting module to exceed the limits defined in
+            /// [`Self::max_type_size`], [`Self::max_types`], [`Self::max_funcs`],
+            /// [`Self::max_globals`], [`Self::max_memories`], [`Self::max_tables`],
+            /// [`Self::max_tags`], [`Self::max_imports`], or [`Self::max_exports`].
+            #[cfg_attr(feature = "clap", clap(long))]
+            module_shape: Option<std::path::PathBuf>,
+
             $(
                 $(#[$field_attr])*
                 #[cfg_attr(feature = "clap", clap(long))]
@@ -185,6 +252,7 @@ macro_rules! define_config {
                 Self {
                     available_imports: self.available_imports.or(other.available_imports),
                     exports: self.exports.or(other.exports),
+                    module_shape: self.module_shape.or(other.module_shape),
 
                     $(
                         $field: self.$field.or(other.$field),
@@ -213,6 +281,13 @@ macro_rules! define_config {
                         } else {
                             None
                         },
+                    module_shape: if let Some(file) = config
+                        .module_shape
+                        .as_ref() {
+                            Some(wat::parse_file(file)?)
+                        } else {
+                            None
+                        },
 
                     $(
                         $field: config.$field.unwrap_or(default.$field),
@@ -230,9 +305,13 @@ macro_rules! define_config {
                 if config.exports.is_some() {
                     bail!("cannot serialize configuration with `exports`");
                 }
+                if config.module_shape.is_some() {
+                    bail!("cannot serialize configuration with `module_shape`");
+                }
                 Ok(InternalOptionalConfig {
                     available_imports: None,
                     exports: None,
+                    module_shape: None,
                     $( $field: Some(config.$field.clone()), )*
                 })
             }
@@ -788,6 +867,7 @@ impl<'a> Arbitrary<'a> for Config {
             canonicalize_nans: false,
             available_imports: None,
             exports: None,
+            module_shape: None,
             export_everything: false,
             generate_custom_sections: false,
             allow_invalid_funcs: false,
@@ -840,6 +920,12 @@ impl Config {
         // without threads, which it is built on.
         if !self.threads_enabled {
             self.shared_everything_threads_enabled = false;
+        }
+
+        // If module_shape is present then disable available_imports and exports.
+        if self.module_shape.is_some() {
+            self.available_imports = None;
+            self.exports = None;
         }
     }
 
