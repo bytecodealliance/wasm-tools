@@ -248,7 +248,7 @@ impl TypeInfo {
 }
 
 /// The entity type for imports and exports of a module.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EntityType {
     /// The entity is a function.
     Func(CoreTypeId),

@@ -441,15 +441,22 @@ impl Module {
     fn build(&mut self, u: &mut Unstructured) -> Result<()> {
         self.valtypes = configured_valtypes(&self.config);
 
+        let mut generate_arbitrary_imports = true;
+        let mut generate_arbitrary_exports = true;
+        if self.imports_exports_from_module_shape(u)? {
+            generate_arbitrary_imports = false;
+            generate_arbitrary_exports = false;
+        }
         // We attempt to figure out our available imports *before* creating the types section here,
         // because the types for the imports are already well-known (specified by the user) and we
         // must have those populated for all function/etc. imports, no matter what.
         //
         // This can affect the available capacity for types and such.
         if self.arbitrary_imports_from_available(u)? {
-            self.arbitrary_types(u)?;
-        } else {
-            self.arbitrary_types(u)?;
+            generate_arbitrary_imports = false;
+        }
+        self.arbitrary_types(u)?;
+        if generate_arbitrary_imports {
             self.arbitrary_imports(u)?;
         }
 
@@ -460,9 +467,12 @@ impl Module {
         self.arbitrary_tables(u)?;
         self.arbitrary_memories(u)?;
         self.arbitrary_globals(u)?;
-        if !self.required_exports(u)? {
+        if self.required_exports(u)? {
+            generate_arbitrary_exports = false;
+        }
+        if generate_arbitrary_exports {
             self.arbitrary_exports(u)?;
-        };
+        }
         self.should_encode_types = !self.types.is_empty() || u.arbitrary()?;
         self.arbitrary_start(u)?;
         self.arbitrary_elems(u)?;
@@ -1182,6 +1192,289 @@ impl Module {
         self.memories.len() < self.config.max_memories
     }
 
+    fn imports_exports_from_module_shape(&mut self, u: &mut Unstructured) -> Result<bool> {
+        let example_module = if let Some(wasm) = self.config.module_shape.clone() {
+            wasm
+        } else {
+            return Ok(false);
+        };
+
+        #[cfg(feature = "wasmparser")]
+        {
+            self._imports_exports_from_module_shape(u, &example_module)?;
+            Ok(true)
+        }
+        #[cfg(not(feature = "wasmparser"))]
+        {
+            let _ = (example_module, u);
+            panic!("support for `module_shape` was disabled at compile time");
+        }
+    }
+
+    #[cfg(feature = "wasmparser")]
+    fn _imports_exports_from_module_shape(
+        &mut self,
+        u: &mut Unstructured,
+        example_module: &[u8],
+    ) -> Result<()> {
+        // First, we validate the module-by-example and extract the required types, imports
+        // and exports. Besides, we also extract the functions, tags, tables, memories and
+        // globals that are necessary for generating the exports.
+        let mut available_funcs: Vec<u32> = Vec::new();
+        let mut available_tags: Vec<wasmparser::TagType> = Vec::new();
+        let mut available_tables: Vec<wasmparser::TableType> = Vec::new();
+        let mut available_globals: Vec<wasmparser::GlobalType> = Vec::new();
+        let mut available_memories: Vec<wasmparser::MemoryType> = Vec::new();
+
+        let mut required_types: Vec<SubType> = Vec::new();
+        let mut required_recgrps: Vec<usize> = Vec::new();
+        let mut required_imports: Vec<wasmparser::Import> = Vec::new();
+        let mut required_exports: Vec<wasmparser::Export> = Vec::new();
+        let mut validator = wasmparser::Validator::new();
+        validator
+            .validate_all(example_module)
+            .expect("Failed to validate `module_shape` module");
+        for payload in wasmparser::Parser::new(0).parse_all(&example_module) {
+            match payload.expect("could not parse the `module_shape` module") {
+                wasmparser::Payload::TypeSection(type_reader) => {
+                    for recgrp in type_reader {
+                        let recgrp = recgrp.expect("could not read recursive group");
+                        required_recgrps.push(recgrp.types().len());
+                        for subtype in recgrp.into_types() {
+                            let mut subtype: SubType = subtype.try_into().unwrap();
+                            if let Some(supertype_idx) = subtype.supertype {
+                                subtype.depth = required_types[supertype_idx as usize].depth + 1;
+                            }
+                            required_types.push(subtype);
+                        }
+                    }
+                }
+                wasmparser::Payload::ImportSection(import_reader) => {
+                    for im in import_reader {
+                        let im = im.expect("could not read import");
+                        required_imports.push(im);
+                    }
+                }
+                wasmparser::Payload::ExportSection(export_reader) => {
+                    for ex in export_reader {
+                        let ex = ex.expect("could not read export");
+                        required_exports.push(ex);
+                    }
+                }
+                wasmparser::Payload::FunctionSection(function_reader) => {
+                    for func in function_reader {
+                        let func = func.expect("could not read function");
+                        available_funcs.push(func);
+                    }
+                }
+                wasmparser::Payload::TagSection(tag_reader) => {
+                    for tag in tag_reader {
+                        let tag = tag.expect("could not read tag");
+                        available_tags.push(tag);
+                    }
+                }
+                wasmparser::Payload::TableSection(table_reader) => {
+                    for table in table_reader {
+                        let table = table.expect("could not read table");
+                        available_tables.push(table.ty);
+                    }
+                }
+                wasmparser::Payload::MemorySection(memory_reader) => {
+                    for memory in memory_reader {
+                        let memory = memory.expect("could not read memory");
+                        available_memories.push(memory);
+                    }
+                }
+                wasmparser::Payload::GlobalSection(global_reader) => {
+                    for global in global_reader {
+                        let global = global.expect("could not read global");
+                        available_globals.push(global.ty);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // Next, we copy all the types from the module-by-example into current module. This is necessary
+        // to ensure that the current module has all the types it needs to type-check correctly.
+        let mut recgrp_start_idx = self.types.len();
+        for size in required_recgrps {
+            self.rec_groups
+                .push(recgrp_start_idx..recgrp_start_idx + size);
+            recgrp_start_idx += size;
+        }
+        for ty in &required_types {
+            self.add_type(ty.clone());
+        }
+
+        // We then generate import entries which refer to the imported types. Additionally, we add the
+        // imported items to their corresponding vectors here, ensuring that exports reference the
+        // correct items.
+        let mut imported_funcs: Vec<u32> = Vec::new();
+        let mut imported_tags: Vec<wasmparser::TagType> = Vec::new();
+        let mut imported_tables: Vec<wasmparser::TableType> = Vec::new();
+        let mut imported_globals: Vec<wasmparser::GlobalType> = Vec::new();
+        let mut imported_memories: Vec<wasmparser::MemoryType> = Vec::new();
+        let mut new_imports = Vec::with_capacity(required_imports.len());
+        for import in required_imports {
+            let entity_type = match &import.ty {
+                wasmparser::TypeRef::Func(sig_idx) => {
+                    imported_funcs.push(*sig_idx);
+                    match required_types.get(*sig_idx as usize) {
+                        None => panic!("signature index refers to a type out of bounds"),
+                        Some(ty) => match &ty.composite_type.inner {
+                            CompositeInnerType::Func(func_type) => {
+                                let entity = EntityType::Func(*sig_idx, Rc::clone(func_type));
+                                self.funcs.push((*sig_idx, Rc::clone(func_type)));
+                                entity
+                            }
+                            _ => panic!("a function type is required for function import"),
+                        },
+                    }
+                }
+
+                wasmparser::TypeRef::Tag(wasmparser::TagType {
+                    kind,
+                    func_type_idx,
+                }) => {
+                    imported_tags.push(wasmparser::TagType {
+                        kind: *kind,
+                        func_type_idx: *func_type_idx,
+                    });
+                    match required_types.get(*func_type_idx as usize) {
+                        None => {
+                            panic!("function type index for tag refers to a type out of bounds")
+                        }
+                        Some(ty) => match &ty.composite_type.inner {
+                            CompositeInnerType::Func(func_type) => {
+                                let tag_type = TagType {
+                                    func_type_idx: *func_type_idx,
+                                    func_type: Rc::clone(func_type),
+                                };
+                                let entity = EntityType::Tag(tag_type.clone());
+                                self.tags.push(tag_type);
+                                entity
+                            }
+                            _ => panic!("a function type is required for tag import"),
+                        },
+                    }
+                }
+
+                wasmparser::TypeRef::Table(table_ty) => {
+                    imported_tables.push(*table_ty);
+                    let table_ty = TableType::try_from(*table_ty).unwrap();
+                    let entity = EntityType::Table(table_ty);
+                    self.tables.push(table_ty);
+                    entity
+                }
+
+                wasmparser::TypeRef::Memory(memory_ty) => {
+                    imported_memories.push(*memory_ty);
+                    let memory_ty = MemoryType::from(*memory_ty);
+                    let entity = EntityType::Memory(memory_ty);
+                    self.memories.push(memory_ty);
+                    entity
+                }
+
+                wasmparser::TypeRef::Global(global_ty) => {
+                    imported_globals.push(*global_ty);
+                    let global_ty = GlobalType::try_from(*global_ty).unwrap();
+                    let entity = EntityType::Global(global_ty);
+                    self.globals.push(global_ty);
+                    entity
+                }
+            };
+            new_imports.push(Import {
+                module: import.module.to_string(),
+                field: import.name.to_string(),
+                entity_type,
+            });
+            self.num_imports += 1;
+        }
+        self.imports.extend(new_imports);
+        available_tags.splice(0..0, imported_tags);
+        available_funcs.splice(0..0, imported_funcs);
+        available_tables.splice(0..0, imported_tables);
+        available_globals.splice(0..0, imported_globals);
+        available_memories.splice(0..0, imported_memories);
+
+        // Next, we generate export entries which refer to the export specifications.
+        for export in required_exports {
+            let index = match export.kind {
+                wasmparser::ExternalKind::Func => {
+                    match available_funcs.get(export.index as usize) {
+                        None => panic!("function index out of bounds"),
+                        Some(sig_idx) => match required_types.get(*sig_idx as usize) {
+                            None => panic!("signature index refers to a type out of bounds"),
+                            Some(ty) => match &ty.composite_type.inner {
+                                CompositeInnerType::Func(func_type) => {
+                                    let func_index = self.funcs.len() as u32;
+                                    self.funcs.push((*sig_idx, Rc::clone(func_type)));
+                                    self.num_defined_funcs += 1;
+                                    func_index
+                                }
+                                _ => panic!("a function type is required for function export"),
+                            },
+                        },
+                    }
+                }
+
+                wasmparser::ExternalKind::Tag => match available_tags.get(export.index as usize) {
+                    None => panic!("tag index out of bounds"),
+                    Some(wasmparser::TagType { func_type_idx, .. }) => {
+                        match required_types.get(*func_type_idx as usize) {
+                            None => {
+                                panic!("function type index for tag refers to a type out of bounds")
+                            }
+                            Some(ty) => match &ty.composite_type.inner {
+                                CompositeInnerType::Func(func_type) => {
+                                    let tag_index = self.tags.len() as u32;
+                                    self.tags.push(TagType {
+                                        func_type_idx: *func_type_idx,
+                                        func_type: Rc::clone(func_type),
+                                    });
+                                    self.num_defined_tags += 1;
+                                    tag_index
+                                }
+                                _ => panic!("a function type is required for tag export"),
+                            },
+                        }
+                    }
+                },
+
+                wasmparser::ExternalKind::Table => {
+                    match available_tables.get(export.index as usize) {
+                        None => panic!("table index out of bounds"),
+                        Some(ty) => {
+                            self.add_arbitrary_table_of_type((*ty).try_into().unwrap(), u)?
+                        }
+                    }
+                }
+
+                wasmparser::ExternalKind::Memory => {
+                    match available_memories.get(export.index as usize) {
+                        None => panic!("memory index out of bounds"),
+                        Some(ty) => self.add_arbitrary_memory_of_type((*ty).into())?,
+                    }
+                }
+
+                wasmparser::ExternalKind::Global => {
+                    match available_globals.get(export.index as usize) {
+                        None => panic!("global index out of bounds"),
+                        Some(ty) => {
+                            self.add_arbitrary_global_of_type((*ty).try_into().unwrap(), u)?
+                        }
+                    }
+                }
+            };
+            self.exports
+                .push((export.name.to_string(), export.kind.into(), index));
+            self.export_names.insert(export.name.to_string());
+        }
+
+        Ok(())
+    }
+
     fn arbitrary_imports(&mut self, u: &mut Unstructured) -> Result<()> {
         if self.config.max_type_size < self.type_size {
             return Ok(());
@@ -1316,6 +1609,10 @@ impl Module {
         let mut new_recgrps = Vec::<usize>::new();
         let mut available_types = Vec::<SubType>::new();
         let mut available_imports = Vec::<wasmparser::Import>::new();
+        let mut validator = wasmparser::Validator::new();
+        validator
+            .validate_all(example_module)
+            .expect("Failed to validate `module_shape` module");
         for payload in wasmparser::Parser::new(0).parse_all(&example_module) {
             match payload.expect("could not parse the available import payload") {
                 wasmparser::Payload::TypeSection(type_reader) => {
@@ -1325,7 +1622,6 @@ impl Module {
                         for subtype in recgrp.into_types() {
                             let mut subtype: SubType = subtype.try_into().unwrap();
                             if let Some(supertype_idx) = subtype.supertype {
-                                assert!(supertype_idx < (available_types.len() as u32));
                                 subtype.depth = available_types[supertype_idx as usize].depth + 1;
                             }
                             available_types.push(subtype);
@@ -2300,7 +2596,10 @@ impl Module {
         self.compute_interesting_values();
 
         self.code.reserve(self.num_defined_funcs);
-        let mut allocs = CodeBuilderAllocations::new(self, self.config.exports.is_some());
+        let mut allocs = CodeBuilderAllocations::new(
+            self,
+            self.config.exports.is_some() || self.config.module_shape.is_some(),
+        );
         for (idx, ty) in self.funcs[self.funcs.len() - self.num_defined_funcs..].iter() {
             let shared = self.is_shared_type(*idx);
             let body = self.arbitrary_func_body(u, ty, &mut allocs, shared)?;
