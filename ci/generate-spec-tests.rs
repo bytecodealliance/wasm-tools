@@ -73,17 +73,10 @@ fn copy_test(src: &Path, dst: &Path) {
         None => "wasm2",
         Some("annotations") => "wasm2",
         Some("threads") => "wasm1,threads",
-        Some("function-references") => "wasm2,function-references,tail-call",
         Some("wasm-3.0") => "wasm3",
-        Some("gc") => "wasm2,function-references,gc,tail-call",
-        Some("multi-memory") => "wasm2,multi-memory",
-        Some("extended-const") => "wasm2,extended-const",
-        Some("exception-handling") => "wasm2,exceptions,tail-call",
         Some("custom-page-sizes") => "wasm3,custom-page-sizes",
         Some("wide-arithmetic") => "wasm2,wide-arithmetic",
-        Some("tail-call") => "wasm2,tail-call",
         Some("relaxed-simd") => "wasm2,relaxed-simd",
-        Some("memory64") => "wasm3",
         Some(proposal) => panic!("unsupported proposal: {}", proposal),
     };
     contents.push_str(&format!(";;      --features={features} \\\n"));
