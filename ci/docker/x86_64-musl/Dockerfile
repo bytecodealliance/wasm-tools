@@ -12,5 +12,5 @@ RUN git config --global --add safe.directory '*'
 
 # Note that `-crt-feature` is passed here to specifically disable static linking
 # with musl. We want a `*.so` to pop out so static linking isn't what we want.
-ENV RUSTFLAGS=-Ctarget-feature=-crt-static
+ENV EXTRA_RUSTFLAGS=-Ctarget-feature=-crt-static
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=musl-gcc
