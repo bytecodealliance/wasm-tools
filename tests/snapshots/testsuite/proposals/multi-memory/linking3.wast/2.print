@@ -1,7 +1,0 @@
-(module
-  (type (;0;) (func))
-  (import "spectest" "print" (func $host (;0;) (type 0)))
-  (import "Mm" "mem1" (memory (;0;) 1))
-  (import "Mm" "tab" (table (;0;) 0 funcref))
-  (data (;0;) (i32.const 0) "abc")
-)

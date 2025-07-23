@@ -1,3 +1,0 @@
-(module
-  (import "Mref_ex" "g-var-ref" (global (;0;) (mut (ref func))))
-)

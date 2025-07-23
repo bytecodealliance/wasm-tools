@@ -839,31 +839,38 @@
     },
     {
       "type": "assert_malformed",
-      "line": 1172,
+      "line": 1173,
       "filename": "binary.122.wasm",
       "module_type": "binary",
       "text": "unexpected content after last section"
     },
     {
       "type": "assert_malformed",
-      "line": 1183,
+      "line": 1185,
       "filename": "binary.123.wasm",
       "module_type": "binary",
       "text": "unexpected content after last section"
     },
     {
       "type": "assert_malformed",
-      "line": 1193,
+      "line": 1195,
       "filename": "binary.124.wasm",
       "module_type": "binary",
       "text": "unexpected content after last section"
     },
     {
       "type": "assert_malformed",
-      "line": 1203,
+      "line": 1205,
       "filename": "binary.125.wasm",
       "module_type": "binary",
       "text": "unexpected content after last section"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 1219,
+      "filename": "binary.126.wasm",
+      "module_type": "binary",
+      "text": "illegal opcode ff"
     }
   ]
 }

@@ -9,7 +9,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 37,
+      "line": 49,
       "action": {
         "type": "invoke",
         "field": "unreachable",
@@ -19,22 +19,7 @@
     },
     {
       "type": "assert_return",
-      "line": 39,
-      "action": {
-        "type": "invoke",
-        "field": "nullable-null",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "-1"
-        }
-      ]
-    },
-    {
-      "type": "assert_return",
-      "line": 40,
+      "line": 51,
       "action": {
         "type": "invoke",
         "field": "nonnullable-f",
@@ -49,7 +34,22 @@
     },
     {
       "type": "assert_return",
-      "line": 41,
+      "line": 52,
+      "action": {
+        "type": "invoke",
+        "field": "nullable-null",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "-1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 53,
       "action": {
         "type": "invoke",
         "field": "nullable-f",
@@ -63,20 +63,50 @@
       ]
     },
     {
+      "type": "assert_return",
+      "line": 54,
+      "action": {
+        "type": "invoke",
+        "field": "nullable2-null",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "-2"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 55,
+      "action": {
+        "type": "invoke",
+        "field": "nullable2-f",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "7"
+        }
+      ]
+    },
+    {
       "type": "module",
-      "line": 43,
+      "line": 57,
       "filename": "br_on_non_null.1.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 51,
+      "line": 65,
       "filename": "br_on_non_null.2.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_return",
-      "line": 72,
+      "line": 86,
       "action": {
         "type": "invoke",
         "field": "args-null",
@@ -96,7 +126,7 @@
     },
     {
       "type": "assert_return",
-      "line": 73,
+      "line": 87,
       "action": {
         "type": "invoke",
         "field": "args-f",
@@ -116,7 +146,7 @@
     },
     {
       "type": "assert_invalid",
-      "line": 78,
+      "line": 92,
       "filename": "br_on_non_null.3.wasm",
       "module_type": "binary",
       "text": "type mismatch"

@@ -1,7 +1,0 @@
-(module
-  (type $t (;0;) (sub (struct (field anyref))))
-  (rec
-    (type $r (;1;) (sub $t (struct (field (ref $r)))))
-  )
-  (type $t' (;2;) (sub $r (struct (field (ref $r)) (field i32))))
-)

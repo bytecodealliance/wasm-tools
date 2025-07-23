@@ -1,9 +1,0 @@
-(module
-  (type (;0;) (func (result i32)))
-  (export "a" (func 0))
-  (export "b" (func 0))
-  (export "c" (func 0))
-  (func (;0;) (type 0) (result i32)
-    i32.const 42
-  )
-)

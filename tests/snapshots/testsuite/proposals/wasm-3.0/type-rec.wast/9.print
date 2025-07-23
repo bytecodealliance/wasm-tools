@@ -1,7 +1,8 @@
-(module
+(module $M
   (rec
-    (type (;0;) (struct))
-    (type $f2 (;1;) (func))
+    (type $f1 (;0;) (func))
+    (type (;1;) (struct))
   )
-  (import "M" "f" (func (;0;) (type $f2)))
+  (export "f" (func 0))
+  (func (;0;) (type $f1))
 )

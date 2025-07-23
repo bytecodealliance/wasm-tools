@@ -1,4 +1,0 @@
-(module
-  (type (;0;) (func))
-  (import "spectest" "memory" (func (;0;) (type 0)))
-)

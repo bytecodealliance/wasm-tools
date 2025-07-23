@@ -1,6 +1,0 @@
-(module
-  (type (;0;) (func))
-  (table (;0;) 1 funcref)
-  (elem (;0;) declare funcref (ref.func 0))
-  (func (;0;) (type 0))
-)

@@ -1,4 +1,0 @@
-(module
-  (memory (;0;) 2)
-  (memory (;1;) 2)
-)

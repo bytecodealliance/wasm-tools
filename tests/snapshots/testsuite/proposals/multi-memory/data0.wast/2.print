@@ -1,8 +1,0 @@
-(module
-  (import "spectest" "memory" (memory (;0;) 1))
-  (import "spectest" "memory" (memory (;1;) 1))
-  (import "spectest" "memory" (memory (;2;) 1))
-  (data (;0;) (i32.const 0) "a")
-  (data (;1;) (memory 1) (i32.const 0) "a")
-  (data (;2;) (memory 2) (i32.const 0) "a")
-)

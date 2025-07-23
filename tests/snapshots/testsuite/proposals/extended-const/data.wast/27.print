@@ -1,4 +1,0 @@
-(module
-  (memory (;0;) 1)
-  (data (;0;) (offset i32.const 0 i32.const 42 i32.add) "")
-)

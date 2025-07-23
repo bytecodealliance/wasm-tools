@@ -1,4 +1,0 @@
-(module
-  (import "test" "memory-2-4" (memory (;0;) 1))
-  (import "spectest" "memory" (memory (;1;) 2))
-)

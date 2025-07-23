@@ -1,9 +1,0 @@
-(module $Pm
-  (type (;0;) (func (param i32) (result i32)))
-  (import "Mm" "mem1" (memory (;0;) 1 8))
-  (export "grow" (func 0))
-  (func (;0;) (type 0) (param $a i32) (result i32)
-    local.get $a
-    memory.grow
-  )
-)

@@ -1,3 +1,0 @@
-(module
-  (import "spectest" "table" (table (;0;) 5 25 funcref))
-)

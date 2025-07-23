@@ -1,4 +1,0 @@
-(module
-  (type $t (;0;) (func))
-  (import "Mtable_ex" "t-extern" (table (;0;) 1 (ref null $t)))
-)
