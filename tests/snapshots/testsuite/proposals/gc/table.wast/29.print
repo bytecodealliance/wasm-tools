@@ -1,6 +1,0 @@
-(module
-  (type $f (;0;) (func))
-  (global (;0;) (ref $f) ref.func $f)
-  (export "g" (global 0))
-  (func $f (;0;) (type $f))
-)

@@ -1,3 +1,0 @@
-(module
-  (import "test" "global-f32" (global (;0;) f32))
-)

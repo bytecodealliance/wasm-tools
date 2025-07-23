@@ -3,5 +3,5 @@
     (type $t1 (;0;) (func))
     (type $t2 (;1;) (func))
   )
-  (import "M" "tag" (tag (;0;) (type $t2)))
+  (import "M" "tag" (tag (;0;) (type $t1)))
 )

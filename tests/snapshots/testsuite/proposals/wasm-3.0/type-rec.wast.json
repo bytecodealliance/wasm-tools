@@ -8,81 +8,101 @@
       "module_type": "binary"
     },
     {
-      "type": "module",
-      "line": 10,
+      "type": "assert_invalid",
+      "line": 22,
       "filename": "type-rec.1.wasm",
+      "module_type": "binary",
+      "text": "unknown type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 29,
+      "filename": "type-rec.2.wasm",
+      "module_type": "binary",
+      "text": "unknown type"
+    },
+    {
+      "type": "module",
+      "line": 39,
+      "filename": "type-rec.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 46,
+      "filename": "type-rec.4.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 26,
-      "filename": "type-rec.2.wasm",
-      "module_type": "binary",
-      "text": "type mismatch"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 36,
-      "filename": "type-rec.3.wasm",
-      "module_type": "binary",
-      "text": "type mismatch"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 47,
-      "filename": "type-rec.4.wasm",
-      "module_type": "binary",
-      "text": "type mismatch"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 57,
+      "line": 62,
       "filename": "type-rec.5.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
-      "type": "module",
-      "line": 69,
-      "name": "M",
+      "type": "assert_invalid",
+      "line": 72,
       "filename": "type-rec.6.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 83,
+      "filename": "type-rec.7.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 93,
+      "filename": "type-rec.8.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "module",
+      "line": 105,
+      "name": "M",
+      "filename": "type-rec.9.wasm",
       "module_type": "binary"
     },
     {
       "type": "register",
-      "line": 73,
+      "line": 109,
       "name": "M",
       "as": "M"
     },
     {
       "type": "module",
-      "line": 75,
-      "filename": "type-rec.7.wasm",
+      "line": 111,
+      "filename": "type-rec.10.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_unlinkable",
-      "line": 81,
-      "filename": "type-rec.8.wasm",
+      "line": 117,
+      "filename": "type-rec.11.wasm",
       "module_type": "binary",
       "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
-      "line": 89,
-      "filename": "type-rec.9.wasm",
+      "line": 125,
+      "filename": "type-rec.12.wasm",
       "module_type": "binary",
       "text": "incompatible import type"
     },
     {
       "type": "module",
-      "line": 99,
-      "filename": "type-rec.10.wasm",
+      "line": 135,
+      "filename": "type-rec.13.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_return",
-      "line": 106,
+      "line": 142,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -92,13 +112,13 @@
     },
     {
       "type": "module",
-      "line": 108,
-      "filename": "type-rec.11.wasm",
+      "line": 144,
+      "filename": "type-rec.14.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_trap",
-      "line": 115,
+      "line": 151,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -108,13 +128,13 @@
     },
     {
       "type": "module",
-      "line": 117,
-      "filename": "type-rec.12.wasm",
+      "line": 153,
+      "filename": "type-rec.15.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_trap",
-      "line": 124,
+      "line": 160,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -124,21 +144,21 @@
     },
     {
       "type": "module",
-      "line": 129,
-      "filename": "type-rec.13.wasm",
+      "line": 165,
+      "filename": "type-rec.16.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 137,
-      "filename": "type-rec.14.wasm",
+      "line": 173,
+      "filename": "type-rec.17.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 149,
-      "filename": "type-rec.15.wasm",
+      "line": 185,
+      "filename": "type-rec.18.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     }

@@ -1,4 +1,0 @@
-(module
-  (type $t (;0;) (func))
-  (import "Mref_ex" "g-const-funcnull" (global (;0;) (ref func)))
-)

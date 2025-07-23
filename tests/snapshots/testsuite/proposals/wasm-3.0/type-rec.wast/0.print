@@ -1,12 +1,26 @@
 (module
+  (type (;0;) (func (param (ref 0)) (result (ref 0))))
   (rec
-    (type $f1 (;0;) (func))
-    (type (;1;) (struct (field (ref $f1))))
+    (type (;1;) (func (param (ref 2))))
+    (type (;2;) (func (result (ref 1))))
+  )
+  (rec)
+  (rec
+    (type (;3;) (func))
   )
   (rec
-    (type $f2 (;2;) (func))
-    (type (;3;) (struct (field (ref $f2))))
+    (type $t (;4;) (func))
   )
-  (global (;0;) (ref $f1) ref.func $f)
-  (func $f (;0;) (type $f2))
+  (rec
+    (type $t1 (;5;) (func))
+    (type (;6;) (func))
+    (type $t2 (;7;) (func))
+  )
+  (rec
+    (type $g (;8;) (func (param (ref $g)) (result (ref $g))))
+  )
+  (rec
+    (type $h (;9;) (func (param (ref $k))))
+    (type $k (;10;) (func (result (ref $h))))
+  )
 )

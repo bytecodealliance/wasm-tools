@@ -1,3 +1,0 @@
-(module
-  (import "Mg" "mut_glob" (global (;0;) i32))
-)

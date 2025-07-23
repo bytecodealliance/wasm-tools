@@ -1,7 +1,0 @@
-(module
-  (rec
-    (type $f2 (;0;) (func))
-    (type (;1;) (struct))
-  )
-  (import "M" "f" (func (;0;) (type $f2)))
-)
