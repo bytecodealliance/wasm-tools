@@ -1571,7 +1571,11 @@ impl Printer<'_, '_> {
 
         if self.config.print_offsets {
             match offset {
-                Some(offset) => write!(self.result, "(;@{offset:<6x};)")?,
+                Some(offset) => {
+                    self.result.start_comment()?;
+                    write!(self.result, "(;@{offset:<6x};)")?;
+                    self.result.reset_color()?;
+                }
                 None => self.result.write_str("           ")?,
             }
         }
