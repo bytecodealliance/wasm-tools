@@ -141,18 +141,20 @@ impl fmt::Display for Error {
                 return write!(f, "{err} at byte offset {}", self.inner.span.offset);
             }
         };
-        // If the column is too big skip the fancy rendering below and just
-        // print the raw error.
-        let align = text.col + 1;
-        if align > 500 {
-            return write!(f, "{err} at byte offset {}", self.inner.span.offset);
-        }
         let file = self
             .inner
             .file
             .as_ref()
             .and_then(|p| p.to_str())
             .unwrap_or("<anon>");
+        let col = text.col + 1;
+        let line = text.line + 1;
+
+        // If the column is too big skip the fancy rendering below and just
+        // print the raw error.
+        if col > 500 {
+            return write!(f, "{err} at {file}:{line}:{col}");
+        }
         write!(
             f,
             "\
@@ -161,11 +163,7 @@ impl fmt::Display for Error {
       |
  {line:4} | {text}
       | {marker:>0$}",
-            align,
-            file = file,
-            line = text.line + 1,
-            col = text.col + 1,
-            err = err,
+            col,
             text = text.snippet,
             marker = "^",
         )
