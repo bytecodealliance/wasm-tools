@@ -1,0 +1,46 @@
+;; RUN: print %
+
+(module
+  (type (;0;) (func))
+  (type (;1;) (func (param i32)))
+  (import "env" "__linear_memory" (memory (;0;) 0))
+  (import "env" "__stack_pointer" (global (;0;) (mut i32)))
+  (import "env" "foo" (func (;0;) (type 1)))
+  (import "env" "__stack_chk_fail" (func (;1;) (type 0)))
+  (func (;2;) (type 0)
+    (local i32)
+    global.get 0
+    i32.const 16
+    i32.sub
+    local.tee 0
+    global.set 0
+    local.get 0
+    i32.const 0
+    i32.load
+    i32.store offset=12
+    local.get 0
+    i32.const 8
+    i32.add
+    call 0
+    block ;; label = @1
+      i32.const 0
+      i32.load
+      local.get 0
+      i32.load offset=12
+      i32.eq
+      br_if 0 (;@1;)
+      call 1
+      unreachable
+    end
+    local.get 0
+    i32.const 16
+    i32.add
+    global.set 0
+  )
+  (@custom "linking" (after code) "\02\08\a5\80\80\80\00\05\00\04\02\03bar\02\10\00\01\10\11__stack_chk_guard\00\10\00\00\10\01")
+  (@custom "reloc.CODE" (after code) "\03\07\07\06\01\07\11\01\03\1c\02\00\00*\03\035\02\00\00C\04\07P\01")
+  (@producers
+    (processed-by "clang" "20.1.8-wasi-sdk (https://github.com/llvm/llvm-project 87f0227cb60147a26a1eeb4fb06e3b505e9c7261)")
+  )
+  (@custom "target_features" (after code) "\08+\0bbulk-memory+\0fbulk-memory-opt+\16call-indirect-overlong+\0amultivalue+\0fmutable-globals+\13nontrapping-fptoint+\0freference-types+\08sign-ext")
+)

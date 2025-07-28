@@ -569,7 +569,10 @@ impl Printer<'_, '_> {
                             })
                             .print_known_custom_section(c.clone())
                             {
-                                Ok(()) => self.print_known_custom_section(c.clone())?,
+                                Ok(true) => {
+                                    self.print_known_custom_section(c.clone())?;
+                                }
+                                Ok(false) => self.print_raw_custom_section(state, c.clone())?,
                                 Err(e) if !e.is::<BinaryReaderError>() => return Err(e),
                                 Err(e) => {
                                     let msg = format!(
@@ -1879,29 +1882,30 @@ impl Printer<'_, '_> {
         Ok(())
     }
 
-    fn print_known_custom_section(&mut self, section: CustomSectionReader<'_>) -> Result<()> {
+    fn print_known_custom_section(&mut self, section: CustomSectionReader<'_>) -> Result<bool> {
         match section.as_known() {
             // For now `wasmprinter` has invented syntax for `producers` and
             // `dylink.0` below to use in tests. Note that this syntax is not
             // official at this time.
             KnownCustom::Producers(s) => {
                 self.newline(section.range().start)?;
-                self.print_producers_section(s)
+                self.print_producers_section(s)?;
+                Ok(true)
             }
             KnownCustom::Dylink0(s) => {
                 self.newline(section.range().start)?;
-                self.print_dylink0_section(s)
+                self.print_dylink0_section(s)?;
+                Ok(true)
             }
 
             // These are parsed during `read_names` and are part of
             // printing elsewhere, so don't print them.
-            KnownCustom::Name(_) | KnownCustom::BranchHints(_) => Ok(()),
+            KnownCustom::Name(_) | KnownCustom::BranchHints(_) => Ok(true),
             #[cfg(feature = "component-model")]
-            KnownCustom::ComponentName(_) => Ok(()),
+            KnownCustom::ComponentName(_) => Ok(true),
 
-            _ => bail!("unknown custom section"),
-        }?;
-        Ok(())
+            _ => Ok(false),
+        }
     }
 
     fn print_raw_custom_section(
