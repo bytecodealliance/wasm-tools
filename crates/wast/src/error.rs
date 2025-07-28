@@ -138,9 +138,15 @@ impl fmt::Display for Error {
         let text = match &self.inner.text {
             Some(text) => text,
             None => {
-                return write!(f, "{} at byte offset {}", err, self.inner.span.offset);
+                return write!(f, "{err} at byte offset {}", self.inner.span.offset);
             }
         };
+        // If the column is too big skip the fancy rendering below and just
+        // print the raw error.
+        let align = text.col + 1;
+        if align > 500 {
+            return write!(f, "{err} at byte offset {}", self.inner.span.offset);
+        }
         let file = self
             .inner
             .file
@@ -155,7 +161,7 @@ impl fmt::Display for Error {
       |
  {line:4} | {text}
       | {marker:>0$}",
-            text.col + 1,
+            align,
             file = file,
             line = text.line + 1,
             col = text.col + 1,
