@@ -299,7 +299,7 @@ impl Encode for Function {
 ///
 /// All bit patterns are allowed.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct Ieee32(pub(crate) u32);
+pub struct Ieee32(pub u32);
 
 impl Ieee32 {
     /// Gets the underlying bits of the 32-bit float.
@@ -334,7 +334,7 @@ impl Encode for Ieee32 {
 ///
 /// All bit patterns are allowed.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct Ieee64(pub(crate) u64);
+pub struct Ieee64(pub u64);
 
 impl Ieee64 {
     /// Gets the underlying bits of the 64-bit float.
