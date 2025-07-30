@@ -1,5 +1,5 @@
 use pretty_assertions::assert_eq;
-use wit_encoder::{Include, Interface, NestedPackage, PackageName, World};
+use wit_encoder::{Interface, NestedPackage, PackageName};
 
 const PACKAGE: &str = indoc::indoc! {"
     package foo:bar {
