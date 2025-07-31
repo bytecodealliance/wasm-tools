@@ -1,4 +1,5 @@
 use std::fmt;
+use std::ops::{Deref, DerefMut};
 
 use semver::Version;
 
@@ -58,11 +59,9 @@ impl Package {
     pub fn items_mut(&mut self) -> &mut Vec<PackageItem> {
         &mut self.items
     }
-}
 
-impl Render for Package {
-    fn render(&self, f: &mut fmt::Formatter<'_>, opts: &RenderOpts) -> fmt::Result {
-        write!(f, "{}package {};\n", opts.spaces(), self.name)?;
+    /// Render the items of the package, without any package declaration.
+    fn render_items(&self, f: &mut fmt::Formatter<'_>, opts: &RenderOpts) -> fmt::Result {
         for item in &self.items {
             write!(f, "\n")?;
             match item {
@@ -89,7 +88,54 @@ impl Render for Package {
     }
 }
 
+impl Render for Package {
+    fn render(&self, f: &mut fmt::Formatter<'_>, opts: &RenderOpts) -> fmt::Result {
+        write!(f, "{}package {};\n", opts.spaces(), self.name)?;
+        self.render_items(f, opts)
+    }
+}
+
 impl fmt::Display for Package {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.render(f, &RenderOpts::default())
+    }
+}
+
+/// A variant of [`Package`] that's rendered with a nested syntax.
+pub struct NestedPackage(Package);
+
+/// Provide associated functions explicitly.
+/// [`Package`] instance methods are provided via the [`Deref`] and [`DerefMut`] traits.
+impl NestedPackage {
+    /// Create a new instance of `NestedPackage`.
+    pub fn new(name: PackageName) -> Self {
+        Self(Package::new(name))
+    }
+}
+
+impl Deref for NestedPackage {
+    type Target = Package;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for NestedPackage {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Render for NestedPackage {
+    fn render(&self, f: &mut fmt::Formatter<'_>, opts: &RenderOpts) -> fmt::Result {
+        write!(f, "{}package {} {{\n", opts.spaces(), self.0.name)?;
+        self.0.render_items(f, &opts.indent())?;
+        write!(f, "{}}}\n", opts.spaces())
+    }
+}
+
+impl fmt::Display for NestedPackage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.render(f, &RenderOpts::default())
     }
