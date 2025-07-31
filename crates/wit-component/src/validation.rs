@@ -1375,6 +1375,29 @@ impl ExportMap {
             bail!("cannot componentize module that exports multiple memories")
         }
 
+        // Every async-with-callback-lifted export must have a callback.
+        for (name, export) in &self.names {
+            match export {
+                Export::WorldFunc(_, _, AbiVariant::GuestExportAsync) => {
+                    if !matches!(
+                        self.names.get(&format!("[callback]{name}")),
+                        Some(Export::WorldFuncCallback(_))
+                    ) {
+                        bail!("missing callback for `{name}`");
+                    }
+                }
+                Export::InterfaceFunc(_, _, _, AbiVariant::GuestExportAsync) => {
+                    if !matches!(
+                        self.names.get(&format!("[callback]{name}")),
+                        Some(Export::InterfaceFuncCallback(_, _))
+                    ) {
+                        bail!("missing callback for `{name}`");
+                    }
+                }
+                _ => {}
+            }
+        }
+
         // All of `exports` must be exported and found within this module.
         for export in exports {
             let require_interface_func = |interface: InterfaceId, name: &str| -> Result<()> {
