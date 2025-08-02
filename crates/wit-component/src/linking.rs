@@ -926,6 +926,14 @@ fn resolve_symbols<'a>(
                         duplicates.push((metadata.name, *key, value.as_slice()));
                     }
                 }
+            } else if metadata
+                .env_imports
+                .iter()
+                .find(|(n, _)| n == name)
+                .is_some()
+            {
+                // GOT entry for a function which is imported from the env module, but not exported by any library,
+                // already handled above.
             } else {
                 missing.push((
                     metadata.name,
