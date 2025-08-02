@@ -216,3 +216,44 @@ fn linking() -> Result<()> {
 
     Ok(())
 }
+
+const GOT_IMPORT: &str = r#"
+(module
+  (@dylink.0
+    (mem-info)
+    (needed "libc.so")
+    (import-info "env" "foobar" binding-weak undefined)
+  )
+  (type (;0;) (func (result i32)))
+  (import "env" "foobar" (func (;0;) (type 0)))
+  (import "GOT.func" "foobar" (global (;0;) (mut i32)))
+  (export "foo" (func 1))
+  (func (;1;) (type 0) (result i32)
+    global.get 0
+    i32.eqz
+    if ;; label = @1
+      i32.const 0
+      return
+    end
+    call 0
+  )
+)
+"#;
+
+#[test]
+fn linking_got_weak() -> Result<()> {
+    let _component = [("libfoo.so", GOT_IMPORT, None), ("libc.so", LIBC, None)]
+        .into_iter()
+        .try_fold(
+            wit_component::Linker::default().validate(true),
+            |linker, (name, wat, wit)| {
+                linker.library(
+                    name,
+                    &encode(wat, wit).with_context(|| name.to_owned())?,
+                    false,
+                )
+            },
+        )?
+        .encode()?;
+    Ok(())
+}
