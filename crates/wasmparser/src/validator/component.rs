@@ -4410,8 +4410,9 @@ impl ComponentNameContext {
             | ComponentNameKind::Dependency(_)
             | ComponentNameKind::Hash(_) => {}
 
-            // Constructors must return `(own $resource)` and the `$resource`
-            // must be named within this context to match `rname`
+            // Constructors must return `(own $resource)` or
+            // `(result (own $Tresource))` and the `$resource` must be named
+            // within this context to match `rname`.
             ComponentNameKind::Constructor(rname) => {
                 let ty = func()?;
                 let ty = match ty.result {
@@ -4422,12 +4423,22 @@ impl ComponentNameContext {
                     ComponentValType::Primitive(_) => None,
                     ComponentValType::Type(ty) => match &types[ty] {
                         ComponentDefinedType::Own(id) => Some(id),
+                        ComponentDefinedType::Result {
+                            ok: Some(ComponentValType::Type(ok)),
+                            ..
+                        } => match &types[*ok] {
+                            ComponentDefinedType::Own(id) => Some(id),
+                            _ => None,
+                        },
                         _ => None,
                     },
                 };
                 let resource = match resource {
                     Some(id) => id,
-                    None => bail!(offset, "function should return `(own $T)`"),
+                    None => bail!(
+                        offset,
+                        "function should return `(own $T)` or `(result (own $T))`"
+                    ),
                 };
                 self.validate_resource_name(*resource, rname, offset)?;
             }

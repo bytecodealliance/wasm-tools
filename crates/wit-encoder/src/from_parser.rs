@@ -397,7 +397,6 @@ impl<'a> Converter<'a> {
     ) -> Option<ResourceFunc> {
         // skip first argument for methods, as they're just `self`.
         let mut skip_first_param = false;
-        // constructors can't return anything
         let mut with_returns = true;
         let mut method = match func.kind {
             wit_parser::FunctionKind::Freestanding
@@ -423,7 +422,7 @@ impl<'a> Converter<'a> {
                 if id != resource_id {
                     return None;
                 }
-                with_returns = false;
+                with_returns = !func.is_constructor_shorthand(self.resolve);
                 ResourceFunc::constructor()
             }
         };

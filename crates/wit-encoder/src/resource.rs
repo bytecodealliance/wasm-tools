@@ -40,7 +40,7 @@ pub struct ResourceFunc {
 pub enum ResourceFuncKind {
     Method(Ident, bool, Option<Type>),
     Static(Ident, bool, Option<Type>),
-    Constructor,
+    Constructor(Option<Type>),
 }
 
 impl ResourceFunc {
@@ -62,7 +62,7 @@ impl ResourceFunc {
 
     pub fn constructor() -> Self {
         Self {
-            kind: ResourceFuncKind::Constructor,
+            kind: ResourceFuncKind::Constructor(None),
             params: Params::empty(),
             docs: None,
         }
@@ -76,7 +76,7 @@ impl ResourceFunc {
             ResourceFuncKind::Static(n, ..) => {
                 *n = name.into();
             }
-            ResourceFuncKind::Constructor => panic!("constructors cannot have a name"),
+            ResourceFuncKind::Constructor(..) => panic!("constructors cannot have a name"),
         }
     }
 
@@ -97,22 +97,22 @@ impl ResourceFunc {
     }
 
     pub fn set_result(&mut self, result: Option<Type>) {
-        *self.result_mut().expect("constructors cannot have results") = result;
+        *self.result_mut() = result;
     }
 
-    pub fn result(&self) -> Option<&Option<Type>> {
+    pub fn result(&self) -> &Option<Type> {
         match &self.kind {
-            ResourceFuncKind::Method(.., result) => Some(result),
-            ResourceFuncKind::Static(.., result) => Some(result),
-            ResourceFuncKind::Constructor => None,
+            ResourceFuncKind::Method(.., result) => result,
+            ResourceFuncKind::Static(.., result) => result,
+            ResourceFuncKind::Constructor(result) => result,
         }
     }
 
-    pub fn result_mut(&mut self) -> Option<&mut Option<Type>> {
+    pub fn result_mut(&mut self) -> &mut Option<Type> {
         match &mut self.kind {
-            ResourceFuncKind::Method(.., result) => Some(result),
-            ResourceFuncKind::Static(.., result) => Some(result),
-            ResourceFuncKind::Constructor => None,
+            ResourceFuncKind::Method(.., result) => result,
+            ResourceFuncKind::Static(.., result) => result,
+            ResourceFuncKind::Constructor(result) => result,
         }
     }
 

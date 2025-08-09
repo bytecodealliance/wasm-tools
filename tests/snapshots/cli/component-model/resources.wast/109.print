@@ -1,14 +1,7 @@
 (component
-  (type (;0;)
-    (component
-      (type (;0;)
-        (instance
-          (export (;0;) "bar" (type (sub resource)))
-          (type (;1;) (func))
-          (export (;0;) "[static]bar.a" (func (type 1)))
-        )
-      )
-      (export (;0;) "x" (instance (type 0)))
+  (component $C (;0;))
+  (instance (;0;) (instantiate $C
+      (with "this is not kebab case" (component $C))
     )
   )
 )

@@ -25,6 +25,14 @@ interface foo {
 
     method: func(thing: own<e>, thing2: borrow<e>);
   }
+
+  resource f {
+    constructor() -> result<f>;
+  }
+
+  resource g {
+    constructor() -> result<g, string>;
+  }
 }
 
 world w {
