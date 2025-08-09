@@ -24,6 +24,7 @@
 //!
 //! #![no_main]
 //!
+//! # #[cfg(not(target_family = "wasm"))] mod x {
 //! use libfuzzer_sys::fuzz_target;
 //! use wasm_smith::Module;
 //!
@@ -32,6 +33,7 @@
 //!
 //!     // Your code here...
 //! });
+//! # }
 //! ```
 //!
 //! Finally, start fuzzing:
