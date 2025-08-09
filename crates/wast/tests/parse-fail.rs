@@ -44,8 +44,7 @@ fn run_test(test: &Path, bless: bool) -> anyhow::Result<()> {
         .unwrap_or(String::new())
         .replace("\r\n", "\n");
 
-    // Compare normalize versions which handles weirdness like path differences
-    if normalize(&assert) == normalize(&err) {
+    if assert == err {
         return Ok(());
     }
 
@@ -55,10 +54,6 @@ fn run_test(test: &Path, bless: bool) -> anyhow::Result<()> {
         tab(&err),
     );
 
-    fn normalize(s: &str) -> String {
-        s.replace("\\", "/")
-    }
-
     fn tab(s: &str) -> String {
         s.replace("\n", "\n\t")
     }
@@ -67,14 +62,22 @@ fn run_test(test: &Path, bless: bool) -> anyhow::Result<()> {
 fn find_tests(path: &Path, tests: &mut Vec<PathBuf>) {
     for f in path.read_dir().unwrap() {
         let f = f.unwrap();
+        // The .wat.err files contain relative file paths with forward slashes.
+        // On Windows we need to normalize the paths, otherwise BLESS will
+        // overwrite all .err files with updated paths.
+        let path: PathBuf = f
+            .path()
+            .to_string_lossy()
+            .replace(std::path::MAIN_SEPARATOR, "/")
+            .into();
         if f.file_type().unwrap().is_dir() {
-            find_tests(&f.path(), tests);
+            find_tests(&path, tests);
             continue;
         }
-        match f.path().extension().and_then(|s| s.to_str()) {
+        match path.extension().and_then(|s| s.to_str()) {
             Some("wat") => {}
             _ => continue,
         }
-        tests.push(f.path());
+        tests.push(path);
     }
 }
