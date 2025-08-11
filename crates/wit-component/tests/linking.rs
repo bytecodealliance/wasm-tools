@@ -240,20 +240,60 @@ const GOT_IMPORT: &str = r#"
 )
 "#;
 
+const GOT_IMPORT_WIT: &str = r#"
+package test:test;
+
+world bar {
+    export foo: func() -> u32;
+}
+"#;
+
 #[test]
 fn linking_got_weak() -> Result<()> {
-    let _component = [("libfoo.so", GOT_IMPORT, None), ("libc.so", LIBC, None)]
-        .into_iter()
-        .try_fold(
-            wit_component::Linker::default().validate(true),
-            |linker, (name, wat, wit)| {
-                linker.library(
-                    name,
-                    &encode(wat, wit).with_context(|| name.to_owned())?,
-                    false,
-                )
+    let component = [
+        ("libfoo.so", GOT_IMPORT, Some(GOT_IMPORT_WIT)),
+        ("libc.so", LIBC, None),
+    ]
+    .into_iter()
+    .try_fold(
+        wit_component::Linker::default().validate(true),
+        |linker, (name, wat, wit)| {
+            linker.library(
+                name,
+                &encode(wat, wit).with_context(|| name.to_owned())?,
+                false,
+            )
+        },
+    )?
+    .encode()?;
+
+    #[cfg(target_family = "wasm")]
+    {
+        _ = component;
+    }
+
+    #[cfg(not(target_family = "wasm"))]
+    {
+        use {
+            anyhow::anyhow,
+            wasmtime::{
+                Config, Engine, Store,
+                component::{Component, Linker},
             },
-        )?
-        .encode()?;
+        };
+
+        let config = Config::new();
+        let engine = Engine::new(&config)?;
+        let mut linker = Linker::new(&engine);
+        linker.instance("test:test/test")?;
+        let mut store = Store::new(&engine, ());
+        let instance = linker.instantiate(&mut store, &Component::new(&engine, &component)?)?;
+        let func = instance
+            .get_export(&mut store, None, "foo")
+            .and_then(|(_, f)| instance.get_typed_func::<(), (u32,)>(&mut store, &f).ok())
+            .ok_or_else(|| anyhow!("func `foo` not found"))?;
+
+        assert_eq!(0, func.call(&mut store, ())?.0);
+    }
     Ok(())
 }
