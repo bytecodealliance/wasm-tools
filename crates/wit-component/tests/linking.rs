@@ -216,3 +216,84 @@ fn linking() -> Result<()> {
 
     Ok(())
 }
+
+const GOT_IMPORT: &str = r#"
+(module
+  (@dylink.0
+    (mem-info)
+    (needed "libc.so")
+    (import-info "env" "foobar" binding-weak undefined)
+  )
+  (type (;0;) (func (result i32)))
+  (import "env" "foobar" (func (;0;) (type 0)))
+  (import "GOT.func" "foobar" (global (;0;) (mut i32)))
+  (export "foo" (func 1))
+  (func (;1;) (type 0) (result i32)
+    global.get 0
+    i32.eqz
+    if ;; label = @1
+      i32.const 0
+      return
+    end
+    call 0
+  )
+)
+"#;
+
+const GOT_IMPORT_WIT: &str = r#"
+package test:test;
+
+world bar {
+    export foo: func() -> u32;
+}
+"#;
+
+#[test]
+fn linking_got_weak() -> Result<()> {
+    let component = [
+        ("libfoo.so", GOT_IMPORT, Some(GOT_IMPORT_WIT)),
+        ("libc.so", LIBC, None),
+    ]
+    .into_iter()
+    .try_fold(
+        wit_component::Linker::default().validate(true),
+        |linker, (name, wat, wit)| {
+            linker.library(
+                name,
+                &encode(wat, wit).with_context(|| name.to_owned())?,
+                false,
+            )
+        },
+    )?
+    .encode()?;
+
+    #[cfg(target_family = "wasm")]
+    {
+        _ = component;
+    }
+
+    #[cfg(not(target_family = "wasm"))]
+    {
+        use {
+            anyhow::anyhow,
+            wasmtime::{
+                Config, Engine, Store,
+                component::{Component, Linker},
+            },
+        };
+
+        let config = Config::new();
+        let engine = Engine::new(&config)?;
+        let mut linker = Linker::new(&engine);
+        linker.instance("test:test/test")?;
+        let mut store = Store::new(&engine, ());
+        let instance = linker.instantiate(&mut store, &Component::new(&engine, &component)?)?;
+        let func = instance
+            .get_export(&mut store, None, "foo")
+            .and_then(|(_, f)| instance.get_typed_func::<(), (u32,)>(&mut store, &f).ok())
+            .ok_or_else(|| anyhow!("func `foo` not found"))?;
+
+        assert_eq!(0, func.call(&mut store, ())?.0);
+    }
+    Ok(())
+}

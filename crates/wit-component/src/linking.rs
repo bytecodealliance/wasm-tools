@@ -48,6 +48,7 @@ const PAGE_SIZE_BYTES: u32 = 65536;
 // This matches the default stack size LLVM produces:
 pub const DEFAULT_STACK_SIZE_BYTES: u32 = 16 * PAGE_SIZE_BYTES;
 const HEAP_ALIGNMENT_BYTES: u32 = 16;
+const STUB_LIBRARY_NAME: &str = "wit-component:stubs";
 
 enum Address<'a> {
     Function(u32),
@@ -397,16 +398,30 @@ fn make_env_module<'a>(
             let offsets = function_exports
                 .iter()
                 .enumerate()
-                .map(|(offset, (name, ..))| (*name, table_offset + u32::try_from(offset).unwrap()))
+                .map(|(offset, (name, _, exporter))| {
+                    (
+                        *name,
+                        (
+                            table_offset + u32::try_from(offset).unwrap(),
+                            metadata[*exporter].name == STUB_LIBRARY_NAME,
+                        ),
+                    )
+                })
                 .collect_unique::<HashMap<_, _>>();
 
             for metadata in metadata {
                 for import in &metadata.table_address_imports {
-                    add_global_export(
-                        &format!("{}:{import}", metadata.name),
-                        *offsets.get(import).unwrap(),
-                        true,
-                    );
+                    let &(offset, is_stub) = offsets.get(import).unwrap();
+                    if is_stub
+                        && metadata
+                            .env_imports
+                            .iter()
+                            .any(|e| e.0 == *import && e.1.1.contains(SymbolFlags::BINDING_WEAK))
+                    {
+                        add_global_export(&format!("{}:{import}", metadata.name), 0, true);
+                    } else {
+                        add_global_export(&format!("{}:{import}", metadata.name), offset, true);
+                    }
                 }
             }
         }
@@ -926,6 +941,9 @@ fn resolve_symbols<'a>(
                         duplicates.push((metadata.name, *key, value.as_slice()));
                     }
                 }
+            } else if metadata.env_imports.iter().any(|(n, _)| n == name) {
+                // GOT entry for a function which is imported from the env module, but not exported by any library,
+                // already handled above.
             } else {
                 missing.push((
                     metadata.name,
@@ -1376,11 +1394,8 @@ impl Linker {
                         .all(|(_, export)| export.flags.contains(SymbolFlags::BINDING_WEAK)))
             {
                 self.stub_missing_functions = false;
-                self.libraries.push((
-                    "wit-component:stubs".into(),
-                    make_stubs_module(&missing),
-                    false,
-                ));
+                self.libraries
+                    .push((STUB_LIBRARY_NAME.into(), make_stubs_module(&missing), false));
                 return self.encode();
             } else {
                 bail!(
