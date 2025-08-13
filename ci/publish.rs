@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output, Stdio};
+use std::process::{Command, Output};
 use std::thread;
 use std::time::Duration;
 
@@ -349,42 +349,6 @@ fn publish(krate: &Crate) -> bool {
         return false;
     }
 
-    // After we've published then make sure that the `wasmtime-publish` group is
-    // added to this crate for future publications. If it's already present
-    // though we can skip the `cargo owner` modification.
-    match curl(&format!(
-        "https://crates.io/api/v1/crates/{}/owners",
-        krate.name
-    )) {
-        Some(output) => {
-            if output.contains("wasmtime-publish") {
-                println!(
-                    "wasmtime-publish already listed as an owner of {}",
-                    krate.name
-                );
-                return true;
-            }
-        }
-        None => return false,
-    }
-
-    // Note that the status is ignored here. This fails most of the time because
-    // the owner is already set and present, so we only want to add this to
-    // crates which haven't previously been published.
-    let status = Command::new("cargo")
-        .arg("owner")
-        .arg("-a")
-        .arg("github:bytecodealliance:wasmtime-publish")
-        .arg(&krate.name)
-        .status()
-        .expect("failed to run cargo");
-    if !status.success() {
-        panic!(
-            "FAIL: failed to add wasmtime-publish as owner `{}`: {}",
-            krate.name, status
-        );
-    }
-
     true
 }
 
@@ -409,23 +373,24 @@ fn curl(url: &str) -> Option<String> {
 // directory registry generated from `cargo vendor` because the versions
 // referenced from `Cargo.toml` may not exist on crates.io.
 fn verify(crates: &[Crate]) {
-    drop(fs::remove_dir_all(".cargo"));
-    drop(fs::remove_dir_all("vendor"));
-    let vendor = Command::new("cargo")
-        .arg("vendor")
-        .stderr(Stdio::inherit())
-        .output()
-        .unwrap();
-    assert!(vendor.status.success());
+    // drop(fs::remove_dir_all(".cargo"));
+    // drop(fs::remove_dir_all("vendor"));
+    // let vendor = Command::new("cargo")
+    //     .arg("vendor")
+    //     .stderr(Stdio::inherit())
+    //     .output()
+    //     .unwrap();
+    // assert!(vendor.status.success());
 
-    fs::create_dir_all(".cargo").unwrap();
-    fs::write(".cargo/config.toml", vendor.stdout).unwrap();
+    // fs::create_dir_all(".cargo").unwrap();
+    // fs::write(".cargo/config.toml", vendor.stdout).unwrap();
 
     for krate in crates {
         if !krate.publish {
             continue;
         }
-        verify_and_vendor(&krate);
+        verify_crates_io(krate);
+        // verify_and_vendor(&krate);
     }
 
     fn verify_and_vendor(krate: &Crate) {
@@ -455,6 +420,46 @@ fn verify(crates: &[Crate]) {
             "{\"files\":{}}",
         )
         .unwrap();
+    }
+
+    fn verify_crates_io(krate: &Crate) {
+        let name = &krate.name;
+        let Some(owners) = curl(&format!("https://crates.io/api/v1/crates/{name}/owners")) else {
+            panic!(
+                "
+failed to get owners for {name}
+
+If this crate does not exist on crates.io yet please ping wasm-tools maintainers
+to add the crate on crates.io as a small shim. When doing so please remind them
+that the trusted publishing workflow must be configured as well.
+",
+                name = name,
+            );
+        };
+
+        // This is the id of the `wasmtime-publish` user on crates.io
+        if !owners.contains("\"id\":73222,") {
+            panic!(
+                "
+crate {name} is not owned by wasmtime-publish, please run:
+
+    cargo owner -a wasmtime-publish {name}
+",
+                name = name,
+            );
+        }
+
+        if owners.split("\"id\"").count() != 2 {
+            panic!(
+                "
+crate {name} is not exclusively owned by wasmtime-publish
+
+Please contact wasm-tools maintainers to ensure that `wasmtime-publish` is the
+only listed owner of the crate.
+",
+                name = name,
+            );
+        }
     }
 }
 
