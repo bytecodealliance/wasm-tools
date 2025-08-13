@@ -299,6 +299,7 @@ completion = ['dep:clap_complete']
 json-from-wast = ['dep:json-from-wast', 'dep:wast', 'dep:serde_json']
 wast = [
   'dep:wast',
+  'wast/component-model',
   'wasm-encoder/wasmparser',
   'dep:pretty_assertions',
   'validate',
