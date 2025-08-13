@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::process::{Command, Output, Stdio};
 use std::thread;
 use std::time::Duration;
 
@@ -373,24 +373,24 @@ fn curl(url: &str) -> Option<String> {
 // directory registry generated from `cargo vendor` because the versions
 // referenced from `Cargo.toml` may not exist on crates.io.
 fn verify(crates: &[Crate]) {
-    // drop(fs::remove_dir_all(".cargo"));
-    // drop(fs::remove_dir_all("vendor"));
-    // let vendor = Command::new("cargo")
-    //     .arg("vendor")
-    //     .stderr(Stdio::inherit())
-    //     .output()
-    //     .unwrap();
-    // assert!(vendor.status.success());
+    drop(fs::remove_dir_all(".cargo"));
+    drop(fs::remove_dir_all("vendor"));
+    let vendor = Command::new("cargo")
+        .arg("vendor")
+        .stderr(Stdio::inherit())
+        .output()
+        .unwrap();
+    assert!(vendor.status.success());
 
-    // fs::create_dir_all(".cargo").unwrap();
-    // fs::write(".cargo/config.toml", vendor.stdout).unwrap();
+    fs::create_dir_all(".cargo").unwrap();
+    fs::write(".cargo/config.toml", vendor.stdout).unwrap();
 
     for krate in crates {
         if !krate.publish {
             continue;
         }
         verify_crates_io(krate);
-        // verify_and_vendor(&krate);
+        verify_and_vendor(&krate);
     }
 
     fn verify_and_vendor(krate: &Crate) {
