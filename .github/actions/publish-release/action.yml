@@ -1,11 +1,6 @@
 name: 'Maybe perform a release'
 description: 'Steps to perform a conditional release of this repository'
 
-inputs:
-  cargo_token:
-    description: 'token used to publish crates'
-    required: false
-
 runs:
   using: composite
   steps:
@@ -74,11 +69,15 @@ runs:
     - run: rustup update stable && rustup default stable
       shell: bash
 
+    - uses: rust-lang/crates-io-auth-action@v1
+      id: auth
+      if: steps.tag.outputs.push_tag == 'yes'
+
     - run: |
         rm -rf dist main.log
         rustc ci/publish.rs
         ./publish publish
       shell: bash
       env:
-        CARGO_REGISTRY_TOKEN: ${{ inputs.cargo_token }}
+        CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
       if: steps.tag.outputs.push_tag == 'yes' && github.repository_owner == 'bytecodealliance'

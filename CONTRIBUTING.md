@@ -164,6 +164,31 @@ $ FUZZER=roundtrip cargo +nightly fuzz run run
 More documentation of `cargo fuzz` can [be found
 online](https://rust-fuzz.github.io/book/cargo-fuzz.html).
 
+### Adding a new Crate
+
+When a new crate is added to this repository it'll need to be accompanied with a
+reservation of the crate name on crates.io. That enables this repository to
+automatically manage publishing of the crate. The steps for adding a new crate
+are:
+
+* CI should fail when a new crate is added until the below steps are complete.
+* Update `ci/publish.rs` with the name of your crate in the array at the top.
+* A dummy empty crate should be published to crates.io with a small README
+  pointing to this repository and indicating that it's a temporary name
+  reservation until the first version is published from this repository's
+  automation.
+* A "Trusted Publishing" workflow should be added for the new crate. The
+  workflow filename is `publish.yml` and the environment name is `release`.
+* The crate should be exclusively owned by the `wasmtime-publish` crates.io
+  user. This will require a `wasm-tools` maintainer to log in, accept the
+  invite, and remove the prior owner.
+
+After these steps have been completed CI should then pass and the crate will be
+auto-published from this repository on the next release.
+
+Note that if you're adding a crate which is not published to crates.io you'll
+want to add `publish = false` to the manifest.
+
 # License
 
 This project is licensed under the Apache 2.0 license with the LLVM exception.
