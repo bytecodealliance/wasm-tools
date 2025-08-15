@@ -2006,6 +2006,15 @@ impl Printer<'_, '_> {
                         self.end_group()?;
                     }
                 }
+                Dylink0Subsection::RuntimePath(runtime_path) => {
+                    self.newline(start)?;
+                    self.start_group("runtime-path")?;
+                    for s in runtime_path {
+                        self.result.write_str(" ")?;
+                        self.print_str(s)?;
+                    }
+                    self.end_group()?;
+                }
                 Dylink0Subsection::Unknown { ty, .. } => {
                     bail!("don't know how to print dylink.0 subsection id {ty}");
                 }

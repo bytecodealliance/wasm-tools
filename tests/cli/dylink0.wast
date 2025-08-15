@@ -47,6 +47,7 @@
     (export-info "a" 0)
     (import-info "a" "a" 0)
     (import-info "b" "b" 1)
+    (runtime-path "a" "b")
   )
 )
 
