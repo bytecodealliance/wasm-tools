@@ -45,13 +45,13 @@
     },
     {
       "type": "module",
-      "line": 53,
+      "line": 54,
       "filename": "dylink0.7.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 66,
+      "line": 67,
       "filename": "dylink0.8.wasm",
       "module_type": "binary"
     }

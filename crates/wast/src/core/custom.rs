@@ -261,6 +261,7 @@ pub enum Dylink0Subsection<'a> {
     Needed(Vec<&'a str>),
     ExportInfo(Vec<(&'a str, u32)>),
     ImportInfo(Vec<(&'a str, &'a str, u32)>),
+    RuntimePath(Vec<&'a str>),
 }
 
 impl<'a> Parse<'a> for Dylink0<'a> {
@@ -335,6 +336,13 @@ impl<'a> Dylink0<'a> {
                     .subsections
                     .push(Dylink0Subsection::ImportInfo(vec![(module, name, flags)])),
             }
+        } else if l.peek::<kw::runtime_path>()? {
+            parser.parse::<kw::runtime_path>()?;
+            let mut names = Vec::new();
+            while !parser.is_empty() {
+                names.push(parser.parse()?);
+            }
+            self.subsections.push(Dylink0Subsection::RuntimePath(names));
         } else {
             return Err(l.error());
         }
@@ -388,6 +396,7 @@ impl Dylink0Subsection<'_> {
             Needed(..) => 2,
             ExportInfo(..) => 3,
             ImportInfo(..) => 4,
+            RuntimePath(..) => 5,
         }
     }
 }

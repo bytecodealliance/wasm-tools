@@ -1392,6 +1392,7 @@ impl Encode for Dylink0Subsection<'_> {
             Dylink0Subsection::Needed(libs) => libs.encode(e),
             Dylink0Subsection::ExportInfo(list) => list.encode(e),
             Dylink0Subsection::ImportInfo(list) => list.encode(e),
+            Dylink0Subsection::RuntimePath(list) => list.encode(e),
         }
     }
 }

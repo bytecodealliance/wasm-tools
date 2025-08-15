@@ -169,6 +169,9 @@ pub struct Metadata<'a> {
     /// The `WASM_DYLINK_NEEDED` values, if any
     pub needed_libs: Vec<&'a str>,
 
+    /// The `WASM_DYLINK_RUNTIME_PATH` values, if any
+    pub runtime_path: Vec<&'a str>,
+
     /// Whether this module exports `__wasm_apply_data_relocs`
     pub has_data_relocs: bool,
 
@@ -228,6 +231,7 @@ impl<'a> Metadata<'a> {
                 table_alignment: 1,
             },
             needed_libs: Vec::new(),
+            runtime_path: Vec::new(),
             has_data_relocs: false,
             has_ctors: false,
             has_initialize: false,
@@ -266,6 +270,9 @@ impl<'a> Metadata<'a> {
                                         info.iter()
                                             .map(|info| ((info.module, info.field), info.flags)),
                                     );
+                                }
+                                Dylink0Subsection::RuntimePath(runtime_path) => {
+                                    result.runtime_path.extend(runtime_path.iter());
                                 }
                                 Dylink0Subsection::Unknown { ty, .. } => {
                                     bail!("unrecognized `dylink.0` subsection: {ty}")

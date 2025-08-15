@@ -1,6 +1,6 @@
   0x0 | 00 61 73 6d | version 1 (Module)
       | 01 00 00 00
-  0x8 | 00 2a       | custom section
+  0x8 | 00 31       | custom section
   0xa | 08 64 79 6c | name: "dylink.0"
       | 69 6e 6b 2e
       | 30         
@@ -13,4 +13,6 @@
  0x26 | 04 06 01 01 | ImportInfo([ImportInfo { module: "a", field: "a", flags: SymbolFlags(0x0) }])
       | 61 01 61 00
  0x2e | 03 04 01 01 | ExportInfo([ExportInfo { name: "a", flags: SymbolFlags(BINDING_WEAK | BINDING_LOCAL | UNDEFINED) }])
-      | 61 13
+      | 61 13      
+ 0x34 | 05 05 02 01 | RuntimePath(["a", "b"])
+      | 61 01 62
