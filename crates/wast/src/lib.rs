@@ -416,10 +416,13 @@ pub mod kw {
     custom_keyword!(data);
     custom_keyword!(declare);
     custom_keyword!(delegate);
+    custom_keyword!(descriptor);
+    custom_keyword!(describes);
     custom_keyword!(r#do = "do");
     custom_keyword!(dtor);
     custom_keyword!(elem);
     custom_keyword!(end);
+    custom_keyword!(exact);
     custom_keyword!(tag);
     custom_keyword!(exn);
     custom_keyword!(exnref);

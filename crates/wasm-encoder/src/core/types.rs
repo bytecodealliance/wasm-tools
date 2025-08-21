@@ -22,6 +22,10 @@ pub struct CompositeType {
     /// Whether the type is shared. This is part of the
     /// shared-everything-threads proposal.
     pub shared: bool,
+    /// Optional descriptor attribute.
+    pub descriptor: Option<u32>,
+    /// Optional describes attribute.
+    pub describes: Option<u32>,
 }
 
 /// A [`CompositeType`] can contain one of these types.
@@ -362,6 +366,8 @@ pub enum HeapType {
 
     /// A concrete Wasm-defined type at the given index.
     Concrete(u32),
+    /// An exact type.
+    Exact(u32),
 }
 
 impl HeapType {
@@ -402,6 +408,11 @@ impl Encode for HeapType {
             // Note that this is encoded as a signed type rather than unsigned
             // as it's decoded as an s33
             HeapType::Concrete(i) => i64::from(*i).encode(sink),
+            // Exact type is u32
+            HeapType::Exact(i) => {
+                sink.push(0x62);
+                u32::from(*i).encode(sink)
+            }
         }
     }
 }
@@ -669,6 +680,14 @@ impl<'a> CoreTypeEncoder<'a> {
         if ty.composite_type.shared {
             self.bytes.push(0x65);
         }
+        if let Some(index) = ty.composite_type.describes {
+            self.bytes.push(0x4c);
+            index.encode(self.bytes);
+        }
+        if let Some(index) = ty.composite_type.descriptor {
+            self.bytes.push(0x4d);
+            index.encode(self.bytes);
+        }
         match &ty.composite_type.inner {
             CompositeInnerType::Func(ty) => {
                 self.encode_function(ty.params().iter().copied(), ty.results().iter().copied())
@@ -715,6 +734,8 @@ mod tests {
             composite_type: CompositeType {
                 inner: CompositeInnerType::Func(FuncType::new([], [])),
                 shared: false,
+                descriptor: None,
+                describes: None,
             },
         });
 
