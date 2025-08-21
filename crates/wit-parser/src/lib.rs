@@ -1182,6 +1182,24 @@ impl Function {
         }
         results
     }
+
+    /// Check if this function is a resource constructor in shorthand form.
+    /// I.e. without an explicit return type annotation.
+    pub fn is_constructor_shorthand(&self, resolve: &Resolve) -> bool {
+        let FunctionKind::Constructor(containing_resource_id) = self.kind else {
+            return false;
+        };
+
+        let Some(Type::Id(id)) = &self.result else {
+            return false;
+        };
+
+        let TypeDefKind::Handle(Handle::Own(returned_resource_id)) = resolve.types[*id].kind else {
+            return false;
+        };
+
+        return containing_resource_id == returned_resource_id;
+    }
 }
 
 fn find_futures_and_streams(resolve: &Resolve, ty: Type, results: &mut Vec<TypeId>) {

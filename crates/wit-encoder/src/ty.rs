@@ -435,8 +435,12 @@ impl Render for TypeDef {
                             }
                             write!(f, ";\n")?;
                         }
-                        crate::ResourceFuncKind::Constructor => {
-                            write!(f, "{}constructor({});\n", opts.spaces(), func.params)?;
+                        crate::ResourceFuncKind::Constructor(result) => {
+                            write!(f, "{}constructor({})", opts.spaces(), func.params)?;
+                            if let Some(ty) = result {
+                                write!(f, " -> {ty}")?;
+                            }
+                            write!(f, ";\n")?;
                         }
                     }
                 }

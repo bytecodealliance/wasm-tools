@@ -809,6 +809,12 @@ impl<'a> ResourceFunc<'a> {
                     let ty = Type::parse(tokens)?;
                     Ok((name, ty))
                 })?;
+                let result = if tokens.eat(Token::RArrow)? {
+                    let ty = Type::parse(tokens)?;
+                    Some(ty)
+                } else {
+                    None
+                };
                 tokens.expect_semicolon()?;
                 Ok(ResourceFunc::Constructor(NamedFunc {
                     docs,
@@ -821,7 +827,7 @@ impl<'a> ResourceFunc<'a> {
                         span,
                         async_: false,
                         params,
-                        result: None,
+                        result,
                     },
                 }))
             }

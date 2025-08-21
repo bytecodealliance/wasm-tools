@@ -1,0 +1,7 @@
+(component
+  (import "a" (type $a (;0;) (sub resource)))
+  (type (;1;) (own $a))
+  (type (;2;) (result 1 (error string)))
+  (type (;3;) (func (result 2)))
+  (import "[constructor]a" (func (;0;) (type 3)))
+)

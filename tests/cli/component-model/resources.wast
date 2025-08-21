@@ -912,12 +912,33 @@
     (import "b" (type $a (sub resource)))
     (import "[constructor]a" (func (result (own $a)))))
   "function does not match expected resource name `b`")
+(assert_invalid
+  (component
+    (import "b" (type $a (sub resource)))
+    (import "[constructor]a" (func (result (result(own $a))))))
+  "function does not match expected resource name `b`")
 (component
   (import "a" (type $a (sub resource)))
   (import "[constructor]a" (func (result (own $a)))))
 (component
   (import "a" (type $a (sub resource)))
+  (import "[constructor]a" (func (result (result (own $a))))))
+(component
+  (import "a" (type $a (sub resource)))
+  (import "[constructor]a" (func (result (result (own $a) (error string))))))
+(component
+  (import "a" (type $a (sub resource)))
   (import "[constructor]a" (func (param "x" u32) (result (own $a)))))
+(assert_invalid
+  (component
+    (import "a" (type $a (sub resource)))
+    (import "[constructor]a" (func (result string))))
+  "function should return `(own $T)` or `(result (own $T))`")
+(assert_invalid
+  (component
+    (import "a" (type $a (sub resource)))
+    (import "[constructor]a" (func (result (result string)))))
+  "function should return `(own $T)` or `(result (own $T))`")
 
 ;; validation of `[method]a.b`
 (assert_invalid

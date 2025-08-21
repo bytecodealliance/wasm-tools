@@ -1658,12 +1658,52 @@ impl<'a> Resolver<'a> {
                 None => Ok(None),
             },
 
-            // Constructors are alwys parsed as 0 returned types but they're
-            // automatically translated as a single return type of the type that
-            // it's a constructor for.
-            FunctionKind::Constructor(id) => {
-                assert!(result.is_none());
-                Ok(Some(Type::Id(id)))
+            FunctionKind::Constructor(id) => match result {
+                // When constructors don't define a return type, they're
+                // implicitly assumed to return an owned handle to the type
+                // they construct.
+                None => Ok(Some(Type::Id(id))),
+
+                // If a constructor does define a return type, it must be in the
+                // form of `-> result<R, E?>` where `R` is the resource being
+                // constructed and `E` is an optional error type.
+                Some(ty) => Ok(Some(self.resolve_constructor_result(id, ty)?)),
+            },
+        }
+    }
+
+    fn resolve_constructor_result(
+        &mut self,
+        resource_id: TypeId,
+        result_ast: &ast::Type<'_>,
+    ) -> Result<Type> {
+        let result = self.resolve_type(result_ast, &Stability::Unknown)?;
+        let ok_type = match result {
+            Type::Id(id) => match &self.types[id].kind {
+                TypeDefKind::Result(r) => Some(r.ok),
+                _ => None,
+            },
+            _ => None,
+        };
+        let Some(ok_type) = ok_type else {
+            bail!(Error::new(
+                result_ast.span(),
+                "if a constructor return type is declared it must be a `result`",
+            ));
+        };
+        match ok_type {
+            Some(Type::Id(ok_id)) if resource_id == ok_id => Ok(result),
+            _ => {
+                let ok_span =
+                    if let ast::Type::Result(ast::Result_ { ok: Some(ok), .. }) = result_ast {
+                        ok.span()
+                    } else {
+                        result_ast.span()
+                    };
+                bail!(Error::new(
+                    ok_span,
+                    "the `ok` type must be the resource being constructed",
+                ));
             }
         }
     }

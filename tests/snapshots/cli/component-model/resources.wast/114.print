@@ -1,9 +1,14 @@
 (component
-  (type $r (;0;) (resource (rep i32)))
-  (core func (;0;) (canon resource.new $r))
-  (core func (;1;) (canon resource.new $r))
-  (core func (;2;) (canon resource.drop $r))
-  (core func (;3;) (canon resource.drop $r))
-  (core func (;4;) (canon resource.rep $r))
-  (core func (;5;) (canon resource.rep $r))
+  (type (;0;)
+    (component
+      (type (;0;)
+        (instance
+          (export (;0;) "bar" (type (sub resource)))
+          (type (;1;) (func))
+          (export (;0;) "[static]bar.a" (func (type 1)))
+        )
+      )
+      (export (;0;) "x" (instance (type 0)))
+    )
+  )
 )

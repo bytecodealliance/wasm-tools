@@ -27,6 +27,10 @@ world some-world {
     constructor();
   }
 
+  resource b {
+    constructor() -> result<b, string>;
+  }
+
   export x: func() -> a;
   export y: func() -> bar;
 

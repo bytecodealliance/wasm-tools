@@ -371,8 +371,8 @@ impl<O: Output> WitPrinter<O> {
         }
         self.output.str(")");
 
-        // constructors don't have their results printed
-        if let FunctionKind::Constructor(_) = func.kind {
+        // shorthand constructors don't have their results printed
+        if func.is_constructor_shorthand(resolve) {
             return Ok(());
         }
 
