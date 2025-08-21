@@ -1,0 +1,101 @@
+{
+  "source_filename": "tests/cli/custom-descriptors.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 5,
+      "filename": "custom-descriptors.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 14,
+      "filename": "custom-descriptors.1.wasm",
+      "module_type": "binary",
+      "text": "forward describes reference"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 25,
+      "filename": "custom-descriptors.2.wasm",
+      "module_type": "binary",
+      "text": "descriptor clause on non-struct type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 35,
+      "filename": "custom-descriptors.3.wasm",
+      "module_type": "binary",
+      "text": "describes clause on non-struct type"
+    },
+    {
+      "type": "module",
+      "line": 44,
+      "filename": "custom-descriptors.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 55,
+      "filename": "custom-descriptors.5.wasm",
+      "module_type": "binary",
+      "text": "supertype of described type must be described by supertype of descriptor"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 68,
+      "filename": "custom-descriptors.6.wasm",
+      "module_type": "binary",
+      "text": "supertype of described type must be described by supertype of descriptor"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 83,
+      "filename": "custom-descriptors.7.wasm",
+      "module_type": "binary",
+      "text": "supertype of type without descriptor cannot have descriptor"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 96,
+      "filename": "custom-descriptors.8.wasm",
+      "module_type": "binary",
+      "text": "supertype of non-descriptor type cannot be a descriptor"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 110,
+      "filename": "custom-descriptors.9.wasm",
+      "module_type": "binary",
+      "text": "supertype of descriptor must be a descriptor"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 122,
+      "filename": "custom-descriptors.10.wasm",
+      "module_type": "binary",
+      "text": "descriptor with no matching describes"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 133,
+      "filename": "custom-descriptors.11.wasm",
+      "module_type": "binary",
+      "text": "descriptor with no matching describes"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 146,
+      "filename": "custom-descriptors.12.wasm",
+      "module_type": "binary",
+      "text": "describes with no matching descriptor"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 157,
+      "filename": "custom-descriptors.13.wasm",
+      "module_type": "binary",
+      "text": "describes with no matching descriptor"
+    }
+  ]
+}
