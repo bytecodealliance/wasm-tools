@@ -31,7 +31,7 @@
     i32.const 2
     ;; [i32]
     struct.new_default $st
-    ;; [i32 (ref (id 1))]
+    ;; [i32 (ref (exact (id 1)))]
     table.set 0
     ;; []
     i32.const 3
