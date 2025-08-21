@@ -277,6 +277,16 @@ impl WasmFeatures {
                     Err("function references required for index reference types")
                 }
             }
+            HeapType::Exact(_) => {
+                // The exact indexed types require the function-references,
+                // gc, or custom descriptors proposal.
+                // See also the comment above for HeapType::Concrete(_).
+                if self.function_references() || self.gc() || self.custom_descriptors() {
+                    Ok(())
+                } else {
+                    Err("custom descriptors required for exact reference types")
+                }
+            }
             HeapType::Abstract { shared, ty } => {
                 use AbstractHeapType::*;
                 if shared && !self.shared_everything_threads() {

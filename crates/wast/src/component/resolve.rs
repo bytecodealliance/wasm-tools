@@ -672,7 +672,7 @@ impl<'a> Resolver<'a> {
                     ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => {}
                     ValType::Ref(r) => match &mut r.heap {
                         core::HeapType::Abstract { .. } => {}
-                        core::HeapType::Concrete(id) => {
+                        core::HeapType::Concrete(id) | core::HeapType::Exact(id) => {
                             self.resolve_ns(id, Ns::Type)?;
                         }
                     },

@@ -328,6 +328,8 @@ impl From<&CompositeType> for wasm_encoder::CompositeType {
         wasm_encoder::CompositeType {
             shared: ty.shared,
             inner,
+            descriptor: None,
+            describes: None,
         }
     }
 }
@@ -568,6 +570,10 @@ impl Module {
                     return false;
                 }
             },
+
+            (HT::Exact(_), _) => todo!(),
+
+            (_, HT::Exact(_)) => todo!(),
         }
     }
 
@@ -892,6 +898,7 @@ impl Module {
                     }
                 }
             }
+            HT::Exact(_) => todo!(),
         }
         Ok(*u.choose(&choices)?)
     }
@@ -1036,6 +1043,7 @@ impl Module {
                     idx = supertype;
                 }
             }
+            HT::Exact(_) => todo!(),
         }
         Ok(*u.choose(&choices)?)
     }
@@ -2972,7 +2980,9 @@ impl Module {
     fn is_shared_ref_type(&self, ty: RefType) -> bool {
         match ty.heap_type {
             HeapType::Abstract { shared, .. } => shared,
-            HeapType::Concrete(i) => self.types[i as usize].composite_type.shared,
+            HeapType::Concrete(i) | HeapType::Exact(i) => {
+                self.types[i as usize].composite_type.shared
+            }
         }
     }
 

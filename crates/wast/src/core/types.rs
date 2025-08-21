@@ -114,6 +114,9 @@ pub enum HeapType<'a> {
     /// A reference to a concrete function, struct, or array type defined by
     /// Wasm: `ref T`. This is part of the function references and GC proposals.
     Concrete(Index<'a>),
+    /// A reference to an exact type.
+    /// This is part of the custom descriptors proposal.
+    Exact(Index<'a>),
 }
 
 impl<'a> Parse<'a> for HeapType<'a> {
@@ -123,11 +126,16 @@ impl<'a> Parse<'a> for HeapType<'a> {
             Ok(HeapType::Concrete(parser.parse()?))
         } else if l.peek::<LParen>()? {
             parser.parens(|p| {
-                p.parse::<kw::shared>()?;
-                Ok(HeapType::Abstract {
-                    shared: true,
-                    ty: p.parse()?,
-                })
+                if l.peek::<kw::exact>()? {
+                    p.parse::<kw::exact>()?;
+                    Ok(HeapType::Exact(p.parse()?))
+                } else {
+                    p.parse::<kw::shared>()?;
+                    Ok(HeapType::Abstract {
+                        shared: true,
+                        ty: p.parse()?,
+                    })
+                }
             })
         } else if l.peek::<AbstractHeapType>()? {
             Ok(HeapType::Abstract {
@@ -950,49 +958,99 @@ pub struct TypeDef<'a> {
     pub shared: bool,
     /// The declared parent type of this definition.
     pub parent: Option<Index<'a>>,
+    /// The descriptor type.
+    pub descriptor: Option<Index<'a>>,
+    /// The descriptor for type.
+    pub describes: Option<Index<'a>>,
     /// Whether this type is final or not. By default types are final.
     pub final_type: Option<bool>,
+}
+
+fn parse_optional<'a, K: Peek + Parse<'a>, R, T>(
+    parser: Parser<'a>,
+    parse: impl FnOnce(Parser<'a>) -> Result<R>,
+    default: R,
+    f: impl FnOnce(Parser<'a>, R) -> Result<T>,
+) -> Result<T> {
+    if parser.peek::<K>()? {
+        parser.parse::<K>()?;
+        let result: R = parse(parser)?;
+        parser.parens(|parser: Parser| f(parser, result))
+    } else {
+        f(parser, default)
+    }
+}
+
+fn expect_parens_close_then_open<'a>(parser: Parser<'a>) -> Result<()> {
+    parser.step(|cursor| {
+        let cursor = match cursor.rparen()? {
+            Some(rest) => rest,
+            None => return Err(cursor.error("expected `(`")),
+        };
+        match cursor.lparen()? {
+            Some(rest) => Ok(((), rest)),
+            None => Err(cursor.error("expected `(`")),
+        }
+    })
 }
 
 impl<'a> Parse<'a> for TypeDef<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let parse_shared_and_kind = |parser: Parser<'a>| {
-            if parser.peek::<kw::shared>()? {
-                parser.parse::<kw::shared>()?;
-                parser.parens(|parser| {
+            parse_optional::<kw::shared, _, _>(
+                parser,
+                |_| Ok(true),
+                false,
+                |parser, shared| {
+                    let describes = if parser.peek::<kw::describes>()? {
+                        parser.parse::<kw::describes>()?;
+                        let index = parser.parse::<Index>()?;
+                        expect_parens_close_then_open(parser)?;
+                        Some(index)
+                    } else {
+                        None
+                    };
+                    let descriptor = if parser.peek::<kw::descriptor>()? {
+                        parser.parse::<kw::descriptor>()?;
+                        let index = parser.parse::<Index>()?;
+                        expect_parens_close_then_open(parser)?;
+                        Some(index)
+                    } else {
+                        None
+                    };
                     let kind = parser.parse()?;
-                    Ok((true, kind))
-                })
-            } else {
-                let kind = parser.parse()?;
-                Ok((false, kind))
-            }
+                    Ok((shared, descriptor, describes, kind))
+                },
+            )
         };
-        let (parent, (shared, kind), final_type) = if parser.peek::<kw::sub>()? {
-            parser.parse::<kw::sub>()?;
+        let (parent, (shared, descriptor, describes, kind), final_type) =
+            if parser.peek::<kw::sub>()? {
+                parser.parse::<kw::sub>()?;
 
-            let final_type: Option<bool> = if parser.peek::<kw::r#final>()? {
-                parser.parse::<kw::r#final>()?;
-                Some(true)
-            } else {
-                Some(false)
-            };
+                let final_type: Option<bool> = if parser.peek::<kw::r#final>()? {
+                    parser.parse::<kw::r#final>()?;
+                    Some(true)
+                } else {
+                    Some(false)
+                };
 
-            let parent = if parser.peek::<Index<'a>>()? {
-                parser.parse()?
+                let parent = if parser.peek::<Index<'a>>()? {
+                    parser.parse()?
+                } else {
+                    None
+                };
+                let pair = parser.parens(parse_shared_and_kind)?;
+                (parent, pair, final_type)
             } else {
-                None
+                (None, parse_shared_and_kind(parser)?, None)
             };
-            let pair = parser.parens(parse_shared_and_kind)?;
-            (parent, pair, final_type)
-        } else {
-            (None, parse_shared_and_kind(parser)?, None)
-        };
 
         Ok(TypeDef {
             kind,
             shared,
             parent,
+            descriptor,
+            describes,
             final_type,
         })
     }

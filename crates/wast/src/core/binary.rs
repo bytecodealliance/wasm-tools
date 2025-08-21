@@ -383,6 +383,8 @@ impl TypeDef<'_> {
                 InnerTypeKind::Cont(ct) => Cont(ct.into()),
             },
             shared: self.shared,
+            descriptor: self.descriptor.map(|i| i.unwrap_u32()),
+            describes: self.describes.map(|i| i.unwrap_u32()),
         };
         wasm_encoder::SubType {
             composite_type,
@@ -438,6 +440,7 @@ impl From<HeapType<'_>> for wasm_encoder::HeapType {
                 Self::Abstract { shared, ty }
             }
             HeapType::Concrete(i) => Self::Concrete(i.unwrap_u32()),
+            HeapType::Exact(i) => Self::Exact(i.unwrap_u32()),
         }
     }
 }
@@ -1511,6 +1514,46 @@ impl Encode for BrOnCastFail<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         e.push(0xfb);
         e.push(0x19);
+        e.push(br_on_cast_flags(
+            self.from_type.nullable,
+            self.to_type.nullable,
+        ));
+        self.label.encode(e);
+        self.from_type.heap.encode(e);
+        self.to_type.heap.encode(e);
+    }
+}
+
+impl Encode for RefCastDesc<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        e.push(0xfb);
+        if self.r#type.nullable {
+            e.push(0x24);
+        } else {
+            e.push(0x23);
+        }
+        self.r#type.heap.encode(e);
+    }
+}
+
+impl Encode for BrOnCastDesc<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        e.push(0xfb);
+        e.push(0x25);
+        e.push(br_on_cast_flags(
+            self.from_type.nullable,
+            self.to_type.nullable,
+        ));
+        self.label.encode(e);
+        self.from_type.heap.encode(e);
+        self.to_type.heap.encode(e);
+    }
+}
+
+impl Encode for BrOnCastDescFail<'_> {
+    fn encode(&self, e: &mut Vec<u8>) {
+        e.push(0xfb);
+        e.push(0x26);
         e.push(br_on_cast_flags(
             self.from_type.nullable,
             self.to_type.nullable,

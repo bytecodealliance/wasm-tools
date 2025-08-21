@@ -838,7 +838,7 @@ impl Module {
         // Check that the heap type is valid.
         let type_index = match ty {
             HeapType::Abstract { .. } => return Ok(()),
-            HeapType::Concrete(type_index) => type_index,
+            HeapType::Concrete(type_index) | HeapType::Exact(type_index) => type_index,
         };
         match type_index {
             UnpackedIndex::Module(idx) => {

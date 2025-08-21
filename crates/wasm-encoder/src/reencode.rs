@@ -1170,6 +1170,14 @@ pub mod utils {
         Ok(crate::CompositeType {
             inner,
             shared: composite_ty.shared,
+            descriptor: composite_ty
+                .descriptor_idx
+                .map(|i| reencoder.type_index_unpacked(i.unpack()))
+                .transpose()?,
+            describes: composite_ty
+                .describes_idx
+                .map(|i| reencoder.type_index_unpacked(i.unpack()))
+                .transpose()?,
         })
     }
 
@@ -1268,6 +1276,9 @@ pub mod utils {
         Ok(match heap_type {
             wasmparser::HeapType::Concrete(i) => {
                 crate::HeapType::Concrete(reencoder.type_index_unpacked(i)?)
+            }
+            wasmparser::HeapType::Exact(i) => {
+                crate::HeapType::Exact(reencoder.type_index_unpacked(i)?)
             }
             wasmparser::HeapType::Abstract { shared, ty } => crate::HeapType::Abstract {
                 shared,
