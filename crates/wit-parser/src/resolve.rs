@@ -1260,30 +1260,25 @@ package {name} is defined in two different locations:\n\
     /// tools need a specific world to operate on. This function choses a
     /// world, failing if the choice is ambiguous.
     ///
-    /// `main_package` can provide a package ID, such as returned by
+    /// `main_packages` provides the package IDs returned by
     /// [`push_path`](Resolve::push_path), [`push_dir`](Resolve::push_dir),
     /// [`push_file`](Resolve::push_file), [`push_group`](Resolve::push_group),
-    /// or [`push_str`](Resolve::push_str), and is for situations where there
-    /// is a natural "main package". `main_package` can also be `None`, such
-    /// as when the caller has a list of WIT inputs rather than just one.
-    ///
-    /// If `main_package` is `None`, and the `Resolve` contains exactly one
-    /// package, that package is considered to be the "main package".
+    /// and [`push_str`](Resolve::push_str), which are the "main packages",
+    /// as distinguished from any packages nested inside them.
     ///
     /// `world` is a world name such as from a `--world` command-line option or
     /// a `world:` macro parameter. `world` can be:
     ///
     /// * A kebab-name of a world, for example `"the-world"`. It is resolved
-    ///   within the "main package", provided there is one.
+    ///   within the "main package", if there is exactly one.
     ///
     /// * An ID-based form of a world, for example `"wasi:http/proxy"`. Note
     ///   that a version does not need to be specified in this string if
     ///   there's only one package of the same name and it has a version. In
     ///   this situation the version can be omitted.
     ///
-    /// * `None`. If there's a "main package" and it contains exactly one
-    ///   world, that world is chosen. If there's no "main package", then if
-    ///   the whole `Resolve` contains exactly one world, that world is chosen.
+    /// * `None`. If there's exactly one "main package" and it contains exactly
+    ///   one world, that world is chosen.
     ///
     /// If successful, the chosen `WorldId` is returned.
     ///
@@ -1297,9 +1292,8 @@ package {name} is defined in two different locations:\n\
     ///     let mut resolve = Resolve::default();
     ///
     ///     // If there's a single package and only one world, that world is
-    ///     // the obvious choice, even if the caller doesn't identify it as
-    ///     // the "main package".
-    ///     let _id = resolve.push_str(
+    ///     // the obvious choice.
+    ///     let wit1 = resolve.push_str(
     ///         "./my-test.wit",
     ///         r#"
     ///             package example:wit1;
@@ -1309,11 +1303,11 @@ package {name} is defined in two different locations:\n\
     ///             }
     ///         "#,
     ///     )?;
-    ///     assert!(resolve.select_world(None, None).is_ok());
+    ///     assert!(resolve.select_world(&[wit1], None).is_ok());
     ///
     ///     // If there are multiple packages, we need to be told which package
     ///     // to use, either by a "main package" or by a fully-qualified name.
-    ///     let id = resolve.push_str(
+    ///     let wit2 = resolve.push_str(
     ///         "./my-test.wit",
     ///         r#"
     ///             package example:wit2;
@@ -1321,18 +1315,15 @@ package {name} is defined in two different locations:\n\
     ///             world foo { /* ... */ }
     ///         "#,
     ///     )?;
-    ///     assert!(resolve.select_world(None, None).is_err());
-    ///     assert!(resolve.select_world(None, Some("foo")).is_err());
+    ///     assert!(resolve.select_world(&[wit1, wit2], None).is_err());
+    ///     assert!(resolve.select_world(&[wit1, wit2], Some("foo")).is_err());
     ///     // Fix: use fully-qualified names.
-    ///     assert!(resolve.select_world(None, Some("example:wit1/foo")).is_ok());
-    ///     assert!(resolve.select_world(None, Some("example:wit2/foo")).is_ok());
-    ///     // Fix: use a main package.
-    ///     assert!(resolve.select_world(Some(id), None).is_ok());
-    ///     assert!(resolve.select_world(Some(id), Some("foo")).is_ok());
+    ///     assert!(resolve.select_world(&[wit1, wit2], Some("example:wit1/foo")).is_ok());
+    ///     assert!(resolve.select_world(&[wit1, wit2], Some("example:wit2/foo")).is_ok());
     ///
     ///     // If a package has multiple worlds, then we can't guess the world
     ///     // even if we know the package.
-    ///     let id = resolve.push_str(
+    ///     let wit3 = resolve.push_str(
     ///         "./my-test.wit",
     ///         r#"
     ///             package example:wit3;
@@ -1342,13 +1333,13 @@ package {name} is defined in two different locations:\n\
     ///             world bar { /* ... */ }
     ///         "#,
     ///     )?;
-    ///     assert!(resolve.select_world(Some(id), None).is_err());
+    ///     assert!(resolve.select_world(&[wit3], None).is_err());
     ///     // Fix: pick between "foo" and "bar" here.
-    ///     assert!(resolve.select_world(Some(id), Some("foo")).is_ok());
+    ///     assert!(resolve.select_world(&[wit3], Some("foo")).is_ok());
     ///
     ///     // When selecting with a version it's ok to drop the version when
     ///     // there's only a single copy of that package in `Resolve`.
-    ///     let id = resolve.push_str(
+    ///     let wit5_1 = resolve.push_str(
     ///         "./my-test.wit",
     ///         r#"
     ///             package example:wit5@1.0.0;
@@ -1356,12 +1347,12 @@ package {name} is defined in two different locations:\n\
     ///             world foo { /* ... */ }
     ///         "#,
     ///     )?;
-    ///     assert!(resolve.select_world(Some(id), Some("foo")).is_ok());
-    ///     assert!(resolve.select_world(Some(id), Some("example:wit5/foo")).is_ok());
+    ///     assert!(resolve.select_world(&[wit5_1], Some("foo")).is_ok());
+    ///     assert!(resolve.select_world(&[wit5_1], Some("example:wit5/foo")).is_ok());
     ///
     ///     // However when a single package has multiple versions in a resolve
     ///     // it's required to specify the version to select which one.
-    ///     let id = resolve.push_str(
+    ///     let wit5_2 = resolve.push_str(
     ///         "./my-test.wit",
     ///         r#"
     ///             package example:wit5@2.0.0;
@@ -1369,17 +1360,17 @@ package {name} is defined in two different locations:\n\
     ///             world foo { /* ... */ }
     ///         "#,
     ///     )?;
-    ///     assert!(resolve.select_world(None, Some("example:wit5/foo")).is_err());
+    ///     assert!(resolve.select_world(&[wit5_1, wit5_2], Some("example:wit5/foo")).is_err());
     ///     // Fix: Pass explicit versions.
-    ///     assert!(resolve.select_world(None, Some("example:wit5/foo@1.0.0")).is_ok());
-    ///     assert!(resolve.select_world(None, Some("example:wit5/foo@2.0.0")).is_ok());
+    ///     assert!(resolve.select_world(&[wit5_1, wit5_2], Some("example:wit5/foo@1.0.0")).is_ok());
+    ///     assert!(resolve.select_world(&[wit5_1, wit5_2], Some("example:wit5/foo@2.0.0")).is_ok());
     ///
     ///     Ok(())
     /// }
     /// ```
     pub fn select_world(
         &self,
-        main_package: Option<PackageId>,
+        main_packages: &[PackageId],
         world: Option<&str>,
     ) -> Result<WorldId> {
         // Determine if `world` is a kebab-name or an ID.
@@ -1391,46 +1382,29 @@ package {name} is defined in two different locations:\n\
             None => None,
         };
 
-        // If we don't have a main package but there's only one package
-        // present, use that as the main package.
-        let main_package = if self.packages.len() == 1 {
-            Some(self.packages.iter().next().unwrap().0)
-        } else {
-            main_package
-        };
-
         match world_path {
             // We have a world path. If needed, pick a package to resolve it in.
             Some(world_path) => {
-                let (pkg, world_name) = match (main_package, world_path) {
-                    // No main package and no fully-qualified name; fail.
-                    (None, ParsedUsePath::Name(name)) => {
-                        let found_in = self
-                            .packages
-                            .iter()
-                            .filter(|(_id, pkg)| pkg.worlds.contains_key(&name))
-                            .collect::<Vec<_>>();
-                        if found_in.is_empty() {
-                            bail!("No world named `{name}` found in any package")
-                        } else {
-                            // We could succeed here if `found_in.len() == 1`,
-                            // however it seems better to require a
-                            // fully-qualified name. With no main package, we
-                            // may have packages from multiple sources, and
-                            // builds could break if sources add worlds.
-                            bail!(
-                                "Multiple packages are present, so `{name}` must be given as a \
-                                fully qualified world ID such as:{}",
-                                found_in
-                                    .into_iter()
-                                    .map(|(id, _pkg)| format!("\n  {}", self.id_of_name(id, &name)))
-                                    .collect::<String>()
-                            )
-                        }
-                    }
+                let (pkg, world_name) = match (main_packages, world_path) {
+                    // We have no main packages; fail.
+                    ([], _) => bail!("No main packages defined"),
 
-                    // We have a main package.
-                    (Some(pkg), ParsedUsePath::Name(name)) => (pkg, name),
+                    // We have exactly one main package.
+                    ([main_package], ParsedUsePath::Name(name)) => (*main_package, name),
+
+                    // We have more than one main package; fail.
+                    (_, ParsedUsePath::Name(_name)) => {
+                        bail!(
+                            "There are multiple main packages; a world must be explicitly chosen:{}",
+                            self.worlds
+                                .iter()
+                                .map(|world| format!(
+                                    "\n  {}",
+                                    self.id_of_name(world.1.package.unwrap(), &world.1.name)
+                                ))
+                                .collect::<String>()
+                        )
+                    }
 
                     // The world name is fully-qualified.
                     (_, ParsedUsePath::Package(pkg, world_name)) => {
@@ -1472,10 +1446,12 @@ package {name} is defined in two different locations:\n\
             }
 
             // With no specified `world`, try to find a single obvious world.
-            None => match main_package {
-                // Check whether the main package contains a single world.
-                Some(main_package) => {
-                    let pkg = &self.packages[main_package];
+            None => match main_packages {
+                [] => bail!("No main packages defined"),
+
+                // Check for exactly one main package with exactly one world.
+                [main_package] => {
+                    let pkg = &self.packages[*main_package];
                     match pkg.worlds.len() {
                         0 => bail!("The main package `{}` contains no worlds", pkg.name),
                         1 => Ok(pkg.worlds[0]),
@@ -1486,31 +1462,25 @@ package {name} is defined in two different locations:\n\
                                 .values()
                                 .map(|world| format!(
                                     "\n  {}",
-                                    self.id_of_name(main_package, &self.worlds[*world].name)
+                                    self.id_of_name(*main_package, &self.worlds[*world].name)
                                 ))
                                 .collect::<String>()
                         ),
                     }
                 }
-                // No main package and no world name; fail.
-                None => {
-                    if self.worlds.len() == 0 {
-                        bail!("None of the packages contain a world")
-                    } else {
-                        // We could succeed here if `self.worlds.len() == 1`,
-                        // but it seems best to require an explicit choice in
-                        // the absence of a main package.
-                        bail!(
-                            "There are multiple packages; a world must be explicitly chosen:{}",
-                            self.worlds
-                                .iter()
-                                .map(|world| format!(
-                                    "\n  {}",
-                                    self.id_of_name(world.1.package.unwrap(), &world.1.name)
-                                ))
-                                .collect::<String>()
-                        )
-                    }
+
+                // Multiple main packages and no world name; fail.
+                _ => {
+                    bail!(
+                        "There are multiple main packages; a world must be explicitly chosen:{}",
+                        self.worlds
+                            .iter()
+                            .map(|world| format!(
+                                "\n  {}",
+                                self.id_of_name(world.1.package.unwrap(), &world.1.name)
+                            ))
+                            .collect::<String>()
+                    )
                 }
             },
         }
@@ -4223,32 +4193,24 @@ mod tests {
             "#,
         )?;
 
-        assert!(resolve.select_world(Some(dummy), None).is_ok());
-        assert!(resolve.select_world(Some(dummy), Some("xx")).is_err());
-        assert!(resolve.select_world(Some(dummy), Some("")).is_err());
+        assert!(resolve.select_world(&[dummy], None).is_ok());
+        assert!(resolve.select_world(&[dummy], Some("xx")).is_err());
+        assert!(resolve.select_world(&[dummy], Some("")).is_err());
+        assert!(resolve.select_world(&[dummy], Some("foo:bar/foo")).is_ok());
         assert!(
             resolve
-                .select_world(Some(dummy), Some("foo:bar/foo"))
+                .select_world(&[dummy], Some("foo:bar/foo@0.1.0"))
+                .is_ok()
+        );
+        assert!(resolve.select_world(&[dummy], Some("foo:baz/foo")).is_err());
+        assert!(
+            resolve
+                .select_world(&[dummy], Some("foo:baz/foo@0.1.0"))
                 .is_ok()
         );
         assert!(
             resolve
-                .select_world(Some(dummy), Some("foo:bar/foo@0.1.0"))
-                .is_ok()
-        );
-        assert!(
-            resolve
-                .select_world(Some(dummy), Some("foo:baz/foo"))
-                .is_err()
-        );
-        assert!(
-            resolve
-                .select_world(Some(dummy), Some("foo:baz/foo@0.1.0"))
-                .is_ok()
-        );
-        assert!(
-            resolve
-                .select_world(Some(dummy), Some("foo:baz/foo@0.2.0"))
+                .select_world(&[dummy], Some("foo:baz/foo@0.2.0"))
                 .is_ok()
         );
         Ok(())
@@ -4263,7 +4225,7 @@ mod tests {
         let mut resolve = Resolve::default();
 
         // Just one world in one package; we always succeed.
-        let id = resolve.push_str(
+        let stuff = resolve.push_str(
             "./my-test.wit",
             r#"
                     package test:stuff;
@@ -4273,23 +4235,21 @@ mod tests {
                     }
                 "#,
         )?;
-        assert!(resolve.select_world(None, None).is_ok());
-        assert!(resolve.select_world(None, Some("foo")).is_ok());
-        assert!(resolve.select_world(Some(id), None).is_ok());
-        assert!(resolve.select_world(Some(id), Some("foo")).is_ok());
+        assert!(resolve.select_world(&[stuff], None).is_ok());
+        assert!(resolve.select_world(&[stuff], Some("foo")).is_ok());
 
         // Multiple packages, but still just one total world. Lookups
         // without a main package now fail.
-        let id = resolve.push_str(
+        let empty = resolve.push_str(
             "./my-test.wit",
             r#"
                     package test:empty;
                 "#,
         )?;
-        assert!(resolve.select_world(None, None).is_err());
-        assert!(resolve.select_world(None, Some("foo")).is_err());
-        assert!(resolve.select_world(Some(id), None).is_err());
-        assert!(resolve.select_world(Some(id), Some("foo")).is_err());
+        assert!(resolve.select_world(&[stuff, empty], None).is_err());
+        assert!(resolve.select_world(&[stuff, empty], Some("foo")).is_err());
+        assert!(resolve.select_world(&[empty], None).is_err());
+        assert!(resolve.select_world(&[empty], Some("foo")).is_err());
 
         Ok(())
     }
@@ -4310,7 +4270,7 @@ mod tests {
 
         // When selecting with a version it's ok to drop the version when
         // there's only a single copy of that package in `Resolve`.
-        let id = resolve.push_str(
+        let versions_1 = resolve.push_str(
             "./my-test.wit",
             r#"
                     package example:versions@1.0.0;
@@ -4318,34 +4278,26 @@ mod tests {
                     world foo { /* ... */ }
                 "#,
         )?;
-        assert!(resolve.select_world(None, Some("foo")).is_err());
-        assert!(resolve.select_world(None, Some("foo@1.0.0")).is_err());
+        assert!(resolve.select_world(&[versions_1], Some("foo")).is_ok());
         assert!(
             resolve
-                .select_world(None, Some("example:versions/foo"))
+                .select_world(&[versions_1], Some("foo@1.0.0"))
+                .is_err()
+        );
+        assert!(
+            resolve
+                .select_world(&[versions_1], Some("example:versions/foo"))
                 .is_ok()
         );
         assert!(
             resolve
-                .select_world(None, Some("example:versions/foo@1.0.0"))
-                .is_ok()
-        );
-        assert!(resolve.select_world(Some(id), Some("foo")).is_ok());
-        assert!(resolve.select_world(Some(id), Some("foo@1.0.0")).is_err());
-        assert!(
-            resolve
-                .select_world(Some(id), Some("example:versions/foo"))
-                .is_ok()
-        );
-        assert!(
-            resolve
-                .select_world(Some(id), Some("example:versions/foo@1.0.0"))
+                .select_world(&[versions_1], Some("example:versions/foo@1.0.0"))
                 .is_ok()
         );
 
         // However when a single package has multiple versions in a resolve
         // it's required to specify the version to select which one.
-        let id = resolve.push_str(
+        let versions_2 = resolve.push_str(
             "./my-test.wit",
             r#"
                     package example:versions@2.0.0;
@@ -4353,42 +4305,42 @@ mod tests {
                     world foo { /* ... */ }
                 "#,
         )?;
-        assert!(resolve.select_world(None, Some("foo")).is_err());
-        assert!(resolve.select_world(None, Some("foo@1.0.0")).is_err());
-        assert!(resolve.select_world(None, Some("foo@2.0.0")).is_err());
         assert!(
             resolve
-                .select_world(None, Some("example:versions/foo"))
+                .select_world(&[versions_1, versions_2], Some("foo"))
                 .is_err()
         );
         assert!(
             resolve
-                .select_world(None, Some("example:versions/foo@1.0.0"))
-                .is_ok()
-        );
-        assert!(
-            resolve
-                .select_world(None, Some("example:versions/foo@2.0.0"))
-                .is_ok()
-        );
-        assert!(
-            resolve
-                .select_world(Some(id), Some("example:versions/foo"))
+                .select_world(&[versions_1, versions_2], Some("foo@1.0.0"))
                 .is_err()
         );
         assert!(
             resolve
-                .select_world(Some(id), Some("example:versions/foo@1.0.0"))
+                .select_world(&[versions_1, versions_2], Some("foo@2.0.0"))
+                .is_err()
+        );
+        assert!(
+            resolve
+                .select_world(&[versions_1, versions_2], Some("example:versions/foo"))
+                .is_err()
+        );
+        assert!(
+            resolve
+                .select_world(
+                    &[versions_1, versions_2],
+                    Some("example:versions/foo@1.0.0")
+                )
                 .is_ok()
         );
         assert!(
             resolve
-                .select_world(Some(id), Some("example:versions/foo@2.0.0"))
+                .select_world(
+                    &[versions_1, versions_2],
+                    Some("example:versions/foo@2.0.0")
+                )
                 .is_ok()
         );
-        assert!(resolve.select_world(Some(id), Some("foo")).is_ok());
-        assert!(resolve.select_world(Some(id), Some("foo@1.0.0")).is_err());
-        assert!(resolve.select_world(Some(id), Some("foo@2.0.0")).is_err());
 
         Ok(())
     }
@@ -4400,7 +4352,7 @@ mod tests {
 
         let mut resolve = Resolve::default();
 
-        let _id = resolve.push_str(
+        let other = resolve.push_str(
             "./my-test.wit",
             r#"
                     package example:other;
@@ -4410,7 +4362,7 @@ mod tests {
         )?;
 
         // A fully-qualified name overrides a main package.
-        let id = resolve.push_str(
+        let fq = resolve.push_str(
             "./my-test.wit",
             r#"
                     package example:fq;
@@ -4418,40 +4370,26 @@ mod tests {
                     world bar { }
                 "#,
         )?;
-        assert!(resolve.select_world(None, Some("foo")).is_err());
-        assert!(resolve.select_world(None, Some("bar")).is_err());
+        assert!(resolve.select_world(&[other, fq], Some("foo")).is_err());
+        assert!(resolve.select_world(&[other, fq], Some("bar")).is_err());
         assert!(
             resolve
-                .select_world(None, Some("example:other/foo"))
-                .is_ok()
-        );
-        assert!(resolve.select_world(None, Some("example:fq/bar")).is_ok());
-        assert!(
-            resolve
-                .select_world(None, Some("example:other/bar"))
-                .is_err()
-        );
-        assert!(resolve.select_world(None, Some("example:fq/foo")).is_err());
-        assert!(resolve.select_world(Some(id), Some("foo")).is_err());
-        assert!(resolve.select_world(Some(id), Some("bar")).is_ok());
-        assert!(
-            resolve
-                .select_world(Some(id), Some("example:other/foo"))
+                .select_world(&[other, fq], Some("example:other/foo"))
                 .is_ok()
         );
         assert!(
             resolve
-                .select_world(Some(id), Some("example:fq/bar"))
+                .select_world(&[other, fq], Some("example:fq/bar"))
                 .is_ok()
         );
         assert!(
             resolve
-                .select_world(Some(id), Some("example:other/bar"))
+                .select_world(&[other, fq], Some("example:other/bar"))
                 .is_err()
         );
         assert!(
             resolve
-                .select_world(Some(id), Some("example:fq/foo"))
+                .select_world(&[other, fq], Some("example:fq/foo"))
                 .is_err()
         );
 
@@ -4465,7 +4403,7 @@ mod tests {
 
         let mut resolve = Resolve::default();
 
-        let _id = resolve.push_str(
+        let distraction = resolve.push_str(
             "./my-test.wit",
             r#"
                     package example:distraction;
@@ -4474,7 +4412,7 @@ mod tests {
 
         // If a package has multiple worlds, then we can't guess the world
         // even if we know the package.
-        let id = resolve.push_str(
+        let multiworld = resolve.push_str(
             "./my-test.wit",
             r#"
                     package example:multiworld;
@@ -4484,30 +4422,29 @@ mod tests {
                     world bar { /* ... */ }
                 "#,
         )?;
-        assert!(resolve.select_world(None, None).is_err());
-        assert!(resolve.select_world(None, Some("foo")).is_err());
         assert!(
             resolve
-                .select_world(None, Some("example:multiworld/foo"))
+                .select_world(&[distraction, multiworld], None)
+                .is_err()
+        );
+        assert!(
+            resolve
+                .select_world(&[distraction, multiworld], Some("foo"))
+                .is_err()
+        );
+        assert!(
+            resolve
+                .select_world(&[distraction, multiworld], Some("example:multiworld/foo"))
                 .is_ok()
         );
-        assert!(resolve.select_world(Some(id), None).is_err());
-        assert!(resolve.select_world(Some(id), Some("foo")).is_ok());
         assert!(
             resolve
-                .select_world(Some(id), Some("example:multiworld/foo"))
-                .is_ok()
+                .select_world(&[distraction, multiworld], Some("bar"))
+                .is_err()
         );
-        assert!(resolve.select_world(None, Some("bar")).is_err());
         assert!(
             resolve
-                .select_world(None, Some("example:multiworld/bar"))
-                .is_ok()
-        );
-        assert!(resolve.select_world(Some(id), Some("bar")).is_ok());
-        assert!(
-            resolve
-                .select_world(Some(id), Some("example:multiworld/bar"))
+                .select_world(&[distraction, multiworld], Some("example:multiworld/bar"))
                 .is_ok()
         );
 
@@ -4522,9 +4459,8 @@ mod tests {
         let mut resolve = Resolve::default();
 
         // If there's a single package and only one world, that world is
-        // the obvious choice, even if the caller doesn't identify it as
-        // the "main package".
-        let id = resolve.push_str(
+        // the obvious choice.
+        let wit1 = resolve.push_str(
             "./my-test.wit",
             r#"
                     package example:wit1;
@@ -4534,32 +4470,23 @@ mod tests {
                     }
                 "#,
         )?;
-        assert!(resolve.select_world(None, None).is_ok());
-        assert!(resolve.select_world(None, Some("foo")).is_ok());
-        assert!(resolve.select_world(None, Some("example:wit1/foo")).is_ok());
-        assert!(resolve.select_world(Some(id), None).is_ok());
-        assert!(resolve.select_world(Some(id), Some("foo")).is_ok());
+        assert!(resolve.select_world(&[wit1], None).is_ok());
+        assert!(resolve.select_world(&[wit1], Some("foo")).is_ok());
         assert!(
             resolve
-                .select_world(Some(id), Some("example:wit1/foo"))
+                .select_world(&[wit1], Some("example:wit1/foo"))
                 .is_ok()
         );
-        assert!(resolve.select_world(None, Some("bar")).is_err());
+        assert!(resolve.select_world(&[wit1], Some("bar")).is_err());
         assert!(
             resolve
-                .select_world(None, Some("example:wit2/foo"))
-                .is_err()
-        );
-        assert!(resolve.select_world(Some(id), Some("bar")).is_err());
-        assert!(
-            resolve
-                .select_world(Some(id), Some("example:wit2/foo"))
+                .select_world(&[wit1], Some("example:wit2/foo"))
                 .is_err()
         );
 
         // If there are multiple packages, we need to be told which package
-        // to use, either by a "main package" or by a fully-qualified name.
-        let id = resolve.push_str(
+        // to use.
+        let wit2 = resolve.push_str(
             "./my-test.wit",
             r#"
                     package example:wit2;
@@ -4567,22 +4494,30 @@ mod tests {
                     world foo { /* ... */ }
                 "#,
         )?;
-        assert!(resolve.select_world(None, None).is_err());
-        assert!(resolve.select_world(None, Some("foo")).is_err());
-        assert!(resolve.select_world(None, Some("example:wit1/foo")).is_ok());
-        assert!(resolve.select_world(Some(id), None).is_ok());
-        assert!(resolve.select_world(Some(id), Some("foo")).is_ok());
+        assert!(resolve.select_world(&[wit1, wit2], None).is_err());
+        assert!(resolve.select_world(&[wit1, wit2], Some("foo")).is_err());
         assert!(
             resolve
-                .select_world(Some(id), Some("example:wit1/foo"))
+                .select_world(&[wit1, wit2], Some("example:wit1/foo"))
                 .is_ok()
         );
-        assert!(resolve.select_world(None, Some("bar")).is_err());
-        assert!(resolve.select_world(None, Some("example:wit2/foo")).is_ok());
-        assert!(resolve.select_world(Some(id), Some("bar")).is_err());
+        assert!(resolve.select_world(&[wit2], None).is_ok());
+        assert!(resolve.select_world(&[wit2], Some("foo")).is_ok());
         assert!(
             resolve
-                .select_world(Some(id), Some("example:wit2/foo"))
+                .select_world(&[wit2], Some("example:wit1/foo"))
+                .is_ok()
+        );
+        assert!(resolve.select_world(&[wit1, wit2], Some("bar")).is_err());
+        assert!(
+            resolve
+                .select_world(&[wit1, wit2], Some("example:wit2/foo"))
+                .is_ok()
+        );
+        assert!(resolve.select_world(&[wit2], Some("bar")).is_err());
+        assert!(
+            resolve
+                .select_world(&[wit2], Some("example:wit2/foo"))
                 .is_ok()
         );
 
