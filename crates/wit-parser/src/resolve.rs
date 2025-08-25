@@ -1430,7 +1430,7 @@ package {name} is defined in two different locations:\n\
                     }
 
                     // We have a main package.
-                    (Some(pkg), ParsedUsePath::Name(name)) => (pkg, dbg!(name)),
+                    (Some(pkg), ParsedUsePath::Name(name)) => (pkg, name),
 
                     // The world name is fully-qualified.
                     (_, ParsedUsePath::Package(pkg, world_name)) => {
