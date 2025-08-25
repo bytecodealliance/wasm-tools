@@ -1477,7 +1477,7 @@ package {name} is defined in two different locations:\n\
                 Some(main_package) => {
                     let pkg = &self.packages[main_package];
                     match pkg.worlds.len() {
-                        0 => bail!("The package `{}` contains no worlds", pkg.name),
+                        0 => bail!("The main package `{}` contains no worlds", pkg.name),
                         1 => Ok(pkg.worlds[0]),
                         _ => bail!(
                             "There are multiple worlds in `{}`; one must be explicitly chosen:{}",
