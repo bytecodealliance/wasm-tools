@@ -349,7 +349,7 @@ impl EmbedOpts {
     fn run(self) -> Result<()> {
         let (resolve, pkg_id) = self.resolve.load()?;
 
-        let world = resolve.select_world(pkg_id, self.world.as_deref())?;
+        let world = resolve.select_world(&[pkg_id], self.world.as_deref())?;
 
         if self.only_custom {
             let encoded = metadata::encode(
@@ -706,7 +706,7 @@ impl WitOpts {
                     );
                 }
                 DecodedWasm::WitPackage(resolve, id) => {
-                    let world = resolve.select_world(*id, Some(world))?;
+                    let world = resolve.select_world(&[*id], Some(world))?;
                     (resolve, world)
                 }
             };
@@ -814,7 +814,7 @@ impl WitOpts {
                 );
             }
             (DecodedWasm::WitPackage(resolve, id), world) => {
-                let world = resolve.select_world(*id, world)?;
+                let world = resolve.select_world(&[*id], world)?;
                 (resolve, world)
             }
         };
@@ -959,7 +959,7 @@ impl TargetsOpts {
     /// Executes the application.
     fn run(self) -> Result<()> {
         let (resolve, pkg_id) = self.resolve.load()?;
-        let world = resolve.select_world(pkg_id, self.world.as_deref())?;
+        let world = resolve.select_world(&[pkg_id], self.world.as_deref())?;
         let component_to_test = self.input.get_binary_wasm()?;
 
         wit_component::targets(&resolve, world, &component_to_test)?;
@@ -999,8 +999,8 @@ impl SemverCheckOpts {
 
     fn run(self) -> Result<()> {
         let (resolve, pkg_id) = self.resolve.load()?;
-        let prev = resolve.select_world(pkg_id, Some(self.prev.as_str()))?;
-        let new = resolve.select_world(pkg_id, Some(self.new.as_str()))?;
+        let prev = resolve.select_world(&[pkg_id], Some(self.prev.as_str()))?;
+        let new = resolve.select_world(&[pkg_id], Some(self.new.as_str()))?;
         wit_component::semver_check(resolve, prev, new)?;
         Ok(())
     }
