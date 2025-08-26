@@ -1,7 +1,7 @@
 use crate::encoding::encode_world;
 use anyhow::{Context, Result};
 use wasm_encoder::{ComponentBuilder, ComponentExportKind, ComponentTypeRef};
-use wasmparser::Validator;
+use wasmparser::{Validator, WasmFeatures};
 use wit_parser::{Resolve, WorldId};
 
 /// This function checks whether `component_to_test` correctly conforms to the world specified.
@@ -36,7 +36,7 @@ pub fn targets(resolve: &Resolve, world: WorldId, component_to_test: &[u8]) -> R
 
     let bytes = root_component.finish();
 
-    Validator::new()
+    Validator::new_with_features(WasmFeatures::all())
         .validate_all(&bytes)
         .context("failed to validate encoded bytes")?;
 
