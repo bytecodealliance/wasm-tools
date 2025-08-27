@@ -714,6 +714,22 @@ impl Parser {
                     return Ok(Payload::End(reader.original_position()));
                 }
 
+                // Corrupted binaries containing multiple modules or
+                // components will fail because a section can never start with
+                // the magic number: 0 is custom section, 'a' is section len
+                // of 97, `s` is section name string len of 115, at which
+                // point validation will fail because name string is bigger
+                // than section. Report a better error instead:
+                match reader.peek_bytes(4) {
+                    Ok(peek) if peek == WASM_MAGIC_NUMBER => {
+                        return Err(BinaryReaderError::new(
+                            "expected section, got wasm magic number",
+                            reader.original_position(),
+                        ));
+                    }
+                    _ => {}
+                }
+
                 let id_pos = reader.original_position();
                 let id = reader.read_u8()?;
                 if id & 0x80 != 0 {
@@ -738,7 +754,7 @@ impl Parser {
                 }
 
                 match (self.encoding, id) {
-                    // Sections for both modules and components.
+                    // Custom sections for both modules and components.
                     (_, 0) => section(reader, len, CustomSectionReader::new, CustomSection),
 
                     // Module sections

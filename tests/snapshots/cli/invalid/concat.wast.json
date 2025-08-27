@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/cli/invalid/concat.wast",
+  "commands": [
+    {
+      "type": "assert_malformed",
+      "line": 5,
+      "filename": "concat.0.wasm",
+      "module_type": "binary",
+      "text": "expected section, got wasm magic number"
+    }
+  ]
+}
