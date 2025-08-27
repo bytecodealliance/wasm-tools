@@ -736,6 +736,11 @@ impl<'a> BinaryReader<'a> {
         Ok(self.buffer[self.position])
     }
 
+    pub(crate) fn peek_bytes(&self, len: usize) -> Result<&[u8]> {
+        self.ensure_has_bytes(len)?;
+        Ok(&self.buffer[self.position..(self.position + len)])
+    }
+
     pub(crate) fn read_block_type(&mut self) -> Result<BlockType> {
         let b = self.peek()?;
 
