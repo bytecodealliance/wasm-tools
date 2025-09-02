@@ -1136,7 +1136,8 @@ impl TypeList {
                 },
             ) => a_shared == b_shared && a_ty.is_subtype_of(b_ty),
 
-            (HT::Concrete(a), HT::Abstract { shared, ty }) => {
+            (HT::Concrete(a), HT::Abstract { shared, ty })
+            | (HT::Exact(a), HT::Abstract { shared, ty }) => {
                 let a_ty = &subtype(a_group, a).composite_type;
                 if a_ty.shared != shared {
                     return false;
@@ -1153,7 +1154,8 @@ impl TypeList {
                 }
             }
 
-            (HT::Abstract { shared, ty }, HT::Concrete(b)) => {
+            (HT::Abstract { shared, ty }, HT::Concrete(b))
+            | (HT::Abstract { shared, ty }, HT::Exact(b)) => {
                 let b_ty = &subtype(b_group, b).composite_type;
                 if shared != b_ty.shared {
                     return false;
@@ -1169,9 +1171,13 @@ impl TypeList {
                 }
             }
 
-            (HT::Concrete(a), HT::Concrete(b)) => {
+            (HT::Concrete(a), HT::Concrete(b)) | (HT::Exact(a), HT::Concrete(b)) => {
                 self.id_is_subtype(core_type_id(a_group, a), core_type_id(b_group, b))
             }
+
+            (HT::Exact(a), HT::Exact(b)) => core_type_id(a_group, a) == core_type_id(b_group, b),
+
+            (HT::Concrete(_), HT::Exact(_)) => false,
         }
     }
 
@@ -1206,7 +1212,7 @@ impl TypeList {
     pub fn reftype_is_shared(&self, ty: RefType) -> bool {
         match ty.heap_type() {
             HeapType::Abstract { shared, .. } => shared,
-            HeapType::Concrete(index) => {
+            HeapType::Concrete(index) | HeapType::Exact(index) => {
                 self[index.as_core_type_id().unwrap()].composite_type.shared
             }
         }
@@ -1219,7 +1225,7 @@ impl TypeList {
     pub fn top_type(&self, heap_type: &HeapType) -> HeapType {
         use AbstractHeapType::*;
         match *heap_type {
-            HeapType::Concrete(idx) => {
+            HeapType::Concrete(idx) | HeapType::Exact(idx) => {
                 let ty = &self[idx.as_core_type_id().unwrap()].composite_type;
                 let shared = ty.shared;
                 match ty.inner {

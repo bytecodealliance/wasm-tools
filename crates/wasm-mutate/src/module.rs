@@ -87,6 +87,7 @@ pub fn map_ref_type(ref_ty: wasmparser::RefType) -> Result<RefType> {
         nullable: ref_ty.is_nullable(),
         heap_type: match ref_ty.heap_type() {
             wasmparser::HeapType::Concrete(i) => HeapType::Concrete(i.as_module_index().unwrap()),
+            wasmparser::HeapType::Exact(i) => HeapType::Exact(i.as_module_index().unwrap()),
             wasmparser::HeapType::Abstract { shared, ty } => {
                 let ty = ty.into();
                 HeapType::Abstract { shared, ty }
