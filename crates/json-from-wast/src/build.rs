@@ -233,9 +233,20 @@ impl<'a> JsonBuilder<'a, '_> {
         malformed: bool,
     ) -> Result<(Option<&'a str>, crate::WasmFile<'static>)> {
         let name = module.name().map(|i| i.name());
-        let (contents, module_type, ext) = match module.to_test()? {
-            QuoteWatTest::Text(s) => (s, WasmFileType::Text, "wat"),
-            QuoteWatTest::Binary(s) => (s, WasmFileType::Binary, "wasm"),
+        let (contents, module_type, ext) = match &mut module {
+            QuoteWat::Wat(wat) => {
+                let mut opts = EncodeOptions::new();
+                if self.opts.dwarf {
+                    let filename: &str = &self.ret.source_filename;
+                    opts.dwarf(filename.as_ref(), self.contents, GenerateDwarf::Lines);
+                }
+                let contents = opts.encode_wat(wat)?;
+                (contents, WasmFileType::Binary, "wasm")
+            }
+            other => match other.to_test()? {
+                QuoteWatTest::Text(s) => (s, WasmFileType::Text, "wat"),
+                QuoteWatTest::Binary(s) => (s, WasmFileType::Binary, "wasm"),
+            },
         };
         let filename: &str = &self.ret.source_filename;
         let stem = Path::new(filename).file_stem().unwrap().to_str().unwrap();
@@ -250,18 +261,7 @@ impl<'a> JsonBuilder<'a, '_> {
             binary_filename: None,
         };
         if module_type == WasmFileType::Text && !malformed {
-            let bytes = match &mut module {
-                QuoteWat::Wat(wat) => {
-                    let mut opts = EncodeOptions::new();
-                    if self.opts.dwarf {
-                        let filename: &str = &self.ret.source_filename;
-                        opts.dwarf(filename.as_ref(), self.contents, GenerateDwarf::Lines);
-                    }
-                    opts.encode_wat(wat)
-                }
-                _ => module.encode(),
-            };
-            if let Ok(bytes) = bytes {
+            if let Ok(bytes) = module.encode() {
                 self.ret.wasms.push((binary_filename.clone(), bytes));
                 ret.binary_filename = Some(binary_filename.into());
             }
