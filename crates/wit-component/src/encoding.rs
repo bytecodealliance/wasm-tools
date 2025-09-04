@@ -80,6 +80,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::mem;
+use wasm_encoder::reencode::{Reencode, RoundtripReencoder};
 use wasm_encoder::*;
 use wasmparser::{Validator, WasmFeatures};
 use wit_parser::{
@@ -671,7 +672,8 @@ impl<'a> EncodingState<'a> {
                 | Export::GeneralPurposeExportRealloc
                 | Export::GeneralPurposeImportRealloc
                 | Export::Initialize
-                | Export::ReallocForAdapter => continue,
+                | Export::ReallocForAdapter
+                | Export::FuncTable(_) => continue,
             }
         }
 
@@ -1319,12 +1321,12 @@ impl<'a> EncodingState<'a> {
                     }
                 }
 
-                ShimKind::WaitableSetWait { async_ } => self
+                ShimKind::WaitableSetWait { cancellable } => self
                     .component
-                    .waitable_set_wait(*async_, self.memory_index.unwrap()),
-                ShimKind::WaitableSetPoll { async_ } => self
+                    .waitable_set_wait(*cancellable, self.memory_index.unwrap()),
+                ShimKind::WaitableSetPoll { cancellable } => self
                     .component
-                    .waitable_set_poll(*async_, self.memory_index.unwrap()),
+                    .waitable_set_poll(*cancellable, self.memory_index.unwrap()),
                 ShimKind::ErrorContextNew { encoding } => self.component.error_context_new(
                     shim.options.into_iter(*encoding, self.memory_index, None)?,
                 ),
@@ -1373,6 +1375,30 @@ impl<'a> EncodingState<'a> {
                         shim.options
                             .into_iter(*encoding, self.memory_index, realloc_index)?;
                     self.component.task_return(result, options)
+                }
+                ShimKind::ThreadNewIndirect {
+                    for_module,
+                    func_ty,
+                    table_idx,
+                } => {
+                    // Encode the function type for the thread start function so we can reference it in the `canon` call.
+                    let (func_ty_idx, f) = self.component.core_type();
+                    f.core().func_type(func_ty);
+
+                    // In order for the funcref table referenced by `thread.new_indirect` to be used,
+                    // it must have been imported by the model. We check this here, which also validates
+                    // that the table is indeed a funcref table, as we couldn't check this during initial validation.
+                    let exports = self.info.exports_for(*for_module);
+                    let instance_index = self.instance_for(*for_module);
+                    let table_idx = exports.func_table(*table_idx).map(|table| {
+                        self.core_alias_export(instance_index, table, ExportKind::Table)
+                    }).ok_or_else(|| {
+                        anyhow!(
+                            "table at index {table_idx} must be an exported funcref table for thread.new_indirect"
+                        )
+                    })?;
+
+                    self.component.thread_new_indirect(func_ty_idx, table_idx)
                 }
             };
 
@@ -1692,16 +1718,20 @@ impl<'a> EncodingState<'a> {
                 let index = self.component.backpressure_set();
                 Ok((ExportKind::Func, index))
             }
-            Import::WaitableSetWait { async_ } => {
-                Ok(self
-                    .materialize_shim_import(shims, &ShimKind::WaitableSetWait { async_: *async_ }))
-            }
-            Import::WaitableSetPoll { async_ } => {
-                Ok(self
-                    .materialize_shim_import(shims, &ShimKind::WaitableSetPoll { async_: *async_ }))
-            }
-            Import::Yield { async_ } => {
-                let index = self.component.yield_(*async_);
+            Import::WaitableSetWait { cancellable } => Ok(self.materialize_shim_import(
+                shims,
+                &ShimKind::WaitableSetWait {
+                    cancellable: *cancellable,
+                },
+            )),
+            Import::WaitableSetPoll { cancellable } => Ok(self.materialize_shim_import(
+                shims,
+                &ShimKind::WaitableSetPoll {
+                    cancellable: *cancellable,
+                },
+            )),
+            Import::ThreadYield { cancellable } => {
+                let index = self.component.thread_yield(*cancellable);
                 Ok((ExportKind::Func, index))
             }
             Import::SubtaskDrop => {
@@ -1837,6 +1867,34 @@ impl<'a> EncodingState<'a> {
             }
             Import::ExportedTaskCancel => {
                 let index = self.component.task_cancel();
+                Ok((ExportKind::Func, index))
+            }
+            Import::ThreadIndex => {
+                let index = self.component.thread_index();
+                Ok((ExportKind::Func, index))
+            }
+            Import::ThreadNewIndirect { func_ty, table_idx } => Ok(self.materialize_shim_import(
+                shims,
+                &ShimKind::ThreadNewIndirect {
+                    for_module,
+                    func_ty: RoundtripReencoder.func_type(func_ty.clone())?,
+                    table_idx: *table_idx,
+                },
+            )),
+            Import::ThreadSwitchTo { cancellable } => {
+                let index = self.component.thread_switch_to(*cancellable);
+                Ok((ExportKind::Func, index))
+            }
+            Import::ThreadSuspend { cancellable } => {
+                let index = self.component.thread_suspend(*cancellable);
+                Ok((ExportKind::Func, index))
+            }
+            Import::ThreadResumeLater => {
+                let index = self.component.thread_resume_later();
+                Ok((ExportKind::Func, index))
+            }
+            Import::ThreadYieldTo { cancellable } => {
+                let index = self.component.thread_yield_to(*cancellable);
                 Ok((ExportKind::Func, index))
             }
         }
@@ -2119,11 +2177,11 @@ enum ShimKind<'a> {
     /// A shim used for the `waitable-set.wait` built-in function, which must
     /// refer to the core module instance's memory to which results will be
     /// written.
-    WaitableSetWait { async_: bool },
+    WaitableSetWait { cancellable: bool },
     /// A shim used for the `waitable-set.poll` built-in function, which must
     /// refer to the core module instance's memory to which results will be
     /// written.
-    WaitableSetPoll { async_: bool },
+    WaitableSetPoll { cancellable: bool },
     /// Shim for `task.return` to handle a reference to a `memory` which may
     TaskReturn {
         /// The interface (optional) that owns `func` below. If `None` then it's
@@ -2154,6 +2212,17 @@ enum ShimKind<'a> {
         for_module: CustomModule<'a>,
         /// The string encoding to use when lowering the debug message.
         encoding: StringEncoding,
+    },
+    /// A shim used for the `thread.new_indirect` built-in function, which
+    /// must refer to the core module instance's indirect function table.
+    ThreadNewIndirect {
+        /// Which instance to pull the function table from.
+        for_module: CustomModule<'a>,
+        /// The function type to use when creating the thread.
+        func_ty: FuncType,
+        /// The indirect function table to use when creating the thread.
+        /// This must be exported by the core module.
+        table_idx: u32,
     },
 }
 
@@ -2204,7 +2273,7 @@ impl<'a> Shims<'a> {
                 | Import::ExportedTaskCancel
                 | Import::ErrorContextDrop
                 | Import::BackpressureSet
-                | Import::Yield { .. }
+                | Import::ThreadYield { .. }
                 | Import::SubtaskDrop
                 | Import::SubtaskCancel { .. }
                 | Import::FutureNew(..)
@@ -2221,7 +2290,12 @@ impl<'a> Shims<'a> {
                 | Import::WaitableSetDrop
                 | Import::WaitableJoin
                 | Import::ContextGet(_)
-                | Import::ContextSet(_) => {}
+                | Import::ContextSet(_)
+                | Import::ThreadIndex
+                | Import::ThreadSwitchTo { .. }
+                | Import::ThreadSuspend { .. }
+                | Import::ThreadResumeLater
+                | Import::ThreadYieldTo { .. } => {}
 
                 // If `task.return` needs to be indirect then generate a shim
                 // for it, otherwise skip the shim and let it get materialized
@@ -2306,13 +2380,15 @@ impl<'a> Shims<'a> {
                     );
                 }
 
-                Import::WaitableSetWait { async_ } => {
+                Import::WaitableSetWait { cancellable } => {
                     let name = self.shims.len().to_string();
                     self.push(Shim {
                         name,
                         debug_name: "waitable-set.wait".to_string(),
                         options: RequiredOptions::empty(),
-                        kind: ShimKind::WaitableSetWait { async_: *async_ },
+                        kind: ShimKind::WaitableSetWait {
+                            cancellable: *cancellable,
+                        },
                         sig: WasmSignature {
                             params: vec![WasmType::I32; 2],
                             results: vec![WasmType::I32],
@@ -2322,13 +2398,15 @@ impl<'a> Shims<'a> {
                     });
                 }
 
-                Import::WaitableSetPoll { async_ } => {
+                Import::WaitableSetPoll { cancellable } => {
                     let name = self.shims.len().to_string();
                     self.push(Shim {
                         name,
                         debug_name: "waitable-set.poll".to_string(),
                         options: RequiredOptions::empty(),
-                        kind: ShimKind::WaitableSetPoll { async_: *async_ },
+                        kind: ShimKind::WaitableSetPoll {
+                            cancellable: *cancellable,
+                        },
                         sig: WasmSignature {
                             params: vec![WasmType::I32; 2],
                             results: vec![WasmType::I32],
@@ -2371,6 +2449,26 @@ impl<'a> Shims<'a> {
                         sig: WasmSignature {
                             params: vec![WasmType::I32; 2],
                             results: vec![],
+                            indirect_params: false,
+                            retptr: false,
+                        },
+                    });
+                }
+
+                Import::ThreadNewIndirect { func_ty, table_idx } => {
+                    let name = self.shims.len().to_string();
+                    self.push(Shim {
+                        name,
+                        debug_name: "thread.new_indirect".to_string(),
+                        options: RequiredOptions::empty(),
+                        kind: ShimKind::ThreadNewIndirect {
+                            for_module,
+                            func_ty: RoundtripReencoder.func_type(func_ty.clone())?,
+                            table_idx: *table_idx,
+                        },
+                        sig: WasmSignature {
+                            params: vec![WasmType::I32; 2],
+                            results: vec![WasmType::I32],
                             indirect_params: false,
                             retptr: false,
                         },

@@ -1,0 +1,14 @@
+(component
+  (core module $m (;0;)
+    (type (;0;) (func (param i32)))
+    (import "" "waitable-set.drop" (func (;0;) (type 0)))
+  )
+  (core func $waitable-set-drop (;0;) (canon waitable-set.drop))
+  (core instance (;0;)
+    (export "waitable-set.drop" (func $waitable-set-drop))
+  )
+  (core instance $i (;1;) (instantiate $m
+      (with "" (instance 0))
+    )
+  )
+)

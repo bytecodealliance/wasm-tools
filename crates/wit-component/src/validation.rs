@@ -5,6 +5,7 @@ use indexmap::{IndexMap, IndexSet, map::Entry};
 use std::hash::{Hash, Hasher};
 use std::mem;
 use wasm_encoder::ExportKind;
+use wasmparser::CompositeInnerType;
 use wasmparser::names::{ComponentName, ComponentNameKind};
 use wasmparser::{
     Encoding, ExternalKind, FuncType, Parser, Payload, TypeRef, ValType, ValidPayload, Validator,
@@ -286,14 +287,14 @@ pub enum Import {
     /// This allows the guest to wait for any pending calls to async-lowered
     /// imports and/or `stream` and `future` operations to complete without
     /// unwinding the current Wasm stack.
-    WaitableSetWait { async_: bool },
+    WaitableSetWait { cancellable: bool },
 
     /// A `canon waitable.poll` intrinsic.
     ///
     /// This allows the guest to check whether any pending calls to
     /// async-lowered imports and/or `stream` and `future` operations have
     /// completed without unwinding the current Wasm stack and without blocking.
-    WaitableSetPoll { async_: bool },
+    WaitableSetPoll { cancellable: bool },
 
     /// A `waitable-set.drop` intrinsic.
     WaitableSetDrop,
@@ -301,11 +302,11 @@ pub enum Import {
     /// A `waitable.join` intrinsic.
     WaitableJoin,
 
-    /// A `canon yield` intrinsic.
+    /// A `canon thread.yield` intrinsic.
     ///
     /// This allows the guest to yield (e.g. during an computationally-intensive
     /// operation) and allow other subtasks to make progress.
-    Yield { async_: bool },
+    ThreadYield { cancellable: bool },
 
     /// A `canon subtask.drop` intrinsic.
     ///
@@ -412,6 +413,37 @@ pub enum Import {
     /// This allows the guest to release its handle to the specified
     /// `error-context` instance.
     ErrorContextDrop,
+
+    /// A `canon thread.index` intrinsic.
+    ///
+    /// This allows the guest to get the index of the current thread.
+    ThreadIndex,
+
+    /// A `canon thread.new_indirect` intrinsic.
+    ///
+    /// This allows the guest to create a new thread running a specified function.
+    ThreadNewIndirect { func_ty: FuncType, table_idx: u32 },
+
+    /// A `canon thread.switch-to` intrinsic.
+    ///
+    /// This allows the guest to switch execution to another thread.
+    ThreadSwitchTo { cancellable: bool },
+
+    /// A `canon thread.suspend` intrinsic.
+    ///
+    /// This allows the guest to suspend the current thread, switching execution to
+    /// an unspecified thread.
+    ThreadSuspend { cancellable: bool },
+
+    /// A `canon thread.resume-later` intrinsic.
+    ///
+    /// This allows the guest to mark a suspended thread for later resumption.
+    ThreadResumeLater,
+
+    /// A `canon thread.yield-to` intrinsic.
+    ///
+    /// This allows the guest to suspend, yielding execution to a specified thread.
+    ThreadYieldTo { cancellable: bool },
 }
 
 impl ImportMap {
@@ -536,7 +568,7 @@ impl ImportMap {
             None if encoder.reject_legacy_names => (import.module, STANDARD),
             None => (import.module, LEGACY),
         };
-        self.classify_component_model_import(module, import.name, encoder, ty, names)
+        self.classify_component_model_import(module, import.name, encoder, ty, names, types)
     }
 
     /// Attempts to classify the import `{module}::{name}` with the rules
@@ -548,12 +580,18 @@ impl ImportMap {
         encoder: &ComponentEncoder,
         ty: &FuncType,
         names: &dyn NameMangling,
+        types: TypesRef<'_>,
     ) -> Result<Import> {
         let resolve = &encoder.metadata.resolve;
         let world_id = encoder.metadata.world;
         let world = &resolve.worlds[world_id];
 
         let (async_, name) = if let Some(name) = names.async_lower_name(name) {
+            (true, name)
+        } else {
+            (false, name)
+        };
+        let (cancellable, name) = if let Some(name) = names.cancellable_name(name) {
             (true, name)
         } else {
             (false, name)
@@ -569,10 +607,17 @@ impl ImportMap {
             }
             Ok(())
         };
+        let validate_not_cancellable = || {
+            if cancellable {
+                bail!("`{name}` cannot be marked `cancellable`")
+            }
+            Ok(())
+        };
 
         if module == names.import_root() {
             if Some(name) == names.error_context_drop() {
                 validate_not_async()?;
+                validate_not_cancellable()?;
                 let expected = FuncType::new([ValType::I32], []);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::ErrorContextDrop);
@@ -580,6 +625,7 @@ impl ImportMap {
 
             if Some(name) == names.backpressure_set() {
                 validate_not_async()?;
+                validate_not_cancellable()?;
                 let expected = FuncType::new([ValType::I32], []);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::BackpressureSet);
@@ -587,29 +633,29 @@ impl ImportMap {
 
             if Some(name) == names.waitable_set_new() {
                 validate_not_async()?;
+                validate_not_cancellable()?;
                 let expected = FuncType::new([], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::WaitableSetNew);
             }
 
             if Some(name) == names.waitable_set_wait() {
+                validate_not_async()?;
                 let expected = FuncType::new([ValType::I32; 2], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::WaitableSetWait {
-                    async_: abi == AbiVariant::GuestImportAsync,
-                });
+                return Ok(Import::WaitableSetWait { cancellable });
             }
 
             if Some(name) == names.waitable_set_poll() {
+                validate_not_async()?;
                 let expected = FuncType::new([ValType::I32; 2], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::WaitableSetPoll {
-                    async_: abi == AbiVariant::GuestImportAsync,
-                });
+                return Ok(Import::WaitableSetPoll { cancellable });
             }
 
             if Some(name) == names.waitable_set_drop() {
                 validate_not_async()?;
+                validate_not_cancellable()?;
                 let expected = FuncType::new([ValType::I32], []);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::WaitableSetDrop);
@@ -617,25 +663,29 @@ impl ImportMap {
 
             if Some(name) == names.waitable_join() {
                 validate_not_async()?;
+                validate_not_cancellable()?;
                 let expected = FuncType::new([ValType::I32; 2], []);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::WaitableJoin);
             }
 
-            if Some(name) == names.yield_() {
+            if Some(name) == names.thread_yield() {
+                validate_not_async()?;
                 let expected = FuncType::new([], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::Yield { async_ });
+                return Ok(Import::ThreadYield { cancellable });
             }
 
             if Some(name) == names.subtask_drop() {
                 validate_not_async()?;
+                validate_not_cancellable()?;
                 let expected = FuncType::new([ValType::I32], []);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::SubtaskDrop);
             }
 
             if Some(name) == names.subtask_cancel() {
+                validate_not_cancellable()?;
                 let expected = FuncType::new([ValType::I32], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::SubtaskCancel { async_ });
@@ -643,6 +693,7 @@ impl ImportMap {
 
             if let Some(encoding) = names.error_context_new(name) {
                 validate_not_async()?;
+                validate_not_cancellable()?;
                 let expected = FuncType::new([ValType::I32; 2], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::ErrorContextNew { encoding });
@@ -650,6 +701,7 @@ impl ImportMap {
 
             if let Some(encoding) = names.error_context_debug_message(name) {
                 validate_not_async()?;
+                validate_not_cancellable()?;
                 let expected = FuncType::new([ValType::I32; 2], []);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::ErrorContextDebugMessage { encoding });
@@ -657,21 +709,96 @@ impl ImportMap {
 
             if let Some(i) = names.context_get(name) {
                 validate_not_async()?;
+                validate_not_cancellable()?;
                 let expected = FuncType::new([], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::ContextGet(i));
             }
             if let Some(i) = names.context_set(name) {
                 validate_not_async()?;
+                validate_not_cancellable()?;
                 let expected = FuncType::new([ValType::I32], []);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::ContextSet(i));
+            }
+            if Some(name) == names.thread_index() {
+                validate_not_async()?;
+                validate_not_cancellable()?;
+                let expected = FuncType::new([], [ValType::I32]);
+                validate_func_sig(name, &expected, ty)?;
+                return Ok(Import::ThreadIndex);
+            }
+            if let Some((func_ty_idx, table_idx)) = names.thread_new_indirect(name) {
+                validate_not_async()?;
+                validate_not_cancellable()?;
+
+                let func_ty_id = types.core_type_at_in_module(func_ty_idx);
+                let func_ty = types
+                    .get(func_ty_id)
+                    .and_then(|ty| match &ty.composite_type.inner {
+                        CompositeInnerType::Func(func) => Some(func),
+                        _ => None,
+                    });
+                if func_ty.is_none() {
+                    bail!("`{name}` references type {func_ty_idx}, which is not a function type");
+                }
+                let expected_start_func = FuncType::new([ValType::I32], []);
+                if func_ty.unwrap() != &expected_start_func {
+                    bail!(
+                        "`{name}` references type {func_ty_idx}, which is not the type (i32) -> (); the only type currently supported for thread entrypoints"
+                    );
+                }
+
+                // We can't validate the type of the table here, because the import must appear before
+                // the table definition in the module, so we can't look it up yet. We defer this validation
+                // to the shim module.
+
+                let expected = FuncType::new([ValType::I32; 2], [ValType::I32]);
+                validate_func_sig(name, &expected, ty)?;
+                // We store the function type itself and will simply ensure that such a type is available when
+                // (canon thread.new_indirect ..) is issued. We store the table index for now, and will ensure
+                // that it is exported from the main module when we generate the shim module, so that we can eventually
+                // generate an alias for it and reference the table from (canon thread.new_indirect ..).
+                return Ok(Import::ThreadNewIndirect {
+                    func_ty: func_ty.unwrap().clone(),
+                    table_idx,
+                });
+            }
+            if Some(name) == names.thread_switch_to() {
+                validate_not_async()?;
+                let expected = FuncType::new([ValType::I32], [ValType::I32]);
+                validate_func_sig(name, &expected, ty)?;
+                return Ok(Import::ThreadSwitchTo { cancellable });
+            }
+            if Some(name) == names.thread_suspend() {
+                validate_not_async()?;
+                let expected = FuncType::new([], [ValType::I32]);
+                validate_func_sig(name, &expected, ty)?;
+                return Ok(Import::ThreadSuspend { cancellable });
+            }
+            if Some(name) == names.thread_resume_later() {
+                validate_not_async()?;
+                validate_not_cancellable()?;
+                let expected = FuncType::new([ValType::I32], []);
+                validate_func_sig(name, &expected, ty)?;
+                return Ok(Import::ThreadResumeLater);
+            }
+            if Some(name) == names.thread_yield_to() {
+                validate_not_async()?;
+                let expected = FuncType::new([ValType::I32], [ValType::I32]);
+                validate_func_sig(name, &expected, ty)?;
+                return Ok(Import::ThreadYieldTo { cancellable });
             }
 
             let key = WorldKey::Name(name.to_string());
             if let Some(WorldItem::Function(func)) = world.imports.get(&key) {
                 validate_func(resolve, ty, func, abi)?;
                 return Ok(Import::WorldFunc(key, func.name.clone(), abi));
+            }
+
+            // At this point, all cancellable imports have already been checked
+            if cancellable {
+                bail!("`{name}` cannot be marked `cancellable`");
             }
 
             if let Some(import) =
@@ -684,6 +811,11 @@ impl ImportMap {
                 Some(_) => bail!("expected world top-level import `{name}` to be a function"),
                 None => bail!("no top-level imported function `{name}` specified"),
             }
+        }
+
+        // At this point, all cancellable imports have already been checked
+        if cancellable {
+            bail!("`{name}` cannot be marked `cancellable`");
         }
 
         // Check for `[export]$root::[task-return]foo` or similar
@@ -1085,6 +1217,9 @@ pub enum Export {
     WorldFuncCallback(WorldKey),
 
     InterfaceFuncCallback(WorldKey, String),
+
+    /// Tables that store funcrefs, used for `thread.new_indirect`
+    FuncTable(u32),
 }
 
 impl ExportMap {
@@ -1161,6 +1296,12 @@ impl ExportMap {
             ExternalKind::Memory => {
                 if name == names.export_memory() {
                     return Ok(Some(Export::Memory));
+                }
+                return Ok(None);
+            }
+            ExternalKind::Table => {
+                if types.table_at(export.index).element_type.is_func_ref() {
+                    return Ok(Some(Export::FuncTable(export.index)));
                 }
                 return Ok(None);
             }
@@ -1335,6 +1476,15 @@ impl ExportMap {
         self.find(|m| matches!(m, Export::Memory))
     }
 
+    /// Returns the funcref table that matches the given index,
+    /// if exported, for this module.
+    pub fn func_table(&self, index: u32) -> Option<&str> {
+        self.find(|m| match m {
+            Export::FuncTable(i) => *i == index,
+            _ => false,
+        })
+    }
+
     /// Returns the `_initialize` intrinsic, if exported, for this module.
     pub fn initialize(&self) -> Option<&str> {
         self.find(|m| matches!(m, Export::Initialize))
@@ -1479,7 +1629,7 @@ trait NameMangling {
     fn waitable_set_poll(&self) -> Option<&str>;
     fn waitable_set_drop(&self) -> Option<&str>;
     fn waitable_join(&self) -> Option<&str>;
-    fn yield_(&self) -> Option<&str>;
+    fn thread_yield(&self) -> Option<&str>;
     fn subtask_drop(&self) -> Option<&str>;
     fn subtask_cancel(&self) -> Option<&str>;
     fn async_lift_callback_name<'a>(&self, s: &'a str) -> Option<&'a str>;
@@ -1489,8 +1639,15 @@ trait NameMangling {
     fn error_context_new(&self, s: &str) -> Option<StringEncoding>;
     fn error_context_debug_message(&self, s: &str) -> Option<StringEncoding>;
     fn error_context_drop(&self) -> Option<&str>;
+    fn cancellable_name<'a>(&self, s: &'a str) -> Option<&'a str>;
     fn context_get(&self, name: &str) -> Option<u32>;
     fn context_set(&self, name: &str) -> Option<u32>;
+    fn thread_index(&self) -> Option<&str>;
+    fn thread_new_indirect(&self, name: &str) -> Option<(u32, u32)>;
+    fn thread_switch_to(&self) -> Option<&str>;
+    fn thread_suspend(&self) -> Option<&str>;
+    fn thread_resume_later(&self) -> Option<&str>;
+    fn thread_yield_to(&self) -> Option<&str>;
     fn module_to_interface(
         &self,
         module: &str,
@@ -1573,7 +1730,7 @@ impl NameMangling for Standard {
     fn waitable_join(&self) -> Option<&str> {
         None
     }
-    fn yield_(&self) -> Option<&str> {
+    fn thread_yield(&self) -> Option<&str> {
         None
     }
     fn subtask_drop(&self) -> Option<&str> {
@@ -1611,6 +1768,28 @@ impl NameMangling for Standard {
         None
     }
     fn context_set(&self, _: &str) -> Option<u32> {
+        None
+    }
+    fn thread_index(&self) -> Option<&str> {
+        None
+    }
+    fn thread_new_indirect(&self, _: &str) -> Option<(u32, u32)> {
+        None
+    }
+    fn thread_switch_to(&self) -> Option<&str> {
+        None
+    }
+    fn thread_suspend(&self) -> Option<&str> {
+        None
+    }
+    fn thread_resume_later(&self) -> Option<&str> {
+        None
+    }
+    fn thread_yield_to(&self) -> Option<&str> {
+        None
+    }
+    fn cancellable_name<'a>(&self, s: &'a str) -> Option<&'a str> {
+        _ = s;
         None
     }
     fn module_to_interface(
@@ -1772,8 +1951,8 @@ impl NameMangling for Legacy {
     fn waitable_join(&self) -> Option<&str> {
         Some("[waitable-join]")
     }
-    fn yield_(&self) -> Option<&str> {
-        Some("[yield]")
+    fn thread_yield(&self) -> Option<&str> {
+        Some("[thread-yield]")
     }
     fn subtask_drop(&self) -> Option<&str> {
         Some("[subtask-drop]")
@@ -1819,6 +1998,32 @@ impl NameMangling for Legacy {
     fn context_set(&self, name: &str) -> Option<u32> {
         let (n, rest) = prefixed_integer(name, "[context-set-")?;
         if rest.is_empty() { Some(n) } else { None }
+    }
+    fn thread_index(&self) -> Option<&str> {
+        Some("[thread-index]")
+    }
+    fn thread_new_indirect(&self, name: &str) -> Option<(u32, u32)> {
+        let rest = name.strip_prefix("[thread-new-indirect-")?;
+        let func_ty_idx_end = rest.find('-')?;
+        let func_ty_idx = rest[..func_ty_idx_end].parse().ok()?;
+        let end_idx = rest.find(']')?;
+        let table_idx = rest[func_ty_idx_end + 1..end_idx].parse().ok()?;
+        Some((func_ty_idx, table_idx))
+    }
+    fn thread_switch_to(&self) -> Option<&str> {
+        Some("[thread-switch-to]")
+    }
+    fn thread_suspend(&self) -> Option<&str> {
+        Some("[thread-suspend]")
+    }
+    fn thread_resume_later(&self) -> Option<&str> {
+        Some("[thread-resume-later]")
+    }
+    fn thread_yield_to(&self) -> Option<&str> {
+        Some("[thread-yield-to]")
+    }
+    fn cancellable_name<'a>(&self, s: &'a str) -> Option<&'a str> {
+        s.strip_prefix("[cancellable]")
     }
     fn module_to_interface(
         &self,

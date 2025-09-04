@@ -395,9 +395,9 @@ impl<'a> Encoder<'a> {
                     self.core_func_names.push(name);
                     self.funcs.context_set(*i);
                 }
-                CoreFuncKind::Yield(info) => {
+                CoreFuncKind::ThreadYield(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.yield_(info.async_);
+                    self.funcs.thread_yield(info.cancellable);
                 }
                 CoreFuncKind::SubtaskDrop => {
                     self.core_func_names.push(name);
@@ -502,6 +502,31 @@ impl<'a> Encoder<'a> {
                 CoreFuncKind::WaitableJoin => {
                     self.core_func_names.push(name);
                     self.funcs.waitable_join();
+                }
+                CoreFuncKind::ThreadIndex => {
+                    self.core_func_names.push(name);
+                    self.funcs.thread_index();
+                }
+                CoreFuncKind::ThreadNewIndirect(info) => {
+                    self.core_func_names.push(name);
+                    self.funcs
+                        .thread_new_indirect(info.ty.into(), info.table.idx.into());
+                }
+                CoreFuncKind::ThreadSwitchTo(info) => {
+                    self.core_func_names.push(name);
+                    self.funcs.thread_switch_to(info.cancellable);
+                }
+                CoreFuncKind::ThreadSuspend(info) => {
+                    self.core_func_names.push(name);
+                    self.funcs.thread_suspend(info.cancellable);
+                }
+                CoreFuncKind::ThreadResumeLater => {
+                    self.core_func_names.push(name);
+                    self.funcs.thread_resume_later();
+                }
+                CoreFuncKind::ThreadYieldTo(info) => {
+                    self.core_func_names.push(name);
+                    self.funcs.thread_yield_to(info.cancellable);
                 }
             },
         }

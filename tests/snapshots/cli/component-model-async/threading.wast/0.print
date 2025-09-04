@@ -1,0 +1,14 @@
+(component
+  (core module $m (;0;)
+    (type (;0;) (func (param i32)))
+    (import "" "backpressure.set" (func $backpressure.set (;0;) (type 0)))
+  )
+  (core func $backpressure.set (;0;) (canon backpressure.set))
+  (core instance (;0;)
+    (export "backpressure.set" (func $backpressure.set))
+  )
+  (core instance $i (;1;) (instantiate $m
+      (with "" (instance 0))
+    )
+  )
+)

@@ -397,7 +397,7 @@ impl<'a> Resolver<'a> {
                 CoreFuncKind::ThreadAvailableParallelism(_)
                 | CoreFuncKind::BackpressureSet
                 | CoreFuncKind::TaskCancel
-                | CoreFuncKind::Yield(_)
+                | CoreFuncKind::ThreadYield(_)
                 | CoreFuncKind::SubtaskDrop
                 | CoreFuncKind::SubtaskCancel(_)
                 | CoreFuncKind::ErrorContextDrop => {}
@@ -469,6 +469,15 @@ impl<'a> Resolver<'a> {
                 }
                 CoreFuncKind::WaitableSetDrop => {}
                 CoreFuncKind::WaitableJoin => {}
+                CoreFuncKind::ThreadIndex => {}
+                CoreFuncKind::ThreadNewIndirect(info) => {
+                    self.resolve_ns(&mut info.ty, Ns::CoreType)?;
+                    self.core_item_ref(&mut info.table)?;
+                }
+                CoreFuncKind::ThreadSwitchTo(_) => {}
+                CoreFuncKind::ThreadSuspend(_) => {}
+                CoreFuncKind::ThreadResumeLater => {}
+                CoreFuncKind::ThreadYieldTo(_) => {}
             },
         }
 

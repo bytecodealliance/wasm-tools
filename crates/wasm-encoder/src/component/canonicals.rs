@@ -249,10 +249,10 @@ impl CanonicalFunctionSection {
     /// Defines a function which yields control to the host so that other tasks
     /// are able to make progress, if any.
     ///
-    /// If `async_` is true, the caller instance may be reentered.
-    pub fn yield_(&mut self, async_: bool) -> &mut Self {
+    /// If `cancellable` is true, the caller instance may be reentered.
+    pub fn thread_yield(&mut self, cancellable: bool) -> &mut Self {
         self.bytes.push(0x0c);
-        self.bytes.push(if async_ { 1 } else { 0 });
+        self.bytes.push(if cancellable { 1 } else { 0 });
         self.num_added += 1;
         self
     }
@@ -494,6 +494,59 @@ impl CanonicalFunctionSection {
     /// `waitable-set`.
     pub fn waitable_join(&mut self) -> &mut Self {
         self.bytes.push(0x23);
+        self.num_added += 1;
+        self
+    }
+
+    /// Declare a new `thread.index` intrinsic, used to get the index of the
+    /// current thread.
+    pub fn thread_index(&mut self) -> &mut Self {
+        self.bytes.push(0x26);
+        self.num_added += 1;
+        self
+    }
+
+    /// Declare a new `thread.new_indirect` intrinsic, used to create a new
+    /// thread by invoking a function indirectly through a `funcref` table.
+    pub fn thread_new_indirect(&mut self, ty_index: u32, table_index: u32) -> &mut Self {
+        self.bytes.push(0x27);
+        ty_index.encode(&mut self.bytes);
+        table_index.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
+    /// Declare a new `thread.switch-to` intrinsic, used to switch execution to
+    /// another thread.
+    pub fn thread_switch_to(&mut self, cancellable: bool) -> &mut Self {
+        self.bytes.push(0x28);
+        self.bytes.push(if cancellable { 1 } else { 0 });
+        self.num_added += 1;
+        self
+    }
+
+    /// Declare a new `thread.suspend` intrinsic, used to suspend execution of
+    /// the current thread.
+    pub fn thread_suspend(&mut self, cancellable: bool) -> &mut Self {
+        self.bytes.push(0x29);
+        self.bytes.push(if cancellable { 1 } else { 0 });
+        self.num_added += 1;
+        self
+    }
+
+    /// Declare a new `thread.resume-later` intrinsic, used to resume execution
+    /// of the given thread.
+    pub fn thread_resume_later(&mut self) -> &mut Self {
+        self.bytes.push(0x2a);
+        self.num_added += 1;
+        self
+    }
+
+    /// Declare a new `thread.yield-to` intrinsic, used to yield execution to
+    /// a given thread.
+    pub fn thread_yield_to(&mut self, cancellable: bool) -> &mut Self {
+        self.bytes.push(0x2b);
+        self.bytes.push(if cancellable { 1 } else { 0 });
         self.num_added += 1;
         self
     }
