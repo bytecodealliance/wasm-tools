@@ -80,7 +80,6 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::mem;
-use wasm_encoder::reencode::{Reencode, RoundtripReencoder};
 use wasm_encoder::*;
 use wasmparser::{Validator, WasmFeatures};
 use wit_parser::{
@@ -673,7 +672,7 @@ impl<'a> EncodingState<'a> {
                 | Export::GeneralPurposeImportRealloc
                 | Export::Initialize
                 | Export::ReallocForAdapter
-                | Export::FuncTable(_) => continue,
+                | Export::IndirectFunctionTable => continue,
             }
         }
 
@@ -1379,22 +1378,20 @@ impl<'a> EncodingState<'a> {
                 ShimKind::ThreadNewIndirect {
                     for_module,
                     func_ty,
-                    table_idx,
                 } => {
                     // Encode the function type for the thread start function so we can reference it in the `canon` call.
                     let (func_ty_idx, f) = self.component.core_type();
                     f.core().func_type(func_ty);
 
                     // In order for the funcref table referenced by `thread.new_indirect` to be used,
-                    // it must have been imported by the model. We check this here, which also validates
-                    // that the table is indeed a funcref table, as we couldn't check this during initial validation.
+                    // it must have been exported by the module.
                     let exports = self.info.exports_for(*for_module);
                     let instance_index = self.instance_for(*for_module);
-                    let table_idx = exports.func_table(*table_idx).map(|table| {
+                    let table_idx = exports.indirect_function_table().map(|table| {
                         self.core_alias_export(instance_index, table, ExportKind::Table)
                     }).ok_or_else(|| {
                         anyhow!(
-                            "table at index {table_idx} must be an exported funcref table for thread.new_indirect"
+                            "table __indirect_function_table must be an exported funcref table for thread.new_indirect"
                         )
                     })?;
 
@@ -1873,12 +1870,12 @@ impl<'a> EncodingState<'a> {
                 let index = self.component.thread_index();
                 Ok((ExportKind::Func, index))
             }
-            Import::ThreadNewIndirect { func_ty, table_idx } => Ok(self.materialize_shim_import(
+            Import::ThreadNewIndirect => Ok(self.materialize_shim_import(
                 shims,
                 &ShimKind::ThreadNewIndirect {
                     for_module,
-                    func_ty: RoundtripReencoder.func_type(func_ty.clone())?,
-                    table_idx: *table_idx,
+                    // This is fixed for now
+                    func_ty: FuncType::new([ValType::I32], []),
                 },
             )),
             Import::ThreadSwitchTo { cancellable } => {
@@ -2220,9 +2217,6 @@ enum ShimKind<'a> {
         for_module: CustomModule<'a>,
         /// The function type to use when creating the thread.
         func_ty: FuncType,
-        /// The indirect function table to use when creating the thread.
-        /// This must be exported by the core module.
-        table_idx: u32,
     },
 }
 
@@ -2455,7 +2449,7 @@ impl<'a> Shims<'a> {
                     });
                 }
 
-                Import::ThreadNewIndirect { func_ty, table_idx } => {
+                Import::ThreadNewIndirect => {
                     let name = self.shims.len().to_string();
                     self.push(Shim {
                         name,
@@ -2463,8 +2457,8 @@ impl<'a> Shims<'a> {
                         options: RequiredOptions::empty(),
                         kind: ShimKind::ThreadNewIndirect {
                             for_module,
-                            func_ty: RoundtripReencoder.func_type(func_ty.clone())?,
-                            table_idx: *table_idx,
+                            // This is fixed for now
+                            func_ty: FuncType::new([ValType::I32], vec![]),
                         },
                         sig: WasmSignature {
                             params: vec![WasmType::I32; 2],

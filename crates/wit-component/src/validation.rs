@@ -5,7 +5,6 @@ use indexmap::{IndexMap, IndexSet, map::Entry};
 use std::hash::{Hash, Hasher};
 use std::mem;
 use wasm_encoder::ExportKind;
-use wasmparser::CompositeInnerType;
 use wasmparser::names::{ComponentName, ComponentNameKind};
 use wasmparser::{
     Encoding, ExternalKind, FuncType, Parser, Payload, TypeRef, ValType, ValidPayload, Validator,
@@ -422,7 +421,7 @@ pub enum Import {
     /// A `canon thread.new_indirect` intrinsic.
     ///
     /// This allows the guest to create a new thread running a specified function.
-    ThreadNewIndirect { func_ty: FuncType, table_idx: u32 },
+    ThreadNewIndirect,
 
     /// A `canon thread.switch-to` intrinsic.
     ///
@@ -568,7 +567,7 @@ impl ImportMap {
             None if encoder.reject_legacy_names => (import.module, STANDARD),
             None => (import.module, LEGACY),
         };
-        self.classify_component_model_import(module, import.name, encoder, ty, names, types)
+        self.classify_component_model_import(module, import.name, encoder, ty, names)
     }
 
     /// Attempts to classify the import `{module}::{name}` with the rules
@@ -580,7 +579,6 @@ impl ImportMap {
         encoder: &ComponentEncoder,
         ty: &FuncType,
         names: &dyn NameMangling,
-        types: TypesRef<'_>,
     ) -> Result<Import> {
         let resolve = &encoder.metadata.resolve;
         let world_id = encoder.metadata.world;
@@ -728,41 +726,13 @@ impl ImportMap {
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::ThreadIndex);
             }
-            if let Some((func_ty_idx, table_idx)) = names.thread_new_indirect(name) {
+            if Some(name) == names.thread_new_indirect() {
                 validate_not_async()?;
                 validate_not_cancellable()?;
 
-                let func_ty_id = types.core_type_at_in_module(func_ty_idx);
-                let func_ty = types
-                    .get(func_ty_id)
-                    .and_then(|ty| match &ty.composite_type.inner {
-                        CompositeInnerType::Func(func) => Some(func),
-                        _ => None,
-                    });
-                if func_ty.is_none() {
-                    bail!("`{name}` references type {func_ty_idx}, which is not a function type");
-                }
-                let expected_start_func = FuncType::new([ValType::I32], []);
-                if func_ty.unwrap() != &expected_start_func {
-                    bail!(
-                        "`{name}` references type {func_ty_idx}, which is not the type (i32) -> (); the only type currently supported for thread entrypoints"
-                    );
-                }
-
-                // We can't validate the type of the table here, because the import must appear before
-                // the table definition in the module, so we can't look it up yet. We defer this validation
-                // to the shim module.
-
                 let expected = FuncType::new([ValType::I32; 2], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
-                // We store the function type itself and will simply ensure that such a type is available when
-                // (canon thread.new_indirect ..) is issued. We store the table index for now, and will ensure
-                // that it is exported from the main module when we generate the shim module, so that we can eventually
-                // generate an alias for it and reference the table from (canon thread.new_indirect ..).
-                return Ok(Import::ThreadNewIndirect {
-                    func_ty: func_ty.unwrap().clone(),
-                    table_idx,
-                });
+                return Ok(Import::ThreadNewIndirect);
             }
             if Some(name) == names.thread_switch_to() {
                 validate_not_async()?;
@@ -1218,8 +1188,8 @@ pub enum Export {
 
     InterfaceFuncCallback(WorldKey, String),
 
-    /// Tables that store funcrefs, used for `thread.new_indirect`
-    FuncTable(u32),
+    /// __indirect_function_table, used for `thread.new_indirect`
+    IndirectFunctionTable,
 }
 
 impl ExportMap {
@@ -1300,8 +1270,8 @@ impl ExportMap {
                 return Ok(None);
             }
             ExternalKind::Table => {
-                if types.table_at(export.index).element_type.is_func_ref() {
-                    return Ok(Some(Export::FuncTable(export.index)));
+                if Some(name) == names.export_indirect_function_table() {
+                    return Ok(Some(Export::IndirectFunctionTable));
                 }
                 return Ok(None);
             }
@@ -1476,13 +1446,9 @@ impl ExportMap {
         self.find(|m| matches!(m, Export::Memory))
     }
 
-    /// Returns the funcref table that matches the given index,
-    /// if exported, for this module.
-    pub fn func_table(&self, index: u32) -> Option<&str> {
-        self.find(|m| match m {
-            Export::FuncTable(i) => *i == index,
-            _ => false,
-        })
+    /// Returns the indirect function table, if exported, for this module.
+    pub fn indirect_function_table(&self) -> Option<&str> {
+        self.find(|t| matches!(t, Export::IndirectFunctionTable))
     }
 
     /// Returns the `_initialize` intrinsic, if exported, for this module.
@@ -1618,6 +1584,7 @@ trait NameMangling {
     fn export_memory(&self) -> &str;
     fn export_initialize(&self) -> &str;
     fn export_realloc(&self) -> &str;
+    fn export_indirect_function_table(&self) -> Option<&str>;
     fn resource_drop_name<'a>(&self, s: &'a str) -> Option<&'a str>;
     fn resource_new_name<'a>(&self, s: &'a str) -> Option<&'a str>;
     fn resource_rep_name<'a>(&self, s: &'a str) -> Option<&'a str>;
@@ -1643,7 +1610,7 @@ trait NameMangling {
     fn context_get(&self, name: &str) -> Option<u32>;
     fn context_set(&self, name: &str) -> Option<u32>;
     fn thread_index(&self) -> Option<&str>;
-    fn thread_new_indirect(&self, name: &str) -> Option<(u32, u32)>;
+    fn thread_new_indirect(&self) -> Option<&str>;
     fn thread_switch_to(&self) -> Option<&str>;
     fn thread_suspend(&self) -> Option<&str>;
     fn thread_resume_later(&self) -> Option<&str>;
@@ -1695,6 +1662,9 @@ impl NameMangling for Standard {
     }
     fn export_realloc(&self) -> &str {
         "_realloc"
+    }
+    fn export_indirect_function_table(&self) -> Option<&str> {
+        None
     }
     fn resource_drop_name<'a>(&self, s: &'a str) -> Option<&'a str> {
         s.strip_suffix("_drop")
@@ -1773,7 +1743,7 @@ impl NameMangling for Standard {
     fn thread_index(&self) -> Option<&str> {
         None
     }
-    fn thread_new_indirect(&self, _: &str) -> Option<(u32, u32)> {
+    fn thread_new_indirect(&self) -> Option<&str> {
         None
     }
     fn thread_switch_to(&self) -> Option<&str> {
@@ -1918,6 +1888,9 @@ impl NameMangling for Legacy {
     fn export_realloc(&self) -> &str {
         "cabi_realloc"
     }
+    fn export_indirect_function_table(&self) -> Option<&str> {
+        Some("__indirect_function_table")
+    }
     fn resource_drop_name<'a>(&self, s: &'a str) -> Option<&'a str> {
         s.strip_prefix("[resource-drop]")
     }
@@ -2002,13 +1975,9 @@ impl NameMangling for Legacy {
     fn thread_index(&self) -> Option<&str> {
         Some("[thread-index]")
     }
-    fn thread_new_indirect(&self, name: &str) -> Option<(u32, u32)> {
-        let rest = name.strip_prefix("[thread-new-indirect-")?;
-        let func_ty_idx_end = rest.find('-')?;
-        let func_ty_idx = rest[..func_ty_idx_end].parse().ok()?;
-        let end_idx = rest.find(']')?;
-        let table_idx = rest[func_ty_idx_end + 1..end_idx].parse().ok()?;
-        Some((func_ty_idx, table_idx))
+    fn thread_new_indirect(&self) -> Option<&str> {
+        // For now, we'll fix the type of the start function and the table to extract it from
+        Some("[thread-new-indirect-v0]")
     }
     fn thread_switch_to(&self) -> Option<&str> {
         Some("[thread-switch-to]")

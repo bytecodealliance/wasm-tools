@@ -24,8 +24,7 @@
   (import "$root" "[context-get-1]" (func (result i32)))
   (import "$root" "[context-set-1]" (func (param i32)))
   (import "$root" "[thread-index]" (func (result i32)))
-  ;; 0-0 means the type 0 is the thread start function type, table 0 is the funcref table
-  (import "$root" "[thread-new-indirect-0-0]" (func (param i32 i32) (result i32)))
+  (import "$root" "[thread-new-indirect-v0]" (func (param i32 i32) (result i32)))
   (import "$root" "[thread-switch-to]" (func (param i32) (result i32)))
   (import "$root" "[thread-suspend]" (func (result i32)))
   (import "$root" "[thread-resume-later]" (func (param i32)))
@@ -34,7 +33,7 @@
   (func (export "[async-lift-stackful]foo") (param i32 i32) unreachable)
   (func (export "[async-lift-stackful]foo:foo/bar#foo") (param i32 i32) unreachable)
   (memory (export "memory") 1)
-  (table (export "indirect_function_table") 1 1 funcref)
+  (table (export "__indirect_function_table") 1 1 funcref)
   (elem (i32.const 0) func 0)
 
   (func (export "cabi_realloc") (param i32 i32 i32 i32) (result i32) unreachable)
