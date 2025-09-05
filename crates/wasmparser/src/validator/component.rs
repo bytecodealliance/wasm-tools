@@ -1476,8 +1476,10 @@ impl ComponentState {
                 "`context.get` requires the component model async feature"
             )
         }
-        if i > 1 {
+        if self.features.cm_threading() && i > 1 {
             bail!(offset, "`context.get` immediate must be zero or one: {i}")
+        } else if i > 0 {
+            bail!(offset, "`context.get` immediate must be zero: {i}")
         }
 
         self.core_funcs
