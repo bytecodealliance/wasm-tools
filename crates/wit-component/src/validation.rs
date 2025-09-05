@@ -584,195 +584,143 @@ impl ImportMap {
         let world_id = encoder.metadata.world;
         let world = &resolve.worlds[world_id];
 
-        let (async_, name) = if let Some(name) = names.async_lower_name(name) {
-            (true, name)
-        } else {
-            (false, name)
-        };
-        let (cancellable, name) = if let Some(name) = names.cancellable_name(name) {
-            (true, name)
-        } else {
-            (false, name)
-        };
-        let abi = if async_ {
-            AbiVariant::GuestImportAsync
-        } else {
-            AbiVariant::GuestImport
-        };
-        let validate_not_async = || {
-            if async_ {
-                bail!("`{name}` cannot be marked `async`")
-            }
-            Ok(())
-        };
-        let validate_not_cancellable = || {
-            if cancellable {
-                bail!("`{name}` cannot be marked `cancellable`")
-            }
-            Ok(())
-        };
-
         if module == names.import_root() {
-            if Some(name) == names.error_context_drop() {
-                validate_not_async()?;
-                validate_not_cancellable()?;
+            if names.error_context_drop(name) {
                 let expected = FuncType::new([ValType::I32], []);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::ErrorContextDrop);
             }
 
-            if Some(name) == names.backpressure_set() {
-                validate_not_async()?;
-                validate_not_cancellable()?;
+            if names.backpressure_set(name) {
                 let expected = FuncType::new([ValType::I32], []);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::BackpressureSet);
             }
 
-            if Some(name) == names.waitable_set_new() {
-                validate_not_async()?;
-                validate_not_cancellable()?;
+            if names.waitable_set_new(name) {
                 let expected = FuncType::new([], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::WaitableSetNew);
             }
 
-            if Some(name) == names.waitable_set_wait() {
-                validate_not_async()?;
+            if let Some(info) = names.waitable_set_wait(name) {
                 let expected = FuncType::new([ValType::I32; 2], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::WaitableSetWait { cancellable });
+                return Ok(Import::WaitableSetWait {
+                    cancellable: info.cancellable,
+                });
             }
 
-            if Some(name) == names.waitable_set_poll() {
-                validate_not_async()?;
+            if let Some(info) = names.waitable_set_poll(name) {
                 let expected = FuncType::new([ValType::I32; 2], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::WaitableSetPoll { cancellable });
+                return Ok(Import::WaitableSetPoll {
+                    cancellable: info.cancellable,
+                });
             }
 
-            if Some(name) == names.waitable_set_drop() {
-                validate_not_async()?;
-                validate_not_cancellable()?;
+            if names.waitable_set_drop(name) {
                 let expected = FuncType::new([ValType::I32], []);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::WaitableSetDrop);
             }
 
-            if Some(name) == names.waitable_join() {
-                validate_not_async()?;
-                validate_not_cancellable()?;
+            if names.waitable_join(name) {
                 let expected = FuncType::new([ValType::I32; 2], []);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::WaitableJoin);
             }
 
-            if Some(name) == names.thread_yield() {
-                validate_not_async()?;
+            if let Some(info) = names.thread_yield(name) {
                 let expected = FuncType::new([], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::ThreadYield { cancellable });
+                return Ok(Import::ThreadYield {
+                    cancellable: info.cancellable,
+                });
             }
 
-            if Some(name) == names.subtask_drop() {
-                validate_not_async()?;
-                validate_not_cancellable()?;
+            if names.subtask_drop(name) {
                 let expected = FuncType::new([ValType::I32], []);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::SubtaskDrop);
             }
 
-            if Some(name) == names.subtask_cancel() {
-                validate_not_cancellable()?;
+            if let Some(info) = names.subtask_cancel(name) {
                 let expected = FuncType::new([ValType::I32], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::SubtaskCancel { async_ });
+                return Ok(Import::SubtaskCancel {
+                    async_: info.async_lowered,
+                });
             }
 
             if let Some(encoding) = names.error_context_new(name) {
-                validate_not_async()?;
-                validate_not_cancellable()?;
                 let expected = FuncType::new([ValType::I32; 2], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::ErrorContextNew { encoding });
             }
 
             if let Some(encoding) = names.error_context_debug_message(name) {
-                validate_not_async()?;
-                validate_not_cancellable()?;
                 let expected = FuncType::new([ValType::I32; 2], []);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::ErrorContextDebugMessage { encoding });
             }
 
             if let Some(i) = names.context_get(name) {
-                validate_not_async()?;
-                validate_not_cancellable()?;
                 let expected = FuncType::new([], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::ContextGet(i));
             }
             if let Some(i) = names.context_set(name) {
-                validate_not_async()?;
-                validate_not_cancellable()?;
                 let expected = FuncType::new([ValType::I32], []);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::ContextSet(i));
             }
-            if Some(name) == names.thread_index() {
-                validate_not_async()?;
-                validate_not_cancellable()?;
+            if names.thread_index(name) {
                 let expected = FuncType::new([], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::ThreadIndex);
             }
-            if Some(name) == names.thread_new_indirect() {
-                validate_not_async()?;
-                validate_not_cancellable()?;
-
+            if names.thread_new_indirect(name) {
                 let expected = FuncType::new([ValType::I32; 2], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::ThreadNewIndirect);
             }
-            if Some(name) == names.thread_switch_to() {
-                validate_not_async()?;
+            if let Some(info) = names.thread_switch_to(name) {
                 let expected = FuncType::new([ValType::I32], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::ThreadSwitchTo { cancellable });
+                return Ok(Import::ThreadSwitchTo {
+                    cancellable: info.cancellable,
+                });
             }
-            if Some(name) == names.thread_suspend() {
-                validate_not_async()?;
+            if let Some(info) = names.thread_suspend(name) {
                 let expected = FuncType::new([], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::ThreadSuspend { cancellable });
+                return Ok(Import::ThreadSuspend {
+                    cancellable: info.cancellable,
+                });
             }
-            if Some(name) == names.thread_resume_later() {
-                validate_not_async()?;
-                validate_not_cancellable()?;
+            if names.thread_resume_later(name) {
                 let expected = FuncType::new([ValType::I32], []);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::ThreadResumeLater);
             }
-            if Some(name) == names.thread_yield_to() {
-                validate_not_async()?;
+            if let Some(info) = names.thread_yield_to(name) {
                 let expected = FuncType::new([ValType::I32], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::ThreadYieldTo { cancellable });
+                return Ok(Import::ThreadYieldTo {
+                    cancellable: info.cancellable,
+                });
             }
 
-            let key = WorldKey::Name(name.to_string());
+            let (key_name, abi) = names.world_key_name_and_abi(name);
+            let key = WorldKey::Name(key_name.to_string());
             if let Some(WorldItem::Function(func)) = world.imports.get(&key) {
                 validate_func(resolve, ty, func, abi)?;
                 return Ok(Import::WorldFunc(key, func.name.clone(), abi));
             }
 
-            // At this point, all cancellable imports have already been checked
-            if cancellable {
-                bail!("`{name}` cannot be marked `cancellable`");
-            }
-
             if let Some(import) =
-                self.maybe_classify_wit_intrinsic(name, None, encoder, ty, async_, true, names)?
+                self.maybe_classify_wit_intrinsic(name, None, encoder, ty, true, names)?
             {
                 return Ok(import);
             }
@@ -783,18 +731,13 @@ impl ImportMap {
             }
         }
 
-        // At this point, all cancellable imports have already been checked
-        if cancellable {
-            bail!("`{name}` cannot be marked `cancellable`");
-        }
-
         // Check for `[export]$root::[task-return]foo` or similar
         if matches!(
             module.strip_prefix(names.import_exported_intrinsic_prefix()),
             Some(module) if module == names.import_root()
         ) {
             if let Some(import) =
-                self.maybe_classify_wit_intrinsic(name, None, encoder, ty, async_, false, names)?
+                self.maybe_classify_wit_intrinsic(name, None, encoder, ty, false, names)?
             {
                 return Ok(import);
             }
@@ -808,15 +751,9 @@ impl ImportMap {
         if let Some(interface) = interface.strip_prefix(names.import_exported_intrinsic_prefix()) {
             let (key, id) = names.module_to_interface(interface, resolve, &world.exports)?;
 
-            if let Some(import) = self.maybe_classify_wit_intrinsic(
-                name,
-                Some((key, id)),
-                encoder,
-                ty,
-                async_,
-                false,
-                names,
-            )? {
+            if let Some(import) =
+                self.maybe_classify_wit_intrinsic(name, Some((key, id)), encoder, ty, false, names)?
+            {
                 return Ok(import);
             }
             bail!("unknown function `{name}`")
@@ -824,7 +761,8 @@ impl ImportMap {
 
         let (key, id) = names.module_to_interface(interface, resolve, &world.imports)?;
         let interface = &resolve.interfaces[id];
-        if let Some(f) = interface.functions.get(name) {
+        let (function_name, abi) = names.interface_function_name_and_abi(name);
+        if let Some(f) = interface.functions.get(function_name) {
             validate_func(resolve, ty, f, abi).with_context(|| {
                 let name = resolve.name_world_key(&key);
                 format!("failed to validate import interface `{name}`")
@@ -832,15 +770,9 @@ impl ImportMap {
             return Ok(Import::InterfaceFunc(key, id, f.name.clone(), abi));
         }
 
-        if let Some(import) = self.maybe_classify_wit_intrinsic(
-            name,
-            Some((key, id)),
-            encoder,
-            ty,
-            async_,
-            true,
-            names,
-        )? {
+        if let Some(import) =
+            self.maybe_classify_wit_intrinsic(name, Some((key, id)), encoder, ty, true, names)?
+        {
             return Ok(import);
         }
         bail!(
@@ -860,8 +792,8 @@ impl ImportMap {
     /// ## Parameters
     ///
     /// * `name` - the core module name which is being pattern-matched. This
-    ///   should be the "field" of the import. This should have the
-    ///   "[async-lift]" prefix stripped out already.
+    ///   should be the "field" of the import. This may include the "[async-lower]"
+    ///   or "[cancellable]" prefixes.
     /// * `key_and_id` - this is the inferred "container" for the function
     ///   being described which is inferred from the module portion of the core
     ///   wasm import field. This is `None` for root-level function/type
@@ -872,8 +804,6 @@ impl ImportMap {
     /// * `encoder` - this is the encoder state that contains
     ///   `Resolve`/metadata information.
     /// * `ty` - the core wasm type of this import.
-    /// * `async_` - whether or not this import had the `[async-lift]` import.
-    ///   Note that such prefix is not present in `name`.
     /// * `import` - whether or not this core wasm import is operating on a WIT
     ///   level import or export. An example of this being an export is when a
     ///   core module imports a destructor for an exported resource.
@@ -884,7 +814,6 @@ impl ImportMap {
         key_and_id: Option<(WorldKey, InterfaceId)>,
         encoder: &ComponentEncoder,
         ty: &FuncType,
-        async_: bool,
         import: bool,
         names: &dyn NameMangling,
     ) -> Result<Option<Import>> {
@@ -909,9 +838,6 @@ impl ImportMap {
 
         // Test whether this is a `resource.drop` intrinsic.
         if let Some(resource) = names.resource_drop_name(name) {
-            if async_ {
-                bail!("async `resource.drop` calls not supported");
-            }
             if let Some(resource_id) = resource_test(resource) {
                 let key = key.unwrap_or_else(|| WorldKey::Name(resource.to_string()));
                 let expected = FuncType::new([ValType::I32], []);
@@ -955,108 +881,88 @@ impl ImportMap {
                     func.result,
                 )));
             }
-            if Some(name) == names.task_cancel() {
-                if async_ {
-                    bail!("async `task.cancel` calls not supported");
-                }
+            if names.task_cancel(name) {
                 let expected = FuncType::new([], []);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Some(Import::ExportedTaskCancel));
             }
         }
 
-        // Looks for `[$prefix-N]foo` within `name`. If found then `foo` is
-        // used to find a function within `id` and `world` above. Once found
-        // then `N` is used to index within that function to extract a
-        // future/stream type. If that's all found then a `PayloadInfo` is
-        // returned to get attached to an intrinsic.
-        let prefixed_payload = |prefix: &str| {
-            // parse the `prefix` into `func_name` and `type_index`, bailing out
-            // with `None` if anything doesn't match.
-            let (type_index, func_name) = prefixed_integer(name, prefix)?;
-            let type_index = type_index as usize;
-
-            // Double-check that `func_name` is indeed a function name within
-            // this interface/world. Then additionally double-check that
-            // `type_index` is indeed a valid index for this function's type
-            // signature.
-            let function = get_function(resolve, world, func_name, id, import).ok()?;
-            let ty = *function.find_futures_and_streams(resolve).get(type_index)?;
-
-            // And if all that passes wrap up everything in a `PayloadInfo`.
-            Some(PayloadInfo {
-                name: name.to_string(),
-                ty,
-                function: function.name.clone(),
-                key: key
-                    .clone()
-                    .unwrap_or_else(|| WorldKey::Name(name.to_string())),
-                interface: id,
-                imported: import,
-            })
+        let lookup_context = PayloadLookupContext {
+            resolve,
+            world,
+            key,
+            id,
+            import,
         };
 
         // Test for a number of async-related intrinsics. All intrinsics are
         // prefixed with `[...-N]` where `...` is the name of the intrinsic and
         // the `N` is the indexed future/stream that is being referred to.
-        let import = if let Some(info) = prefixed_payload("[future-new-") {
-            if async_ {
-                bail!("async `future.new` calls not supported");
-            }
+        let import = if let Some(info) = names.future_new(&lookup_context, name) {
             validate_func_sig(name, &FuncType::new([], [ValType::I64]), ty)?;
             Import::FutureNew(info)
-        } else if let Some(info) = prefixed_payload("[future-write-") {
+        } else if let Some(info) = names.future_write(&lookup_context, name) {
             validate_func_sig(name, &FuncType::new([ValType::I32; 2], [ValType::I32]), ty)?;
-            Import::FutureWrite { async_, info }
-        } else if let Some(info) = prefixed_payload("[future-read-") {
-            validate_func_sig(name, &FuncType::new([ValType::I32; 2], [ValType::I32]), ty)?;
-            Import::FutureRead { async_, info }
-        } else if let Some(info) = prefixed_payload("[future-cancel-write-") {
-            validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
-            Import::FutureCancelWrite { async_, info }
-        } else if let Some(info) = prefixed_payload("[future-cancel-read-") {
-            validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
-            Import::FutureCancelRead { async_, info }
-        } else if let Some(info) = prefixed_payload("[future-drop-writable-") {
-            if async_ {
-                bail!("async `future.drop-writable` calls not supported");
+            Import::FutureWrite {
+                async_: info.async_lowered,
+                info: info.inner,
             }
+        } else if let Some(info) = names.future_read(&lookup_context, name) {
+            validate_func_sig(name, &FuncType::new([ValType::I32; 2], [ValType::I32]), ty)?;
+            Import::FutureRead {
+                async_: info.async_lowered,
+                info: info.inner,
+            }
+        } else if let Some(info) = names.future_cancel_write(&lookup_context, name) {
+            validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
+            Import::FutureCancelWrite {
+                async_: info.async_lowered,
+                info: info.inner,
+            }
+        } else if let Some(info) = names.future_cancel_read(&lookup_context, name) {
+            validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
+            Import::FutureCancelRead {
+                async_: info.async_lowered,
+                info: info.inner,
+            }
+        } else if let Some(info) = names.future_drop_writable(&lookup_context, name) {
             validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
             Import::FutureDropWritable(info)
-        } else if let Some(info) = prefixed_payload("[future-drop-readable-") {
-            if async_ {
-                bail!("async `future.drop-readable` calls not supported");
-            }
+        } else if let Some(info) = names.future_drop_readable(&lookup_context, name) {
             validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
             Import::FutureDropReadable(info)
-        } else if let Some(info) = prefixed_payload("[stream-new-") {
-            if async_ {
-                bail!("async `stream.new` calls not supported");
-            }
+        } else if let Some(info) = names.stream_new(&lookup_context, name) {
             validate_func_sig(name, &FuncType::new([], [ValType::I64]), ty)?;
             Import::StreamNew(info)
-        } else if let Some(info) = prefixed_payload("[stream-write-") {
+        } else if let Some(info) = names.stream_write(&lookup_context, name) {
             validate_func_sig(name, &FuncType::new([ValType::I32; 3], [ValType::I32]), ty)?;
-            Import::StreamWrite { async_, info }
-        } else if let Some(info) = prefixed_payload("[stream-read-") {
-            validate_func_sig(name, &FuncType::new([ValType::I32; 3], [ValType::I32]), ty)?;
-            Import::StreamRead { async_, info }
-        } else if let Some(info) = prefixed_payload("[stream-cancel-write-") {
-            validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
-            Import::StreamCancelWrite { async_, info }
-        } else if let Some(info) = prefixed_payload("[stream-cancel-read-") {
-            validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
-            Import::StreamCancelRead { async_, info }
-        } else if let Some(info) = prefixed_payload("[stream-drop-writable-") {
-            if async_ {
-                bail!("async `stream.drop-writable` calls not supported");
+            Import::StreamWrite {
+                async_: info.async_lowered,
+                info: info.inner,
             }
+        } else if let Some(info) = names.stream_read(&lookup_context, name) {
+            validate_func_sig(name, &FuncType::new([ValType::I32; 3], [ValType::I32]), ty)?;
+            Import::StreamRead {
+                async_: info.async_lowered,
+                info: info.inner,
+            }
+        } else if let Some(info) = names.stream_cancel_write(&lookup_context, name) {
+            validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
+            Import::StreamCancelWrite {
+                async_: info.async_lowered,
+                info: info.inner,
+            }
+        } else if let Some(info) = names.stream_cancel_read(&lookup_context, name) {
+            validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
+            Import::StreamCancelRead {
+                async_: info.async_lowered,
+                info: info.inner,
+            }
+        } else if let Some(info) = names.stream_drop_writable(&lookup_context, name) {
             validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
             Import::StreamDropWritable(info)
-        } else if let Some(info) = prefixed_payload("[stream-drop-readable-") {
-            if async_ {
-                bail!("async `stream.drop-readable` calls not supported");
-            }
+        } else if let Some(info) = names.stream_drop_readable(&lookup_context, name) {
             validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
             Import::StreamDropReadable(info)
         } else {
@@ -1556,6 +1462,29 @@ impl ExportMap {
     }
 }
 
+/// A builtin that may be declared as cancellable.
+struct MaybeCancellable<T> {
+    #[allow(unused)]
+    inner: T,
+    cancellable: bool,
+}
+
+/// A builtin that may be declared as async-lowered.
+struct MaybeAsyncLowered<T> {
+    inner: T,
+    async_lowered: bool,
+}
+
+/// Context passed to `NameMangling` implementations of stream and future functions
+/// to help with looking up payload information.
+struct PayloadLookupContext<'a> {
+    resolve: &'a Resolve,
+    world: &'a World,
+    id: Option<InterfaceId>,
+    import: bool,
+    key: Option<WorldKey>,
+}
+
 /// Trait dispatch and definition for parsing and interpreting "mangled names"
 /// which show up in imports and exports of the component model.
 ///
@@ -1585,43 +1514,103 @@ trait NameMangling {
     fn export_initialize(&self) -> &str;
     fn export_realloc(&self) -> &str;
     fn export_indirect_function_table(&self) -> Option<&str>;
-    fn resource_drop_name<'a>(&self, s: &'a str) -> Option<&'a str>;
-    fn resource_new_name<'a>(&self, s: &'a str) -> Option<&'a str>;
-    fn resource_rep_name<'a>(&self, s: &'a str) -> Option<&'a str>;
-    fn task_return_name<'a>(&self, s: &'a str) -> Option<&'a str>;
-    fn task_cancel(&self) -> Option<&str>;
-    fn backpressure_set(&self) -> Option<&str>;
-    fn waitable_set_new(&self) -> Option<&str>;
-    fn waitable_set_wait(&self) -> Option<&str>;
-    fn waitable_set_poll(&self) -> Option<&str>;
-    fn waitable_set_drop(&self) -> Option<&str>;
-    fn waitable_join(&self) -> Option<&str>;
-    fn thread_yield(&self) -> Option<&str>;
-    fn subtask_drop(&self) -> Option<&str>;
-    fn subtask_cancel(&self) -> Option<&str>;
-    fn async_lift_callback_name<'a>(&self, s: &'a str) -> Option<&'a str>;
-    fn async_lower_name<'a>(&self, s: &'a str) -> Option<&'a str>;
-    fn async_lift_name<'a>(&self, s: &'a str) -> Option<&'a str>;
-    fn async_lift_stackful_name<'a>(&self, s: &'a str) -> Option<&'a str>;
-    fn error_context_new(&self, s: &str) -> Option<StringEncoding>;
-    fn error_context_debug_message(&self, s: &str) -> Option<StringEncoding>;
-    fn error_context_drop(&self) -> Option<&str>;
-    fn cancellable_name<'a>(&self, s: &'a str) -> Option<&'a str>;
+    fn resource_drop_name<'a>(&self, name: &'a str) -> Option<&'a str>;
+    fn resource_new_name<'a>(&self, name: &'a str) -> Option<&'a str>;
+    fn resource_rep_name<'a>(&self, name: &'a str) -> Option<&'a str>;
+    fn task_return_name<'a>(&self, name: &'a str) -> Option<&'a str>;
+    fn task_cancel(&self, name: &str) -> bool;
+    fn backpressure_set(&self, name: &str) -> bool;
+    fn waitable_set_new(&self, name: &str) -> bool;
+    fn waitable_set_wait(&self, name: &str) -> Option<MaybeCancellable<()>>;
+    fn waitable_set_poll(&self, name: &str) -> Option<MaybeCancellable<()>>;
+    fn waitable_set_drop(&self, name: &str) -> bool;
+    fn waitable_join(&self, name: &str) -> bool;
+    fn thread_yield(&self, name: &str) -> Option<MaybeCancellable<()>>;
+    fn subtask_drop(&self, name: &str) -> bool;
+    fn subtask_cancel(&self, name: &str) -> Option<MaybeAsyncLowered<()>>;
+    fn async_lift_callback_name<'a>(&self, name: &'a str) -> Option<&'a str>;
+    fn async_lift_name<'a>(&self, name: &'a str) -> Option<&'a str>;
+    fn async_lift_stackful_name<'a>(&self, name: &'a str) -> Option<&'a str>;
+    fn error_context_new(&self, name: &str) -> Option<StringEncoding>;
+    fn error_context_debug_message(&self, name: &str) -> Option<StringEncoding>;
+    fn error_context_drop(&self, name: &str) -> bool;
     fn context_get(&self, name: &str) -> Option<u32>;
     fn context_set(&self, name: &str) -> Option<u32>;
-    fn thread_index(&self) -> Option<&str>;
-    fn thread_new_indirect(&self) -> Option<&str>;
-    fn thread_switch_to(&self) -> Option<&str>;
-    fn thread_suspend(&self) -> Option<&str>;
-    fn thread_resume_later(&self) -> Option<&str>;
-    fn thread_yield_to(&self) -> Option<&str>;
+    fn future_new(&self, lookup_context: &PayloadLookupContext, name: &str) -> Option<PayloadInfo>;
+    fn future_write(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>>;
+    fn future_read(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>>;
+    fn future_cancel_write(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>>;
+    fn future_cancel_read(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>>;
+    fn future_drop_writable(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<PayloadInfo>;
+    fn future_drop_readable(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<PayloadInfo>;
+    fn stream_new(&self, lookup_context: &PayloadLookupContext, name: &str) -> Option<PayloadInfo>;
+    fn stream_write(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>>;
+    fn stream_read(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>>;
+    fn stream_cancel_write(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>>;
+    fn stream_cancel_read(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>>;
+    fn stream_drop_writable(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<PayloadInfo>;
+    fn stream_drop_readable(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<PayloadInfo>;
+    fn thread_index(&self, name: &str) -> bool;
+    fn thread_new_indirect(&self, name: &str) -> bool;
+    fn thread_switch_to(&self, name: &str) -> Option<MaybeCancellable<()>>;
+    fn thread_suspend(&self, name: &str) -> Option<MaybeCancellable<()>>;
+    fn thread_resume_later(&self, name: &str) -> bool;
+    fn thread_yield_to(&self, name: &str) -> Option<MaybeCancellable<()>>;
     fn module_to_interface(
         &self,
         module: &str,
         resolve: &Resolve,
         items: &IndexMap<WorldKey, WorldItem>,
     ) -> Result<(WorldKey, InterfaceId)>;
-    fn strip_post_return<'a>(&self, s: &'a str) -> Option<&'a str>;
+    fn strip_post_return<'a>(&self, name: &'a str) -> Option<&'a str>;
     fn match_wit_export<'a>(
         &self,
         export_name: &str,
@@ -1636,6 +1625,8 @@ trait NameMangling {
         world: WorldId,
         exports: &'a IndexSet<WorldKey>,
     ) -> Option<TypeId>;
+    fn world_key_name_and_abi<'a>(&self, name: &'a str) -> (&'a str, AbiVariant);
+    fn interface_function_name_and_abi<'a>(&self, name: &'a str) -> (&'a str, AbiVariant);
 }
 
 /// Definition of the "standard" naming scheme which currently starts with
@@ -1666,100 +1657,186 @@ impl NameMangling for Standard {
     fn export_indirect_function_table(&self) -> Option<&str> {
         None
     }
-    fn resource_drop_name<'a>(&self, s: &'a str) -> Option<&'a str> {
-        s.strip_suffix("_drop")
+    fn resource_drop_name<'a>(&self, name: &'a str) -> Option<&'a str> {
+        name.strip_suffix("_drop")
     }
-    fn resource_new_name<'a>(&self, s: &'a str) -> Option<&'a str> {
-        s.strip_suffix("_new")
+    fn resource_new_name<'a>(&self, name: &'a str) -> Option<&'a str> {
+        name.strip_suffix("_new")
     }
-    fn resource_rep_name<'a>(&self, s: &'a str) -> Option<&'a str> {
-        s.strip_suffix("_rep")
+    fn resource_rep_name<'a>(&self, name: &'a str) -> Option<&'a str> {
+        name.strip_suffix("_rep")
     }
-    fn task_return_name<'a>(&self, s: &'a str) -> Option<&'a str> {
-        _ = s;
+    fn task_return_name<'a>(&self, _name: &'a str) -> Option<&'a str> {
         None
     }
-    fn task_cancel(&self) -> Option<&str> {
+    fn task_cancel(&self, _name: &str) -> bool {
+        false
+    }
+    fn backpressure_set(&self, _name: &str) -> bool {
+        false
+    }
+    fn waitable_set_new(&self, _name: &str) -> bool {
+        false
+    }
+    fn waitable_set_wait(&self, _name: &str) -> Option<MaybeCancellable<()>> {
         None
     }
-    fn backpressure_set(&self) -> Option<&str> {
+    fn waitable_set_poll(&self, _name: &str) -> Option<MaybeCancellable<()>> {
         None
     }
-    fn waitable_set_new(&self) -> Option<&str> {
+    fn waitable_set_drop(&self, _name: &str) -> bool {
+        false
+    }
+    fn waitable_join(&self, _name: &str) -> bool {
+        false
+    }
+    fn thread_yield(&self, _name: &str) -> Option<MaybeCancellable<()>> {
         None
     }
-    fn waitable_set_wait(&self) -> Option<&str> {
+    fn subtask_drop(&self, _name: &str) -> bool {
+        false
+    }
+    fn subtask_cancel(&self, _name: &str) -> Option<MaybeAsyncLowered<()>> {
         None
     }
-    fn waitable_set_poll(&self) -> Option<&str> {
+    fn async_lift_callback_name<'a>(&self, _name: &'a str) -> Option<&'a str> {
         None
     }
-    fn waitable_set_drop(&self) -> Option<&str> {
+    fn async_lift_name<'a>(&self, _name: &'a str) -> Option<&'a str> {
         None
     }
-    fn waitable_join(&self) -> Option<&str> {
+    fn async_lift_stackful_name<'a>(&self, _name: &'a str) -> Option<&'a str> {
         None
     }
-    fn thread_yield(&self) -> Option<&str> {
+    fn error_context_new(&self, _name: &str) -> Option<StringEncoding> {
         None
     }
-    fn subtask_drop(&self) -> Option<&str> {
+    fn error_context_debug_message(&self, _name: &str) -> Option<StringEncoding> {
         None
     }
-    fn subtask_cancel(&self) -> Option<&str> {
+    fn error_context_drop(&self, _name: &str) -> bool {
+        false
+    }
+    fn context_get(&self, _name: &str) -> Option<u32> {
         None
     }
-    fn async_lift_callback_name<'a>(&self, s: &'a str) -> Option<&'a str> {
-        _ = s;
+    fn context_set(&self, _name: &str) -> Option<u32> {
         None
     }
-    fn async_lower_name<'a>(&self, s: &'a str) -> Option<&'a str> {
-        _ = s;
+    fn thread_index(&self, _name: &str) -> bool {
+        false
+    }
+    fn thread_new_indirect(&self, _name: &str) -> bool {
+        false
+    }
+    fn thread_switch_to(&self, _name: &str) -> Option<MaybeCancellable<()>> {
         None
     }
-    fn async_lift_name<'a>(&self, s: &'a str) -> Option<&'a str> {
-        _ = s;
+    fn thread_suspend(&self, _name: &str) -> Option<MaybeCancellable<()>> {
         None
     }
-    fn async_lift_stackful_name<'a>(&self, s: &'a str) -> Option<&'a str> {
-        _ = s;
+    fn thread_resume_later(&self, _name: &str) -> bool {
+        false
+    }
+    fn thread_yield_to(&self, _name: &str) -> Option<MaybeCancellable<()>> {
         None
     }
-    fn error_context_new(&self, _: &str) -> Option<StringEncoding> {
+    fn future_new(
+        &self,
+        _lookup_context: &PayloadLookupContext,
+        _name: &str,
+    ) -> Option<PayloadInfo> {
         None
     }
-    fn error_context_debug_message(&self, _: &str) -> Option<StringEncoding> {
+    fn future_write(
+        &self,
+        _lookup_context: &PayloadLookupContext,
+        _name: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>> {
         None
     }
-    fn error_context_drop(&self) -> Option<&str> {
+    fn future_read(
+        &self,
+        _lookup_context: &PayloadLookupContext,
+        _name: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>> {
         None
     }
-    fn context_get(&self, _: &str) -> Option<u32> {
+    fn future_cancel_write(
+        &self,
+        _lookup_context: &PayloadLookupContext,
+        _name: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>> {
         None
     }
-    fn context_set(&self, _: &str) -> Option<u32> {
+    fn future_cancel_read(
+        &self,
+        _lookup_context: &PayloadLookupContext,
+        _name: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>> {
         None
     }
-    fn thread_index(&self) -> Option<&str> {
+    fn future_drop_writable(
+        &self,
+        _lookup_context: &PayloadLookupContext,
+        _name: &str,
+    ) -> Option<PayloadInfo> {
         None
     }
-    fn thread_new_indirect(&self) -> Option<&str> {
+    fn future_drop_readable(
+        &self,
+        _lookup_context: &PayloadLookupContext,
+        _name: &str,
+    ) -> Option<PayloadInfo> {
         None
     }
-    fn thread_switch_to(&self) -> Option<&str> {
+    fn stream_new(
+        &self,
+        _lookup_context: &PayloadLookupContext,
+        _name: &str,
+    ) -> Option<PayloadInfo> {
         None
     }
-    fn thread_suspend(&self) -> Option<&str> {
+    fn stream_write(
+        &self,
+        _lookup_context: &PayloadLookupContext,
+        _name: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>> {
         None
     }
-    fn thread_resume_later(&self) -> Option<&str> {
+    fn stream_read(
+        &self,
+        _lookup_context: &PayloadLookupContext,
+        _name: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>> {
         None
     }
-    fn thread_yield_to(&self) -> Option<&str> {
+    fn stream_cancel_write(
+        &self,
+        _lookup_context: &PayloadLookupContext,
+        _name: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>> {
         None
     }
-    fn cancellable_name<'a>(&self, s: &'a str) -> Option<&'a str> {
-        _ = s;
+    fn stream_cancel_read(
+        &self,
+        _lookup_context: &PayloadLookupContext,
+        _name: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>> {
+        None
+    }
+    fn stream_drop_writable(
+        &self,
+        _lookup_context: &PayloadLookupContext,
+        _name: &str,
+    ) -> Option<PayloadInfo> {
+        None
+    }
+    fn stream_drop_readable(
+        &self,
+        _lookup_context: &PayloadLookupContext,
+        _name: &str,
+    ) -> Option<PayloadInfo> {
         None
     }
     fn module_to_interface(
@@ -1787,8 +1864,8 @@ impl NameMangling for Standard {
         }
         bail!("failed to find world item corresponding to interface `{interface}`")
     }
-    fn strip_post_return<'a>(&self, s: &'a str) -> Option<&'a str> {
-        s.strip_suffix("_post")
+    fn strip_post_return<'a>(&self, name: &'a str) -> Option<&'a str> {
+        name.strip_suffix("_post")
     }
     fn match_wit_export<'a>(
         &self,
@@ -1825,6 +1902,13 @@ impl NameMangling for Standard {
             TypeDefKind::Resource => Some(ty),
             _ => None,
         }
+    }
+
+    fn world_key_name_and_abi<'a>(&self, name: &'a str) -> (&'a str, AbiVariant) {
+        (name, AbiVariant::GuestImport)
+    }
+    fn interface_function_name_and_abi<'a>(&self, name: &'a str) -> (&'a str, AbiVariant) {
+        (name, AbiVariant::GuestImport)
     }
 }
 
@@ -1869,6 +1953,107 @@ struct Legacy;
 
 const LEGACY: &'static dyn NameMangling = &Legacy;
 
+impl Legacy {
+    // Looks for `[$prefix-N]foo` within `name`. If found then `foo` is
+    // used to find a function within `id` and `world` above. Once found
+    // then `N` is used to index within that function to extract a
+    // future/stream type. If that's all found then a `PayloadInfo` is
+    // returned to get attached to an intrinsic.
+    fn prefixed_payload(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+        prefix: &str,
+    ) -> Option<PayloadInfo> {
+        // parse the `prefix` into `func_name` and `type_index`, bailing out
+        // with `None` if anything doesn't match.
+        let (type_index, func_name) = prefixed_integer(name, prefix)?;
+        let type_index = type_index as usize;
+
+        // Double-check that `func_name` is indeed a function name within
+        // this interface/world. Then additionally double-check that
+        // `type_index` is indeed a valid index for this function's type
+        // signature.
+        let function = get_function(
+            lookup_context.resolve,
+            lookup_context.world,
+            func_name,
+            lookup_context.id,
+            lookup_context.import,
+        )
+        .ok()?;
+        let ty = *function
+            .find_futures_and_streams(lookup_context.resolve)
+            .get(type_index)?;
+
+        // And if all that passes wrap up everything in a `PayloadInfo`.
+        Some(PayloadInfo {
+            name: name.to_string(),
+            ty,
+            function: function.name.clone(),
+            key: lookup_context
+                .key
+                .clone()
+                .unwrap_or_else(|| WorldKey::Name(name.to_string())),
+            interface: lookup_context.id,
+            imported: lookup_context.import,
+        })
+    }
+
+    fn maybe_async_lowered_payload(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+        prefix: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>> {
+        let (async_lowered, clean_name) = self.strip_async_lowered_prefix(name);
+        let payload = self.prefixed_payload(lookup_context, clean_name, prefix)?;
+        Some(MaybeAsyncLowered {
+            inner: payload,
+            async_lowered,
+        })
+    }
+
+    fn strip_async_lowered_prefix<'a>(&self, name: &'a str) -> (bool, &'a str) {
+        name.strip_prefix("[async-lower]")
+            .map_or((false, name), |s| (true, s))
+    }
+    fn match_with_async_lowered_prefix(
+        &self,
+        name: &str,
+        expected: &str,
+    ) -> Option<MaybeAsyncLowered<()>> {
+        let (async_lowered, clean_name) = self.strip_async_lowered_prefix(name);
+        if clean_name == expected {
+            Some(MaybeAsyncLowered {
+                inner: (),
+                async_lowered,
+            })
+        } else {
+            None
+        }
+    }
+    fn strip_cancellable_prefix<'a>(&self, name: &'a str) -> (bool, &'a str) {
+        name.strip_prefix("[cancellable]")
+            .map_or((false, name), |s| (true, s))
+    }
+    fn match_with_cancellable_prefix(
+        &self,
+        name: &str,
+        expected: &str,
+    ) -> Option<MaybeCancellable<()>> {
+        let (cancellable, clean_name) = self.strip_cancellable_prefix(name);
+        if clean_name == expected {
+            Some(MaybeCancellable {
+                inner: (),
+                cancellable,
+            })
+        } else {
+            None
+        }
+    }
+}
+
 impl NameMangling for Legacy {
     fn import_root(&self) -> &str {
         "$root"
@@ -1891,59 +2076,56 @@ impl NameMangling for Legacy {
     fn export_indirect_function_table(&self) -> Option<&str> {
         Some("__indirect_function_table")
     }
-    fn resource_drop_name<'a>(&self, s: &'a str) -> Option<&'a str> {
-        s.strip_prefix("[resource-drop]")
+    fn resource_drop_name<'a>(&self, name: &'a str) -> Option<&'a str> {
+        name.strip_prefix("[resource-drop]")
     }
-    fn resource_new_name<'a>(&self, s: &'a str) -> Option<&'a str> {
-        s.strip_prefix("[resource-new]")
+    fn resource_new_name<'a>(&self, name: &'a str) -> Option<&'a str> {
+        name.strip_prefix("[resource-new]")
     }
-    fn resource_rep_name<'a>(&self, s: &'a str) -> Option<&'a str> {
-        s.strip_prefix("[resource-rep]")
+    fn resource_rep_name<'a>(&self, name: &'a str) -> Option<&'a str> {
+        name.strip_prefix("[resource-rep]")
     }
-    fn task_return_name<'a>(&self, s: &'a str) -> Option<&'a str> {
-        s.strip_prefix("[task-return]")
+    fn task_return_name<'a>(&self, name: &'a str) -> Option<&'a str> {
+        name.strip_prefix("[task-return]")
     }
-    fn task_cancel(&self) -> Option<&str> {
-        Some("[task-cancel]")
+    fn task_cancel(&self, name: &str) -> bool {
+        name == "[task-cancel]"
     }
-    fn backpressure_set(&self) -> Option<&str> {
-        Some("[backpressure-set]")
+    fn backpressure_set(&self, name: &str) -> bool {
+        name == "[backpressure-set]"
     }
-    fn waitable_set_new(&self) -> Option<&str> {
-        Some("[waitable-set-new]")
+    fn waitable_set_new(&self, name: &str) -> bool {
+        name == "[waitable-set-new]"
     }
-    fn waitable_set_wait(&self) -> Option<&str> {
-        Some("[waitable-set-wait]")
+    fn waitable_set_wait(&self, name: &str) -> Option<MaybeCancellable<()>> {
+        self.match_with_cancellable_prefix(name, "[waitable-set-wait]")
     }
-    fn waitable_set_poll(&self) -> Option<&str> {
-        Some("[waitable-set-poll]")
+    fn waitable_set_poll(&self, name: &str) -> Option<MaybeCancellable<()>> {
+        self.match_with_cancellable_prefix(name, "[waitable-set-poll]")
     }
-    fn waitable_set_drop(&self) -> Option<&str> {
-        Some("[waitable-set-drop]")
+    fn waitable_set_drop(&self, name: &str) -> bool {
+        name == "[waitable-set-drop]"
     }
-    fn waitable_join(&self) -> Option<&str> {
-        Some("[waitable-join]")
+    fn waitable_join(&self, name: &str) -> bool {
+        name == "[waitable-join]"
     }
-    fn thread_yield(&self) -> Option<&str> {
-        Some("[thread-yield]")
+    fn thread_yield(&self, name: &str) -> Option<MaybeCancellable<()>> {
+        self.match_with_cancellable_prefix(name, "[thread-yield]")
     }
-    fn subtask_drop(&self) -> Option<&str> {
-        Some("[subtask-drop]")
+    fn subtask_drop(&self, name: &str) -> bool {
+        name == "[subtask-drop]"
     }
-    fn subtask_cancel(&self) -> Option<&str> {
-        Some("[subtask-cancel]")
+    fn subtask_cancel(&self, name: &str) -> Option<MaybeAsyncLowered<()>> {
+        self.match_with_async_lowered_prefix(name, "[subtask-cancel]")
     }
-    fn async_lift_callback_name<'a>(&self, s: &'a str) -> Option<&'a str> {
-        s.strip_prefix("[callback][async-lift]")
+    fn async_lift_callback_name<'a>(&self, name: &'a str) -> Option<&'a str> {
+        name.strip_prefix("[callback][async-lift]")
     }
-    fn async_lower_name<'a>(&self, s: &'a str) -> Option<&'a str> {
-        s.strip_prefix("[async-lower]")
+    fn async_lift_name<'a>(&self, name: &'a str) -> Option<&'a str> {
+        name.strip_prefix("[async-lift]")
     }
-    fn async_lift_name<'a>(&self, s: &'a str) -> Option<&'a str> {
-        s.strip_prefix("[async-lift]")
-    }
-    fn async_lift_stackful_name<'a>(&self, s: &'a str) -> Option<&'a str> {
-        s.strip_prefix("[async-lift-stackful]")
+    fn async_lift_stackful_name<'a>(&self, name: &'a str) -> Option<&'a str> {
+        name.strip_prefix("[async-lift-stackful]")
     }
     fn error_context_new(&self, name: &str) -> Option<StringEncoding> {
         match name {
@@ -1961,8 +2143,8 @@ impl NameMangling for Legacy {
             _ => None,
         }
     }
-    fn error_context_drop(&self) -> Option<&str> {
-        Some("[error-context-drop]")
+    fn error_context_drop(&self, name: &str) -> bool {
+        name == "[error-context-drop]"
     }
     fn context_get(&self, name: &str) -> Option<u32> {
         let (n, rest) = prefixed_integer(name, "[context-get-")?;
@@ -1972,27 +2154,114 @@ impl NameMangling for Legacy {
         let (n, rest) = prefixed_integer(name, "[context-set-")?;
         if rest.is_empty() { Some(n) } else { None }
     }
-    fn thread_index(&self) -> Option<&str> {
-        Some("[thread-index]")
+    fn thread_index(&self, name: &str) -> bool {
+        name == "[thread-index]"
     }
-    fn thread_new_indirect(&self) -> Option<&str> {
+    fn thread_new_indirect(&self, name: &str) -> bool {
         // For now, we'll fix the type of the start function and the table to extract it from
-        Some("[thread-new-indirect-v0]")
+        name == "[thread-new-indirect-v0]"
     }
-    fn thread_switch_to(&self) -> Option<&str> {
-        Some("[thread-switch-to]")
+    fn thread_switch_to(&self, name: &str) -> Option<MaybeCancellable<()>> {
+        self.match_with_cancellable_prefix(name, "[thread-switch-to]")
     }
-    fn thread_suspend(&self) -> Option<&str> {
-        Some("[thread-suspend]")
+    fn thread_suspend(&self, name: &str) -> Option<MaybeCancellable<()>> {
+        self.match_with_cancellable_prefix(name, "[thread-suspend]")
     }
-    fn thread_resume_later(&self) -> Option<&str> {
-        Some("[thread-resume-later]")
+    fn thread_resume_later(&self, name: &str) -> bool {
+        name == "[thread-resume-later]"
     }
-    fn thread_yield_to(&self) -> Option<&str> {
-        Some("[thread-yield-to]")
+    fn thread_yield_to(&self, name: &str) -> Option<MaybeCancellable<()>> {
+        self.match_with_cancellable_prefix(name, "[thread-yield-to]")
     }
-    fn cancellable_name<'a>(&self, s: &'a str) -> Option<&'a str> {
-        s.strip_prefix("[cancellable]")
+    fn future_new(&self, lookup_context: &PayloadLookupContext, name: &str) -> Option<PayloadInfo> {
+        self.prefixed_payload(lookup_context, name, "[future-new-")
+    }
+    fn future_write(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>> {
+        self.maybe_async_lowered_payload(lookup_context, name, "[future-write-")
+    }
+    fn future_read(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>> {
+        self.maybe_async_lowered_payload(lookup_context, name, "[future-read-")
+    }
+    fn future_cancel_write(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>> {
+        self.maybe_async_lowered_payload(lookup_context, name, "[future-cancel-write-")
+    }
+    fn future_cancel_read(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>> {
+        self.maybe_async_lowered_payload(lookup_context, name, "[future-cancel-read-")
+    }
+    fn future_drop_writable(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<PayloadInfo> {
+        self.prefixed_payload(lookup_context, name, "[future-drop-writable-")
+    }
+    fn future_drop_readable(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<PayloadInfo> {
+        self.prefixed_payload(lookup_context, name, "[future-drop-readable-")
+    }
+    fn stream_new(&self, lookup_context: &PayloadLookupContext, name: &str) -> Option<PayloadInfo> {
+        self.prefixed_payload(lookup_context, name, "[stream-new-")
+    }
+    fn stream_write(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>> {
+        self.maybe_async_lowered_payload(lookup_context, name, "[stream-write-")
+    }
+    fn stream_read(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>> {
+        self.maybe_async_lowered_payload(lookup_context, name, "[stream-read-")
+    }
+    fn stream_cancel_write(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>> {
+        self.maybe_async_lowered_payload(lookup_context, name, "[stream-cancel-write-")
+    }
+    fn stream_cancel_read(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<MaybeAsyncLowered<PayloadInfo>> {
+        self.maybe_async_lowered_payload(lookup_context, name, "[stream-cancel-read-")
+    }
+    fn stream_drop_writable(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<PayloadInfo> {
+        self.prefixed_payload(lookup_context, name, "[stream-drop-writable-")
+    }
+    fn stream_drop_readable(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<PayloadInfo> {
+        self.prefixed_payload(lookup_context, name, "[stream-drop-readable-")
     }
     fn module_to_interface(
         &self,
@@ -2075,8 +2344,8 @@ impl NameMangling for Legacy {
 
         bail!("module requires an import interface named `{module}`")
     }
-    fn strip_post_return<'a>(&self, s: &'a str) -> Option<&'a str> {
-        s.strip_prefix("cabi_post_")
+    fn strip_post_return<'a>(&self, name: &'a str) -> Option<&'a str> {
+        name.strip_prefix("cabi_post_")
     }
     fn match_wit_export<'a>(
         &self,
@@ -2142,6 +2411,29 @@ impl NameMangling for Legacy {
         }
 
         None
+    }
+
+    fn world_key_name_and_abi<'a>(&self, name: &'a str) -> (&'a str, AbiVariant) {
+        let (async_abi, name) = self.strip_async_lowered_prefix(name);
+        (
+            name,
+            if async_abi {
+                AbiVariant::GuestImportAsync
+            } else {
+                AbiVariant::GuestImport
+            },
+        )
+    }
+    fn interface_function_name_and_abi<'a>(&self, name: &'a str) -> (&'a str, AbiVariant) {
+        let (async_abi, name) = self.strip_async_lowered_prefix(name);
+        (
+            name,
+            if async_abi {
+                AbiVariant::GuestImportAsync
+            } else {
+                AbiVariant::GuestImport
+            },
+        )
     }
 }
 
