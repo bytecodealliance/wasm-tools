@@ -1469,6 +1469,23 @@ impl ComponentState {
         Ok(())
     }
 
+    fn validate_context_immediate(
+        &self,
+        immediate: u32,
+        operation: &str,
+        offset: usize,
+    ) -> Result<()> {
+        if !self.features.cm_threading() && immediate > 0 {
+            bail!(offset, "`{operation}` immediate must be zero: {immediate}")
+        } else if immediate > 1 {
+            bail!(
+                offset,
+                "`{operation}` immediate must be zero or one: {immediate}"
+            )
+        }
+        Ok(())
+    }
+
     fn context_get(&mut self, i: u32, types: &mut TypeAlloc, offset: usize) -> Result<()> {
         if !self.features.cm_async() {
             bail!(
@@ -1476,11 +1493,7 @@ impl ComponentState {
                 "`context.get` requires the component model async feature"
             )
         }
-        if self.features.cm_threading() && i > 1 {
-            bail!(offset, "`context.get` immediate must be zero or one: {i}")
-        } else if i > 0 {
-            bail!(offset, "`context.get` immediate must be zero: {i}")
-        }
+        self.validate_context_immediate(i, "context.get", offset)?;
 
         self.core_funcs
             .push(types.intern_func_type(FuncType::new([], [ValType::I32]), offset));
@@ -1494,11 +1507,7 @@ impl ComponentState {
                 "`context.set` requires the component model async feature"
             )
         }
-        if self.features.cm_threading() && i > 1 {
-            bail!(offset, "`context.set` immediate must be zero or one: {i}")
-        } else if i > 0 {
-            bail!(offset, "`context.set` immediate must be zero: {i}")
-        }
+        self.validate_context_immediate(i, "context.set", offset)?;
 
         self.core_funcs
             .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset));
