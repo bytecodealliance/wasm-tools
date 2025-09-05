@@ -1,0 +1,14 @@
+(component
+  (core module $m (;0;)
+    (type (;0;) (func (param i32)))
+    (import "" "task.return" (func $task-return (;0;) (type 0)))
+  )
+  (core func $task-return (;0;) (canon task.return (result u32)))
+  (core instance (;0;)
+    (export "task.return" (func $task-return))
+  )
+  (core instance $i (;1;) (instantiate $m
+      (with "" (instance 0))
+    )
+  )
+)

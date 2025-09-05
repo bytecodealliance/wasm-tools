@@ -995,8 +995,8 @@ pub mod component_utils {
             wasmparser::CanonicalFunction::ContextSet(i) => {
                 section.context_set(i);
             }
-            wasmparser::CanonicalFunction::Yield { async_ } => {
-                section.yield_(async_);
+            wasmparser::CanonicalFunction::ThreadYield { cancellable } => {
+                section.thread_yield(cancellable);
             }
             wasmparser::CanonicalFunction::SubtaskDrop => {
                 section.subtask_drop();
@@ -1082,17 +1082,46 @@ pub mod component_utils {
             wasmparser::CanonicalFunction::WaitableSetNew => {
                 section.waitable_set_new();
             }
-            wasmparser::CanonicalFunction::WaitableSetWait { async_, memory } => {
-                section.waitable_set_wait(async_, reencoder.memory_index(memory)?);
+            wasmparser::CanonicalFunction::WaitableSetWait {
+                cancellable,
+                memory,
+            } => {
+                section.waitable_set_wait(cancellable, reencoder.memory_index(memory)?);
             }
-            wasmparser::CanonicalFunction::WaitableSetPoll { async_, memory } => {
-                section.waitable_set_poll(async_, reencoder.memory_index(memory)?);
+            wasmparser::CanonicalFunction::WaitableSetPoll {
+                cancellable,
+                memory,
+            } => {
+                section.waitable_set_poll(cancellable, reencoder.memory_index(memory)?);
             }
             wasmparser::CanonicalFunction::WaitableSetDrop => {
                 section.waitable_set_drop();
             }
             wasmparser::CanonicalFunction::WaitableJoin => {
                 section.waitable_join();
+            }
+            wasmparser::CanonicalFunction::ThreadIndex => {
+                section.thread_index();
+            }
+            wasmparser::CanonicalFunction::ThreadNewIndirect {
+                func_ty_index,
+                table_index,
+            } => {
+                let func_ty = reencoder.type_index(func_ty_index)?;
+                let table_index = reencoder.table_index(table_index)?;
+                section.thread_new_indirect(func_ty, table_index);
+            }
+            wasmparser::CanonicalFunction::ThreadSwitchTo { cancellable } => {
+                section.thread_switch_to(cancellable);
+            }
+            wasmparser::CanonicalFunction::ThreadSuspend { cancellable } => {
+                section.thread_suspend(cancellable);
+            }
+            wasmparser::CanonicalFunction::ThreadResumeLater => {
+                section.thread_resume_later();
+            }
+            wasmparser::CanonicalFunction::ThreadYieldTo { cancellable } => {
+                section.thread_yield_to(cancellable);
             }
         }
         Ok(())

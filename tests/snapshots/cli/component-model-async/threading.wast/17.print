@@ -1,0 +1,14 @@
+(component
+  (core module $m (;0;)
+    (type (;0;) (func (param i32 i32)))
+    (import "" "waitable.join" (func (;0;) (type 0)))
+  )
+  (core func $waitable.join (;0;) (canon waitable.join))
+  (core instance (;0;)
+    (export "waitable.join" (func $waitable.join))
+  )
+  (core instance $i (;1;) (instantiate $m
+      (with "" (instance 0))
+    )
+  )
+)

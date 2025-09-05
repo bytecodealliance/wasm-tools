@@ -1,0 +1,14 @@
+(component
+  (core module $m (;0;)
+    (type (;0;) (func))
+    (import "" "task.cancel" (func $task-cancel (;0;) (type 0)))
+  )
+  (core func $task-cancel (;0;) (canon task.cancel))
+  (core instance (;0;)
+    (export "task.cancel" (func $task-cancel))
+  )
+  (core instance $i (;1;) (instantiate $m
+      (with "" (instance 0))
+    )
+  )
+)

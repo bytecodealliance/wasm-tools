@@ -59,7 +59,7 @@ pub enum CoreFuncKind<'a> {
     TaskCancel,
     ContextGet(u32),
     ContextSet(u32),
-    Yield(CanonYield),
+    ThreadYield(CanonThreadYield),
     SubtaskDrop,
     SubtaskCancel(CanonSubtaskCancel),
     StreamNew(CanonStreamNew<'a>),
@@ -84,6 +84,12 @@ pub enum CoreFuncKind<'a> {
     WaitableSetPoll(CanonWaitableSetPoll<'a>),
     WaitableSetDrop,
     WaitableJoin,
+    ThreadIndex,
+    ThreadNewIndirect(CanonThreadNewIndirect<'a>),
+    ThreadSwitchTo(CanonThreadSwitchTo),
+    ThreadSuspend(CanonThreadSuspend),
+    ThreadResumeLater,
+    ThreadYieldTo(CanonThreadYieldTo),
 }
 
 impl<'a> Parse<'a> for CoreFuncKind<'a> {
@@ -134,8 +140,8 @@ impl<'a> CoreFuncKind<'a> {
             parser.parse::<kw::context_set>()?;
             parser.parse::<kw::i32>()?;
             Ok(CoreFuncKind::ContextSet(parser.parse()?))
-        } else if l.peek::<kw::yield_>()? {
-            Ok(CoreFuncKind::Yield(parser.parse()?))
+        } else if l.peek::<kw::thread_yield>()? {
+            Ok(CoreFuncKind::ThreadYield(parser.parse()?))
         } else if l.peek::<kw::subtask_drop>()? {
             parser.parse::<kw::subtask_drop>()?;
             Ok(CoreFuncKind::SubtaskDrop)
@@ -189,6 +195,20 @@ impl<'a> CoreFuncKind<'a> {
         } else if l.peek::<kw::waitable_join>()? {
             parser.parse::<kw::waitable_join>()?;
             Ok(CoreFuncKind::WaitableJoin)
+        } else if l.peek::<kw::thread_index>()? {
+            parser.parse::<kw::thread_index>()?;
+            Ok(CoreFuncKind::ThreadIndex)
+        } else if l.peek::<kw::thread_new_indirect>()? {
+            Ok(CoreFuncKind::ThreadNewIndirect(parser.parse()?))
+        } else if l.peek::<kw::thread_switch_to>()? {
+            Ok(CoreFuncKind::ThreadSwitchTo(parser.parse()?))
+        } else if l.peek::<kw::thread_suspend>()? {
+            Ok(CoreFuncKind::ThreadSuspend(parser.parse()?))
+        } else if l.peek::<kw::thread_resume_later>()? {
+            parser.parse::<kw::thread_resume_later>()?;
+            Ok(CoreFuncKind::ThreadResumeLater)
+        } else if l.peek::<kw::thread_yield_to>()? {
+            Ok(CoreFuncKind::ThreadYieldTo(parser.parse()?))
         } else {
             Err(l.error())
         }
@@ -569,7 +589,7 @@ pub struct CanonWaitableSetWait<'a> {
 impl<'a> Parse<'a> for CanonWaitableSetWait<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::waitable_set_wait>()?;
-        let async_ = parser.parse::<Option<kw::r#async>>()?.is_some();
+        let async_ = parser.parse::<Option<kw::cancellable>>()?.is_some();
         let memory = parser.parens(|p| p.parse())?;
 
         Ok(Self { async_, memory })
@@ -589,27 +609,27 @@ pub struct CanonWaitableSetPoll<'a> {
 impl<'a> Parse<'a> for CanonWaitableSetPoll<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::waitable_set_poll>()?;
-        let async_ = parser.parse::<Option<kw::r#async>>()?.is_some();
+        let async_ = parser.parse::<Option<kw::cancellable>>()?.is_some();
         let memory = parser.parens(|p| p.parse())?;
 
         Ok(Self { async_, memory })
     }
 }
 
-/// Information relating to the `yield` intrinsic.
+/// Information relating to the `thread.yield` intrinsic.
 #[derive(Debug)]
-pub struct CanonYield {
+pub struct CanonThreadYield {
     /// If true, the component instance may be reentered during a call to this
     /// intrinsic.
-    pub async_: bool,
+    pub cancellable: bool,
 }
 
-impl<'a> Parse<'a> for CanonYield {
+impl<'a> Parse<'a> for CanonThreadYield {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::yield_>()?;
-        let async_ = parser.parse::<Option<kw::r#async>>()?.is_some();
+        parser.parse::<kw::thread_yield>()?;
+        let cancellable = parser.parse::<Option<kw::cancellable>>()?.is_some();
 
-        Ok(Self { async_ })
+        Ok(Self { cancellable })
     }
 }
 
@@ -927,6 +947,67 @@ impl<'a> Parse<'a> for CanonErrorContextDebugMessage<'a> {
         Ok(Self {
             opts: parser.parse()?,
         })
+    }
+}
+
+/// Information relating to the `thread.new_indirect` intrinsic.
+#[derive(Debug)]
+pub struct CanonThreadNewIndirect<'a> {
+    /// The function type for the thread start function.
+    pub ty: Index<'a>,
+    /// The table to index.
+    pub table: CoreItemRef<'a, kw::table>,
+}
+
+impl<'a> Parse<'a> for CanonThreadNewIndirect<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.parse::<kw::thread_new_indirect>()?;
+        let ty = parser.parse()?;
+        let table = parser.parens(|p| p.parse())?;
+        Ok(Self { ty, table })
+    }
+}
+
+/// Information relating to the `thread.switch-to` intrinsic.
+#[derive(Debug)]
+pub struct CanonThreadSwitchTo {
+    /// Whether the thread can be cancelled while suspended at this point.
+    pub cancellable: bool,
+}
+
+impl<'a> Parse<'a> for CanonThreadSwitchTo {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.parse::<kw::thread_switch_to>()?;
+        let cancellable = parser.parse::<Option<kw::cancellable>>()?.is_some();
+        Ok(Self { cancellable })
+    }
+}
+
+/// Information relating to the `thread.suspend` intrinsic.
+#[derive(Debug)]
+pub struct CanonThreadSuspend {
+    /// Whether the thread can be cancelled while suspended at this point.
+    pub cancellable: bool,
+}
+impl<'a> Parse<'a> for CanonThreadSuspend {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.parse::<kw::thread_suspend>()?;
+        let cancellable = parser.parse::<Option<kw::cancellable>>()?.is_some();
+        Ok(Self { cancellable })
+    }
+}
+
+/// Information relating to the `thread.yield-to` intrinsic.
+#[derive(Debug)]
+pub struct CanonThreadYieldTo {
+    /// Whether the thread can be cancelled while yielding at this point.
+    pub cancellable: bool,
+}
+impl<'a> Parse<'a> for CanonThreadYieldTo {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.parse::<kw::thread_yield_to>()?;
+        let cancellable = parser.parse::<Option<kw::cancellable>>()?.is_some();
+        Ok(Self { cancellable })
     }
 }
 

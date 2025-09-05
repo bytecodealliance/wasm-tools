@@ -1,0 +1,12 @@
+(component
+  (core module $m (;0;)
+    (memory (;0;) 1)
+    (export "m" (memory 0))
+  )
+  (core instance $i (;0;) (instantiate $m))
+  (core func (;0;) (canon task.return (result u32) string-encoding=utf8))
+  (core func (;1;) (canon task.return (result u32) string-encoding=utf16))
+  (core func (;2;) (canon task.return (result u32) string-encoding=latin1+utf16))
+  (alias core export $i "m" (core memory (;0;)))
+  (core func (;3;) (canon task.return (result u32) (memory 0)))
+)

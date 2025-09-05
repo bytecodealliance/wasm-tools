@@ -1,4 +1,4 @@
-;; RUN: wast --assert default --snapshot tests/snapshots % -f cm-async,cm-async-builtins
+;; RUN: wast --assert default --snapshot tests/snapshots % -f cm-async,cm-threading
 
 (component
   (type $t (resource (rep i32)))

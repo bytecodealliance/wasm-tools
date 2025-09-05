@@ -1,4 +1,4 @@
-;; RUN: wast --assert default --snapshot tests/snapshots % -f cm-async,cm-async-stackful
+;; RUN: wast --assert default --snapshot tests/snapshots % -f cm-async,cm-threading
 
 ;; async lift; no callback
 (component

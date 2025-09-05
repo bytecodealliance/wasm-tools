@@ -432,7 +432,7 @@ impl<'a> Dump<'a> {
                             | CanonicalFunction::WaitableSetPoll { .. }
                             | CanonicalFunction::WaitableSetDrop
                             | CanonicalFunction::WaitableJoin
-                            | CanonicalFunction::Yield { .. }
+                            | CanonicalFunction::ThreadYield { .. }
                             | CanonicalFunction::SubtaskDrop
                             | CanonicalFunction::SubtaskCancel { .. }
                             | CanonicalFunction::StreamNew { .. }
@@ -451,7 +451,13 @@ impl<'a> Dump<'a> {
                             | CanonicalFunction::FutureDropWritable { .. }
                             | CanonicalFunction::ErrorContextNew { .. }
                             | CanonicalFunction::ErrorContextDebugMessage { .. }
-                            | CanonicalFunction::ErrorContextDrop => {
+                            | CanonicalFunction::ErrorContextDrop
+                            | CanonicalFunction::ThreadIndex
+                            | CanonicalFunction::ThreadNewIndirect { .. }
+                            | CanonicalFunction::ThreadSwitchTo { .. }
+                            | CanonicalFunction::ThreadSuspend { .. }
+                            | CanonicalFunction::ThreadResumeLater { .. }
+                            | CanonicalFunction::ThreadYieldTo { .. } => {
                                 ("core func", &mut i.core_funcs)
                             }
                         };

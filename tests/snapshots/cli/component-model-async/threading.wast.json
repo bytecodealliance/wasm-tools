@@ -1,0 +1,322 @@
+{
+  "source_filename": "tests/cli/component-model-async/threading.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 4,
+      "filename": "threading.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 14,
+      "filename": "threading.1.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `backpressure.set` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 25,
+      "filename": "threading.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 34,
+      "filename": "threading.3.wasm",
+      "module_type": "binary",
+      "text": "cannot specify `async` option on `task.return`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 38,
+      "filename": "threading.4.wasm",
+      "module_type": "binary",
+      "text": "cannot specify callback without async"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 45,
+      "filename": "threading.5.wasm",
+      "module_type": "binary",
+      "text": "cannot specify `post-return` option on `task.return`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 52,
+      "filename": "threading.6.wasm",
+      "module_type": "binary",
+      "text": "cannot specify `realloc` option on `task.return`"
+    },
+    {
+      "type": "module",
+      "line": 61,
+      "filename": "threading.7.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 73,
+      "filename": "threading.8.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 82,
+      "filename": "threading.9.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 90,
+      "filename": "threading.10.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `waitable-set.new` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 99,
+      "filename": "threading.11.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 111,
+      "filename": "threading.12.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `waitable-set.wait` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 124,
+      "filename": "threading.13.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 136,
+      "filename": "threading.14.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `waitable-set.poll` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 149,
+      "filename": "threading.15.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 157,
+      "filename": "threading.16.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `waitable-set.drop` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 166,
+      "filename": "threading.17.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 174,
+      "filename": "threading.18.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `waitable.join` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 183,
+      "filename": "threading.19.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 193,
+      "filename": "threading.20.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `thread.yield` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 204,
+      "filename": "threading.21.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 214,
+      "filename": "threading.22.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `subtask.drop` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 225,
+      "filename": "threading.23.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 235,
+      "filename": "threading.24.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `subtask.cancel` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 246,
+      "filename": "threading.25.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 269,
+      "filename": "threading.26.wasm",
+      "module_type": "binary",
+      "text": "found:    (func (result i32))"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 276,
+      "filename": "threading.27.wasm",
+      "module_type": "binary",
+      "text": "found:    (func (param i32))"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 283,
+      "filename": "threading.28.wasm",
+      "module_type": "binary",
+      "text": "found:    (func (result i32))"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 290,
+      "filename": "threading.29.wasm",
+      "module_type": "binary",
+      "text": "found:    (func (param i32))"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 297,
+      "filename": "threading.30.wasm",
+      "module_type": "binary",
+      "text": "immediate must be zero or one: 2"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 301,
+      "filename": "threading.31.wasm",
+      "module_type": "binary",
+      "text": "immediate must be zero or one: 2"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 305,
+      "filename": "threading.32.wasm",
+      "module_type": "binary",
+      "text": "immediate must be zero or one: 100"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 309,
+      "filename": "threading.33.wasm",
+      "module_type": "binary",
+      "text": "immediate must be zero or one: 100"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 313,
+      "filename": "threading.34.wat",
+      "module_type": "text",
+      "text": "expected keyword `i32`"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 317,
+      "filename": "threading.35.wat",
+      "module_type": "text",
+      "text": "expected keyword `i32`"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 322,
+      "filename": "threading.36.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x7e) for context.get"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 329,
+      "filename": "threading.37.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x7e) for context.set"
+    },
+    {
+      "type": "module",
+      "line": 337,
+      "filename": "threading.38.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 344,
+      "filename": "threading.39.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 363,
+      "filename": "threading.40.wasm",
+      "module_type": "binary",
+      "text": "unknown table 0: table index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 373,
+      "filename": "threading.41.wasm",
+      "module_type": "binary",
+      "text": "start function must take a single `i32` argument"
+    },
+    {
+      "type": "module",
+      "line": 383,
+      "filename": "threading.42.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 393,
+      "filename": "threading.43.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `thread.index` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 404,
+      "filename": "threading.44.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 414,
+      "filename": "threading.45.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `thread.switch-to` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 426,
+      "filename": "threading.46.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 524,
+      "filename": "threading.47.wasm",
+      "module_type": "binary"
+    }
+  ]
+}
