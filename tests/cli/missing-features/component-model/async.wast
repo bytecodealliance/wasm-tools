@@ -340,7 +340,7 @@
     (type $t (resource (rep i32)))
     (core func $f (canon resource.drop $t async))
   )
-  "requires the component model threading feature"
+  "requires the component model async builtins feature"
 )
 
 (assert_invalid

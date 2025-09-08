@@ -136,7 +136,7 @@
       "line": 193,
       "filename": "task-builtins.20.wasm",
       "module_type": "binary",
-      "text": "type mismatch for export `yield` of module instantiation argument ``"
+      "text": "type mismatch for export `thread.yield` of module instantiation argument ``"
     },
     {
       "type": "module",
@@ -248,7 +248,7 @@
     },
     {
       "type": "module",
-      "line": 389,
+      "line": 391,
       "filename": "task-builtins.37.wasm",
       "module_type": "binary"
     }

@@ -202,7 +202,7 @@
       "line": 339,
       "filename": "async.28.wasm",
       "module_type": "binary",
-      "text": "requires the component model threading feature"
+      "text": "requires the component model async builtins feature"
     },
     {
       "type": "assert_invalid",

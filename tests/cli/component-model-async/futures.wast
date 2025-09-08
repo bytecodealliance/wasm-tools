@@ -1,4 +1,4 @@
-;; RUN: wast --assert default --snapshot tests/snapshots % -f cm-async,cm-threading
+;; RUN: wast --assert default --snapshot tests/snapshots % -f cm-async,cm-async-builtins
 
 ;; future.new
 (component

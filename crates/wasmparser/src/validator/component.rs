@@ -363,8 +363,11 @@ impl CanonicalOptions {
         match self.concurrency {
             Concurrency::Sync => {}
 
-            Concurrency::Async { callback: None } if !state.features.cm_threading() => {
-                bail!(offset, "requires the component model threading feature")
+            Concurrency::Async { callback: None } if !state.features.cm_async_stackful() => {
+                bail!(
+                    offset,
+                    "requires the component model async stackful feature"
+                )
             }
             Concurrency::Async { callback: None } => {}
 
@@ -1369,10 +1372,10 @@ impl ComponentState {
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
-        if !self.features.cm_threading() {
+        if !self.features.cm_async_builtins() {
             bail!(
                 offset,
-                "`resource.drop` as `async` requires the component model threading feature"
+                "`resource.drop` as `async` requires the component model async builtins feature"
             )
         }
         self.resource_at(resource, types, offset)?;
@@ -1526,10 +1529,10 @@ impl ComponentState {
                 "`thread.yield` requires the component model async feature"
             )
         }
-        if cancellable && !self.features.cm_threading() {
+        if cancellable && !self.features.cm_async_stackful() {
             bail!(
                 offset,
-                "cancellable `thread.yield` requires the component model threading feature"
+                "cancellable `thread.yield` requires the component model async stackful feature"
             )
         }
 
@@ -1558,10 +1561,10 @@ impl ComponentState {
                 "`subtask.cancel` requires the component model async feature"
             )
         }
-        if async_ && !self.features.cm_threading() {
+        if async_ && !self.features.cm_async_builtins() {
             bail!(
                 offset,
-                "async `subtask.cancel` requires the component model threading feature"
+                "async `subtask.cancel` requires the component model async builtins feature"
             )
         }
 
@@ -1668,10 +1671,10 @@ impl ComponentState {
                 "`stream.cancel-read` requires the component model async feature"
             )
         }
-        if cancellable && !self.features.cm_threading() {
+        if cancellable && !self.features.cm_async_builtins() {
             bail!(
                 offset,
-                "async `stream.cancel-read` requires the component model threading feature"
+                "async `stream.cancel-read` requires the component model async builtins feature"
             )
         }
 
@@ -1698,10 +1701,10 @@ impl ComponentState {
                 "`stream.cancel-write` requires the component model async feature"
             )
         }
-        if cancellable && !self.features.cm_threading() {
+        if cancellable && !self.features.cm_async_builtins() {
             bail!(
                 offset,
-                "async `stream.cancel-write` requires the component model threading feature"
+                "async `stream.cancel-write` requires the component model async builtins feature"
             )
         }
 
@@ -1858,10 +1861,10 @@ impl ComponentState {
                 "`future.cancel-read` requires the component model async feature"
             )
         }
-        if cancellable && !self.features.cm_threading() {
+        if cancellable && !self.features.cm_async_builtins() {
             bail!(
                 offset,
-                "async `future.cancel-read` requires the component model threading feature"
+                "async `future.cancel-read` requires the component model async builtins feature"
             )
         }
 
@@ -1888,10 +1891,10 @@ impl ComponentState {
                 "`future.cancel-write` requires the component model async feature"
             )
         }
-        if cancellable && !self.features.cm_threading() {
+        if cancellable && !self.features.cm_async_builtins() {
             bail!(
                 offset,
-                "async `future.cancel-write` requires the component model threading feature"
+                "async `future.cancel-write` requires the component model async builtins feature"
             )
         }
 
@@ -2043,10 +2046,10 @@ impl ComponentState {
                 "`waitable-set.wait` requires the component model async feature"
             )
         }
-        if cancellable && !self.features.cm_threading() {
+        if cancellable && !self.features.cm_async_stackful() {
             bail!(
                 offset,
-                "cancellable `waitable-set.wait` requires the component model threading feature"
+                "cancellable `waitable-set.wait` requires the component model async stackful feature"
             )
         }
 
@@ -2070,10 +2073,10 @@ impl ComponentState {
                 "`waitable-set.poll` requires the component model async feature"
             )
         }
-        if cancellable && !self.features.cm_threading() {
+        if cancellable && !self.features.cm_async_stackful() {
             bail!(
                 offset,
-                "cancellable `waitable-set.poll` requires the component model threading feature"
+                "cancellable `waitable-set.poll` requires the component model async stackful feature"
             )
         }
 

@@ -1,4 +1,0 @@
-(component
-  (type (;0;) (stream u8))
-  (core func (;0;) (canon task.return (result 0)))
-)
