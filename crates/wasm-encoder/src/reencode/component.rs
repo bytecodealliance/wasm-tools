@@ -979,6 +979,12 @@ pub mod component_utils {
             wasmparser::CanonicalFunction::BackpressureSet => {
                 section.backpressure_set();
             }
+            wasmparser::CanonicalFunction::BackpressureInc => {
+                section.backpressure_inc();
+            }
+            wasmparser::CanonicalFunction::BackpressureDec => {
+                section.backpressure_dec();
+            }
             wasmparser::CanonicalFunction::TaskReturn { result, options } => {
                 let options = options
                     .iter()

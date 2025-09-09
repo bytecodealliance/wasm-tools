@@ -42,6 +42,30 @@
   "`backpressure.set` requires the component model async feature"
 )
 
+;; backpressure.inc
+(assert_invalid
+  (component
+    (core module $m
+      (import "" "backpressure.inc" (func $backpressure-inc (param i32)))
+    )
+    (core func $backpressure.inc (canon backpressure.inc))
+    (core instance $i (instantiate $m (with "" (instance (export "backpressure.inc" (func $backpressure.inc))))))
+  )
+  "`backpressure.inc` requires the component model async feature"
+)
+
+;; backpressure.dec
+(assert_invalid
+  (component
+    (core module $m
+      (import "" "backpressure.dec" (func $backpressure-dec (param i32)))
+    )
+    (core func $backpressure.dec (canon backpressure.dec))
+    (core instance $i (instantiate $m (with "" (instance (export "backpressure.dec" (func $backpressure.dec))))))
+  )
+  "`backpressure.dec` requires the component model async feature"
+)
+
 ;; task.return
 (assert_invalid
   (component

@@ -1,11 +1,11 @@
 (component
   (core module $m (;0;)
-    (type (;0;) (func (param i32)))
-    (import "" "task.return" (func $task-return (;0;) (type 0)))
+    (type (;0;) (func))
+    (import "" "backpressure.inc" (func $backpressure.inc (;0;) (type 0)))
   )
-  (core func $task-return (;0;) (canon task.return (result u32)))
+  (core func $backpressure.inc (;0;) (canon backpressure.inc))
   (core instance (;0;)
-    (export "task.return" (func $task-return))
+    (export "backpressure.inc" (func $backpressure.inc))
   )
   (core instance $i (;1;) (instantiate $m
       (with "" (instance 0))

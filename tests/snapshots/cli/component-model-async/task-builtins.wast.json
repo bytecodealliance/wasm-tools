@@ -22,69 +22,69 @@
     },
     {
       "type": "assert_invalid",
-      "line": 34,
+      "line": 35,
       "filename": "task-builtins.3.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `backpressure.inc` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 46,
+      "filename": "task-builtins.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 56,
+      "filename": "task-builtins.5.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `backpressure.dec` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 67,
+      "filename": "task-builtins.6.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 76,
+      "filename": "task-builtins.7.wasm",
       "module_type": "binary",
       "text": "cannot specify `async` option on `task.return`"
     },
     {
       "type": "assert_invalid",
-      "line": 38,
-      "filename": "task-builtins.4.wasm",
+      "line": 80,
+      "filename": "task-builtins.8.wasm",
       "module_type": "binary",
       "text": "cannot specify callback without async"
     },
     {
       "type": "assert_invalid",
-      "line": 45,
-      "filename": "task-builtins.5.wasm",
+      "line": 87,
+      "filename": "task-builtins.9.wasm",
       "module_type": "binary",
       "text": "cannot specify `post-return` option on `task.return`"
     },
     {
       "type": "assert_invalid",
-      "line": 52,
-      "filename": "task-builtins.6.wasm",
+      "line": 94,
+      "filename": "task-builtins.10.wasm",
       "module_type": "binary",
       "text": "cannot specify `realloc` option on `task.return`"
     },
     {
       "type": "module",
-      "line": 61,
-      "filename": "task-builtins.7.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "module",
-      "line": 73,
-      "filename": "task-builtins.8.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "module",
-      "line": 82,
-      "filename": "task-builtins.9.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 90,
-      "filename": "task-builtins.10.wasm",
-      "module_type": "binary",
-      "text": "type mismatch for export `waitable-set.new` of module instantiation argument ``"
-    },
-    {
-      "type": "module",
-      "line": 99,
+      "line": 103,
       "filename": "task-builtins.11.wasm",
       "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
-      "line": 111,
+      "type": "module",
+      "line": 115,
       "filename": "task-builtins.12.wasm",
-      "module_type": "binary",
-      "text": "type mismatch for export `waitable-set.wait` of module instantiation argument ``"
+      "module_type": "binary"
     },
     {
       "type": "module",
@@ -94,23 +94,23 @@
     },
     {
       "type": "assert_invalid",
-      "line": 136,
+      "line": 132,
       "filename": "task-builtins.14.wasm",
       "module_type": "binary",
-      "text": "type mismatch for export `waitable-set.poll` of module instantiation argument ``"
+      "text": "type mismatch for export `waitable-set.new` of module instantiation argument ``"
     },
     {
       "type": "module",
-      "line": 149,
+      "line": 141,
       "filename": "task-builtins.15.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 157,
+      "line": 153,
       "filename": "task-builtins.16.wasm",
       "module_type": "binary",
-      "text": "type mismatch for export `waitable-set.drop` of module instantiation argument ``"
+      "text": "type mismatch for export `waitable-set.wait` of module instantiation argument ``"
     },
     {
       "type": "module",
@@ -120,36 +120,36 @@
     },
     {
       "type": "assert_invalid",
-      "line": 174,
+      "line": 178,
       "filename": "task-builtins.18.wasm",
       "module_type": "binary",
-      "text": "type mismatch for export `waitable.join` of module instantiation argument ``"
+      "text": "type mismatch for export `waitable-set.poll` of module instantiation argument ``"
     },
     {
       "type": "module",
-      "line": 183,
+      "line": 191,
       "filename": "task-builtins.19.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 193,
+      "line": 199,
       "filename": "task-builtins.20.wasm",
       "module_type": "binary",
-      "text": "type mismatch for export `thread.yield` of module instantiation argument ``"
+      "text": "type mismatch for export `waitable-set.drop` of module instantiation argument ``"
     },
     {
       "type": "module",
-      "line": 204,
+      "line": 208,
       "filename": "task-builtins.21.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 214,
+      "line": 216,
       "filename": "task-builtins.22.wasm",
       "module_type": "binary",
-      "text": "type mismatch for export `subtask.drop` of module instantiation argument ``"
+      "text": "type mismatch for export `waitable.join` of module instantiation argument ``"
     },
     {
       "type": "module",
@@ -162,7 +162,7 @@
       "line": 235,
       "filename": "task-builtins.24.wasm",
       "module_type": "binary",
-      "text": "type mismatch for export `subtask.cancel` of module instantiation argument ``"
+      "text": "type mismatch for export `thread.yield` of module instantiation argument ``"
     },
     {
       "type": "module",
@@ -172,84 +172,110 @@
     },
     {
       "type": "assert_invalid",
-      "line": 263,
+      "line": 256,
       "filename": "task-builtins.26.wasm",
       "module_type": "binary",
-      "text": "found:    (func (result i32))"
+      "text": "type mismatch for export `subtask.drop` of module instantiation argument ``"
     },
     {
-      "type": "assert_invalid",
-      "line": 270,
+      "type": "module",
+      "line": 267,
       "filename": "task-builtins.27.wasm",
-      "module_type": "binary",
-      "text": "found:    (func (param i32))"
+      "module_type": "binary"
     },
     {
       "type": "assert_invalid",
       "line": 277,
       "filename": "task-builtins.28.wasm",
       "module_type": "binary",
-      "text": "immediate must be zero: 1"
+      "text": "type mismatch for export `subtask.cancel` of module instantiation argument ``"
     },
     {
-      "type": "assert_invalid",
-      "line": 281,
+      "type": "module",
+      "line": 288,
       "filename": "task-builtins.29.wasm",
-      "module_type": "binary",
-      "text": "immediate must be zero: 1"
+      "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 285,
+      "line": 305,
       "filename": "task-builtins.30.wasm",
       "module_type": "binary",
+      "text": "found:    (func (result i32))"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 312,
+      "filename": "task-builtins.31.wasm",
+      "module_type": "binary",
+      "text": "found:    (func (param i32))"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 319,
+      "filename": "task-builtins.32.wasm",
+      "module_type": "binary",
+      "text": "immediate must be zero: 1"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 323,
+      "filename": "task-builtins.33.wasm",
+      "module_type": "binary",
+      "text": "immediate must be zero: 1"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 327,
+      "filename": "task-builtins.34.wasm",
+      "module_type": "binary",
       "text": "immediate must be zero: 100"
     },
     {
       "type": "assert_invalid",
-      "line": 289,
-      "filename": "task-builtins.31.wasm",
+      "line": 331,
+      "filename": "task-builtins.35.wasm",
       "module_type": "binary",
       "text": "immediate must be zero: 100"
     },
     {
       "type": "assert_malformed",
-      "line": 293,
-      "filename": "task-builtins.32.wat",
+      "line": 335,
+      "filename": "task-builtins.36.wat",
       "module_type": "text",
       "text": "expected keyword `i32`"
     },
     {
       "type": "assert_malformed",
-      "line": 297,
-      "filename": "task-builtins.33.wat",
+      "line": 339,
+      "filename": "task-builtins.37.wat",
       "module_type": "text",
       "text": "expected keyword `i32`"
     },
     {
       "type": "assert_malformed",
-      "line": 302,
-      "filename": "task-builtins.34.wasm",
+      "line": 344,
+      "filename": "task-builtins.38.wasm",
       "module_type": "binary",
       "text": "invalid leading byte (0x7e) for context.get"
     },
     {
       "type": "assert_malformed",
-      "line": 309,
-      "filename": "task-builtins.35.wasm",
+      "line": 351,
+      "filename": "task-builtins.39.wasm",
       "module_type": "binary",
       "text": "invalid leading byte (0x7e) for context.set"
     },
     {
       "type": "module",
-      "line": 318,
-      "filename": "task-builtins.36.wasm",
+      "line": 360,
+      "filename": "task-builtins.40.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 391,
-      "filename": "task-builtins.37.wasm",
+      "line": 433,
+      "filename": "task-builtins.41.wasm",
       "module_type": "binary"
     }
   ]
