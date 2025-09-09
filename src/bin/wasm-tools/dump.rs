@@ -423,6 +423,8 @@ impl<'a> Dump<'a> {
                             | CanonicalFunction::ThreadSpawnIndirect { .. }
                             | CanonicalFunction::ThreadAvailableParallelism
                             | CanonicalFunction::BackpressureSet
+                            | CanonicalFunction::BackpressureInc
+                            | CanonicalFunction::BackpressureDec
                             | CanonicalFunction::TaskReturn { .. }
                             | CanonicalFunction::TaskCancel
                             | CanonicalFunction::ContextGet { .. }

@@ -1186,6 +1186,8 @@ impl ComponentState {
                 self.thread_available_parallelism(types, offset)
             }
             CanonicalFunction::BackpressureSet => self.backpressure_set(types, offset),
+            CanonicalFunction::BackpressureInc => self.backpressure_inc(types, offset),
+            CanonicalFunction::BackpressureDec => self.backpressure_dec(types, offset),
             CanonicalFunction::TaskReturn { result, options } => {
                 self.task_return(&result, &options, types, offset)
             }
@@ -1401,6 +1403,32 @@ impl ComponentState {
 
         self.core_funcs
             .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset));
+        Ok(())
+    }
+
+    fn backpressure_inc(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+        if !self.features.cm_async() {
+            bail!(
+                offset,
+                "`backpressure.inc` requires the component model async feature"
+            )
+        }
+
+        self.core_funcs
+            .push(types.intern_func_type(FuncType::new([], []), offset));
+        Ok(())
+    }
+
+    fn backpressure_dec(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+        if !self.features.cm_async() {
+            bail!(
+                offset,
+                "`backpressure.dec` requires the component model async feature"
+            )
+        }
+
+        self.core_funcs
+            .push(types.intern_func_type(FuncType::new([], []), offset));
         Ok(())
     }
 

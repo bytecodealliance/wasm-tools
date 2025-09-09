@@ -206,6 +206,22 @@ impl CanonicalFunctionSection {
         self
     }
 
+    /// Defines a function which tells the host to increment the backpressure
+    /// counter.
+    pub fn backpressure_inc(&mut self) -> &mut Self {
+        self.bytes.push(0x24);
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function which tells the host to decrement the backpressure
+    /// counter.
+    pub fn backpressure_dec(&mut self) -> &mut Self {
+        self.bytes.push(0x25);
+        self.num_added += 1;
+        self
+    }
+
     /// Defines a function which returns a result to the caller of a lifted
     /// export function.  This allows the callee to continue executing after
     /// returning a result.

@@ -55,6 +55,8 @@ pub enum CoreFuncKind<'a> {
     ThreadSpawnIndirect(CanonThreadSpawnIndirect<'a>),
     ThreadAvailableParallelism(CanonThreadAvailableParallelism),
     BackpressureSet,
+    BackpressureInc,
+    BackpressureDec,
     TaskReturn(CanonTaskReturn<'a>),
     TaskCancel,
     ContextGet(u32),
@@ -127,6 +129,12 @@ impl<'a> CoreFuncKind<'a> {
         } else if l.peek::<kw::backpressure_set>()? {
             parser.parse::<kw::backpressure_set>()?;
             Ok(CoreFuncKind::BackpressureSet)
+        } else if l.peek::<kw::backpressure_inc>()? {
+            parser.parse::<kw::backpressure_inc>()?;
+            Ok(CoreFuncKind::BackpressureInc)
+        } else if l.peek::<kw::backpressure_dec>()? {
+            parser.parse::<kw::backpressure_dec>()?;
+            Ok(CoreFuncKind::BackpressureDec)
         } else if l.peek::<kw::task_return>()? {
             Ok(CoreFuncKind::TaskReturn(parser.parse()?))
         } else if l.peek::<kw::task_cancel>()? {

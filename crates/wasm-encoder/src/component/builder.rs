@@ -397,6 +397,18 @@ impl ComponentBuilder {
         inc(&mut self.core_funcs)
     }
 
+    /// Declares a new `backpressure.inc` intrinsic.
+    pub fn backpressure_inc(&mut self) -> u32 {
+        self.canonical_functions().backpressure_inc();
+        inc(&mut self.core_funcs)
+    }
+
+    /// Declares a new `backpressure.dec` intrinsic.
+    pub fn backpressure_dec(&mut self) -> u32 {
+        self.canonical_functions().backpressure_dec();
+        inc(&mut self.core_funcs)
+    }
+
     /// Declares a new `task.return` intrinsic.
     pub fn task_return<O>(&mut self, ty: Option<ComponentValType>, options: O) -> u32
     where

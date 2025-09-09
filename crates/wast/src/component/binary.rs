@@ -374,6 +374,14 @@ impl<'a> Encoder<'a> {
                     self.core_func_names.push(name);
                     self.funcs.backpressure_set();
                 }
+                CoreFuncKind::BackpressureInc => {
+                    self.core_func_names.push(name);
+                    self.funcs.backpressure_inc();
+                }
+                CoreFuncKind::BackpressureDec => {
+                    self.core_func_names.push(name);
+                    self.funcs.backpressure_dec();
+                }
                 CoreFuncKind::TaskReturn(info) => {
                     self.core_func_names.push(name);
                     self.funcs.task_return(

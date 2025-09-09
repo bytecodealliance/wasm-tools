@@ -1,0 +1,14 @@
+(component
+  (core module $m (;0;)
+    (type (;0;) (func))
+    (import "" "backpressure.dec" (func $backpressure.dec (;0;) (type 0)))
+  )
+  (core func $backpressure.dec (;0;) (canon backpressure.dec))
+  (core instance (;0;)
+    (export "backpressure.dec" (func $backpressure.dec))
+  )
+  (core instance $i (;1;) (instantiate $m
+      (with "" (instance 0))
+    )
+  )
+)

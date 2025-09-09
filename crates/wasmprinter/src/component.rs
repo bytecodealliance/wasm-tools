@@ -947,6 +947,12 @@ impl Printer<'_, '_> {
                 CanonicalFunction::BackpressureSet => {
                     self.print_intrinsic(state, "canon backpressure.set", &|_, _| Ok(()))?;
                 }
+                CanonicalFunction::BackpressureInc => {
+                    self.print_intrinsic(state, "canon backpressure.inc", &|_, _| Ok(()))?;
+                }
+                CanonicalFunction::BackpressureDec => {
+                    self.print_intrinsic(state, "canon backpressure.dec", &|_, _| Ok(()))?;
+                }
                 CanonicalFunction::TaskReturn { result, options } => {
                     self.print_intrinsic(state, "canon task.return", &|me, state| {
                         if let Some(ty) = result {

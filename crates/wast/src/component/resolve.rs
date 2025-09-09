@@ -396,6 +396,8 @@ impl<'a> Resolver<'a> {
                 }
                 CoreFuncKind::ThreadAvailableParallelism(_)
                 | CoreFuncKind::BackpressureSet
+                | CoreFuncKind::BackpressureInc
+                | CoreFuncKind::BackpressureDec
                 | CoreFuncKind::TaskCancel
                 | CoreFuncKind::ThreadYield(_)
                 | CoreFuncKind::SubtaskDrop

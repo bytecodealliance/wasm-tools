@@ -93,6 +93,12 @@ pub enum CanonicalFunction {
     /// A function which tells the host to enable or disable backpressure for
     /// the caller's instance.
     BackpressureSet,
+    /// A function which tells the host to enable backpressure by incrementing
+    /// the component's counter by 1.
+    BackpressureInc,
+    /// A function which tells the host to disable backpressure by decrementing
+    /// the component's counter by 1.
+    BackpressureDec,
     /// A function which returns a result to the caller of a lifted export
     /// function.  This allows the callee to continue executing after returning
     /// a result.
@@ -324,6 +330,8 @@ impl<'a> FromReader<'a> for CanonicalFunction {
                 resource: reader.read()?,
             },
             0x08 => CanonicalFunction::BackpressureSet,
+            0x24 => CanonicalFunction::BackpressureInc,
+            0x25 => CanonicalFunction::BackpressureDec,
             0x09 => CanonicalFunction::TaskReturn {
                 result: crate::read_resultlist(reader)?,
                 options: read_opts(reader)?,
