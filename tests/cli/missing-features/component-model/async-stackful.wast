@@ -10,14 +10,14 @@
       (canon lift (core func $i "foo") async)
     )
   )
-  "requires the async stackful feature")
+  "requires the component model async stackful feature")
 
-;; waitable-set.wait async
+;; waitable-set.wait cancellable
 (assert_invalid
   (component
     (core module $libc (memory (export "memory") 1))
     (core instance $libc (instantiate $libc))
-    (core func (canon waitable-set.wait async (memory $libc "memory")))
+    (core func (canon waitable-set.wait cancellable (memory $libc "memory")))
   )
   "requires the component model async stackful feature")
 
@@ -27,12 +27,12 @@
   (core func (canon waitable-set.wait (memory $libc "memory")))
 )
 
-;; waitable-set.poll async
+;; waitable-set.poll cancellable
 (assert_invalid
   (component
     (core module $libc (memory (export "memory") 1))
     (core instance $libc (instantiate $libc))
-    (core func (canon waitable-set.poll async (memory $libc "memory")))
+    (core func (canon waitable-set.poll cancellable (memory $libc "memory")))
   )
   "requires the component model async stackful feature")
 
@@ -42,10 +42,9 @@
   (core func (canon waitable-set.poll (memory $libc "memory")))
 )
 
-;; yield
+;; thread.yield
 (assert_invalid
-  (component (core func (canon yield async)))
+  (component (core func (canon thread.yield cancellable)))
   "requires the component model async stackful feature")
 
-(component (core func (canon yield)))
-
+(component (core func (canon thread.yield)))

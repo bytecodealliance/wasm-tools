@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/cli/missing-features/component-model/threading.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 6,
+      "filename": "threading.0.wasm",
+      "module_type": "binary",
+      "text": "requires the component model threading feature"
+    }
+  ]
+}

@@ -265,22 +265,27 @@ define_wasm_features! {
         /// Corresponds to the 🚝 character in
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
         pub cm_async_builtins: CM_ASYNC_BUILTINS(1 << 29) = false;
+        /// Support for threading in the component model proposal.
+        ///
+        /// Corresponds to the 🧵 character in
+        /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
+        pub cm_threading: CM_THREADING(1 << 30) = false;
         /// Gates some intrinsics being marked with `error-context` in the component
         /// model async proposal.
         ///
         /// Corresponds to the 📝 character in
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
-        pub cm_error_context: CM_ERROR_CONTEXT(1 << 30) = false;
+        pub cm_error_context: CM_ERROR_CONTEXT(1 << 31) = false;
         /// Support for fixed size lists
         ///
         /// Corresponds to the 🔧 character in
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
-        pub cm_fixed_size_list: CM_FIXED_SIZE_LIST(1 << 31) = false;
+        pub cm_fixed_size_list: CM_FIXED_SIZE_LIST(1 << 32) = false;
         /// Support for Wasm GC in the component model proposal.
         ///
         /// Corresponds to the 🛸 character in
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
-        pub cm_gc: CM_GC(1 << 32) = false;
+        pub cm_gc: CM_GC(1 << 33) = false;
 
         /// Subset of the reference-types WebAssembly proposal which only
         /// encompasses the leb-encoding of the table immediate to the
@@ -288,13 +293,13 @@ define_wasm_features! {
         /// integer for example.
         ///
         /// This is a subcomponent of the "lime1" feature.
-        pub call_indirect_overlong: CALL_INDIRECT_OVERLONG(1 << 33) = true;
+        pub call_indirect_overlong: CALL_INDIRECT_OVERLONG(1 << 34) = true;
 
         /// Subset of the bulk-memory proposal covering just the `memory.copy`
         /// and `memory.fill` instructions.
         ///
         /// This is a subcomponent of the "lime1" feature.
-        pub bulk_memory_opt: BULK_MEMORY_OPT(1 << 34) = true;
+        pub bulk_memory_opt: BULK_MEMORY_OPT(1 << 35) = true;
     }
 }
 

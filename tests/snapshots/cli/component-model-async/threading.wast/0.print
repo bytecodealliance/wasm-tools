@@ -1,0 +1,18 @@
+(component
+  (core func $get1 (;0;) (canon context.get i32 1))
+  (core func $set1 (;1;) (canon context.set i32 1))
+  (core module $m (;0;)
+    (type (;0;) (func (result i32)))
+    (type (;1;) (func (param i32)))
+    (import "" "get1" (func (;0;) (type 0)))
+    (import "" "set1" (func (;1;) (type 1)))
+  )
+  (core instance (;0;)
+    (export "get1" (func $get1))
+    (export "set1" (func $set1))
+  )
+  (core instance (;1;) (instantiate $m
+      (with "" (instance 0))
+    )
+  )
+)

@@ -8,7 +8,7 @@
   (import "$root" "[waitable-set-poll]" (func (param i32 i32) (result i32)))
   (import "$root" "[waitable-set-drop]" (func (param i32)))
   (import "$root" "[waitable-join]" (func (param i32 i32)))
-  (import "$root" "[yield]" (func (result i32)))
+  (import "$root" "[thread-yield]" (func (result i32)))
   (import "$root" "[subtask-drop]" (func (param i32)))
   (import "$root" "[subtask-cancel]" (func (param i32) (result i32)))
   (import "$root" "[error-context-new-utf8]" (func (param i32 i32) (result i32)))

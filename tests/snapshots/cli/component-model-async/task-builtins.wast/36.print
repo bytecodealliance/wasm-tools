@@ -66,4 +66,6 @@
   (core func (;50;) (canon context.get i32 0))
   (core func (;51;) (canon context.set i32 0))
   (core func (;52;) (canon context.set i32 0))
+  (core func (;53;) (canon thread.yield))
+  (core func (;54;) (canon thread.yield))
 )

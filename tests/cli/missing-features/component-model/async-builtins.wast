@@ -41,3 +41,4 @@
 (component
   (type $t (resource (rep i32)))
   (core func (canon resource.drop $t)))
+	

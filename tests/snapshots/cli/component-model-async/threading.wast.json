@@ -1,0 +1,117 @@
+{
+  "source_filename": "tests/cli/component-model-async/threading.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 4,
+      "filename": "threading.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 21,
+      "filename": "threading.1.wasm",
+      "module_type": "binary",
+      "text": "immediate must be zero or one: 2"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 25,
+      "filename": "threading.2.wasm",
+      "module_type": "binary",
+      "text": "immediate must be zero or one: 2"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 29,
+      "filename": "threading.3.wasm",
+      "module_type": "binary",
+      "text": "immediate must be zero or one: 100"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 33,
+      "filename": "threading.4.wasm",
+      "module_type": "binary",
+      "text": "immediate must be zero or one: 100"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 38,
+      "filename": "threading.5.wasm",
+      "module_type": "binary",
+      "text": "found:    (func (result i32))"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 45,
+      "filename": "threading.6.wasm",
+      "module_type": "binary",
+      "text": "found:    (func (param i32))"
+    },
+    {
+      "type": "module",
+      "line": 53,
+      "filename": "threading.7.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 60,
+      "filename": "threading.8.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 79,
+      "filename": "threading.9.wasm",
+      "module_type": "binary",
+      "text": "unknown table 0: table index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 89,
+      "filename": "threading.10.wasm",
+      "module_type": "binary",
+      "text": "start function must take a single `i32` argument"
+    },
+    {
+      "type": "module",
+      "line": 99,
+      "filename": "threading.11.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 109,
+      "filename": "threading.12.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `thread.index` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 120,
+      "filename": "threading.13.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 130,
+      "filename": "threading.14.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `thread.switch-to` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 142,
+      "filename": "threading.15.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 173,
+      "filename": "threading.16.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

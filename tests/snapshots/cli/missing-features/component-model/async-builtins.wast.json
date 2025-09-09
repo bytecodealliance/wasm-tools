@@ -1,5 +1,5 @@
 {
-  "source_filename": "tests/cli/missing-features/async-builtins.wast",
+  "source_filename": "tests/cli/missing-features/component-model/async-builtins.wast",
   "commands": [
     {
       "type": "assert_invalid",

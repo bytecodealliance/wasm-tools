@@ -102,7 +102,7 @@
   (core module $m
     (import "" "waitable-set.wait" (func $waitable-set-wait (param i32 i32) (result i32)))
   )
-  (core func $waitable-set-wait (canon waitable-set.wait async (memory $libc "memory")))
+  (core func $waitable-set-wait (canon waitable-set.wait cancellable (memory $libc "memory")))
   (core instance $i (instantiate $m (with "" (instance (export "waitable-set.wait" (func $waitable-set-wait))))))
 )
 
@@ -114,7 +114,7 @@
     (core module $m
       (import "" "waitable-set.wait" (func $waitable-set-wait (param i32) (result i32)))
     )
-    (core func $waitable-set-wait (canon waitable-set.wait async (memory $libc "memory")))
+    (core func $waitable-set-wait (canon waitable-set.wait cancellable (memory $libc "memory")))
     (core instance $i (instantiate $m (with "" (instance (export "waitable-set.wait" (func $waitable-set-wait))))))
   )
   "type mismatch for export `waitable-set.wait` of module instantiation argument ``"
@@ -127,7 +127,7 @@
   (core module $m
     (import "" "waitable-set.poll" (func $waitable-set-poll (param i32 i32) (result i32)))
   )
-  (core func $waitable-set-poll (canon waitable-set.poll async (memory $libc "memory")))
+  (core func $waitable-set-poll (canon waitable-set.poll cancellable (memory $libc "memory")))
   (core instance $i (instantiate $m (with "" (instance (export "waitable-set.poll" (func $waitable-set-poll))))))
 )
 
@@ -139,7 +139,7 @@
     (core module $m
       (import "" "waitable-set.poll" (func $waitable-set-poll (param i32) (result i32)))
     )
-    (core func $waitable-set-poll (canon waitable-set.poll async (memory $libc "memory")))
+    (core func $waitable-set-poll (canon waitable-set.poll cancellable (memory $libc "memory")))
     (core instance $i (instantiate $m (with "" (instance (export "waitable-set.poll" (func $waitable-set-poll))))))
   )
   "type mismatch for export `waitable-set.poll` of module instantiation argument ``"
@@ -179,25 +179,25 @@
   "type mismatch for export `waitable.join` of module instantiation argument ``"
 )
 
-;; yield
+;; thread.yield
 (component
   (core module $m
-    (import "" "yield" (func $yield (result i32)))
+    (import "" "thread.yield" (func $thread.yield (result i32)))
   )
-  (core func $yield (canon yield async))
-  (core instance $i (instantiate $m (with "" (instance (export "yield" (func $yield))))))
+  (core func $thread.yield (canon thread.yield cancellable))
+  (core instance $i (instantiate $m (with "" (instance (export "thread.yield" (func $thread.yield))))))
 )
 
-;; yield; incorrect type
+;; thread.yield; incorrect type
 (assert_invalid
   (component
     (core module $m
-      (import "" "yield" (func $yield (param i32) (result i32)))
+      (import "" "thread.yield" (func $thread.yield (param i32) (result i32)))
     )
-    (core func $yield (canon yield async))
-    (core instance $i (instantiate $m (with "" (instance (export "yield" (func $yield))))))
+    (core func $thread.yield (canon thread.yield cancellable))
+    (core instance $i (instantiate $m (with "" (instance (export "thread.yield" (func $thread.yield))))))
   )
-  "type mismatch for export `yield` of module instantiation argument ``"
+  "type mismatch for export `thread.yield` of module instantiation argument ``"
 )
 
 ;; subtask.drop
@@ -381,9 +381,11 @@
 
   (core func (canon context.get i32 0))
   (canon context.get i32 0 (core func))
-
   (core func (canon context.set i32 0))
   (canon context.set i32 0 (core func))
+
+  (core func (canon thread.yield))
+  (canon thread.yield (core func))
 )
 
 (component

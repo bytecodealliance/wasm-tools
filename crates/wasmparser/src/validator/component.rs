@@ -364,7 +364,10 @@ impl CanonicalOptions {
             Concurrency::Sync => {}
 
             Concurrency::Async { callback: None } if !state.features.cm_async_stackful() => {
-                bail!(offset, "requires the async stackful feature")
+                bail!(
+                    offset,
+                    "requires the component model async stackful feature"
+                )
             }
             Concurrency::Async { callback: None } => {}
 
@@ -1189,7 +1192,9 @@ impl ComponentState {
             CanonicalFunction::TaskCancel => self.task_cancel(types, offset),
             CanonicalFunction::ContextGet(i) => self.context_get(i, types, offset),
             CanonicalFunction::ContextSet(i) => self.context_set(i, types, offset),
-            CanonicalFunction::Yield { async_ } => self.yield_(async_, types, offset),
+            CanonicalFunction::ThreadYield { cancellable } => {
+                self.thread_yield(cancellable, types, offset)
+            }
             CanonicalFunction::SubtaskDrop => self.subtask_drop(types, offset),
             CanonicalFunction::SubtaskCancel { async_ } => {
                 self.subtask_cancel(async_, types, offset)
@@ -1240,14 +1245,32 @@ impl ComponentState {
             }
             CanonicalFunction::ErrorContextDrop => self.error_context_drop(types, offset),
             CanonicalFunction::WaitableSetNew => self.waitable_set_new(types, offset),
-            CanonicalFunction::WaitableSetWait { async_, memory } => {
-                self.waitable_set_wait(async_, memory, types, offset)
-            }
-            CanonicalFunction::WaitableSetPoll { async_, memory } => {
-                self.waitable_set_poll(async_, memory, types, offset)
-            }
+            CanonicalFunction::WaitableSetWait {
+                cancellable,
+                memory,
+            } => self.waitable_set_wait(cancellable, memory, types, offset),
+            CanonicalFunction::WaitableSetPoll {
+                cancellable,
+                memory,
+            } => self.waitable_set_poll(cancellable, memory, types, offset),
             CanonicalFunction::WaitableSetDrop => self.waitable_set_drop(types, offset),
             CanonicalFunction::WaitableJoin => self.waitable_join(types, offset),
+            CanonicalFunction::ThreadIndex => self.thread_index(types, offset),
+            CanonicalFunction::ThreadNewIndirect {
+                func_ty_index,
+                table_index,
+            } => self.thread_new_indirect(func_ty_index, table_index, types, offset),
+            CanonicalFunction::ThreadSwitchTo { cancellable } => {
+                self.thread_switch_to(cancellable, types, offset)
+            }
+            CanonicalFunction::ThreadSuspend { cancellable } => {
+                self.thread_suspend(cancellable, types, offset)
+            }
+            CanonicalFunction::ThreadResumeLater => self.thread_resume_later(types, offset),
+
+            CanonicalFunction::ThreadYieldTo { cancellable } => {
+                self.thread_yield_to(cancellable, types, offset)
+            }
         }
     }
 
@@ -1449,6 +1472,23 @@ impl ComponentState {
         Ok(())
     }
 
+    fn validate_context_immediate(
+        &self,
+        immediate: u32,
+        operation: &str,
+        offset: usize,
+    ) -> Result<()> {
+        if !self.features.cm_threading() && immediate > 0 {
+            bail!(offset, "`{operation}` immediate must be zero: {immediate}")
+        } else if immediate > 1 {
+            bail!(
+                offset,
+                "`{operation}` immediate must be zero or one: {immediate}"
+            )
+        }
+        Ok(())
+    }
+
     fn context_get(&mut self, i: u32, types: &mut TypeAlloc, offset: usize) -> Result<()> {
         if !self.features.cm_async() {
             bail!(
@@ -1456,9 +1496,7 @@ impl ComponentState {
                 "`context.get` requires the component model async feature"
             )
         }
-        if i > 0 {
-            bail!(offset, "`context.get` immediate must be zero: {i}")
-        }
+        self.validate_context_immediate(i, "context.get", offset)?;
 
         self.core_funcs
             .push(types.intern_func_type(FuncType::new([], [ValType::I32]), offset));
@@ -1472,23 +1510,29 @@ impl ComponentState {
                 "`context.set` requires the component model async feature"
             )
         }
-        if i > 0 {
-            bail!(offset, "`context.set` immediate must be zero: {i}")
-        }
+        self.validate_context_immediate(i, "context.set", offset)?;
 
         self.core_funcs
             .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset));
         Ok(())
     }
 
-    fn yield_(&mut self, async_: bool, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+    fn thread_yield(
+        &mut self,
+        cancellable: bool,
+        types: &mut TypeAlloc,
+        offset: usize,
+    ) -> Result<()> {
         if !self.features.cm_async() {
-            bail!(offset, "`yield` requires the component model async feature")
-        }
-        if async_ && !self.features.cm_async_stackful() {
             bail!(
                 offset,
-                "async `yield` requires the component model async stackful feature"
+                "`thread.yield` requires the component model async feature"
+            )
+        }
+        if cancellable && !self.features.cm_async_stackful() {
+            bail!(
+                offset,
+                "cancellable `thread.yield` requires the component model async stackful feature"
             )
         }
 
@@ -1617,7 +1661,7 @@ impl ComponentState {
     fn stream_cancel_read(
         &mut self,
         ty: u32,
-        async_: bool,
+        cancellable: bool,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
@@ -1627,7 +1671,7 @@ impl ComponentState {
                 "`stream.cancel-read` requires the component model async feature"
             )
         }
-        if async_ && !self.features.cm_async_builtins() {
+        if cancellable && !self.features.cm_async_builtins() {
             bail!(
                 offset,
                 "async `stream.cancel-read` requires the component model async builtins feature"
@@ -1647,7 +1691,7 @@ impl ComponentState {
     fn stream_cancel_write(
         &mut self,
         ty: u32,
-        async_: bool,
+        cancellable: bool,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
@@ -1657,7 +1701,7 @@ impl ComponentState {
                 "`stream.cancel-write` requires the component model async feature"
             )
         }
-        if async_ && !self.features.cm_async_builtins() {
+        if cancellable && !self.features.cm_async_builtins() {
             bail!(
                 offset,
                 "async `stream.cancel-write` requires the component model async builtins feature"
@@ -1807,7 +1851,7 @@ impl ComponentState {
     fn future_cancel_read(
         &mut self,
         ty: u32,
-        async_: bool,
+        cancellable: bool,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
@@ -1817,7 +1861,7 @@ impl ComponentState {
                 "`future.cancel-read` requires the component model async feature"
             )
         }
-        if async_ && !self.features.cm_async_builtins() {
+        if cancellable && !self.features.cm_async_builtins() {
             bail!(
                 offset,
                 "async `future.cancel-read` requires the component model async builtins feature"
@@ -1837,7 +1881,7 @@ impl ComponentState {
     fn future_cancel_write(
         &mut self,
         ty: u32,
-        async_: bool,
+        cancellable: bool,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
@@ -1847,7 +1891,7 @@ impl ComponentState {
                 "`future.cancel-write` requires the component model async feature"
             )
         }
-        if async_ && !self.features.cm_async_builtins() {
+        if cancellable && !self.features.cm_async_builtins() {
             bail!(
                 offset,
                 "async `future.cancel-write` requires the component model async builtins feature"
@@ -1991,7 +2035,7 @@ impl ComponentState {
 
     fn waitable_set_wait(
         &mut self,
-        async_: bool,
+        cancellable: bool,
         memory: u32,
         types: &mut TypeAlloc,
         offset: usize,
@@ -2002,10 +2046,10 @@ impl ComponentState {
                 "`waitable-set.wait` requires the component model async feature"
             )
         }
-        if async_ && !self.features.cm_async_stackful() {
+        if cancellable && !self.features.cm_async_stackful() {
             bail!(
                 offset,
-                "async `waitable-set.wait` requires the component model async stackful feature"
+                "cancellable `waitable-set.wait` requires the component model async stackful feature"
             )
         }
 
@@ -2018,7 +2062,7 @@ impl ComponentState {
 
     fn waitable_set_poll(
         &mut self,
-        async_: bool,
+        cancellable: bool,
         memory: u32,
         types: &mut TypeAlloc,
         offset: usize,
@@ -2029,10 +2073,10 @@ impl ComponentState {
                 "`waitable-set.poll` requires the component model async feature"
             )
         }
-        if async_ && !self.features.cm_async_stackful() {
+        if cancellable && !self.features.cm_async_stackful() {
             bail!(
                 offset,
-                "async `waitable-set.poll` requires the component model async stackful feature"
+                "cancellable `waitable-set.poll` requires the component model async stackful feature"
             )
         }
 
@@ -2066,6 +2110,142 @@ impl ComponentState {
 
         self.core_funcs
             .push(types.intern_func_type(FuncType::new([ValType::I32; 2], []), offset));
+        Ok(())
+    }
+
+    fn thread_index(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+        if !self.features.cm_threading() {
+            bail!(
+                offset,
+                "`thread.index` requires the component model threading feature"
+            )
+        }
+
+        self.core_funcs
+            .push(types.intern_func_type(FuncType::new([], [ValType::I32]), offset));
+        Ok(())
+    }
+
+    fn thread_new_indirect(
+        &mut self,
+        func_ty_index: u32,
+        table_index: u32,
+        types: &mut TypeAlloc,
+        offset: usize,
+    ) -> Result<()> {
+        if !self.features.cm_threading() {
+            bail!(
+                offset,
+                "`thread.new_indirect` requires the component model threading feature"
+            )
+        }
+
+        let core_type_id = match self.core_type_at(func_ty_index, offset)? {
+            ComponentCoreTypeId::Sub(c) => c,
+            ComponentCoreTypeId::Module(_) => bail!(offset, "expected a core function type"),
+        };
+        let sub_ty = &types[core_type_id];
+        match &sub_ty.composite_type.inner {
+            CompositeInnerType::Func(func_ty) => {
+                if func_ty.params() != [ValType::I32] {
+                    bail!(
+                        offset,
+                        "start function must take a single `i32` argument (currently)"
+                    );
+                }
+                if func_ty.results() != [] {
+                    bail!(offset, "start function must not return any values");
+                }
+            }
+            _ => bail!(offset, "start type must be a function"),
+        }
+
+        let table = self.table_at(table_index, offset)?;
+
+        SubtypeCx::table_type(
+            table,
+            &TableType {
+                initial: 0,
+                maximum: None,
+                table64: false,
+                shared: false,
+                element_type: RefType::FUNCREF,
+            },
+            offset,
+        )
+        .map_err(|mut e| {
+            e.add_context("table is not a 32-bit table of (ref null (func))".into());
+            e
+        })?;
+
+        self.core_funcs.push(types.intern_func_type(
+            FuncType::new([ValType::I32, ValType::I32], [ValType::I32]),
+            offset,
+        ));
+        Ok(())
+    }
+
+    fn thread_switch_to(
+        &mut self,
+        _cancellable: bool,
+        types: &mut TypeAlloc,
+        offset: usize,
+    ) -> Result<()> {
+        if !self.features.cm_threading() {
+            bail!(
+                offset,
+                "`thread.switch_to` requires the component model threading feature"
+            )
+        }
+
+        self.core_funcs
+            .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset));
+        Ok(())
+    }
+
+    fn thread_suspend(
+        &mut self,
+        _cancellable: bool,
+        types: &mut TypeAlloc,
+        offset: usize,
+    ) -> Result<()> {
+        if !self.features.cm_threading() {
+            bail!(
+                offset,
+                "`thread.suspend` requires the component model threading feature"
+            )
+        }
+        self.core_funcs
+            .push(types.intern_func_type(FuncType::new([], [ValType::I32]), offset));
+        Ok(())
+    }
+
+    fn thread_resume_later(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+        if !self.features.cm_threading() {
+            bail!(
+                offset,
+                "`thread.resume_later` requires the component model threading feature"
+            )
+        }
+        self.core_funcs
+            .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset));
+        Ok(())
+    }
+
+    fn thread_yield_to(
+        &mut self,
+        _cancellable: bool,
+        types: &mut TypeAlloc,
+        offset: usize,
+    ) -> Result<()> {
+        if !self.features.cm_threading() {
+            bail!(
+                offset,
+                "`thread.yield_to` requires the component model threading feature"
+            )
+        }
+        self.core_funcs
+            .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset));
         Ok(())
     }
 

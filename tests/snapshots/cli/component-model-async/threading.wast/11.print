@@ -1,11 +1,11 @@
 (component
   (core module $m (;0;)
     (type (;0;) (func (result i32)))
-    (import "" "thread.yield" (func $thread.yield (;0;) (type 0)))
+    (import "" "thread.index" (func $thread.index (;0;) (type 0)))
   )
-  (core func $thread.yield (;0;) (canon thread.yield cancellable))
+  (core func $thread.index (;0;) (canon thread.index))
   (core instance (;0;)
-    (export "thread.yield" (func $thread.yield))
+    (export "thread.index" (func $thread.index))
   )
   (core instance $i (;1;) (instantiate $m
       (with "" (instance 0))

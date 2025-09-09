@@ -110,9 +110,9 @@ pub enum CanonicalFunction {
     ContextSet(u32),
     /// A function which yields control to the host so that other tasks are able
     /// to make progress, if any.
-    Yield {
+    ThreadYield {
         /// If `true`, indicates the caller instance maybe reentered.
-        async_: bool,
+        cancellable: bool,
     },
     /// A function to drop a specified task which has completed.
     SubtaskDrop,
@@ -246,7 +246,7 @@ pub enum CanonicalFunction {
     WaitableSetWait {
         /// Whether or not the guest can be reentered while calling this
         /// function.
-        async_: bool,
+        cancellable: bool,
         /// Which memory the results of this operation are stored in.
         memory: u32,
     },
@@ -254,7 +254,7 @@ pub enum CanonicalFunction {
     WaitableSetPoll {
         /// Whether or not the guest can be reentered while calling this
         /// function.
-        async_: bool,
+        cancellable: bool,
         /// Which memory the results of this operation are stored in.
         memory: u32,
     },
@@ -262,6 +262,32 @@ pub enum CanonicalFunction {
     WaitableSetDrop,
     /// A function to add an item to a `waitable-set`.
     WaitableJoin,
+    /// A function to get the index of the current thread.
+    ThreadIndex,
+    /// A function to create a new thread with the specified start function.
+    ThreadNewIndirect {
+        /// The index of the function type to use as the start function.
+        func_ty_index: u32,
+        /// The index of the table to use.
+        table_index: u32,
+    },
+    /// A function to suspend the current thread and switch to the given thread.
+    ThreadSwitchTo {
+        /// Whether or not the thread can be cancelled while awaiting resumption.
+        cancellable: bool,
+    },
+    /// A function to suspend the current thread, immediately yielding to any transitive async-lowered calling component.
+    ThreadSuspend {
+        /// Whether or not the thread can be cancelled while suspended.
+        cancellable: bool,
+    },
+    /// A function to schedule the given thread to be resumed later.
+    ThreadResumeLater,
+    /// A function to suspend the current thread and switch to the given thread.
+    ThreadYieldTo {
+        /// Whether or not the thread can be cancelled while yielding.
+        cancellable: bool,
+    },
 }
 
 /// A reader for the canonical section of a WebAssembly component.
@@ -310,8 +336,8 @@ impl<'a> FromReader<'a> for CanonicalFunction {
                 0x7f => CanonicalFunction::ContextSet(reader.read_var_u32()?),
                 x => return reader.invalid_leading_byte(x, "context.set intrinsic type"),
             },
-            0x0c => CanonicalFunction::Yield {
-                async_: reader.read()?,
+            0x0c => CanonicalFunction::ThreadYield {
+                cancellable: reader.read()?,
             },
             0x0d => CanonicalFunction::SubtaskDrop,
             0x0e => CanonicalFunction::StreamNew { ty: reader.read()? },
@@ -362,15 +388,30 @@ impl<'a> FromReader<'a> for CanonicalFunction {
 
             0x1f => CanonicalFunction::WaitableSetNew,
             0x20 => CanonicalFunction::WaitableSetWait {
-                async_: reader.read()?,
+                cancellable: reader.read()?,
                 memory: reader.read()?,
             },
             0x21 => CanonicalFunction::WaitableSetPoll {
-                async_: reader.read()?,
+                cancellable: reader.read()?,
                 memory: reader.read()?,
             },
             0x22 => CanonicalFunction::WaitableSetDrop,
             0x23 => CanonicalFunction::WaitableJoin,
+            0x26 => CanonicalFunction::ThreadIndex,
+            0x27 => CanonicalFunction::ThreadNewIndirect {
+                func_ty_index: reader.read()?,
+                table_index: reader.read()?,
+            },
+            0x28 => CanonicalFunction::ThreadSwitchTo {
+                cancellable: reader.read()?,
+            },
+            0x29 => CanonicalFunction::ThreadSuspend {
+                cancellable: reader.read()?,
+            },
+            0x2a => CanonicalFunction::ThreadResumeLater,
+            0x2b => CanonicalFunction::ThreadYieldTo {
+                cancellable: reader.read()?,
+            },
             0x06 => CanonicalFunction::SubtaskCancel {
                 async_: reader.read()?,
             },

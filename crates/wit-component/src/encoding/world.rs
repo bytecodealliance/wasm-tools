@@ -421,13 +421,19 @@ impl<'a> ComponentWorld<'a> {
                 | Import::WaitableSetPoll { .. }
                 | Import::WaitableSetDrop
                 | Import::WaitableJoin
-                | Import::Yield { .. }
+                | Import::ThreadYield { .. }
                 | Import::SubtaskDrop
                 | Import::SubtaskCancel { .. }
                 | Import::ErrorContextNew { .. }
                 | Import::ErrorContextDebugMessage { .. }
                 | Import::ErrorContextDrop
-                | Import::ExportedTaskCancel => {}
+                | Import::ExportedTaskCancel
+                | Import::ThreadIndex
+                | Import::ThreadNewIndirect { .. }
+                | Import::ThreadSwitchTo { .. }
+                | Import::ThreadSuspend { .. }
+                | Import::ThreadResumeLater
+                | Import::ThreadYieldTo { .. } => {}
             }
         }
     }

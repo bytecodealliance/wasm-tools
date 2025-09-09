@@ -9,7 +9,7 @@
     (import "" "waitable-set.poll" (func $waitable-set-poll (;0;) (type 0)))
   )
   (alias core export $libc "memory" (core memory (;0;)))
-  (core func $waitable-set-poll (;0;) (canon waitable-set.poll async (memory 0)))
+  (core func $waitable-set-poll (;0;) (canon waitable-set.poll cancellable (memory 0)))
   (core instance (;1;)
     (export "waitable-set.poll" (func $waitable-set-poll))
   )

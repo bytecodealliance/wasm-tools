@@ -9,7 +9,7 @@
     (import "" "waitable-set.wait" (func $waitable-set-wait (;0;) (type 0)))
   )
   (alias core export $libc "memory" (core memory (;0;)))
-  (core func $waitable-set-wait (;0;) (canon waitable-set.wait async (memory 0)))
+  (core func $waitable-set-wait (;0;) (canon waitable-set.wait cancellable (memory 0)))
   (core instance (;1;)
     (export "waitable-set.wait" (func $waitable-set-wait))
   )

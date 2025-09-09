@@ -425,9 +425,9 @@ impl ComponentBuilder {
         inc(&mut self.core_funcs)
     }
 
-    /// Declares a new `task.yield` intrinsic.
-    pub fn yield_(&mut self, async_: bool) -> u32 {
-        self.canonical_functions().yield_(async_);
+    /// Declares a new `thread.yield` intrinsic.
+    pub fn thread_yield(&mut self, cancellable: bool) -> u32 {
+        self.canonical_functions().thread_yield(cancellable);
         inc(&mut self.core_funcs)
     }
 
@@ -577,14 +577,16 @@ impl ComponentBuilder {
     }
 
     /// Declares a new `waitable-set.wait` intrinsic.
-    pub fn waitable_set_wait(&mut self, async_: bool, memory: u32) -> u32 {
-        self.canonical_functions().waitable_set_wait(async_, memory);
+    pub fn waitable_set_wait(&mut self, cancellable: bool, memory: u32) -> u32 {
+        self.canonical_functions()
+            .waitable_set_wait(cancellable, memory);
         inc(&mut self.core_funcs)
     }
 
     /// Declares a new `waitable-set.poll` intrinsic.
-    pub fn waitable_set_poll(&mut self, async_: bool, memory: u32) -> u32 {
-        self.canonical_functions().waitable_set_poll(async_, memory);
+    pub fn waitable_set_poll(&mut self, cancellable: bool, memory: u32) -> u32 {
+        self.canonical_functions()
+            .waitable_set_poll(cancellable, memory);
         inc(&mut self.core_funcs)
     }
 
@@ -597,6 +599,43 @@ impl ComponentBuilder {
     /// Declares a new `waitable.join` intrinsic.
     pub fn waitable_join(&mut self) -> u32 {
         self.canonical_functions().waitable_join();
+        inc(&mut self.core_funcs)
+    }
+
+    /// Declares a new `thread.index` intrinsic.
+    pub fn thread_index(&mut self) -> u32 {
+        self.canonical_functions().thread_index();
+        inc(&mut self.core_funcs)
+    }
+
+    /// Declares a new `thread.new_indirect` intrinsic.
+    pub fn thread_new_indirect(&mut self, func_ty_idx: u32, table_index: u32) -> u32 {
+        self.canonical_functions()
+            .thread_new_indirect(func_ty_idx, table_index);
+        inc(&mut self.core_funcs)
+    }
+
+    /// Declares a new `thread.switch-to` intrinsic.
+    pub fn thread_switch_to(&mut self, cancellable: bool) -> u32 {
+        self.canonical_functions().thread_switch_to(cancellable);
+        inc(&mut self.core_funcs)
+    }
+
+    /// Declares a new `thread.suspend` intrinsic.
+    pub fn thread_suspend(&mut self, cancellable: bool) -> u32 {
+        self.canonical_functions().thread_suspend(cancellable);
+        inc(&mut self.core_funcs)
+    }
+
+    /// Declares a new `thread.resume-later` intrinsic.
+    pub fn thread_resume_later(&mut self) -> u32 {
+        self.canonical_functions().thread_resume_later();
+        inc(&mut self.core_funcs)
+    }
+
+    /// Declares a new `thread.yield-to` intrinsic.
+    pub fn thread_yield_to(&mut self, cancellable: bool) -> u32 {
+        self.canonical_functions().thread_yield_to(cancellable);
         inc(&mut self.core_funcs)
     }
 
