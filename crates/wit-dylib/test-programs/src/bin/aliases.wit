@@ -1,0 +1,19 @@
+package a:b;
+
+interface x {
+  type t1 = u32;
+  type t2 = tuple<t1, t1>;
+  type t3 = string;
+
+  f: func(a: t1, b: t2, c: t3);
+}
+
+world caller {
+  import x;
+
+  export run: func();
+}
+
+world callee {
+  export x;
+}

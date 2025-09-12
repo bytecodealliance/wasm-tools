@@ -1,0 +1,19 @@
+package a:b;
+
+interface x {
+  resource a {
+    constructor();
+
+    frob: func();
+  }
+}
+
+world caller {
+  import x;
+
+  export run: func();
+}
+
+world callee {
+  export x;
+}

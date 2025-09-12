@@ -1,0 +1,16 @@
+package a:b;
+
+interface x {
+  set: func(x: string);
+  get: func() -> string;
+}
+
+world caller {
+  import x;
+
+  export run: func();
+}
+
+world callee {
+  export x;
+}

@@ -18,6 +18,10 @@ impl LiveTypes {
         self.set.len()
     }
 
+    pub fn contains(&self, id: TypeId) -> bool {
+        self.set.contains(&id)
+    }
+
     pub fn add_interface(&mut self, resolve: &Resolve, iface: InterfaceId) {
         self.visit_interface(resolve, iface);
     }

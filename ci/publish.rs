@@ -33,6 +33,7 @@ const CRATES_TO_PUBLISH: &[&str] = &[
     "wit-smith",
     "json-from-wast",
     "wasm-wave",
+    "wit-dylib",
     "wasm-tools",
 ];
 

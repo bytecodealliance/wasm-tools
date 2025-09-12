@@ -1,0 +1,32 @@
+package a:b;
+
+interface x {
+  flags flag8 { a0, a1, a2, a3, a4, a5, a6, a7 }
+  flags flag16 {
+    a0, a1, a2, a3, a4, a5, a6, a7,
+    a8, a9, a10, a11, a12, a13, a14, a15,
+  }
+  flags flag32 {
+    a0, a1, a2, a3, a4, a5, a6, a7,
+    a8, a9, a10, a11, a12, a13, a14, a15,
+    a16, a17, a18, a19, a20, a21, a22, a23,
+    a24, a25, a26, a27, a28, a29, a30, a31,
+  }
+
+  invert8: func(a: flag8) -> flag8;
+  invert16: func(a: flag16) -> flag16;
+  invert32: func(a: flag32) -> flag32;
+
+  ret3-v1: func() -> tuple<flag8, flag16, flag32>;
+  ret3-v2: func() -> tuple<flag32, flag16, flag8>;
+}
+
+world caller {
+  import x;
+
+  export run: func();
+}
+
+world callee {
+  export x;
+}

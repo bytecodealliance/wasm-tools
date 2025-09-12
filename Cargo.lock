@@ -135,6 +135,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
 
 [[package]]
+name = "artifacts"
+version = "0.1.0"
+dependencies = [
+ "cargo_metadata",
+]
+
+[[package]]
 name = "auditable-serde"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -200,6 +207,38 @@ name = "bytesize"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a3c8f83209414aacf0eeae3cf730b18d6981697fba62f200fcfb92b9f082acba"
+
+[[package]]
+name = "camino"
+version = "1.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd0b03af37dad7a14518b7691d81acb0f8222604ad3d1b02f6b4bed5188c0cd5"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "cargo-platform"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e35af189006b9c0f00a064685c727031e3ed2d8020f7ba284d78cc2671bd36ea"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "cargo_metadata"
+version = "0.19.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd5eb614ed4c27c5d706420e4320fbe3216ab31fa1c33cd8246ac36dae4479ba"
+dependencies = [
+ "camino",
+ "cargo-platform",
+ "semver",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
 
 [[package]]
 name = "cast"
@@ -1782,6 +1821,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "test-programs"
+version = "0.1.0"
+
+[[package]]
 name = "thiserror"
 version = "2.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1932,6 +1975,12 @@ checksum = "9683f9a5a998d873c0d21fcbe3c083009670149a8fab228644b8bd36b2c48cb3"
 dependencies = [
  "wit-bindgen-rt 0.39.0",
 ]
+
+[[package]]
+name = "wasi-preview1-component-adapter-provider"
+version = "36.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4da2ec25ddcaf86d98cd2e1928af72963bc24318cf22fee36c61953bc5fd9f28"
 
 [[package]]
 name = "wasm-compose"
@@ -2131,6 +2180,7 @@ dependencies = [
  "wast",
  "wat",
  "wit-component 0.239.0",
+ "wit-dylib",
  "wit-encoder",
  "wit-parser 0.239.0",
  "wit-smith",
@@ -2744,6 +2794,24 @@ dependencies = [
  "wasmtime",
  "wast",
  "wat",
+ "wit-parser 0.239.0",
+]
+
+[[package]]
+name = "wit-dylib"
+version = "0.239.0"
+dependencies = [
+ "anyhow",
+ "artifacts",
+ "clap",
+ "indexmap 2.10.0",
+ "libtest-mimic",
+ "tempfile",
+ "wasi-preview1-component-adapter-provider",
+ "wasm-compose",
+ "wasm-encoder 0.239.0",
+ "wasmparser 0.239.0",
+ "wit-component 0.239.0",
  "wit-parser 0.239.0",
 ]
 

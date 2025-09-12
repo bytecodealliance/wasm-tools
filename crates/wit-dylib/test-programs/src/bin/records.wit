@@ -1,0 +1,43 @@
+package a:b;
+
+interface x {
+  record a {
+    b: u32,
+  }
+  echo-a: func(a: a) -> a;
+
+  record b {
+    b: string,
+  }
+  echo-b: func(b: b) -> b;
+
+  record c {
+    a: f32,
+    b: s64,
+  }
+  echo-c: func(c: c) -> c;
+
+  record d {
+    a: d2,
+    b: d2,
+    c: d2,
+    d: d2,
+  }
+  record d2 {
+    a: string,
+    b: string,
+    c: string,
+    d: string,
+  }
+  echo-d: func(d: d) -> d;
+}
+
+world caller {
+  import x;
+
+  export run: func();
+}
+
+world callee {
+  export x;
+}

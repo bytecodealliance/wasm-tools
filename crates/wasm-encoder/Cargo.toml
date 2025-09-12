@@ -28,7 +28,7 @@ wasmparser = { optional = true, workspace = true, features = ["simd"] }
 
 [dev-dependencies]
 anyhow = { workspace = true }
-tempfile = "3.2.0"
+tempfile = { workspace = true }
 wasmparser = { path = "../wasmparser" }
 wasmprinter = { workspace = true }
 

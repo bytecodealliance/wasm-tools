@@ -10,6 +10,8 @@ use termcolor::{Ansi, ColorChoice, NoColor, StandardStream, WriteColor};
 
 #[cfg(any(feature = "addr2line", feature = "validate"))]
 pub mod addr2line;
+#[cfg(any(feature = "component", feature = "wit-dylib"))]
+pub mod wit;
 
 #[derive(clap::Parser)]
 pub struct GeneralOpts {

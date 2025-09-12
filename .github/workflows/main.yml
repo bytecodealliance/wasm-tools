@@ -244,6 +244,7 @@ jobs:
       - run: cargo check --no-default-features --features json-from-wast
       - run: cargo check --no-default-features --features completion
       - run: cargo check --no-default-features --features wast
+      - run: cargo check --no-default-features --features wit-dylib
       - run: cargo check --no-default-features -p wit-parser
       - run: cargo check --no-default-features -p wit-parser --features wat
       - run: cargo check --no-default-features -p wit-parser --features serde

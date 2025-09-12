@@ -41,6 +41,7 @@ members = [
   'crates/wit-encoder',
   'crates/wit-parser/fuzz',
   'crates/wit-component/dl',
+  'crates/wit-dylib/test-programs',
   'playground/component',
 ]
 
@@ -142,6 +143,7 @@ termcolor = "1.2.0"
 url = "2.0.0"
 wasmtime = { version = "34.0.1", default-features = false, features = ['cranelift', 'component-model', 'runtime', 'gc-drc'] }
 thiserror = "2.0.12"
+tempfile = "3.2.0"
 
 wasm-compose = { version = "0.239.0", path = "crates/wasm-compose" }
 wasm-encoder = { version = "0.239.0", path = "crates/wasm-encoder", default-features = false }
@@ -158,6 +160,7 @@ wit-encoder = { version = "0.239.0", path = "crates/wit-encoder" }
 wit-parser = { version = "0.239.0", path = "crates/wit-parser" }
 wit-smith = { version = "0.239.0", path = "crates/wit-smith" }
 json-from-wast = { version = "0.239.0", path = "crates/json-from-wast" }
+wit-dylib = { version = "0.239.0", path = "crates/wit-dylib" }
 
 [dependencies]
 anyhow = { workspace = true }
@@ -166,7 +169,7 @@ clap_complete = { workspace = true, optional = true }
 comfy-table = { workspace = true }
 env_logger = { workspace = true }
 log = { workspace = true }
-tempfile = "3.2.0"
+tempfile = { workspace = true }
 termcolor = { workspace = true }
 wasmparser = { workspace = true, features = ['std', 'component-model', 'simd'] }
 wat = { workspace = true, features = ['dwarf', 'component-model'] }
@@ -225,6 +228,9 @@ pretty_assertions = { workspace = true, optional = true }
 # Dependencies of `json-from-wast`
 json-from-wast = { workspace = true, optional = true }
 
+# Dependencies of `wit-dylib`
+wit-dylib = { workspace = true, optional = true }
+
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 is_executable = { version = "1.0.1", optional = true }
 
@@ -233,7 +239,7 @@ indexmap = { workspace = true }
 libtest-mimic = { workspace = true }
 pretty_assertions = { workspace = true }
 serde_json = "1.0"
-tempfile = "3.1"
+tempfile = { workspace = true }
 wast = { workspace = true }
 arbitrary = { workspace = true }
 wasm-smith = { workspace = true }
@@ -263,6 +269,7 @@ default = [
   'completion',
   'json-from-wast',
   'wast',
+  'wit-dylib',
 ]
 
 # Each subcommand is gated behind a feature and lists the dependencies it needs
@@ -308,3 +315,4 @@ wast = [
   'dump',
   'json-from-wast',
 ]
+wit-dylib = ['dep:wit-dylib', 'wit-dylib/clap', 'wit-parser', 'wit-component']
