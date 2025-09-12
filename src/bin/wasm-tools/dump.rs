@@ -20,7 +20,7 @@ impl Opts {
     }
 
     pub fn run(&self) -> Result<()> {
-        let input = self.io.get_input_wasm()?;
+        let input = self.io.get_input_wasm(None)?;
         let output = self.io.output_writer()?;
         let mut d = Dump::new(&input, output);
         d.run()?;

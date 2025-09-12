@@ -5,6 +5,9 @@ use clap::Parser;
 #[derive(Parser)]
 pub struct Opts {
     #[clap(flatten)]
+    generate_dwarf: wasm_tools::GenerateDwarfArg,
+
+    #[clap(flatten)]
     io: wasm_tools::InputOutput,
 
     /// Whether or not to print binary offsets intermingled in the text format
@@ -49,7 +52,7 @@ impl Opts {
     }
 
     pub fn run(&self) -> Result<()> {
-        let wasm = self.io.get_input_wasm()?;
+        let wasm = self.io.get_input_wasm(Some(&self.generate_dwarf))?;
 
         let mut config = wasmprinter::Config::new();
         config.print_offsets(self.print_offsets);

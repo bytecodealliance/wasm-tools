@@ -24,7 +24,7 @@ impl Opts {
     }
 
     pub fn run(&self) -> Result<()> {
-        let input = self.io.get_input_wasm()?;
+        let input = self.io.get_input_wasm(None)?;
         let mut module = wasm_encoder::Module::new();
 
         for payload in Parser::new(0).parse_all(&input) {
