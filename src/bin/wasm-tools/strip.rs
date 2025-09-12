@@ -32,7 +32,7 @@ impl Opts {
     }
 
     pub fn run(&self) -> Result<()> {
-        let input = self.io.get_input_wasm()?;
+        let input = self.io.get_input_wasm(None)?;
         let to_delete = regex::RegexSet::new(self.delete.iter())?;
 
         let strip_custom_section = |name: &str| {

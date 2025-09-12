@@ -48,7 +48,7 @@ impl ShowOpts {
     }
 
     pub fn run(&self) -> Result<()> {
-        let input = self.io.get_input_wasm()?;
+        let input = self.io.get_input_wasm(None)?;
         let mut output = self.io.output_writer()?;
 
         let payload = wasm_metadata::Payload::from_binary(&input)?;
@@ -66,6 +66,9 @@ impl ShowOpts {
 #[derive(clap::Parser)]
 pub struct AddOpts {
     #[clap(flatten)]
+    generate_dwarf: wasm_tools::GenerateDwarfArg,
+
+    #[clap(flatten)]
     io: wasm_tools::InputOutput,
 
     #[clap(flatten)]
@@ -82,7 +85,7 @@ impl AddOpts {
     }
 
     pub fn run(&self) -> Result<()> {
-        let input = self.io.get_input_wasm()?;
+        let input = self.io.get_input_wasm(Some(&self.generate_dwarf))?;
 
         let add_metadata: AddMetadata = self.add_metadata.clone().into();
         let output = add_metadata.to_wasm(&input)?;

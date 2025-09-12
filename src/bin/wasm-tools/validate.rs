@@ -36,6 +36,9 @@ Examples:
 ")]
 pub struct Opts {
     #[clap(flatten)]
+    generate_dwarf: wasm_tools::GenerateDwarfArg,
+
+    #[clap(flatten)]
     features: CliFeatures,
 
     #[clap(flatten)]
@@ -81,7 +84,7 @@ impl Opts {
 
     pub fn run(&self) -> Result<()> {
         let start = Instant::now();
-        let wasm = self.io.get_input_wasm()?; // no need to parse as the validator will do this
+        let wasm = self.io.get_input_wasm(Some(&self.generate_dwarf))?; // no need to parse as the validator will do this
         log::info!("read module in {:?}", start.elapsed());
 
         // If validation fails then try to attach extra information to the
