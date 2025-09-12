@@ -32,3 +32,31 @@ fn big_type_indices() {
         .validate_all(&wasm)
         .unwrap();
 }
+
+#[test]
+fn big_function_body() {
+    let mut module = Module::new();
+
+    let mut types = TypeSection::new();
+    types.ty().function([], []);
+    module.section(&types);
+    let mut funcs = FunctionSection::new();
+    funcs.function(0);
+    module.section(&funcs);
+
+    let mut code = CodeSection::new();
+    let mut body = Function::new([]);
+    // Function body larger than the 7_654_321-byte implementation
+    // limit.
+    for _ in 0..8_000_000 {
+        body.instructions().unreachable();
+    }
+    body.instructions().end();
+    code.function(&body);
+    module.section(&code);
+
+    let wasm = module.finish();
+
+    let result = wasmparser::Validator::default().validate_all(&wasm);
+    assert!(result.is_err());
+}
