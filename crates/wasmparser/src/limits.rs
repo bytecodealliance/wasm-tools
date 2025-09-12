@@ -17,6 +17,8 @@
 
 // The following limits are imposed by wasmparser on WebAssembly modules.
 // The limits are agreed upon with other engines for consistency.
+//
+// See https://webassembly.github.io/spec/js-api/#limits for details.
 pub const MAX_WASM_TYPES: usize = 1_000_000;
 pub const MAX_WASM_SUPERTYPES: usize = 1;
 pub const MAX_WASM_FUNCTIONS: usize = 1_000_000;
@@ -26,7 +28,7 @@ pub const MAX_WASM_GLOBALS: usize = 1_000_000;
 pub const MAX_WASM_ELEMENT_SEGMENTS: usize = 100_000;
 pub const MAX_WASM_DATA_SEGMENTS: usize = 100_000;
 pub const MAX_WASM_STRING_SIZE: usize = 100_000;
-pub const MAX_WASM_FUNCTION_SIZE: usize = 128 * 1024;
+pub const MAX_WASM_FUNCTION_SIZE: usize = 7_654_321;
 pub const MAX_WASM_FUNCTION_LOCALS: u32 = 50000;
 pub const MAX_WASM_FUNCTION_PARAMS: usize = 1000;
 pub const MAX_WASM_FUNCTION_RETURNS: usize = 1000;

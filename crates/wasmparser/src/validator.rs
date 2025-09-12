@@ -1006,6 +1006,14 @@ impl Validator {
     ) -> Result<FuncToValidate<ValidatorResources>> {
         let offset = body.range().start;
         self.state.ensure_module("code", offset)?;
+        check_max(
+            0,
+            u32::try_from(body.range().len())
+                .expect("usize already validated to u32 during section-length decoding"),
+            MAX_WASM_FUNCTION_SIZE,
+            "function body size",
+            offset,
+        )?;
 
         let state = self.module.as_mut().unwrap();
 
