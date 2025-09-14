@@ -9,3 +9,7 @@ cargo_metadata = "0.19.0"
 
 [lints]
 workspace = true
+
+[lib]
+test = false
+doctest = false
