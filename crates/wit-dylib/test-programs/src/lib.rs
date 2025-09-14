@@ -8,7 +8,8 @@
 //! which is used for test cases here and can also be a possibly-helpful
 //! reference to an implementation.
 
-#![allow(unsafe_code, reason = "not like the rest of wasm-tools")]
+#![allow(unsafe_code)]
+#![allow(clippy::allow_attributes_without_reason)]
 
 use std::mem::ManuallyDrop;
 use std::ptr;
@@ -21,6 +22,8 @@ use std::ptr;
 macro_rules! export {
     ($name:ident) => {
         const _: () = {
+            use std::mem::{align_of, size_of};
+
             type Borrow = <$name as $crate::Interpreter>::Borrow<'static>;
             type Own = <$name as $crate::Interpreter>::Own;
 
@@ -37,137 +40,137 @@ macro_rules! export {
             assert!(!std::mem::needs_drop::<Borrow>());
         };
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub extern "C" fn wit_dylib_call_export(which: usize, ptr: *mut u64) {
             unsafe { <$name as $crate::RawInterpreter>::raw_call_export(which, ptr) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_initialize(ptr: *const u8) {
             unsafe { <$name as $crate::RawInterpreter>::raw_initialize(ptr) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lower_u8(val: u64) -> u8 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lower_u8(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lower_u16(val: u64) -> u16 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lower_u16(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lower_u32(val: u64) -> u32 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lower_u32(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lower_u64(val: u64) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lower_u64(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lower_s8(val: u64) -> i8 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lower_s8(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lower_s16(val: u64) -> i16 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lower_s16(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lower_s32(val: u64) -> i32 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lower_s32(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lower_s64(val: u64) -> i64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lower_s64(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lower_f32(val: u64) -> f32 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lower_f32(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lower_f64(val: u64) -> f64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lower_f64(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lower_bool(val: u64) -> bool {
             unsafe { <$name as $crate::RawInterpreter>::raw_lower_bool(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lower_char(val: u64) -> char {
             unsafe { <$name as $crate::RawInterpreter>::raw_lower_char(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lower_borrow(ty: usize, val: u64) -> u32 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lower_borrow(ty, val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lower_own(ty: usize, val: u64) -> u32 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lower_own(ty, val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lower_enum(ty: usize, val: u64) -> u32 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lower_enum(ty, val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lower_flags(ty: usize, val: u64) -> u32 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lower_flags(ty, val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lower_future(ty: usize, val: u64) -> u32 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lower_future(ty, val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lower_stream(ty: usize, val: u64) -> u32 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lower_stream(ty, val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lower_record(ty: usize, val: u64, fields: *mut u64) {
             unsafe { <$name as $crate::RawInterpreter>::raw_lower_record(ty, val, fields) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lower_tuple(ty: usize, val: u64, fields: *mut u64) {
             unsafe { <$name as $crate::RawInterpreter>::raw_lower_tuple(ty, val, fields) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_string_ptr(val: u64) -> *const u8 {
             unsafe { <$name as $crate::RawInterpreter>::raw_string_ptr(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_string_len(val: u64) -> usize {
             unsafe { <$name as $crate::RawInterpreter>::raw_string_len(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_list_len(type_index: usize, val: u64) -> usize {
             unsafe { <$name as $crate::RawInterpreter>::raw_list_len(type_index, val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_list_ptr(type_index: usize, val: u64) -> *const u8 {
             unsafe { <$name as $crate::RawInterpreter>::raw_list_ptr(type_index, val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_list_get(
             type_index: usize,
             index: usize,
@@ -176,37 +179,37 @@ macro_rules! export {
             unsafe { <$name as $crate::RawInterpreter>::raw_list_get(type_index, index, val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_option_is_some(type_index: usize, val: u64) -> u32 {
             unsafe { <$name as $crate::RawInterpreter>::raw_option_is_some(type_index, val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_option_payload(type_index: usize, val: u64) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_option_payload(type_index, val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_result_is_err(type_index: usize, val: u64) -> u32 {
             unsafe { <$name as $crate::RawInterpreter>::raw_result_is_err(type_index, val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_result_payload(type_index: usize, val: u64) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_result_payload(type_index, val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_variant_discr(type_index: usize, val: u64) -> u32 {
             unsafe { <$name as $crate::RawInterpreter>::raw_variant_discr(type_index, val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_variant_payload(type_index: usize, val: u64) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_variant_payload(type_index, val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_dealloc_bytes(
             ptr: *mut u8,
             byte_size: usize,
@@ -215,122 +218,122 @@ macro_rules! export {
             unsafe { <$name as $crate::RawInterpreter>::raw_dealloc_bytes(ptr, byte_size, align) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_dealloc_val(val: u64) {
             unsafe { <$name as $crate::RawInterpreter>::raw_dealloc_val(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_bool(val: u32) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_bool(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_char(val: u32) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_char(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_u8(val: u8) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_u8(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_s8(val: i8) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_s8(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_u16(val: u16) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_u16(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_s16(val: i16) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_s16(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_u32(val: u32) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_u32(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_s32(val: i32) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_s32(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_u64(val: u64) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_u64(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_s64(val: i64) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_s64(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_f32(val: f32) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_f32(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_f64(val: f64) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_f64(val) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_string(ptr: *mut u8, len: usize) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_string(ptr, len) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_record(ty: usize, vals: *mut u64) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_record(ty, vals) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_tuple(ty: usize, vals: *mut u64) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_tuple(ty, vals) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_flags(ty: usize, flags: u32) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_flags(ty, flags) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_enum(ty: usize, enum_: u32) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_enum(ty, enum_) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_borrow(ty: usize, handle: u32) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_borrow(ty, handle) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_own(ty: usize, handle: u32) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_own(ty, handle) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_future(ty: usize, handle: u32) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_future(ty, handle) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_stream(ty: usize, handle: u32) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_stream(ty, handle) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_resource_dtor(ty: usize, handle: usize) {
             unsafe { <$name as $crate::RawInterpreter>::raw_resource_dtor(ty, handle) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_option(
             ty: usize,
             discr: u32,
@@ -339,7 +342,7 @@ macro_rules! export {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_option(ty, discr, opt_payload) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_result(
             ty: usize,
             discr: u32,
@@ -348,7 +351,7 @@ macro_rules! export {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_result(ty, discr, opt_payload) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_variant(
             ty: usize,
             discr: u32,
@@ -357,17 +360,17 @@ macro_rules! export {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_variant(ty, discr, opt_payload) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_lift_list(ty: usize, ptr: *mut u8, len: usize) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_lift_list(ty, ptr, len) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_list_alloc(ty: usize, len: usize) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_list_alloc(ty, len) }
         }
 
-        #[unsafe(no_mangle)]
+        #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_list_push(ty: usize, list: u64, val: u64) -> u64 {
             unsafe { <$name as $crate::RawInterpreter>::raw_list_push(ty, list, val) }
         }
@@ -1038,7 +1041,7 @@ pub trait RawInterpreter: Interpreter {
 
 impl<T: Interpreter + ?Sized> RawInterpreter for T {}
 
-#[expect(dead_code, non_camel_case_types, reason = "generated code")]
+#[allow(dead_code, non_camel_case_types)]
 mod ffi;
 pub mod test_util;
 mod types;
