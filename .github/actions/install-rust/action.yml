@@ -43,6 +43,7 @@ runs:
         echo RUSTFLAGS="-D warnings" >> "$GITHUB_ENV"
 
     - run: rustup target add wasm32-wasip2
+      shell: bash
 
     - run: |
         curl https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-27/wasi-sdk-27.0-x86_64-linux.tar.gz -L | tar xzvf -
