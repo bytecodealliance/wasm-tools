@@ -163,13 +163,9 @@ jobs:
         submodules: true
     - uses: ./.github/actions/install-rust
       with:
-        toolchain: 1.79.0
+        toolchain: 1.89.0
     - run: rustup target add wasm32-wasip1
-    - run: |
-        curl -LO https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-22/wasi-sdk-22.0-linux.tar.gz
-        tar xf wasi-sdk-22.0-linux.tar.gz
-        export WASI_SDK_PATH=$(pwd)/wasi-sdk-22.0
-        cd crates/wit-component/dl && bash check.sh
+    - run: cd crates/wit-component/dl && bash check.sh
 
   wasm:
     name: Test on WebAssembly
