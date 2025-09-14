@@ -769,7 +769,7 @@ impl FixedSizeList {
     }
 
     pub fn len(&self) -> usize {
-        self.ptr.size as usize
+        self.ptr.size
     }
 
     pub fn ty(&self) -> Type {

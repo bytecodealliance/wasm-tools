@@ -8,7 +8,7 @@
 //! which is used for test cases here and can also be a possibly-helpful
 //! reference to an implementation.
 
-#![allow(unsafe_code)]
+#![allow(unsafe_code, reason = "not like the rest of wasm-tools")]
 
 use std::mem::ManuallyDrop;
 use std::ptr;
@@ -1038,7 +1038,7 @@ pub trait RawInterpreter: Interpreter {
 
 impl<T: Interpreter + ?Sized> RawInterpreter for T {}
 
-#[expect(dead_code, non_camel_case_types)]
+#[expect(dead_code, non_camel_case_types, reason = "generated code")]
 mod ffi;
 pub mod test_util;
 mod types;
