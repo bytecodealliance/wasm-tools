@@ -74,7 +74,10 @@ fn run_test(tempdir: &TempDir, caller: &Path, callee: &Path, wit: &Path) -> Resu
     // And finally run this component's `run` function in Wasmtime to ensure the
     // test passes.
     let mut cmd = Command::new("wasmtime");
-    cmd.arg("run").arg("--invoke=run()").arg(&composition_file);
+    cmd.arg("run")
+        .arg("--invoke=run()")
+        .arg("-Shttp")
+        .arg(&composition_file);
     let result = cmd.output().context("failed to run wasmtime")?;
     if result.status.success() {
         return Ok(());
