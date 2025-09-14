@@ -43,22 +43,26 @@ runs:
         echo RUSTFLAGS="-D warnings" >> "$GITHUB_ENV"
 
     - run: rustup target add wasm32-wasip2
+      if: inputs.toolchain != 'msrv'
       shell: bash
 
     - run: |
-        curl https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-27/wasi-sdk-27.0-x86_64-linux.tar.gz -L | tar xzvf -
+        curl -L -o wasi-sdk.tar.gz https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-27/wasi-sdk-27.0-x86_64-linux.tar.gz
+        tar xf wasi-sdk.tar.gz
         echo "WASI_SDK_PATH=`pwd`/wasi-sdk-27.0-x86_64-linux" >> $GITHUB_ENV
       if: runner.os == 'Linux'
       shell: bash
       working-directory: ${{ runner.tool_cache }}
     - run: |
-        curl https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-27/wasi-sdk-27.0-x86_64-macos.tar.gz -L | tar xzvf -
+        curl -L -o wasi-sdk.tar.gz https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-27/wasi-sdk-27.0-x86_64-macos.tar.gz
+        tar xf wasi-sdk.tar.gz
         echo "WASI_SDK_PATH=`pwd`/wasi-sdk-27.0-x86_64-macos" >> $GITHUB_ENV
       if: runner.os == 'macOS'
       shell: bash
       working-directory: ${{ runner.tool_cache }}
     - run: |
-        curl https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-27/wasi-sdk-27.0-x86_64-windows.tar.gz -L | tar xzvf -
+        curl -L -o wasi-sdk.tar.gz https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-27/wasi-sdk-27.0-x86_64-windows.tar.gz
+        tar xf wasi-sdk.tar.gz
         echo "WASI_SDK_PATH=`pwd`/wasi-sdk-27.0-x86_64-windows" >> $GITHUB_ENV
       if: runner.os == 'Windows'
       shell: bash
