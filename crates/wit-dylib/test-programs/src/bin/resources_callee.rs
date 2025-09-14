@@ -1,3 +1,4 @@
+#![allow(clippy::allow_attributes_without_reason)]
 #![allow(unsafe_code)]
 
 use test_programs::test_util::*;
