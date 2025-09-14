@@ -102,7 +102,7 @@ impl Adapter {
         // memory.
         let (metadata_offset, metadata) = self.encode_metadata();
         let mut ctor = Function::new([]);
-        ctor.instructions().i32_const(metadata_offset.cast_signed());
+        ctor.instructions().i32_const(metadata_offset as i32);
         ctor.instructions().global_get(self.memory_base());
         ctor.instructions().i32_add();
         ctor.instructions().call(self.intrinsics().initialize);

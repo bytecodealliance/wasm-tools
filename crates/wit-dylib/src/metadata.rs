@@ -642,7 +642,7 @@ impl Encoder {
         let mut func = Function::new([]);
         let mut ins = func.instructions();
         for reloc in self.relocs.iter() {
-            let addend_i32 = u32::try_from(reloc.addend).unwrap().cast_signed();
+            let addend_i32 = u32::try_from(reloc.addend).unwrap() as i32;
 
             ins.global_get(self.memory_base);
             match reloc.kind {
@@ -655,7 +655,7 @@ impl Encoder {
                         reloc.sym.0,
                     );
 
-                    let sym_i32 = u32::try_from(offset).unwrap().cast_signed();
+                    let sym_i32 = u32::try_from(offset).unwrap() as i32;
                     ins.i32_const(sym_i32);
                     ins.i32_add();
                 }

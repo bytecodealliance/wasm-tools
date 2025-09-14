@@ -400,7 +400,7 @@ impl<'a> FunctionCompiler<'a> {
         let fp = fp.unwrap();
         let sp = self.adapter.stack_pointer();
         self.ins().local_get(fp.idx);
-        self.ins().i32_const(frame.size.cast_signed());
+        self.ins().i32_const(frame.size as i32);
         self.ins().i32_add();
         self.ins().global_set(sp);
         self.free_temp_local(fp);
@@ -487,7 +487,7 @@ impl<'a> FunctionCompiler<'a> {
         assert!(frame.size % 8 == 0);
         let sp = self.adapter.stack_pointer();
         self.ins().global_get(sp);
-        self.ins().i32_const(frame.size.cast_signed());
+        self.ins().i32_const(frame.size as i32);
         self.ins().i32_sub();
         let ret = self.local_tee_new_tmp(ValType::I32);
         self.ins().global_set(sp);
@@ -557,7 +557,7 @@ impl<'a> FunctionCompiler<'a> {
                 unreachable!()
             };
             self.ins().local_get(mem.addr.idx);
-            self.ins().i32_const(mem.offset.cast_signed());
+            self.ins().i32_const(mem.offset as i32);
             self.ins().i32_add();
         }
     }
@@ -669,7 +669,7 @@ impl<'a> FunctionCompiler<'a> {
                 unreachable!()
             };
             self.ins().local_get(mem.addr.idx);
-            self.ins().i32_const(mem.offset.cast_signed());
+            self.ins().i32_const(mem.offset as i32);
             self.ins().i32_add();
         } else {
             assert_eq!(sig.results.len(), 1);
