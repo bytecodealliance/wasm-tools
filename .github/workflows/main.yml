@@ -25,6 +25,7 @@ jobs:
     name: Build wasm-tools
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: ${{ github.event_name != 'pull_request' }}
       matrix:
         include:
         - build: x86_64-linux
@@ -84,6 +85,7 @@ jobs:
     name: Test
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: ${{ github.event_name != 'pull_request' }}
       matrix:
         include:
           - os: ubuntu-latest
@@ -138,6 +140,7 @@ jobs:
     name: Test the C API
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: ${{ github.event_name != 'pull_request' }}
       matrix:
         include:
           - os: ubuntu-latest
