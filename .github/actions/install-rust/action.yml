@@ -42,6 +42,8 @@ runs:
         # Deny warnings on CI to keep our code warning-free as it lands in-tree.
         echo RUSTFLAGS="-D warnings" >> "$GITHUB_ENV"
 
+    - run: rustup target add wasm32-wasip2
+
     - run: |
         curl https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-27/wasi-sdk-27.0-x86_64-linux.tar.gz -L | tar xzvf -
         echo "WASI_SDK_PATH=`pwd`/wasi-sdk-27.0-x86_64-linux" >> $GITHUB_ENV
