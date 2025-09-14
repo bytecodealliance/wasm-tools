@@ -29,7 +29,7 @@ impl Wit {
         }
     }
 
-    pub fn iter_funcs(&self) -> impl ExactSizeIterator<Item = Function> {
+    pub fn iter_funcs(&self) -> impl ExactSizeIterator<Item = Function> + use<'_> {
         self.raw_funcs().iter().map(|func| Function {
             wit: *self,
             ptr: func,
@@ -47,7 +47,7 @@ impl Wit {
         }
     }
 
-    pub fn iter_records(&self) -> impl ExactSizeIterator<Item = Record> {
+    pub fn iter_records(&self) -> impl ExactSizeIterator<Item = Record> + use<'_> {
         self.raw_records().iter().map(|record| Record {
             wit: *self,
             ptr: record,
@@ -64,7 +64,7 @@ impl Wit {
         }
     }
 
-    pub fn iter_resources(&self) -> impl ExactSizeIterator<Item = Resource> {
+    pub fn iter_resources(&self) -> impl ExactSizeIterator<Item = Resource> + use<'_> {
         self.raw_resources()
             .iter()
             .map(|resource| Resource { ptr: resource })
@@ -80,7 +80,7 @@ impl Wit {
         }
     }
 
-    pub fn iter_flags(&self) -> impl ExactSizeIterator<Item = Flags> {
+    pub fn iter_flags(&self) -> impl ExactSizeIterator<Item = Flags> + use<'_> {
         self.raw_flags().iter().map(|flags| Flags { ptr: flags })
     }
 
@@ -95,7 +95,7 @@ impl Wit {
         }
     }
 
-    pub fn iter_tuples(&self) -> impl ExactSizeIterator<Item = Tuple> {
+    pub fn iter_tuples(&self) -> impl ExactSizeIterator<Item = Tuple> + use<'_> {
         self.raw_tuples().iter().map(|tuple| Tuple {
             wit: *self,
             ptr: tuple,
@@ -113,7 +113,7 @@ impl Wit {
         }
     }
 
-    pub fn iter_variants(&self) -> impl ExactSizeIterator<Item = Variant> {
+    pub fn iter_variants(&self) -> impl ExactSizeIterator<Item = Variant> + use<'_> {
         self.raw_variants().iter().map(|variant| Variant {
             wit: *self,
             ptr: variant,
@@ -130,7 +130,7 @@ impl Wit {
         }
     }
 
-    pub fn iter_enums(&self) -> impl ExactSizeIterator<Item = Enum> {
+    pub fn iter_enums(&self) -> impl ExactSizeIterator<Item = Enum> + use<'_> {
         self.raw_enums().iter().map(|e| Enum { ptr: e })
     }
 
@@ -145,7 +145,7 @@ impl Wit {
         }
     }
 
-    pub fn iter_options(&self) -> impl ExactSizeIterator<Item = WitOption> {
+    pub fn iter_options(&self) -> impl ExactSizeIterator<Item = WitOption> + use<'_> {
         self.raw_options()
             .iter()
             .map(|e| WitOption { wit: *self, ptr: e })
@@ -162,7 +162,7 @@ impl Wit {
         }
     }
 
-    pub fn iter_results(&self) -> impl ExactSizeIterator<Item = WitResult> {
+    pub fn iter_results(&self) -> impl ExactSizeIterator<Item = WitResult> + use<'_> {
         self.raw_results()
             .iter()
             .map(|e| WitResult { wit: *self, ptr: e })
@@ -179,7 +179,7 @@ impl Wit {
         }
     }
 
-    pub fn iter_lists(&self) -> impl ExactSizeIterator<Item = List> {
+    pub fn iter_lists(&self) -> impl ExactSizeIterator<Item = List> + use<'_> {
         self.raw_lists().iter().map(|e| List { wit: *self, ptr: e })
     }
 
@@ -194,7 +194,7 @@ impl Wit {
         }
     }
 
-    pub fn iter_fixed_size_lists(&self) -> impl ExactSizeIterator<Item = FixedSizeList> {
+    pub fn iter_fixed_size_lists(&self) -> impl ExactSizeIterator<Item = FixedSizeList> + use<'_> {
         self.raw_fixed_size_lists()
             .iter()
             .map(|e| FixedSizeList { wit: *self, ptr: e })
@@ -211,7 +211,7 @@ impl Wit {
         }
     }
 
-    pub fn iter_futures(&self) -> impl ExactSizeIterator<Item = Future> {
+    pub fn iter_futures(&self) -> impl ExactSizeIterator<Item = Future> + use<'_> {
         self.raw_futures()
             .iter()
             .map(|e| Future { wit: *self, ptr: e })
@@ -228,7 +228,7 @@ impl Wit {
         }
     }
 
-    pub fn iter_streams(&self) -> impl ExactSizeIterator<Item = Stream> {
+    pub fn iter_streams(&self) -> impl ExactSizeIterator<Item = Stream> + use<'_> {
         self.raw_streams()
             .iter()
             .map(|e| Stream { wit: *self, ptr: e })
@@ -245,7 +245,7 @@ impl Wit {
         }
     }
 
-    pub fn iter_aliases(&self) -> impl ExactSizeIterator<Item = Alias> {
+    pub fn iter_aliases(&self) -> impl ExactSizeIterator<Item = Alias> + use<'_> {
         self.raw_aliases()
             .iter()
             .map(|e| Alias { wit: *self, ptr: e })
@@ -279,7 +279,7 @@ impl Function {
         self.ptr.impl_
     }
 
-    pub fn params(&self) -> impl ExactSizeIterator<Item = Type> {
+    pub fn params(&self) -> impl ExactSizeIterator<Item = Type> + use<'_> {
         self.raw_params()
             .iter()
             .map(|param| Type::from_raw(self.wit, *param))
@@ -415,7 +415,7 @@ impl Record {
         unsafe { to_str(self.ptr.name) }
     }
 
-    pub fn fields(&self) -> impl ExactSizeIterator<Item = (&'static str, Type)> {
+    pub fn fields(&self) -> impl ExactSizeIterator<Item = (&'static str, Type)> + use<'_> {
         unsafe {
             slice(self.ptr.fields, self.ptr.nfields)
                 .iter()
@@ -536,7 +536,7 @@ impl Tuple {
         unsafe { opt_str(self.ptr.name) }
     }
 
-    pub fn types(&self) -> impl ExactSizeIterator<Item = Type> {
+    pub fn types(&self) -> impl ExactSizeIterator<Item = Type> + use<'_> {
         unsafe {
             slice(self.ptr.types, self.ptr.ntypes)
                 .iter()
@@ -576,7 +576,7 @@ impl Variant {
         unsafe { to_str(self.ptr.name) }
     }
 
-    pub fn cases(&self) -> impl ExactSizeIterator<Item = (&'static str, Option<Type>)> {
+    pub fn cases(&self) -> impl ExactSizeIterator<Item = (&'static str, Option<Type>)> + use<'_> {
         unsafe {
             slice(self.ptr.cases, self.ptr.ncases)
                 .iter()
@@ -615,7 +615,7 @@ impl Enum {
         unsafe { to_str(self.ptr.name) }
     }
 
-    pub fn names(&self) -> impl ExactSizeIterator<Item = &'static str> {
+    pub fn names(&self) -> impl ExactSizeIterator<Item = &'static str> + use<'_> {
         unsafe {
             slice(self.ptr.names, self.ptr.nnames)
                 .iter()
