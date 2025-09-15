@@ -37,7 +37,7 @@ use {
         CodeSection, ConstExpr, DataSection, ElementSection, Elements, EntityType, ExportKind,
         ExportSection, Function, FunctionSection, GlobalSection, ImportSection, Instruction as Ins,
         MemArg, MemorySection, MemoryType, Module, RawCustomSection, RefType, StartSection,
-        TableSection, TableType, TypeSection, ValType,
+        TableSection, TableType, TagKind, TagSection, TagType, TypeSection, ValType,
     },
     wasmparser::SymbolFlags,
 };
@@ -270,7 +270,7 @@ impl<K: Hash + Eq + PartialEq + Debug, V: Debug> InsertUnique for HashMap<K, V> 
 /// dependencies, as well as hosting the memory and function table.
 fn make_env_module<'a>(
     metadata: &'a [Metadata<'a>],
-    function_exports: &[(&str, &FunctionType, usize)],
+    env_exports: &[EnvExport<'_>],
     cabi_realloc_exporter: Option<&str>,
     stack_size_bytes: u32,
 ) -> (Vec<u8>, DlOpenables<'a>, u32) {
@@ -395,17 +395,18 @@ fn make_env_module<'a>(
         }
 
         {
-            let offsets = function_exports
+            let offsets = env_exports
                 .iter()
                 .enumerate()
-                .map(|(offset, (name, _, exporter))| {
-                    (
+                .filter_map(|(offset, export)| match export {
+                    EnvExport::Func { name, exporter, .. } => Some((
                         *name,
                         (
                             table_offset + u32::try_from(offset).unwrap(),
                             metadata[*exporter].name == STUB_LIBRARY_NAME,
                         ),
-                    )
+                    )),
+                    EnvExport::Tag { .. } => None,
                 })
                 .collect_unique::<HashMap<_, _>>();
 
@@ -438,7 +439,11 @@ fn make_env_module<'a>(
 
     let mut functions = FunctionSection::new();
     let mut code = CodeSection::new();
-    for (name, ty, _) in function_exports {
+    for export in env_exports {
+        let (name, ty) = match export {
+            EnvExport::Func { name, ty, .. } => (name, ty),
+            _ => continue,
+        };
         let index = get_and_increment(&mut function_count);
         types.ty().function(
             ty.parameters.iter().copied().map(ValType::from),
@@ -472,6 +477,29 @@ fn make_env_module<'a>(
         exports.export("_start", ExportKind::Func, index);
     }
 
+    let tags = {
+        let mut tags = TagSection::new();
+        for export in env_exports.iter() {
+            let (name, ty) = match export {
+                EnvExport::Tag { name, ty } => (name, ty),
+                _ => continue,
+            };
+
+            let func_type_idx = types.len();
+            types.ty().function(
+                ty.parameters.iter().copied().map(ValType::from),
+                ty.results.iter().copied().map(ValType::from),
+            );
+            let tag_idx = tags.len();
+            tags.tag(TagType {
+                kind: TagKind::Exception,
+                func_type_idx,
+            });
+            exports.export(name, ExportKind::Tag, tag_idx);
+        }
+        tags
+    };
+
     let mut module = Module::new();
 
     module.section(&types);
@@ -504,6 +532,9 @@ fn make_env_module<'a>(
         module.section(&memories);
     }
 
+    if !tags.is_empty() {
+        module.section(&tags);
+    }
     module.section(&globals);
     module.section(&exports);
     module.section(&code);
@@ -524,7 +555,7 @@ fn make_env_module<'a>(
 fn make_init_module(
     metadata: &[Metadata],
     exporters: &IndexMap<&ExportKey, (&str, &Export)>,
-    function_exports: &[(&str, &FunctionType, usize)],
+    env_exports: &[EnvExport<'_>],
     dl_openables: DlOpenables,
     indirection_table_base: u32,
 ) -> Result<Vec<u8>> {
@@ -550,7 +581,11 @@ fn make_init_module(
             }
         }
     }
-    for (_, ty, _) in function_exports {
+    for export in env_exports {
+        let ty = match export {
+            EnvExport::Func { ty, .. } => ty,
+            _ => continue,
+        };
         types.ty().function(
             ty.parameters.iter().copied().map(ValType::from),
             ty.results.iter().copied().map(ValType::from),
@@ -730,9 +765,13 @@ fn make_init_module(
         }
     }
 
-    let indirections = function_exports
+    let indirections = env_exports
         .iter()
-        .map(|(name, _, index)| {
+        .filter_map(|export| match export {
+            EnvExport::Func { name, exporter, .. } => Some((name, exporter)),
+            _ => None,
+        })
+        .map(|(name, index)| {
             add_function_import(
                 &mut imports,
                 names[index],
@@ -1068,19 +1107,37 @@ fn find_dependencies(
     }
 }
 
-struct EnvFunctionExports<'a> {
-    exports: Vec<(&'a str, &'a FunctionType, usize)>,
+struct EnvExports<'a> {
+    exports: Vec<EnvExport<'a>>,
     reexport_cabi_realloc: bool,
 }
 
-/// Analyze the specified metadata and generate a list of functions which should be re-exported as a
-/// `call.indirect`-based function by the main (AKA "env") module, including the offset of the library containing
-/// the original export.
-fn env_function_exports<'a>(
+enum EnvExport<'a> {
+    Func {
+        name: &'a str,
+        ty: &'a FunctionType,
+        exporter: usize,
+    },
+    Tag {
+        name: &'a str,
+        ty: &'a FunctionType,
+    },
+}
+
+/// Analyze the specified metadata and generate what needs to be exported from
+/// the main (aka "env") module.
+///
+/// This includes a list of functions which should be re-exported as a
+/// `call.indirect`-based function including the offset of the library
+/// containing the original export.
+///
+/// Additionally this includes any tags necessary that are shared amongst
+/// modules.
+fn env_exports<'a>(
     metadata: &'a [Metadata<'a>],
     exporters: &'a IndexMap<&'a ExportKey, (&'a str, &Export)>,
     topo_sorted: &[usize],
-) -> Result<EnvFunctionExports<'a>> {
+) -> Result<EnvExports<'a>> {
     let function_exporters = exporters
         .iter()
         .filter_map(|(export, exporter)| {
@@ -1111,7 +1168,11 @@ fn env_function_exports<'a>(
                     .get(name)
                     .ok_or_else(|| anyhow!("unable to find {name:?} in any library"))?;
 
-                result.push((*name, *ty, indexes[exporter]));
+                result.push(EnvExport::Func {
+                    name: *name,
+                    ty: *ty,
+                    exporter: indexes[exporter],
+                });
                 exported.insert(*name);
             }
         }
@@ -1122,17 +1183,31 @@ fn env_function_exports<'a>(
                     .unwrap()
                     .0];
                 if !seen.contains(&exporter) {
-                    result.push((*import_name, ty, exporter));
+                    result.push(EnvExport::Func {
+                        name: *import_name,
+                        ty,
+                        exporter,
+                    });
                     exported.insert(*import_name);
                 }
             }
         }
+
+        for (import_name, ty) in &metadata.tag_imports {
+            if exported.insert(import_name) {
+                result.push(EnvExport::Tag {
+                    name: *import_name,
+                    ty,
+                });
+            }
+        }
+
         seen.insert(index);
     }
 
     let reexport_cabi_realloc = exported.contains("cabi_realloc");
 
-    Ok(EnvFunctionExports {
+    Ok(EnvExports {
         exports: result,
         reexport_cabi_realloc,
     })
@@ -1429,14 +1504,14 @@ impl Linker {
 
         let topo_sorted = topo_sort(metadata.len(), &dependencies)?;
 
-        let EnvFunctionExports {
-            exports: env_function_exports,
+        let EnvExports {
+            exports: env_exports,
             reexport_cabi_realloc,
-        } = env_function_exports(&metadata, &exporters, &topo_sorted)?;
+        } = env_exports(&metadata, &exporters, &topo_sorted)?;
 
         let (env_module, dl_openables, table_base) = make_env_module(
             &metadata,
-            &env_function_exports,
+            &env_exports,
             if reexport_cabi_realloc {
                 // If "env" module already reexports "cabi_realloc", we don't need to
                 // reexport it again.
@@ -1513,6 +1588,12 @@ impl Linker {
                         },
                         name: (*name).into(),
                     }
+                }))
+                .chain(metadata.tag_imports.iter().map(|(name, _ty)| Item {
+                    alias: (*name).into(),
+                    kind: ExportKind::Tag,
+                    which: MainOrAdapter::Main,
+                    name: (*name).into(),
                 }))
                 .chain(if metadata.is_asyncified {
                     vec![
@@ -1600,7 +1681,7 @@ impl Linker {
                 &make_init_module(
                     &metadata,
                     &exporters,
-                    &env_function_exports,
+                    &env_exports,
                     dl_openables,
                     table_base,
                 )?,
