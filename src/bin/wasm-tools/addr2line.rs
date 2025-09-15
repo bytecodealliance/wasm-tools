@@ -21,6 +21,9 @@ use wasm_tools::addr2line::Addr2lineModules;
 #[derive(clap::Parser)]
 pub struct Opts {
     #[clap(flatten)]
+    generate_dwarf: wasm_tools::GenerateDwarfArg,
+
+    #[clap(flatten)]
     io: wasm_tools::InputOutput,
 
     /// Addresses to convert to filenames and line numbers.
@@ -44,7 +47,7 @@ impl Opts {
     }
 
     pub fn run(&self) -> Result<()> {
-        let wasm = self.io.get_input_wasm()?;
+        let wasm = self.io.get_input_wasm(Some(&self.generate_dwarf))?;
 
         let mut modules = Addr2lineModules::parse(&wasm)
             .context("failed to parse input and read custom sections")?;

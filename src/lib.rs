@@ -61,14 +61,7 @@ pub struct InputOutput {
 }
 
 #[derive(clap::Parser)]
-pub struct InputArg {
-    /// Input file to process.
-    ///
-    /// If not provided or if this is `-` then stdin is read entirely and
-    /// processed. Note that for most subcommands this input can either be a
-    /// binary `*.wasm` file or a textual format `*.wat` file.
-    input: Option<PathBuf>,
-
+pub struct GenerateDwarfArg {
     /// Optionally generate DWARF debugging information from WebAssembly text
     /// files.
     ///
@@ -90,6 +83,16 @@ pub struct InputArg {
     generate_full_dwarf: bool,
 }
 
+#[derive(clap::Parser)]
+pub struct InputArg {
+    /// Input file to process.
+    ///
+    /// If not provided or if this is `-` then stdin is read entirely and
+    /// processed. Note that for most subcommands this input can either be a
+    /// binary `*.wasm` file or a textual format `*.wat` file.
+    input: Option<PathBuf>,
+}
+
 #[derive(Copy, Clone)]
 enum GenerateDwarf {
     Lines,
@@ -109,16 +112,25 @@ impl FromStr for GenerateDwarf {
 }
 
 impl InputArg {
-    pub fn get_binary_wasm(&self) -> Result<Vec<u8>> {
+    pub fn get_binary_wasm(
+        &self,
+        generate_dwarf_optional: Option<&GenerateDwarfArg>,
+    ) -> Result<Vec<u8>> {
         let mut parser = wat::Parser::new();
-        match (self.generate_full_dwarf, self.generate_dwarf) {
-            (false, Some(GenerateDwarf::Lines)) => {
-                parser.generate_dwarf(wat::GenerateDwarf::Lines);
-            }
-            (true, _) | (false, Some(GenerateDwarf::Full)) => {
-                parser.generate_dwarf(wat::GenerateDwarf::Full);
-            }
-            (false, None) => {}
+        match generate_dwarf_optional {
+            None => {}
+            Some(generate_dwarf) => match (
+                generate_dwarf.generate_full_dwarf,
+                generate_dwarf.generate_dwarf,
+            ) {
+                (false, Some(GenerateDwarf::Lines)) => {
+                    parser.generate_dwarf(wat::GenerateDwarf::Lines);
+                }
+                (true, _) | (false, Some(GenerateDwarf::Full)) => {
+                    parser.generate_dwarf(wat::GenerateDwarf::Full);
+                }
+                (false, None) => {}
+            },
         }
         if let Some(path) = &self.input {
             if path != Path::new("-") {
@@ -159,14 +171,14 @@ pub enum Output<'a> {
 }
 
 impl InputOutput {
-    pub fn parse_input_wasm(&self) -> Result<Vec<u8>> {
-        let ret = self.get_input_wasm()?;
+    pub fn parse_input_wasm(&self, generate_dwarf: Option<&GenerateDwarfArg>) -> Result<Vec<u8>> {
+        let ret = self.get_input_wasm(generate_dwarf)?;
         parse_binary_wasm(wasmparser::Parser::new(0), &ret)?;
         Ok(ret)
     }
 
-    pub fn get_input_wasm(&self) -> Result<Vec<u8>> {
-        self.input.get_binary_wasm()
+    pub fn get_input_wasm(&self, generate_dwarf: Option<&GenerateDwarfArg>) -> Result<Vec<u8>> {
+        self.input.get_binary_wasm(generate_dwarf)
     }
 
     pub fn output_wasm(&self, wasm: &[u8], wat: bool) -> Result<()> {

@@ -8,6 +8,9 @@ use clap::Parser;
 #[derive(Parser)]
 pub struct Opts {
     #[clap(flatten)]
+    generate_dwarf: wasm_tools::GenerateDwarfArg,
+
+    #[clap(flatten)]
     io: wasm_tools::InputOutput,
 
     /// Output the text format of WebAssembly instead of the binary format.
@@ -21,7 +24,7 @@ impl Opts {
     }
 
     pub fn run(&self) -> Result<()> {
-        let binary = self.io.parse_input_wasm()?;
+        let binary = self.io.parse_input_wasm(Some(&self.generate_dwarf))?;
         self.io.output_wasm(&binary, self.wat)?;
         Ok(())
     }
