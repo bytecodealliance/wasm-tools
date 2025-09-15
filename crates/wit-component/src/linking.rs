@@ -397,16 +397,19 @@ fn make_env_module<'a>(
         {
             let offsets = env_exports
                 .iter()
+                .filter_map(|export| match export {
+                    EnvExport::Func { name, exporter, .. } => Some((name, exporter)),
+                    EnvExport::Tag { .. } => None,
+                })
                 .enumerate()
-                .filter_map(|(offset, export)| match export {
-                    EnvExport::Func { name, exporter, .. } => Some((
+                .map(|(offset, (name, exporter))| {
+                    (
                         *name,
                         (
                             table_offset + u32::try_from(offset).unwrap(),
                             metadata[*exporter].name == STUB_LIBRARY_NAME,
                         ),
-                    )),
-                    EnvExport::Tag { .. } => None,
+                    )
                 })
                 .collect_unique::<HashMap<_, _>>();
 
