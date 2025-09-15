@@ -519,6 +519,7 @@ impl Parser {
     /// incrementally parsing it.
     ///
     /// ```
+    /// # #[cfg(feature = "component-model")] {
     /// use std::io::Read;
     /// use anyhow::Result;
     /// use wasmparser::{Parser, Chunk, Payload::*};
@@ -619,6 +620,7 @@ impl Parser {
     /// }
     ///
     /// # parse(&b"\0asm\x01\0\0\0"[..]).unwrap();
+    /// # }
     /// ```
     pub fn parse<'a>(&mut self, data: &'a [u8], eof: bool) -> Result<Chunk<'a>> {
         let (data, eof) = if usize_to_u64(data.len()) > self.max_size {
@@ -1011,6 +1013,7 @@ impl Parser {
     /// a buffer and then parsing it.
     ///
     /// ```
+    /// # #[cfg(feature = "component-model")] {
     /// use std::io::Read;
     /// use anyhow::Result;
     /// use wasmparser::{Parser, Chunk, Payload::*};
@@ -1082,6 +1085,7 @@ impl Parser {
     /// }
     ///
     /// # parse(&b"\0asm\x01\0\0\0"[..]).unwrap();
+    /// # }
     /// ```
     pub fn parse_all(self, mut data: &[u8]) -> impl Iterator<Item = Result<Payload<'_>>> {
         let mut stack = Vec::new();
@@ -1838,6 +1842,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "component-model")]
     #[test]
     fn single_module() {
         let mut p = parser_after_component_header();
@@ -1890,6 +1895,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "component-model")]
     #[test]
     fn nested_section_too_big() {
         let mut p = parser_after_component_header();

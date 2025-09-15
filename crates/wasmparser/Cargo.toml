@@ -37,9 +37,15 @@ wasm-encoder = { path = "../wasm-encoder" }
 wast = { path = "../wast" }
 wat = { path = "../wat" }
 
+[[test]]
+name = "big-module"
+path = "tests/big-module.rs"
+required-features = ["validate"]
+
 [[bench]]
 name = "benchmark"
 harness = false
+required-features = ["default"]
 
 [features]
 default = ['std', 'validate', 'serde', 'features', 'component-model', 'hash-collections', 'simd']
