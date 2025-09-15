@@ -9,7 +9,7 @@ use {
     },
     wasmparser::{
         Dylink0Subsection, ExternalKind, FuncType, KnownCustom, MemInfo, Parser, Payload, RefType,
-        SymbolFlags, TableType, TypeRef, ValType,
+        SymbolFlags, TableType, TagKind, TagType, TypeRef, ValType,
     },
 };
 
@@ -203,6 +203,9 @@ pub struct Metadata<'a> {
     /// The table addresses imported from `GOT.func`, if any
     pub table_address_imports: BTreeSet<&'a str>,
 
+    /// Imported exception tags
+    pub tag_imports: BTreeSet<(&'a str, FunctionType)>,
+
     /// The symbols exported by this module, if any
     pub exports: BTreeSet<Export<'a>>,
 
@@ -244,6 +247,7 @@ impl<'a> Metadata<'a> {
             table_address_imports: BTreeSet::new(),
             exports: BTreeSet::new(),
             imports: BTreeSet::new(),
+            tag_imports: BTreeSet::new(),
         };
         let mut types = Vec::new();
         let mut function_types = Vec::new();
@@ -350,8 +354,8 @@ impl<'a> Metadata<'a> {
                                     return type_error();
                                 }
                             }
-                            ("env", name) => {
-                                if let TypeRef::Func(ty) = import.ty {
+                            ("env", name) => match import.ty {
+                                TypeRef::Func(ty) => {
                                     result.env_imports.insert((
                                         name,
                                         (
@@ -364,10 +368,20 @@ impl<'a> Metadata<'a> {
                                                 .unwrap_or_default(),
                                         ),
                                     ));
-                                } else {
-                                    return type_error();
                                 }
-                            }
+                                TypeRef::Tag(TagType {
+                                    kind: TagKind::Exception,
+                                    func_type_idx,
+                                }) => {
+                                    result.tag_imports.insert((
+                                        name,
+                                        FunctionType::try_from(
+                                            &types[usize::try_from(func_type_idx).unwrap()],
+                                        )?,
+                                    ));
+                                }
+                                _ => return type_error(),
+                            },
                             ("GOT.mem", name) => {
                                 if let TypeRef::Global(wasmparser::GlobalType {
                                     content_type: ValType::I32,
