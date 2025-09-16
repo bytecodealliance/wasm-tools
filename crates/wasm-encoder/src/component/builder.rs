@@ -1,5 +1,5 @@
 use crate::component::*;
-use crate::{ExportKind, Module, RawSection, ValType};
+use crate::{ExportKind, Module, NameMap, RawSection, ValType};
 use alloc::vec::Vec;
 use core::mem;
 
@@ -24,87 +24,134 @@ pub struct ComponentBuilder {
     last_section: LastSection,
 
     // Core index spaces
-    core_modules: u32,
-    core_funcs: u32,
-    core_types: u32,
-    core_memories: u32,
-    core_tables: u32,
-    core_instances: u32,
-    core_tags: u32,
-    core_globals: u32,
+    core_modules: Namespace,
+    core_funcs: Namespace,
+    core_types: Namespace,
+    core_memories: Namespace,
+    core_tables: Namespace,
+    core_instances: Namespace,
+    core_tags: Namespace,
+    core_globals: Namespace,
 
     // Component index spaces
-    funcs: u32,
-    instances: u32,
-    types: u32,
-    components: u32,
-    values: u32,
+    funcs: Namespace,
+    instances: Namespace,
+    types: Namespace,
+    components: Namespace,
+    values: Namespace,
 }
 
 impl ComponentBuilder {
     /// Returns the current number of core modules.
     pub fn core_module_count(&self) -> u32 {
-        self.core_modules
+        self.core_modules.count
     }
 
     /// Returns the current number of core funcs.
     pub fn core_func_count(&self) -> u32 {
-        self.core_funcs
+        self.core_funcs.count
     }
 
     /// Returns the current number of core types.
     pub fn core_type_count(&self) -> u32 {
-        self.core_types
+        self.core_types.count
     }
 
     /// Returns the current number of core memories.
     pub fn core_memory_count(&self) -> u32 {
-        self.core_memories
+        self.core_memories.count
     }
 
     /// Returns the current number of core tables.
     pub fn core_table_count(&self) -> u32 {
-        self.core_tables
+        self.core_tables.count
     }
 
     /// Returns the current number of core instances.
     pub fn core_instance_count(&self) -> u32 {
-        self.core_instances
+        self.core_instances.count
     }
 
     /// Returns the current number of core tags.
     pub fn core_tag_count(&self) -> u32 {
-        self.core_tags
+        self.core_tags.count
     }
 
     /// Returns the current number of core globals.
     pub fn core_global_count(&self) -> u32 {
-        self.core_globals
+        self.core_globals.count
     }
 
     /// Returns the current number of component funcs.
     pub fn func_count(&self) -> u32 {
-        self.funcs
+        self.funcs.count
     }
 
     /// Returns the current number of component instances.
     pub fn instance_count(&self) -> u32 {
-        self.instances
+        self.instances.count
     }
 
     /// Returns the current number of component values.
     pub fn value_count(&self) -> u32 {
-        self.values
+        self.values.count
     }
 
     /// Returns the current number of components.
     pub fn component_count(&self) -> u32 {
-        self.components
+        self.components.count
     }
 
     /// Returns the current number of component types.
     pub fn type_count(&self) -> u32 {
-        self.types
+        self.types.count
+    }
+
+    /// Add all debug names registered to the component.
+    pub fn append_names(&mut self) {
+        let mut names = ComponentNameSection::new();
+        if !self.core_funcs.names.is_empty() {
+            names.core_funcs(&self.core_funcs.names);
+        }
+        if !self.core_tables.names.is_empty() {
+            names.core_tables(&self.core_tables.names);
+        }
+        if !self.core_memories.names.is_empty() {
+            names.core_memories(&self.core_memories.names);
+        }
+        if !self.core_globals.names.is_empty() {
+            names.core_globals(&self.core_globals.names);
+        }
+        if !self.core_tags.names.is_empty() {
+            names.core_tags(&self.core_tags.names);
+        }
+        if !self.core_types.names.is_empty() {
+            names.core_types(&self.core_types.names);
+        }
+        if !self.core_modules.names.is_empty() {
+            names.core_modules(&self.core_modules.names);
+        }
+        if !self.core_instances.names.is_empty() {
+            names.core_instances(&self.core_instances.names);
+        }
+        if !self.instances.names.is_empty() {
+            names.instances(&self.instances.names);
+        }
+        if !self.funcs.names.is_empty() {
+            names.funcs(&self.funcs.names);
+        }
+        if !self.types.names.is_empty() {
+            names.types(&self.types.names);
+        }
+        if !self.components.names.is_empty() {
+            names.components(&self.components.names);
+        }
+        if !self.instances.names.is_empty() {
+            names.instances(&self.instances.names);
+        }
+        if !names.is_empty() {
+            self.custom_section(&names.as_custom());
+        }
     }
 
     /// Completes this component and returns the binary encoding of the entire
@@ -115,81 +162,95 @@ impl ComponentBuilder {
     }
 
     /// Encodes a core wasm `Module` into this component, returning its index.
-    pub fn core_module(&mut self, module: &Module) -> u32 {
+    pub fn core_module(&mut self, debug_name: Option<&str>, module: &Module) -> u32 {
         self.flush();
         self.component.section(&ModuleSection(module));
-        inc(&mut self.core_modules)
+        self.core_modules.add(debug_name)
     }
 
     /// Encodes a core wasm `module` into this component, returning its index.
-    pub fn core_module_raw(&mut self, module: &[u8]) -> u32 {
+    pub fn core_module_raw(&mut self, debug_name: Option<&str>, module: &[u8]) -> u32 {
         self.flush();
         self.component.section(&RawSection {
             id: ComponentSectionId::CoreModule.into(),
             data: module,
         });
-        inc(&mut self.core_modules)
+        self.core_modules.add(debug_name)
     }
 
     /// Instantiates a core wasm module at `module_index` with the `args`
     /// provided.
     ///
     /// Returns the index of the core wasm instance created.
-    pub fn core_instantiate<'a, A>(&mut self, module_index: u32, args: A) -> u32
+    pub fn core_instantiate<'a, A>(
+        &mut self,
+        debug_name: Option<&str>,
+        module_index: u32,
+        args: A,
+    ) -> u32
     where
         A: IntoIterator<Item = (&'a str, ModuleArg)>,
         A::IntoIter: ExactSizeIterator,
     {
         self.instances().instantiate(module_index, args);
-        inc(&mut self.core_instances)
+        self.core_instances.add(debug_name)
     }
 
     /// Creates a new core wasm instance from the `exports` provided.
     ///
     /// Returns the index of the core wasm instance created.
-    pub fn core_instantiate_exports<'a, E>(&mut self, exports: E) -> u32
+    pub fn core_instantiate_exports<'a, E>(&mut self, debug_name: Option<&str>, exports: E) -> u32
     where
         E: IntoIterator<Item = (&'a str, ExportKind, u32)>,
         E::IntoIter: ExactSizeIterator,
     {
         self.instances().export_items(exports);
-        inc(&mut self.core_instances)
+        self.core_instances.add(debug_name)
     }
 
     /// Creates a new aliased item where the core `instance` specified has its
     /// export `name` aliased out with the `kind` specified.
     ///
     /// Returns the index of the item created.
-    pub fn core_alias_export(&mut self, instance: u32, name: &str, kind: ExportKind) -> u32 {
-        self.alias(Alias::CoreInstanceExport {
-            instance,
-            kind,
-            name,
-        })
+    pub fn core_alias_export(
+        &mut self,
+        debug_name: Option<&str>,
+        instance: u32,
+        name: &str,
+        kind: ExportKind,
+    ) -> u32 {
+        self.alias(
+            debug_name,
+            Alias::CoreInstanceExport {
+                instance,
+                kind,
+                name,
+            },
+        )
     }
 
     /// Adds a new alias to this component
-    pub fn alias(&mut self, alias: Alias<'_>) -> u32 {
+    pub fn alias(&mut self, debug_name: Option<&str>, alias: Alias<'_>) -> u32 {
         self.aliases().alias(alias);
         match alias {
-            Alias::InstanceExport { kind, .. } => self.inc_kind(kind),
-            Alias::CoreInstanceExport { kind, .. } => self.inc_core_kind(kind),
+            Alias::InstanceExport { kind, .. } => self.inc_kind(debug_name, kind),
+            Alias::CoreInstanceExport { kind, .. } => self.inc_core_kind(debug_name, kind),
             Alias::Outer {
                 kind: ComponentOuterAliasKind::Type,
                 ..
-            } => inc(&mut self.types),
+            } => self.types.add(debug_name),
             Alias::Outer {
                 kind: ComponentOuterAliasKind::CoreModule,
                 ..
-            } => inc(&mut self.core_modules),
+            } => self.core_modules.add(debug_name),
             Alias::Outer {
                 kind: ComponentOuterAliasKind::Component,
                 ..
-            } => inc(&mut self.components),
+            } => self.components.add(debug_name),
             Alias::Outer {
                 kind: ComponentOuterAliasKind::CoreType,
                 ..
-            } => inc(&mut self.core_types),
+            } => self.core_types.add(debug_name),
         }
     }
 
@@ -200,31 +261,34 @@ impl ComponentBuilder {
     ///
     /// Returns the index of the new item defined.
     pub fn alias_export(&mut self, instance: u32, name: &str, kind: ComponentExportKind) -> u32 {
-        self.alias(Alias::InstanceExport {
-            instance,
-            kind,
-            name,
-        })
+        self.alias(
+            Some(name),
+            Alias::InstanceExport {
+                instance,
+                kind,
+                name,
+            },
+        )
     }
 
-    fn inc_kind(&mut self, kind: ComponentExportKind) -> u32 {
+    fn inc_kind(&mut self, debug_name: Option<&str>, kind: ComponentExportKind) -> u32 {
         match kind {
-            ComponentExportKind::Func => inc(&mut self.funcs),
-            ComponentExportKind::Module => inc(&mut self.core_modules),
-            ComponentExportKind::Type => inc(&mut self.types),
-            ComponentExportKind::Component => inc(&mut self.components),
-            ComponentExportKind::Instance => inc(&mut self.instances),
-            ComponentExportKind::Value => inc(&mut self.values),
+            ComponentExportKind::Func => self.funcs.add(debug_name),
+            ComponentExportKind::Module => self.core_modules.add(debug_name),
+            ComponentExportKind::Type => self.types.add(debug_name),
+            ComponentExportKind::Component => self.components.add(debug_name),
+            ComponentExportKind::Instance => self.instances.add(debug_name),
+            ComponentExportKind::Value => self.values.add(debug_name),
         }
     }
 
-    fn inc_core_kind(&mut self, kind: ExportKind) -> u32 {
+    fn inc_core_kind(&mut self, debug_name: Option<&str>, kind: ExportKind) -> u32 {
         match kind {
-            ExportKind::Func => inc(&mut self.core_funcs),
-            ExportKind::Table => inc(&mut self.core_tables),
-            ExportKind::Memory => inc(&mut self.core_memories),
-            ExportKind::Global => inc(&mut self.core_globals),
-            ExportKind::Tag => inc(&mut self.core_tags),
+            ExportKind::Func => self.core_funcs.add(debug_name),
+            ExportKind::Table => self.core_tables.add(debug_name),
+            ExportKind::Memory => self.core_memories.add(debug_name),
+            ExportKind::Global => self.core_globals.add(debug_name),
+            ExportKind::Tag => self.core_tags.add(debug_name),
         }
     }
 
@@ -232,38 +296,44 @@ impl ComponentBuilder {
     /// using the `options` provided.
     ///
     /// Returns the index of the core wasm function created.
-    pub fn lower_func<O>(&mut self, func_index: u32, options: O) -> u32
+    pub fn lower_func<O>(&mut self, debug_name: Option<&str>, func_index: u32, options: O) -> u32
     where
         O: IntoIterator<Item = CanonicalOption>,
         O::IntoIter: ExactSizeIterator,
     {
         self.canonical_functions().lower(func_index, options);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(debug_name)
     }
 
     /// Lifts the core wasm `core_func_index` function with the component
     /// function type `type_index` and `options`.
     ///
     /// Returns the index of the component function created.
-    pub fn lift_func<O>(&mut self, core_func_index: u32, type_index: u32, options: O) -> u32
+    pub fn lift_func<O>(
+        &mut self,
+        debug_name: Option<&str>,
+        core_func_index: u32,
+        type_index: u32,
+        options: O,
+    ) -> u32
     where
         O: IntoIterator<Item = CanonicalOption>,
         O::IntoIter: ExactSizeIterator,
     {
         self.canonical_functions()
             .lift(core_func_index, type_index, options);
-        inc(&mut self.funcs)
+        self.funcs.add(debug_name)
     }
 
     /// Imports a new item into this component with the `name` and `ty` specified.
     pub fn import(&mut self, name: &str, ty: ComponentTypeRef) -> u32 {
         let ret = match &ty {
-            ComponentTypeRef::Instance(_) => inc(&mut self.instances),
-            ComponentTypeRef::Func(_) => inc(&mut self.funcs),
-            ComponentTypeRef::Type(..) => inc(&mut self.types),
-            ComponentTypeRef::Component(_) => inc(&mut self.components),
-            ComponentTypeRef::Module(_) => inc(&mut self.core_modules),
-            ComponentTypeRef::Value(_) => inc(&mut self.values),
+            ComponentTypeRef::Instance(_) => self.instances.add(Some(name)),
+            ComponentTypeRef::Func(_) => self.funcs.add(Some(name)),
+            ComponentTypeRef::Type(..) => self.types.add(Some(name)),
+            ComponentTypeRef::Component(_) => self.components.add(Some(name)),
+            ComponentTypeRef::Module(_) => self.core_modules.add(Some(name)),
+            ComponentTypeRef::Value(_) => self.values.add(Some(name)),
         };
         self.imports().import(name, ty);
         ret
@@ -282,69 +352,85 @@ impl ComponentBuilder {
         ty: Option<ComponentTypeRef>,
     ) -> u32 {
         self.exports().export(name, kind, idx, ty);
-        self.inc_kind(kind)
+        self.inc_kind(Some(name), kind)
     }
 
     /// Creates a new encoder for the next core type in this component.
-    pub fn core_type(&mut self) -> (u32, ComponentCoreTypeEncoder<'_>) {
-        (inc(&mut self.core_types), self.core_types().ty())
+    pub fn core_type(&mut self, debug_name: Option<&str>) -> (u32, ComponentCoreTypeEncoder<'_>) {
+        (self.core_types.add(debug_name), self.core_types().ty())
     }
 
     /// Creates a new encoder for the next type in this component.
-    pub fn ty(&mut self) -> (u32, ComponentTypeEncoder<'_>) {
-        (inc(&mut self.types), self.types().ty())
+    pub fn ty(&mut self, debug_name: Option<&str>) -> (u32, ComponentTypeEncoder<'_>) {
+        (self.types.add(debug_name), self.types().ty())
     }
 
     /// Creates a new instance type within this component.
-    pub fn type_instance(&mut self, ty: &InstanceType) -> u32 {
+    pub fn type_instance(&mut self, debug_name: Option<&str>, ty: &InstanceType) -> u32 {
         self.types().instance(ty);
-        inc(&mut self.types)
+        self.types.add(debug_name)
     }
 
     /// Creates a new component type within this component.
-    pub fn type_component(&mut self, ty: &ComponentType) -> u32 {
+    pub fn type_component(&mut self, debug_name: Option<&str>, ty: &ComponentType) -> u32 {
         self.types().component(ty);
-        inc(&mut self.types)
+        self.types.add(debug_name)
     }
 
     /// Creates a new defined component type within this component.
-    pub fn type_defined(&mut self) -> (u32, ComponentDefinedTypeEncoder<'_>) {
-        (inc(&mut self.types), self.types().defined_type())
+    pub fn type_defined(
+        &mut self,
+        debug_name: Option<&str>,
+    ) -> (u32, ComponentDefinedTypeEncoder<'_>) {
+        (self.types.add(debug_name), self.types().defined_type())
     }
 
     /// Creates a new component function type within this component.
-    pub fn type_function(&mut self) -> (u32, ComponentFuncTypeEncoder<'_>) {
-        (inc(&mut self.types), self.types().function())
+    pub fn type_function(
+        &mut self,
+        debug_name: Option<&str>,
+    ) -> (u32, ComponentFuncTypeEncoder<'_>) {
+        (self.types.add(debug_name), self.types().function())
     }
 
     /// Declares a new resource type within this component.
-    pub fn type_resource(&mut self, rep: ValType, dtor: Option<u32>) -> u32 {
+    pub fn type_resource(
+        &mut self,
+        debug_name: Option<&str>,
+        rep: ValType,
+        dtor: Option<u32>,
+    ) -> u32 {
         self.types().resource(rep, dtor);
-        inc(&mut self.types)
+        self.types.add(debug_name)
     }
 
     /// Defines a new subcomponent of this component.
-    pub fn component(&mut self, mut builder: ComponentBuilder) -> u32 {
+    pub fn component(&mut self, debug_name: Option<&str>, mut builder: ComponentBuilder) -> u32 {
         builder.flush();
         self.flush();
         self.component
             .section(&NestedComponentSection(&builder.component));
-        inc(&mut self.components)
+        self.components.add(debug_name)
     }
 
     /// Defines a new subcomponent of this component.
-    pub fn component_raw(&mut self, data: &[u8]) -> u32 {
+    pub fn component_raw(&mut self, debug_name: Option<&str>, data: &[u8]) -> u32 {
         let raw_section = RawSection {
             id: ComponentSectionId::Component.into(),
             data,
         };
         self.flush();
         self.component.section(&raw_section);
-        inc(&mut self.components)
+        self.components.add(debug_name)
     }
 
     /// Instantiates the `component_index` specified with the `args` specified.
-    pub fn instantiate<A, S>(&mut self, component_index: u32, args: A) -> u32
+    pub fn instantiate<A, S>(
+        &mut self,
+        debug_name: Option<&str>,
+        component_index: u32,
+        args: A,
+    ) -> u32
     where
         A: IntoIterator<Item = (S, ComponentExportKind, u32)>,
         A::IntoIter: ExactSizeIterator,
@@ -352,61 +438,61 @@ impl ComponentBuilder {
     {
         self.component_instances()
             .instantiate(component_index, args);
-        inc(&mut self.instances)
+        self.instances.add(debug_name)
     }
 
     /// Declares a new `resource.drop` intrinsic.
     pub fn resource_drop(&mut self, ty: u32) -> u32 {
         self.canonical_functions().resource_drop(ty);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("resource.drop"))
     }
 
     /// Declares a new `resource.drop` intrinsic.
     pub fn resource_drop_async(&mut self, ty: u32) -> u32 {
         self.canonical_functions().resource_drop_async(ty);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("resource.drop async"))
     }
 
     /// Declares a new `resource.new` intrinsic.
     pub fn resource_new(&mut self, ty: u32) -> u32 {
         self.canonical_functions().resource_new(ty);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("resource.new"))
     }
 
     /// Declares a new `resource.rep` intrinsic.
     pub fn resource_rep(&mut self, ty: u32) -> u32 {
         self.canonical_functions().resource_rep(ty);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("resource.rep"))
     }
 
     /// Declares a new `thread.spawn_ref` intrinsic.
     pub fn thread_spawn_ref(&mut self, ty: u32) -> u32 {
         self.canonical_functions().thread_spawn_ref(ty);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("thread.spawn-ref"))
     }
 
     /// Declares a new `thread.available_parallelism` intrinsic.
     pub fn thread_available_parallelism(&mut self) -> u32 {
         self.canonical_functions().thread_available_parallelism();
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("thread.available-parallelism"))
     }
 
     /// Declares a new `backpressure.set` intrinsic.
     pub fn backpressure_set(&mut self) -> u32 {
         self.canonical_functions().backpressure_set();
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("backpressure.set"))
     }
 
     /// Declares a new `backpressure.inc` intrinsic.
     pub fn backpressure_inc(&mut self) -> u32 {
         self.canonical_functions().backpressure_inc();
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("backpressure.inc"))
     }
 
     /// Declares a new `backpressure.dec` intrinsic.
     pub fn backpressure_dec(&mut self) -> u32 {
         self.canonical_functions().backpressure_dec();
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("backpressure.dec"))
     }
 
     /// Declares a new `task.return` intrinsic.
@@ -416,49 +502,49 @@ impl ComponentBuilder {
         O::IntoIter: ExactSizeIterator,
     {
         self.canonical_functions().task_return(ty, options);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("task.return"))
     }
 
     /// Declares a new `task.cancel` intrinsic.
     pub fn task_cancel(&mut self) -> u32 {
         self.canonical_functions().task_cancel();
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("task.cancel"))
     }
 
     /// Declares a new `context.get` intrinsic.
     pub fn context_get(&mut self, i: u32) -> u32 {
         self.canonical_functions().context_get(i);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some(&format!("context.get {i}")))
     }
 
     /// Declares a new `context.set` intrinsic.
     pub fn context_set(&mut self, i: u32) -> u32 {
         self.canonical_functions().context_set(i);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some(&format!("context.set {i}")))
     }
 
     /// Declares a new `thread.yield` intrinsic.
     pub fn thread_yield(&mut self, cancellable: bool) -> u32 {
         self.canonical_functions().thread_yield(cancellable);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("thread.yield"))
     }
 
     /// Declares a new `subtask.drop` intrinsic.
     pub fn subtask_drop(&mut self) -> u32 {
         self.canonical_functions().subtask_drop();
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("subtask.drop"))
     }
 
     /// Declares a new `subtask.cancel` intrinsic.
     pub fn subtask_cancel(&mut self, async_: bool) -> u32 {
         self.canonical_functions().subtask_cancel(async_);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("subtask.cancel"))
     }
 
     /// Declares a new `stream.new` intrinsic.
     pub fn stream_new(&mut self, ty: u32) -> u32 {
         self.canonical_functions().stream_new(ty);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("stream.new"))
     }
 
     /// Declares a new `stream.read` intrinsic.
@@ -468,7 +554,7 @@ impl ComponentBuilder {
         O::IntoIter: ExactSizeIterator,
     {
         self.canonical_functions().stream_read(ty, options);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("stream.read"))
     }
 
     /// Declares a new `stream.write` intrinsic.
@@ -478,37 +564,37 @@ impl ComponentBuilder {
         O::IntoIter: ExactSizeIterator,
     {
         self.canonical_functions().stream_write(ty, options);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("stream.write"))
     }
 
     /// Declares a new `stream.cancel-read` intrinsic.
     pub fn stream_cancel_read(&mut self, ty: u32, async_: bool) -> u32 {
         self.canonical_functions().stream_cancel_read(ty, async_);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("stream.cancel-read"))
     }
 
     /// Declares a new `stream.cancel-write` intrinsic.
     pub fn stream_cancel_write(&mut self, ty: u32, async_: bool) -> u32 {
         self.canonical_functions().stream_cancel_write(ty, async_);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("stream.cancel-write"))
     }
 
     /// Declares a new `stream.drop-readable` intrinsic.
     pub fn stream_drop_readable(&mut self, ty: u32) -> u32 {
         self.canonical_functions().stream_drop_readable(ty);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("stream.drop-readable"))
     }
 
     /// Declares a new `stream.drop-writable` intrinsic.
     pub fn stream_drop_writable(&mut self, ty: u32) -> u32 {
         self.canonical_functions().stream_drop_writable(ty);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("stream.drop-writable"))
     }
 
     /// Declares a new `future.new` intrinsic.
     pub fn future_new(&mut self, ty: u32) -> u32 {
         self.canonical_functions().future_new(ty);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("future.new"))
     }
 
     /// Declares a new `future.read` intrinsic.
@@ -518,7 +604,7 @@ impl ComponentBuilder {
         O::IntoIter: ExactSizeIterator,
     {
         self.canonical_functions().future_read(ty, options);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("future.read"))
     }
 
     /// Declares a new `future.write` intrinsic.
@@ -528,31 +614,31 @@ impl ComponentBuilder {
         O::IntoIter: ExactSizeIterator,
     {
         self.canonical_functions().future_write(ty, options);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("future.write"))
     }
 
     /// Declares a new `future.cancel-read` intrinsic.
     pub fn future_cancel_read(&mut self, ty: u32, async_: bool) -> u32 {
         self.canonical_functions().future_cancel_read(ty, async_);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("future.cancel-read"))
     }
 
     /// Declares a new `future.cancel-write` intrinsic.
     pub fn future_cancel_write(&mut self, ty: u32, async_: bool) -> u32 {
         self.canonical_functions().future_cancel_write(ty, async_);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("future.cancel-write"))
     }
 
     /// Declares a new `future.drop-readable` intrinsic.
     pub fn future_drop_readable(&mut self, ty: u32) -> u32 {
         self.canonical_functions().future_drop_readable(ty);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("future.drop-readable"))
     }
 
     /// Declares a new `future.drop-writable` intrinsic.
     pub fn future_drop_writable(&mut self, ty: u32) -> u32 {
         self.canonical_functions().future_drop_writable(ty);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("future.drop-writable"))
     }
 
     /// Declares a new `error-context.new` intrinsic.
@@ -562,7 +648,7 @@ impl ComponentBuilder {
         O::IntoIter: ExactSizeIterator,
     {
         self.canonical_functions().error_context_new(options);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("error-context.new"))
     }
 
     /// Declares a new `error-context.debug-message` intrinsic.
@@ -573,82 +659,82 @@ impl ComponentBuilder {
     {
         self.canonical_functions()
             .error_context_debug_message(options);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("error-context.debug-message"))
     }
 
     /// Declares a new `error-context.drop` intrinsic.
     pub fn error_context_drop(&mut self) -> u32 {
         self.canonical_functions().error_context_drop();
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("error-context.drop"))
     }
 
     /// Declares a new `waitable-set.new` intrinsic.
     pub fn waitable_set_new(&mut self) -> u32 {
         self.canonical_functions().waitable_set_new();
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("waitable-set.new"))
     }
 
     /// Declares a new `waitable-set.wait` intrinsic.
     pub fn waitable_set_wait(&mut self, cancellable: bool, memory: u32) -> u32 {
         self.canonical_functions()
             .waitable_set_wait(cancellable, memory);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("waitable-set.wait"))
     }
 
     /// Declares a new `waitable-set.poll` intrinsic.
     pub fn waitable_set_poll(&mut self, cancellable: bool, memory: u32) -> u32 {
         self.canonical_functions()
             .waitable_set_poll(cancellable, memory);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("waitable-set.poll"))
     }
 
     /// Declares a new `waitable-set.drop` intrinsic.
     pub fn waitable_set_drop(&mut self) -> u32 {
         self.canonical_functions().waitable_set_drop();
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("waitable-set.drop"))
     }
 
     /// Declares a new `waitable.join` intrinsic.
     pub fn waitable_join(&mut self) -> u32 {
         self.canonical_functions().waitable_join();
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("waitable.join"))
     }
 
     /// Declares a new `thread.index` intrinsic.
     pub fn thread_index(&mut self) -> u32 {
         self.canonical_functions().thread_index();
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("thread.index"))
     }
 
     /// Declares a new `thread.new_indirect` intrinsic.
     pub fn thread_new_indirect(&mut self, func_ty_idx: u32, table_index: u32) -> u32 {
         self.canonical_functions()
             .thread_new_indirect(func_ty_idx, table_index);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("thread.new-indirect"))
     }
 
     /// Declares a new `thread.switch-to` intrinsic.
     pub fn thread_switch_to(&mut self, cancellable: bool) -> u32 {
         self.canonical_functions().thread_switch_to(cancellable);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("thread.switch-to"))
     }
 
     /// Declares a new `thread.suspend` intrinsic.
     pub fn thread_suspend(&mut self, cancellable: bool) -> u32 {
         self.canonical_functions().thread_suspend(cancellable);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("thread.suspend"))
     }
 
     /// Declares a new `thread.resume-later` intrinsic.
     pub fn thread_resume_later(&mut self) -> u32 {
         self.canonical_functions().thread_resume_later();
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("thread.resume-later"))
     }
 
     /// Declares a new `thread.yield-to` intrinsic.
     pub fn thread_yield_to(&mut self, cancellable: bool) -> u32 {
         self.canonical_functions().thread_yield_to(cancellable);
-        inc(&mut self.core_funcs)
+        self.core_funcs.add(Some("thread.yield-to"))
     }
 
     /// Adds a new custom section to this component.
@@ -727,8 +813,19 @@ section_accessors! {
     core_types => CoreTypeSection
 }
 
-fn inc(idx: &mut u32) -> u32 {
-    let ret = *idx;
-    *idx += 1;
-    ret
+#[derive(Debug, Default)]
+struct Namespace {
+    count: u32,
+    names: NameMap,
+}
+
+impl Namespace {
+    fn add(&mut self, name: Option<&str>) -> u32 {
+        let ret = self.count;
+        self.count += 1;
+        if let Some(name) = name {
+            self.names.append(ret, name);
+        }
+        ret
+    }
 }

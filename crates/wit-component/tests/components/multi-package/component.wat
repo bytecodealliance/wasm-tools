@@ -1,5 +1,5 @@
 (component
-  (core module (;0;)
+  (core module $main (;0;)
     (table (;0;) 1 funcref)
     (memory (;0;) 17)
     (global (;0;) (mut i32) i32.const 1048576)
@@ -14,7 +14,7 @@
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )
   )
-  (core module (;1;)
+  (core module $__init (;1;)
     (type (;0;) (func))
     (type (;1;) (func (param i32)))
     (import "env" "memory" (memory (;0;) 0))
@@ -28,10 +28,10 @@
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )
   )
-  (core instance (;0;) (instantiate 0))
-  (alias core export 0 "memory" (core memory (;0;)))
-  (core instance (;1;) (instantiate 1
-      (with "env" (instance 0))
+  (core instance $main (;0;) (instantiate $main))
+  (alias core export $main "memory" (core memory $memory (;0;)))
+  (core instance $__init (;1;) (instantiate $__init
+      (with "env" (instance $main))
     )
   )
   (@producers

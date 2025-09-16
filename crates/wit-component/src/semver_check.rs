@@ -73,7 +73,7 @@ pub fn semver_check(mut resolve: Resolve, prev: WorldId, new: WorldId) -> Result
         .context("failed to register previous world encoded as a module")?
         .encode()
         .context("failed to encode previous world as a component")?;
-    let component_to_test_idx = root_component.component_raw(&prev_as_component);
+    let component_to_test_idx = root_component.component_raw(None, &prev_as_component);
 
     // (2) above - create a component which imports a component of the shape of
     // `new`.
@@ -81,16 +81,17 @@ pub fn semver_check(mut resolve: Resolve, prev: WorldId, new: WorldId) -> Result
         let component_ty =
             encode_world(&resolve, new).context("failed to encode the new world as a type")?;
         let mut component = ComponentBuilder::default();
-        let component_ty_idx = component.type_component(&component_ty);
+        let component_ty_idx = component.type_component(None, &component_ty);
         component.import(
             &resolve.worlds[new].name,
             ComponentTypeRef::Component(component_ty_idx),
         );
-        root_component.component(component)
+        root_component.component(None, component)
     };
 
     // (3) Instantiate the component from (2) with the component to test from (1).
     root_component.instantiate(
+        None,
         test_component_idx,
         [(
             resolve.worlds[new].name.clone(),

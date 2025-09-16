@@ -66,7 +66,7 @@ impl Encodable {
         match self {
             Encodable::Component(t) => t.ty(),
             Encodable::Instance(t) => t.ty(),
-            Encodable::Builder(t) => t.ty().1,
+            Encodable::Builder(t) => t.ty(None).1,
         }
     }
 
@@ -74,7 +74,7 @@ impl Encodable {
         match self {
             Encodable::Component(t) => t.core_type(),
             Encodable::Instance(t) => t.core_type(),
-            Encodable::Builder(t) => t.core_type().1,
+            Encodable::Builder(t) => t.core_type(None).1,
         }
     }
 
@@ -87,7 +87,7 @@ impl Encodable {
                 t.alias(alias);
             }
             Encodable::Builder(t) => {
-                t.alias(alias);
+                t.alias(None, alias);
             }
         }
     }
@@ -1475,7 +1475,7 @@ impl<'a> CompositionGraphEncoder<'a> {
             Encodable::Builder(builder) => builder,
             _ => unreachable!(),
         };
-        let index = encoded.type_instance(&instance_type);
+        let index = encoded.type_instance(None, &instance_type);
         self.import(encoded, name, ComponentTypeRef::Instance(index))
     }
 
@@ -1555,7 +1555,7 @@ impl<'a> CompositionGraphEncoder<'a> {
             name = entry.component.name,
         );
 
-        let encoded_instance_index = encoded.instantiate(encoded_component_index, args);
+        let encoded_instance_index = encoded.instantiate(None, encoded_component_index, args);
 
         self.encoded_instances
             .insert(instance_id, encoded_instance_index);
@@ -1588,7 +1588,7 @@ impl<'a> CompositionGraphEncoder<'a> {
         encoded: &mut ComponentBuilder,
         component: &crate::graph::Component,
     ) -> u32 {
-        encoded.type_component(&component.ty())
+        encoded.type_component(None, &component.ty())
     }
 
     fn define_component(
@@ -1600,7 +1600,7 @@ impl<'a> CompositionGraphEncoder<'a> {
             "defining component `{name}` in composed component",
             name = component.name,
         );
-        encoded.component_raw(component.bytes())
+        encoded.component_raw(None, component.bytes())
     }
 
     fn instantiation_args(

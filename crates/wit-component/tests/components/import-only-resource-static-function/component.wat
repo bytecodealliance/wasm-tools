@@ -1,13 +1,13 @@
 (component
-  (type (;0;)
+  (type $ty-foo:bar/x (;0;)
     (instance
       (export (;0;) "a" (type (sub resource)))
       (type (;1;) (func))
       (export (;0;) "[static]a.f" (func (type 1)))
     )
   )
-  (import "foo:bar/x" (instance (;0;) (type 0)))
-  (core module (;0;)
+  (import "foo:bar/x" (instance $foo:bar/x (;0;) (type $ty-foo:bar/x)))
+  (core module $main (;0;)
     (type (;0;) (func))
     (import "foo:bar/x" "[static]a.f" (func (;0;) (type 0)))
     (@producers
@@ -15,13 +15,13 @@
       (processed-by "my-fake-bindgen" "123.45")
     )
   )
-  (alias export 0 "[static]a.f" (func (;0;)))
-  (core func (;0;) (canon lower (func 0)))
-  (core instance (;0;)
-    (export "[static]a.f" (func 0))
+  (alias export $foo:bar/x "[static]a.f" (func $"[static]a.f" (;0;)))
+  (core func $"[static]a.f" (;0;) (canon lower (func $"[static]a.f")))
+  (core instance $foo:bar/x (;0;)
+    (export "[static]a.f" (func $"[static]a.f"))
   )
-  (core instance (;1;) (instantiate 0
-      (with "foo:bar/x" (instance 0))
+  (core instance $main (;1;) (instantiate $main
+      (with "foo:bar/x" (instance $foo:bar/x))
     )
   )
   (@producers

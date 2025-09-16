@@ -485,9 +485,18 @@ pub struct LinkOpts {
     #[clap(flatten)]
     general: wasm_tools::GeneralOpts,
 
-    /// Skip validation of the output component.
-    #[clap(long)]
+    /// Deprecated, use `--validate=false` instead.
+    #[clap(long, hide = true, conflicts_with = "validate")]
     skip_validation: bool,
+
+    /// Whether or not to validate the output component
+    #[arg(
+        long,
+        conflicts_with = "skip_validation",
+        require_equals = true,
+        value_name = "true|false"
+    )]
+    validate: Option<Option<bool>>,
 
     /// Print the output in the WebAssembly text format instead of binary.
     #[clap(long, short = 't')]
@@ -505,8 +514,20 @@ pub struct LinkOpts {
     /// semver ranges.
     ///
     /// This is enabled by default.
-    #[clap(long, value_name = "MERGE")]
-    merge_imports_based_on_semver: Option<bool>,
+    #[arg(long, require_equals = true, value_name = "true|false")]
+    merge_imports_based_on_semver: Option<Option<bool>>,
+
+    /// Whether or not to add debug names to the generated binary.
+    #[arg(long, require_equals = true, value_name = "true|false")]
+    debug_names: Option<Option<bool>>,
+}
+
+fn optional_flag_with_default(flag: Option<Option<bool>>, default: bool) -> bool {
+    match flag {
+        None => default,
+        Some(None) => true,
+        Some(Some(val)) => val,
+    }
 }
 
 impl LinkOpts {
@@ -519,14 +540,15 @@ impl LinkOpts {
         let mut linker = Linker::default()
             .validate(!self.skip_validation)
             .stub_missing_functions(self.stub_missing_functions)
-            .use_built_in_libdl(self.use_built_in_libdl);
+            .use_built_in_libdl(self.use_built_in_libdl)
+            .debug_names(optional_flag_with_default(self.debug_names, true));
 
         if let Some(stack_size) = self.stack_size {
             linker = linker.stack_size(stack_size);
         }
 
         if let Some(merge) = self.merge_imports_based_on_semver {
-            linker = linker.merge_imports_based_on_semver(merge);
+            linker = linker.merge_imports_based_on_semver(merge.unwrap_or(true));
         }
 
         for (name, wasm) in &self.inputs {
