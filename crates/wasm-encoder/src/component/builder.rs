@@ -1,5 +1,6 @@
 use crate::component::*;
 use crate::{ExportKind, Module, NameMap, RawSection, ValType};
+use alloc::format;
 use alloc::vec::Vec;
 use core::mem;
 
