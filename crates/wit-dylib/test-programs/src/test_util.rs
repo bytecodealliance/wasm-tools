@@ -9,17 +9,28 @@
 //! semantics.
 
 use crate::{
-    Enum, Flags, Function, Future, Interpreter, List, OwnVals, Record, Resource, Stream, Tuple,
-    Type, Variant, Wit, WitOption, WitResult,
+    Call, Enum, Flags, Function, Future, Interpreter, List, Record, Resource, Stream, Tuple, Type,
+    Variant, Wit, WitOption, WitResult,
 };
-use std::ptr;
+use std::borrow::Cow;
 
 pub trait TestCase {
     fn initialize(wit: Wit) {
         let _ = wit;
     }
 
-    fn call_export(wit: Wit, func: Function, args: OwnVals<'_, Self>) -> Option<Box<Val>>;
+    fn call_export(
+        wit: Wit,
+        func: Function,
+        args: impl ExactSizeIterator<Item = Val>,
+    ) -> Option<Val>;
+
+    fn call_import(wit: Wit, interface: Option<&str>, func: &str, args: &[Val]) -> Option<Val> {
+        let mut cx = Cx::default();
+        cx.stack.extend(args.iter().rev().map(Cow::Borrowed));
+        Self::import_call(wit, interface, func, &mut cx);
+        cx.stack.pop().map(|i| i.into_owned())
+    }
 
     fn resource_dtor(ty: Resource, handle: usize) {
         let _ = (ty, handle);
@@ -27,353 +38,470 @@ pub trait TestCase {
     }
 }
 
-unsafe impl<T: TestCase + ?Sized> Interpreter for T {
-    type Borrow<'a> = &'a Val;
-    type Own = Box<Val>;
+#[derive(Default)]
+pub struct Cx<'a> {
+    stack: Vec<Cow<'a, Val>>,
+    temp_strings: Vec<String>,
+    temp_bytes: Vec<Vec<u8>>,
+    iterators: Vec<CowIter<'a>>,
+}
+
+enum CowIter<'a> {
+    Borrowed(std::slice::Iter<'a, Val>),
+    Owned(std::vec::IntoIter<Val>),
+}
+
+impl<'a> Iterator for CowIter<'a> {
+    type Item = Cow<'a, Val>;
+
+    fn next(&mut self) -> Option<Cow<'a, Val>> {
+        match self {
+            CowIter::Borrowed(i) => Some(Cow::Borrowed(i.next()?)),
+            CowIter::Owned(i) => Some(Cow::Owned(i.next()?)),
+        }
+    }
+}
+
+impl<T: TestCase + ?Sized> Interpreter for T {
+    type CallCx<'a> = Cx<'a>;
 
     fn initialize(wit: Wit) {
         T::initialize(wit)
     }
 
-    fn call_export(wit: Wit, func: Function, args: OwnVals<'_, Self>) -> Option<Box<Val>> {
-        T::call_export(wit, func, args)
+    fn export_start<'a>(_wit: Wit, _func: Function) -> Box<Self::CallCx<'a>> {
+        Box::new(Cx::default())
+    }
+
+    fn export_call(wit: Wit, func: Function, cx: &mut Self::CallCx<'_>) {
+        match T::call_export(wit, func, cx.stack.drain(..).map(|v| v.into_owned())) {
+            Some(val) => cx.push_own(val),
+            None => {}
+        }
     }
 
     fn resource_dtor(ty: Resource, handle: usize) {
         T::resource_dtor(ty, handle)
     }
+}
 
-    fn lower_u8(val: &Val) -> u8 {
-        match val {
-            Val::U8(val) => *val,
+impl<'a> Cx<'a> {
+    fn always_pop(&mut self) -> Cow<'a, Val> {
+        match self.stack.pop() {
+            Some(val) => val,
+            None => invalid(),
+        }
+    }
+
+    fn push_own(&mut self, val: Val) {
+        self.stack.push(Cow::Owned(val));
+    }
+
+    fn pop_payload(&mut self, payload_present: bool) -> Option<Box<Val>> {
+        if !payload_present {
+            return None;
+        }
+        Some(Box::new(self.always_pop().into_owned()))
+    }
+
+    fn drain_top(&mut self, amt: usize) -> Vec<Val> {
+        let len = self.stack.len();
+        self.stack
+            .drain(len - amt..len)
+            .map(|i| i.into_owned())
+            .collect()
+    }
+}
+
+impl Call for Cx<'_> {
+    fn pop_u8(&mut self) -> u8 {
+        match *self.always_pop() {
+            Val::U8(val) => val,
             _ => invalid(),
         }
     }
 
-    fn lower_u16(val: &Val) -> u16 {
-        match val {
-            Val::U16(val) => *val,
+    fn push_u8(&mut self, val: u8) {
+        self.push_own(Val::U8(val));
+    }
+
+    fn pop_s8(&mut self) -> i8 {
+        match *self.always_pop() {
+            Val::S8(val) => val,
             _ => invalid(),
         }
     }
 
-    fn lower_u32(val: &Val) -> u32 {
-        match val {
-            Val::U32(val) => *val,
+    fn push_s8(&mut self, val: i8) {
+        self.push_own(Val::S8(val));
+    }
+
+    fn pop_u16(&mut self) -> u16 {
+        match *self.always_pop() {
+            Val::U16(val) => val,
             _ => invalid(),
         }
     }
 
-    fn lower_u64(val: &Val) -> u64 {
-        match val {
-            Val::U64(val) => *val,
+    fn push_u16(&mut self, val: u16) {
+        self.push_own(Val::U16(val));
+    }
+
+    fn pop_s16(&mut self) -> i16 {
+        match *self.always_pop() {
+            Val::S16(val) => val,
             _ => invalid(),
         }
     }
 
-    fn lower_s8(val: &Val) -> i8 {
-        match val {
-            Val::S8(val) => *val,
+    fn push_s16(&mut self, val: i16) {
+        self.push_own(Val::S16(val));
+    }
+
+    fn pop_u32(&mut self) -> u32 {
+        match *self.always_pop() {
+            Val::U32(val) => val,
             _ => invalid(),
         }
     }
 
-    fn lower_s16(val: &Val) -> i16 {
-        match val {
-            Val::S16(val) => *val,
+    fn push_u32(&mut self, val: u32) {
+        self.push_own(Val::U32(val));
+    }
+
+    fn pop_s32(&mut self) -> i32 {
+        match *self.always_pop() {
+            Val::S32(val) => val,
             _ => invalid(),
         }
     }
 
-    fn lower_s32(val: &Val) -> i32 {
-        match val {
-            Val::S32(val) => *val,
+    fn push_s32(&mut self, val: i32) {
+        self.push_own(Val::S32(val));
+    }
+
+    fn pop_u64(&mut self) -> u64 {
+        match *self.always_pop() {
+            Val::U64(val) => val,
             _ => invalid(),
         }
     }
 
-    fn lower_s64(val: &Val) -> i64 {
-        match val {
-            Val::S64(val) => *val,
+    fn push_u64(&mut self, val: u64) {
+        self.push_own(Val::U64(val));
+    }
+
+    fn pop_s64(&mut self) -> i64 {
+        match *self.always_pop() {
+            Val::S64(val) => val,
             _ => invalid(),
         }
     }
 
-    fn lower_bool(val: &Val) -> bool {
-        match val {
-            Val::Bool(val) => *val,
+    fn push_s64(&mut self, val: i64) {
+        self.push_own(Val::S64(val));
+    }
+
+    fn pop_f32(&mut self) -> f32 {
+        match *self.always_pop() {
+            Val::F32(val) => val,
             _ => invalid(),
         }
     }
 
-    fn lower_char(val: &Val) -> char {
-        match val {
-            Val::Char(val) => *val,
+    fn push_f32(&mut self, val: f32) {
+        self.push_own(Val::F32(val));
+    }
+
+    fn pop_f64(&mut self) -> f64 {
+        match *self.always_pop() {
+            Val::F64(val) => val,
             _ => invalid(),
         }
     }
 
-    fn lower_f32(val: &Val) -> f32 {
-        match val {
-            Val::F32(val) => *val,
+    fn push_f64(&mut self, val: f64) {
+        self.push_own(Val::F64(val));
+    }
+
+    fn pop_bool(&mut self) -> bool {
+        match *self.always_pop() {
+            Val::Bool(val) => val,
             _ => invalid(),
         }
     }
 
-    fn lower_f64(val: &Val) -> f64 {
-        match val {
-            Val::F64(val) => *val,
+    fn push_bool(&mut self, val: bool) {
+        self.push_own(Val::Bool(val));
+    }
+
+    fn pop_char(&mut self) -> char {
+        match *self.always_pop() {
+            Val::Char(val) => val,
             _ => invalid(),
         }
     }
 
-    fn lower_borrow(_ty: Resource, val: &Val) -> u32 {
-        match val {
-            Val::Borrow(val) => *val,
-            _ => invalid(),
-        }
+    fn push_char(&mut self, val: char) {
+        self.push_own(Val::Char(val));
     }
 
-    fn lower_own(_ty: Resource, val: &Val) -> u32 {
-        match val {
-            Val::Own(val) => *val,
-            _ => invalid(),
-        }
-    }
-
-    fn lower_flags(_ty: Flags, val: &Val) -> u32 {
-        match val {
-            Val::Flags(val) => *val,
-            _ => invalid(),
-        }
-    }
-
-    fn lower_enum(_ty: Enum, val: &Val) -> u32 {
-        match val {
-            Val::Enum(val) => *val,
-            _ => invalid(),
-        }
-    }
-
-    fn lower_future(_ty: Future, val: &Val) -> u32 {
-        match val {
-            Val::Future(val) => *val,
-            _ => invalid(),
-        }
-    }
-
-    fn lower_stream(_ty: Stream, val: &Val) -> u32 {
-        match val {
-            Val::Stream(val) => *val,
-            _ => invalid(),
-        }
-    }
-
-    fn lower_record(_ty: Record, val: Self::Borrow<'_>) -> impl Iterator<Item = Self::Borrow<'_>> {
-        match val {
-            Val::Record(val) => val.iter().map(|p| &**p),
-            _ => invalid(),
-        }
-    }
-
-    fn lower_tuple(_ty: Tuple, val: Self::Borrow<'_>) -> impl Iterator<Item = Self::Borrow<'_>> {
-        match val {
-            Val::Tuple(val) => val.iter().map(|p| &**p),
-            _ => invalid(),
-        }
-    }
-
-    fn lower_string(val: Self::Borrow<'_>) -> &str {
-        match val {
-            Val::String(s) => s,
-            _ => invalid(),
-        }
-    }
-
-    fn list_ptr(ty: List, val: &Val) -> *const u8 {
-        if ty.ty() == Type::U8 {
-            match val {
-                Val::ByteList(s) => s.as_ptr(),
-                _ => invalid(),
+    fn pop_string(&mut self) -> &str {
+        match self.always_pop() {
+            Cow::Borrowed(Val::String(val)) => val,
+            Cow::Owned(Val::String(val)) => {
+                self.temp_strings.push(val);
+                self.temp_strings.last().unwrap()
             }
+            _ => invalid(),
+        }
+    }
+
+    fn push_string(&mut self, val: String) {
+        self.push_own(Val::String(val));
+    }
+
+    fn pop_borrow(&mut self, _ty: Resource) -> u32 {
+        match *self.always_pop() {
+            Val::Borrow(val) => val,
+            _ => invalid(),
+        }
+    }
+
+    fn push_borrow(&mut self, _ty: Resource, val: u32) {
+        self.push_own(Val::Borrow(val))
+    }
+
+    fn pop_own(&mut self, _ty: Resource) -> u32 {
+        match *self.always_pop() {
+            Val::Own(val) => val,
+            _ => invalid(),
+        }
+    }
+
+    fn push_own(&mut self, _ty: Resource, val: u32) {
+        self.push_own(Val::Own(val))
+    }
+
+    fn pop_future(&mut self, _ty: Future) -> u32 {
+        match *self.always_pop() {
+            Val::Future(val) => val,
+            _ => invalid(),
+        }
+    }
+
+    fn push_future(&mut self, _ty: Future, val: u32) {
+        self.push_own(Val::Future(val))
+    }
+
+    fn pop_stream(&mut self, _ty: Stream) -> u32 {
+        match *self.always_pop() {
+            Val::Stream(val) => val,
+            _ => invalid(),
+        }
+    }
+
+    fn push_stream(&mut self, _ty: Stream, val: u32) {
+        self.push_own(Val::Stream(val))
+    }
+
+    fn pop_flags(&mut self, _ty: Flags) -> u32 {
+        match *self.always_pop() {
+            Val::Flags(val) => val,
+            _ => invalid(),
+        }
+    }
+
+    fn push_flags(&mut self, _ty: Flags, val: u32) {
+        self.push_own(Val::Flags(val))
+    }
+
+    fn pop_enum(&mut self, _ty: Enum) -> u32 {
+        match *self.always_pop() {
+            Val::Enum(val) => val,
+            _ => invalid(),
+        }
+    }
+
+    fn push_enum(&mut self, _ty: Enum, val: u32) {
+        self.push_own(Val::Enum(val))
+    }
+
+    fn pop_option(&mut self, _ty: WitOption) -> u32 {
+        match self.always_pop() {
+            Cow::Borrowed(Val::Option(None)) => 0,
+            Cow::Borrowed(Val::Option(Some(val))) => {
+                self.stack.push(Cow::Borrowed(val));
+                1
+            }
+            Cow::Owned(Val::Option(None)) => 0,
+            Cow::Owned(Val::Option(Some(val))) => {
+                self.stack.push(Cow::Owned(*val));
+                1
+            }
+            Cow::Borrowed(_) | Cow::Owned(_) => invalid(),
+        }
+    }
+
+    fn push_option(&mut self, _ty: WitOption, is_some: bool) {
+        let payload = self.pop_payload(is_some);
+        self.push_own(Val::Option(payload));
+    }
+
+    fn pop_result(&mut self, _ty: WitResult) -> u32 {
+        match self.always_pop() {
+            Cow::Borrowed(Val::Result(Ok(val))) => {
+                if let Some(val) = val {
+                    self.stack.push(Cow::Borrowed(val));
+                }
+                0
+            }
+            Cow::Borrowed(Val::Result(Err(val))) => {
+                if let Some(val) = val {
+                    self.stack.push(Cow::Borrowed(val));
+                }
+                1
+            }
+            Cow::Owned(Val::Result(Ok(val))) => {
+                if let Some(val) = val {
+                    self.stack.push(Cow::Owned(*val));
+                }
+                0
+            }
+            Cow::Owned(Val::Result(Err(val))) => {
+                if let Some(val) = val {
+                    self.stack.push(Cow::Owned(*val));
+                }
+                1
+            }
+            Cow::Borrowed(_) | Cow::Owned(_) => invalid(),
+        }
+    }
+
+    fn push_result(&mut self, ty: WitResult, is_err: bool) {
+        let val = if is_err {
+            Err(self.pop_payload(ty.err().is_some()))
         } else {
-            match val {
-                Val::GenericList(_) => ptr::null(),
-                _ => invalid(),
+            Ok(self.pop_payload(ty.ok().is_some()))
+        };
+        self.push_own(Val::Result(val))
+    }
+
+    fn pop_variant(&mut self, _ty: Variant) -> u32 {
+        match self.always_pop() {
+            Cow::Borrowed(Val::Variant(discr, payload)) => {
+                if let Some(val) = payload {
+                    self.stack.push(Cow::Borrowed(val));
+                }
+                *discr
             }
-        }
-    }
-
-    fn list_len(ty: List, val: &Val) -> usize {
-        if ty.ty() == Type::U8 {
-            match val {
-                Val::ByteList(s) => s.len(),
-                _ => invalid(),
+            Cow::Owned(Val::Variant(discr, payload)) => {
+                if let Some(val) = payload {
+                    self.stack.push(Cow::Owned(*val));
+                }
+                discr
             }
-        } else {
-            match val {
-                Val::GenericList(s) => s.len(),
-                _ => invalid(),
+            Cow::Borrowed(_) | Cow::Owned(_) => invalid(),
+        }
+    }
+
+    fn push_variant(&mut self, ty: Variant, discr: u32) {
+        let payload = self.pop_payload(ty.cases().nth(discr as usize).unwrap().1.is_some());
+        self.push_own(Val::Variant(discr, payload))
+    }
+
+    fn pop_record(&mut self, _ty: Record) {
+        match self.always_pop() {
+            Cow::Borrowed(Val::Record(fields)) => {
+                self.stack.extend(fields.iter().rev().map(Cow::Borrowed));
             }
-        }
-    }
-
-    fn list_get(ty: List, index: usize, val: Self::Borrow<'_>) -> Self::Borrow<'_> {
-        if ty.ty() == Type::U8 {
-            unreachable!()
-        } else {
-            match val {
-                Val::GenericList(s) => &s[index],
-                _ => invalid(),
+            Cow::Owned(Val::Record(fields)) => {
+                self.stack.extend(fields.into_iter().rev().map(Cow::Owned));
             }
+            Cow::Borrowed(_) | Cow::Owned(_) => invalid(),
         }
     }
 
-    fn lower_option(_ty: WitOption, val: Self::Borrow<'_>) -> Option<Self::Borrow<'_>> {
-        match val {
-            Val::Option(s) => s.as_deref(),
+    fn push_record(&mut self, ty: Record) {
+        let fields = self.drain_top(ty.fields().len());
+        self.push_own(Val::Record(fields));
+    }
+
+    fn pop_tuple(&mut self, _ty: Tuple) {
+        match self.always_pop() {
+            Cow::Borrowed(Val::Tuple(types)) => {
+                self.stack.extend(types.iter().rev().map(Cow::Borrowed));
+            }
+            Cow::Owned(Val::Tuple(types)) => {
+                self.stack.extend(types.into_iter().rev().map(Cow::Owned));
+            }
+            Cow::Borrowed(_) | Cow::Owned(_) => invalid(),
+        }
+    }
+
+    fn push_tuple(&mut self, ty: Tuple) {
+        let types = self.drain_top(ty.types().len());
+        self.push_own(Val::Tuple(types));
+    }
+
+    unsafe fn maybe_pop_list(&mut self, ty: List) -> Option<(*const u8, usize)> {
+        if ty.ty() != Type::U8 {
+            return None;
+        }
+        let bytes = match self.always_pop() {
+            Cow::Borrowed(Val::ByteList(val)) => val,
+            Cow::Owned(Val::ByteList(val)) => {
+                self.temp_bytes.push(val);
+                self.temp_bytes.last().unwrap()
+            }
             _ => invalid(),
-        }
+        };
+        Some((bytes.as_ptr(), bytes.len()))
     }
 
-    fn lower_result(
-        _ty: WitResult,
-        val: Self::Borrow<'_>,
-    ) -> Result<Option<Self::Borrow<'_>>, Option<Self::Borrow<'_>>> {
-        match val {
-            Val::Result(Ok(s)) => Ok(s.as_deref()),
-            Val::Result(Err(s)) => Err(s.as_deref()),
-            _ => invalid(),
-        }
-    }
-
-    fn variant_discr(_ty: Variant, val: Self::Borrow<'_>) -> u32 {
-        match val {
-            Val::Variant(discr, _payload) => *discr,
-            _ => invalid(),
-        }
-    }
-
-    fn variant_payload(_ty: Variant, val: Self::Borrow<'_>) -> Option<Self::Borrow<'_>> {
-        match val {
-            Val::Variant(_discr, payload) => payload.as_deref(),
-            _ => invalid(),
-        }
-    }
-
-    fn lift_bool(val: bool) -> Self::Own {
-        Box::new(Val::Bool(val))
-    }
-
-    fn lift_char(val: char) -> Self::Own {
-        Box::new(Val::Char(val))
-    }
-
-    fn lift_u8(val: u8) -> Self::Own {
-        Box::new(Val::U8(val))
-    }
-
-    fn lift_s8(val: i8) -> Self::Own {
-        Box::new(Val::S8(val))
-    }
-
-    fn lift_u16(val: u16) -> Self::Own {
-        Box::new(Val::U16(val))
-    }
-
-    fn lift_s16(val: i16) -> Self::Own {
-        Box::new(Val::S16(val))
-    }
-
-    fn lift_u32(val: u32) -> Self::Own {
-        Box::new(Val::U32(val))
-    }
-
-    fn lift_s32(val: i32) -> Self::Own {
-        Box::new(Val::S32(val))
-    }
-
-    fn lift_u64(val: u64) -> Self::Own {
-        Box::new(Val::U64(val))
-    }
-
-    fn lift_s64(val: i64) -> Self::Own {
-        Box::new(Val::S64(val))
-    }
-
-    fn lift_f32(val: f32) -> Self::Own {
-        Box::new(Val::F32(val))
-    }
-
-    fn lift_f64(val: f64) -> Self::Own {
-        Box::new(Val::F64(val))
-    }
-
-    fn lift_string(val: String) -> Self::Own {
-        Box::new(Val::String(val))
-    }
-
-    fn lift_record(_ty: Record, vals: OwnVals<'_, Self>) -> Self::Own {
-        Box::new(Val::Record(vals.collect()))
-    }
-
-    fn lift_tuple(_ty: Tuple, vals: OwnVals<'_, Self>) -> Self::Own {
-        Box::new(Val::Tuple(vals.collect()))
-    }
-
-    fn lift_flags(_ty: Flags, flags: u32) -> Self::Own {
-        Box::new(Val::Flags(flags))
-    }
-
-    fn lift_enum(_ty: Enum, enum_: u32) -> Self::Own {
-        Box::new(Val::Enum(enum_))
-    }
-
-    fn lift_borrow(_ty: Resource, borrow: u32) -> Self::Own {
-        Box::new(Val::Borrow(borrow))
-    }
-
-    fn lift_own(_ty: Resource, own: u32) -> Self::Own {
-        Box::new(Val::Own(own))
-    }
-
-    fn lift_future(_ty: Future, future: u32) -> Self::Own {
-        Box::new(Val::Future(future))
-    }
-
-    fn lift_stream(_ty: Stream, stream: u32) -> Self::Own {
-        Box::new(Val::Stream(stream))
-    }
-
-    fn lift_variant(_ty: Variant, discr: u32, payload: Option<Self::Own>) -> Self::Own {
-        Box::new(Val::Variant(discr, payload))
-    }
-
-    fn lift_option(_ty: WitOption, val: Option<Self::Own>) -> Self::Own {
-        Box::new(Val::Option(val))
-    }
-
-    fn lift_result(_ty: WitResult, val: Result<Option<Self::Own>, Option<Self::Own>>) -> Self::Own {
-        Box::new(Val::Result(val))
-    }
-
-    unsafe fn lift_list(ty: List, ptr: *mut u8, len: usize) -> Option<Self::Own> {
-        if ty.ty() == Type::U8 {
-            unsafe { Some(Box::new(Val::ByteList(Vec::from_raw_parts(ptr, len, len)))) }
-        } else {
-            None
-        }
-    }
-
-    fn list_alloc(ty: List, len: usize) -> Self::Own {
+    fn pop_list(&mut self, ty: List) -> usize {
         assert!(ty.ty() != Type::U8);
-        Box::new(Val::GenericList(Vec::with_capacity(len)))
+        match self.always_pop() {
+            Cow::Borrowed(Val::GenericList(l)) => {
+                self.iterators.push(CowIter::Borrowed(l.iter()));
+                l.len()
+            }
+            Cow::Owned(Val::GenericList(l)) => {
+                let ret = l.len();
+                self.iterators.push(CowIter::Owned(l.into_iter()));
+                ret
+            }
+            _ => invalid(),
+        }
     }
 
-    fn list_push(ty: List, list: &mut Self::Own, val: Self::Own) {
+    fn pop_iter_next(&mut self, _ty: List) {
+        let value = self.iterators.last_mut().unwrap().next().unwrap();
+        self.stack.push(value);
+    }
+
+    fn pop_iter(&mut self, _ty: List) {
+        self.iterators.pop();
+    }
+
+    unsafe fn push_raw_list(&mut self, ty: List, ptr: *mut u8, len: usize) -> bool {
+        if ty.ty() == Type::U8 {
+            self.push_own(Val::ByteList(unsafe { Vec::from_raw_parts(ptr, len, len) }));
+            true
+        } else {
+            false
+        }
+    }
+    fn push_list(&mut self, ty: List, capacity: usize) {
         assert!(ty.ty() != Type::U8);
-        match &mut **list {
-            Val::GenericList(list) => list.push(val),
+        self.push_own(Val::GenericList(Vec::with_capacity(capacity)));
+    }
+
+    fn list_append(&mut self, ty: List) {
+        assert!(ty.ty() != Type::U8);
+        let val = self.always_pop().into_owned();
+        match self.stack.last_mut() {
+            Some(Cow::Owned(Val::GenericList(list))) => list.push(val),
             _ => invalid(),
         }
     }
@@ -399,14 +527,13 @@ pub enum Val {
     Enum(u32),
     Future(u32),
     Stream(u32),
-    Record(Vec<Box<Val>>),
-    Tuple(Vec<Box<Val>>),
+    Record(Vec<Val>),
+    Tuple(Vec<Val>),
     String(String),
     Option(Option<Box<Val>>),
     Result(Result<Option<Box<Val>>, Option<Box<Val>>>),
     Variant(u32, Option<Box<Val>>),
-
-    GenericList(Vec<Box<Val>>),
+    GenericList(Vec<Val>),
     ByteList(Vec<u8>),
 }
 

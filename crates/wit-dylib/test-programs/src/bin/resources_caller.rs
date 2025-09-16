@@ -9,7 +9,11 @@ struct MyInterpreter;
 export!(MyInterpreter);
 
 impl TestCase for MyInterpreter {
-    fn call_export(wit: Wit, func: Function, args: OwnVals<'_, Self>) -> Option<Box<Val>> {
+    fn call_export(
+        wit: Wit,
+        func: Function,
+        args: impl ExactSizeIterator<Item = Val>,
+    ) -> Option<Val> {
         assert_eq!(func.interface(), None);
         assert_eq!(func.name(), "run");
         assert_eq!(func.params().len(), 0);
@@ -18,7 +22,7 @@ impl TestCase for MyInterpreter {
 
         let ty = wit.iter_resources().find(|r| r.name() == "a").unwrap();
         let Val::Own(handle) =
-            *Self::call_import(wit, Some("a:b/x"), "[constructor]a", &[]).unwrap()
+            Self::call_import(wit, Some("a:b/x"), "[constructor]a", &[]).unwrap()
         else {
             unreachable!()
         };

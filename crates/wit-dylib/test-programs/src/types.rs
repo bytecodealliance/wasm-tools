@@ -275,7 +275,7 @@ impl Function {
         unsafe { to_str(self.ptr.name) }
     }
 
-    pub fn import_impl(&self) -> Option<unsafe extern "C" fn(*mut u64)> {
+    pub fn import_impl(&self) -> ffi::wit_import_fn_t {
         self.ptr.impl_
     }
 

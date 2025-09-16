@@ -31,74 +31,69 @@ macro_rules! intrinsics {
 
 intrinsics! {
     initialize : [ValType::I32] -> [] = "wit_dylib_initialize",
-    call_export : [ValType::I32, ValType::I32] -> [] = "wit_dylib_call_export",
-    resource_dtor : [ValType::I32, ValType::I32] -> [] = "wit_dylib_resource_dtor",
-
-    lower_u8 : [ValType::I64] -> [ValType::I32] = "wit_dylib_lower_u8",
-    lower_u16 : [ValType::I64] -> [ValType::I32] = "wit_dylib_lower_u16",
-    lower_u32 : [ValType::I64] -> [ValType::I32] = "wit_dylib_lower_u32",
-    lower_u64 : [ValType::I64] -> [ValType::I64] = "wit_dylib_lower_u64",
-    lower_s8 : [ValType::I64] -> [ValType::I32] = "wit_dylib_lower_s8",
-    lower_s16 : [ValType::I64] -> [ValType::I32] = "wit_dylib_lower_s16",
-    lower_s32 : [ValType::I64] -> [ValType::I32] = "wit_dylib_lower_s32",
-    lower_s64 : [ValType::I64] -> [ValType::I64] = "wit_dylib_lower_s64",
-    lower_bool : [ValType::I64] -> [ValType::I32] = "wit_dylib_lower_bool",
-    lower_char : [ValType::I64] -> [ValType::I32] = "wit_dylib_lower_char",
-    lower_f32 : [ValType::I64] -> [ValType::F32] = "wit_dylib_lower_f32",
-    lower_f64 : [ValType::I64] -> [ValType::F64] = "wit_dylib_lower_f64",
-    lower_flags : [ValType::I32, ValType::I64] -> [ValType::I32] = "wit_dylib_lower_flags",
-    lower_enum : [ValType::I32, ValType::I64] -> [ValType::I32] = "wit_dylib_lower_enum",
-    lower_borrow : [ValType::I32, ValType::I64] -> [ValType::I32] = "wit_dylib_lower_borrow",
-    lower_own : [ValType::I32, ValType::I64] -> [ValType::I32] = "wit_dylib_lower_own",
-    lower_future : [ValType::I32, ValType::I64] -> [ValType::I32] = "wit_dylib_lower_future",
-    lower_stream : [ValType::I32, ValType::I64] -> [ValType::I32] = "wit_dylib_lower_stream",
-    lower_record : [ValType::I32, ValType::I64, ValType::I32] -> [] = "wit_dylib_lower_record",
-    lower_tuple : [ValType::I32, ValType::I64, ValType::I32] -> [] = "wit_dylib_lower_tuple",
-
-    list_len : [ValType::I32, ValType::I64] -> [ValType::I32] = "wit_dylib_list_len",
-    list_ptr : [ValType::I32, ValType::I64] -> [ValType::I32] = "wit_dylib_list_ptr",
-    list_get : [ValType::I32, ValType::I32, ValType::I64] -> [ValType::I64] = "wit_dylib_list_get",
-    string_len : [ValType::I64] -> [ValType::I32] = "wit_dylib_string_len",
-    string_ptr : [ValType::I64] -> [ValType::I32] = "wit_dylib_string_ptr",
-
-    variant_discr : [ValType::I32, ValType::I64] -> [ValType::I32] = "wit_dylib_variant_discr",
-    variant_payload : [ValType::I32, ValType::I64] -> [ValType::I64] = "wit_dylib_variant_payload",
-    option_is_some : [ValType::I32, ValType::I64] -> [ValType::I32] = "wit_dylib_option_is_some",
-    option_payload : [ValType::I32, ValType::I64] -> [ValType::I64] = "wit_dylib_option_payload",
-    result_is_err : [ValType::I32, ValType::I64] -> [ValType::I32] = "wit_dylib_result_is_err",
-    result_payload : [ValType::I32, ValType::I64] -> [ValType::I64] = "wit_dylib_result_payload",
-
     cabi_realloc : [ValType::I32; 4] -> [ValType::I32] = "cabi_realloc",
     dealloc_bytes : [ValType::I32; 3] -> [] = "wit_dylib_dealloc_bytes",
-    dealloc_val : [ValType::I64] -> [] = "wit_dylib_dealloc_val",
 
-    lift_bool : [ValType::I32] -> [ValType::I64] = "wit_dylib_lift_bool",
-    lift_char : [ValType::I32] -> [ValType::I64] = "wit_dylib_lift_char",
-    lift_u8 : [ValType::I32] -> [ValType::I64] = "wit_dylib_lift_u8",
-    lift_s8 : [ValType::I32] -> [ValType::I64] = "wit_dylib_lift_s8",
-    lift_u16 : [ValType::I32] -> [ValType::I64] = "wit_dylib_lift_u16",
-    lift_s16 : [ValType::I32] -> [ValType::I64] = "wit_dylib_lift_s16",
-    lift_u32 : [ValType::I32] -> [ValType::I64] = "wit_dylib_lift_u32",
-    lift_s32 : [ValType::I32] -> [ValType::I64] = "wit_dylib_lift_s32",
-    lift_u64 : [ValType::I64] -> [ValType::I64] = "wit_dylib_lift_u64",
-    lift_s64 : [ValType::I64] -> [ValType::I64] = "wit_dylib_lift_s64",
-    lift_f32 : [ValType::F32] -> [ValType::I64] = "wit_dylib_lift_f32",
-    lift_f64 : [ValType::F64] -> [ValType::I64] = "wit_dylib_lift_f64",
-    lift_string : [ValType::I32; 2] -> [ValType::I64] = "wit_dylib_lift_string",
-    lift_record : [ValType::I32, ValType::I32] -> [ValType::I64] = "wit_dylib_lift_record",
-    lift_tuple : [ValType::I32, ValType::I32] -> [ValType::I64] = "wit_dylib_lift_tuple",
-    lift_flags : [ValType::I32, ValType::I32] -> [ValType::I64] = "wit_dylib_lift_flags",
-    lift_enum : [ValType::I32, ValType::I32] -> [ValType::I64] = "wit_dylib_lift_enum",
-    lift_borrow : [ValType::I32, ValType::I32] -> [ValType::I64] = "wit_dylib_lift_borrow",
-    lift_own : [ValType::I32, ValType::I32] -> [ValType::I64] = "wit_dylib_lift_own",
-    lift_future : [ValType::I32, ValType::I32] -> [ValType::I64] = "wit_dylib_lift_future",
-    lift_stream : [ValType::I32, ValType::I32] -> [ValType::I64] = "wit_dylib_lift_stream",
-    lift_variant : [ValType::I32, ValType::I32, ValType::I64] -> [ValType::I64] = "wit_dylib_lift_variant",
-    lift_option : [ValType::I32, ValType::I32, ValType::I64] -> [ValType::I64] = "wit_dylib_lift_option",
-    lift_result : [ValType::I32, ValType::I32, ValType::I64] -> [ValType::I64] = "wit_dylib_lift_result",
-    lift_list : [ValType::I32, ValType::I32, ValType::I32] -> [ValType::I64] = "wit_dylib_lift_list",
-    list_alloc : [ValType::I32, ValType::I32] -> [ValType::I64] = "wit_dylib_list_alloc",
-    list_push : [ValType::I32, ValType::I64, ValType::I64] -> [ValType::I64] = "wit_dylib_list_push",
+    export_start : [ValType::I32] -> [ValType::I32] = "wit_dylib_export_start",
+    export_call : [ValType::I32; 2] -> [] = "wit_dylib_export_call",
+    export_finish : [ValType::I32; 2] -> [] = "wit_dylib_export_finish",
+    resource_dtor : [ValType::I32; 2] -> [] = "wit_dylib_resource_dtor",
+
+    pop_u8 : [ValType::I32] -> [ValType::I32] = "wit_dylib_pop_u8",
+    pop_u16 : [ValType::I32] -> [ValType::I32] = "wit_dylib_pop_u16",
+    pop_u32 : [ValType::I32] -> [ValType::I32] = "wit_dylib_pop_u32",
+    pop_u64 : [ValType::I32] -> [ValType::I64] = "wit_dylib_pop_u64",
+    pop_s8 : [ValType::I32] -> [ValType::I32] = "wit_dylib_pop_s8",
+    pop_s16 : [ValType::I32] -> [ValType::I32] = "wit_dylib_pop_s16",
+    pop_s32 : [ValType::I32] -> [ValType::I32] = "wit_dylib_pop_s32",
+    pop_s64 : [ValType::I32] -> [ValType::I64] = "wit_dylib_pop_s64",
+    pop_bool : [ValType::I32] -> [ValType::I32] = "wit_dylib_pop_bool",
+    pop_char : [ValType::I32] -> [ValType::I32] = "wit_dylib_pop_char",
+    pop_f32 : [ValType::I32] -> [ValType::F32] = "wit_dylib_pop_f32",
+    pop_f64 : [ValType::I32] -> [ValType::F64] = "wit_dylib_pop_f64",
+    pop_flags : [ValType::I32; 2] -> [ValType::I32] = "wit_dylib_pop_flags",
+    pop_enum : [ValType::I32; 2] -> [ValType::I32] = "wit_dylib_pop_enum",
+    pop_borrow : [ValType::I32; 2] -> [ValType::I32] = "wit_dylib_pop_borrow",
+    pop_own : [ValType::I32; 2] -> [ValType::I32] = "wit_dylib_pop_own",
+    pop_future : [ValType::I32; 2] -> [ValType::I32] = "wit_dylib_pop_future",
+    pop_stream : [ValType::I32; 2] -> [ValType::I32] = "wit_dylib_pop_stream",
+    pop_record : [ValType::I32; 2] -> [] = "wit_dylib_pop_record",
+    pop_tuple : [ValType::I32; 2] -> [] = "wit_dylib_pop_tuple",
+    pop_variant : [ValType::I32; 2] -> [ValType::I32] = "wit_dylib_pop_variant",
+    pop_option : [ValType::I32; 2] -> [ValType::I32] = "wit_dylib_pop_option",
+    pop_result : [ValType::I32; 2] -> [ValType::I32] = "wit_dylib_pop_result",
+    pop_string : [ValType::I32; 2] -> [ValType::I32] = "wit_dylib_pop_string",
+
+    pop_list : [ValType::I32; 3] -> [ValType::I32] = "wit_dylib_pop_list",
+    pop_iter_next : [ValType::I32; 2] -> [] = "wit_dylib_pop_iter_next",
+    pop_iter : [ValType::I32; 2] -> [] = "wit_dylib_pop_iter",
+
+    push_bool : [ValType::I32; 2] -> [] = "wit_dylib_push_bool",
+    push_char : [ValType::I32; 2] -> [] = "wit_dylib_push_char",
+    push_u8 : [ValType::I32; 2] -> [] = "wit_dylib_push_u8",
+    push_s8 : [ValType::I32; 2] -> [] = "wit_dylib_push_s8",
+    push_u16 : [ValType::I32; 2] -> [] = "wit_dylib_push_u16",
+    push_s16 : [ValType::I32; 2] -> [] = "wit_dylib_push_s16",
+    push_u32 : [ValType::I32; 2] -> [] = "wit_dylib_push_u32",
+    push_s32 : [ValType::I32; 2] -> [] = "wit_dylib_push_s32",
+    push_u64 : [ValType::I32, ValType::I64] -> [] = "wit_dylib_push_u64",
+    push_s64 : [ValType::I32, ValType::I64] -> [] = "wit_dylib_push_s64",
+    push_f32 : [ValType::I32, ValType::F32] -> [] = "wit_dylib_push_f32",
+    push_f64 : [ValType::I32, ValType::F64] -> [] = "wit_dylib_push_f64",
+    push_string : [ValType::I32; 3] -> [] = "wit_dylib_push_string",
+    push_record : [ValType::I32; 2] -> [] = "wit_dylib_push_record",
+    push_tuple : [ValType::I32; 2] -> [] = "wit_dylib_push_tuple",
+    push_flags : [ValType::I32; 3] -> [] = "wit_dylib_push_flags",
+    push_enum : [ValType::I32; 3] -> [] = "wit_dylib_push_enum",
+    push_borrow : [ValType::I32; 3] -> [] = "wit_dylib_push_borrow",
+    push_own : [ValType::I32; 3] -> [] = "wit_dylib_push_own",
+    push_future : [ValType::I32; 3] -> [] = "wit_dylib_push_future",
+    push_stream : [ValType::I32; 3] -> [] = "wit_dylib_push_stream",
+    push_variant : [ValType::I32; 3] -> [] = "wit_dylib_push_variant",
+    push_option : [ValType::I32; 3] -> [] = "wit_dylib_push_option",
+    push_result : [ValType::I32; 3] -> [] = "wit_dylib_push_result",
+    push_list : [ValType::I32; 4] -> [ValType::I32] = "wit_dylib_push_list",
+    list_append : [ValType::I32; 2] -> [] = "wit_dylib_list_append",
 }
 
 pub fn import(
@@ -112,10 +107,11 @@ pub fn import(
     let mut c = FunctionCompiler::new(adapter, resolve, 1);
     let frame = c.stack_frame(func, &sig, abi);
     let fp = c.allocate_stack_frame(&frame);
+    c.ctx = Some(TempLocal::new(0, ValType::I32));
 
-    c.lower_import_params(func, &sig, 0, &frame, fp.as_ref());
+    c.lower_import_params(func, &sig, &frame, fp.as_ref());
     c.ins().call(import_idx);
-    c.lift_import_results(func, &sig, 0, &frame, fp.as_ref());
+    c.lift_import_results(func, &sig, &frame, fp.as_ref());
 
     c.deallocate_lowered_lists();
     c.deallocate_stack_frame(&frame, fp);
@@ -135,15 +131,18 @@ pub fn export(
     let frame = c.stack_frame(func, &sig, abi);
     let fp = c.allocate_stack_frame(&frame);
 
-    c.lift_export_params(func, &sig, &frame, fp.as_ref());
+    let export_start = c.adapter.intrinsics().export_start;
+    let export_call = c.adapter.intrinsics().export_call;
 
     c.ins().i32_const(func_metadata_index.try_into().unwrap());
-    match &fp {
-        Some(fp) => c.ins().local_get(fp.idx),
-        None => c.ins().i32_const(0),
-    };
-    let call_export = c.adapter.intrinsics().call_export;
-    c.ins().call(call_export);
+    c.ins().call(export_start);
+    c.ctx = Some(c.local_set_new_tmp(ValType::I32));
+
+    c.lift_export_params(func, &sig);
+
+    c.local_get_ctx();
+    c.ins().i32_const(func_metadata_index.try_into().unwrap());
+    c.ins().call(export_call);
 
     c.lower_export_results(func, &sig, &frame, fp.as_ref());
 
@@ -153,26 +152,41 @@ pub fn export(
     // return value, can get cleaned up properly. Additionally any dynamically
     // allocated lists will be stored on the stack and will get cleaned up
     // during post-return.
+    //
+    // Instead this actually allocates *more* stack space to save off `c.ctx`
+    // into the stack-local memory. This also stores the dynamic number of lists
+    // to deallocate if that was generated during this function.
+
+    let sp = c.adapter.stack_pointer();
+    c.ins().global_get(sp);
+    c.ins().i32_const(8);
+    c.ins().i32_sub();
+    let l_scratch = c.local_tee_new_tmp(ValType::I32);
+    c.ins().global_set(sp);
+
+    let l_ctx = c.ctx.take().unwrap();
+    c.ins().local_get(l_scratch.idx);
+    c.ins().local_get(l_ctx.idx);
+    c.ins().i32_store(MemArg {
+        memory_index: 0,
+        align: 2,
+        offset: 0,
+    });
+    c.free_temp_local(l_ctx);
 
     let may_have_dynamic_lists_to_free = c.num_dynamic_lists_to_free.is_some();
     if let Some(l_num) = c.num_dynamic_lists_to_free.take() {
-        let sp = c.adapter.stack_pointer();
-        c.ins().global_get(sp);
-        c.ins().i32_const(4);
-        c.ins().i32_sub();
-        let ret = c.local_tee_new_tmp(ValType::I32);
-        c.ins().global_set(sp);
-        c.ins().local_get(ret.idx);
-        c.free_temp_local(ret);
+        c.ins().local_get(l_scratch.idx);
         c.ins().local_get(l_num.idx);
-        c.free_temp_local(l_num);
         c.ins().i32_store(MemArg {
             memory_index: 0,
             align: 2,
-            offset: 0,
+            offset: 4,
         });
+        c.free_temp_local(l_num);
     }
 
+    c.free_temp_local(l_scratch);
     if let Some(fp) = fp {
         c.free_temp_local(fp);
     }
@@ -185,6 +199,7 @@ pub fn post_return(
     resolve: &Resolve,
     func: &wit_parser::Function,
     abi: AbiVariant,
+    func_metadata_index: usize,
     may_have_dynamic_lists_to_free: bool,
 ) -> Function {
     let sig = resolve.wasm_signature(abi, func);
@@ -192,53 +207,62 @@ pub fn post_return(
     let frame = c.stack_frame(func, &sig, abi);
     let sp = c.adapter.stack_pointer();
 
+    c.ins().global_get(sp);
+    let l_sp = c.local_set_new_tmp(ValType::I32);
+
+    // Load the `ctx` pointer for the export allocated during the originally
+    // invoked function.
+    c.ins().local_get(l_sp.idx);
+    c.ins().i32_load(MemArg {
+        memory_index: 0,
+        align: 2,
+        offset: 0,
+    });
+    c.ctx = Some(c.local_set_new_tmp(ValType::I32));
+
     // If the main exported function may have dynamically allocated lists during
     // lowering then the metadata for what to deallocate is at the bottom of the
     // stack. The last element is the number of lists to free, and then there's
     // N entries of what to free. Load the number here, then use
-    // deallocate_lowered_lists` to handle the actual deallocation and
+    // deallocate_lowered_lists` later to handle the actual deallocation and
     // restoration of the stack pointer.
     if may_have_dynamic_lists_to_free {
-        // Load the number of lists to free from what sp points to.
-        c.ins().global_get(sp);
-        let l_sp = c.local_tee_new_tmp(ValType::I32);
+        c.ins().local_get(l_sp.idx);
         c.ins().i32_load(MemArg {
             memory_index: 0,
             align: 2,
-            offset: 0,
+            offset: 4,
         });
-        let l_num = c.local_set_new_tmp(ValType::I32);
+        c.num_dynamic_lists_to_free = Some(c.local_set_new_tmp(ValType::I32));
+    }
 
-        // Bump sp by 4 bytes, the size of what we just read
-        c.ins().local_get(l_sp.idx);
-        c.free_temp_local(l_sp);
-        c.ins().i32_const(4);
-        c.ins().i32_add();
-        c.ins().global_set(sp);
+    // Bump sp by 8 bytes to restore it to just before the end of the export
+    // call originally.
+    c.ins().local_get(l_sp.idx);
+    c.free_temp_local(l_sp);
+    c.ins().i32_const(8);
+    c.ins().i32_add();
+    c.ins().global_set(sp);
 
-        // Deallocate all lists
-        c.num_dynamic_lists_to_free = Some(l_num);
+    // Restore the stack by discarding all lists only needed for the canonical
+    // ABI which are no longer necessary.
+    if c.num_dynamic_lists_to_free.is_some() {
         c.deallocate_lowered_lists();
     }
 
+    // Tell the interpreter that the export has now finished.
+    let export_finish = c.adapter.intrinsics().export_finish;
+    c.local_get_ctx();
+    c.ins().i32_const(func_metadata_index.try_into().unwrap());
+    c.ins().call(export_finish);
+
+    let ctx = c.ctx.take().unwrap();
+    c.free_temp_local(ctx);
+
+    // And finally deallocate the stack frame, if present.
     if frame.size > 0 {
         c.ins().global_get(sp);
         let fp = c.local_set_new_tmp(ValType::I32);
-
-        // If this function had a result then its owned value is still on the
-        // stack where the export function originally placed it. The value needs
-        // to be deallocated so inform the interpreter that it needs to go away.
-        if func.result.is_some() {
-            c.ins().local_get(fp.idx);
-            c.ins().i64_load(MemArg {
-                align: 3,
-                offset: 0,
-                memory_index: 0,
-            });
-            let dealloc_val = c.adapter.intrinsics().dealloc_val;
-            c.ins().call(dealloc_val);
-        }
-
         c.deallocate_stack_frame(&frame, Some(fp));
     }
     c.finish()
@@ -254,6 +278,7 @@ struct FunctionCompiler<'a> {
     using_temp_stack: u32,
 
     num_dynamic_lists_to_free: Option<TempLocal>,
+    ctx: Option<TempLocal>,
 }
 
 impl<'a> FunctionCompiler<'a> {
@@ -267,6 +292,7 @@ impl<'a> FunctionCompiler<'a> {
             nlocals,
             num_dynamic_lists_to_free: None,
             using_temp_stack: 0,
+            ctx: None,
         }
     }
 
@@ -291,6 +317,11 @@ impl<'a> FunctionCompiler<'a> {
         let local = self.gen_temp_local(ty);
         self.ins().local_set(local.idx);
         local
+    }
+
+    fn local_get_ctx(&mut self) {
+        let idx = self.ctx.as_ref().unwrap().idx;
+        self.ins().local_get(idx);
     }
 
     fn gen_temp_local(&mut self, ty: ValType) -> TempLocal {
@@ -412,14 +443,6 @@ impl<'a> FunctionCompiler<'a> {
         sig: &WasmSignature,
         abi: AbiVariant,
     ) -> StackFrame {
-        let vals = match abi {
-            AbiVariant::GuestImport => 0,
-            AbiVariant::GuestExport => func.params.len().max(func.result.iter().count()),
-            AbiVariant::GuestImportAsync => todo!("async"),
-            AbiVariant::GuestExportAsync => todo!("async"),
-            AbiVariant::GuestExportAsyncStackful => todo!("async"),
-        };
-
         // If a return pointer is required then allocate space for one. Note
         // that this is used for both imported and exported functions. The way
         // exports work is that we defer stack cleanup to happening in
@@ -451,11 +474,8 @@ impl<'a> FunctionCompiler<'a> {
             AbiVariant::GuestExportAsyncStackful => todo!("async"),
         };
 
-        let size = align_up(
-            vals * 8 + align_up(ret_size, 4) + align_up(abi_param_size, 4),
-            8,
-        );
-        let mut offset = vals * 8;
+        let size = align_up(align_up(ret_size, 4) + align_up(abi_param_size, 4), 8);
+        let mut offset = 0;
         let abi_param_offset = if abi_param_size > 0 {
             let ret = offset;
             offset += align_up(abi_param_size, 4);
@@ -498,19 +518,10 @@ impl<'a> FunctionCompiler<'a> {
         &mut self,
         func: &wit_parser::Function,
         sig: &WasmSignature,
-        val_array_local: u32,
         frame: &StackFrame,
         fp: Option<&TempLocal>,
     ) {
-        let tys_and_srcs = func.params.iter().enumerate().map(|(i, (_, ty))| {
-            (
-                ty,
-                ValLoc::Memory {
-                    local: val_array_local,
-                    offset: (i * 8).try_into().unwrap(),
-                },
-            )
-        });
+        let tys = func.params.iter().map(|(_, ty)| ty);
 
         if sig.indirect_params {
             let fp = fp.unwrap();
@@ -520,10 +531,10 @@ impl<'a> FunctionCompiler<'a> {
                     addr: TempLocal::new(fp.idx, fp.ty),
                     offset,
                 }),
-                func.params.iter().map(|(_, ty)| ty),
+                tys.clone(),
             );
-            for ((param, src), dst) in tys_and_srcs.zip(dsts) {
-                self.lower(&src, *param, &dst);
+            for (param, dst) in tys.zip(dsts) {
+                self.lower(*param, &dst);
             }
 
             self.ins().local_get(fp.idx);
@@ -542,8 +553,8 @@ impl<'a> FunctionCompiler<'a> {
                 &AbiLoc::Stack(&locals),
                 func.params.iter().map(|(_, ty)| ty),
             );
-            for ((param, src), dst) in tys_and_srcs.zip(dsts) {
-                self.lower(&src, *param, &dst);
+            for (param, dst) in tys.zip(dsts) {
+                self.lower(*param, &dst);
             }
 
             for local in locals {
@@ -566,7 +577,6 @@ impl<'a> FunctionCompiler<'a> {
         &mut self,
         func: &wit_parser::Function,
         sig: &WasmSignature,
-        val_array_local: u32,
         frame: &StackFrame,
         fp: Option<&TempLocal>,
     ) {
@@ -577,31 +587,21 @@ impl<'a> FunctionCompiler<'a> {
                 return;
             }
         };
-        let dst = ValLoc::Memory {
-            local: val_array_local,
-            offset: 0,
-        };
         if sig.retptr {
             assert_eq!(sig.results.len(), 0);
             let src = frame.abi_loc(fp.unwrap()).unwrap();
-            self.lift(&src, ty, &dst);
+            self.lift(&src, ty);
         } else {
             assert_eq!(sig.results.len(), 1);
             let tmp_ty = self.adapter.map_wasm_type(sig.results[0]);
             let tmp = self.local_set_new_tmp(tmp_ty);
             let src = AbiLoc::Stack(slice::from_ref(&tmp));
-            self.lift(&src, ty, &dst);
+            self.lift(&src, ty);
             self.free_temp_local(tmp);
         }
     }
 
-    fn lift_export_params(
-        &mut self,
-        func: &wit_parser::Function,
-        sig: &WasmSignature,
-        frame: &StackFrame,
-        fp: Option<&TempLocal>,
-    ) {
+    fn lift_export_params(&mut self, func: &wit_parser::Function, sig: &WasmSignature) {
         let temps;
         let src = if sig.indirect_params {
             AbiLoc::Memory(Memory {
@@ -619,9 +619,8 @@ impl<'a> FunctionCompiler<'a> {
         };
 
         let srcs = self.record_field_locs(&src, func.params.iter().map(|(_, ty)| ty));
-        for (i, ((_, param), src)) in func.params.iter().zip(srcs).enumerate() {
-            let dst = frame.val_loc(fp.unwrap(), i);
-            self.lift(&src, *param, &dst);
+        for ((_, param), src) in func.params.iter().zip(srcs) {
+            self.lift(&src, *param);
         }
 
         // If parameters were passed indirectly than the caller of this export
@@ -658,12 +657,11 @@ impl<'a> FunctionCompiler<'a> {
                 return;
             }
         };
-        let src = frame.val_loc(fp.unwrap(), 0);
 
         if sig.retptr {
             assert_eq!(sig.results.len(), 1);
             let dst = frame.abi_loc(fp.unwrap()).unwrap();
-            self.lower(&src, ty, &dst);
+            self.lower(ty, &dst);
 
             let AbiLoc::Memory(mem) = dst else {
                 unreachable!()
@@ -676,50 +674,56 @@ impl<'a> FunctionCompiler<'a> {
             let tmp_ty = self.adapter.map_wasm_type(sig.results[0]);
             let tmp = self.gen_temp_local(tmp_ty);
             let dst = AbiLoc::Stack(slice::from_ref(&tmp));
-            self.lower(&src, ty, &dst);
+            self.lower(ty, &dst);
 
             self.ins().local_get(tmp.idx);
             self.free_temp_local(tmp);
         }
     }
 
-    fn lower(&mut self, src: &ValLoc, ty: Type, dest: &AbiLoc<'_>) {
+    fn lower(&mut self, ty: Type, dest: &AbiLoc<'_>) {
         let i = self.adapter.intrinsics();
         match ty {
-            Type::Bool => self.lower_scalar(src, dest, ValType::I32, i.lower_bool, 0),
-            Type::Char => self.lower_scalar(src, dest, ValType::I32, i.lower_char, 2),
-            Type::U8 => self.lower_scalar(src, dest, ValType::I32, i.lower_u8, 0),
-            Type::S8 => self.lower_scalar(src, dest, ValType::I32, i.lower_s8, 0),
-            Type::U16 => self.lower_scalar(src, dest, ValType::I32, i.lower_u16, 1),
-            Type::S16 => self.lower_scalar(src, dest, ValType::I32, i.lower_s16, 1),
-            Type::U32 => self.lower_scalar(src, dest, ValType::I32, i.lower_u32, 2),
-            Type::S32 => self.lower_scalar(src, dest, ValType::I32, i.lower_s32, 2),
-            Type::U64 => self.lower_scalar(src, dest, ValType::I64, i.lower_u64, 3),
-            Type::S64 => self.lower_scalar(src, dest, ValType::I64, i.lower_s64, 3),
-            Type::F32 => self.lower_scalar(src, dest, ValType::F32, i.lower_f32, 2),
-            Type::F64 => self.lower_scalar(src, dest, ValType::F64, i.lower_f64, 3),
+            Type::Bool => self.pop_scalar(dest, ValType::I32, i.pop_bool, 0),
+            Type::Char => self.pop_scalar(dest, ValType::I32, i.pop_char, 2),
+            Type::U8 => self.pop_scalar(dest, ValType::I32, i.pop_u8, 0),
+            Type::S8 => self.pop_scalar(dest, ValType::I32, i.pop_s8, 0),
+            Type::U16 => self.pop_scalar(dest, ValType::I32, i.pop_u16, 1),
+            Type::S16 => self.pop_scalar(dest, ValType::I32, i.pop_s16, 1),
+            Type::U32 => self.pop_scalar(dest, ValType::I32, i.pop_u32, 2),
+            Type::S32 => self.pop_scalar(dest, ValType::I32, i.pop_s32, 2),
+            Type::U64 => self.pop_scalar(dest, ValType::I64, i.pop_u64, 3),
+            Type::S64 => self.pop_scalar(dest, ValType::I64, i.pop_s64, 3),
+            Type::F32 => self.pop_scalar(dest, ValType::F32, i.pop_f32, 2),
+            Type::F64 => self.pop_scalar(dest, ValType::F64, i.pop_f64, 3),
             Type::ErrorContext => todo!("error-context"),
             Type::String => {
-                let (get_ptr, get_len) = (i.string_ptr, i.string_len);
+                let pop_string = i.pop_string;
+                self.with_temp_stack(4, |me, addr| {
+                    me.local_get_ctx();
+                    me.ins().local_get(addr.idx);
+                    me.ins().call(pop_string);
+                    me.ins().local_get(addr.idx);
+                    me.ins().i32_load(MemArg {
+                        memory_index: 0,
+                        offset: 0,
+                        align: 2,
+                    });
+                });
                 let (dst_ptr, dst_len) = dest.split_ptr_len();
-                self.load_val_loc(src);
-                self.ins().call(get_ptr);
                 self.store_scalar_from_top_of_stack(&dst_ptr, ValType::I32, 2);
-
-                self.load_val_loc(src);
-                self.ins().call(get_len);
                 self.store_scalar_from_top_of_stack(&dst_len, ValType::I32, 2);
             }
-            Type::Id(id) => self.lower_id(src, id, dest),
+            Type::Id(id) => self.lower_id(id, dest),
         }
     }
 
-    fn lower_id(&mut self, src: &ValLoc, id: TypeId, dest: &AbiLoc<'_>) {
+    fn lower_id(&mut self, id: TypeId, dest: &AbiLoc<'_>) {
         let ty = self.adapter.type_map[&id];
         let i = self.adapter.intrinsics();
         match &self.resolve.types[id].kind {
             // Simple delegation to whatever this type points to
-            TypeDefKind::Type(t) => self.lower(src, *t, dest),
+            TypeDefKind::Type(t) => self.lower(*t, dest),
 
             // Lowering values which are represented by a single raw wasm
             // value. Lowering requires contextual information though which is
@@ -728,25 +732,25 @@ impl<'a> FunctionCompiler<'a> {
                 let metadata::Type::Borrow(resource_index) = ty else {
                     unreachable!()
                 };
-                self.lower_typed_scalar(src, dest, resource_index, i.lower_borrow, 2);
+                self.pop_typed_scalar(dest, resource_index, i.pop_borrow, 2);
             }
             TypeDefKind::Handle(Handle::Own(_)) => {
                 let metadata::Type::Own(resource_index) = ty else {
                     unreachable!()
                 };
-                self.lower_typed_scalar(src, dest, resource_index, i.lower_own, 2);
+                self.pop_typed_scalar(dest, resource_index, i.pop_own, 2);
             }
             TypeDefKind::Future(_) => {
                 let metadata::Type::Future(future_index) = ty else {
                     unreachable!()
                 };
-                self.lower_typed_scalar(src, dest, future_index, i.lower_future, 2);
+                self.pop_typed_scalar(dest, future_index, i.pop_future, 2);
             }
             TypeDefKind::Stream(_) => {
                 let metadata::Type::Stream(stream_index) = ty else {
                     unreachable!()
                 };
-                self.lower_typed_scalar(src, dest, stream_index, i.lower_stream, 2);
+                self.pop_typed_scalar(dest, stream_index, i.pop_stream, 2);
             }
             TypeDefKind::Flags(f) => {
                 let metadata::Type::Flags(flags_index) = ty else {
@@ -758,7 +762,7 @@ impl<'a> FunctionCompiler<'a> {
                     FlagsRepr::U32(1) => 2,
                     FlagsRepr::U32(_) => unimplemented!(),
                 };
-                self.lower_typed_scalar(src, dest, flags_index, i.lower_flags, size_log2)
+                self.pop_typed_scalar(dest, flags_index, i.pop_flags, size_log2)
             }
             TypeDefKind::Enum(f) => {
                 let metadata::Type::Enum(enum_index) = ty else {
@@ -770,7 +774,7 @@ impl<'a> FunctionCompiler<'a> {
                     Int::U32 => 2,
                     Int::U64 => 3,
                 };
-                self.lower_typed_scalar(src, dest, enum_index, i.lower_enum, size_log2)
+                self.pop_typed_scalar(dest, enum_index, i.pop_enum, size_log2)
             }
 
             // Lowering record-like thing, or consecutive sequences of values.
@@ -778,11 +782,10 @@ impl<'a> FunctionCompiler<'a> {
                 let metadata::Type::Record(record_index) = ty else {
                     unreachable!()
                 };
-                self.lower_record(
-                    src,
+                self.pop_record(
                     dest,
                     record_index,
-                    i.lower_record,
+                    i.pop_record,
                     r.fields.iter().map(|f| &f.ty),
                 );
             }
@@ -790,7 +793,7 @@ impl<'a> FunctionCompiler<'a> {
                 let metadata::Type::Tuple(tuple_index) = ty else {
                     unreachable!()
                 };
-                self.lower_record(src, dest, tuple_index, i.lower_tuple, t.types.iter());
+                self.pop_record(dest, tuple_index, i.pop_tuple, t.types.iter());
             }
 
             // Lowering a list has a fair bit of custom logic. The general idea
@@ -803,27 +806,28 @@ impl<'a> FunctionCompiler<'a> {
                 let metadata::Type::List(list_index) = ty else {
                     unreachable!()
                 };
-                let list_len = self.adapter.intrinsics().list_len;
-                let list_get = self.adapter.intrinsics().list_get;
-                let list_ptr = self.adapter.intrinsics().list_ptr;
+                let pop_list = self.adapter.intrinsics().pop_list;
+                let pop_iter_next = self.adapter.intrinsics().pop_iter_next;
+                let pop_iter = self.adapter.intrinsics().pop_iter;
                 let cabi_realloc = self.adapter.intrinsics().cabi_realloc;
                 let size = self.adapter.sizes.size(t).size_wasm32();
                 let align = self.adapter.sizes.align(t).align_wasm32();
                 let (dst_ptr, dst_len) = dest.split_ptr_len();
 
-                // Move the list into a local for theoretically faster access.
-                self.load_val_loc(src);
-                let l_list = self.local_set_new_tmp(ValType::I64);
-
                 // Load the list ptr/len into locals
-                self.ins().i32_const(list_index.try_into().unwrap());
-                self.ins().local_get(l_list.idx);
-                self.ins().call(list_ptr);
+                self.with_temp_stack(4, |me, addr| {
+                    me.local_get_ctx();
+                    me.ins().i32_const(list_index.try_into().unwrap());
+                    me.ins().local_get(addr.idx);
+                    me.ins().call(pop_list);
+                    me.ins().local_get(addr.idx);
+                    me.ins().i32_load(MemArg {
+                        memory_index: 0,
+                        offset: 0,
+                        align: 2,
+                    });
+                });
                 let l_ptr = self.local_set_new_tmp(ValType::I32);
-
-                self.ins().i32_const(list_index.try_into().unwrap());
-                self.ins().local_get(l_list.idx);
-                self.ins().call(list_len);
                 let l_len = self.local_set_new_tmp(ValType::I32);
 
                 // If the pointer is null then the interpreter doesn't support
@@ -857,22 +861,18 @@ impl<'a> FunctionCompiler<'a> {
                         self.ins().if_(BlockType::Empty);
                         {
                             // Get the `l_index`th element from `l_list`
+                            self.local_get_ctx();
                             self.ins().i32_const(list_index.try_into().unwrap());
-                            self.ins().local_get(l_index.idx);
-                            self.ins().local_get(l_list.idx);
-                            self.ins().call(list_get);
-                            let tmp = self.local_set_new_tmp(ValType::I64);
+                            self.ins().call(pop_iter_next);
 
                             // Lower the list element
                             self.lower(
-                                &ValLoc::Local(tmp.idx),
                                 *t,
                                 &AbiLoc::Memory(Memory {
                                     addr: TempLocal::new(l_elem_addr.idx, ValType::I32),
                                     offset: 0,
                                 }),
                             );
-                            self.free_temp_local(tmp);
 
                             // Increment the `l_index` counter
                             self.ins().local_get(l_index.idx);
@@ -895,6 +895,10 @@ impl<'a> FunctionCompiler<'a> {
 
                     self.defer_deallocate_lowered_list(&l_ptr, &l_byte_size, align);
 
+                    self.local_get_ctx();
+                    self.ins().i32_const(list_index.try_into().unwrap());
+                    self.ins().call(pop_iter);
+
                     self.free_temp_local(l_index);
                     self.free_temp_local(l_elem_addr);
                     self.free_temp_local(l_byte_size);
@@ -908,7 +912,6 @@ impl<'a> FunctionCompiler<'a> {
 
                 self.free_temp_local(l_len);
                 self.free_temp_local(l_ptr);
-                self.free_temp_local(l_list);
             }
 
             // Variant-like items all go through the `lower_variant` helper.
@@ -916,12 +919,10 @@ impl<'a> FunctionCompiler<'a> {
                 let metadata::Type::Variant(variant_index) = ty else {
                     unreachable!()
                 };
-                self.lower_variant(
-                    src,
+                self.pop_variant(
                     dest,
                     variant_index,
-                    i.variant_discr,
-                    i.variant_payload,
+                    i.pop_variant,
                     t.tag(),
                     t.cases.iter().map(|c| c.ty.as_ref()),
                 );
@@ -930,26 +931,16 @@ impl<'a> FunctionCompiler<'a> {
                 let metadata::Type::Option(option_index) = ty else {
                     unreachable!()
                 };
-                self.lower_variant(
-                    src,
-                    dest,
-                    option_index,
-                    i.option_is_some,
-                    i.option_payload,
-                    Int::U8,
-                    [None, Some(t)],
-                );
+                self.pop_variant(dest, option_index, i.pop_option, Int::U8, [None, Some(t)]);
             }
             TypeDefKind::Result(t) => {
                 let metadata::Type::Result(result_index) = ty else {
                     unreachable!()
                 };
-                self.lower_variant(
-                    src,
+                self.pop_variant(
                     dest,
                     result_index,
-                    i.result_is_err,
-                    i.result_payload,
+                    i.pop_result,
                     Int::U8,
                     [t.ok.as_ref(), t.err.as_ref()],
                 );
@@ -968,47 +959,28 @@ impl<'a> FunctionCompiler<'a> {
         }
     }
 
-    fn lower_record<'b>(
+    fn pop_record<'b>(
         &mut self,
-        src: &ValLoc,
         dest: &AbiLoc<'_>,
         type_index: usize,
-        lower_intrinsic: u32,
+        pop_intrinsic: u32,
         types: impl IntoIterator<Item = &'b Type> + Clone,
     ) {
+        self.local_get_ctx();
+        self.ins().i32_const(type_index.try_into().unwrap());
+        self.ins().call(pop_intrinsic);
+
         let dsts = self.record_field_locs(dest, types.clone());
-        let mut fields = Vec::new();
-        self.with_temp_stack(dsts.len() * 8, |me, tmp| {
-            me.ins().i32_const(type_index.try_into().unwrap());
-            me.load_val_loc(src);
-            me.ins().local_get(tmp.idx);
-            me.ins().call(lower_intrinsic);
-
-            for i in 0..dsts.len() {
-                me.ins().local_get(tmp.idx);
-                me.ins().i64_load(MemArg {
-                    memory_index: 0,
-                    align: 3,
-                    offset: (i * 8).try_into().unwrap(),
-                });
-
-                fields.push(me.local_set_new_tmp(ValType::I64));
-            }
-        });
-
-        for ((ty, destination), val) in types.into_iter().zip(dsts).zip(fields) {
-            self.lower(&ValLoc::Local(val.idx), *ty, &destination);
-            self.free_temp_local(val);
+        for (ty, destination) in types.into_iter().zip(dsts) {
+            self.lower(*ty, &destination);
         }
     }
 
-    fn lower_variant<'b>(
+    fn pop_variant<'b>(
         &mut self,
-        src: &ValLoc,
         dest: &AbiLoc<'_>,
         type_index: usize,
-        discr_intrinsic: u32,
-        payload_intrinsic: u32,
+        pop_intrinsic: u32,
         tag: Int,
         payloads: impl IntoIterator<Item = Option<&'b Type>> + Clone,
     ) {
@@ -1041,14 +1013,8 @@ impl<'a> FunctionCompiler<'a> {
             // destination the lower operation stores in a prefix of the values
             // requested and the others are manually zero'd.
             Some(ty) => {
-                me.ins().i32_const(type_index.try_into().unwrap());
-                me.load_val_loc(src);
-                me.ins().call(payload_intrinsic);
-                let l_payload = me.local_set_new_tmp(ValType::I64);
-                let src = ValLoc::Local(l_payload.idx);
                 let (dst, zero_locals) = payload_dst.narrow_payload(me.resolve, ty);
-                me.lower(&src, *ty, &dst);
-                me.free_temp_local(l_payload);
+                me.lower(*ty, &dst);
                 if let Some(zero_locals) = zero_locals {
                     push_zeros(me, zero_locals);
                 }
@@ -1068,9 +1034,9 @@ impl<'a> FunctionCompiler<'a> {
                 let mut iter = payloads.clone().into_iter();
                 let payload0 = iter.next().unwrap();
                 let payload1 = iter.next().unwrap();
+                self.local_get_ctx();
                 self.ins().i32_const(type_index.try_into().unwrap());
-                self.load_val_loc(src);
-                self.ins().call(discr_intrinsic);
+                self.ins().call(pop_intrinsic);
 
                 self.ins().if_(BlockType::Empty);
                 self.ins().i32_const(1);
@@ -1096,9 +1062,9 @@ impl<'a> FunctionCompiler<'a> {
 
                 // Block to jump out of
                 self.ins().block(BlockType::Empty);
+                self.local_get_ctx();
                 self.ins().i32_const(type_index.try_into().unwrap());
-                self.load_val_loc(src);
-                self.ins().call(discr_intrinsic);
+                self.ins().call(pop_intrinsic);
                 self.ins().br_table(1..(n + 1) as u32, 0);
                 self.ins().end();
 
@@ -1123,33 +1089,25 @@ impl<'a> FunctionCompiler<'a> {
     /// Lowers `src` as a "typed scalar" meaning that the `lower_intrinsic`
     /// specified takes the `type_index` argument first, then `src`, and returns
     /// a single wasm value of type `I32` which is then stored into `dest`.
-    fn lower_typed_scalar(
+    fn pop_typed_scalar(
         &mut self,
-        src: &ValLoc,
         dest: &AbiLoc<'_>,
         type_index: usize,
-        lower_intrinsic: u32,
+        push_intrinsic: u32,
         size_log2: u32,
     ) {
+        self.local_get_ctx();
         self.ins().i32_const(type_index.try_into().unwrap());
-        self.load_val_loc(src);
-        self.ins().call(lower_intrinsic);
+        self.ins().call(push_intrinsic);
         self.store_scalar_from_top_of_stack(dest, ValType::I32, size_log2);
     }
 
     /// Lowers `src` as a scalar meaning that the `lower_intrinsic` specified
     /// takes `src` and returns a single wasm value of type `ty` which is then
     /// stored into `dest`.
-    fn lower_scalar(
-        &mut self,
-        src: &ValLoc,
-        dest: &AbiLoc<'_>,
-        ty: ValType,
-        lower_intrinsic: u32,
-        size_log2: u32,
-    ) {
-        self.load_val_loc(src);
-        self.ins().call(lower_intrinsic);
+    fn pop_scalar(&mut self, dest: &AbiLoc<'_>, ty: ValType, pop_intrinsic: u32, size_log2: u32) {
+        self.local_get_ctx();
+        self.ins().call(pop_intrinsic);
         self.store_scalar_from_top_of_stack(dest, ty, size_log2);
     }
 
@@ -1220,67 +1178,50 @@ impl<'a> FunctionCompiler<'a> {
         }
     }
 
-    fn load_val_loc(&mut self, src: &ValLoc) {
-        match src {
-            ValLoc::Local(idx) => {
-                self.ins().local_get(*idx);
-            }
-            ValLoc::Memory { local, offset } => {
-                self.ins().local_get(*local);
-                self.ins().i64_load(MemArg {
-                    align: 3,
-                    memory_index: 0,
-                    offset: (*offset).into(),
-                });
-            }
-        }
-    }
-
-    fn lift(&mut self, src: &AbiLoc<'_>, ty: Type, dest: &ValLoc) {
+    fn lift(&mut self, src: &AbiLoc<'_>, ty: Type) {
         let i = self.adapter.intrinsics();
         match ty {
-            Type::Bool => self.lift_scalar(src, dest, ValType::I32, i.lift_bool, 0),
-            Type::Char => self.lift_scalar(src, dest, ValType::I32, i.lift_char, 2),
-            Type::U8 => self.lift_scalar(src, dest, ValType::I32, i.lift_u8, 0),
-            Type::S8 => self.lift_scalar(src, dest, ValType::I32, i.lift_s8, 0),
-            Type::U16 => self.lift_scalar(src, dest, ValType::I32, i.lift_u16, 1),
-            Type::S16 => self.lift_scalar(src, dest, ValType::I32, i.lift_s16, 1),
-            Type::U32 => self.lift_scalar(src, dest, ValType::I32, i.lift_u32, 2),
-            Type::S32 => self.lift_scalar(src, dest, ValType::I32, i.lift_s32, 2),
-            Type::U64 => self.lift_scalar(src, dest, ValType::I64, i.lift_u64, 3),
-            Type::S64 => self.lift_scalar(src, dest, ValType::I64, i.lift_s64, 3),
-            Type::F32 => self.lift_scalar(src, dest, ValType::F32, i.lift_f32, 2),
-            Type::F64 => self.lift_scalar(src, dest, ValType::F64, i.lift_f64, 3),
+            Type::Bool => self.push_scalar(src, ValType::I32, i.push_bool, 0),
+            Type::Char => self.push_scalar(src, ValType::I32, i.push_char, 2),
+            Type::U8 => self.push_scalar(src, ValType::I32, i.push_u8, 0),
+            Type::S8 => self.push_scalar(src, ValType::I32, i.push_s8, 0),
+            Type::U16 => self.push_scalar(src, ValType::I32, i.push_u16, 1),
+            Type::S16 => self.push_scalar(src, ValType::I32, i.push_s16, 1),
+            Type::U32 => self.push_scalar(src, ValType::I32, i.push_u32, 2),
+            Type::S32 => self.push_scalar(src, ValType::I32, i.push_s32, 2),
+            Type::U64 => self.push_scalar(src, ValType::I64, i.push_u64, 3),
+            Type::S64 => self.push_scalar(src, ValType::I64, i.push_s64, 3),
+            Type::F32 => self.push_scalar(src, ValType::F32, i.push_f32, 2),
+            Type::F64 => self.push_scalar(src, ValType::F64, i.push_f64, 3),
             Type::String => {
-                let lift_string = i.lift_string;
+                let push_string = i.push_string;
                 let (src_ptr, src_len) = src.split_ptr_len();
+                self.local_get_ctx();
                 self.load_abi_loc(&src_ptr, ValType::I32, 2);
                 self.load_abi_loc(&src_len, ValType::I32, 2);
-                self.ins().call(lift_string);
-                self.store_val_from_top_of_stack(dest);
+                self.ins().call(push_string);
             }
             Type::ErrorContext => todo!("error-context"),
-            Type::Id(id) => self.lift_id(src, id, dest),
+            Type::Id(id) => self.lift_id(src, id),
         }
     }
 
-    fn lift_id(&mut self, src: &AbiLoc<'_>, id: TypeId, dest: &ValLoc) {
+    fn lift_id(&mut self, src: &AbiLoc<'_>, id: TypeId) {
         let ty = self.adapter.type_map[&id];
         let i = self.adapter.intrinsics();
         match &self.resolve.types[id].kind {
             // Simple delegation to whatever this type points to
-            TypeDefKind::Type(t) => self.lift(src, *t, dest),
+            TypeDefKind::Type(t) => self.lift(src, *t),
 
             // Lowering record-like thing, or consecutive sequences of values.
             TypeDefKind::Record(r) => {
                 let metadata::Type::Record(record_index) = ty else {
                     unreachable!()
                 };
-                self.lift_record(
+                self.push_record(
                     src,
-                    dest,
                     record_index,
-                    i.lift_record,
+                    i.push_record,
                     r.fields.iter().map(|f| &f.ty),
                 );
             }
@@ -1288,7 +1229,7 @@ impl<'a> FunctionCompiler<'a> {
                 let metadata::Type::Tuple(tuple_index) = ty else {
                     unreachable!()
                 };
-                self.lift_record(src, dest, tuple_index, i.lift_tuple, t.types.iter());
+                self.push_record(src, tuple_index, i.push_tuple, t.types.iter());
             }
 
             // Lifting values which are represented by a single raw wasm
@@ -1298,25 +1239,25 @@ impl<'a> FunctionCompiler<'a> {
                 let metadata::Type::Borrow(resource_index) = ty else {
                     unreachable!()
                 };
-                self.lift_typed_scalar(src, dest, resource_index, i.lift_borrow, 2);
+                self.push_typed_scalar(src, resource_index, i.push_borrow, 2);
             }
             TypeDefKind::Handle(Handle::Own(_)) => {
                 let metadata::Type::Own(resource_index) = ty else {
                     unreachable!()
                 };
-                self.lift_typed_scalar(src, dest, resource_index, i.lift_own, 2);
+                self.push_typed_scalar(src, resource_index, i.push_own, 2);
             }
             TypeDefKind::Future(_) => {
                 let metadata::Type::Future(future_index) = ty else {
                     unreachable!()
                 };
-                self.lift_typed_scalar(src, dest, future_index, i.lift_future, 2);
+                self.push_typed_scalar(src, future_index, i.push_future, 2);
             }
             TypeDefKind::Stream(_) => {
                 let metadata::Type::Stream(stream_index) = ty else {
                     unreachable!()
                 };
-                self.lift_typed_scalar(src, dest, stream_index, i.lift_stream, 2);
+                self.push_typed_scalar(src, stream_index, i.push_stream, 2);
             }
             TypeDefKind::Flags(f) => {
                 let metadata::Type::Flags(flags_index) = ty else {
@@ -1328,7 +1269,7 @@ impl<'a> FunctionCompiler<'a> {
                     FlagsRepr::U32(1) => 2,
                     FlagsRepr::U32(_) => unimplemented!(),
                 };
-                self.lift_typed_scalar(src, dest, flags_index, i.lift_flags, size_log2)
+                self.push_typed_scalar(src, flags_index, i.push_flags, size_log2)
             }
             TypeDefKind::Enum(f) => {
                 let metadata::Type::Enum(enum_index) = ty else {
@@ -1340,7 +1281,7 @@ impl<'a> FunctionCompiler<'a> {
                     Int::U32 => 2,
                     Int::U64 => 3,
                 };
-                self.lift_typed_scalar(src, dest, enum_index, i.lift_enum, size_log2)
+                self.push_typed_scalar(src, enum_index, i.push_enum, size_log2)
             }
 
             // TODO: expand inline? Use a loop if `len` is too big? How much to
@@ -1355,11 +1296,10 @@ impl<'a> FunctionCompiler<'a> {
                 let metadata::Type::Variant(variant_index) = ty else {
                     unreachable!()
                 };
-                self.lift_variant(
+                self.push_variant(
                     src,
-                    dest,
                     variant_index,
-                    i.lift_variant,
+                    i.push_variant,
                     t.tag(),
                     t.cases.iter().map(|c| c.ty.as_ref()),
                 );
@@ -1368,24 +1308,16 @@ impl<'a> FunctionCompiler<'a> {
                 let metadata::Type::Option(option_index) = ty else {
                     unreachable!()
                 };
-                self.lift_variant(
-                    src,
-                    dest,
-                    option_index,
-                    i.lift_option,
-                    Int::U8,
-                    [None, Some(t)],
-                );
+                self.push_variant(src, option_index, i.push_option, Int::U8, [None, Some(t)]);
             }
             TypeDefKind::Result(t) => {
                 let metadata::Type::Result(result_index) = ty else {
                     unreachable!()
                 };
-                self.lift_variant(
+                self.push_variant(
                     src,
-                    dest,
                     result_index,
-                    i.lift_result,
+                    i.push_result,
                     Int::U8,
                     [t.ok.as_ref(), t.err.as_ref()],
                 );
@@ -1398,33 +1330,26 @@ impl<'a> FunctionCompiler<'a> {
                 let elem_size = self.adapter.sizes.size(t).size_wasm32();
                 let elem_align = self.adapter.sizes.align(t).align_wasm32();
                 let list_index = i32::try_from(list_index).unwrap();
-                let lift_list = i.lift_list;
-                let list_alloc = i.list_alloc;
-                let list_push = i.list_push;
+                let push_list = i.push_list;
+                let list_append = i.list_append;
                 let dealloc_bytes = i.dealloc_bytes;
                 let (src_ptr, src_len) = src.split_ptr_len();
 
                 // Give the interpreter to lift the list exactly as-is and take
                 // ownership of the allocation.
+                self.local_get_ctx();
                 self.ins().i32_const(list_index);
                 self.load_abi_loc(&src_ptr, ValType::I32, 2);
                 let l_ptr = self.local_tee_new_tmp(ValType::I32);
                 self.load_abi_loc(&src_len, ValType::I32, 2);
                 let l_len = self.local_tee_new_tmp(ValType::I32);
-                self.ins().call(lift_list);
-                let l_result = self.local_tee_new_tmp(ValType::I64);
+                self.ins().call(push_list);
 
                 // If the interpreter returned 0 then the list needs to be
                 // lifted manually element-by-element.
-                self.ins().i64_eqz();
+                self.ins().i32_eqz();
                 self.ins().if_(BlockType::Empty);
                 {
-                    // Allocate the list, but it's empty at this point.
-                    self.ins().i32_const(list_index);
-                    self.ins().local_get(l_len.idx);
-                    self.ins().call(list_alloc);
-                    self.ins().local_set(l_result.idx);
-
                     // Prep deallocation of the list after the loop by saving
                     // off the pointer/byte size.
                     self.ins().local_get(l_len.idx);
@@ -1442,22 +1367,17 @@ impl<'a> FunctionCompiler<'a> {
                         self.ins().if_(BlockType::Empty);
                         {
                             // Lift this list element from memory into a local
-                            let l_dst = self.gen_temp_local(ValType::I64);
                             let src = AbiLoc::Memory(Memory {
                                 addr: TempLocal::new(l_ptr.idx, l_ptr.ty),
                                 offset: 0,
                             });
-                            let dst = ValLoc::Local(l_dst.idx);
-                            self.lift(&src, *t, &dst);
+                            self.lift(&src, *t);
 
                             // Push the lifted element onto the list. Note that
                             // this takes and returns the list.
+                            self.local_get_ctx();
                             self.ins().i32_const(list_index);
-                            self.ins().local_get(l_result.idx);
-                            self.ins().local_get(l_dst.idx);
-                            self.ins().call(list_push);
-                            self.ins().local_set(l_result.idx);
-                            self.free_temp_local(l_dst);
+                            self.ins().call(list_append);
 
                             // decrement the length counter
                             self.ins().local_get(l_len.idx);
@@ -1494,9 +1414,6 @@ impl<'a> FunctionCompiler<'a> {
                 }
                 self.ins().end();
 
-                self.ins().local_get(l_result.idx);
-                self.store_val_from_top_of_stack(dest);
-                self.free_temp_local(l_result);
                 self.free_temp_local(l_ptr);
                 self.free_temp_local(l_len);
             }
@@ -1507,47 +1424,28 @@ impl<'a> FunctionCompiler<'a> {
         }
     }
 
-    fn lift_record<'b>(
+    fn push_record<'b>(
         &mut self,
         src: &AbiLoc<'_>,
-        dest: &ValLoc,
         type_index: usize,
-        lift_intrinsic: u32,
+        push_intrinsic: u32,
         types: impl IntoIterator<Item = &'b Type> + Clone,
     ) {
         let srcs = self.record_field_locs(src, types.clone());
-        let mut results = Vec::new();
         for (ty, src) in types.into_iter().zip(srcs) {
-            let dst = self.gen_temp_local(ValType::I64);
-            self.lift(&src, *ty, &ValLoc::Local(dst.idx));
-            results.push(dst);
+            self.lift(&src, *ty);
         }
 
-        self.with_temp_stack(results.len() * 8, |me, tmp| {
-            for (i, result) in results.into_iter().enumerate() {
-                me.ins().local_get(tmp.idx);
-                me.ins().local_get(result.idx);
-                me.ins().i64_store(MemArg {
-                    memory_index: 0,
-                    align: 3,
-                    offset: (i * 8).try_into().unwrap(),
-                });
-                me.free_temp_local(result);
-            }
-
-            me.ins().i32_const(type_index.try_into().unwrap());
-            me.ins().local_get(tmp.idx);
-            me.ins().call(lift_intrinsic);
-        });
-        self.store_val_from_top_of_stack(dest);
+        self.local_get_ctx();
+        self.ins().i32_const(type_index.try_into().unwrap());
+        self.ins().call(push_intrinsic);
     }
 
-    fn lift_variant<'b>(
+    fn push_variant<'b>(
         &mut self,
         src: &AbiLoc<'_>,
-        dest: &ValLoc,
         type_index: usize,
-        lift_intrinsic: u32,
+        push_intrinsic: u32,
         tag: Int,
         payloads: impl IntoIterator<Item = Option<&'b Type>> + Clone,
     ) {
@@ -1561,16 +1459,10 @@ impl<'a> FunctionCompiler<'a> {
 
         let lift_payload = |me: &mut Self, ty: Option<&Type>| match ty {
             Some(ty) => {
-                let l_payload = me.gen_temp_local(ValType::I64);
-                let dst = ValLoc::Local(l_payload.idx);
                 let (src, _) = payload_src.narrow_payload(me.resolve, ty);
-                me.lift(&src, *ty, &dst);
-                me.ins().local_get(l_payload.idx);
-                me.free_temp_local(l_payload);
+                me.lift(&src, *ty);
             }
-            None => {
-                me.ins().i64_const(0);
-            }
+            None => {}
         };
 
         match payloads.clone().into_iter().count() {
@@ -1584,19 +1476,19 @@ impl<'a> FunctionCompiler<'a> {
                 self.load_abi_loc(&discr_src, ValType::I32, tag_size_log2);
                 self.ins().if_(BlockType::Empty);
                 {
+                    lift_payload(self, payload1);
+                    self.local_get_ctx();
                     self.ins().i32_const(type_index.try_into().unwrap());
                     self.ins().i32_const(1);
-                    lift_payload(self, payload1);
-                    self.ins().call(lift_intrinsic);
-                    self.store_val_from_top_of_stack(dest);
+                    self.ins().call(push_intrinsic);
                 }
                 self.ins().else_();
                 {
+                    lift_payload(self, payload0);
+                    self.local_get_ctx();
                     self.ins().i32_const(type_index.try_into().unwrap());
                     self.ins().i32_const(0);
-                    lift_payload(self, payload0);
-                    self.ins().call(lift_intrinsic);
-                    self.store_val_from_top_of_stack(dest);
+                    self.ins().call(push_intrinsic);
                 }
                 self.ins().end();
             }
@@ -1623,11 +1515,11 @@ impl<'a> FunctionCompiler<'a> {
                 self.ins().end();
 
                 for (i, ty) in payloads.clone().into_iter().enumerate() {
+                    lift_payload(self, ty);
+                    self.local_get_ctx();
                     self.ins().i32_const(type_index.try_into().unwrap());
                     self.ins().i32_const(i.try_into().unwrap());
-                    lift_payload(self, ty);
-                    self.ins().call(lift_intrinsic);
-                    self.store_val_from_top_of_stack(dest);
+                    self.ins().call(push_intrinsic);
                     // jump to the outermost destination block with our results.
                     self.ins().br((n - i) as u32);
                     self.ins().end();
@@ -1638,34 +1530,25 @@ impl<'a> FunctionCompiler<'a> {
         }
     }
 
-    /// Lowers `src` as a "typed scalar" meaning that the `lower_intrinsic`
-    /// specified takes the `type_index` argument first, then `src`, and returns
-    /// a single wasm value of type `I32` which is then stored into `dest`.
-    fn lift_typed_scalar(
+    /// Loads `src` and converts it to this language's representation with
+    /// `push_intrinsic`.
+    fn push_typed_scalar(
         &mut self,
         src: &AbiLoc<'_>,
-        dest: &ValLoc,
         type_index: usize,
-        lift_intrinsic: u32,
+        push_intrinsic: u32,
         size_log2: u32,
     ) {
+        self.local_get_ctx();
         self.ins().i32_const(type_index.try_into().unwrap());
         self.load_abi_loc(src, ValType::I32, size_log2);
-        self.ins().call(lift_intrinsic);
-        self.store_val_from_top_of_stack(dest);
+        self.ins().call(push_intrinsic);
     }
 
-    fn lift_scalar(
-        &mut self,
-        src: &AbiLoc<'_>,
-        dest: &ValLoc,
-        ty: ValType,
-        lift_intrinsic: u32,
-        size_log2: u32,
-    ) {
+    fn push_scalar(&mut self, src: &AbiLoc<'_>, ty: ValType, push_intrinsic: u32, size_log2: u32) {
+        self.local_get_ctx();
         self.load_abi_loc(src, ty, size_log2);
-        self.ins().call(lift_intrinsic);
-        self.store_val_from_top_of_stack(dest);
+        self.ins().call(push_intrinsic);
     }
 
     fn load_abi_loc(&mut self, src: &AbiLoc<'_>, ty: ValType, size_log2: u32) {
@@ -1725,25 +1608,6 @@ impl<'a> FunctionCompiler<'a> {
                     (ValType::F64, 3) => self.ins().f64_load(memarg),
                     other => unimplemented!("{other:?}"),
                 };
-            }
-        }
-    }
-
-    fn store_val_from_top_of_stack(&mut self, dst: &ValLoc) {
-        match dst {
-            ValLoc::Local(idx) => {
-                self.ins().local_set(*idx);
-            }
-            ValLoc::Memory { local, offset } => {
-                let val = self.local_set_new_tmp(ValType::I64);
-                self.ins().local_get(*local);
-                self.ins().local_get(val.idx);
-                self.ins().i64_store(MemArg {
-                    align: 3,
-                    memory_index: 0,
-                    offset: (*offset).into(),
-                });
-                self.free_temp_local(val);
             }
         }
     }
@@ -1873,13 +1737,6 @@ impl StackFrame {
             offset,
         }))
     }
-
-    fn val_loc(&self, base: &TempLocal, nth: usize) -> ValLoc {
-        ValLoc::Memory {
-            local: base.idx,
-            offset: (nth * 8).try_into().unwrap(),
-        }
-    }
 }
 
 fn flat_types(resolve: &Resolve, ty: &Type) -> Option<Vec<WasmType>> {
@@ -1890,11 +1747,6 @@ fn flat_types(resolve: &Resolve, ty: &Type) -> Option<Vec<WasmType>> {
     } else {
         None
     }
-}
-
-enum ValLoc {
-    Local(u32),
-    Memory { local: u32, offset: u32 },
 }
 
 /// Same as `Source` but for where values are translated into.

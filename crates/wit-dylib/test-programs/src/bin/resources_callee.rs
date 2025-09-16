@@ -9,7 +9,11 @@ struct MyInterpreter;
 export!(MyInterpreter);
 
 impl TestCase for MyInterpreter {
-    fn call_export(_wit: Wit, func: Function, mut args: OwnVals<'_, Self>) -> Option<Box<Val>> {
+    fn call_export(
+        _wit: Wit,
+        func: Function,
+        mut args: impl ExactSizeIterator<Item = Val>,
+    ) -> Option<Val> {
         assert_eq!(func.interface(), Some("a:b/x"));
         match func.name() {
             "[constructor]a" => {
@@ -21,13 +25,13 @@ impl TestCase for MyInterpreter {
                 };
 
                 let ret = unsafe { ty.new().unwrap()(100) };
-                Some(Box::new(Val::Own(ret)))
+                Some(Val::Own(ret))
             }
             "[method]a.frob" => {
                 assert_eq!(func.params().len(), 1);
                 assert!(func.result().is_none());
                 assert_eq!(args.len(), 1);
-                let Val::Borrow(handle) = *args.next().unwrap() else {
+                let Val::Borrow(handle) = args.next().unwrap() else {
                     unreachable!();
                 };
                 assert_eq!(handle, 100);

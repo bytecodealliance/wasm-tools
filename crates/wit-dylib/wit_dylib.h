@@ -6,12 +6,9 @@
 // is expected to export.
 //
 // At a high level a `wit_t` provides type information during component
-// initialization and then `wit_dylib_call_export` is used as the entrypoint to
+// initialization and then `wit_dylib_export_call` is used as the entrypoint to
 // invoke functions. Various other `wit_dylib_*` intrinsics will receive indices
-// relative to the original `wit_t` value. Values are represented as a 64-bit
-// value `uint64_t` which the embedder can use any representation it likes
-// within. Arguments/results are modeled as `uint64_t` and the embedder
-// implements how to convert between this and WIT.
+// relative to the original `wit_t` value.
 
 #ifndef WIT_INTERPRETER_H
 #define WIT_INTERPRETER_H
@@ -55,12 +52,12 @@ typedef uint32_t wit_type_t;
 #define WIT_TYPE_ALIAS 27
 #define WIT_TYPE_EMPTY 0xff
 
-typedef void(*wit_fn)(uint64_t* values);
+typedef void(*wit_import_fn_t)(void* cx);
 
 typedef struct wit_func {
      const char *interface;
      const char *name;
-     wit_fn impl; // nullable
+     wit_import_fn_t impl; // nullable
      size_t nparams;
      const wit_type_t *params;
      wit_type_t result;
@@ -153,12 +150,14 @@ typedef struct wit_future {
      const char *interface;
      const char *name;
      wit_type_t ty;
+     // TODO: include future-related intrinsics for reading/writing
 } wit_future_t;
 
 typedef struct wit_stream {
      const char *interface;
      const char *name;
      wit_type_t ty;
+     // TODO: include stream-related intrinsics for reading/writing
 } wit_stream_t;
 
 typedef struct wit_alias {
@@ -208,11 +207,26 @@ typedef struct wit {
 // safe to store this pointer.
 void wit_dylib_initialize(const wit_t* wit);
 
-// Entrypoint for WIT exports.
+// Generic byte deallocation function.
+void wit_dylib_dealloc_bytes(void *ptr, size_t byte_size, size_t align);
+
+// Entrypoints for WIT exports.
 //
-// `which` is an index into `wit->funcs` and `ptr` contains the lifted
-// parameters of the functionc all. The result, if any, is stored at `ptr`.
-void wit_dylib_call_export(size_t which, uint64_t *ptr);
+// When an exported WIT function is called first `wit_dylib_export_start` will
+// be invoked with `which` as an index into the `wit_t` provided as part of
+// `wit_dylib_initialize`. The returned pointer is then passed as a contextual
+// argument to everything below.
+//
+// The `wit_dylib_export_call` function is invoked once arguments have all
+// been pushed into `cx`. The top of the stack of `cx` is the last argument of
+// the function invocation. Once the call returns the result is pulled out of
+// the stack of `cx` through the `*_pop_*` functions below.
+//
+// The `post-return` function will invoke `wit_dylib_export_finish` to clean up
+// any allocations or such.
+void *wit_dylib_export_start(size_t which);
+void wit_dylib_export_call(void *cx, size_t which);
+void wit_dylib_export_finish(void *cx, size_t which);
 
 // Entrypoint for WIT resource destructors.
 //
@@ -220,103 +234,120 @@ void wit_dylib_call_export(size_t which, uint64_t *ptr);
 // destroyed.
 void wit_dylib_resource_dtor(size_t ty, size_t handle);
 
-// Generic byte deallocation function.
-void wit_dylib_dealloc_bytes(void *ptr, size_t byte_size, size_t align);
-
-// Deallocates an interpreter `val` provided, if necessary.
-void wit_dylib_dealloc_val(uint64_t val);
-
 // =============================================================================
-// Functions used to lower values, or convert from interpreter `uint64_t`
-// representations to WIT typed representations.
+// Converting between WIT and language types.
 //
-// Note that during lowering a `uint64_t` is NOT an "owned" value meaning that
-// these functions should not allocate memory as it otherwise won't get cleaned
-// up. For example the return value of `wit_dylib_list_get` is considered to be
-// "borrowed" and not needing cleanup. This is suitable if, for example, the
-// returned value is a pointer into the original list.
+// The functions below are used for converting a component model WIT value to a
+// language's specific representation of a value. This is modeled as a
+// stack-machine of sorts within a `cx` argument passed around to all functions.
+// For example all "push" functions take a WIT value and push the
+// language-specific representation onto `cx`'s internal stack. Composite types
+// such as records will both pop and push to the stack.
 
-bool wit_dylib_lower_u8(uint64_t val);
-uint16_t wit_dylib_lower_u16(uint64_t val);
-uint32_t wit_dylib_lower_u32(uint64_t val);
-uint64_t wit_dylib_lower_u64(uint64_t val);
-int8_t wit_dylib_lower_s8(uint64_t val);
-int16_t wit_dylib_lower_s16(uint64_t val);
-int32_t wit_dylib_lower_s32(uint64_t val);
-int64_t wit_dylib_lower_s64(uint64_t val);
-float wit_dylib_lower_f32(uint64_t val);
-double wit_dylib_lower_f64(uint64_t val);
-bool wit_dylib_lower_bool(uint64_t val);
-uint32_t wit_dylib_lower_char(uint64_t val);
-uint32_t wit_dylib_lower_borrow(size_t ty, uint64_t val);
-uint32_t wit_dylib_lower_own(size_t ty, uint64_t val);
-uint32_t wit_dylib_lower_enum(size_t ty, uint64_t val);
-uint32_t wit_dylib_lower_flags(size_t ty, uint64_t val);
-uint32_t wit_dylib_lower_future(size_t ty, uint64_t val);
-uint32_t wit_dylib_lower_stream(size_t ty, uint64_t val);
-void wit_dylib_lower_record(size_t ty, uint64_t val, uint64_t *fields);
-void wit_dylib_lower_tuple(size_t ty, uint64_t val, uint64_t *fields);
-const uint8_t *wit_dylib_string_ptr(uint64_t val);
-size_t wit_dylib_string_len(uint64_t val);
-size_t wit_dylib_list_len(size_t type_index, uint64_t val);
-const uint8_t *wit_dylib_list_ptr(size_t type_index, uint64_t val);
-uint64_t wit_dylib_list_get(size_t type_index, size_t index, uint64_t val);
-uint32_t wit_dylib_option_is_some(size_t type_index, uint64_t val);
-uint64_t wit_dylib_option_payload(size_t type_index, uint64_t val);
-uint32_t wit_dylib_result_is_err(size_t type_index, uint64_t val);
-uint64_t wit_dylib_result_payload(size_t type_index, uint64_t val);
-uint32_t wit_dylib_variant_discr(size_t type_index, uint64_t val);
-uint64_t wit_dylib_variant_payload(size_t type_index, uint64_t val);
-
-// =============================================================================
-// Functions used to lift values, or convert from typed WIT representation to
-// the interpreter's `uint64_t` representation.
-//
-// Unlike lowering these are considered to be "owned" operations. For example
-// `wit_dylib_lift_option` is expected to take ownership of the `opt_payload`
-// provided. The returned values will be either passed through to the program
-// or cleaned up automatically in bindings.
-
-uint64_t wit_dylib_lift_bool(uint32_t val);
-uint64_t wit_dylib_lift_char(uint32_t val);
-uint64_t wit_dylib_lift_u8(uint8_t val);
-uint64_t wit_dylib_lift_s8(int8_t val);
-uint64_t wit_dylib_lift_u16(uint16_t val);
-uint64_t wit_dylib_lift_s16(int16_t val);
-uint64_t wit_dylib_lift_u32(uint32_t val);
-uint64_t wit_dylib_lift_s32(int32_t val);
-uint64_t wit_dylib_lift_u64(uint64_t val);
-uint64_t wit_dylib_lift_s64(int64_t val);
-uint64_t wit_dylib_lift_f32(float val);
-uint64_t wit_dylib_lift_f64(double val);
+void wit_dylib_push_bool(void *cx, bool val);
+void wit_dylib_push_char(void *cx, uint32_t val);
+void wit_dylib_push_u8(void *cx, uint8_t val);
+void wit_dylib_push_s8(void *cx, int8_t val);
+void wit_dylib_push_u16(void *cx, uint16_t val);
+void wit_dylib_push_s16(void *cx, int16_t val);
+void wit_dylib_push_u32(void *cx, uint32_t val);
+void wit_dylib_push_s32(void *cx, int32_t val);
+void wit_dylib_push_u64(void *cx, uint64_t val);
+void wit_dylib_push_s64(void *cx, int64_t val);
+void wit_dylib_push_f32(void *cx, float val);
+void wit_dylib_push_f64(void *cx, double val);
+void wit_dylib_push_flags(void *cx, size_t ty, uint32_t flags);
+void wit_dylib_push_enum(void *cx, size_t ty, uint32_t enum_);
+void wit_dylib_push_borrow(void *cx, size_t ty, uint32_t handle);
+void wit_dylib_push_own(void *cx, size_t ty, uint32_t handle);
+void wit_dylib_push_future(void *cx, size_t ty, uint32_t handle);
+void wit_dylib_push_stream(void *cx, size_t ty, uint32_t handle);
 // Note that `bytes` and `len` are allocated by `cabi_realloc` and thus this
 // function is required to take ownership of the values.
-uint64_t wit_dylib_lift_string(uint8_t *bytes, size_t len);
-// For record/tuple lifting the `vals` provided are a stack-local address.
-//
-// Each function is expected to read out the values and take ownership of the
-// read values, but the pointer itself only lives for the duration of this
-// function call.
-uint64_t wit_dylib_lift_record(size_t ty, uint64_t *vals);
-uint64_t wit_dylib_lift_tuple(size_t ty, uint64_t *vals);
-uint64_t wit_dylib_lift_flags(size_t ty, uint32_t flags);
-uint64_t wit_dylib_lift_enum(size_t ty, uint32_t enum_);
-uint64_t wit_dylib_lift_borrow(size_t ty, uint32_t handle);
-uint64_t wit_dylib_lift_own(size_t ty, uint32_t handle);
-uint64_t wit_dylib_lift_future(size_t ty, uint32_t handle);
-uint64_t wit_dylib_lift_stream(size_t ty, uint32_t handle);
-uint64_t wit_dylib_lift_option(size_t ty, uint32_t discr, uint64_t opt_payload);
-uint64_t wit_dylib_lift_result(size_t ty, uint32_t discr, uint64_t opt_payload);
-uint64_t wit_dylib_lift_variant(size_t ty, uint32_t discr, uint64_t opt_payload);
-// If this function returns 0 then it means that `bytes`/`len` need to be lifted
-// one-by-one. If a nonzero value is returned then it's assume that `bytes` and
+void wit_dylib_push_string(void *cx, uint8_t *bytes, size_t len);
+// Records and tuples pop fields from the stack of `cx`. The top entry of the
+// stack is the last field, the next entry is the next-to-last field, and so on.
+void wit_dylib_push_record(void *cx, size_t ty);
+void wit_dylib_push_tuple(void *cx, size_t ty);
+// Variants (and options/results) have their payload, if necessary, on the
+// stack. If the `discr` case has a payload this needs to be popped. The end
+// result of this, the final language value, is pushed to the stack.
+void wit_dylib_push_option(void *cx, size_t ty, uint32_t discr);
+void wit_dylib_push_result(void *cx, size_t ty, uint32_t discr);
+void wit_dylib_push_variant(void *cx, size_t ty, uint32_t discr);
+// If this function returns 0 then it means that `bytes`/`len` need to be pushed
+// one-by-one. If a true value is returned then it's assume that `bytes` and
 // `len` is now owned by the engine.
 //
 // Note that `bytes` was allocated with `cabi_realloc` and thus represents an
 // owned allocation. This function takes ownership if a nonzero value is
 // returned, otherwise the generated bindings will clean it up.
-uint64_t wit_dylib_lift_list(size_t ty, uint8_t *bytes, size_t len);
-uint64_t wit_dylib_list_alloc(size_t ty, size_t len);
-uint64_t wit_dylib_list_push(size_t ty, uint64_t list, uint64_t val);
+//
+// If this function returns false then a list with `len` capacity should be
+// pushed to the stack of `cx`. In this situation `wit_dylib_list_append` will
+// be called element-by-element to pop an element from the stack and then push
+// it onto the list which is then at the top of the stack.
+bool wit_dylib_push_list(void *cx, size_t ty, uint8_t *bytes, size_t len);
+void wit_dylib_list_append(void *cx, size_t ty);
+
+uint8_t wit_dylib_pop_u8(void *cx);
+uint16_t wit_dylib_pop_u16(void *cx);
+uint32_t wit_dylib_pop_u32(void *cx);
+uint64_t wit_dylib_pop_u64(void *cx);
+int8_t wit_dylib_pop_s8(void *cx);
+int16_t wit_dylib_pop_s16(void *cx);
+int32_t wit_dylib_pop_s32(void *cx);
+int64_t wit_dylib_pop_s64(void *cx);
+float wit_dylib_pop_f32(void *cx);
+double wit_dylib_pop_f64(void *cx);
+bool wit_dylib_pop_bool(void *cx);
+uint32_t wit_dylib_pop_char(void *cx);
+uint32_t wit_dylib_pop_borrow(void *cx, size_t ty);
+uint32_t wit_dylib_pop_own(void *cx, size_t ty);
+uint32_t wit_dylib_pop_enum(void *cx, size_t ty);
+uint32_t wit_dylib_pop_flags(void *cx, size_t ty);
+uint32_t wit_dylib_pop_future(void *cx, size_t ty);
+uint32_t wit_dylib_pop_stream(void *cx, size_t ty);
+// When popping a string from the stack the `ptr` argument should be set to the
+// location of the string in memory, and the `size_t` return value is the byte
+// length of the string.
+size_t wit_dylib_pop_string(void *cx, char **ptr);
+// When popping a variant from the stack the langauge value is first removed.
+// The discriminant of the value is returned, and if there is a payload for the
+// case then it's pushed back onto the stack.
+uint32_t wit_dylib_pop_option(void *cx, size_t type_index);
+uint32_t wit_dylib_pop_result(void *cx, size_t type_index);
+uint32_t wit_dylib_pop_variant(void *cx, size_t type_index);
+// When a record or tuple is popped that means that the language's
+// representation is being destructured. This pops a language value from the
+// stack and then pushes the fields back to the stack. The last field should be
+// pushed first meaning that the top entry of the stack after this is the first
+// field of the record or tuple.
+void wit_dylib_pop_record(void *cx, size_t ty);
+void wit_dylib_pop_tuple(void *cx, size_t ty);
+// When a list is popped from the stack the engine returns the pointer/length
+// through this intrinsic.
+//
+// Note that `ptr` must be written in this function, and `NULL` has a special
+// value. Regardless the return value of this function is the element length of
+// the list that was popped from the stack.
+//
+// If this function returns a non-null pointer through the `ptr` field that
+// means that the data is already in canonical ABI format (for example
+// `list<u8>` is just a sequential list of bytes). In this situation the
+// list should be popped from the stack and popping will continue with any
+// further values from here.
+//
+// If this function returns a null pointer through the `ptr` field then it
+// means that the data for this list is not in the canonical ABI format. That
+// means that it's required to translate elements one-by-one. In this situation
+// the list is popped from the stack and an iterator over the list is pushed
+// to the stack.  Calls to `wit_dylib_pop_iter_next` are used to then extract
+// a single element from the iterator and push it onto the stack. Once
+// translation of the list is finished `wit_dylib_pop_iter` will be used to
+// remove the iterator from the stack.
+size_t wit_dylib_pop_list(void *cx, size_t ty, void **ptr);
+void wit_dylib_pop_iter_next(void *cx, size_t ty);
+void wit_dylib_pop_iter(void *cx, size_t ty);
 
 #endif

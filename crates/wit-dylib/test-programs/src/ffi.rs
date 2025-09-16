@@ -31,13 +31,14 @@ pub const WIT_TYPE_ALIAS: u32 = 27;
 pub const WIT_TYPE_EMPTY: u32 = 255;
 pub const WIT_V0: u32 = 0;
 pub type wit_type_t = u32;
-pub type wit_fn = ::std::option::Option<unsafe extern "C" fn(values: *mut u64)>;
+pub type wit_import_fn_t =
+    ::std::option::Option<unsafe extern "C" fn(cx: *mut ::std::os::raw::c_void)>;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct wit_func {
     pub interface: *const ::std::os::raw::c_char,
     pub name: *const ::std::os::raw::c_char,
-    pub impl_: wit_fn,
+    pub impl_: wit_import_fn_t,
     pub nparams: usize,
     pub params: *const wit_type_t,
     pub result: wit_type_t,

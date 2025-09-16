@@ -6,7 +6,11 @@ struct MyInterpreter;
 export!(MyInterpreter);
 
 impl TestCase for MyInterpreter {
-    fn call_export(_wit: Wit, func: Function, mut args: OwnVals<'_, Self>) -> Option<Box<Val>> {
+    fn call_export(
+        _wit: Wit,
+        func: Function,
+        mut args: impl ExactSizeIterator<Item = Val>,
+    ) -> Option<Val> {
         assert_eq!(func.interface(), Some("a:b/x"));
         match func.name() {
             "f" => {
@@ -31,16 +35,16 @@ impl TestCase for MyInterpreter {
 
                 assert!(func.result().is_none());
                 assert_eq!(args.len(), 3);
-                let Val::U32(0) = *args.next().unwrap() else {
+                let Val::U32(0) = args.next().unwrap() else {
                     panic!()
                 };
-                let Val::Tuple(tuple) = *args.next().unwrap() else {
+                let Val::Tuple(tuple) = args.next().unwrap() else {
                     panic!()
                 };
-                assert_eq!(tuple[0], Box::new(Val::U32(1)));
-                assert_eq!(tuple[1], Box::new(Val::U32(2)));
+                assert_eq!(tuple[0], Val::U32(1));
+                assert_eq!(tuple[1], Val::U32(2));
                 assert_eq!(tuple.len(), 2);
-                let Val::String(s) = *args.next().unwrap() else {
+                let Val::String(s) = args.next().unwrap() else {
                     panic!()
                 };
                 assert_eq!(s, "x");

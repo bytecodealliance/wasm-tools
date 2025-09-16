@@ -653,6 +653,7 @@ impl Adapter {
                     resolve,
                     func,
                     mangling.export_variant(),
+                    self.metadata.funcs.len(),
                     may_have_dynamic_lists_to_free,
                 );
                 let mut sig = resolve.wasm_signature(mangling.export_variant(), func);
