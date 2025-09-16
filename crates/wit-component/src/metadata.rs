@@ -292,7 +292,7 @@ pub fn encode(
         data: Cow::Borrowed(&[CURRENT_VERSION, string_encoding]),
     });
 
-    let ty = builder.type_component(&outer_ty);
+    let ty = builder.type_component(None, &outer_ty);
     builder.export(&world.name, ComponentExportKind::Type, ty, None);
 
     let mut producers = crate::base_producers();

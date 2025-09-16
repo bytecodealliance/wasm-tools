@@ -130,7 +130,7 @@ impl Encoder<'_> {
         // Encode all interfaces as component types and then export them.
         for (name, &id) in self.resolve.packages[self.package].interfaces.iter() {
             let component_ty = self.encode_interface(id)?;
-            let ty = self.component.type_component(&component_ty);
+            let ty = self.component.type_component(Some(name), &component_ty);
             self.component
                 .export(name.as_ref(), ComponentExportKind::Type, ty, None);
         }
@@ -146,7 +146,7 @@ impl Encoder<'_> {
             let pkg = &self.resolve.packages[world.package.unwrap()];
             wrapper.export(&pkg.name.interface_id(name), ComponentTypeRef::Component(0));
 
-            let ty = self.component.type_component(&wrapper);
+            let ty = self.component.type_component(Some(name), &wrapper);
             self.component
                 .export(name.as_ref(), ComponentExportKind::Type, ty, None);
         }

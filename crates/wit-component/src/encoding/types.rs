@@ -380,10 +380,10 @@ pub struct RootTypeEncoder<'state, 'a> {
 
 impl<'a> ValtypeEncoder<'a> for RootTypeEncoder<'_, 'a> {
     fn defined_type(&mut self) -> (u32, ComponentDefinedTypeEncoder<'_>) {
-        self.state.component.type_defined()
+        self.state.component.type_defined(None)
     }
     fn define_function_type(&mut self) -> (u32, ComponentFuncTypeEncoder<'_>) {
-        self.state.component.type_function()
+        self.state.component.type_function(None)
     }
     fn interface(&self) -> Option<InterfaceId> {
         self.interface

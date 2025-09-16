@@ -1316,6 +1316,9 @@ pub struct Linker {
     /// Whether to use a built-in implementation of `dlopen`/`dlsym`.
     use_built_in_libdl: bool,
 
+    /// Whether to generate debug `name` sections.
+    debug_names: bool,
+
     /// Size of stack (in bytes) to allocate in the synthesized main module
     ///
     /// If `None`, use `DEFAULT_STACK_SIZE_BYTES`.
@@ -1369,6 +1372,12 @@ impl Linker {
     /// Specify whether to use a built-in implementation of `dlopen`/`dlsym`.
     pub fn use_built_in_libdl(mut self, use_built_in_libdl: bool) -> Self {
         self.use_built_in_libdl = use_built_in_libdl;
+        self
+    }
+
+    /// Whether or not to generate debug name sections.
+    pub fn debug_names(mut self, enable: bool) -> Self {
+        self.debug_names = enable;
         self
     }
 
@@ -1525,7 +1534,9 @@ impl Linker {
             self.stack_size.unwrap_or(DEFAULT_STACK_SIZE_BYTES),
         );
 
-        let mut encoder = ComponentEncoder::default().validate(self.validate);
+        let mut encoder = ComponentEncoder::default()
+            .validate(self.validate)
+            .debug_names(self.debug_names);
         if let Some(merge) = self.merge_imports_based_on_semver {
             encoder = encoder.merge_imports_based_on_semver(merge);
         };

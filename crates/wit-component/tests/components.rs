@@ -91,7 +91,9 @@ fn run_test(path: &Path) -> Result<()> {
             .with_context(|| format!("failed to read core module at {module_path:?}"))?;
         adapters
             .try_fold(
-                ComponentEncoder::default().module(&module)?,
+                ComponentEncoder::default()
+                    .debug_names(true)
+                    .module(&module)?,
                 |encoder, path| {
                     let (name, wasm) = read_name_and_module("adapt-", &path?, &resolve, pkg_id)?;
                     Ok::<_, Error>(encoder.adapter(&name, &wasm)?)
@@ -110,7 +112,7 @@ fn run_test(path: &Path) -> Result<()> {
         // Sort list to ensure deterministic order, which determines priority in cases of duplicate symbols:
         libs.sort_by(|(_, a, _), (_, b, _)| a.cmp(b));
 
-        let mut linker = Linker::default().validate(false);
+        let mut linker = Linker::default().validate(false).debug_names(true);
 
         if path.join("stub-missing-functions").is_file() {
             linker = linker.stub_missing_functions(true);

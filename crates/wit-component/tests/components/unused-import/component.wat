@@ -1,12 +1,12 @@
 (component
-  (type (;0;)
+  (type $ty-foo:foo/foo (;0;)
     (instance
       (type (;0;) (func (param "x" bool)))
       (export (;0;) "name" (func (type 0)))
     )
   )
-  (import "foo:foo/foo" (instance (;0;) (type 0)))
-  (core module (;0;)
+  (import "foo:foo/foo" (instance $foo:foo/foo (;0;) (type $ty-foo:foo/foo)))
+  (core module $main (;0;)
     (type (;0;) (func (param i32)))
     (import "foo:foo/foo" "name" (func (;0;) (type 0)))
     (@producers
@@ -14,13 +14,13 @@
       (processed-by "my-fake-bindgen" "123.45")
     )
   )
-  (alias export 0 "name" (func (;0;)))
-  (core func (;0;) (canon lower (func 0)))
-  (core instance (;0;)
-    (export "name" (func 0))
+  (alias export $foo:foo/foo "name" (func $name (;0;)))
+  (core func $name (;0;) (canon lower (func $name)))
+  (core instance $foo:foo/foo (;0;)
+    (export "name" (func $name))
   )
-  (core instance (;1;) (instantiate 0
-      (with "foo:foo/foo" (instance 0))
+  (core instance $main (;1;) (instantiate $main
+      (with "foo:foo/foo" (instance $foo:foo/foo))
     )
   )
   (@producers
