@@ -356,17 +356,7 @@ pub trait Interpreter {
     }
 
     fn import_call(wit: Wit, interface: Option<&str>, func: &str, cx: &mut Self::CallCx<'_>) {
-        let mut funcs = wit.iter_funcs().filter(|f| {
-            f.interface() == interface && f.name() == func && f.import_impl().is_some()
-        });
-        let func = match funcs.next() {
-            Some(func) => func,
-            None => match interface {
-                Some(i) => panic!("no import function named {func:?} found in {i:?}"),
-                None => panic!("no import function named {func:?}"),
-            },
-        };
-        assert!(funcs.next().is_none());
+        let func = wit.unwrap_import(interface, func);
 
         // Invoke the actual import which is provided through metadata.
         let import_impl = func.import_impl().unwrap();
@@ -449,7 +439,7 @@ static mut WIT_T: *const ffi::wit_t = ptr::null_mut();
 
 macro_rules! debug_println {
     ($($t:tt)*) => (
-        if cfg!(debug_assertions) {
+        if cfg!(debug_assertions) && false {
             eprintln!($($t)*);
         }
     )

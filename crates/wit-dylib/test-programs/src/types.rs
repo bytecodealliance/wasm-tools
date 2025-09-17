@@ -1,3 +1,4 @@
+use crate::Call;
 use crate::ffi;
 use std::ffi::{CStr, c_char};
 use std::fmt;
@@ -34,6 +35,25 @@ impl Wit {
             wit: *self,
             ptr: func,
         })
+    }
+
+    pub fn get_import(&self, interface: Option<&str>, name: &str) -> Option<Function> {
+        let mut funcs = self.iter_funcs().filter(|f| {
+            f.interface() == interface && f.name() == name && f.import_impl().is_some()
+        });
+        let func = funcs.next()?;
+        assert!(funcs.next().is_none());
+        Some(func)
+    }
+
+    pub fn unwrap_import(&self, interface: Option<&str>, name: &str) -> Function {
+        match self.get_import(interface, name) {
+            Some(func) => func,
+            None => match interface {
+                Some(i) => panic!("no import function named {name:?} found in {i:?}"),
+                None => panic!("no import function named {name:?}"),
+            },
+        }
     }
 
     fn raw_records(&self) -> &'static [ffi::wit_record_t] {
@@ -291,6 +311,14 @@ impl Function {
 
     pub fn result(&self) -> Option<Type> {
         Type::from_raw_opt(self.wit, self.ptr.result)
+    }
+
+    pub fn call_import(&self, cx: &mut impl Call) {
+        let import_impl = self.import_impl().unwrap();
+        unsafe {
+            let cx: *mut _ = cx;
+            import_impl(cx.cast());
+        }
     }
 }
 
