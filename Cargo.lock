@@ -1833,6 +1833,9 @@ dependencies = [
 [[package]]
 name = "test-programs"
 version = "0.1.0"
+dependencies = [
+ "wit-dylib-ffi",
+]
 
 [[package]]
 name = "thiserror"
@@ -2844,6 +2847,10 @@ dependencies = [
  "wit-component 0.239.0",
  "wit-parser 0.239.0",
 ]
+
+[[package]]
+name = "wit-dylib-ffi"
+version = "0.1.0"
 
 [[package]]
 name = "wit-encoder"

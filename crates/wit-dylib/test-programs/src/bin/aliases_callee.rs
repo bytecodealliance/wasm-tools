@@ -1,12 +1,9 @@
 #![allow(clippy::allow_attributes_without_reason)]
 #![allow(unsafe_code)]
 
-use test_programs::test_util::*;
 use test_programs::*;
 
-struct MyInterpreter;
-
-export!(MyInterpreter);
+export_test!(struct MyInterpreter);
 
 impl TestCase for MyInterpreter {
     fn call_export(

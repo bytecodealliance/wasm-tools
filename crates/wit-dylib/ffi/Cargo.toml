@@ -1,11 +1,8 @@
 [package]
-name = "test-programs"
+name = "wit-dylib-ffi"
 version = "0.1.0"
 edition.workspace = true
 publish = false
-
-[dependencies]
-wit-dylib-ffi = { path = '../ffi' }
 
 [lints]
 workspace = true
