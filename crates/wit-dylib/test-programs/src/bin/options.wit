@@ -1,0 +1,19 @@
+package a:b;
+
+interface x {
+  echo-u32: func(a: option<u32>) -> option<u32>;
+  echo-u64: func(a: option<u64>) -> option<u64>;
+  echo-f32: func(a: option<f32>) -> option<f32>;
+  echo-f64: func(a: option<f64>) -> option<f64>;
+  echo-string: func(a: option<string>) -> option<string>;
+}
+
+world caller {
+  import x;
+
+  export run: func();
+}
+
+world callee {
+  export x;
+}

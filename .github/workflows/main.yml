@@ -25,6 +25,7 @@ jobs:
     name: Build wasm-tools
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: ${{ github.event_name != 'pull_request' }}
       matrix:
         include:
         - build: x86_64-linux
@@ -84,6 +85,7 @@ jobs:
     name: Test
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: ${{ github.event_name != 'pull_request' }}
       matrix:
         include:
           - os: ubuntu-latest
@@ -100,11 +102,11 @@ jobs:
             rust: msrv
             # skip testing crates that require wasmtime since wasmtime has a
             # more aggressive msrv than wasm-tools
-            flags: --exclude fuzz-stats --exclude wit-component --exclude wasm-mutate-stats
+            flags: --exclude fuzz-stats --exclude wit-component --exclude wasm-mutate-stats --exclude wit-dylib
           # this is the rust nightly that oss-fuzz currently uses so we don't
           # want this to break.
           - os: ubuntu-latest
-            rust: nightly-2025-01-10
+            rust: nightly-2025-07-16
           # test that if `RUST_BACKTRACE=1` is set in the environment that all
           # tests with blessed error messages still pass.
           - os: ubuntu-latest
@@ -138,6 +140,7 @@ jobs:
     name: Test the C API
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: ${{ github.event_name != 'pull_request' }}
       matrix:
         include:
           - os: ubuntu-latest
@@ -160,13 +163,9 @@ jobs:
         submodules: true
     - uses: ./.github/actions/install-rust
       with:
-        toolchain: 1.79.0
+        toolchain: 1.89.0
     - run: rustup target add wasm32-wasip1
-    - run: |
-        curl -LO https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-22/wasi-sdk-22.0-linux.tar.gz
-        tar xf wasi-sdk-22.0-linux.tar.gz
-        export WASI_SDK_PATH=$(pwd)/wasi-sdk-22.0
-        cd crates/wit-component/dl && bash check.sh
+    - run: cd crates/wit-component/dl && bash check.sh
 
   wasm:
     name: Test on WebAssembly
@@ -244,6 +243,7 @@ jobs:
       - run: cargo check --no-default-features --features json-from-wast
       - run: cargo check --no-default-features --features completion
       - run: cargo check --no-default-features --features wast
+      - run: cargo check --no-default-features --features wit-dylib
       - run: cargo check --no-default-features -p wit-parser
       - run: cargo check --no-default-features -p wit-parser --features wat
       - run: cargo check --no-default-features -p wit-parser --features serde
@@ -311,6 +311,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - uses: ./.github/actions/install-rust
       - run: RUSTDOCFLAGS="-Dwarnings" cargo doc --all
 
   clippy:

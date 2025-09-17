@@ -1,0 +1,26 @@
+package a:b;
+
+interface x {
+  add-u8: func(a: u8, b: u8) -> u8;
+  add-u16: func(a: u16, b: u16) -> u16;
+  add-u32: func(a: u32, b: u32) -> u32;
+  add-u64: func(a: u64, b: u64) -> u64;
+  add-s8: func(a: s8, b: s8) -> s8;
+  add-s16: func(a: s16, b: s16) -> s16;
+  add-s32: func(a: s32, b: s32) -> s32;
+  add-s64: func(a: s64, b: s64) -> s64;
+  add-f32: func(a: f32, b: f32) -> f32;
+  add-f64: func(a: f64, b: f64) -> f64;
+  and-bool: func(a: bool, b: bool) -> bool;
+  echo-char: func(a: char) -> char;
+}
+
+world caller {
+  import x;
+
+  export run: func();
+}
+
+world callee {
+  export x;
+}

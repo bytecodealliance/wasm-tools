@@ -167,9 +167,9 @@ impl<'a> FlatTypes<'a> {
 }
 
 impl Resolve {
-    const MAX_FLAT_PARAMS: usize = 16;
-    const MAX_FLAT_ASYNC_PARAMS: usize = 4;
-    const MAX_FLAT_RESULTS: usize = 1;
+    pub const MAX_FLAT_PARAMS: usize = 16;
+    pub const MAX_FLAT_ASYNC_PARAMS: usize = 4;
+    pub const MAX_FLAT_RESULTS: usize = 1;
 
     /// Get the WebAssembly type signature for this interface function
     ///

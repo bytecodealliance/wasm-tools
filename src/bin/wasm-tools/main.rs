@@ -73,6 +73,7 @@ subcommands! {
     #[command(subcommand)]
     (metadata, "metadata")
     (wit_smith, "wit-smith")
+    (wit_dylib, "wit-dylib")
     (addr2line, "addr2line")
     (completion, "completion")
     #[command(alias = "wast2json")]

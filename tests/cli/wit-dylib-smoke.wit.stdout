@@ -1,0 +1,153 @@
+(module
+  (@dylink.0
+    (mem-info (memory 168 2) (table 1 0))
+  )
+  (type (;0;) (func (param i32)))
+  (type (;1;) (func (param i32 i32 i32 i32) (result i32)))
+  (type (;2;) (func (param i32 i32 i32)))
+  (type (;3;) (func (param i32) (result i32)))
+  (type (;4;) (func (param i32 i32)))
+  (type (;5;) (func (param i32) (result i64)))
+  (type (;6;) (func (param i32) (result f32)))
+  (type (;7;) (func (param i32) (result f64)))
+  (type (;8;) (func (param i32 i32) (result i32)))
+  (type (;9;) (func (param i32 i32 i32) (result i32)))
+  (type (;10;) (func (param i32 i64)))
+  (type (;11;) (func (param i32 f32)))
+  (type (;12;) (func (param i32 f64)))
+  (type (;13;) (func))
+  (import "env" "wit_dylib_initialize" (func $wit_dylib_initialize (;0;) (type 0)))
+  (import "env" "cabi_realloc" (func $cabi_realloc (;1;) (type 1)))
+  (import "env" "wit_dylib_dealloc_bytes" (func $wit_dylib_dealloc_bytes (;2;) (type 2)))
+  (import "env" "wit_dylib_export_start" (func $wit_dylib_export_start (;3;) (type 3)))
+  (import "env" "wit_dylib_export_call" (func $wit_dylib_export_call (;4;) (type 4)))
+  (import "env" "wit_dylib_export_finish" (func $wit_dylib_export_finish (;5;) (type 4)))
+  (import "env" "wit_dylib_resource_dtor" (func $wit_dylib_resource_dtor (;6;) (type 4)))
+  (import "env" "wit_dylib_pop_u8" (func $wit_dylib_pop_u8 (;7;) (type 3)))
+  (import "env" "wit_dylib_pop_u16" (func $wit_dylib_pop_u16 (;8;) (type 3)))
+  (import "env" "wit_dylib_pop_u32" (func $wit_dylib_pop_u32 (;9;) (type 3)))
+  (import "env" "wit_dylib_pop_u64" (func $wit_dylib_pop_u64 (;10;) (type 5)))
+  (import "env" "wit_dylib_pop_s8" (func $wit_dylib_pop_s8 (;11;) (type 3)))
+  (import "env" "wit_dylib_pop_s16" (func $wit_dylib_pop_s16 (;12;) (type 3)))
+  (import "env" "wit_dylib_pop_s32" (func $wit_dylib_pop_s32 (;13;) (type 3)))
+  (import "env" "wit_dylib_pop_s64" (func $wit_dylib_pop_s64 (;14;) (type 5)))
+  (import "env" "wit_dylib_pop_bool" (func $wit_dylib_pop_bool (;15;) (type 3)))
+  (import "env" "wit_dylib_pop_char" (func $wit_dylib_pop_char (;16;) (type 3)))
+  (import "env" "wit_dylib_pop_f32" (func $wit_dylib_pop_f32 (;17;) (type 6)))
+  (import "env" "wit_dylib_pop_f64" (func $wit_dylib_pop_f64 (;18;) (type 7)))
+  (import "env" "wit_dylib_pop_flags" (func $wit_dylib_pop_flags (;19;) (type 8)))
+  (import "env" "wit_dylib_pop_enum" (func $wit_dylib_pop_enum (;20;) (type 8)))
+  (import "env" "wit_dylib_pop_borrow" (func $wit_dylib_pop_borrow (;21;) (type 8)))
+  (import "env" "wit_dylib_pop_own" (func $wit_dylib_pop_own (;22;) (type 8)))
+  (import "env" "wit_dylib_pop_future" (func $wit_dylib_pop_future (;23;) (type 8)))
+  (import "env" "wit_dylib_pop_stream" (func $wit_dylib_pop_stream (;24;) (type 8)))
+  (import "env" "wit_dylib_pop_record" (func $wit_dylib_pop_record (;25;) (type 4)))
+  (import "env" "wit_dylib_pop_tuple" (func $wit_dylib_pop_tuple (;26;) (type 4)))
+  (import "env" "wit_dylib_pop_variant" (func $wit_dylib_pop_variant (;27;) (type 8)))
+  (import "env" "wit_dylib_pop_option" (func $wit_dylib_pop_option (;28;) (type 8)))
+  (import "env" "wit_dylib_pop_result" (func $wit_dylib_pop_result (;29;) (type 8)))
+  (import "env" "wit_dylib_pop_string" (func $wit_dylib_pop_string (;30;) (type 8)))
+  (import "env" "wit_dylib_pop_list" (func $wit_dylib_pop_list (;31;) (type 9)))
+  (import "env" "wit_dylib_pop_iter_next" (func $wit_dylib_pop_iter_next (;32;) (type 4)))
+  (import "env" "wit_dylib_pop_iter" (func $wit_dylib_pop_iter (;33;) (type 4)))
+  (import "env" "wit_dylib_push_bool" (func $wit_dylib_push_bool (;34;) (type 4)))
+  (import "env" "wit_dylib_push_char" (func $wit_dylib_push_char (;35;) (type 4)))
+  (import "env" "wit_dylib_push_u8" (func $wit_dylib_push_u8 (;36;) (type 4)))
+  (import "env" "wit_dylib_push_s8" (func $wit_dylib_push_s8 (;37;) (type 4)))
+  (import "env" "wit_dylib_push_u16" (func $wit_dylib_push_u16 (;38;) (type 4)))
+  (import "env" "wit_dylib_push_s16" (func $wit_dylib_push_s16 (;39;) (type 4)))
+  (import "env" "wit_dylib_push_u32" (func $wit_dylib_push_u32 (;40;) (type 4)))
+  (import "env" "wit_dylib_push_s32" (func $wit_dylib_push_s32 (;41;) (type 4)))
+  (import "env" "wit_dylib_push_u64" (func $wit_dylib_push_u64 (;42;) (type 10)))
+  (import "env" "wit_dylib_push_s64" (func $wit_dylib_push_s64 (;43;) (type 10)))
+  (import "env" "wit_dylib_push_f32" (func $wit_dylib_push_f32 (;44;) (type 11)))
+  (import "env" "wit_dylib_push_f64" (func $wit_dylib_push_f64 (;45;) (type 12)))
+  (import "env" "wit_dylib_push_string" (func $wit_dylib_push_string (;46;) (type 2)))
+  (import "env" "wit_dylib_push_record" (func $wit_dylib_push_record (;47;) (type 4)))
+  (import "env" "wit_dylib_push_tuple" (func $wit_dylib_push_tuple (;48;) (type 4)))
+  (import "env" "wit_dylib_push_flags" (func $wit_dylib_push_flags (;49;) (type 2)))
+  (import "env" "wit_dylib_push_enum" (func $wit_dylib_push_enum (;50;) (type 2)))
+  (import "env" "wit_dylib_push_borrow" (func $wit_dylib_push_borrow (;51;) (type 2)))
+  (import "env" "wit_dylib_push_own" (func $wit_dylib_push_own (;52;) (type 2)))
+  (import "env" "wit_dylib_push_future" (func $wit_dylib_push_future (;53;) (type 2)))
+  (import "env" "wit_dylib_push_stream" (func $wit_dylib_push_stream (;54;) (type 2)))
+  (import "env" "wit_dylib_push_variant" (func $wit_dylib_push_variant (;55;) (type 2)))
+  (import "env" "wit_dylib_push_option" (func $wit_dylib_push_option (;56;) (type 2)))
+  (import "env" "wit_dylib_push_result" (func $wit_dylib_push_result (;57;) (type 2)))
+  (import "env" "wit_dylib_push_list" (func $wit_dylib_push_list (;58;) (type 1)))
+  (import "env" "wit_dylib_list_append" (func $wit_dylib_list_append (;59;) (type 4)))
+  (import "$root" "x" (func $x (;60;) (type 13)))
+  (import "env" "__table_base" (global $__table_base (;0;) i32))
+  (import "env" "__memory_base" (global $__memory_base (;1;) i32))
+  (import "env" "__stack_pointer" (global $__stack_pointer (;2;) (mut i32)))
+  (import "env" "memory" (memory (;0;) 0))
+  (import "env" "__indirect_function_table" (table (;0;) 0 funcref))
+  (export "cabi_realloc" (func $cabi_realloc))
+  (export "y" (func $y))
+  (export "cabi_post_y" (func $cabi_post_y))
+  (export "__wasm_apply_data_relocs" (func $__wasm_apply_data_relocs))
+  (export "__wasm_call_ctors" (func $__wasm_call_ctors))
+  (elem (;0;) (table 0) (global.get $__table_base) func $"adapter x")
+  (func $"adapter x" (;61;) (type 0) (param i32)
+    call $x
+  )
+  (func $y (;62;) (type 13)
+    (local i32 i32)
+    i32.const 1
+    call $wit_dylib_export_start
+    local.set 0
+    local.get 0
+    i32.const 1
+    call $wit_dylib_export_call
+    global.get $__stack_pointer
+    i32.const 8
+    i32.sub
+    local.tee 1
+    global.set $__stack_pointer
+    local.get 1
+    local.get 0
+    i32.store
+  )
+  (func $cabi_post_y (;63;) (type 13)
+    (local i32 i32)
+    global.get $__stack_pointer
+    local.set 0
+    local.get 0
+    i32.load
+    local.set 1
+    local.get 0
+    i32.const 8
+    i32.add
+    global.set $__stack_pointer
+    local.get 1
+    i32.const 1
+    call $wit_dylib_export_finish
+  )
+  (func $__wasm_apply_data_relocs (;64;) (type 13)
+    global.get $__memory_base
+    global.get $__memory_base
+    i32.const 164
+    i32.add
+    i32.store offset=4
+    global.get $__memory_base
+    global.get $__table_base
+    i32.store offset=8
+    global.get $__memory_base
+    global.get $__memory_base
+    i32.const 166
+    i32.add
+    i32.store offset=28
+    global.get $__memory_base
+    global.get $__memory_base
+    i32.const 0
+    i32.add
+    i32.store offset=56
+  )
+  (func $__wasm_call_ctors (;65;) (type 13)
+    i32.const 48
+    global.get $__memory_base
+    i32.add
+    call $wit_dylib_initialize
+  )
+  (data (;0;) (global.get $__memory_base) "/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/ff/ff/ff/ff/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/ff/ff/ff/ff/00/00/00/00/02/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00x/00y/00")
+)

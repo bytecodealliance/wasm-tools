@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use wasm_encoder::ModuleType;
 use wasm_encoder::reencode::{Error, Reencode, ReencodeComponent, RoundtripReencoder};
 use wasm_tools::Output;
+use wasm_tools::wit::WitResolve;
 use wasmparser::types::{CoreTypeId, EntityType, Types};
 use wasmparser::{Payload, ValidPayload, WasmFeatures};
 use wat::Detect;
@@ -16,7 +17,7 @@ use wit_component::{
     ComponentEncoder, DecodedWasm, Linker, StringEncoding, WitPrinter, embed_component_metadata,
     metadata,
 };
-use wit_parser::{LiftLowerAbi, Mangling, ManglingAndAbi, PackageId, Resolve};
+use wit_parser::{LiftLowerAbi, Mangling, ManglingAndAbi};
 
 /// WebAssembly wit-based component tooling.
 #[derive(Parser)]
@@ -196,50 +197,6 @@ impl NewOpts {
         self.io.output_wasm(&bytes, self.wat)?;
 
         Ok(())
-    }
-}
-
-#[derive(Parser)]
-struct WitResolve {
-    /// Path to WIT files to load.
-    ///
-    /// This can be a directory containing `*.wit` files, a `*.wit` file itself,
-    /// or a `*.wasm` file which is a WIT package encoded as WebAssembly.
-    wit: PathBuf,
-
-    /// Features to enable when parsing the `wit` option.
-    ///
-    /// This flag enables the `@unstable` feature in WIT documents where the
-    /// items are otherwise hidden by default.
-    #[clap(long)]
-    features: Vec<String>,
-
-    /// Enable all features when parsing the `wit` option.
-    ///
-    /// This flag enables all `@unstable` features in WIT documents where the
-    /// items are otherwise hidden by default.
-    #[clap(long)]
-    all_features: bool,
-}
-
-impl WitResolve {
-    fn resolve_with_features(features: &[String], all_features: bool) -> Resolve {
-        let mut resolve = Resolve::default();
-        resolve.all_features = all_features;
-        for feature in features {
-            for f in feature.split_whitespace() {
-                for f in f.split(',').filter(|s| !s.is_empty()) {
-                    resolve.features.insert(f.to_string());
-                }
-            }
-        }
-        return resolve;
-    }
-
-    fn load(&self) -> Result<(Resolve, PackageId)> {
-        let mut resolve = Self::resolve_with_features(&self.features, self.all_features);
-        let (pkg_id, _) = resolve.push_path(&self.wit)?;
-        Ok((resolve, pkg_id))
     }
 }
 

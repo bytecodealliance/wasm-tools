@@ -135,6 +135,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
 
 [[package]]
+name = "artifacts"
+version = "0.1.0"
+dependencies = [
+ "cargo_metadata",
+]
+
+[[package]]
 name = "auditable-serde"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -200,6 +207,38 @@ name = "bytesize"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a3c8f83209414aacf0eeae3cf730b18d6981697fba62f200fcfb92b9f082acba"
+
+[[package]]
+name = "camino"
+version = "1.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd0b03af37dad7a14518b7691d81acb0f8222604ad3d1b02f6b4bed5188c0cd5"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "cargo-platform"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "24b1f0365a6c6bb4020cd05806fd0d33c44d38046b8bd7f0e40814b9763cabfc"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "cargo_metadata"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "afc309ed89476c8957c50fb818f56fe894db857866c3e163335faa91dc34eb85"
+dependencies = [
+ "camino",
+ "cargo-platform",
+ "semver",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
 
 [[package]]
 name = "cast"
@@ -307,7 +346,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fa961b519f0b462e3a3b4a34b64d119eeaca1d59af726fe450bbba07a9fc0a1"
 dependencies = [
- "thiserror",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -1620,18 +1659,28 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.219"
+version = "1.0.222"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f0e2c6ed6606019b4e29e69dbaba95b11854410e5347d525002456dbbb786b6"
+checksum = "aab69e3f5be1836a1fe0aca0b286e5a5b38f262d6c9e8acd2247818751fcc8fb"
+dependencies = [
+ "serde_core",
+ "serde_derive",
+]
+
+[[package]]
+name = "serde_core"
+version = "1.0.222"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f8ebec5eea07db7df9342aa712db2138f019d9ab3454a60a680579a6f841b80"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.219"
+version = "1.0.222"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b0276cf7f2c73365f7157c8123c21cd9a50fbbd844757af28ca1f5925fc2a00"
+checksum = "b5f61630fe26d0ff555e6c37dc445ab2f15871c8a11ace3cf471b3195d3e4f49"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1782,12 +1831,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "test-programs"
+version = "0.1.0"
+dependencies = [
+ "wit-dylib-ffi",
+]
+
+[[package]]
+name = "thiserror"
+version = "1.0.69"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6aaf5339b578ea85b50e080feb250a3e8ae8cfcdff9a461c9ec2904bc923f52"
+dependencies = [
+ "thiserror-impl 1.0.69",
+]
+
+[[package]]
 name = "thiserror"
 version = "2.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "567b8a2dae586314f7be2a752ec7474332959c6460e02bde30d702a66d488708"
 dependencies = [
- "thiserror-impl",
+ "thiserror-impl 2.0.12",
+]
+
+[[package]]
+name = "thiserror-impl"
+version = "1.0.69"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4fee6c4efc90059e10f81e6d42c60a18f76588c3d74cb83a0b242a2b6c7504c1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -1934,6 +2010,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "wasi-preview1-component-adapter-provider"
+version = "36.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4da2ec25ddcaf86d98cd2e1928af72963bc24318cf22fee36c61953bc5fd9f28"
+
+[[package]]
 name = "wasm-compose"
 version = "0.239.0"
 dependencies = [
@@ -2031,7 +2113,7 @@ dependencies = [
  "env_logger",
  "log",
  "rand",
- "thiserror",
+ "thiserror 2.0.12",
  "wasm-encoder 0.239.0",
  "wasmparser 0.239.0",
  "wasmprinter 0.239.0",
@@ -2131,6 +2213,7 @@ dependencies = [
  "wast",
  "wat",
  "wit-component 0.239.0",
+ "wit-dylib",
  "wit-encoder",
  "wit-parser 0.239.0",
  "wit-smith",
@@ -2183,7 +2266,7 @@ dependencies = [
  "anyhow",
  "indexmap 2.10.0",
  "logos",
- "thiserror",
+ "thiserror 2.0.12",
  "wit-parser 0.239.0",
 ]
 
@@ -2349,7 +2432,7 @@ dependencies = [
  "pulley-interpreter",
  "smallvec",
  "target-lexicon",
- "thiserror",
+ "thiserror 2.0.12",
  "wasmparser 0.233.0",
  "wasmtime-environ",
  "wasmtime-math",
@@ -2532,7 +2615,7 @@ dependencies = [
  "regalloc2",
  "smallvec",
  "target-lexicon",
- "thiserror",
+ "thiserror 2.0.12",
  "wasmparser 0.233.0",
  "wasmtime-cranelift",
  "wasmtime-environ",
@@ -2746,6 +2829,28 @@ dependencies = [
  "wat",
  "wit-parser 0.239.0",
 ]
+
+[[package]]
+name = "wit-dylib"
+version = "0.239.0"
+dependencies = [
+ "anyhow",
+ "artifacts",
+ "clap",
+ "indexmap 2.10.0",
+ "libtest-mimic",
+ "tempfile",
+ "wasi-preview1-component-adapter-provider",
+ "wasm-compose",
+ "wasm-encoder 0.239.0",
+ "wasmparser 0.239.0",
+ "wit-component 0.239.0",
+ "wit-parser 0.239.0",
+]
+
+[[package]]
+name = "wit-dylib-ffi"
+version = "0.1.0"
 
 [[package]]
 name = "wit-encoder"

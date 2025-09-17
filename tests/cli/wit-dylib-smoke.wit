@@ -1,0 +1,8 @@
+// RUN: wit-dylib --validate % | strip -t
+
+package the:test;
+
+world adapter {
+  import x: func();
+  export y: func();
+}

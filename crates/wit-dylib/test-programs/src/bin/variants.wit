@@ -1,0 +1,34 @@
+package a:b;
+
+interface x {
+  variant v1 { a }
+  echo-v1: func(a: v1) -> v1;
+
+  variant v2 { a, b }
+  echo-v2: func(a: v2) -> v2;
+
+  variant v3 { a(string) }
+  echo-v3: func(a: v3) -> v3;
+
+  variant v4 { a(string), b(f32) }
+  echo-v4: func(a: v4) -> v4;
+
+  variant v5 {
+    a(string),
+    b(f32),
+    c,
+    d(tuple<string, string>),
+    e(v1),
+  }
+  echo-v5: func(a: v5) -> v5;
+}
+
+world caller {
+  import x;
+
+  export run: func();
+}
+
+world callee {
+  export x;
+}

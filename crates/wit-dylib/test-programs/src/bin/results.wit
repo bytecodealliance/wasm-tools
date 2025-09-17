@@ -1,0 +1,19 @@
+package a:b;
+
+interface x {
+  echo-u32-u64: func(a: result<u32, u64>) -> result<u32, u64>;
+  echo-u32-f32: func(a: result<u32, f32>) -> result<u32, f32>;
+  echo-u32-f64: func(a: result<u32, f64>) -> result<u32, f64>;
+  echo-u64-f64: func(a: result<u64, f64>) -> result<u64, f64>;
+  echo-u64-f32: func(a: result<u64, f32>) -> result<u64, f32>;
+}
+
+world caller {
+  import x;
+
+  export run: func();
+}
+
+world callee {
+  export x;
+}
