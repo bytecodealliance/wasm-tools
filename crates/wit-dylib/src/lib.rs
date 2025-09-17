@@ -546,15 +546,16 @@ impl Adapter {
                 });
                 metadata::Type::Alias(index)
             }
-            TypeDefKind::Resource => {
-                assert!(self.resource_map.contains_key(&id));
-                return;
-            }
+            TypeDefKind::Resource => metadata::Type::Own(self.resource_map[&id]),
 
             // Own/Borrow handles should have already inserted the resource into
             // `self.resource_map` so this is just a simple lookup.
-            TypeDefKind::Handle(Handle::Own(t)) => metadata::Type::Own(self.resource_map[t]),
-            TypeDefKind::Handle(Handle::Borrow(t)) => metadata::Type::Borrow(self.resource_map[t]),
+            TypeDefKind::Handle(Handle::Own(t)) => {
+                metadata::Type::Own(self.resource_map[&dealias(resolve, *t)])
+            }
+            TypeDefKind::Handle(Handle::Borrow(t)) => {
+                metadata::Type::Borrow(self.resource_map[&dealias(resolve, *t)])
+            }
             TypeDefKind::Unknown => unreachable!(),
         };
         self.type_map.insert(id, result);
@@ -924,4 +925,13 @@ fn imported_types_used_by_exported_interfaces(resolve: &Resolve, world: WorldId)
     }
 
     live_import_types
+}
+
+fn dealias(resolve: &Resolve, mut id: TypeId) -> TypeId {
+    loop {
+        match resolve.types[id].kind {
+            TypeDefKind::Type(Type::Id(other)) => id = other,
+            _ => break id,
+        }
+    }
 }
