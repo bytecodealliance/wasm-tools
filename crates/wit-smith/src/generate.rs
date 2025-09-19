@@ -781,6 +781,9 @@ impl<'a> InterfaceGenerator<'a> {
                 }
 
                 ItemKind::Include => {
+                    if !self.generator.config.world_include {
+                        continue;
+                    }
                     part.push_str("include ");
                     match self
                         .generator
@@ -1170,6 +1173,9 @@ impl<'a> InterfaceGenerator<'a> {
                     dst.push_str(">");
                 }
                 Kind::FixedSizeList => {
+                    if !self.generator.config.fixed_size_list {
+                        continue;
+                    }
                     *fuel = match fuel.checked_sub(1) {
                         Some(fuel) => fuel,
                         None => continue,
@@ -1210,6 +1216,9 @@ impl<'a> InterfaceGenerator<'a> {
                     }
                 }
                 Kind::Stream => {
+                    if !self.generator.config.streams {
+                        continue;
+                    }
                     *fuel = match fuel.checked_sub(1) {
                         Some(fuel) => fuel,
                         None => continue,
@@ -1219,6 +1228,9 @@ impl<'a> InterfaceGenerator<'a> {
                     dst.push_str(">");
                 }
                 Kind::Future => {
+                    if !self.generator.config.futures {
+                        continue;
+                    }
                     *fuel = match fuel.checked_sub(1) {
                         Some(fuel) => fuel,
                         None => continue,
@@ -1232,6 +1244,9 @@ impl<'a> InterfaceGenerator<'a> {
                     }
                 }
                 Kind::ErrorContext => {
+                    if !self.generator.config.error_context {
+                        continue;
+                    }
                     dst.push_str("error-context");
                 }
             };
@@ -1254,7 +1269,7 @@ impl<'a> InterfaceGenerator<'a> {
         dst: &mut String,
         method: bool,
     ) -> Result<()> {
-        if u.arbitrary()? {
+        if self.generator.config.async_ && u.arbitrary()? {
             dst.push_str("async ");
         }
         dst.push_str("func");

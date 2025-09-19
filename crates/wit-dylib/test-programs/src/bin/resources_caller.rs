@@ -1,6 +1,3 @@
-#![allow(clippy::allow_attributes_without_reason)]
-#![allow(unsafe_code)]
-
 use test_programs::*;
 
 export_test!(struct MyInterpreter);
@@ -17,21 +14,21 @@ impl TestCase for MyInterpreter {
         assert!(func.result().is_none());
         assert_eq!(args.len(), 0);
 
-        let ty = wit.iter_resources().find(|r| r.name() == "a").unwrap();
         let Val::Own(handle) =
             Self::call_import(wit, Some("a:b/x"), "[constructor]a", &[]).unwrap()
         else {
             unreachable!()
         };
 
-        assert!(handle != 100);
+        assert!(handle.handle() != 100);
 
-        let ret = Self::call_import(wit, Some("a:b/x"), "[method]a.frob", &[Val::Borrow(handle)]);
+        let ret = Self::call_import(
+            wit,
+            Some("a:b/x"),
+            "[method]a.frob",
+            &[Val::Borrow(handle.borrow())],
+        );
         assert!(ret.is_none());
-
-        unsafe {
-            ty.drop()(handle);
-        }
 
         None
     }

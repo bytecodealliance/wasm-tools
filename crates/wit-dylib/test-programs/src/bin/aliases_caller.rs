@@ -14,13 +14,7 @@ impl TestCase for MyInterpreter {
         assert!(func.result().is_none());
         assert_eq!(args.len(), 0);
 
-        let f = wit
-            .iter_funcs()
-            .filter(|f| {
-                f.interface() == Some("a:b/x") && f.name() == "f" && f.import_impl().is_some()
-            })
-            .next()
-            .unwrap();
+        let f = wit.unwrap_import(Some("a:b/x"), "f");
 
         let mut params = f.params();
         let Type::Alias(p1) = params.next().unwrap() else {

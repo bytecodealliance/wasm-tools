@@ -1,4 +1,4 @@
-use wit_parser::abi::{AbiVariant, WasmType};
+use wit_parser::abi::WasmType;
 use wit_parser::{
     Function, LiftLowerAbi, ManglingAndAbi, Resolve, ResourceIntrinsic, TypeDefKind, TypeId,
     WasmExport, WasmExportKind, WasmImport, WorldId, WorldItem, WorldKey,
@@ -150,18 +150,7 @@ fn push_exported_func_intrinsics(
     }
 
     // For exported async functions, generate a `task.return` intrinsic.
-    let module = match interface {
-        Some(key) => format!("[export]{}", resolve.name_world_key(key)),
-        None => "[export]$root".to_string(),
-    };
-    let name = format!("[task-return]{}", func.name);
-    let mut func_tmp = func.clone();
-    func_tmp.params = Vec::new();
-    func_tmp.result = None;
-    if let Some(ty) = func.result {
-        func_tmp.params.push(("x".to_string(), ty));
-    }
-    let sig = resolve.wasm_signature(AbiVariant::GuestImport, &func_tmp);
+    let (module, name, sig) = func.task_return_import(resolve, interface, mangling.mangling());
     wat.push_str(&format!("(import {module:?} {name:?} (func"));
     push_tys(wat, "param", &sig.params);
     push_tys(wat, "result", &sig.results);

@@ -33,15 +33,31 @@ pub const WIT_V0: u32 = 0;
 pub type wit_type_t = u32;
 pub type wit_import_fn_t =
     ::std::option::Option<unsafe extern "C" fn(cx: *mut ::std::os::raw::c_void)>;
+pub type wit_import_async_fn_t = ::std::option::Option<
+    unsafe extern "C" fn(
+        cx: *mut ::std::os::raw::c_void,
+        abi_area: *mut ::std::os::raw::c_void,
+    ) -> u32,
+>;
+pub type wit_import_async_lift_fn_t = ::std::option::Option<
+    unsafe extern "C" fn(cx: *mut ::std::os::raw::c_void, abi_area: *mut ::std::os::raw::c_void),
+>;
+pub type wit_export_task_return_fn_t =
+    ::std::option::Option<unsafe extern "C" fn(cx: *mut ::std::os::raw::c_void)>;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct wit_func {
     pub interface: *const ::std::os::raw::c_char,
     pub name: *const ::std::os::raw::c_char,
     pub impl_: wit_import_fn_t,
+    pub async_impl: wit_import_async_fn_t,
+    pub async_lift_impl: wit_import_async_lift_fn_t,
+    pub task_return: wit_export_task_return_fn_t,
     pub nparams: usize,
     pub params: *const wit_type_t,
     pub result: wit_type_t,
+    pub async_abi_area_size: usize,
+    pub async_abi_area_align: usize,
 }
 pub type wit_func_t = wit_func;
 pub type wit_resource_drop_t = ::std::option::Option<unsafe extern "C" fn(arg1: u32)>;

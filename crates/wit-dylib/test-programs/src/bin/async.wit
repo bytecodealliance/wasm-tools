@@ -1,0 +1,50 @@
+package a:b;
+
+interface x {
+  f: async func();
+  f-scalar-param: async func(x: u32);
+  f-scalar-result: async func() -> u32;
+
+  record a {
+    a: b,
+    c: f32
+  }
+  record b {
+    a: u32,
+    c: char,
+  }
+  aggregates: async func(a: a, b: b) -> a;
+
+  record big {
+    a1: big2,
+    a2: big2,
+    a3: big2,
+    a4: big2,
+  }
+  record big2 {
+    a1: big3,
+    a2: big3,
+    a3: big3,
+    a4: big3,
+  }
+  record big3 {
+    a1: u8,
+    a2: u8,
+    a3: u8,
+    a4: u8,
+  }
+  indirect-params: async func(a: big, b: big);
+  indirect-params-and-result: async func(a: big) -> big;
+
+  echo-string: async func(a: string) -> string;
+}
+
+world caller {
+  import x;
+
+  export run: async func();
+}
+
+world callee {
+  export x;
+}

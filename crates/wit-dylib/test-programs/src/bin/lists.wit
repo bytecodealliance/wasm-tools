@@ -5,6 +5,10 @@ interface x {
   echo-u8: func(a: list<u8>) -> list<u8>;
   echo-u32: func(a: list<u32>) -> list<u32>;
   echo-string: func(a: list<string>) -> list<string>;
+
+  list-of-variants: func(
+    name1: list<list<option<s8>>>,
+  );
 }
 
 world caller {

@@ -74,6 +74,19 @@ impl TestCase for MyInterpreter {
             );
         }
 
+        {
+            let ret = Self::call_import(
+                wit,
+                Some("a:b/x"),
+                "list-of-variants",
+                &[Val::GenericList(vec![
+                    Val::GenericList(vec![Val::Option(None)]),
+                    Val::GenericList(vec![Val::Option(None)]),
+                ])],
+            );
+            assert_eq!(ret, None);
+        }
+
         None
     }
 }
