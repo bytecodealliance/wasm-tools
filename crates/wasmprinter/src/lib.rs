@@ -1470,7 +1470,7 @@ impl Printer<'_, '_> {
         let fold_instructions = self.config.fold_instructions;
         let mut operator_state = OperatorState::new(self, OperatorSeparator::Newline);
 
-        if fold_instructions {
+        let end_pos = if fold_instructions {
             let mut folded_printer = PrintOperatorFolded::new(self, state, &mut operator_state);
             folded_printer.set_offset(func_start);
             folded_printer.begin_function(func_idx)?;
@@ -1480,7 +1480,7 @@ impl Printer<'_, '_> {
                 func_start,
                 &mut folded_printer,
                 validator,
-            )?;
+            )?
         } else {
             let mut flat_printer = PrintOperator::new(self, state, &mut operator_state);
             Self::print_operators(
@@ -1489,7 +1489,13 @@ impl Printer<'_, '_> {
                 func_start,
                 &mut flat_printer,
                 validator,
-            )?;
+            )?
+        };
+        if self.config.print_offsets {
+            self.newline(end_pos)?;
+            self.result.start_comment()?;
+            write!(self.result, "(;end;)")?;
+            self.result.reset_color()?;
         }
 
         // If this was an invalid function body then the nesting may not
@@ -1511,7 +1517,7 @@ impl Printer<'_, '_> {
         func_start: usize,
         op_printer: &mut O,
         mut validator: Option<operand_stack::FuncValidator>,
-    ) -> Result<()> {
+    ) -> Result<usize> {
         let mut ops = OperatorsReader::new(body.clone());
         while !ops.eof() {
             if ops.is_end_then_eof() {
@@ -1525,10 +1531,11 @@ impl Printer<'_, '_> {
                     }
                 }
 
+                let end_pos = ops.original_position();
                 ops.read()?; // final "end" opcode terminates instruction sequence
                 ops.finish()?;
                 op_printer.finalize(annotation.as_deref())?;
-                return Ok(());
+                return Ok(end_pos);
             }
 
             // Branch hints are stored in increasing order of their body offset

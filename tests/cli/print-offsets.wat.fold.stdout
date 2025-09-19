@@ -1,0 +1,18 @@
+(module
+(;@b     ;)  (type (;0;) (func))
+(;@11    ;)  (import "" "" (func (;0;) (type 0)))
+(;@1d    ;)  (table (;0;) 1 funcref)
+(;@23    ;)  (memory (;0;) 1)
+(;@28    ;)  (global (;0;) i32 (i32.const 0))
+(;@30    ;)  (elem (;0;) (i32.const 0) func 0)
+(;@3a    ;)  (func (;1;) (type 0)
+(;@3b    ;)    (;end;)
+             )
+(;@3d    ;)  (func (;2;) (type 0)
+(;@40    ;)    (drop
+(;@3e    ;)      (i32.const 0))
+(;@41    ;)    (;end;)
+             )
+(;@45    ;)  (data (;0;) (i32.const 0) "100")
+           )
+(;@4d    ;)
