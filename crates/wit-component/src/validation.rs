@@ -8,7 +8,7 @@ use wasm_encoder::ExportKind;
 use wasmparser::names::{ComponentName, ComponentNameKind};
 use wasmparser::{
     Encoding, ExternalKind, FuncType, Parser, Payload, TypeRef, ValType, ValidPayload, Validator,
-    types::TypesRef,
+    WasmFeatures, types::TypesRef,
 };
 use wit_parser::{
     Function, InterfaceId, PackageName, Resolve, Type, TypeDefKind, TypeId, World, WorldId,
@@ -59,7 +59,7 @@ impl ValidatedModule {
         import_map: Option<&ModuleImportMap>,
         info: Option<&LibraryInfo>,
     ) -> Result<ValidatedModule> {
-        let mut validator = Validator::new();
+        let mut validator = Validator::new_with_features(WasmFeatures::all());
         let mut ret = ValidatedModule::default();
 
         for payload in Parser::new(0).parse_all(bytes) {
