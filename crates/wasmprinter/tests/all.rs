@@ -39,9 +39,8 @@ fn offsets_and_lines_smoke_test() {
         (Some(0x17), "  (export \"f\" (func 0))\n"),
         (Some(0x1f), "  (func (;0;) (type 0) (param i32) (result i32)\n"),
         (Some(0x20), "    local.get 0\n"),
-        (None,       "  )\n"),
-        (None,       ")\n"),
-        (Some(0x23), ""),
+        (Some(0x22), "  )\n"),
+        (Some(0x23), ")\n"),
     ];
 
     assert_eq!(actual, expected);
