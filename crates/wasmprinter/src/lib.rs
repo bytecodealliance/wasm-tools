@@ -739,7 +739,7 @@ impl Printer<'_, '_> {
                 }
 
                 Payload::End(offset) => {
-                    self.end_group()?; // close the `module` or `component` group
+                    self.end_group_at_pos(offset)?; // close the `module` or `component` group
 
                     #[cfg(feature = "component-model")]
                     {
@@ -758,10 +758,7 @@ impl Printer<'_, '_> {
                             continue;
                         }
                     }
-                    self.newline(offset)?;
-                    if self.config.print_offsets {
-                        self.result.newline()?;
-                    }
+                    self.result.newline()?;
                     break;
                 }
 
@@ -809,6 +806,20 @@ impl Printer<'_, '_> {
         if let Some(line) = self.group_lines.pop() {
             if line != self.line {
                 self.newline_unknown_pos()?;
+            }
+        }
+        self.result.write_str(")")?;
+        Ok(())
+    }
+
+    fn end_group_at_pos(&mut self, offset: usize) -> Result<()> {
+        self.nesting -= 1;
+        let start_group_line = self.group_lines.pop();
+        if self.config.print_offsets {
+            self.newline(offset)?;
+        } else if let Some(line) = start_group_line {
+            if line != self.line {
+                self.newline(offset)?;
             }
         }
         self.result.write_str(")")?;
@@ -1411,11 +1422,13 @@ impl Printer<'_, '_> {
 
         if self.config.print_skeleton {
             self.result.write_str(" ...")?;
+            self.end_group()?;
         } else {
-            self.print_func_body(state, func_idx, params, &body, &hints, validator)?;
+            let end_pos =
+                self.print_func_body(state, func_idx, params, &body, &hints, validator)?;
+            self.end_group_at_pos(end_pos)?;
         }
 
-        self.end_group()?;
         state.core.funcs += 1;
         Ok(())
     }
@@ -1428,7 +1441,7 @@ impl Printer<'_, '_> {
         body: &FunctionBody<'_>,
         branch_hints: &[(usize, BranchHint)],
         mut validator: Option<operand_stack::FuncValidator>,
-    ) -> Result<()> {
+    ) -> Result<usize> {
         let mut first = true;
         let mut local_idx = 0;
         let mut locals = NamedLocalPrinter::new("local");
@@ -1491,12 +1504,6 @@ impl Printer<'_, '_> {
                 validator,
             )?
         };
-        if self.config.print_offsets {
-            self.newline(end_pos)?;
-            self.result.start_comment()?;
-            write!(self.result, "(;end;)")?;
-            self.result.reset_color()?;
-        }
 
         // If this was an invalid function body then the nesting may not
         // have reset back to normal. Fix that up here and forcibly insert
@@ -1508,7 +1515,7 @@ impl Printer<'_, '_> {
             self.newline(reader.original_position())?;
         }
 
-        Ok(())
+        Ok(end_pos)
     }
 
     fn print_operators<'a, O: OpPrinter>(
