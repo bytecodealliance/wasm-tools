@@ -1786,7 +1786,7 @@ impl<'a> EncodingState<'a> {
                     let index = self.component.task_return(result, []);
                     Ok((ExportKind::Func, index))
                 } else {
-                    let metadata = &self.info.encoder.metadata.metadata;
+                    let metadata = &self.info.module_metadata_for(for_module);
                     let encoding = metadata.export_encodings.get(resolve, key, func).unwrap();
                     Ok(self.materialize_shim_import(
                         shims,
