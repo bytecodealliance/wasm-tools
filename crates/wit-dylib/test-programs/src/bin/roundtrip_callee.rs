@@ -85,7 +85,7 @@ fn run_export(func: Function, args: impl ExactSizeIterator<Item = Val>) -> Optio
         dprintln!("callee:   expect: {arg:?}");
         match (i, arg) {
             (0, Val::Borrow(Borrow::Rep(arg))) => {
-                assert_eq!(rng.generate(Type::U32), Val::U32(arg as u32))
+                assert_eq!(rng.generate(Type::U32), Val::U32(arg))
             }
             (_, arg) => assert_eq!(rng.generate(ty), arg),
         }
