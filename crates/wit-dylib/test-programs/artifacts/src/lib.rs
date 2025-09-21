@@ -99,9 +99,8 @@ fn create_component(
             "failed to link:\n\
 original wasm: {wasm:?}\n\
 adapter:       {adapter_file:?}\n\
-libc:          {libc:?}\n\
+libc:          {LIBC_SO:?}\n\
 ",
-            libc = LIBC_SO,
         )
     })?;
 
