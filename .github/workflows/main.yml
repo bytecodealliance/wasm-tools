@@ -188,7 +188,8 @@ jobs:
           --exclude fuzz-stats \
           --exclude wasm-tools-fuzz \
           --exclude wasm-mutate-stats \
-          --exclude dl
+          --exclude dl \
+          --exclude test-programs
 
   rustfmt:
     name: Rustfmt
