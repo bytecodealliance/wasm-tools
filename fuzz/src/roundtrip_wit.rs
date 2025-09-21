@@ -190,7 +190,6 @@ impl Reencode for RemoveImports<'_, '_> {
     }
 }
 
-#[should_panic] // TODO: this should get fixed
 #[test]
 fn smoke() {
     super::test::test_n_times(100, run);
