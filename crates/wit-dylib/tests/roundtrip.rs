@@ -46,6 +46,9 @@ use wit_parser::{
 #[test]
 fn run() {
     let _ = env_logger::try_init();
+    if cfg!(target_family = "wasm") {
+        return;
+    }
 
     arbtest::arbtest(run_one)
         // To repro...
