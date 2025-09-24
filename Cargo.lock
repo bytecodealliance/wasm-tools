@@ -2941,7 +2941,7 @@ checksum = "271414315aff87387382ec3d271b52d7ae78726f5d44ac98b4f4030c91880486"
 [[package]]
 name = "wit-bindgen"
 version = "0.46.0"
-source = "git+https://github.com/alexcrichton/wit-bindgen?branch=wit-dylib-support#36e1e77c8a7c7d2735b0929a72316b29d3438754"
+source = "git+https://github.com/bytecodealliance/wit-bindgen#7208f7b39751d2ed4147bd82787a393e82f57c0c"
 dependencies = [
  "futures",
  "once_cell",
@@ -2951,7 +2951,7 @@ dependencies = [
 [[package]]
 name = "wit-bindgen-core"
 version = "0.46.0"
-source = "git+https://github.com/alexcrichton/wit-bindgen?branch=wit-dylib-support#36e1e77c8a7c7d2735b0929a72316b29d3438754"
+source = "git+https://github.com/bytecodealliance/wit-bindgen#7208f7b39751d2ed4147bd82787a393e82f57c0c"
 dependencies = [
  "anyhow",
  "heck 0.5.0",
@@ -2979,7 +2979,7 @@ dependencies = [
 [[package]]
 name = "wit-bindgen-rust"
 version = "0.46.0"
-source = "git+https://github.com/alexcrichton/wit-bindgen?branch=wit-dylib-support#36e1e77c8a7c7d2735b0929a72316b29d3438754"
+source = "git+https://github.com/bytecodealliance/wit-bindgen#7208f7b39751d2ed4147bd82787a393e82f57c0c"
 dependencies = [
  "anyhow",
  "heck 0.5.0",
@@ -2994,7 +2994,7 @@ dependencies = [
 [[package]]
 name = "wit-bindgen-rust-macro"
 version = "0.46.0"
-source = "git+https://github.com/alexcrichton/wit-bindgen?branch=wit-dylib-support#36e1e77c8a7c7d2735b0929a72316b29d3438754"
+source = "git+https://github.com/bytecodealliance/wit-bindgen#7208f7b39751d2ed4147bd82787a393e82f57c0c"
 dependencies = [
  "anyhow",
  "prettyplease",
