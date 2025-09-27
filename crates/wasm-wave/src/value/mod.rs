@@ -1,6 +1,7 @@
 //! Value enum for WAVE values.
 
-mod convert;
+#[allow(missing_docs)]
+pub mod convert;
 #[cfg(test)]
 mod tests;
 mod ty;

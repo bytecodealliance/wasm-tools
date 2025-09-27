@@ -45,7 +45,7 @@ fn from_optional_wasm_type(ty: Option<impl WasmType>) -> Option<Option<Type>> {
     })
 }
 
-trait ValueTyped {
+pub trait ValueTyped {
     fn value_type() -> Type;
 }
 
@@ -145,6 +145,17 @@ impl<T: ValueTyped + Into<Value>> From<Option<T>> for Value {
     fn from(value: Option<T>) -> Self {
         let ty = Option::<T>::value_type();
         Value::make_option(&ty, value.map(Into::into)).unwrap()
+    }
+}
+
+impl<T: ValueTyped> ValueTyped for &T {
+    fn value_type() -> Type {
+        T::value_type()
+    }
+}
+impl<T: ValueTyped + Into<Value> + Clone> From<&T> for Value {
+    fn from(value: &T) -> Self {
+        value.clone().into()
     }
 }
 
@@ -252,6 +263,7 @@ mod tests {
             (Some(1).into(), "some(1)"),
             (None::<u8>.into(), "none"),
             (Ok::<u8, String>(1).into(), "ok(1)"),
+            (Ok::<(), ()>(()).into(), "ok"),
             (Err::<u8, String>("oops".into()).into(), "err(\"oops\")"),
             ((1,).into(), "(1)"),
             ((1, "str", [9; 2]).into(), "(1, \"str\", [9, 9])"),
