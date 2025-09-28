@@ -12,6 +12,7 @@ use semver::Version;
 #[cfg(feature = "serde")]
 use serde_derive::Serialize;
 
+use crate::abi::{WasmSignature, WasmType};
 use crate::ast::lex::Span;
 use crate::ast::{ParsedUsePath, parse_use_path};
 #[cfg(feature = "serde")]
@@ -2545,6 +2546,7 @@ package {name} is defined in two different locations:\n\
                     };
                     (module, name)
                 }
+                WasmImport::AsyncIntrinsic { .. } => todo!(),
             },
             ManglingAndAbi::Legacy(abi) => match import {
                 WasmImport::Func { interface, func } => {
@@ -2580,6 +2582,43 @@ package {name} is defined in two different locations:\n\
                         }
                     };
                     (module, format!("{}{name}", abi.import_prefix()))
+                }
+                WasmImport::AsyncIntrinsic {
+                    interface,
+                    func,
+                    export,
+                    index,
+                    intrinsic,
+                    is_future,
+                } => {
+                    let prefix = if export { "[export]" } else { "" };
+                    let module = match interface {
+                        Some(key) => self.name_world_key(key),
+                        None => format!("$root"),
+                    };
+                    let (async_prefix, intrinsic) = match intrinsic {
+                        AsyncIntrinsic::New => ("", "new"),
+                        AsyncIntrinsic::ReadSync => ("", "read"),
+                        AsyncIntrinsic::WriteSync => ("", "write"),
+                        AsyncIntrinsic::ReadAsync => ("[async-lower]", "read"),
+                        AsyncIntrinsic::WriteAsync => ("[async-lower]", "write"),
+                        AsyncIntrinsic::CancelRead => ("", "cancel-read"),
+                        AsyncIntrinsic::CancelWrite => ("", "cancel-write"),
+                        AsyncIntrinsic::DropReadable => ("", "drop-readable"),
+                        AsyncIntrinsic::DropWritable => ("", "drop-writable"),
+                    };
+                    let ty = if is_future { "future" } else { "stream" };
+                    (
+                        format!("{prefix}{module}"),
+                        format!(
+                            "\
+                                {async_prefix}\
+                                [{ty}-{intrinsic}-{index}]\
+                                {}\
+                            ",
+                            func.name
+                        ),
+                    )
                 }
             },
         }
@@ -2690,6 +2729,28 @@ pub enum WasmImport<'a> {
         /// The intrinsic that's being imported.
         intrinsic: ResourceIntrinsic,
     },
+
+    /// A WIT function is being imported. Optionally from an interface.
+    AsyncIntrinsic {
+        /// The name of the interface that the function is being imported from.
+        interface: Option<&'a WorldKey>,
+
+        /// The function that `index` points within.
+        func: &'a Function,
+
+        /// Whether or not `func` is an exported function or not.
+        export: bool,
+
+        /// The index of the future or stream, as indicated by
+        /// `Function::find_futures_and_streams`.
+        index: usize,
+
+        /// The intrinsic being imported.
+        intrinsic: AsyncIntrinsic,
+
+        /// Whether or not this intrinsic is for a future or a stream.
+        is_future: bool,
+    },
 }
 
 /// Intrinsic definitions to go with [`WasmImport::ResourceIntrinsic`] which
@@ -2700,6 +2761,59 @@ pub enum ResourceIntrinsic {
     ExportedDrop,
     ExportedNew,
     ExportedRep,
+}
+
+/// Intrinsic definitions to go with [`WasmImport::AsyncIntrinsic`] which
+/// also goes with [`Resolve::wasm_import_name`].
+#[derive(Debug, Copy, Clone)]
+pub enum AsyncIntrinsic {
+    New,
+    ReadSync,
+    WriteSync,
+    ReadAsync,
+    WriteAsync,
+    CancelRead,
+    CancelWrite,
+    DropReadable,
+    DropWritable,
+}
+
+impl AsyncIntrinsic {
+    pub const ALL: &[AsyncIntrinsic] = &[
+        Self::New,
+        Self::ReadSync,
+        Self::WriteSync,
+        Self::ReadAsync,
+        Self::WriteAsync,
+        Self::CancelRead,
+        Self::CancelWrite,
+        Self::DropReadable,
+        Self::DropWritable,
+    ];
+}
+
+impl AsyncIntrinsic {
+    pub fn signature(&self, is_future: bool) -> WasmSignature {
+        let sig = |params: &[WasmType], results: &[WasmType]| WasmSignature {
+            params: params.to_vec(),
+            results: results.to_vec(),
+            indirect_params: false,
+            retptr: false,
+        };
+        let op_params = if is_future {
+            &[WasmType::I32; 2][..]
+        } else {
+            &[WasmType::I32; 3][..]
+        };
+        match self {
+            Self::New => sig(&[], &[WasmType::I64]),
+            Self::ReadSync | Self::WriteSync | Self::ReadAsync | Self::WriteAsync => {
+                sig(op_params, &[WasmType::I32])
+            }
+            Self::CancelRead | Self::CancelWrite => sig(&[WasmType::I32], &[WasmType::I32]),
+            Self::DropReadable | Self::DropWritable => sig(&[WasmType::I32], &[]),
+        }
+    }
 }
 
 /// Indicates whether a function export is a normal export, a post-return

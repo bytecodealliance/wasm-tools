@@ -102,12 +102,36 @@ pub struct Future {
     pub interface: Option<String>,
     pub name: Option<String>,
     pub ty: Option<Type>,
+    pub new_elem_index: u32,
+    pub read_async_elem_index: u32,
+    pub write_async_elem_index: u32,
+    pub read_sync_elem_index: u32,
+    pub write_sync_elem_index: u32,
+    pub cancel_read_elem_index: u32,
+    pub cancel_write_elem_index: u32,
+    pub drop_read_elem_index: u32,
+    pub drop_write_elem_index: u32,
+    pub lift_lower_elem_indexes: Option<(u32, u32)>,
+    pub elem_size: usize,
+    pub elem_align: usize,
 }
 
 pub struct Stream {
     pub interface: Option<String>,
     pub name: Option<String>,
     pub ty: Option<Type>,
+    pub new_elem_index: u32,
+    pub read_async_elem_index: u32,
+    pub write_async_elem_index: u32,
+    pub read_sync_elem_index: u32,
+    pub write_sync_elem_index: u32,
+    pub cancel_read_elem_index: u32,
+    pub cancel_write_elem_index: u32,
+    pub drop_read_elem_index: u32,
+    pub drop_write_elem_index: u32,
+    pub lift_lower_elem_indexes: Option<(u32, u32)>,
+    pub elem_size: usize,
+    pub elem_align: usize,
 }
 
 pub struct Alias {
@@ -481,10 +505,43 @@ impl Encoder {
                 interface,
                 name,
                 ty,
+                new_elem_index,
+                read_async_elem_index,
+                write_async_elem_index,
+                read_sync_elem_index,
+                write_sync_elem_index,
+                cancel_read_elem_index,
+                cancel_write_elem_index,
+                drop_read_elem_index,
+                drop_write_elem_index,
+                lift_lower_elem_indexes,
+                elem_size,
+                elem_align,
             } = future;
             self.opt_string_ptr(interface.as_deref());
             self.opt_string_ptr(name.as_deref());
             self.opt_ty(ty.as_ref());
+            self.elem_index(*new_elem_index);
+            self.elem_index(*read_async_elem_index);
+            self.elem_index(*write_async_elem_index);
+            self.elem_index(*read_sync_elem_index);
+            self.elem_index(*write_sync_elem_index);
+            self.elem_index(*cancel_read_elem_index);
+            self.elem_index(*cancel_write_elem_index);
+            self.elem_index(*drop_read_elem_index);
+            self.elem_index(*drop_write_elem_index);
+            match lift_lower_elem_indexes {
+                Some((lift, lower)) => {
+                    self.elem_index(*lift);
+                    self.elem_index(*lower);
+                }
+                None => {
+                    self.put_usize(0);
+                    self.put_usize(0);
+                }
+            }
+            self.put_usize(*elem_size);
+            self.put_usize(*elem_align);
         }
     }
 
@@ -494,10 +551,43 @@ impl Encoder {
                 interface,
                 name,
                 ty,
+                new_elem_index,
+                read_async_elem_index,
+                write_async_elem_index,
+                read_sync_elem_index,
+                write_sync_elem_index,
+                cancel_read_elem_index,
+                cancel_write_elem_index,
+                drop_read_elem_index,
+                drop_write_elem_index,
+                lift_lower_elem_indexes,
+                elem_size,
+                elem_align,
             } = stream;
             self.opt_string_ptr(interface.as_deref());
             self.opt_string_ptr(name.as_deref());
             self.opt_ty(ty.as_ref());
+            self.elem_index(*new_elem_index);
+            self.elem_index(*read_async_elem_index);
+            self.elem_index(*write_async_elem_index);
+            self.elem_index(*read_sync_elem_index);
+            self.elem_index(*write_sync_elem_index);
+            self.elem_index(*cancel_read_elem_index);
+            self.elem_index(*cancel_write_elem_index);
+            self.elem_index(*drop_read_elem_index);
+            self.elem_index(*drop_write_elem_index);
+            match lift_lower_elem_indexes {
+                Some((lift, lower)) => {
+                    self.elem_index(*lift);
+                    self.elem_index(*lower);
+                }
+                None => {
+                    self.put_usize(0);
+                    self.put_usize(0);
+                }
+            }
+            self.put_usize(*elem_size);
+            self.put_usize(*elem_align);
         }
     }
 

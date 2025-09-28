@@ -1,12 +1,16 @@
 //! A helper crate for providing a more ergonomic and safe Rust API over the
 //! `wit_dylib.h` interface.
 //!
-//! The `ffi` module in this crate is the raw `bindgen`-generated Rust bindings
-//! for the C header file. The rest of the crate is the built on top of that.
+//! The [`ffi`] module in this crate is the raw `bindgen`-generated Rust
+//! bindings for the `wit_dylib.h` C header file. The rest of the crate is the
+//! built on top of that.
 //!
-//! A `test_util` module provides a sample implementation of an "interpreter"
-//! which is used for test cases here and can also be a possibly-helpful
-//! reference to an implementation.
+//! The main items in this crate are:
+//!
+//! * [`Interpreter`] - you'll implement this and fill out functionality
+//!   accordingly.
+//! * [`export!`] - used to specify the type that implements [`Interpreter`] and
+//!   defines a bunch of `no_mangle` functions.
 
 #![allow(unsafe_code)]
 #![allow(clippy::allow_attributes_without_reason)]
@@ -20,7 +24,7 @@ use std::ptr;
 /// through the trait methods here.
 #[macro_export]
 macro_rules! export {
-    ($name:ident) => {
+    ($name:ty) => {
         #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_initialize(ptr: *const u8) {
             unsafe { <$name as $crate::RawInterpreter>::raw_initialize(ptr) }
@@ -356,42 +360,123 @@ macro_rules! export {
     };
 }
 
+/// Implementation of an interpreter or the dynamic WIT context.
+///
+/// The type that implements this trait is fed into the [`export!`] macro. This
+/// trait does not have `&self` methods as it is invoked ambiently as wasm
+/// exports with no additional context provided.
+///
 /// # Safety
 ///
 /// `Self::Borrow` and `Self::Own` must have same in-memory representation and
 /// generally represent correct ownership semantics.
 pub trait Interpreter: 'static {
+    /// Contextual state for an export or import call.
+    ///
+    /// This state uses the [`Call`] trait to convert WIT values into the
+    /// interpreter language's values.
     type CallCx<'a>: Call;
 
     /// Startup hook if necessary.
+    ///
+    /// An example of using this would be to read the `wit` provided and define
+    /// language-specific structures in the interpreter such as classes.
     fn initialize(wit: Wit) {
         let _ = wit;
     }
 
+    /// Entrypoint for starting an export call.
+    ///
+    /// This function is invoked at the start of all export being invoked from
+    /// the outside world. The `wit` and `func` arguments provided indicate
+    /// which export is being called. A `Self::CallCx` is returned which is used
+    /// to push/pop values for the rest of the call.
     fn export_start<'a>(wit: Wit, func: Function) -> Box<Self::CallCx<'a>>;
 
+    /// Implementation of dispatcihng an export.
+    ///
+    /// This is called after [`Self::export_start`] and after all arguments have
+    /// been pushed into the `cx` argument via the `wit-dylib`-generated
+    /// function.
+    ///
+    /// This function should dispatch the export call to the language in
+    /// question. When this function returns it must arrange for the language's
+    /// return value, if any, to be present in `cx`. The values will be removed
+    /// and converted to the canonical ABI after this function returns.
     fn export_call(wit: Wit, func: Function, cx: &mut Self::CallCx<'_>);
 
+    /// Async equivalent of [`Self::export_call`].
+    ///
+    /// The main difference with [`Self::export_call`] is that the `cx` argument
+    /// is provided with ownership here. It is the responsibility of this
+    /// function to invoke the `task.return` function when appropriate. This can
+    /// be accessed with [`Function::task_return`]. Note that when doing so it's
+    /// expected that this function's return value will be present in `cx`.
+    ///
+    /// This function returns a future which resolves to no value. The return
+    /// value is signaled through invoking [`Function::task_return`]. The future
+    /// will be executed to represent the component model task being executed.
     fn export_call_async(
         wit: Wit,
         func: Function,
         cx: Box<Self::CallCx<'static>>,
     ) -> impl std::future::Future<Output = ()>;
 
+    /// Optional hook to dispose of a `CallCx`.
+    ///
+    /// The default implementation is to just drop and deallocate it, but the
+    /// interpreter could cache it if desired.
     fn export_finish(cx: Box<Self::CallCx<'_>>, func: Function) {
         let _ = func;
         let _ = cx;
     }
 
+    /// Helper method to dispatch a call to an imported function.
+    ///
+    /// The `interface` and `func` are used to lookup a function within `wit`
+    /// using [`Wit::unwrap_import`]. Afterwards `cx` is then used to pass to
+    /// [`Function::call_import_sync`].
     fn import_call(wit: Wit, interface: Option<&str>, func: &str, cx: &mut Self::CallCx<'_>) {
         let func = wit.unwrap_import(interface, func);
         func.call_import_sync(cx)
     }
 
+    /// Entrypoint for resource destruction.
+    ///
+    /// This is invoked whenever a resource defined by this component is
+    /// destroyed. The `handle` provided is the "rep" internal representation
+    /// that was provided to the resource constructor. This could be, for
+    /// example, an allocated pointer. The `ty` contextual information is also
+    /// provided as for what type of resource is being destroyed.
     fn resource_dtor(ty: Resource, handle: usize);
 }
 
+/// Implementation of a "call context" used for import/export calls.
+///
+/// Invocations of a WIT export or WIT import with `wit-dylib` is modeled as a
+/// "stack" which this trait represents. For example arguments to an exported
+/// function, when called, are pushed into a `Call` implementation. Results are
+/// then popped from the stack. When invoking a WIT import arguments are also
+/// pushed onto the stack, initially, popped by `wit-dylib` intrinsics, and then
+/// the result is pushed via `wit-dylib` intrinsics and made available to the
+/// guest.
+///
+/// Each function here is effectively converting between the canonical ABI of
+/// the component model and this trait's internal representation.
+///
+/// For more documentation of individual functions see the [`wit_dylib.h`]
+/// header file.
+///
+/// [`wit_dylib.h`]: https://github.com/bytecodealliance/wasm-tools/blob/main/crates/wit-dylib/wit_dylib.h
 pub trait Call {
+    /// Defers deallocation of `ptr`, with allocation parameters `layout`, to
+    /// when `Self` is destroyed.
+    ///
+    /// This is required when the interpreters representation of a list doesn't
+    /// match the canonical ABI. For example when passing a `list<T>` to an
+    /// imported function a temporary allocation will be required to convert it
+    /// to the canonical ABI format. This function defers deallocation until the
+    /// call is complete.
     unsafe fn defer_deallocate(&mut self, ptr: *mut u8, layout: Layout);
 
     fn pop_u8(&mut self) -> u8;
@@ -419,6 +504,12 @@ pub trait Call {
     fn pop_record(&mut self, ty: Record);
     fn pop_tuple(&mut self, ty: Tuple);
 
+    /// Attempts to pop a list in canonical ABI form from the stack of the `ty`
+    /// provided.
+    ///
+    /// Returns `None` if the list is not in canonical ABI format. Returns
+    /// `Some` with the pointer/length that match the canonical ABI of `ty`. If
+    /// `None` is returned then `Self::pop_list` will be invoked next.
     unsafe fn maybe_pop_list(&mut self, ty: List) -> Option<(*const u8, usize)> {
         let _ = ty;
         None
@@ -451,6 +542,15 @@ pub trait Call {
     fn push_variant(&mut self, ty: Variant, discr: u32);
     fn push_option(&mut self, ty: WitOption, is_some: bool);
     fn push_result(&mut self, ty: WitResult, is_err: bool);
+
+    /// Attempts to pushes a raw list onto this stack.
+    ///
+    /// If `ptr` and `len` doesn't match this language's representation then
+    /// `false` is returned. Otherwise `true` is returned and `ptr` and `len`
+    /// are an owned allocation now owned by this stack.
+    ///
+    /// If `false` is returned then `push_list` will be invoked next and
+    /// `list_append` will be invoked one-by-one for each element.
     unsafe fn push_raw_list(&mut self, ty: List, ptr: *mut u8, len: usize) -> bool {
         let _ = (ty, ptr, len);
         false
@@ -940,8 +1040,9 @@ pub trait RawInterpreter: Interpreter {
 
 impl<T: Interpreter + ?Sized> RawInterpreter for T {}
 
-#[allow(dead_code, non_camel_case_types)]
-mod ffi;
+/// Raw `bindgen`-generated bindings for `wit_dylib.h`.
+#[allow(non_camel_case_types)]
+pub mod ffi;
 mod types;
 
 pub use self::types::*;

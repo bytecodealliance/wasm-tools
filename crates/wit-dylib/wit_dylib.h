@@ -10,8 +10,8 @@
 // invoke functions. Various other `wit_dylib_*` intrinsics will receive indices
 // relative to the original `wit_t` value.
 
-#ifndef WIT_INTERPRETER_H
-#define WIT_INTERPRETER_H
+#ifndef WIT_DYLIB_H
+#define WIT_DYLIB_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -198,18 +198,98 @@ typedef struct wit_fixed_size_list {
      wit_type_t ty;
 } wit_fixed_size_list_t;
 
+// These callbacks are used in `wit_future_t` and `wit_stream_t` below to
+// lift/lower a single element into a canonical ABI location in memory.
+//
+// The `elem_{size,align}` fields of `wit_{future,stream}_t` dictate the
+// size/alignment required of `ptr`. The `cx` field is forwarded to
+// `wit_dylib_{push,pop}_*` functions as-is.
+//
+// The `wit_async_type_lift_t` type will "lift" a value from the canonical ABI
+// representation into the interpreter's representation. This will be done by
+// callling the appropriate `wit_dylib_push_*` intrinsic.
+//
+// The `wit_async_type_lower_t` type will "lower" a value from the
+// interpreter's representation into the canonical ABI representation. This
+// will be done by callling the appropriate `wit_dylib_pop_*` intrinsic.
+typedef void(*wit_async_type_lift_t)(void *cx, const void *ptr);
+typedef void(*wit_async_type_lower_t)(void *cx, void *ptr);
+
+typedef uint64_t(*wit_future_new_t)(void);
+typedef uint32_t(*wit_future_read_t)(uint32_t handle, void *ptr);
+typedef uint32_t(*wit_future_write_t)(uint32_t handle, const void *ptr);
+typedef uint32_t(*wit_future_cancel_t)(uint32_t handle);
+typedef void(*wit_future_drop_t)(uint32_t handle);
+
 typedef struct wit_future {
      const char *interface;
      const char *name;
      wit_type_t ty;
-     // TODO: include future-related intrinsics for reading/writing
+
+     // Raw component model intrinsics for this future. Note that these
+     // signatures are dictated by the component model itself.
+     wit_future_new_t new;
+     wit_future_read_t read_async;
+     wit_future_write_t write_async;
+     wit_future_read_t read_sync;
+     wit_future_write_t write_sync;
+     wit_future_cancel_t cancel_read;
+     wit_future_cancel_t cancel_write;
+     wit_future_drop_t drop_read;
+     wit_future_drop_t drop_write;
+
+     // Individual element lift/lower for reading/writing to this future.
+     //
+     // These are `NULL` when `ty` is `WIT_TYPE_EMPTY`.
+     wit_async_type_lift_t lift;
+     wit_async_type_lower_t lower;
+
+     // Size, in bytes, of the canonical ABI of `ty`. If `ty` is WIT_TYPE_EMPTY
+     // then this is 0.
+     size_t elem_size;
+     // Alignment, in bytes, of the canonical ABI of `ty`. If `ty` is
+     // WIT_TYPE_EMPTY then this is 1.
+     size_t elem_align;
 } wit_future_t;
+
+typedef uint64_t(*wit_stream_new_t)(void);
+typedef uint32_t(*wit_stream_read_t)(uint32_t handle, void *ptr, size_t len);
+typedef uint32_t(*wit_stream_write_t)(uint32_t handle, const void *ptr, size_t len);
+typedef uint32_t(*wit_stream_cancel_t)(uint32_t handle);
+typedef void(*wit_stream_drop_t)(uint32_t handle);
 
 typedef struct wit_stream {
      const char *interface;
      const char *name;
      wit_type_t ty;
-     // TODO: include stream-related intrinsics for reading/writing
+
+     // Raw component model intrinsics for this future. Note that these
+     // signatures are dictated by the component model itself.
+     wit_stream_new_t new;
+     wit_stream_read_t read_async;
+     wit_stream_write_t write_async;
+     wit_stream_read_t read_sync;
+     wit_stream_write_t write_sync;
+     wit_stream_cancel_t cancel_read;
+     wit_stream_cancel_t cancel_write;
+     wit_stream_drop_t drop_read;
+     wit_stream_drop_t drop_write;
+
+     // Individual element lift/lower for reading/writing to this stream.
+     //
+     // If multiple items are read or multiple items are written then these
+     // functions need to be invoked multiple times.
+     //
+     // These are `NULL` when `ty` is `WIT_TYPE_EMPTY`.
+     wit_async_type_lift_t lift;
+     wit_async_type_lower_t lower;
+
+     // Size, in bytes, of the canonical ABI of `ty`. If `ty` is WIT_TYPE_EMPTY
+     // then this is 0.
+     size_t elem_size;
+     // Alignment, in bytes, of the canonical ABI of `ty`. If `ty` is
+     // WIT_TYPE_EMPTY then this is 1.
+     size_t elem_align;
 } wit_stream_t;
 
 typedef struct wit_alias {

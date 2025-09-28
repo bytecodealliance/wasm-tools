@@ -9,9 +9,9 @@ use wasm_encoder::{
 };
 use wit_parser::abi::{WasmSignature, WasmType};
 use wit_parser::{
-    Handle, LiftLowerAbi, LiveTypes, ManglingAndAbi, Resolve, ResourceIntrinsic, SizeAlign, Type,
-    TypeDefKind, TypeId, TypeOwner, WasmExport, WasmExportKind, WasmImport, WorldId, WorldItem,
-    WorldKey,
+    AsyncIntrinsic, Handle, LiftLowerAbi, LiveTypes, ManglingAndAbi, Resolve, ResourceIntrinsic,
+    SizeAlign, Type, TypeDefKind, TypeId, TypeOwner, WasmExport, WasmExportKind, WasmImport,
+    WorldId, WorldItem, WorldKey,
 };
 
 mod async_;
@@ -81,6 +81,7 @@ struct Adapter {
 struct Imports<'a> {
     wit_imports: Vec<WitImport<'a>>,
     wit_exports: Vec<WitExport<'a>>,
+    wit_async_types: HashMap<TypeId, WitAsyncTypeImports>,
 }
 
 struct WitImport<'a> {
@@ -93,6 +94,18 @@ struct WitExport<'a> {
     interface: Option<&'a WorldKey>,
     func: &'a wit_parser::Function,
     async_task_return_index: Option<u32>,
+}
+
+struct WitAsyncTypeImports {
+    new: u32,
+    read_async: u32,
+    write_async: u32,
+    read_sync: u32,
+    write_sync: u32,
+    cancel_read: u32,
+    cancel_write: u32,
+    drop_read: u32,
+    drop_write: u32,
 }
 
 impl Adapter {
@@ -272,6 +285,8 @@ impl Adapter {
             interface,
             import_index,
         });
+
+        self.add_imported_async_type_intrinsics(resolve, interface, func, true, imports);
     }
 
     fn add_imported_type_intrinsics<'a>(
@@ -393,6 +408,66 @@ impl Adapter {
             func,
             async_task_return_index,
         });
+
+        self.add_imported_async_type_intrinsics(resolve, interface, func, false, ret);
+    }
+
+    fn add_imported_async_type_intrinsics(
+        &mut self,
+        resolve: &Resolve,
+        interface: Option<&WorldKey>,
+        func: &wit_parser::Function,
+        is_import: bool,
+        ret: &mut Imports<'_>,
+    ) {
+        let mangling = self.mangling(resolve, interface, func, is_import);
+        for (i, id) in func
+            .find_futures_and_streams(resolve)
+            .into_iter()
+            .enumerate()
+        {
+            if ret.wit_async_types.contains_key(&id) {
+                continue;
+            }
+
+            let is_future = match &resolve.types[id].kind {
+                TypeDefKind::Future(_) => true,
+                TypeDefKind::Stream(_) => false,
+                _ => unreachable!(),
+            };
+
+            let mut import = |intrinsic: AsyncIntrinsic| {
+                let sig = intrinsic.signature(is_future);
+                let ty = self.define_wasm_sig(sig);
+                let (module, name) = resolve.wasm_import_name(
+                    mangling,
+                    WasmImport::AsyncIntrinsic {
+                        interface,
+                        func,
+                        export: !is_import,
+                        index: i,
+                        intrinsic,
+                        is_future,
+                    },
+                );
+                self.import_func(&module, &name, ty)
+            };
+
+            let ty = WitAsyncTypeImports {
+                new: import(AsyncIntrinsic::New),
+                read_sync: import(AsyncIntrinsic::ReadSync),
+                read_async: import(AsyncIntrinsic::ReadAsync),
+                write_sync: import(AsyncIntrinsic::WriteSync),
+                write_async: import(AsyncIntrinsic::WriteAsync),
+                cancel_read: import(AsyncIntrinsic::CancelRead),
+                cancel_write: import(AsyncIntrinsic::CancelWrite),
+                drop_read: import(AsyncIntrinsic::DropReadable),
+                drop_write: import(AsyncIntrinsic::DropWritable),
+            };
+
+            let prev = ret.wit_async_types.insert(id, ty);
+            assert!(prev.is_none());
+        }
     }
 
     fn bindgen_world(&mut self, resolve: &Resolve, world_id: WorldId, imports: &Imports<'_>) {
@@ -421,7 +496,7 @@ impl Adapter {
                 TypeOwner::Interface(id) => Some(interface_names[&id]),
                 _ => None,
             };
-            self.register_type(resolve, key, ty);
+            self.register_type(resolve, imports, key, ty);
         }
 
         // Using the populated type map for imports generate functions to invoke
@@ -461,7 +536,7 @@ impl Adapter {
                 TypeOwner::Interface(id) => Some(export_names[&id]),
                 _ => None,
             };
-            self.register_type(resolve, key, ty);
+            self.register_type(resolve, imports, key, ty);
 
             if let Some(index) = self.resource_map.get(&ty) {
                 self.bindgen_world_export_resource_dtor(resolve, key.unwrap(), ty, *index);
@@ -480,7 +555,13 @@ impl Adapter {
     /// This will insert `id` into metadata and build up the interpreter data
     /// structures for it. The end-result is the population of `self.type_map`
     /// here.
-    fn register_type(&mut self, resolve: &Resolve, key: Option<&WorldKey>, id: TypeId) {
+    fn register_type(
+        &mut self,
+        resolve: &Resolve,
+        imports: &Imports<'_>,
+        key: Option<&WorldKey>,
+        id: TypeId,
+    ) {
         let ty = &resolve.types[id];
         let interface = key.map(|key| resolve.name_world_key(key));
         let name = ty.name.clone();
@@ -585,20 +666,56 @@ impl Adapter {
             }
             TypeDefKind::Future(t) => {
                 let index = self.metadata.futures.len();
-                self.metadata.futures.push(metadata::Future {
+                let elem_size = t.map(|t| self.sizes.size(&t).size_wasm32()).unwrap_or(0);
+                let elem_align = t.map(|t| self.sizes.align(&t).align_wasm32()).unwrap_or(1);
+                let imports = &imports.wit_async_types[&id];
+                let lift_lower_elem_indexes =
+                    t.map(|t| self.define_async_type_lift_lower(resolve, t));
+                let metadata = metadata::Future {
                     interface,
                     name,
                     ty: t.map(|t| self.lookup_ty(&t)),
-                });
+                    new_elem_index: self.push_elem(imports.new),
+                    read_async_elem_index: self.push_elem(imports.read_async),
+                    write_async_elem_index: self.push_elem(imports.write_async),
+                    read_sync_elem_index: self.push_elem(imports.read_sync),
+                    write_sync_elem_index: self.push_elem(imports.write_sync),
+                    cancel_read_elem_index: self.push_elem(imports.cancel_read),
+                    cancel_write_elem_index: self.push_elem(imports.cancel_write),
+                    drop_read_elem_index: self.push_elem(imports.drop_read),
+                    drop_write_elem_index: self.push_elem(imports.drop_write),
+                    lift_lower_elem_indexes,
+                    elem_size,
+                    elem_align,
+                };
+                self.metadata.futures.push(metadata);
                 metadata::Type::Future(index)
             }
             TypeDefKind::Stream(t) => {
                 let index = self.metadata.streams.len();
-                self.metadata.streams.push(metadata::Stream {
+                let elem_size = t.map(|t| self.sizes.size(&t).size_wasm32()).unwrap_or(0);
+                let elem_align = t.map(|t| self.sizes.align(&t).align_wasm32()).unwrap_or(1);
+                let imports = &imports.wit_async_types[&id];
+                let lift_lower_elem_indexes =
+                    t.map(|t| self.define_async_type_lift_lower(resolve, t));
+                let metadata = metadata::Stream {
                     interface,
                     name,
                     ty: t.map(|t| self.lookup_ty(&t)),
-                });
+                    new_elem_index: self.push_elem(imports.new),
+                    read_async_elem_index: self.push_elem(imports.read_async),
+                    write_async_elem_index: self.push_elem(imports.write_async),
+                    read_sync_elem_index: self.push_elem(imports.read_sync),
+                    write_sync_elem_index: self.push_elem(imports.write_sync),
+                    cancel_read_elem_index: self.push_elem(imports.cancel_read),
+                    cancel_write_elem_index: self.push_elem(imports.cancel_write),
+                    drop_read_elem_index: self.push_elem(imports.drop_read),
+                    drop_write_elem_index: self.push_elem(imports.drop_write),
+                    lift_lower_elem_indexes,
+                    elem_size,
+                    elem_align,
+                };
+                self.metadata.streams.push(metadata);
                 metadata::Type::Stream(index)
             }
             TypeDefKind::Type(t) => {
@@ -646,6 +763,15 @@ impl Adapter {
             // simple lookup.
             Type::Id(id) => self.type_map[id],
         }
+    }
+
+    fn define_async_type_lift_lower(&mut self, resolve: &Resolve, ty: Type) -> (u32, u32) {
+        let lift = bindgen::lift_from_memory(self, resolve, ty);
+        let lower = bindgen::lower_to_memory(self, resolve, ty);
+        let ty = self.define_ty([ValType::I32; 2], []);
+        let lift = self.define_func("lift-one", ty, lift, false);
+        let lower = self.define_func("lower-one", ty, lower, false);
+        (self.push_elem(lift), self.push_elem(lower))
     }
 
     fn bindgen_world_func_import(&mut self, resolve: &Resolve, import: &WitImport<'_>) {

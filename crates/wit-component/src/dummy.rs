@@ -1,7 +1,7 @@
 use wit_parser::abi::WasmType;
 use wit_parser::{
-    Function, LiftLowerAbi, ManglingAndAbi, Resolve, ResourceIntrinsic, TypeDefKind, TypeId,
-    WasmExport, WasmExportKind, WasmImport, WorldId, WorldItem, WorldKey,
+    AsyncIntrinsic, Function, LiftLowerAbi, ManglingAndAbi, Resolve, ResourceIntrinsic,
+    TypeDefKind, TypeId, WasmExport, WasmExportKind, WasmImport, WorldId, WorldItem, WorldKey,
 };
 
 /// Generate a dummy implementation core Wasm module for a given WIT document
@@ -98,7 +98,7 @@ fn push_imported_func(
     wat.push_str("))\n");
 
     if mangling.is_async() {
-        push_imported_future_and_stream_intrinsics(wat, resolve, "", interface, func);
+        push_imported_future_and_stream_intrinsics(wat, resolve, interface, func, false, mangling);
     }
 }
 
@@ -156,67 +156,44 @@ fn push_exported_func_intrinsics(
     push_tys(wat, "result", &sig.results);
     wat.push_str("))\n");
 
-    push_imported_future_and_stream_intrinsics(wat, resolve, "[export]", interface, func);
+    push_imported_future_and_stream_intrinsics(wat, resolve, interface, func, true, mangling);
 }
 
 fn push_imported_future_and_stream_intrinsics(
     wat: &mut String,
     resolve: &Resolve,
-    module_prefix: &str,
     interface: Option<&WorldKey>,
     func: &Function,
+    export: bool,
+    mangling: ManglingAndAbi,
 ) {
-    let module = match interface {
-        Some(key) => format!("{module_prefix}{}", resolve.name_world_key(key)),
-        None => format!("{module_prefix}$root"),
-    };
-    let name = &func.name;
-
     for (i, id) in func
         .find_futures_and_streams(resolve)
         .into_iter()
         .enumerate()
     {
-        match &resolve.types[id].kind {
-            TypeDefKind::Future(_) => {
-                wat.push_str(&format!(
-                    r#"
-(import {module:?} "[future-new-{i}]{name}" (func (result i64)))
-(import {module:?} "[future-read-{i}]{name}" (func (param i32 i32) (result i32)))
-(import {module:?} "[future-write-{i}]{name}" (func (param i32 i32) (result i32)))
-(import {module:?} "[future-cancel-read-{i}]{name}" (func (param i32) (result i32)))
-(import {module:?} "[future-cancel-write-{i}]{name}" (func (param i32) (result i32)))
-(import {module:?} "[future-drop-readable-{i}]{name}" (func (param i32)))
-(import {module:?} "[future-drop-writable-{i}]{name}" (func (param i32)))
-(import {module:?} "[async-lower][future-read-{i}]{name}" (func (param i32 i32) (result i32)))
-(import {module:?} "[async-lower][future-write-{i}]{name}" (func (param i32 i32) (result i32)))
-
-;; deferred behind 🚝
-;;(import {module:?} "[async-lower][future-cancel-read-{i}]{name}" (func (param i32) (result i32)))
-;;(import {module:?} "[async-lower][future-cancel-write-{i}]{name}" (func (param i32) (result i32)))
-"#
-                ));
-            }
-            TypeDefKind::Stream(_) => {
-                wat.push_str(&format!(
-                    r#"
-(import {module:?} "[stream-new-{i}]{name}" (func (result i64)))
-(import {module:?} "[stream-read-{i}]{name}" (func (param i32 i32 i32) (result i32)))
-(import {module:?} "[stream-write-{i}]{name}" (func (param i32 i32 i32) (result i32)))
-(import {module:?} "[stream-cancel-read-{i}]{name}" (func (param i32) (result i32)))
-(import {module:?} "[stream-cancel-write-{i}]{name}" (func (param i32) (result i32)))
-(import {module:?} "[stream-drop-readable-{i}]{name}" (func (param i32)))
-(import {module:?} "[stream-drop-writable-{i}]{name}" (func (param i32)))
-(import {module:?} "[async-lower][stream-read-{i}]{name}" (func (param i32 i32 i32) (result i32)))
-(import {module:?} "[async-lower][stream-write-{i}]{name}" (func (param i32 i32 i32) (result i32)))
-
-;; deferred behind 🚝
-;;(import {module:?} "[async-lower][stream-cancel-read-{i}]{name}" (func (param i32) (result i32)))
-;;(import {module:?} "[async-lower][stream-cancel-write-{i}]{name}" (func (param i32) (result i32)))
-"#
-                ));
-            }
+        let is_future = match &resolve.types[id].kind {
+            TypeDefKind::Future(_) => true,
+            TypeDefKind::Stream(_) => false,
             _ => unreachable!(),
+        };
+        for intrinsic in AsyncIntrinsic::ALL.iter().copied() {
+            let (module, name) = resolve.wasm_import_name(
+                mangling,
+                WasmImport::AsyncIntrinsic {
+                    interface,
+                    func,
+                    intrinsic,
+                    index: i,
+                    is_future,
+                    export,
+                },
+            );
+            let sig = intrinsic.signature(is_future);
+            wat.push_str(&format!("(import {module:?} {name:?} (func"));
+            push_tys(wat, "param", &sig.params);
+            push_tys(wat, "result", &sig.results);
+            wat.push_str("))\n");
         }
     }
 }
