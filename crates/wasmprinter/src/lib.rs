@@ -7,7 +7,7 @@
 //! and debugging and such.
 
 #![deny(missing_docs)]
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 use anyhow::{Context, Result, anyhow, bail};
 use operator::{OpPrinter, OperatorSeparator, OperatorState, PrintOperator, PrintOperatorFolded};
