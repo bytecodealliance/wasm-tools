@@ -52,7 +52,7 @@
 //! The design and implementation strategy of wasm-smith is outlined in
 //! [this article](https://fitzgeraldnick.com/2020/08/24/writing-a-test-case-generator.html).
 
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_docs, missing_debug_implementations)]
 // Needed for the `instructions!` macro in `src/code_builder.rs`.
 #![recursion_limit = "512"]

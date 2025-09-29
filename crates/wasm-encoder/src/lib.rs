@@ -69,7 +69,7 @@
 //! assert!(wasmparser::validate(&wasm_bytes).is_ok());
 //! ```
 
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![no_std]
 #![deny(missing_docs, missing_debug_implementations)]
 
