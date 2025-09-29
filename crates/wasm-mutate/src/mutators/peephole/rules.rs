@@ -3,7 +3,7 @@
 //! New rewriting rules should be declared inside the
 //! [`get_rules`](/src/wasm_mutate/mutators/peephole/rules.rs.html#17) function.
 
-use egg::{Id, Rewrite, Subst, rewrite};
+use egg::{Id, Rewrite, Subst};
 
 use crate::{WasmMutate, module::PrimitiveTypeInfo};
 
