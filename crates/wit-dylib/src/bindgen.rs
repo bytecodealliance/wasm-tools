@@ -206,7 +206,7 @@ pub fn async_import_abi_area_types<'a>(
 /// Async parameters, if indirect, and async results, always, are required to be
 /// in a long-lived location outside of the original call itself. This function
 /// returns the offset from the start of this allocation to the return value.
-/// This is plubmed through to the guest in `async_abi_area_{size,align}`.
+/// This is plumbed through to the guest in `async_abi_area_{size,align}`.
 fn async_import_retptr_offset(
     adapter: &mut Adapter,
     resolve: &Resolve,
