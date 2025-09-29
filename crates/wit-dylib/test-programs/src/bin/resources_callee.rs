@@ -1,6 +1,3 @@
-#![allow(clippy::allow_attributes_without_reason)]
-#![allow(unsafe_code)]
-
 use test_programs::*;
 
 export_test!(struct MyInterpreter);
@@ -21,14 +18,13 @@ impl TestCase for MyInterpreter {
                     unreachable!();
                 };
 
-                let ret = unsafe { ty.new().unwrap()(100) };
-                Some(Val::Own(ret))
+                Some(Val::Own(Own::new(ty, 100)))
             }
             "[method]a.frob" => {
                 assert_eq!(func.params().len(), 1);
                 assert!(func.result().is_none());
                 assert_eq!(args.len(), 1);
-                let Val::Borrow(handle) = args.next().unwrap() else {
+                let Val::Borrow(Borrow::Rep(handle)) = args.next().unwrap() else {
                     unreachable!();
                 };
                 assert_eq!(handle, 100);

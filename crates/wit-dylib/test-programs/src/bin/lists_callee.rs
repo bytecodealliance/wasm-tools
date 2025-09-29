@@ -29,6 +29,22 @@ impl TestCase for MyInterpreter {
                 let bytes = alloc::get();
                 Some(Val::U32(bytes.try_into().unwrap()))
             }
+
+            "list-of-variants" => {
+                assert_eq!(func.params().len(), 1);
+                assert!(func.result().is_none());
+                assert_eq!(args.len(), 1);
+                let arg = args.next().unwrap();
+                assert_eq!(
+                    arg,
+                    Val::GenericList(vec![
+                        Val::GenericList(vec![Val::Option(None)]),
+                        Val::GenericList(vec![Val::Option(None)]),
+                    ]),
+                );
+                None
+            }
+
             other => panic!("unknown function {other:?}"),
         }
     }

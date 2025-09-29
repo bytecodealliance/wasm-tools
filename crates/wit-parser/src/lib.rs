@@ -1109,6 +1109,13 @@ impl ManglingAndAbi {
             | Self::Legacy(LiftLowerAbi::AsyncStackful) => true,
         }
     }
+
+    pub fn mangling(&self) -> Mangling {
+        match self {
+            Self::Standard32 => Mangling::Standard32,
+            Self::Legacy(_) => Mangling::Legacy,
+        }
+    }
 }
 
 impl Function {
@@ -1200,6 +1207,37 @@ impl Function {
 
         return containing_resource_id == returned_resource_id;
     }
+
+    /// Returns the `module`, `name`, and signature to use when importing this
+    /// function's `task.return` intrinsic using the `mangling` specified.
+    pub fn task_return_import(
+        &self,
+        resolve: &Resolve,
+        interface: Option<&WorldKey>,
+        mangling: Mangling,
+    ) -> (String, String, abi::WasmSignature) {
+        match mangling {
+            Mangling::Standard32 => todo!(),
+            Mangling::Legacy => {}
+        }
+        // For exported async functions, generate a `task.return` intrinsic.
+        let module = match interface {
+            Some(key) => format!("[export]{}", resolve.name_world_key(key)),
+            None => "[export]$root".to_string(),
+        };
+        let name = format!("[task-return]{}", self.name);
+
+        let mut func_tmp = self.clone();
+        func_tmp.params = Vec::new();
+        func_tmp.result = None;
+        if let Some(ty) = self.result {
+            func_tmp.params.push(("x".to_string(), ty));
+        }
+        let sig = resolve.wasm_signature(AbiVariant::GuestImport, &func_tmp);
+        (module, name, sig)
+    }
+
+    // push_imported_future_and_stream_intrinsics(wat, resolve, "[export]", interface, func);
 }
 
 fn find_futures_and_streams(resolve: &Resolve, ty: Type, results: &mut Vec<TypeId>) {

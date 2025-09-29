@@ -52,11 +52,12 @@ impl Opts {
         self.io.general_opts()
     }
 
-    pub fn run(self) -> Result<()> {
+    pub fn run(mut self) -> Result<()> {
         let (resolve, pkg_id) = self.resolve.load()?;
         let world = resolve.select_world(&[pkg_id], self.world.as_deref())?;
 
-        let mut wasm = wit_dylib::create(&resolve, world, Some(&self.dylib_opts));
+        let mut wasm = wit_dylib::create(&resolve, world, Some(&mut self.dylib_opts));
+        self.dylib_opts.async_.ensure_all_used()?;
 
         embed_component_metadata(
             &mut wasm,

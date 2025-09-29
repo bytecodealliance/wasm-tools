@@ -8,11 +8,16 @@
 //! language. Note that it's specialized here for precise testing against WIT
 //! semantics.
 
-#![allow(unsafe_code)]
+#![allow(unsafe_code, async_fn_in_trait)]
 #![allow(clippy::allow_attributes_without_reason)]
 
+use std::alloc::Layout;
 use std::borrow::Cow;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
 pub use wit_dylib_ffi::*;
+
+pub mod generate;
 
 #[macro_export]
 macro_rules! export_test {
@@ -23,7 +28,16 @@ macro_rules! export_test {
     };
 }
 
-pub trait TestCase {
+pub const DEBUG: bool = false;
+
+#[macro_export]
+macro_rules! dprintln {
+    ($($t:tt)*) => (if $crate::DEBUG {
+        println!($($t)*);
+    })
+}
+
+pub trait TestCase: 'static {
     fn initialize(wit: Wit) {
         let _ = wit;
     }
@@ -34,10 +48,36 @@ pub trait TestCase {
         args: impl ExactSizeIterator<Item = Val>,
     ) -> Option<Val>;
 
+    async fn call_export_async(
+        wit: Wit,
+        func: Function,
+        args: impl ExactSizeIterator<Item = Val>,
+    ) -> Option<Val> {
+        let _ = (wit, func, args);
+        unimplemented!();
+    }
+
     fn call_import(wit: Wit, interface: Option<&str>, func: &str, args: &[Val]) -> Option<Val> {
+        Self::call_import_func(wit.unwrap_import(interface, func), args)
+    }
+
+    fn call_import_func(func: Function, args: &[Val]) -> Option<Val> {
+        call_import_func(func, args)
+    }
+
+    async fn call_import_async(
+        wit: Wit,
+        interface: Option<&str>,
+        func: &str,
+        args: &[Val],
+    ) -> Option<Val> {
+        Self::call_import_func_async(wit.unwrap_import(interface, func), args).await
+    }
+
+    async fn call_import_func_async(func: Function, args: &[Val]) -> Option<Val> {
         let mut cx = Cx::default();
         cx.stack.extend(args.iter().rev().map(Cow::Borrowed));
-        <Test<Self>>::import_call(wit, interface, func, &mut cx);
+        func.call_import_async(&mut cx).await;
         cx.stack.pop().map(|i| i.into_owned())
     }
 
@@ -47,12 +87,30 @@ pub trait TestCase {
     }
 }
 
+fn call_import_func(func: Function, args: &[Val]) -> Option<Val> {
+    let mut cx = Cx::default();
+    cx.stack.extend(args.iter().rev().map(Cow::Borrowed));
+    func.call_import_sync(&mut cx);
+    cx.stack.pop().map(|i| i.into_owned())
+}
+
 #[derive(Default)]
 pub struct Cx<'a> {
     stack: Vec<Cow<'a, Val>>,
     temp_strings: Vec<String>,
     temp_bytes: Vec<Vec<u8>>,
     iterators: Vec<CowIter<'a>>,
+    deferred_deallocs: Vec<(*mut u8, Layout)>,
+}
+
+impl Drop for Cx<'_> {
+    fn drop(&mut self) {
+        for (ptr, layout) in self.deferred_deallocs.drain(..) {
+            unsafe {
+                std::alloc::dealloc(ptr, layout);
+            }
+        }
+    }
 }
 
 enum CowIter<'a> {
@@ -91,6 +149,18 @@ impl<T: TestCase + ?Sized> Interpreter for Test<T> {
         }
     }
 
+    async fn export_call_async(wit: Wit, func: Function, mut cx: Box<Self::CallCx<'static>>) {
+        match T::call_export_async(wit, func, cx.stack.drain(..).map(|v| v.into_owned())).await {
+            Some(val) => cx.push_own(val),
+            None => {}
+        }
+
+        unsafe {
+            let cx: *mut Self::CallCx<'_> = &mut *cx;
+            func.task_return().unwrap()(cx.cast())
+        }
+    }
+
     fn resource_dtor(ty: Resource, handle: usize) {
         T::resource_dtor(ty, handle)
     }
@@ -125,6 +195,10 @@ impl<'a> Cx<'a> {
 }
 
 impl Call for Cx<'_> {
+    unsafe fn defer_deallocate(&mut self, ptr: *mut u8, layout: Layout) {
+        self.deferred_deallocs.push((ptr, layout));
+    }
+
     fn pop_u8(&mut self) -> u8 {
         match *self.always_pop() {
             Val::U8(val) => val,
@@ -273,25 +347,34 @@ impl Call for Cx<'_> {
     }
 
     fn pop_borrow(&mut self, _ty: Resource) -> u32 {
-        match *self.always_pop() {
-            Val::Borrow(val) => val,
+        match &*self.always_pop() {
+            Val::Borrow(val) => val.handle(),
             _ => invalid(),
         }
     }
 
-    fn push_borrow(&mut self, _ty: Resource, val: u32) {
-        self.push_own(Val::Borrow(val))
+    fn push_borrow(&mut self, ty: Resource, val: u32) {
+        self.push_own(Val::Borrow(if ty.new().is_some() {
+            Borrow::Rep(val)
+        } else {
+            Borrow::Handle(ty, val)
+        }))
     }
 
     fn pop_own(&mut self, _ty: Resource) -> u32 {
-        match *self.always_pop() {
-            Val::Own(val) => val,
+        match &*self.always_pop() {
+            Val::Own(val) => val.take_handle(),
             _ => invalid(),
         }
     }
 
-    fn push_own(&mut self, _ty: Resource, val: u32) {
-        self.push_own(Val::Own(val))
+    fn push_own(&mut self, ty: Resource, handle: u32) {
+        self.push_own(Val::Own(Own {
+            inner: Arc::new(OwnInner {
+                ty,
+                handle: handle.into(),
+            }),
+        }))
     }
 
     fn pop_future(&mut self, _ty: Future) -> u32 {
@@ -532,8 +615,8 @@ pub enum Val {
     F64(f64),
     Bool(bool),
     Char(char),
-    Borrow(u32),
-    Own(u32),
+    Borrow(Borrow),
+    Own(Own),
     Flags(u32),
     Enum(u32),
     Future(u32),
@@ -546,6 +629,110 @@ pub enum Val {
     Variant(u32, Option<Box<Val>>),
     GenericList(Vec<Val>),
     ByteList(Vec<u8>),
+}
+
+#[derive(Clone, Debug)]
+pub enum Borrow {
+    Rep(u32),
+    Handle(Resource, u32),
+}
+
+impl Borrow {
+    fn handle(&self) -> u32 {
+        match self {
+            // can't return borrows from functions, meaning that this shouldn't
+            // ever get hit.
+            Borrow::Rep(_) => unreachable!(),
+            Borrow::Handle(_, handle) => *handle,
+        }
+    }
+}
+
+impl PartialEq for Borrow {
+    fn eq(&self, other: &Borrow) -> bool {
+        match (self, other) {
+            (Self::Rep(a), Self::Rep(b)) => a == b,
+            (Self::Rep(_), _) => false,
+            // just compare types since handles don't have meaning and we
+            // otherwise can't generically look into the handle itself
+            (Self::Handle(a, _), Self::Handle(b, _)) => a == b,
+            (Self::Handle(..), _) => false,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Own {
+    inner: Arc<OwnInner>,
+}
+
+impl Own {
+    pub fn new(ty: Resource, rep: usize) -> Own {
+        Own {
+            inner: Arc::new(OwnInner {
+                ty,
+                handle: unsafe { ty.new().unwrap()(rep).into() },
+            }),
+        }
+    }
+
+    pub fn borrow(&self) -> Borrow {
+        Borrow::Handle(self.inner.ty, self.handle())
+    }
+
+    pub fn handle(&self) -> u32 {
+        self.inner.handle()
+    }
+
+    fn take_handle(&self) -> u32 {
+        match self.inner.handle.swap(0, Relaxed) {
+            0 => panic!("handle already taken"),
+            other => other,
+        }
+    }
+}
+
+#[derive(Debug)]
+struct OwnInner {
+    ty: Resource,
+    handle: AtomicU32,
+}
+
+impl OwnInner {
+    fn handle(&self) -> u32 {
+        match self.handle.load(Relaxed) {
+            0 => panic!("handle already taken"),
+            other => other,
+        }
+    }
+}
+
+impl PartialEq for OwnInner {
+    fn eq(&self, other: &OwnInner) -> bool {
+        if self.ty != other.ty {
+            return false;
+        }
+        let rep = match self.ty.rep() {
+            Some(rep) => rep,
+            // just compare types since handles don't have meaning and we
+            // otherwise can't generically look into the handle itself
+            //
+            // TODO: this means that resource equality in the caller component
+            // in roundtrip testing isn't testing reps, only the callee
+            // component is testing reps.
+            None => return true,
+        };
+        unsafe { rep(self.handle()) == rep(other.handle()) }
+    }
+}
+
+impl Drop for OwnInner {
+    fn drop(&mut self) {
+        match *self.handle.get_mut() {
+            0 => {}
+            n => unsafe { self.ty.drop()(n) },
+        }
+    }
 }
 
 #[cold]
@@ -593,17 +780,37 @@ pub mod alloc {
     /// constant.
     pub struct Guard {
         me_before: usize,
+        slop: usize,
     }
 
     impl Guard {
         pub fn new() -> Guard {
-            Guard { me_before: get() }
+            Guard {
+                me_before: get(),
+                slop: 0,
+            }
+        }
+
+        pub fn sloppy(slop: usize) -> Guard {
+            Guard {
+                me_before: get(),
+                slop,
+            }
         }
     }
 
     impl Drop for Guard {
         fn drop(&mut self) {
-            assert_eq!(self.me_before, get());
+            if self.slop == 0 {
+                assert_eq!(self.me_before, get());
+            } else {
+                assert!(
+                    self.me_before + self.slop > get(),
+                    "before: {}, after: {}",
+                    self.me_before,
+                    get(),
+                );
+            }
         }
     }
 }

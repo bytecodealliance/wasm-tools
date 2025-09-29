@@ -1,6 +1,3 @@
-#![allow(clippy::allow_attributes_without_reason)]
-#![allow(unsafe_code)]
-
 use test_programs::*;
 
 export_test!(struct MyInterpreter);
@@ -55,16 +52,12 @@ impl TestCase for MyInterpreter {
                 let Val::String(s) = args.next().unwrap() else {
                     panic!()
                 };
-                let Val::Own(r1) = args.next().unwrap() else {
+                let Val::Own(_) = args.next().unwrap() else {
                     panic!()
                 };
-                let Val::Own(r2) = args.next().unwrap() else {
+                let Val::Own(_) = args.next().unwrap() else {
                     panic!()
                 };
-                unsafe {
-                    p4.drop()(r1);
-                    p5.drop()(r2);
-                }
                 assert_eq!(s, "x");
                 None
             }
@@ -72,7 +65,7 @@ impl TestCase for MyInterpreter {
                 let Type::Own(ty) = func.result().unwrap() else {
                     panic!()
                 };
-                unsafe { Some(Val::Own(ty.new().unwrap()(100))) }
+                Some(Val::Own(Own::new(ty, 100)))
             }
             other => panic!("unknown function {other:?}"),
         }

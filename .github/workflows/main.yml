@@ -102,7 +102,7 @@ jobs:
             rust: msrv
             # skip testing crates that require wasmtime since wasmtime has a
             # more aggressive msrv than wasm-tools
-            flags: --exclude fuzz-stats --exclude wit-component --exclude wasm-mutate-stats --exclude wit-dylib
+            flags: --exclude fuzz-stats --exclude wit-component --exclude wasm-mutate-stats --exclude wit-dylib --exclude wit-dylib-ffi --exclude test-programs
           # this is the rust nightly that oss-fuzz currently uses so we don't
           # want this to break.
           - os: ubuntu-latest
@@ -188,7 +188,8 @@ jobs:
           --exclude fuzz-stats \
           --exclude wasm-tools-fuzz \
           --exclude wasm-mutate-stats \
-          --exclude dl
+          --exclude dl \
+          --exclude test-programs
 
   rustfmt:
     name: Rustfmt

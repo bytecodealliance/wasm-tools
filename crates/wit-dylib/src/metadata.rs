@@ -25,9 +25,13 @@ pub struct Metadata {
 pub struct Func {
     pub interface: Option<String>,
     pub name: String,
-    pub elem_index: Option<u32>,
+    pub sync_import_elem_index: Option<u32>,
+    pub async_import_elem_index: Option<u32>,
+    pub async_import_lift_results_elem_index: Option<u32>,
+    pub async_export_task_return_elem_index: Option<u32>,
     pub args: Vec<Type>,
     pub result: Option<Type>,
+    pub async_abi_area: Option<(usize, usize)>,
 }
 
 pub struct Resource {
@@ -255,15 +259,32 @@ impl Encoder {
             let Func {
                 interface,
                 name,
-                elem_index,
+                sync_import_elem_index,
+                async_import_elem_index,
+                async_import_lift_results_elem_index,
+                async_export_task_return_elem_index,
                 args,
                 result,
+                async_abi_area,
             } = func;
             self.opt_string_ptr(interface.as_deref());
             self.string_ptr(name);
-            self.opt_elem_index(*elem_index);
+            self.opt_elem_index(*sync_import_elem_index);
+            self.opt_elem_index(*async_import_elem_index);
+            self.opt_elem_index(*async_import_lift_results_elem_index);
+            self.opt_elem_index(*async_export_task_return_elem_index);
             self.list(args, &mut deferred_args);
             self.opt_ty(result.as_ref());
+            match async_abi_area {
+                Some((size, align)) => {
+                    self.put_usize(*size);
+                    self.put_usize(*align);
+                }
+                None => {
+                    self.put_usize(0);
+                    self.put_usize(0);
+                }
+            }
         }
 
         for (sym, args) in deferred_args {

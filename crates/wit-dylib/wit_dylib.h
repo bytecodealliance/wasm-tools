@@ -53,14 +53,66 @@ typedef uint32_t wit_type_t;
 #define WIT_TYPE_EMPTY 0xff
 
 typedef void(*wit_import_fn_t)(void* cx);
+typedef uint32_t(*wit_import_async_fn_t)(void* cx, void *abi_area);
+typedef void(*wit_import_async_lift_fn_t)(void* cx, void *abi_area);
+typedef void(*wit_export_task_return_fn_t)(void* cx);
 
 typedef struct wit_func {
      const char *interface;
      const char *name;
-     wit_import_fn_t impl; // nullable
+
+     // If this is an imported function, and the function is imported for
+     // synchronous invocation, this field will be non-null.
+     //
+     // This function pointer takes a single `void*` argument which is the
+     // context for the call. The context will be passed to various
+     // `wit_dylib_*` intrinsics below for pushing/popping values from the stack
+     // contained within `cx`.
+     //
+     // If this function is an exported function, or it's imported as an async
+     // function, then this field will be null.
+     wit_import_fn_t impl;
+
+     // If this is an imported function and the function is imported for
+     // asynchronous invocation these two fields will be non-null.
+     //
+     // The `async_impl` field is a function pointer that starts the async
+     // import. This function call takes a `void *cx` just like `impl` above,
+     // and it must stay alive for the entire invocation of the async imported
+     // function. The second parameter of `async_impl` is an in-memory
+     // allocation that must be of `async_abi_area_size` bytes aligned to
+     // `async_abi_area_align`. This must also live for the duration of the
+     // entire call and will be used to store canonical ABI values/results.
+     // The return value from `async_impl` is the component-model status code
+     // for the import's return value.
+     //
+     // The `async_lift_impl` field can be used once the component model
+     // indicates that the function call is complete. The two parameters to
+     // `async_lift_impl` as the same as `async_impl`. The `async_lift_impl`
+     // function will use `wit_dylib_push_*` to translate from the canonical ABI
+     // onto the stack within `cx`.
+     //
+     // These two fields are null for exported functions or sync imported
+     // functions.
+     wit_import_async_fn_t async_impl;
+     wit_import_async_lift_fn_t async_lift_impl;
+
+     // For exported functions which are exported as `async` this is the
+     // `task.return` intrinsic to invoke.
+     //
+     // This function takes a single parameter which is a `void *cx` which is
+     // used when passing to `wit_dylib_pop_*` functions. This must be used
+     // to indicate the return value of an async function.
+     wit_export_task_return_fn_t task_return;
+
      size_t nparams;
      const wit_type_t *params;
      wit_type_t result;
+
+     // Only meaningful if `async_impl` is non-null, otherwise
+     // `async_abi_area_{size,align}` are set to zero.
+     size_t async_abi_area_size;
+     size_t async_abi_area_align;
 } wit_func_t;
 
 typedef void(*wit_resource_drop_t)(uint32_t);
@@ -208,7 +260,19 @@ typedef struct wit {
 void wit_dylib_initialize(const wit_t* wit);
 
 // Generic byte deallocation function.
-void wit_dylib_dealloc_bytes(void *ptr, size_t byte_size, size_t align);
+//
+// This function will deallocate the `ptr` provided which was previously
+// allocated with `cabi_realloc` which has `byte_size` bytes and `align`
+// alignment.
+//
+// Note that if `defer` is set to `true` then this deallocation should happen
+// when `cx` is deallocated, not right now. If `defer` is set to `false` then
+// the deallocation can happen right now. The `defer` flag will be set
+// when a list is translated into the canonical ABI format when passing to an
+// import call or returning from an export. In this situation the deallocation
+// needs to happen after the ABI value is read, such as after the import call
+// or during post-return of the export.
+void wit_dylib_dealloc_bytes(void *cx, void *ptr, size_t byte_size, size_t align, bool defer);
 
 // Entrypoints for WIT exports.
 //

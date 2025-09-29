@@ -11,6 +11,7 @@
 #![allow(unsafe_code)]
 #![allow(clippy::allow_attributes_without_reason)]
 
+use std::alloc::Layout;
 use std::ptr;
 
 /// Macro to specify a struct name which implements the `Interpreter` trait.
@@ -27,11 +28,17 @@ macro_rules! export {
 
         #[no_mangle]
         pub unsafe extern "C" fn wit_dylib_dealloc_bytes(
+            cx: *mut u8,
             ptr: *mut u8,
             byte_size: usize,
             align: usize,
+            defer: bool,
         ) {
-            unsafe { <$name as $crate::RawInterpreter>::raw_dealloc_bytes(ptr, byte_size, align) }
+            unsafe {
+                <$name as $crate::RawInterpreter>::raw_dealloc_bytes(
+                    cx, ptr, byte_size, align, defer,
+                )
+            }
         }
 
         #[no_mangle]
@@ -42,6 +49,21 @@ macro_rules! export {
         #[no_mangle]
         pub extern "C" fn wit_dylib_export_call(cx: *mut u8, which: usize) {
             unsafe { <$name as $crate::RawInterpreter>::raw_export_call(cx, which) }
+        }
+
+        #[no_mangle]
+        pub extern "C" fn wit_dylib_export_async_call(cx: *mut u8, which: usize) -> u32 {
+            unsafe { <$name as $crate::RawInterpreter>::raw_export_async_call(cx, which) }
+        }
+
+        #[no_mangle]
+        pub extern "C" fn wit_dylib_export_async_callback(
+            a: u32,
+            b: u32,
+            c: u32,
+            which: usize,
+        ) -> u32 {
+            unsafe { <$name as $crate::RawInterpreter>::raw_export_async_callback(a, b, c, which) }
         }
 
         #[no_mangle]
@@ -338,7 +360,7 @@ macro_rules! export {
 ///
 /// `Self::Borrow` and `Self::Own` must have same in-memory representation and
 /// generally represent correct ownership semantics.
-pub trait Interpreter {
+pub trait Interpreter: 'static {
     type CallCx<'a>: Call;
 
     /// Startup hook if necessary.
@@ -350,6 +372,12 @@ pub trait Interpreter {
 
     fn export_call(wit: Wit, func: Function, cx: &mut Self::CallCx<'_>);
 
+    fn export_call_async(
+        wit: Wit,
+        func: Function,
+        cx: Box<Self::CallCx<'static>>,
+    ) -> impl std::future::Future<Output = ()>;
+
     fn export_finish(cx: Box<Self::CallCx<'_>>, func: Function) {
         let _ = func;
         let _ = cx;
@@ -357,19 +385,15 @@ pub trait Interpreter {
 
     fn import_call(wit: Wit, interface: Option<&str>, func: &str, cx: &mut Self::CallCx<'_>) {
         let func = wit.unwrap_import(interface, func);
-
-        // Invoke the actual import which is provided through metadata.
-        let import_impl = func.import_impl().unwrap();
-        unsafe {
-            let cx: *mut _ = cx;
-            import_impl(cx.cast());
-        }
+        func.call_import_sync(cx)
     }
 
     fn resource_dtor(ty: Resource, handle: usize);
 }
 
 pub trait Call {
+    unsafe fn defer_deallocate(&mut self, ptr: *mut u8, layout: Layout);
+
     fn pop_u8(&mut self) -> u8;
     fn pop_u16(&mut self) -> u16;
     fn pop_u32(&mut self) -> u32;
@@ -439,7 +463,7 @@ static mut WIT_T: *const ffi::wit_t = ptr::null_mut();
 
 macro_rules! debug_println {
     ($($t:tt)*) => (
-        if cfg!(debug_assertions) && false {
+        if false {
             eprintln!($($t)*);
         }
     )
@@ -457,11 +481,21 @@ pub trait RawInterpreter: Interpreter {
         }
     }
 
-    unsafe fn raw_dealloc_bytes(ptr: *mut u8, byte_size: usize, align: usize) {
-        debug_println!("dealloc_bytes({ptr:?}, {byte_size:#x}, {align:#x})");
+    unsafe fn raw_dealloc_bytes(
+        cx: *mut u8,
+        ptr: *mut u8,
+        byte_size: usize,
+        align: usize,
+        defer: bool,
+    ) {
+        debug_println!("dealloc_bytes({cx:?}, {ptr:?}, {byte_size:#x}, {align:#x}, {defer})");
         unsafe {
             let layout = std::alloc::Layout::from_size_align(byte_size, align).unwrap();
-            std::alloc::dealloc(ptr, layout);
+            if defer {
+                Self::cx_mut(cx).defer_deallocate(ptr, layout);
+            } else {
+                std::alloc::dealloc(ptr, layout);
+            }
         }
     }
 
@@ -481,6 +515,35 @@ pub trait RawInterpreter: Interpreter {
             let func = wit.func(which);
             Self::export_call(wit, func, Self::cx_mut(cx))
         }
+    }
+
+    unsafe fn raw_export_async_call(cx: *mut u8, which: usize) -> u32 {
+        debug_println!("export_async_call({cx:?}, {which})");
+        #[cfg(feature = "async")]
+        unsafe {
+            let wit = Wit::from_raw(WIT_T);
+            let func = wit.func(which);
+            wit_bindgen::rt::async_support::start_task(Self::export_call_async(
+                wit,
+                func,
+                Box::from_raw(cx.cast()),
+            ))
+            .cast_unsigned()
+        }
+        #[cfg(not(feature = "async"))]
+        unsafe {
+            panic!("async support disabled at compile time");
+        }
+    }
+
+    unsafe fn raw_export_async_callback(a: u32, b: u32, c: u32, which: usize) -> u32 {
+        debug_println!("export_async_callback({a:#x}, {b:#x}, {c:#x}, {which})");
+        #[cfg(feature = "async")]
+        unsafe {
+            wit_bindgen::rt::async_support::callback(a, b, c)
+        }
+        #[cfg(not(feature = "async"))]
+        panic!("async support disabled at compile time");
     }
 
     unsafe fn raw_export_finish(cx: *mut u8, which: usize) {

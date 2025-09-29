@@ -6,6 +6,8 @@ publish = false
 
 [dependencies]
 wit-dylib-ffi = { path = '../ffi' }
+wit-bindgen = { workspace = true }
+rand = { workspace = true }
 
 [lints]
 workspace = true

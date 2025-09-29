@@ -19,16 +19,19 @@ wit-parser = { workspace = true }
 wasm-encoder = { workspace = true }
 indexmap = { workspace = true }
 clap = { workspace = true, optional = true }
+anyhow = { workspace = true }
 
 [dev-dependencies]
 artifacts = { path = './test-programs/artifacts' }
 libtest-mimic = { workspace = true }
 anyhow = { workspace = true }
-wit-component = { workspace = true }
-wasi-preview1-component-adapter-provider = "36.0.2"
 tempfile = { workspace = true }
-wasm-compose = { workspace = true }
-wasmparser = { workspace = true }
+wit-smith = { workspace = true }
+arbitrary = { workspace = true }
+arbtest = "0.3.2"
+indexmap = { workspace = true }
+wit-component = { workspace = true }
+env_logger = { workspace = true }
 
 [lib]
 test = false

@@ -132,6 +132,17 @@ pub enum AbiVariant {
     GuestExportAsyncStackful,
 }
 
+impl AbiVariant {
+    pub fn is_async(&self) -> bool {
+        match self {
+            Self::GuestImport | Self::GuestExport => false,
+            Self::GuestImportAsync | Self::GuestExportAsync | Self::GuestExportAsyncStackful => {
+                true
+            }
+        }
+    }
+}
+
 pub struct FlatTypes<'a> {
     types: &'a mut [WasmType],
     cur: usize,
