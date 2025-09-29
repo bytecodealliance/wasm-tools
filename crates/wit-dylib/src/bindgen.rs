@@ -286,7 +286,7 @@ pub fn export(
         // lowered results. That's the responsibility of the
         // `task_return`-generated function. Here the `cx` is passed along with
         // the function index. Notably this has different ownership semantics
-        // around `cx` where the callee gets onwership, unlike sync where
+        // around `cx` where the callee gets ownership, unlike sync where
         // `export_call` does not get ownership.
         //
         // Additionally the `export_async_call` function always returns an `i32`
