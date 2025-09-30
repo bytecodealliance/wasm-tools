@@ -48,9 +48,12 @@ fn from_optional_wasm_type(ty: Option<impl WasmType>) -> Option<Option<Type>> {
 pub trait ValueTyped {
     fn value_type() -> Type;
 }
+pub trait ToRust {
+    fn to_rust(x: &Value) -> Self;
+}
 
 macro_rules! impl_primitives {
-    ($Self:ty, $(($case:ident, $ty:ty)),*) => {
+    ($Self:ty, $(($case:ident, $ty:ty, $unwrap:ident)),*) => {
         $(
             impl ValueTyped for $ty {
                 fn value_type() -> Type {
@@ -63,24 +66,30 @@ macro_rules! impl_primitives {
                     Self(ValueEnum::$case(value))
                 }
             }
+
+            impl ToRust for $ty {
+                fn to_rust(v: &Value) -> Self {
+                    v.$unwrap()
+                }
+            }
         )*
     };
 }
 
 impl_primitives!(
     Value,
-    (Bool, bool),
-    (S8, i8),
-    (S16, i16),
-    (S32, i32),
-    (S64, i64),
-    (U8, u8),
-    (U16, u16),
-    (U32, u32),
-    (U64, u64),
-    (F32, f32),
-    (F64, f64),
-    (Char, char)
+    (Bool, bool, unwrap_bool),
+    (S8, i8, unwrap_s8),
+    (S16, i16, unwrap_s16),
+    (S32, i32, unwrap_s32),
+    (S64, i64, unwrap_s64),
+    (U8, u8, unwrap_u8),
+    (U16, u16, unwrap_u16),
+    (U32, u32, unwrap_u32),
+    (U64, u64, unwrap_u64),
+    (F32, f32, unwrap_f32),
+    (F64, f64, unwrap_f64),
+    (Char, char, unwrap_char)
 );
 
 impl ValueTyped for String {
@@ -92,6 +101,11 @@ impl ValueTyped for String {
 impl From<String> for Value {
     fn from(value: String) -> Self {
         Self(ValueEnum::String(value.into()))
+    }
+}
+impl ToRust for String {
+    fn to_rust(v: &Value) -> Self {
+        v.unwrap_string().into()
     }
 }
 
@@ -134,6 +148,11 @@ impl<T: ValueTyped + Into<Value>> From<Vec<T>> for Value {
         Value::make_list(&ty, values).unwrap()
     }
 }
+impl<T: ToRust> ToRust for Vec<T> {
+    fn to_rust(v: &Value) -> Self {
+        v.unwrap_list().map(|x| T::to_rust(&x)).collect()
+    }
+}
 
 impl<T: ValueTyped> ValueTyped for Option<T> {
     fn value_type() -> Type {
@@ -145,6 +164,11 @@ impl<T: ValueTyped + Into<Value>> From<Option<T>> for Value {
     fn from(value: Option<T>) -> Self {
         let ty = Option::<T>::value_type();
         Value::make_option(&ty, value.map(Into::into)).unwrap()
+    }
+}
+impl<T: ToRust> ToRust for Option<T> {
+    fn to_rust(v: &Value) -> Self {
+        v.unwrap_option().map(|x| T::to_rust(&x))
     }
 }
 
@@ -159,12 +183,42 @@ impl<T: ValueTyped + Into<Value> + Clone> From<&T> for Value {
     }
 }
 
+impl<T: ValueTyped> ValueTyped for Result<T, ()> {
+    fn value_type() -> Type {
+        Type::result(Some(T::value_type()), None)
+    }
+}
+impl<U: ValueTyped> ValueTyped for Result<(), U> {
+    fn value_type() -> Type {
+        Type::result(None, Some(U::value_type()))
+    }
+}
 impl<T: ValueTyped, U: ValueTyped> ValueTyped for Result<T, U> {
     fn value_type() -> Type {
         Type::result(Some(T::value_type()), Some(U::value_type()))
     }
 }
 
+impl<T: ValueTyped + Into<Value>> From<Result<T, ()>> for Value {
+    fn from(value: Result<T, ()>) -> Self {
+        let ty = Result::<T, ()>::value_type();
+        let value = match value {
+            Ok(ok) => Ok(Some(ok.into())),
+            Err(()) => Err(None),
+        };
+        Value::make_result(&ty, value).unwrap()
+    }
+}
+impl<U: ValueTyped + Into<Value>> From<Result<(), U>> for Value {
+    fn from(value: Result<(), U>) -> Self {
+        let ty = Result::<(), U>::value_type();
+        let value = match value {
+            Ok(()) => Ok(None),
+            Err(err) => Err(Some(err.into())),
+        };
+        Value::make_result(&ty, value).unwrap()
+    }
+}
 impl<T: ValueTyped + Into<Value>, U: ValueTyped + Into<Value>> From<Result<T, U>> for Value {
     fn from(value: Result<T, U>) -> Self {
         let ty = Result::<T, U>::value_type();
@@ -173,6 +227,33 @@ impl<T: ValueTyped + Into<Value>, U: ValueTyped + Into<Value>> From<Result<T, U>
             Err(err) => Err(Some(err.into())),
         };
         Value::make_result(&ty, value).unwrap()
+    }
+}
+impl<T: ToRust> ToRust for Result<T, ()> {
+    fn to_rust(v: &Value) -> Self {
+        match v.unwrap_result() {
+            Ok(Some(ok)) => Ok(T::to_rust(&ok)),
+            Err(None) => Err(()),
+            _ => unreachable!(),
+        }
+    }
+}
+impl<U: ToRust> ToRust for Result<(), U> {
+    fn to_rust(v: &Value) -> Self {
+        match v.unwrap_result() {
+            Ok(None) => Ok(()),
+            Err(Some(err)) => Err(U::to_rust(&err)),
+            _ => unreachable!(),
+        }
+    }
+}
+impl<T: ToRust, U: ToRust> ToRust for Result<T, U> {
+    fn to_rust(v: &Value) -> Self {
+        match v.unwrap_result() {
+            Ok(Some(ok)) => Ok(T::to_rust(&ok)),
+            Err(Some(err)) => Err(U::to_rust(&err)),
+            _ => unreachable!(),
+        }
     }
 }
 
@@ -193,6 +274,15 @@ macro_rules! impl_tuple {
                         let $var = $var.into();
                     )*
                     Value::make_tuple(&ty, vec![$($var),*]).unwrap()
+                }
+            }
+
+            impl<$($var: ToRust),*> ToRust for ($($var),*,) {
+                fn to_rust(v: &Value) -> Self {
+                    let mut iter = v.unwrap_tuple();
+                    ($(
+                        $var::to_rust(&iter.next().unwrap()),
+                    )*)
                 }
             }
 
