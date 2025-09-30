@@ -1,0 +1,32 @@
+Validate a WebAssembly binary
+
+Usage: wasm-tools validate [OPTIONS] [INPUT]
+
+Arguments:
+  [INPUT]  Input file to process
+
+Options:
+      --generate-dwarf <lines|full>  Optionally generate DWARF debugging information from WebAssembly text
+                                     files
+  -g                                 Shorthand for `--generate-dwarf full`
+  -f, --features <FEATURES>          Comma-separated list of WebAssembly features to enable during validation
+  -o, --output <OUTPUT>              Where to place output
+  -v, --verbose...                   Use verbose output (-v info, -vv debug, -vvv trace)
+      --color <COLOR>                Configuration over whether terminal colors are used in output [default:
+                                     auto]
+  -h, --help                         Print help (see more with '--help')
+
+Examples:
+
+    # Validate `foo.wasm` with the default Wasm feature proposals.
+    $ wasm-tools validate foo.wasm
+
+    # Validate `foo.wasm` with more verbose output
+    $ wasm-tools validate -vv foo.wasm
+
+    # Validate `fancy.wasm` with all Wasm feature proposals enabled.
+    $ wasm-tools validate --features all fancy.wasm
+
+    # Validate `mvp.wasm` with the original wasm feature set enabled.
+    $ wasm-tools validate --features=wasm1 mvp.wasm
+    $ wasm-tools validate --features=mvp mvp.wasm

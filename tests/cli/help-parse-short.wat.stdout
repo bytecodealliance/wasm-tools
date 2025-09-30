@@ -1,0 +1,39 @@
+Parse the WebAssembly text format
+
+Usage: wasm-tools parse [OPTIONS] [INPUT]
+
+Arguments:
+  [INPUT]  Input file to process
+
+Options:
+      --generate-dwarf <lines|full>  Optionally generate DWARF debugging information from WebAssembly text
+                                     files
+  -g                                 Shorthand for `--generate-dwarf full`
+  -o, --output <OUTPUT>              Where to place output
+  -v, --verbose...                   Use verbose output (-v info, -vv debug, -vvv trace)
+      --color <COLOR>                Configuration over whether terminal colors are used in output [default:
+                                     auto]
+  -t, --wat                          Output the text format of WebAssembly instead of the binary format
+  -h, --help                         Print help (see more with '--help')
+
+
+Examples:
+
+   To parse the file input.wat as WebAssembly text format and write the
+   normalized text format to stdout:
+
+          wasm-tools parse -t input.wat
+
+   To parse the file input.wat as WebAssembly text format and write the binary
+   form to the file output.wasm, including debugging information:
+
+          wasm-tools parse input.wat -g -o output.wasm
+
+   To parse the file input.wat as WebAssembly text format and write the
+   normalized text format to the file output.wat:
+
+          wasm-tools parse -t input.wat -o output.wat
+
+Exit status:
+    0 if OK,
+    nonzero to indicate a parse error.
