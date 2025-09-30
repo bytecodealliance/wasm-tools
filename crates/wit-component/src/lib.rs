@@ -21,6 +21,7 @@ pub use encoding::{ComponentEncoder, LibraryInfo, encode};
 pub use linking::Linker;
 pub use printing::*;
 pub use targets::*;
+pub use validation::AdapterModuleDidNotExport;
 pub use wit_parser::decoding::{DecodedWasm, decode, decode_reader};
 
 pub mod metadata;

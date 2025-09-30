@@ -2,6 +2,7 @@ use crate::encoding::{Instance, Item, LibraryInfo, MainOrAdapter, ModuleImportMa
 use crate::{ComponentEncoder, StringEncoding};
 use anyhow::{Context, Result, anyhow, bail};
 use indexmap::{IndexMap, IndexSet, map::Entry};
+use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::mem;
 use wasm_encoder::ExportKind;
@@ -2523,13 +2524,30 @@ pub fn validate_adapter_module(
     for (name, required_ty) in required_by_import {
         let actual = match ret.exports.raw_exports.get(name) {
             Some(ty) => ty,
-            None => bail!("adapter module did not export `{name}`"),
+            None => return Err(AdapterModuleDidNotExport(name.clone()).into()),
         };
         validate_func_sig(name, required_ty, &actual)?;
     }
 
     Ok(ret)
 }
+
+/// An error that can be returned from adapting a core Wasm module into a
+/// component using an adapter module.
+///
+/// If the core Wasm module contained an import that it requires to be
+/// satisfied by the adapter, and the adapter does not contain an export
+/// with the same name, an instance of this error is returned.
+#[derive(Debug, Clone)]
+pub struct AdapterModuleDidNotExport(String);
+
+impl fmt::Display for AdapterModuleDidNotExport {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "adapter module did not export `{}`", self.0)
+    }
+}
+
+impl std::error::Error for AdapterModuleDidNotExport {}
 
 fn resource_test_for_interface<'a>(
     resolve: &'a Resolve,
