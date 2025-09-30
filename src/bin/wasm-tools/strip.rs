@@ -6,9 +6,56 @@ use wasmparser::{Parser, Payload::*};
 /// Removes custom sections from an input WebAssembly file.
 ///
 /// This command will by default strip all custom sections such as DWARF
-/// debugging information from a wasm file. It will not strip the `name` section
-/// by default unless the `--all` flag is passed.
+/// debugging information from a wasm file. It will not strip the `name`, `component-type`,
+/// or `dylink.0` sections by default unless the `--all` flag is passed.
 #[derive(clap::Parser)]
+#[clap(after_help = "\
+Examples:
+
+Suppose foo.wasm has the following textual representation:
+
+(module
+  (type (;0;) (func))
+  (func (;2;) (type 0)
+    (local i32)
+    global.get 0
+  )
+  (@custom \"linking\" (after code) \"\")
+  (@custom \"reloc.CODE\" (after code) \"\")
+  (@custom \"target_features\" (after code) \"\")
+)
+
+    # Remove all custom sections from foo.wasm and print the textual form of
+    # the output to stdout.
+    $ wasm-tools strip -a -t foo.wasm
+(module
+  (type (;0;) (func))
+  (func (;0;) (type 0)
+    (local i32)
+    global.get 0
+  )
+)
+    # Remove only the custom sections whose names match the regexp `linking`
+    # and print the textual form of the output to stdout.
+    $ wasm-tools strip -d linking foo.wasm -t
+(module
+  (type (;0;) (func))
+  (func (;0;) (type 0)
+    (local i32)
+    global.get 0
+  )
+  (@custom \"reloc.CODE\" (after code) \"\")
+  (@custom \"target_features\" (after code) \"\")
+)
+
+   # Remove all custom sections from foo.wasm and save the binary output to
+   # the file out.wasm.
+   $ wasm-tools strip -a foo.wasm -o out.wasm
+
+Exit status:
+    0 on success,
+    nonzero if the input file fails to parse.
+")]
 pub struct Opts {
     #[clap(flatten)]
     io: wasm_tools::InputOutput,

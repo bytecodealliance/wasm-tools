@@ -1,0 +1,63 @@
+Removes custom sections from an input WebAssembly file
+
+Usage: wasm-tools strip [OPTIONS] [INPUT]
+
+Arguments:
+  [INPUT]  Input file to process
+
+Options:
+  -o, --output <OUTPUT>  Where to place output
+  -v, --verbose...       Use verbose output (-v info, -vv debug, -vvv trace)
+      --color <COLOR>    Configuration over whether terminal colors are used in
+                         output [default: auto]
+  -a, --all              Remove all custom sections, regardless of name
+  -d, --delete <REGEX>   Remove custom sections matching the specified regex
+  -t, --wat              Output the text format of WebAssembly instead of the
+                         binary format
+  -h, --help             Print help (see more with '--help')
+
+Examples:
+
+Suppose foo.wasm has the following textual representation:
+
+(module
+  (type (;0;) (func))
+  (func (;2;) (type 0)
+    (local i32)
+    global.get 0
+  )
+  (@custom "linking" (after code) "")
+  (@custom "reloc.CODE" (after code) "")
+  (@custom "target_features" (after code) "")
+)
+
+    # Remove all custom sections from foo.wasm and print the textual form of
+    # the output to stdout.
+    $ wasm-tools strip -a -t foo.wasm
+(module
+  (type (;0;) (func))
+  (func (;0;) (type 0)
+    (local i32)
+    global.get 0
+  )
+)
+    # Remove only the custom sections whose names match the regexp `linking`
+    # and print the textual form of the output to stdout.
+    $ wasm-tools strip -d linking foo.wasm -t
+(module
+  (type (;0;) (func))
+  (func (;0;) (type 0)
+    (local i32)
+    global.get 0
+  )
+  (@custom "reloc.CODE" (after code) "")
+  (@custom "target_features" (after code) "")
+)
+
+   # Remove all custom sections from foo.wasm and save the binary output to
+   # the file out.wasm.
+   $ wasm-tools strip -a foo.wasm -o out.wasm
+
+Exit status:
+    0 on success,
+    nonzero if the input file fails to parse.

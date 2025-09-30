@@ -1,0 +1,45 @@
+Demangle Rust and C++ symbol names in the `name` section
+
+Usage: wasm-tools demangle [OPTIONS] [INPUT]
+
+Arguments:
+  [INPUT]  Input file to process
+
+Options:
+  -o, --output <OUTPUT>  Where to place output
+  -v, --verbose...       Use verbose output (-v info, -vv debug, -vvv trace)
+      --color <COLOR>    Configuration over whether terminal colors are used in
+                         output [default: auto]
+  -t, --wat              Output the text format of WebAssembly instead of the
+                         binary format
+  -h, --help             Print help (see more with '--help')
+
+Examples:
+
+Suppose foo.wasm has the following textual representation:
+
+(module
+  (func $do_not_demangle_me)
+  (func $_ZN4rustE)
+  (func $_Z3food)
+)
+
+The second two functions are mangled Rust symbol names.
+
+    # Demangle symbol names in foo.wasm and print the textual form of
+    # the output to stdout.
+    $ wasm-tools demangle -t foo.wasm
+(module
+  (type (;0;) (func))
+  (func $do_not_demangle_me (;0;) (type 0))
+  (func $rust (;1;) (type 0))
+  (func $"foo(double)" (;2;) (type 0))
+)
+
+    # Demangle symbol names in foo.wasm and save the binary output
+    # to foo-demangled.wasm.
+    $ wasm-tools demangle foo.wasm -o foo-demangled.wasm
+
+Exit status:
+    0 on success,
+    nonzero if the input file fails to parse.
