@@ -207,6 +207,7 @@ fn assert_output(bless: bool, output: &[u8], path: &Path, tempdir: &TempDir) -> 
     let mut output = String::from_utf8_lossy(output)
         .replace(tempdir, "%tmpdir")
         .replace("\\", "/")
+        .replace("wasm-tools.exe", "wasm-tools")
         .lines()
         .map(|line| {
             if let Some(start) = line.find("(processed-by \"wit-component\"") {
