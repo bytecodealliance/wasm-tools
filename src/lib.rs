@@ -153,7 +153,9 @@ impl InputArg {
 pub struct OutputArg {
     /// Where to place output.
     ///
-    /// If not provided then stdout is used.
+    /// Required when printing WebAssembly binary output.
+    ///
+    /// If not provided, then stdout is used.
     #[clap(short, long)]
     output: Option<PathBuf>,
 }
