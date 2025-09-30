@@ -156,6 +156,7 @@ fn execute(cmd: &mut Command, stdin: Option<&[u8]>, should_fail: bool) -> Result
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
     let mut p = cmd
+        .env("COLUMNS", "80")
         .spawn()
         .with_context(|| format!("failed to spawn {cmd:?}"))?;
 
@@ -206,6 +207,7 @@ fn assert_output(bless: bool, output: &[u8], path: &Path, tempdir: &TempDir) -> 
     let mut output = String::from_utf8_lossy(output)
         .replace(tempdir, "%tmpdir")
         .replace("\\", "/")
+        .replace("wasm-tools.exe", "wasm-tools")
         .lines()
         .map(|line| {
             if let Some(start) = line.find("(processed-by \"wit-component\"") {

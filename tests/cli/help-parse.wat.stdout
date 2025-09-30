@@ -1,0 +1,76 @@
+Parse the WebAssembly text format.
+
+This subcommand will parse the provided input as the WebAssembly text format and
+optionally write the binary or text form to a provided file.
+
+Usage: wasm-tools parse [OPTIONS] [INPUT]
+
+Arguments:
+  [INPUT]
+          Input file to process.
+          
+          If not provided or if this is `-` then stdin is read entirely and
+          processed. Note that for most subcommands this input can either be a
+          binary `*.wasm` file or a textual format `*.wat` file.
+
+Options:
+      --generate-dwarf <lines|full>
+          Optionally generate DWARF debugging information from WebAssembly text
+          files.
+          
+          When the input to this command is a WebAssembly text file, such as
+          `*.wat`, then this option will instruct the text parser to insert
+          DWARF debugging information to map binary locations back to the
+          original source locations in the input `*.wat` file. This option has
+          no effect if the `INPUT` argument is already a WebAssembly binary or
+          if the text format uses `(module binary ...)`.
+
+  -g
+          Shorthand for `--generate-dwarf full`
+
+  -o, --output <OUTPUT>
+          Where to place output.
+          
+          Required when printing WebAssembly binary output.
+          
+          If not provided, then stdout is used.
+
+  -v, --verbose...
+          Use verbose output (-v info, -vv debug, -vvv trace)
+
+      --color <COLOR>
+          Configuration over whether terminal colors are used in output.
+          
+          Supports one of `auto|never|always|always-ansi`. The default is to
+          detect what to do based on the terminal environment, for example by
+          using `isatty`.
+          
+          [default: auto]
+
+  -t, --wat
+          Output the text format of WebAssembly instead of the binary format
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+
+Examples:
+
+   To parse the file input.wat as WebAssembly text format and write the
+   normalized text format to stdout:
+
+          wasm-tools parse -t input.wat
+
+   To parse the file input.wat as WebAssembly text format and write the binary
+   form to the file output.wasm, including debugging information:
+
+          wasm-tools parse input.wat -g -o output.wasm
+
+   To parse the file input.wat as WebAssembly text format and write the
+   normalized text format to the file output.wat:
+
+          wasm-tools parse -t input.wat -o output.wat
+
+Exit status:
+    0 if OK,
+    nonzero to indicate a parse error.

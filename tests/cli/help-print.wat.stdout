@@ -1,0 +1,125 @@
+Print the textual form of a WebAssembly binary
+
+Usage: wasm-tools print [OPTIONS] [INPUT]
+
+Arguments:
+  [INPUT]
+          Input file to process.
+          
+          If not provided or if this is `-` then stdin is read entirely and
+          processed. Note that for most subcommands this input can either be a
+          binary `*.wasm` file or a textual format `*.wat` file.
+
+Options:
+      --generate-dwarf <lines|full>
+          Optionally generate DWARF debugging information from WebAssembly text
+          files.
+          
+          When the input to this command is a WebAssembly text file, such as
+          `*.wat`, then this option will instruct the text parser to insert
+          DWARF debugging information to map binary locations back to the
+          original source locations in the input `*.wat` file. This option has
+          no effect if the `INPUT` argument is already a WebAssembly binary or
+          if the text format uses `(module binary ...)`.
+
+  -g
+          Shorthand for `--generate-dwarf full`
+
+  -o, --output <OUTPUT>
+          Where to place output.
+          
+          Required when printing WebAssembly binary output.
+          
+          If not provided, then stdout is used.
+
+  -v, --verbose...
+          Use verbose output (-v info, -vv debug, -vvv trace)
+
+      --color <COLOR>
+          Configuration over whether terminal colors are used in output.
+          
+          Supports one of `auto|never|always|always-ansi`. The default is to
+          detect what to do based on the terminal environment, for example by
+          using `isatty`.
+          
+          [default: auto]
+
+  -p, --print-offsets
+          Whether or not to print binary offsets intermingled in the text format
+          as comments for debugging
+
+      --skeleton
+          Indicates that the "skeleton" of a module should be printed.
+          
+          Items such as function bodies, data segments, and element segments are
+          replaced with "..." instead of printing their actual contents.
+
+      --name-unnamed
+          Ensure all wasm items have `$`-based names, even if they don't have an
+          entry in the `name` section.
+          
+          This option, when enabled, will synthesize names for any item which
+          doesn't previously have a name.
+
+  -f, --fold-instructions
+          Print instructions in the folded format. (See
+          https://webassembly.github.io/spec/core/text/instructions.html#folded-instructions)
+
+      --print-operand-stack
+          Print the contents of the operand stack within function bodies
+
+      --indent-text <INDENT_TEXT>
+          The string to use when indenting
+
+      --indent <INDENT>
+          Number of spaces used for indentation, has lower priority than
+          `--indent-text`
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Examples:
+
+    # Print the textual form of `foo.wasm` to stdout.
+    $ wasm-tools print foo.wasm
+(module
+  (type (;0;) (func (param i32 i32) (result i32)))
+  (func $add (;0;) (type 0) (param $lhs i32) (param $rhs i32) (result i32)
+    local.get $lhs
+    local.get $rhs
+    i32.add
+ )
+
+    # Print a "skeleton" form of `foo.wasm` to stdout.
+    $ wasm-tools print foo.wasm --skeleton
+(module
+  (type (;0;) (func (param i32 i32) (result i32)))
+  (func $add (;0;) (type 0) (param $lhs i32) (param $rhs i32) (result i32) ...)
+
+    # Print the textual form of `foo.wasm` to stdout, with folded instructions,
+    # binary offsets, and indented 6 spaces.
+    $ wasm-tools print foo.wasm -p -f --indent 6
+(module
+(;@b     ;)      (type (;0;) (func (param i32 i32) (result i32)))
+(;@37    ;)      (func $add (;0;) (type 0) (param $lhs i32) (param $rhs i32)
+(result i32)
+(;@3c    ;)            (i32.add
+(;@38    ;)                  (local.get $lhs)
+(;@3a    ;)                  (local.get $rhs))
+                 )
+
+    # Print the textual form of `foo.wasm` to stdout, with synthesized names for
+    # items without a name in the `name` section. (Notice below that the type
+    # denoted by ;0; in the previous examples has been given a name.)
+    $ wasm-tools print foo.wasm --name-unnamed
+(module
+  (type $#type0 (;0;) (func (param i32 i32) (result i32)))
+  (func $add (;0;) (type $#type0) (param $lhs i32) (param $rhs i32) (result i32)
+...
+
+    # Print the textual form of `foo.wasm` to the file `foo.wat`.
+    $ wasm-tools print foo.wasm -o foo.wat
+
+Exit status:
+    0 on success,
+    nonzero if the input file fails to parse.

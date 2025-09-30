@@ -1,0 +1,89 @@
+Validate a WebAssembly binary
+
+This subcommand will validate a WebAssembly binary to determine if it's valid or
+not. This implements the validation algorithm of the WebAssembly specification
+<https://webassembly.github.io/spec/core/valid/index.html>. No output is printed
+if the binary is valid; an error message is printed to stderr if the binary is
+not valid. A WebAssembly text file can also be used.
+
+Extra information will be included in the error message if the input WebAssembly
+binary contains DWARF debugging information.
+
+Usage: wasm-tools validate [OPTIONS] [INPUT]
+
+Arguments:
+  [INPUT]
+          Input file to process.
+          
+          If not provided or if this is `-` then stdin is read entirely and
+          processed. Note that for most subcommands this input can either be a
+          binary `*.wasm` file or a textual format `*.wat` file.
+
+Options:
+      --generate-dwarf <lines|full>
+          Optionally generate DWARF debugging information from WebAssembly text
+          files.
+          
+          When the input to this command is a WebAssembly text file, such as
+          `*.wat`, then this option will instruct the text parser to insert
+          DWARF debugging information to map binary locations back to the
+          original source locations in the input `*.wat` file. This option has
+          no effect if the `INPUT` argument is already a WebAssembly binary or
+          if the text format uses `(module binary ...)`.
+
+  -g
+          Shorthand for `--generate-dwarf full`
+
+  -f, --features <FEATURES>
+          Comma-separated list of WebAssembly features to enable during
+          validation.
+          
+          If a "-" character is present in front of a feature it will disable
+          that feature. For example "-simd" will disable the simd proposal.
+          
+          The placeholder "all" can be used to enable all wasm features and the
+          term "-all" can be used to disable all features.
+          
+          The default set of features enabled are all WebAssembly proposals that
+          are at phase 4 or after. This means that the default set of features
+          accepted are relatively bleeding edge. Versions of the WebAssembly
+          specification can also be selected. The "wasm1" or "mvp" feature can
+          select the original WebAssembly specification and "wasm2" can be used
+          to select the 2.0 version.
+          
+          Available feature options can be found in the wasmparser crate:
+          <https://github.com/bytecodealliance/wasm-tools/blob/main/crates/wasmparser/src/features.rs>
+
+  -v, --verbose...
+          Use verbose output (-v info, -vv debug, -vvv trace)
+
+      --color <COLOR>
+          Configuration over whether terminal colors are used in output.
+          
+          Supports one of `auto|never|always|always-ansi`. The default is to
+          detect what to do based on the terminal environment, for example by
+          using `isatty`.
+          
+          [default: auto]
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Examples:
+
+    # Validate `foo.wasm` with the default Wasm feature proposals.
+    $ wasm-tools validate foo.wasm
+
+    # Validate `foo.wasm` with more verbose output
+    $ wasm-tools validate -vv foo.wasm
+
+    # Validate `fancy.wasm` with all Wasm feature proposals enabled.
+    $ wasm-tools validate --features all fancy.wasm
+
+    # Validate `mvp.wasm` with the original wasm feature set enabled.
+    $ wasm-tools validate --features=wasm1 mvp.wasm
+    $ wasm-tools validate --features=mvp mvp.wasm
+
+Exit status:
+    0 if the binary is valid,
+    nonzero if the binary is not valid.
