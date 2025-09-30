@@ -14,8 +14,12 @@ use wasmparser::{
 ///
 /// This subcommand will validate a WebAssembly binary to determine if it's
 /// valid or not. This implements the validation algorithm of the WebAssembly
-/// specification. The process will exit with 0 and no output if the binary is
-/// valid, or nonzero and an error message on stderr if the binary is not valid.
+/// specification <https://webassembly.github.io/spec/core/valid/index.html>.
+/// No output is printed if the binary is valid; an error message is printed to
+/// stderr if the binary is not valid. A WebAssembly text file can also be used.
+///
+/// Extra information will be included in the error message if the input WebAssembly
+/// binary contains DWARF debugging information.
 ///
 #[derive(clap::Parser)]
 #[clap(after_help = "\
@@ -33,6 +37,10 @@ Examples:
     # Validate `mvp.wasm` with the original wasm feature set enabled.
     $ wasm-tools validate --features=wasm1 mvp.wasm
     $ wasm-tools validate --features=mvp mvp.wasm
+
+Exit status:
+    0 if the binary is valid,
+    nonzero if the binary is not valid.
 ")]
 pub struct Opts {
     #[clap(flatten)]
@@ -42,7 +50,10 @@ pub struct Opts {
     features: CliFeatures,
 
     #[clap(flatten)]
-    io: wasm_tools::InputOutput,
+    input: wasm_tools::InputArg,
+
+    #[clap(flatten)]
+    general: wasm_tools::GeneralOpts,
 }
 
 // Helper structure extracted used to parse the feature flags for `validate`.
@@ -79,12 +90,12 @@ enum FeatureAction {
 
 impl Opts {
     pub fn general_opts(&self) -> &wasm_tools::GeneralOpts {
-        self.io.general_opts()
+        &self.general
     }
 
     pub fn run(&self) -> Result<()> {
         let start = Instant::now();
-        let wasm = self.io.get_input_wasm(Some(&self.generate_dwarf))?; // no need to parse as the validator will do this
+        let wasm = self.input.get_binary_wasm(Some(&self.generate_dwarf))?; // no need to parse as the validator will do this
         log::info!("read module in {:?}", start.elapsed());
 
         // If validation fails then try to attach extra information to the
