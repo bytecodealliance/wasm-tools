@@ -6,25 +6,38 @@ Arguments:
   [INPUT]  Input file to process
 
 Options:
-      --generate-dwarf <lines|full>  Optionally generate DWARF debugging information from WebAssembly text
-                                     files
-  -g                                 Shorthand for `--generate-dwarf full`
-  -o, --output <OUTPUT>              Where to place output
-  -v, --verbose...                   Use verbose output (-v info, -vv debug, -vvv trace)
-      --color <COLOR>                Configuration over whether terminal colors are used in output [default:
-                                     auto]
-  -p, --print-offsets                Whether or not to print binary offsets intermingled in the text format as
-                                     comments for debugging
-      --skeleton                     Indicates that the "skeleton" of a module should be printed
-      --name-unnamed                 Ensure all wasm items have `$`-based names, even if they don't have an
-                                     entry in the `name` section
-  -f, --fold-instructions            Print instructions in the folded format. (See
-                                     https://webassembly.github.io/spec/core/text/instructions.html#folded-instructions)
-      --print-operand-stack          Print the contents of the operand stack within function bodies
-      --indent-text <INDENT_TEXT>    The string to use when indenting
-      --indent <INDENT>              Number of spaces used for indentation, has lower priority than
-                                     `--indent-text`
-  -h, --help                         Print help (see more with '--help')
+      --generate-dwarf <lines|full>
+          Optionally generate DWARF debugging information from WebAssembly text
+          files
+  -g
+          Shorthand for `--generate-dwarf full`
+  -o, --output <OUTPUT>
+          Where to place output
+  -v, --verbose...
+          Use verbose output (-v info, -vv debug, -vvv trace)
+      --color <COLOR>
+          Configuration over whether terminal colors are used in output
+          [default: auto]
+  -p, --print-offsets
+          Whether or not to print binary offsets intermingled in the text format
+          as comments for debugging
+      --skeleton
+          Indicates that the "skeleton" of a module should be printed
+      --name-unnamed
+          Ensure all wasm items have `$`-based names, even if they don't have an
+          entry in the `name` section
+  -f, --fold-instructions
+          Print instructions in the folded format. (See
+          https://webassembly.github.io/spec/core/text/instructions.html#folded-instructions)
+      --print-operand-stack
+          Print the contents of the operand stack within function bodies
+      --indent-text <INDENT_TEXT>
+          The string to use when indenting
+      --indent <INDENT>
+          Number of spaces used for indentation, has lower priority than
+          `--indent-text`
+  -h, --help
+          Print help (see more with '--help')
 
 Examples:
 
@@ -49,7 +62,8 @@ Examples:
     $ wasm-tools print foo.wasm -p -f --indent 6
 (module
 (;@b     ;)      (type (;0;) (func (param i32 i32) (result i32)))
-(;@37    ;)      (func $add (;0;) (type 0) (param $lhs i32) (param $rhs i32) (result i32)
+(;@37    ;)      (func $add (;0;) (type 0) (param $lhs i32) (param $rhs i32)
+(result i32)
 (;@3c    ;)            (i32.add
 (;@38    ;)                  (local.get $lhs)
 (;@3a    ;)                  (local.get $rhs))

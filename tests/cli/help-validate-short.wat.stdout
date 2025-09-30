@@ -6,15 +6,23 @@ Arguments:
   [INPUT]  Input file to process
 
 Options:
-      --generate-dwarf <lines|full>  Optionally generate DWARF debugging information from WebAssembly text
-                                     files
-  -g                                 Shorthand for `--generate-dwarf full`
-  -f, --features <FEATURES>          Comma-separated list of WebAssembly features to enable during validation
-  -o, --output <OUTPUT>              Where to place output
-  -v, --verbose...                   Use verbose output (-v info, -vv debug, -vvv trace)
-      --color <COLOR>                Configuration over whether terminal colors are used in output [default:
-                                     auto]
-  -h, --help                         Print help (see more with '--help')
+      --generate-dwarf <lines|full>
+          Optionally generate DWARF debugging information from WebAssembly text
+          files
+  -g
+          Shorthand for `--generate-dwarf full`
+  -f, --features <FEATURES>
+          Comma-separated list of WebAssembly features to enable during
+          validation
+  -o, --output <OUTPUT>
+          Where to place output
+  -v, --verbose...
+          Use verbose output (-v info, -vv debug, -vvv trace)
+      --color <COLOR>
+          Configuration over whether terminal colors are used in output
+          [default: auto]
+  -h, --help
+          Print help (see more with '--help')
 
 Examples:
 

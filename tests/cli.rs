@@ -156,6 +156,7 @@ fn execute(cmd: &mut Command, stdin: Option<&[u8]>, should_fail: bool) -> Result
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
     let mut p = cmd
+        .env("COLUMNS", "80")
         .spawn()
         .with_context(|| format!("failed to spawn {cmd:?}"))?;
 
