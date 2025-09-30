@@ -1,9 +1,13 @@
 Validate a WebAssembly binary
 
 This subcommand will validate a WebAssembly binary to determine if it's valid or
-not. This implements the validation algorithm of the WebAssembly specification.
-The process will exit with 0 and no output if the binary is valid, or nonzero
-and an error message on stderr if the binary is not valid.
+not. This implements the validation algorithm of the WebAssembly specification
+<https://webassembly.github.io/spec/core/valid/index.html>. No output is printed
+if the binary is valid; an error message is printed to stderr if the binary is
+not valid. A WebAssembly text file can also be used.
+
+Extra information will be included in the error message if the input WebAssembly
+binary contains DWARF debugging information.
 
 Usage: wasm-tools validate [OPTIONS] [INPUT]
 
@@ -50,13 +54,6 @@ Options:
           Available feature options can be found in the wasmparser crate:
           <https://github.com/bytecodealliance/wasm-tools/blob/main/crates/wasmparser/src/features.rs>
 
-  -o, --output <OUTPUT>
-          Where to place output.
-          
-          Required when printing WebAssembly binary output.
-          
-          If not provided, then stdout is used.
-
   -v, --verbose...
           Use verbose output (-v info, -vv debug, -vvv trace)
 
@@ -86,3 +83,7 @@ Examples:
     # Validate `mvp.wasm` with the original wasm feature set enabled.
     $ wasm-tools validate --features=wasm1 mvp.wasm
     $ wasm-tools validate --features=mvp mvp.wasm
+
+Exit status:
+    0 if the binary is valid,
+    nonzero if the binary is not valid.

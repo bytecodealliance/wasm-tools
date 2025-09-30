@@ -14,8 +14,6 @@ Options:
   -f, --features <FEATURES>
           Comma-separated list of WebAssembly features to enable during
           validation
-  -o, --output <OUTPUT>
-          Where to place output
   -v, --verbose...
           Use verbose output (-v info, -vv debug, -vvv trace)
       --color <COLOR>
@@ -38,3 +36,7 @@ Examples:
     # Validate `mvp.wasm` with the original wasm feature set enabled.
     $ wasm-tools validate --features=wasm1 mvp.wasm
     $ wasm-tools validate --features=mvp mvp.wasm
+
+Exit status:
+    0 if the binary is valid,
+    nonzero if the binary is not valid.
