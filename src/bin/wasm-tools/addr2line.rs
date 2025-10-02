@@ -19,6 +19,55 @@ use wasm_tools::addr2line::Addr2lineModules;
 /// address is an inlined function into another function. Frames are printed
 /// innermost or youngest first.
 #[derive(clap::Parser)]
+#[clap(after_help = "\
+Examples:
+
+Suppose foo.wat is as follows:
+
+(module
+  (func $\"dwarf(name)\"
+(;@18;)  i32.const 0
+(;@1a;)  drop
+  )
+
+  (func $another-function
+(;@1e;)  i32.const 0
+(;@20;)  drop
+  )
+)
+
+    # Parse foo.wat to binary form and then print filename
+    # and line number information for four addresses in the binary
+    # (that is, byte offsets).
+    # Each line of output shows the requested address, then the name of
+    # the function enclosing this address, then the source filename and
+    # beginning and endling line numbers.
+    $ wasm-tools addr2line --generate-dwarf lines foo.wat 0x18 0x1a 0x1e 0x20
+0x18: dwarf(name) foo.wat:3:10
+0x1a: dwarf(name) foo.wat:4:10
+0x1e: another-function foo.wat:8:10
+0x20: another-function foo.wat:9:10
+
+Suppose foo.c was compiled to a .wasm file called foo.wasm. (foo.c not shown.)
+
+    # Print filename and line number information for two addresses.
+    $ target/debug/wasm-tools addr2line --generate-dwarf lines foo.wasm 0xff 0x200
+0xff: main foo.c:14:0
+0x200: main foo.c:22:9
+
+The output shows that both offsets are in the `main()` function, but at different
+line numbers.
+
+    # Print filename and line number information for two addresses (specified as decimals),
+    # interpreting the addresses relative to the beginning of the code section.
+    $ target/debug/wasm-tools addr2line --generate-dwarf lines --code-section-relative foo.wasm 255 512
+0xff: main foo.c:21:9
+0x200: main foo.c:25:9
+
+The output shows how the addresses correspond to different source locations
+if interpreted relative to the beginning of the code section.
+
+")]
 pub struct Opts {
     #[clap(flatten)]
     generate_dwarf: wasm_tools::GenerateDwarfArg,
