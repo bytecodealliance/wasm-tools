@@ -1,0 +1,2 @@
+;; RUN: metadata add -h
+

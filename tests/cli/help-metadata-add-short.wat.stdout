@@ -1,0 +1,104 @@
+Add metadata (module name, producers) to a WebAssembly file
+
+Usage: wasm-tools metadata add [OPTIONS] [INPUT]
+
+Arguments:
+  [INPUT]  Input file to process
+
+Options:
+      --generate-dwarf <lines|full>
+          Optionally generate DWARF debugging information from WebAssembly text
+          files
+  -g
+          Shorthand for `--generate-dwarf full`
+  -o, --output <OUTPUT>
+          Where to place output
+  -v, --verbose...
+          Use verbose output (-v info, -vv debug, -vvv trace)
+      --color <COLOR>
+          Configuration over whether terminal colors are used in output
+          [default: auto]
+      --name <NAME>
+          Add a module or component name to the names section
+      --clear-name
+          Remove a module or component name from the names section
+      --language <NAME=VERSION>
+          Add a programming language to the producers section
+      --processed-by <NAME=VERSION>
+          Add a tool and its version to the producers section
+      --sdk <NAME=VERSION>
+          Add an SDK and its version to the producers section
+      --authors <NAME>
+          Contact details of the people or organization responsible, encoded as
+          a freeform string
+      --clear-authors
+          Remove authors from the metadata
+      --description <NAME>
+          A human-readable description of the binary
+      --clear-description
+          Remove description from the metadata
+      --licenses <NAME>
+          License(s) under which contained software is distributed as an SPDX
+          License Expression
+      --clear-licenses
+          Remove licenses from the metadata
+      --source <NAME>
+          URL to get source code for building the image
+      --clear-source
+          Remove source from the metadata
+      --homepage <NAME>
+          URL to find more information on the binary
+      --clear-homepage
+          Remove homepage from the metadata
+      --revision <NAME>
+          Source control revision identifier for the packaged software
+      --clear-revision
+          Remove revision from the metadata
+      --version <NAME>
+          Version of the packaged software
+      --clear-version
+          Remove version from the metadata
+  -t, --wat
+          Output the text format of WebAssembly instead of the binary format
+  -h, --help
+          Print help (see more with '--help')
+
+Examples:
+
+Suppose foo.wasm has the following textual representation:
+
+(component $foo
+  (core module
+    (func $foo)
+  )
+)
+
+This Wasm file represents a component containing one core module.
+
+    # Add a programming language "foo" whose version is 1
+    # to the `producers` section, an "authors" string,
+    # and a homepage URL and print the textual representation
+    # to stdout
+    $ wasm-tools metadata add --language foo=1 /
+          --authors "J. Random Hacker" /
+          --homepage "https://example.com/" /
+          foo.wasm -t
+(component $foo
+  (core module (;0;)
+    (type (;0;) (func))
+    (func $foo (;0;) (type 0))
+  )
+  (@producers
+    (language "foo" "1")
+  )
+  (@custom "authors" "J. Random Hacker")
+  (@custom "homepage" "https://example.com/")
+)
+
+   # Remove the homepage section from the file foo1.wasm
+   # and write the binary output to foo2.wasm
+   $ wasm-tools metadata add --clear-homepage foo1.wasm -o foo2.wasm
+
+Exit status:
+    0 on success,
+    nonzero if the input file fails to parse.
