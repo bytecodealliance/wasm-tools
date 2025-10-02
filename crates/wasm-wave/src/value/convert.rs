@@ -48,8 +48,8 @@ fn from_optional_wasm_type(ty: Option<impl WasmType>) -> Option<Option<Type>> {
 pub trait ValueTyped {
     fn value_type() -> Type;
 }
-pub trait ToRust {
-    fn to_rust(x: &Value) -> Self;
+pub trait ToRust<T> {
+    fn to_rust(&self) -> T;
 }
 
 macro_rules! impl_primitives {
@@ -67,9 +67,9 @@ macro_rules! impl_primitives {
                 }
             }
 
-            impl ToRust for $ty {
-                fn to_rust(v: &Value) -> Self {
-                    v.$unwrap()
+            impl ToRust<$ty> for $Self {
+                fn to_rust(&self) -> $ty {
+                    self.$unwrap()
                 }
             }
         )*
@@ -103,9 +103,9 @@ impl From<String> for Value {
         Self(ValueEnum::String(value.into()))
     }
 }
-impl ToRust for String {
-    fn to_rust(v: &Value) -> Self {
-        v.unwrap_string().into()
+impl ToRust<String> for Value {
+    fn to_rust(&self) -> String {
+        self.unwrap_string().into()
     }
 }
 
@@ -148,9 +148,12 @@ impl<T: ValueTyped + Into<Value>> From<Vec<T>> for Value {
         Value::make_list(&ty, values).unwrap()
     }
 }
-impl<T: ToRust> ToRust for Vec<T> {
-    fn to_rust(v: &Value) -> Self {
-        v.unwrap_list().map(|x| T::to_rust(&x)).collect()
+impl<T> ToRust<Vec<T>> for Value
+where
+    Value: ToRust<T>,
+{
+    fn to_rust(&self) -> Vec<T> {
+        self.unwrap_list().map(|x| x.to_rust()).collect()
     }
 }
 
@@ -166,9 +169,12 @@ impl<T: ValueTyped + Into<Value>> From<Option<T>> for Value {
         Value::make_option(&ty, value.map(Into::into)).unwrap()
     }
 }
-impl<T: ToRust> ToRust for Option<T> {
-    fn to_rust(v: &Value) -> Self {
-        v.unwrap_option().map(|x| T::to_rust(&x))
+impl<T> ToRust<Option<T>> for Value
+where
+    Value: ToRust<T>,
+{
+    fn to_rust(&self) -> Option<T> {
+        self.unwrap_option().map(|x| x.to_rust())
     }
 }
 
@@ -229,29 +235,38 @@ impl<T: ValueTyped + Into<Value>, U: ValueTyped + Into<Value>> From<Result<T, U>
         Value::make_result(&ty, value).unwrap()
     }
 }
-impl<T: ToRust> ToRust for Result<T, ()> {
-    fn to_rust(v: &Value) -> Self {
-        match v.unwrap_result() {
-            Ok(Some(ok)) => Ok(T::to_rust(&ok)),
+impl<T> ToRust<Result<T, ()>> for Value
+where
+    Value: ToRust<T>,
+{
+    fn to_rust(&self) -> Result<T, ()> {
+        match self.unwrap_result() {
+            Ok(Some(ok)) => Ok(ok.to_rust()),
             Err(None) => Err(()),
             _ => unreachable!(),
         }
     }
 }
-impl<U: ToRust> ToRust for Result<(), U> {
-    fn to_rust(v: &Value) -> Self {
-        match v.unwrap_result() {
+impl<U> ToRust<Result<(), U>> for Value
+where
+    Value: ToRust<U>,
+{
+    fn to_rust(&self) -> Result<(), U> {
+        match self.unwrap_result() {
             Ok(None) => Ok(()),
-            Err(Some(err)) => Err(U::to_rust(&err)),
+            Err(Some(err)) => Err(err.to_rust()),
             _ => unreachable!(),
         }
     }
 }
-impl<T: ToRust, U: ToRust> ToRust for Result<T, U> {
-    fn to_rust(v: &Value) -> Self {
-        match v.unwrap_result() {
-            Ok(Some(ok)) => Ok(T::to_rust(&ok)),
-            Err(Some(err)) => Err(U::to_rust(&err)),
+impl<T, U> ToRust<Result<T, U>> for Value
+where
+    Value: ToRust<T> + ToRust<U>,
+{
+    fn to_rust(&self) -> Result<T, U> {
+        match self.unwrap_result() {
+            Ok(Some(ok)) => Ok(ok.to_rust()),
+            Err(Some(err)) => Err(err.to_rust()),
             _ => unreachable!(),
         }
     }
@@ -277,11 +292,11 @@ macro_rules! impl_tuple {
                 }
             }
 
-            impl<$($var: ToRust),*> ToRust for ($($var),*,) {
-                fn to_rust(v: &Value) -> Self {
-                    let mut iter = v.unwrap_tuple();
+            impl<$($var),*> ToRust<($($var),*,)> for Value where $( Value: ToRust<$var> ),* {
+                fn to_rust(&self) -> ($($var),*,) {
+                    let mut iter = self.unwrap_tuple();
                     ($(
-                        $var::to_rust(&iter.next().unwrap()),
+                        ToRust::<$var>::to_rust(iter.next().unwrap().as_ref()),
                     )*)
                 }
             }
