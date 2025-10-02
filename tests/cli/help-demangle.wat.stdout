@@ -1,0 +1,72 @@
+Demangle Rust and C++ symbol names in the `name` section.
+
+This command will detect a `name` section in a wasm executable and demangle any
+Rust and C++ symbol names found within it. Tooling for debugging a wasm module
+which otherwise uses the `name` section but doesn't run a demangler will use the
+demangled names since the `name` section will be replaced.
+
+Usage: wasm-tools demangle [OPTIONS] [INPUT]
+
+Arguments:
+  [INPUT]
+          Input file to process.
+          
+          If not provided or if this is `-` then stdin is read entirely and
+          processed. Note that for most subcommands this input can either be a
+          binary `*.wasm` file or a textual format `*.wat` file.
+
+Options:
+  -o, --output <OUTPUT>
+          Where to place output.
+          
+          Required when printing WebAssembly binary output.
+          
+          If not provided, then stdout is used.
+
+  -v, --verbose...
+          Use verbose output (-v info, -vv debug, -vvv trace)
+
+      --color <COLOR>
+          Configuration over whether terminal colors are used in output.
+          
+          Supports one of `auto|never|always|always-ansi`. The default is to
+          detect what to do based on the terminal environment, for example by
+          using `isatty`.
+          
+          [default: auto]
+
+  -t, --wat
+          Output the text format of WebAssembly instead of the binary format
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Examples:
+
+Suppose foo.wasm has the following textual representation:
+
+(module
+  (func $do_not_demangle_me)
+  (func $_ZN4rustE)
+  (func $_Z3food)
+)
+
+The second two functions are mangled Rust symbol names.
+
+    # Demangle symbol names in foo.wasm and print the textual form of
+    # the output to stdout.
+    $ wasm-tools demangle -t foo.wasm
+(module
+  (type (;0;) (func))
+  (func $do_not_demangle_me (;0;) (type 0))
+  (func $rust (;1;) (type 0))
+  (func $"foo(double)" (;2;) (type 0))
+)
+
+    # Demangle symbol names in foo.wasm and save the binary output
+    # to foo-demangled.wasm.
+    $ wasm-tools demangle foo.wasm -o foo-demangled.wasm
+
+Exit status:
+    0 on success,
+    nonzero if the input file fails to parse.
