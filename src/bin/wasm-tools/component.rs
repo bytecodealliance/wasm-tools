@@ -57,32 +57,6 @@ impl Opts {
     }
 }
 
-fn parse_optionally_name_file(s: &str) -> (&str, &str) {
-    let mut parts = s.splitn(2, '=');
-    let name_or_path = parts.next().unwrap();
-    match parts.next() {
-        Some(path) => (name_or_path, path),
-        None => {
-            let name = Path::new(name_or_path)
-                .file_name()
-                .unwrap()
-                .to_str()
-                .unwrap();
-            let name = match name.find('.') {
-                Some(i) => &name[..i],
-                None => name,
-            };
-            (name, name_or_path)
-        }
-    }
-}
-
-fn parse_adapter(s: &str) -> Result<(String, Vec<u8>)> {
-    let (name, path) = parse_optionally_name_file(s);
-    let wasm = wat::parse_file(path)?;
-    Ok((name.to_string(), wasm))
-}
-
 fn parse_import_name(s: &str) -> Result<(String, String)> {
     s.split_once('=')
         .map(|(old, new)| (old.to_string(), new.to_string()))
@@ -102,20 +76,8 @@ fn parse_import_name(s: &str) -> Result<(String, String)> {
 /// with all of this type information resolved.
 #[derive(Parser)]
 pub struct NewOpts {
-    /// The path to an adapter module to satisfy imports not otherwise bound to
-    /// WIT interfaces.
-    ///
-    /// An adapter module can be used to translate the `wasi_snapshot_preview1`
-    /// ABI, for example, to one that uses the component model. The first
-    /// `[NAME=]` specified in the argument is inferred from the name of file
-    /// specified by `MODULE` if not present and is the name of the import
-    /// module that's being implemented (e.g. `wasi_snapshot_preview1.wasm`).
-    ///
-    /// The second part of this argument, optionally specified, is the interface
-    /// that this adapter module imports. If not specified then the interface
-    /// imported is inferred from the adapter module itself.
-    #[clap(long = "adapt", value_name = "[NAME=]MODULE", value_parser = parse_adapter)]
-    adapters: Vec<(String, Vec<u8>)>,
+    #[clap(flatten)]
+    adapters: wasm_tools::AdaptersArg,
 
     /// Rename an instance import in the output component.
     ///
@@ -183,7 +145,7 @@ impl NewOpts {
         }
         encoder = encoder.module(&wasm)?;
 
-        for (name, wasm) in self.adapters.iter() {
+        for (name, wasm) in self.adapters.adapters.iter() {
             encoder = encoder.adapter(name, wasm)?;
         }
 
@@ -417,20 +379,8 @@ pub struct LinkOpts {
     #[clap(long, value_name = "[NAME=]MODULE", value_parser = parse_library)]
     dl_openable: Vec<(String, Vec<u8>)>,
 
-    /// The path to an adapter module to satisfy imports not otherwise bound to
-    /// WIT interfaces.
-    ///
-    /// An adapter module can be used to translate the `wasi_snapshot_preview1`
-    /// ABI, for example, to one that uses the component model. The first
-    /// `[NAME=]` specified in the argument is inferred from the name of file
-    /// specified by `MODULE` if not present and is the name of the import
-    /// module that's being implemented (e.g. `wasi_snapshot_preview1.wasm`).
-    ///
-    /// The second part of this argument, optionally specified, is the interface
-    /// that this adapter module imports. If not specified then the interface
-    /// imported is inferred from the adapter module itself.
-    #[clap(long = "adapt", value_name = "[NAME=]MODULE", value_parser = parse_adapter)]
-    adapters: Vec<(String, Vec<u8>)>,
+    #[clap(flatten)]
+    adapters: wasm_tools::AdaptersArg,
 
     /// Size of stack (in bytes) to allocate in the synthesized main module
     #[clap(long)]
@@ -516,7 +466,7 @@ impl LinkOpts {
             linker = linker.library(name, wasm, true)?;
         }
 
-        for (name, wasm) in &self.adapters {
+        for (name, wasm) in &self.adapters.adapters {
             linker = linker.adapter(name, wasm)?;
         }
 

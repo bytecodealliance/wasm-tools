@@ -62,6 +62,48 @@ pub struct InputOutput {
     general: GeneralOpts,
 }
 
+fn parse_optionally_name_file(s: &str) -> (&str, &str) {
+    let mut parts = s.splitn(2, '=');
+    let name_or_path = parts.next().unwrap();
+    match parts.next() {
+        Some(path) => (name_or_path, path),
+        None => {
+            let name = Path::new(name_or_path)
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap();
+            let name = match name.find('.') {
+                Some(i) => &name[..i],
+                None => name,
+            };
+            (name, name_or_path)
+        }
+    }
+}
+
+fn parse_adapter(s: &str) -> Result<(String, Vec<u8>)> {
+    let (name, path) = parse_optionally_name_file(s);
+    let wasm = wat::parse_file(path)?;
+    Ok((name.to_string(), wasm))
+}
+
+#[derive(clap::Parser)]
+pub struct AdaptersArg {
+    /// The path to an adapter module to satisfy imports not otherwise bound to
+    /// WIT interfaces.
+    ///
+    /// An adapter module can be used to translate the `wasi_snapshot_preview1`
+    /// ABI, for example, to one that uses the component model. The first
+    /// `[NAME=]` specified in the argument is inferred from the name of file
+    /// specified by `MODULE` if not present and is the name of the import
+    /// module that's being implemented (e.g. `wasi_snapshot_preview1.wasm`).
+    ///
+    /// The second part of this argument is the path to the adapter module.
+    #[clap(long = "adapt", value_name = "[NAME=]MODULE", value_parser = parse_adapter)]
+    pub adapters: Vec<(String, Vec<u8>)>,
+}
+
 #[derive(clap::Parser)]
 pub struct GenerateDwarfArg {
     /// Optionally generate DWARF debugging information from WebAssembly text
