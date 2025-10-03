@@ -133,8 +133,18 @@ impl<'a> From<&'a str> for Value {
         value.to_string().into()
     }
 }
+impl<'a> ToValue for &'a str {
+    fn to_value(&self) -> Value {
+        self.to_string().to_value()
+    }
+}
 
 impl<const N: usize, T: ValueTyped> ValueTyped for [T; N] {
+    fn value_type() -> Type {
+        Type::list(T::value_type())
+    }
+}
+impl<T: ValueTyped> ValueTyped for [T] {
     fn value_type() -> Type {
         Type::list(T::value_type())
     }
@@ -144,6 +154,13 @@ impl<const N: usize, T: ValueTyped + Into<Value>> From<[T; N]> for Value {
     fn from(values: [T; N]) -> Self {
         let ty = Vec::<T>::value_type();
         let values = values.into_iter().map(Into::into);
+        Value::make_list(&ty, values).unwrap()
+    }
+}
+impl<T: ValueTyped + ToValue> ToValue for [T] {
+    fn to_value(&self) -> Value {
+        let ty = <[T]>::value_type();
+        let values = self.iter().map(|x| x.to_value());
         Value::make_list(&ty, values).unwrap()
     }
 }
@@ -204,17 +221,11 @@ where
     }
 }
 
-/*impl<T: ValueTyped> ValueTyped for &T {
+impl ValueTyped for Result<(), ()> {
     fn value_type() -> Type {
-        T::value_type()
+        Type::result(None, None)
     }
 }
-impl<T: ValueTyped + Into<Value> + Clone> From<&T> for Value {
-    fn from(value: &T) -> Self {
-        value.clone().into()
-    }
-}*/
-
 impl<T: ValueTyped> ValueTyped for Result<T, ()> {
     fn value_type() -> Type {
         Type::result(Some(T::value_type()), None)
@@ -231,32 +242,22 @@ impl<T: ValueTyped, U: ValueTyped> ValueTyped for Result<T, U> {
     }
 }
 
-impl<T: ValueTyped + Into<Value>> From<Result<T, ()>> for Value {
-    fn from(value: Result<T, ()>) -> Self {
-        let ty = Result::<T, ()>::value_type();
-        let value = match value {
-            Ok(ok) => Ok(Some(ok.into())),
-            Err(()) => Err(None),
-        };
-        Value::make_result(&ty, value).unwrap()
-    }
-}
-impl<U: ValueTyped + Into<Value>> From<Result<(), U>> for Value {
-    fn from(value: Result<(), U>) -> Self {
-        let ty = Result::<(), U>::value_type();
-        let value = match value {
-            Ok(()) => Ok(None),
-            Err(err) => Err(Some(err.into())),
-        };
-        Value::make_result(&ty, value).unwrap()
-    }
-}
 impl<T: ValueTyped + Into<Value>, U: ValueTyped + Into<Value>> From<Result<T, U>> for Value {
     fn from(value: Result<T, U>) -> Self {
         let ty = Result::<T, U>::value_type();
         let value = match value {
             Ok(ok) => Ok(Some(ok.into())),
             Err(err) => Err(Some(err.into())),
+        };
+        Value::make_result(&ty, value).unwrap()
+    }
+}
+impl ToValue for Result<(), ()> {
+    fn to_value(&self) -> Value {
+        let ty = Result::<(), ()>::value_type();
+        let value = match self {
+            Ok(()) => Ok(None),
+            Err(()) => Err(None),
         };
         Value::make_result(&ty, value).unwrap()
     }
@@ -289,6 +290,15 @@ impl<T: ValueTyped + ToValue, U: ValueTyped + ToValue> ToValue for Result<T, U> 
             Err(err) => Err(Some(err.to_value())),
         };
         Value::make_result(&ty, value).unwrap()
+    }
+}
+impl ToRust<Result<(), ()>> for Value {
+    fn to_rust(&self) -> Result<(), ()> {
+        match self.unwrap_result() {
+            Ok(None) => Ok(()),
+            Err(None) => Err(()),
+            _ => unreachable!(),
+        }
     }
 }
 impl<T> ToRust<Result<T, ()>> for Value
