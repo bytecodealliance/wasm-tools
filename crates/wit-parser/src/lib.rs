@@ -1236,8 +1236,6 @@ impl Function {
         let sig = resolve.wasm_signature(AbiVariant::GuestImport, &func_tmp);
         (module, name, sig)
     }
-
-    // push_imported_future_and_stream_intrinsics(wat, resolve, "[export]", interface, func);
 }
 
 fn find_futures_and_streams(resolve: &Resolve, ty: Type, results: &mut Vec<TypeId>) {
