@@ -1,0 +1,78 @@
+Translate a WebAssembly address to a filename and line number using DWARF
+debugging information
+
+Usage: wasm-tools addr2line [OPTIONS] [INPUT] [ADDRESSES]...
+
+Arguments:
+  [INPUT]         Input file to process
+  [ADDRESSES]...  Addresses to convert to filenames and line numbers
+
+Options:
+      --generate-dwarf <lines|full>
+          Optionally generate DWARF debugging information from WebAssembly text
+          files
+  -g
+          Shorthand for `--generate-dwarf full`
+  -o, --output <OUTPUT>
+          Where to place output
+  -v, --verbose...
+          Use verbose output (-v info, -vv debug, -vvv trace)
+      --color <COLOR>
+          Configuration over whether terminal colors are used in output
+          [default: auto]
+      --code-section-relative
+          Indicates that addresses are code-section-relative instead of offsets
+          from the beginning of the module
+  -h, --help
+          Print help (see more with '--help')
+
+Examples:
+
+Suppose foo.wat is as follows:
+
+(module
+  (func $"dwarf(name)"
+(;@18;)  i32.const 0
+(;@1a;)  drop
+  )
+
+  (func $another-function
+(;@1e;)  i32.const 0
+(;@20;)  drop
+  )
+)
+
+    # Parse foo.wat to binary form and then print filename
+    # and line number information for four addresses in the binary
+    # (that is, byte offsets).
+    # Each line of output shows the requested address, then the name of
+    # the function enclosing this address, then the source filename and
+    # beginning and endling line numbers.
+    $ wasm-tools addr2line --generate-dwarf lines foo.wat 0x18 0x1a 0x1e 0x20
+0x18: dwarf(name) foo.wat:3:10
+0x1a: dwarf(name) foo.wat:4:10
+0x1e: another-function foo.wat:8:10
+0x20: another-function foo.wat:9:10
+
+Suppose foo.c was compiled to a .wasm file called foo.wasm. (foo.c not shown.)
+
+    # Print filename and line number information for two addresses.
+    $ target/debug/wasm-tools addr2line --generate-dwarf lines foo.wasm 0xff
+    0x200
+0xff: main foo.c:14:0
+0x200: main foo.c:22:9
+
+The output shows that both offsets are in the `main()` function, but at
+different
+line numbers.
+
+    # Print filename and line number information for two addresses (specified as
+    decimals),
+    # interpreting the addresses relative to the beginning of the code section.
+    $ target/debug/wasm-tools addr2line --generate-dwarf lines
+    --code-section-relative foo.wasm 255 512
+0xff: main foo.c:21:9
+0x200: main foo.c:25:9
+
+The output shows how the addresses correspond to different source locations
+if interpreted relative to the beginning of the code section.
