@@ -33,6 +33,144 @@ impl Opts {
 
 /// Read metadata (module name, producers) from a WebAssembly file.
 #[derive(clap::Parser)]
+#[clap(after_help = "\
+Examples:
+
+Suppose foo.wasm has the following textual representation:
+
+(component $my-name
+  (core module $submodule)
+
+  (core module (@name \"another submodule\"))
+)
+
+This Wasm file represents a component containing two core modules.
+
+    # Show the metadata for foo.wasm in a tabular format.
+    $ wasm-tools metadata show foo.wasm
+
+╭───────────┬───────────────────┬──────┬───────┬───────────┬─────────╮
+│ KIND      ┆ NAME              ┆ SIZE ┆ SIZE% ┆ LANGUAGES ┆ PARENT  │
+╞═══════════╪═══════════════════╪══════╪═══════╪═══════════╪═════════╡
+│ component ┆ my-name           ┆ 136B ┆  100% ┆ -         ┆ <root>  │
+├╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
+│ module    ┆ submodule         ┆  27B ┆   20% ┆ -         ┆ my-name │
+├╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
+│ module    ┆ another submodule ┆  35B ┆   26% ┆ -         ┆ my-name │
+╰───────────┴───────────────────┴──────┴───────┴───────────┴─────────╯
+╭───────┬────────────────────────────╮
+│ KIND  ┆ VALUE                      │
+╞═══════╪════════════════════════════╡
+│ name  ┆ my-name                    │
+├╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ kind  ┆ component                  │
+├╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ range ┆ 0x0..0x88                  │
+├╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ child ┆ submodule [module]         │
+├╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ child ┆ another submodule [module] │
+╰───────┴────────────────────────────╯
+╭───────┬───────────╮
+│ KIND  ┆ VALUE     │
+╞═══════╪═══════════╡
+│ name  ┆ submodule │
+├╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌┤
+│ kind  ┆ module    │
+├╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌┤
+│ range ┆ 0xa..0x25 │
+╰───────┴───────────╯
+╭───────┬───────────────────╮
+│ KIND  ┆ VALUE             │
+╞═══════╪═══════════════════╡
+│ name  ┆ another submodule │
+├╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ kind  ┆ module            │
+├╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ range ┆ 0x27..0x4a        │
+╰───────┴───────────────────╯
+
+    The first table summarizes the contents of the file: a component and two
+    core modules.
+
+    Next, one table is shown for each component and module. The first table
+    shows that a component named `my-name` is represented by the bytes in
+    foo.wasm between the offsets 0x0 and 0x88. The \"child\" rows of the table
+    show the names of each of its contained modules. The second two tables
+    show the names, kinds, and ranges of each of the modules in the file.
+
+    # Show the metadata for foo.wasm in JSON format.
+    # The output is not pretty-printed. For clarity, it has been pretty-printed
+    # here.
+    $ wasm-tools metadata show foo.wasm --json
+{
+  \"component\": {
+    \"metadata\": {
+      \"name\": \"my-name\",
+      \"producers\": null,
+      \"authors\": null,
+      \"description\": null,
+      \"licenses\": null,
+      \"source\": null,
+      \"homepage\": null,
+      \"revision\": null,
+      \"version\": null,
+      \"range\": {
+        \"start\": 0,
+        \"end\": 136
+      },
+      \"dependencies\": null
+    },
+    \"children\": [
+      {
+        \"module\": {
+          \"name\": \"submodule\",
+          \"producers\": null,
+          \"authors\": null,
+          \"description\": null,
+          \"licenses\": null,
+          \"source\": null,
+          \"homepage\": null,
+          \"revision\": null,
+          \"version\": null,
+          \"range\": {
+            \"start\": 10,
+            \"end\": 37
+          },
+          \"dependencies\": null
+        }
+      },
+      {
+        \"module\": {
+          \"name\": \"another submodule\",
+          \"producers\": null,
+          \"authors\": null,
+          \"description\": null,
+          \"licenses\": null,
+          \"source\": null,
+          \"homepage\": null,
+          \"revision\": null,
+          \"version\": null,
+          \"range\": {
+            \"start\": 39,
+            \"end\": 74
+          },
+          \"dependencies\": null
+        }
+      }
+    ]
+  }
+}
+
+    The JSON format contains some additional fields. In this example, the values of
+    those fields are set to `null` because they are not present in the input file.
+    In the tabular format, these fields were simply omitted.
+    The offset ranges are also shown in decimal instead of hexadecimal.
+
+Exit status:
+    0 on success,
+    nonzero if the input file fails to parse.
+")]
 pub struct ShowOpts {
     #[clap(flatten)]
     io: wasm_tools::InputOutput,
@@ -64,6 +202,47 @@ impl ShowOpts {
 
 /// Add metadata (module name, producers) to a WebAssembly file
 #[derive(clap::Parser)]
+#[clap(after_help = "\
+Examples:
+
+Suppose foo.wasm has the following textual representation:
+
+(component $foo
+  (core module
+    (func $foo)
+  )
+)
+
+This Wasm file represents a component containing one core module.
+
+    # Add a programming language \"foo\" whose version is 1
+    # to the `producers` section, an \"authors\" string,
+    # and a homepage URL and print the textual representation
+    # to stdout
+    $ wasm-tools metadata add --language foo=1 \\
+          --authors \"J. Random Hacker\" \\
+          --homepage \"https://example.com/\" \\
+          foo.wasm -t
+(component $foo
+  (core module (;0;)
+    (type (;0;) (func))
+    (func $foo (;0;) (type 0))
+  )
+  (@producers
+    (language \"foo\" \"1\")
+  )
+  (@custom \"authors\" \"J. Random Hacker\")
+  (@custom \"homepage\" \"https://example.com/\")
+)
+
+   # Remove the homepage section from the file foo1.wasm
+   # and write the binary output to foo2.wasm
+   $ wasm-tools metadata add --clear-homepage foo1.wasm -o foo2.wasm
+
+Exit status:
+    0 on success,
+    nonzero if the input file fails to parse.
+")]
 pub struct AddOpts {
     #[clap(flatten)]
     generate_dwarf: wasm_tools::GenerateDwarfArg,
