@@ -470,4 +470,10 @@ pub enum NodeType {
     /// Flags
     /// Child nodes are flag Labels.
     Flags,
+    /// Resource
+    /// Child nodes are handle id and a optional borrow flag
+    Resource,
+    /// Borrow flag
+    /// Only appear under resource node
+    Borrow,
 }

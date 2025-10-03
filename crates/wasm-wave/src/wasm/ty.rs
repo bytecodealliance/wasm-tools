@@ -28,6 +28,7 @@ pub enum WasmTypeKind {
     Option,
     Result,
     Flags,
+    Resource,
     #[doc(hidden)]
     Unsupported,
 }
@@ -57,6 +58,7 @@ impl std::fmt::Display for WasmTypeKind {
             WasmTypeKind::Option => "option",
             WasmTypeKind::Result => "result",
             WasmTypeKind::Flags => "flags",
+            WasmTypeKind::Resource => "resource",
             WasmTypeKind::Unsupported => "<<UNSUPPORTED>>",
         })
     }
@@ -124,6 +126,13 @@ pub trait WasmType: Clone + Sized {
     /// # Panics
     /// Panics if the type is not implemented (the trait default).
     fn flags_names(&self) -> Box<dyn Iterator<Item = Cow<'_, str>> + '_> {
+        unimplemented!()
+    }
+
+    /// Returns the resource name.
+    /// # Panics
+    /// Panics if the type is not implemented (the trait default).
+    fn resource_type(&self) -> (&str, bool) {
         unimplemented!()
     }
 }

@@ -81,6 +81,7 @@ impl<'source> Parser<'source> {
             Token::ParenOpen => self.parse_tuple()?,
             Token::BracketOpen => self.parse_list()?,
             Token::BraceOpen => self.parse_record_or_flags()?,
+            Token::Sharp => self.parse_resource()?,
             Token::LabelOrKeyword => match Keyword::decode(self.slice()) {
                 Some(Keyword::True) => self.leaf_node(NodeType::BoolTrue),
                 Some(Keyword::False) => self.leaf_node(NodeType::BoolFalse),
@@ -97,6 +98,28 @@ impl<'source> Parser<'source> {
             | Token::Colon
             | Token::Comma => return Err(self.unexpected_token()),
         })
+    }
+
+    fn parse_resource(&mut self) -> Result<Node, ParserError> {
+        let start = self.span().start;
+        let mut children = Vec::new();
+        match self.advance()? {
+            Token::BracketOpen => {
+                children.push(self.leaf_node(NodeType::Borrow));
+                self.advance()?;
+                self.expect_token(Token::Number)?;
+                children.push(self.leaf_node(NodeType::Number));
+                self.advance()?;
+                self.expect_token(Token::BracketClose)?;
+            }
+            Token::Number => children.push(self.leaf_node(NodeType::Number)),
+            _ => return Err(self.unexpected_token()),
+        }
+        Ok(Node::new(
+            NodeType::Resource,
+            start..self.span().end,
+            children,
+        ))
     }
 
     fn parse_tuple(&mut self) -> Result<Node, ParserError> {

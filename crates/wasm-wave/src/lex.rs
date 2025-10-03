@@ -40,6 +40,10 @@ pub enum Token {
     #[token(":")]
     Colon,
 
+    /// The `#` symbol
+    #[token("#")]
+    Sharp,
+
     /// The `,` symbol
     #[token(",")]
     Comma,

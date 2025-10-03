@@ -18,6 +18,7 @@ pub(super) enum TypeEnum {
     Option(Arc<OptionType>),
     Result(Arc<ResultType>),
     Flags(Arc<FlagsType>),
+    Resource(Arc<ResourceType>),
 }
 
 #[allow(missing_docs)]
@@ -135,6 +136,14 @@ impl Type {
         Some(Self(TypeEnum::Flags(Arc::new(FlagsType { flags }))))
     }
 
+    /// Returns a resource type with the given name.
+    pub fn resource(name: &str, is_borrowed: bool) -> Self {
+        Self(TypeEnum::Resource(Arc::new(ResourceType {
+            name: name.to_string(),
+            is_borrowed,
+        })))
+    }
+
     /// Returns a [`Type`] matching the given [`WasmType`]. Returns None if the
     /// given type is unsupported or otherwise invalid.
     pub fn from_wasm_type(ty: &impl WasmType) -> Option<Self> {
@@ -194,6 +203,12 @@ pub struct FlagsType {
     pub(super) flags: Box<[Box<str>]>,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct ResourceType {
+    pub(super) name: String,
+    pub(super) is_borrowed: bool,
+}
+
 impl WasmType for Type {
     fn kind(&self) -> WasmTypeKind {
         match self.0 {
@@ -207,6 +222,7 @@ impl WasmType for Type {
             TypeEnum::Option(_) => WasmTypeKind::Option,
             TypeEnum::Result(_) => WasmTypeKind::Result,
             TypeEnum::Flags(_) => WasmTypeKind::Flags,
+            TypeEnum::Resource(_) => WasmTypeKind::Resource,
         }
     }
 
@@ -268,6 +284,11 @@ impl WasmType for Type {
             return Box::new(std::iter::empty());
         };
         Box::new(flags.flags.iter().map(|name| name.as_ref().into()))
+    }
+
+    fn resource_type(&self) -> (&str, bool) {
+        let res = maybe_unwrap_type!(&self.0, TypeEnum::Resource).unwrap();
+        (&res.name, res.is_borrowed)
     }
 }
 
