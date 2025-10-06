@@ -2791,6 +2791,20 @@ fn apply_map<T>(map: &[Option<Id<T>>], id: Id<T>, desc: &str, span: Option<Span>
     }
 }
 
+fn rename(original_name: &str, include_name: &IncludeName) -> Option<String> {
+    if original_name == include_name.name {
+        return Some(include_name.as_.to_string());
+    }
+    let (kind, rest) = original_name.split_once(']')?;
+    match rest.split_once('.') {
+        Some((name, rest)) if name == include_name.name => {
+            Some(format!("{kind}]{}.{rest}", include_name.as_))
+        }
+        _ if rest == include_name.name => Some(format!("{kind}]{}", include_name.as_)),
+        _ => None,
+    }
+}
+
 impl Remap {
     pub fn map_type(&self, id: TypeId, span: Option<Span>) -> Result<TypeId> {
         apply_map(&self.types, id, "type", span)
@@ -3628,14 +3642,10 @@ impl Remap {
     ) -> Result<()> {
         match item.0 {
             WorldKey::Name(n) => {
-                let n = if let Some(found) = names
+                let n = names
                     .into_iter()
-                    .find(|include_name| include_name.name == n.clone())
-                {
-                    found.as_.clone()
-                } else {
-                    n.clone()
-                };
+                    .find_map(|include_name| rename(n, include_name))
+                    .unwrap_or(n.clone());
 
                 // When the `with` option to the `include` directive is
                 // specified and is used to rename a function that means that
@@ -3690,7 +3700,7 @@ impl Remap {
     fn remove_matching_name(&self, item: (&WorldKey, &WorldItem), names: &mut Vec<IncludeName>) {
         match item.0 {
             WorldKey::Name(n) => {
-                names.retain(|name| name.name != n.clone());
+                names.retain(|name| rename(n, name).is_none());
             }
             _ => {}
         }
