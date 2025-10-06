@@ -96,13 +96,11 @@ impl Payload {
                     #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "authors" => {
                         let a = Authors::parse_custom_section(&c)?;
-                        let Metadata {
-                            authors: author, ..
-                        } = output
+                        let Metadata { authors, .. } = output
                             .last_mut()
                             .expect("non-empty metadata stack")
                             .metadata_mut();
-                        *author = Some(a);
+                        *authors = Some(a);
                     }
                     #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "description" => {
