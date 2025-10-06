@@ -12,7 +12,7 @@
   (core func (canon resource.drop $x))
 )
 
-(component
+(component definition
   (import "x" (type $x (sub resource)))
 
   (core func (canon resource.drop $x))
@@ -188,7 +188,7 @@
   ))
 )
 
-(component
+(component definition
   (import "fancy-fs" (instance $fancy-fs
     (export "fs" (instance $fs
       (export "file" (type (sub resource)))
@@ -217,12 +217,12 @@
   ))
 )
 
-(component
+(component definition
   (import "T1" (type $T1 (sub resource)))
   (import "T2" (type $T2 (sub resource)))
 )
 
-(component $C
+(component definition $C
   (import "T1" (type $T1 (sub resource)))
   (import "T2" (type $T2 (sub resource)))
   (import "T3" (type $T3 (eq $T2)))
@@ -231,7 +231,7 @@
   (type $ListT3 (list (own $T3)))
 )
 
-(component
+(component definition
   (import "T" (type $T (sub resource)))
   (import "U" (type $U (sub resource)))
   (type $Own1 (own $T))
@@ -668,7 +668,7 @@
     (canon lift (core func $f)))
 )
 
-(component
+(component definition
   (type $i (instance
     (export "r" (type $r (sub resource)))
     (export "f" (func (result (own $r))))
@@ -917,16 +917,16 @@
     (import "b" (type $a (sub resource)))
     (import "[constructor]a" (func (result (result(own $a))))))
   "function does not match expected resource name `b`")
-(component
+(component definition
   (import "a" (type $a (sub resource)))
   (import "[constructor]a" (func (result (own $a)))))
-(component
+(component definition
   (import "a" (type $a (sub resource)))
   (import "[constructor]a" (func (result (result (own $a))))))
-(component
+(component definition
   (import "a" (type $a (sub resource)))
   (import "[constructor]a" (func (result (result (own $a) (error string))))))
-(component
+(component definition
   (import "a" (type $a (sub resource)))
   (import "[constructor]a" (func (param "x" u32) (result (own $a)))))
 (assert_invalid
@@ -973,7 +973,7 @@
     (import "b" (type $T (sub resource)))
     (import "[method]a.b" (func (param "self" (borrow $T)))))
   "does not match expected resource name")
-(component
+(component definition
   (import "a" (type $T (sub resource)))
   (import "[method]a.b" (func (param "self" (borrow $T)))))
 
@@ -1000,7 +1000,7 @@
   (component (import "[static]a.b" (func)))
   "static resource name is not known in this context")
 
-(component
+(component definition
   (import "a" (type (sub resource)))
   (import "[static]a.b" (func)))
 
@@ -1014,10 +1014,12 @@
   "resource used in function does not have a name in this context")
 
 (component
-  (import "b" (type $T (sub resource)))
-  (import "f" (func $f (param "self" (borrow $T))))
-  (export $c "c" (type $T))
-  (export "[method]c.foo" (func $f) (func (param "self" (borrow $c))))
+  (component
+    (import "b" (type $T (sub resource)))
+    (import "f" (func $f (param "self" (borrow $T))))
+    (export $c "c" (type $T))
+    (export "[method]c.foo" (func $f) (func (param "self" (borrow $c))))
+  )
 )
 
 ;; imports aren't transitive

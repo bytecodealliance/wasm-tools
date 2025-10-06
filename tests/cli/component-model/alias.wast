@@ -1,23 +1,27 @@
-;; RUN: wast --assert default --snapshot tests/snapshots % -f cm-values
+;; RUN: wast --assert default --snapshot tests/snapshots %
 
 (component
-  (import "i" (instance $i
-    (export "f1" (func))
-    (export "f2" (func (param "p1" string)))
-  ))
-  (export "run" (func $i "f1"))
+  (component
+    (import "i" (instance $i
+      (export "f1" (func))
+      (export "f2" (func (param "p1" string)))
+    ))
+    (export "run" (func $i "f1"))
+  )
 )
 
 (component
-  (import "i" (component $c
-    (export "f1" (func))
-    (export "f2" (func (param "p1" string)))
-  ))
-  (instance $i (instantiate $c))
-  (export "run" (func $i "f1"))
+  (component
+    (import "i" (component $c
+      (export "f1" (func))
+      (export "f2" (func (param "p1" string)))
+    ))
+    (instance $i (instantiate $c))
+    (export "run" (func $i "f1"))
+  )
 )
 
-(component
+(component definition
   (import "i" (core module $m
     (export "f1" (func $f1))
     (export "f2" (func $f2 (param i32)))
@@ -29,7 +33,7 @@
   (core instance (instantiate $m2 (with "" (instance (export "" (func $i "f1"))))))
 )
 
-(component
+(component definition
   (import "a" (core module $libc
     (export "memory" (memory 1))
     (export "table" (table 0 funcref))
@@ -62,17 +66,20 @@
 )
 
 (component
-  (import "a" (instance $i
-    (export "a" (func))
-    (export "b" (core module))
-    (export "c" (instance))
-  ))
-  (export "b" (func $i "a"))
-  (export "c" (core module $i "b"))
-  (export "d" (instance $i "c"))
+  (component
+    (import "a" (instance $i
+      (export "a" (func))
+      (export "b" (core module))
+      (export "c" (instance))
+    ))
+    (export "b" (func $i "a"))
+    (export "c" (core module $i "b"))
+    (export "d" (instance $i "c"))
+  )
 )
 
-(component
+
+(component definition
   (import "a" (core module $libc
     (export "memory" (memory 1))
     (export "table" (table 0 funcref))
@@ -193,36 +200,35 @@
 )
 
 ;; multiple projections in alias sugar
-(component $a
-  (import "a" (instance $a
-    (export "a" (instance
+(component
+  (component $a
+    (import "a" (instance $a
       (export "a" (instance
         (export "a" (instance
-          (export "a" (func))
+          (export "a" (instance
+            (export "a" (func))
+          ))
         ))
       ))
     ))
-  ))
 
-  (import "b" (component $b (import "a" (func))))
+    (import "b" (component $b (import "a" (func))))
 
-  (instance (instantiate $b
-    (with "a" (func $a "a" "a" "a" "a"))
-  ))
+    (instance (instantiate $b
+      (with "a" (func $a "a" "a" "a" "a"))
+    ))
+  )
 )
 
 ;; alias some constructs
 (component
-  (import "a" (instance $foo (export "v" (value s32))))
-  (export "v" (value $foo "v"))
+  (component
+    (import "a" (instance $foo (export "v" (component))))
+    (export "v" (component $foo "v"))
+  )
 )
 
-(component
-  (import "a" (instance $foo (export "v" (component))))
-  (export "v" (component $foo "v"))
-)
-
-(component
+(component definition
   (import "a" (instance $foo (export "v" (core module))))
   (export "v" (core module $foo "v"))
 )
@@ -244,10 +250,12 @@
   (export "v" (core module $target))
 )
 
-(component $C
-  (component $m)
-  (alias outer $C $m (component $target))
-  (export "v" (component $target))
+(component
+  (component $C
+    (component $m)
+    (alias outer $C $m (component $target))
+    (export "v" (component $target))
+  )
 )
 
 (assert_invalid
@@ -274,7 +282,7 @@
   (component (alias outer 0 0 (component)))
   "index out of bounds")
 
-(component
+(component definition
   (import "a" (instance $i
      (export "x" (core module))
   ))
@@ -283,9 +291,11 @@
 )
 
 (component
-  (import "a" (instance $i
-     (export "x" (component))
-  ))
-  ;; inline alias injection sugar works for component references
-  (instance (instantiate (component $i "x")))
+  (component
+    (import "a" (instance $i
+       (export "x" (component))
+    ))
+    ;; inline alias injection sugar works for component references
+    (instance (instantiate (component $i "x")))
+  )
 )

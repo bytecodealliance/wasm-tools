@@ -1,14 +1,18 @@
 ;; RUN: wast --assert default --snapshot tests/snapshots %
 
 (component
-  (import "f" (func $f))
-  (export "f2" (func $f) (func))
+  (component
+    (import "f" (func $f))
+    (export "f2" (func $f) (func))
+  )
 )
 
 ;; subtyping works
 (component
-  (import "f" (instance $i (export "f" (func))))
-  (export "f2" (instance $i) (instance))
+  (component
+    (import "f" (instance $i (export "f" (func))))
+    (export "f2" (instance $i) (instance))
+  )
 )
 
 ;; make sure subtyping works in the right direction

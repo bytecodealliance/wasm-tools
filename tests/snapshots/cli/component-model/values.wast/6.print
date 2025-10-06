@@ -1,0 +1,6 @@
+(component
+  (component (;0;)
+    (import "a" (value (;0;) string))
+    (export (;1;) "b" (value 0))
+  )
+)

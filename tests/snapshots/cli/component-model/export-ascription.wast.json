@@ -9,20 +9,20 @@
     },
     {
       "type": "module",
-      "line": 9,
+      "line": 11,
       "filename": "export-ascription.1.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 16,
+      "line": 20,
       "filename": "export-ascription.2.wasm",
       "module_type": "binary",
       "text": "ascribed type of export is not compatible"
     },
     {
       "type": "assert_invalid",
-      "line": 24,
+      "line": 28,
       "filename": "export-ascription.3.wasm",
       "module_type": "binary",
       "text": "missing expected export `f`"

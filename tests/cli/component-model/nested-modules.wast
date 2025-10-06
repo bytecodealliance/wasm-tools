@@ -1,6 +1,6 @@
 ;; RUN: wast --assert default --snapshot tests/snapshots %
 
-(component
+(component definition
   (import "i1" (core module))
 
   (core module)
@@ -20,7 +20,7 @@
 )
 
 ;; does the `import` use the type annotation specified later?
-(component
+(component definition
   (import "a" (core module))
   (core type (module))
 )
@@ -37,7 +37,7 @@
 
 ;; interleave module definitions with imports/aliases and ensure that we
 ;; typecheck the module code section correctly
-(component
+(component definition
   (core module
     (func (export ""))
   )

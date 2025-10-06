@@ -1,17 +1,19 @@
-;; RUN: wast --assert default --snapshot tests/snapshots % -f cm-values
+;; RUN: wast --assert default --snapshot tests/snapshots %
 
 (component
-  (import "a" (func))
-  (import "b" (instance))
-  (import "c" (instance
-    (export "a" (func))
-  ))
-  (import "d" (component
-    (import "a" (core module))
-    (export "b" (func))
-  ))
-  (type $t (func))
-  (import "e" (type (eq $t)))
+  (component
+    (import "a" (func))
+    (import "b" (instance))
+    (import "c" (instance
+      (export "a" (func))
+    ))
+    (import "d" (component
+      (import "a" (core module))
+      (export "b" (func))
+    ))
+    (type $t (func))
+    (import "e" (type (eq $t)))
+  )
 )
 
 (assert_invalid
@@ -99,18 +101,7 @@
   )
   "type index out of bounds")
 
-(assert_invalid
-  (component
-    (import "a" (value string))
-  )
-  "value index 0 was not used as part of an instantiation, start function, or export")
-
-(component
-  (import "a" (value string))
-  (export "b" (value 0))
-)
-
-(component
+(component definition
   (import "wasi:http/types" (func))
   (import "wasi:http/types@1.0.0" (func))
   (import "wasi:http/types@2.0.0" (func))
@@ -186,11 +177,13 @@
   "trailing characters found: `/qux`")
 
 (component
-  (import "a" (func $a))
-  (export "a" (func $a))
+  (component
+    (import "a" (func $a))
+    (export "a" (func $a))
+  )
 )
 
-(component
+(component definition
   (import "unlocked-dep=<a:b>" (func))
   (import "unlocked-dep=<a:b@*>" (func))
   (import "unlocked-dep=<a:b@{>=1.2.3}>" (func))
@@ -232,7 +225,7 @@
   (component (import "unlocked-dep=<a:a@{<1.2.3 >=2.3.4}>" (func)))
   "`1.2.3 >=2.3.4` is not a valid semver")
 
-(component
+(component definition
   (import "locked-dep=<a:b>" (func))
   (import "locked-dep=<a:b@1.2.3>" (func))
   (import "locked-dep=<a:b>,integrity=<sha256-a>" (func))
@@ -273,7 +266,7 @@
   (component (import "locked-dep=<a:a@1.2.3>x" (func)))
   "trailing characters found: `x`")
 
-(component
+(component definition
   (import "url=<>" (func))
   (import "url=<a>" (func))
   (import "url=<a>,integrity=<sha256-a>" (func))
@@ -307,7 +300,7 @@
   (component (import "relative-url=<<>" (func)))
   "not a valid extern name")
 
-(component
+(component definition
   (import "integrity=<sha256-a>" (func))
   (import "integrity=<sha384-a>" (func))
   (import "integrity=<sha512-a>" (func))
@@ -349,7 +342,7 @@
 ;; not valid in the spec but it's accepted for backwards compatibility. This
 ;; tests is here to ensure such compatibility. In the future this test should
 ;; be changed to `(assert_invalid ...)`
-(component binary
+(component definition binary
   "\00asm" "\0d\00\01\00"   ;; component header
 
   "\07\05"          ;; type section, 5 bytes large

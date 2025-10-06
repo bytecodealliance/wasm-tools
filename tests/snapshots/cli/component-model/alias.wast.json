@@ -9,187 +9,179 @@
     },
     {
       "type": "module",
-      "line": 11,
+      "line": 13,
       "filename": "alias.1.wasm",
       "module_type": "binary"
     },
     {
-      "type": "module",
-      "line": 20,
+      "type": "module_definition",
+      "line": 24,
       "filename": "alias.2.wasm",
       "module_type": "binary"
     },
     {
-      "type": "module",
-      "line": 32,
+      "type": "module_definition",
+      "line": 36,
       "filename": "alias.3.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 64,
+      "line": 68,
       "filename": "alias.4.wasm",
       "module_type": "binary"
     },
     {
-      "type": "module",
-      "line": 75,
+      "type": "module_definition",
+      "line": 82,
       "filename": "alias.5.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 103,
+      "line": 110,
       "filename": "alias.6.wasm",
       "module_type": "binary",
       "text": "export `a` for instance 0 is not a module"
     },
     {
       "type": "assert_invalid",
-      "line": 110,
+      "line": 117,
       "filename": "alias.7.wasm",
       "module_type": "binary",
       "text": "export `a` for instance 0 is not a module"
     },
     {
       "type": "assert_invalid",
-      "line": 120,
+      "line": 127,
       "filename": "alias.8.wasm",
       "module_type": "binary",
       "text": "core instance 0 has no export named `a`"
     },
     {
       "type": "assert_invalid",
-      "line": 128,
+      "line": 135,
       "filename": "alias.9.wasm",
       "module_type": "binary",
       "text": "core instance 0 has no export named `a`"
     },
     {
       "type": "assert_invalid",
-      "line": 136,
+      "line": 143,
       "filename": "alias.10.wasm",
       "module_type": "binary",
       "text": "instance 0 has no export named `a`"
     },
     {
       "type": "assert_invalid",
-      "line": 144,
+      "line": 151,
       "filename": "alias.11.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "module",
-      "line": 155,
+      "line": 162,
       "name": "PARENT",
       "filename": "alias.12.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 167,
+      "line": 174,
       "filename": "alias.13.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 196,
-      "name": "a",
+      "line": 203,
       "filename": "alias.14.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 215,
+      "line": 224,
       "filename": "alias.15.wasm",
       "module_type": "binary"
     },
     {
-      "type": "module",
-      "line": 220,
+      "type": "module_definition",
+      "line": 231,
       "filename": "alias.16.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 225,
+      "line": 236,
+      "name": "C",
       "filename": "alias.17.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "module",
-      "line": 230,
-      "name": "C",
-      "filename": "alias.18.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "module",
-      "line": 241,
-      "name": "C",
-      "filename": "alias.19.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
       "line": 247,
       "name": "C",
-      "filename": "alias.20.wasm",
+      "filename": "alias.18.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 253,
+      "filename": "alias.19.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 254,
-      "filename": "alias.21.wasm",
-      "module_type": "binary",
-      "text": "invalid outer alias count of 100"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 258,
-      "filename": "alias.22.wasm",
-      "module_type": "binary",
-      "text": "index out of bounds"
-    },
-    {
-      "type": "assert_invalid",
       "line": 262,
-      "filename": "alias.23.wasm",
+      "filename": "alias.20.wasm",
       "module_type": "binary",
       "text": "invalid outer alias count of 100"
     },
     {
       "type": "assert_invalid",
       "line": 266,
-      "filename": "alias.24.wasm",
+      "filename": "alias.21.wasm",
       "module_type": "binary",
       "text": "index out of bounds"
     },
     {
       "type": "assert_invalid",
       "line": 270,
-      "filename": "alias.25.wasm",
+      "filename": "alias.22.wasm",
       "module_type": "binary",
       "text": "invalid outer alias count of 100"
     },
     {
       "type": "assert_invalid",
       "line": 274,
-      "filename": "alias.26.wasm",
+      "filename": "alias.23.wasm",
       "module_type": "binary",
       "text": "index out of bounds"
     },
     {
-      "type": "module",
-      "line": 277,
-      "filename": "alias.27.wasm",
+      "type": "assert_invalid",
+      "line": 278,
+      "filename": "alias.24.wasm",
+      "module_type": "binary",
+      "text": "invalid outer alias count of 100"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 282,
+      "filename": "alias.25.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "module_definition",
+      "line": 285,
+      "filename": "alias.26.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 285,
-      "filename": "alias.28.wasm",
+      "line": 293,
+      "filename": "alias.27.wasm",
       "module_type": "binary"
     }
   ]

@@ -1,13 +1,21 @@
 (component
-  (import "a" (value $i (;0;) string))
-  (type (;0;)
-    (component
-      (import "a" (value (;0;) string))
+  (component (;0;)
+    (type (;0;)
+      (component)
     )
-  )
-  (import "b" (component $c (;0;) (type 0)))
-  (instance (;0;) (instantiate $c
-      (with "a" (value $i))
+    (import "a" (component $i (;0;) (type 0)))
+    (type (;1;)
+      (component
+        (type (;0;)
+          (component)
+        )
+        (import "a" (component (;0;) (type 0)))
+      )
+    )
+    (import "b" (component $c (;1;) (type 1)))
+    (instance (;0;) (instantiate $c
+        (with "a" (component $i))
+      )
     )
   )
 )

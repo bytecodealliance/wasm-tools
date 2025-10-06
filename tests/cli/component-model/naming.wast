@@ -1,6 +1,6 @@
 ;; RUN: wast --assert default --snapshot tests/snapshots %
 
-(component
+(component definition
   (func (import "a"))
   (component)
   (instance (instantiate 0 (with "NotKebab-Case" (func 0))))
@@ -110,7 +110,7 @@
   (instance (import "a1:b1/c"))
 )
 
-(component
+(component definition
   (import "a" (type $a (sub resource)))
   (import "[constructor]a" (func (result (own $a))))
 )
