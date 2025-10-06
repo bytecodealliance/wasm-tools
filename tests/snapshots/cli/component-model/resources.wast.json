@@ -195,603 +195,602 @@
     },
     {
       "type": "module",
-      "line": 263,
+      "line": 265,
       "filename": "resources.29.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 276,
+      "line": 278,
       "filename": "resources.30.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 282,
+      "line": 284,
       "filename": "resources.31.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 289,
+      "line": 291,
       "filename": "resources.32.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 295,
+      "line": 297,
       "filename": "resources.33.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 302,
-      "name": "P",
+      "line": 304,
       "filename": "resources.34.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 319,
+      "line": 323,
       "filename": "resources.35.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 341,
+      "line": 347,
       "filename": "resources.36.wasm",
       "module_type": "binary",
       "text": "not a local resource"
     },
     {
       "type": "module",
-      "line": 352,
+      "line": 358,
       "filename": "resources.37.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 362,
+      "line": 368,
       "filename": "resources.38.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 374,
+      "line": 380,
       "filename": "resources.39.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 390,
+      "line": 396,
       "filename": "resources.40.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 411,
+      "line": 417,
       "filename": "resources.41.wasm",
       "module_type": "binary",
       "text": "resource types are not the same"
     },
     {
       "type": "module",
-      "line": 433,
+      "line": 439,
       "filename": "resources.42.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 459,
+      "line": 465,
       "filename": "resources.43.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 486,
+      "line": 492,
       "filename": "resources.44.wasm",
       "module_type": "binary",
       "text": "expected resource, found defined type"
     },
     {
       "type": "assert_invalid",
-      "line": 496,
+      "line": 502,
       "filename": "resources.45.wasm",
       "module_type": "binary",
       "text": "expected defined type, found resource"
     },
     {
       "type": "assert_invalid",
-      "line": 507,
+      "line": 513,
       "filename": "resources.46.wasm",
       "module_type": "binary",
       "text": "resource types are not the same"
     },
     {
       "type": "module",
-      "line": 521,
+      "line": 527,
       "filename": "resources.47.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 535,
+      "line": 541,
       "filename": "resources.48.wasm",
       "module_type": "binary",
       "text": "func not valid to be used as import"
     },
     {
       "type": "assert_invalid",
-      "line": 542,
+      "line": 548,
       "filename": "resources.49.wasm",
       "module_type": "binary",
       "text": "func not valid to be used as import"
     },
     {
       "type": "assert_invalid",
-      "line": 551,
+      "line": 557,
       "filename": "resources.50.wasm",
       "module_type": "binary",
       "text": "func not valid to be used as export"
     },
     {
       "type": "module",
-      "line": 561,
+      "line": 567,
       "filename": "resources.51.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 571,
+      "line": 577,
       "filename": "resources.52.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 585,
+      "line": 591,
       "filename": "resources.53.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 603,
+      "line": 609,
       "filename": "resources.54.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 619,
+      "line": 625,
       "filename": "resources.55.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 651,
+      "line": 657,
       "filename": "resources.56.wasm",
       "module_type": "binary"
     },
     {
       "type": "module_definition",
-      "line": 671,
+      "line": 677,
       "filename": "resources.57.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 695,
+      "line": 701,
       "filename": "resources.58.wasm",
       "module_type": "binary",
       "text": "resource types are not the same"
     },
     {
       "type": "module",
-      "line": 715,
+      "line": 721,
       "filename": "resources.59.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 738,
+      "line": 744,
       "filename": "resources.60.wasm",
       "module_type": "binary",
       "text": "missing import named `x`"
     },
     {
       "type": "assert_invalid",
-      "line": 746,
+      "line": 752,
       "filename": "resources.61.wasm",
       "module_type": "binary",
       "text": "missing import named `y`"
     },
     {
       "type": "assert_invalid",
-      "line": 758,
+      "line": 764,
       "filename": "resources.62.wasm",
       "module_type": "binary",
       "text": "resource types are not the same"
     },
     {
       "type": "module",
-      "line": 773,
+      "line": 779,
       "name": "A",
       "filename": "resources.63.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 797,
+      "line": 803,
       "filename": "resources.64.wasm",
       "module_type": "binary",
       "text": "refers to resources not defined in the current component"
     },
     {
       "type": "assert_invalid",
-      "line": 803,
+      "line": 809,
       "filename": "resources.65.wasm",
       "module_type": "binary",
       "text": "refers to resources not defined in the current component"
     },
     {
       "type": "assert_invalid",
-      "line": 810,
+      "line": 816,
       "filename": "resources.66.wasm",
       "module_type": "binary",
       "text": "refers to resources not defined in the current component"
     },
     {
       "type": "assert_invalid",
-      "line": 817,
+      "line": 823,
       "filename": "resources.67.wasm",
       "module_type": "binary",
       "text": "refers to resources not defined in the current component"
     },
     {
       "type": "assert_invalid",
-      "line": 824,
+      "line": 830,
       "filename": "resources.68.wasm",
       "module_type": "binary",
       "text": "refers to resources not defined in the current component"
     },
     {
       "type": "assert_invalid",
-      "line": 832,
+      "line": 838,
       "filename": "resources.69.wasm",
       "module_type": "binary",
       "text": "expected component, found instance"
     },
     {
       "type": "assert_invalid",
-      "line": 848,
+      "line": 854,
       "filename": "resources.70.wasm",
       "module_type": "binary",
       "text": "type mismatch for import `y`"
     },
     {
       "type": "module",
-      "line": 868,
+      "line": 874,
       "filename": "resources.71.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 892,
+      "line": 898,
       "filename": "resources.72.wasm",
       "module_type": "binary",
       "text": "failed to find `.` character"
     },
     {
       "type": "assert_invalid",
-      "line": 897,
+      "line": 903,
       "filename": "resources.73.wasm",
       "module_type": "binary",
       "text": "not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 900,
+      "line": 906,
       "filename": "resources.74.wasm",
       "module_type": "binary",
       "text": "should return one value"
     },
     {
       "type": "assert_invalid",
-      "line": 903,
+      "line": 909,
       "filename": "resources.75.wasm",
       "module_type": "binary",
       "text": "should return `(own $T)`"
     },
     {
       "type": "assert_invalid",
-      "line": 906,
+      "line": 912,
       "filename": "resources.76.wasm",
       "module_type": "binary",
       "text": "import name `[constructor]a` is not valid"
     },
     {
       "type": "assert_invalid",
-      "line": 911,
+      "line": 917,
       "filename": "resources.77.wasm",
       "module_type": "binary",
       "text": "function does not match expected resource name `b`"
     },
     {
       "type": "assert_invalid",
-      "line": 916,
+      "line": 922,
       "filename": "resources.78.wasm",
       "module_type": "binary",
       "text": "function does not match expected resource name `b`"
     },
     {
       "type": "module_definition",
-      "line": 920,
+      "line": 926,
       "filename": "resources.79.wasm",
       "module_type": "binary"
     },
     {
       "type": "module_definition",
-      "line": 923,
+      "line": 929,
       "filename": "resources.80.wasm",
       "module_type": "binary"
     },
     {
       "type": "module_definition",
-      "line": 926,
+      "line": 932,
       "filename": "resources.81.wasm",
       "module_type": "binary"
     },
     {
       "type": "module_definition",
-      "line": 929,
+      "line": 935,
       "filename": "resources.82.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 933,
+      "line": 939,
       "filename": "resources.83.wasm",
       "module_type": "binary",
       "text": "function should return `(own $T)` or `(result (own $T))`"
     },
     {
       "type": "assert_invalid",
-      "line": 938,
+      "line": 944,
       "filename": "resources.84.wasm",
       "module_type": "binary",
       "text": "function should return `(own $T)` or `(result (own $T))`"
     },
     {
       "type": "assert_invalid",
-      "line": 945,
+      "line": 951,
       "filename": "resources.85.wasm",
       "module_type": "binary",
       "text": "failed to find `.` character"
     },
     {
       "type": "assert_invalid",
-      "line": 948,
+      "line": 954,
       "filename": "resources.86.wasm",
       "module_type": "binary",
       "text": "failed to find `.` character"
     },
     {
       "type": "assert_invalid",
-      "line": 951,
+      "line": 957,
       "filename": "resources.87.wasm",
       "module_type": "binary",
       "text": "not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 954,
+      "line": 960,
       "filename": "resources.88.wasm",
       "module_type": "binary",
       "text": "not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 957,
+      "line": 963,
       "filename": "resources.89.wasm",
       "module_type": "binary",
       "text": "not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 960,
+      "line": 966,
       "filename": "resources.90.wasm",
       "module_type": "binary",
       "text": "is not a func"
     },
     {
       "type": "assert_invalid",
-      "line": 963,
+      "line": 969,
       "filename": "resources.91.wasm",
       "module_type": "binary",
       "text": "should have at least one argument"
     },
     {
       "type": "assert_invalid",
-      "line": 966,
+      "line": 972,
       "filename": "resources.92.wasm",
       "module_type": "binary",
       "text": "should have a first argument called `self`"
     },
     {
       "type": "assert_invalid",
-      "line": 969,
+      "line": 975,
       "filename": "resources.93.wasm",
       "module_type": "binary",
       "text": "should take a first argument of `(borrow $T)`"
     },
     {
       "type": "assert_invalid",
-      "line": 972,
+      "line": 978,
       "filename": "resources.94.wasm",
       "module_type": "binary",
       "text": "does not match expected resource name"
     },
     {
       "type": "module_definition",
-      "line": 976,
+      "line": 982,
       "filename": "resources.95.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 982,
+      "line": 988,
       "filename": "resources.96.wasm",
       "module_type": "binary",
       "text": "failed to find `.` character"
     },
     {
       "type": "assert_invalid",
-      "line": 985,
+      "line": 991,
       "filename": "resources.97.wasm",
       "module_type": "binary",
       "text": "failed to find `.` character"
     },
     {
       "type": "assert_invalid",
-      "line": 988,
+      "line": 994,
       "filename": "resources.98.wasm",
       "module_type": "binary",
       "text": "not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 991,
+      "line": 997,
       "filename": "resources.99.wasm",
       "module_type": "binary",
       "text": "not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 994,
+      "line": 1000,
       "filename": "resources.100.wasm",
       "module_type": "binary",
       "text": "not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 997,
+      "line": 1003,
       "filename": "resources.101.wasm",
       "module_type": "binary",
       "text": "is not a func"
     },
     {
       "type": "assert_invalid",
-      "line": 1000,
+      "line": 1006,
       "filename": "resources.102.wasm",
       "module_type": "binary",
       "text": "static resource name is not known in this context"
     },
     {
       "type": "module_definition",
-      "line": 1003,
+      "line": 1009,
       "filename": "resources.103.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 1009,
+      "line": 1015,
       "filename": "resources.104.wasm",
       "module_type": "binary",
       "text": "resource used in function does not have a name in this context"
     },
     {
       "type": "module",
-      "line": 1016,
+      "line": 1022,
       "filename": "resources.105.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 1027,
+      "line": 1033,
       "filename": "resources.106.wasm",
       "module_type": "binary",
       "text": "resource used in function does not have a name in this context"
     },
     {
       "type": "assert_invalid",
-      "line": 1038,
+      "line": 1044,
       "filename": "resources.107.wasm",
       "module_type": "binary",
       "text": "function does not match expected resource name `b`"
     },
     {
       "type": "assert_invalid",
-      "line": 1048,
+      "line": 1054,
       "filename": "resources.108.wasm",
       "module_type": "binary",
       "text": "resource used in function does not have a name in this context"
     },
     {
       "type": "module",
-      "line": 1060,
+      "line": 1066,
       "filename": "resources.109.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 1068,
+      "line": 1074,
       "filename": "resources.110.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 1074,
+      "line": 1080,
       "filename": "resources.111.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 1109,
+      "line": 1115,
       "filename": "resources.112.wasm",
       "module_type": "binary",
       "text": "resource types are not the same"
     },
     {
       "type": "module",
-      "line": 1129,
+      "line": 1135,
       "filename": "resources.113.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 1144,
+      "line": 1150,
       "filename": "resources.114.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 1155,
+      "line": 1161,
       "filename": "resources.115.wasm",
       "module_type": "binary",
       "text": "function result cannot contain a `borrow` type"
     },
     {
       "type": "assert_invalid",
-      "line": 1161,
+      "line": 1167,
       "filename": "resources.116.wasm",
       "module_type": "binary",
       "text": "function result cannot contain a `borrow` type"
     },
     {
       "type": "assert_invalid",
-      "line": 1167,
+      "line": 1173,
       "filename": "resources.117.wasm",
       "module_type": "binary",
       "text": "function result cannot contain a `borrow` type"
     },
     {
       "type": "assert_invalid",
-      "line": 1173,
+      "line": 1179,
       "filename": "resources.118.wasm",
       "module_type": "binary",
       "text": "function result cannot contain a `borrow` type"
     },
     {
       "type": "module",
-      "line": 1181,
+      "line": 1187,
       "filename": "resources.119.wasm",
       "module_type": "binary"
     }
