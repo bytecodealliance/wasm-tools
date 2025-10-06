@@ -13,7 +13,7 @@ use wasmparser::CustomSectionReader;
 pub struct Authors(CustomSection<'static>);
 
 impl Authors {
-    /// Create a new instance of `Author`.
+    /// Create a new instance of `Authors`.
     pub fn new<S: Into<Cow<'static, str>>>(s: S) -> Self {
         Self(CustomSection {
             name: "authors".into(),
@@ -24,7 +24,7 @@ impl Authors {
         })
     }
 
-    /// Parse an `author` custom section from a wasm binary.
+    /// Parse an `authors` custom section from a wasm binary.
     pub(crate) fn parse_custom_section(reader: &CustomSectionReader<'_>) -> Result<Self> {
         ensure!(
             reader.name() == "authors",
@@ -94,8 +94,8 @@ mod test {
         let mut parsed = false;
         for section in wasmparser::Parser::new(0).parse_all(&component) {
             if let Payload::CustomSection(reader) = section.unwrap() {
-                let author = Authors::parse_custom_section(&reader).unwrap();
-                assert_eq!(author.to_string(), "Nori Cat");
+                let authors = Authors::parse_custom_section(&reader).unwrap();
+                assert_eq!(authors.to_string(), "Nori Cat");
                 parsed = true;
             }
         }
@@ -104,8 +104,8 @@ mod test {
 
     #[test]
     fn serialize() {
-        let author = Authors::new("Chashu Cat");
-        let json = serde_json::to_string(&author).unwrap();
+        let authors = Authors::new("Chashu Cat");
+        let json = serde_json::to_string(&authors).unwrap();
         assert_eq!(r#""Chashu Cat""#, json);
     }
 }

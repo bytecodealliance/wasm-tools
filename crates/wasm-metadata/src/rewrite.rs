@@ -92,10 +92,10 @@ pub(crate) fn rewrite_wasm(
                         continue;
                     }
                     #[cfg(feature = "oci")]
-                    KnownCustom::Unknown if c.name() == "author" => {
+                    KnownCustom::Unknown if c.name() == "authors" => {
                         if metadata.authors.is_keep() {
-                            let author = crate::Authors::parse_custom_section(c)?;
-                            author.append_to(&mut output);
+                            let authors = crate::Authors::parse_custom_section(c)?;
+                            authors.append_to(&mut output);
                             continue;
                         } else if metadata.authors.is_clear() {
                             continue;
@@ -193,8 +193,8 @@ pub(crate) fn rewrite_wasm(
         producers.section().append_to(&mut output);
     }
     #[cfg(feature = "oci")]
-    if let AddMetadataField::Set(author) = &metadata.authors {
-        author.append_to(&mut output);
+    if let AddMetadataField::Set(authors) = &metadata.authors {
+        authors.append_to(&mut output);
     }
     #[cfg(feature = "oci")]
     if let AddMetadataField::Set(description) = &metadata.description {
