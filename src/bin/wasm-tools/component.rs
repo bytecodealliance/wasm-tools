@@ -88,7 +88,7 @@ pub struct NewOpts {
     /// name.
     ///
     /// If the old import name is not found, it is ignored.
-    #[clap(long = "import-name", value_name = "[OLD]=NEW", value_parser = parse_import_name)]
+    #[clap(long = "import-name", value_name = "OLD=NEW", value_parser = parse_import_name)]
     import_names: Vec<(String, String)>,
 
     #[clap(flatten)]
