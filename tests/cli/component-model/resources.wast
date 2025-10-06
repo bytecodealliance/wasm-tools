@@ -249,15 +249,17 @@
 )
 
 (component
-  (import "C" (component $C
-    (export "T1" (type (sub resource)))
-    (export "T2" (type $T2 (sub resource)))
-    (export "T3" (type (eq $T2)))
-  ))
-  (instance $c (instantiate $C))
-  (alias export $c "T1" (type $T1))
-  (alias export $c "T2" (type $T2))
-  (alias export $c "T3" (type $T3))
+  (component
+    (import "C" (component $C
+      (export "T1" (type (sub resource)))
+      (export "T2" (type $T2 (sub resource)))
+      (export "T3" (type (eq $T2)))
+    ))
+    (instance $c (instantiate $C))
+    (alias export $c "T1" (type $T1))
+    (alias export $c "T2" (type $T2))
+    (alias export $c "T3" (type $T3))
+  )
 )
 
 (component
@@ -299,42 +301,46 @@
   ))
 )
 
-(component $P
-  (import "C1" (component $C1
-    (import "T" (type $T (sub resource)))
-    (export "foo" (func (param "t" (own $T))))
-  ))
-  (import "C2" (component $C2
-    (import "T" (type $T (sub resource)))
-    (import "foo" (func (param "t" (own $T))))
-  ))
-  (type $R (resource (rep i32)))
-  (instance $c1 (instantiate $C1 (with "T" (type $R))))
-  (instance $c2 (instantiate $C2
-    (with "T" (type $R))
-    (with "foo" (func $c1 "foo"))
-  ))
+(component
+  (component $P
+    (import "C1" (component $C1
+      (import "T" (type $T (sub resource)))
+      (export "foo" (func (param "t" (own $T))))
+    ))
+    (import "C2" (component $C2
+      (import "T" (type $T (sub resource)))
+      (import "foo" (func (param "t" (own $T))))
+    ))
+    (type $R (resource (rep i32)))
+    (instance $c1 (instantiate $C1 (with "T" (type $R))))
+    (instance $c2 (instantiate $C2
+      (with "T" (type $R))
+      (with "foo" (func $c1 "foo"))
+    ))
+  )
 )
 
 (component
-  (import "C1" (component $C1
-    (import "T1" (type $T1 (sub resource)))
-    (import "T2" (type $T2 (sub resource)))
-    (export "foo" (func (param "t" (tuple (own $T1) (own $T2)))))
-  ))
-  (import "C2" (component $C2
-    (import "T" (type $T (sub resource)))
-    (export "foo" (func (param "t" (tuple (own $T) (own $T)))))
-  ))
-  (type $R (resource (rep i32)))
-  (instance $c1 (instantiate $C1
-    (with "T1" (type $R))
-    (with "T2" (type $R))
-  ))
-  (instance $c2 (instantiate $C2
-    (with "T" (type $R))
-    (with "foo" (func $c1 "foo"))
-  ))
+  (component
+    (import "C1" (component $C1
+      (import "T1" (type $T1 (sub resource)))
+      (import "T2" (type $T2 (sub resource)))
+      (export "foo" (func (param "t" (tuple (own $T1) (own $T2)))))
+    ))
+    (import "C2" (component $C2
+      (import "T" (type $T (sub resource)))
+      (export "foo" (func (param "t" (tuple (own $T) (own $T)))))
+    ))
+    (type $R (resource (rep i32)))
+    (instance $c1 (instantiate $C1
+      (with "T1" (type $R))
+      (with "T2" (type $R))
+    ))
+    (instance $c2 (instantiate $C2
+      (with "T" (type $R))
+      (with "foo" (func $c1 "foo"))
+    ))
+  )
 )
 
 (assert_invalid
