@@ -1,5 +1,0 @@
-(component $C
-  (component $m (;0;))
-  (alias outer $C $m (component $target (;1;)))
-  (export (;2;) "v" (component $target))
-)

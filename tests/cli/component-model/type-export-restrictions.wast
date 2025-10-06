@@ -284,11 +284,13 @@
   (export "e-t1" (type $t2))
 )
 (component
-  (type $t1 (record (field "f" u32)))
-  (import "t1" (type $t2 (eq $t1)))
-  (import "i" (func $f (result $t2)))
+  (component
+    (type $t1 (record (field "f" u32)))
+    (import "t1" (type $t2 (eq $t1)))
+    (import "i" (func $f (result $t2)))
 
-  (export "e-i" (func $f))
+    (export "e-i" (func $f))
+  )
 )
 
 ;; outer aliases don't work for imports/exports
@@ -335,8 +337,10 @@
 
 ;; reexport of an import is fine
 (component
-  (import "r" (func $r))
-  (export "r2" (func $r))
+  (component
+    (import "r" (func $r))
+    (export "r2" (func $r))
+  )
 )
 (component
   (type $t (record (field "f" u32)))
@@ -347,7 +351,7 @@
   (import "r" (instance $r))
   (export "r2" (instance $r))
 )
-(component
+(component definition
   (import "r" (type $r (sub resource)))
   (export "r2" (type $r))
 )
@@ -395,7 +399,7 @@
   "instance not valid to be used as import")
 
 ;; allow for one import to refer to another
-(component $C
+(component definition $C
   (import "foo" (instance $i
     (type $baz' (record (field "f" u32)))
     (export "baz" (type $baz (eq $baz')))

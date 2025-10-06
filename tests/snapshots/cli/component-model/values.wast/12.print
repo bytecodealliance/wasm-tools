@@ -1,0 +1,8 @@
+(component
+  (component (;0;)
+    (import "e" (value $v (;0;) string))
+    (instance (;0;)
+      (export "e" (value $v))
+    )
+  )
+)

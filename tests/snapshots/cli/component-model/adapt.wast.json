@@ -2,7 +2,7 @@
   "source_filename": "tests/cli/component-model/adapt.wast",
   "commands": [
     {
-      "type": "module",
+      "type": "module_definition",
       "line": 3,
       "filename": "adapt.0.wasm",
       "module_type": "binary"

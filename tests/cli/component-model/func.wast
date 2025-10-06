@@ -1,12 +1,12 @@
 ;; RUN: wast --assert default --snapshot tests/snapshots %
 
-(component
+(component definition
   (import "a" (func (param "foo" string)))
   (import "b" (func (param "foo" string) (param "bar" s32) (param "baz" u32)))
   (import "c" (func (result (tuple u8))))
 )
 
-(component
+(component definition
   (import "a" (func))
   (import "b" (func (param "p1" string)))
   (import "c" (func (result u32)))
@@ -36,7 +36,7 @@
   "canonical option `memory` is required"
 )
 
-(component
+(component definition
   (import "a" (func $log (param "msg" string)))
   (core module $libc
     (memory (export "memory") 1)

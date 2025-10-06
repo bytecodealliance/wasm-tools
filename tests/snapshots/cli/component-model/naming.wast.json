@@ -2,7 +2,7 @@
   "source_filename": "tests/cli/component-model/naming.wast",
   "commands": [
     {
-      "type": "module",
+      "type": "module_definition",
       "line": 3,
       "filename": "naming.0.wasm",
       "module_type": "binary"
@@ -112,7 +112,7 @@
       "module_type": "binary"
     },
     {
-      "type": "module",
+      "type": "module_definition",
       "line": 113,
       "filename": "naming.16.wasm",
       "module_type": "binary"

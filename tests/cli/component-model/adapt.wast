@@ -1,6 +1,6 @@
 ;; RUN: wast --assert default --snapshot tests/snapshots %
 
-(component
+(component definition
   (import "log" (func $log (param "msg" string)))
   (core module $libc
     (memory (export "memory") 1)

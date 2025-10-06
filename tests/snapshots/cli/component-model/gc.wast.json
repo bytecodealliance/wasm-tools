@@ -84,6 +84,12 @@
       "line": 130,
       "filename": "gc.12.wasm",
       "module_type": "binary"
+    },
+    {
+      "type": "module_definition",
+      "line": 140,
+      "filename": "gc.13.wasm",
+      "module_type": "binary"
     }
   ]
 }

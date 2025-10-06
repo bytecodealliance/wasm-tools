@@ -9,26 +9,26 @@
     },
     {
       "type": "module",
-      "line": 10,
+      "line": 12,
       "filename": "export-introduces-alias.1.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 18,
+      "line": 20,
       "filename": "export-introduces-alias.2.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_malformed",
-      "line": 32,
+      "line": 34,
       "filename": "export-introduces-alias.3.wat",
       "module_type": "text",
       "text": "duplicate type identifier"
     },
     {
       "type": "module",
-      "line": 40,
+      "line": 42,
       "filename": "export-introduces-alias.4.wasm",
       "module_type": "binary"
     }

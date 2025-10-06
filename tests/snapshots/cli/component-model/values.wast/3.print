@@ -1,0 +1,6 @@
+(component
+  (component (;0;)
+    (import "d" (value $v (;0;) string))
+    (export (;1;) "i" (value $v))
+  )
+)

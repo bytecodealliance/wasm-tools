@@ -1,0 +1,15 @@
+(component
+  (component (;0;)
+    (type (;0;)
+      (component
+        (import "e" (value (;0;) string))
+      )
+    )
+    (import "a" (component $c (;0;) (type 0)))
+    (import "f" (value $v (;0;) string))
+    (instance (;0;) (instantiate $c
+        (with "e" (value $v))
+      )
+    )
+  )
+)

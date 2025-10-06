@@ -1,0 +1,94 @@
+{
+  "source_filename": "tests/cli/component-model/values.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "values.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 20,
+      "filename": "values.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 28,
+      "filename": "values.2.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "module",
+      "line": 31,
+      "filename": "values.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 39,
+      "filename": "values.4.wasm",
+      "module_type": "binary",
+      "text": "cannot be used more than once"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 47,
+      "filename": "values.5.wasm",
+      "module_type": "binary",
+      "text": "value index 0 was not used as part of an instantiation, start function, or export"
+    },
+    {
+      "type": "module",
+      "line": 52,
+      "filename": "values.6.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 59,
+      "filename": "values.7.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_definition",
+      "line": 67,
+      "filename": "values.8.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 74,
+      "filename": "values.9.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 90,
+      "filename": "values.10.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 94,
+      "filename": "values.11.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "module",
+      "line": 102,
+      "filename": "values.12.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 111,
+      "filename": "values.13.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

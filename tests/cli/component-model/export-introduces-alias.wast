@@ -1,10 +1,12 @@
 ;; RUN: wast --assert default --snapshot tests/snapshots %
 
 (component
-  (import "x" (func $f))
+  (component
+    (import "x" (func $f))
 
-  (export $g "g" (func $f))
-  (export $g2 "g2" (func $g))
+    (export $g "g" (func $f))
+    (export $g2 "g2" (func $g))
+  )
 )
 
 (component

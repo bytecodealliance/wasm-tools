@@ -1,10 +1,15 @@
 (component
-  (type (;0;)
-    (instance
-      (export (;0;) "v" (value s32))
+  (component (;0;)
+    (type (;0;)
+      (instance
+        (type (;0;)
+          (component)
+        )
+        (export (;0;) "v" (component (type 0)))
+      )
     )
+    (import "a" (instance $foo (;0;) (type 0)))
+    (alias export $foo "v" (component (;0;)))
+    (export (;1;) "v" (component 0))
   )
-  (import "a" (instance $foo (;0;) (type 0)))
-  (alias export $foo "v" (value (;0;)))
-  (export (;1;) "v" (value 0))
 )

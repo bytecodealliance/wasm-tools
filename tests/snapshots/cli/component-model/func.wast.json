@@ -2,13 +2,13 @@
   "source_filename": "tests/cli/component-model/func.wast",
   "commands": [
     {
-      "type": "module",
+      "type": "module_definition",
       "line": 3,
       "filename": "func.0.wasm",
       "module_type": "binary"
     },
     {
-      "type": "module",
+      "type": "module_definition",
       "line": 9,
       "filename": "func.1.wasm",
       "module_type": "binary"
@@ -28,7 +28,7 @@
       "text": "canonical option `memory` is required"
     },
     {
-      "type": "module",
+      "type": "module_definition",
       "line": 39,
       "filename": "func.4.wasm",
       "module_type": "binary"

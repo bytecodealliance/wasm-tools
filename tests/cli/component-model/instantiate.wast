@@ -1,41 +1,43 @@
-;; RUN: wast --assert default --snapshot tests/snapshots % -f cm-values
+;; RUN: wast --assert default --snapshot tests/snapshots %
 
-(component
+(component definition
   (import "a" (core module $m))
   (core instance $a (instantiate $m))
 )
 
 (component
-  (import "a" (func $i))
-  (import "b" (component $c (import "a" (func))))
-  (instance (instantiate $c (with "a" (func $i))))
+  (component
+    (import "a" (func $i))
+    (import "b" (component $c (import "a" (func))))
+    (instance (instantiate $c (with "a" (func $i))))
+  )
 )
 
 (component
-  (import "a" (value $i string))
-  (import "b" (component $c (import "a" (value string))))
-  (instance (instantiate $c (with "a" (value $i))))
+  (component
+    (import "a" (component $i))
+    (import "b" (component $c (import "a" (component))))
+    (instance (instantiate $c (with "a" (component $i))))
+  )
 )
 
 (component
-  (import "a" (component $i))
-  (import "b" (component $c (import "a" (component))))
-  (instance (instantiate $c (with "a" (component $i))))
+  (component
+    (import "a" (core module $i))
+    (import "b" (component $c (import "a" (core module))))
+    (instance (instantiate $c (with "a" (core module $i))))
+  )
 )
 
 (component
-  (import "a" (core module $i))
-  (import "b" (component $c (import "a" (core module))))
-  (instance (instantiate $c (with "a" (core module $i))))
+  (component
+    (import "a" (instance $i))
+    (import "b" (component $c (import "a" (instance))))
+    (instance (instantiate $c (with "a" (instance $i))))
+  )
 )
 
-(component
-  (import "a" (instance $i))
-  (import "b" (component $c (import "a" (instance))))
-  (instance (instantiate $c (with "a" (instance $i))))
-)
-
-(component
+(component definition
   (import "a" (core module $m
     (import "" "a" (func))
     (import "" "b" (global i32))
@@ -52,7 +54,7 @@
   (core instance (instantiate $m (with "" (instance $x))))
 )
 
-(component
+(component definition
   (import "a" (core module $m
     (import "" "d" (func))
     (import "" "c" (global i32))
@@ -76,62 +78,56 @@
 )
 
 (component
-  (type $t string)
-  (import "a" (value (type $t)))
-  (component $c (import "a" (value string)) (export "b" (value 0)))
-  (instance (instantiate $c (with "a" (value 0))))
-)
-
-(component
-  (import "a" (component $m
-    (import "a" (instance
-      (export "a" (core module))
+  (component
+    (import "a" (component $m
+      (import "a" (instance
+        (export "a" (core module))
+      ))
     ))
-  ))
-  (import "b" (component $m2
-    (export "b" (core module))
-  ))
-  (instance $x (instantiate $m2))
+    (import "b" (component $m2
+      (export "b" (core module))
+    ))
+    (instance $x (instantiate $m2))
 
-  (instance (instantiate $m (with "a" (instance
-    (export "a" (core module $x "b"))
-  ))))
+    (instance (instantiate $m (with "a" (instance
+      (export "a" (core module $x "b"))
+    ))))
+  )
 )
 
 (component
-  (import "a" (component $c
-    (import "a" (core module))
-    (import "b" (func))
-    (import "c" (component))
-    (import "d" (instance))
-    (import "e" (value string))
-  ))
-  (core module $m (import "b"))
-  (func $f (import "c"))
-  (component $c2 (import "d"))
-  (instance $i (import "e"))
-  (import "f" (value $v string))
+  (component
+    (import "a" (component $c
+      (import "a" (core module))
+      (import "b" (func))
+      (import "c" (component))
+      (import "d" (instance))
+    ))
+    (core module $m (import "b"))
+    (func $f (import "c"))
+    (component $c2 (import "d"))
+    (instance $i (import "e"))
 
-  (instance
-    (instantiate $c
-      (with "a" (core module $m))
-      (with "b" (func $f))
-      (with "c" (component $c2))
-      (with "d" (instance $i))
-      (with "e" (value $v))
+    (instance
+      (instantiate $c
+        (with "a" (core module $m))
+        (with "b" (func $f))
+        (with "c" (component $c2))
+        (with "d" (instance $i))
+      )
     )
+
+    (core instance $c (instantiate $m))
+    (core instance (instantiate $m))
+
+    ;; inline exports/imports
+    (type $empty (instance))
+    (instance $d (import "g") (type $empty))
+    (instance (import "h"))
+    (instance (import "i")
+      (export "x" (func)))
+    (instance (export "j") (export "k") (import "x"))
   )
-
-  (core instance $c (instantiate $m))
-  (core instance (instantiate $m))
-
-  ;; inline exports/imports
-  (type $empty (instance))
-  (instance $d (import "g") (type $empty))
-  (instance (import "h"))
-  (instance (import "i")
-    (export "x" (func)))
-  (instance (export "j") (export "k") (import "x"))
 )
 
 (assert_invalid
@@ -152,9 +148,11 @@
   "unknown module")
 
 (component
-  (import "a" (func $f))
-  (import "b" (component $c))
-  (instance (instantiate $c (with "a" (func $f))))
+  (component
+    (import "a" (func $f))
+    (import "b" (component $c))
+    (instance (instantiate $c (with "a" (func $f))))
+  )
 )
 (assert_invalid
   (component
@@ -236,42 +234,48 @@
 
 ;; it's ok to give a module with fewer imports
 (component
-  (import "a" (component $m
-    (import "a" (core module
-      (import "" "" (global i32))
-      (import "" "f" (func))
+  (component
+    (import "a" (component $m
+      (import "a" (core module
+        (import "" "" (global i32))
+        (import "" "f" (func))
+      ))
     ))
-  ))
-  (import "b" (core module $i
-    (import "" "" (global i32))
-  ))
-  (instance $i (instantiate $m (with "a" (core module $i))))
+    (import "b" (core module $i
+      (import "" "" (global i32))
+    ))
+    (instance $i (instantiate $m (with "a" (core module $i))))
+  )
 )
 
 ;; export subsets
 (component
-  (import "a" (component $m
-    (import "a" (core module
-      (export "" (func))
+  (component
+    (import "a" (component $m
+      (import "a" (core module
+        (export "" (func))
+      ))
     ))
-  ))
-  (import "b" (core module $i
-    (export "" (func))
-    (export "a" (func))
-  ))
-  (instance $i (instantiate $m (with "a" (core module $i))))
-)
-(component
-  (import "a" (component $m
-    (import "a" (instance
+    (import "b" (core module $i
+      (export "" (func))
       (export "a" (func))
     ))
-  ))
-  (import "b" (instance $i
-    (export "a" (func))
-    (export "b" (func))
-  ))
-  (instance (instantiate $m (with "a" (instance $i))))
+    (instance $i (instantiate $m (with "a" (core module $i))))
+  )
+)
+(component
+  (component
+    (import "a" (component $m
+      (import "a" (instance
+        (export "a" (func))
+      ))
+    ))
+    (import "b" (instance $i
+      (export "a" (func))
+      (export "b" (func))
+    ))
+    (instance (instantiate $m (with "a" (instance $i))))
+  )
 )
 
 
@@ -405,10 +409,6 @@
   "index out of bounds")
 
 (assert_invalid
-  (component (instance $i (export "" (value 0))))
-  "index out of bounds")
-
-(assert_invalid
   (component (core instance (export "" (func 0))))
   "index out of bounds")
 
@@ -491,15 +491,6 @@
   (component
     (component $c)
     (instance (instantiate $c
-      (with "" (value 0))
-    ))
-  )
-  "index out of bounds")
-
-(assert_invalid
-  (component
-    (component $c)
-    (instance (instantiate $c
       (with "" (instance 0))
     ))
   )
@@ -534,17 +525,17 @@
   "export name `a` conflicts with previous name `a`")
 
 (component
-  (import "a" (instance $i))
-  (import "b" (func $f))
-  (import "c" (component $c))
-  (import "d" (core module $m))
-  (import "e" (value $v string))
-  (instance
-    (export "a" (instance $i))
-    (export "b" (func $f))
-    (export "c" (component $c))
-    (export "d" (core module $m))
-    (export "e" (value $v))
+  (component
+    (import "a" (instance $i))
+    (import "b" (func $f))
+    (import "c" (component $c))
+    (import "d" (core module $m))
+    (instance
+      (export "a" (instance $i))
+      (export "b" (func $f))
+      (export "c" (component $c))
+      (export "d" (core module $m))
+    )
   )
 )
 

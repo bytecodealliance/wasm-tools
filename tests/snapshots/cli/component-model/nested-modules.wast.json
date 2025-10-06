@@ -2,13 +2,13 @@
   "source_filename": "tests/cli/component-model/nested-modules.wast",
   "commands": [
     {
-      "type": "module",
+      "type": "module_definition",
       "line": 3,
       "filename": "nested-modules.0.wasm",
       "module_type": "binary"
     },
     {
-      "type": "module",
+      "type": "module_definition",
       "line": 23,
       "filename": "nested-modules.1.wasm",
       "module_type": "binary"
@@ -21,7 +21,7 @@
       "text": "type mismatch"
     },
     {
-      "type": "module",
+      "type": "module_definition",
       "line": 40,
       "filename": "nested-modules.3.wasm",
       "module_type": "binary"
