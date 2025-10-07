@@ -1,0 +1,109 @@
+Embeds metadata for a component inside of a core wasm module
+
+Usage: wasm-tools component embed [OPTIONS] <WIT> [INPUT]
+
+Arguments:
+  <WIT>    Path to WIT files to load
+  [INPUT]  Input file to process
+
+Options:
+      --features <FEATURES>
+          Features to enable when parsing the `wit` option
+      --all-features
+          Enable all features when parsing the `wit` option
+      --generate-dwarf <lines|full>
+          Optionally generate DWARF debugging information from WebAssembly text
+          files
+  -g
+          Shorthand for `--generate-dwarf full`
+  -o, --output <OUTPUT>
+          Where to place output
+  -v, --verbose...
+          Use verbose output (-v info, -vv debug, -vvv trace)
+      --color <COLOR>
+          Configuration over whether terminal colors are used in output
+          [default: auto]
+      --encoding <ENCODING>
+          The expected string encoding format for the component
+  -w, --world <WORLD>
+          The world that the component uses
+      --dummy
+          Don't read a core wasm module as input, instead generating a "dummy"
+          module as a placeholder
+      --dummy-names <DUMMY_NAMES>
+          Same as `--dummy`, but the style of core wasm names is specified
+      --async-callback
+          With `--dummy-names legacy`, this will generate a core module such
+          that all the imports are lowered using the async ABI and the exports
+          are lifted using the async-with-callback ABI
+      --async-stackful
+          With `--dummy-names legacy`, this will generate a core module such
+          that all the imports are lowered using the async ABI and the exports
+          are lifted using the async-without-callback (i.e. stackful) ABI
+  -t, --wat
+          Print the output in the WebAssembly text format instead of binary
+      --only-custom
+          Print the wasm custom section only
+  -h, --help
+          Print help (see more with '--help')
+
+Examples:
+
+    # Embed the WIT in world.wit in the binary core module contained in the
+    # file foo.wasm and print the textual representation of the result
+    # to stdout.
+    $ wasm-tools component embed world.wit foo.wasm -t
+
+    # Embed the WIT in world.wit in the binary core module contained in the
+    # file foo.wasm and save the resulting binary module to out.wasm.
+    $ wasm-tools component embed world.wit foo.wasm -o out.wasm
+
+Supposing feature.wit is as follows:
+package a:b;
+
+@unstable(feature = foo)
+interface foo {
+  @unstable(feature = foo)
+  type t = u32;
+}
+    # Embed the WIT for feature.wit in the binary core module contained
+    # in the file foo.wasm, without hiding the unstable "foo" feature,
+    # and print the textual representation of the result to stdout.
+    $ wasm-tools component embed feature.wit --features foo foo.wasm -t
+
+    # Supposing that the current directory contains several WIT files
+    # that each define various worlds, embed the world "adder" in
+    # the output and print its textual representation to stdout.
+    $ wasm-tools component embed . --world adder foo.wasm -t
+
+Note: without the --world flag in this case, wasm-tools would print an
+error message that looks like:
+error: There are multiple worlds in `docs:calculator@0.1.0`; one must be
+explicitly chosen:
+  docs:calculator/adder@0.1.0
+  docs:calculator/calculator@0.1.0
+  docs:calculator/subtracter@0.1.0
+
+    # Generate a template core module with the same imports and exports
+    # as the WIT world "calculator" that appears in a file in the current
+    # directory, and print a textual representation of the result to stdout.
+    $ wasm-tools component embed . --world calculator --dummy -t
+
+    # Generate only the custom section; note that this does not require
+    # a .wasm or .wat file as an argument.
+    $ wasm-tools component embed --world foo foo.wit --only-custom -o foo.wasm
+    * using --only-custom
+
+    # Embed the WIT in world.wit in the binary core module contained in the
+    # file foo.wasm and print the textual representation of the result
+    # to stdout, lowering imports using the async ABI and lifting exports
+    # with the async-with-callback ABI.
+    $ wasm-tools component embed world.wit foo.wasm --async-callback
+    --dummy-names legacy -t
+
+    # Embed the WIT in world.wit in the binary core module contained in the
+    # file foo.wasm and print the textual representation of the result
+    # to stdout, lowering imports using the async ABI and lifting exports
+    # with the async-without-callback ABI.
+    $ wasm-tools component embed world.wit foo.wasm --async-stackful
+    --dummy-names legacy -t

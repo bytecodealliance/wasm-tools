@@ -217,6 +217,67 @@ impl NewOpts {
 /// for you. This is primarily intended for one-off testing or for developers
 /// working with text format wasm.
 #[derive(Parser)]
+#[clap(after_help = "\
+Examples:
+
+    # Embed the WIT in world.wit in the binary core module contained in the
+    # file foo.wasm and print the textual representation of the result
+    # to stdout.
+    $ wasm-tools component embed world.wit foo.wasm -t
+
+    # Embed the WIT in world.wit in the binary core module contained in the
+    # file foo.wasm and save the resulting binary module to out.wasm.
+    $ wasm-tools component embed world.wit foo.wasm -o out.wasm
+
+Supposing feature.wit is as follows:
+package a:b;
+
+@unstable(feature = foo)
+interface foo {
+  @unstable(feature = foo)
+  type t = u32;
+}
+    # Embed the WIT for feature.wit in the binary core module contained
+    # in the file foo.wasm, without hiding the unstable \"foo\" feature,
+    # and print the textual representation of the result to stdout.
+    $ wasm-tools component embed feature.wit --features foo foo.wasm -t
+
+    # Supposing that the current directory contains several WIT files
+    # that each define various worlds, embed the world \"adder\" in
+    # the output and print its textual representation to stdout.
+    $ wasm-tools component embed . --world adder foo.wasm -t
+
+Note: without the --world flag in this case, wasm-tools would print an
+error message that looks like:
+error: There are multiple worlds in `docs:calculator@0.1.0`; one must be explicitly chosen:
+  docs:calculator/adder@0.1.0
+  docs:calculator/calculator@0.1.0
+  docs:calculator/subtracter@0.1.0
+
+    # Generate a template core module with the same imports and exports
+    # as the WIT world \"calculator\" that appears in a file in the current
+    # directory, and print a textual representation of the result to stdout.
+    $ wasm-tools component embed . --world calculator --dummy -t
+
+    # Generate only the custom section; note that this does not require
+    # a .wasm or .wat file as an argument.
+    $ wasm-tools component embed --world foo foo.wit --only-custom -o foo.wasm
+    * using --only-custom
+
+    # Embed the WIT in world.wit in the binary core module contained in the
+    # file foo.wasm and print the textual representation of the result
+    # to stdout, lowering imports using the async ABI and lifting exports
+    # with the async-with-callback ABI.
+    $ wasm-tools component embed world.wit foo.wasm --async-callback --dummy-names legacy -t
+
+    # Embed the WIT in world.wit in the binary core module contained in the
+    # file foo.wasm and print the textual representation of the result
+    # to stdout, lowering imports using the async ABI and lifting exports
+    # with the async-without-callback ABI.
+    $ wasm-tools component embed world.wit foo.wasm --async-stackful --dummy-names legacy -t
+
+")]
+
 pub struct EmbedOpts {
     #[clap(flatten)]
     resolve: WitResolve,

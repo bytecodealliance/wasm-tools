@@ -1,0 +1,2 @@
+;; RUN: component embed -h
+
