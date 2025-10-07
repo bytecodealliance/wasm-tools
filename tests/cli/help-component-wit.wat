@@ -1,0 +1,2 @@
+;; RUN: component wit --help
+
