@@ -1,0 +1,218 @@
+Tool for working with the WIT text format for components.
+
+This subcommand can be used to inspect and debug the WIT text or binary format
+with either WIT packages or binary components. Using this subcommand a WIT
+package can be translated to binary, a WIT binary can be translated back to
+text, and a WIT document can be extracted from a component binary to inspect its
+interfaces.
+
+Usage: wasm-tools component wit [OPTIONS] [INPUT]
+
+Arguments:
+  [INPUT]
+          Input file or directory to process.
+          
+          The file specified can be a `*.wit` file parsed as a single-document
+          package. It can be a directory to be parsed as a WIT package. It can
+          be a `*.wat` or `*.wasm` file for either the binary representation of
+          a WIT package or a component itself to extract the interface from. The
+          type of input is inferred from the contents of the path specified.
+          
+          If not provided or if this is `-` then stdin is read entirely and
+          processed.
+
+Options:
+  -v, --verbose...
+          Use verbose output (-v info, -vv debug, -vvv trace)
+
+      --color <COLOR>
+          Configuration over whether terminal colors are used in output.
+          
+          Supports one of `auto|never|always|always-ansi`. The default is to
+          detect what to do based on the terminal environment, for example by
+          using `isatty`.
+          
+          [default: auto]
+
+  -o, --output <OUTPUT>
+          Where to place output.
+          
+          Required when printing WebAssembly binary output.
+          
+          If not provided, then stdout is used.
+
+  -w, --wasm
+          Emit a WebAssembly binary representation instead of the WIT text
+          format
+
+  -t, --wat
+          Emit a WebAssembly textual representation instead of the WIT text
+          format
+
+      --no-docs
+          Do not include doc comments when emitting WIT text
+
+      --out-dir <OUT_DIR>
+          Emit the entire WIT resolution graph instead of just the "top level"
+          package to the output directory specified.
+          
+          The output directory will contain textual WIT files which represent
+          all packages known from the input.
+
+      --skip-validation
+          Skips the validation performed when using the `--wasm` and `--wat`
+          options
+
+  -j, --json
+          Emit the WIT document as JSON instead of text
+
+      --importize
+          Generates WIT to import the component specified to this command.
+          
+          This flags requires that the input is a binary component, not a
+          wasm-encoded WIT package. This will then generate a WIT world and
+          output that. The returned world will have imports corresponding to the
+          exports of the component which is input.
+          
+          This is similar to `--importize-world`, but is used with components.
+
+      --importize-out-world-name <IMPORTIZE_OUT_WORLD_NAME>
+          The name of the world to generate when using `--importize` or
+          `importize-world`
+
+      --importize-world <WORLD>
+          Generates a WIT world to import a component which corresponds to the
+          selected world.
+          
+          This flag is used to indicate that the input is a WIT package and the
+          world passed here is the name of a WIT `world` within the package. The
+          output of the command will be the same WIT world but one that's
+          importing the selected world. This effectively moves the world's
+          exports to imports.
+          
+          This is similar to `--importize`, but is used with WIT packages.
+
+      --merge-world-imports-based-on-semver <WORLD>
+          Updates the world specified to deduplicate all of its imports based on
+          semver versions.
+          
+          This option can be used to read a WIT world from a package and update
+          it to deduplicate WIT imports based on their version. This happens by
+          default in the `component new` subcommand for example and this flag
+          can be used to explore outside of that command what's happening to the
+          WIT.
+
+      --features <FEATURES>
+          Features to enable when parsing the `wit` option.
+          
+          This flag enables the `@unstable` feature in WIT documents where the
+          items are otherwise hidden by default.
+
+      --all-features
+          Enable all features when parsing the `wit` option.
+          
+          This flag enables all `@unstable` features in WIT documents where the
+          items are otherwise hidden by default.
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Examples:
+
+    # Parse the current directory as a WIT package and print the resulting
+    # package, supposing a directory that contains three WIT files,
+    # one defining an
+    # `adder` world; one defining a `subtracter` world; and one defining a
+    # `calculator` world.
+    $ wasm-tools component wit .
+package docs:calculator@0.1.0;
+
+interface add {
+  add: func(x: u32, y: u32) -> u32;
+}
+
+interface evaluate {
+  evaluate: func(x: u32, y: u32) -> u32;
+}
+
+interface subtract {
+  subtract: func(x: u32, y: u32) -> u32;
+}
+
+world adder {
+  export add;
+}
+world calculator {
+  import add;
+  import subtract;
+
+  export evaluate;
+}
+world subtracter {
+  export subtract;
+}
+
+   # Supposing the same directory contents as above, print the package to
+   # a file in the `out` subdirectory.
+   $ wasm-tools component wit . --out-dir out
+
+   # Supposing the same directory contents above, print the WIT for a world
+   # that imports the exports of the `calculator` world.
+   # In the output, the `calculator` world is replaced with:
+   # world calculator-importized {
+   #     import evaluate;
+   # }
+   $ wasm-tools component wit . --importize-world calculator
+
+   # Supposing foo.wasm is a binary component, extract the interface
+   # from the component and print it to stdout.
+   $ wasm-tools component wit foo.wasm
+
+   # Supposing foo.wasm is a binary component that depends on several
+   # WASI interfaces, extract the interface from the component and save it
+   # as WIT, along with WIT files containing all the dependencies, to
+   # the `out` subdirectory.
+   $ wasm-tools component wit foo.wasm --out-dir out
+Writing: out/deps/io.wit
+Writing: out/deps/cli.wit
+Writing: out/deps/clocks.wit
+Writing: out/deps/filesystem.wit
+Writing: out/deps/adder.wit
+Writing: out/component.wit
+
+   # With the same foo.wasm file, print a textual WAT representation
+   # of the interface to stdout, skipping validation of the WAT code.
+   $ wasm-tools component wit foo.wasm -t --skip-validation
+
+   # With the same foo.wasm file, print a JSON representation
+   # of the interface to stdout.
+   $ wasm-tools component wit foo.wasm --json
+
+   # With the same foo.wasm file, print the WIT for a world that
+   # imports the component's exports to stdout.
+   $ wasm-tools component wit foo.wasm --importize
+
+Supposing feature.wit is as follows:
+package a:b;
+
+@unstable(feature = foo)
+interface foo {
+  @unstable(feature = foo)
+  type t = u32;
+}
+
+   # Print the WIT for feature.wit without hiding the unstable
+   # "foo" feature.
+   $ wasm-tools component wit feature.wit --features foo
+package a:b;
+
+@unstable(feature = foo)
+interface foo {
+  @unstable(feature = foo)
+  type t = u32;
+}
+
+   # Print the WIT for feature.wit, hiding the unstable
+   # "foo" feature.
+   $ wasm-tools component wit feature.wit
+package a:b;

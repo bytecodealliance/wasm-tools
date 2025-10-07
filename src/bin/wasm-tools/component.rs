@@ -488,6 +488,108 @@ impl LinkOpts {
 /// back to text, and a WIT document can be extracted from a component binary to
 /// inspect its interfaces.
 #[derive(Parser)]
+#[clap(after_help = "\
+Examples:
+
+    # Parse the current directory as a WIT package and print the resulting
+    # package, supposing a directory that contains three WIT files,
+    # one defining an
+    # `adder` world; one defining a `subtracter` world; and one defining a
+    # `calculator` world.
+    $ wasm-tools component wit .
+package docs:calculator@0.1.0;
+
+interface add {
+  add: func(x: u32, y: u32) -> u32;
+}
+
+interface evaluate {
+  evaluate: func(x: u32, y: u32) -> u32;
+}
+
+interface subtract {
+  subtract: func(x: u32, y: u32) -> u32;
+}
+
+world adder {
+  export add;
+}
+world calculator {
+  import add;
+  import subtract;
+
+  export evaluate;
+}
+world subtracter {
+  export subtract;
+}
+
+   # Supposing the same directory contents as above, print the package to
+   # a file in the `out` subdirectory.
+   $ wasm-tools component wit . --out-dir out
+
+   # Supposing the same directory contents above, print the WIT for a world
+   # that imports the exports of the `calculator` world.
+   # In the output, the `calculator` world is replaced with:
+   # world calculator-importized {
+   #     import evaluate;
+   # }
+   $ wasm-tools component wit . --importize-world calculator
+
+   # Supposing foo.wasm is a binary component, extract the interface
+   # from the component and print it to stdout.
+   $ wasm-tools component wit foo.wasm
+
+   # Supposing foo.wasm is a binary component that depends on several
+   # WASI interfaces, extract the interface from the component and save it
+   # as WIT, along with WIT files containing all the dependencies, to
+   # the `out` subdirectory.
+   $ wasm-tools component wit foo.wasm --out-dir out
+Writing: out/deps/io.wit
+Writing: out/deps/cli.wit
+Writing: out/deps/clocks.wit
+Writing: out/deps/filesystem.wit
+Writing: out/deps/adder.wit
+Writing: out/component.wit
+
+   # With the same foo.wasm file, print a textual WAT representation
+   # of the interface to stdout, skipping validation of the WAT code.
+   $ wasm-tools component wit foo.wasm -t --skip-validation
+
+   # With the same foo.wasm file, print a JSON representation
+   # of the interface to stdout.
+   $ wasm-tools component wit foo.wasm --json
+
+   # With the same foo.wasm file, print the WIT for a world that
+   # imports the component's exports to stdout.
+   $ wasm-tools component wit foo.wasm --importize
+
+Supposing feature.wit is as follows:
+package a:b;
+
+@unstable(feature = foo)
+interface foo {
+  @unstable(feature = foo)
+  type t = u32;
+}
+
+   # Print the WIT for feature.wit without hiding the unstable
+   # \"foo\" feature.
+   $ wasm-tools component wit feature.wit --features foo
+package a:b;
+
+@unstable(feature = foo)
+interface foo {
+  @unstable(feature = foo)
+  type t = u32;
+}
+
+   # Print the WIT for feature.wit, hiding the unstable
+   # \"foo\" feature.
+   $ wasm-tools component wit feature.wit
+package a:b;
+
+")]
 pub struct WitOpts {
     #[clap(flatten)]
     general: wasm_tools::GeneralOpts,
