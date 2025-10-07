@@ -1,0 +1,83 @@
+WebAssembly component encoder from an input core wasm binary
+
+Usage: wasm-tools component new [OPTIONS] [INPUT]
+
+Arguments:
+  [INPUT]  Input file to process
+
+Options:
+      --adapt <[NAME=]MODULE>
+          The path to an adapter module to satisfy imports not otherwise bound
+          to WIT interfaces
+      --import-name <[OLD]=NEW>
+          Rename an instance import in the output component
+      --generate-dwarf <lines|full>
+          Optionally generate DWARF debugging information from WebAssembly text
+          files
+  -g
+          Shorthand for `--generate-dwarf full`
+  -o, --output <OUTPUT>
+          Where to place output
+  -v, --verbose...
+          Use verbose output (-v info, -vv debug, -vvv trace)
+      --color <COLOR>
+          Configuration over whether terminal colors are used in output
+          [default: auto]
+      --skip-validation
+          Skip validation of the output component
+  -t, --wat
+          Print the output in the WebAssembly text format instead of binary
+      --realloc-via-memory-grow
+          Use memory.grow to realloc memory and stack allocation
+      --merge-imports-based-on-semver <<true|false>>
+          Indicates whether imports into the final component are merged based on
+          semver ranges [possible values: true, false]
+      --reject-legacy-names
+          Reject usage of the "legacy" naming scheme of `wit-component` and
+          require the new naming scheme to be used
+  -h, --help
+          Print help (see more with '--help')
+
+Examples:
+
+    # Supposing foo.wasm contains a binary core module,
+    # create a component using the adapter in the
+    # file `wasi_snapshot_preview1.reactor.wasm`, and save the binary
+    # component to the file foo.component.wasm.
+    $ wasm-tools component new foo.wasm --adapt
+    wasi_snapshot_preview1.reactor.wasm -o foo.component.wasm
+
+    # Supporting foo.wasm contains a binary core module,
+    # create a component using the adapter in the
+    # file some_adapter.wasm, which must implement the import module
+    # "wasi_snapshot_preview1", and save the binary component to the file
+    # foo.component.wasm.
+    $ wasm-tools component new foo.wasm --adapt
+    wasi_snapshot_preview1=some_adapter.wasm -o foo.component.wasm
+
+    # In the output component, replace any imports of "wasi:io/error@0.2.0" with
+    # an import of "unlocked-dep=<wasi:io/error>". This has the effect of
+    changing
+    # the dependency on `wasi:io/error` from an exact version to one of a set of
+    # possible versions of this dependency.
+    # (For more on locked vs. unlocked dependencies, see
+    #
+    https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md#import-and-export-definitions)
+    # Also use the adapter contained in the file `wasm_snapshot_preview1.wasm`
+    # in the current directory, and save the output to the file
+    foo.component.wasm.
+    $ wasm-tools component new foo.wasm --import-name
+    "wasi:io/error@0.2.0=unlocked-dep=<wasi:io/error>" --adapt
+    wasi_snapshot_preview1.wasm -o foo.component.wasm
+
+    # Create a component and print it to stdout in in text format, skipping
+    validation of
+    # the output component.
+    $ wasm-tools component new foo.wasm -t --skip-validation
+
+    # Create a component, using memory.grow to reallocate memory.
+    # This can be useful if `cabi_realloc` cannot be called before the host
+    runtime
+    # is initialized.
+    $ wasm-tools component new foo.wasm --realloc-via-memory-grow --adapt
+    wasi_snapshot_preview1.reactor.wasm -o foo.component.wasm
