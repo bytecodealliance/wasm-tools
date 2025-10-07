@@ -34,7 +34,7 @@ Options:
           
           The second part of this argument is the path to the adapter module.
 
-      --import-name <[OLD]=NEW>
+      --import-name <OLD=NEW>
           Rename an instance import in the output component.
           
           This may be used to rename instance imports in the final component.

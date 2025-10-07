@@ -9,7 +9,7 @@ Options:
       --adapt <[NAME=]MODULE>
           The path to an adapter module to satisfy imports not otherwise bound
           to WIT interfaces
-      --import-name <[OLD]=NEW>
+      --import-name <OLD=NEW>
           Rename an instance import in the output component
       --generate-dwarf <lines|full>
           Optionally generate DWARF debugging information from WebAssembly text
