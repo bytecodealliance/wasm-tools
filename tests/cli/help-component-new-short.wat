@@ -1,0 +1,1 @@
+;; RUN: component new -h

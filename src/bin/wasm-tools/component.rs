@@ -75,6 +75,45 @@ fn parse_import_name(s: &str) -> Result<(String, String)> {
 /// used during compilation of the core wasm module and will produce a component
 /// with all of this type information resolved.
 #[derive(Parser)]
+#[clap(after_help = "\
+Examples:
+
+    # Supposing foo.wasm contains a binary core module,
+    # create a component using the adapter in the
+    # file `wasi_snapshot_preview1.reactor.wasm`, and save the binary
+    # component to the file foo.component.wasm.
+    $ wasm-tools component new foo.wasm --adapt wasi_snapshot_preview1.reactor.wasm \
+        -o foo.component.wasm
+
+    # Supporting foo.wasm contains a binary core module,
+    # create a component using the adapter in the
+    # file some_adapter.wasm, which must implement the import module
+    # \"wasi_snapshot_preview1\", and save the binary component to the file
+    # foo.component.wasm.
+    $ wasm-tools component new foo.wasm --adapt wasi_snapshot_preview1=some_adapter.wasm \
+        -o foo.component.wasm
+
+    # In the output component, replace any imports of \"wasi:io/error@0.2.0\" with
+    # an import of \"unlocked-dep=<wasi:io/error>\". This has the effect of changing
+    # the dependency on `wasi:io/error` from an exact version to one of a set of
+    # possible versions of this dependency.
+    # (For more on locked vs. unlocked dependencies, see
+    # https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md#import-and-export-definitions)
+    # Also use the adapter contained in the file `wasm_snapshot_preview1.wasm`
+    # in the current directory, and save the output to the file foo.component.wasm.
+    $ wasm-tools component new foo.wasm --import-name \"wasi:io/error@0.2.0=unlocked-dep=<wasi:io/error>\" \
+        --adapt wasi_snapshot_preview1.wasm -o foo.component.wasm
+
+    # Create a component and print it to stdout in in text format, skipping validation of
+    # the output component.
+    $ wasm-tools component new foo.wasm -t --skip-validation
+
+    # Create a component, using memory.grow to reallocate memory.
+    # This can be useful if `cabi_realloc` cannot be called before the host runtime
+    # is initialized.
+    $ wasm-tools component new foo.wasm --realloc-via-memory-grow \
+        --adapt wasi_snapshot_preview1.reactor.wasm -o foo.component.wasm
+")]
 pub struct NewOpts {
     #[clap(flatten)]
     adapters: wasm_tools::AdaptersArg,
@@ -113,7 +152,7 @@ pub struct NewOpts {
     /// semver ranges.
     ///
     /// This is enabled by default.
-    #[clap(long, value_name = "MERGE")]
+    #[clap(long, value_name = "<true|false>")]
     merge_imports_based_on_semver: Option<bool>,
 
     /// Reject usage of the "legacy" naming scheme of `wit-component` and

@@ -1,0 +1,153 @@
+WebAssembly component encoder from an input core wasm binary.
+
+This subcommand will create a new component `*.wasm` file from an input core
+wasm binary. The input core wasm binary must have metadata embedded within it
+about the component-types used during its compilation. This is done
+automatically for `wit-bindgen`-based projects, for example, and can be manually
+done through the `wasm-tools component embed` subcommand.
+
+This command will perform translation by collecting all type information used
+during compilation of the core wasm module and will produce a component with all
+of this type information resolved.
+
+Usage: wasm-tools component new [OPTIONS] [INPUT]
+
+Arguments:
+  [INPUT]
+          Input file to process.
+          
+          If not provided or if this is `-` then stdin is read entirely and
+          processed. Note that for most subcommands this input can either be a
+          binary `*.wasm` file or a textual format `*.wat` file.
+
+Options:
+      --adapt <[NAME=]MODULE>
+          The path to an adapter module to satisfy imports not otherwise bound
+          to WIT interfaces.
+          
+          An adapter module can be used to translate the
+          `wasi_snapshot_preview1` ABI, for example, to one that uses the
+          component model. The first `[NAME=]` specified in the argument is
+          inferred from the name of file specified by `MODULE` if not present
+          and is the name of the import module that's being implemented (e.g.
+          `wasi_snapshot_preview1.wasm`).
+          
+          The second part of this argument is the path to the adapter module.
+
+      --import-name <OLD=NEW>
+          Rename an instance import in the output component.
+          
+          This may be used to rename instance imports in the final component.
+          
+          For example, `--import-name "a:b/c=unlocked-dep=<d:e/f>"` will rename
+          the instance import `a:b/c` such that it becomes an `unlocked-dep`
+          name.
+          
+          If the old import name is not found, it is ignored.
+
+      --generate-dwarf <lines|full>
+          Optionally generate DWARF debugging information from WebAssembly text
+          files.
+          
+          When the input to this command is a WebAssembly text file, such as
+          `*.wat`, then this option will instruct the text parser to insert
+          DWARF debugging information to map binary locations back to the
+          original source locations in the input `*.wat` file. This option has
+          no effect if the `INPUT` argument is already a WebAssembly binary or
+          if the text format uses `(module binary ...)`.
+
+  -g
+          Shorthand for `--generate-dwarf full`
+
+  -o, --output <OUTPUT>
+          Where to place output.
+          
+          Required when printing WebAssembly binary output.
+          
+          If not provided, then stdout is used.
+
+  -v, --verbose...
+          Use verbose output (-v info, -vv debug, -vvv trace)
+
+      --color <COLOR>
+          Configuration over whether terminal colors are used in output.
+          
+          Supports one of `auto|never|always|always-ansi`. The default is to
+          detect what to do based on the terminal environment, for example by
+          using `isatty`.
+          
+          [default: auto]
+
+      --skip-validation
+          Skip validation of the output component
+
+  -t, --wat
+          Print the output in the WebAssembly text format instead of binary
+
+      --realloc-via-memory-grow
+          Use memory.grow to realloc memory and stack allocation
+
+      --merge-imports-based-on-semver <<true|false>>
+          Indicates whether imports into the final component are merged based on
+          semver ranges.
+          
+          This is enabled by default.
+          
+          [possible values: true, false]
+
+      --reject-legacy-names
+          Reject usage of the "legacy" naming scheme of `wit-component` and
+          require the new naming scheme to be used.
+          
+          This flag can be used to ignore core module imports/exports that don't
+          conform to WebAssembly/component-model#378. This turns off
+          compatibility `wit-component`'s historical naming scheme. This is
+          intended to be used to test if a tool is compatible with a
+          hypothetical removal of the old scheme in the future.
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Examples:
+
+    # Supposing foo.wasm contains a binary core module,
+    # create a component using the adapter in the
+    # file `wasi_snapshot_preview1.reactor.wasm`, and save the binary
+    # component to the file foo.component.wasm.
+    $ wasm-tools component new foo.wasm --adapt
+    wasi_snapshot_preview1.reactor.wasm -o foo.component.wasm
+
+    # Supporting foo.wasm contains a binary core module,
+    # create a component using the adapter in the
+    # file some_adapter.wasm, which must implement the import module
+    # "wasi_snapshot_preview1", and save the binary component to the file
+    # foo.component.wasm.
+    $ wasm-tools component new foo.wasm --adapt
+    wasi_snapshot_preview1=some_adapter.wasm -o foo.component.wasm
+
+    # In the output component, replace any imports of "wasi:io/error@0.2.0" with
+    # an import of "unlocked-dep=<wasi:io/error>". This has the effect of
+    changing
+    # the dependency on `wasi:io/error` from an exact version to one of a set of
+    # possible versions of this dependency.
+    # (For more on locked vs. unlocked dependencies, see
+    #
+    https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md#import-and-export-definitions)
+    # Also use the adapter contained in the file `wasm_snapshot_preview1.wasm`
+    # in the current directory, and save the output to the file
+    foo.component.wasm.
+    $ wasm-tools component new foo.wasm --import-name
+    "wasi:io/error@0.2.0=unlocked-dep=<wasi:io/error>" --adapt
+    wasi_snapshot_preview1.wasm -o foo.component.wasm
+
+    # Create a component and print it to stdout in in text format, skipping
+    validation of
+    # the output component.
+    $ wasm-tools component new foo.wasm -t --skip-validation
+
+    # Create a component, using memory.grow to reallocate memory.
+    # This can be useful if `cabi_realloc` cannot be called before the host
+    runtime
+    # is initialized.
+    $ wasm-tools component new foo.wasm --realloc-via-memory-grow --adapt
+    wasi_snapshot_preview1.reactor.wasm -o foo.component.wasm
