@@ -299,7 +299,7 @@ impl<'a> FromReader<'a> for SymbolInfo<'a> {
             SYMTAB_FUNCTION | SYMTAB_GLOBAL | SYMTAB_EVENT | SYMTAB_TABLE => {
                 let index = reader.read_var_u32()?;
                 let name = match defined || explicit_name {
-                    true => Some(reader.read_string()?),
+                    true => Some(reader.read_unlimited_string()?),
                     false => None,
                 };
                 Ok(match kind {
@@ -311,7 +311,7 @@ impl<'a> FromReader<'a> for SymbolInfo<'a> {
                 })
             }
             SYMTAB_DATA => {
-                let name = reader.read_string()?;
+                let name = reader.read_unlimited_string()?;
                 let data = match defined {
                     true => Some(reader.read()?),
                     false => None,
