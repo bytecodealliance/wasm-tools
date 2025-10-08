@@ -1,0 +1,7 @@
+(component
+  (core func (;0;) (canon subtask.cancel async))
+  (core func (;1;) (canon subtask.cancel async))
+  (type $r (;0;) (resource (rep i32)))
+  (core func (;2;) (canon resource.drop $r async))
+  (core func (;3;) (canon resource.drop $r async))
+)

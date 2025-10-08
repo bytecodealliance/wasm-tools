@@ -1,0 +1,18 @@
+{
+  "source_filename": "tests/cli/component-model/gc/list-types.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "list-types.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 17,
+      "filename": "list-types.1.wasm",
+      "module_type": "binary",
+      "text": "expected to lower component `list` type into `(ref null? (array ...))`, but found `i32`"
+    }
+  ]
+}
