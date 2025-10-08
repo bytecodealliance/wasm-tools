@@ -45,7 +45,7 @@ impl<'a> Subsection<'a> for ComponentName<'a> {
         let offset = reader.original_position();
         Ok(match id {
             0 => {
-                let name = reader.read_string()?;
+                let name = reader.read_unlimited_string()?;
                 if !reader.eof() {
                     return Err(BinaryReaderError::new(
                         "trailing data at the end of a name",

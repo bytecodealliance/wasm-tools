@@ -29,7 +29,7 @@ impl<'a> CoreDumpSection<'a> {
         if reader.read_u8()? != 0 {
             bail!(pos, "invalid start byte for core dump name");
         }
-        let name = reader.read_string()?;
+        let name = reader.read_unlimited_string()?;
         if !reader.eof() {
             bail!(
                 reader.original_position(),
@@ -69,7 +69,7 @@ impl<'a> CoreDumpModulesSection<'a> {
             if reader.read_u8()? != 0 {
                 bail!(pos, "invalid start byte for coremodule");
             }
-            modules.push(reader.read_string()?);
+            modules.push(reader.read_unlimited_string()?);
         }
         if !reader.eof() {
             bail!(
@@ -181,7 +181,7 @@ impl<'a> CoreDumpStackSection<'a> {
         if reader.read_u8()? != 0 {
             bail!(pos, "invalid start byte for core dump stack name");
         }
-        let name = reader.read_string()?;
+        let name = reader.read_unlimited_string()?;
         let mut frames = vec![];
         for _ in 0..reader.read_var_u32()? {
             frames.push(CoreDumpStackFrame::from_reader(&mut reader)?);

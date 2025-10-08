@@ -78,14 +78,14 @@ impl<'a> Subsection<'a> for Dylink0Subsection<'a> {
             }),
             WASM_DYLINK_NEEDED => Self::Needed(
                 (0..reader.read_var_u32()?)
-                    .map(|_| reader.read_string())
+                    .map(|_| reader.read_unlimited_string())
                     .collect::<Result<_, _>>()?,
             ),
             WASM_DYLINK_EXPORT_INFO => Self::ExportInfo(
                 (0..reader.read_var_u32()?)
                     .map(|_| {
                         Ok(ExportInfo {
-                            name: reader.read_string()?,
+                            name: reader.read_unlimited_string()?,
                             flags: reader.read()?,
                         })
                     })
@@ -95,8 +95,8 @@ impl<'a> Subsection<'a> for Dylink0Subsection<'a> {
                 (0..reader.read_var_u32()?)
                     .map(|_| {
                         Ok(ImportInfo {
-                            module: reader.read_string()?,
-                            field: reader.read_string()?,
+                            module: reader.read_unlimited_string()?,
+                            field: reader.read_unlimited_string()?,
                             flags: reader.read()?,
                         })
                     })
@@ -104,7 +104,7 @@ impl<'a> Subsection<'a> for Dylink0Subsection<'a> {
             ),
             WASM_DYLINK_RUNTIME_PATH => Self::RuntimePath(
                 (0..reader.read_var_u32()?)
-                    .map(|_| reader.read_string())
+                    .map(|_| reader.read_unlimited_string())
                     .collect::<Result<_, _>>()?,
             ),
             ty => Self::Unknown {

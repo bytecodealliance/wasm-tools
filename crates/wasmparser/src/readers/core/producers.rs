@@ -46,7 +46,7 @@ pub struct ProducersField<'a> {
 impl<'a> FromReader<'a> for ProducersField<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         let offset = reader.original_position();
-        let name = reader.read_string()?;
+        let name = reader.read_unlimited_string()?;
         match name {
             "language" | "sdk" | "processed-by" => {}
             _ => bail!(offset, "invalid producers field name: `{name}`"),
@@ -77,8 +77,8 @@ pub struct ProducersFieldValue<'a> {
 
 impl<'a> FromReader<'a> for ProducersFieldValue<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        let name = reader.read_string()?;
-        let version = reader.read_string()?;
+        let name = reader.read_unlimited_string()?;
+        let version = reader.read_unlimited_string()?;
         Ok(ProducersFieldValue { name, version })
     }
 }
