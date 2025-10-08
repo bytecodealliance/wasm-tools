@@ -331,6 +331,12 @@ impl WasmValue for Value {
         is_borrowed: bool,
     ) -> Result<Self, WasmValueError> {
         ensure_type_kind(ty, WasmTypeKind::Resource)?;
+        let (_, expect_borrowed) = ty.resource_type();
+        if expect_borrowed != is_borrowed {
+            return Err(WasmValueError::Other(format!(
+                "expect resource is_borrowed {expect_borrowed}, got value type is_borrowed {is_borrowed}"
+            )));
+        }
         Ok(Self(ValueEnum::Resource(ResourceValue {
             handle,
             is_borrowed,
@@ -555,6 +561,15 @@ fn check_type2(expected: &Type, val: &Value) -> Result<(), WasmValueError> {
                     if *flag >= flags.ty.as_ref().flags.len() {
                         return wrong_value_type();
                     }
+                }
+            } else {
+                return wrong_value_type();
+            }
+        }
+        (ValueEnum::Resource(resource), _) => {
+            if let TypeEnum::Resource(ty) = &expected.0 {
+                if ty.is_borrowed != resource.is_borrowed {
+                    return wrong_value_type();
                 }
             } else {
                 return wrong_value_type();

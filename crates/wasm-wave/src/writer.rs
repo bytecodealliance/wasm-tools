@@ -172,11 +172,11 @@ impl<W: Write> Writer<W> {
                 let (handle, is_borrowed) = val.unwrap_resource();
                 self.write_str("#")?;
                 if is_borrowed {
-                    self.write_str("<")?;
+                    self.write_str("[")?;
                 }
                 self.write_display(handle)?;
                 if is_borrowed {
-                    self.write_str(">")?;
+                    self.write_str("]")?;
                 }
                 Ok(())
             }

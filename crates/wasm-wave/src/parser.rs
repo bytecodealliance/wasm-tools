@@ -509,6 +509,20 @@ mod tests {
     }
 
     #[test]
+    fn parse_resource() {
+        let ty = Type::resource("test_resource", false);
+        assert_eq!(
+            parse_value("#42", &ty),
+            Value::make_resource(&ty, 42, false).unwrap()
+        );
+        let ty = Type::resource("resource", true);
+        assert_eq!(
+            parse_value("#[42]", &ty),
+            Value::make_resource(&ty, 42, true).unwrap()
+        );
+    }
+
+    #[test]
     fn parse_record_reordering() {
         let ty = Type::record([("red", Type::S32), ("green", Type::CHAR)]).unwrap();
         // Parse the fields in the order they appear in the type.

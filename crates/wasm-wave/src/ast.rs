@@ -227,6 +227,7 @@ impl Node {
             WasmTypeKind::Option => self.to_wasm_option(ty, src)?,
             WasmTypeKind::Result => self.to_wasm_result(ty, src)?,
             WasmTypeKind::Flags => self.to_wasm_flags(ty, src)?,
+            WasmTypeKind::Resource => self.to_wasm_resource(ty, src)?,
             other => {
                 return Err(
                     self.wasm_value_error(WasmValueError::UnsupportedType(other.to_string()))
@@ -350,6 +351,29 @@ impl Node {
             }
         };
         V::make_option(ty, value).map_err(|err| self.wasm_value_error(err))
+    }
+
+    fn to_wasm_resource<V: WasmValue>(&self, ty: &V::Type, src: &str) -> Result<V, ParserError> {
+        let (_, is_borrowed) = ty.resource_type();
+        self.ensure_type(NodeType::Resource)?;
+        match self.children.as_slice() {
+            [handle] => {
+                let id = handle.as_number(src)?;
+                if is_borrowed {
+                    return Err(self.error(ParserErrorKind::InvalidType));
+                }
+                V::make_resource(ty, id, false).map_err(|err| self.wasm_value_error(err))
+            }
+            [borrow, handle] => {
+                borrow.ensure_type(NodeType::Borrow)?;
+                if !is_borrowed {
+                    return Err(self.error(ParserErrorKind::InvalidType));
+                }
+                let id = handle.as_number(src)?;
+                V::make_resource(ty, id, true).map_err(|err| self.wasm_value_error(err))
+            }
+            _ => Err(self.error(ParserErrorKind::InvalidType)),
+        }
     }
 
     fn to_wasm_result<V: WasmValue>(&self, ty: &V::Type, src: &str) -> Result<V, ParserError> {

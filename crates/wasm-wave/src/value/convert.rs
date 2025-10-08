@@ -431,6 +431,7 @@ mod tests {
 
     #[test]
     fn value_conversions() {
+        use crate::value::convert::ToValue;
         for (val, expect) in [
             (1u8.into(), "1"),
             ((-123i8).into(), "-123"),
@@ -444,7 +445,7 @@ mod tests {
             (Some(1).into(), "some(1)"),
             (None::<u8>.into(), "none"),
             (Ok::<u8, String>(1).into(), "ok(1)"),
-            (Ok::<(), ()>(()).into(), "ok"),
+            (Ok::<(), ()>(()).to_value(), "ok"),
             (Err::<u8, String>("oops".into()).into(), "err(\"oops\")"),
             ((1,).into(), "(1)"),
             ((1, "str", [9; 2]).into(), "(1, \"str\", [9, 9])"),
