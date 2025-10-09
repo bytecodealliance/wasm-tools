@@ -1,0 +1,56 @@
+{
+  "source_filename": "tests/cli/component-model/async/stackful.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 4,
+      "filename": "stackful.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 16,
+      "filename": "stackful.1.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `waitable-set.wait` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 29,
+      "filename": "stackful.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 41,
+      "filename": "stackful.3.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `waitable-set.poll` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 54,
+      "filename": "stackful.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 64,
+      "filename": "stackful.5.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `thread.yield` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 75,
+      "filename": "stackful.6.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 136,
+      "filename": "stackful.7.wasm",
+      "module_type": "binary"
+    }
+  ]
+}
