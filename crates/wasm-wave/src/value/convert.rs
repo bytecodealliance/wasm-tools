@@ -48,6 +48,7 @@ fn from_optional_wasm_type(ty: Option<impl WasmType>) -> Option<Option<Type>> {
 pub trait ValueTyped {
     fn value_type() -> Type;
 }
+// ToRust is only defined for owned types
 pub trait ToRust<T> {
     fn to_rust(&self) -> T;
 }
