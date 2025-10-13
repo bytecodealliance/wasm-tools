@@ -939,6 +939,7 @@ impl<'a> Module<'a> {
 macro_rules! define_visit {
     ($(@$p:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
         $(
+            #[allow(unused_variables, reason = "macro-generated")]
             fn $visit(&mut self $(, $($arg: $argty),*)?)  {
                 $(
                     $(
