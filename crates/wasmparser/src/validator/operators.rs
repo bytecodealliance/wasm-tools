@@ -988,7 +988,7 @@ where
         if memarg.align > memarg.max_align {
             bail!(
                 self.offset,
-                "malformed memop alignment: alignment must not be larger than natural"
+                "invalid memop alignment: alignment must not be larger than natural"
             );
         }
         if index_ty == ValType::I32 && memarg.offset > u64::from(u32::MAX) {
