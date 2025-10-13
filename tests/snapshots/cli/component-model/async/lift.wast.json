@@ -1,0 +1,53 @@
+{
+  "source_filename": "tests/cli/component-model/async/lift.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 5,
+      "filename": "lift.0.wasm",
+      "module_type": "binary",
+      "text": "cannot specify post-return function in async"
+    },
+    {
+      "type": "module",
+      "line": 20,
+      "filename": "lift.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 34,
+      "filename": "lift.2.wasm",
+      "module_type": "binary",
+      "text": "canonical option `callback` uses a core function with an incorrect signature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 50,
+      "filename": "lift.3.wasm",
+      "module_type": "binary",
+      "text": "cannot specify post-return function in async"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 67,
+      "filename": "lift.4.wasm",
+      "module_type": "binary",
+      "text": "lowered parameter types `[I32]` do not match parameter types `[I32, I32]` of core function 0"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 83,
+      "filename": "lift.5.wasm",
+      "module_type": "binary",
+      "text": "core instance 0 has no export named `callback`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 98,
+      "filename": "lift.6.wasm",
+      "module_type": "binary",
+      "text": "cannot specify callback without async"
+    }
+  ]
+}

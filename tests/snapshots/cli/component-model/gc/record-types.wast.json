@@ -1,0 +1,32 @@
+{
+  "source_filename": "tests/cli/component-model/gc/record-types.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "record-types.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 41,
+      "filename": "record-types.1.wasm",
+      "module_type": "binary",
+      "text": "core `struct` has 2 fields, but component `record` has 1 fields"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 57,
+      "filename": "record-types.2.wasm",
+      "module_type": "binary",
+      "text": "core `struct` has 1 fields, but component `record` has 2 fields"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 73,
+      "filename": "record-types.3.wasm",
+      "module_type": "binary",
+      "text": "expected to lower component `record` type to core `(ref null? (struct ...))`, but found `i32`"
+    }
+  ]
+}
