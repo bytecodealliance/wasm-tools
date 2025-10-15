@@ -192,7 +192,7 @@ want to add `publish = false` to the manifest.
 # License
 
 This project is licensed under the Apache 2.0 license with the LLVM exception.
-See [LICENSE](LICENSE) for more details.
+See [LICENSE](https://www.apache.org/licenses/LICENSE-2.0) for more details.
 
 ### Contribution
 
