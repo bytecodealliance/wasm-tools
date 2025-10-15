@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use std::path::{Path, PathBuf};
 use wasm_compose::{composer::ComponentComposer, config::Config};
-use wasmparser::Validator;
+use wasmparser::{Validator, WasmFeatures};
 
 /// WebAssembly component composer.
 ///
@@ -68,13 +68,15 @@ impl Opts {
         if config.skip_validation {
             log::debug!("output validation was skipped");
         } else {
-            Validator::new().validate_all(&bytes).with_context(|| {
-                let output = match self.output.output_path() {
-                    Some(s) => format!(" `{}`", s.display()),
-                    None => String::new(),
-                };
-                format!("failed to validate output component{output}")
-            })?;
+            Validator::new_with_features(WasmFeatures::all())
+                .validate_all(&bytes)
+                .with_context(|| {
+                    let output = match self.output.output_path() {
+                        Some(s) => format!(" `{}`", s.display()),
+                        None => String::new(),
+                    };
+                    format!("failed to validate output component{output}")
+                })?;
 
             log::debug!("output component validated successfully");
         }
