@@ -50,6 +50,7 @@ typedef uint32_t wit_type_t;
 #define WIT_TYPE_FUTURE 25
 #define WIT_TYPE_STREAM 26
 #define WIT_TYPE_ALIAS 27
+#define WIT_TYPE_MAP 28
 #define WIT_TYPE_EMPTY 0xff
 
 typedef void(*wit_import_fn_t)(void* cx);
@@ -199,6 +200,13 @@ typedef struct wit_list {
      wit_type_t ty;
 } wit_list_t;
 
+typedef struct wit_map {
+     const char *interface;
+     const char *name;
+     wit_type_t key_ty;
+     wit_type_t value_ty;
+} wit_map_t;
+
 typedef struct wit_fixed_size_list {
      const char *interface;
      const char *name;
@@ -292,6 +300,8 @@ typedef struct wit {
      const wit_result_t *results;
      size_t num_lists;
      const wit_list_t *lists;
+     size_t num_maps;
+     const wit_map_t *maps;
      size_t num_fixed_size_lists;
      const wit_fixed_size_list_t *fixed_size_lists;
      size_t num_futures;
@@ -402,6 +412,11 @@ void wit_dylib_push_variant(void *cx, size_t ty, uint32_t discr);
 // it onto the list which is then at the top of the stack.
 bool wit_dylib_push_list(void *cx, size_t ty, uint8_t *bytes, size_t len);
 void wit_dylib_list_append(void *cx, size_t ty);
+// Map functions work similarly to list functions. If `wit_dylib_push_map` returns
+// false then key-value pairs need to be pushed one-by-one. The `wit_dylib_map_append`
+// function expects the top two stack entries to be value (top) and key (second from top).
+bool wit_dylib_push_map(void *cx, size_t ty, uint8_t *bytes, size_t len);
+void wit_dylib_map_append(void *cx, size_t ty);
 
 uint8_t wit_dylib_pop_u8(void *cx);
 uint16_t wit_dylib_pop_u16(void *cx);
@@ -462,5 +477,10 @@ void wit_dylib_pop_tuple(void *cx, size_t ty);
 size_t wit_dylib_pop_list(void *cx, size_t ty, void **ptr);
 void wit_dylib_pop_iter_next(void *cx, size_t ty);
 void wit_dylib_pop_iter(void *cx, size_t ty);
+// Map popping works similarly to list popping. Returns the number of key-value pairs.
+// If `ptr` is set to non-NULL, the data is in canonical ABI format (as tuple<K,V> array).
+// If `ptr` is set to NULL, then an iterator is pushed to the stack and
+// `wit_dylib_pop_iter_next` should be called to extract each key-value pair.
+size_t wit_dylib_pop_map(void *cx, size_t ty, void **ptr);
 
 #endif

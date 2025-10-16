@@ -140,6 +140,10 @@ pub trait TypeIdVisitor {
             | TypeDefKind::Option(t)
             | TypeDefKind::Future(Some(t))
             | TypeDefKind::Stream(Some(t)) => self.visit_type(resolve, t),
+            TypeDefKind::Map(k, v) => {
+                self.visit_type(resolve, k);
+                self.visit_type(resolve, v);
+            }
             TypeDefKind::Handle(handle) => match handle {
                 crate::Handle::Own(ty) => self.visit_type_id(resolve, *ty),
                 crate::Handle::Borrow(ty) => self.visit_type_id(resolve, *ty),

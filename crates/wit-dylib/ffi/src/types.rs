@@ -250,6 +250,21 @@ impl Wit {
         self.raw_lists().iter().map(|e| List { wit: *self, ptr: e })
     }
 
+    fn raw_maps(&self) -> &'static [ffi::wit_map_t] {
+        unsafe { slice(self.ptr.maps, self.ptr.num_maps) }
+    }
+
+    pub fn map(&self, index: usize) -> Map {
+        Map {
+            wit: *self,
+            ptr: &self.raw_maps()[index],
+        }
+    }
+
+    pub fn iter_maps(&self) -> impl ExactSizeIterator<Item = Map> + Clone + '_ {
+        self.raw_maps().iter().map(|e| Map { wit: *self, ptr: e })
+    }
+
     fn raw_fixed_size_lists(&self) -> &'static [ffi::wit_fixed_size_list_t] {
         unsafe { slice(self.ptr.fixed_size_lists, self.ptr.num_fixed_size_lists) }
     }
@@ -995,6 +1010,43 @@ impl fmt::Debug for List {
             .field("interface", &self.interface())
             .field("name", &self.name())
             .field("ty", &self.ty())
+            .finish()
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct Map {
+    wit: Wit,
+    ptr: &'static ffi::wit_map_t,
+}
+
+impl_extra_traits!(Map);
+
+impl Map {
+    pub fn interface(&self) -> Option<&'static str> {
+        unsafe { opt_str(self.ptr.interface) }
+    }
+
+    pub fn name(&self) -> Option<&'static str> {
+        unsafe { opt_str(self.ptr.name) }
+    }
+
+    pub fn key_ty(&self) -> Type {
+        Type::from_raw(self.wit, self.ptr.key_ty)
+    }
+
+    pub fn value_ty(&self) -> Type {
+        Type::from_raw(self.wit, self.ptr.value_ty)
+    }
+}
+
+impl fmt::Debug for Map {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Map")
+            .field("interface", &self.interface())
+            .field("name", &self.name())
+            .field("key_ty", &self.key_ty())
+            .field("value_ty", &self.value_ty())
             .finish()
     }
 }

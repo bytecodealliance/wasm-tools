@@ -353,6 +353,30 @@ macro_rules! export {
             unsafe { <$name as $crate::RawInterpreter>::raw_list_append(cx, ty) }
         }
 
+        #[no_mangle]
+        pub unsafe extern "C" fn wit_dylib_pop_map(
+            cx: *mut u8,
+            ty: usize,
+            ptr: &mut *const u8,
+        ) -> usize {
+            unsafe { <$name as $crate::RawInterpreter>::raw_pop_map(cx, ty, ptr) }
+        }
+
+        #[no_mangle]
+        pub unsafe extern "C" fn wit_dylib_push_map(
+            cx: *mut u8,
+            ty: usize,
+            ptr: *mut u8,
+            len: usize,
+        ) -> u32 {
+            unsafe { <$name as $crate::RawInterpreter>::raw_push_map(cx, ty, ptr, len) }
+        }
+
+        #[no_mangle]
+        pub unsafe extern "C" fn wit_dylib_map_append(cx: *mut u8, ty: usize) {
+            unsafe { <$name as $crate::RawInterpreter>::raw_map_append(cx, ty) }
+        }
+
         fn main() {
             unreachable!();
         }
@@ -437,6 +461,12 @@ pub trait Call {
     fn pop_iter_next(&mut self, ty: List);
     fn pop_iter(&mut self, ty: List);
 
+    unsafe fn maybe_pop_map(&mut self, ty: Map) -> Option<(*const u8, usize)> {
+        let _ = ty;
+        None
+    }
+    fn pop_map(&mut self, ty: Map) -> usize;
+
     fn push_bool(&mut self, val: bool);
     fn push_char(&mut self, val: char);
     fn push_u8(&mut self, val: u8);
@@ -467,6 +497,13 @@ pub trait Call {
     }
     fn push_list(&mut self, ty: List, capacity: usize);
     fn list_append(&mut self, ty: List);
+
+    unsafe fn push_raw_map(&mut self, ty: Map, ptr: *mut u8, len: usize) -> bool {
+        let _ = (ty, ptr, len);
+        false
+    }
+    fn push_map(&mut self, ty: Map, capacity: usize);
+    fn map_append(&mut self, ty: Map);
 }
 
 static mut WIT_T: *const ffi::wit_t = ptr::null_mut();
@@ -957,6 +994,48 @@ pub trait RawInterpreter: Interpreter {
         unsafe {
             let wit = Wit::from_raw(WIT_T);
             Self::cx_mut(cx).list_append(wit.list(ty))
+        }
+    }
+
+    unsafe fn raw_pop_map(cx: *mut u8, ty: usize, retptr: &mut *const u8) -> usize {
+        debug_println!("pop_map({cx:?}, {ty})");
+        unsafe {
+            let wit = Wit::from_raw(WIT_T);
+            let cx = Self::cx_mut(cx);
+            let ty = wit.map(ty);
+            match cx.maybe_pop_map(ty) {
+                Some((ptr, len)) => {
+                    *retptr = ptr;
+                    len
+                }
+                None => {
+                    *retptr = ptr::null();
+                    cx.pop_map(ty)
+                }
+            }
+        }
+    }
+
+    unsafe fn raw_push_map(cx: *mut u8, ty: usize, map: *mut u8, len: usize) -> u32 {
+        debug_println!("push_map({cx:?}, {ty}, {map:?}, {len})");
+        unsafe {
+            let wit = Wit::from_raw(WIT_T);
+            let cx = Self::cx_mut(cx);
+            let ty = wit.map(ty);
+            if cx.push_raw_map(ty, map, len) {
+                1
+            } else {
+                cx.push_map(ty, len);
+                0
+            }
+        }
+    }
+
+    unsafe fn raw_map_append(cx: *mut u8, ty: usize) {
+        debug_println!("map_append({cx:?}, {ty})");
+        unsafe {
+            let wit = Wit::from_raw(WIT_T);
+            Self::cx_mut(cx).map_append(wit.map(ty))
         }
     }
 }
