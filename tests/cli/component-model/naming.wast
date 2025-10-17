@@ -24,9 +24,9 @@
 
 (assert_invalid
   (component
-    (type (flags "a-1-c"))
+    (type (flags "0-a-1-c"))
   )
-  "flag name `a-1-c` is not in kebab case"
+  "flag name `0-a-1-c` is not in kebab case"
 )
 
 (assert_invalid
