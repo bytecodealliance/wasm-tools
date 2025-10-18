@@ -150,27 +150,27 @@ pub(crate) fn unique_kebab_string(
 ) -> Result<String> {
     let size = std::cmp::min(u.arbitrary_len::<u8>()?, max_size);
     let mut name = String::with_capacity(size);
-    let mut require_alpha = true;
-    for _ in 0..size {
+    let mut empty_segment = true;
+    for i in 0..size {
         name.push(match u.int_in_range::<u8>(0..=36)? {
             x if (0..26).contains(&x) => {
-                require_alpha = false;
+                empty_segment = false;
                 (b'a' + x) as char
             }
             x if (26..36).contains(&x) => {
-                if require_alpha {
-                    require_alpha = false;
+                empty_segment = false;
+                if i == 0 {
                     (b'a' + (x - 26)) as char
                 } else {
                     (b'0' + (x - 26)) as char
                 }
             }
             x if x == 36 => {
-                if require_alpha {
-                    require_alpha = false;
+                if empty_segment {
+                    empty_segment = false;
                     'a'
                 } else {
-                    require_alpha = true;
+                    empty_segment = true;
                     '-'
                 }
             }
