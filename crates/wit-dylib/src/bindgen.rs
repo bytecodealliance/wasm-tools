@@ -425,6 +425,30 @@ pub fn task_return(
     )
 }
 
+pub fn lift_from_memory(adapter: &mut Adapter, resolve: &Resolve, ty: Type) -> Function {
+    let mut c = FunctionCompiler::new(adapter, resolve, 2);
+    c.ctx = Some(TempLocal::new(0, ValType::I32));
+    let src = AbiLoc::Memory(Memory {
+        addr: TempLocal::new(1, ValType::I32),
+        offset: 0,
+    });
+
+    c.lift(&src, ty);
+    c.finish()
+}
+
+pub fn lower_to_memory(adapter: &mut Adapter, resolve: &Resolve, ty: Type) -> Function {
+    let mut c = FunctionCompiler::new(adapter, resolve, 2);
+    c.ctx = Some(TempLocal::new(0, ValType::I32));
+    let dst = AbiLoc::Memory(Memory {
+        addr: TempLocal::new(1, ValType::I32),
+        offset: 0,
+    });
+
+    c.lower(ty, &dst);
+    c.finish()
+}
+
 struct FunctionCompiler<'a> {
     adapter: &'a mut Adapter,
     resolve: &'a Resolve,

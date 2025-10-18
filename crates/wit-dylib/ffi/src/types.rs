@@ -294,6 +294,10 @@ impl Wit {
             .iter()
             .map(|e| Alias { wit: *self, ptr: e })
     }
+
+    pub fn raw(&self) -> &'static ffi::wit_t {
+        self.ptr
+    }
 }
 
 unsafe fn slice<T>(ptr: *const T, len: usize) -> &'static [T] {
@@ -355,6 +359,18 @@ impl Function {
         Type::from_raw_opt(self.wit, self.ptr.result)
     }
 
+    /// Invokes this imported function, synchronously, with the `cx` provided.
+    ///
+    /// The `cx` must have all arguments for this function already pushed on
+    /// it, in reverse order (so the first argument is the top of the stack).
+    /// The arguments will be popped from `cx` as they're translated into the
+    /// canonical ABI. This will then block synchronously on invoking the
+    /// imported function. Upon returning the return value, if any, will have
+    /// been pushed onto `cx`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if this function is not imported synchronously.
     pub fn call_import_sync(&self, cx: &mut impl Call) {
         let import_impl = self.sync_import_impl().unwrap();
         unsafe {
@@ -363,6 +379,14 @@ impl Function {
         }
     }
 
+    /// Async version of [`Self::call_import_sync`].
+    ///
+    /// Arguments should already be in `cx` and this won't return until the
+    /// result has been pushed to `cx`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if this function is not imported asynchronously.
     #[cfg(feature = "async")]
     pub async fn call_import_async(&self, cx: &mut impl Call) {
         use core::alloc::Layout;
@@ -407,6 +431,10 @@ impl Function {
                 }
             }
         }
+    }
+
+    pub fn raw(&self) -> &'static ffi::wit_func_t {
+        self.ptr
     }
 }
 
@@ -502,7 +530,7 @@ impl Type {
     }
 
     fn from_raw_opt(wit: Wit, raw: ffi::wit_type_t) -> Option<Type> {
-        if raw & 0xff == 0xff {
+        if raw & 0xff == ffi::WIT_TYPE_EMPTY {
             None
         } else {
             Some(Self::from_raw(wit, raw))
@@ -536,6 +564,10 @@ impl Record {
                 .iter()
                 .map(|field| (to_str(field.name), Type::from_raw(self.wit, field.ty)))
         }
+    }
+
+    pub fn raw(&self) -> &'static ffi::wit_record_t {
+        self.ptr
     }
 }
 
@@ -576,6 +608,10 @@ impl Resource {
     pub fn rep(&self) -> Option<unsafe extern "C" fn(u32) -> usize> {
         self.ptr.rep
     }
+
+    pub fn raw(&self) -> &'static ffi::wit_resource_t {
+        self.ptr
+    }
 }
 
 impl fmt::Debug for Resource {
@@ -612,6 +648,10 @@ impl Flags {
                 .map(|name| to_str(*name))
         }
     }
+
+    pub fn raw(&self) -> &'static ffi::wit_flags_t {
+        self.ptr
+    }
 }
 
 impl fmt::Debug for Flags {
@@ -647,6 +687,10 @@ impl Tuple {
                 .iter()
                 .map(|name| Type::from_raw(self.wit, *name))
         }
+    }
+
+    pub fn raw(&self) -> &'static ffi::wit_tuple_t {
+        self.ptr
     }
 }
 
@@ -687,6 +731,10 @@ impl Variant {
                 .map(|case| (to_str(case.name), Type::from_raw_opt(self.wit, case.ty)))
         }
     }
+
+    pub fn raw(&self) -> &'static ffi::wit_variant_t {
+        self.ptr
+    }
 }
 
 impl fmt::Debug for Variant {
@@ -724,6 +772,10 @@ impl Enum {
                 .map(|name| to_str(*name))
         }
     }
+
+    pub fn raw(&self) -> &'static ffi::wit_enum_t {
+        self.ptr
+    }
 }
 
 impl fmt::Debug for Enum {
@@ -755,6 +807,10 @@ impl WitOption {
 
     pub fn ty(&self) -> Type {
         Type::from_raw(self.wit, self.ptr.ty)
+    }
+
+    pub fn raw(&self) -> &'static ffi::wit_option_t {
+        self.ptr
     }
 }
 
@@ -792,6 +848,10 @@ impl WitResult {
     pub fn err(&self) -> Option<Type> {
         Type::from_raw_opt(self.wit, self.ptr.err)
     }
+
+    pub fn raw(&self) -> &'static ffi::wit_result_t {
+        self.ptr
+    }
 }
 
 impl fmt::Debug for WitResult {
@@ -824,6 +884,10 @@ impl List {
 
     pub fn ty(&self) -> Type {
         Type::from_raw(self.wit, self.ptr.ty)
+    }
+
+    pub fn raw(&self) -> &'static ffi::wit_list_t {
+        self.ptr
     }
 }
 
@@ -861,6 +925,10 @@ impl FixedSizeList {
     pub fn ty(&self) -> Type {
         Type::from_raw(self.wit, self.ptr.ty)
     }
+
+    pub fn raw(&self) -> &'static ffi::wit_fixed_size_list_t {
+        self.ptr
+    }
 }
 
 impl fmt::Debug for FixedSizeList {
@@ -894,6 +962,10 @@ impl Future {
     pub fn ty(&self) -> Option<Type> {
         Type::from_raw_opt(self.wit, self.ptr.ty)
     }
+
+    pub fn raw(&self) -> &'static ffi::wit_future_t {
+        self.ptr
+    }
 }
 
 impl fmt::Debug for Future {
@@ -902,7 +974,7 @@ impl fmt::Debug for Future {
             .field("interface", &self.interface())
             .field("name", &self.name())
             .field("ty", &self.ty())
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -926,6 +998,10 @@ impl Stream {
     pub fn ty(&self) -> Option<Type> {
         Type::from_raw_opt(self.wit, self.ptr.ty)
     }
+
+    pub fn raw(&self) -> &'static ffi::wit_stream_t {
+        self.ptr
+    }
 }
 
 impl fmt::Debug for Stream {
@@ -934,7 +1010,7 @@ impl fmt::Debug for Stream {
             .field("interface", &self.interface())
             .field("name", &self.name())
             .field("ty", &self.ty())
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -957,6 +1033,10 @@ impl Alias {
 
     pub fn ty(&self) -> Type {
         Type::from_raw(self.wit, self.ptr.ty)
+    }
+
+    pub fn raw(&self) -> &'static ffi::wit_alias_t {
+        self.ptr
     }
 }
 
