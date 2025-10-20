@@ -24,9 +24,9 @@
 
 (assert_invalid
   (component
-    (type (flags "a-1-c"))
+    (type (flags "0-a-1-c"))
   )
-  "flag name `a-1-c` is not in kebab case"
+  "flag name `0-a-1-c` is not in kebab case"
 )
 
 (assert_invalid
@@ -128,3 +128,7 @@
     (import "[static]a.a" (func))
   )
   "import name `[static]a.a` conflicts with previous name `a`")
+
+(component
+  (type (flags "a-1-c"))
+)

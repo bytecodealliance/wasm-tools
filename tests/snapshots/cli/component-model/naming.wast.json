@@ -26,7 +26,7 @@
       "line": 26,
       "filename": "naming.3.wasm",
       "module_type": "binary",
-      "text": "flag name `a-1-c` is not in kebab case"
+      "text": "flag name `0-a-1-c` is not in kebab case"
     },
     {
       "type": "assert_invalid",
@@ -130,6 +130,12 @@
       "filename": "naming.18.wasm",
       "module_type": "binary",
       "text": "import name `[static]a.a` conflicts with previous name `a`"
+    },
+    {
+      "type": "module",
+      "line": 132,
+      "filename": "naming.19.wasm",
+      "module_type": "binary"
     }
   ]
 }

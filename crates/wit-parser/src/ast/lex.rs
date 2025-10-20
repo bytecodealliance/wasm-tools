@@ -479,30 +479,32 @@ pub fn validate_id(start: u32, id: &str) -> Result<(), Error> {
     }
 
     // Ids consist of parts separated by '-'s.
-    for part in id.split('-') {
+    for (idx, part) in id.split('-').enumerate() {
         // Parts must be non-empty and contain either all ASCII lowercase or
-        // all ASCII uppercase.
-        let upper = match part.chars().next() {
-            None => return Err(Error::IdPartEmpty(start)),
-            Some(first) => {
-                if first.is_ascii_lowercase() {
-                    false
-                } else if first.is_ascii_uppercase() {
-                    true
-                } else {
-                    return Err(Error::InvalidCharInId(start, first));
-                }
-            }
+        // all ASCII uppercase. Non-first segment can also start with a digit.
+        let Some(first_char) = part.chars().next() else {
+            return Err(Error::IdPartEmpty(start));
         };
-
+        if idx == 0 && !first_char.is_ascii_alphabetic() {
+            return Err(Error::InvalidCharInId(start, first_char));
+        }
+        let mut upper = None;
         for ch in part.chars() {
             if ch.is_ascii_digit() {
                 // Digits are accepted in both uppercase and lowercase segments.
-            } else if upper {
-                if !ch.is_ascii_uppercase() {
+            } else if ch.is_ascii_uppercase() {
+                if upper.is_none() {
+                    upper = Some(true);
+                } else if let Some(false) = upper {
                     return Err(Error::InvalidCharInId(start, ch));
                 }
-            } else if !ch.is_ascii_lowercase() {
+            } else if ch.is_ascii_lowercase() {
+                if upper.is_none() {
+                    upper = Some(false);
+                } else if let Some(true) = upper {
+                    return Err(Error::InvalidCharInId(start, ch));
+                }
+            } else {
                 return Err(Error::InvalidCharInId(start, ch));
             }
         }
@@ -616,6 +618,8 @@ fn test_validate_id() {
     validate_id(0, "APPLE-pear-GRAPE").unwrap();
     validate_id(0, "ENOENT").unwrap();
     validate_id(0, "is-XML").unwrap();
+    validate_id(0, "apple-0").unwrap();
+    validate_id(0, "a0-000-3d4a-54FF").unwrap();
 
     assert!(validate_id(0, "").is_err());
     assert!(validate_id(0, "0").is_err());
@@ -639,7 +643,6 @@ fn test_validate_id() {
     assert!(validate_id(0, "apple/pear").is_err());
     assert!(validate_id(0, "apple|pear").is_err());
     assert!(validate_id(0, "apple-Pear").is_err());
-    assert!(validate_id(0, "apple-0").is_err());
     assert!(validate_id(0, "()()").is_err());
     assert!(validate_id(0, "").is_err());
     assert!(validate_id(0, "*").is_err());
@@ -654,6 +657,7 @@ fn test_validate_id() {
     assert!(validate_id(0, "__i386__").is_err());
     assert!(validate_id(0, "Москва").is_err());
     assert!(validate_id(0, "garçon-hühnervögel-Москва-東京").is_err());
+    assert!(validate_id(0, "a0-000-3d4A-54Ff").is_err());
     assert!(validate_id(0, "😼").is_err(), "non-identifier");
     assert!(validate_id(0, "\u{212b}").is_err(), "non-ascii");
 }
