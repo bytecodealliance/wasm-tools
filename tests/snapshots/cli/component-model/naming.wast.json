@@ -130,6 +130,12 @@
       "filename": "naming.18.wasm",
       "module_type": "binary",
       "text": "import name `[static]a.a` conflicts with previous name `a`"
+    },
+    {
+      "type": "module",
+      "line": 132,
+      "filename": "naming.19.wasm",
+      "module_type": "binary"
     }
   ]
 }

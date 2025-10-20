@@ -128,3 +128,7 @@
     (import "[static]a.a" (func))
   )
   "import name `[static]a.a` conflicts with previous name `a`")
+
+(component
+  (type (flags "a-1-c"))
+)
