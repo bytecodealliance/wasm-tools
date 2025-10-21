@@ -168,7 +168,7 @@ impl PackageSourceMap {
             .iter()
             .flatten()
             .map(|path_buf| path_buf.as_ref())
-            .collect::<HashSet<&Path>>()
+            .collect::<IndexSet<&Path>>()
             .into_iter()
     }
 
