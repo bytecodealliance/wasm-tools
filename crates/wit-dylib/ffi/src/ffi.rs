@@ -29,7 +29,7 @@ pub const WIT_TYPE_FUTURE: u32 = 25;
 pub const WIT_TYPE_STREAM: u32 = 26;
 pub const WIT_TYPE_ALIAS: u32 = 27;
 pub const WIT_TYPE_EMPTY: u32 = 255;
-pub const WIT_V0: u32 = 0;
+pub const WIT_CURRENT_VERSION: u32 = 1;
 pub type wit_type_t = u32;
 pub type wit_import_fn_t =
     ::std::option::Option<unsafe extern "C" fn(cx: *mut ::std::os::raw::c_void)>;
