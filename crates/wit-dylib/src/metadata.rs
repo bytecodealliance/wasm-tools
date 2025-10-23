@@ -3,7 +3,7 @@ use std::mem;
 use wasm_encoder::{Function, MemArg};
 use wit_parser::TypeId;
 
-const VERSION: u32 = 0;
+const VERSION: u32 = 1;
 
 #[derive(Default)]
 pub struct Metadata {

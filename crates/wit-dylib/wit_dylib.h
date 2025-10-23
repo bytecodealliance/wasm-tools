@@ -226,7 +226,7 @@ typedef struct wit_alias {
      wit_type_t ty;
 } wit_alias_t;
 
-#define WIT_V0 0
+#define WIT_CURRENT_VERSION 1
 
 typedef struct wit {
      uint32_t version; // `WIT_V*`

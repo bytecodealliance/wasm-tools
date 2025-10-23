@@ -448,8 +448,7 @@ impl_extra_traits!(ExportFunction);
 
 impl ExportFunction {
     pub fn index(&self) -> usize {
-        usize::try_from(unsafe { (&raw const *self.ptr).offset_from(self.wit.ptr.export_funcs) })
-            .unwrap()
+        unsafe { (&raw const *self.ptr).offset_from_unsigned(self.wit.ptr.export_funcs) }
     }
 
     pub fn interface(&self) -> Option<&'static str> {
@@ -589,8 +588,7 @@ impl_extra_traits!(Record);
 
 impl Record {
     pub fn index(&self) -> usize {
-        usize::try_from(unsafe { (&raw const *self.ptr).offset_from(self.wit.ptr.records) })
-            .unwrap()
+        unsafe { (&raw const *self.ptr).offset_from_unsigned(self.wit.ptr.records) }
     }
 
     pub fn interface(&self) -> Option<&'static str> {
@@ -633,8 +631,7 @@ impl_extra_traits!(Resource);
 
 impl Resource {
     pub fn index(&self) -> usize {
-        usize::try_from(unsafe { (&raw const *self.ptr).offset_from(self.wit.ptr.resources) })
-            .unwrap()
+        unsafe { (&raw const *self.ptr).offset_from_unsigned(self.wit.ptr.resources) }
     }
 
     pub fn interface(&self) -> Option<&'static str> {
@@ -677,7 +674,7 @@ impl_extra_traits!(Flags);
 
 impl Flags {
     pub fn index(&self) -> usize {
-        usize::try_from(unsafe { (&raw const *self.ptr).offset_from(self.wit.ptr.flags) }).unwrap()
+        unsafe { (&raw const *self.ptr).offset_from_unsigned(self.wit.ptr.flags) }
     }
 
     pub fn interface(&self) -> Option<&'static str> {
@@ -719,7 +716,7 @@ impl_extra_traits!(Tuple);
 
 impl Tuple {
     pub fn index(&self) -> usize {
-        usize::try_from(unsafe { (&raw const *self.ptr).offset_from(self.wit.ptr.tuples) }).unwrap()
+        unsafe { (&raw const *self.ptr).offset_from_unsigned(self.wit.ptr.tuples) }
     }
 
     pub fn interface(&self) -> Option<&'static str> {
@@ -759,8 +756,7 @@ impl_extra_traits!(Variant);
 
 impl Variant {
     pub fn index(&self) -> usize {
-        usize::try_from(unsafe { (&raw const *self.ptr).offset_from(self.wit.ptr.variants) })
-            .unwrap()
+        unsafe { (&raw const *self.ptr).offset_from_unsigned(self.wit.ptr.variants) }
     }
 
     pub fn interface(&self) -> Option<&'static str> {
@@ -803,7 +799,7 @@ impl_extra_traits!(Enum);
 
 impl Enum {
     pub fn index(&self) -> usize {
-        usize::try_from(unsafe { (&raw const *self.ptr).offset_from(self.wit.ptr.enums) }).unwrap()
+        unsafe { (&raw const *self.ptr).offset_from_unsigned(self.wit.ptr.enums) }
     }
 
     pub fn interface(&self) -> Option<&'static str> {
@@ -845,8 +841,7 @@ impl_extra_traits!(WitOption);
 
 impl WitOption {
     pub fn index(&self) -> usize {
-        usize::try_from(unsafe { (&raw const *self.ptr).offset_from(self.wit.ptr.options) })
-            .unwrap()
+        unsafe { (&raw const *self.ptr).offset_from_unsigned(self.wit.ptr.options) }
     }
 
     pub fn interface(&self) -> Option<&'static str> {
@@ -882,8 +877,7 @@ impl_extra_traits!(WitResult);
 
 impl WitResult {
     pub fn index(&self) -> usize {
-        usize::try_from(unsafe { (&raw const *self.ptr).offset_from(self.wit.ptr.results) })
-            .unwrap()
+        unsafe { (&raw const *self.ptr).offset_from_unsigned(self.wit.ptr.results) }
     }
 
     pub fn interface(&self) -> Option<&'static str> {
