@@ -41,34 +41,34 @@ impl Wit {
         }
     }
 
-    fn raw_funcs(&self) -> &'static [ffi::wit_func_t] {
-        unsafe { slice(self.ptr.funcs, self.ptr.num_funcs) }
+    fn raw_import_funcs(&self) -> &'static [ffi::wit_import_func_t] {
+        unsafe { slice(self.ptr.import_funcs, self.ptr.num_import_funcs) }
     }
 
-    pub fn func(&self, index: usize) -> Function {
-        Function {
+    pub fn import_func(&self, index: usize) -> ImportFunction {
+        ImportFunction {
             wit: *self,
-            ptr: &self.raw_funcs()[index],
+            ptr: &self.raw_import_funcs()[index],
         }
     }
 
-    pub fn iter_funcs(&self) -> impl ExactSizeIterator<Item = Function> + Clone + '_ {
-        self.raw_funcs().iter().map(|func| Function {
+    pub fn iter_import_funcs(&self) -> impl ExactSizeIterator<Item = ImportFunction> + Clone + '_ {
+        self.raw_import_funcs().iter().map(|func| ImportFunction {
             wit: *self,
             ptr: func,
         })
     }
 
-    pub fn get_import(&self, interface: Option<&str>, name: &str) -> Option<Function> {
+    pub fn get_import(&self, interface: Option<&str>, name: &str) -> Option<ImportFunction> {
         let mut funcs = self
-            .iter_funcs()
-            .filter(|f| f.interface() == interface && f.name() == name && f.is_import());
+            .iter_import_funcs()
+            .filter(|f| f.interface() == interface && f.name() == name);
         let func = funcs.next()?;
         assert!(funcs.next().is_none());
         Some(func)
     }
 
-    pub fn unwrap_import(&self, interface: Option<&str>, name: &str) -> Function {
+    pub fn unwrap_import(&self, interface: Option<&str>, name: &str) -> ImportFunction {
         match self.get_import(interface, name) {
             Some(func) => func,
             None => match interface {
@@ -76,6 +76,24 @@ impl Wit {
                 None => panic!("no import function named {name:?}"),
             },
         }
+    }
+
+    fn raw_export_funcs(&self) -> &'static [ffi::wit_export_func_t] {
+        unsafe { slice(self.ptr.export_funcs, self.ptr.num_export_funcs) }
+    }
+
+    pub fn export_func(&self, index: usize) -> ExportFunction {
+        ExportFunction {
+            wit: *self,
+            ptr: &self.raw_export_funcs()[index],
+        }
+    }
+
+    pub fn iter_export_funcs(&self) -> impl ExactSizeIterator<Item = ExportFunction> + Clone + '_ {
+        self.raw_export_funcs().iter().map(|func| ExportFunction {
+            wit: *self,
+            ptr: func,
+        })
     }
 
     fn raw_records(&self) -> &'static [ffi::wit_record_t] {
@@ -102,14 +120,16 @@ impl Wit {
 
     pub fn resource(&self, index: usize) -> Resource {
         Resource {
+            wit: *self,
             ptr: &self.raw_resources()[index],
         }
     }
 
     pub fn iter_resources(&self) -> impl ExactSizeIterator<Item = Resource> + Clone + '_ {
-        self.raw_resources()
-            .iter()
-            .map(|resource| Resource { ptr: resource })
+        self.raw_resources().iter().map(|resource| Resource {
+            wit: *self,
+            ptr: resource,
+        })
     }
 
     fn raw_flags(&self) -> &'static [ffi::wit_flags_t] {
@@ -118,12 +138,16 @@ impl Wit {
 
     pub fn flags(&self, index: usize) -> Flags {
         Flags {
+            wit: *self,
             ptr: &self.raw_flags()[index],
         }
     }
 
     pub fn iter_flags(&self) -> impl ExactSizeIterator<Item = Flags> + Clone + '_ {
-        self.raw_flags().iter().map(|flags| Flags { ptr: flags })
+        self.raw_flags().iter().map(|flags| Flags {
+            wit: *self,
+            ptr: flags,
+        })
     }
 
     fn raw_tuples(&self) -> &'static [ffi::wit_tuple_t] {
@@ -168,12 +192,13 @@ impl Wit {
 
     pub fn enum_(&self, index: usize) -> Enum {
         Enum {
+            wit: *self,
             ptr: &self.raw_enums()[index],
         }
     }
 
     pub fn iter_enums(&self) -> impl ExactSizeIterator<Item = Enum> + Clone + '_ {
-        self.raw_enums().iter().map(|e| Enum { ptr: e })
+        self.raw_enums().iter().map(|e| Enum { wit: *self, ptr: e })
     }
 
     fn raw_options(&self) -> &'static [ffi::wit_option_t] {
@@ -305,14 +330,14 @@ unsafe fn slice<T>(ptr: *const T, len: usize) -> &'static [T] {
 }
 
 #[derive(Copy, Clone)]
-pub struct Function {
+pub struct ImportFunction {
     wit: Wit,
-    ptr: &'static ffi::wit_func_t,
+    ptr: &'static ffi::wit_import_func_t,
 }
 
-impl_extra_traits!(Function);
+impl_extra_traits!(ImportFunction);
 
-impl Function {
+impl ImportFunction {
     pub fn interface(&self) -> Option<&'static str> {
         unsafe { opt_str(self.ptr.interface) }
     }
@@ -329,15 +354,7 @@ impl Function {
         self.ptr.async_impl
     }
 
-    pub fn task_return(&self) -> ffi::wit_export_task_return_fn_t {
-        self.ptr.task_return
-    }
-
-    pub fn is_import(&self) -> bool {
-        self.ptr.impl_.is_some() || self.ptr.async_impl.is_some()
-    }
-
-    pub fn is_async_import(&self) -> bool {
+    pub fn is_async(&self) -> bool {
         self.ptr.async_impl.is_some()
     }
 
@@ -371,7 +388,7 @@ impl Function {
         return DylibSubtask { ptr: self.ptr, cx }.call(()).await;
 
         struct DylibSubtask<C> {
-            ptr: &'static ffi::wit_func_t,
+            ptr: &'static ffi::wit_import_func_t,
             cx: *mut C,
         }
 
@@ -410,9 +427,57 @@ impl Function {
     }
 }
 
-impl fmt::Debug for Function {
+impl fmt::Debug for ImportFunction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Function")
+        f.debug_struct("ImportFunction")
+            .field("interface", &self.interface())
+            .field("name", &self.name())
+            .field("params", &self.params().collect::<Vec<_>>())
+            .field("result", &self.result())
+            .finish_non_exhaustive()
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct ExportFunction {
+    wit: Wit,
+    ptr: &'static ffi::wit_export_func_t,
+}
+
+impl_extra_traits!(ExportFunction);
+
+impl ExportFunction {
+    pub fn index(&self) -> usize {
+        usize::try_from(unsafe { (&raw const *self.ptr).offset_from(self.wit.ptr.export_funcs) })
+            .unwrap()
+    }
+
+    pub fn interface(&self) -> Option<&'static str> {
+        unsafe { opt_str(self.ptr.interface) }
+    }
+
+    pub fn name(&self) -> &'static str {
+        unsafe { to_str(self.ptr.name) }
+    }
+
+    pub fn params(&self) -> impl ExactSizeIterator<Item = Type> + DoubleEndedIterator + Clone + '_ {
+        self.raw_params()
+            .iter()
+            .map(|param| Type::from_raw(self.wit, *param))
+    }
+
+    fn raw_params(&self) -> &'static [ffi::wit_type_t] {
+        unsafe { slice(self.ptr.params, self.ptr.nparams) }
+    }
+
+    pub fn result(&self) -> Option<Type> {
+        Type::from_raw_opt(self.wit, self.ptr.result)
+    }
+}
+
+impl fmt::Debug for ExportFunction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ExportFunction")
             .field("interface", &self.interface())
             .field("name", &self.name())
             .field("params", &self.params().collect::<Vec<_>>())
@@ -519,6 +584,11 @@ pub struct Record {
 impl_extra_traits!(Record);
 
 impl Record {
+    pub fn index(&self) -> usize {
+        usize::try_from(unsafe { (&raw const *self.ptr).offset_from(self.wit.ptr.records) })
+            .unwrap()
+    }
+
     pub fn interface(&self) -> Option<&'static str> {
         unsafe { opt_str(self.ptr.interface) }
     }
@@ -551,12 +621,18 @@ impl fmt::Debug for Record {
 
 #[derive(Copy, Clone)]
 pub struct Resource {
+    wit: Wit,
     ptr: &'static ffi::wit_resource_t,
 }
 
 impl_extra_traits!(Resource);
 
 impl Resource {
+    pub fn index(&self) -> usize {
+        usize::try_from(unsafe { (&raw const *self.ptr).offset_from(self.wit.ptr.resources) })
+            .unwrap()
+    }
+
     pub fn interface(&self) -> Option<&'static str> {
         unsafe { opt_str(self.ptr.interface) }
     }
@@ -589,12 +665,17 @@ impl fmt::Debug for Resource {
 
 #[derive(Copy, Clone)]
 pub struct Flags {
+    wit: Wit,
     ptr: &'static ffi::wit_flags_t,
 }
 
 impl_extra_traits!(Flags);
 
 impl Flags {
+    pub fn index(&self) -> usize {
+        usize::try_from(unsafe { (&raw const *self.ptr).offset_from(self.wit.ptr.flags) }).unwrap()
+    }
+
     pub fn interface(&self) -> Option<&'static str> {
         unsafe { opt_str(self.ptr.interface) }
     }
@@ -633,6 +714,10 @@ pub struct Tuple {
 impl_extra_traits!(Tuple);
 
 impl Tuple {
+    pub fn index(&self) -> usize {
+        usize::try_from(unsafe { (&raw const *self.ptr).offset_from(self.wit.ptr.tuples) }).unwrap()
+    }
+
     pub fn interface(&self) -> Option<&'static str> {
         unsafe { opt_str(self.ptr.interface) }
     }
@@ -669,6 +754,11 @@ pub struct Variant {
 impl_extra_traits!(Variant);
 
 impl Variant {
+    pub fn index(&self) -> usize {
+        usize::try_from(unsafe { (&raw const *self.ptr).offset_from(self.wit.ptr.variants) })
+            .unwrap()
+    }
+
     pub fn interface(&self) -> Option<&'static str> {
         unsafe { opt_str(self.ptr.interface) }
     }
@@ -701,12 +791,17 @@ impl fmt::Debug for Variant {
 
 #[derive(Copy, Clone)]
 pub struct Enum {
+    wit: Wit,
     ptr: &'static ffi::wit_enum_t,
 }
 
 impl_extra_traits!(Enum);
 
 impl Enum {
+    pub fn index(&self) -> usize {
+        usize::try_from(unsafe { (&raw const *self.ptr).offset_from(self.wit.ptr.enums) }).unwrap()
+    }
+
     pub fn interface(&self) -> Option<&'static str> {
         unsafe { opt_str(self.ptr.interface) }
     }
@@ -745,6 +840,11 @@ pub struct WitOption {
 impl_extra_traits!(WitOption);
 
 impl WitOption {
+    pub fn index(&self) -> usize {
+        usize::try_from(unsafe { (&raw const *self.ptr).offset_from(self.wit.ptr.options) })
+            .unwrap()
+    }
+
     pub fn interface(&self) -> Option<&'static str> {
         unsafe { opt_str(self.ptr.interface) }
     }
@@ -777,6 +877,11 @@ pub struct WitResult {
 impl_extra_traits!(WitResult);
 
 impl WitResult {
+    pub fn index(&self) -> usize {
+        usize::try_from(unsafe { (&raw const *self.ptr).offset_from(self.wit.ptr.results) })
+            .unwrap()
+    }
+
     pub fn interface(&self) -> Option<&'static str> {
         unsafe { opt_str(self.ptr.interface) }
     }
