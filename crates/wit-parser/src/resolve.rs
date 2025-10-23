@@ -23,6 +23,8 @@ use crate::{
     UnresolvedPackageGroup, World, WorldId, WorldItem, WorldKey, WorldSpan,
 };
 
+pub use clone::CloneMaps;
+
 mod clone;
 
 /// Representation of a fully resolved set of WIT packages.
@@ -866,8 +868,17 @@ package {name} is defined in two different locations:\n\
     /// producing a singular world that will be the final component's
     /// interface.
     ///
+    /// During the merge operation, some of the types and/or interfaces in
+    /// `from` might need to be cloned so that backreferences point to `into`
+    /// instead of `from`.  Any such clones will be added to `clone_maps`.
+    ///
     /// This operation can fail if the imports/exports overlap.
-    pub fn merge_worlds(&mut self, from: WorldId, into: WorldId) -> Result<()> {
+    pub fn merge_worlds(
+        &mut self,
+        from: WorldId,
+        into: WorldId,
+        clone_maps: &mut CloneMaps,
+    ) -> Result<()> {
         let mut new_imports = Vec::new();
         let mut new_exports = Vec::new();
 
@@ -960,8 +971,10 @@ package {name} is defined in two different locations:\n\
         let mut cloner = clone::Cloner::new(self, TypeOwner::World(from), TypeOwner::World(into));
         cloner.register_world_type_overlap(from, into);
         for (name, item) in new_imports.iter_mut().chain(&mut new_exports) {
-            cloner.world_item(name, item);
+            cloner.world_item(name, item, clone_maps);
         }
+
+        clone_maps.types.extend(cloner.types);
 
         // Insert any new imports and new exports found first.
         let into_world = &mut self.worlds[into];
@@ -3654,7 +3667,7 @@ impl Remap {
                 // in the function itself.
                 let mut new_item = item.1.clone();
                 let key = WorldKey::Name(n.clone());
-                cloner.world_item(&key, &mut new_item);
+                cloner.world_item(&key, &mut new_item, &mut CloneMaps::default());
                 match &mut new_item {
                     WorldItem::Function(f) => f.name = n.clone(),
                     WorldItem::Type(id) => cloner.resolve.types[*id].name = Some(n.clone()),

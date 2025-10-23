@@ -20,6 +20,30 @@
 use crate::*;
 use std::collections::HashMap;
 
+/// Represents the results of cloning types and/or interfaces as part of a
+/// `Resolve::merge_worlds` operation.
+#[derive(Default)]
+pub struct CloneMaps {
+    pub(super) types: HashMap<TypeId, TypeId>,
+    pub(super) interfaces: HashMap<InterfaceId, InterfaceId>,
+}
+
+impl CloneMaps {
+    /// The types cloned during a `Resolve::merge_worlds` operation.
+    ///
+    /// The key is the original type, and the value is the clone.
+    pub fn types(&self) -> &HashMap<TypeId, TypeId> {
+        &self.types
+    }
+
+    /// The interfaces cloned during a `Resolve::merge_worlds` operation.
+    ///
+    /// The key is the original interface, and the value is the clone.
+    pub fn interfaces(&self) -> &HashMap<InterfaceId, InterfaceId> {
+        &self.interfaces
+    }
+}
+
 pub struct Cloner<'a> {
     pub resolve: &'a mut Resolve,
     prev_owner: TypeOwner,
@@ -28,7 +52,7 @@ pub struct Cloner<'a> {
     /// This map keeps track, in the current scope of types, of all copied
     /// types. This deduplicates copying types to ensure that they're only
     /// copied at most once.
-    types: HashMap<TypeId, TypeId>,
+    pub types: HashMap<TypeId, TypeId>,
 
     /// If `None` then it's inferred from `self.new_owner`.
     pub new_package: Option<PackageId>,
@@ -64,7 +88,7 @@ impl<'a> Cloner<'a> {
         }
     }
 
-    pub fn world_item(&mut self, key: &WorldKey, item: &mut WorldItem) {
+    pub fn world_item(&mut self, key: &WorldKey, item: &mut WorldItem, clone_maps: &mut CloneMaps) {
         match key {
             WorldKey::Name(_) => {}
             WorldKey::Interface(_) => return,
@@ -78,7 +102,9 @@ impl<'a> Cloner<'a> {
                 self.function(f);
             }
             WorldItem::Interface { id, .. } => {
-                self.interface(id);
+                let old = *id;
+                self.interface(id, &mut clone_maps.types);
+                clone_maps.interfaces.insert(old, *id);
             }
         }
     }
@@ -171,7 +197,7 @@ impl<'a> Cloner<'a> {
         }
     }
 
-    fn interface(&mut self, id: &mut InterfaceId) {
+    fn interface(&mut self, id: &mut InterfaceId, cloned_types: &mut HashMap<TypeId, TypeId>) {
         let mut new = self.resolve.interfaces[*id].clone();
         let next_id = self.resolve.interfaces.next_id();
         let mut clone = Cloner::new(
@@ -185,6 +211,7 @@ impl<'a> Cloner<'a> {
         for func in new.functions.values_mut() {
             clone.function(func);
         }
+        cloned_types.extend(clone.types);
         new.package = Some(self.new_package.unwrap_or_else(|| match self.new_owner {
             TypeOwner::Interface(id) => self.resolve.interfaces[id].package.unwrap(),
             TypeOwner::World(id) => self.resolve.worlds[id].package.unwrap(),
