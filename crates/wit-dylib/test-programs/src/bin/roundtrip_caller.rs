@@ -7,7 +7,7 @@ export_test!(struct MyInterpreter);
 impl TestCase for MyInterpreter {
     fn call_export(
         _wit: Wit,
-        _func: Function,
+        _func: ExportFunction,
         _args: impl ExactSizeIterator<Item = Val>,
     ) -> Option<Val> {
         unreachable!()
@@ -15,7 +15,7 @@ impl TestCase for MyInterpreter {
 
     async fn call_export_async(
         wit: Wit,
-        func: Function,
+        func: ExportFunction,
         mut args: impl ExactSizeIterator<Item = Val>,
     ) -> Option<Val> {
         assert_eq!(func.interface(), None);
@@ -49,8 +49,7 @@ impl TestCase for MyInterpreter {
         let mut import_rng = SmallRng::seed_from_u64(seed);
 
         let imports = wit
-            .iter_funcs()
-            .filter(|f| f.is_import())
+            .iter_import_funcs()
             // don't test various intrinsics we use throughout this roundtrip
             // test, aka anything from our special interface or any
             // resource constructor/rep inspection.
@@ -93,7 +92,7 @@ impl TestCase for MyInterpreter {
                     _ => rng.generate(ty),
                 });
             }
-            let result = if import.is_async_import() {
+            let result = if import.is_async() {
                 Self::call_import_func_async(*import, &args).await
             } else {
                 Self::call_import_func(*import, &args)
@@ -123,12 +122,12 @@ impl TestCase for MyInterpreter {
 }
 
 struct CalleeAllocGuard {
-    allocated_bytes: Function,
+    allocated_bytes: ImportFunction,
     prev: u32,
 }
 
 impl CalleeAllocGuard {
-    fn new(allocated_bytes: Function) -> CalleeAllocGuard {
+    fn new(allocated_bytes: ImportFunction) -> CalleeAllocGuard {
         let Val::U32(prev) = MyInterpreter::call_import_func(allocated_bytes, &[]).unwrap() else {
             panic!()
         };

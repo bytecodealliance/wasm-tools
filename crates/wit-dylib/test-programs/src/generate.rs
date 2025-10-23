@@ -1,5 +1,5 @@
 use crate::{
-    Enum, Flags, Function, List, Own, Resource, Type, Val, Variant, Wit, WitOption, WitResult,
+    Enum, Flags, ImportFunction, List, Own, Resource, Type, Val, Variant, Wit, WitOption, WitResult,
 };
 use rand::distr::{SampleString, StandardUniform};
 use rand::rngs::SmallRng;
@@ -13,15 +13,15 @@ const MAX_LEN: usize = 100;
 pub struct Generator {
     rng: SmallRng,
     remaining: usize,
-    resource_ctors: HashMap<Resource, Function>,
+    resource_ctors: HashMap<Resource, ImportFunction>,
 }
 
 impl Generator {
     pub fn new(wit: Wit, seed: u64) -> Generator {
         let mut resource_ctors = HashMap::new();
         for f in wit
-            .iter_funcs()
-            .filter(|f| f.is_import() && f.name().starts_with("[constructor]"))
+            .iter_import_funcs()
+            .filter(|f| f.name().starts_with("[constructor]"))
         {
             let Some(Type::Own(resource)) = f.result() else {
                 panic!()

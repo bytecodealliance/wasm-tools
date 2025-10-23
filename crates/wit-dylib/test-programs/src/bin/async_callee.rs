@@ -5,7 +5,7 @@ export_test!(struct MyInterpreter);
 impl TestCase for MyInterpreter {
     fn call_export(
         _wit: Wit,
-        _func: Function,
+        _func: ExportFunction,
         _args: impl ExactSizeIterator<Item = Val>,
     ) -> Option<Val> {
         unreachable!()
@@ -13,7 +13,7 @@ impl TestCase for MyInterpreter {
 
     async fn call_export_async(
         _wit: Wit,
-        func: Function,
+        func: ExportFunction,
         mut args: impl ExactSizeIterator<Item = Val>,
     ) -> Option<Val> {
         assert_eq!(func.interface(), Some("a:b/x"));

@@ -460,6 +460,10 @@ impl ExportFunction {
         unsafe { to_str(self.ptr.name) }
     }
 
+    pub fn task_return(&self) -> ffi::wit_export_task_return_fn_t {
+        self.ptr.task_return
+    }
+
     pub fn params(&self) -> impl ExactSizeIterator<Item = Type> + DoubleEndedIterator + Clone + '_ {
         self.raw_params()
             .iter()
