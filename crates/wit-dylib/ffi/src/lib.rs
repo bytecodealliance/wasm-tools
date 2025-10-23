@@ -368,17 +368,17 @@ pub trait Interpreter: 'static {
         let _ = wit;
     }
 
-    fn export_start<'a>(wit: Wit, func: Function) -> Box<Self::CallCx<'a>>;
+    fn export_start<'a>(wit: Wit, func: ExportFunction) -> Box<Self::CallCx<'a>>;
 
-    fn export_call(wit: Wit, func: Function, cx: &mut Self::CallCx<'_>);
+    fn export_call(wit: Wit, func: ExportFunction, cx: &mut Self::CallCx<'_>);
 
     fn export_call_async(
         wit: Wit,
-        func: Function,
+        func: ExportFunction,
         cx: Box<Self::CallCx<'static>>,
     ) -> impl std::future::Future<Output = ()>;
 
-    fn export_finish(cx: Box<Self::CallCx<'_>>, func: Function) {
+    fn export_finish(cx: Box<Self::CallCx<'_>>, func: ExportFunction) {
         let _ = func;
         let _ = cx;
     }
@@ -503,7 +503,7 @@ pub trait RawInterpreter: Interpreter {
         debug_println!("export_start({which})");
         unsafe {
             let wit = Wit::from_raw(WIT_T);
-            let func = wit.func(which);
+            let func = wit.export_func(which);
             Box::into_raw(Self::export_start(wit, func)).cast()
         }
     }
@@ -512,7 +512,7 @@ pub trait RawInterpreter: Interpreter {
         debug_println!("export_call({cx:?}, {which})");
         unsafe {
             let wit = Wit::from_raw(WIT_T);
-            let func = wit.func(which);
+            let func = wit.export_func(which);
             Self::export_call(wit, func, Self::cx_mut(cx))
         }
     }
@@ -522,7 +522,7 @@ pub trait RawInterpreter: Interpreter {
         #[cfg(feature = "async")]
         unsafe {
             let wit = Wit::from_raw(WIT_T);
-            let func = wit.func(which);
+            let func = wit.export_func(which);
             wit_bindgen::rt::async_support::start_task(Self::export_call_async(
                 wit,
                 func,
@@ -550,7 +550,7 @@ pub trait RawInterpreter: Interpreter {
         debug_println!("export_finish({cx:?}, {which})");
         unsafe {
             let wit = Wit::from_raw(WIT_T);
-            let func = wit.func(which);
+            let func = wit.export_func(which);
             Self::export_finish(Box::from_raw(cx.cast()), func)
         }
     }

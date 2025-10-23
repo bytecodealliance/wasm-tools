@@ -1,6 +1,6 @@
 (module
   (@dylink.0
-    (mem-info (memory 208 2) (table 1 0))
+    (mem-info (memory 192 2) (table 1 0))
   )
   (type (;0;) (func (param i32)))
   (type (;1;) (func (param i32 i32 i32 i32) (result i32)))
@@ -111,11 +111,11 @@
     i32.sub
     local.tee 0
     global.set $__stack_pointer
-    i32.const 1
+    i32.const 0
     call $wit_dylib_export_start
     local.set 1
     local.get 1
-    i32.const 1
+    i32.const 0
     call $wit_dylib_export_call
     global.get $__stack_pointer
     i32.const 8
@@ -138,7 +138,7 @@
     i32.add
     global.set $__stack_pointer
     local.get 1
-    i32.const 1
+    i32.const 0
     call $wit_dylib_export_finish
     global.get $__stack_pointer
     local.set 1
@@ -150,7 +150,7 @@
   (func $__wasm_apply_data_relocs (;66;) (type 14)
     global.get $__memory_base
     global.get $__memory_base
-    i32.const 204
+    i32.const 188
     i32.add
     i32.store offset=4
     global.get $__memory_base
@@ -158,20 +158,25 @@
     i32.store offset=8
     global.get $__memory_base
     global.get $__memory_base
-    i32.const 206
+    i32.const 190
     i32.add
-    i32.store offset=48
+    i32.store offset=44
     global.get $__memory_base
     global.get $__memory_base
     i32.const 0
     i32.add
-    i32.store offset=96
+    i32.store offset=72
+    global.get $__memory_base
+    global.get $__memory_base
+    i32.const 40
+    i32.add
+    i32.store offset=80
   )
   (func $__wasm_call_ctors (;67;) (type 14)
-    i32.const 88
+    i32.const 64
     global.get $__memory_base
     i32.add
     call $wit_dylib_initialize
   )
-  (data (;0;) (global.get $__memory_base) "/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/ff/ff/ff/ff/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/ff/ff/ff/ff/00/00/00/00/00/00/00/00/00/00/00/00/02/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00x/00y/00")
+  (data (;0;) (global.get $__memory_base) "/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/ff/ff/ff/ff/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/ff/ff/ff/ff/01/00/00/00/01/00/00/00/00/00/00/00/01/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00x/00y/00")
 )

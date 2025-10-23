@@ -1,12 +1,14 @@
 use indexmap::IndexMap;
 use std::mem;
 use wasm_encoder::{Function, MemArg};
+use wit_parser::TypeId;
 
-const VERSION: u32 = 0;
+const VERSION: u32 = 1;
 
 #[derive(Default)]
 pub struct Metadata {
-    pub funcs: Vec<Func>,
+    pub import_funcs: Vec<ImportFunc>,
+    pub export_funcs: Vec<ExportFunc>,
     pub resources: Vec<Resource>,
     pub records: Vec<Record>,
     pub flags: Vec<Flags>,
@@ -22,19 +24,27 @@ pub struct Metadata {
     pub aliases: Vec<Alias>,
 }
 
-pub struct Func {
+pub struct ImportFunc {
     pub interface: Option<String>,
     pub name: String,
     pub sync_import_elem_index: Option<u32>,
     pub async_import_elem_index: Option<u32>,
     pub async_import_lift_results_elem_index: Option<u32>,
-    pub async_export_task_return_elem_index: Option<u32>,
     pub args: Vec<Type>,
     pub result: Option<Type>,
     pub async_abi_area: Option<(usize, usize)>,
 }
 
+pub struct ExportFunc {
+    pub interface: Option<String>,
+    pub name: String,
+    pub async_export_task_return_elem_index: Option<u32>,
+    pub args: Vec<Type>,
+    pub result: Option<Type>,
+}
+
 pub struct Resource {
+    pub id: TypeId,
     pub interface: Option<String>,
     pub name: String,
     pub drop_elem_index: u32,
@@ -43,42 +53,49 @@ pub struct Resource {
 }
 
 pub struct Record {
+    pub id: TypeId,
     pub interface: Option<String>,
     pub name: String,
     pub fields: Vec<(String, Type)>,
 }
 
 pub struct Flags {
+    pub id: TypeId,
     pub interface: Option<String>,
     pub name: String,
     pub names: Vec<String>,
 }
 
 pub struct Tuple {
+    pub id: TypeId,
     pub interface: Option<String>,
     pub name: Option<String>,
     pub types: Vec<Type>,
 }
 
 pub struct Variant {
+    pub id: TypeId,
     pub interface: Option<String>,
     pub name: String,
     pub cases: Vec<(String, Option<Type>)>,
 }
 
 pub struct Enum {
+    pub id: TypeId,
     pub interface: Option<String>,
     pub name: String,
     pub names: Vec<String>,
 }
 
 pub struct WitOption {
+    pub id: TypeId,
     pub interface: Option<String>,
     pub name: Option<String>,
     pub ty: Type,
 }
 
 pub struct WitResult {
+    pub id: TypeId,
     pub interface: Option<String>,
     pub name: Option<String>,
     pub ok: Option<Type>,
@@ -86,12 +103,14 @@ pub struct WitResult {
 }
 
 pub struct List {
+    pub id: TypeId,
     pub interface: Option<String>,
     pub name: Option<String>,
     pub ty: Type,
 }
 
 pub struct FixedSizeList {
+    pub id: TypeId,
     pub interface: Option<String>,
     pub name: Option<String>,
     pub len: u32,
@@ -99,18 +118,21 @@ pub struct FixedSizeList {
 }
 
 pub struct Future {
+    pub id: TypeId,
     pub interface: Option<String>,
     pub name: Option<String>,
     pub ty: Option<Type>,
 }
 
 pub struct Stream {
+    pub id: TypeId,
     pub interface: Option<String>,
     pub name: Option<String>,
     pub ty: Option<Type>,
 }
 
 pub struct Alias {
+    pub id: TypeId,
     pub interface: Option<String>,
     pub name: String,
     pub ty: Type,
@@ -187,7 +209,8 @@ impl Metadata {
             symbol_offsets: Vec::new(),
         };
 
-        let funcs = encoder.encode_list(&self.funcs, Encoder::encode_funcs);
+        let import_funcs = encoder.encode_list(&self.import_funcs, Encoder::encode_import_funcs);
+        let export_funcs = encoder.encode_list(&self.export_funcs, Encoder::encode_export_funcs);
         let resources = encoder.encode_list(&self.resources, Encoder::encode_resources);
         let records = encoder.encode_list(&self.records, Encoder::encode_records);
         let flags = encoder.encode_list(&self.flags, Encoder::encode_flags);
@@ -207,7 +230,8 @@ impl Metadata {
         encoder.bind(sym_metadata);
         encoder.put_u32(VERSION);
         for (sym, len) in [
-            funcs,
+            import_funcs,
+            export_funcs,
             resources,
             records,
             flags,
@@ -253,16 +277,15 @@ impl Encoder {
         (ret, list.len())
     }
 
-    fn encode_funcs(&mut self, funcs: &[Func]) {
+    fn encode_import_funcs(&mut self, funcs: &[ImportFunc]) {
         let mut deferred_args = Vec::new();
         for func in funcs {
-            let Func {
+            let ImportFunc {
                 interface,
                 name,
                 sync_import_elem_index,
                 async_import_elem_index,
                 async_import_lift_results_elem_index,
-                async_export_task_return_elem_index,
                 args,
                 result,
                 async_abi_area,
@@ -272,7 +295,6 @@ impl Encoder {
             self.opt_elem_index(*sync_import_elem_index);
             self.opt_elem_index(*async_import_elem_index);
             self.opt_elem_index(*async_import_lift_results_elem_index);
-            self.opt_elem_index(*async_export_task_return_elem_index);
             self.list(args, &mut deferred_args);
             self.opt_ty(result.as_ref());
             match async_abi_area {
@@ -295,9 +317,35 @@ impl Encoder {
         }
     }
 
+    fn encode_export_funcs(&mut self, funcs: &[ExportFunc]) {
+        let mut deferred_args = Vec::new();
+        for func in funcs {
+            let ExportFunc {
+                interface,
+                name,
+                async_export_task_return_elem_index,
+                args,
+                result,
+            } = func;
+            self.opt_string_ptr(interface.as_deref());
+            self.string_ptr(name);
+            self.opt_elem_index(*async_export_task_return_elem_index);
+            self.list(args, &mut deferred_args);
+            self.opt_ty(result.as_ref());
+        }
+
+        for (sym, args) in deferred_args {
+            self.bind(sym);
+            for arg in args {
+                self.ty(arg);
+            }
+        }
+    }
+
     fn encode_resources(&mut self, resources: &[Resource]) {
         for resource in resources {
             let Resource {
+                id: _,
                 interface,
                 name,
                 drop_elem_index,
@@ -316,6 +364,7 @@ impl Encoder {
         let mut deferred_fields = Vec::new();
         for record in records {
             let Record {
+                id: _,
                 interface,
                 name,
                 fields,
@@ -338,6 +387,7 @@ impl Encoder {
         let mut deferred = Vec::new();
         for flags in flags {
             let Flags {
+                id: _,
                 interface,
                 name,
                 names,
@@ -359,6 +409,7 @@ impl Encoder {
         let mut deferred = Vec::new();
         for tuple in tuples {
             let Tuple {
+                id: _,
                 interface,
                 name,
                 types,
@@ -380,6 +431,7 @@ impl Encoder {
         let mut deferred = Vec::new();
         for variant in variants {
             let Variant {
+                id: _,
                 interface,
                 name,
                 cases,
@@ -402,6 +454,7 @@ impl Encoder {
         let mut deferred = Vec::new();
         for e in enums {
             let Enum {
+                id: _,
                 interface,
                 name,
                 names,
@@ -422,6 +475,7 @@ impl Encoder {
     fn encode_options(&mut self, options: &[WitOption]) {
         for option in options {
             let WitOption {
+                id: _,
                 interface,
                 name,
                 ty,
@@ -435,6 +489,7 @@ impl Encoder {
     fn encode_results(&mut self, results: &[WitResult]) {
         for result in results {
             let WitResult {
+                id: _,
                 interface,
                 name,
                 ok,
@@ -450,6 +505,7 @@ impl Encoder {
     fn encode_lists(&mut self, lists: &[List]) {
         for list in lists {
             let List {
+                id: _,
                 interface,
                 name,
                 ty,
@@ -463,6 +519,7 @@ impl Encoder {
     fn encode_fixed_size_lists(&mut self, lists: &[FixedSizeList]) {
         for list in lists {
             let FixedSizeList {
+                id: _,
                 interface,
                 name,
                 len,
@@ -478,6 +535,7 @@ impl Encoder {
     fn encode_futures(&mut self, futures: &[Future]) {
         for future in futures {
             let Future {
+                id: _,
                 interface,
                 name,
                 ty,
@@ -491,6 +549,7 @@ impl Encoder {
     fn encode_streams(&mut self, streams: &[Stream]) {
         for stream in streams {
             let Stream {
+                id: _,
                 interface,
                 name,
                 ty,
@@ -504,6 +563,7 @@ impl Encoder {
     fn encode_aliases(&mut self, aliases: &[Alias]) {
         for alias in aliases {
             let Alias {
+                id: _,
                 interface,
                 name,
                 ty,

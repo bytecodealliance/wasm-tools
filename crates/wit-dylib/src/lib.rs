@@ -1,4 +1,3 @@
-use crate::metadata::Metadata;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::mem;
@@ -18,6 +17,7 @@ mod async_;
 mod bindgen;
 mod metadata;
 pub use crate::async_::AsyncFilterSet;
+pub use crate::metadata::Metadata;
 
 pub const C_HEADER: &'static str = include_str!("../wit_dylib.h");
 
@@ -33,7 +33,15 @@ pub struct DylibOpts {
     pub async_: AsyncFilterSet,
 }
 
-pub fn create(resolve: &Resolve, world_id: WorldId, mut opts: Option<&mut DylibOpts>) -> Vec<u8> {
+pub fn create(resolve: &Resolve, world_id: WorldId, opts: Option<&mut DylibOpts>) -> Vec<u8> {
+    create_with_metadata(resolve, world_id, opts).0
+}
+
+pub fn create_with_metadata(
+    resolve: &Resolve,
+    world_id: WorldId,
+    mut opts: Option<&mut DylibOpts>,
+) -> (Vec<u8>, Metadata) {
     let mut adapter = Adapter::default();
     if let Some(opts) = &mut opts {
         adapter.opts = opts.clone();
@@ -42,7 +50,7 @@ pub fn create(resolve: &Resolve, world_id: WorldId, mut opts: Option<&mut DylibO
     if let Some(opts) = &mut opts {
         **opts = adapter.opts;
     }
-    result
+    (result, adapter.metadata)
 }
 
 #[derive(Default)]
@@ -297,6 +305,7 @@ impl Adapter {
                 let drop_elem_index = self.push_elem(drop);
                 let resource_index = self.metadata.resources.len();
                 self.metadata.resources.push(metadata::Resource {
+                    id,
                     interface: interface.map(|i| resolve.name_world_key(i)),
                     name: ty.name.clone().unwrap(),
                     drop_elem_index,
@@ -348,6 +357,7 @@ impl Adapter {
 
                 let resource_index = self.metadata.resources.len();
                 self.metadata.resources.push(metadata::Resource {
+                    id,
                     interface: interface.map(|i| resolve.name_world_key(i)),
                     name: ty.name.clone().unwrap(),
                     drop_elem_index,
@@ -493,6 +503,7 @@ impl Adapter {
                     .map(|field| (field.name.clone(), self.lookup_ty(&field.ty)))
                     .collect();
                 self.metadata.records.push(metadata::Record {
+                    id,
                     interface,
                     name: name.unwrap(),
                     fields,
@@ -503,6 +514,7 @@ impl Adapter {
                 let index = self.metadata.flags.len();
                 let names = t.flags.iter().map(|f| f.name.clone()).collect();
                 self.metadata.flags.push(metadata::Flags {
+                    id,
                     interface,
                     name: name.unwrap(),
                     names,
@@ -513,6 +525,7 @@ impl Adapter {
                 let index = self.metadata.tuples.len();
                 let types = t.types.iter().map(|t| self.lookup_ty(t)).collect();
                 self.metadata.tuples.push(metadata::Tuple {
+                    id,
                     interface,
                     name,
                     types,
@@ -527,6 +540,7 @@ impl Adapter {
                     .map(|c| (c.name.clone(), c.ty.map(|t| self.lookup_ty(&t))))
                     .collect();
                 self.metadata.variants.push(metadata::Variant {
+                    id,
                     interface,
                     name: name.unwrap(),
                     cases,
@@ -537,6 +551,7 @@ impl Adapter {
                 let index = self.metadata.enums.len();
                 let names = t.cases.iter().map(|f| f.name.clone()).collect();
                 self.metadata.enums.push(metadata::Enum {
+                    id,
                     interface,
                     name: name.unwrap(),
                     names,
@@ -546,6 +561,7 @@ impl Adapter {
             TypeDefKind::Option(t) => {
                 let index = self.metadata.options.len();
                 self.metadata.options.push(metadata::WitOption {
+                    id,
                     interface,
                     name,
                     ty: self.lookup_ty(t),
@@ -555,6 +571,7 @@ impl Adapter {
             TypeDefKind::Result(t) => {
                 let index = self.metadata.results.len();
                 self.metadata.results.push(metadata::WitResult {
+                    id,
                     interface,
                     name,
                     ok: t.ok.map(|t| self.lookup_ty(&t)),
@@ -565,6 +582,7 @@ impl Adapter {
             TypeDefKind::List(t) => {
                 let index = self.metadata.lists.len();
                 self.metadata.lists.push(metadata::List {
+                    id,
                     interface,
                     name,
                     ty: self.lookup_ty(t),
@@ -576,6 +594,7 @@ impl Adapter {
                 self.metadata
                     .fixed_size_lists
                     .push(metadata::FixedSizeList {
+                        id,
                         interface,
                         name,
                         len: *len,
@@ -586,6 +605,7 @@ impl Adapter {
             TypeDefKind::Future(t) => {
                 let index = self.metadata.futures.len();
                 self.metadata.futures.push(metadata::Future {
+                    id,
                     interface,
                     name,
                     ty: t.map(|t| self.lookup_ty(&t)),
@@ -595,6 +615,7 @@ impl Adapter {
             TypeDefKind::Stream(t) => {
                 let index = self.metadata.streams.len();
                 self.metadata.streams.push(metadata::Stream {
+                    id,
                     interface,
                     name,
                     ty: t.map(|t| self.lookup_ty(&t)),
@@ -604,6 +625,7 @@ impl Adapter {
             TypeDefKind::Type(t) => {
                 let index = self.metadata.aliases.len();
                 self.metadata.aliases.push(metadata::Alias {
+                    id,
                     interface,
                     name: name.unwrap(),
                     ty: self.lookup_ty(t),
@@ -688,13 +710,12 @@ impl Adapter {
             async_import_lift_results_elem_index = None;
         }
 
-        self.metadata.funcs.push(metadata::Func {
+        self.metadata.import_funcs.push(metadata::ImportFunc {
             interface: import.interface.map(|k| resolve.name_world_key(k)),
             name: func.name.clone(),
             sync_import_elem_index,
             async_import_elem_index,
             async_import_lift_results_elem_index,
-            async_export_task_return_elem_index: None,
             args: func
                 .params
                 .iter()
@@ -737,7 +758,7 @@ impl Adapter {
             },
         );
 
-        let metadata_func_index = self.metadata.funcs.len();
+        let metadata_func_index = self.metadata.export_funcs.len();
         let body = bindgen::export(
             self,
             resolve,
@@ -825,12 +846,9 @@ impl Adapter {
             ManglingAndAbi::Legacy(LiftLowerAbi::AsyncStackful) => unimplemented!(),
         }
 
-        self.metadata.funcs.push(metadata::Func {
+        self.metadata.export_funcs.push(metadata::ExportFunc {
             interface: export.interface.map(|k| resolve.name_world_key(k)),
             name: func.name.clone(),
-            sync_import_elem_index: None,
-            async_import_elem_index: None,
-            async_import_lift_results_elem_index: None,
             async_export_task_return_elem_index,
             args: func
                 .params
@@ -838,7 +856,6 @@ impl Adapter {
                 .map(|(_, ty)| self.lookup_ty(ty))
                 .collect(),
             result: func.result.map(|t| self.lookup_ty(&t)),
-            async_abi_area: None,
         })
     }
 

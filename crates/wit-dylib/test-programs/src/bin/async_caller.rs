@@ -5,7 +5,7 @@ export_test!(struct MyInterpreter);
 impl TestCase for MyInterpreter {
     fn call_export(
         wit: Wit,
-        func: Function,
+        func: ExportFunction,
         args: impl ExactSizeIterator<Item = Val>,
     ) -> Option<Val> {
         let _ = (wit, func, args);
@@ -14,7 +14,7 @@ impl TestCase for MyInterpreter {
 
     async fn call_export_async(
         wit: Wit,
-        func: Function,
+        func: ExportFunction,
         args: impl ExactSizeIterator<Item = Val>,
     ) -> Option<Val> {
         assert_eq!(func.interface(), None);

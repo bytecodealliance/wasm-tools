@@ -44,13 +44,13 @@ pub trait TestCase: 'static {
 
     fn call_export(
         wit: Wit,
-        func: Function,
+        func: ExportFunction,
         args: impl ExactSizeIterator<Item = Val>,
     ) -> Option<Val>;
 
     async fn call_export_async(
         wit: Wit,
-        func: Function,
+        func: ExportFunction,
         args: impl ExactSizeIterator<Item = Val>,
     ) -> Option<Val> {
         let _ = (wit, func, args);
@@ -61,7 +61,7 @@ pub trait TestCase: 'static {
         Self::call_import_func(wit.unwrap_import(interface, func), args)
     }
 
-    fn call_import_func(func: Function, args: &[Val]) -> Option<Val> {
+    fn call_import_func(func: ImportFunction, args: &[Val]) -> Option<Val> {
         call_import_func(func, args)
     }
 
@@ -74,7 +74,7 @@ pub trait TestCase: 'static {
         Self::call_import_func_async(wit.unwrap_import(interface, func), args).await
     }
 
-    async fn call_import_func_async(func: Function, args: &[Val]) -> Option<Val> {
+    async fn call_import_func_async(func: ImportFunction, args: &[Val]) -> Option<Val> {
         let mut cx = Cx::default();
         cx.stack.extend(args.iter().rev().map(Cow::Borrowed));
         func.call_import_async(&mut cx).await;
@@ -87,7 +87,7 @@ pub trait TestCase: 'static {
     }
 }
 
-fn call_import_func(func: Function, args: &[Val]) -> Option<Val> {
+fn call_import_func(func: ImportFunction, args: &[Val]) -> Option<Val> {
     let mut cx = Cx::default();
     cx.stack.extend(args.iter().rev().map(Cow::Borrowed));
     func.call_import_sync(&mut cx);
@@ -138,18 +138,18 @@ impl<T: TestCase + ?Sized> Interpreter for Test<T> {
         T::initialize(wit)
     }
 
-    fn export_start<'a>(_wit: Wit, _func: Function) -> Box<Self::CallCx<'a>> {
+    fn export_start<'a>(_wit: Wit, _func: ExportFunction) -> Box<Self::CallCx<'a>> {
         Box::new(Cx::default())
     }
 
-    fn export_call(wit: Wit, func: Function, cx: &mut Self::CallCx<'_>) {
+    fn export_call(wit: Wit, func: ExportFunction, cx: &mut Self::CallCx<'_>) {
         match T::call_export(wit, func, cx.stack.drain(..).map(|v| v.into_owned())) {
             Some(val) => cx.push_own(val),
             None => {}
         }
     }
 
-    async fn export_call_async(wit: Wit, func: Function, mut cx: Box<Self::CallCx<'static>>) {
+    async fn export_call_async(wit: Wit, func: ExportFunction, mut cx: Box<Self::CallCx<'static>>) {
         match T::call_export_async(wit, func, cx.stack.drain(..).map(|v| v.into_owned())).await {
             Some(val) => cx.push_own(val),
             None => {}
