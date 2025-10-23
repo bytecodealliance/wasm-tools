@@ -2,5 +2,5 @@
 ;;      --assert default \
 ;;      --snapshot tests/snapshots \
 ;;      --ignore-error-messages \
-;;      --features=wasm2 \
+;;      --features=wasm3 \
 ;;      tests/testsuite/f32.wast

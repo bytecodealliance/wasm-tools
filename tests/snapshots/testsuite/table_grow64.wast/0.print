@@ -1,0 +1,28 @@
+(module
+  (type (;0;) (func (param i64) (result externref)))
+  (type (;1;) (func (param i64 externref)))
+  (type (;2;) (func (param i64 externref) (result i64)))
+  (type (;3;) (func (result i64)))
+  (table $t64 (;0;) i64 0 externref)
+  (export "get-t64" (func 0))
+  (export "set-t64" (func 1))
+  (export "grow-t64" (func 2))
+  (export "size-t64" (func 3))
+  (func (;0;) (type 0) (param $i i64) (result externref)
+    local.get $i
+    table.get $t64
+  )
+  (func (;1;) (type 1) (param $i i64) (param $r externref)
+    local.get $i
+    local.get $r
+    table.set $t64
+  )
+  (func (;2;) (type 2) (param $sz i64) (param $init externref) (result i64)
+    local.get $init
+    local.get $sz
+    table.grow $t64
+  )
+  (func (;3;) (type 3) (result i64)
+    table.size $t64
+  )
+)

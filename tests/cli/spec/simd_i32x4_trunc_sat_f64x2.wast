@@ -2,5 +2,5 @@
 ;;      --assert default \
 ;;      --snapshot tests/snapshots \
 ;;      --ignore-error-messages \
-;;      --features=wasm2 \
+;;      --features=wasm3 \
 ;;      tests/testsuite/simd_i32x4_trunc_sat_f64x2.wast

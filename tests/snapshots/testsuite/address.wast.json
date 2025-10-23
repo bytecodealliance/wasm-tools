@@ -1743,11 +1743,12 @@
       "text": "out of bounds memory access"
     },
     {
-      "type": "assert_malformed",
+      "type": "assert_invalid",
       "line": 214,
       "filename": "address.1.wat",
       "module_type": "text",
-      "text": "i32 constant"
+      "binary_filename": "address.1.wasm",
+      "text": "offset out of range"
     },
     {
       "type": "module",

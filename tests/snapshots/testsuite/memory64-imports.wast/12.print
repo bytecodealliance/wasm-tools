@@ -1,0 +1,4 @@
+(module
+  (memory (;0;) i64 2)
+  (export "memory64-2-inf" (memory 0))
+)

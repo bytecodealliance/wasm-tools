@@ -9,7 +9,7 @@
     },
     {
       "type": "assert_return",
-      "line": 196,
+      "line": 204,
       "action": {
         "type": "invoke",
         "field": "get-a",
@@ -24,7 +24,7 @@
     },
     {
       "type": "assert_return",
-      "line": 197,
+      "line": 205,
       "action": {
         "type": "invoke",
         "field": "get-b",
@@ -39,7 +39,7 @@
     },
     {
       "type": "assert_return",
-      "line": 198,
+      "line": 206,
       "action": {
         "type": "invoke",
         "field": "get-r",
@@ -54,7 +54,7 @@
     },
     {
       "type": "assert_return",
-      "line": 199,
+      "line": 207,
       "action": {
         "type": "invoke",
         "field": "get-mr",
@@ -69,7 +69,7 @@
     },
     {
       "type": "assert_return",
-      "line": 200,
+      "line": 208,
       "action": {
         "type": "invoke",
         "field": "get-x",
@@ -84,7 +84,7 @@
     },
     {
       "type": "assert_return",
-      "line": 201,
+      "line": 209,
       "action": {
         "type": "invoke",
         "field": "get-y",
@@ -99,7 +99,7 @@
     },
     {
       "type": "assert_return",
-      "line": 202,
+      "line": 210,
       "action": {
         "type": "invoke",
         "field": "get-z1",
@@ -114,7 +114,7 @@
     },
     {
       "type": "assert_return",
-      "line": 203,
+      "line": 211,
       "action": {
         "type": "invoke",
         "field": "get-z2",
@@ -129,7 +129,67 @@
     },
     {
       "type": "assert_return",
-      "line": 205,
+      "line": 212,
+      "action": {
+        "type": "invoke",
+        "field": "get-z3",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 213,
+      "action": {
+        "type": "invoke",
+        "field": "get-z4",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "43"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 214,
+      "action": {
+        "type": "invoke",
+        "field": "get-z5",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "708"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 215,
+      "action": {
+        "type": "invoke",
+        "field": "get-z6",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "708"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 217,
       "action": {
         "type": "invoke",
         "field": "get-3",
@@ -144,7 +204,7 @@
     },
     {
       "type": "assert_return",
-      "line": 206,
+      "line": 218,
       "action": {
         "type": "invoke",
         "field": "get-4",
@@ -159,7 +219,7 @@
     },
     {
       "type": "assert_return",
-      "line": 207,
+      "line": 219,
       "action": {
         "type": "invoke",
         "field": "get-7",
@@ -174,7 +234,7 @@
     },
     {
       "type": "assert_return",
-      "line": 208,
+      "line": 220,
       "action": {
         "type": "invoke",
         "field": "get-8",
@@ -189,7 +249,7 @@
     },
     {
       "type": "assert_return",
-      "line": 210,
+      "line": 222,
       "action": {
         "type": "invoke",
         "field": "set-x",
@@ -204,7 +264,7 @@
     },
     {
       "type": "assert_return",
-      "line": 211,
+      "line": 223,
       "action": {
         "type": "invoke",
         "field": "set-y",
@@ -219,7 +279,7 @@
     },
     {
       "type": "assert_return",
-      "line": 213,
+      "line": 225,
       "action": {
         "type": "invoke",
         "field": "set-7",
@@ -234,7 +294,7 @@
     },
     {
       "type": "assert_return",
-      "line": 214,
+      "line": 226,
       "action": {
         "type": "invoke",
         "field": "set-8",
@@ -249,7 +309,7 @@
     },
     {
       "type": "assert_return",
-      "line": 216,
+      "line": 228,
       "action": {
         "type": "invoke",
         "field": "get-x",
@@ -264,7 +324,7 @@
     },
     {
       "type": "assert_return",
-      "line": 217,
+      "line": 229,
       "action": {
         "type": "invoke",
         "field": "get-y",
@@ -279,7 +339,7 @@
     },
     {
       "type": "assert_return",
-      "line": 218,
+      "line": 230,
       "action": {
         "type": "invoke",
         "field": "get-7",
@@ -294,7 +354,7 @@
     },
     {
       "type": "assert_return",
-      "line": 219,
+      "line": 231,
       "action": {
         "type": "invoke",
         "field": "get-8",
@@ -309,7 +369,7 @@
     },
     {
       "type": "assert_return",
-      "line": 221,
+      "line": 233,
       "action": {
         "type": "invoke",
         "field": "set-7",
@@ -324,7 +384,7 @@
     },
     {
       "type": "assert_return",
-      "line": 222,
+      "line": 234,
       "action": {
         "type": "invoke",
         "field": "set-8",
@@ -339,7 +399,7 @@
     },
     {
       "type": "assert_return",
-      "line": 223,
+      "line": 235,
       "action": {
         "type": "invoke",
         "field": "set-mr",
@@ -354,7 +414,7 @@
     },
     {
       "type": "assert_return",
-      "line": 225,
+      "line": 237,
       "action": {
         "type": "invoke",
         "field": "get-x",
@@ -369,7 +429,7 @@
     },
     {
       "type": "assert_return",
-      "line": 226,
+      "line": 238,
       "action": {
         "type": "invoke",
         "field": "get-y",
@@ -384,7 +444,7 @@
     },
     {
       "type": "assert_return",
-      "line": 227,
+      "line": 239,
       "action": {
         "type": "invoke",
         "field": "get-7",
@@ -399,7 +459,7 @@
     },
     {
       "type": "assert_return",
-      "line": 228,
+      "line": 240,
       "action": {
         "type": "invoke",
         "field": "get-8",
@@ -414,7 +474,7 @@
     },
     {
       "type": "assert_return",
-      "line": 229,
+      "line": 241,
       "action": {
         "type": "invoke",
         "field": "get-mr",
@@ -429,7 +489,7 @@
     },
     {
       "type": "assert_return",
-      "line": 231,
+      "line": 243,
       "action": {
         "type": "invoke",
         "field": "as-select-first",
@@ -444,7 +504,7 @@
     },
     {
       "type": "assert_return",
-      "line": 232,
+      "line": 244,
       "action": {
         "type": "invoke",
         "field": "as-select-mid",
@@ -459,7 +519,7 @@
     },
     {
       "type": "assert_return",
-      "line": 233,
+      "line": 245,
       "action": {
         "type": "invoke",
         "field": "as-select-last",
@@ -474,7 +534,7 @@
     },
     {
       "type": "assert_return",
-      "line": 235,
+      "line": 247,
       "action": {
         "type": "invoke",
         "field": "as-loop-first",
@@ -489,7 +549,7 @@
     },
     {
       "type": "assert_return",
-      "line": 236,
+      "line": 248,
       "action": {
         "type": "invoke",
         "field": "as-loop-mid",
@@ -504,7 +564,7 @@
     },
     {
       "type": "assert_return",
-      "line": 237,
+      "line": 249,
       "action": {
         "type": "invoke",
         "field": "as-loop-last",
@@ -519,7 +579,7 @@
     },
     {
       "type": "assert_return",
-      "line": 239,
+      "line": 251,
       "action": {
         "type": "invoke",
         "field": "as-if-condition",
@@ -534,7 +594,7 @@
     },
     {
       "type": "assert_return",
-      "line": 240,
+      "line": 252,
       "action": {
         "type": "invoke",
         "field": "as-if-then",
@@ -549,7 +609,7 @@
     },
     {
       "type": "assert_return",
-      "line": 241,
+      "line": 253,
       "action": {
         "type": "invoke",
         "field": "as-if-else",
@@ -564,7 +624,7 @@
     },
     {
       "type": "assert_return",
-      "line": 243,
+      "line": 255,
       "action": {
         "type": "invoke",
         "field": "as-br_if-first",
@@ -579,7 +639,7 @@
     },
     {
       "type": "assert_return",
-      "line": 244,
+      "line": 256,
       "action": {
         "type": "invoke",
         "field": "as-br_if-last",
@@ -594,7 +654,7 @@
     },
     {
       "type": "assert_return",
-      "line": 246,
+      "line": 258,
       "action": {
         "type": "invoke",
         "field": "as-br_table-first",
@@ -609,7 +669,7 @@
     },
     {
       "type": "assert_return",
-      "line": 247,
+      "line": 259,
       "action": {
         "type": "invoke",
         "field": "as-br_table-last",
@@ -624,7 +684,7 @@
     },
     {
       "type": "assert_return",
-      "line": 249,
+      "line": 261,
       "action": {
         "type": "invoke",
         "field": "as-call_indirect-first",
@@ -639,7 +699,7 @@
     },
     {
       "type": "assert_return",
-      "line": 250,
+      "line": 262,
       "action": {
         "type": "invoke",
         "field": "as-call_indirect-mid",
@@ -654,7 +714,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 251,
+      "line": 263,
       "action": {
         "type": "invoke",
         "field": "as-call_indirect-last",
@@ -664,7 +724,7 @@
     },
     {
       "type": "assert_return",
-      "line": 253,
+      "line": 265,
       "action": {
         "type": "invoke",
         "field": "as-store-first",
@@ -674,7 +734,7 @@
     },
     {
       "type": "assert_return",
-      "line": 254,
+      "line": 266,
       "action": {
         "type": "invoke",
         "field": "as-store-last",
@@ -684,7 +744,7 @@
     },
     {
       "type": "assert_return",
-      "line": 255,
+      "line": 267,
       "action": {
         "type": "invoke",
         "field": "as-load-operand",
@@ -699,7 +759,7 @@
     },
     {
       "type": "assert_return",
-      "line": 256,
+      "line": 268,
       "action": {
         "type": "invoke",
         "field": "as-memory.grow-value",
@@ -714,7 +774,7 @@
     },
     {
       "type": "assert_return",
-      "line": 258,
+      "line": 270,
       "action": {
         "type": "invoke",
         "field": "as-call-value",
@@ -729,7 +789,7 @@
     },
     {
       "type": "assert_return",
-      "line": 260,
+      "line": 272,
       "action": {
         "type": "invoke",
         "field": "as-return-value",
@@ -744,7 +804,7 @@
     },
     {
       "type": "assert_return",
-      "line": 261,
+      "line": 273,
       "action": {
         "type": "invoke",
         "field": "as-drop-operand",
@@ -754,7 +814,7 @@
     },
     {
       "type": "assert_return",
-      "line": 262,
+      "line": 274,
       "action": {
         "type": "invoke",
         "field": "as-br-value",
@@ -769,7 +829,7 @@
     },
     {
       "type": "assert_return",
-      "line": 264,
+      "line": 276,
       "action": {
         "type": "invoke",
         "field": "as-local.set-value",
@@ -789,7 +849,7 @@
     },
     {
       "type": "assert_return",
-      "line": 265,
+      "line": 277,
       "action": {
         "type": "invoke",
         "field": "as-local.tee-value",
@@ -809,7 +869,7 @@
     },
     {
       "type": "assert_return",
-      "line": 266,
+      "line": 278,
       "action": {
         "type": "invoke",
         "field": "as-global.set-value",
@@ -824,7 +884,7 @@
     },
     {
       "type": "assert_return",
-      "line": 268,
+      "line": 280,
       "action": {
         "type": "invoke",
         "field": "as-unary-operand",
@@ -839,7 +899,7 @@
     },
     {
       "type": "assert_return",
-      "line": 269,
+      "line": 281,
       "action": {
         "type": "invoke",
         "field": "as-binary-operand",
@@ -854,7 +914,7 @@
     },
     {
       "type": "assert_return",
-      "line": 270,
+      "line": 282,
       "action": {
         "type": "invoke",
         "field": "as-compare-operand",
@@ -869,354 +929,480 @@
     },
     {
       "type": "assert_invalid",
-      "line": 273,
+      "line": 285,
       "filename": "global.1.wasm",
       "module_type": "binary",
-      "text": "global is immutable"
+      "text": "immutable global"
     },
     {
       "type": "assert_invalid",
-      "line": 278,
+      "line": 290,
       "filename": "global.2.wasm",
       "module_type": "binary",
-      "text": "global is immutable"
+      "text": "immutable global"
     },
     {
       "type": "module",
-      "line": 283,
+      "line": 295,
       "filename": "global.3.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 284,
+      "line": 296,
       "filename": "global.4.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 287,
+      "line": 299,
       "filename": "global.5.wasm",
       "module_type": "binary",
       "text": "constant expression required"
     },
     {
       "type": "assert_invalid",
-      "line": 292,
+      "line": 304,
       "filename": "global.6.wasm",
       "module_type": "binary",
       "text": "constant expression required"
     },
     {
       "type": "assert_invalid",
-      "line": 297,
+      "line": 309,
       "filename": "global.7.wasm",
       "module_type": "binary",
       "text": "constant expression required"
     },
     {
       "type": "assert_invalid",
-      "line": 302,
+      "line": 314,
       "filename": "global.8.wasm",
       "module_type": "binary",
       "text": "constant expression required"
     },
     {
       "type": "assert_invalid",
-      "line": 307,
+      "line": 319,
       "filename": "global.9.wasm",
       "module_type": "binary",
       "text": "constant expression required"
     },
     {
       "type": "assert_invalid",
-      "line": 312,
+      "line": 324,
       "filename": "global.10.wasm",
       "module_type": "binary",
       "text": "constant expression required"
     },
     {
       "type": "assert_invalid",
-      "line": 317,
+      "line": 329,
       "filename": "global.11.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 322,
+      "line": 334,
       "filename": "global.12.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 327,
+      "line": 339,
       "filename": "global.13.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 332,
+      "line": 344,
       "filename": "global.14.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 337,
+      "line": 349,
       "filename": "global.15.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 342,
+      "line": 354,
       "filename": "global.16.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 347,
+      "line": 359,
       "filename": "global.17.wasm",
       "module_type": "binary",
       "text": "unknown global"
     },
     {
       "type": "assert_invalid",
-      "line": 352,
+      "line": 364,
       "filename": "global.18.wasm",
       "module_type": "binary",
       "text": "unknown global"
     },
     {
       "type": "assert_invalid",
-      "line": 356,
+      "line": 369,
       "filename": "global.19.wasm",
       "module_type": "binary",
       "text": "unknown global"
     },
     {
-      "type": "assert_invalid",
-      "line": 361,
+      "type": "module",
+      "line": 373,
       "filename": "global.20.wasm",
-      "module_type": "binary",
-      "text": "unknown global"
+      "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
-      "line": 366,
+      "type": "module",
+      "line": 374,
       "filename": "global.21.wasm",
-      "module_type": "binary",
-      "text": "unknown global"
+      "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 371,
+      "line": 377,
       "filename": "global.22.wasm",
       "module_type": "binary",
       "text": "constant expression required"
     },
     {
       "type": "module",
-      "line": 375,
+      "line": 381,
       "filename": "global.23.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_malformed",
-      "line": 379,
+      "line": 385,
       "filename": "global.24.wasm",
       "module_type": "binary",
       "text": "malformed mutability"
     },
     {
       "type": "assert_malformed",
-      "line": 392,
+      "line": 398,
       "filename": "global.25.wasm",
       "module_type": "binary",
       "text": "malformed mutability"
     },
     {
       "type": "module",
-      "line": 405,
+      "line": 411,
       "filename": "global.26.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_malformed",
-      "line": 409,
+      "line": 415,
       "filename": "global.27.wasm",
       "module_type": "binary",
       "text": "malformed mutability"
     },
     {
       "type": "assert_malformed",
-      "line": 421,
+      "line": 427,
       "filename": "global.28.wasm",
       "module_type": "binary",
       "text": "malformed mutability"
     },
     {
       "type": "assert_invalid",
-      "line": 435,
+      "line": 441,
       "filename": "global.29.wasm",
       "module_type": "binary",
       "text": "unknown global"
     },
     {
       "type": "assert_invalid",
-      "line": 440,
+      "line": 446,
       "filename": "global.30.wasm",
       "module_type": "binary",
       "text": "unknown global"
     },
     {
       "type": "assert_invalid",
-      "line": 448,
+      "line": 454,
       "filename": "global.31.wasm",
       "module_type": "binary",
       "text": "unknown global"
     },
     {
       "type": "assert_invalid",
-      "line": 456,
+      "line": 462,
       "filename": "global.32.wasm",
       "module_type": "binary",
       "text": "unknown global"
     },
     {
       "type": "assert_invalid",
-      "line": 466,
+      "line": 472,
       "filename": "global.33.wasm",
       "module_type": "binary",
       "text": "unknown global"
     },
     {
       "type": "assert_invalid",
-      "line": 471,
+      "line": 477,
       "filename": "global.34.wasm",
       "module_type": "binary",
       "text": "unknown global"
     },
     {
       "type": "assert_invalid",
-      "line": 479,
+      "line": 485,
       "filename": "global.35.wasm",
       "module_type": "binary",
       "text": "unknown global"
     },
     {
       "type": "assert_invalid",
-      "line": 487,
+      "line": 493,
       "filename": "global.36.wasm",
       "module_type": "binary",
       "text": "unknown global"
     },
     {
       "type": "assert_invalid",
-      "line": 497,
+      "line": 503,
       "filename": "global.37.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 506,
+      "line": 512,
       "filename": "global.38.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 516,
+      "line": 522,
       "filename": "global.39.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 526,
+      "line": 532,
       "filename": "global.40.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 536,
+      "line": 542,
       "filename": "global.41.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 546,
+      "line": 552,
       "filename": "global.42.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 556,
+      "line": 562,
       "filename": "global.43.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 566,
+      "line": 572,
       "filename": "global.44.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 576,
+      "line": 582,
       "filename": "global.45.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 585,
+      "line": 591,
       "filename": "global.46.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 594,
+      "line": 600,
       "filename": "global.47.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 604,
+      "line": 610,
       "filename": "global.48.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
+      "type": "module",
+      "line": 629,
+      "filename": "global.49.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 632,
+      "as": "G"
+    },
+    {
+      "type": "module",
+      "line": 634,
+      "filename": "global.50.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 659,
+      "action": {
+        "type": "invoke",
+        "field": "get-elem",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "refnull"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 660,
+      "action": {
+        "type": "invoke",
+        "field": "get-elem",
+        "args": [
+          {
+            "type": "i32",
+            "value": "4"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "funcref"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 661,
+      "action": {
+        "type": "invoke",
+        "field": "get-elem",
+        "args": [
+          {
+            "type": "i32",
+            "value": "8"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "funcref"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 663,
+      "action": {
+        "type": "invoke",
+        "field": "get-data",
+        "args": [
+          {
+            "type": "i32",
+            "value": "4"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1145324612"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 664,
+      "action": {
+        "type": "invoke",
+        "field": "get-data",
+        "args": [
+          {
+            "type": "i32",
+            "value": "8"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "-2004318072"
+        }
+      ]
+    },
+    {
+      "type": "assert_invalid",
+      "line": 667,
+      "filename": "global.51.wasm",
+      "module_type": "binary",
+      "text": "unknown global"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 675,
+      "filename": "global.52.wasm",
+      "module_type": "binary",
+      "text": "unknown global"
+    },
+    {
       "type": "assert_malformed",
-      "line": 622,
-      "filename": "global.49.wat",
+      "line": 686,
+      "filename": "global.53.wat",
       "module_type": "text",
       "text": "duplicate global"
     },
     {
       "type": "assert_malformed",
-      "line": 626,
-      "filename": "global.50.wat",
+      "line": 693,
+      "filename": "global.54.wat",
       "module_type": "text",
       "text": "duplicate global"
     },
     {
       "type": "assert_malformed",
-      "line": 630,
-      "filename": "global.51.wat",
+      "line": 700,
+      "filename": "global.55.wat",
       "module_type": "text",
       "text": "duplicate global"
     }

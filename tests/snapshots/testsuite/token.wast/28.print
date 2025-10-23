@@ -1,3 +1,9 @@
 (module
-  (data $l (;0;) "a")
+  (type (;0;) (func))
+  (func (;0;) (type 0)
+    block $l$l
+      i32.const 0
+      br_table $l$l
+    end
+  )
 )

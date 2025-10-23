@@ -1308,22 +1308,122 @@
       ]
     },
     {
+      "type": "assert_return",
+      "line": 89,
+      "action": {
+        "type": "invoke",
+        "field": "i32x4.dot_i16x8_s",
+        "args": [
+          {
+            "type": "v128",
+            "lane_type": "i16",
+            "value": [
+              "-32768",
+              "-1",
+              "-32768",
+              "-1",
+              "-32768",
+              "-1",
+              "-32768",
+              "-1"
+            ]
+          },
+          {
+            "type": "v128",
+            "lane_type": "i16",
+            "value": [
+              "-32767",
+              "0",
+              "-32767",
+              "0",
+              "-32767",
+              "0",
+              "-32767",
+              "0"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "v128",
+          "lane_type": "i32",
+          "value": [
+            "1073709056",
+            "1073709056",
+            "1073709056",
+            "1073709056"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 93,
+      "action": {
+        "type": "invoke",
+        "field": "i32x4.dot_i16x8_s",
+        "args": [
+          {
+            "type": "v128",
+            "lane_type": "i16",
+            "value": [
+              "111",
+              "222",
+              "333",
+              "444",
+              "555",
+              "666",
+              "777",
+              "888"
+            ]
+          },
+          {
+            "type": "v128",
+            "lane_type": "i16",
+            "value": [
+              "1111",
+              "2222",
+              "3333",
+              "4444",
+              "5555",
+              "6666",
+              "7777",
+              "8888"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "v128",
+          "lane_type": "i32",
+          "value": [
+            "616605",
+            "3083025",
+            "7522581",
+            "13935273"
+          ]
+        }
+      ]
+    },
+    {
       "type": "assert_invalid",
-      "line": 90,
+      "line": 99,
       "filename": "simd_i32x4_dot_i16x8.1.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 95,
+      "line": 104,
       "filename": "simd_i32x4_dot_i16x8.2.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 103,
+      "line": 112,
       "filename": "simd_i32x4_dot_i16x8.3.wasm",
       "module_type": "binary",
       "text": "type mismatch"

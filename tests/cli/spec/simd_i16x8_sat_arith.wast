@@ -2,5 +2,5 @@
 ;;      --assert default \
 ;;      --snapshot tests/snapshots \
 ;;      --ignore-error-messages \
-;;      --features=wasm2 \
+;;      --features=wasm3 \
 ;;      tests/testsuite/simd_i16x8_sat_arith.wast

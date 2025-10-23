@@ -257,106 +257,71 @@
       "text": "duplicate export name"
     },
     {
-      "type": "module",
-      "line": 74,
+      "type": "assert_invalid",
+      "line": 71,
       "filename": "exports.23.wasm",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "duplicate export name"
     },
     {
       "type": "module",
-      "line": 75,
+      "line": 78,
       "filename": "exports.24.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 76,
+      "line": 79,
       "filename": "exports.25.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 78,
+      "line": 80,
       "filename": "exports.26.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 79,
+      "line": 82,
       "filename": "exports.27.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 80,
+      "line": 83,
       "filename": "exports.28.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 81,
+      "line": 84,
       "filename": "exports.29.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 82,
+      "line": 85,
       "filename": "exports.30.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 83,
+      "line": 86,
       "filename": "exports.31.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 85,
-      "name": "Global",
+      "line": 87,
       "filename": "exports.32.wasm",
       "module_type": "binary"
     },
     {
-      "type": "assert_return",
+      "type": "module",
       "line": 89,
-      "action": {
-        "type": "get",
-        "field": "e"
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "42"
-        }
-      ]
-    },
-    {
-      "type": "assert_return",
-      "line": 90,
-      "action": {
-        "type": "get",
-        "module": "Global",
-        "field": "e"
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "42"
-        }
-      ]
-    },
-    {
-      "type": "module",
-      "line": 91,
+      "name": "Global",
       "filename": "exports.33.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "module",
-      "line": 92,
-      "name": "Other2",
-      "filename": "exports.34.wasm",
       "module_type": "binary"
     },
     {
@@ -364,6 +329,20 @@
       "line": 93,
       "action": {
         "type": "get",
+        "field": "e"
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 94,
+      "action": {
+        "type": "get",
         "module": "Global",
         "field": "e"
       },
@@ -375,11 +354,32 @@
       ]
     },
     {
-      "type": "assert_invalid",
+      "type": "module",
+      "line": 95,
+      "filename": "exports.34.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
       "line": 96,
+      "name": "Other2",
       "filename": "exports.35.wasm",
-      "module_type": "binary",
-      "text": "unknown global"
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 97,
+      "action": {
+        "type": "get",
+        "module": "Global",
+        "field": "e"
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "42"
+        }
+      ]
     },
     {
       "type": "assert_invalid",
@@ -400,7 +400,7 @@
       "line": 108,
       "filename": "exports.38.wasm",
       "module_type": "binary",
-      "text": "duplicate export name"
+      "text": "unknown global"
     },
     {
       "type": "assert_invalid",
@@ -431,101 +431,101 @@
       "text": "duplicate export name"
     },
     {
-      "type": "module",
-      "line": 131,
+      "type": "assert_invalid",
+      "line": 128,
       "filename": "exports.43.wasm",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "duplicate export name"
     },
     {
       "type": "module",
-      "line": 132,
+      "line": 135,
       "filename": "exports.44.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 133,
+      "line": 136,
       "filename": "exports.45.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 135,
+      "line": 137,
       "filename": "exports.46.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 136,
+      "line": 139,
       "filename": "exports.47.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 137,
+      "line": 140,
       "filename": "exports.48.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 138,
+      "line": 141,
       "filename": "exports.49.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 139,
+      "line": 142,
       "filename": "exports.50.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 140,
+      "line": 143,
       "filename": "exports.51.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 141,
+      "line": 144,
       "filename": "exports.52.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 142,
+      "line": 145,
       "filename": "exports.53.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 143,
+      "line": 146,
       "filename": "exports.54.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 144,
+      "line": 147,
       "filename": "exports.55.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 145,
+      "line": 148,
       "filename": "exports.56.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 146,
+      "line": 149,
       "filename": "exports.57.wasm",
       "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
-      "line": 151,
+      "type": "module",
+      "line": 150,
       "filename": "exports.58.wasm",
-      "module_type": "binary",
-      "text": "unknown table"
+      "module_type": "binary"
     },
     {
       "type": "assert_invalid",
@@ -546,7 +546,7 @@
       "line": 163,
       "filename": "exports.61.wasm",
       "module_type": "binary",
-      "text": "duplicate export name"
+      "text": "unknown table"
     },
     {
       "type": "assert_invalid",
@@ -577,14 +577,15 @@
       "text": "duplicate export name"
     },
     {
-      "type": "module",
-      "line": 186,
+      "type": "assert_invalid",
+      "line": 183,
       "filename": "exports.66.wasm",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "duplicate export name"
     },
     {
       "type": "module",
-      "line": 187,
+      "line": 190,
       "filename": "exports.67.wasm",
       "module_type": "binary"
     },
@@ -596,76 +597,75 @@
     },
     {
       "type": "module",
-      "line": 192,
+      "line": 195,
       "filename": "exports.69.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 193,
+      "line": 196,
       "filename": "exports.70.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 194,
+      "line": 197,
       "filename": "exports.71.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 195,
+      "line": 198,
       "filename": "exports.72.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 196,
+      "line": 199,
       "filename": "exports.73.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 197,
+      "line": 200,
       "filename": "exports.74.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 198,
+      "line": 201,
       "filename": "exports.75.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 199,
+      "line": 202,
       "filename": "exports.76.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 200,
+      "line": 203,
       "filename": "exports.77.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 201,
+      "line": 204,
       "filename": "exports.78.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 202,
+      "line": 205,
       "filename": "exports.79.wasm",
       "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
-      "line": 207,
+      "type": "module",
+      "line": 206,
       "filename": "exports.80.wasm",
-      "module_type": "binary",
-      "text": "unknown memory"
+      "module_type": "binary"
     },
     {
       "type": "assert_invalid",
@@ -686,11 +686,11 @@
       "line": 219,
       "filename": "exports.83.wasm",
       "module_type": "binary",
-      "text": "duplicate export name"
+      "text": "unknown memory"
     },
     {
       "type": "assert_invalid",
-      "line": 228,
+      "line": 223,
       "filename": "exports.84.wasm",
       "module_type": "binary",
       "text": "duplicate export name"
@@ -706,6 +706,13 @@
       "type": "assert_invalid",
       "line": 236,
       "filename": "exports.86.wasm",
+      "module_type": "binary",
+      "text": "duplicate export name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 240,
+      "filename": "exports.87.wasm",
       "module_type": "binary",
       "text": "duplicate export name"
     }

@@ -1,9 +1,0 @@
-(module
-  (type (;0;) (func (param i32)))
-  (import "spectest" "print_i32" (func $imported_print (;0;) (type 0)))
-  (export "print_i32" (func 1))
-  (func (;1;) (type 0) (param $i i32)
-    local.get $i
-    call $imported_print
-  )
-)

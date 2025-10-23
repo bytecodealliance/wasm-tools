@@ -3,5 +3,5 @@
 ;;      --snapshot tests/snapshots \
 ;;      --allow-confusing-unicode \
 ;;      --ignore-error-messages \
-;;      --features=wasm2 \
+;;      --features=wasm3 \
 ;;      tests/testsuite/names.wast

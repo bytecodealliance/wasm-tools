@@ -1,9 +1,0 @@
-(module
-  (type (;0;) (func (param i32) (result i32)))
-  (memory (;0;) 0 10)
-  (export "grow" (func 0))
-  (func (;0;) (type 0) (param i32) (result i32)
-    local.get 0
-    memory.grow
-  )
-)
