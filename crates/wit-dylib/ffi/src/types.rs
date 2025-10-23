@@ -34,7 +34,7 @@ impl_extra_traits!(Wit);
 impl Wit {
     pub(crate) unsafe fn from_raw(ptr: *const ffi::wit_t) -> Wit {
         unsafe {
-            assert!((*ptr).version >= ffi::WIT_V0);
+            assert!((*ptr).version >= ffi::WIT_CURRENT_VERSION);
             Wit {
                 ptr: ptr.as_ref().unwrap(),
             }
