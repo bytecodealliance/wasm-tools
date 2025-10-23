@@ -338,6 +338,10 @@ pub struct ImportFunction {
 impl_extra_traits!(ImportFunction);
 
 impl ImportFunction {
+    pub fn index(&self) -> usize {
+        unsafe { (&raw const *self.ptr).offset_from_unsigned(self.wit.ptr.import_funcs) }
+    }
+
     pub fn interface(&self) -> Option<&'static str> {
         unsafe { opt_str(self.ptr.interface) }
     }
@@ -917,6 +921,10 @@ pub struct List {
 impl_extra_traits!(List);
 
 impl List {
+    pub fn index(&self) -> usize {
+        unsafe { (&raw const *self.ptr).offset_from_unsigned(self.wit.ptr.lists) }
+    }
+
     pub fn interface(&self) -> Option<&'static str> {
         unsafe { opt_str(self.ptr.interface) }
     }
@@ -949,6 +957,10 @@ pub struct FixedSizeList {
 impl_extra_traits!(FixedSizeList);
 
 impl FixedSizeList {
+    pub fn index(&self) -> usize {
+        unsafe { (&raw const *self.ptr).offset_from_unsigned(self.wit.ptr.fixed_size_lists) }
+    }
+
     pub fn interface(&self) -> Option<&'static str> {
         unsafe { opt_str(self.ptr.interface) }
     }
@@ -986,6 +998,10 @@ pub struct Future {
 impl_extra_traits!(Future);
 
 impl Future {
+    pub fn index(&self) -> usize {
+        unsafe { (&raw const *self.ptr).offset_from_unsigned(self.wit.ptr.futures) }
+    }
+
     pub fn interface(&self) -> Option<&'static str> {
         unsafe { opt_str(self.ptr.interface) }
     }
@@ -1018,6 +1034,10 @@ pub struct Stream {
 impl_extra_traits!(Stream);
 
 impl Stream {
+    pub fn index(&self) -> usize {
+        unsafe { (&raw const *self.ptr).offset_from_unsigned(self.wit.ptr.streams) }
+    }
+
     pub fn interface(&self) -> Option<&'static str> {
         unsafe { opt_str(self.ptr.interface) }
     }
@@ -1050,6 +1070,10 @@ pub struct Alias {
 impl_extra_traits!(Alias);
 
 impl Alias {
+    pub fn index(&self) -> usize {
+        unsafe { (&raw const *self.ptr).offset_from_unsigned(self.wit.ptr.aliases) }
+    }
+
     pub fn interface(&self) -> Option<&'static str> {
         unsafe { opt_str(self.ptr.interface) }
     }
