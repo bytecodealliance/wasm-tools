@@ -283,6 +283,8 @@ impl SubType {
 pub(crate) struct CompositeType {
     pub inner: CompositeInnerType,
     pub shared: bool,
+    pub descriptor: Option<u32>,
+    pub describes: Option<u32>,
 }
 
 impl CompositeType {
@@ -291,6 +293,8 @@ impl CompositeType {
         Self {
             inner: CompositeInnerType::Func(func),
             shared,
+            descriptor: None,
+            describes: None,
         }
     }
 
@@ -328,8 +332,8 @@ impl From<&CompositeType> for wasm_encoder::CompositeType {
         wasm_encoder::CompositeType {
             shared: ty.shared,
             inner,
-            descriptor: None,
-            describes: None,
+            descriptor: ty.descriptor,
+            describes: ty.describes,
         }
     }
 }
@@ -534,7 +538,8 @@ impl Module {
                     }
             }
 
-            (HT::Concrete(a), HT::Abstract { shared, ty }) => {
+            (HT::Concrete(a), HT::Abstract { shared, ty })
+            | (HT::Exact(a), HT::Abstract { shared, ty }) => {
                 let a_ty = &self.ty(a).composite_type;
                 if a_ty.shared != shared {
                     return false;
@@ -548,7 +553,8 @@ impl Module {
                 }
             }
 
-            (HT::Abstract { shared, ty }, HT::Concrete(b)) => {
+            (HT::Abstract { shared, ty }, HT::Concrete(b))
+            | (HT::Abstract { shared, ty }, HT::Exact(b)) => {
                 let b_ty = &self.ty(b).composite_type;
                 if shared != b_ty.shared {
                     return false;
@@ -560,7 +566,7 @@ impl Module {
                 }
             }
 
-            (HT::Concrete(mut a), HT::Concrete(b)) => loop {
+            (HT::Concrete(mut a), HT::Concrete(b)) | (HT::Exact(mut a), HT::Concrete(b)) => loop {
                 if a == b {
                     return true;
                 }
@@ -571,9 +577,9 @@ impl Module {
                 }
             },
 
-            (HT::Exact(_), _) => todo!(),
-
-            (_, HT::Exact(_)) => todo!(),
+            (HT::Concrete(a), HT::Exact(b)) | (HT::Exact(a), HT::Exact(b)) => {
+                return a == b;
+            }
         }
     }
 
@@ -704,6 +710,8 @@ impl Module {
             let composite_type = CompositeType {
                 inner: CompositeInnerType::Func(func_type),
                 shared,
+                descriptor: None,
+                describes: None,
             };
             return Ok(SubType {
                 is_final: true,
@@ -876,6 +884,12 @@ impl Module {
                 if let Some(subs) = self.super_to_sub_types.get(&idx) {
                     choices.extend(subs.iter().copied().map(HT::Concrete));
                 }
+                if self.config.custom_descriptors_enabled {
+                    choices.push(HT::Exact(idx));
+                    if let Some(subs) = self.super_to_sub_types.get(&idx) {
+                        choices.extend(subs.iter().copied().map(HT::Concrete));
+                    }
+                }
                 match self
                     .types
                     .get(usize::try_from(idx).unwrap())
@@ -898,7 +912,7 @@ impl Module {
                     }
                 }
             }
-            HT::Exact(_) => todo!(),
+            HT::Exact(_) => (),
         }
         Ok(*u.choose(&choices)?)
     }
@@ -1043,7 +1057,7 @@ impl Module {
                     idx = supertype;
                 }
             }
-            HT::Exact(_) => todo!(),
+            HT::Exact(_) => (),
         }
         Ok(*u.choose(&choices)?)
     }
@@ -1056,6 +1070,8 @@ impl Module {
             return Ok(CompositeType {
                 shared,
                 inner: CT::Func(self.propagate_shared(shared, |m| m.arbitrary_func_type(u))?),
+                descriptor: None,
+                describes: None,
             });
         }
 
@@ -1065,14 +1081,20 @@ impl Module {
                 inner: CT::Array(ArrayType(
                     self.propagate_shared(shared, |m| m.arbitrary_field_type(u))?,
                 )),
+                descriptor: None,
+                describes: None,
             }),
             1 => Ok(CompositeType {
                 shared,
                 inner: CT::Func(self.propagate_shared(shared, |m| m.arbitrary_func_type(u))?),
+                descriptor: None,
+                describes: None,
             }),
             2 => Ok(CompositeType {
                 shared,
                 inner: CT::Struct(self.propagate_shared(shared, |m| m.arbitrary_struct_type(u))?),
+                descriptor: None, // TODO generate descriptor info when custom_descriptors_enabled
+                describes: None,
             }),
             _ => unreachable!(),
         }
@@ -3492,6 +3514,14 @@ impl TryFrom<wasmparser::CompositeType> for CompositeType {
         Ok(CompositeType {
             inner: inner_type,
             shared: value.shared,
+            descriptor: value
+                .descriptor_idx
+                .map(|idx| idx.as_module_index().ok_or(()))
+                .transpose()?,
+            describes: value
+                .describes_idx
+                .map(|idx| idx.as_module_index().ok_or(()))
+                .transpose()?,
         })
     }
 }

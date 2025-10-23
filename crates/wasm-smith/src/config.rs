@@ -428,6 +428,12 @@ define_config! {
         /// Defaults to `true`.
         pub gc_enabled: bool = true,
 
+        /// Determines whether the custom descriptors proposal is enabled when
+        /// generating a Wasm module.
+        ///
+        /// Defaults to `true`.
+        pub custom_descriptors_enabled: bool = false,
+
         /// Determines whether the custom-page-sizes proposal is enabled when
         /// generating a Wasm module.
         ///
@@ -876,6 +882,7 @@ impl<'a> Arbitrary<'a> for Config {
             custom_page_sizes_enabled: false,
             wide_arithmetic_enabled: false,
             shared_everything_threads_enabled: false,
+            custom_descriptors_enabled: false,
         };
         config.sanitize();
         Ok(config)
@@ -908,6 +915,7 @@ impl Config {
         // also disable shared-everything-threads.
         if !self.gc_enabled {
             self.shared_everything_threads_enabled = false;
+            self.custom_descriptors_enabled = false;
         }
 
         // If simd is disabled then disable all relaxed simd instructions as
@@ -972,6 +980,10 @@ impl Config {
         );
         features.set(WasmFeatures::EXTENDED_CONST, self.extended_const_enabled);
         features.set(WasmFeatures::WIDE_ARITHMETIC, self.wide_arithmetic_enabled);
+        features.set(
+            WasmFeatures::CUSTOM_DESCRIPTORS,
+            self.custom_descriptors_enabled,
+        );
 
         features
     }
