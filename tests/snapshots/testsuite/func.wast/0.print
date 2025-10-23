@@ -24,9 +24,10 @@
   (type (;22;) (func (result i32 i64)))
   (type (;23;) (func (param i32) (result i32)))
   (type (;24;) (func (param i32) (result i32 i64)))
-  (type (;25;) (func (param i32) (result i32 i32)))
-  (type (;26;) (func (result i32 i32)))
-  (type (;27;) (func (param i32 i64 f32 f32 i32 f64 f32 i32 i32 i32 f32 f64 f64 f64 i32 i32 f32) (result f64 f32 i32 i32 i32 i64 f32 i32 i32 f32 f64 f64 i32 f32 i32 f64)))
+  (type (;25;) (func (param i32) (result f32 i64)))
+  (type (;26;) (func (param i32) (result i32 i32)))
+  (type (;27;) (func (result i32 i32)))
+  (type (;28;) (func (param i32 i64 f32 f32 i32 f64 f32 i32 i32 i32 f32 f64 f64 f64 i32 i32 f32) (result f64 f32 i32 i32 i32 i64 f32 i32 i32 f32 f64 f64 i32 f32 i32 f64)))
   (export "f" (func 2))
   (export "g" (func $h))
   (export "type-use-1" (func 25))
@@ -431,12 +432,12 @@
     br_table 0 0
     i32.const 51
   )
-  (func (;88;) (type 24) (param i32) (result i32 i64)
-    i32.const 50
+  (func (;88;) (type 25) (param i32) (result f32 i64)
+    f32.const 0x1.9p+5 (;=50;)
     i64.const 51
     local.get 0
     br_table 0 0
-    i32.const 51
+    f32.const 0x1.98p+5 (;=51;)
     i64.const 52
   )
   (func (;89;) (type $sig-3) (param i32)
@@ -455,8 +456,8 @@
     i32.const 2
     i32.add
   )
-  (func (;91;) (type 25) (param i32) (result i32 i32)
-    block (type 26) (result i32 i32) ;; label = @1
+  (func (;91;) (type 26) (param i32) (result i32 i32)
+    block (type 27) (result i32 i32) ;; label = @1
       i32.const 50
       i32.const 51
       local.get 0
@@ -467,7 +468,7 @@
     i32.add
     i32.const 52
   )
-  (func (;92;) (type 27) (param i32 i64 f32 f32 i32 f64 f32 i32 i32 i32 f32 f64 f64 f64 i32 i32 f32) (result f64 f32 i32 i32 i32 i64 f32 i32 i32 f32 f64 f64 i32 f32 i32 f64)
+  (func (;92;) (type 28) (param i32 i64 f32 f32 i32 f64 f32 i32 i32 i32 f32 f64 f64 f64 i32 i32 f32) (result f64 f32 i32 i32 i32 i64 f32 i32 i32 f32 f64 f64 i32 f32 i32 f64)
     local.get 5
     local.get 2
     local.get 0

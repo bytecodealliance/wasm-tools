@@ -1,3 +1,0 @@
-(module
-  (import "test" "memory64-2-inf" (memory (;0;) i64 0))
-)

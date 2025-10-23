@@ -1,3 +1,3 @@
 (module
-  (import "spectest" "print_i32" (global (;0;) i32))
+  (import "test" "global-i32" (global (;0;) f32))
 )

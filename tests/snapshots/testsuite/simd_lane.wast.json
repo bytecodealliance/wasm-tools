@@ -8168,98 +8168,98 @@
       "line": 415,
       "filename": "simd_lane.15.wat",
       "module_type": "text",
-      "text": "malformed lane index"
+      "text": "i8 constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 416,
       "filename": "simd_lane.16.wat",
       "module_type": "text",
-      "text": "malformed lane index"
+      "text": "i8 constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 417,
       "filename": "simd_lane.17.wat",
       "module_type": "text",
-      "text": "malformed lane index"
+      "text": "i8 constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 418,
       "filename": "simd_lane.18.wat",
       "module_type": "text",
-      "text": "malformed lane index"
+      "text": "i8 constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 419,
       "filename": "simd_lane.19.wat",
       "module_type": "text",
-      "text": "malformed lane index"
+      "text": "i8 constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 420,
       "filename": "simd_lane.20.wat",
       "module_type": "text",
-      "text": "malformed lane index"
+      "text": "i8 constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 421,
       "filename": "simd_lane.21.wat",
       "module_type": "text",
-      "text": "malformed lane index"
+      "text": "i8 constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 422,
       "filename": "simd_lane.22.wat",
       "module_type": "text",
-      "text": "malformed lane index"
+      "text": "i8 constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 423,
       "filename": "simd_lane.23.wat",
       "module_type": "text",
-      "text": "malformed lane index"
+      "text": "i8 constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 424,
       "filename": "simd_lane.24.wat",
       "module_type": "text",
-      "text": "malformed lane index"
+      "text": "i8 constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 425,
       "filename": "simd_lane.25.wat",
       "module_type": "text",
-      "text": "malformed lane index"
+      "text": "i8 constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 426,
       "filename": "simd_lane.26.wat",
       "module_type": "text",
-      "text": "malformed lane index"
+      "text": "i8 constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 427,
       "filename": "simd_lane.27.wat",
       "module_type": "text",
-      "text": "malformed lane index"
+      "text": "i8 constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 428,
       "filename": "simd_lane.28.wat",
       "module_type": "text",
-      "text": "malformed lane index"
+      "text": "i8 constant out of"
     },
     {
       "type": "assert_invalid",
@@ -8721,14 +8721,14 @@
       "line": 521,
       "filename": "simd_lane.94.wat",
       "module_type": "text",
-      "text": "malformed lane index"
+      "text": "i8 constant out of"
     },
     {
       "type": "assert_malformed",
       "line": 525,
       "filename": "simd_lane.95.wat",
       "module_type": "text",
-      "text": "malformed lane index"
+      "text": "i8 constant out of"
     },
     {
       "type": "assert_invalid",
@@ -8987,35 +8987,35 @@
       "line": 604,
       "filename": "simd_lane.132.wat",
       "module_type": "text",
-      "text": "malformed lane index"
+      "text": "i8 constant out of"
     },
     {
       "type": "assert_malformed",
       "line": 608,
       "filename": "simd_lane.133.wat",
       "module_type": "text",
-      "text": "malformed lane index"
+      "text": "i8 constant out of"
     },
     {
       "type": "assert_malformed",
       "line": 612,
       "filename": "simd_lane.134.wat",
       "module_type": "text",
-      "text": "malformed lane index"
+      "text": "i8 constant out of"
     },
     {
       "type": "assert_malformed",
       "line": 616,
       "filename": "simd_lane.135.wat",
       "module_type": "text",
-      "text": "malformed lane index"
+      "text": "i8 constant out of"
     },
     {
       "type": "assert_malformed",
       "line": 620,
       "filename": "simd_lane.136.wat",
       "module_type": "text",
-      "text": "malformed lane index"
+      "text": "i8 constant out of"
     },
     {
       "type": "module",

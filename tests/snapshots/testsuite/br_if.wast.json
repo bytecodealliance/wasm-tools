@@ -1731,6 +1731,13 @@
       "filename": "br_if.29.wasm",
       "module_type": "binary",
       "text": "unknown label"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 668,
+      "filename": "br_if.30.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
     }
   ]
 }

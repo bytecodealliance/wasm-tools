@@ -1,4 +1,0 @@
-(module
-  (type (;0;) (func (param i64)))
-  (import "reexport_f" "print" (func (;0;) (type 0)))
-)

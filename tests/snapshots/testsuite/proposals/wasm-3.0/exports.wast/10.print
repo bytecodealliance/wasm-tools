@@ -1,5 +1,0 @@
-(module
-  (type (;0;) (func))
-  (export "a" (func $a))
-  (func $a (;0;) (type 0))
-)

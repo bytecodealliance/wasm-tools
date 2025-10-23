@@ -1,0 +1,28 @@
+(module
+  (type (;0;) (func))
+  (memory (;0;) i64 1)
+  (export "drop_passive" (func 0))
+  (export "init_passive" (func 1))
+  (export "drop_active" (func 2))
+  (export "init_active" (func 3))
+  (func (;0;) (type 0)
+    data.drop 0
+  )
+  (func (;1;) (type 0)
+    i64.const 0
+    i32.const 0
+    i32.const 0
+    memory.init 0
+  )
+  (func (;2;) (type 0)
+    data.drop 1
+  )
+  (func (;3;) (type 0)
+    i64.const 0
+    i32.const 0
+    i32.const 0
+    memory.init 1
+  )
+  (data (;0;) "")
+  (data (;1;) (i64.const 0) "")
+)

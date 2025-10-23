@@ -1196,18 +1196,20 @@
       "text": "unknown operator"
     },
     {
-      "type": "assert_malformed",
+      "type": "assert_invalid",
       "line": 144,
       "filename": "simd_address.5.wat",
       "module_type": "text",
-      "text": "i32 constant"
+      "binary_filename": "simd_address.5.wasm",
+      "text": "offset out of range"
     },
     {
-      "type": "assert_malformed",
+      "type": "assert_invalid",
       "line": 152,
       "filename": "simd_address.6.wat",
       "module_type": "text",
-      "text": "i32 constant"
+      "binary_filename": "simd_address.6.wasm",
+      "text": "offset out of range"
     }
   ]
 }

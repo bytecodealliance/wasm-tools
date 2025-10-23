@@ -1,3 +1,0 @@
-(module
-  (import "test" "table-10-inf" (table (;0;) 0 funcref))
-)

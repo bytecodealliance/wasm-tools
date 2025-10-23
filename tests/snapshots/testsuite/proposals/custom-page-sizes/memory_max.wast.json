@@ -2,30 +2,41 @@
   "source_filename": "tests/testsuite/proposals/custom-page-sizes/memory_max.wast",
   "commands": [
     {
-      "type": "assert_unlinkable",
-      "line": 13,
+      "type": "module",
+      "line": 12,
       "filename": "memory_max.0.wasm",
-      "module_type": "binary",
-      "text": "unknown import"
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 15,
+      "as": "test"
     },
     {
       "type": "assert_unlinkable",
-      "line": 20,
+      "line": 19,
       "filename": "memory_max.1.wasm",
       "module_type": "binary",
       "text": "unknown import"
     },
     {
-      "type": "assert_invalid",
-      "line": 29,
+      "type": "assert_unlinkable",
+      "line": 26,
       "filename": "memory_max.2.wasm",
       "module_type": "binary",
-      "text": "memory size must be at most"
+      "text": "unknown import"
     },
     {
       "type": "assert_invalid",
       "line": 35,
       "filename": "memory_max.3.wasm",
+      "module_type": "binary",
+      "text": "memory size must be at most"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 41,
+      "filename": "memory_max.4.wasm",
       "module_type": "binary",
       "text": "memory size must be at most"
     }

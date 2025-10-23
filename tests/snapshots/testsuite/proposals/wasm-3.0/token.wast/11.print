@@ -1,4 +1,0 @@
-(module
-  (type (;0;) (func))
-  (import "spectest" "print" (func (;0;) (type 0)))
-)

@@ -1,0 +1,11 @@
+{
+  "source_filename": "tests/testsuite/i32x4_relaxed_trunc.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "i32x4_relaxed_trunc.0.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

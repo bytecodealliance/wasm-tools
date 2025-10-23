@@ -9,7 +9,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 42,
+      "line": 48,
       "action": {
         "type": "invoke",
         "field": "select-trap-left",
@@ -24,7 +24,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 43,
+      "line": 49,
       "action": {
         "type": "invoke",
         "field": "select-trap-left",
@@ -39,7 +39,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 44,
+      "line": 50,
       "action": {
         "type": "invoke",
         "field": "select-trap-right",
@@ -54,7 +54,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 45,
+      "line": 51,
       "action": {
         "type": "invoke",
         "field": "select-trap-right",
@@ -64,24 +64,80 @@
             "value": "0"
           }
         ]
+      },
+      "text": "unreachable"
+    },
+    {
+      "type": "assert_trap",
+      "line": 53,
+      "action": {
+        "type": "invoke",
+        "field": "select-unreached-result1",
+        "args": []
+      },
+      "text": "unreachable"
+    },
+    {
+      "type": "assert_trap",
+      "line": 54,
+      "action": {
+        "type": "invoke",
+        "field": "select-unreached-result2",
+        "args": []
+      },
+      "text": "unreachable"
+    },
+    {
+      "type": "assert_trap",
+      "line": 55,
+      "action": {
+        "type": "invoke",
+        "field": "select-unreached-num",
+        "args": []
+      },
+      "text": "unreachable"
+    },
+    {
+      "type": "assert_trap",
+      "line": 56,
+      "action": {
+        "type": "invoke",
+        "field": "select-unreached-ref",
+        "args": []
+      },
+      "text": "unreachable"
+    },
+    {
+      "type": "assert_trap",
+      "line": 58,
+      "action": {
+        "type": "invoke",
+        "field": "call_ref-unreached",
+        "args": []
       },
       "text": "unreachable"
     },
     {
       "type": "module",
-      "line": 49,
+      "line": 63,
       "filename": "unreached-valid.1.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_trap",
-      "line": 63,
+      "line": 77,
       "action": {
         "type": "invoke",
         "field": "meet-bottom",
         "args": []
       },
       "text": "unreachable"
+    },
+    {
+      "type": "module",
+      "line": 82,
+      "filename": "unreached-valid.2.wasm",
+      "module_type": "binary"
     }
   ]
 }

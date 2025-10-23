@@ -44,8 +44,7 @@ fn copy_test(src: &Path, dst: &Path) {
     contents.push_str(";;      --assert default \\\n");
 
     // Allow certain assert_malformed tests to be interpreted as assert_invalid
-    if src.ends_with("binary.wast") || src.ends_with("global.wast") || src.ends_with("select.wast")
-    {
+    if src.ends_with("binary.wast") {
         contents.push_str(";;      --assert permissive \\\n");
     }
 
@@ -70,13 +69,12 @@ fn copy_test(src: &Path, dst: &Path) {
     // precise set of features different from the defaults of `wasm-tools` so
     // it's always overridden here.
     let features = match find_proposal(src) {
-        None => "wasm2",
-        Some("annotations") => "wasm2",
+        None => "wasm3",
         Some("threads") => "wasm1,threads",
-        Some("wasm-3.0") => "wasm3",
         Some("custom-page-sizes") => "wasm3,custom-page-sizes",
-        Some("wide-arithmetic") => "wasm2,wide-arithmetic",
-        Some("relaxed-simd") => "wasm2,relaxed-simd",
+        Some("wide-arithmetic") => "wasm3,wide-arithmetic",
+        // not implemented yet
+        Some("custom-descriptors") => return,
         Some(proposal) => panic!("unsupported proposal: {}", proposal),
     };
     contents.push_str(&format!(";;      --features={features} \\\n"));

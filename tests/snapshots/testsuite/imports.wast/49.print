@@ -1,3 +1,4 @@
 (module
-  (import "test" "global-i32" (global (;0;) i32))
+  (type (;0;) (func))
+  (import "spectest" "memory" (func (;0;) (type 0)))
 )

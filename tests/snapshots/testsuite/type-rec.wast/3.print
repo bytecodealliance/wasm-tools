@@ -1,0 +1,8 @@
+(module
+  (rec
+    (type $ft (;0;) (func))
+    (type (;1;) (struct))
+  )
+  (global (;0;) (ref $ft) ref.func $f)
+  (func $f (;0;) (type $ft))
+)

@@ -1,6 +1,7 @@
 (module
   (type (;0;) (func))
-  (table (;0;) 10 funcref)
-  (elem (;0;) (i32.const 0) func $f)
+  (table $t (;0;) 10 (ref func) ref.func $f)
+  (elem (;0;) (i32.const 3) func $g)
   (func $f (;0;) (type 0))
+  (func $g (;1;) (type 0))
 )

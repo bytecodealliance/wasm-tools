@@ -1,4 +1,4 @@
 (module
   (type (;0;) (func))
-  (import "spectest" "unknown" (func (;0;) (type 0)))
+  (import "test" "func" (func (;0;) (type 0)))
 )
