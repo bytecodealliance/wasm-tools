@@ -335,6 +335,8 @@ mod tests {
                 composite_type: crate::CompositeType {
                     inner: crate::CompositeInnerType::Func(crate::FuncType::new([], [])),
                     shared: false,
+                    descriptor_idx: None,
+                    describes_idx: None,
                 },
             })
         }

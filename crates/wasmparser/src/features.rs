@@ -300,6 +300,9 @@ define_wasm_features! {
         ///
         /// This is a subcomponent of the "lime1" feature.
         pub bulk_memory_opt: BULK_MEMORY_OPT(1 << 35) = true;
+
+        // Custom descriptors proposal.
+        pub custom_descriptors: CUSTOM_DESCRIPTORS(1 << 36) = false;
     }
 }
 

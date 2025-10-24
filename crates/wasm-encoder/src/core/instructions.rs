@@ -4609,4 +4609,62 @@ impl<'a> InstructionSink<'a> {
         22u32.encode(self.sink);
         self
     }
+
+    /// Encode [`Instruction::RefGetDesc`].
+    pub fn ref_get_desc(&mut self, type_index: u32) -> &mut Self {
+        self.sink.push(0xFB);
+        34u32.encode(self.sink);
+        type_index.encode(self.sink);
+        self
+    }
+
+    /// Encode [`Instruction::RefCastDescNonNull`].
+    pub fn ref_cast_desc_non_null(&mut self, ht: HeapType) -> &mut Self {
+        self.sink.push(0xFB);
+        35u32.encode(self.sink);
+        ht.encode(self.sink);
+        self
+    }
+
+    /// Encode [`Instruction::RefCastDescNullable`].
+    pub fn ref_cast_desc_nullable(&mut self, ht: HeapType) -> &mut Self {
+        self.sink.push(0xFB);
+        36u32.encode(self.sink);
+        ht.encode(self.sink);
+        self
+    }
+
+    /// Encode [`Instruction::BrOnCastDesc`].
+    pub fn br_on_cast_desc(
+        &mut self,
+        relative_depth: u32,
+        from_ref_type: RefType,
+        to_ref_type: RefType,
+    ) -> &mut Self {
+        self.sink.push(0xFB);
+        37u32.encode(self.sink);
+        let cast_flags = (from_ref_type.nullable as u8) | ((to_ref_type.nullable as u8) << 1);
+        self.sink.push(cast_flags);
+        relative_depth.encode(self.sink);
+        from_ref_type.heap_type.encode(self.sink);
+        to_ref_type.heap_type.encode(self.sink);
+        self
+    }
+
+    /// Encode [`Instruction::BrOnCastDescFail`].
+    pub fn br_on_cast_desc_fail(
+        &mut self,
+        relative_depth: u32,
+        from_ref_type: RefType,
+        to_ref_type: RefType,
+    ) -> &mut Self {
+        self.sink.push(0xFB);
+        38u32.encode(self.sink);
+        let cast_flags = (from_ref_type.nullable as u8) | ((to_ref_type.nullable as u8) << 1);
+        self.sink.push(cast_flags);
+        relative_depth.encode(self.sink);
+        from_ref_type.heap_type.encode(self.sink);
+        to_ref_type.heap_type.encode(self.sink);
+        self
+    }
 }

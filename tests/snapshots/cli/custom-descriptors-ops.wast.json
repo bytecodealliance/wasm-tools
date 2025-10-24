@@ -1,0 +1,39 @@
+{
+  "source_filename": "tests/cli/custom-descriptors-ops.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 5,
+      "filename": "custom-descriptors-ops.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 101,
+      "filename": "custom-descriptors-ops.1.wasm",
+      "module_type": "binary",
+      "text": "type mismatch: expected (ref null (exact"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 124,
+      "filename": "custom-descriptors-ops.2.wasm",
+      "module_type": "binary",
+      "text": "type mismatch: expected (ref null (exact"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 146,
+      "filename": "custom-descriptors-ops.3.wasm",
+      "module_type": "binary",
+      "text": "type mismatch: expected (ref null (exact"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 171,
+      "filename": "custom-descriptors-ops.4.wasm",
+      "module_type": "binary",
+      "text": "type mismatch:"
+    }
+  ]
+}
