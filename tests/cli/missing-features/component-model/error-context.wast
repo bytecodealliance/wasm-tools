@@ -3,6 +3,14 @@
 ;; error-context.new
 (assert_invalid
   (component
+    (import "x" (func (param "x" error-context)))
+  )
+  "requires the component model error-context feature"
+)
+
+;; error-context.new
+(assert_invalid
+  (component
     (core module $libc (memory (export "memory") 1))
     (core instance $libc (instantiate $libc))
     (core module $m
