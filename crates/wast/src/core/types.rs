@@ -45,12 +45,12 @@ const REFTYPE_SHORTHANDS: &[(&str, RefType<'static>)] = &[
 fn type_parse_error(include_valtypes: bool) -> String {
     let mut message = format!("unexpected token, expected one of: ");
     if include_valtypes {
-        for (name, _) in VALTYPES.iter().copied() {
-            message.push_str(&format!("`{}`, ", name));
+        for (name, _) in VALTYPES.iter() {
+            message.push_str(&format!("`{name}`, "));
         }
     }
-    for (name, _) in REFTYPE_SHORTHANDS.iter().copied() {
-        message.push_str(&format!("`{}`, ", name));
+    for (name, _) in REFTYPE_SHORTHANDS.iter() {
+        message.push_str(&format!("`{name}`, "));
     }
     message.push_str("lparen");
     message
