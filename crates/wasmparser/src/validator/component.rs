@@ -3910,13 +3910,7 @@ impl ComponentState {
     ) -> Result<ComponentDefinedType> {
         match ty {
             crate::ComponentDefinedType::Primitive(ty) => {
-                if ty == crate::PrimitiveValType::ErrorContext && !self.features.cm_error_context()
-                {
-                    bail!(
-                        offset,
-                        "`error-context` requires the component model error-context feature"
-                    )
-                }
+                self.check_primitive_type(ty, offset)?;
                 Ok(ComponentDefinedType::Primitive(ty))
             }
             crate::ComponentDefinedType::Record(fields) => {
@@ -4184,7 +4178,10 @@ impl ComponentState {
         offset: usize,
     ) -> Result<ComponentValType> {
         Ok(match ty {
-            crate::ComponentValType::Primitive(pt) => ComponentValType::Primitive(pt),
+            crate::ComponentValType::Primitive(pt) => {
+                self.check_primitive_type(pt, offset)?;
+                ComponentValType::Primitive(pt)
+            }
             crate::ComponentValType::Type(idx) => {
                 ComponentValType::Type(self.defined_type_at(idx, offset)?)
             }
@@ -4467,6 +4464,16 @@ impl ComponentState {
                 offset,
                 "support for component model `value`s is not enabled"
             );
+        }
+        Ok(())
+    }
+
+    fn check_primitive_type(&self, ty: crate::PrimitiveValType, offset: usize) -> Result<()> {
+        if ty == crate::PrimitiveValType::ErrorContext && !self.features.cm_error_context() {
+            bail!(
+                offset,
+                "`error-context` requires the component model error-context feature"
+            )
         }
         Ok(())
     }
