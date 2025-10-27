@@ -1,7 +1,6 @@
 use crate::Error;
 use crate::core::*;
 use crate::kw;
-use crate::parser::Lookahead1;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::{Id, Index, LParen, NameAnnotation, Span};
 use std::mem;
@@ -18,40 +17,87 @@ pub enum ValType<'a> {
     Ref(RefType<'a>),
 }
 
+const VALTYPES: &[(&str, ValType<'static>)] = &[
+    ("i32", ValType::I32),
+    ("i64", ValType::I64),
+    ("f32", ValType::F32),
+    ("f64", ValType::F64),
+    ("v128", ValType::V128),
+];
+
+const REFTYPE_SHORTHANDS: &[(&str, RefType<'static>)] = &[
+    ("funcref", RefType::func()),
+    ("externref", RefType::r#extern()),
+    ("exnref", RefType::exn()),
+    ("contref", RefType::cont()),
+    ("anyref", RefType::any()),
+    ("eqref", RefType::eq()),
+    ("structref", RefType::r#struct()),
+    ("arrayref", RefType::array()),
+    ("i31ref", RefType::i31()),
+    ("nullfuncref", RefType::nullfuncref()),
+    ("nullexternref", RefType::nullexternref()),
+    ("nullexnref", RefType::nullexnref()),
+    ("nullcontref", RefType::nullcontref()),
+    ("nullref", RefType::nullref()),
+];
+
+fn type_parse_error(include_valtypes: bool) -> String {
+    let mut message = format!("unexpected token, expected one of: ");
+    if include_valtypes {
+        for (name, _) in VALTYPES.iter() {
+            message.push_str(&format!("`{name}`, "));
+        }
+    }
+    for (name, _) in REFTYPE_SHORTHANDS.iter() {
+        message.push_str(&format!("`{name}`, "));
+    }
+    message.push_str("lparen");
+    message
+}
+
+impl<'a> ValType<'a> {
+    fn parse_shorthand(cursor: Cursor<'a>) -> Result<Option<(ValType<'a>, Cursor<'a>)>> {
+        if let Some((kw, c)) = cursor.keyword()? {
+            let iter = VALTYPES.iter().copied().chain(
+                REFTYPE_SHORTHANDS
+                    .iter()
+                    .map(|(name, ty)| (*name, ValType::Ref(*ty))),
+            );
+            for (name, ty) in iter {
+                if name == kw {
+                    return Ok(Some((ty, c)));
+                }
+            }
+        }
+        Ok(None)
+    }
+}
+
 impl<'a> Parse<'a> for ValType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let mut l = parser.lookahead1();
-        if l.peek::<kw::i32>()? {
-            parser.parse::<kw::i32>()?;
-            Ok(ValType::I32)
-        } else if l.peek::<kw::i64>()? {
-            parser.parse::<kw::i64>()?;
-            Ok(ValType::I64)
-        } else if l.peek::<kw::f32>()? {
-            parser.parse::<kw::f32>()?;
-            Ok(ValType::F32)
-        } else if l.peek::<kw::f64>()? {
-            parser.parse::<kw::f64>()?;
-            Ok(ValType::F64)
-        } else if l.peek::<kw::v128>()? {
-            parser.parse::<kw::v128>()?;
-            Ok(ValType::V128)
-        } else if l.peek::<RefType>()? {
-            Ok(ValType::Ref(parser.parse()?))
-        } else {
-            Err(l.error())
+        // NB: this isn't using typical `Parser`-style combinators because this
+        // is a pretty hot function and the traditional recursive-descent style
+        // isn't the speediest.
+        let shorthand = parser.step(|cursor| {
+            if let Some((ty, c)) = ValType::parse_shorthand(cursor)? {
+                return Ok((Some(ty), c));
+            }
+            Ok((None, cursor))
+        })?;
+        if let Some(shorthand) = shorthand {
+            return Ok(shorthand);
         }
+        if !parser.peek::<LParen>()? {
+            return Err(parser.error(type_parse_error(true)));
+        }
+        Ok(ValType::Ref(parser.parse()?))
     }
 }
 
 impl<'a> Peek for ValType<'a> {
     fn peek(cursor: Cursor<'_>) -> Result<bool> {
-        Ok(kw::i32::peek(cursor)?
-            || kw::i64::peek(cursor)?
-            || kw::f32::peek(cursor)?
-            || kw::f64::peek(cursor)?
-            || kw::v128::peek(cursor)?
-            || RefType::peek(cursor)?)
+        Ok(ValType::parse_shorthand(cursor)?.is_some() || RefType::peek_ref_or_shared(cursor)?)
     }
     fn display() -> &'static str {
         "valtype"
@@ -225,7 +271,7 @@ pub struct RefType<'a> {
 
 impl<'a> RefType<'a> {
     /// A `funcref` as an abbreviation for `(ref null func)`.
-    pub fn func() -> Self {
+    pub const fn func() -> Self {
         RefType {
             nullable: true,
             heap: HeapType::Abstract {
@@ -236,7 +282,7 @@ impl<'a> RefType<'a> {
     }
 
     /// An `externref` as an abbreviation for `(ref null extern)`.
-    pub fn r#extern() -> Self {
+    pub const fn r#extern() -> Self {
         RefType {
             nullable: true,
             heap: HeapType::Abstract {
@@ -247,7 +293,7 @@ impl<'a> RefType<'a> {
     }
 
     /// An `exnref` as an abbreviation for `(ref null exn)`.
-    pub fn exn() -> Self {
+    pub const fn exn() -> Self {
         RefType {
             nullable: true,
             heap: HeapType::Abstract {
@@ -258,7 +304,7 @@ impl<'a> RefType<'a> {
     }
 
     /// An `cont` as an abbreviation for `(ref null cont)`.
-    pub fn cont() -> Self {
+    pub const fn cont() -> Self {
         RefType {
             nullable: true,
             heap: HeapType::Abstract {
@@ -269,7 +315,7 @@ impl<'a> RefType<'a> {
     }
 
     /// An `anyref` as an abbreviation for `(ref null any)`.
-    pub fn any() -> Self {
+    pub const fn any() -> Self {
         RefType {
             nullable: true,
             heap: HeapType::Abstract {
@@ -280,7 +326,7 @@ impl<'a> RefType<'a> {
     }
 
     /// An `eqref` as an abbreviation for `(ref null eq)`.
-    pub fn eq() -> Self {
+    pub const fn eq() -> Self {
         RefType {
             nullable: true,
             heap: HeapType::Abstract {
@@ -291,7 +337,7 @@ impl<'a> RefType<'a> {
     }
 
     /// An `structref` as an abbreviation for `(ref null struct)`.
-    pub fn r#struct() -> Self {
+    pub const fn r#struct() -> Self {
         RefType {
             nullable: true,
             heap: HeapType::Abstract {
@@ -302,7 +348,7 @@ impl<'a> RefType<'a> {
     }
 
     /// An `arrayref` as an abbreviation for `(ref null array)`.
-    pub fn array() -> Self {
+    pub const fn array() -> Self {
         RefType {
             nullable: true,
             heap: HeapType::Abstract {
@@ -313,7 +359,7 @@ impl<'a> RefType<'a> {
     }
 
     /// An `i31ref` as an abbreviation for `(ref null i31)`.
-    pub fn i31() -> Self {
+    pub const fn i31() -> Self {
         RefType {
             nullable: true,
             heap: HeapType::Abstract {
@@ -324,7 +370,7 @@ impl<'a> RefType<'a> {
     }
 
     /// A `nullfuncref` as an abbreviation for `(ref null nofunc)`.
-    pub fn nullfuncref() -> Self {
+    pub const fn nullfuncref() -> Self {
         RefType {
             nullable: true,
             heap: HeapType::Abstract {
@@ -335,7 +381,7 @@ impl<'a> RefType<'a> {
     }
 
     /// A `nullexternref` as an abbreviation for `(ref null noextern)`.
-    pub fn nullexternref() -> Self {
+    pub const fn nullexternref() -> Self {
         RefType {
             nullable: true,
             heap: HeapType::Abstract {
@@ -346,7 +392,7 @@ impl<'a> RefType<'a> {
     }
 
     /// A `nullref` as an abbreviation for `(ref null none)`.
-    pub fn nullref() -> Self {
+    pub const fn nullref() -> Self {
         RefType {
             nullable: true,
             heap: HeapType::Abstract {
@@ -357,7 +403,7 @@ impl<'a> RefType<'a> {
     }
 
     /// A `nullexnref` as an abbreviation for `(ref null noexn)`.
-    pub fn nullexnref() -> Self {
+    pub const fn nullexnref() -> Self {
         RefType {
             nullable: true,
             heap: HeapType::Abstract {
@@ -368,7 +414,7 @@ impl<'a> RefType<'a> {
     }
 
     /// A `nullcontref` as an abbreviation for `(ref null nocont)`.
-    pub fn nullcontref() -> Self {
+    pub const fn nullcontref() -> Self {
         RefType {
             nullable: true,
             heap: HeapType::Abstract {
@@ -392,131 +438,78 @@ impl<'a> RefType<'a> {
         }
     }
 
-    /// Helper for checking if shorthand forms of reference types can be parsed
-    /// next; e.g., `funcref`.
-    fn peek_shorthand(l: &mut Lookahead1) -> Result<bool> {
-        Ok(l.peek::<kw::funcref>()?
-            || l.peek::<kw::externref>()?
-            || l.peek::<kw::exnref>()?
-            || l.peek::<kw::anyref>()?
-            || l.peek::<kw::eqref>()?
-            || l.peek::<kw::structref>()?
-            || l.peek::<kw::arrayref>()?
-            || l.peek::<kw::i31ref>()?
-            || l.peek::<kw::contref>()?
-            || l.peek::<kw::nullfuncref>()?
-            || l.peek::<kw::nullexternref>()?
-            || l.peek::<kw::nullexnref>()?
-            || l.peek::<kw::nullref>()?
-            || l.peek::<kw::nullcontref>()?)
+    fn peek_ref_or_shared(cursor: Cursor<'a>) -> Result<bool> {
+        let cursor = match cursor.lparen()? {
+            Some(c) => c,
+            None => return Ok(false),
+        };
+        Ok(kw::r#ref::peek(cursor)? || kw::shared::peek(cursor)?)
     }
 
     /// Helper for parsing shorthand forms of reference types; e.g., `funcref`.
-    fn parse_shorthand(mut l: Lookahead1, parser: Parser<'a>) -> Result<Self> {
-        if l.peek::<kw::funcref>()? {
-            parser.parse::<kw::funcref>()?;
-            Ok(RefType::func())
-        } else if l.peek::<kw::externref>()? {
-            parser.parse::<kw::externref>()?;
-            Ok(RefType::r#extern())
-        } else if l.peek::<kw::exnref>()? {
-            parser.parse::<kw::exnref>()?;
-            Ok(RefType::exn())
-        } else if l.peek::<kw::contref>()? {
-            parser.parse::<kw::contref>()?;
-            Ok(RefType::cont())
-        } else if l.peek::<kw::anyref>()? {
-            parser.parse::<kw::anyref>()?;
-            Ok(RefType::any())
-        } else if l.peek::<kw::eqref>()? {
-            parser.parse::<kw::eqref>()?;
-            Ok(RefType::eq())
-        } else if l.peek::<kw::structref>()? {
-            parser.parse::<kw::structref>()?;
-            Ok(RefType::r#struct())
-        } else if l.peek::<kw::arrayref>()? {
-            parser.parse::<kw::arrayref>()?;
-            Ok(RefType::array())
-        } else if l.peek::<kw::i31ref>()? {
-            parser.parse::<kw::i31ref>()?;
-            Ok(RefType::i31())
-        } else if l.peek::<kw::nullfuncref>()? {
-            parser.parse::<kw::nullfuncref>()?;
-            Ok(RefType::nullfuncref())
-        } else if l.peek::<kw::nullexternref>()? {
-            parser.parse::<kw::nullexternref>()?;
-            Ok(RefType::nullexternref())
-        } else if l.peek::<kw::nullexnref>()? {
-            parser.parse::<kw::nullexnref>()?;
-            Ok(RefType::nullexnref())
-        } else if l.peek::<kw::nullcontref>()? {
-            parser.parse::<kw::nullcontref>()?;
-            Ok(RefType::nullcontref())
-        } else if l.peek::<kw::nullref>()? {
-            parser.parse::<kw::nullref>()?;
-            Ok(RefType::nullref())
-        } else {
-            Err(l.error())
+    fn parse_shorthand(cursor: Cursor<'a>) -> Result<Option<(RefType<'a>, Cursor<'a>)>> {
+        if let Some((kw, c)) = cursor.keyword()? {
+            for (name, ty) in REFTYPE_SHORTHANDS.iter().copied() {
+                if name == kw {
+                    return Ok(Some((ty, c)));
+                }
+            }
         }
+        Ok(None)
     }
 }
 
 impl<'a> Parse<'a> for RefType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let mut l = parser.lookahead1();
-        if RefType::peek_shorthand(&mut l)? {
-            // I.e., `*ref`.
-            RefType::parse_shorthand(l, parser)
-        } else if l.peek::<LParen>()? {
-            parser.parens(|p| {
-                let mut l = parser.lookahead1();
-                if l.peek::<kw::r#ref>()? {
-                    // I.e., `(ref null? ...)`.
-                    p.parse::<kw::r#ref>()?;
-
-                    let mut nullable = false;
-                    if parser.peek::<kw::null>()? {
-                        parser.parse::<kw::null>()?;
-                        nullable = true;
-                    }
-
-                    Ok(RefType {
-                        nullable,
-                        heap: parser.parse()?,
-                    })
-                } else if l.peek::<kw::shared>()? {
-                    // I.e., `(shared *ref)`.
-                    p.parse::<kw::shared>()?;
-                    let reftype = RefType::parse_shorthand(l, parser)?;
-                    Ok(reftype.shared().expect("only abstract heap types are used"))
-                } else {
-                    Err(l.error())
-                }
-            })
-        } else {
-            Err(l.error())
+        // NB: this isn't using typical `Parser`-style combinators because
+        // parsing a reftype is intertwined with parsing a `ValType` which needs
+        // to be faster-than-average.
+        let shorthand = parser.step(|cursor| {
+            if let Some((ty, c)) = RefType::parse_shorthand(cursor)? {
+                return Ok((Some(ty), c));
+            }
+            Ok((None, cursor))
+        })?;
+        if let Some(shorthand) = shorthand {
+            return Ok(shorthand);
         }
+        if !parser.peek::<LParen>()? {
+            return Err(parser.error(type_parse_error(false)));
+        }
+        parser.parens(|p| {
+            let mut l = parser.lookahead1();
+            if l.peek::<kw::r#ref>()? {
+                // I.e., `(ref null? ...)`.
+                p.parse::<kw::r#ref>()?;
+
+                let mut nullable = false;
+                if parser.peek::<kw::null>()? {
+                    parser.parse::<kw::null>()?;
+                    nullable = true;
+                }
+
+                Ok(RefType {
+                    nullable,
+                    heap: parser.parse()?,
+                })
+            } else if l.peek::<kw::shared>()? {
+                // I.e., `(shared *ref)`.
+                p.parse::<kw::shared>()?;
+                let reftype = parser.step(|cursor| {
+                    RefType::parse_shorthand(cursor)?
+                        .ok_or_else(|| parser.error(type_parse_error(false)))
+                })?;
+                Ok(reftype.shared().expect("only abstract heap types are used"))
+            } else {
+                Err(l.error())
+            }
+        })
     }
 }
 
 impl<'a> Peek for RefType<'a> {
     fn peek(cursor: Cursor<'_>) -> Result<bool> {
-        Ok(kw::funcref::peek(cursor)?
-            || kw::externref::peek(cursor)?
-            || kw::exnref::peek(cursor)?
-            || kw::anyref::peek(cursor)?
-            || kw::eqref::peek(cursor)?
-            || kw::structref::peek(cursor)?
-            || kw::arrayref::peek(cursor)?
-            || kw::i31ref::peek(cursor)?
-            || kw::contref::peek(cursor)?
-            || kw::nullfuncref::peek(cursor)?
-            || kw::nullexternref::peek(cursor)?
-            || kw::nullexnref::peek(cursor)?
-            || kw::nullref::peek(cursor)?
-            || kw::nullcontref::peek(cursor)?
-            || (LParen::peek(cursor)? && kw::shared::peek2(cursor)?)
-            || (LParen::peek(cursor)? && kw::r#ref::peek2(cursor)?))
+        Ok(RefType::parse_shorthand(cursor)?.is_some() || RefType::peek_ref_or_shared(cursor)?)
     }
     fn display() -> &'static str {
         "reftype"
