@@ -765,6 +765,23 @@ macro_rules! define_visit {
         $self.push_str(" ")?;
         $self.printer.print_field_idx($self.state, $ty, $field)?;
     );
+
+    (payload $self:ident RefGetDesc $hty:ident) => (
+        $self.struct_type_index($hty)?;
+    );
+    (payload $self:ident RefCastDescNonNull $hty:ident) => (
+        $self.push_str(" ")?;
+        let rty = RefType::new(false, $hty)
+            .ok_or_else(|| anyhow!("implementation limit: type index too large"))?;
+        $self.printer.print_reftype($self.state, rty)?;
+    );
+    (payload $self:ident RefCastDescNullable $hty:ident) => (
+        $self.push_str(" ")?;
+        let rty = RefType::new(true, $hty)
+            .ok_or_else(|| anyhow!("implementation limit: type index too large"))?;
+        $self.printer.print_reftype($self.state, rty)?;
+    );
+
     (payload $self:ident $op:ident $($arg:ident)*) => (
         $($self.$arg($arg)?;)*
     );
@@ -1388,6 +1405,11 @@ macro_rules! define_visit {
     (name I64Sub128) => ("i64.sub128");
     (name I64MulWideS) => ("i64.mul_wide_s");
     (name I64MulWideU) => ("i64.mul_wide_u");
+    (name RefGetDesc) => ("ref.get_desc");
+    (name RefCastDescNonNull) => ("ref.cast_desc");
+    (name RefCastDescNullable) => ("ref.cast_desc");
+    (name BrOnCastDesc) => ("br_on_cast_desc");
+    (name BrOnCastDescFail) => ("br_on_cast_desc_fail");
 }
 
 impl<'a> VisitOperator<'a> for PrintOperator<'_, '_, '_, '_> {

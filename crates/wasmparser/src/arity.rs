@@ -160,8 +160,26 @@ fn visit_call_indirect(module: &dyn ModuleArity, ty: u32, _table: u32) -> Option
 }
 
 fn visit_struct_new(module: &dyn ModuleArity, ty: u32) -> Option<(u32, u32)> {
-    let (params, _results) = module.sub_type_arity(module.sub_type_at(ty)?)?;
-    Some((params, 1))
+    let ty = module.sub_type_at(ty)?;
+    let descriptor = if let Some(_) = ty.composite_type.descriptor_idx {
+        1
+    } else {
+        0
+    };
+    let (params, _results) = module.sub_type_arity(ty)?;
+    Some((params + descriptor, 1))
+}
+
+fn visit_struct_new_default(module: &dyn ModuleArity, ty: u32) -> Option<(u32, u32)> {
+    let ty = module.sub_type_at(ty)?;
+    Some((
+        if let Some(_) = ty.composite_type.descriptor_idx {
+            1
+        } else {
+            0
+        },
+        1,
+    ))
 }
 
 fn visit_array_new_fixed(_module: &dyn ModuleArity, _ty: u32, size: u32) -> Option<(u32, u32)> {
@@ -288,4 +306,24 @@ fn visit_switch(module: &dyn ModuleArity, cont: u32, _tag: u32) -> Option<(u32, 
     let (cont_params, _) =
         module.sub_type_arity(module.sub_type_of_ref_type(&last_param.as_reference_type()?)?)?;
     Some((params, cont_params))
+}
+
+fn visit_br_on_cast_desc(
+    module: &dyn ModuleArity,
+    depth: u32,
+    _from: RefType,
+    _to: RefType,
+) -> Option<(u32, u32)> {
+    let (params, _) = visit_br(module, depth)?;
+    Some((params + 1, params))
+}
+
+fn visit_br_on_cast_desc_fail(
+    module: &dyn ModuleArity,
+    depth: u32,
+    _from: RefType,
+    _to: RefType,
+) -> Option<(u32, u32)> {
+    let (params, _) = visit_br(module, depth)?;
+    Some((params + 1, params))
 }

@@ -673,6 +673,23 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 self.resolver.resolve(&mut s.tag_index, Ns::Tag)?;
             }
 
+            RefGetDesc(i) => {
+                self.resolver.resolve(i, Ns::Type)?;
+            }
+            RefCastDesc(i) => {
+                self.resolver.resolve_reftype(&mut i.r#type)?;
+            }
+            BrOnCastDesc(i) => {
+                self.resolve_label(&mut i.label)?;
+                self.resolver.resolve_reftype(&mut i.to_type)?;
+                self.resolver.resolve_reftype(&mut i.from_type)?;
+            }
+            BrOnCastDescFail(i) => {
+                self.resolve_label(&mut i.label)?;
+                self.resolver.resolve_reftype(&mut i.to_type)?;
+                self.resolver.resolve_reftype(&mut i.from_type)?;
+            }
+
             _ => {}
         }
         Ok(())
@@ -813,6 +830,12 @@ pub(crate) trait ResolveCoreType<'a> {
         if let Some(parent) = &mut ty.parent {
             self.resolve_type_name(parent)?;
         }
+        if let Some(descriptor) = &mut ty.descriptor {
+            self.resolve_type_name(descriptor)?;
+        }
+        if let Some(describes) = &mut ty.describes {
+            self.resolve_type_name(describes)?;
+        }
         match &mut ty.kind {
             InnerTypeKind::Func(func) => self.resolve_type_func(func),
             InnerTypeKind::Struct(struct_) => {
@@ -853,7 +876,7 @@ pub(crate) trait ResolveCoreType<'a> {
 
     fn resolve_heaptype(&mut self, ty: &mut HeapType<'a>) -> Result<(), Error> {
         match ty {
-            HeapType::Concrete(i) => {
+            HeapType::Concrete(i) | HeapType::Exact(i) => {
                 self.resolve_type_name(i)?;
             }
             HeapType::Abstract { .. } => {}
