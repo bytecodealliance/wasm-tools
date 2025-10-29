@@ -90,6 +90,14 @@ fn option_round_trips() {
 }
 
 #[test]
+fn resource_round_trips() {
+    let ty = Type::resource("test", false);
+    test_value_round_trip(Value::make_resource(&ty, 42, false).unwrap());
+    let ty = Type::resource("test", true);
+    test_value_round_trip(Value::make_resource(&ty, 42, true).unwrap());
+}
+
+#[test]
 fn result_round_trips() {
     let no_payloads = Type::result(None, None);
     let both_payloads = Type::result(Some(Type::U8), Some(Type::STRING));
@@ -142,6 +150,12 @@ fn local_ty(val: &Value) -> Type {
         ValueEnum::Option(inner) => Type(TypeEnum::Option(inner.ty.clone())),
         ValueEnum::Result(inner) => Type(TypeEnum::Result(inner.ty.clone())),
         ValueEnum::Flags(inner) => Type(TypeEnum::Flags(inner.ty.clone())),
+        ValueEnum::Resource(inner) => Type(TypeEnum::Resource(std::sync::Arc::new(
+            crate::value::ty::ResourceType {
+                name: "".to_string(),
+                is_borrowed: inner.is_borrowed,
+            },
+        ))),
     }
 }
 

@@ -1,6 +1,7 @@
 //! Value enum for WAVE values.
 
-mod convert;
+#[allow(missing_docs)]
+pub mod convert;
 #[cfg(test)]
 mod tests;
 mod ty;
@@ -57,6 +58,7 @@ pub(super) enum ValueEnum {
     Option(OptionValue),
     Result(ResultValue),
     Flags(Flags),
+    Resource(ResourceValue),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -116,6 +118,13 @@ pub struct Flags {
     flags: Vec<usize>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+#[doc(hidden)]
+pub struct ResourceValue {
+    handle: u32,
+    is_borrowed: bool,
+}
+
 macro_rules! impl_primitives {
     ($Self:ident, $(($case:ident, $ty:ty, $make:ident, $unwrap:ident)),*) => {
         $(
@@ -156,6 +165,7 @@ impl WasmValue for Value {
             ValueEnum::Option(_) => WasmTypeKind::Option,
             ValueEnum::Result(_) => WasmTypeKind::Result,
             ValueEnum::Flags(_) => WasmTypeKind::Flags,
+            ValueEnum::Resource(_) => WasmTypeKind::Resource,
         }
     }
 
@@ -315,6 +325,24 @@ impl WasmValue for Value {
         Ok(Self(ValueEnum::Flags(Flags { ty, flags })))
     }
 
+    fn make_resource(
+        ty: &Self::Type,
+        handle: u32,
+        is_borrowed: bool,
+    ) -> Result<Self, WasmValueError> {
+        ensure_type_kind(ty, WasmTypeKind::Resource)?;
+        let (_, expect_borrowed) = ty.resource_type();
+        if expect_borrowed != is_borrowed {
+            return Err(WasmValueError::Other(format!(
+                "expect resource is_borrowed {expect_borrowed}, got value type is_borrowed {is_borrowed}"
+            )));
+        }
+        Ok(Self(ValueEnum::Resource(ResourceValue {
+            handle,
+            is_borrowed,
+        })))
+    }
+
     fn unwrap_f32(&self) -> f32 {
         let val = *unwrap_val!(&self.0, ValueEnum::F32, "f32");
         canonicalize_nan32(val)
@@ -378,6 +406,10 @@ impl WasmValue for Value {
                 .iter()
                 .map(|idx| cow(flags.ty.flags[*idx].as_ref())),
         )
+    }
+    fn unwrap_resource(&self) -> (u32, bool) {
+        let res = unwrap_val!(&self.0, ValueEnum::Resource, "resource");
+        (res.handle, res.is_borrowed)
     }
 }
 
@@ -529,6 +561,15 @@ fn check_type2(expected: &Type, val: &Value) -> Result<(), WasmValueError> {
                     if *flag >= flags.ty.as_ref().flags.len() {
                         return wrong_value_type();
                     }
+                }
+            } else {
+                return wrong_value_type();
+            }
+        }
+        (ValueEnum::Resource(resource), _) => {
+            if let TypeEnum::Resource(ty) = &expected.0 {
+                if ty.is_borrowed != resource.is_borrowed {
+                    return wrong_value_type();
                 }
             } else {
                 return wrong_value_type();
