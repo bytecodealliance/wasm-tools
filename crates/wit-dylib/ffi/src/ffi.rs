@@ -29,7 +29,7 @@ pub const WIT_TYPE_FUTURE: u32 = 25;
 pub const WIT_TYPE_STREAM: u32 = 26;
 pub const WIT_TYPE_ALIAS: u32 = 27;
 pub const WIT_TYPE_EMPTY: u32 = 255;
-pub const WIT_CURRENT_VERSION: u32 = 1;
+pub const WIT_CURRENT_VERSION: u32 = 2;
 pub type wit_type_t = u32;
 pub type wit_import_fn_t =
     ::std::option::Option<unsafe extern "C" fn(cx: *mut ::std::os::raw::c_void)>;
@@ -176,20 +176,74 @@ pub struct wit_fixed_size_list {
     pub ty: wit_type_t,
 }
 pub type wit_fixed_size_list_t = wit_fixed_size_list;
+pub type wit_lift_fn_t = ::std::option::Option<
+    unsafe extern "C" fn(cx: *mut ::std::os::raw::c_void, buffer: *const ::std::os::raw::c_void),
+>;
+pub type wit_lower_fn_t = ::std::option::Option<
+    unsafe extern "C" fn(cx: *mut ::std::os::raw::c_void, buffer: *mut ::std::os::raw::c_void),
+>;
+pub type wit_future_new_fn_t = ::std::option::Option<unsafe extern "C" fn() -> u64>;
+pub type wit_future_read_fn_t = ::std::option::Option<
+    unsafe extern "C" fn(future: u32, buffer: *mut ::std::os::raw::c_void) -> u32,
+>;
+pub type wit_future_write_fn_t = ::std::option::Option<
+    unsafe extern "C" fn(future: u32, buffer: *const ::std::os::raw::c_void) -> u32,
+>;
+pub type wit_future_cancel_read_fn_t =
+    ::std::option::Option<unsafe extern "C" fn(future: u32) -> u32>;
+pub type wit_future_cancel_write_fn_t =
+    ::std::option::Option<unsafe extern "C" fn(future: u32) -> u32>;
+pub type wit_future_drop_readable_fn_t = ::std::option::Option<unsafe extern "C" fn(future: u32)>;
+pub type wit_future_drop_writable_fn_t = ::std::option::Option<unsafe extern "C" fn(future: u32)>;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct wit_future {
     pub interface: *const ::std::os::raw::c_char,
     pub name: *const ::std::os::raw::c_char,
     pub ty: wit_type_t,
+    pub new: wit_future_new_fn_t,
+    pub read: wit_future_read_fn_t,
+    pub write: wit_future_write_fn_t,
+    pub cancel_read: wit_future_cancel_read_fn_t,
+    pub cancel_write: wit_future_cancel_write_fn_t,
+    pub drop_readable: wit_future_drop_readable_fn_t,
+    pub drop_writable: wit_future_drop_writable_fn_t,
+    pub lift: wit_lift_fn_t,
+    pub lower: wit_lower_fn_t,
+    pub abi_payload_size: usize,
+    pub abi_payload_align: usize,
 }
 pub type wit_future_t = wit_future;
+pub type wit_stream_new_fn_t = ::std::option::Option<unsafe extern "C" fn() -> u64>;
+pub type wit_stream_read_fn_t = ::std::option::Option<
+    unsafe extern "C" fn(stream: u32, buffer: *mut ::std::os::raw::c_void, count: usize) -> u32,
+>;
+pub type wit_stream_write_fn_t = ::std::option::Option<
+    unsafe extern "C" fn(stream: u32, buffer: *const ::std::os::raw::c_void, count: usize) -> u32,
+>;
+pub type wit_stream_cancel_read_fn_t =
+    ::std::option::Option<unsafe extern "C" fn(stream: u32) -> u32>;
+pub type wit_stream_cancel_write_fn_t =
+    ::std::option::Option<unsafe extern "C" fn(stream: u32) -> u32>;
+pub type wit_stream_drop_writable_fn_t = ::std::option::Option<unsafe extern "C" fn(stream: u32)>;
+pub type wit_stream_drop_readable_fn_t = ::std::option::Option<unsafe extern "C" fn(stream: u32)>;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct wit_stream {
     pub interface: *const ::std::os::raw::c_char,
     pub name: *const ::std::os::raw::c_char,
     pub ty: wit_type_t,
+    pub new: wit_stream_new_fn_t,
+    pub read: wit_stream_read_fn_t,
+    pub write: wit_stream_write_fn_t,
+    pub cancel_read: wit_stream_cancel_read_fn_t,
+    pub cancel_write: wit_stream_cancel_write_fn_t,
+    pub drop_readable: wit_stream_drop_readable_fn_t,
+    pub drop_writable: wit_stream_drop_writable_fn_t,
+    pub lift: wit_lift_fn_t,
+    pub lower: wit_lower_fn_t,
+    pub abi_payload_size: usize,
+    pub abi_payload_align: usize,
 }
 pub type wit_stream_t = wit_stream;
 #[repr(C)]
