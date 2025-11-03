@@ -1,3 +1,0 @@
-(module
-  (import "spectest" "global_i32" (global (;0;) i32))
-)

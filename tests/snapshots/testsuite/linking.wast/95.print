@@ -1,4 +1,0 @@
-(module
-  (import "Mtable_ex" "t-func" (table (;0;) 1 funcref))
-  (import "Mtable_ex" "t-extern" (table (;1;) 1 externref))
-)

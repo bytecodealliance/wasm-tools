@@ -1,7 +1,0 @@
-(module
-  (type (;0;) (func (result v128)))
-  (export "parse_i16x8" (func 0))
-  (func (;0;) (type 0) (result v128)
-    v128.const i32x4 0x00000000 0x80008000 0xffffffff 0xffffffff
-  )
-)
