@@ -6,14 +6,14 @@
       "line": 4,
       "filename": "shared-everything-threads-builtins.0.wasm",
       "module_type": "binary",
-      "text": "`thread.spawn_ref` requires the shared-everything-threads proposal"
+      "text": "`thread.spawn-ref` requires the shared-everything-threads proposal"
     },
     {
       "type": "assert_invalid",
       "line": 12,
       "filename": "shared-everything-threads-builtins.1.wasm",
       "module_type": "binary",
-      "text": "`thread.spawn_indirect` requires the shared-everything-threads proposal"
+      "text": "`thread.spawn-indirect` requires the shared-everything-threads proposal"
     },
     {
       "type": "assert_invalid",

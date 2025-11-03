@@ -509,7 +509,7 @@ impl<'a> Parse<'a> for CanonResourceRep<'a> {
     }
 }
 
-/// Information relating to the `thread.spawn_ref` intrinsic.
+/// Information relating to the `thread.spawn-ref` intrinsic.
 #[derive(Debug)]
 pub struct CanonThreadSpawnRef<'a> {
     /// The function type that is being spawned.
@@ -526,7 +526,7 @@ impl<'a> Parse<'a> for CanonThreadSpawnRef<'a> {
     }
 }
 
-/// Information relating to the `thread.spawn_indirect` intrinsic.
+/// Information relating to the `thread.spawn-indirect` intrinsic.
 ///
 /// This should look quite similar to parsing of `CallIndirect`.
 #[derive(Debug)]
@@ -958,7 +958,7 @@ impl<'a> Parse<'a> for CanonErrorContextDebugMessage<'a> {
     }
 }
 
-/// Information relating to the `thread.new_indirect` intrinsic.
+/// Information relating to the `thread.new-indirect` intrinsic.
 #[derive(Debug)]
 pub struct CanonThreadNewIndirect<'a> {
     /// The function type for the thread start function.

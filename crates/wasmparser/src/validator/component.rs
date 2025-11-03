@@ -2164,7 +2164,7 @@ impl ComponentState {
         if !self.features.cm_threading() {
             bail!(
                 offset,
-                "`thread.new_indirect` requires the component model threading feature"
+                "`thread.new-indirect` requires the component model threading feature"
             )
         }
 
@@ -2310,7 +2310,7 @@ impl ComponentState {
         if !self.features.shared_everything_threads() {
             bail!(
                 offset,
-                "`thread.spawn_ref` requires the shared-everything-threads proposal"
+                "`thread.spawn-ref` requires the shared-everything-threads proposal"
             )
         }
         let core_type_id = self.validate_spawn_type(func_ty_index, types, offset)?;
@@ -2338,7 +2338,7 @@ impl ComponentState {
         if !self.features.shared_everything_threads() {
             bail!(
                 offset,
-                "`thread.spawn_indirect` requires the shared-everything-threads proposal"
+                "`thread.spawn-indirect` requires the shared-everything-threads proposal"
             )
         }
         let _ = self.validate_spawn_type(func_ty_index, types, offset)?;
@@ -2347,7 +2347,7 @@ impl ComponentState {
         // `OperatorValidatorTemp::check_call_indirect_ty`), but loosen the
         // table type restrictions to just a `funcref`. See the component model
         // for more details:
-        // https://github.com/WebAssembly/component-model/blob/6e08e283/design/mvp/CanonicalABI.md#-canon-threadspawn_indirect.
+        // https://github.com/WebAssembly/component-model/blob/main/design/mvp/CanonicalABI.md#-canon-threadspawn-indirect.
         let table = self.table_at(table_index, offset)?;
 
         SubtypeCx::table_type(
@@ -2382,7 +2382,7 @@ impl ComponentState {
     /// This is currently limited to shared functions with the signature `[i32]
     /// -> []`. See component model [explanation] for more details.
     ///
-    /// [explanation]: https://github.com/WebAssembly/component-model/blob/6e08e283/design/mvp/CanonicalABI.md#-canon-threadspawn_ref
+    /// [explanation]: https://github.com/WebAssembly/component-model/blob/main/design/mvp/CanonicalABI.md#-canon-threadspawn-ref
     fn validate_spawn_type(
         &self,
         func_ty_index: u32,

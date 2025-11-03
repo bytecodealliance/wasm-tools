@@ -522,7 +522,7 @@ impl CanonicalFunctionSection {
         self
     }
 
-    /// Declare a new `thread.new_indirect` intrinsic, used to create a new
+    /// Declare a new `thread.new-indirect` intrinsic, used to create a new
     /// thread by invoking a function indirectly through a `funcref` table.
     pub fn thread_new_indirect(&mut self, ty_index: u32, table_index: u32) -> &mut Self {
         self.bytes.push(0x27);

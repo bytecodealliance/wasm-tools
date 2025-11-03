@@ -923,7 +923,7 @@ impl Printer<'_, '_> {
                     })?;
                 }
                 CanonicalFunction::ThreadSpawnRef { func_ty_index } => {
-                    self.print_intrinsic(state, "canon thread.spawn_ref ", &|me, state| {
+                    self.print_intrinsic(state, "canon thread.spawn-ref ", &|me, state| {
                         me.print_idx(&state.core.type_names, func_ty_index)
                     })?;
                 }
@@ -931,7 +931,7 @@ impl Printer<'_, '_> {
                     func_ty_index,
                     table_index,
                 } => {
-                    self.print_intrinsic(state, "canon thread.spawn_indirect ", &|me, state| {
+                    self.print_intrinsic(state, "canon thread.spawn-indirect ", &|me, state| {
                         me.print_idx(&state.core.type_names, func_ty_index)?;
                         me.result.write_str(" ")?;
                         me.start_group("table ")?;
@@ -1146,7 +1146,7 @@ impl Printer<'_, '_> {
                     func_ty_index,
                     table_index,
                 } => {
-                    self.print_intrinsic(state, "canon thread.new_indirect ", &|me, state| {
+                    self.print_intrinsic(state, "canon thread.new-indirect ", &|me, state| {
                         me.print_idx(&state.core.type_names, func_ty_index)?;
                         me.result.write_str(" ")?;
                         me.start_group("table ")?;

@@ -3,18 +3,18 @@
 (assert_invalid
   (component
     ;; Refer to a non-existent function type (i.e., 0); validation for
-    ;; `thread.spawn_ref` happens first.
-    (core func $spawn (canon thread.spawn_ref 0))
+    ;; `thread.spawn-ref` happens first.
+    (core func $spawn (canon thread.spawn-ref 0))
   )
-  "`thread.spawn_ref` requires the shared-everything-threads proposal")
+  "`thread.spawn-ref` requires the shared-everything-threads proposal")
 
 (assert_invalid
   (component
     ;; Refer to a non-existent function and table types (i.e., 0); validation
-    ;; for `thread.spawn_indirect` happens first.
-    (core func $spawn_indirect (canon thread.spawn_indirect 0 (table 0)))
+    ;; for `thread.spawn-indirect` happens first.
+    (core func $spawn-indirect (canon thread.spawn-indirect 0 (table 0)))
   )
-  "`thread.spawn_indirect` requires the shared-everything-threads proposal")
+  "`thread.spawn-indirect` requires the shared-everything-threads proposal")
 
 (assert_invalid
   (component
