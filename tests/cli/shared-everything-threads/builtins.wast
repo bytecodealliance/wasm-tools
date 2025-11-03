@@ -25,10 +25,10 @@
 
   (core module $m
     (type $spawned_func_ty (shared (func (param $context i32))))
-    (type $spawn-ref_ty (shared (func (param (ref null $spawned_func_ty)) (param i32) (result i32))))
+    (type $spawn_ref_ty (shared (func (param (ref null $spawned_func_ty)) (param i32) (result i32))))
     (type $spawn_indirect_ty (shared (func (param i32) (param i32) (result i32))))
     (type $parallelism_ty (shared (func (result i32))))
-    (import "" "spawn-ref" (func (type $spawn-ref_ty)))
+    (import "" "spawn-ref" (func (type $spawn_ref_ty)))
     (import "" "spawn-indirect" (func (type $spawn_indirect_ty)))
     (import "" "parallelism" (func (type $parallelism_ty)))
   )
