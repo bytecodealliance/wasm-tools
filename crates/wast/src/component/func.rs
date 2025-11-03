@@ -509,7 +509,7 @@ impl<'a> Parse<'a> for CanonResourceRep<'a> {
     }
 }
 
-/// Information relating to the `thread.spawn_ref` intrinsic.
+/// Information relating to the `thread.spawn-ref` intrinsic.
 #[derive(Debug)]
 pub struct CanonThreadSpawnRef<'a> {
     /// The function type that is being spawned.

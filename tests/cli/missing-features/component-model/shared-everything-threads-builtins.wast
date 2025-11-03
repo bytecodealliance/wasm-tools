@@ -3,10 +3,10 @@
 (assert_invalid
   (component
     ;; Refer to a non-existent function type (i.e., 0); validation for
-    ;; `thread.spawn_ref` happens first.
-    (core func $spawn (canon thread.spawn_ref 0))
+    ;; `thread.spawn-ref` happens first.
+    (core func $spawn (canon thread.spawn-ref 0))
   )
-  "`thread.spawn_ref` requires the shared-everything-threads proposal")
+  "`thread.spawn-ref` requires the shared-everything-threads proposal")
 
 (assert_invalid
   (component

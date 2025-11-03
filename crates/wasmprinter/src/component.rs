@@ -923,7 +923,7 @@ impl Printer<'_, '_> {
                     })?;
                 }
                 CanonicalFunction::ThreadSpawnRef { func_ty_index } => {
-                    self.print_intrinsic(state, "canon thread.spawn_ref ", &|me, state| {
+                    self.print_intrinsic(state, "canon thread.spawn-ref ", &|me, state| {
                         me.print_idx(&state.core.type_names, func_ty_index)
                     })?;
                 }

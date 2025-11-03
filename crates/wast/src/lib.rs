@@ -557,7 +557,7 @@ pub mod kw {
     custom_keyword!(import_info = "import-info");
     custom_keyword!(runtime_path = "runtime-path");
     custom_keyword!(thread);
-    custom_keyword!(thread_spawn_ref = "thread.spawn_ref");
+    custom_keyword!(thread_spawn_ref = "thread.spawn-ref");
     custom_keyword!(thread_spawn_indirect = "thread.spawn-indirect");
     custom_keyword!(thread_available_parallelism = "thread.available_parallelism");
     custom_keyword!(backpressure_set = "backpressure.set");

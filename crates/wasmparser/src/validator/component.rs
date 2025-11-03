@@ -2310,7 +2310,7 @@ impl ComponentState {
         if !self.features.shared_everything_threads() {
             bail!(
                 offset,
-                "`thread.spawn_ref` requires the shared-everything-threads proposal"
+                "`thread.spawn-ref` requires the shared-everything-threads proposal"
             )
         }
         let core_type_id = self.validate_spawn_type(func_ty_index, types, offset)?;
@@ -2382,7 +2382,7 @@ impl ComponentState {
     /// This is currently limited to shared functions with the signature `[i32]
     /// -> []`. See component model [explanation] for more details.
     ///
-    /// [explanation]: https://github.com/WebAssembly/component-model/blob/6e08e283/design/mvp/CanonicalABI.md#-canon-threadspawn_ref
+    /// [explanation]: https://github.com/WebAssembly/component-model/blob/6e08e283/design/mvp/CanonicalABI.md#-canon-threadspawn-ref
     fn validate_spawn_type(
         &self,
         func_ty_index: u32,
