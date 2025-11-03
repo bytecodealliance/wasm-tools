@@ -1260,8 +1260,8 @@ impl ComponentState {
             CanonicalFunction::ThreadIndex => self.thread_index(types, offset),
             CanonicalFunction::ThreadNewIndirect {
                 func_ty_index,
-                table_index,
-            } => self.thread_new_indirect(func_ty_index, table_index, types, offset),
+                table_id,
+            } => self.thread_new_indirect(func_ty_index, table_id, types, offset),
             CanonicalFunction::ThreadSwitchTo { cancellable } => {
                 self.thread_switch_to(cancellable, types, offset)
             }
@@ -2164,7 +2164,7 @@ impl ComponentState {
         if !self.features.cm_threading() {
             bail!(
                 offset,
-                "`thread.new_indirect` requires the component model threading feature"
+                "`thread.new-indirect` requires the component model threading feature"
             )
         }
 
@@ -2338,7 +2338,7 @@ impl ComponentState {
         if !self.features.shared_everything_threads() {
             bail!(
                 offset,
-                "`thread.spawn_indirect` requires the shared-everything-threads proposal"
+                "`thread.spawn-indirect` requires the shared-everything-threads proposal"
             )
         }
         let _ = self.validate_spawn_type(func_ty_index, types, offset)?;

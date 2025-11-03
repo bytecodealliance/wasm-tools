@@ -5,7 +5,7 @@
 (assert_invalid
   (component
     (core func (canon thread.index))
-    (core func (canon thread.new_indirect 0 (table 0)))
+    (core func (canon thread.new-indirect 0 (table 0)))
     (core func (canon thread.switch-to))
     (core func (canon thread.suspend))
     (core func (canon thread.resume-later))

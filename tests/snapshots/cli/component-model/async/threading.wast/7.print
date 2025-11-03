@@ -6,5 +6,5 @@
   )
   (core instance $libc (;0;) (instantiate $libc))
   (alias core export $libc "start-table" (core table (;0;)))
-  (core func $new_indirect (;0;) (canon thread.new_indirect $start (table 0)))
+  (core func $new-indirect (;0;) (canon thread.new-indirect $start (table 0)))
 )

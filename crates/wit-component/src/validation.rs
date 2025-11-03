@@ -425,7 +425,7 @@ pub enum Import {
     /// This allows the guest to get the index of the current thread.
     ThreadIndex,
 
-    /// A `canon thread.new_indirect` intrinsic.
+    /// A `canon thread.new-indirect` intrinsic.
     ///
     /// This allows the guest to create a new thread running a specified function.
     ThreadNewIndirect,
@@ -1113,7 +1113,7 @@ pub enum Export {
 
     InterfaceFuncCallback(WorldKey, String),
 
-    /// __indirect_function_table, used for `thread.new_indirect`
+    /// __indirect_function_table, used for `thread.new-indirect`
     IndirectFunctionTable,
 }
 
