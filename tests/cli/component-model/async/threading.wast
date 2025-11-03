@@ -64,8 +64,8 @@
   (core func $new-indirect (canon thread.new-indirect $start (table $libc "start-table")))
 
   (core module $m
-    (type $new-indirect_ty (func (param i32) (param i32) (result i32)))
-    (import "" "thread.new-indirect" (func (type $new-indirect_ty)))
+    (type $new_indirect_ty (func (param i32) (param i32) (result i32)))
+    (import "" "thread.new-indirect" (func (type $new_indirect_ty)))
   )
 
   (core instance (instantiate $m

@@ -1111,10 +1111,10 @@ pub mod component_utils {
             }
             wasmparser::CanonicalFunction::ThreadNewIndirect {
                 func_ty_index,
-                table_id,
+                table_index,
             } => {
                 let func_ty = reencoder.type_index(func_ty_index)?;
-                let table_index = reencoder.table_index(table_id)?;
+                let table_index = reencoder.table_index(table_index)?;
                 section.thread_new_indirect(func_ty, table_index);
             }
             wasmparser::CanonicalFunction::ThreadSwitchTo { cancellable } => {

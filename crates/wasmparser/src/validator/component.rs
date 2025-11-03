@@ -1260,8 +1260,8 @@ impl ComponentState {
             CanonicalFunction::ThreadIndex => self.thread_index(types, offset),
             CanonicalFunction::ThreadNewIndirect {
                 func_ty_index,
-                table_id,
-            } => self.thread_new_indirect(func_ty_index, table_id, types, offset),
+                table_index,
+            } => self.thread_new_indirect(func_ty_index, table_index, types, offset),
             CanonicalFunction::ThreadSwitchTo { cancellable } => {
                 self.thread_switch_to(cancellable, types, offset)
             }

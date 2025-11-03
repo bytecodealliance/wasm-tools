@@ -1144,13 +1144,13 @@ impl Printer<'_, '_> {
                 }
                 CanonicalFunction::ThreadNewIndirect {
                     func_ty_index,
-                    table_id,
+                    table_index,
                 } => {
                     self.print_intrinsic(state, "canon thread.new-indirect ", &|me, state| {
                         me.print_idx(&state.core.type_names, func_ty_index)?;
                         me.result.write_str(" ")?;
                         me.start_group("table ")?;
-                        me.print_idx(&state.core.table_names, table_id)?;
+                        me.print_idx(&state.core.table_names, table_index)?;
                         me.end_group()
                     })?;
                 }

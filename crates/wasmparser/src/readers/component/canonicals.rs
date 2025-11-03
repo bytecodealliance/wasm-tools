@@ -275,7 +275,7 @@ pub enum CanonicalFunction {
         /// The index of the function type to use as the start function.
         func_ty_index: u32,
         /// The index of the table to use.
-        table_id: u32,
+        table_index: u32,
     },
     /// A function to suspend the current thread and switch to the given thread.
     ThreadSwitchTo {
@@ -408,7 +408,7 @@ impl<'a> FromReader<'a> for CanonicalFunction {
             0x26 => CanonicalFunction::ThreadIndex,
             0x27 => CanonicalFunction::ThreadNewIndirect {
                 func_ty_index: reader.read()?,
-                table_id: reader.read()?,
+                table_index: reader.read()?,
             },
             0x28 => CanonicalFunction::ThreadSwitchTo {
                 cancellable: reader.read()?,
