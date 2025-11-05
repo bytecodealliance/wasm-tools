@@ -5,7 +5,7 @@ edition.workspace = true
 publish = false
 
 [dependencies]
-wit-dylib-ffi = { path = '../ffi' }
+wit-dylib-ffi = { path = '../ffi', features = ["async-runtime"] }
 wit-bindgen = { workspace = true }
 rand = { workspace = true }
 

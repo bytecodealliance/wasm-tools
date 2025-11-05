@@ -393,7 +393,7 @@ impl ImportFunction {
         }
     }
 
-    #[cfg(not(feature = "async"))]
+    #[cfg(feature = "async-raw")]
     pub unsafe fn call_import_async(&self, cx: &mut impl Call) -> Option<PendingAsyncImportCall> {
         use core::alloc::Layout;
 
@@ -422,12 +422,12 @@ impl ImportFunction {
         }
     }
 
-    #[cfg(not(feature = "async"))]
+    #[cfg(feature = "async-raw")]
     pub unsafe fn lift_import_async_result(&self, cx: &mut impl Call, buffer: *mut u8) {
         unsafe { self.ptr.async_lift_impl.unwrap()((&raw mut *cx).cast(), buffer.cast()) };
     }
 
-    #[cfg(feature = "async")]
+    #[cfg(feature = "async-runtime")]
     pub async fn call_import_async(&self, cx: &mut impl Call) {
         use core::alloc::Layout;
         use wit_bindgen::rt::async_support::Subtask;
