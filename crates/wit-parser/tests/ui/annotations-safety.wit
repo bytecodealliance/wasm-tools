@@ -1,0 +1,80 @@
+package test:annotations-safety;
+
+
+// Security & safety:
+//     - #sanitize, #validate_on_construct, #no_path_traversal for input sanitization
+//     - #zeroize_on_drop, #sensitive for secure data handling
+//     - #encrypt, #decrypt, #verify_signature for cryptography
+//     - #audit_log, #authorize, #constant_time for security operations
+//     - #test_only, #mock_return for testing
+
+interface safety-examples {
+  #derive(Debug)]
+  #validate_on_construct
+  record safe-path {
+    #sanitize(mode = "path")
+    #no_path_traversal
+    #max_length(4096)
+    path: string,
+  }
+
+  #derive(Debug, Clone)]
+  #zeroize_on_drop
+  #sensitive
+  record credentials {
+    #non_empty
+    #validate_base64
+    token: string,
+    #range(1, 3600)
+    expires-in: u32,
+  }
+
+  #derive(Debug)]
+  resource secure-connection {
+    #validate_host
+    #require_tls
+    constructor(host: string, port: u16);
+
+    #encrypt(algorithm = "aes-256-gcm")
+    #non_null(payload)
+    #max_size(payload, 65536)
+    send-encrypted: func(payload: list<u8>) -> bool;
+
+    #decrypt
+    #verify_signature
+    receive-encrypted: func() -> option<list<u8>>;
+
+    #audit_log
+    #inject_after("security::log_disconnect(&self.host);")
+    disconnect: func();
+  }
+
+  #derive(Debug, Copy, Clone)]
+  #repr(u8)]
+  enum access-level {
+    #min_privilege
+    guest,
+    user,
+    admin,
+    #require_mfa
+    super-admin,
+  }
+
+  #authorize(level = "admin")
+  #audit_log
+  #rate_limit(10, per_minute)
+  delete-user: func(user-id: u64) -> bool;
+
+  #escape_html
+  #sanitize(mode = "html")
+  #max_length(input, 10000)
+  render-user-content: func(input: string) -> string;
+
+  #constant_time
+  #no_short_circuit
+  compare-secrets: func(a: string, b: string) -> bool;
+
+  #test_only
+  #mock_return(42)
+  get-random-number: func() -> u32;
+}

@@ -1,0 +1,57 @@
+package test:annotations-derive;
+
+// Validation & performance:
+//     - #validate_utf8, #non_empty, #max_length, #email_format for input validation
+//     - #range, #finite for numeric bounds
+//     - #trace_calls, #memoize, #cache_result for performance monitoring
+//     - #zero_copy, #rate_limit, #log_params for optimization and logging
+
+interface validation-examples {
+  #derive(Debug, Clone)]
+  #validate_utf8
+  record sanitized-input {
+    #non_empty
+    #max_length(255)
+    username: string,
+    #email_format
+    email: string,
+    #range(18, 120)
+    age: u8,
+  }
+
+  #derive(Debug, Copy, Clone)]
+  #repr(C)
+  #align(16)
+  record vector3 {
+    #finite
+    x: float32,
+    #finite
+    y: float32,
+    #finite
+    z: float32,
+  }
+
+  #derive(Debug)]
+  flags feature-flags {
+    #experimental
+    ai-mode,
+    #deprecated
+    legacy-api,
+    #stable
+    core-features,
+  }
+
+  #trace_calls
+  #memoize
+  #cache_result(ttl = 60)
+  compute-hash: func(input: sanitized-input) -> u64;
+
+  #zero_copy
+  #non_null(data)
+  #min_length(data, 1)
+  process-buffer: func(data: list<u8>) -> u32;
+
+  #rate_limit(100, per_second)
+  #log_params
+  authenticate: func(username: string, password: string) -> bool;
+}

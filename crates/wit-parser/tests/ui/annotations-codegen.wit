@@ -1,0 +1,66 @@
+package test:annotations-codegen;
+
+// Performance hints:
+//     - #stack_allocated, #lazy_init, #preallocate for memory management
+//     - #hot, #cold, #likely, #unlikely for optimization hints
+//     - #compress, #retry, #timeout for I/O operations
+//     - #benchmark, #perf_metric, #trace_entry/exit for profiling
+
+#cfg(feature = "advanced")
+interface performance-hints {
+  #derive(Debug)]
+  #stack_allocated
+  #size(64)
+  record small-buffer {
+    data: list<u8>,
+    length: u32,
+  }
+
+  #derive(Debug, Clone)]
+  #lazy_init
+  resource cache {
+    #preallocate(capacity = 1024)
+    constructor(capacity: u32);
+
+    #hot
+    #inline(always)
+    #likely(result = some)
+    get: func(key: string) -> option<string>;
+
+    #cold
+    #unlikely
+    clear: func();
+
+    #thread_safe
+    #atomic
+    static get-instance: static func() -> cache;
+  }
+
+  #derive(Debug, Copy, Clone)]
+  #repr(u32)]
+  enum log-level {
+    #cold
+    trace,
+    #cold
+    debug,
+    #hot
+    info,
+    warn,
+    #unlikely
+    error,
+  }
+
+  #compress(algorithm = "lz4")
+  #max_size(1048576)
+  serialize-data: func(data: list<u8>) -> list<u8>;
+
+  #retry(attempts = 3, backoff = "exponential")
+  #timeout(5000)
+  fetch-remote: func(url: string) -> option<list<u8>>;
+
+  #benchmark
+  #perf_metric("processing_time")
+  #trace_entry
+  #trace_exit
+  process-batch: func(items: list<string>) -> u32;
+}
