@@ -12,9 +12,14 @@
 #![allow(clippy::allow_attributes_without_reason)]
 
 use std::alloc::Layout;
+use std::any::{Any, TypeId};
 use std::borrow::Cow;
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::ffi::c_void;
+use std::mem;
 use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
+use std::sync::{Arc, Mutex};
+use wit_bindgen::rt::async_support::{FutureVtable, StreamVtable};
 pub use wit_dylib_ffi::*;
 
 pub mod generate;
@@ -733,6 +738,219 @@ impl Drop for OwnInner {
             n => unsafe { self.ty.drop()(n) },
         }
     }
+}
+
+impl TryFrom<Val> for u8 {
+    type Error = ();
+
+    fn try_from(val: Val) -> Result<Self, Self::Error> {
+        if let Val::U8(v) = val { Ok(v) } else { Err(()) }
+    }
+}
+
+impl From<u8> for Val {
+    fn from(val: u8) -> Val {
+        Val::U8(val)
+    }
+}
+
+impl TryFrom<Val> for String {
+    type Error = ();
+
+    fn try_from(val: Val) -> Result<Self, Self::Error> {
+        if let Val::String(v) = val {
+            Ok(v)
+        } else {
+            Err(())
+        }
+    }
+}
+
+impl From<String> for Val {
+    fn from(val: String) -> Val {
+        Val::String(val)
+    }
+}
+
+pub fn get_stream_vtable<T: TryFrom<Val> + Into<Val> + 'static>(
+    ty: Stream,
+) -> &'static StreamVtable<T>
+where
+    <T as TryFrom<Val>>::Error: std::fmt::Debug,
+{
+    static MAP: Mutex<Option<HashMap<TypeId, (Stream, &'static (dyn Any + Send + Sync))>>> =
+        Mutex::new(None);
+
+    unsafe fn lift<T: TryFrom<Val> + 'static>(src: *mut u8) -> T
+    where
+        <T as TryFrom<Val>>::Error: std::fmt::Debug,
+    {
+        let mut cx = Cx::default();
+        unsafe {
+            MAP.lock()
+                .unwrap()
+                .as_mut()
+                .unwrap()
+                .get_mut(&TypeId::of::<T>())
+                .unwrap()
+                .0
+                .lift(&mut cx, src);
+        }
+        let value = T::try_from(cx.stack.pop().unwrap().as_ref().clone()).unwrap();
+        assert!(
+            cx.deferred_deallocs.is_empty()
+                && cx.temp_strings.is_empty()
+                && cx.temp_bytes.is_empty()
+        );
+        value
+    }
+
+    unsafe fn lower<T: Into<Val> + 'static>(value: T, dst: *mut u8) {
+        let mut cx = Cx::default();
+        cx.stack.push(Cow::Owned(value.into()));
+        unsafe {
+            MAP.lock()
+                .unwrap()
+                .as_mut()
+                .unwrap()
+                .get_mut(&TypeId::of::<T>())
+                .unwrap()
+                .0
+                .lower(&mut cx, dst);
+        }
+        // Just leak any lists since this is only used for tests.
+        mem::forget(cx);
+    }
+
+    MAP.lock()
+        .unwrap()
+        .get_or_insert_default()
+        .entry(TypeId::of::<T>())
+        .or_insert_with(|| {
+            (
+                ty,
+                Box::leak(Box::new(StreamVtable::<T> {
+                    layout: Layout::from_size_align(ty.abi_payload_size(), ty.abi_payload_align())
+                        .unwrap(),
+                    lower: Some(lower::<T>),
+                    // Just leak any lists since this is only used for tests.
+                    dealloc_lists: None,
+                    lift: Some(lift::<T>),
+                    start_write: unsafe {
+                        mem::transmute::<
+                            unsafe extern "C" fn(u32, *const c_void, usize) -> u32,
+                            unsafe extern "C" fn(u32, *const u8, usize) -> u32,
+                        >(ty.write())
+                    },
+                    start_read: unsafe {
+                        mem::transmute::<
+                            unsafe extern "C" fn(u32, *mut c_void, usize) -> u32,
+                            unsafe extern "C" fn(u32, *mut u8, usize) -> u32,
+                        >(ty.read())
+                    },
+                    cancel_write: ty.cancel_write(),
+                    cancel_read: ty.cancel_read(),
+                    drop_writable: ty.drop_writable(),
+                    drop_readable: ty.drop_readable(),
+                    new: ty.new(),
+                })),
+            )
+        })
+        .1
+        .downcast_ref()
+        .unwrap()
+}
+
+pub fn get_future_vtable<T: TryFrom<Val> + Into<Val> + 'static>(
+    ty: Future,
+) -> &'static FutureVtable<T>
+where
+    <T as TryFrom<Val>>::Error: std::fmt::Debug,
+{
+    static MAP: Mutex<Option<HashMap<TypeId, (Future, &'static (dyn Any + Send + Sync))>>> =
+        Mutex::new(None);
+
+    unsafe fn lift<T: TryFrom<Val> + 'static>(src: *mut u8) -> T
+    where
+        <T as TryFrom<Val>>::Error: std::fmt::Debug,
+    {
+        let mut cx = Cx::default();
+        unsafe {
+            MAP.lock()
+                .unwrap()
+                .as_mut()
+                .unwrap()
+                .get_mut(&TypeId::of::<T>())
+                .unwrap()
+                .0
+                .lift(&mut cx, src);
+        }
+        let value = T::try_from(cx.stack.pop().unwrap().as_ref().clone()).unwrap();
+        assert!(
+            cx.deferred_deallocs.is_empty()
+                && cx.temp_strings.is_empty()
+                && cx.temp_bytes.is_empty()
+        );
+        value
+    }
+
+    unsafe fn lower<T: Into<Val> + 'static>(value: T, dst: *mut u8) {
+        let mut cx = Cx::default();
+        cx.stack.push(Cow::Owned(value.into()));
+        unsafe {
+            MAP.lock()
+                .unwrap()
+                .as_mut()
+                .unwrap()
+                .get_mut(&TypeId::of::<T>())
+                .unwrap()
+                .0
+                .lower(&mut cx, dst);
+        }
+        // Just leak any lists since this is only used for tests.
+        mem::forget(cx);
+    }
+
+    unsafe fn dealloc_lists(_: *mut u8) {
+        // Just leak any lists since this is only used for tests.
+    }
+
+    MAP.lock()
+        .unwrap()
+        .get_or_insert_default()
+        .entry(TypeId::of::<T>())
+        .or_insert_with(|| {
+            (
+                ty,
+                Box::leak(Box::new(FutureVtable::<T> {
+                    layout: Layout::from_size_align(ty.abi_payload_size(), ty.abi_payload_align())
+                        .unwrap(),
+                    lower: lower::<T>,
+                    dealloc_lists,
+                    lift: lift::<T>,
+                    start_write: unsafe {
+                        mem::transmute::<
+                            unsafe extern "C" fn(u32, *const c_void) -> u32,
+                            unsafe extern "C" fn(u32, *const u8) -> u32,
+                        >(ty.write())
+                    },
+                    start_read: unsafe {
+                        mem::transmute::<
+                            unsafe extern "C" fn(u32, *mut c_void) -> u32,
+                            unsafe extern "C" fn(u32, *mut u8) -> u32,
+                        >(ty.read())
+                    },
+                    cancel_write: ty.cancel_write(),
+                    cancel_read: ty.cancel_read(),
+                    drop_writable: ty.drop_writable(),
+                    drop_readable: ty.drop_readable(),
+                    new: ty.new(),
+                })),
+            )
+        })
+        .1
+        .downcast_ref()
+        .unwrap()
 }
 
 #[cold]
