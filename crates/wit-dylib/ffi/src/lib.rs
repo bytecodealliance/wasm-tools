@@ -11,6 +11,9 @@
 #![allow(unsafe_code)]
 #![allow(clippy::allow_attributes_without_reason)]
 
+#[cfg(all(feature = "async-runtime", feature = "async-raw"))]
+compile_error!("cannot enable both `async-runtime` and `async-raw` features");
+
 use std::alloc::Layout;
 use std::ptr;
 
@@ -372,11 +375,18 @@ pub trait Interpreter: 'static {
 
     fn export_call(wit: Wit, func: ExportFunction, cx: &mut Self::CallCx<'_>);
 
+    #[cfg(feature = "async-runtime")]
     fn export_call_async(
         wit: Wit,
         func: ExportFunction,
         cx: Box<Self::CallCx<'static>>,
     ) -> impl std::future::Future<Output = ()>;
+
+    #[cfg(feature = "async-raw")]
+    fn export_async_start(wit: Wit, func: ExportFunction, cx: Box<Self::CallCx<'static>>) -> u32;
+
+    #[cfg(feature = "async-raw")]
+    fn export_async_callback(event0: u32, event1: u32, event2: u32) -> u32;
 
     fn export_finish(cx: Box<Self::CallCx<'_>>, func: ExportFunction) {
         let _ = func;
@@ -519,31 +529,44 @@ pub trait RawInterpreter: Interpreter {
 
     unsafe fn raw_export_async_call(cx: *mut u8, which: usize) -> u32 {
         debug_println!("export_async_call({cx:?}, {which})");
-        #[cfg(feature = "async")]
         unsafe {
             let wit = Wit::from_raw(WIT_T);
             let func = wit.export_func(which);
-            wit_bindgen::rt::async_support::start_task(Self::export_call_async(
-                wit,
-                func,
-                Box::from_raw(cx.cast()),
-            ))
-            .cast_unsigned()
-        }
-        #[cfg(not(feature = "async"))]
-        unsafe {
-            panic!("async support disabled at compile time");
+            #[cfg(feature = "async-runtime")]
+            {
+                wit_bindgen::rt::async_support::start_task(Self::export_call_async(
+                    wit,
+                    func,
+                    Box::from_raw(cx.cast()),
+                ))
+                .cast_unsigned()
+            }
+            #[cfg(feature = "async-raw")]
+            {
+                Self::export_async_start(wit, func, Box::from_raw(cx.cast()))
+            }
+            #[cfg(not(any(feature = "async-runtime", feature = "async-raw")))]
+            {
+                _ = func;
+                panic!("no async features enabled")
+            }
         }
     }
 
     unsafe fn raw_export_async_callback(a: u32, b: u32, c: u32, which: usize) -> u32 {
         debug_println!("export_async_callback({a:#x}, {b:#x}, {c:#x}, {which})");
-        #[cfg(feature = "async")]
+        #[cfg(feature = "async-runtime")]
         unsafe {
             wit_bindgen::rt::async_support::callback(a, b, c)
         }
-        #[cfg(not(feature = "async"))]
-        panic!("async support disabled at compile time");
+        #[cfg(feature = "async-raw")]
+        {
+            Self::export_async_callback(a, b, c)
+        }
+        #[cfg(not(any(feature = "async-runtime", feature = "async-raw")))]
+        {
+            panic!("no async features enabled")
+        }
     }
 
     unsafe fn raw_export_finish(cx: *mut u8, which: usize) {

@@ -1,6 +1,6 @@
 use crate::Call;
 use crate::ffi;
-use std::ffi::{CStr, c_char};
+use std::ffi::{CStr, c_char, c_void};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 
@@ -329,6 +329,11 @@ unsafe fn slice<T>(ptr: *const T, len: usize) -> &'static [T] {
     }
 }
 
+pub struct PendingAsyncImportCall {
+    pub subtask: u32,
+    pub buffer: *mut u8,
+}
+
 #[derive(Copy, Clone)]
 pub struct ImportFunction {
     wit: Wit,
@@ -358,6 +363,10 @@ impl ImportFunction {
         self.ptr.async_impl
     }
 
+    pub fn async_import_lift_impl(&self) -> ffi::wit_import_async_lift_fn_t {
+        self.ptr.async_lift_impl
+    }
+
     pub fn is_async(&self) -> bool {
         self.ptr.async_impl.is_some()
     }
@@ -384,7 +393,41 @@ impl ImportFunction {
         }
     }
 
-    #[cfg(feature = "async")]
+    #[cfg(feature = "async-raw")]
+    pub unsafe fn call_import_async(&self, cx: &mut impl Call) -> Option<PendingAsyncImportCall> {
+        use core::alloc::Layout;
+
+        const STATUS_STARTING: u32 = 0;
+        const STATUS_STARTED: u32 = 1;
+        const STATUS_RETURNED: u32 = 2;
+
+        let layout =
+            Layout::from_size_align(self.ptr.async_abi_area_size, self.ptr.async_abi_area_align)
+                .unwrap();
+        let (status, buffer) = unsafe {
+            let buffer = std::alloc::alloc(layout);
+            cx.defer_deallocate(buffer, layout);
+            let status = self.ptr.async_impl.unwrap()((&raw mut *cx).cast(), buffer.cast());
+            (status, buffer)
+        };
+        let subtask = status >> 4;
+        let status = status & 0xF;
+        match status {
+            STATUS_STARTING | STATUS_STARTED => Some(PendingAsyncImportCall { subtask, buffer }),
+            STATUS_RETURNED => unsafe {
+                self.lift_import_async_result(cx, buffer);
+                None
+            },
+            _ => panic!("unexpected status from async import call: {status}"),
+        }
+    }
+
+    #[cfg(feature = "async-raw")]
+    pub unsafe fn lift_import_async_result(&self, cx: &mut impl Call, buffer: *mut u8) {
+        unsafe { self.ptr.async_lift_impl.unwrap()((&raw mut *cx).cast(), buffer.cast()) };
+    }
+
+    #[cfg(feature = "async-runtime")]
     pub async fn call_import_async(&self, cx: &mut impl Call) {
         use core::alloc::Layout;
         use wit_bindgen::rt::async_support::Subtask;
@@ -465,6 +508,14 @@ impl ExportFunction {
 
     pub fn task_return(&self) -> ffi::wit_export_task_return_fn_t {
         self.ptr.task_return
+    }
+
+    pub fn call_task_return(&self, cx: &mut impl Call) {
+        let task_return = self.task_return().unwrap();
+        unsafe {
+            let cx: *mut _ = cx;
+            task_return(cx.cast());
+        }
     }
 
     pub fn params(&self) -> impl ExactSizeIterator<Item = Type> + DoubleEndedIterator + Clone + '_ {
@@ -1013,6 +1064,50 @@ impl Future {
     pub fn ty(&self) -> Option<Type> {
         Type::from_raw_opt(self.wit, self.ptr.ty)
     }
+
+    pub fn new(&self) -> unsafe extern "C" fn() -> u64 {
+        self.ptr.new.unwrap()
+    }
+
+    pub fn read(&self) -> unsafe extern "C" fn(u32, *mut c_void) -> u32 {
+        self.ptr.read.unwrap()
+    }
+
+    pub fn write(&self) -> unsafe extern "C" fn(u32, *const c_void) -> u32 {
+        self.ptr.write.unwrap()
+    }
+
+    pub fn cancel_read(&self) -> unsafe extern "C" fn(u32) -> u32 {
+        self.ptr.cancel_read.unwrap()
+    }
+
+    pub fn cancel_write(&self) -> unsafe extern "C" fn(u32) -> u32 {
+        self.ptr.cancel_write.unwrap()
+    }
+
+    pub fn drop_readable(&self) -> unsafe extern "C" fn(u32) {
+        self.ptr.drop_readable.unwrap()
+    }
+
+    pub fn drop_writable(&self) -> unsafe extern "C" fn(u32) {
+        self.ptr.drop_writable.unwrap()
+    }
+
+    pub unsafe fn lift(&self, cx: &mut impl Call, buffer: *mut u8) {
+        unsafe { self.ptr.lift.unwrap()((&raw mut *cx).cast(), buffer.cast()) };
+    }
+
+    pub unsafe fn lower(&self, cx: &mut impl Call, buffer: *mut u8) {
+        unsafe { self.ptr.lower.unwrap()((&raw mut *cx).cast(), buffer.cast()) };
+    }
+
+    pub fn abi_payload_size(&self) -> usize {
+        self.ptr.abi_payload_size
+    }
+
+    pub fn abi_payload_align(&self) -> usize {
+        self.ptr.abi_payload_align
+    }
 }
 
 impl fmt::Debug for Future {
@@ -1048,6 +1143,50 @@ impl Stream {
 
     pub fn ty(&self) -> Option<Type> {
         Type::from_raw_opt(self.wit, self.ptr.ty)
+    }
+
+    pub fn new(&self) -> unsafe extern "C" fn() -> u64 {
+        self.ptr.new.unwrap()
+    }
+
+    pub fn read(&self) -> unsafe extern "C" fn(u32, *mut c_void, usize) -> u32 {
+        self.ptr.read.unwrap()
+    }
+
+    pub fn write(&self) -> unsafe extern "C" fn(u32, *const c_void, usize) -> u32 {
+        self.ptr.write.unwrap()
+    }
+
+    pub fn cancel_read(&self) -> unsafe extern "C" fn(u32) -> u32 {
+        self.ptr.cancel_read.unwrap()
+    }
+
+    pub fn cancel_write(&self) -> unsafe extern "C" fn(u32) -> u32 {
+        self.ptr.cancel_write.unwrap()
+    }
+
+    pub fn drop_readable(&self) -> unsafe extern "C" fn(u32) {
+        self.ptr.drop_readable.unwrap()
+    }
+
+    pub fn drop_writable(&self) -> unsafe extern "C" fn(u32) {
+        self.ptr.drop_writable.unwrap()
+    }
+
+    pub unsafe fn lift(&self, cx: &mut impl Call, buffer: *mut u8) {
+        unsafe { self.ptr.lift.unwrap()((&raw mut *cx).cast(), buffer.cast()) };
+    }
+
+    pub unsafe fn lower(&self, cx: &mut impl Call, buffer: *mut u8) {
+        unsafe { self.ptr.lower.unwrap()((&raw mut *cx).cast(), buffer.cast()) };
+    }
+
+    pub fn abi_payload_size(&self) -> usize {
+        self.ptr.abi_payload_size
+    }
+
+    pub fn abi_payload_align(&self) -> usize {
+        self.ptr.abi_payload_align
     }
 }
 

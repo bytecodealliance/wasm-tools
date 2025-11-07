@@ -3,7 +3,7 @@ use std::mem;
 use wasm_encoder::{Function, MemArg};
 use wit_parser::TypeId;
 
-const VERSION: u32 = 1;
+const VERSION: u32 = 2;
 
 #[derive(Default)]
 pub struct Metadata {
@@ -122,6 +122,17 @@ pub struct Future {
     pub interface: Option<String>,
     pub name: Option<String>,
     pub ty: Option<Type>,
+    pub new_elem_index: u32,
+    pub read_elem_index: u32,
+    pub write_elem_index: u32,
+    pub cancel_read_elem_index: u32,
+    pub cancel_write_elem_index: u32,
+    pub drop_readable_elem_index: u32,
+    pub drop_writable_elem_index: u32,
+    pub lift_elem_index: Option<u32>,
+    pub lower_elem_index: Option<u32>,
+    pub abi_payload_size: usize,
+    pub abi_payload_align: usize,
 }
 
 pub struct Stream {
@@ -129,6 +140,17 @@ pub struct Stream {
     pub interface: Option<String>,
     pub name: Option<String>,
     pub ty: Option<Type>,
+    pub new_elem_index: u32,
+    pub read_elem_index: u32,
+    pub write_elem_index: u32,
+    pub cancel_read_elem_index: u32,
+    pub cancel_write_elem_index: u32,
+    pub drop_readable_elem_index: u32,
+    pub drop_writable_elem_index: u32,
+    pub lift_elem_index: Option<u32>,
+    pub lower_elem_index: Option<u32>,
+    pub abi_payload_size: usize,
+    pub abi_payload_align: usize,
 }
 
 pub struct Alias {
@@ -539,10 +561,32 @@ impl Encoder {
                 interface,
                 name,
                 ty,
+                new_elem_index,
+                read_elem_index,
+                write_elem_index,
+                cancel_read_elem_index,
+                cancel_write_elem_index,
+                drop_readable_elem_index,
+                drop_writable_elem_index,
+                lift_elem_index,
+                lower_elem_index,
+                abi_payload_size,
+                abi_payload_align,
             } = future;
             self.opt_string_ptr(interface.as_deref());
             self.opt_string_ptr(name.as_deref());
             self.opt_ty(ty.as_ref());
+            self.elem_index(*new_elem_index);
+            self.elem_index(*read_elem_index);
+            self.elem_index(*write_elem_index);
+            self.elem_index(*cancel_read_elem_index);
+            self.elem_index(*cancel_write_elem_index);
+            self.elem_index(*drop_readable_elem_index);
+            self.elem_index(*drop_writable_elem_index);
+            self.opt_elem_index(*lift_elem_index);
+            self.opt_elem_index(*lower_elem_index);
+            self.put_usize(*abi_payload_size);
+            self.put_usize(*abi_payload_align);
         }
     }
 
@@ -553,10 +597,32 @@ impl Encoder {
                 interface,
                 name,
                 ty,
+                new_elem_index,
+                read_elem_index,
+                write_elem_index,
+                cancel_read_elem_index,
+                cancel_write_elem_index,
+                drop_readable_elem_index,
+                drop_writable_elem_index,
+                lift_elem_index,
+                lower_elem_index,
+                abi_payload_size,
+                abi_payload_align,
             } = stream;
             self.opt_string_ptr(interface.as_deref());
             self.opt_string_ptr(name.as_deref());
             self.opt_ty(ty.as_ref());
+            self.elem_index(*new_elem_index);
+            self.elem_index(*read_elem_index);
+            self.elem_index(*write_elem_index);
+            self.elem_index(*cancel_read_elem_index);
+            self.elem_index(*cancel_write_elem_index);
+            self.elem_index(*drop_readable_elem_index);
+            self.elem_index(*drop_writable_elem_index);
+            self.opt_elem_index(*lift_elem_index);
+            self.opt_elem_index(*lower_elem_index);
+            self.put_usize(*abi_payload_size);
+            self.put_usize(*abi_payload_align);
         }
     }
 

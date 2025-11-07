@@ -206,18 +206,57 @@ typedef struct wit_fixed_size_list {
      wit_type_t ty;
 } wit_fixed_size_list_t;
 
+typedef void(*wit_lift_fn_t)(void* cx, const void *buffer);
+typedef void(*wit_lower_fn_t)(void* cx, void *buffer);
+
+typedef uint64_t(*wit_future_new_fn_t)();
+typedef uint32_t(*wit_future_read_fn_t)(uint32_t future, void *buffer);
+typedef uint32_t(*wit_future_write_fn_t)(uint32_t future, const void *buffer);
+typedef uint32_t(*wit_future_cancel_read_fn_t)(uint32_t future);
+typedef uint32_t(*wit_future_cancel_write_fn_t)(uint32_t future);
+typedef void(*wit_future_drop_readable_fn_t)(uint32_t future);
+typedef void(*wit_future_drop_writable_fn_t)(uint32_t future);
+
 typedef struct wit_future {
      const char *interface;
      const char *name;
      wit_type_t ty;
-     // TODO: include future-related intrinsics for reading/writing
+     wit_future_new_fn_t new;
+     wit_future_read_fn_t read;
+     wit_future_write_fn_t write;
+     wit_future_cancel_read_fn_t cancel_read;
+     wit_future_cancel_write_fn_t cancel_write;
+     wit_future_drop_readable_fn_t drop_readable;
+     wit_future_drop_writable_fn_t drop_writable;
+     wit_lift_fn_t lift;
+     wit_lower_fn_t lower;
+     size_t abi_payload_size;
+     size_t abi_payload_align;
 } wit_future_t;
+
+typedef uint64_t(*wit_stream_new_fn_t)();
+typedef uint32_t(*wit_stream_read_fn_t)(uint32_t stream, void *buffer, size_t count);
+typedef uint32_t(*wit_stream_write_fn_t)(uint32_t stream, const void *buffer, size_t count);
+typedef uint32_t(*wit_stream_cancel_read_fn_t)(uint32_t stream);
+typedef uint32_t(*wit_stream_cancel_write_fn_t)(uint32_t stream);
+typedef void(*wit_stream_drop_writable_fn_t)(uint32_t stream);
+typedef void(*wit_stream_drop_readable_fn_t)(uint32_t stream);
 
 typedef struct wit_stream {
      const char *interface;
      const char *name;
      wit_type_t ty;
-     // TODO: include stream-related intrinsics for reading/writing
+     wit_stream_new_fn_t new;
+     wit_stream_read_fn_t read;
+     wit_stream_write_fn_t write;
+     wit_stream_cancel_read_fn_t cancel_read;
+     wit_stream_cancel_write_fn_t cancel_write;
+     wit_stream_drop_readable_fn_t drop_readable;
+     wit_stream_drop_writable_fn_t drop_writable;
+     wit_lift_fn_t lift;
+     wit_lower_fn_t lower;
+     size_t abi_payload_size;
+     size_t abi_payload_align;
 } wit_stream_t;
 
 typedef struct wit_alias {
@@ -226,7 +265,7 @@ typedef struct wit_alias {
      wit_type_t ty;
 } wit_alias_t;
 
-#define WIT_CURRENT_VERSION 1
+#define WIT_CURRENT_VERSION 2
 
 typedef struct wit {
      uint32_t version; // `WIT_V*`
