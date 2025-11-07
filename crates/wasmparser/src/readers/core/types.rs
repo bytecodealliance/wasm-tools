@@ -851,6 +851,188 @@ impl ContType {
     }
 }
 
+/// TODO FITZGEN
+///
+/// ```text
+///                      `ValTypePacked`
+///                     | Discriminant | Variant-specific Payload       |
+///                     |--------------|--------------------------------|
+///                       32   31   30   29   28   27   ...   2   1   0
+///                     +--------------------------------//-------------+
+///        ValType::I32 |  0    0    0    _    _    _    \\   _   _   _ |
+///                     +--------------------------------//-------------+
+///                     +--------------------------------//-------------+
+///        ValType::I64 |  0    0    1    _    _    _    \\   _   _   _ |
+///                     +--------------------------------//-------------+
+///                     +--------------------------------//-------------+
+///        ValType::F32 |  0    1    0    _    _    _    \\   _   _   _ |
+///                     +--------------------------------//-------------+
+///                     +--------------------------------//-------------+
+///        ValType::F64 |  0    1    1    _    _    _    \\   _   _   _ |
+///                     +--------------------------------//-------------+
+///                     +--------------------------------//-------------+
+///       ValType::V128 |  1    0    0    _    _    _    \\   _   _   _ |
+///                     +--------------------------------//-------------+
+///                     +--------------------------------//-------------+
+/// ValType::RefType(r) |  1    0    1    r    r    r    \\   r   r   r |
+///                     +--------------------------------//-------------+
+/// ```
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct ValTypePacked {
+    bits: u32,
+}
+
+impl Debug for ValTypePacked {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        struct Binary(u32);
+        impl Debug for Binary {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, "{:#34b}", self.0)
+            }
+        }
+
+        let unpacked = self.unpack();
+        f.debug_struct("ValTypePacked")
+            .field("bits", &Binary(self.bits))
+            .field("unpacked", &unpacked)
+            .finish()
+    }
+}
+
+impl From<ValType> for ValTypePacked {
+    #[inline]
+    fn from(val_ty: ValType) -> Self {
+        val_ty.pack()
+    }
+}
+
+impl From<RefType> for ValTypePacked {
+    #[inline]
+    fn from(ref_ty: RefType) -> Self {
+        Self::ref_type(ref_ty)
+    }
+}
+
+impl ValTypePacked {
+    const _SIZE: () = assert!(core::mem::size_of::<ValTypePacked>() == 4);
+    const _ALIGN: () = assert!(core::mem::align_of::<ValTypePacked>() == 4);
+
+    const DISCRIMINANT_BITS: u32 = 3;
+    const DISCRIMINANT_SHIFT: u32 = u32::BITS - Self::DISCRIMINANT_BITS;
+    const DISCRIMINANT_MASK: u32 = ((1 << Self::DISCRIMINANT_BITS) - 1) << Self::DISCRIMINANT_SHIFT;
+
+    const fn new_discriminant(x: u32) -> u32 {
+        assert!(x < (1 << Self::DISCRIMINANT_BITS));
+        x << Self::DISCRIMINANT_SHIFT
+    }
+
+    const I32_DISCRIMINANT: u32 = Self::new_discriminant(0b000);
+    const I64_DISCRIMINANT: u32 = Self::new_discriminant(0b001);
+    const F32_DISCRIMINANT: u32 = Self::new_discriminant(0b010);
+    const F64_DISCRIMINANT: u32 = Self::new_discriminant(0b011);
+    const V128_DISCRIMINANT: u32 = Self::new_discriminant(0b100);
+    const REF_TYPE_DISCRIMINANT: u32 = Self::new_discriminant(0b101);
+
+    #[inline]
+    pub(crate) const fn i32() -> Self {
+        Self {
+            bits: Self::I32_DISCRIMINANT,
+        }
+    }
+
+    #[inline]
+    pub(crate) const fn is_i32(&self) -> bool {
+        self.bits == Self::I32_DISCRIMINANT
+    }
+
+    #[inline]
+    pub(crate) const fn i64() -> Self {
+        Self {
+            bits: Self::I64_DISCRIMINANT,
+        }
+    }
+
+    #[inline]
+    pub(crate) const fn is_i64(&self) -> bool {
+        self.bits == Self::I64_DISCRIMINANT
+    }
+
+    #[inline]
+    pub(crate) const fn f32() -> Self {
+        Self {
+            bits: Self::F32_DISCRIMINANT,
+        }
+    }
+
+    #[inline]
+    pub(crate) const fn is_f32(&self) -> bool {
+        self.bits == Self::F32_DISCRIMINANT
+    }
+
+    #[inline]
+    pub(crate) const fn f64() -> Self {
+        Self {
+            bits: Self::F64_DISCRIMINANT,
+        }
+    }
+
+    #[inline]
+    pub(crate) const fn is_f64(&self) -> bool {
+        self.bits == Self::F64_DISCRIMINANT
+    }
+
+    #[inline]
+    pub(crate) const fn v128() -> Self {
+        Self {
+            bits: Self::V128_DISCRIMINANT,
+        }
+    }
+
+    #[inline]
+    pub(crate) const fn is_v128(&self) -> bool {
+        self.bits == Self::V128_DISCRIMINANT
+    }
+
+    #[inline]
+    pub(crate) const fn ref_type(ref_ty: RefType) -> Self {
+        let ty = ref_ty.0;
+        debug_assert!(ty.is_ref_type());
+        ty
+    }
+
+    #[inline]
+    pub(crate) const fn is_ref_type(&self) -> bool {
+        (self.bits & Self::DISCRIMINANT_MASK) == Self::REF_TYPE_DISCRIMINANT
+    }
+
+    #[inline]
+    pub(crate) const fn as_ref_type(&self) -> Option<RefType> {
+        if self.is_ref_type() {
+            Some(RefType(*self))
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    pub(crate) const fn unpack(&self) -> ValType {
+        if self.is_i32() {
+            ValType::I32
+        } else if self.is_i64() {
+            ValType::I64
+        } else if self.is_f32() {
+            ValType::F32
+        } else if self.is_f64() {
+            ValType::F64
+        } else if let Some(r) = self.as_ref_type() {
+            ValType::Ref(r)
+        } else {
+            debug_assert!(self.is_v128());
+            ValType::V128
+        }
+    }
+}
+
 /// Represents the types of values in a WebAssembly module.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ValType {
@@ -866,6 +1048,13 @@ pub enum ValType {
     V128,
     /// The value type is a reference.
     Ref(RefType),
+}
+
+impl From<ValTypePacked> for ValType {
+    #[inline]
+    fn from(value: ValTypePacked) -> Self {
+        value.unpack()
+    }
 }
 
 impl From<RefType> for ValType {
@@ -943,6 +1132,18 @@ impl ValType {
         }
         Ok(())
     }
+
+    #[inline]
+    pub(crate) const fn pack(&self) -> ValTypePacked {
+        match self {
+            ValType::I32 => ValTypePacked::i32(),
+            ValType::I64 => ValTypePacked::i64(),
+            ValType::F32 => ValTypePacked::f32(),
+            ValType::F64 => ValTypePacked::f64(),
+            ValType::V128 => ValTypePacked::v128(),
+            ValType::Ref(r) => ValTypePacked::ref_type(*r),
+        }
+    }
 }
 
 /// A reference type.
@@ -956,54 +1157,66 @@ impl ValType {
 /// The GC proposal introduces heap types: any, eq, i31, struct, array,
 /// nofunc, noextern, none.
 //
-// RefType is a bit-packed enum that fits in a `u24` aka `[u8; 3]`. Note that
-// its content is opaque (and subject to change), but its API is stable.
-//
-// It has the following internal structure:
+// `RefType` is a type that is bit-packed into the available payload bits of a
+// `ValTypePacked::RefType(_)`. The first three bits, therefore, are the
+// `ValTypePacked::RefType` discriminant, and the `RefType` encoding itself
+// comes afterwards:
 //
 // ```
-// [nullable:u1 concrete==1:u1 index:u22]
-// [nullable:u1 concrete==0:u1 shared:u1 abstype:u4 (unused):u17]
+//                     | Discriminant | Payload                                  |
+//                     |              |                                          |
+//                     |              |  n |  c | ...                            |
+//                       32   31   30   29   28   27   26   25   ...   2   1   0
+//                     +------------------------------------------//-------------+
+// ValType::RefType(r) |  1    0    1 |  n |  c |  _    _    _    \\   _   _   _ |
+//                     +------------------------------------------//-------------+
 // ```
 //
-// Where
+// `n` is the "nullability bit": it defines whether instances of this reference
+// type can be null.
 //
-// - `nullable` determines nullability of the ref,
+// `c` is the "concrete bit": it defines whether this is a concrete or abstract
+// reference type. Abstract types are those defined in the spec (`structref`,
+// `funcref`, etc...) while concrete types are those defined by a Wasm program
+// or an embedding.
 //
-// - `concrete` determines if the ref is of a dynamically defined type with an
-//   index (encoded in a following bit-packing section) or of a known fixed
-//   type,
+// The interpretation of the rest of the payload bits depends on whether we are
+// considering an abstract or concrete type. Let's consider abstract types
+// first:
 //
-// - `index` is the type index,
+// ```
+//                     | Discriminant | Payload                                   |
+//                     |              |                                           |
+//                     |              |  n |  c |  s | Abstract Type     | ...    |
+//                       32   31   30   29   28   27   26   25   24   23   ...  0
+//                     +---------------------------------------------------//-----+
+// ValType::RefType(r) |  1    0    1 |  n |  0 |  s |  a    a    a    a | \\   _ |
+//                     +---------------------------------------------------//-----+
+// ```
 //
-// - `shared` determines if the ref is shared, but only if it is not concrete in
-//   which case we would need to examine the type at the concrete index,
+// For abstract types, `s` is the "shared bit", and defines whether we are
+// looking at a `(ref shared any)` type or `(ref any)` type, for example.
 //
-// - `abstype` is an enumeration of abstract types:
+// An abstract type's abstract type bits encode which abstract heap type
+// instances of this type refer to: `any`, `func`, `noextern`, `exn`, or etc.
 //
-//   ```
-//   1111 = any
+// Now let's look at concrete types:
 //
-//   1101 = eq
-//   1000 = i31
-//   1001 = struct
-//   1100 = array
+// ```
+//                     | Discriminant | Payload                                        |
+//                     |              |                                                |
+//                     |              |  n |  c | (unused)      | Type Index           |
+//                       32   31   30   29   28   27   ...   23   22   21   ...  1   0
+//                     +--------------------------------//-------------------//--------+
+// ValType::RefType(r) |  1    0    1 |  n |  1 |  _    \\    _ |  i    i    \\  i   i |
+//                     +--------------------------------//-------------------//--------+
+// ```
 //
-//   0101 = func
-//   0100 = nofunc
-//
-//   0011 = extern
-//   0010 = noextern
-//
-//   0111 = cont
-//   0110 = nocont
-//
-//   0001 = exn
-//
-//   0000 = none
-//   ```
+// Concrete types do not have an `s` bit or abstract type; they simply contain
+// the type index (encoded as a `PackedIndex`) of their concrete type's
+// definition.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct RefType([u8; 3]);
+pub struct RefType(ValTypePacked);
 
 impl fmt::Debug for RefType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1065,29 +1278,58 @@ fn can_fit_max_wasm_types_in_ref_type() {
 
 impl RefType {
     // These bits are valid for all `RefType`s.
-    const NULLABLE_BIT: u32 = 1 << 23;
-    const CONCRETE_BIT: u32 = 1 << 22;
+    const NULLABLE_SHIFT: u32 = ValTypePacked::DISCRIMINANT_SHIFT - 1;
+    const NULLABLE_BIT: u32 = 1 << Self::NULLABLE_SHIFT;
+    const CONCRETE_SHIFT: u32 = ValTypePacked::DISCRIMINANT_SHIFT - 2;
+    const CONCRETE_BIT: u32 = 1 << Self::CONCRETE_SHIFT;
 
-    // The `abstype` field is valid only when `concrete == 0`.
-    const SHARED_BIT: u32 = 1 << 21;
-    const ABSTYPE_MASK: u32 = 0b1111 << 17;
-    const ANY_ABSTYPE: u32 = 0b1111 << 17;
-    const EQ_ABSTYPE: u32 = 0b1101 << 17;
-    const I31_ABSTYPE: u32 = 0b1000 << 17;
-    const STRUCT_ABSTYPE: u32 = 0b1001 << 17;
-    const ARRAY_ABSTYPE: u32 = 0b1100 << 17;
-    const FUNC_ABSTYPE: u32 = 0b0101 << 17;
-    const NOFUNC_ABSTYPE: u32 = 0b0100 << 17;
-    const EXTERN_ABSTYPE: u32 = 0b0011 << 17;
-    const NOEXTERN_ABSTYPE: u32 = 0b0010 << 17;
-    const EXN_ABSTYPE: u32 = 0b0001 << 17;
-    const NOEXN_ABSTYPE: u32 = 0b1110 << 17;
-    const NONE_ABSTYPE: u32 = 0b0000 << 17;
-    const CONT_ABSTYPE: u32 = 0b0111 << 17;
-    const NOCONT_ABSTYPE: u32 = 0b0110 << 17;
+    // The `shared` field is only valid when `concrete == 0`.
+    const SHARED_SHIFT: u32 = ValTypePacked::DISCRIMINANT_SHIFT - 3;
+    const SHARED_BIT: u32 = 1 << Self::SHARED_SHIFT;
+
+    // The `abstype` field is only valid when `concrete == 0`.
+    const ABSTYPE_BITS: u32 = 4;
+    const ABSTYPE_SHIFT: u32 = ValTypePacked::DISCRIMINANT_SHIFT - (3 + Self::ABSTYPE_BITS);
+    const ABSTYPE_MASK: u32 = ((1 << Self::ABSTYPE_BITS) - 1) << Self::ABSTYPE_SHIFT;
+    const fn new_abstype(x: u32) -> u32 {
+        assert!(x < (1 << Self::ABSTYPE_BITS));
+        let abstype = x << Self::ABSTYPE_SHIFT;
+        assert!((abstype & ValTypePacked::DISCRIMINANT_MASK) == 0);
+        assert!((abstype & Self::ABSTYPE_MASK) == abstype);
+        assert!((abstype & Self::NULLABLE_BIT) == 0);
+        assert!((abstype & Self::CONCRETE_BIT) == 0);
+        assert!((abstype & Self::SHARED_BIT) == 0);
+        abstype
+    }
+    const ANY_ABSTYPE: u32 = Self::new_abstype(0b1111);
+    const EQ_ABSTYPE: u32 = Self::new_abstype(0b1101);
+    const I31_ABSTYPE: u32 = Self::new_abstype(0b1000);
+    const STRUCT_ABSTYPE: u32 = Self::new_abstype(0b1001);
+    const ARRAY_ABSTYPE: u32 = Self::new_abstype(0b1100);
+    const FUNC_ABSTYPE: u32 = Self::new_abstype(0b0101);
+    const NOFUNC_ABSTYPE: u32 = Self::new_abstype(0b0100);
+    const EXTERN_ABSTYPE: u32 = Self::new_abstype(0b0011);
+    const NOEXTERN_ABSTYPE: u32 = Self::new_abstype(0b0010);
+    const EXN_ABSTYPE: u32 = Self::new_abstype(0b0001);
+    const NOEXN_ABSTYPE: u32 = Self::new_abstype(0b1110);
+    const NONE_ABSTYPE: u32 = Self::new_abstype(0b0000);
+    const CONT_ABSTYPE: u32 = Self::new_abstype(0b0111);
+    const NOCONT_ABSTYPE: u32 = Self::new_abstype(0b0110);
+
+    const fn abstract_from_parts(nullable: bool, shared: bool, abstype: u32) -> Self {
+        assert!((abstype & Self::ABSTYPE_MASK) == abstype);
+        Self::from_u32(
+            ValTypePacked::REF_TYPE_DISCRIMINANT
+                | ((nullable as u32) << Self::NULLABLE_SHIFT)
+                | ((shared as u32) << Self::SHARED_SHIFT)
+                | abstype,
+        )
+    }
 
     // The `index` is valid only when `concrete == 1`.
-    const INDEX_MASK: u32 = (1 << 22) - 1;
+    const INDEX_BITS: u32 = 22;
+    const INDEX_MASK: u32 = (1 << Self::INDEX_BITS) - 1;
+    const _INDEX_DOES_NOT_OVERLAP: () = assert!((Self::CONCRETE_BIT & Self::INDEX_MASK) == 0);
 
     /// A nullable untyped function reference aka `(ref null func)` aka
     /// `funcref` aka `anyfunc`.
@@ -1141,74 +1383,65 @@ impl RefType {
     pub const NULLCONTREF: Self = RefType::NOCONT.nullable();
 
     /// A non-nullable untyped function reference aka `(ref func)`.
-    pub const FUNC: Self = RefType::from_u32(Self::FUNC_ABSTYPE);
+    pub const FUNC: Self = RefType::abstract_from_parts(false, false, Self::FUNC_ABSTYPE);
 
     /// A non-nullable reference to an extern object aka `(ref extern)`.
-    pub const EXTERN: Self = RefType::from_u32(Self::EXTERN_ABSTYPE);
+    pub const EXTERN: Self = RefType::abstract_from_parts(false, false, Self::EXTERN_ABSTYPE);
 
     /// A non-nullable reference to any object aka `(ref any)`.
-    pub const ANY: Self = RefType::from_u32(Self::ANY_ABSTYPE);
+    pub const ANY: Self = RefType::abstract_from_parts(false, false, Self::ANY_ABSTYPE);
 
     /// A non-nullable reference to no object aka `(ref none)`.
-    pub const NONE: Self = RefType::from_u32(Self::NONE_ABSTYPE);
+    pub const NONE: Self = RefType::abstract_from_parts(false, false, Self::NONE_ABSTYPE);
 
     /// A non-nullable reference to a noextern object aka `(ref noextern)`.
-    pub const NOEXTERN: Self = RefType::from_u32(Self::NOEXTERN_ABSTYPE);
+    pub const NOEXTERN: Self = RefType::abstract_from_parts(false, false, Self::NOEXTERN_ABSTYPE);
 
     /// A non-nullable reference to a nofunc object aka `(ref nofunc)`.
-    pub const NOFUNC: Self = RefType::from_u32(Self::NOFUNC_ABSTYPE);
+    pub const NOFUNC: Self = RefType::abstract_from_parts(false, false, Self::NOFUNC_ABSTYPE);
 
     /// A non-nullable reference to an eq object aka `(ref eq)`.
-    pub const EQ: Self = RefType::from_u32(Self::EQ_ABSTYPE);
+    pub const EQ: Self = RefType::abstract_from_parts(false, false, Self::EQ_ABSTYPE);
 
     /// A non-nullable reference to a struct aka `(ref struct)`.
-    pub const STRUCT: Self = RefType::from_u32(Self::STRUCT_ABSTYPE);
+    pub const STRUCT: Self = RefType::abstract_from_parts(false, false, Self::STRUCT_ABSTYPE);
 
     /// A non-nullable reference to an array aka `(ref array)`.
-    pub const ARRAY: Self = RefType::from_u32(Self::ARRAY_ABSTYPE);
+    pub const ARRAY: Self = RefType::abstract_from_parts(false, false, Self::ARRAY_ABSTYPE);
 
     /// A non-nullable reference to an i31 object aka `(ref i31)`.
-    pub const I31: Self = RefType::from_u32(Self::I31_ABSTYPE);
+    pub const I31: Self = RefType::abstract_from_parts(false, false, Self::I31_ABSTYPE);
 
     /// A non-nullable reference to an exn object aka `(ref exn)`.
-    pub const EXN: Self = RefType::from_u32(Self::EXN_ABSTYPE);
+    pub const EXN: Self = RefType::abstract_from_parts(false, false, Self::EXN_ABSTYPE);
 
     /// A non-nullable reference to a noexn object aka `(ref noexn)`.
-    pub const NOEXN: Self = RefType::from_u32(Self::NOEXN_ABSTYPE);
+    pub const NOEXN: Self = RefType::abstract_from_parts(false, false, Self::NOEXN_ABSTYPE);
 
     /// A non-nullable reference to a cont object aka `(ref cont)`.
-    pub const CONT: Self = RefType::from_u32(Self::CONT_ABSTYPE);
+    pub const CONT: Self = RefType::abstract_from_parts(false, false, Self::CONT_ABSTYPE);
 
     /// A non-nullable reference to a nocont object aka `(ref nocont)`.
-    pub const NOCONT: Self = RefType::from_u32(Self::NOCONT_ABSTYPE);
+    pub const NOCONT: Self = RefType::abstract_from_parts(false, false, Self::NOCONT_ABSTYPE);
 
     const fn can_represent_type_index(index: u32) -> bool {
         index & Self::INDEX_MASK == index
     }
 
-    const fn u24_to_u32(bytes: [u8; 3]) -> u32 {
-        let expanded_bytes = [bytes[0], bytes[1], bytes[2], 0];
-        u32::from_le_bytes(expanded_bytes)
-    }
-
-    const fn u32_to_u24(x: u32) -> [u8; 3] {
-        let bytes = x.to_le_bytes();
-        debug_assert!(bytes[3] == 0);
-        [bytes[0], bytes[1], bytes[2]]
-    }
-
     #[inline]
     const fn as_u32(&self) -> u32 {
-        Self::u24_to_u32(self.0)
+        self.0.bits
     }
 
     #[inline]
     const fn from_u32(x: u32) -> Self {
-        debug_assert!(x & (0b11111111 << 24) == 0);
+        debug_assert!(
+            (x & ValTypePacked::DISCRIMINANT_MASK) == ValTypePacked::REF_TYPE_DISCRIMINANT
+        );
 
         // Either concrete or it must be a known abstract type.
         debug_assert!(
-            x & Self::CONCRETE_BIT != 0
+            (x & Self::CONCRETE_BIT) != 0
                 || matches!(
                     x & Self::ABSTYPE_MASK,
                     Self::ANY_ABSTYPE
@@ -1228,19 +1461,22 @@ impl RefType {
                 )
         );
 
-        RefType(Self::u32_to_u24(x))
+        RefType(ValTypePacked {
+            bits: ValTypePacked::REF_TYPE_DISCRIMINANT | x,
+        })
     }
 
     /// Create a reference to a concrete Wasm-defined type at the given
     /// index.
-    ///
-    /// Returns `None` when the type index is beyond this crate's
-    /// implementation limits and therefore is not representable.
+    #[inline]
     pub fn concrete(nullable: bool, index: PackedIndex) -> Self {
         let index: u32 = PackedIndex::to_u32(index);
         debug_assert!(Self::can_represent_type_index(index));
-        let nullable32 = Self::NULLABLE_BIT * nullable as u32;
-        RefType::from_u32(nullable32 | Self::CONCRETE_BIT | index)
+        let base = ValTypePacked::REF_TYPE_DISCRIMINANT
+            | ((nullable as u32) << Self::NULLABLE_SHIFT)
+            | Self::CONCRETE_BIT;
+        debug_assert_eq!(base & index, 0);
+        RefType::from_u32(base | index)
     }
 
     /// Create a new `RefType`.
@@ -1248,27 +1484,81 @@ impl RefType {
     /// Returns `None` when the heap type's type index (if any) is beyond this
     /// crate's implementation limits and therefore is not representable.
     pub fn new(nullable: bool, heap_type: HeapType) -> Option<Self> {
-        let base32 = Self::NULLABLE_BIT * (nullable as u32);
         match heap_type {
             HeapType::Concrete(index) => Some(RefType::concrete(nullable, index.pack()?)),
             HeapType::Abstract { shared, ty } => {
                 use AbstractHeapType::*;
-                let base32 = base32 | (Self::SHARED_BIT * (shared as u32));
                 match ty {
-                    Func => Some(Self::from_u32(base32 | Self::FUNC_ABSTYPE)),
-                    Extern => Some(Self::from_u32(base32 | Self::EXTERN_ABSTYPE)),
-                    Any => Some(Self::from_u32(base32 | Self::ANY_ABSTYPE)),
-                    None => Some(Self::from_u32(base32 | Self::NONE_ABSTYPE)),
-                    NoExtern => Some(Self::from_u32(base32 | Self::NOEXTERN_ABSTYPE)),
-                    NoFunc => Some(Self::from_u32(base32 | Self::NOFUNC_ABSTYPE)),
-                    Eq => Some(Self::from_u32(base32 | Self::EQ_ABSTYPE)),
-                    Struct => Some(Self::from_u32(base32 | Self::STRUCT_ABSTYPE)),
-                    Array => Some(Self::from_u32(base32 | Self::ARRAY_ABSTYPE)),
-                    I31 => Some(Self::from_u32(base32 | Self::I31_ABSTYPE)),
-                    Exn => Some(Self::from_u32(base32 | Self::EXN_ABSTYPE)),
-                    NoExn => Some(Self::from_u32(base32 | Self::NOEXN_ABSTYPE)),
-                    Cont => Some(Self::from_u32(base32 | Self::CONT_ABSTYPE)),
-                    NoCont => Some(Self::from_u32(base32 | Self::NOCONT_ABSTYPE)),
+                    Func => Some(Self::abstract_from_parts(
+                        nullable,
+                        shared,
+                        Self::FUNC_ABSTYPE,
+                    )),
+                    Extern => Some(Self::abstract_from_parts(
+                        nullable,
+                        shared,
+                        Self::EXTERN_ABSTYPE,
+                    )),
+                    Any => Some(Self::abstract_from_parts(
+                        nullable,
+                        shared,
+                        Self::ANY_ABSTYPE,
+                    )),
+                    None => Some(Self::abstract_from_parts(
+                        nullable,
+                        shared,
+                        Self::NONE_ABSTYPE,
+                    )),
+                    NoExtern => Some(Self::abstract_from_parts(
+                        nullable,
+                        shared,
+                        Self::NOEXTERN_ABSTYPE,
+                    )),
+                    NoFunc => Some(Self::abstract_from_parts(
+                        nullable,
+                        shared,
+                        Self::NOFUNC_ABSTYPE,
+                    )),
+                    Eq => Some(Self::abstract_from_parts(
+                        nullable,
+                        shared,
+                        Self::EQ_ABSTYPE,
+                    )),
+                    Struct => Some(Self::abstract_from_parts(
+                        nullable,
+                        shared,
+                        Self::STRUCT_ABSTYPE,
+                    )),
+                    Array => Some(Self::abstract_from_parts(
+                        nullable,
+                        shared,
+                        Self::ARRAY_ABSTYPE,
+                    )),
+                    I31 => Some(Self::abstract_from_parts(
+                        nullable,
+                        shared,
+                        Self::I31_ABSTYPE,
+                    )),
+                    Exn => Some(Self::abstract_from_parts(
+                        nullable,
+                        shared,
+                        Self::EXN_ABSTYPE,
+                    )),
+                    NoExn => Some(Self::abstract_from_parts(
+                        nullable,
+                        shared,
+                        Self::NOEXN_ABSTYPE,
+                    )),
+                    Cont => Some(Self::abstract_from_parts(
+                        nullable,
+                        shared,
+                        Self::CONT_ABSTYPE,
+                    )),
+                    NoCont => Some(Self::abstract_from_parts(
+                        nullable,
+                        shared,
+                        Self::NOCONT_ABSTYPE,
+                    )),
                 }
             }
         }
