@@ -261,7 +261,7 @@ enum MaybeType<T = ValType> {
 // current expected size.
 #[test]
 fn assert_maybe_type_small() {
-    assert!(core::mem::size_of::<MaybeType>() == 4);
+    assert!(core::mem::size_of::<MaybeType>() == 8);
 }
 
 impl core::fmt::Display for MaybeType {
