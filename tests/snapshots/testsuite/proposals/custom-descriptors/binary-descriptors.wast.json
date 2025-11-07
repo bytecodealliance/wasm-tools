@@ -1,0 +1,38 @@
+{
+  "source_filename": "tests/testsuite/proposals/custom-descriptors/binary-descriptors.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 2,
+      "filename": "binary-descriptors.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 21,
+      "filename": "binary-descriptors.1.wasm",
+      "module_type": "binary",
+      "text": "malformed definition type"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 44,
+      "filename": "binary-descriptors.2.wasm",
+      "module_type": "binary",
+      "text": "malformed definition type"
+    },
+    {
+      "type": "module",
+      "line": 66,
+      "filename": "binary-descriptors.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 92,
+      "filename": "binary-descriptors.4.wasm",
+      "module_type": "binary",
+      "text": "malformed definition type"
+    }
+  ]
+}

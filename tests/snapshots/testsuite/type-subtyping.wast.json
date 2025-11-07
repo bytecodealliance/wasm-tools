@@ -130,7 +130,7 @@
         "field": "fail1",
         "args": []
       },
-      "text": "indirect call"
+      "text": "indirect call type mismatch"
     },
     {
       "type": "assert_trap",
@@ -140,7 +140,7 @@
         "field": "fail2",
         "args": []
       },
-      "text": "indirect call"
+      "text": "indirect call type mismatch"
     },
     {
       "type": "assert_trap",
@@ -150,7 +150,7 @@
         "field": "fail3",
         "args": []
       },
-      "text": "indirect call"
+      "text": "indirect call type mismatch"
     },
     {
       "type": "assert_trap",
@@ -160,7 +160,7 @@
         "field": "fail4",
         "args": []
       },
-      "text": "cast"
+      "text": "cast failure"
     },
     {
       "type": "assert_trap",
@@ -170,7 +170,7 @@
         "field": "fail5",
         "args": []
       },
-      "text": "cast"
+      "text": "cast failure"
     },
     {
       "type": "assert_trap",
@@ -180,7 +180,7 @@
         "field": "fail6",
         "args": []
       },
-      "text": "cast"
+      "text": "cast failure"
     },
     {
       "type": "module",
@@ -196,7 +196,7 @@
         "field": "fail1",
         "args": []
       },
-      "text": "indirect call"
+      "text": "indirect call type mismatch"
     },
     {
       "type": "assert_trap",
@@ -206,7 +206,7 @@
         "field": "fail2",
         "args": []
       },
-      "text": "indirect call"
+      "text": "indirect call type mismatch"
     },
     {
       "type": "assert_trap",
@@ -216,7 +216,7 @@
         "field": "fail3",
         "args": []
       },
-      "text": "cast"
+      "text": "cast failure"
     },
     {
       "type": "assert_trap",
@@ -226,7 +226,7 @@
         "field": "fail4",
         "args": []
       },
-      "text": "cast"
+      "text": "cast failure"
     },
     {
       "type": "module",
@@ -252,7 +252,7 @@
         "field": "fail1",
         "args": []
       },
-      "text": "indirect call"
+      "text": "indirect call type mismatch"
     },
     {
       "type": "assert_trap",
@@ -262,7 +262,7 @@
         "field": "fail2",
         "args": []
       },
-      "text": "indirect call"
+      "text": "indirect call type mismatch"
     },
     {
       "type": "module",
@@ -610,7 +610,7 @@
       "line": 606,
       "filename": "type-subtyping.42.wasm",
       "module_type": "binary",
-      "text": "incompatible import"
+      "text": "incompatible import type"
     },
     {
       "type": "module",
@@ -696,7 +696,7 @@
       "line": 699,
       "filename": "type-subtyping.52.wasm",
       "module_type": "binary",
-      "text": "incompatible import"
+      "text": "incompatible import type"
     },
     {
       "type": "module",
@@ -714,7 +714,7 @@
       "line": 714,
       "filename": "type-subtyping.54.wasm",
       "module_type": "binary",
-      "text": "incompatible import"
+      "text": "incompatible import type"
     },
     {
       "type": "assert_invalid",
@@ -805,56 +805,56 @@
       "line": 828,
       "filename": "type-subtyping.67.wasm",
       "module_type": "binary",
-      "text": "sub type 1 does not match super type"
+      "text": "sub type"
     },
     {
       "type": "assert_invalid",
       "line": 836,
       "filename": "type-subtyping.68.wasm",
       "module_type": "binary",
-      "text": "sub type 1 does not match super type"
+      "text": "sub type"
     },
     {
       "type": "assert_invalid",
       "line": 844,
       "filename": "type-subtyping.69.wasm",
       "module_type": "binary",
-      "text": "sub type 1 does not match super type"
+      "text": "sub type"
     },
     {
       "type": "assert_invalid",
       "line": 852,
       "filename": "type-subtyping.70.wasm",
       "module_type": "binary",
-      "text": "sub type 1 does not match super type"
+      "text": "sub type"
     },
     {
       "type": "assert_invalid",
       "line": 860,
       "filename": "type-subtyping.71.wasm",
       "module_type": "binary",
-      "text": "sub type 1 does not match super type"
+      "text": "sub type"
     },
     {
       "type": "assert_invalid",
       "line": 868,
       "filename": "type-subtyping.72.wasm",
       "module_type": "binary",
-      "text": "sub type 1 does not match super type"
+      "text": "sub type"
     },
     {
       "type": "assert_invalid",
       "line": 876,
       "filename": "type-subtyping.73.wasm",
       "module_type": "binary",
-      "text": "sub type 1 does not match super type"
+      "text": "sub type"
     },
     {
       "type": "assert_invalid",
       "line": 884,
       "filename": "type-subtyping.74.wasm",
       "module_type": "binary",
-      "text": "sub type 1 does not match super type"
+      "text": "sub type"
     },
     {
       "type": "assert_invalid",

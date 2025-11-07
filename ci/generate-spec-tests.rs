@@ -73,8 +73,7 @@ fn copy_test(src: &Path, dst: &Path) {
         Some("threads") => "wasm1,threads",
         Some("custom-page-sizes") => "wasm3,custom-page-sizes",
         Some("wide-arithmetic") => "wasm3,wide-arithmetic",
-        // not implemented yet
-        Some("custom-descriptors") => return,
+        Some("custom-descriptors") => "wasm3,custom-descriptors",
         Some(proposal) => panic!("unsupported proposal: {}", proposal),
     };
     contents.push_str(&format!(";;      --features={features} \\\n"));

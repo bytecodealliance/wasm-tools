@@ -172,7 +172,7 @@
       "line": 133,
       "filename": "struct.8.wasm",
       "module_type": "binary",
-      "text": "field is immutable"
+      "text": "immutable field"
     },
     {
       "type": "module",
