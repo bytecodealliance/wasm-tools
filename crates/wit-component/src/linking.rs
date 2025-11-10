@@ -369,6 +369,10 @@ fn make_env_module<'a>(
             add_global_export("__asyncify_data", 0, true);
         }
 
+        // The libc.so in WASI-SDK 28+ requires these:
+        add_global_export("__stack_high", 0, true);
+        add_global_export("__stack_low", 0, true);
+
         for metadata in metadata {
             memory_offset = align(memory_offset, 1 << metadata.mem_info.memory_alignment);
             table_offset = align(table_offset, 1 << metadata.mem_info.table_alignment);
@@ -1641,12 +1645,16 @@ impl Linker {
                 .iter()
                 .copied()
                 .map(global_item)
-                .chain(["__heap_base", "__heap_end"].into_iter().map(|name| Item {
-                    alias: name.into(),
-                    kind: ExportKind::Global,
-                    which: MainOrAdapter::Main,
-                    name: name.into(),
-                }))
+                .chain(
+                    ["__heap_base", "__heap_end", "__stack_high", "__stack_low"]
+                        .into_iter()
+                        .map(|name| Item {
+                            alias: name.into(),
+                            kind: ExportKind::Global,
+                            which: MainOrAdapter::Main,
+                            name: name.into(),
+                        }),
+                )
                 .collect();
 
             let func_items = metadata
