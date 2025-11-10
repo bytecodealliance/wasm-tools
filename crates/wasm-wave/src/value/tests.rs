@@ -91,10 +91,10 @@ fn option_round_trips() {
 
 #[test]
 fn resource_round_trips() {
-    let ty = Type::resource("test", false);
-    test_value_round_trip(Value::make_resource(&ty, 42, false).unwrap());
-    let ty = Type::resource("test", true);
-    test_value_round_trip(Value::make_resource(&ty, 42, true).unwrap());
+    let ty = Type::handle("test");
+    test_value_round_trip(Value::make_handle("test42".into()));
+    let ty = Type::handle("test");
+    test_value_round_trip(Value::make_handle("test42".into()));
 }
 
 #[test]
@@ -150,10 +150,9 @@ fn local_ty(val: &Value) -> Type {
         ValueEnum::Option(inner) => Type(TypeEnum::Option(inner.ty.clone())),
         ValueEnum::Result(inner) => Type(TypeEnum::Result(inner.ty.clone())),
         ValueEnum::Flags(inner) => Type(TypeEnum::Flags(inner.ty.clone())),
-        ValueEnum::Resource(inner) => Type(TypeEnum::Resource(std::sync::Arc::new(
-            crate::value::ty::ResourceType {
-                name: "".to_string(),
-                is_borrowed: inner.is_borrowed,
+        ValueEnum::Handle(inner) => Type(TypeEnum::Handle(std::sync::Arc::new(
+            crate::value::ty::HandleType {
+                name: inner.to_string(),
             },
         ))),
     }

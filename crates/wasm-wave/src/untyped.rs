@@ -184,7 +184,7 @@ fn fmt_node(f: &mut impl std::fmt::Write, node: &Node, src: &str) -> std::fmt::R
             }
             f.write_char('}')
         }
-        Resource | Borrow => todo!(),
+        Handle => todo!(),
     }
 }
 

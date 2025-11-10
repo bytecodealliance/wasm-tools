@@ -18,7 +18,7 @@ pub(super) enum TypeEnum {
     Option(Arc<OptionType>),
     Result(Arc<ResultType>),
     Flags(Arc<FlagsType>),
-    Resource(Arc<ResourceType>),
+    Handle(Arc<HandleType>),
 }
 
 #[allow(missing_docs)]
@@ -136,11 +136,10 @@ impl Type {
         Some(Self(TypeEnum::Flags(Arc::new(FlagsType { flags }))))
     }
 
-    /// Returns a resource type with the given name.
-    pub fn resource(name: &str, is_borrowed: bool) -> Self {
-        Self(TypeEnum::Resource(Arc::new(ResourceType {
+    /// Returns a handle type with the given name.
+    pub fn handle(name: &str) -> Self {
+        Self(TypeEnum::Handle(Arc::new(HandleType {
             name: name.to_string(),
-            is_borrowed,
         })))
     }
 
@@ -204,9 +203,8 @@ pub struct FlagsType {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct ResourceType {
+pub struct HandleType {
     pub(super) name: String,
-    pub(super) is_borrowed: bool,
 }
 
 impl WasmType for Type {
@@ -222,7 +220,7 @@ impl WasmType for Type {
             TypeEnum::Option(_) => WasmTypeKind::Option,
             TypeEnum::Result(_) => WasmTypeKind::Result,
             TypeEnum::Flags(_) => WasmTypeKind::Flags,
-            TypeEnum::Resource(_) => WasmTypeKind::Resource,
+            TypeEnum::Handle(_) => WasmTypeKind::Handle,
         }
     }
 
@@ -286,9 +284,9 @@ impl WasmType for Type {
         Box::new(flags.flags.iter().map(|name| name.as_ref().into()))
     }
 
-    fn resource_type(&self) -> (&str, bool) {
-        let res = maybe_unwrap_type!(&self.0, TypeEnum::Resource).unwrap();
-        (&res.name, res.is_borrowed)
+    fn handle_type(&self) -> &str {
+        let res = maybe_unwrap_type!(&self.0, TypeEnum::Handle).unwrap();
+        &res.name
     }
 }
 

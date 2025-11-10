@@ -168,16 +168,10 @@ impl<W: Write> Writer<W> {
                 self.write_str("}")?;
                 Ok(())
             }
-            WasmTypeKind::Resource => {
-                let (handle, is_borrowed) = val.unwrap_resource();
+            WasmTypeKind::Handle => {
+                let label = val.unwrap_handle();
                 self.write_str("#")?;
-                if is_borrowed {
-                    self.write_str("[")?;
-                }
-                self.write_display(handle)?;
-                if is_borrowed {
-                    self.write_str("]")?;
-                }
+                self.write_display(label)?;
                 Ok(())
             }
             WasmTypeKind::Unsupported => panic!("unsupported value type"),

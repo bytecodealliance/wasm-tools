@@ -81,7 +81,7 @@ impl<'source> Parser<'source> {
             Token::ParenOpen => self.parse_tuple()?,
             Token::BracketOpen => self.parse_list()?,
             Token::BraceOpen => self.parse_record_or_flags()?,
-            Token::Sharp => self.parse_resource()?,
+            Token::Sharp => self.parse_handle()?,
             Token::LabelOrKeyword => match Keyword::decode(self.slice()) {
                 Some(Keyword::True) => self.leaf_node(NodeType::BoolTrue),
                 Some(Keyword::False) => self.leaf_node(NodeType::BoolFalse),
@@ -100,26 +100,11 @@ impl<'source> Parser<'source> {
         })
     }
 
-    fn parse_resource(&mut self) -> Result<Node, ParserError> {
+    fn parse_handle(&mut self) -> Result<Node, ParserError> {
         let start = self.span().start;
-        let mut children = Vec::new();
-        match self.advance()? {
-            Token::BracketOpen => {
-                children.push(self.leaf_node(NodeType::Borrow));
-                self.advance()?;
-                self.expect_token(Token::Number)?;
-                children.push(self.leaf_node(NodeType::Number));
-                self.advance()?;
-                self.expect_token(Token::BracketClose)?;
-            }
-            Token::Number => children.push(self.leaf_node(NodeType::Number)),
-            _ => return Err(self.unexpected_token()),
-        }
-        Ok(Node::new(
-            NodeType::Resource,
-            start..self.span().end,
-            children,
-        ))
+        self.advance()?;
+        let label = self.parse_label()?;
+        Ok(Node::new(NodeType::Handle, start..self.span().end, [label]))
     }
 
     fn parse_tuple(&mut self) -> Result<Node, ParserError> {
@@ -510,15 +495,15 @@ mod tests {
 
     #[test]
     fn parse_resource() {
-        let ty = Type::resource("test_resource", false);
+        let ty = Type::handle("test_resource");
         assert_eq!(
-            parse_value("#42", &ty),
-            Value::make_resource(&ty, 42, false).unwrap()
+            parse_value("#http-body-42", &ty),
+            Value::make_handle("http-body-42".into())
         );
-        let ty = Type::resource("resource", true);
+        let ty = Type::handle("resource");
         assert_eq!(
-            parse_value("#[42]", &ty),
-            Value::make_resource(&ty, 42, true).unwrap()
+            parse_value("#borrow-http-body", &ty),
+            Value::make_handle("borrow-http-body".into())
         );
     }
 

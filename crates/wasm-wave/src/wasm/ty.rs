@@ -28,7 +28,7 @@ pub enum WasmTypeKind {
     Option,
     Result,
     Flags,
-    Resource,
+    Handle,
     #[doc(hidden)]
     Unsupported,
 }
@@ -58,7 +58,7 @@ impl std::fmt::Display for WasmTypeKind {
             WasmTypeKind::Option => "option",
             WasmTypeKind::Result => "result",
             WasmTypeKind::Flags => "flags",
-            WasmTypeKind::Resource => "resource",
+            WasmTypeKind::Handle => "handle",
             WasmTypeKind::Unsupported => "<<UNSUPPORTED>>",
         })
     }
@@ -129,10 +129,10 @@ pub trait WasmType: Clone + Sized {
         unimplemented!()
     }
 
-    /// Returns the resource name.
+    /// Returns the handle name.
     /// # Panics
     /// Panics if the type is not implemented (the trait default).
-    fn resource_type(&self) -> (&str, bool) {
+    fn handle_type(&self) -> &str {
         unimplemented!()
     }
 }

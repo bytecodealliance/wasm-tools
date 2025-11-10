@@ -183,11 +183,7 @@ pub trait WasmValue: Clone + Sized {
     /// Returns a new WasmValue of the given type.
     /// # Panics
     /// Panics if the type is not implemented (the trait default).
-    fn make_resource(
-        ty: &Self::Type,
-        handle: u32,
-        is_borrow: bool,
-    ) -> Result<Self, WasmValueError> {
+    fn make_handle(label: Cow<str>) -> Self {
         unimplemented!()
     }
 
@@ -328,10 +324,10 @@ pub trait WasmValue: Clone + Sized {
         unimplemented!()
     }
 
-    /// Returns the resource handle and whether it is a borrow resource or not.
+    /// Returns the resource handle label.
     /// # Panics
     /// Panics if `self` is not of the right type.
-    fn unwrap_resource(&self) -> (u32, bool) {
+    fn unwrap_handle(&self) -> Cow<'_, str> {
         unimplemented!()
     }
 }
