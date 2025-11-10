@@ -216,34 +216,49 @@ impl Adapter {
             );
             let function = func.name.clone();
 
-            let import = |me: &mut Self, name, params, results| {
+            let import = |me: &mut Self, prefix, name, params, results| {
                 let ty = me.define_ty(params, results);
-                let import =
-                    me.import_func(&module, &format!("[{kind}-{name}-{ordinal}]{function}"), ty);
+                let import = me.import_func(
+                    &module,
+                    &format!("{prefix}[{kind}-{name}-{ordinal}]{function}"),
+                    ty,
+                );
                 me.push_elem(import)
             };
 
-            let new_elem_index = import(self, "new", vec![], vec![ValType::I64]);
+            let new_elem_index = import(self, "", "new", vec![], vec![ValType::I64]);
             let read_elem_index = import(
                 self,
+                "[async-lower]",
                 "read",
                 vec![ValType::I32; arg_count],
                 vec![ValType::I32],
             );
             let write_elem_index = import(
                 self,
+                "[async-lower]",
                 "write",
                 vec![ValType::I32; arg_count],
                 vec![ValType::I32],
             );
-            let cancel_read_elem_index =
-                import(self, "cancel-read", vec![ValType::I32], vec![ValType::I32]);
-            let cancel_write_elem_index =
-                import(self, "cancel-write", vec![ValType::I32], vec![ValType::I32]);
+            let cancel_read_elem_index = import(
+                self,
+                "",
+                "cancel-read",
+                vec![ValType::I32],
+                vec![ValType::I32],
+            );
+            let cancel_write_elem_index = import(
+                self,
+                "",
+                "cancel-write",
+                vec![ValType::I32],
+                vec![ValType::I32],
+            );
             let drop_readable_elem_index =
-                import(self, "drop-readable", vec![ValType::I32], vec![]);
+                import(self, "", "drop-readable", vec![ValType::I32], vec![]);
             let drop_writable_elem_index =
-                import(self, "drop-writable", vec![ValType::I32], vec![]);
+                import(self, "", "drop-writable", vec![ValType::I32], vec![]);
 
             PayloadData {
                 new_elem_index,
