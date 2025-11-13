@@ -10,7 +10,7 @@
     (tag (;1;) (type 2))
     (tag (;2;) (type 3))
     (global (;0;) (mut i32) i32.const 1048576)
-    (global (;1;) (mut i32) i32.const 0)
+    (global (;1;) (mut i32) i32.const 1048576)
     (global (;2;) (mut i32) i32.const 0)
     (global (;3;) i32 i32.const 1048584)
     (global (;4;) i32 i32.const 2)

@@ -370,7 +370,7 @@ fn make_env_module<'a>(
         }
 
         // The libc.so in WASI-SDK 28+ requires these:
-        add_global_export("__stack_high", 0, true);
+        add_global_export("__stack_high", stack_size_bytes, true);
         add_global_export("__stack_low", 0, true);
 
         for metadata in metadata {

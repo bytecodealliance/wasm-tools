@@ -5,7 +5,7 @@
     (global (;0;) (mut i32) i32.const 1048576)
     (global (;1;) (mut i32) i32.const 0)
     (global (;2;) (mut i32) i32.const 0)
-    (global (;3;) (mut i32) i32.const 0)
+    (global (;3;) (mut i32) i32.const 1048576)
     (global (;4;) (mut i32) i32.const 0)
     (global (;5;) i32 i32.const 1048592)
     (global (;6;) i32 i32.const 1)
