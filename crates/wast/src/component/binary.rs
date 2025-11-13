@@ -74,8 +74,8 @@ fn encode_type(encoder: ComponentTypeEncoder, ty: &TypeDef) {
         }
         TypeDef::Func(f) => {
             let mut encoder = encoder.function();
+            encoder.async_(f.async_);
             encoder.params(f.params.iter().map(|p| (p.name, &p.ty)));
-
             encoder.result(f.result.as_ref().map(|ty| ty.into()));
         }
         TypeDef::Component(c) => {

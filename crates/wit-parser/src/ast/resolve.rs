@@ -776,12 +776,10 @@ impl<'a> Resolver<'a> {
                 Ok(WorldItem::Interface { id, stability })
             }
             ast::ExternKind::Func(name, func) => {
-                let prefix = if func.async_ { "[async]" } else { "" };
-                let name = format!("{prefix}{}", name.name);
                 let func = self.resolve_function(
                     docs,
                     attrs,
-                    &name,
+                    &name.name,
                     func,
                     if func.async_ {
                         FunctionKind::AsyncFreestanding
@@ -833,12 +831,10 @@ impl<'a> Resolver<'a> {
             match field {
                 ast::InterfaceItem::Func(f) => {
                     self.define_interface_name(&f.name, TypeOrItem::Item("function"))?;
-                    let prefix = if f.func.async_ { "[async]" } else { "" };
-                    let name = format!("{prefix}{}", f.name.name);
                     funcs.push(self.resolve_function(
                         &f.docs,
                         &f.attributes,
-                        &name,
+                        &f.name.name,
                         &f.func,
                         if f.func.async_ {
                             FunctionKind::AsyncFreestanding
@@ -1039,8 +1035,7 @@ impl<'a> Resolver<'a> {
         let async_ = named_func.func.async_;
         match func {
             ast::ResourceFunc::Method(f) => {
-                let prefix = if async_ { "[async method]" } else { "[method]" };
-                name = format!("{prefix}{}.{}", resource.name, f.name.name);
+                name = format!("[method]{}.{}", resource.name, f.name.name);
                 kind = if async_ {
                     FunctionKind::AsyncMethod(resource_id)
                 } else {
@@ -1048,8 +1043,7 @@ impl<'a> Resolver<'a> {
                 };
             }
             ast::ResourceFunc::Static(f) => {
-                let prefix = if async_ { "[async static]" } else { "[static]" };
-                name = format!("{prefix}{}.{}", resource.name, f.name.name);
+                name = format!("[static]{}.{}", resource.name, f.name.name);
                 kind = if async_ {
                     FunctionKind::AsyncStatic(resource_id)
                 } else {

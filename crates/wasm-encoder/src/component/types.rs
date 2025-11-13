@@ -353,6 +353,7 @@ impl Encode for InstanceType {
 /// Used to encode component function types.
 #[derive(Debug)]
 pub struct ComponentFuncTypeEncoder<'a> {
+    async_encoded: bool,
     params_encoded: bool,
     results_encoded: bool,
     sink: &'a mut Vec<u8>,
@@ -360,12 +361,34 @@ pub struct ComponentFuncTypeEncoder<'a> {
 
 impl<'a> ComponentFuncTypeEncoder<'a> {
     fn new(sink: &'a mut Vec<u8>) -> Self {
-        sink.push(0x40);
         Self {
+            async_encoded: false,
             params_encoded: false,
             results_encoded: false,
             sink,
         }
+    }
+
+    /// Indicates whether this is an `async` function or not.
+    ///
+    /// If this function is not invoked then the function type will not be
+    /// `async`.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if parameters or results have already been
+    /// encoded.
+    pub fn async_(&mut self, is_async: bool) -> &mut Self {
+        assert!(!self.params_encoded);
+        assert!(!self.results_encoded);
+        assert!(!self.async_encoded);
+        self.async_encoded = true;
+        if is_async {
+            self.sink.push(0x43);
+        } else {
+            self.sink.push(0x40);
+        }
+        self
     }
 
     /// Defines named parameters.
@@ -383,6 +406,9 @@ impl<'a> ComponentFuncTypeEncoder<'a> {
         T: Into<ComponentValType>,
     {
         assert!(!self.params_encoded);
+        if !self.async_encoded {
+            self.async_(false);
+        }
         self.params_encoded = true;
         let params = params.into_iter();
         params.len().encode(self.sink);
@@ -402,6 +428,7 @@ impl<'a> ComponentFuncTypeEncoder<'a> {
     /// This method will panic if the function is called twice, called before
     /// the `params` method, or called in addition to the `results` method.
     pub fn result(&mut self, ty: Option<ComponentValType>) -> &mut Self {
+        assert!(self.async_encoded);
         assert!(self.params_encoded);
         assert!(!self.results_encoded);
         self.results_encoded = true;

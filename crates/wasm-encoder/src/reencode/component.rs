@@ -731,6 +731,7 @@ pub mod component_utils {
         mut func: crate::ComponentFuncTypeEncoder<'_>,
         ty: wasmparser::ComponentFuncType<'_>,
     ) -> Result<(), Error<T::Error>> {
+        func.async_(ty.async_);
         func.params(
             Vec::from(ty.params)
                 .into_iter()

@@ -3,7 +3,7 @@
   0x8 | 07 0e       | component type section
   0xa | 02          | 2 count
   0xb | 73          | [type 0] Defined(Primitive(String))
-  0xc | 41 02 02 03 | [type 1] Component([Alias(Outer { kind: Type, count: 1, index: 0 }), Type(Func(ComponentFuncType { params: [], result: Some(Type(0)) }))])
+  0xc | 41 02 02 03 | [type 1] Component([Alias(Outer { kind: Type, count: 1, index: 0 }), Type(Func(ComponentFuncType { async_: false, params: [], result: Some(Type(0)) }))])
       | 02 01 00 01
       | 40 00 00 00
  0x18 | 04 2e       | [component 0] inline size
@@ -14,7 +14,7 @@
    0x25 | 03 02 01 00 | alias [type 0] Outer { kind: Type, count: 1, index: 0 }
    0x29 | 07 05       | component type section
    0x2b | 01          | 1 count
-   0x2c | 40 00 00 00 | [type 1] Func(ComponentFuncType { params: [], result: Some(Type(0)) })
+   0x2c | 40 00 00 00 | [type 1] Func(ComponentFuncType { async_: false, params: [], result: Some(Type(0)) })
    0x30 | 00 16       | custom section
    0x32 | 0e 63 6f 6d | name: "component-name"
         | 70 6f 6e 65
@@ -31,8 +31,8 @@
    0x55 | 03 02 01 00 | alias [type 0] Outer { kind: Type, count: 1, index: 0 }
    0x59 | 07 09       | component type section
    0x5b | 02          | 2 count
-   0x5c | 40 00 00 00 | [type 1] Func(ComponentFuncType { params: [], result: Some(Type(0)) })
-   0x60 | 40 00 00 00 | [type 2] Func(ComponentFuncType { params: [], result: Some(Type(0)) })
+   0x5c | 40 00 00 00 | [type 1] Func(ComponentFuncType { async_: false, params: [], result: Some(Type(0)) })
+   0x60 | 40 00 00 00 | [type 2] Func(ComponentFuncType { async_: false, params: [], result: Some(Type(0)) })
    0x64 | 00 16       | custom section
    0x66 | 0e 63 6f 6d | name: "component-name"
         | 70 6f 6e 65
@@ -52,8 +52,8 @@
    0x8d | 03 02 01 02 | alias [type 0] Outer { kind: Type, count: 1, index: 2 }
    0x91 | 07 09       | component type section
    0x93 | 02          | 2 count
-   0x94 | 40 00 00 00 | [type 1] Func(ComponentFuncType { params: [], result: Some(Type(0)) })
-   0x98 | 40 00 00 00 | [type 2] Func(ComponentFuncType { params: [], result: Some(Type(0)) })
+   0x94 | 40 00 00 00 | [type 1] Func(ComponentFuncType { async_: false, params: [], result: Some(Type(0)) })
+   0x98 | 40 00 00 00 | [type 2] Func(ComponentFuncType { async_: false, params: [], result: Some(Type(0)) })
    0x9c | 00 17       | custom section
    0x9e | 0e 63 6f 6d | name: "component-name"
         | 70 6f 6e 65

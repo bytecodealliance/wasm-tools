@@ -3076,6 +3076,7 @@ dependencies = [
  "libtest-mimic",
  "tempfile",
  "wasm-encoder 0.240.0",
+ "wasmparser 0.240.0",
  "wit-component 0.240.0",
  "wit-parser 0.240.0",
  "wit-smith",

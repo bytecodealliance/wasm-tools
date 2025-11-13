@@ -450,39 +450,12 @@ pub enum WorldKey {
     Interface(InterfaceId),
 }
 
-/// Helper type to deduplicate kebab strings in maps.
-///
-/// The component model doesn't allow importing both `x` and `[async]x` and this
-/// type is what helps encapsulate that rule. This is similar ish to `KebabStr`
-/// inside of `wasmparser` except that it's only used here for hashing/equality
-/// of `WorldKey` to ensure that world items all hash/dedupe as expected.
-#[derive(PartialEq, Hash)]
-enum KebabDedupe<'a> {
-    Normal(&'a str),
-}
-
-impl<'a> From<&'a str> for KebabDedupe<'a> {
-    fn from(s: &'a str) -> KebabDedupe<'a> {
-        // If the name starts with `[async]` then strip it off. That conflicts
-        // with names without `[async]` so pretend it's the same.
-        if let Some(s) = s.strip_prefix("[async]") {
-            return KebabDedupe::Normal(s);
-        }
-
-        // Note that at this time there's no handling of `[method]` or
-        // `[static]` or similar. In theory that might work here but that's
-        // already handled via other means in `wit-parser` at this time and
-        // `[async]` is chosen to be handled here.
-        KebabDedupe::Normal(s)
-    }
-}
-
 impl Hash for WorldKey {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         match self {
             WorldKey::Name(s) => {
                 0u8.hash(hasher);
-                KebabDedupe::from(s.as_str()).hash(hasher);
+                s.as_str().hash(hasher);
             }
             WorldKey::Interface(i) => {
                 1u8.hash(hasher);
@@ -495,9 +468,7 @@ impl Hash for WorldKey {
 impl PartialEq for WorldKey {
     fn eq(&self, other: &WorldKey) -> bool {
         match (self, other) {
-            (WorldKey::Name(a), WorldKey::Name(b)) => {
-                KebabDedupe::from(a.as_str()) == KebabDedupe::from(b.as_str())
-            }
+            (WorldKey::Name(a), WorldKey::Name(b)) => a.as_str() == b.as_str(),
             (WorldKey::Name(_), _) => false,
             (WorldKey::Interface(a), WorldKey::Interface(b)) => a == b,
             (WorldKey::Interface(_), _) => false,
@@ -957,6 +928,19 @@ pub enum FunctionKind {
 }
 
 impl FunctionKind {
+    /// Returns whether this is an async function or not.
+    pub fn is_async(&self) -> bool {
+        match self {
+            FunctionKind::Freestanding
+            | FunctionKind::Method(_)
+            | FunctionKind::Static(_)
+            | FunctionKind::Constructor(_) => false,
+            FunctionKind::AsyncFreestanding
+            | FunctionKind::AsyncMethod(_)
+            | FunctionKind::AsyncStatic(_) => true,
+        }
+    }
+
     /// Returns the resource, if present, that this function kind refers to.
     pub fn resource(&self) -> Option<TypeId> {
         match self {
@@ -1121,8 +1105,7 @@ impl ManglingAndAbi {
 impl Function {
     pub fn item_name(&self) -> &str {
         match &self.kind {
-            FunctionKind::Freestanding => &self.name,
-            FunctionKind::AsyncFreestanding => &self.name["[async]".len()..],
+            FunctionKind::Freestanding | FunctionKind::AsyncFreestanding => &self.name,
             FunctionKind::Method(_)
             | FunctionKind::Static(_)
             | FunctionKind::AsyncMethod(_)

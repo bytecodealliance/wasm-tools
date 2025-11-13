@@ -115,7 +115,7 @@ pub trait ValtypeEncoder<'a> {
 
         // Encode the function type
         let (index, mut f) = self.define_function_type();
-        f.params(params).result(result);
+        f.async_(func.kind.is_async()).params(params).result(result);
         let prev = self.type_encoding_maps().func_type_map.insert(key, index);
         assert!(prev.is_none());
         Ok(index)

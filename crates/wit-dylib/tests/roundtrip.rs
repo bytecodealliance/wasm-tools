@@ -65,7 +65,7 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
     config.fixed_size_list = false;
     config.futures = false; // TODO
     config.streams = false; // TODO
-    config.async_ = true;
+    config.async_ = false;
     let wasm = wit_smith::smith(&config, u)?;
     std::fs::write("./hello.wasm", &wasm).unwrap();
     let (mut resolve, _pkg) = match wit_parser::decoding::decode(&wasm).unwrap() {
@@ -203,10 +203,10 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
 
     // Inject the actual entrypoint of the test.
     resolve.worlds[caller].exports.insert(
-        WorldKey::Name("[async]run".to_string()),
+        WorldKey::Name("run".to_string()),
         WorldItem::Function(Function {
-            name: "[async]run".to_string(),
-            kind: FunctionKind::AsyncFreestanding,
+            name: "run".to_string(),
+            kind: FunctionKind::Freestanding,
             params: vec![
                 ("iters".to_string(), Type::U32),
                 ("seed".to_string(), Type::U64),
