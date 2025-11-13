@@ -1,0 +1,1115 @@
+{
+  "source_filename": "tests/testsuite/proposals/custom-descriptors/ref_cast_desc.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "ref_cast_desc.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 168,
+      "filename": "ref_cast_desc.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 267,
+      "filename": "ref_cast_desc.2.wasm",
+      "module_type": "binary",
+      "text": "unknown type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 277,
+      "filename": "ref_cast_desc.3.wasm",
+      "module_type": "binary",
+      "text": "type any does not have a descriptor"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 287,
+      "filename": "ref_cast_desc.4.wasm",
+      "module_type": "binary",
+      "text": "type none does not have a descriptor"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 297,
+      "filename": "ref_cast_desc.5.wasm",
+      "module_type": "binary",
+      "text": "type 0 does not have a descriptor"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 308,
+      "filename": "ref_cast_desc.6.wasm",
+      "module_type": "binary",
+      "text": "type 1 does not have a descriptor"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 322,
+      "filename": "ref_cast_desc.7.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 336,
+      "filename": "ref_cast_desc.8.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 350,
+      "filename": "ref_cast_desc.9.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 364,
+      "filename": "ref_cast_desc.10.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 380,
+      "filename": "ref_cast_desc.11.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 394,
+      "filename": "ref_cast_desc.12.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 410,
+      "filename": "ref_cast_desc.13.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 426,
+      "filename": "ref_cast_desc.14.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 442,
+      "filename": "ref_cast_desc.15.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 458,
+      "filename": "ref_cast_desc.16.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 474,
+      "filename": "ref_cast_desc.17.wasm",
+      "module_type": "binary",
+      "text": "constant expression required"
+    },
+    {
+      "type": "module",
+      "line": 487,
+      "filename": "ref_cast_desc.18.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_trap",
+      "line": 812,
+      "action": {
+        "type": "invoke",
+        "field": "self-nullable-null-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 813,
+      "action": {
+        "type": "invoke",
+        "field": "self-nullable-val-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_return",
+      "line": 814,
+      "action": {
+        "type": "invoke",
+        "field": "self-nullable-null-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "nullref"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 815,
+      "action": {
+        "type": "invoke",
+        "field": "self-nullable-val-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "structref"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 816,
+      "action": {
+        "type": "invoke",
+        "field": "self-nullable-val-other",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 818,
+      "action": {
+        "type": "invoke",
+        "field": "self-nonnullable-null-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 819,
+      "action": {
+        "type": "invoke",
+        "field": "self-nonnullable-val-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 820,
+      "action": {
+        "type": "invoke",
+        "field": "self-nonnullable-null-desc",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_return",
+      "line": 821,
+      "action": {
+        "type": "invoke",
+        "field": "self-nonnullable-val-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "structref"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 822,
+      "action": {
+        "type": "invoke",
+        "field": "self-nonnullable-val-other",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 824,
+      "action": {
+        "type": "invoke",
+        "field": "self-exact-nullable-null-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 825,
+      "action": {
+        "type": "invoke",
+        "field": "self-exact-nullable-val-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_return",
+      "line": 826,
+      "action": {
+        "type": "invoke",
+        "field": "self-exact-nullable-null-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "nullref"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 827,
+      "action": {
+        "type": "invoke",
+        "field": "self-exact-nullable-val-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "structref"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 828,
+      "action": {
+        "type": "invoke",
+        "field": "self-exact-nullable-val-other",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 830,
+      "action": {
+        "type": "invoke",
+        "field": "self-exact-nonnullable-null-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 831,
+      "action": {
+        "type": "invoke",
+        "field": "self-exact-nonnullable-val-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 832,
+      "action": {
+        "type": "invoke",
+        "field": "self-exact-nonnullable-null-desc",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_return",
+      "line": 833,
+      "action": {
+        "type": "invoke",
+        "field": "self-exact-nonnullable-val-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "structref"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 834,
+      "action": {
+        "type": "invoke",
+        "field": "self-exact-nonnullable-val-other",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 836,
+      "action": {
+        "type": "invoke",
+        "field": "down-nullable-null-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 837,
+      "action": {
+        "type": "invoke",
+        "field": "down-nullable-val-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_return",
+      "line": 838,
+      "action": {
+        "type": "invoke",
+        "field": "down-nullable-null-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "nullref"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 839,
+      "action": {
+        "type": "invoke",
+        "field": "down-nullable-val-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "structref"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 840,
+      "action": {
+        "type": "invoke",
+        "field": "down-nullable-val-other",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 842,
+      "action": {
+        "type": "invoke",
+        "field": "down-nonnullable-null-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 843,
+      "action": {
+        "type": "invoke",
+        "field": "down-nonnullable-val-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 844,
+      "action": {
+        "type": "invoke",
+        "field": "down-nonnullable-null-desc",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_return",
+      "line": 845,
+      "action": {
+        "type": "invoke",
+        "field": "down-nonnullable-val-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "structref"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 846,
+      "action": {
+        "type": "invoke",
+        "field": "down-nonnullable-val-other",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 848,
+      "action": {
+        "type": "invoke",
+        "field": "down-exact-nullable-null-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 849,
+      "action": {
+        "type": "invoke",
+        "field": "down-exact-nullable-val-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_return",
+      "line": 850,
+      "action": {
+        "type": "invoke",
+        "field": "down-exact-nullable-null-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "nullref"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 851,
+      "action": {
+        "type": "invoke",
+        "field": "down-exact-nullable-val-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "structref"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 852,
+      "action": {
+        "type": "invoke",
+        "field": "down-exact-nullable-val-other",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 854,
+      "action": {
+        "type": "invoke",
+        "field": "down-exact-nonnullable-null-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 855,
+      "action": {
+        "type": "invoke",
+        "field": "down-exact-nonnullable-val-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 856,
+      "action": {
+        "type": "invoke",
+        "field": "down-exact-nonnullable-null-desc",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_return",
+      "line": 857,
+      "action": {
+        "type": "invoke",
+        "field": "down-exact-nonnullable-val-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "structref"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 858,
+      "action": {
+        "type": "invoke",
+        "field": "down-exact-nonnullable-val-other",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 860,
+      "action": {
+        "type": "invoke",
+        "field": "up-nullable-null-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 861,
+      "action": {
+        "type": "invoke",
+        "field": "up-nullable-val-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_return",
+      "line": 862,
+      "action": {
+        "type": "invoke",
+        "field": "up-nullable-null-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "nullref"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 863,
+      "action": {
+        "type": "invoke",
+        "field": "up-nullable-val-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "structref"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 864,
+      "action": {
+        "type": "invoke",
+        "field": "up-nullable-val-other",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 866,
+      "action": {
+        "type": "invoke",
+        "field": "up-nonnullable-null-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 867,
+      "action": {
+        "type": "invoke",
+        "field": "up-nonnullable-val-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 868,
+      "action": {
+        "type": "invoke",
+        "field": "up-nonnullable-null-desc",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_return",
+      "line": 869,
+      "action": {
+        "type": "invoke",
+        "field": "up-nonnullable-val-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "structref"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 870,
+      "action": {
+        "type": "invoke",
+        "field": "up-nonnullable-val-other",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 872,
+      "action": {
+        "type": "invoke",
+        "field": "up-exact-nullable-null-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 873,
+      "action": {
+        "type": "invoke",
+        "field": "up-exact-nullable-val-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_return",
+      "line": 874,
+      "action": {
+        "type": "invoke",
+        "field": "up-exact-nullable-null-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "nullref"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 875,
+      "action": {
+        "type": "invoke",
+        "field": "up-exact-nullable-val-other",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 877,
+      "action": {
+        "type": "invoke",
+        "field": "up-exact-nonnullable-null-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 878,
+      "action": {
+        "type": "invoke",
+        "field": "up-exact-nonnullable-val-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 879,
+      "action": {
+        "type": "invoke",
+        "field": "up-exact-nonnullable-null-desc",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 880,
+      "action": {
+        "type": "invoke",
+        "field": "up-exact-nonnullable-val-other",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 882,
+      "action": {
+        "type": "invoke",
+        "field": "nodesc-nullable-null-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 883,
+      "action": {
+        "type": "invoke",
+        "field": "nodesc-nullable-val-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_return",
+      "line": 884,
+      "action": {
+        "type": "invoke",
+        "field": "nodesc-nullable-null-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "nullref"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 885,
+      "action": {
+        "type": "invoke",
+        "field": "nodesc-nullable-val-other",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 887,
+      "action": {
+        "type": "invoke",
+        "field": "nodesc-nonnullable-null-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 888,
+      "action": {
+        "type": "invoke",
+        "field": "nodesc-nonnullable-val-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 889,
+      "action": {
+        "type": "invoke",
+        "field": "nodesc-nonnullable-null-desc",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 890,
+      "action": {
+        "type": "invoke",
+        "field": "nodesc-nonnullable-val-other",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 892,
+      "action": {
+        "type": "invoke",
+        "field": "nodesc-exact-nullable-null-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 893,
+      "action": {
+        "type": "invoke",
+        "field": "nodesc-exact-nullable-val-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_return",
+      "line": 894,
+      "action": {
+        "type": "invoke",
+        "field": "nodesc-exact-nullable-null-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "nullref"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 895,
+      "action": {
+        "type": "invoke",
+        "field": "nodesc-exact-nullable-val-other",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 897,
+      "action": {
+        "type": "invoke",
+        "field": "nodesc-exact-nonnullable-null-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 898,
+      "action": {
+        "type": "invoke",
+        "field": "nodesc-exact-nonnullable-val-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 899,
+      "action": {
+        "type": "invoke",
+        "field": "nodesc-exact-nonnullable-null-desc",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 900,
+      "action": {
+        "type": "invoke",
+        "field": "nodesc-exact-nonnullable-val-other",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 902,
+      "action": {
+        "type": "invoke",
+        "field": "i31-nullable-null-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 903,
+      "action": {
+        "type": "invoke",
+        "field": "i31-nullable-val-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_return",
+      "line": 904,
+      "action": {
+        "type": "invoke",
+        "field": "i31-nullable-null-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "nullref"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 905,
+      "action": {
+        "type": "invoke",
+        "field": "i31-nullable-val-other",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 907,
+      "action": {
+        "type": "invoke",
+        "field": "i31-nonnullable-null-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 908,
+      "action": {
+        "type": "invoke",
+        "field": "i31-nonnullable-val-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 909,
+      "action": {
+        "type": "invoke",
+        "field": "i31-nonnullable-null-desc",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 910,
+      "action": {
+        "type": "invoke",
+        "field": "i31-nonnullable-val-other",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 912,
+      "action": {
+        "type": "invoke",
+        "field": "i31-exact-nullable-null-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 913,
+      "action": {
+        "type": "invoke",
+        "field": "i31-exact-nullable-val-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_return",
+      "line": 914,
+      "action": {
+        "type": "invoke",
+        "field": "i31-exact-nullable-null-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "nullref"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 915,
+      "action": {
+        "type": "invoke",
+        "field": "i31-exact-nullable-val-other",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 917,
+      "action": {
+        "type": "invoke",
+        "field": "i31-exact-nonnullable-null-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 918,
+      "action": {
+        "type": "invoke",
+        "field": "i31-exact-nonnullable-val-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 919,
+      "action": {
+        "type": "invoke",
+        "field": "i31-exact-nonnullable-null-desc",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 920,
+      "action": {
+        "type": "invoke",
+        "field": "i31-exact-nonnullable-val-other",
+        "args": []
+      },
+      "text": "descriptor cast failure"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+(module
+  (rec
+    (type $a (;0;) (descriptor $b) (struct))
+    (type $b (;1;) (describes $a) (struct))
+  )
+  (type (;2;) (func (result (ref null $a))))
+  (type (;3;) (func (param (ref null $a)) (result i32)))
+  (global (;0;) (ref null (exact $b)) struct.new $b)
+  (export "b" (global 0))
+  (export "make-a" (func 0))
+  (export "check-eq" (func 1))
+  (func (;0;) (type 2) (result (ref null $a))
+    global.get 0
+    struct.new $a
+  )
+  (func (;1;) (type 3) (param (ref null $a)) (result i32)
+    local.get 0
+    ref.get_desc $a
+    global.get 0
+    ref.eq
+  )
+)

@@ -1,0 +1,103 @@
+(module
+  (rec
+    (type $a (;0;) (descriptor $b) (struct))
+    (type $b (;1;) (describes $a) (struct))
+  )
+  (type (;2;) (func (param i32 i32)))
+  (type (;3;) (func (param eqref eqref)))
+  (type (;4;) (func))
+  (type (;5;) (func (result i32 i32 eqref)))
+  (global $b1 (;0;) (ref (exact $b)) struct.new $b)
+  (global $b2 (;1;) (ref (exact $b)) struct.new $b)
+  (global $a1 (;2;) (ref (exact $a)) global.get $b1 struct.new $a)
+  (export "cast-succeeds-null" (func 2))
+  (export "cast-succeeds-val" (func 3))
+  (export "cast-fails-null" (func 4))
+  (export "cast-fails-val" (func 5))
+  (func $assert-eq-i32 (;0;) (type 2) (param i32 i32)
+    local.get 0
+    local.get 1
+    i32.eq
+    if ;; label = @1
+      return
+    else
+      unreachable
+    end
+  )
+  (func $assert-eq-ref (;1;) (type 3) (param eqref eqref)
+    local.get 0
+    local.get 1
+    ref.eq
+    if ;; label = @1
+      return
+    else
+      unreachable
+    end
+  )
+  (func (;2;) (type 4)
+    block (type 5) (result i32 i32 eqref) ;; label = @1
+      i32.const 1
+      i32.const 2
+      ref.null none
+      global.get $b1
+      br_on_cast_desc_fail 0 (;@1;) eqref (ref null $a)
+      ref.null none
+      call $assert-eq-ref
+      i32.const 2
+      call $assert-eq-i32
+      i32.const 1
+      call $assert-eq-i32
+      return
+    end
+    unreachable
+  )
+  (func (;3;) (type 4)
+    block (type 5) (result i32 i32 eqref) ;; label = @1
+      i32.const 1
+      i32.const 2
+      global.get $a1
+      global.get $b1
+      br_on_cast_desc_fail 0 (;@1;) eqref (ref null $a)
+      global.get $a1
+      call $assert-eq-ref
+      i32.const 2
+      call $assert-eq-i32
+      i32.const 1
+      call $assert-eq-i32
+      return
+    end
+    unreachable
+  )
+  (func (;4;) (type 4)
+    block (type 5) (result i32 i32 eqref) ;; label = @1
+      i32.const 1
+      i32.const 2
+      ref.null none
+      global.get $b2
+      br_on_cast_desc_fail 0 (;@1;) eqref (ref $a)
+      unreachable
+    end
+    ref.null none
+    call $assert-eq-ref
+    i32.const 2
+    call $assert-eq-i32
+    i32.const 1
+    call $assert-eq-i32
+  )
+  (func (;5;) (type 4)
+    block (type 5) (result i32 i32 eqref) ;; label = @1
+      i32.const 1
+      i32.const 2
+      global.get $a1
+      global.get $b2
+      br_on_cast_desc_fail 0 (;@1;) eqref (ref $a)
+      unreachable
+    end
+    global.get $a1
+    call $assert-eq-ref
+    i32.const 2
+    call $assert-eq-i32
+    i32.const 1
+    call $assert-eq-i32
+  )
+)

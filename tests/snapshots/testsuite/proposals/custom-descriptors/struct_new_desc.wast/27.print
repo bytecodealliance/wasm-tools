@@ -1,0 +1,19 @@
+(module $A
+  (rec
+    (type $a (;0;) (descriptor $b) (struct))
+    (type $b (;1;) (describes $a) (struct))
+  )
+  (type (;2;) (func (result (ref null (exact $b)))))
+  (global (;0;) (ref null (exact $b)) struct.new $b)
+  (global (;1;) (ref null (exact $b)) ref.null none)
+  (export "b" (global 0))
+  (export "null-b" (global 1))
+  (export "new-b" (func 0))
+  (export "new-null-b" (func 1))
+  (func (;0;) (type 2) (result (ref null (exact $b)))
+    struct.new $b
+  )
+  (func (;1;) (type 2) (result (ref null (exact $b)))
+    ref.null none
+  )
+)
