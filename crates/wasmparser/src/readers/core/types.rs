@@ -1820,6 +1820,7 @@ impl<'a> FromReader<'a> for RefType {
                 RefType::new(nullable, reader.read()?)
                     .ok_or_else(|| crate::BinaryReaderError::new("type index too large", pos))
             }
+            0x62 => Err(crate::BinaryReaderError::new("unexpected exact type", pos)),
             _ => {
                 // Reclassify errors as invalid reference types here because
                 // that's the "root" of what was being parsed rather than

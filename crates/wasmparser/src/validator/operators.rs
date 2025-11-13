@@ -664,7 +664,12 @@ where
         let ty = self.pop_concrete_ref(nullable, type_index)?;
         let is_exact = match ty {
             MaybeType::Known(ValType::Ref(rt)) if rt.is_exact_type_ref() || rt.is_none_ref() => {
-                true
+                let mut heap_ty = HeapType::Exact(UnpackedIndex::Module(type_index));
+                self.resources.check_heap_type(&mut heap_ty, self.offset)?;
+                let expected = RefType::new(nullable, heap_ty).ok_or_else(|| {
+                    format_err!(self.offset, "implementation limit: type index too large")
+                })?;
+                self.resources.is_subtype(rt.into(), expected.into())
             }
             MaybeType::Bottom => true,
             _ => false,
@@ -4381,26 +4386,9 @@ where
     }
 
     fn visit_ref_get_desc(&mut self, type_index: u32) -> Self::Output {
-        let (ty, is_exact) = self.pop_concrete_or_exact_ref(true, type_index)?;
+        let (_, is_exact) = self.pop_concrete_or_exact_ref(true, type_index)?;
         match self.sub_type_at(type_index)?.composite_type.descriptor_idx {
             Some(descriptor_idx) => {
-                let mut descriptor_ty = if is_exact {
-                    HeapType::Exact(UnpackedIndex::Module(type_index))
-                } else {
-                    HeapType::Concrete(UnpackedIndex::Module(type_index))
-                };
-                self.resources
-                    .check_heap_type(&mut descriptor_ty, self.offset)?;
-                let descriptor_ty = ValType::Ref(
-                    RefType::new(true, descriptor_ty)
-                        .expect("existing heap types should be within our limits"),
-                );
-                let is_exact = match ty {
-                    MaybeType::Known(actual) if is_exact => {
-                        self.resources.is_subtype(actual, descriptor_ty)
-                    }
-                    _ => is_exact,
-                };
                 let ref_ty = if is_exact {
                     RefType::exact(false, descriptor_idx)
                 } else {
