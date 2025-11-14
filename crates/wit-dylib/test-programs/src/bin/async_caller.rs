@@ -18,30 +18,25 @@ impl TestCase for MyInterpreter {
         args: impl ExactSizeIterator<Item = Val>,
     ) -> Option<Val> {
         assert_eq!(func.interface(), None);
-        assert_eq!(func.name(), "[async]run");
+        assert_eq!(func.name(), "run");
         assert_eq!(func.params().len(), 0);
         assert!(func.result().is_none());
         assert_eq!(args.len(), 0);
 
-        let ret = Self::call_import_async(wit, Some("a:b/x"), "[async]f", &[]).await;
+        let ret = Self::call_import_async(wit, Some("a:b/x"), "f", &[]).await;
         assert!(ret.is_none());
 
-        let ret = Self::call_import_async(
-            wit,
-            Some("a:b/x"),
-            "[async]f-scalar-param",
-            &[Val::U32(101)],
-        )
-        .await;
+        let ret =
+            Self::call_import_async(wit, Some("a:b/x"), "f-scalar-param", &[Val::U32(101)]).await;
         assert!(ret.is_none());
 
-        let ret = Self::call_import_async(wit, Some("a:b/x"), "[async]f-scalar-result", &[]).await;
+        let ret = Self::call_import_async(wit, Some("a:b/x"), "f-scalar-result", &[]).await;
         assert_eq!(ret, Some(Val::U32(202)));
 
         let ret = Self::call_import_async(
             wit,
             Some("a:b/x"),
-            "[async]aggregates",
+            "aggregates",
             &[
                 Val::Record(vec![
                     Val::Record(vec![Val::U32(2000), Val::Char('y')]),
@@ -66,7 +61,7 @@ impl TestCase for MyInterpreter {
         let ret = Self::call_import_async(
             wit,
             Some("a:b/x"),
-            "[async]indirect-params",
+            "indirect-params",
             &[big.clone(), big.clone()],
         )
         .await;
@@ -75,7 +70,7 @@ impl TestCase for MyInterpreter {
         let ret = Self::call_import_async(
             wit,
             Some("a:b/x"),
-            "[async]indirect-params-and-result",
+            "indirect-params-and-result",
             &[big.clone()],
         )
         .await;
@@ -85,7 +80,7 @@ impl TestCase for MyInterpreter {
             let ret = Self::call_import_async(
                 wit,
                 Some("a:b/x"),
-                "[async]echo-string",
+                "echo-string",
                 &[Val::String(s.to_string())],
             )
             .await;

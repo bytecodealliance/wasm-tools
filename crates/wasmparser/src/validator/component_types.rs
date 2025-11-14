@@ -1086,6 +1086,8 @@ impl TypeData for ComponentInstanceType {
 pub struct ComponentFuncType {
     /// Metadata about this function type.
     pub(crate) info: TypeInfo,
+    /// Whether or not this is an async function.
+    pub async_: bool,
     /// The function parameters.
     pub params: Box<[(KebabString, ComponentValType)]>,
     /// The function's result.
@@ -3236,6 +3238,15 @@ impl<'a> SubtypeCx<'a> {
     ) -> Result<()> {
         let a = &self.a[a];
         let b = &self.b[b];
+
+        if a.async_ != b.async_ {
+            let a_desc = if a.async_ { "async" } else { "sync" };
+            let b_desc = if b.async_ { "async" } else { "sync" };
+            bail!(
+                offset,
+                "expected {a_desc} function, found {b_desc} function",
+            );
+        }
 
         // Note that this intentionally diverges from the upstream
         // specification in terms of subtyping. This is a full

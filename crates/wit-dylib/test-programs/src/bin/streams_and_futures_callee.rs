@@ -62,7 +62,7 @@ impl TestCase for MyInterpreter {
         assert_eq!(func.interface(), Some("a:b/x"));
 
         match func.name() {
-            "[async]echo-stream-u8" => {
+            "echo-stream-u8" => {
                 assert_eq!(func.params().len(), 1);
                 assert!(matches!(func.params().next(), Some(Type::Stream(_))));
                 assert!(matches!(func.result(), Some(Type::Stream(_))));
@@ -101,7 +101,7 @@ impl TestCase for MyInterpreter {
                 Some(Val::Stream(result.take_handle()))
             }
 
-            "[async]echo-future-string" => {
+            "echo-future-string" => {
                 assert_eq!(func.params().len(), 1);
                 assert!(matches!(func.params().next(), Some(Type::Future(_))));
                 assert!(matches!(func.result(), Some(Type::Future(_))));
@@ -126,7 +126,7 @@ impl TestCase for MyInterpreter {
                 Some(Val::Future(result.take_handle()))
             }
 
-            "[async method]thing.get" => {
+            "thing.get" => {
                 assert_eq!(func.params().len(), 1);
                 assert!(matches!(func.params().next(), Some(Type::Borrow(_))));
                 assert!(matches!(func.result(), Some(Type::String)));
@@ -147,7 +147,7 @@ impl TestCase for MyInterpreter {
                 Some(Val::String(value))
             }
 
-            "[async]short-reads" => {
+            "short-reads" => {
                 assert_eq!(func.params().len(), 1);
                 assert!(matches!(func.params().next(), Some(Type::Stream(_))));
                 assert!(matches!(func.result(), Some(Type::Stream(_))));

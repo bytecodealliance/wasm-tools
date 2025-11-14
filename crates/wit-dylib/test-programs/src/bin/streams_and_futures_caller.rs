@@ -24,14 +24,14 @@ impl TestCase for MyInterpreter {
         args: impl ExactSizeIterator<Item = Val>,
     ) -> Option<Val> {
         assert_eq!(func.interface(), None);
-        assert_eq!(func.name(), "[async]run");
+        assert_eq!(func.name(), "run");
         assert_eq!(func.params().len(), 0);
         assert!(func.result().is_none());
         assert_eq!(args.len(), 0);
 
         {
             let Some(Type::Stream(ty)) = wit
-                .unwrap_import(Some("a:b/x"), "[async]echo-stream-u8")
+                .unwrap_import(Some("a:b/x"), "echo-stream-u8")
                 .params()
                 .next()
             else {
@@ -45,7 +45,7 @@ impl TestCase for MyInterpreter {
             let Some(Val::Stream(rx)) = Self::call_import_async(
                 wit,
                 Some("a:b/x"),
-                "[async]echo-stream-u8",
+                "echo-stream-u8",
                 &[Val::Stream(rx.take_handle())],
             )
             .await
@@ -65,7 +65,7 @@ impl TestCase for MyInterpreter {
 
         {
             let Some(Type::Future(ty)) = wit
-                .unwrap_import(Some("a:b/x"), "[async]echo-future-string")
+                .unwrap_import(Some("a:b/x"), "echo-future-string")
                 .params()
                 .next()
             else {
@@ -79,7 +79,7 @@ impl TestCase for MyInterpreter {
             let Some(Val::Future(rx)) = Self::call_import_async(
                 wit,
                 Some("a:b/x"),
-                "[async]echo-future-string",
+                "echo-future-string",
                 &[Val::Future(rx.take_handle())],
             )
             .await
@@ -117,7 +117,7 @@ impl TestCase for MyInterpreter {
                 .collect::<Vec<_>>();
 
             let Some(Type::Stream(ty)) = wit
-                .unwrap_import(Some("a:b/x"), "[async]short-reads")
+                .unwrap_import(Some("a:b/x"), "short-reads")
                 .params()
                 .next()
             else {
@@ -131,7 +131,7 @@ impl TestCase for MyInterpreter {
             let Some(Val::Stream(rx)) = Self::call_import_async(
                 wit,
                 Some("a:b/x"),
-                "[async]short-reads",
+                "short-reads",
                 &[Val::Stream(rx.take_handle())],
             )
             .await
@@ -168,7 +168,7 @@ impl TestCase for MyInterpreter {
                 let Val::String(value) = Self::call_import_async(
                     wit,
                     Some("a:b/x"),
-                    "[async method]thing.get",
+                    "thing.get",
                     &[Val::Borrow(handle.borrow())],
                 )
                 .await

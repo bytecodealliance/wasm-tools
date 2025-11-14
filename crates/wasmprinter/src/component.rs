@@ -472,6 +472,9 @@ impl Printer<'_, '_> {
         ty: &ComponentFuncType,
     ) -> Result<()> {
         self.start_group("func")?;
+        if ty.async_ {
+            self.print_type_keyword(" async")?;
+        }
         for (name, ty) in ty.params.iter() {
             self.result.write_str(" ")?;
             self.start_group("param ")?;

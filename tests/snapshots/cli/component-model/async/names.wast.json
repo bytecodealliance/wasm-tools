@@ -2,87 +2,32 @@
   "source_filename": "tests/cli/component-model/async/names.wast",
   "commands": [
     {
-      "type": "module",
-      "line": 3,
+      "type": "assert_invalid",
+      "line": 7,
       "filename": "names.0.wasm",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 14,
+      "line": 13,
       "filename": "names.1.wasm",
       "module_type": "binary",
-      "text": "conflicts with previous name"
+      "text": "not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 21,
+      "line": 19,
       "filename": "names.2.wasm",
       "module_type": "binary",
-      "text": "conflicts with previous name"
+      "text": "not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 28,
+      "line": 26,
       "filename": "names.3.wasm",
       "module_type": "binary",
-      "text": "conflicts with previous name"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 35,
-      "filename": "names.4.wasm",
-      "module_type": "binary",
-      "text": "conflicts with previous name"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 42,
-      "filename": "names.5.wasm",
-      "module_type": "binary",
-      "text": "conflicts with previous name"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 49,
-      "filename": "names.6.wasm",
-      "module_type": "binary",
-      "text": "conflicts with previous name"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 56,
-      "filename": "names.7.wasm",
-      "module_type": "binary",
-      "text": "conflicts with previous name"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 63,
-      "filename": "names.8.wasm",
-      "module_type": "binary",
-      "text": "conflicts with previous name"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 70,
-      "filename": "names.9.wasm",
-      "module_type": "binary",
-      "text": "conflicts with previous name"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 77,
-      "filename": "names.10.wasm",
-      "module_type": "binary",
-      "text": "import name `[async method]a.a` conflicts with previous name `a`"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 84,
-      "filename": "names.11.wasm",
-      "module_type": "binary",
-      "text": "import name `[async static]a.a` conflicts with previous name `a`"
+      "text": "constructor function cannot be async"
     }
   ]
 }

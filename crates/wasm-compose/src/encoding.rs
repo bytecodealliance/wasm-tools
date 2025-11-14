@@ -482,7 +482,7 @@ impl<'a> TypeEncoder<'a> {
         let index = state.cur.encodable.type_count();
         let mut f = state.cur.encodable.ty().function();
 
-        f.params(params).result(result);
+        f.async_(ty.async_).params(params).result(result);
 
         index
     }

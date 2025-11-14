@@ -23,7 +23,7 @@ impl TestCase for MyInterpreter {
         let big = Val::Record(vec![big2.clone(), big2.clone(), big2.clone(), big2.clone()]);
 
         match func.name() {
-            "[async]f" => {
+            "f" => {
                 assert_eq!(func.params().len(), 0);
                 assert!(func.result().is_none());
                 assert_eq!(args.len(), 0);
@@ -33,7 +33,7 @@ impl TestCase for MyInterpreter {
                 }
                 None
             }
-            "[async]f-scalar-param" => {
+            "f-scalar-param" => {
                 assert_eq!(func.params().len(), 1);
                 assert!(func.result().is_none());
                 assert_eq!(args.len(), 1);
@@ -42,14 +42,14 @@ impl TestCase for MyInterpreter {
                 assert_eq!(args.next(), None);
                 None
             }
-            "[async]f-scalar-result" => {
+            "f-scalar-result" => {
                 assert_eq!(func.params().len(), 0);
                 assert!(func.result().is_some());
                 assert_eq!(args.len(), 0);
 
                 Some(Val::U32(202))
             }
-            "[async]aggregates" => {
+            "aggregates" => {
                 assert_eq!(func.params().len(), 2);
                 assert!(func.result().is_some());
                 assert_eq!(args.len(), 2);
@@ -72,7 +72,7 @@ impl TestCase for MyInterpreter {
                     Val::F32(64.0),
                 ]))
             }
-            "[async]indirect-params" => {
+            "indirect-params" => {
                 assert_eq!(func.params().len(), 2);
                 assert!(func.result().is_none());
                 assert_eq!(args.len(), 2);
@@ -83,7 +83,7 @@ impl TestCase for MyInterpreter {
 
                 None
             }
-            "[async]indirect-params-and-result" => {
+            "indirect-params-and-result" => {
                 assert_eq!(func.params().len(), 1);
                 assert!(func.result().is_some());
                 assert_eq!(args.len(), 1);
@@ -92,7 +92,7 @@ impl TestCase for MyInterpreter {
 
                 Some(big.clone())
             }
-            "[async]echo-string" => {
+            "echo-string" => {
                 assert_eq!(func.params().len(), 1);
                 assert!(func.result().is_some());
                 args.next()

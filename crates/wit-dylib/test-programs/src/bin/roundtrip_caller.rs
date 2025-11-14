@@ -5,21 +5,20 @@ use test_programs::*;
 export_test!(struct MyInterpreter);
 
 impl TestCase for MyInterpreter {
-    fn call_export(
-        _wit: Wit,
-        _func: ExportFunction,
-        _args: impl ExactSizeIterator<Item = Val>,
-    ) -> Option<Val> {
-        unreachable!()
-    }
+    // // TODO: old signature for when wasmtime re-syncs async support
+    // async fn call_export_async(
+    //     wit: Wit,
+    //     func: ExportFunction,
+    //     mut args: impl ExactSizeIterator<Item = Val>,
+    // ) -> Option<Val> {
 
-    async fn call_export_async(
+    fn call_export(
         wit: Wit,
         func: ExportFunction,
         mut args: impl ExactSizeIterator<Item = Val>,
     ) -> Option<Val> {
         assert_eq!(func.interface(), None);
-        assert_eq!(func.name(), "[async]run");
+        assert_eq!(func.name(), "run");
         assert_eq!(func.params().len(), 2);
         assert!(func.result().is_none());
         assert_eq!(args.len(), 2);
@@ -93,7 +92,8 @@ impl TestCase for MyInterpreter {
                 });
             }
             let result = if import.is_async() {
-                Self::call_import_func_async(*import, &args).await
+                panic!("wasmtime doesn't support async yet");
+                // Self::call_import_func_async(*import, &args).await
             } else {
                 Self::call_import_func(*import, &args)
             };

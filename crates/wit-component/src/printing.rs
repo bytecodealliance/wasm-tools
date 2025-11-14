@@ -487,11 +487,7 @@ impl<O: Output> WitPrinter<O> {
                         self.output.indent_end();
                     }
                     WorldItem::Function(f) => {
-                        // Note that `f.item_name()` is used here instead of
-                        // `name` because if this is an async function then we
-                        // want to print `foo`, not `[async]foo` under the
-                        // `import` name.
-                        self.print_name_type(f.item_name(), TypeKind::Other);
+                        self.print_name_type(&f.name, TypeKind::Other);
                         self.output.str(": ");
                         self.print_function(resolve, f)?;
                         self.output.semicolon();
