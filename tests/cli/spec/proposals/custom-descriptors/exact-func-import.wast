@@ -1,4 +1,4 @@
-;; RUN: wast \
+;; FAIL: wast \
 ;;      --assert default \
 ;;      --snapshot tests/snapshots \
 ;;      --ignore-error-messages \

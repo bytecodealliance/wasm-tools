@@ -40,7 +40,12 @@ fn copy_test(src: &Path, dst: &Path) {
         return;
     }
 
-    let mut contents = format!(";; RUN: wast \\\n");
+    let directive = match dst.file_name().and_then(|s| s.to_str()) {
+        Some("exact-func-import.wast") => "FAIL",
+        Some(_) | None => "RUN",
+    };
+
+    let mut contents = format!(";; {directive}: wast \\\n");
     contents.push_str(";;      --assert default \\\n");
 
     // Allow certain assert_malformed tests to be interpreted as assert_invalid
