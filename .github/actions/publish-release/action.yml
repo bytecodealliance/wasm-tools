@@ -58,12 +58,11 @@ runs:
         GH_TOKEN: ${{ github.token }}
 
     # Conditionally make a release if a tag was made.
-    - uses: softprops/action-gh-release@v1
-      if: steps.tag.outputs.push_tag == 'yes'
-      with:
-        files: "dist/*"
-        generate_release_notes: true
-        tag_name: v${{ steps.tag.outputs.version }}
+    - if: steps.tag.outputs.push_tag == 'yes'
+      shell: bash
+      run: gh release create --generate-notes v${{ steps.tag.outputs.version }} dist/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     # Generate attestations for release artifacts
     - name: Generate artifact attestation
