@@ -62,7 +62,7 @@ runs:
       shell: bash
       run: gh release create --generate-notes v${{ steps.tag.outputs.version }} dist/*
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ github.token }}
 
     # Generate attestations for release artifacts
     - name: Generate artifact attestation
