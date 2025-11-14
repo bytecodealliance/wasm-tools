@@ -10,6 +10,7 @@ use wit_parser::{
 /// Represents a key type for interface function definitions.
 #[derive(Hash, PartialEq, Eq, Clone)]
 pub struct FunctionKey<'a> {
+    async_: bool,
     params: &'a [(String, Type)],
     result: &'a Option<Type>,
 }
@@ -98,6 +99,7 @@ pub trait ValtypeEncoder<'a> {
     /// document.
     fn encode_func_type(&mut self, resolve: &'a Resolve, func: &'a Function) -> Result<u32> {
         let key = FunctionKey {
+            async_: func.kind.is_async(),
             params: &func.params,
             result: &func.result,
         };
