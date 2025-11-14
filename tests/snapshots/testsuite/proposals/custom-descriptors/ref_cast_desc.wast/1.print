@@ -1,0 +1,139 @@
+(module
+  (rec
+    (type $a (;0;) (sub (descriptor $b) (struct)))
+    (type $b (;1;) (sub (describes $a) (struct)))
+    (type $c (;2;) (sub $a (descriptor $d) (struct)))
+    (type $d (;3;) (sub $b (describes $c) (descriptor $e) (struct)))
+    (type $e (;4;) (describes $d) (struct))
+  )
+  (type (;5;) (func (param (ref null $a) (ref null $b)) (result (ref null $a))))
+  (type (;6;) (func (param (ref null $a) (ref null (exact $b))) (result (ref null (exact $a)))))
+  (type (;7;) (func (param i31ref (ref null $b)) (result (ref null $a))))
+  (type (;8;) (func (param i31ref (ref null (exact $b))) (result (ref null (exact $a)))))
+  (type (;9;) (func (param (ref null $e) (ref null $b)) (result (ref null $a))))
+  (type (;10;) (func (param (ref null $e) (ref null (exact $b))) (result (ref null (exact $a)))))
+  (type (;11;) (func (param (ref null (exact $e)) (ref null $b)) (result (ref null $a))))
+  (type (;12;) (func (param (ref null (exact $e)) (ref null (exact $b))) (result (ref null (exact $a)))))
+  (type (;13;) (func (param (ref null $c) (ref null $b)) (result (ref null $a))))
+  (type (;14;) (func (param (ref null $c) (ref null (exact $b))) (result (ref null (exact $a)))))
+  (type (;15;) (func (param (ref null (exact $c)) (ref null $b)) (result (ref null $a))))
+  (type (;16;) (func (param (ref null (exact $c)) (ref null (exact $b))) (result (ref null (exact $a)))))
+  (type (;17;) (func (param (ref null $a) (ref null $d)) (result (ref null $c))))
+  (type (;18;) (func (param (ref null $a) (ref null (exact $d))) (result (ref null (exact $c)))))
+  (type (;19;) (func (param (ref null (exact $a)) (ref null $d)) (result (ref null $c))))
+  (type (;20;) (func (param (ref null (exact $a)) (ref null (exact $d))) (result (ref null (exact $c)))))
+  (type (;21;) (func (param (ref null $b)) (result (ref null $a))))
+  (type (;22;) (func (param (ref null (exact $b))) (result (ref null (exact $a)))))
+  (type (;23;) (func (param anyref (ref null $e)) (result (ref null $d))))
+  (type (;24;) (func (param anyref (ref null (exact $e))) (result (ref null (exact $d)))))
+  (func (;0;) (type 5) (param (ref null $a) (ref null $b)) (result (ref null $a))
+    local.get 0
+    local.get 1
+    ref.cast_desc (ref null $a)
+  )
+  (func (;1;) (type 6) (param (ref null $a) (ref null (exact $b))) (result (ref null (exact $a)))
+    local.get 0
+    local.get 1
+    ref.cast_desc (ref null (exact $a))
+  )
+  (func (;2;) (type 7) (param i31ref (ref null $b)) (result (ref null $a))
+    local.get 0
+    local.get 1
+    ref.cast_desc (ref null $a)
+  )
+  (func (;3;) (type 8) (param i31ref (ref null (exact $b))) (result (ref null (exact $a)))
+    local.get 0
+    local.get 1
+    ref.cast_desc (ref null (exact $a))
+  )
+  (func (;4;) (type 9) (param (ref null $e) (ref null $b)) (result (ref null $a))
+    local.get 0
+    local.get 1
+    ref.cast_desc (ref null $a)
+  )
+  (func (;5;) (type 10) (param (ref null $e) (ref null (exact $b))) (result (ref null (exact $a)))
+    local.get 0
+    local.get 1
+    ref.cast_desc (ref null (exact $a))
+  )
+  (func (;6;) (type 11) (param (ref null (exact $e)) (ref null $b)) (result (ref null $a))
+    local.get 0
+    local.get 1
+    ref.cast_desc (ref null $a)
+  )
+  (func (;7;) (type 12) (param (ref null (exact $e)) (ref null (exact $b))) (result (ref null (exact $a)))
+    local.get 0
+    local.get 1
+    ref.cast_desc (ref null (exact $a))
+  )
+  (func (;8;) (type 13) (param (ref null $c) (ref null $b)) (result (ref null $a))
+    local.get 0
+    local.get 1
+    ref.cast_desc (ref null $a)
+  )
+  (func (;9;) (type 14) (param (ref null $c) (ref null (exact $b))) (result (ref null (exact $a)))
+    local.get 0
+    local.get 1
+    ref.cast_desc (ref null (exact $a))
+  )
+  (func (;10;) (type 15) (param (ref null (exact $c)) (ref null $b)) (result (ref null $a))
+    local.get 0
+    local.get 1
+    ref.cast_desc (ref null $a)
+  )
+  (func (;11;) (type 16) (param (ref null (exact $c)) (ref null (exact $b))) (result (ref null (exact $a)))
+    local.get 0
+    local.get 1
+    ref.cast_desc (ref null (exact $a))
+  )
+  (func (;12;) (type 17) (param (ref null $a) (ref null $d)) (result (ref null $c))
+    local.get 0
+    local.get 1
+    ref.cast_desc (ref null $c)
+  )
+  (func (;13;) (type 18) (param (ref null $a) (ref null (exact $d))) (result (ref null (exact $c)))
+    local.get 0
+    local.get 1
+    ref.cast_desc (ref null (exact $c))
+  )
+  (func (;14;) (type 19) (param (ref null (exact $a)) (ref null $d)) (result (ref null $c))
+    local.get 0
+    local.get 1
+    ref.cast_desc (ref null $c)
+  )
+  (func (;15;) (type 20) (param (ref null (exact $a)) (ref null (exact $d))) (result (ref null (exact $c)))
+    local.get 0
+    local.get 1
+    ref.cast_desc (ref null (exact $c))
+  )
+  (func (;16;) (type 21) (param (ref null $b)) (result (ref null $a))
+    ref.null none
+    local.get 0
+    ref.cast_desc (ref null $a)
+  )
+  (func (;17;) (type 22) (param (ref null (exact $b))) (result (ref null (exact $a)))
+    ref.null none
+    local.get 0
+    ref.cast_desc (ref null (exact $a))
+  )
+  (func (;18;) (type 21) (param (ref null $b)) (result (ref null $a))
+    unreachable
+    local.get 0
+    ref.cast_desc (ref null $a)
+  )
+  (func (;19;) (type 22) (param (ref null (exact $b))) (result (ref null (exact $a)))
+    unreachable
+    local.get 0
+    ref.cast_desc (ref null (exact $a))
+  )
+  (func (;20;) (type 23) (param anyref (ref null $e)) (result (ref null $d))
+    local.get 0
+    local.get 1
+    ref.cast_desc (ref null $d)
+  )
+  (func (;21;) (type 24) (param anyref (ref null (exact $e))) (result (ref null (exact $d)))
+    local.get 0
+    local.get 1
+    ref.cast_desc (ref null (exact $d))
+  )
+)

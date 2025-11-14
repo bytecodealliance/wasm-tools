@@ -1,0 +1,19 @@
+(module
+  (rec
+    (type $a (;0;) (descriptor $b) (struct))
+    (type $b (;1;) (describes $a) (descriptor $c) (struct))
+    (type $c (;2;) (describes $b) (descriptor $d) (struct))
+    (type $d (;3;) (describes $c) (struct))
+  )
+  (type (;4;) (func (result (ref (exact $a)))))
+  (global $d (;0;) (ref (exact $d)) struct.new $d)
+  (global $c (;1;) (ref (exact $c)) global.get $d struct.new $c)
+  (global $b (;2;) (ref (exact $b)) global.get $c struct.new $b)
+  (global $a (;3;) (ref (exact $a)) global.get $b struct.new $a)
+  (func (;0;) (type 4) (result (ref (exact $a)))
+    struct.new $d
+    struct.new $c
+    struct.new $b
+    struct.new $a
+  )
+)

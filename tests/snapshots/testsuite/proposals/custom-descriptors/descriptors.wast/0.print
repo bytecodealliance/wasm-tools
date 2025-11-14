@@ -1,0 +1,31 @@
+(module
+  (rec
+    (type (;0;) (descriptor 1) (struct))
+    (type (;1;) (describes 0) (struct))
+  )
+  (rec
+    (type $a (;2;) (descriptor $b) (struct))
+    (type $b (;3;) (describes $a) (struct))
+  )
+  (rec
+    (type $c (;4;) (sub (descriptor $d) (struct)))
+    (type $d (;5;) (sub (describes $c) (struct)))
+  )
+  (rec
+    (type $e (;6;) (descriptor $f) (struct))
+    (type $f (;7;) (describes $e) (struct))
+  )
+  (rec
+    (type $g (;8;) (sub $c (descriptor $h) (struct)))
+    (type $h (;9;) (sub $d (describes $g) (struct)))
+  )
+  (rec
+    (type $i (;10;) (sub final $g (descriptor $j) (struct (field i32))))
+    (type $j (;11;) (sub final $h (describes $i) (struct (field f32))))
+  )
+  (rec
+    (type $k (;12;) (descriptor $l) (struct))
+    (type $l (;13;) (describes $k) (descriptor $m) (struct))
+    (type $m (;14;) (describes $l) (struct))
+  )
+)

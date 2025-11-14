@@ -1,0 +1,40 @@
+(module
+  (rec
+    (type $a (;0;) (descriptor $b) (struct))
+    (type $b (;1;) (describes $a) (struct))
+  )
+  (type (;2;) (func (param anyref (ref null $b)) (result i32 (ref any))))
+  (type (;3;) (func (result i32 (ref null $a))))
+  (type (;4;) (func (param anyref (ref null $b)) (result i32 i64 (ref any))))
+  (type (;5;) (func (result i32 i64 (ref null $a))))
+  (type (;6;) (func (param anyref (ref null $b)) (result eqref (ref any))))
+  (type (;7;) (func (result anyref (ref null $a))))
+  (func (;0;) (type 2) (param anyref (ref null $b)) (result i32 (ref any))
+    block (type 3) (result i32 (ref null $a)) ;; label = @1
+      i32.const 42
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 anyref (ref null $a)
+    end
+    unreachable
+  )
+  (func (;1;) (type 4) (param anyref (ref null $b)) (result i32 i64 (ref any))
+    block (type 5) (result i32 i64 (ref null $a)) ;; label = @1
+      i32.const 42
+      i64.const 1337
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 anyref (ref null $a)
+    end
+    unreachable
+  )
+  (func (;2;) (type 6) (param anyref (ref null $b)) (result eqref (ref any))
+    block (type 7) (result anyref (ref null $a)) ;; label = @1
+      local.get 1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 anyref (ref null $a)
+    end
+    unreachable
+  )
+)

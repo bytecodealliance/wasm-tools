@@ -1316,6 +1316,20 @@ pub enum Instruction<'a> {
     I64Sub128,
     I64MulWideS,
     I64MulWideU,
+
+    RefGetDesc(u32),
+    RefCastDescNonNull(HeapType),
+    RefCastDescNullable(HeapType),
+    BrOnCastDesc {
+        relative_depth: u32,
+        from_ref_type: RefType,
+        to_ref_type: RefType,
+    },
+    BrOnCastDescFail {
+        relative_depth: u32,
+        from_ref_type: RefType,
+        to_ref_type: RefType,
+    },
 }
 
 impl Encode for Instruction<'_> {
@@ -2144,6 +2158,19 @@ impl Encode for Instruction<'_> {
             Instruction::I64Sub128 => sink.i64_sub128(),
             Instruction::I64MulWideS => sink.i64_mul_wide_s(),
             Instruction::I64MulWideU => sink.i64_mul_wide_u(),
+            Instruction::RefGetDesc(type_index) => sink.ref_get_desc(type_index),
+            Instruction::RefCastDescNonNull(hty) => sink.ref_cast_desc_non_null(hty),
+            Instruction::RefCastDescNullable(hty) => sink.ref_cast_desc_nullable(hty),
+            Instruction::BrOnCastDesc {
+                relative_depth,
+                from_ref_type,
+                to_ref_type,
+            } => sink.br_on_cast_desc(relative_depth, from_ref_type, to_ref_type),
+            Instruction::BrOnCastDescFail {
+                relative_depth,
+                from_ref_type,
+                to_ref_type,
+            } => sink.br_on_cast_desc_fail(relative_depth, from_ref_type, to_ref_type),
         };
     }
 }

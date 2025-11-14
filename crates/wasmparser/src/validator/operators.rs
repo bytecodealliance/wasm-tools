@@ -261,7 +261,7 @@ enum MaybeType<T = ValType> {
 // current expected size.
 #[test]
 fn assert_maybe_type_small() {
-    assert!(core::mem::size_of::<MaybeType>() == 4);
+    assert!(core::mem::size_of::<MaybeType>() == 8);
 }
 
 impl core::fmt::Display for MaybeType {
@@ -588,7 +588,7 @@ where
         if cfg!(debug_assertions) {
             match maybe_ty {
                 MaybeType::Known(ValType::Ref(r)) => match r.heap_type() {
-                    HeapType::Concrete(index) => {
+                    HeapType::Concrete(index) | HeapType::Exact(index) => {
                         debug_assert!(
                             matches!(index, UnpackedIndex::Id(_)),
                             "only ref types referencing `CoreTypeId`s can \
@@ -620,6 +620,28 @@ where
         self.push_operand(ref_ty)
     }
 
+    fn push_exact_ref(&mut self, nullable: bool, type_index: u32) -> Result<()> {
+        let mut heap_ty = HeapType::Exact(UnpackedIndex::Module(type_index));
+
+        // Canonicalize the module index into an id.
+        self.resources.check_heap_type(&mut heap_ty, self.offset)?;
+        debug_assert!(matches!(heap_ty, HeapType::Exact(UnpackedIndex::Id(_))));
+
+        let ref_ty = RefType::new(nullable, heap_ty).ok_or_else(|| {
+            format_err!(self.offset, "implementation limit: type index too large")
+        })?;
+
+        self.push_operand(ref_ty)
+    }
+
+    fn push_exact_ref_if_available(&mut self, nullable: bool, type_index: u32) -> Result<()> {
+        if self.features.custom_descriptors() {
+            self.push_exact_ref(nullable, type_index)
+        } else {
+            self.push_concrete_ref(nullable, type_index)
+        }
+    }
+
     fn pop_concrete_ref(&mut self, nullable: bool, type_index: u32) -> Result<MaybeType> {
         let mut heap_ty = HeapType::Concrete(UnpackedIndex::Module(type_index));
 
@@ -632,6 +654,27 @@ where
         })?;
 
         self.pop_operand(Some(ref_ty.into()))
+    }
+
+    fn pop_concrete_or_exact_ref(
+        &mut self,
+        nullable: bool,
+        type_index: u32,
+    ) -> Result<(MaybeType, bool)> {
+        let ty = self.pop_concrete_ref(nullable, type_index)?;
+        let is_exact = match ty {
+            MaybeType::Known(ValType::Ref(rt)) if rt.is_exact_type_ref() || rt.is_none_ref() => {
+                let mut heap_ty = HeapType::Exact(UnpackedIndex::Module(type_index));
+                self.resources.check_heap_type(&mut heap_ty, self.offset)?;
+                let expected = RefType::new(nullable, heap_ty).ok_or_else(|| {
+                    format_err!(self.offset, "implementation limit: type index too large")
+                })?;
+                self.resources.is_subtype(rt.into(), expected.into())
+            }
+            MaybeType::Bottom => true,
+            _ => false,
+        };
+        Ok((ty, is_exact))
     }
 
     /// Pop the given label types, checking that they are indeed present on the
@@ -1289,6 +1332,120 @@ where
     fn check_ref_cast(&mut self, nullable: bool, heap_type: HeapType) -> Result<()> {
         let sub_ty = self.check_downcast(nullable, heap_type)?;
         self.push_operand(sub_ty)
+    }
+
+    /// Common helper to check type hierarchy for `br_on_cast` operators.
+    fn check_br_on_cast_type_hierarchy(
+        &self,
+        from_ref_type: RefType,
+        to_ref_type: RefType,
+    ) -> Result<()> {
+        if self.features.custom_descriptors() {
+            // The constraint C |- rt_2 <: rt_1 on branching cast instructions
+            // before the custom descriptors proposal is relaxed to the constraint
+            // that rt_1 and rt_2 share some arbitrary valid supertype rt', i.e.
+            // that rt_1 and rt_2 must be in the same heap type hierarchy.
+            let from_ref_type_top = self.resources.top_type(&from_ref_type.heap_type());
+            let to_ref_type_top = self.resources.top_type(&to_ref_type.heap_type());
+            if from_ref_type_top != to_ref_type_top {
+                bail!(
+                    self.offset,
+                    "type mismatch: {from_ref_type} and {to_ref_type} have different heap type hierarchies"
+                );
+            }
+            return Ok(());
+        }
+
+        if !self
+            .resources
+            .is_subtype(to_ref_type.into(), from_ref_type.into())
+        {
+            bail!(
+                self.offset,
+                "type mismatch: expected {from_ref_type}, found {to_ref_type}"
+            );
+        }
+        Ok(())
+    }
+
+    /// Common helper to check descriptor for the specified type.
+    fn check_descriptor(&self, heap_type: HeapType) -> Result<u32> {
+        Ok(match heap_type {
+            HeapType::Exact(idx) | HeapType::Concrete(idx) => {
+                if let Some(descriptor_idx) = self
+                    .sub_type_at(idx.as_module_index().unwrap())?
+                    .composite_type
+                    .descriptor_idx
+                {
+                    u32::try_from(crate::validator::types::TypeIdentifier::index(
+                        &descriptor_idx.as_core_type_id().unwrap(),
+                    ))
+                    .unwrap()
+                } else {
+                    bail!(self.offset, "cast target must have descriptor")
+                }
+            }
+            _ => bail!(self.offset, "unexpected heap type"),
+        })
+    }
+
+    fn check_maybe_exact_descriptor_ref(&mut self, heap_type: HeapType) -> Result<bool> {
+        let descriptor_idx = self.check_descriptor(heap_type)?;
+        let (ty, _is_exact) = self.pop_concrete_or_exact_ref(true, descriptor_idx)?;
+        let is_exact = if let HeapType::Exact(_) = heap_type {
+            let mut descriptor_ty = HeapType::Exact(UnpackedIndex::Module(descriptor_idx));
+            self.resources
+                .check_heap_type(&mut descriptor_ty, self.offset)?;
+            let descriptor_ty = ValType::Ref(
+                RefType::new(true, descriptor_ty)
+                    .expect("existing heap types should be within our limits"),
+            );
+
+            match ty {
+                MaybeType::Known(actual) if !self.resources.is_subtype(actual, descriptor_ty) => {
+                    bail!(
+                        self.offset,
+                        "type mismatch: expected descriptor of exact type {descriptor_ty} found {actual}",
+                    );
+                }
+                _ => (),
+            }
+            true
+        } else {
+            false
+        };
+        Ok(is_exact)
+    }
+
+    /// Common helper for both nullable and non-nullable variants of `ref.cast_desc`
+    /// instructions.
+    fn check_ref_cast_desc(&mut self, nullable: bool, heap_type: HeapType) -> Result<()> {
+        let is_exact = self.check_maybe_exact_descriptor_ref(heap_type)?;
+
+        self.check_downcast(nullable, heap_type)?;
+
+        let idx = {
+            let mut heap_type = heap_type;
+            self.resources
+                .check_heap_type(&mut heap_type, self.offset)?;
+            match heap_type {
+                HeapType::Concrete(index) | HeapType::Exact(index) => {
+                    index.pack().ok_or_else(|| {
+                        BinaryReaderError::new(
+                            "implementation limit: type index too large",
+                            self.offset,
+                        )
+                    })?
+                }
+                _ => panic!(),
+            }
+        };
+
+        self.push_operand(if is_exact {
+            RefType::exact(nullable, idx)
+        } else {
+            RefType::concrete(nullable, idx)
+        })
     }
 
     /// Common helper for checking the types of globals accessed with atomic RMW
@@ -3275,14 +3432,26 @@ where
         Ok(())
     }
     fn visit_struct_new(&mut self, struct_type_index: u32) -> Self::Output {
+        if let Some(descriptor_idx) = self
+            .sub_type_at(struct_type_index)?
+            .composite_type
+            .descriptor_idx
+        {
+            let ty = ValType::Ref(RefType::exact(true, descriptor_idx));
+            self.pop_operand(Some(ty))?;
+        }
         let struct_ty = self.struct_type_at(struct_type_index)?;
         for ty in struct_ty.fields.iter().rev() {
             self.pop_operand(Some(ty.element_type.unpack()))?;
         }
-        self.push_concrete_ref(false, struct_type_index)?;
+        self.push_exact_ref_if_available(false, struct_type_index)?;
         Ok(())
     }
     fn visit_struct_new_default(&mut self, type_index: u32) -> Self::Output {
+        if let Some(descriptor_idx) = self.sub_type_at(type_index)?.composite_type.descriptor_idx {
+            let ty = ValType::Ref(RefType::exact(true, descriptor_idx));
+            self.pop_operand(Some(ty))?;
+        }
         let ty = self.struct_type_at(type_index)?;
         for field in ty.fields.iter() {
             let val_ty = field.element_type.unpack();
@@ -3293,7 +3462,7 @@ where
                 );
             }
         }
-        self.push_concrete_ref(false, type_index)?;
+        self.push_exact_ref_if_available(false, type_index)?;
         Ok(())
     }
     fn visit_struct_get(&mut self, struct_type_index: u32, field_index: u32) -> Self::Output {
@@ -3514,7 +3683,7 @@ where
         let array_ty = self.array_type_at(type_index)?;
         self.pop_operand(Some(ValType::I32))?;
         self.pop_operand(Some(array_ty.element_type.unpack()))?;
-        self.push_concrete_ref(false, type_index)
+        self.push_exact_ref_if_available(false, type_index)
     }
     fn visit_array_new_default(&mut self, type_index: u32) -> Self::Output {
         let ty = self.array_type_at(type_index)?;
@@ -3526,7 +3695,7 @@ where
             );
         }
         self.pop_operand(Some(ValType::I32))?;
-        self.push_concrete_ref(false, type_index)
+        self.push_exact_ref_if_available(false, type_index)
     }
     fn visit_array_new_fixed(&mut self, type_index: u32, n: u32) -> Self::Output {
         let array_ty = self.array_type_at(type_index)?;
@@ -3534,7 +3703,7 @@ where
         for _ in 0..n {
             self.pop_operand(Some(elem_ty))?;
         }
-        self.push_concrete_ref(false, type_index)
+        self.push_exact_ref_if_available(false, type_index)
     }
     fn visit_array_new_data(&mut self, type_index: u32, data_index: u32) -> Self::Output {
         let array_ty = self.array_type_at(type_index)?;
@@ -3549,7 +3718,7 @@ where
         self.check_data_segment(data_index)?;
         self.pop_operand(Some(ValType::I32))?;
         self.pop_operand(Some(ValType::I32))?;
-        self.push_concrete_ref(false, type_index)
+        self.push_exact_ref_if_available(false, type_index)
     }
     fn visit_array_new_elem(&mut self, type_index: u32, elem_index: u32) -> Self::Output {
         let array_ty = self.array_type_at(type_index)?;
@@ -3573,7 +3742,7 @@ where
         }
         self.pop_operand(Some(ValType::I32))?;
         self.pop_operand(Some(ValType::I32))?;
-        self.push_concrete_ref(false, type_index)
+        self.push_exact_ref_if_available(false, type_index)
     }
     fn visit_array_get(&mut self, type_index: u32) -> Self::Output {
         let array_ty = self.array_type_at(type_index)?;
@@ -3897,15 +4066,7 @@ where
         self.resources
             .check_ref_type(&mut to_ref_type, self.offset)?;
 
-        if !self
-            .resources
-            .is_subtype(to_ref_type.into(), from_ref_type.into())
-        {
-            bail!(
-                self.offset,
-                "type mismatch: expected {from_ref_type}, found {to_ref_type}"
-            );
-        }
+        self.check_br_on_cast_type_hierarchy(from_ref_type, to_ref_type)?;
 
         let (block_ty, frame_kind) = self.jump(relative_depth)?;
         let mut label_types = self.label_types(block_ty, frame_kind)?;
@@ -3941,15 +4102,7 @@ where
         self.resources
             .check_ref_type(&mut to_ref_type, self.offset)?;
 
-        if !self
-            .resources
-            .is_subtype(to_ref_type.into(), from_ref_type.into())
-        {
-            bail!(
-                self.offset,
-                "type mismatch: expected {from_ref_type}, found {to_ref_type}"
-            );
-        }
+        self.check_br_on_cast_type_hierarchy(from_ref_type, to_ref_type)?;
 
         let (block_ty, frame_kind) = self.jump(relative_depth)?;
         let mut label_tys = self.label_types(block_ty, frame_kind)?;
@@ -4230,6 +4383,107 @@ where
     }
     fn visit_i64_mul_wide_u(&mut self) -> Result<()> {
         self.check_i64_mul_wide()
+    }
+
+    fn visit_ref_get_desc(&mut self, type_index: u32) -> Self::Output {
+        let (_, is_exact) = self.pop_concrete_or_exact_ref(true, type_index)?;
+        match self.sub_type_at(type_index)?.composite_type.descriptor_idx {
+            Some(descriptor_idx) => {
+                let ref_ty = if is_exact {
+                    RefType::exact(false, descriptor_idx)
+                } else {
+                    RefType::concrete(false, descriptor_idx)
+                };
+                self.push_operand(ref_ty)
+            }
+            None => bail!(self.offset, "expected type with descriptor"),
+        }
+    }
+
+    fn visit_ref_cast_desc_non_null(&mut self, heap_type: HeapType) -> Self::Output {
+        self.check_ref_cast_desc(false, heap_type)
+    }
+    fn visit_ref_cast_desc_nullable(&mut self, heap_type: HeapType) -> Self::Output {
+        self.check_ref_cast_desc(true, heap_type)
+    }
+    fn visit_br_on_cast_desc(
+        &mut self,
+        relative_depth: u32,
+        mut from_ref_type: RefType,
+        mut to_ref_type: RefType,
+    ) -> Self::Output {
+        let described_ty = to_ref_type.heap_type();
+
+        self.resources
+            .check_ref_type(&mut from_ref_type, self.offset)?;
+        self.resources
+            .check_ref_type(&mut to_ref_type, self.offset)?;
+
+        self.check_br_on_cast_type_hierarchy(from_ref_type, to_ref_type)?;
+
+        self.check_maybe_exact_descriptor_ref(described_ty)?;
+
+        let (block_ty, frame_kind) = self.jump(relative_depth)?;
+        let mut label_types = self.label_types(block_ty, frame_kind)?;
+
+        match label_types.next_back() {
+            Some(label_ty) if self.resources.is_subtype(to_ref_type.into(), label_ty) => {
+                self.pop_operand(Some(from_ref_type.into()))?;
+            }
+            Some(label_ty) => bail!(
+                self.offset,
+                "type mismatch: casting to type {to_ref_type}, but it does not match \
+                 label result type {label_ty}"
+            ),
+            None => bail!(
+                self.offset,
+                "type mismatch: br_on_cast to label with empty types, must have a reference type"
+            ),
+        };
+
+        self.pop_push_label_types(label_types)?;
+        let diff_ty = RefType::difference(from_ref_type, to_ref_type);
+        self.push_operand(diff_ty)?;
+        Ok(())
+    }
+    fn visit_br_on_cast_desc_fail(
+        &mut self,
+        relative_depth: u32,
+        mut from_ref_type: RefType,
+        mut to_ref_type: RefType,
+    ) -> Self::Output {
+        let described_ty = to_ref_type.heap_type();
+
+        self.resources
+            .check_ref_type(&mut from_ref_type, self.offset)?;
+        self.resources
+            .check_ref_type(&mut to_ref_type, self.offset)?;
+
+        self.check_br_on_cast_type_hierarchy(from_ref_type, to_ref_type)?;
+
+        self.check_maybe_exact_descriptor_ref(described_ty)?;
+
+        let (block_ty, frame_kind) = self.jump(relative_depth)?;
+        let mut label_tys = self.label_types(block_ty, frame_kind)?;
+
+        let diff_ty = RefType::difference(from_ref_type, to_ref_type);
+        match label_tys.next_back() {
+            Some(label_ty) if self.resources.is_subtype(diff_ty.into(), label_ty) => {
+                self.pop_operand(Some(from_ref_type.into()))?;
+            }
+            Some(label_ty) => bail!(
+                self.offset,
+                "type mismatch: expected label result type {label_ty}, found {diff_ty}"
+            ),
+            None => bail!(
+                self.offset,
+                "type mismatch: expected a reference type, found nothing"
+            ),
+        }
+
+        self.pop_push_label_types(label_tys)?;
+        self.push_operand(to_ref_type)?;
+        Ok(())
     }
 }
 

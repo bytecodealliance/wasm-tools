@@ -1,0 +1,92 @@
+(module
+  (rec
+    (type $a (;0;) (descriptor $b) (struct))
+    (type $b (;1;) (describes $a) (struct))
+  )
+  (rec
+    (type $pair (;2;) (descriptor $pair.desc) (struct (field i32) (field i64)))
+    (type $pair.desc (;3;) (describes $pair) (struct (field f32)))
+  )
+  (rec
+    (type $one (;4;) (descriptor $two) (struct))
+    (type $two (;5;) (describes $one) (descriptor $three) (struct))
+    (type $three (;6;) (describes $two) (struct))
+  )
+  (type (;7;) (func (result (ref (exact $a)))))
+  (type (;8;) (func (result (ref null (exact $b)))))
+  (type (;9;) (func (result (ref (exact $pair)))))
+  (type (;10;) (func (result (ref (exact $one)))))
+  (global $b (;0;) (ref null (exact $b)) struct.new $b)
+  (global $a (;1;) (ref (exact $a)) global.get $b struct.new $a)
+  (global $null-b (;2;) (ref null (exact $b)) ref.null none)
+  (export "b" (global $b))
+  (export "a" (global $a))
+  (export "new-new" (func 0))
+  (export "new-global" (func 1))
+  (export "new-call" (func 2))
+  (export "new-pair" (func 4))
+  (export "new-chain" (func 5))
+  (export "new-null" (func 6))
+  (export "new-null-global" (func 7))
+  (export "new-null-call" (func 8))
+  (export "new-null-pair" (func 10))
+  (export "new-null-chain-1" (func 11))
+  (export "new-null-chain-2" (func 12))
+  (func (;0;) (type 7) (result (ref (exact $a)))
+    struct.new $b
+    struct.new $a
+  )
+  (func (;1;) (type 7) (result (ref (exact $a)))
+    global.get $b
+    struct.new $a
+  )
+  (func (;2;) (type 7) (result (ref (exact $a)))
+    call $new-b
+    struct.new $a
+  )
+  (func $new-b (;3;) (type 8) (result (ref null (exact $b)))
+    struct.new $b
+  )
+  (func (;4;) (type 9) (result (ref (exact $pair)))
+    i32.const 0
+    i64.const 1
+    f32.const 0x1p+1 (;=2;)
+    struct.new $pair.desc
+    struct.new $pair
+  )
+  (func (;5;) (type 10) (result (ref (exact $one)))
+    struct.new $three
+    struct.new $two
+    struct.new $one
+  )
+  (func (;6;) (type 7) (result (ref (exact $a)))
+    ref.null none
+    struct.new $a
+  )
+  (func (;7;) (type 7) (result (ref (exact $a)))
+    global.get $null-b
+    struct.new $a
+  )
+  (func (;8;) (type 7) (result (ref (exact $a)))
+    call $null
+    struct.new $a
+  )
+  (func $null (;9;) (type 8) (result (ref null (exact $b)))
+    ref.null none
+  )
+  (func (;10;) (type 9) (result (ref (exact $pair)))
+    i32.const 0
+    i64.const 1
+    ref.null (exact $pair.desc)
+    struct.new $pair
+  )
+  (func (;11;) (type 10) (result (ref (exact $one)))
+    ref.null (exact $two)
+    struct.new $one
+  )
+  (func (;12;) (type 10) (result (ref (exact $one)))
+    ref.null (exact $three)
+    struct.new $two
+    struct.new $one
+  )
+)

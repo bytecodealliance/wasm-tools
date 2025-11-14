@@ -1,0 +1,7 @@
+(module
+  (type (;0;) (func))
+  (type (;1;) (func (param (ref nofunc)) (result (ref (exact 0)))))
+  (func (;0;) (type 1) (param (ref nofunc)) (result (ref (exact 0)))
+    local.get 0
+  )
+)

@@ -40,7 +40,12 @@ fn copy_test(src: &Path, dst: &Path) {
         return;
     }
 
-    let mut contents = format!(";; RUN: wast \\\n");
+    let directive = match dst.file_name().and_then(|s| s.to_str()) {
+        Some("exact-func-import.wast") => "FAIL",
+        Some(_) | None => "RUN",
+    };
+
+    let mut contents = format!(";; {directive}: wast \\\n");
     contents.push_str(";;      --assert default \\\n");
 
     // Allow certain assert_malformed tests to be interpreted as assert_invalid
@@ -73,8 +78,7 @@ fn copy_test(src: &Path, dst: &Path) {
         Some("threads") => "wasm1,threads",
         Some("custom-page-sizes") => "wasm3,custom-page-sizes",
         Some("wide-arithmetic") => "wasm3,wide-arithmetic",
-        // not implemented yet
-        Some("custom-descriptors") => return,
+        Some("custom-descriptors") => "wasm3,custom-descriptors",
         Some(proposal) => panic!("unsupported proposal: {}", proposal),
     };
     contents.push_str(&format!(";;      --features={features} \\\n"));

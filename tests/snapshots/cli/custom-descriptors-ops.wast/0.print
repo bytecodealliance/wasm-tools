@@ -1,0 +1,82 @@
+(module
+  (type $f (;0;) (func (result i32)))
+  (rec
+    (type $t1 (;1;) (sub (descriptor $t2) (struct (field i32))))
+    (type $t2 (;2;) (sub (describes $t1) (struct (field (ref $f)))))
+    (type $t1sub (;3;) (sub $t1 (descriptor $t2sub) (struct (field i32) (field f32))))
+    (type $t2sub (;4;) (sub $t2 (describes $t1sub) (struct (field (ref $f)) (field (ref $f)))))
+  )
+  (type (;5;) (func))
+  (type (;6;) (func (param (ref (exact $t2)))))
+  (type (;7;) (func (result (ref (exact $t2)))))
+  (type (;8;) (func (param (ref $t1) (ref null (exact $t2))) (result (ref null (exact $t1)))))
+  (type (;9;) (func (param (ref null $t1sub) (ref null $t2)) (result (ref null $t1))))
+  (import "" "rtt1" (global $g1 (;0;) (ref (exact $t2))))
+  (import "" "rtt1sub" (global $g1sub (;1;) (ref (exact $t2sub))))
+  (elem (;0;) declare func $f_impl)
+  (func $f_impl (;0;) (type $f) (result i32)
+    unreachable
+  )
+  (func $test-struct-new (;1;) (type 5)
+    i32.const 3
+    global.get $g1
+    struct.new $t1
+    drop
+    global.get $g1
+    struct.new_default $t1
+    drop
+    global.get $g1sub
+    struct.new_default $t1sub
+    drop
+  )
+  (func $test-exact-types (;2;) (type 5)
+    (local $l_any anyref) (local $l_struct structref) (local $l_t2 (ref $t2)) (local $l_t2_e (ref (exact $t2)))
+    global.get $g1
+    local.set $l_any
+    global.get $g1
+    local.set $l_struct
+    global.get $g1
+    local.set $l_t2
+    global.get $g1
+    local.set $l_t2_e
+    global.get $g1sub
+    local.set $l_struct
+    global.get $g1sub
+    local.set $l_t2
+    local.get $l_any
+    ref.cast (ref null $t2)
+    ref.cast (ref (exact $t2))
+    local.set $l_t2_e
+  )
+  (func $test-struct-new-result (;3;) (type 5)
+    (local (ref (exact $t2)))
+    ref.func $f_impl
+    struct.new $t2
+    local.set 0
+  )
+  (func $test-get-desc (;4;) (type 6) (param $rtt (ref (exact $t2)))
+    local.get $rtt
+    struct.new_default $t1
+    ref.get_desc $t1
+    local.set $rtt
+  )
+  (func $test-get-desc-2 (;5;) (type 7) (result (ref (exact $t2)))
+    unreachable
+    ref.get_desc $t1
+  )
+  (func $test-cast-desc (;6;) (type 8) (param $i (ref $t1)) (param $desc (ref null (exact $t2))) (result (ref null (exact $t1)))
+    local.get $i
+    local.get $desc
+    ref.cast_desc (ref null (exact $t1))
+  )
+  (func $test-br_on_cast_desc (;7;) (type 9) (param $i (ref null $t1sub)) (param $desc (ref null $t2)) (result (ref null $t1))
+    local.get $i
+    local.get $desc
+    br_on_cast_desc 0 (ref null $t1sub) (ref null $t1)
+  )
+  (func $test-br_on_cast_desc_fail (;8;) (type 9) (param $i (ref null $t1sub)) (param $desc (ref null $t2)) (result (ref null $t1))
+    local.get $i
+    local.get $desc
+    br_on_cast_desc_fail 0 (ref null $t1sub) (ref null $t1)
+  )
+)

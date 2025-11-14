@@ -1161,7 +1161,7 @@ impl ArgOrField {
     pub(crate) fn as_concrete_ref(self) -> Option<CoreTypeId> {
         match self.as_ref_type()?.heap_type() {
             HeapType::Abstract { .. } => None,
-            HeapType::Concrete(idx) => {
+            HeapType::Concrete(idx) | HeapType::Exact(idx) => {
                 let id = idx
                     .as_core_type_id()
                     .expect("validation only sees core type ids");

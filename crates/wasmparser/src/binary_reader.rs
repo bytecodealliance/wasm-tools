@@ -1362,6 +1362,56 @@ impl<'a> BinaryReader<'a> {
             0x1d => visitor.visit_i31_get_s(),
             0x1e => visitor.visit_i31_get_u(),
 
+            0x22 => visitor.visit_ref_get_desc(self.read()?),
+            0x23 => visitor.visit_ref_cast_desc_non_null(self.read()?),
+            0x24 => visitor.visit_ref_cast_desc_nullable(self.read()?),
+            0x25 => {
+                let pos = self.original_position();
+                let cast_flags = self.read_u8()?;
+                let relative_depth = self.read_var_u32()?;
+                let (from_type_nullable, to_type_nullable) = match cast_flags {
+                    0b00 => (false, false),
+                    0b01 => (true, false),
+                    0b10 => (false, true),
+                    0b11 => (true, true),
+                    _ => bail!(pos, "invalid cast flags: {cast_flags:08b}"),
+                };
+                let from_heap_type = self.read()?;
+                let from_ref_type =
+                    RefType::new(from_type_nullable, from_heap_type).ok_or_else(|| {
+                        format_err!(pos, "implementation error: type index too large")
+                    })?;
+                let to_heap_type = self.read()?;
+                let to_ref_type =
+                    RefType::new(to_type_nullable, to_heap_type).ok_or_else(|| {
+                        format_err!(pos, "implementation error: type index too large")
+                    })?;
+                visitor.visit_br_on_cast_desc(relative_depth, from_ref_type, to_ref_type)
+            }
+            0x26 => {
+                let pos = self.original_position();
+                let cast_flags = self.read_u8()?;
+                let relative_depth = self.read_var_u32()?;
+                let (from_type_nullable, to_type_nullable) = match cast_flags {
+                    0 => (false, false),
+                    1 => (true, false),
+                    2 => (false, true),
+                    3 => (true, true),
+                    _ => bail!(pos, "invalid cast flags: {cast_flags:08b}"),
+                };
+                let from_heap_type = self.read()?;
+                let from_ref_type =
+                    RefType::new(from_type_nullable, from_heap_type).ok_or_else(|| {
+                        format_err!(pos, "implementation error: type index too large")
+                    })?;
+                let to_heap_type = self.read()?;
+                let to_ref_type =
+                    RefType::new(to_type_nullable, to_heap_type).ok_or_else(|| {
+                        format_err!(pos, "implementation error: type index too large")
+                    })?;
+                visitor.visit_br_on_cast_desc_fail(relative_depth, from_ref_type, to_ref_type)
+            }
+
             _ => bail!(pos, "unknown 0xfb subopcode: 0x{code:x}"),
         })
     }

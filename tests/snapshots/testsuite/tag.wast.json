@@ -54,14 +54,14 @@
       "line": 49,
       "filename": "tag.6.wasm",
       "module_type": "binary",
-      "text": "incompatible import"
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 60,
       "filename": "tag.7.wasm",
       "module_type": "binary",
-      "text": "incompatible import"
+      "text": "incompatible import type"
     }
   ]
 }

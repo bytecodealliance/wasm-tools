@@ -1,0 +1,18 @@
+(module
+  (rec
+    (type $a (;0;) (sub (descriptor $b) (struct)))
+    (type $b (;1;) (sub (describes $a) (struct)))
+    (type $c (;2;) (sub $a (descriptor $d) (struct)))
+    (type $d (;3;) (sub $b (describes $c) (struct)))
+  )
+  (type (;4;) (func (param (ref (exact $c))) (result (ref $b))))
+  (type (;5;) (func (param (ref $c)) (result (ref $b))))
+  (func (;0;) (type 4) (param (ref (exact $c))) (result (ref $b))
+    local.get 0
+    ref.get_desc $a
+  )
+  (func (;1;) (type 5) (param (ref $c)) (result (ref $b))
+    local.get 0
+    ref.get_desc $a
+  )
+)

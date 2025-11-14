@@ -702,7 +702,7 @@
       "line": 293,
       "filename": "array.9.wasm",
       "module_type": "binary",
-      "text": "array is immutable"
+      "text": "immutable array"
     },
     {
       "type": "assert_invalid",
