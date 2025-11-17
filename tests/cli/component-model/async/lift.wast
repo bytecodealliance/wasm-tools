@@ -108,3 +108,35 @@
   )
   "cannot specify callback without async"
 )
+
+;; async lift; missing memory (needed for string return value)
+(assert_invalid
+  (component
+    (core module $m
+      (func (export "callback") (param i32 i32 i32) (result i32) unreachable)
+      (func (export "foo") (result i32) unreachable)
+    )
+    (core instance $i (instantiate $m))
+
+    (func (export "foo") (result string)
+      (canon lift (core func $i "foo") async (callback (func $i "callback")))
+    )
+  )
+  "canonical option `memory` is required"
+)
+
+;; async lift; missing memory (needed for return value exceeding MAX_FLAT_PARAMS)
+(assert_invalid
+  (component
+    (core module $m
+      (func (export "callback") (param i32 i32 i32) (result i32) unreachable)
+      (func (export "foo") (result i32) unreachable)
+    )
+    (core instance $i (instantiate $m))
+
+    (func (export "foo") (result (tuple u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32))
+      (canon lift (core func $i "foo") async (callback (func $i "callback")))
+    )
+  )
+  "canonical option `memory` is required"
+)

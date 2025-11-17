@@ -175,6 +175,7 @@ impl RequiredOptions {
         }
         if let AbiVariant::GuestExportAsync | AbiVariant::GuestExportAsyncStackful = abi {
             ret |= RequiredOptions::ASYNC;
+            ret |= task_return_options_and_type(resolve, func.result).0;
         }
         ret
     }

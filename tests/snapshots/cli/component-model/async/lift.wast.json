@@ -48,6 +48,20 @@
       "filename": "lift.6.wasm",
       "module_type": "binary",
       "text": "cannot specify callback without async"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 114,
+      "filename": "lift.7.wasm",
+      "module_type": "binary",
+      "text": "canonical option `memory` is required"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 130,
+      "filename": "lift.8.wasm",
+      "module_type": "binary",
+      "text": "canonical option `memory` is required"
     }
   ]
 }

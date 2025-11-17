@@ -126,7 +126,7 @@ impl TestCase for MyInterpreter {
                 Some(Val::Future(result.take_handle()))
             }
 
-            "thing.get" => {
+            "[method]thing.get" => {
                 assert_eq!(func.params().len(), 1);
                 assert!(matches!(func.params().next(), Some(Type::Borrow(_))));
                 assert!(matches!(func.result(), Some(Type::String)));
