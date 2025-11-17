@@ -1275,6 +1275,21 @@ impl ComponentFuncType {
                 sig.results.assert_push(ValType::I32);
             }
             (Abi::Lift, Concurrency::Async { callback }) => {
+                if let Some(ty) = &self.result {
+                    // The result of an async lift will be returned via a call
+                    // to `task.return` rather than the lifted function itself.
+                    // Here we require a memory if either the return type
+                    // contains a pointer or has a flattened form that exceeds
+                    // `MAX_FLAT_FUNC_PARAMS`.
+                    //
+                    // Note that the return type itself has no effect on the
+                    // expected core signature of the lifted function.
+
+                    let overflow =
+                        !ty.push_wasm_types(types, &mut LoweredTypes::new(MAX_FLAT_FUNC_PARAMS));
+
+                    options.require_memory_if(offset, || overflow || ty.contains_ptr(types))?;
+                }
                 if callback.is_some() {
                     sig.results.assert_push(ValType::I32);
                 }
