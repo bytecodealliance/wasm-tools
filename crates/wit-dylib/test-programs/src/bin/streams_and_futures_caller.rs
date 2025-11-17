@@ -168,7 +168,7 @@ impl TestCase for MyInterpreter {
                 let Val::String(value) = Self::call_import_async(
                     wit,
                     Some("a:b/x"),
-                    "thing.get",
+                    "[method]thing.get",
                     &[Val::Borrow(handle.borrow())],
                 )
                 .await
