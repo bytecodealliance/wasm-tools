@@ -177,7 +177,7 @@ pub(crate) fn encode(
     // Prepare to and emit the code section. This is where DWARF may optionally
     // be emitted depending on configuration settings. Note that `code_section`
     // will internally emit the branch hints section if necessary.
-    let names = find_names(module_id, module_name, fields);
+    let names = find_names(module_id, module_name, fields, &types);
     let num_import_funcs = imports
         .iter()
         .filter(|i| matches!(i.item.kind, ItemKind::Func(..)))
@@ -206,6 +206,23 @@ pub(crate) fn encode(
             })
             .flat_map(|e| e.instrs.iter())
             .any(|i| i.needs_data_count())
+    }
+}
+
+fn func_type<'a>(types: &'a [RecOrType<'a>], ty: u32) -> Option<&'a FunctionType<'a>> {
+    // Iterate through `self.types` which is what was encoded into the
+    // module and find the function type which gives access to the
+    // parameters which gives access to their types.
+    let ty = types
+        .iter()
+        .flat_map(|t| match t {
+            RecOrType::Type(t) => std::slice::from_ref(*t),
+            RecOrType::Rec(r) => &r.types,
+        })
+        .nth(ty as usize)?;
+    match &ty.def.kind {
+        InnerTypeKind::Func(ty) => Some(ty),
+        _ => None,
     }
 }
 
@@ -732,7 +749,9 @@ impl Func<'_> {
     ) -> Vec<wasm_encoder::BranchHint> {
         assert!(self.exports.names.is_empty());
         let (expr, locals) = match &self.kind {
-            FuncKind::Inline { expression, locals } => (expression, locals),
+            FuncKind::Inline {
+                expression, locals, ..
+            } => (expression, locals),
             _ => panic!("should only have inline functions in emission"),
         };
 
@@ -976,6 +995,7 @@ fn find_names<'a>(
     module_id: &Option<Id<'a>>,
     module_name: &Option<NameAnnotation<'a>>,
     fields: &[ModuleField<'a>],
+    types: &'a [RecOrType<'a>],
 ) -> Names<'a> {
     fn get_name<'a>(id: &Option<Id<'a>>, name: &Option<NameAnnotation<'a>>) -> Option<&'a str> {
         name.as_ref().map(|n| n.name).or(id.and_then(|id| {
@@ -1056,19 +1076,40 @@ fn find_names<'a>(
             let mut label_names = Vec::new();
             let mut local_idx = 0;
             let mut label_idx = 0;
+            let mut discard_locals = false;
 
-            // Consult the inline type listed for local names of parameters.
-            // This is specifically preserved during the name resolution
-            // pass, but only for functions, so here we can look at the
-            // original source's names.
             if let Some(ty) = &f.ty.inline {
+                // Consult the inline type listed for local names of parameters.
+                // This is specifically preserved during the name resolution
+                // pass, but only for functions, so here we can look at the
+                // original source's names.
                 for (id, name, _) in ty.params.iter() {
                     if let Some(name) = get_name(id, name) {
                         local_names.push((local_idx, name));
                     }
                     local_idx += 1;
                 }
+            } else {
+                // If the inline type isn't listed then it's either not present
+                // (e.g. no params or results) or it was referenced by index.
+                // Either way we've got the index here, so look it up in the
+                // list of types and see how many parameters this function's
+                // type has.
+                let index = match f.ty.index.as_ref().unwrap() {
+                    Index::Num(n, _) => *n,
+                    _ => unreachable!(),
+                };
+
+                match func_type(types, index) {
+                    Some(ft) => local_idx = ft.params.len() as u32,
+                    // If the function type index is invalid then skip
+                    // preserving names since we don't know how many parameters
+                    // this function will have so we don't know where to start
+                    // indexing at.
+                    None => discard_locals = true,
+                }
             }
+
             if let FuncKind::Inline {
                 locals, expression, ..
             } = &f.kind
@@ -1096,7 +1137,7 @@ fn find_names<'a>(
                     }
                 }
             }
-            if local_names.len() > 0 {
+            if !discard_locals && local_names.len() > 0 {
                 ret.locals.push((*idx, local_names));
             }
             if label_names.len() > 0 {
