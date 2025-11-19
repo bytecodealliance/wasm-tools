@@ -21,30 +21,30 @@
     i32.const 42
     return
   )
-  (func $f (;2;) (type $ft) (param $nextk (ref null $ct))
-    (local (ref null $ct))
+  (func $f (;2;) (type $ft) (param (ref null $ct))
+    (local $nextk (ref null $ct))
+    local.get 0
+    local.set $nextk
+    global.get $fi
+    call $print-i32
     local.get $nextk
-    local.set 1
-    global.get $fi
-    call $print-i32
-    local.get 1
     switch $ct $swap
-    local.set 1
+    local.set $nextk
     global.get $fi
     call $print-i32
-    local.get 1
+    local.get $nextk
     switch $ct $swap
     drop
   )
-  (func $g (;3;) (type $ft) (param $nextk (ref null $ct))
-    (local (ref null $ct))
-    local.get $nextk
-    local.set 1
+  (func $g (;3;) (type $ft) (param (ref null $ct))
+    (local $nextk (ref null $ct))
+    local.get 0
+    local.set $nextk
     global.get $gi
     call $print-i32
-    local.get 1
+    local.get $nextk
     switch $ct $swap
-    local.set 1
+    local.set $nextk
     global.get $gi
     call $print-i32
   )

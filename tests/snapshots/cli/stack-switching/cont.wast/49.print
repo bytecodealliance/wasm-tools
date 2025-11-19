@@ -17,48 +17,48 @@
     cont.new $ct
     resume $ct (on $swap switch)
   )
-  (func $f (;2;) (type $ft) (param $i i32) (param $nextk (ref null $ct)) (result i32)
-    (local i32 (ref null $ct))
+  (func $f (;2;) (type $ft) (param i32 (ref null $ct)) (result i32)
+    (local $i i32) (local $nextk (ref null $ct))
+    local.get 0
+    local.set $i
+    local.get 1
+    local.set $nextk
     local.get $i
-    local.set 2
+    call $print-i32
+    i32.const 1
+    local.get $i
+    i32.add
     local.get $nextk
-    local.set 3
-    local.get 2
-    call $print-i32
-    i32.const 1
-    local.get 2
-    i32.add
-    local.get 3
     switch $ct $swap
-    local.set 3
-    local.set 2
-    local.get 2
+    local.set $nextk
+    local.set $i
+    local.get $i
     call $print-i32
     i32.const 1
-    local.get 2
+    local.get $i
     i32.add
-    local.get 3
+    local.get $nextk
     switch $ct $swap
     unreachable
   )
-  (func $g (;3;) (type $ft) (param $i i32) (param $nextk (ref null $ct)) (result i32)
-    (local i32 (ref null $ct))
+  (func $g (;3;) (type $ft) (param i32 (ref null $ct)) (result i32)
+    (local $i i32) (local $nextk (ref null $ct))
+    local.get 0
+    local.set $i
+    local.get 1
+    local.set $nextk
     local.get $i
-    local.set 2
-    local.get $nextk
-    local.set 3
-    local.get 2
     call $print-i32
     i32.const 1
-    local.get 2
+    local.get $i
     i32.add
-    local.get 3
+    local.get $nextk
     switch $ct $swap
-    local.set 3
-    local.set 2
-    local.get 2
+    local.set $nextk
+    local.set $i
+    local.get $i
     call $print-i32
-    local.get 2
+    local.get $i
     return
   )
 )
