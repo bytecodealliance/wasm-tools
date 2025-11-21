@@ -278,7 +278,7 @@ impl Reencode for RemoveItem<'_> {
             let item = item?;
             let retain;
             match &item.ty {
-                wasmparser::TypeRef::Func(_) => {
+                wasmparser::TypeRef::Func(_) | wasmparser::TypeRef::FuncExact(_) => {
                     retain = self.item != Item::Function || self.idx != function;
                     function += 1;
                 }

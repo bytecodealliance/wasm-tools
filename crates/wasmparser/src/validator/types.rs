@@ -260,6 +260,8 @@ pub enum EntityType {
     Global(GlobalType),
     /// The entity is a tag.
     Tag(CoreTypeId),
+    /// The entity is a function with exact type.
+    FuncExact(CoreTypeId),
 }
 
 impl EntityType {
@@ -271,12 +273,13 @@ impl EntityType {
             Self::Memory(_) => "memory",
             Self::Global(_) => "global",
             Self::Tag(_) => "tag",
+            Self::FuncExact(_) => "func_exact",
         }
     }
 
     pub(crate) fn info(&self, types: &TypeList) -> TypeInfo {
         match self {
-            Self::Func(id) | Self::Tag(id) => types[*id].type_info(types),
+            Self::Func(id) | Self::Tag(id) | Self::FuncExact(id) => types[*id].type_info(types),
             Self::Table(_) | Self::Memory(_) | Self::Global(_) => TypeInfo::new(),
         }
     }
@@ -547,6 +550,7 @@ impl<'a> TypesRef<'a> {
         match &self.kind {
             TypesRefKind::Module(module) => Some(match import.ty {
                 TypeRef::Func(idx) => EntityType::Func(*module.types.get(idx as usize)?),
+                TypeRef::FuncExact(idx) => EntityType::FuncExact(*module.types.get(idx as usize)?),
                 TypeRef::Table(ty) => EntityType::Table(ty),
                 TypeRef::Memory(ty) => EntityType::Memory(ty),
                 TypeRef::Global(ty) => EntityType::Global(ty),
@@ -561,7 +565,7 @@ impl<'a> TypesRef<'a> {
     pub fn entity_type_from_export(&self, export: &Export) -> Option<EntityType> {
         match &self.kind {
             TypesRefKind::Module(module) => Some(match export.kind {
-                ExternalKind::Func => EntityType::Func(
+                ExternalKind::Func | ExternalKind::FuncExact => EntityType::Func(
                     module.types[*module.functions.get(export.index as usize)? as usize],
                 ),
                 ExternalKind::Table => {

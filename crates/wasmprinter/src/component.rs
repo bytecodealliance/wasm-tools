@@ -1374,7 +1374,7 @@ impl Printer<'_, '_> {
                 self.print_str(name)?;
                 self.result.write_str(" ")?;
                 match kind {
-                    ExternalKind::Func => {
+                    ExternalKind::Func | ExternalKind::FuncExact => {
                         self.start_group("core func ")?;
                         self.print_name(&state.core.func_names, state.core.funcs)?;
                         self.end_group()?;

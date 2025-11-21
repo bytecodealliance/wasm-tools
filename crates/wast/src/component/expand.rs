@@ -453,7 +453,9 @@ impl<'a> Expander<'a> {
             func_type_to_idx: &mut HashMap<FuncKey<'a>, Index<'a>>,
         ) {
             match &mut item.kind {
-                core::ItemKind::Func(t) | core::ItemKind::Tag(core::TagType::Exception(t)) => {
+                core::ItemKind::Func(t)
+                | core::ItemKind::FuncExact(t)
+                | core::ItemKind::Tag(core::TagType::Exception(t)) => {
                     // If the index is already filled in then this is skipped.
                     if t.index.is_some() {
                         return;

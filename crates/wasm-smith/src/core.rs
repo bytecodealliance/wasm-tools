@@ -1363,6 +1363,8 @@ impl Module {
                     }
                 }
 
+                wasmparser::TypeRef::FuncExact(_) => panic!("Unexpected func_exact import"),
+
                 wasmparser::TypeRef::Tag(wasmparser::TagType {
                     kind,
                     func_type_idx,
@@ -1431,7 +1433,7 @@ impl Module {
         // Next, we generate export entries which refer to the export specifications.
         for export in required_exports {
             let index = match export.kind {
-                wasmparser::ExternalKind::Func => {
+                wasmparser::ExternalKind::Func | wasmparser::ExternalKind::FuncExact => {
                     match available_funcs.get(export.index as usize) {
                         None => panic!("function index out of bounds"),
                         Some(sig_idx) => match required_types.get(*sig_idx as usize) {
@@ -1702,6 +1704,8 @@ impl Module {
                         }
                     }
                 }
+
+                wasmparser::TypeRef::FuncExact(_) => panic!("Unexpected func_exact import"),
 
                 wasmparser::TypeRef::Tag(wasmparser::TagType { func_type_idx, .. }) => {
                     let can_add_tag = self.tags.len() < self.config.max_tags;
@@ -2333,6 +2337,9 @@ impl Module {
                     });
                     self.num_defined_tags += 1;
                     tag_index
+                }
+                wasmparser::types::EntityType::FuncExact(_) => {
+                    panic!("Unexpected func_export: {export:?}",);
                 }
             };
             self.exports

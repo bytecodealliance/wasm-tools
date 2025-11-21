@@ -129,6 +129,9 @@ pub trait WasmModuleResources {
     /// Returns whether the function index is referenced in the module anywhere
     /// outside of the start/function sections.
     fn is_function_referenced(&self, idx: u32) -> bool;
+
+    /// Returns whether the function defined with the exact type.
+    fn has_function_exact_type(&self, idx: u32) -> bool;
 }
 
 impl<T> WasmModuleResources for &'_ T
@@ -182,6 +185,9 @@ where
     }
     fn is_function_referenced(&self, idx: u32) -> bool {
         T::is_function_referenced(self, idx)
+    }
+    fn has_function_exact_type(&self, idx: u32) -> bool {
+        T::has_function_exact_type(self, idx)
     }
 }
 
@@ -251,5 +257,9 @@ where
 
     fn is_function_referenced(&self, idx: u32) -> bool {
         T::is_function_referenced(self, idx)
+    }
+
+    fn has_function_exact_type(&self, idx: u32) -> bool {
+        T::has_function_exact_type(self, idx)
     }
 }

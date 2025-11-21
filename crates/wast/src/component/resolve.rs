@@ -951,7 +951,9 @@ impl<'a> Resolver<'a> {
             sig: &mut core::ItemSig<'a>,
         ) -> Result<(), Error> {
             match &mut sig.kind {
-                core::ItemKind::Func(ty) | core::ItemKind::Tag(core::TagType::Exception(ty)) => {
+                core::ItemKind::Func(ty)
+                | core::ItemKind::FuncExact(ty)
+                | core::ItemKind::Tag(core::TagType::Exception(ty)) => {
                     let idx = ty.index.as_mut().expect("index should be filled in");
                     resolver
                         .stack

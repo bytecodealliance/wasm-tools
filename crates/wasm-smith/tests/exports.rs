@@ -170,6 +170,7 @@ fn get_exports(features: WasmFeatures, module: &[u8]) -> Vec<(String, ExportType
                         assert!(func_type.results().is_empty());
                         exports.push((export.name.to_string(), ExportType::Tag(func_type.clone())));
                     }
+                    EntityType::FuncExact(_) => panic!("Unexpected func_exact in export"),
                 }
             }
         }

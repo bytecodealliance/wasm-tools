@@ -1,5 +1,0 @@
-error: expected `)`
-     --> tests/testsuite/proposals/custom-descriptors/exact-func-import.wast:3:26
-      |
-    3 |   (import "" "" (func $1 (exact (type 0))))
-      |                          ^

@@ -11,7 +11,7 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                     fields.push(export(f.span, name, ExportKind::Func, &mut f.id));
                 }
                 match f.kind {
-                    FuncKind::Import(import) => {
+                    FuncKind::Import(import, exact) => {
                         item = ModuleField::Import(Import {
                             span: f.span,
                             module: import.module,
@@ -20,7 +20,11 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                                 span: f.span,
                                 id: f.id,
                                 name: f.name,
-                                kind: ItemKind::Func(f.ty.clone()),
+                                kind: if exact {
+                                    ItemKind::FuncExact(f.ty.clone())
+                                } else {
+                                    ItemKind::Func(f.ty.clone())
+                                },
                             },
                         });
                     }

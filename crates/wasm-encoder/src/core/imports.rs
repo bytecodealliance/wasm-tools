@@ -1,6 +1,7 @@
 use crate::{
-    CORE_FUNCTION_SORT, CORE_GLOBAL_SORT, CORE_MEMORY_SORT, CORE_TABLE_SORT, CORE_TAG_SORT, Encode,
-    GlobalType, MemoryType, Section, SectionId, TableType, TagType, encode_section,
+    CORE_FUNCTION_EXACT_SORT, CORE_FUNCTION_SORT, CORE_GLOBAL_SORT, CORE_MEMORY_SORT,
+    CORE_TABLE_SORT, CORE_TAG_SORT, Encode, GlobalType, MemoryType, Section, SectionId, TableType,
+    TagType, encode_section,
 };
 use alloc::vec::Vec;
 
@@ -21,14 +22,22 @@ pub enum EntityType {
     ///
     /// This variant is used with the exception handling proposal.
     Tag(TagType),
+    /// A function exact type.
+    ///
+    /// The value is an index into the types section.
+    FunctionExact(u32),
 }
 
 impl Encode for EntityType {
     fn encode(&self, sink: &mut Vec<u8>) {
         match self {
-            Self::Function(i) => {
+            Self::Function(f) => {
                 sink.push(CORE_FUNCTION_SORT);
-                i.encode(sink);
+                f.encode(sink);
+            }
+            Self::FunctionExact(f) => {
+                sink.push(CORE_FUNCTION_EXACT_SORT);
+                f.encode(sink);
             }
             Self::Table(t) => {
                 sink.push(CORE_TABLE_SORT);

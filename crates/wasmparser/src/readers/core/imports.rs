@@ -22,8 +22,6 @@ use crate::{
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum TypeRef {
     /// The type is a function.
-    ///
-    /// The value is an index into the type section.
     Func(u32),
     /// The type is a table.
     Table(TableType),
@@ -37,6 +35,8 @@ pub enum TypeRef {
     ///
     /// The value is an index in the types index space.
     Tag(TagType),
+    /// The type is a function.
+    FuncExact(u32),
 }
 
 /// Represents an import in a WebAssembly module.
@@ -67,6 +67,7 @@ impl<'a> FromReader<'a> for TypeRef {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         Ok(match reader.read()? {
             ExternalKind::Func => TypeRef::Func(reader.read_var_u32()?),
+            ExternalKind::FuncExact => TypeRef::FuncExact(reader.read_var_u32()?),
             ExternalKind::Table => TypeRef::Table(reader.read()?),
             ExternalKind::Memory => TypeRef::Memory(reader.read()?),
             ExternalKind::Global => TypeRef::Global(reader.read()?),

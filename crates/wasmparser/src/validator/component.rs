@@ -3601,7 +3601,7 @@ impl ComponentState {
         let mut inst_exports = IndexMap::default();
         for export in exports {
             match export.kind {
-                ExternalKind::Func => {
+                ExternalKind::Func | ExternalKind::FuncExact => {
                     insert_export(
                         types,
                         export.name,
@@ -3685,7 +3685,7 @@ impl ComponentState {
         }
 
         match kind {
-            ExternalKind::Func => {
+            ExternalKind::Func | ExternalKind::FuncExact => {
                 check_max(
                     self.function_count(),
                     1,

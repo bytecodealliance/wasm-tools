@@ -122,7 +122,7 @@ impl<'a> Expander<'a> {
 
     fn expand_item_sig(&mut self, item: &mut ItemSig<'a>) {
         match &mut item.kind {
-            ItemKind::Func(t) | ItemKind::Tag(TagType::Exception(t)) => {
+            ItemKind::Func(t) | ItemKind::FuncExact(t) | ItemKind::Tag(TagType::Exception(t)) => {
                 self.expand_type_use(t);
             }
             ItemKind::Global(_) | ItemKind::Table(_) | ItemKind::Memory(_) => {}

@@ -66,7 +66,7 @@ impl<'a> FromReader<'a> for ComponentTypeRef {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         Ok(match reader.read()? {
             ComponentExternalKind::Module => ComponentTypeRef::Module(reader.read()?),
-            ComponentExternalKind::Func => ComponentTypeRef::Func(reader.read()?),
+            ComponentExternalKind::Func => ComponentTypeRef::Func(reader.read_var_u32()?),
             ComponentExternalKind::Value => ComponentTypeRef::Value(reader.read()?),
             ComponentExternalKind::Type => ComponentTypeRef::Type(reader.read()?),
             ComponentExternalKind::Instance => ComponentTypeRef::Instance(reader.read()?),

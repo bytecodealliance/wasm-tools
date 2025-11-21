@@ -69,7 +69,9 @@ pub trait Reencode {
         index: u32,
     ) -> Result<u32, Error<Self::Error>> {
         match kind {
-            wasmparser::ExternalKind::Func => self.function_index(index),
+            wasmparser::ExternalKind::Func | wasmparser::ExternalKind::FuncExact => {
+                self.function_index(index)
+            }
             wasmparser::ExternalKind::Table => self.table_index(index),
             wasmparser::ExternalKind::Memory => self.memory_index(index),
             wasmparser::ExternalKind::Global => self.global_index(index),
@@ -1027,7 +1029,9 @@ pub mod utils {
         external_kind: wasmparser::ExternalKind,
     ) -> crate::ExportKind {
         match external_kind {
-            wasmparser::ExternalKind::Func => crate::ExportKind::Func,
+            wasmparser::ExternalKind::Func | wasmparser::ExternalKind::FuncExact => {
+                crate::ExportKind::Func
+            }
             wasmparser::ExternalKind::Table => crate::ExportKind::Table,
             wasmparser::ExternalKind::Memory => crate::ExportKind::Memory,
             wasmparser::ExternalKind::Global => crate::ExportKind::Global,
@@ -1417,6 +1421,9 @@ pub mod utils {
     ) -> Result<crate::EntityType, Error<T::Error>> {
         Ok(match type_ref {
             wasmparser::TypeRef::Func(i) => crate::EntityType::Function(reencoder.type_index(i)?),
+            wasmparser::TypeRef::FuncExact(i) => {
+                crate::EntityType::FunctionExact(reencoder.type_index(i)?)
+            }
             wasmparser::TypeRef::Table(t) => crate::EntityType::Table(reencoder.table_type(t)?),
             wasmparser::TypeRef::Memory(m) => crate::EntityType::Memory(reencoder.memory_type(m)?),
             wasmparser::TypeRef::Global(g) => crate::EntityType::Global(reencoder.global_type(g)?),

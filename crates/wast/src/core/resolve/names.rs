@@ -86,7 +86,9 @@ impl<'a> Resolver<'a> {
     fn register(&mut self, item: &ModuleField<'a>) -> Result<(), Error> {
         match item {
             ModuleField::Import(i) => match &i.item.kind {
-                ItemKind::Func(_) => self.funcs.register(i.item.id, "func")?,
+                ItemKind::Func(_) | ItemKind::FuncExact(_) => {
+                    self.funcs.register(i.item.id, "func")?
+                }
                 ItemKind::Memory(_) => self.memories.register(i.item.id, "memory")?,
                 ItemKind::Table(_) => self.tables.register(i.item.id, "table")?,
                 ItemKind::Global(_) => self.globals.register(i.item.id, "global")?,
@@ -267,7 +269,7 @@ impl<'a> Resolver<'a> {
 
     fn resolve_item_sig(&self, item: &mut ItemSig<'a>) -> Result<(), Error> {
         match &mut item.kind {
-            ItemKind::Func(t) | ItemKind::Tag(TagType::Exception(t)) => {
+            ItemKind::Func(t) | ItemKind::FuncExact(t) | ItemKind::Tag(TagType::Exception(t)) => {
                 self.resolve_type_use(t)?;
             }
             ItemKind::Global(t) => self.resolve_valtype(&mut t.ty)?,
