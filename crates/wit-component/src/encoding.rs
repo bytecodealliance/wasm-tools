@@ -186,7 +186,7 @@ impl RequiredOptions {
         // If lists/strings are lowered into wasm then memory is required as
         // usual but `realloc` is also required to allow the external caller to
         // allocate space in the destination for the list/string.
-        if types.contains(TypeContents::LIST) {
+        if types.contains(TypeContents::NEEDS_MEMORY) {
             *self |= RequiredOptions::MEMORY | RequiredOptions::REALLOC;
         }
         if types.contains(TypeContents::STRING) {
@@ -200,7 +200,7 @@ impl RequiredOptions {
         // Unlike for `lower` when lifting a string/list all that's needed is
         // memory, since the string/list already resides in memory `realloc`
         // isn't needed.
-        if types.contains(TypeContents::LIST) {
+        if types.contains(TypeContents::NEEDS_MEMORY) {
             *self |= RequiredOptions::MEMORY;
         }
         if types.contains(TypeContents::STRING) {
@@ -279,7 +279,7 @@ bitflags::bitflags! {
     /// structure of a type.
     struct TypeContents: u8 {
         const STRING = 1 << 0;
-        const LIST = 1 << 1;
+        const NEEDS_MEMORY = 1 << 1;
     }
 }
 
@@ -326,9 +326,9 @@ impl TypeContents {
                     Self::for_optional_types(resolve, v.cases.iter().map(|c| c.ty.as_ref()))
                 }
                 TypeDefKind::Enum(_) => Self::empty(),
-                TypeDefKind::List(t) => Self::for_type(resolve, t) | Self::LIST,
+                TypeDefKind::List(t) => Self::for_type(resolve, t) | Self::NEEDS_MEMORY,
                 TypeDefKind::Map(k, v) => {
-                    Self::for_type(resolve, k) | Self::for_type(resolve, v) | Self::LIST
+                    Self::for_type(resolve, k) | Self::for_type(resolve, v) | Self::NEEDS_MEMORY
                 }
                 TypeDefKind::FixedSizeList(t, _elements) => Self::for_type(resolve, t),
                 TypeDefKind::Type(t) => Self::for_type(resolve, t),
