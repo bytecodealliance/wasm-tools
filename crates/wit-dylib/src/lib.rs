@@ -938,6 +938,9 @@ impl Adapter {
             TypeDefKind::Handle(Handle::Borrow(t)) => {
                 metadata::Type::Borrow(self.resource_map[&dealias(resolve, *t)])
             }
+            TypeDefKind::Map(_, _) => {
+                todo!("map")
+            }
             TypeDefKind::Unknown => unreachable!(),
         };
         self.type_map.insert(id, result);
