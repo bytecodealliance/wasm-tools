@@ -259,7 +259,7 @@ macro_rules! _for_each_operator_group {
             @gc {
                 RefEq => visit_ref_eq (arity 2 -> 1)
                 StructNew { struct_type_index: u32 } => visit_struct_new (arity custom)
-                StructNewDefault { struct_type_index: u32 } => visit_struct_new_default (arity 0 -> 1)
+                StructNewDefault { struct_type_index: u32 } => visit_struct_new_default (arity custom)
                 StructGet { struct_type_index: u32, field_index: u32 } => visit_struct_get (arity 1 -> 1)
                 StructGetS { struct_type_index: u32, field_index: u32 } => visit_struct_get_s (arity 1 -> 1)
                 StructGetU { struct_type_index: u32, field_index: u32 } => visit_struct_get_u (arity 1 -> 1)
@@ -297,6 +297,20 @@ macro_rules! _for_each_operator_group {
                 RefI31 => visit_ref_i31 (arity 1 -> 1)
                 I31GetS => visit_i31_get_s (arity 1 -> 1)
                 I31GetU => visit_i31_get_u (arity 1 -> 1)
+
+                RefGetDesc { type_index: u32 } => visit_ref_get_desc (arity 1 -> 1)
+                RefCastDescNonNull { hty: $crate::HeapType } => visit_ref_cast_desc_non_null (arity 2 -> 1)
+                RefCastDescNullable { hty: $crate::HeapType } => visit_ref_cast_desc_nullable (arity 2 -> 1)
+                BrOnCastDesc {
+                    relative_depth: u32,
+                    from_ref_type: $crate::RefType,
+                    to_ref_type: $crate::RefType
+                } => visit_br_on_cast_desc (arity custom)
+                BrOnCastDescFail {
+                    relative_depth: u32,
+                    from_ref_type: $crate::RefType,
+                    to_ref_type: $crate::RefType
+                } => visit_br_on_cast_desc_fail (arity custom)
             }
 
             // 0xFC operators

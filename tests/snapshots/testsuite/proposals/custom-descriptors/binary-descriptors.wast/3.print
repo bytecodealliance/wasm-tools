@@ -1,0 +1,7 @@
+(module
+  (rec
+    (type (;0;) (descriptor 1) (struct))
+    (type (;1;) (describes 0) (descriptor 2) (struct))
+    (type (;2;) (describes 1) (struct))
+  )
+)

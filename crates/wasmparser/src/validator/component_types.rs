@@ -1086,6 +1086,8 @@ impl TypeData for ComponentInstanceType {
 pub struct ComponentFuncType {
     /// Metadata about this function type.
     pub(crate) info: TypeInfo,
+    /// Whether or not this is an async function.
+    pub async_: bool,
     /// The function parameters.
     pub params: Box<[(KebabString, ComponentValType)]>,
     /// The function's result.
@@ -1159,7 +1161,7 @@ impl ArgOrField {
     pub(crate) fn as_concrete_ref(self) -> Option<CoreTypeId> {
         match self.as_ref_type()?.heap_type() {
             HeapType::Abstract { .. } => None,
-            HeapType::Concrete(idx) => {
+            HeapType::Concrete(idx) | HeapType::Exact(idx) => {
                 let id = idx
                     .as_core_type_id()
                     .expect("validation only sees core type ids");
@@ -1273,6 +1275,21 @@ impl ComponentFuncType {
                 sig.results.assert_push(ValType::I32);
             }
             (Abi::Lift, Concurrency::Async { callback }) => {
+                if let Some(ty) = &self.result {
+                    // The result of an async lift will be returned via a call
+                    // to `task.return` rather than the lifted function itself.
+                    // Here we require a memory if either the return type
+                    // contains a pointer or has a flattened form that exceeds
+                    // `MAX_FLAT_FUNC_PARAMS`.
+                    //
+                    // Note that the return type itself has no effect on the
+                    // expected core signature of the lifted function.
+
+                    let overflow =
+                        !ty.push_wasm_types(types, &mut LoweredTypes::new(MAX_FLAT_FUNC_PARAMS));
+
+                    options.require_memory_if(offset, || overflow || ty.contains_ptr(types))?;
+                }
                 if callback.is_some() {
                     sig.results.assert_push(ValType::I32);
                 }
@@ -3261,6 +3278,15 @@ impl<'a> SubtypeCx<'a> {
     ) -> Result<()> {
         let a = &self.a[a];
         let b = &self.b[b];
+
+        if a.async_ != b.async_ {
+            let a_desc = if a.async_ { "async" } else { "sync" };
+            let b_desc = if b.async_ { "async" } else { "sync" };
+            bail!(
+                offset,
+                "expected {a_desc} function, found {b_desc} function",
+            );
+        }
 
         // Note that this intentionally diverges from the upstream
         // specification in terms of subtyping. This is a full

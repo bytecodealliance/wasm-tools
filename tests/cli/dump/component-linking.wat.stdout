@@ -2,7 +2,7 @@
       | 0d 00 01 00
   0x8 | 07 30       | component type section
   0xa | 01          | 1 count
-  0xb | 42 09 00 50 | [type 0] Instance([CoreType(Module([])), Export { name: ComponentExportName("a"), ty: Module(0) }, Type(Func(ComponentFuncType { params: [], result: None })), Export { name: ComponentExportName("b"), ty: Func(0) }, Export { name: ComponentExportName("c"), ty: Value(Primitive(String)) }, Type(Instance([])), Export { name: ComponentExportName("d"), ty: Instance(1) }, Type(Component([])), Export { name: ComponentExportName("e"), ty: Component(2) }])
+  0xb | 42 09 00 50 | [type 0] Instance([CoreType(Module([])), Export { name: ComponentExportName("a"), ty: Module(0) }, Type(Func(ComponentFuncType { async_: false, params: [], result: None })), Export { name: ComponentExportName("b"), ty: Func(0) }, Export { name: ComponentExportName("c"), ty: Value(Primitive(String)) }, Type(Instance([])), Export { name: ComponentExportName("d"), ty: Instance(1) }, Type(Component([])), Export { name: ComponentExportName("e"), ty: Component(2) }])
       | 00 04 00 01
       | 61 00 11 00
       | 01 40 00 01
@@ -30,7 +30,7 @@
         | 11 00      
    0x5a | 07 05       | component type section
    0x5c | 01          | 1 count
-   0x5d | 40 00 01 00 | [type 0] Func(ComponentFuncType { params: [], result: None })
+   0x5d | 40 00 01 00 | [type 0] Func(ComponentFuncType { async_: false, params: [], result: None })
    0x61 | 0a 0b       | component import section
    0x63 | 02          | 2 count
    0x64 | 00 01 62 01 | [func 0] ComponentImport { name: ComponentImportName("b"), ty: Func(0) }

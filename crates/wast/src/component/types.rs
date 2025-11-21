@@ -747,6 +747,8 @@ impl<'a> Parse<'a> for Future<'a> {
 /// A component function type with parameters and result.
 #[derive(Debug)]
 pub struct ComponentFunctionType<'a> {
+    /// Whether or not this is an `async` fnction.
+    pub async_: bool,
     /// The parameters of a function, optionally each having an identifier for
     /// name resolution and a name for the custom `name` section.
     pub params: Box<[ComponentFunctionParam<'a>]>,
@@ -756,6 +758,7 @@ pub struct ComponentFunctionType<'a> {
 
 impl<'a> Parse<'a> for ComponentFunctionType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
+        let async_ = parser.parse::<Option<kw::r#async>>()?.is_some();
         let mut params: Vec<ComponentFunctionParam> = Vec::new();
         while parser.peek2::<kw::param>()? {
             params.push(parser.parens(|p| p.parse())?);
@@ -771,6 +774,7 @@ impl<'a> Parse<'a> for ComponentFunctionType<'a> {
         };
 
         Ok(Self {
+            async_,
             params: params.into(),
             result,
         })

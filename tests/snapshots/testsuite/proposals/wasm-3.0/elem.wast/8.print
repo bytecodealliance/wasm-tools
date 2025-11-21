@@ -1,7 +1,0 @@
-(module
-  (type (;0;) (func))
-  (import "spectest" "global_i32" (global $g (;0;) i32))
-  (table (;0;) 1000 funcref)
-  (elem (;0;) (global.get $g) func $f)
-  (func $f (;0;) (type 0))
-)

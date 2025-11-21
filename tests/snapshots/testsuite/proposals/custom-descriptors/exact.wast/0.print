@@ -1,0 +1,14 @@
+(module
+  (rec
+    (type $struct (;0;) (struct (field (ref null (exact $func)))))
+    (type $array (;1;) (array (ref null (exact $struct))))
+    (type $func (;2;) (func (param (ref (exact $struct))) (result (ref (exact $array)))))
+  )
+  (type (;3;) (func (param (ref (exact $struct))) (result (ref (exact $func)))))
+  (table (;0;) 0 (ref null (exact $array)))
+  (global (;0;) (ref null (exact $struct)) ref.null (exact $struct))
+  (elem (;0;) (ref null $func))
+  (func $f (;0;) (type 3) (param (ref (exact $struct))) (result (ref (exact $func)))
+    unreachable
+  )
+)

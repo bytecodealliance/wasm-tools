@@ -1847,32 +1847,32 @@
       "text": "alignment must not be larger than natural"
     },
     {
-      "type": "assert_malformed",
+      "type": "assert_invalid",
       "line": 892,
       "filename": "align.109.wasm",
       "module_type": "binary",
-      "text": "malformed memop flags"
+      "text": "alignment must not be larger than natural"
     },
     {
-      "type": "assert_malformed",
+      "type": "assert_invalid",
       "line": 911,
       "filename": "align.110.wasm",
       "module_type": "binary",
-      "text": "malformed memop flags"
+      "text": "alignment must not be larger than natural"
     },
     {
-      "type": "assert_malformed",
+      "type": "assert_invalid",
       "line": 930,
       "filename": "align.111.wasm",
       "module_type": "binary",
-      "text": "malformed memop flags"
+      "text": "alignment must not be larger than natural"
     },
     {
-      "type": "assert_malformed",
+      "type": "assert_invalid",
       "line": 949,
       "filename": "align.112.wasm",
       "module_type": "binary",
-      "text": "malformed memop flags"
+      "text": "type mismatch"
     },
     {
       "type": "assert_malformed",
@@ -1880,6 +1880,27 @@
       "filename": "align.113.wasm",
       "module_type": "binary",
       "text": "malformed memop flags"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 987,
+      "filename": "align.114.wasm",
+      "module_type": "binary",
+      "text": "malformed memop flags"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1005,
+      "filename": "align.115.wasm",
+      "module_type": "binary",
+      "text": "offset out of range"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1017,
+      "filename": "align.116.wasm",
+      "module_type": "binary",
+      "text": "alignment must not be larger than natural"
     }
   ]
 }

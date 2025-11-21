@@ -1,0 +1,48 @@
+(module
+  (type (;0;) (func))
+  (type (;1;) (func (param i64) (result externref)))
+  (type (;2;) (func (param i64) (result funcref)))
+  (type (;3;) (func (param i64 externref)))
+  (type (;4;) (func (param i64 funcref)))
+  (type (;5;) (func (param i64 i64)))
+  (type (;6;) (func (param i64) (result i32)))
+  (table $t2 (;0;) i64 1 externref)
+  (table $t3 (;1;) i64 2 funcref)
+  (export "get-externref" (func 1))
+  (export "get-funcref" (func $f3))
+  (export "set-externref" (func 3))
+  (export "set-funcref" (func 4))
+  (export "set-funcref-from" (func 5))
+  (export "is_null-funcref" (func 6))
+  (elem (;0;) (table $t3) (i64.const 1) func $dummy)
+  (func $dummy (;0;) (type 0))
+  (func (;1;) (type 1) (param $i i64) (result externref)
+    local.get $i
+    table.get $t2
+  )
+  (func $f3 (;2;) (type 2) (param $i i64) (result funcref)
+    local.get $i
+    table.get $t3
+  )
+  (func (;3;) (type 3) (param $i i64) (param $r externref)
+    local.get $i
+    local.get $r
+    table.set $t2
+  )
+  (func (;4;) (type 4) (param $i i64) (param $r funcref)
+    local.get $i
+    local.get $r
+    table.set $t3
+  )
+  (func (;5;) (type 5) (param $i i64) (param $j i64)
+    local.get $i
+    local.get $j
+    table.get $t3
+    table.set $t3
+  )
+  (func (;6;) (type 6) (param $i i64) (result i32)
+    local.get $i
+    call $f3
+    ref.is_null
+  )
+)

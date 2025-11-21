@@ -1,3 +1,4 @@
 (module
-  (import "test" "unknown" (global (;0;) i32))
+  (type (;0;) (func))
+  (import "test" "tag-i32" (tag (;0;) (type 0)))
 )

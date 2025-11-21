@@ -1,0 +1,6 @@
+(module
+  (type $a (;0;) (func (param i32)))
+  (func (;0;) (type $a) (param i32)
+    (local $b i32)
+  )
+)

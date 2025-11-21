@@ -1,4 +1,0 @@
-(module
-  (table (;0;) 0 0 funcref)
-  (elem (;0;) (i32.const 0) func)
-)

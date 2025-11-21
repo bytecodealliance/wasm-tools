@@ -1,0 +1,18 @@
+(module
+  (type $out-i32 (;0;) (func (result i32)))
+  (type (;1;) (func))
+  (table $t64 (;0;) i64 1 1 funcref)
+  (export "type-i32-t64" (func 2))
+  (elem (;0;) (table $t64) (i64.const 0) func $const-i32)
+  (func $const-i32 (;0;) (type $out-i32) (result i32)
+    i32.const 306
+  )
+  (func (;1;) (type 1)
+    i64.const 0
+    call_indirect (type 1)
+  )
+  (func (;2;) (type $out-i32) (result i32)
+    i64.const 0
+    call_indirect (type $out-i32)
+  )
+)

@@ -1,4 +1,0 @@
-(module
-  (type (;0;) (func))
-  (import "test" "table-10-inf" (func (;0;) (type 0)))
-)

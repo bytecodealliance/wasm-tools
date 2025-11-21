@@ -1,0 +1,45 @@
+(module
+  (rec
+    (type $a (;0;) (descriptor $b) (struct))
+    (type $b (;1;) (describes $a) (descriptor $c) (struct))
+    (type $c (;2;) (describes $b) (struct))
+  )
+  (type (;3;) (func (param (ref $b)) (result (ref $c))))
+  (type (;4;) (func (param (ref null $b)) (result (ref $c))))
+  (type (;5;) (func (param (ref (exact $b))) (result (ref (exact $c)))))
+  (type (;6;) (func (param (ref null (exact $b))) (result (ref (exact $c)))))
+  (type (;7;) (func (result (ref (exact $c)))))
+  (type (;8;) (func (result (ref $c))))
+  (func (;0;) (type 3) (param (ref $b)) (result (ref $c))
+    local.get 0
+    ref.get_desc $b
+  )
+  (func (;1;) (type 4) (param (ref null $b)) (result (ref $c))
+    local.get 0
+    ref.get_desc $b
+  )
+  (func (;2;) (type 5) (param (ref (exact $b))) (result (ref (exact $c)))
+    local.get 0
+    ref.get_desc $b
+  )
+  (func (;3;) (type 6) (param (ref null (exact $b))) (result (ref (exact $c)))
+    local.get 0
+    ref.get_desc $b
+  )
+  (func (;4;) (type 7) (result (ref (exact $c)))
+    unreachable
+    ref.get_desc $b
+  )
+  (func (;5;) (type 7) (result (ref (exact $c)))
+    ref.null none
+    ref.get_desc $b
+  )
+  (func (;6;) (type 7) (result (ref (exact $c)))
+    ref.null (exact $b)
+    ref.get_desc $b
+  )
+  (func (;7;) (type 8) (result (ref $c))
+    ref.null $b
+    ref.get_desc $b
+  )
+)

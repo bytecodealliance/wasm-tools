@@ -1,0 +1,10 @@
+(module
+  (type (;0;) (struct))
+  (type (;1;) (struct))
+  (type (;2;) (struct (field (ref 0))))
+  (type (;3;) (struct (field (ref 1))))
+  (type (;4;) (func (param (ref (exact 2))) (result (ref (exact 3)))))
+  (func (;0;) (type 4) (param (ref (exact 2))) (result (ref (exact 3)))
+    local.get 0
+  )
+)

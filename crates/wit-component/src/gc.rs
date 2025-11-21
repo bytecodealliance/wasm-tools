@@ -454,7 +454,7 @@ impl<'a> Module<'a> {
     fn heapty(&mut self, ty: HeapType) {
         match ty {
             HeapType::Abstract { .. } => {}
-            HeapType::Concrete(i) => self.ty(i.as_module_index().unwrap()),
+            HeapType::Concrete(i) | HeapType::Exact(i) => self.ty(i.as_module_index().unwrap()),
         }
     }
 

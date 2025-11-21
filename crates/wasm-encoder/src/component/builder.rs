@@ -707,7 +707,7 @@ impl ComponentBuilder {
         self.core_funcs.add(Some("thread.index"))
     }
 
-    /// Declares a new `thread.new_indirect` intrinsic.
+    /// Declares a new `thread.new-indirect` intrinsic.
     pub fn thread_new_indirect(&mut self, func_ty_idx: u32, table_index: u32) -> u32 {
         self.canonical_functions()
             .thread_new_indirect(func_ty_idx, table_index);

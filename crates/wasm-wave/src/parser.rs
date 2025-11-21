@@ -591,15 +591,21 @@ mod tests {
 
     #[test]
     fn parse_percent_identifiers() {
-        let ty = Type::record([("red", Type::S32), ("green", Type::CHAR)]).unwrap();
+        let ty = Type::record([
+            ("red", Type::S32),
+            ("green", Type::CHAR),
+            ("color-42-2A-5d", Type::BOOL),
+        ])
+        .unwrap();
         // Test identifiers with '%' prefixes.
         assert_eq!(
-            parse_value("{ %red: 0, %green: 'a' }", &ty),
+            parse_value("{ %red: 0, %green: 'a', %color-42-2A-5d: true }", &ty),
             Value::make_record(
                 &ty,
                 [
                     ("red", Value::make_s32(0)),
-                    ("green", Value::make_char('a'))
+                    ("green", Value::make_char('a')),
+                    ("color-42-2A-5d", Value::make_bool(true))
                 ]
             )
             .unwrap()

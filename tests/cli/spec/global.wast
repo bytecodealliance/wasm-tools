@@ -1,7 +1,6 @@
 ;; RUN: wast \
 ;;      --assert default \
-;;      --assert permissive \
 ;;      --snapshot tests/snapshots \
 ;;      --ignore-error-messages \
-;;      --features=wasm2 \
+;;      --features=wasm3 \
 ;;      tests/testsuite/global.wast

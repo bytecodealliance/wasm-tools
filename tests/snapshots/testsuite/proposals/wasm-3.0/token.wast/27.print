@@ -1,9 +1,0 @@
-(module
-  (type (;0;) (func))
-  (func (;0;) (type 0)
-    block $l0
-      i32.const 0
-      br_table $l0
-    end
-  )
-)

@@ -1,0 +1,7 @@
+(module
+  (rec
+    (type $t1 (;0;) (descriptor $t2) (struct (field i32)))
+    (type $t2 (;1;) (describes $t1) (struct (field (ref $f))))
+    (type $f (;2;) (func (result i32)))
+  )
+)

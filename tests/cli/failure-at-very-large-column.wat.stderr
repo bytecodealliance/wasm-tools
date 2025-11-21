@@ -1,1 +1,1 @@
-error: unexpected token, expected one of: `i32`, `i64`, `f32`, `f64`, `v128`, reftype at tests/cli/failure-at-very-large-column.wat:8:192584
+error: unexpected token, expected one of: `i32`, `i64`, `f32`, `f64`, `v128`, `funcref`, `externref`, `exnref`, `contref`, `anyref`, `eqref`, `structref`, `arrayref`, `i31ref`, `nullfuncref`, `nullexternref`, `nullexnref`, `nullcontref`, `nullref`, lparen at tests/cli/failure-at-very-large-column.wat:8:192584

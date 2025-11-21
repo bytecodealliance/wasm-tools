@@ -1,3 +1,4 @@
 (module
-  (import "spectest" "unknown" (global (;0;) i32))
+  (type (;0;) (func (param f32)))
+  (import "test" "tag-i32" (tag (;0;) (type 0) (param f32)))
 )

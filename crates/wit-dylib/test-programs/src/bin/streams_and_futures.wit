@@ -1,0 +1,22 @@
+package a:b;
+
+interface x {
+  resource thing {
+    constructor(s: string);
+    get: async func() -> string;
+  }
+
+  echo-stream-u8: async func(s: stream<u8>) -> stream<u8>;
+  echo-future-string: async func(f: future<string>) -> future<string>;
+  short-reads: async func(s: stream<thing>) -> stream<thing>;  
+}
+
+world caller {
+  import x;
+
+  export run: async func();
+}
+
+world callee {
+  export x;
+}

@@ -1,0 +1,4 @@
+(module
+  (table (;0;) i64 10 20 funcref)
+  (export "table64-10-20" (table 0))
+)

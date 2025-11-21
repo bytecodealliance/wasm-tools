@@ -32,6 +32,7 @@ arbtest = "0.3.2"
 indexmap = { workspace = true }
 wit-component = { workspace = true }
 env_logger = { workspace = true }
+wasmparser = { workspace = true }
 
 [lib]
 test = false

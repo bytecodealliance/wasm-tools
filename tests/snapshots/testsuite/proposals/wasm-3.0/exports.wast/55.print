@@ -1,6 +1,0 @@
-(module
-  (table (;0;) 0 funcref)
-  (table (;1;) 0 funcref)
-  (export "a" (table 0))
-  (export "b" (table 1))
-)

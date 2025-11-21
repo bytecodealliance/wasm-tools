@@ -1,0 +1,82 @@
+{
+  "source_filename": "tests/testsuite/memory_size_import.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "memory_size_import.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 5,
+      "as": "M"
+    },
+    {
+      "type": "module",
+      "line": 7,
+      "filename": "memory_size_import.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 19,
+      "action": {
+        "type": "invoke",
+        "field": "size1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 20,
+      "action": {
+        "type": "invoke",
+        "field": "size2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 21,
+      "action": {
+        "type": "invoke",
+        "field": "size3",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 22,
+      "action": {
+        "type": "invoke",
+        "field": "size4",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "4"
+        }
+      ]
+    }
+  ]
+}

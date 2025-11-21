@@ -1198,22 +1198,29 @@ impl WitPackageDecoder<'_> {
             docs: Default::default(),
             stability: Default::default(),
             kind: match name.kind() {
-                ComponentNameKind::Label(_) => FunctionKind::Freestanding,
-                ComponentNameKind::AsyncLabel(_) => FunctionKind::AsyncFreestanding,
+                ComponentNameKind::Label(_) => {
+                    if ty.async_ {
+                        FunctionKind::AsyncFreestanding
+                    } else {
+                        FunctionKind::Freestanding
+                    }
+                }
                 ComponentNameKind::Constructor(resource) => {
                     FunctionKind::Constructor(self.resources[&owner][resource.as_str()])
                 }
                 ComponentNameKind::Method(name) => {
-                    FunctionKind::Method(self.resources[&owner][name.resource().as_str()])
-                }
-                ComponentNameKind::AsyncMethod(name) => {
-                    FunctionKind::AsyncMethod(self.resources[&owner][name.resource().as_str()])
+                    if ty.async_ {
+                        FunctionKind::AsyncMethod(self.resources[&owner][name.resource().as_str()])
+                    } else {
+                        FunctionKind::Method(self.resources[&owner][name.resource().as_str()])
+                    }
                 }
                 ComponentNameKind::Static(name) => {
-                    FunctionKind::Static(self.resources[&owner][name.resource().as_str()])
-                }
-                ComponentNameKind::AsyncStatic(name) => {
-                    FunctionKind::AsyncStatic(self.resources[&owner][name.resource().as_str()])
+                    if ty.async_ {
+                        FunctionKind::AsyncStatic(self.resources[&owner][name.resource().as_str()])
+                    } else {
+                        FunctionKind::Static(self.resources[&owner][name.resource().as_str()])
+                    }
                 }
 
                 // Functions shouldn't have ID-based names at this time.

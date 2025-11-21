@@ -1,0 +1,33 @@
+(module
+  (type $a1 (;0;) (array i8))
+  (type $a2 (;1;) (array (mut funcref)))
+  (type (;2;) (func (result (ref (exact $a1)))))
+  (type (;3;) (func (result (ref (exact $a2)))))
+  (elem (;0;) funcref)
+  (func (;0;) (type 2) (result (ref (exact $a1)))
+    i32.const 0
+    i32.const 0
+    array.new $a1
+  )
+  (func (;1;) (type 2) (result (ref (exact $a1)))
+    i32.const 0
+    array.new_default $a1
+  )
+  (func (;2;) (type 2) (result (ref (exact $a1)))
+    i32.const 0
+    i32.const 1
+    i32.const 2
+    array.new_fixed $a1 3
+  )
+  (func (;3;) (type 2) (result (ref (exact $a1)))
+    i32.const 0
+    i32.const 0
+    array.new_data $a1 0
+  )
+  (func (;4;) (type 3) (result (ref (exact $a2)))
+    i32.const 0
+    i32.const 0
+    array.new_elem $a2 0
+  )
+  (data (;0;) "abc")
+)

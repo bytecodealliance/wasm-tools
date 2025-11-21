@@ -50,7 +50,7 @@
     (table (;0;) 3 3 funcref)
     (export "0" (func $task-return-foo))
     (export "1" (func $"#func1 task-return-foo"))
-    (export "2" (func $thread.new_indirect))
+    (export "2" (func $thread.new-indirect))
     (export "$imports" (table 0))
     (func $task-return-foo (;0;) (type 0) (param i32 i32)
       local.get 0
@@ -64,7 +64,7 @@
       i32.const 1
       call_indirect (type 0)
     )
-    (func $thread.new_indirect (;2;) (type 1) (param i32 i32) (result i32)
+    (func $thread.new-indirect (;2;) (type 1) (param i32 i32) (result i32)
       local.get 0
       local.get 1
       i32.const 2
@@ -100,7 +100,7 @@
   (core func $"context.get 1" (;3;) (canon context.get i32 1))
   (core func $"context.set 1" (;4;) (canon context.set i32 1))
   (core func $thread.index (;5;) (canon thread.index))
-  (alias core export $wit-component-shim-instance "2" (core func $thread.new_indirect (;6;)))
+  (alias core export $wit-component-shim-instance "2" (core func $thread.new-indirect (;6;)))
   (core func $thread.switch-to (;7;) (canon thread.switch-to))
   (core func $thread.suspend (;8;) (canon thread.suspend))
   (core func $thread.resume-later (;9;) (canon thread.resume-later))
@@ -109,7 +109,7 @@
     (export "[context-get-1]" (func $"context.get 1"))
     (export "[context-set-1]" (func $"context.set 1"))
     (export "[thread-index]" (func $thread.index))
-    (export "[thread-new-indirect-v0]" (func $thread.new_indirect))
+    (export "[thread-new-indirect-v0]" (func $thread.new-indirect))
     (export "[thread-switch-to]" (func $thread.switch-to))
     (export "[thread-suspend]" (func $thread.suspend))
     (export "[thread-resume-later]" (func $thread.resume-later))
@@ -128,12 +128,12 @@
   (core func $"#core-func13 task.return" (@name "task.return") (;13;) (canon task.return (result string) (memory $memory) string-encoding=utf8))
   (core type $thread-start (;0;) (func (param i32)))
   (alias core export $main "__indirect_function_table" (core table $indirect-function-table (;1;)))
-  (core func $thread.new-indirect (;14;) (canon thread.new_indirect $thread-start (table $indirect-function-table)))
+  (core func $"#core-func14 thread.new-indirect" (@name "thread.new-indirect") (;14;) (canon thread.new-indirect $thread-start (table $indirect-function-table)))
   (core instance $fixup-args (;5;)
     (export "$imports" (table $"shim table"))
     (export "0" (func $task.return))
     (export "1" (func $"#core-func13 task.return"))
-    (export "2" (func $thread.new-indirect))
+    (export "2" (func $"#core-func14 thread.new-indirect"))
   )
   (core instance $fixup (;6;) (instantiate $wit-component-fixup
       (with "" (instance $fixup-args))

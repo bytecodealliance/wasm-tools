@@ -1,4 +1,0 @@
-(module
-  (type (;0;) (func (param i64) (result i64)))
-  (import "test" "func-i64->i64" (func (;0;) (type 0)))
-)

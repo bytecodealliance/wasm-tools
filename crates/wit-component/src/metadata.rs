@@ -50,7 +50,7 @@ use wasm_encoder::{
 };
 use wasm_metadata::Producers;
 use wasmparser::{BinaryReader, Encoding, Parser, Payload};
-use wit_parser::{Package, PackageName, Resolve, World, WorldId, WorldItem, WorldKey};
+use wit_parser::{CloneMaps, Package, PackageName, Resolve, World, WorldId, WorldItem, WorldKey};
 
 const CURRENT_VERSION: u8 = 0x04;
 const CUSTOM_SECTION_NAME: &str = "wit-component-encoding";
@@ -413,7 +413,7 @@ impl Bindgen {
         let world = remap.map_world(world, None)?;
         let exports = self.resolve.worlds[world].exports.keys().cloned().collect();
         self.resolve
-            .merge_worlds(world, self.world)
+            .merge_worlds(world, self.world, &mut CloneMaps::default())
             .context("failed to merge worlds from two documents")?;
 
         self.metadata.import_encodings.merge(import_encodings)?;

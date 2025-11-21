@@ -1,3 +1,0 @@
-(module
-  (import "spectest" "memory" (global (;0;) i32))
-)

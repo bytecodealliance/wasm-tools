@@ -3,6 +3,7 @@ use libtest_mimic::{Arguments, Trial};
 use std::path::Path;
 use std::process::Command;
 use tempfile::TempDir;
+use wasmparser::{Validator, WasmFeatures};
 use wit_parser::Resolve;
 
 fn main() {
@@ -78,5 +79,26 @@ fn run_test(tempdir: &TempDir, caller: &Path, callee: &Path, wit: &Path) -> Resu
         ));
     }
 
+    if uses_async_and_wasmtime_does_not_support_async(&composition_file, &error)? {
+        return Ok(());
+    }
+
     anyhow::bail!("{error}")
+}
+
+fn uses_async_and_wasmtime_does_not_support_async(wasm: &Path, error: &str) -> Result<bool> {
+    if !error.contains("invalid leading byte (0x43) for component defined type") {
+        return Ok(false);
+    }
+    let wasm = std::fs::read(wasm)?;
+
+    let validates_with_cm_async = Validator::new_with_features(WasmFeatures::all())
+        .validate_all(&wasm)
+        .is_ok();
+    let validates_without_cm_async =
+        Validator::new_with_features(WasmFeatures::all() ^ WasmFeatures::CM_ASYNC)
+            .validate_all(&wasm)
+            .is_ok();
+
+    Ok(validates_with_cm_async && !validates_without_cm_async)
 }

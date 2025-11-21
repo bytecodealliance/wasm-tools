@@ -1,0 +1,8 @@
+(module
+  (type $super (;0;) (sub (struct)))
+  (type $sub (;1;) (sub $super (struct)))
+  (type (;2;) (func (param (ref (exact $sub))) (result (ref $super))))
+  (func (;0;) (type 2) (param (ref (exact $sub))) (result (ref $super))
+    local.get 0
+  )
+)

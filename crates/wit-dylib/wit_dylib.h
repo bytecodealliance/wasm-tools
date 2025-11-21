@@ -57,24 +57,24 @@ typedef uint32_t(*wit_import_async_fn_t)(void* cx, void *abi_area);
 typedef void(*wit_import_async_lift_fn_t)(void* cx, void *abi_area);
 typedef void(*wit_export_task_return_fn_t)(void* cx);
 
-typedef struct wit_func {
+typedef struct wit_import_func {
      const char *interface;
      const char *name;
 
-     // If this is an imported function, and the function is imported for
-     // synchronous invocation, this field will be non-null.
+     // If this function is imported for synchronous invocation, this field will
+     // be non-null.
      //
      // This function pointer takes a single `void*` argument which is the
      // context for the call. The context will be passed to various
      // `wit_dylib_*` intrinsics below for pushing/popping values from the stack
      // contained within `cx`.
      //
-     // If this function is an exported function, or it's imported as an async
-     // function, then this field will be null.
+     // If this function is imported as an async function, then this field will
+     // be null.
      wit_import_fn_t impl;
 
-     // If this is an imported function and the function is imported for
-     // asynchronous invocation these two fields will be non-null.
+     // If this function is imported for asynchronous invocation these two
+     // fields will be non-null.
      //
      // The `async_impl` field is a function pointer that starts the async
      // import. This function call takes a `void *cx` just like `impl` above,
@@ -92,10 +92,23 @@ typedef struct wit_func {
      // function will use `wit_dylib_push_*` to translate from the canonical ABI
      // onto the stack within `cx`.
      //
-     // These two fields are null for exported functions or sync imported
-     // functions.
+     // These two fields are null for sync imported functions.
      wit_import_async_fn_t async_impl;
      wit_import_async_lift_fn_t async_lift_impl;
+
+     size_t nparams;
+     const wit_type_t *params;
+     wit_type_t result;
+
+     // Only meaningful if `async_impl` is non-null, otherwise
+     // `async_abi_area_{size,align}` are set to zero.
+     size_t async_abi_area_size;
+     size_t async_abi_area_align;
+} wit_import_func_t;
+
+typedef struct wit_export_func {
+     const char *interface;
+     const char *name;
 
      // For exported functions which are exported as `async` this is the
      // `task.return` intrinsic to invoke.
@@ -108,12 +121,7 @@ typedef struct wit_func {
      size_t nparams;
      const wit_type_t *params;
      wit_type_t result;
-
-     // Only meaningful if `async_impl` is non-null, otherwise
-     // `async_abi_area_{size,align}` are set to zero.
-     size_t async_abi_area_size;
-     size_t async_abi_area_align;
-} wit_func_t;
+} wit_export_func_t;
 
 typedef void(*wit_resource_drop_t)(uint32_t);
 typedef uint32_t(*wit_resource_new_t)(size_t);
@@ -198,18 +206,57 @@ typedef struct wit_fixed_size_list {
      wit_type_t ty;
 } wit_fixed_size_list_t;
 
+typedef void(*wit_lift_fn_t)(void* cx, const void *buffer);
+typedef void(*wit_lower_fn_t)(void* cx, void *buffer);
+
+typedef uint64_t(*wit_future_new_fn_t)();
+typedef uint32_t(*wit_future_read_fn_t)(uint32_t future, void *buffer);
+typedef uint32_t(*wit_future_write_fn_t)(uint32_t future, const void *buffer);
+typedef uint32_t(*wit_future_cancel_read_fn_t)(uint32_t future);
+typedef uint32_t(*wit_future_cancel_write_fn_t)(uint32_t future);
+typedef void(*wit_future_drop_readable_fn_t)(uint32_t future);
+typedef void(*wit_future_drop_writable_fn_t)(uint32_t future);
+
 typedef struct wit_future {
      const char *interface;
      const char *name;
      wit_type_t ty;
-     // TODO: include future-related intrinsics for reading/writing
+     wit_future_new_fn_t new;
+     wit_future_read_fn_t read;
+     wit_future_write_fn_t write;
+     wit_future_cancel_read_fn_t cancel_read;
+     wit_future_cancel_write_fn_t cancel_write;
+     wit_future_drop_readable_fn_t drop_readable;
+     wit_future_drop_writable_fn_t drop_writable;
+     wit_lift_fn_t lift;
+     wit_lower_fn_t lower;
+     size_t abi_payload_size;
+     size_t abi_payload_align;
 } wit_future_t;
+
+typedef uint64_t(*wit_stream_new_fn_t)();
+typedef uint32_t(*wit_stream_read_fn_t)(uint32_t stream, void *buffer, size_t count);
+typedef uint32_t(*wit_stream_write_fn_t)(uint32_t stream, const void *buffer, size_t count);
+typedef uint32_t(*wit_stream_cancel_read_fn_t)(uint32_t stream);
+typedef uint32_t(*wit_stream_cancel_write_fn_t)(uint32_t stream);
+typedef void(*wit_stream_drop_writable_fn_t)(uint32_t stream);
+typedef void(*wit_stream_drop_readable_fn_t)(uint32_t stream);
 
 typedef struct wit_stream {
      const char *interface;
      const char *name;
      wit_type_t ty;
-     // TODO: include stream-related intrinsics for reading/writing
+     wit_stream_new_fn_t new;
+     wit_stream_read_fn_t read;
+     wit_stream_write_fn_t write;
+     wit_stream_cancel_read_fn_t cancel_read;
+     wit_stream_cancel_write_fn_t cancel_write;
+     wit_stream_drop_readable_fn_t drop_readable;
+     wit_stream_drop_writable_fn_t drop_writable;
+     wit_lift_fn_t lift;
+     wit_lower_fn_t lower;
+     size_t abi_payload_size;
+     size_t abi_payload_align;
 } wit_stream_t;
 
 typedef struct wit_alias {
@@ -218,13 +265,15 @@ typedef struct wit_alias {
      wit_type_t ty;
 } wit_alias_t;
 
-#define WIT_V0 0
+#define WIT_CURRENT_VERSION 2
 
 typedef struct wit {
      uint32_t version; // `WIT_V*`
 
-     size_t num_funcs;
-     const wit_func_t *funcs;
+     size_t num_import_funcs;
+     const wit_import_func_t *import_funcs;
+     size_t num_export_funcs;
+     const wit_export_func_t *export_funcs;
      size_t num_resources;
      const wit_resource_t *resources;
      size_t num_records;
@@ -294,7 +343,7 @@ void wit_dylib_export_finish(void *cx, size_t which);
 
 // Entrypoint for WIT resource destructors.
 //
-// The `ty` poitns to `wit->resources` and `handle` is the value being
+// The `ty` points to `wit->resources` and `handle` is the value being
 // destroyed.
 void wit_dylib_resource_dtor(size_t ty, size_t handle);
 
@@ -376,7 +425,7 @@ uint32_t wit_dylib_pop_stream(void *cx, size_t ty);
 // location of the string in memory, and the `size_t` return value is the byte
 // length of the string.
 size_t wit_dylib_pop_string(void *cx, char **ptr);
-// When popping a variant from the stack the langauge value is first removed.
+// When popping a variant from the stack the language value is first removed.
 // The discriminant of the value is returned, and if there is a payload for the
 // case then it's pushed back onto the stack.
 uint32_t wit_dylib_pop_option(void *cx, size_t type_index);

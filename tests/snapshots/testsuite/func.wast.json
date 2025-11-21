@@ -1231,8 +1231,8 @@
       },
       "expected": [
         {
-          "type": "i32",
-          "value": "50"
+          "type": "f32",
+          "value": "1112014848"
         },
         {
           "type": "i64",
@@ -1255,8 +1255,8 @@
       },
       "expected": [
         {
-          "type": "i32",
-          "value": "50"
+          "type": "f32",
+          "value": "1112014848"
         },
         {
           "type": "i64",
@@ -1279,8 +1279,8 @@
       },
       "expected": [
         {
-          "type": "i32",
-          "value": "50"
+          "type": "f32",
+          "value": "1112014848"
         },
         {
           "type": "i64",
@@ -1303,8 +1303,8 @@
       },
       "expected": [
         {
-          "type": "i32",
-          "value": "50"
+          "type": "f32",
+          "value": "1112014848"
         },
         {
           "type": "i64",
@@ -1951,421 +1951,442 @@
     },
     {
       "type": "assert_invalid",
-      "line": 634,
+      "line": 631,
       "filename": "func.16.wasm",
       "module_type": "binary",
-      "text": "type mismatch"
+      "text": "unknown type"
     },
     {
       "type": "assert_invalid",
-      "line": 638,
+      "line": 635,
       "filename": "func.17.wasm",
       "module_type": "binary",
-      "text": "type mismatch"
+      "text": "unknown type"
     },
     {
       "type": "assert_invalid",
-      "line": 642,
+      "line": 647,
       "filename": "func.18.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 650,
+      "line": 651,
       "filename": "func.19.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 654,
+      "line": 655,
       "filename": "func.20.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 658,
+      "line": 660,
       "filename": "func.21.wasm",
       "module_type": "binary",
-      "text": "type mismatch"
+      "text": "uninitialized local"
     },
     {
       "type": "assert_invalid",
-      "line": 666,
+      "line": 671,
       "filename": "func.22.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 670,
+      "line": 675,
       "filename": "func.23.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 674,
+      "line": 679,
       "filename": "func.24.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 678,
+      "line": 687,
       "filename": "func.25.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 682,
+      "line": 691,
       "filename": "func.26.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 687,
+      "line": 695,
       "filename": "func.27.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 693,
+      "line": 699,
       "filename": "func.28.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 699,
+      "line": 703,
       "filename": "func.29.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 705,
+      "line": 708,
       "filename": "func.30.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 711,
+      "line": 714,
       "filename": "func.31.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 717,
+      "line": 720,
       "filename": "func.32.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 723,
+      "line": 726,
       "filename": "func.33.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 730,
+      "line": 732,
       "filename": "func.34.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 736,
+      "line": 738,
       "filename": "func.35.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 742,
+      "line": 744,
       "filename": "func.36.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 748,
+      "line": 751,
       "filename": "func.37.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 754,
+      "line": 757,
       "filename": "func.38.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 760,
+      "line": 763,
       "filename": "func.39.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 767,
+      "line": 769,
       "filename": "func.40.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 773,
+      "line": 775,
       "filename": "func.41.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 779,
+      "line": 781,
       "filename": "func.42.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 785,
+      "line": 788,
       "filename": "func.43.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 791,
+      "line": 794,
       "filename": "func.44.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 797,
+      "line": 800,
       "filename": "func.45.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 803,
+      "line": 806,
       "filename": "func.46.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 809,
+      "line": 812,
       "filename": "func.47.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 815,
+      "line": 818,
       "filename": "func.48.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 822,
+      "line": 824,
       "filename": "func.49.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 828,
+      "line": 830,
       "filename": "func.50.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 834,
+      "line": 836,
       "filename": "func.51.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 840,
+      "line": 843,
       "filename": "func.52.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 846,
+      "line": 849,
       "filename": "func.53.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 852,
+      "line": 855,
       "filename": "func.54.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 858,
+      "line": 861,
       "filename": "func.55.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 864,
+      "line": 867,
       "filename": "func.56.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 870,
+      "line": 873,
       "filename": "func.57.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 877,
+      "line": 879,
       "filename": "func.58.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 883,
+      "line": 885,
       "filename": "func.59.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 889,
+      "line": 891,
       "filename": "func.60.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 895,
+      "line": 898,
       "filename": "func.61.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 901,
+      "line": 904,
       "filename": "func.62.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 907,
+      "line": 910,
       "filename": "func.63.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
-      "type": "assert_malformed",
-      "line": 917,
-      "filename": "func.64.wat",
-      "module_type": "text",
-      "text": "unexpected token"
+      "type": "assert_invalid",
+      "line": 916,
+      "filename": "func.64.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 922,
+      "filename": "func.65.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 928,
+      "filename": "func.66.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_malformed",
-      "line": 921,
-      "filename": "func.65.wat",
-      "module_type": "text",
-      "text": "unexpected token"
-    },
-    {
-      "type": "assert_malformed",
-      "line": 925,
-      "filename": "func.66.wat",
-      "module_type": "text",
-      "text": "unexpected token"
-    },
-    {
-      "type": "assert_malformed",
-      "line": 929,
+      "line": 938,
       "filename": "func.67.wat",
       "module_type": "text",
       "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
-      "line": 933,
+      "line": 942,
       "filename": "func.68.wat",
       "module_type": "text",
       "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
-      "line": 937,
+      "line": 946,
       "filename": "func.69.wat",
       "module_type": "text",
       "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
-      "line": 943,
+      "line": 950,
       "filename": "func.70.wat",
       "module_type": "text",
-      "text": "duplicate func"
+      "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
-      "line": 947,
+      "line": 954,
       "filename": "func.71.wat",
       "module_type": "text",
-      "text": "duplicate func"
-    },
-    {
-      "type": "assert_malformed",
-      "line": 951,
-      "filename": "func.72.wat",
-      "module_type": "text",
-      "text": "duplicate func"
-    },
-    {
-      "type": "assert_malformed",
-      "line": 956,
-      "filename": "func.73.wat",
-      "module_type": "text",
-      "text": "duplicate local"
+      "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
       "line": 958,
+      "filename": "func.72.wat",
+      "module_type": "text",
+      "text": "unexpected token"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 965,
+      "filename": "func.73.wat",
+      "module_type": "text",
+      "text": "duplicate func"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 969,
       "filename": "func.74.wat",
+      "module_type": "text",
+      "text": "duplicate func"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 973,
+      "filename": "func.75.wat",
+      "module_type": "text",
+      "text": "duplicate func"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 978,
+      "filename": "func.76.wat",
       "module_type": "text",
       "text": "duplicate local"
     },
     {
       "type": "assert_malformed",
-      "line": 960,
-      "filename": "func.75.wat",
+      "line": 982,
+      "filename": "func.77.wat",
+      "module_type": "text",
+      "text": "duplicate local"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 986,
+      "filename": "func.78.wat",
       "module_type": "text",
       "text": "duplicate local"
     }

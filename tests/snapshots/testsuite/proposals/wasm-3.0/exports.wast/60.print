@@ -1,4 +1,0 @@
-(module
-  (table $a (;0;) 0 funcref)
-  (export "a" (table $a))
-)

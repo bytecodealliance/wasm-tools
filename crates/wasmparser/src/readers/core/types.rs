@@ -489,6 +489,8 @@ impl SubType {
             composite_type: CompositeType {
                 inner: CompositeInnerType::Func(signature),
                 shared,
+                descriptor_idx: None,
+                describes_idx: None,
             },
         }
     }
@@ -521,6 +523,12 @@ impl SubType {
         f: &mut dyn FnMut(&mut PackedIndex) -> Result<()>,
     ) -> Result<()> {
         if let Some(idx) = &mut self.supertype_idx {
+            f(idx)?;
+        }
+        if let Some(idx) = &mut self.composite_type.descriptor_idx {
+            f(idx)?;
+        }
+        if let Some(idx) = &mut self.composite_type.describes_idx {
             f(idx)?;
         }
         match &mut self.composite_type.inner {
@@ -580,6 +588,10 @@ pub struct CompositeType {
     /// Is the composite type shared? This is part of the
     /// shared-everything-threads proposal.
     pub shared: bool,
+    /// The descriptor type.
+    pub descriptor_idx: Option<PackedIndex>,
+    /// The descriptor for type.
+    pub describes_idx: Option<PackedIndex>,
 }
 
 impl fmt::Display for CompositeType {
@@ -936,7 +948,11 @@ impl ValType {
             ValType::Ref(r) => {
                 if let Some(mut idx) = r.type_index() {
                     map(&mut idx)?;
-                    *r = RefType::concrete(r.is_nullable(), idx);
+                    *r = if r.is_exact_type_ref() {
+                        RefType::exact(r.is_nullable(), idx)
+                    } else {
+                        RefType::concrete(r.is_nullable(), idx)
+                    }
                 }
             }
             ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => {}
@@ -956,14 +972,14 @@ impl ValType {
 /// The GC proposal introduces heap types: any, eq, i31, struct, array,
 /// nofunc, noextern, none.
 //
-// RefType is a bit-packed enum that fits in a `u24` aka `[u8; 3]`. Note that
+// RefType is a bit-packed enum that fits in a u32. Note that
 // its content is opaque (and subject to change), but its API is stable.
 //
 // It has the following internal structure:
 //
 // ```
-// [nullable:u1 concrete==1:u1 index:u22]
-// [nullable:u1 concrete==0:u1 shared:u1 abstype:u4 (unused):u17]
+// [concrete==1:u1 exact:u1 nullable:u1 index:u22]
+// [concrete==0:u1 (unused):u1 nullable:u1 shared:u1 abstype:u4 (unused):u17]
 // ```
 //
 // Where
@@ -973,6 +989,8 @@ impl ValType {
 // - `concrete` determines if the ref is of a dynamically defined type with an
 //   index (encoded in a following bit-packing section) or of a known fixed
 //   type,
+//
+// - `exact` determites if the ref is of an exact type,
 //
 // - `index` is the type index,
 //
@@ -1003,7 +1021,7 @@ impl ValType {
 //   0000 = none
 //   ```
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct RefType([u8; 3]);
+pub struct RefType(u32);
 
 impl fmt::Debug for RefType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1031,6 +1049,9 @@ impl fmt::Debug for RefType {
                 } else {
                     write!(f, "(ref {index})")
                 }
+            }
+            HeapType::Exact(index) => {
+                write!(f, "(ref (exact {index}))")
             }
         }
     }
@@ -1065,8 +1086,9 @@ fn can_fit_max_wasm_types_in_ref_type() {
 
 impl RefType {
     // These bits are valid for all `RefType`s.
-    const NULLABLE_BIT: u32 = 1 << 23;
-    const CONCRETE_BIT: u32 = 1 << 22;
+    const CONCRETE_BIT: u32 = 1 << 24;
+    const EXACT_BIT: u32 = 1 << 23;
+    const NULLABLE_BIT: u32 = 1 << 22;
 
     // The `abstype` field is valid only when `concrete == 0`.
     const SHARED_BIT: u32 = 1 << 21;
@@ -1186,25 +1208,14 @@ impl RefType {
         index & Self::INDEX_MASK == index
     }
 
-    const fn u24_to_u32(bytes: [u8; 3]) -> u32 {
-        let expanded_bytes = [bytes[0], bytes[1], bytes[2], 0];
-        u32::from_le_bytes(expanded_bytes)
-    }
-
-    const fn u32_to_u24(x: u32) -> [u8; 3] {
-        let bytes = x.to_le_bytes();
-        debug_assert!(bytes[3] == 0);
-        [bytes[0], bytes[1], bytes[2]]
-    }
-
     #[inline]
     const fn as_u32(&self) -> u32 {
-        Self::u24_to_u32(self.0)
+        self.0
     }
 
     #[inline]
     const fn from_u32(x: u32) -> Self {
-        debug_assert!(x & (0b11111111 << 24) == 0);
+        debug_assert!(x & (0b1111111 << 25) == 0);
 
         // Either concrete or it must be a known abstract type.
         debug_assert!(
@@ -1228,7 +1239,7 @@ impl RefType {
                 )
         );
 
-        RefType(Self::u32_to_u24(x))
+        RefType(x)
     }
 
     /// Create a reference to a concrete Wasm-defined type at the given
@@ -1243,6 +1254,14 @@ impl RefType {
         RefType::from_u32(nullable32 | Self::CONCRETE_BIT | index)
     }
 
+    /// Create a reference to exact type.
+    pub fn exact(nullable: bool, index: PackedIndex) -> Self {
+        let index: u32 = PackedIndex::to_u32(index);
+        debug_assert!(Self::can_represent_type_index(index));
+        let nullable32 = Self::NULLABLE_BIT * nullable as u32;
+        RefType::from_u32(nullable32 | Self::EXACT_BIT | Self::CONCRETE_BIT | index)
+    }
+
     /// Create a new `RefType`.
     ///
     /// Returns `None` when the heap type's type index (if any) is beyond this
@@ -1251,6 +1270,7 @@ impl RefType {
         let base32 = Self::NULLABLE_BIT * (nullable as u32);
         match heap_type {
             HeapType::Concrete(index) => Some(RefType::concrete(nullable, index.pack()?)),
+            HeapType::Exact(index) => Some(RefType::exact(nullable, index.pack()?)),
             HeapType::Abstract { shared, ty } => {
                 use AbstractHeapType::*;
                 let base32 = base32 | (Self::SHARED_BIT * (shared as u32));
@@ -1292,6 +1312,11 @@ impl RefType {
     /// Is this a reference to an concrete type?
     pub const fn is_concrete_type_ref(&self) -> bool {
         self.as_u32() & Self::CONCRETE_BIT != 0
+    }
+
+    /// Is this an exact reference to a type?
+    pub const fn is_exact_type_ref(&self) -> bool {
+        !self.as_u32() & (Self::EXACT_BIT | Self::CONCRETE_BIT) == 0
     }
 
     /// If this is a reference to a concrete Wasm-defined type, get its
@@ -1340,6 +1365,11 @@ impl RefType {
         !self.is_concrete_type_ref() && self.abstype() == Self::CONT_ABSTYPE
     }
 
+    /// Is this none type?
+    pub const fn is_none_ref(&self) -> bool {
+        !self.is_concrete_type_ref() && self.abstype() == Self::NONE_ABSTYPE
+    }
+
     /// Is this ref type nullable?
     pub const fn is_nullable(&self) -> bool {
         self.as_u32() & Self::NULLABLE_BIT != 0
@@ -1368,7 +1398,11 @@ impl RefType {
     pub fn heap_type(&self) -> HeapType {
         let s = self.as_u32();
         if self.is_concrete_type_ref() {
-            HeapType::Concrete(self.type_index().unwrap().unpack())
+            if !self.is_exact_type_ref() {
+                HeapType::Concrete(self.type_index().unwrap().unpack())
+            } else {
+                HeapType::Exact(self.type_index().unwrap().unpack())
+            }
         } else {
             use AbstractHeapType::*;
             let shared = s & Self::SHARED_BIT != 0;
@@ -1471,6 +1505,13 @@ impl RefType {
                     "(ref $type)"
                 }
             }
+            HeapType::Exact(_) => {
+                if nullable {
+                    "(ref null (exact $type))"
+                } else {
+                    "(ref (exact $type))"
+                }
+            }
         }
     }
 }
@@ -1491,6 +1532,10 @@ pub enum HeapType {
     ///
     /// Introduced in the function-references proposal.
     Concrete(UnpackedIndex),
+    /// An exact, user-defined type.
+    ///
+    /// Introduced in the custom-descriptors proposal.
+    Exact(UnpackedIndex),
 }
 
 impl HeapType {
@@ -1712,6 +1757,7 @@ impl<'a> FromReader<'a> for ValType {
         // | 0x65    | -27     | shared $t    | shared-everything proposal   |
         // | 0x64    | -28     | ref $t       | gc proposal, prefix byte     |
         // | 0x63    | -29     | ref null $t  | gc proposal, prefix byte     |
+        // | 0x62    | -30     | exact $t     | custom descriptor proposal   |
         // | 0x60    | -32     | func $t      | prefix byte                  |
         // | 0x5f    | -33     | struct $t    | gc proposal, prefix byte     |
         // | 0x5e    | -34     | array $t     | gc proposal, prefix byte     |
@@ -1774,6 +1820,7 @@ impl<'a> FromReader<'a> for RefType {
                 RefType::new(nullable, reader.read()?)
                     .ok_or_else(|| crate::BinaryReaderError::new("type index too large", pos))
             }
+            0x62 => Err(crate::BinaryReaderError::new("unexpected exact type", pos)),
             _ => {
                 // Reclassify errors as invalid reference types here because
                 // that's the "root" of what was being parsed rather than
@@ -1819,6 +1866,11 @@ impl<'a> FromReader<'a> for HeapType {
                     reader.read_u8()?;
                     let ty = reader.read()?;
                     Ok(HeapType::Abstract { shared: true, ty })
+                }
+                0x62 => {
+                    reader.read_u8()?;
+                    let idx = reader.read_var_u32()?;
+                    Ok(HeapType::Exact(UnpackedIndex::Module(idx)))
                 }
                 _ => {
                     // Reclassify errors as "invalid heap type" here because
@@ -2027,6 +2079,28 @@ fn read_composite_type(
     } else {
         (false, opcode)
     };
+    let (describes_idx, opcode) = if opcode == 0x4c {
+        let idx = PackedIndex::from_module_index(reader.read_var_u32()?).ok_or_else(|| {
+            BinaryReaderError::new(
+                "type index greater than implementation limits",
+                reader.original_position(),
+            )
+        })?;
+        (Some(idx), reader.read_u8()?)
+    } else {
+        (None, opcode)
+    };
+    let (descriptor_idx, opcode) = if opcode == 0x4d {
+        let idx = PackedIndex::from_module_index(reader.read_var_u32()?).ok_or_else(|| {
+            BinaryReaderError::new(
+                "type index greater than implementation limits",
+                reader.original_position(),
+            )
+        })?;
+        (Some(idx), reader.read_u8()?)
+    } else {
+        (None, opcode)
+    };
     let inner = match opcode {
         0x60 => CompositeInnerType::Func(reader.read()?),
         0x5e => CompositeInnerType::Array(reader.read()?),
@@ -2034,7 +2108,12 @@ fn read_composite_type(
         0x5d => CompositeInnerType::Cont(reader.read()?),
         x => return reader.invalid_leading_byte(x, "type"),
     };
-    Ok(CompositeType { shared, inner })
+    Ok(CompositeType {
+        shared,
+        inner,
+        descriptor_idx,
+        describes_idx,
+    })
 }
 
 impl<'a> FromReader<'a> for RecGroup {

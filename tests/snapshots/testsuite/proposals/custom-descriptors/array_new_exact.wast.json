@@ -1,0 +1,11 @@
+{
+  "source_filename": "tests/testsuite/proposals/custom-descriptors/array_new_exact.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "array_new_exact.0.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

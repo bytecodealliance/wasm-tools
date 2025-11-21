@@ -3,9 +3,9 @@
     {
       "name": "y",
       "imports": {
-        "[async]x": {
+        "x": {
           "function": {
-            "name": "[async]x",
+            "name": "x",
             "kind": "async-freestanding",
             "params": []
           }
@@ -19,9 +19,9 @@
         }
       },
       "exports": {
-        "[async]x": {
+        "x": {
           "function": {
-            "name": "[async]x",
+            "name": "x",
             "kind": "async-freestanding",
             "params": []
           }
@@ -44,8 +44,8 @@
         "z": 0
       },
       "functions": {
-        "[async]x": {
-          "name": "[async]x",
+        "x": {
+          "name": "x",
           "kind": "async-freestanding",
           "params": [
             {
@@ -68,8 +68,8 @@
           "params": [],
           "result": 2
         },
-        "[async method]z.x": {
-          "name": "[async method]z.x",
+        "[method]z.x": {
+          "name": "[method]z.x",
           "kind": {
             "async-method": 0
           },
@@ -92,8 +92,8 @@
             }
           ]
         },
-        "[async static]z.static-x": {
-          "name": "[async static]z.static-x",
+        "[static]z.static-x": {
+          "name": "[static]z.static-x",
           "kind": {
             "async-static": 0
           },

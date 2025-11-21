@@ -425,6 +425,44 @@ pub fn task_return(
     )
 }
 
+pub fn lift_payload(adapter: &mut Adapter, resolve: &Resolve, ty: Type) -> Function {
+    let mut c = FunctionCompiler::new(adapter, resolve, 2);
+    c.ctx = Some(TempLocal::new(0, ValType::I32));
+    c.lift(
+        &AbiLoc::Memory(Memory {
+            addr: TempLocal::new(1, ValType::I32),
+            offset: 0,
+        }),
+        ty,
+    );
+    c.finish()
+}
+
+pub fn lower_payload(adapter: &mut Adapter, resolve: &Resolve, ty: Type) -> Function {
+    let mut c = FunctionCompiler::new(adapter, resolve, 2);
+    c.ctx = Some(TempLocal::new(0, ValType::I32));
+    // As of this writing, `FunctionCompiler::lower` calls
+    // `FunctionCompiler::local_get_stack_temp_addr` when lowering a string,
+    // which will panic if no stack frame has been allocated, so we take care of
+    // that here:
+    let frame = StackFrame {
+        size: 16,
+        abi_param_offset: None,
+        retptr_offset: None,
+        stack_temp_offset: Some(0),
+    };
+    c.allocate_stack_frame(&frame);
+    c.lower(
+        ty,
+        &AbiLoc::Memory(Memory {
+            addr: TempLocal::new(1, ValType::I32),
+            offset: 0,
+        }),
+    );
+    c.deallocate_stack_frame(&frame);
+    c.finish()
+}
+
 struct FunctionCompiler<'a> {
     adapter: &'a mut Adapter,
     resolve: &'a Resolve,

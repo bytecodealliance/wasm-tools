@@ -1335,43 +1335,50 @@
     },
     {
       "type": "assert_invalid",
-      "line": 615,
+      "line": 613,
       "filename": "local_tee.36.wasm",
       "module_type": "binary",
-      "text": "unknown local"
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 619,
+      "line": 630,
       "filename": "local_tee.37.wasm",
       "module_type": "binary",
       "text": "unknown local"
     },
     {
       "type": "assert_invalid",
-      "line": 624,
+      "line": 634,
       "filename": "local_tee.38.wasm",
       "module_type": "binary",
       "text": "unknown local"
     },
     {
       "type": "assert_invalid",
-      "line": 628,
+      "line": 639,
       "filename": "local_tee.39.wasm",
       "module_type": "binary",
       "text": "unknown local"
     },
     {
       "type": "assert_invalid",
-      "line": 633,
+      "line": 643,
       "filename": "local_tee.40.wasm",
       "module_type": "binary",
       "text": "unknown local"
     },
     {
       "type": "assert_invalid",
-      "line": 637,
+      "line": 648,
       "filename": "local_tee.41.wasm",
+      "module_type": "binary",
+      "text": "unknown local"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 652,
+      "filename": "local_tee.42.wasm",
       "module_type": "binary",
       "text": "unknown local"
     }

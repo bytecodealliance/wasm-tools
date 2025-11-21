@@ -1,4 +1,0 @@
-(module
-  (global (;0;) (mut f32) f32.const 0x0p+0 (;=0;))
-  (export "a" (global 0))
-)

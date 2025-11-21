@@ -1,3 +1,4 @@
 (module
-  (import "Mref_ex" "g-var-extern" (global (;0;) (mut funcref)))
+  (type $t (;0;) (func))
+  (import "Mref_ex" "g-const-extern" (global (;0;) (ref func)))
 )

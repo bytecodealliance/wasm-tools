@@ -1,0 +1,395 @@
+(module
+  (rec
+    (type $a (;0;) (sub (descriptor $b) (struct)))
+    (type $b (;1;) (sub (describes $a) (struct)))
+    (type $c (;2;) (sub $a (descriptor $d) (struct)))
+    (type $d (;3;) (sub $b (describes $c) (struct)))
+  )
+  (type (;4;) (func (param anyref (ref null $b)) (result (ref any))))
+  (type (;5;) (func (param anyref (ref null $b)) (result anyref)))
+  (type (;6;) (func (param anyref (ref $b)) (result (ref any))))
+  (type (;7;) (func (param anyref (ref $b)) (result anyref)))
+  (type (;8;) (func (param (ref any) (ref null $b)) (result (ref any))))
+  (type (;9;) (func (param (ref any) (ref $b)) (result (ref any))))
+  (type (;10;) (func (param anyref (ref null $d)) (result (ref any))))
+  (type (;11;) (func (param anyref (ref null $d)) (result anyref)))
+  (type (;12;) (func (param anyref (ref $d)) (result (ref any))))
+  (type (;13;) (func (param anyref (ref $d)) (result anyref)))
+  (type (;14;) (func (param (ref any) (ref null $d)) (result (ref any))))
+  (type (;15;) (func (param (ref any) (ref $d)) (result (ref any))))
+  (type (;16;) (func (param anyref (ref null (exact $d))) (result (ref any))))
+  (type (;17;) (func (param anyref (ref null (exact $d))) (result anyref)))
+  (type (;18;) (func (param anyref (ref (exact $d))) (result (ref any))))
+  (type (;19;) (func (param anyref (ref (exact $d))) (result anyref)))
+  (type (;20;) (func (param (ref any) (ref null (exact $d))) (result (ref any))))
+  (type (;21;) (func (param (ref any) (ref (exact $d))) (result (ref any))))
+  (type (;22;) (func (param anyref (ref null (exact $b))) (result (ref any))))
+  (type (;23;) (func (param anyref (ref null (exact $b))) (result anyref)))
+  (type (;24;) (func (param anyref (ref (exact $b))) (result (ref any))))
+  (type (;25;) (func (param anyref (ref (exact $b))) (result anyref)))
+  (type (;26;) (func (param (ref any) (ref null (exact $b))) (result (ref any))))
+  (type (;27;) (func (param (ref any) (ref (exact $b))) (result (ref any))))
+  (type (;28;) (func (param anyref) (result (ref any))))
+  (type (;29;) (func (param anyref) (result anyref)))
+  (type (;30;) (func (param (ref any)) (result (ref any))))
+  (func (;0;) (type 4) (param anyref (ref null $b)) (result (ref any))
+    block (result (ref null $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 anyref (ref null $a)
+    end
+    unreachable
+  )
+  (func (;1;) (type 5) (param anyref (ref null $b)) (result anyref)
+    block (result (ref $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 anyref (ref $a)
+    end
+  )
+  (func (;2;) (type 6) (param anyref (ref $b)) (result (ref any))
+    block (result (ref null $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 anyref (ref null $a)
+    end
+    unreachable
+  )
+  (func (;3;) (type 7) (param anyref (ref $b)) (result anyref)
+    block (result (ref $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 anyref (ref $a)
+    end
+  )
+  (func (;4;) (type 8) (param (ref any) (ref null $b)) (result (ref any))
+    block (result (ref null $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 (ref any) (ref null $a)
+    end
+    unreachable
+  )
+  (func (;5;) (type 8) (param (ref any) (ref null $b)) (result (ref any))
+    block (result (ref $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 (ref any) (ref $a)
+    end
+  )
+  (func (;6;) (type 9) (param (ref any) (ref $b)) (result (ref any))
+    block (result (ref null $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 (ref any) (ref null $a)
+    end
+    unreachable
+  )
+  (func (;7;) (type 9) (param (ref any) (ref $b)) (result (ref any))
+    block (result (ref $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 (ref any) (ref $a)
+    end
+  )
+  (func (;8;) (type 10) (param anyref (ref null $d)) (result (ref any))
+    block (result (ref null $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 anyref (ref null $a)
+    end
+    unreachable
+  )
+  (func (;9;) (type 11) (param anyref (ref null $d)) (result anyref)
+    block (result (ref $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 anyref (ref $a)
+    end
+  )
+  (func (;10;) (type 12) (param anyref (ref $d)) (result (ref any))
+    block (result (ref null $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 anyref (ref null $a)
+    end
+    unreachable
+  )
+  (func (;11;) (type 13) (param anyref (ref $d)) (result anyref)
+    block (result (ref $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 anyref (ref $a)
+    end
+  )
+  (func (;12;) (type 14) (param (ref any) (ref null $d)) (result (ref any))
+    block (result (ref null $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 (ref any) (ref null $a)
+    end
+    unreachable
+  )
+  (func (;13;) (type 14) (param (ref any) (ref null $d)) (result (ref any))
+    block (result (ref $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 (ref any) (ref $a)
+    end
+  )
+  (func (;14;) (type 15) (param (ref any) (ref $d)) (result (ref any))
+    block (result (ref null $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 (ref any) (ref null $a)
+    end
+    unreachable
+  )
+  (func (;15;) (type 15) (param (ref any) (ref $d)) (result (ref any))
+    block (result (ref $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 (ref any) (ref $a)
+    end
+  )
+  (func (;16;) (type 16) (param anyref (ref null (exact $d))) (result (ref any))
+    block (result (ref null $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 anyref (ref null $a)
+    end
+    unreachable
+  )
+  (func (;17;) (type 17) (param anyref (ref null (exact $d))) (result anyref)
+    block (result (ref $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 anyref (ref $a)
+    end
+  )
+  (func (;18;) (type 18) (param anyref (ref (exact $d))) (result (ref any))
+    block (result (ref null $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 anyref (ref null $a)
+    end
+    unreachable
+  )
+  (func (;19;) (type 19) (param anyref (ref (exact $d))) (result anyref)
+    block (result (ref $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 anyref (ref $a)
+    end
+  )
+  (func (;20;) (type 20) (param (ref any) (ref null (exact $d))) (result (ref any))
+    block (result (ref null $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 (ref any) (ref null $a)
+    end
+    unreachable
+  )
+  (func (;21;) (type 20) (param (ref any) (ref null (exact $d))) (result (ref any))
+    block (result (ref $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 (ref any) (ref $a)
+    end
+  )
+  (func (;22;) (type 21) (param (ref any) (ref (exact $d))) (result (ref any))
+    block (result (ref null $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 (ref any) (ref null $a)
+    end
+    unreachable
+  )
+  (func (;23;) (type 21) (param (ref any) (ref (exact $d))) (result (ref any))
+    block (result (ref $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 (ref any) (ref $a)
+    end
+  )
+  (func (;24;) (type 22) (param anyref (ref null (exact $b))) (result (ref any))
+    block (result (ref null $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 anyref (ref null (exact $a))
+    end
+    unreachable
+  )
+  (func (;25;) (type 23) (param anyref (ref null (exact $b))) (result anyref)
+    block (result (ref $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 anyref (ref (exact $a))
+    end
+  )
+  (func (;26;) (type 24) (param anyref (ref (exact $b))) (result (ref any))
+    block (result (ref null $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 anyref (ref null (exact $a))
+    end
+    unreachable
+  )
+  (func (;27;) (type 25) (param anyref (ref (exact $b))) (result anyref)
+    block (result (ref $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 anyref (ref (exact $a))
+    end
+  )
+  (func (;28;) (type 26) (param (ref any) (ref null (exact $b))) (result (ref any))
+    block (result (ref null $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 (ref any) (ref null (exact $a))
+    end
+    unreachable
+  )
+  (func (;29;) (type 26) (param (ref any) (ref null (exact $b))) (result (ref any))
+    block (result (ref $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 (ref any) (ref (exact $a))
+    end
+  )
+  (func (;30;) (type 27) (param (ref any) (ref (exact $b))) (result (ref any))
+    block (result (ref null $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 (ref any) (ref null (exact $a))
+    end
+    unreachable
+  )
+  (func (;31;) (type 27) (param (ref any) (ref (exact $b))) (result (ref any))
+    block (result (ref $a)) ;; label = @1
+      local.get 0
+      local.get 1
+      br_on_cast_desc_fail 1 (ref any) (ref (exact $a))
+    end
+  )
+  (func (;32;) (type 28) (param anyref) (result (ref any))
+    block (result (ref null $a)) ;; label = @1
+      local.get 0
+      unreachable
+      br_on_cast_desc_fail 1 anyref (ref null $a)
+    end
+    unreachable
+  )
+  (func (;33;) (type 29) (param anyref) (result anyref)
+    block (result (ref $a)) ;; label = @1
+      local.get 0
+      unreachable
+      br_on_cast_desc_fail 1 anyref (ref $a)
+    end
+  )
+  (func (;34;) (type 30) (param (ref any)) (result (ref any))
+    block (result (ref null $a)) ;; label = @1
+      local.get 0
+      unreachable
+      br_on_cast_desc_fail 1 (ref any) (ref null $a)
+    end
+    unreachable
+  )
+  (func (;35;) (type 30) (param (ref any)) (result (ref any))
+    block (result (ref $a)) ;; label = @1
+      local.get 0
+      unreachable
+      br_on_cast_desc_fail 1 (ref any) (ref $a)
+    end
+  )
+  (func (;36;) (type 28) (param anyref) (result (ref any))
+    block (result (ref null (exact $a))) ;; label = @1
+      local.get 0
+      unreachable
+      br_on_cast_desc_fail 1 anyref (ref null (exact $a))
+    end
+    unreachable
+  )
+  (func (;37;) (type 29) (param anyref) (result anyref)
+    block (result (ref (exact $a))) ;; label = @1
+      local.get 0
+      unreachable
+      br_on_cast_desc_fail 1 anyref (ref (exact $a))
+    end
+  )
+  (func (;38;) (type 30) (param (ref any)) (result (ref any))
+    block (result (ref null (exact $a))) ;; label = @1
+      local.get 0
+      unreachable
+      br_on_cast_desc_fail 1 (ref any) (ref null (exact $a))
+    end
+    unreachable
+  )
+  (func (;39;) (type 30) (param (ref any)) (result (ref any))
+    block (result (ref (exact $a))) ;; label = @1
+      local.get 0
+      unreachable
+      br_on_cast_desc_fail 1 (ref any) (ref (exact $a))
+    end
+  )
+  (func (;40;) (type 28) (param anyref) (result (ref any))
+    block (result (ref null $a)) ;; label = @1
+      local.get 0
+      ref.null none
+      br_on_cast_desc_fail 1 anyref (ref null $a)
+    end
+    unreachable
+  )
+  (func (;41;) (type 29) (param anyref) (result anyref)
+    block (result (ref $a)) ;; label = @1
+      local.get 0
+      ref.null none
+      br_on_cast_desc_fail 1 anyref (ref $a)
+    end
+  )
+  (func (;42;) (type 30) (param (ref any)) (result (ref any))
+    block (result (ref null $a)) ;; label = @1
+      local.get 0
+      ref.null none
+      br_on_cast_desc_fail 1 (ref any) (ref null $a)
+    end
+    unreachable
+  )
+  (func (;43;) (type 30) (param (ref any)) (result (ref any))
+    block (result (ref $a)) ;; label = @1
+      local.get 0
+      ref.null none
+      br_on_cast_desc_fail 1 (ref any) (ref $a)
+    end
+  )
+  (func (;44;) (type 28) (param anyref) (result (ref any))
+    block (result (ref null (exact $a))) ;; label = @1
+      local.get 0
+      ref.null none
+      br_on_cast_desc_fail 1 anyref (ref null (exact $a))
+    end
+    unreachable
+  )
+  (func (;45;) (type 29) (param anyref) (result anyref)
+    block (result (ref (exact $a))) ;; label = @1
+      local.get 0
+      ref.null none
+      br_on_cast_desc_fail 1 anyref (ref (exact $a))
+    end
+  )
+  (func (;46;) (type 30) (param (ref any)) (result (ref any))
+    block (result (ref null (exact $a))) ;; label = @1
+      local.get 0
+      ref.null none
+      br_on_cast_desc_fail 1 (ref any) (ref null (exact $a))
+    end
+    unreachable
+  )
+  (func (;47;) (type 30) (param (ref any)) (result (ref any))
+    block (result (ref (exact $a))) ;; label = @1
+      local.get 0
+      ref.null none
+      br_on_cast_desc_fail 1 (ref any) (ref (exact $a))
+    end
+  )
+)

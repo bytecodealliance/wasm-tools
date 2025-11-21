@@ -1,5 +1,4 @@
 (module
-  (type (;0;) (func))
-  (import "test" "unknown" (func (;0;) (type 0)))
-  (memory (;0;) 4294967295 (pagesize 0x1))
+  (memory (;0;) 0)
+  (export "unknown" (memory 0))
 )

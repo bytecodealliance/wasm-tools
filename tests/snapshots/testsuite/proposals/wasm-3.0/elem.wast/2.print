@@ -1,7 +1,0 @@
-(module
-  (type (;0;) (func))
-  (table $t (;0;) 10 (ref func) ref.func $f)
-  (elem (;0;) (i32.const 3) func $g)
-  (func $f (;0;) (type 0))
-  (func $g (;1;) (type 0))
-)

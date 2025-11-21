@@ -1,0 +1,1109 @@
+(module
+  (rec
+    (type $a (;0;) (sub (descriptor $b) (struct)))
+    (type $b (;1;) (sub (describes $a) (struct)))
+    (type $c (;2;) (sub $a (descriptor $d) (struct)))
+    (type $d (;3;) (sub $b (describes $c) (struct)))
+  )
+  (type $no-desc (;4;) (struct))
+  (type (;5;) (func (result i32)))
+  (global $b1-exact (;0;) (ref null (exact $b)) struct.new $b)
+  (global $b2-exact (;1;) (ref null (exact $b)) struct.new $b)
+  (global $b1 (;2;) (ref null $b) global.get $b1-exact)
+  (global $b2 (;3;) (ref null $b) global.get $b2-exact)
+  (global $a1 (;4;) (ref null $a) global.get $b1-exact struct.new $a)
+  (global $d1-exact (;5;) (ref null (exact $d)) struct.new $d)
+  (global $d2-exact (;6;) (ref null (exact $d)) struct.new $d)
+  (global $d1 (;7;) (ref null $d) global.get $d1-exact)
+  (global $d2 (;8;) (ref null $d) global.get $d2-exact)
+  (global $c1 (;9;) (ref null $c) global.get $d1-exact struct.new $c)
+  (global $c1-as-a (;10;) (ref null $a) global.get $c1)
+  (global $a-null (;11;) (ref null (exact $a)) ref.null none)
+  (global $b-null (;12;) (ref null (exact $b)) ref.null none)
+  (global $c-null (;13;) (ref null (exact $c)) ref.null none)
+  (global $d-null (;14;) (ref null (exact $d)) ref.null none)
+  (global $no-desc (;15;) (ref null (exact $no-desc)) struct.new $no-desc)
+  (global $no-desc-null (;16;) (ref null (exact $no-desc)) ref.null none)
+  (global $i31 (;17;) anyref i32.const 0 ref.i31)
+  (global $i31-null (;18;) anyref ref.null i31)
+  (export "self-nullable-null-null" (func 0))
+  (export "self-nullable-val-null" (func 1))
+  (export "self-nullable-null-desc" (func 2))
+  (export "self-nullable-val-desc" (func 3))
+  (export "self-nullable-val-other" (func 4))
+  (export "self-nonnullable-null-null" (func 5))
+  (export "self-nonnullable-val-null" (func 6))
+  (export "self-nonnullable-null-desc" (func 7))
+  (export "self-nonnullable-val-desc" (func 8))
+  (export "self-nonnullable-val-other" (func 9))
+  (export "self-exact-nullable-null-null" (func 10))
+  (export "self-exact-nullable-val-null" (func 11))
+  (export "self-exact-nullable-null-desc" (func 12))
+  (export "self-exact-nullable-val-desc" (func 13))
+  (export "self-exact-nullable-val-other" (func 14))
+  (export "self-exact-nonnullable-null-null" (func 15))
+  (export "self-exact-nonnullable-val-null" (func 16))
+  (export "self-exact-nonnullable-null-desc" (func 17))
+  (export "self-exact-nonnullable-val-desc" (func 18))
+  (export "self-exact-nonnullable-val-other" (func 19))
+  (export "down-nullable-null-null" (func 20))
+  (export "down-nullable-val-null" (func 21))
+  (export "down-nullable-null-desc" (func 22))
+  (export "down-nullable-val-desc" (func 23))
+  (export "down-nullable-val-other" (func 24))
+  (export "down-nonnullable-null-null" (func 25))
+  (export "down-nonnullable-val-null" (func 26))
+  (export "down-nonnullable-null-desc" (func 27))
+  (export "down-nonnullable-val-desc" (func 28))
+  (export "down-nonnullable-val-other" (func 29))
+  (export "down-exact-nullable-null-null" (func 30))
+  (export "down-exact-nullable-val-null" (func 31))
+  (export "down-exact-nullable-null-desc" (func 32))
+  (export "down-exact-nullable-val-desc" (func 33))
+  (export "down-exact-nullable-val-other" (func 34))
+  (export "down-exact-nonnullable-null-null" (func 35))
+  (export "down-exact-nonnullable-val-null" (func 36))
+  (export "down-exact-nonnullable-null-desc" (func 37))
+  (export "down-exact-nonnullable-val-desc" (func 38))
+  (export "down-exact-nonnullable-val-other" (func 39))
+  (export "up-nullable-null-null" (func 40))
+  (export "up-nullable-val-null" (func 41))
+  (export "up-nullable-null-desc" (func 42))
+  (export "up-nullable-val-desc" (func 43))
+  (export "up-nullable-val-other" (func 44))
+  (export "up-nonnullable-null-null" (func 45))
+  (export "up-nonnullable-val-null" (func 46))
+  (export "up-nonnullable-null-desc" (func 47))
+  (export "up-nonnullable-val-desc" (func 48))
+  (export "up-nonnullable-val-other" (func 49))
+  (export "up-exact-nullable-null-null" (func 50))
+  (export "up-exact-nullable-val-null" (func 51))
+  (export "up-exact-nullable-null-desc" (func 52))
+  (export "up-exact-nullable-val-other" (func 53))
+  (export "up-exact-nonnullable-null-null" (func 54))
+  (export "up-exact-nonnullable-val-null" (func 55))
+  (export "up-exact-nonnullable-null-desc" (func 56))
+  (export "up-exact-nonnullable-val-other" (func 57))
+  (export "nodesc-nullable-null-null" (func 58))
+  (export "nodesc-nullable-val-null" (func 59))
+  (export "nodesc-nullable-null-desc" (func 60))
+  (export "nodesc-nullable-val-other" (func 61))
+  (export "nodesc-nonnullable-null-null" (func 62))
+  (export "nodesc-nonnullable-val-null" (func 63))
+  (export "nodesc-nonnullable-null-desc" (func 64))
+  (export "nodesc-nonnullable-val-other" (func 65))
+  (export "nodesc-exact-nullable-null-null" (func 66))
+  (export "nodesc-exact-nullable-val-null" (func 67))
+  (export "nodesc-exact-nullable-null-desc" (func 68))
+  (export "nodesc-exact-nullable-val-other" (func 69))
+  (export "nodesc-exact-nonnullable-null-null" (func 70))
+  (export "nodesc-exact-nonnullable-val-null" (func 71))
+  (export "nodesc-exact-nonnullable-null-desc" (func 72))
+  (export "nodesc-exact-nonnullable-val-other" (func 73))
+  (export "i31-nullable-null-null" (func 74))
+  (export "i31-nullable-val-null" (func 75))
+  (export "i31-nullable-null-desc" (func 76))
+  (export "i31-nullable-val-other" (func 77))
+  (export "i31-nonnullable-null-null" (func 78))
+  (export "i31-nonnullable-val-null" (func 79))
+  (export "i31-nonnullable-null-desc" (func 80))
+  (export "i31-nonnullable-val-other" (func 81))
+  (export "i31-exact-nullable-null-null" (func 82))
+  (export "i31-exact-nullable-val-null" (func 83))
+  (export "i31-exact-nullable-null-desc" (func 84))
+  (export "i31-exact-nullable-val-other" (func 85))
+  (export "i31-exact-nonnullable-null-null" (func 86))
+  (export "i31-exact-nonnullable-val-null" (func 87))
+  (export "i31-exact-nonnullable-null-desc" (func 88))
+  (export "i31-exact-nonnullable-val-other" (func 89))
+  (func (;0;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a-null
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref null $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;1;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a1
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref null $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;2;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a-null
+      global.get $b1
+      br_on_cast_desc 0 (;@1;) anyref (ref null $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;3;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a1
+      global.get $b1
+      br_on_cast_desc 0 (;@1;) anyref (ref null $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;4;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a1
+      global.get $b2
+      br_on_cast_desc 0 (;@1;) anyref (ref null $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;5;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a-null
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;6;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a1
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;7;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a-null
+      global.get $b1
+      br_on_cast_desc 0 (;@1;) anyref (ref $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;8;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a1
+      global.get $b1
+      br_on_cast_desc 0 (;@1;) anyref (ref $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;9;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a1
+      global.get $b2
+      br_on_cast_desc 0 (;@1;) anyref (ref $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;10;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a-null
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref null (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;11;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a1
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref null (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;12;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a-null
+      global.get $b1-exact
+      br_on_cast_desc 0 (;@1;) anyref (ref null (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;13;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a1
+      global.get $b1-exact
+      br_on_cast_desc 0 (;@1;) anyref (ref null (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;14;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a1
+      global.get $b2-exact
+      br_on_cast_desc 0 (;@1;) anyref (ref null (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;15;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a-null
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;16;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a1
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;17;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a-null
+      global.get $b1-exact
+      br_on_cast_desc 0 (;@1;) anyref (ref (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;18;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a1
+      global.get $b1-exact
+      br_on_cast_desc 0 (;@1;) anyref (ref (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;19;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a1
+      global.get $b2-exact
+      br_on_cast_desc 0 (;@1;) anyref (ref (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;20;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a-null
+      global.get $d-null
+      br_on_cast_desc 0 (;@1;) anyref (ref null $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;21;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c1-as-a
+      global.get $d-null
+      br_on_cast_desc 0 (;@1;) anyref (ref null $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;22;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a-null
+      global.get $d1
+      br_on_cast_desc 0 (;@1;) anyref (ref null $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;23;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c1-as-a
+      global.get $d1
+      br_on_cast_desc 0 (;@1;) anyref (ref null $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;24;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c1-as-a
+      global.get $d2
+      br_on_cast_desc 0 (;@1;) anyref (ref null $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;25;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a-null
+      global.get $d-null
+      br_on_cast_desc 0 (;@1;) anyref (ref $c)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;26;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c1-as-a
+      global.get $d-null
+      br_on_cast_desc 0 (;@1;) anyref (ref $c)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;27;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a-null
+      global.get $d1
+      br_on_cast_desc 0 (;@1;) anyref (ref $c)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;28;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c1-as-a
+      global.get $d1
+      br_on_cast_desc 0 (;@1;) anyref (ref $c)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;29;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c1-as-a
+      global.get $d2
+      br_on_cast_desc 0 (;@1;) anyref (ref $c)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;30;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a-null
+      global.get $d-null
+      br_on_cast_desc 0 (;@1;) anyref (ref null (exact $c))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;31;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c1-as-a
+      global.get $d-null
+      br_on_cast_desc 0 (;@1;) anyref (ref null (exact $c))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;32;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a-null
+      global.get $d1-exact
+      br_on_cast_desc 0 (;@1;) anyref (ref null (exact $c))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;33;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c1-as-a
+      global.get $d1-exact
+      br_on_cast_desc 0 (;@1;) anyref (ref null (exact $c))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;34;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c1-as-a
+      global.get $d2-exact
+      br_on_cast_desc 0 (;@1;) anyref (ref null (exact $c))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;35;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a-null
+      global.get $d-null
+      br_on_cast_desc 0 (;@1;) anyref (ref (exact $c))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;36;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c1-as-a
+      global.get $d-null
+      br_on_cast_desc 0 (;@1;) anyref (ref (exact $c))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;37;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $a-null
+      global.get $d1-exact
+      br_on_cast_desc 0 (;@1;) anyref (ref (exact $c))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;38;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c1-as-a
+      global.get $d1-exact
+      br_on_cast_desc 0 (;@1;) anyref (ref (exact $c))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;39;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c1-as-a
+      global.get $d2-exact
+      br_on_cast_desc 0 (;@1;) anyref (ref (exact $c))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;40;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c-null
+      global.get $d-null
+      br_on_cast_desc 0 (;@1;) anyref (ref null $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;41;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c1
+      global.get $d-null
+      br_on_cast_desc 0 (;@1;) anyref (ref null $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;42;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c-null
+      global.get $d1
+      br_on_cast_desc 0 (;@1;) anyref (ref null $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;43;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c1
+      global.get $d1
+      br_on_cast_desc 0 (;@1;) anyref (ref null $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;44;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c1
+      global.get $d2
+      br_on_cast_desc 0 (;@1;) anyref (ref null $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;45;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c-null
+      global.get $d-null
+      br_on_cast_desc 0 (;@1;) anyref (ref $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;46;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c1
+      global.get $d-null
+      br_on_cast_desc 0 (;@1;) anyref (ref $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;47;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c-null
+      global.get $d1
+      br_on_cast_desc 0 (;@1;) anyref (ref $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;48;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c1
+      global.get $d1
+      br_on_cast_desc 0 (;@1;) anyref (ref $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;49;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c1
+      global.get $d2
+      br_on_cast_desc 0 (;@1;) anyref (ref $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;50;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c-null
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref null (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;51;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c1
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref null (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;52;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c-null
+      global.get $b1-exact
+      br_on_cast_desc 0 (;@1;) anyref (ref null (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;53;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c1
+      global.get $b1-exact
+      br_on_cast_desc 0 (;@1;) anyref (ref null (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;54;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c-null
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;55;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c1
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;56;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c-null
+      global.get $b1-exact
+      br_on_cast_desc 0 (;@1;) anyref (ref (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;57;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $c1
+      global.get $b1-exact
+      br_on_cast_desc 0 (;@1;) anyref (ref (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;58;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $no-desc-null
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref null $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;59;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $no-desc
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref null $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;60;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $no-desc-null
+      global.get $b1
+      br_on_cast_desc 0 (;@1;) anyref (ref null $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;61;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $no-desc
+      global.get $b1
+      br_on_cast_desc 0 (;@1;) anyref (ref null $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;62;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $no-desc-null
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;63;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $no-desc
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;64;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $no-desc-null
+      global.get $b1
+      br_on_cast_desc 0 (;@1;) anyref (ref $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;65;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $no-desc
+      global.get $b1
+      br_on_cast_desc 0 (;@1;) anyref (ref $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;66;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $no-desc-null
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref null (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;67;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $no-desc
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref null (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;68;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $no-desc-null
+      global.get $b1-exact
+      br_on_cast_desc 0 (;@1;) anyref (ref null (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;69;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $no-desc
+      global.get $b1-exact
+      br_on_cast_desc 0 (;@1;) anyref (ref null (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;70;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $no-desc-null
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;71;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $no-desc
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;72;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $no-desc-null
+      global.get $b1-exact
+      br_on_cast_desc 0 (;@1;) anyref (ref (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;73;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $no-desc
+      global.get $b1-exact
+      br_on_cast_desc 0 (;@1;) anyref (ref (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;74;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $i31-null
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref null $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;75;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $i31
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref null $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;76;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $i31-null
+      global.get $b1
+      br_on_cast_desc 0 (;@1;) anyref (ref null $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;77;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $i31
+      global.get $b1
+      br_on_cast_desc 0 (;@1;) anyref (ref null $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;78;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $i31-null
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;79;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $i31
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;80;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $i31-null
+      global.get $b1
+      br_on_cast_desc 0 (;@1;) anyref (ref $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;81;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $i31
+      global.get $b1
+      br_on_cast_desc 0 (;@1;) anyref (ref $a)
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;82;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $i31-null
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref null (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;83;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $i31
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref null (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;84;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $i31-null
+      global.get $b1-exact
+      br_on_cast_desc 0 (;@1;) anyref (ref null (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;85;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $i31
+      global.get $b1-exact
+      br_on_cast_desc 0 (;@1;) anyref (ref null (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;86;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $i31-null
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;87;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $i31
+      global.get $b-null
+      br_on_cast_desc 0 (;@1;) anyref (ref (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;88;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $i31-null
+      global.get $b1-exact
+      br_on_cast_desc 0 (;@1;) anyref (ref (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+  (func (;89;) (type 5) (result i32)
+    block (result anyref) ;; label = @1
+      global.get $i31
+      global.get $b1-exact
+      br_on_cast_desc 0 (;@1;) anyref (ref (exact $a))
+      i32.const 0
+      return
+    end
+    i32.const 1
+    return
+  )
+)

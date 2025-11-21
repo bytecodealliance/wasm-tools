@@ -1,0 +1,16 @@
+// RUN: component embed --dummy-names legacy --async-stackful % -t | \
+//           component new | \
+//           validate -f cm-async
+
+package a:b;
+
+interface i {
+  resource x {
+    foo: static async func() -> x;
+    constructor();
+  }
+}
+
+world w {
+  import i;
+}

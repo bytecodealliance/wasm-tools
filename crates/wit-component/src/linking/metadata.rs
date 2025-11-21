@@ -389,7 +389,8 @@ impl<'a> Metadata<'a> {
                                 }) = import.ty
                                 {
                                     match name {
-                                        "__heap_base" | "__heap_end" => (),
+                                        "__heap_base" | "__heap_end" | "__stack_high"
+                                        | "__stack_low" => (),
                                         _ => {
                                             result.memory_address_imports.insert(name);
                                         }

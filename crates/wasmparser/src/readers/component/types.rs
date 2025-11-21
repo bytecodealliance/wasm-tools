@@ -282,12 +282,16 @@ impl<'a> FromReader<'a> for ComponentType<'a> {
                     b => return reader.invalid_leading_byte(b, "resource destructor"),
                 },
             },
-            0x40 => {
+            byte @ (0x40 | 0x43) => {
                 let params = reader
                     .read_iter(MAX_WASM_FUNCTION_PARAMS, "component function parameters")?
                     .collect::<Result<_>>()?;
                 let result = read_resultlist(reader)?;
-                ComponentType::Func(ComponentFuncType { params, result })
+                ComponentType::Func(ComponentFuncType {
+                    async_: byte == 0x43,
+                    params,
+                    result,
+                })
             }
             0x41 => ComponentType::Component(
                 reader
@@ -387,6 +391,8 @@ impl<'a> FromReader<'a> for InstanceTypeDeclaration<'a> {
 /// Represents a type of a function in a WebAssembly component.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ComponentFuncType<'a> {
+    /// Whether or not this is an async function.
+    pub async_: bool,
     /// The function parameters.
     pub params: Box<[(&'a str, ComponentValType)]>,
     /// The function result.

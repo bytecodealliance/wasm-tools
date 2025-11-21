@@ -1,0 +1,152 @@
+(module
+  (rec
+    (type $a (;0;) (descriptor $b) (struct))
+    (type $b (;1;) (describes $a) (struct (field i32)))
+  )
+  (rec
+    (type $one (;2;) (descriptor $two) (struct))
+    (type $two (;3;) (describes $one) (descriptor $three) (struct))
+    (type $three (;4;) (describes $two) (struct))
+  )
+  (type (;5;) (func (result (ref null $a))))
+  (type (;6;) (func (result (ref null (exact $a)))))
+  (type (;7;) (func (param i32) (result (ref (exact $a)))))
+  (type (;8;) (func (param (ref (exact $b))) (result (ref (exact $a)))))
+  (type (;9;) (func (result anyref)))
+  (type (;10;) (func (param (ref null $a)) (result anyref)))
+  (type (;11;) (func (result i32)))
+  (global $b1 (;0;) (ref (exact $b)) i32.const 1 struct.new $b)
+  (global $b2 (;1;) (ref (exact $b)) i32.const 2 struct.new $b)
+  (global $a1 (;2;) (ref null $a) global.get $b1 struct.new $a)
+  (global $a2 (;3;) (ref null (exact $a)) global.get $b2 struct.new $a)
+  (global $a3 (;4;) (ref (exact $a)) i32.const 3 struct.new $b struct.new $a)
+  (global $null (;5;) (ref null $a) ref.null none)
+  (global $null-exact (;6;) (ref null (exact $a)) ref.null (exact $a))
+  (export "null" (func 4))
+  (export "null-typed" (func 5))
+  (export "null-global" (func 6))
+  (export "null-exact-global" (func 7))
+  (export "null-call" (func 8))
+  (export "null-exact-call" (func 9))
+  (export "get-from-param" (func 10))
+  (export "alloc-0" (func 11))
+  (export "global-1" (func 12))
+  (export "global-2" (func 13))
+  (export "global-3" (func 14))
+  (export "call-4" (func 15))
+  (export "call-5" (func 16))
+  (export "equal" (func 17))
+  (export "not-equal" (func 18))
+  (export "chain-equal" (func 19))
+  (func $null (;0;) (type 5) (result (ref null $a))
+    ref.null none
+  )
+  (func $null-exact (;1;) (type 6) (result (ref null (exact $a)))
+    ref.null (exact $a)
+  )
+  (func $alloc-i32 (;2;) (type 7) (param i32) (result (ref (exact $a)))
+    local.get 0
+    struct.new $b
+    struct.new $a
+  )
+  (func $alloc-desc (;3;) (type 8) (param (ref (exact $b))) (result (ref (exact $a)))
+    local.get 0
+    struct.new $a
+  )
+  (func (;4;) (type 9) (result anyref)
+    ref.null none
+    ref.get_desc $a
+  )
+  (func (;5;) (type 9) (result anyref)
+    ref.null (exact $a)
+    ref.get_desc $a
+  )
+  (func (;6;) (type 9) (result anyref)
+    global.get $null
+    ref.get_desc $a
+  )
+  (func (;7;) (type 9) (result anyref)
+    global.get $null-exact
+    ref.get_desc $a
+  )
+  (func (;8;) (type 9) (result anyref)
+    call $null
+    ref.get_desc $a
+  )
+  (func (;9;) (type 9) (result anyref)
+    call $null-exact
+    ref.get_desc $a
+  )
+  (func (;10;) (type 10) (param (ref null $a)) (result anyref)
+    local.get 0
+    ref.get_desc $a
+  )
+  (func (;11;) (type 11) (result i32)
+    i32.const 0
+    struct.new $b
+    struct.new $a
+    ref.get_desc $a
+    struct.get $b 0
+  )
+  (func (;12;) (type 11) (result i32)
+    global.get $a1
+    ref.get_desc $a
+    struct.get $b 0
+  )
+  (func (;13;) (type 11) (result i32)
+    global.get $a2
+    ref.get_desc $a
+    struct.get $b 0
+  )
+  (func (;14;) (type 11) (result i32)
+    global.get $a3
+    ref.get_desc $a
+    struct.get $b 0
+  )
+  (func (;15;) (type 11) (result i32)
+    i32.const 4
+    call $alloc-i32
+    ref.get_desc $a
+    struct.get $b 0
+  )
+  (func (;16;) (type 11) (result i32)
+    i32.const 5
+    struct.new $b
+    call $alloc-desc
+    ref.get_desc $a
+    struct.get $b 0
+  )
+  (func (;17;) (type 11) (result i32)
+    (local (ref null (exact $b)))
+    struct.new_default $b
+    local.set 0
+    local.get 0
+    local.get 0
+    struct.new $a
+    ref.get_desc $a
+    ref.eq
+  )
+  (func (;18;) (type 11) (result i32)
+    struct.new_default $b
+    struct.new_default $b
+    struct.new $a
+    ref.get_desc $a
+    ref.eq
+  )
+  (func (;19;) (type 11) (result i32)
+    (local $three (ref null (exact $three))) (local $two (ref null (exact $two))) (local $one (ref null (exact $one)))
+    struct.new $three
+    local.set $three
+    local.get $three
+    struct.new $two
+    local.set $two
+    local.get $two
+    struct.new $one
+    local.set $one
+    local.get $three
+    local.get $one
+    ref.get_desc $one
+    ref.get_desc $two
+    ref.eq
+  )
+)

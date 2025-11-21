@@ -1,0 +1,8 @@
+(module
+  (rec
+    (type $A (;0;) (sub (descriptor $A.desc) (struct)))
+    (type $B (;1;) (sub $A (descriptor $B.desc) (struct)))
+    (type $A.desc (;2;) (sub (describes $A) (struct)))
+    (type $B.desc (;3;) (sub $A.desc (describes $B) (struct)))
+  )
+)

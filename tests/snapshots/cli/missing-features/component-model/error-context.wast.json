@@ -6,26 +6,33 @@
       "line": 5,
       "filename": "error-context.0.wasm",
       "module_type": "binary",
+      "text": "requires the component model error-context feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 13,
+      "filename": "error-context.1.wasm",
+      "module_type": "binary",
       "text": "`error-context.new` requires the component model error-context feature"
     },
     {
       "type": "assert_invalid",
-      "line": 19,
-      "filename": "error-context.1.wasm",
+      "line": 27,
+      "filename": "error-context.2.wasm",
       "module_type": "binary",
       "text": "`error-context.debug-message` requires the component model error-context feature"
     },
     {
       "type": "assert_invalid",
-      "line": 36,
-      "filename": "error-context.2.wasm",
+      "line": 44,
+      "filename": "error-context.3.wasm",
       "module_type": "binary",
       "text": "`error-context.drop` requires the component model error-context feature"
     },
     {
       "type": "assert_invalid",
-      "line": 48,
-      "filename": "error-context.3.wasm",
+      "line": 56,
+      "filename": "error-context.4.wasm",
       "module_type": "binary",
       "text": "requires the component model error-context feature"
     }

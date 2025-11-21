@@ -1,0 +1,26 @@
+{
+  "source_filename": "tests/cli/custom-descriptors-disabled.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "custom-descriptors-disabled.0.wasm",
+      "module_type": "binary",
+      "text": "custom descriptors required for exact reference types"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 11,
+      "filename": "custom-descriptors-disabled.1.wasm",
+      "module_type": "binary",
+      "text": "custom descriptors proposal must be enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 20,
+      "filename": "custom-descriptors-disabled.2.wasm",
+      "module_type": "binary",
+      "text": "custom descriptors proposal must be enabled"
+    }
+  ]
+}

@@ -936,6 +936,20 @@ impl Printer<'_, '_> {
             self.start_group("shared")?;
             self.result.write_str(" ")?;
         }
+        if let Some(idx) = ty.describes_idx {
+            self.start_group("describes")?;
+            self.result.write_str(" ")?;
+            self.print_idx(&state.core.type_names, idx.as_module_index().unwrap())?;
+            self.end_group()?;
+            self.result.write_str(" ")?;
+        }
+        if let Some(idx) = ty.descriptor_idx {
+            self.start_group("descriptor")?;
+            self.result.write_str(" ")?;
+            self.print_idx(&state.core.type_names, idx.as_module_index().unwrap())?;
+            self.end_group()?;
+            self.result.write_str(" ")?;
+        }
         let r = match &ty.inner {
             CompositeInnerType::Func(ty) => {
                 self.start_group("func")?;
@@ -991,6 +1005,8 @@ impl Printer<'_, '_> {
                     CompositeType {
                         inner: CompositeInnerType::Func(ty),
                         shared: false,
+                        descriptor_idx: None,
+                        describes_idx: None,
                     },
                 ..
             })) => self.print_func_type(state, ty, names_for).map(Some),
@@ -1153,6 +1169,11 @@ impl Printer<'_, '_> {
         match ty {
             HeapType::Concrete(i) => {
                 self.print_idx(&state.core.type_names, i.as_module_index().unwrap())?;
+            }
+            HeapType::Exact(i) => {
+                self.start_group("exact ")?;
+                self.print_idx(&state.core.type_names, i.as_module_index().unwrap())?;
+                self.end_group()?;
             }
             HeapType::Abstract { shared, ty } => {
                 use AbstractHeapType::*;

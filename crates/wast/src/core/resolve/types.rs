@@ -264,6 +264,8 @@ impl<'a> TypeKey<'a> for FuncKey<'a> {
             }),
             shared,
             parent: None,
+            descriptor: None,
+            describes: None,
             final_type: None,
         }
     }

@@ -773,57 +773,78 @@
     },
     {
       "type": "assert_invalid",
-      "line": 699,
+      "line": 698,
       "filename": "unreached-invalid.110.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 704,
+      "line": 710,
       "filename": "unreached-invalid.111.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 710,
+      "line": 715,
       "filename": "unreached-invalid.112.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 715,
+      "line": 721,
       "filename": "unreached-invalid.113.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 720,
+      "line": 726,
       "filename": "unreached-invalid.114.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 726,
+      "line": 731,
       "filename": "unreached-invalid.115.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 733,
+      "line": 737,
       "filename": "unreached-invalid.116.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 738,
+      "line": 744,
       "filename": "unreached-invalid.117.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 749,
+      "filename": "unreached-invalid.118.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 764,
+      "filename": "unreached-invalid.119.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 774,
+      "filename": "unreached-invalid.120.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     }

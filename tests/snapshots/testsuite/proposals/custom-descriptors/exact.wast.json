@@ -1,0 +1,241 @@
+{
+  "source_filename": "tests/testsuite/proposals/custom-descriptors/exact.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "exact.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 23,
+      "filename": "exact.1.wat",
+      "module_type": "text",
+      "text": "unexpected token"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 29,
+      "filename": "exact.2.wat",
+      "module_type": "text",
+      "text": "unexpected token"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 35,
+      "filename": "exact.3.wat",
+      "module_type": "text",
+      "text": "unexpected token"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 41,
+      "filename": "exact.4.wat",
+      "module_type": "text",
+      "text": "unexpected token"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 47,
+      "filename": "exact.5.wat",
+      "module_type": "text",
+      "text": "unexpected token"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 53,
+      "filename": "exact.6.wat",
+      "module_type": "text",
+      "text": "unexpected token"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 59,
+      "filename": "exact.7.wat",
+      "module_type": "text",
+      "text": "unexpected token"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 65,
+      "filename": "exact.8.wat",
+      "module_type": "text",
+      "text": "unexpected token"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 71,
+      "filename": "exact.9.wat",
+      "module_type": "text",
+      "text": "unexpected token"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 77,
+      "filename": "exact.10.wat",
+      "module_type": "text",
+      "text": "unexpected token"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 85,
+      "filename": "exact.11.wat",
+      "module_type": "text",
+      "text": "unexpected token"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 93,
+      "filename": "exact.12.wat",
+      "module_type": "text",
+      "text": "unexpected token"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 101,
+      "filename": "exact.13.wat",
+      "module_type": "text",
+      "text": "unexpected token"
+    },
+    {
+      "type": "module",
+      "line": 111,
+      "filename": "exact.14.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 125,
+      "filename": "exact.15.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 140,
+      "filename": "exact.16.wasm",
+      "module_type": "binary",
+      "text": "malformed storage type"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 156,
+      "filename": "exact.17.wasm",
+      "module_type": "binary",
+      "text": "malformed storage type"
+    },
+    {
+      "type": "module",
+      "line": 175,
+      "filename": "exact.18.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 183,
+      "filename": "exact.19.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 191,
+      "filename": "exact.20.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 199,
+      "filename": "exact.21.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 207,
+      "filename": "exact.22.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 218,
+      "filename": "exact.23.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 229,
+      "filename": "exact.24.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 237,
+      "filename": "exact.25.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 245,
+      "filename": "exact.26.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 253,
+      "filename": "exact.27.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 261,
+      "filename": "exact.28.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 270,
+      "filename": "exact.29.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 280,
+      "filename": "exact.30.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 292,
+      "filename": "exact.31.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 304,
+      "filename": "exact.32.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 316,
+      "filename": "exact.33.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "module",
+      "line": 327,
+      "filename": "exact.34.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 336,
+      "filename": "exact.35.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    }
+  ]
+}

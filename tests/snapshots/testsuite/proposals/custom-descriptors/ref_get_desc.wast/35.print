@@ -1,0 +1,32 @@
+(module
+  (type $other (;0;) (func))
+  (rec
+    (type $a (;1;) (descriptor $b) (struct))
+    (type $b (;2;) (describes $a) (struct))
+  )
+  (type (;3;) (func (result (ref null $a))))
+  (type (;4;) (func (param (ref null $a)) (result i32)))
+  (type (;5;) (func (result i32)))
+  (import "A" "b" (global $b (;0;) (ref null (exact $b))))
+  (import "A" "make-a" (func $make-a (;0;) (type 3)))
+  (import "A" "check-eq" (func $check-eq (;1;) (type 4)))
+  (export "imported-desc-equal" (func 2))
+  (export "imported-check-equal" (func 3))
+  (export "imported-check-not-equal" (func 4))
+  (func (;2;) (type 5) (result i32)
+    call $make-a
+    ref.get_desc $a
+    global.get $b
+    ref.eq
+  )
+  (func (;3;) (type 5) (result i32)
+    global.get $b
+    struct.new $a
+    call $check-eq
+  )
+  (func (;4;) (type 5) (result i32)
+    struct.new $b
+    struct.new $a
+    call $check-eq
+  )
+)

@@ -53,16 +53,21 @@ impl KebabStr {
     fn is_kebab_case(&self) -> bool {
         let mut lower = false;
         let mut upper = false;
+        let mut is_first = true;
+        let mut has_digit = false;
         for c in self.chars() {
             match c {
                 'a'..='z' if !lower && !upper => lower = true,
                 'A'..='Z' if !lower && !upper => upper = true,
+                '0'..='9' if !lower && !upper && !is_first => has_digit = true,
                 'a'..='z' if lower => {}
                 'A'..='Z' if upper => {}
-                '0'..='9' if lower || upper => {}
-                '-' if lower || upper => {
+                '0'..='9' if lower || upper => has_digit = true,
+                '-' if lower || upper || has_digit => {
                     lower = false;
                     upper = false;
+                    is_first = false;
+                    has_digit = false;
                 }
                 _ => return false,
             }
@@ -237,9 +242,6 @@ impl From<KebabString> for String {
 /// * a plain method name : `[method]a-b.c-d`
 /// * a plain static method name : `[static]a-b.c-d`
 /// * a plain constructor: `[constructor]a-b`
-/// * an async plain label: `[async]a-b-c`
-/// * an async plain method name : `[async method]a-b.c-d`
-/// * an async plain static method name : `[async static]a-b.c-d`
 /// * an interface name: `wasi:cli/reactor@0.1.0`
 /// * a dependency name: `locked-dep=foo:bar/baz`
 /// * a URL name: `url=https://..`
@@ -266,9 +268,6 @@ enum ParsedComponentNameKind {
     Dependency,
     Url,
     Hash,
-    AsyncLabel,
-    AsyncMethod,
-    AsyncStatic,
 }
 
 /// Created via [`ComponentName::kind`] and classifies a name.
@@ -296,22 +295,11 @@ pub enum ComponentNameKind<'a> {
     /// `integrity=sha256:...`
     #[allow(missing_docs)]
     Hash(HashName<'a>),
-    /// `[async]a-b-c`
-    AsyncLabel(&'a KebabStr),
-    /// `[async method]a-b.c-d`
-    #[allow(missing_docs)]
-    AsyncMethod(ResourceFunc<'a>),
-    /// `[async static]a-b.c-d`
-    #[allow(missing_docs)]
-    AsyncStatic(ResourceFunc<'a>),
 }
 
 const CONSTRUCTOR: &str = "[constructor]";
 const METHOD: &str = "[method]";
 const STATIC: &str = "[static]";
-const ASYNC: &str = "[async]";
-const ASYNC_METHOD: &str = "[async method]";
-const ASYNC_STATIC: &str = "[async static]";
 
 impl ComponentName {
     /// Attempts to parse `name` as a valid component name, returning `Err` if
@@ -347,12 +335,9 @@ impl ComponentName {
         use ParsedComponentNameKind as PK;
         match self.kind {
             PK::Label => Label(KebabStr::new_unchecked(&self.raw)),
-            PK::AsyncLabel => AsyncLabel(KebabStr::new_unchecked(&self.raw[ASYNC.len()..])),
             PK::Constructor => Constructor(KebabStr::new_unchecked(&self.raw[CONSTRUCTOR.len()..])),
             PK::Method => Method(ResourceFunc(&self.raw[METHOD.len()..])),
-            PK::AsyncMethod => AsyncMethod(ResourceFunc(&self.raw[ASYNC_METHOD.len()..])),
             PK::Static => Static(ResourceFunc(&self.raw[STATIC.len()..])),
-            PK::AsyncStatic => AsyncStatic(ResourceFunc(&self.raw[ASYNC_STATIC.len()..])),
             PK::Interface => Interface(InterfaceName(&self.raw)),
             PK::Dependency => Dependency(DependencyName(&self.raw)),
             PK::Url => Url(UrlName(&self.raw)),
@@ -422,9 +407,6 @@ impl ComponentNameKind<'_> {
             Self::Dependency(_) => ParsedComponentNameKind::Dependency,
             Self::Url(_) => ParsedComponentNameKind::Url,
             Self::Hash(_) => ParsedComponentNameKind::Hash,
-            Self::AsyncLabel(_) => ParsedComponentNameKind::AsyncLabel,
-            Self::AsyncMethod(_) => ParsedComponentNameKind::AsyncMethod,
-            Self::AsyncStatic(_) => ParsedComponentNameKind::AsyncStatic,
         }
     }
 }
@@ -434,22 +416,17 @@ impl Ord for ComponentNameKind<'_> {
         use ComponentNameKind::*;
 
         match (self, other) {
-            (Label(lhs) | AsyncLabel(lhs), Label(rhs) | AsyncLabel(rhs)) => lhs.cmp(rhs),
+            (Label(lhs), Label(rhs)) => lhs.cmp(rhs),
             (Constructor(lhs), Constructor(rhs)) => lhs.cmp(rhs),
-            (
-                Method(lhs) | AsyncMethod(lhs) | Static(lhs) | AsyncStatic(lhs),
-                Method(rhs) | AsyncMethod(rhs) | Static(rhs) | AsyncStatic(rhs),
-            ) => lhs.cmp(rhs),
+            (Method(lhs) | Static(lhs), Method(rhs) | Static(rhs)) => lhs.cmp(rhs),
 
-            // `[..]l.l` is equivalent to `l` and `[async]l`.
-            (
-                Label(plain) | AsyncLabel(plain),
-                Method(method) | AsyncMethod(method) | Static(method) | AsyncStatic(method),
-            )
-            | (
-                Method(method) | AsyncMethod(method) | Static(method) | AsyncStatic(method),
-                Label(plain) | AsyncLabel(plain),
-            ) if *plain == method.resource() && *plain == method.method() => Ordering::Equal,
+            // `[..]l.l` is equivalent to `l`
+            (Label(plain), Method(method) | Static(method))
+            | (Method(method) | Static(method), Label(plain))
+                if *plain == method.resource() && *plain == method.method() =>
+            {
+                Ordering::Equal
+            }
 
             (Interface(lhs), Interface(rhs)) => lhs.cmp(rhs),
             (Dependency(lhs), Dependency(rhs)) => lhs.cmp(rhs),
@@ -457,12 +434,9 @@ impl Ord for ComponentNameKind<'_> {
             (Hash(lhs), Hash(rhs)) => lhs.cmp(rhs),
 
             (Label(_), _)
-            | (AsyncLabel(_), _)
             | (Constructor(_), _)
             | (Method(_), _)
             | (Static(_), _)
-            | (AsyncMethod(_), _)
-            | (AsyncStatic(_), _)
             | (Interface(_), _)
             | (Dependency(_), _)
             | (Url(_), _)
@@ -481,10 +455,10 @@ impl Hash for ComponentNameKind<'_> {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         use ComponentNameKind::*;
         match self {
-            Label(name) | AsyncLabel(name) => (0u8, name).hash(hasher),
+            Label(name) => (0u8, name).hash(hasher),
             Constructor(name) => (1u8, name).hash(hasher),
 
-            Method(name) | Static(name) | AsyncMethod(name) | AsyncStatic(name) => {
+            Method(name) | Static(name) => {
                 // `l.l` hashes the same as `l` since they're equal above,
                 // otherwise everything is hashed as `a.b` with a unique
                 // prefix.
@@ -625,10 +599,6 @@ struct ComponentNameParser<'a> {
 
 impl<'a> ComponentNameParser<'a> {
     fn parse(&mut self) -> Result<ParsedComponentNameKind> {
-        if self.eat_str(ASYNC) {
-            self.expect_kebab()?;
-            return Ok(ParsedComponentNameKind::AsyncLabel);
-        }
         if self.eat_str(CONSTRUCTOR) {
             self.expect_kebab()?;
             return Ok(ParsedComponentNameKind::Constructor);
@@ -644,18 +614,6 @@ impl<'a> ComponentNameParser<'a> {
             self.kebab(resource)?;
             self.expect_kebab()?;
             return Ok(ParsedComponentNameKind::Static);
-        }
-        if self.eat_str(ASYNC_METHOD) {
-            let resource = self.take_until('.')?;
-            self.kebab(resource)?;
-            self.expect_kebab()?;
-            return Ok(ParsedComponentNameKind::AsyncMethod);
-        }
-        if self.eat_str(ASYNC_STATIC) {
-            let resource = self.take_until('.')?;
-            self.kebab(resource)?;
-            self.expect_kebab()?;
-            return Ok(ParsedComponentNameKind::AsyncStatic);
         }
 
         // 'unlocked-dep=<' <pkgnamequery> '>'
@@ -986,7 +944,11 @@ mod tests {
         assert!(KebabStr::new("¶").is_none());
         assert!(KebabStr::new("0").is_none());
         assert!(KebabStr::new("a0").is_some());
-        assert!(KebabStr::new("a-0").is_none());
+        assert!(KebabStr::new("a-0").is_some());
+        assert!(KebabStr::new("0-a").is_none());
+        assert!(KebabStr::new("a-b--c").is_none());
+        assert!(KebabStr::new("a0-000-3d4a-54FF").is_some());
+        assert!(KebabStr::new("a0-000-3d4A-54Ff").is_none());
     }
 
     #[test]
@@ -996,6 +958,7 @@ mod tests {
         assert!(parse_kebab_name("[constructor]a").is_some());
         assert!(parse_kebab_name("[method]a").is_none());
         assert!(parse_kebab_name("[method]a.b").is_some());
+        assert!(parse_kebab_name("[method]a-0.b-1").is_some());
         assert!(parse_kebab_name("[method]a.b.c").is_none());
         assert!(parse_kebab_name("[static]a.b").is_some());
         assert!(parse_kebab_name("[static]a").is_none());

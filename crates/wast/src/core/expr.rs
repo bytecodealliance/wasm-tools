@@ -1202,6 +1202,12 @@ instructions! {
         I64Sub128   : [0xfc, 20] : "i64.sub128",
         I64MulWideS : [0xfc, 21] : "i64.mul_wide_s",
         I64MulWideU : [0xfc, 22] : "i64.mul_wide_u",
+
+        // Custom descriptors
+        RefGetDesc(Index<'a>): [0xfb, 34] : "ref.get_desc",
+        RefCastDesc(RefCastDesc<'a>) : [] : "ref.cast_desc",
+        BrOnCastDesc(Box<BrOnCastDesc<'a>>) : [] : "br_on_cast_desc",
+        BrOnCastDescFail(Box<BrOnCastDescFail<'a>>) : [] : "br_on_cast_desc_fail",
     }
 }
 
@@ -1939,6 +1945,63 @@ pub struct BrOnCastFail<'a> {
 impl<'a> Parse<'a> for BrOnCastFail<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         Ok(BrOnCastFail {
+            label: parser.parse()?,
+            from_type: parser.parse()?,
+            to_type: parser.parse()?,
+        })
+    }
+}
+
+/// Extra data associated with the `ref.cast_desc` instruction
+#[derive(Debug, Clone)]
+pub struct RefCastDesc<'a> {
+    /// The type to cast to.
+    pub r#type: RefType<'a>,
+}
+
+impl<'a> Parse<'a> for RefCastDesc<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        Ok(RefCastDesc {
+            r#type: parser.parse()?,
+        })
+    }
+}
+
+/// Extra data associated with the `br_on_cast_desc` instruction
+#[derive(Debug, Clone)]
+pub struct BrOnCastDesc<'a> {
+    /// The label to branch to.
+    pub label: Index<'a>,
+    /// The type we're casting from.
+    pub from_type: RefType<'a>,
+    /// The type we're casting to.
+    pub to_type: RefType<'a>,
+}
+
+impl<'a> Parse<'a> for BrOnCastDesc<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        Ok(BrOnCastDesc {
+            label: parser.parse()?,
+            from_type: parser.parse()?,
+            to_type: parser.parse()?,
+        })
+    }
+}
+
+/// Extra data associated with the `br_on_cast_desc_fail` instruction
+#[derive(Debug, Clone)]
+pub struct BrOnCastDescFail<'a> {
+    /// The label to branch to.
+    pub label: Index<'a>,
+    /// The type we're casting from.
+    pub from_type: RefType<'a>,
+    /// The type we're casting to.
+    pub to_type: RefType<'a>,
+}
+
+impl<'a> Parse<'a> for BrOnCastDescFail<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        Ok(BrOnCastDescFail {
             label: parser.parse()?,
             from_type: parser.parse()?,
             to_type: parser.parse()?,

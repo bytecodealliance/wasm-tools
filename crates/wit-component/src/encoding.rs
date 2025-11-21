@@ -175,6 +175,7 @@ impl RequiredOptions {
         }
         if let AbiVariant::GuestExportAsync | AbiVariant::GuestExportAsyncStackful = abi {
             ret |= RequiredOptions::ASYNC;
+            ret |= task_return_options_and_type(resolve, func.result).0;
         }
         ret
     }
@@ -1449,7 +1450,7 @@ impl<'a> EncodingState<'a> {
                     let (func_ty_idx, f) = self.component.core_type(Some("thread-start"));
                     f.core().func_type(func_ty);
 
-                    // In order for the funcref table referenced by `thread.new_indirect` to be used,
+                    // In order for the funcref table referenced by `thread.new-indirect` to be used,
                     // it must have been exported by the module.
                     let exports = self.info.exports_for(*for_module);
                     let instance_index = self.instance_for(*for_module);
@@ -1462,7 +1463,7 @@ impl<'a> EncodingState<'a> {
                         )
                     }).ok_or_else(|| {
                         anyhow!(
-                            "table __indirect_function_table must be an exported funcref table for thread.new_indirect"
+                            "table __indirect_function_table must be an exported funcref table for thread.new-indirect"
                         )
                     })?;
 
@@ -2327,7 +2328,7 @@ enum ShimKind<'a> {
         /// The string encoding to use when lowering the debug message.
         encoding: StringEncoding,
     },
-    /// A shim used for the `thread.new_indirect` built-in function, which
+    /// A shim used for the `thread.new-indirect` built-in function, which
     /// must refer to the core module instance's indirect function table.
     ThreadNewIndirect {
         /// Which instance to pull the function table from.
@@ -2581,7 +2582,7 @@ impl<'a> Shims<'a> {
                     let name = self.shims.len().to_string();
                     self.push(Shim {
                         name,
-                        debug_name: "thread.new_indirect".to_string(),
+                        debug_name: "thread.new-indirect".to_string(),
                         options: RequiredOptions::empty(),
                         kind: ShimKind::ThreadNewIndirect {
                             for_module,

@@ -1,0 +1,11 @@
+(module
+  (rec
+    (type (;0;) (descriptor 1) (struct))
+    (type (;1;) (describes 0) (struct))
+  )
+  (type (;2;) (func (param (ref null 0)) (result (ref 1))))
+  (func (;0;) (type 2) (param (ref null 0)) (result (ref 1))
+    local.get 0
+    ref.get_desc 0
+  )
+)

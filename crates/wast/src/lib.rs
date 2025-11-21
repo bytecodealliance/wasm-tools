@@ -416,10 +416,13 @@ pub mod kw {
     custom_keyword!(data);
     custom_keyword!(declare);
     custom_keyword!(delegate);
+    custom_keyword!(descriptor);
+    custom_keyword!(describes);
     custom_keyword!(r#do = "do");
     custom_keyword!(dtor);
     custom_keyword!(elem);
     custom_keyword!(end);
+    custom_keyword!(exact);
     custom_keyword!(tag);
     custom_keyword!(exn);
     custom_keyword!(exnref);
@@ -557,8 +560,8 @@ pub mod kw {
     custom_keyword!(import_info = "import-info");
     custom_keyword!(runtime_path = "runtime-path");
     custom_keyword!(thread);
-    custom_keyword!(thread_spawn_ref = "thread.spawn_ref");
-    custom_keyword!(thread_spawn_indirect = "thread.spawn_indirect");
+    custom_keyword!(thread_spawn_ref = "thread.spawn-ref");
+    custom_keyword!(thread_spawn_indirect = "thread.spawn-indirect");
     custom_keyword!(thread_available_parallelism = "thread.available_parallelism");
     custom_keyword!(backpressure_set = "backpressure.set");
     custom_keyword!(backpressure_inc = "backpressure.inc");
@@ -600,7 +603,7 @@ pub mod kw {
     custom_keyword!(context_get = "context.get");
     custom_keyword!(context_set = "context.set");
     custom_keyword!(thread_index = "thread.index");
-    custom_keyword!(thread_new_indirect = "thread.new_indirect");
+    custom_keyword!(thread_new_indirect = "thread.new-indirect");
     custom_keyword!(thread_switch_to = "thread.switch-to");
     custom_keyword!(thread_suspend = "thread.suspend");
     custom_keyword!(thread_resume_later = "thread.resume-later");

@@ -115,6 +115,7 @@ pub(crate) trait InternRecGroup {
             self.add_type_id(id);
             if is_new {
                 self.check_subtype(rec_group_id, id, types, offset)?;
+                self.check_descriptors(rec_group_id, id, types, offset)?;
             }
         }
 
@@ -159,6 +160,123 @@ pub(crate) trait InternRecGroup {
         };
         types.set_subtyping_depth(id, depth);
 
+        Ok(())
+    }
+
+    fn check_descriptors(
+        &mut self,
+        rec_group: RecGroupId,
+        id: CoreTypeId,
+        types: &TypeList,
+        offset: usize,
+    ) -> Result<()> {
+        let ty = &types[id].composite_type;
+        if ty.descriptor_idx.is_some() || ty.describes_idx.is_some() {
+            if !self.features().custom_descriptors() {
+                return Err(BinaryReaderError::new(
+                    "custom descriptors proposal must be enabled to use descriptor and describes",
+                    offset,
+                ));
+            }
+            match &ty.inner {
+                CompositeInnerType::Struct(_) => (),
+                _ => {
+                    return Err(BinaryReaderError::new(
+                        if ty.descriptor_idx.is_some() {
+                            "descriptor clause on non-struct type"
+                        } else {
+                            "describes clause on non-struct type"
+                        },
+                        offset,
+                    ));
+                }
+            }
+        }
+
+        let map_cannonical = |idx: PackedIndex| -> Result<CoreTypeId> {
+            self.at_packed_index(types, rec_group, idx, offset)
+        };
+
+        let descriptor_idx = if let Some(i) = ty.descriptor_idx {
+            Some(map_cannonical(i)?)
+        } else {
+            None
+        };
+        let describes_idx = if let Some(i) = ty.describes_idx {
+            Some(map_cannonical(i)?)
+        } else {
+            None
+        };
+
+        if let Some(supertype_index) = types[id].supertype_idx {
+            debug_assert!(supertype_index.is_canonical());
+            let sup_id = map_cannonical(supertype_index)?;
+            if let Some(descriptor_idx) = descriptor_idx {
+                if types[sup_id].composite_type.descriptor_idx.is_some()
+                    && (types[descriptor_idx].supertype_idx.is_none()
+                        || (map_cannonical(types[descriptor_idx].supertype_idx.unwrap())?
+                            != map_cannonical(
+                                types[sup_id].composite_type.descriptor_idx.unwrap(),
+                            )?))
+                {
+                    bail!(
+                        offset,
+                        "supertype of described type must be described by supertype of descriptor",
+                    );
+                }
+            } else if types[sup_id].composite_type.descriptor_idx.is_some() {
+                bail!(
+                    offset,
+                    "supertype of type without descriptor cannot have descriptor",
+                );
+            }
+            match (
+                types[id].composite_type.describes_idx,
+                types[sup_id].composite_type.describes_idx,
+            ) {
+                (Some(a), Some(b)) => {
+                    let a_id = self.at_packed_index(types, rec_group, a, offset)?;
+                    if types[a_id].supertype_idx.is_none()
+                        || (map_cannonical(types[a_id].supertype_idx.unwrap())?
+                            != map_cannonical(b)?)
+                    {
+                        bail!(offset, "supertype of descriptor does not match");
+                    }
+                }
+                (None, None) => (),
+                (None, Some(_)) => {
+                    bail!(
+                        offset,
+                        "supertype of non-descriptor type cannot be a descriptor"
+                    );
+                }
+                (Some(_), None) => {
+                    bail!(offset, "supertype of descriptor must be a descriptor");
+                }
+            }
+        }
+        if let Some(descriptor_idx) = descriptor_idx {
+            let describes_idx = if let Some(i) = types[descriptor_idx].composite_type.describes_idx
+            {
+                Some(map_cannonical(i)?)
+            } else {
+                None
+            };
+            if describes_idx.is_none() || id != describes_idx.unwrap() {
+                bail!(offset, "descriptor with no matching describes",);
+            }
+        }
+        if let Some(describes_idx) = describes_idx {
+            let descriptor_idx = if let Some(i) = types[describes_idx].composite_type.descriptor_idx
+            {
+                Some(map_cannonical(i)?)
+            } else {
+                None
+            };
+            if descriptor_idx.is_none() || id != descriptor_idx.unwrap() {
+                bail!(offset, "describes with no matching descriptor",);
+            }
+        }
         Ok(())
     }
 
@@ -345,6 +463,12 @@ impl<'a> TypeCanonicalizer<'a> {
             if let Some(sup) = ty.supertype_idx.as_mut() {
                 if sup.as_module_index().map_or(false, |i| i >= type_index) {
                     bail!(self.offset, "supertypes must be defined before subtypes");
+                }
+            }
+
+            if let Some(idx) = ty.composite_type.describes_idx.as_mut() {
+                if idx.as_module_index().map_or(false, |i| i >= type_index) {
+                    bail!(self.offset, "forward describes reference");
                 }
             }
 

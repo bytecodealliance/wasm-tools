@@ -1,0 +1,227 @@
+(module
+  (type $super (;0;) (sub (array i8)))
+  (type $sub (;1;) (sub $super (array i8)))
+  (type (;2;) (func (result anyref)))
+  (type (;3;) (func))
+  (type (;4;) (func (result i32)))
+  (global $super (;0;) anyref array.new_fixed $super 0)
+  (global $sub (;1;) anyref array.new_fixed $sub 0)
+  (export "self-nullable" (func 2))
+  (export "self-nullable-global" (func 3))
+  (export "self-nullable-call" (func 4))
+  (export "self-nullable-null" (func 5))
+  (export "self-nonnullable" (func 6))
+  (export "self-nonnullable-global" (func 7))
+  (export "self-nonnullable-call" (func 8))
+  (export "self-nonnullable-null" (func 9))
+  (export "sub-nullable" (func 10))
+  (export "sub-nullable-global" (func 11))
+  (export "sub-nullable-call" (func 12))
+  (export "sub-nullable-null" (func 13))
+  (export "sub-nonnullable" (func 14))
+  (export "sub-nonnullable-global" (func 15))
+  (export "sub-nonnullable-call" (func 16))
+  (export "sub-nonnullable-null" (func 17))
+  (export "super-nullable" (func 18))
+  (export "super-nullable-global" (func 19))
+  (export "super-nullable-call" (func 20))
+  (export "super-nullable-null" (func 21))
+  (export "super-nonnullable" (func 22))
+  (export "super-nonnullable-global" (func 23))
+  (export "super-nonnullable-call" (func 24))
+  (export "super-nonnullable-null" (func 25))
+  (export "yes-br-on-cast-val" (func 26))
+  (export "no-br-on-cast-val" (func 27))
+  (export "yes-br-on-cast-null" (func 28))
+  (export "no-br-on-cast-null" (func 29))
+  (export "no-br-on-cast-fail-val" (func 30))
+  (export "yes-br-on-cast-fail-val" (func 31))
+  (export "no-br-on-cast-fail-null" (func 32))
+  (export "yes-br-on-cast-fail-null" (func 33))
+  (export "yes-ref-test-val" (func 34))
+  (export "no-ref-test-val" (func 35))
+  (export "yes-ref-test-null" (func 36))
+  (export "no-ref-test-null" (func 37))
+  (func $super (;0;) (type 2) (result anyref)
+    array.new_fixed $super 0
+  )
+  (func $sub (;1;) (type 2) (result anyref)
+    array.new_fixed $sub 0
+  )
+  (func (;2;) (type 2) (result anyref)
+    array.new_fixed $super 0
+    ref.cast (ref null (exact $super))
+  )
+  (func (;3;) (type 2) (result anyref)
+    global.get $super
+    ref.cast (ref null (exact $super))
+  )
+  (func (;4;) (type 2) (result anyref)
+    call $super
+    ref.cast (ref null (exact $super))
+  )
+  (func (;5;) (type 2) (result anyref)
+    ref.null $super
+    ref.cast (ref null (exact $super))
+  )
+  (func (;6;) (type 2) (result anyref)
+    array.new_fixed $super 0
+    ref.cast (ref (exact $super))
+  )
+  (func (;7;) (type 2) (result anyref)
+    global.get $super
+    ref.cast (ref (exact $super))
+  )
+  (func (;8;) (type 2) (result anyref)
+    call $super
+    ref.cast (ref (exact $super))
+  )
+  (func (;9;) (type 2) (result anyref)
+    ref.null $super
+    ref.cast (ref (exact $super))
+  )
+  (func (;10;) (type 2) (result anyref)
+    array.new_fixed $sub 0
+    ref.cast (ref null (exact $super))
+  )
+  (func (;11;) (type 2) (result anyref)
+    global.get $sub
+    ref.cast (ref null (exact $super))
+  )
+  (func (;12;) (type 2) (result anyref)
+    call $sub
+    ref.cast (ref null (exact $super))
+  )
+  (func (;13;) (type 2) (result anyref)
+    ref.null $sub
+    ref.cast (ref null (exact $super))
+  )
+  (func (;14;) (type 2) (result anyref)
+    array.new_fixed $sub 0
+    ref.cast (ref (exact $super))
+  )
+  (func (;15;) (type 2) (result anyref)
+    global.get $sub
+    ref.cast (ref (exact $super))
+  )
+  (func (;16;) (type 2) (result anyref)
+    call $sub
+    ref.cast (ref (exact $super))
+  )
+  (func (;17;) (type 2) (result anyref)
+    ref.null $sub
+    ref.cast (ref (exact $super))
+  )
+  (func (;18;) (type 2) (result anyref)
+    array.new_fixed $super 0
+    ref.cast (ref null (exact $sub))
+  )
+  (func (;19;) (type 2) (result anyref)
+    global.get $super
+    ref.cast (ref null (exact $sub))
+  )
+  (func (;20;) (type 2) (result anyref)
+    call $super
+    ref.cast (ref null (exact $sub))
+  )
+  (func (;21;) (type 2) (result anyref)
+    ref.null $super
+    ref.cast (ref null (exact $sub))
+  )
+  (func (;22;) (type 2) (result anyref)
+    array.new_fixed $super 0
+    ref.cast (ref (exact $sub))
+  )
+  (func (;23;) (type 2) (result anyref)
+    global.get $super
+    ref.cast (ref (exact $sub))
+  )
+  (func (;24;) (type 2) (result anyref)
+    call $super
+    ref.cast (ref (exact $sub))
+  )
+  (func (;25;) (type 2) (result anyref)
+    ref.null $super
+    ref.cast (ref (exact $sub))
+  )
+  (func (;26;) (type 3)
+    block (result anyref) ;; label = @1
+      global.get $super
+      br_on_cast 0 (;@1;) anyref (ref (exact $super))
+      unreachable
+    end
+    return
+  )
+  (func (;27;) (type 3)
+    block (result anyref) ;; label = @1
+      global.get $sub
+      br_on_cast 0 (;@1;) anyref (ref (exact $super))
+      return
+    end
+    unreachable
+  )
+  (func (;28;) (type 3)
+    block (result anyref) ;; label = @1
+      ref.null none
+      br_on_cast 0 (;@1;) anyref (ref null (exact $super))
+      unreachable
+    end
+    return
+  )
+  (func (;29;) (type 3)
+    block (result anyref) ;; label = @1
+      ref.null none
+      br_on_cast 0 (;@1;) anyref (ref (exact $super))
+      return
+    end
+    unreachable
+  )
+  (func (;30;) (type 3)
+    block (result anyref) ;; label = @1
+      global.get $super
+      br_on_cast_fail 0 (;@1;) anyref (ref (exact $super))
+      return
+    end
+    unreachable
+  )
+  (func (;31;) (type 3)
+    block (result anyref) ;; label = @1
+      global.get $sub
+      br_on_cast_fail 0 (;@1;) anyref (ref (exact $super))
+      unreachable
+    end
+    return
+  )
+  (func (;32;) (type 3)
+    block (result anyref) ;; label = @1
+      ref.null none
+      br_on_cast_fail 0 (;@1;) anyref (ref null (exact $super))
+      return
+    end
+    unreachable
+  )
+  (func (;33;) (type 3)
+    block (result anyref) ;; label = @1
+      ref.null none
+      br_on_cast_fail 0 (;@1;) anyref (ref (exact $super))
+      unreachable
+    end
+    return
+  )
+  (func (;34;) (type 4) (result i32)
+    global.get $super
+    ref.test (ref (exact $super))
+  )
+  (func (;35;) (type 4) (result i32)
+    global.get $sub
+    ref.test (ref (exact $super))
+  )
+  (func (;36;) (type 4) (result i32)
+    ref.null none
+    ref.test (ref null (exact $super))
+  )
+  (func (;37;) (type 4) (result i32)
+    ref.null none
+    ref.test (ref (exact $super))
+  )
+)

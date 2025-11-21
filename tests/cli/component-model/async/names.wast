@@ -1,88 +1,29 @@
 ;; RUN: wast --assert default --snapshot tests/snapshots % -f cm-async
 
-(component
-  (import "[async]f" (func))
-  (import "r" (type $r (sub resource)))
-  (import "[async method]r.f" (func (param "self" (borrow $r))))
-  (import "[async static]r.f2" (func))
-)
-
-;; name conflicts where the "base kebab name" only differs on abi/etc and these
-;; should all conflict with one another.
+;; historically these were part of the component-model-async development but
+;; they have since been removed.
 
 (assert_invalid
   (component
     (import "[async]f" (func))
-    (import "f" (func))
   )
-  "conflicts with previous name")
+  "not in kebab case")
 
 (assert_invalid
   (component
-    (import "f" (func))
-    (import "[async]f" (func))
+    (import "[async method]f" (func))
   )
-  "conflicts with previous name")
+  "not in kebab case")
 
 (assert_invalid
   (component
-    (import "r" (type $r (sub resource)))
-    (import "[method]r.f" (func (param "self" (borrow $r))))
-    (import "[async static]r.f" (func)))
-  "conflicts with previous name")
+    (import "[async static]f" (func))
+  )
+  "not in kebab case")
 
-(assert_invalid
-  (component
-    (import "r" (type $r (sub resource)))
-    (import "[method]r.f" (func (param "self" (borrow $r))))
-    (import "[async method]r.f" (func (param "self" (borrow $r)))))
-  "conflicts with previous name")
-
-(assert_invalid
-  (component
-    (import "r" (type $r (sub resource)))
-    (import "[method]r.f" (func (param "self" (borrow $r))))
-    (import "[async static]r.f" (func)))
-  "conflicts with previous name")
-
-(assert_invalid
-  (component
-    (import "r" (type $r (sub resource)))
-    (import "[async method]r.f" (func (param "self" (borrow $r))))
-    (import "[async method]r.f" (func (param "self" (borrow $r)))))
-  "conflicts with previous name")
-
-(assert_invalid
-  (component
-    (import "r" (type $r (sub resource)))
-    (import "[async method]r.f" (func (param "self" (borrow $r))))
-    (import "[static]r.f" (func)))
-  "conflicts with previous name")
-
-(assert_invalid
-  (component
-    (import "r" (type $r (sub resource)))
-    (import "[async method]r.f" (func (param "self" (borrow $r))))
-    (import "[async static]r.f" (func)))
-  "conflicts with previous name")
-
-(assert_invalid
-  (component
-    (import "r" (type $r (sub resource)))
-    (import "[async static]r.f" (func))
-    (import "[static]r.f" (func)))
-  "conflicts with previous name")
 
 (assert_invalid
   (component
     (import "a" (type $a (sub resource)))
-    (import "[async method]a.a" (func (param "self" (borrow $a))))
-  )
-  "import name `[async method]a.a` conflicts with previous name `a`")
-
-(assert_invalid
-  (component
-    (import "a" (type $a (sub resource)))
-    (import "[async static]a.a" (func))
-  )
-  "import name `[async static]a.a` conflicts with previous name `a`")
+    (import "[constructor]a" (func async (result (own $a)))))
+  "constructor function cannot be async")

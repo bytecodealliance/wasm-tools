@@ -11,7 +11,7 @@
 //! easy/fun to play around with.
 
 use crate::core::binary::{EncodeOptions, Encoder, GenerateDwarf, Names, RecOrType};
-use crate::core::{InnerTypeKind, Local, ValType};
+use crate::core::{Local, ValType};
 use crate::token::Span;
 use gimli::write::{
     self, Address, AttributeValue, DwarfUnit, Expression, FileId, LineProgram, LineString,
@@ -216,19 +216,8 @@ impl<'a> Dwarf<'a> {
         ty: u32,
         locals: &[Local<'_>],
     ) {
-        // Iterate through `self.types` which is what was encoded into the
-        // module and find the function type which gives access to the
-        // parameters which gives access to their types.
-        let ty = self
-            .types
-            .iter()
-            .flat_map(|t| match t {
-                RecOrType::Type(t) => std::slice::from_ref(*t),
-                RecOrType::Rec(r) => &r.types,
-            })
-            .nth(ty as usize);
-        let ty = match ty.map(|t| &t.def.kind) {
-            Some(InnerTypeKind::Func(ty)) => ty,
+        let ty = match super::func_type(self.types, ty) {
+            Some(ty) => ty,
             _ => return,
         };
 

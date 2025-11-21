@@ -49,28 +49,28 @@
   )
   "found:    (func (param i32))")
 
-;; thread.new_indirect
+;; thread.new-indirect
 (component
   (core type $start (func (param $context i32)))
   (core module $libc (table (export "start-table") 1 (ref null func)))
   (core instance $libc (instantiate $libc))
-  (core func $new_indirect (canon thread.new_indirect $start (table $libc "start-table")))
+  (core func $new-indirect (canon thread.new-indirect $start (table $libc "start-table")))
 )
 
 (component
   (core type $start (func (param $context i32)))
   (core module $libc (table (export "start-table") 1 (ref null func)))
   (core instance $libc (instantiate $libc))
-  (core func $new_indirect (canon thread.new_indirect $start (table $libc "start-table")))
+  (core func $new-indirect (canon thread.new-indirect $start (table $libc "start-table")))
 
   (core module $m
-    (type $new_indirect_ty (func (param i32) (param i32) (result i32)))
-    (import "" "thread.new_indirect" (func (type $new_indirect_ty)))
+    (type $new-indirect-ty (func (param i32) (param i32) (result i32)))
+    (import "" "thread.new-indirect" (func (type $new-indirect-ty)))
   )
 
   (core instance (instantiate $m
     (with "" (instance
-      (export "thread.new_indirect" (func $new_indirect))
+      (export "thread.new-indirect" (func $new-indirect))
     ))
   ))
 )
@@ -79,8 +79,8 @@
   (component
     (core type $start (func (param i32)))
     ;; Refer to a non-existent table type (i.e., 0); validation
-    ;; for `thread.new_indirect` happens first.
-    (core func $new_indirect (canon thread.new_indirect $start (table 0)))
+    ;; for `thread.new-indirect` happens first.
+    (core func $new-indirect (canon thread.new-indirect $start (table 0)))
   )
   "unknown table 0: table index out of bounds"
 )
@@ -90,7 +90,7 @@
     (core type $start (func))
     (core module $libc (table (export "start-table") 1 (ref null func)))
     (core instance $libc (instantiate $libc))
-    (core func $new_indirect (canon thread.new_indirect $start (table $libc "start-table")))
+    (core func $new-indirect (canon thread.new-indirect $start (table $libc "start-table")))
   )
   "start function must take a single `i32` argument"
 )
@@ -152,8 +152,8 @@
   (canon context.set i32 1 (core func))
 
   (core type $start (func (param i32)))
-  (core func (canon thread.new_indirect $start (table $start-table)))
-  (canon thread.new_indirect $start (table $start-table) (core func))
+  (core func (canon thread.new-indirect $start (table $start-table)))
+  (canon thread.new-indirect $start (table $start-table) (core func))
   (core func (canon thread.switch-to))
   (canon thread.switch-to (core func))
   (core func (canon thread.switch-to cancellable))

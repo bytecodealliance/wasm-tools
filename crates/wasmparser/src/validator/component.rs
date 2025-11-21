@@ -1450,6 +1450,7 @@ impl ComponentState {
         }
 
         let func_ty = ComponentFuncType {
+            async_: false,
             info: TypeInfo::new(),
             params: result
                 .iter()
@@ -2167,7 +2168,7 @@ impl ComponentState {
         if !self.features.cm_threading() {
             bail!(
                 offset,
-                "`thread.new_indirect` requires the component model threading feature"
+                "`thread.new-indirect` requires the component model threading feature"
             )
         }
 
@@ -2313,7 +2314,7 @@ impl ComponentState {
         if !self.features.shared_everything_threads() {
             bail!(
                 offset,
-                "`thread.spawn_ref` requires the shared-everything-threads proposal"
+                "`thread.spawn-ref` requires the shared-everything-threads proposal"
             )
         }
         let core_type_id = self.validate_spawn_type(func_ty_index, types, offset)?;
@@ -2341,7 +2342,7 @@ impl ComponentState {
         if !self.features.shared_everything_threads() {
             bail!(
                 offset,
-                "`thread.spawn_indirect` requires the shared-everything-threads proposal"
+                "`thread.spawn-indirect` requires the shared-everything-threads proposal"
             )
         }
         let _ = self.validate_spawn_type(func_ty_index, types, offset)?;
@@ -2350,7 +2351,7 @@ impl ComponentState {
         // `OperatorValidatorTemp::check_call_indirect_ty`), but loosen the
         // table type restrictions to just a `funcref`. See the component model
         // for more details:
-        // https://github.com/WebAssembly/component-model/blob/6e08e283/design/mvp/CanonicalABI.md#-canon-threadspawn_indirect.
+        // https://github.com/WebAssembly/component-model/blob/main/design/mvp/CanonicalABI.md#-canon-threadspawn-indirect.
         let table = self.table_at(table_index, offset)?;
 
         SubtypeCx::table_type(
@@ -2385,7 +2386,7 @@ impl ComponentState {
     /// This is currently limited to shared functions with the signature `[i32]
     /// -> []`. See component model [explanation] for more details.
     ///
-    /// [explanation]: https://github.com/WebAssembly/component-model/blob/6e08e283/design/mvp/CanonicalABI.md#-canon-threadspawn_ref
+    /// [explanation]: https://github.com/WebAssembly/component-model/blob/main/design/mvp/CanonicalABI.md#-canon-threadspawn-ref
     fn validate_spawn_type(
         &self,
         func_ty_index: u32,
@@ -3054,6 +3055,13 @@ impl ComponentState {
     ) -> Result<ComponentFuncType> {
         let mut info = TypeInfo::new();
 
+        if ty.async_ && !self.features.cm_async() {
+            bail!(
+                offset,
+                "async component functions require the component model async feature"
+            );
+        }
+
         let mut set = Set::default();
         set.reserve(core::cmp::max(
             ty.params.len(),
@@ -3095,6 +3103,7 @@ impl ComponentState {
             .transpose()?;
 
         Ok(ComponentFuncType {
+            async_: ty.async_,
             info,
             params,
             result,
@@ -3913,13 +3922,7 @@ impl ComponentState {
     ) -> Result<ComponentDefinedType> {
         match ty {
             crate::ComponentDefinedType::Primitive(ty) => {
-                if ty == crate::PrimitiveValType::ErrorContext && !self.features.cm_error_context()
-                {
-                    bail!(
-                        offset,
-                        "`error-context` requires the component model error-context feature"
-                    )
-                }
+                self.check_primitive_type(ty, offset)?;
                 Ok(ComponentDefinedType::Primitive(ty))
             }
             crate::ComponentDefinedType::Record(fields) => {
@@ -4191,7 +4194,10 @@ impl ComponentState {
         offset: usize,
     ) -> Result<ComponentValType> {
         Ok(match ty {
-            crate::ComponentValType::Primitive(pt) => ComponentValType::Primitive(pt),
+            crate::ComponentValType::Primitive(pt) => {
+                self.check_primitive_type(pt, offset)?;
+                ComponentValType::Primitive(pt)
+            }
             crate::ComponentValType::Type(idx) => {
                 ComponentValType::Type(self.defined_type_at(idx, offset)?)
             }
@@ -4477,6 +4483,16 @@ impl ComponentState {
         }
         Ok(())
     }
+
+    fn check_primitive_type(&self, ty: crate::PrimitiveValType, offset: usize) -> Result<()> {
+        if ty == crate::PrimitiveValType::ErrorContext && !self.features.cm_error_context() {
+            bail!(
+                offset,
+                "`error-context` requires the component model error-context feature"
+            )
+        }
+        Ok(())
+    }
 }
 
 impl InternRecGroup for ComponentState {
@@ -4534,11 +4550,8 @@ impl ComponentNameContext {
         if let ExternKind::Export = kind {
             match kebab.kind() {
                 ComponentNameKind::Label(_)
-                | ComponentNameKind::AsyncLabel(_)
                 | ComponentNameKind::Method(_)
-                | ComponentNameKind::AsyncMethod(_)
                 | ComponentNameKind::Static(_)
-                | ComponentNameKind::AsyncStatic(_)
                 | ComponentNameKind::Constructor(_)
                 | ComponentNameKind::Interface(_) => {}
 
@@ -4552,7 +4565,7 @@ impl ComponentNameContext {
 
         // Validate that the kebab name, if it has structure such as
         // `[method]a.b`, is indeed valid with respect to known resources.
-        self.validate(&kebab, ty, types, offset, features)
+        self.validate(&kebab, ty, types, offset)
             .with_context(|| format!("{} name `{kebab}` is not valid", kind.desc()))?;
 
         // Top-level kebab-names must all be unique, even between both imports
@@ -4593,7 +4606,6 @@ impl ComponentNameContext {
         ty: &ComponentEntityType,
         types: &TypeAlloc,
         offset: usize,
-        features: &WasmFeatures,
     ) -> Result<()> {
         let func = || {
             let id = match ty {
@@ -4602,24 +4614,10 @@ impl ComponentNameContext {
             };
             Ok(&types[id])
         };
-        match name.kind() {
-            ComponentNameKind::AsyncLabel(_)
-            | ComponentNameKind::AsyncMethod(_)
-            | ComponentNameKind::AsyncStatic(_) => {
-                if !features.cm_async() {
-                    bail!(
-                        offset,
-                        "async kebab-names require the component model async feature"
-                    );
-                }
-            }
-            _ => {}
-        }
 
         match name.kind() {
             // No validation necessary for these styles of names
             ComponentNameKind::Label(_)
-            | ComponentNameKind::AsyncLabel(_)
             | ComponentNameKind::Interface(_)
             | ComponentNameKind::Url(_)
             | ComponentNameKind::Dependency(_)
@@ -4630,6 +4628,9 @@ impl ComponentNameContext {
             // within this context to match `rname`.
             ComponentNameKind::Constructor(rname) => {
                 let ty = func()?;
+                if ty.async_ {
+                    bail!(offset, "constructor function cannot be async");
+                }
                 let ty = match ty.result {
                     Some(result) => result,
                     None => bail!(offset, "function should return one value"),
@@ -4661,7 +4662,7 @@ impl ComponentNameContext {
             // Methods must take `(param "self" (borrow $resource))` as the
             // first argument where `$resources` matches the name `resource` as
             // named in this context.
-            ComponentNameKind::Method(name) | ComponentNameKind::AsyncMethod(name) => {
+            ComponentNameKind::Method(name) => {
                 let ty = func()?;
                 if ty.params.len() == 0 {
                     bail!(offset, "function should have at least one argument");
@@ -4693,7 +4694,7 @@ impl ComponentNameContext {
             // Static methods don't have much validation beyond that they must
             // be a function and the resource name referred to must already be
             // in this context.
-            ComponentNameKind::Static(name) | ComponentNameKind::AsyncStatic(name) => {
+            ComponentNameKind::Static(name) => {
                 func()?;
                 if !self.all_resource_names.contains(name.resource().as_str()) {
                     bail!(offset, "static resource name is not known in this context");

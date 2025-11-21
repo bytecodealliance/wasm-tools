@@ -1,9 +1,0 @@
-(module $Mtable_ex
-  (type $t (;0;) (func))
-  (table (;0;) 1 funcref)
-  (table (;1;) 1 (ref null $t))
-  (table (;2;) 1 externref)
-  (export "t-funcnull" (table 0))
-  (export "t-refnull" (table 1))
-  (export "t-extern" (table 2))
-)

@@ -9,7 +9,7 @@ static RNG: Mutex<Option<generate::Generator>> = Mutex::new(None);
 impl TestCase for MyInterpreter {
     fn call_export(
         wit: Wit,
-        func: Function,
+        func: ExportFunction,
         mut args: impl ExactSizeIterator<Item = Val>,
     ) -> Option<Val> {
         if func.interface() == Some("wit-dylib:roundtrip-test/alloc") {
@@ -59,7 +59,7 @@ impl TestCase for MyInterpreter {
 
     async fn call_export_async(
         _wit: Wit,
-        func: Function,
+        func: ExportFunction,
         args: impl ExactSizeIterator<Item = Val>,
     ) -> Option<Val> {
         // Conditionally yield to inject some async-ness sometimes.
@@ -76,7 +76,7 @@ impl TestCase for MyInterpreter {
     fn resource_dtor(_: Resource, _: usize) {}
 }
 
-fn run_export(func: Function, args: impl ExactSizeIterator<Item = Val>) -> Option<Val> {
+fn run_export(func: ExportFunction, args: impl ExactSizeIterator<Item = Val>) -> Option<Val> {
     let mut rng = RNG.lock().unwrap();
     let rng = rng.as_mut().unwrap();
     rng.reset_remaining();

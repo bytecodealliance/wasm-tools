@@ -367,17 +367,8 @@
   "requires the component model async builtins feature"
 )
 
+;; async function types
 (assert_invalid
-  (component (import "[async]f" (func)))
-  "require the component model async feature"
-)
-
-(assert_invalid
-  (component (import "[async method]a.b" (func)))
-  "require the component model async feature"
-)
-
-(assert_invalid
-  (component (import "[async static]a.b" (func)))
-  "require the component model async feature"
+  (component (import "x" (func async)))
+  "async component functions require the component model async feature"
 )

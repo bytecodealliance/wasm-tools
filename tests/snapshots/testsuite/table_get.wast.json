@@ -9,7 +9,7 @@
     },
     {
       "type": "action",
-      "line": 24,
+      "line": 23,
       "action": {
         "type": "invoke",
         "field": "init",
@@ -23,7 +23,7 @@
     },
     {
       "type": "assert_return",
-      "line": 26,
+      "line": 25,
       "action": {
         "type": "invoke",
         "field": "get-externref",
@@ -43,7 +43,7 @@
     },
     {
       "type": "assert_return",
-      "line": 27,
+      "line": 26,
       "action": {
         "type": "invoke",
         "field": "get-externref",
@@ -63,7 +63,7 @@
     },
     {
       "type": "assert_return",
-      "line": 29,
+      "line": 28,
       "action": {
         "type": "invoke",
         "field": "get-funcref",
@@ -83,7 +83,7 @@
     },
     {
       "type": "assert_return",
-      "line": 30,
+      "line": 29,
       "action": {
         "type": "invoke",
         "field": "is_null-funcref",
@@ -103,7 +103,7 @@
     },
     {
       "type": "assert_return",
-      "line": 31,
+      "line": 30,
       "action": {
         "type": "invoke",
         "field": "is_null-funcref",
@@ -123,7 +123,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 33,
+      "line": 32,
       "action": {
         "type": "invoke",
         "field": "get-externref",
@@ -138,7 +138,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 34,
+      "line": 33,
       "action": {
         "type": "invoke",
         "field": "get-funcref",
@@ -153,7 +153,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 35,
+      "line": 34,
       "action": {
         "type": "invoke",
         "field": "get-externref",
@@ -168,7 +168,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 36,
+      "line": 35,
       "action": {
         "type": "invoke",
         "field": "get-funcref",
@@ -183,35 +183,35 @@
     },
     {
       "type": "assert_invalid",
-      "line": 42,
+      "line": 41,
       "filename": "table_get.1.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 51,
+      "line": 50,
       "filename": "table_get.2.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 61,
+      "line": 60,
       "filename": "table_get.3.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 70,
+      "line": 69,
       "filename": "table_get.4.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 80,
+      "line": 79,
       "filename": "table_get.5.wasm",
       "module_type": "binary",
       "text": "type mismatch"

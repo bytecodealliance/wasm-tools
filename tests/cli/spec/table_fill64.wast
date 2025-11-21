@@ -1,0 +1,6 @@
+;; RUN: wast \
+;;      --assert default \
+;;      --snapshot tests/snapshots \
+;;      --ignore-error-messages \
+;;      --features=wasm3 \
+;;      tests/testsuite/table_fill64.wast

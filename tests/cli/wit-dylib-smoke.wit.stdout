@@ -114,11 +114,11 @@
     i32.sub
     local.tee 0
     global.set $__stack_pointer
-    i32.const 1
+    i32.const 0
     call $wit_dylib_export_start
     local.set 1
     local.get 1
-    i32.const 1
+    i32.const 0
     call $wit_dylib_export_call
     global.get $__stack_pointer
     i32.const 8
@@ -141,7 +141,7 @@
     i32.add
     global.set $__stack_pointer
     local.get 1
-    i32.const 1
+    i32.const 0
     call $wit_dylib_export_finish
     global.get $__stack_pointer
     local.set 1
@@ -163,12 +163,17 @@
     global.get $__memory_base
     i32.const 214
     i32.add
-    i32.store offset=48
+    i32.store offset=44
     global.get $__memory_base
     global.get $__memory_base
     i32.const 0
     i32.add
-    i32.store offset=96
+    i32.store offset=72
+    global.get $__memory_base
+    global.get $__memory_base
+    i32.const 40
+    i32.add
+    i32.store offset=80
   )
   (func $__wasm_call_ctors (;70;) (type 14)
     i32.const 88
