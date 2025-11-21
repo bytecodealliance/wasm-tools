@@ -121,8 +121,6 @@ impl Drop for Cx<'_> {
 enum CowIter<'a> {
     Borrowed(std::slice::Iter<'a, Val>),
     Owned(std::vec::IntoIter<Val>),
-    BorrowedMap(std::slice::Iter<'a, (Val, Val)>),
-    OwnedMap(std::vec::IntoIter<(Val, Val)>),
 }
 
 impl<'a> Iterator for CowIter<'a> {
@@ -132,25 +130,6 @@ impl<'a> Iterator for CowIter<'a> {
         match self {
             CowIter::Borrowed(i) => Some(Cow::Borrowed(i.next()?)),
             CowIter::Owned(i) => Some(Cow::Owned(i.next()?)),
-            CowIter::BorrowedMap(_) | CowIter::OwnedMap(_) => {
-                panic!("use next_map_entry for map iterators")
-            }
-        }
-    }
-}
-
-impl<'a> CowIter<'a> {
-    fn next_map_entry(&mut self) -> Option<(Cow<'a, Val>, Cow<'a, Val>)> {
-        match self {
-            CowIter::BorrowedMap(i) => {
-                let (k, v) = i.next()?;
-                Some((Cow::Borrowed(k), Cow::Borrowed(v)))
-            }
-            CowIter::OwnedMap(i) => {
-                let (k, v) = i.next()?;
-                Some((Cow::Owned(k), Cow::Owned(v)))
-            }
-            _ => panic!("next_map_entry called on non-map iterator"),
         }
     }
 }
@@ -596,18 +575,8 @@ impl Call for Cx<'_> {
     }
 
     fn pop_iter_next(&mut self, _ty: List) {
-        let iter = self.iterators.last_mut().unwrap();
-        match iter {
-            CowIter::BorrowedMap(_) | CowIter::OwnedMap(_) => {
-                let (key, value) = iter.next_map_entry().unwrap();
-                self.stack.push(key);
-                self.stack.push(value);
-            }
-            _ => {
-                let value = iter.next().unwrap();
-                self.stack.push(value);
-            }
-        }
+        let value = self.iterators.last_mut().unwrap().next().unwrap();
+        self.stack.push(value);
     }
 
     fn pop_iter(&mut self, _ty: List) {
@@ -632,34 +601,6 @@ impl Call for Cx<'_> {
         let val = self.always_pop().into_owned();
         match self.stack.last_mut() {
             Some(Cow::Owned(Val::GenericList(list))) => list.push(val),
-            _ => invalid(),
-        }
-    }
-
-    fn pop_map(&mut self, _ty: Map) -> usize {
-        match self.always_pop() {
-            Cow::Borrowed(Val::GenericMap(m)) => {
-                self.iterators.push(CowIter::BorrowedMap(m.iter()));
-                m.len()
-            }
-            Cow::Owned(Val::GenericMap(m)) => {
-                let ret = m.len();
-                self.iterators.push(CowIter::OwnedMap(m.into_iter()));
-                ret
-            }
-            _ => invalid(),
-        }
-    }
-
-    fn push_map(&mut self, _ty: Map, capacity: usize) {
-        self.push_own(Val::GenericMap(Vec::with_capacity(capacity)));
-    }
-
-    fn map_append(&mut self, _ty: Map) {
-        let value = self.always_pop().into_owned();
-        let key = self.always_pop().into_owned();
-        match self.stack.last_mut() {
-            Some(Cow::Owned(Val::GenericMap(map))) => map.push((key, value)),
             _ => invalid(),
         }
     }
@@ -693,7 +634,6 @@ pub enum Val {
     Variant(u32, Option<Box<Val>>),
     GenericList(Vec<Val>),
     ByteList(Vec<u8>),
-    GenericMap(Vec<(Val, Val)>),
 }
 
 #[derive(Clone, Debug)]

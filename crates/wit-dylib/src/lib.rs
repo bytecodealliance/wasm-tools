@@ -768,16 +768,6 @@ impl Adapter {
                 });
                 metadata::Type::List(index)
             }
-            TypeDefKind::Map(key_ty, value_ty) => {
-                let index = self.metadata.maps.len();
-                self.metadata.maps.push(metadata::Map {
-                    interface,
-                    name,
-                    key_ty: self.lookup_ty(key_ty),
-                    value_ty: self.lookup_ty(value_ty),
-                });
-                metadata::Type::Map(index)
-            }
             TypeDefKind::FixedSizeList(t, len) => {
                 let index = self.metadata.fixed_size_lists.len();
                 self.metadata
@@ -947,6 +937,9 @@ impl Adapter {
             }
             TypeDefKind::Handle(Handle::Borrow(t)) => {
                 metadata::Type::Borrow(self.resource_map[&dealias(resolve, *t)])
+            }
+            TypeDefKind::Map(_, _) => {
+                todo!("map")
             }
             TypeDefKind::Unknown => unreachable!(),
         };

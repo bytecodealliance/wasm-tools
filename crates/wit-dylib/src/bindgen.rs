@@ -69,7 +69,6 @@ intrinsics! {
     pop_list : [ValType::I32; 3] -> [ValType::I32] = "wit_dylib_pop_list",
     pop_iter_next : [ValType::I32; 2] -> [] = "wit_dylib_pop_iter_next",
     pop_iter : [ValType::I32; 2] -> [] = "wit_dylib_pop_iter",
-    pop_map : [ValType::I32; 3] -> [ValType::I32] = "wit_dylib_pop_map",
 
     push_bool : [ValType::I32; 2] -> [] = "wit_dylib_push_bool",
     push_char : [ValType::I32; 2] -> [] = "wit_dylib_push_char",
@@ -97,8 +96,6 @@ intrinsics! {
     push_result : [ValType::I32; 3] -> [] = "wit_dylib_push_result",
     push_list : [ValType::I32; 4] -> [ValType::I32] = "wit_dylib_push_list",
     list_append : [ValType::I32; 2] -> [] = "wit_dylib_list_append",
-    push_map : [ValType::I32; 4] -> [ValType::I32] = "wit_dylib_push_map",
-    map_append : [ValType::I32; 2] -> [] = "wit_dylib_map_append",
 }
 
 pub fn import(
@@ -969,137 +966,6 @@ impl<'a> FunctionCompiler<'a> {
             // that's returned directly (e.g. `list<u8>`) but if it's NULL
             // then the list is allocated manually with `cabi_realloc` and then
             // lowered element-by-element.
-            TypeDefKind::Map(key_ty, value_ty) => {
-                let metadata::Type::Map(map_index) = ty else {
-                    unreachable!()
-                };
-                let pop_map = self.adapter.intrinsics().pop_map;
-                let pop_iter_next = self.adapter.intrinsics().pop_iter_next;
-                let pop_iter = self.adapter.intrinsics().pop_iter;
-                let cabi_realloc = self.adapter.intrinsics().cabi_realloc;
-                let dealloc_bytes = self.adapter.intrinsics().dealloc_bytes;
-
-                // Calculate size of tuple<K, V>
-                let key_size = self.adapter.sizes.size(key_ty).size_wasm32();
-                let key_align = self.adapter.sizes.align(key_ty).align_wasm32();
-                let value_size = self.adapter.sizes.size(value_ty).size_wasm32();
-                let value_align = self.adapter.sizes.align(value_ty).align_wasm32();
-
-                // Tuple alignment is max of element alignments
-                let tuple_align = key_align.max(value_align);
-                // Tuple size is key_size + padding + value_size
-                let key_end = key_size;
-                let value_offset = align_up(key_end, value_align);
-                let tuple_size = value_offset + value_size;
-
-                let (dst_ptr, dst_len) = dest.split_ptr_len();
-
-                // Load the map ptr/len into locals
-                self.local_get_ctx();
-                self.ins().i32_const(map_index.try_into().unwrap());
-                self.local_get_stack_temp_addr();
-                self.ins().call(pop_map);
-                let m_len = self.local_set_new_tmp(ValType::I32);
-                self.local_get_stack_temp_addr();
-                self.ins().i32_load(MemArg {
-                    memory_index: 0,
-                    offset: 0,
-                    align: 2,
-                });
-                let m_ptr = self.local_set_new_tmp(ValType::I32);
-
-                // If the pointer is null then the interpreter doesn't support
-                // the same canonical ABI view of this map so a loop is
-                // required to lower element-by-element.
-                self.ins().local_get(m_ptr.idx);
-                self.ins().i32_eqz();
-                self.ins().if_(BlockType::Empty);
-                {
-                    self.ins().i32_const(0);
-                    let m_index = self.local_set_new_tmp(ValType::I32);
-
-                    self.ins().i32_const(0);
-                    self.ins().i32_const(0);
-                    self.ins().i32_const(tuple_align.try_into().unwrap());
-                    self.ins().local_get(m_len.idx);
-                    self.ins().i32_const(tuple_size.try_into().unwrap());
-                    self.ins().i32_mul();
-                    let m_byte_size = self.local_tee_new_tmp(ValType::I32);
-                    self.ins().call(cabi_realloc);
-                    let m_elem_addr = self.local_tee_new_tmp(ValType::I32);
-                    self.ins().local_set(m_ptr.idx);
-
-                    // Loop over each element of the map.
-                    self.ins().loop_(BlockType::Empty);
-                    {
-                        // Entry loop condition, `m_index != m_len`
-                        self.ins().local_get(m_index.idx);
-                        self.ins().local_get(m_len.idx);
-                        self.ins().i32_ne();
-                        self.ins().if_(BlockType::Empty);
-                        {
-                            // Get the `m_index`th element from map (puts key then value on stack)
-                            self.local_get_ctx();
-                            self.ins().i32_const(map_index.try_into().unwrap());
-                            self.ins().call(pop_iter_next);
-
-                            // Lower the key
-                            self.lower(
-                                *key_ty,
-                                &AbiLoc::Memory(Memory {
-                                    addr: TempLocal::new(m_elem_addr.idx, ValType::I32),
-                                    offset: 0,
-                                }),
-                            );
-
-                            // Lower the value
-                            self.lower(
-                                *value_ty,
-                                &AbiLoc::Memory(Memory {
-                                    addr: TempLocal::new(m_elem_addr.idx, ValType::I32),
-                                    offset: value_offset.try_into().unwrap(),
-                                }),
-                            );
-
-                            // Increment the `m_index` counter
-                            self.ins().local_get(m_index.idx);
-                            self.ins().i32_const(1);
-                            self.ins().i32_add();
-                            self.ins().local_set(m_index.idx);
-
-                            // Increment the `m_elem_addr` counter
-                            self.ins().local_get(m_elem_addr.idx);
-                            self.ins().i32_const(tuple_size.try_into().unwrap());
-                            self.ins().i32_add();
-                            self.ins().local_set(m_elem_addr.idx);
-
-                            // Continue the loop.
-                            self.ins().br(1);
-                        }
-                        self.ins().end();
-                    }
-                    self.ins().end();
-
-                    self.local_get_ctx();
-                    self.ins().i32_const(map_index.try_into().unwrap());
-                    self.ins().call(pop_iter);
-
-                    self.local_get_ctx();
-                    self.ins().local_get(m_ptr.idx);
-                    self.ins().local_get(m_byte_size.idx);
-                    self.ins().i32_const(tuple_align.try_into().unwrap());
-                    self.ins().i32_const(tuple_size.try_into().unwrap());
-                    self.ins().call(dealloc_bytes);
-                }
-                self.ins().end();
-
-                // Store the ptr/len
-                self.ins().local_get(m_ptr.idx);
-                self.store_scalar_from_top_of_stack(&dst_ptr, ValType::I32, 2);
-                self.ins().local_get(m_len.idx);
-                self.store_scalar_from_top_of_stack(&dst_len, ValType::I32, 2);
-            }
-
             TypeDefKind::List(t) => {
                 let metadata::Type::List(list_index) = ty else {
                     unreachable!()
@@ -1247,6 +1113,11 @@ impl<'a> FunctionCompiler<'a> {
             TypeDefKind::FixedSizeList(t, len) => {
                 let _ = (t, len);
                 todo!("fixed-size-list")
+            }
+
+            TypeDefKind::Map(k, v) => {
+                let _ = (k, v);
+                todo!("map")
             }
 
             // Should not be possible to hit during lowering.
@@ -1619,121 +1490,6 @@ impl<'a> FunctionCompiler<'a> {
                 );
             }
 
-            TypeDefKind::Map(key_ty, value_ty) => {
-                let metadata::Type::Map(map_index) = ty else {
-                    unreachable!()
-                };
-
-                // Calculate size of tuple<K, V>
-                let key_size = self.adapter.sizes.size(key_ty).size_wasm32();
-                let key_align = self.adapter.sizes.align(key_ty).align_wasm32();
-                let value_size = self.adapter.sizes.size(value_ty).size_wasm32();
-                let value_align = self.adapter.sizes.align(value_ty).align_wasm32();
-
-                // Tuple alignment is max of element alignments
-                let tuple_align = key_align.max(value_align);
-                // Tuple size is key_size + padding + value_size
-                let key_end = key_size;
-                let value_offset = align_up(key_end, value_align);
-                let tuple_size = value_offset + value_size;
-
-                let map_index = i32::try_from(map_index).unwrap();
-                let push_map = i.push_map;
-                let map_append = i.map_append;
-                let dealloc_bytes = i.dealloc_bytes;
-                let (src_ptr, src_len) = src.split_ptr_len();
-
-                // Give the interpreter to lift the map exactly as-is and take
-                // ownership of the allocation.
-                self.local_get_ctx();
-                self.ins().i32_const(map_index);
-                self.load_abi_loc(&src_ptr, ValType::I32, 2);
-                let m_ptr = self.local_tee_new_tmp(ValType::I32);
-                self.load_abi_loc(&src_len, ValType::I32, 2);
-                let m_len = self.local_tee_new_tmp(ValType::I32);
-                self.ins().call(push_map);
-
-                // If the interpreter returned 0 then the map needs to be
-                // lifted manually element-by-element.
-                self.ins().i32_eqz();
-                self.ins().if_(BlockType::Empty);
-                {
-                    // Prep deallocation of the map after the loop by saving
-                    // off the pointer/byte size.
-                    self.ins().local_get(m_len.idx);
-                    self.ins().i32_const(tuple_size.try_into().unwrap());
-                    self.ins().i32_mul();
-                    let m_byte_size = self.local_set_new_tmp(ValType::I32);
-                    self.ins().local_get(m_ptr.idx);
-                    let m_ptr_to_free = self.local_set_new_tmp(ValType::I32);
-
-                    // Using `m_len` as the loop counter, element-by-element
-                    // lift from the map and push into the map.
-                    self.ins().loop_(BlockType::Empty);
-                    {
-                        self.ins().local_get(m_len.idx);
-                        self.ins().if_(BlockType::Empty);
-                        {
-                            // Lift the key from memory
-                            let key_src = AbiLoc::Memory(Memory {
-                                addr: TempLocal::new(m_ptr.idx, m_ptr.ty),
-                                offset: 0,
-                            });
-                            self.lift(&key_src, *key_ty);
-
-                            // Lift the value from memory
-                            let value_src = AbiLoc::Memory(Memory {
-                                addr: TempLocal::new(m_ptr.idx, m_ptr.ty),
-                                offset: value_offset.try_into().unwrap(),
-                            });
-                            self.lift(&value_src, *value_ty);
-
-                            // Push the lifted key-value pair onto the map.
-                            self.local_get_ctx();
-                            self.ins().i32_const(map_index);
-                            self.ins().call(map_append);
-
-                            // decrement the length counter
-                            self.ins().local_get(m_len.idx);
-                            self.ins().i32_const(1);
-                            self.ins().i32_sub();
-                            self.ins().local_set(m_len.idx);
-
-                            // increment the pointer
-                            self.ins().local_get(m_ptr.idx);
-                            self.ins().i32_const(tuple_size.try_into().unwrap());
-                            self.ins().i32_add();
-                            self.ins().local_set(m_ptr.idx);
-
-                            self.ins().br(1);
-                        }
-                        self.ins().end();
-                    }
-                    self.ins().end();
-
-                    // The canonical ABI representation of this map is no
-                    // longer needed, so discard it.
-                    self.ins().local_get(m_byte_size.idx);
-                    self.ins().if_(BlockType::Empty);
-                    {
-                        self.local_get_ctx();
-                        self.ins().local_get(m_ptr_to_free.idx);
-                        self.ins().local_get(m_byte_size.idx);
-                        self.ins().i32_const(tuple_align.try_into().unwrap());
-                        self.ins().i32_const(0);
-                        self.ins().call(dealloc_bytes);
-                    }
-                    self.ins().end();
-
-                    self.free_temp_local(m_byte_size);
-                    self.free_temp_local(m_ptr_to_free);
-                }
-                self.ins().end();
-
-                self.free_temp_local(m_ptr);
-                self.free_temp_local(m_len);
-            }
-
             TypeDefKind::List(t) => {
                 let metadata::Type::List(list_index) = ty else {
                     unreachable!()
@@ -1829,6 +1585,11 @@ impl<'a> FunctionCompiler<'a> {
 
                 self.free_temp_local(l_ptr);
                 self.free_temp_local(l_len);
+            }
+
+            TypeDefKind::Map(k, v) => {
+                let _ = (k, v);
+                todo!("map")
             }
 
             // Should not be possible to hit during lifting.
