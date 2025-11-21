@@ -1672,7 +1672,6 @@ impl ComponentDefinedType {
             ComponentDefinedType::Variant(ty) => ty.lower_gc(types, abi, options, offset, core),
 
             ComponentDefinedType::List(ty)
-            | ComponentDefinedType::Map(ty, _)
             | ComponentDefinedType::FixedSizeList(ty, _) => {
                 let id = match core.as_concrete_ref() {
                     Some(id) => id,
@@ -1692,6 +1691,11 @@ impl ComponentDefinedType {
                 };
                 ty.lower_gc(types, abi, options, offset, array_ty.0.element_type.into())
             }
+
+            ComponentDefinedType::Map(_, _) => bail!(
+                offset,
+                "GC lowering for component `map` type is not yet implemented"
+            ),
 
             ComponentDefinedType::Tuple(ty) => ty.lower_gc(types, abi, options, offset, core),
 
