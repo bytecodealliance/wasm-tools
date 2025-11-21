@@ -1671,8 +1671,7 @@ impl ComponentDefinedType {
 
             ComponentDefinedType::Variant(ty) => ty.lower_gc(types, abi, options, offset, core),
 
-            ComponentDefinedType::List(ty)
-            | ComponentDefinedType::FixedSizeList(ty, _) => {
+            ComponentDefinedType::List(ty) | ComponentDefinedType::FixedSizeList(ty, _) => {
                 let id = match core.as_concrete_ref() {
                     Some(id) => id,
                     None => bail!(
