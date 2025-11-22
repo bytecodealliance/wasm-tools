@@ -630,9 +630,28 @@ impl<'a> Resolver<'a> {
 
         let mut export_spans = Vec::new();
         let mut import_spans = Vec::new();
+        // Track case-normalized names to catch case-insensitive duplicates
+        let mut import_names: HashMap<String, (String, Span)> = HashMap::new();
+        let mut export_names: HashMap<String, (String, Span)> = HashMap::new();
+
         for (name, (item, span)) in self.type_lookup.iter() {
             match *item {
                 TypeOrItem::Type(id) => {
+                    // Check for case-insensitive duplicate
+                    let lowercase_name = name.to_lowercase();
+                    if let Some((existing_name, _existing_span)) = import_names.get(&lowercase_name) {
+                        // Only error on case-insensitive duplicates (e.g., "foo" vs "FOO").
+                        // Exact duplicates fall through to the existing check below.
+                        if existing_name != name {
+                            bail!(Error::new(
+                                *span,
+                                format!(
+                                    "import `{name}` conflicts with import `{existing_name}` (kebab-case identifiers are case-insensitive)"
+                                ),
+                            ))
+                        }
+                    }
+
                     let prev = self.worlds[world_id]
                         .imports
                         .insert(WorldKey::Name(name.to_string()), WorldItem::Type(id));
@@ -642,6 +661,7 @@ impl<'a> Resolver<'a> {
                             format!("import `{name}` conflicts with prior import of same name"),
                         ))
                     }
+                    import_names.insert(lowercase_name, (name.to_string(), *span));
                     import_spans.push(*span);
                 }
                 TypeOrItem::Item(_) => unreachable!(),
@@ -674,16 +694,33 @@ impl<'a> Resolver<'a> {
                     ty: ast::Type::Resource(r),
                     ..
                 }) => {
-                    for func in r.funcs.iter() {
-                        import_spans.push(func.named_func().name.span);
-                        let func = self.resolve_resource_func(func, name)?;
+                    for ast_func in r.funcs.iter() {
+                        let func_span = ast_func.named_func().name.span;
+                        import_spans.push(func_span);
+                        let func = self.resolve_resource_func(ast_func, name)?;
+
+                        // Check for case-insensitive duplicate
+                        let lowercase_name = func.name.to_lowercase();
+                        if let Some((existing_name, _existing_span)) = import_names.get(&lowercase_name) {
+                            if existing_name != &func.name {
+                                bail!(Error::new(
+                                    func_span,
+                                    format!(
+                                        "import `{}` conflicts with import `{existing_name}` (kebab-case identifiers are case-insensitive)",
+                                        func.name
+                                    ),
+                                ))
+                            }
+                        }
+
                         let prev = self.worlds[world_id]
                             .imports
-                            .insert(WorldKey::Name(func.name.clone()), WorldItem::Function(func));
+                            .insert(WorldKey::Name(func.name.clone()), WorldItem::Function(func.clone()));
                         // Resource names themselves are unique, and methods are
                         // uniquely named, so this should be possible to assert
                         // at this point and never trip.
                         assert!(prev.is_none());
+                        import_names.insert(lowercase_name, (func.name.clone(), func_span));
                     }
                     continue;
                 }
@@ -724,6 +761,30 @@ impl<'a> Resolver<'a> {
                     ))
                 }
             }
+
+            // Check for case-insensitive duplicate names.
+            if let WorldKey::Name(ref name) = key {
+                let lowercase_name = name.to_lowercase();
+                let names = if desc == "import" {
+                    &mut import_names
+                } else {
+                    &mut export_names
+                };
+
+                if let Some((existing_name, _existing_span)) = names.get(&lowercase_name) {
+                    // Only error on case-insensitive duplicates (e.g., "foo" vs "FOO").
+                    if existing_name != name {
+                        bail!(Error::new(
+                            kind.span(),
+                            format!(
+                                "{desc} `{name}` conflicts with {desc} `{existing_name}` (kebab-case identifiers are case-insensitive)"
+                            ),
+                        ))
+                    }
+                }
+                names.insert(lowercase_name, (name.clone(), kind.span()));
+            }
+
             let dst = if desc == "import" {
                 &mut self.worlds[world_id].imports
             } else {
