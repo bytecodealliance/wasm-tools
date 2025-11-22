@@ -1,0 +1,5 @@
+export `GET-USER` conflicts with export `get-user` (kebab-case identifiers are case-insensitive)
+     --> tests/ui/parse-fail/case-insensitive-duplicates.wit:8:10
+      |
+    8 |   export GET-USER: func() -> string;
+      |          ^-------
