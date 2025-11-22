@@ -55,7 +55,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_docs, missing_debug_implementations)]
 // Needed for the `instructions!` macro in `src/code_builder.rs`.
-#![recursion_limit = "512"]
+#![recursion_limit = "1024"]
 
 #[cfg(feature = "component-model")]
 mod component;

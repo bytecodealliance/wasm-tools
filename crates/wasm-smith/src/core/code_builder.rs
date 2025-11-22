@@ -594,6 +594,74 @@ instructions! {
     (Some(wide_arithmetic_binop128_on_stack), i64_sub128, NumericInt),
     (Some(wide_arithmetic_mul_wide_on_stack), i64_mul_wide_s, NumericInt),
     (Some(wide_arithmetic_mul_wide_on_stack), i64_mul_wide_u, NumericInt),
+    // Atomic instructions
+    (Some(atomic_load_valid), i32_atomic_load, MemoryInt),
+    (Some(atomic_load_valid), i64_atomic_load, MemoryInt),
+    (Some(atomic_load_valid), i32_atomic_load8_u,MemoryInt),
+    (Some(atomic_load_valid), i64_atomic_load8_u, MemoryInt),
+    (Some(atomic_load_valid), i32_atomic_load16_u, MemoryInt),
+    (Some(atomic_load_valid), i64_atomic_load16_u, MemoryInt),
+    (Some(atomic_load_valid), i64_atomic_load32_u, MemoryInt),
+    (Some(i32_atomic_store_valid), i32_atomic_store, MemoryInt),
+    (Some(i64_atomic_store_valid), i64_atomic_store, MemoryInt),
+    (Some(i32_atomic_store_valid), i32_atomic_store8, MemoryInt),
+    (Some(i64_atomic_store_valid), i64_atomic_store8, MemoryInt),
+    (Some(i32_atomic_store_valid), i32_atomic_store16, MemoryInt),
+    (Some(i64_atomic_store_valid), i64_atomic_store16, MemoryInt),
+    (Some(i64_atomic_store_valid), i64_atomic_store32, MemoryInt),
+    (Some(i32_atomic_rmw_atop_valid), i32_atomic_rmw_add, MemoryInt),
+    (Some(i32_atomic_rmw_atop_valid), i32_atomic_rmw_sub, MemoryInt),
+    (Some(i32_atomic_rmw_atop_valid), i32_atomic_rmw_and, MemoryInt),
+    (Some(i32_atomic_rmw_atop_valid), i32_atomic_rmw_or, MemoryInt),
+    (Some(i32_atomic_rmw_atop_valid), i32_atomic_rmw_xor, MemoryInt),
+    (Some(i32_atomic_rmw_atop_valid), i32_atomic_rmw_xchg, MemoryInt),
+    (Some(i64_atomic_rmw_atop_valid), i64_atomic_rmw_add, MemoryInt),
+    (Some(i64_atomic_rmw_atop_valid), i64_atomic_rmw_sub, MemoryInt),
+    (Some(i64_atomic_rmw_atop_valid), i64_atomic_rmw_and, MemoryInt),
+    (Some(i64_atomic_rmw_atop_valid), i64_atomic_rmw_or, MemoryInt),
+    (Some(i64_atomic_rmw_atop_valid), i64_atomic_rmw_xor, MemoryInt),
+    (Some(i64_atomic_rmw_atop_valid), i64_atomic_rmw_xchg, MemoryInt),
+    (Some(i32_atomic_rmw_atop_valid), i32_atomic_rmw8_add_u, MemoryInt),
+    (Some(i32_atomic_rmw_atop_valid), i32_atomic_rmw8_sub_u, MemoryInt),
+    (Some(i32_atomic_rmw_atop_valid), i32_atomic_rmw8_and_u, MemoryInt),
+    (Some(i32_atomic_rmw_atop_valid), i32_atomic_rmw8_or_u, MemoryInt),
+    (Some(i32_atomic_rmw_atop_valid), i32_atomic_rmw8_xor_u, MemoryInt),
+    (Some(i32_atomic_rmw_atop_valid), i32_atomic_rmw8_xchg_u, MemoryInt),
+    (Some(i64_atomic_rmw_atop_valid), i64_atomic_rmw8_add_u, MemoryInt),
+    (Some(i64_atomic_rmw_atop_valid), i64_atomic_rmw8_sub_u, MemoryInt),
+    (Some(i64_atomic_rmw_atop_valid), i64_atomic_rmw8_and_u, MemoryInt),
+    (Some(i64_atomic_rmw_atop_valid), i64_atomic_rmw8_or_u, MemoryInt),
+    (Some(i64_atomic_rmw_atop_valid), i64_atomic_rmw8_xor_u, MemoryInt),
+    (Some(i64_atomic_rmw_atop_valid), i64_atomic_rmw8_xchg_u, MemoryInt),
+    (Some(i32_atomic_rmw_atop_valid), i32_atomic_rmw16_add_u, MemoryInt),
+    (Some(i32_atomic_rmw_atop_valid), i32_atomic_rmw16_sub_u, MemoryInt),
+    (Some(i32_atomic_rmw_atop_valid), i32_atomic_rmw16_and_u, MemoryInt),
+    (Some(i32_atomic_rmw_atop_valid), i32_atomic_rmw16_or_u, MemoryInt),
+    (Some(i32_atomic_rmw_atop_valid), i32_atomic_rmw16_xor_u, MemoryInt),
+    (Some(i32_atomic_rmw_atop_valid), i32_atomic_rmw16_xchg_u, MemoryInt),
+    (Some(i64_atomic_rmw_atop_valid), i64_atomic_rmw16_add_u, MemoryInt),
+    (Some(i64_atomic_rmw_atop_valid), i64_atomic_rmw16_sub_u, MemoryInt),
+    (Some(i64_atomic_rmw_atop_valid), i64_atomic_rmw16_and_u, MemoryInt),
+    (Some(i64_atomic_rmw_atop_valid), i64_atomic_rmw16_or_u, MemoryInt),
+    (Some(i64_atomic_rmw_atop_valid), i64_atomic_rmw16_xor_u, MemoryInt),
+    (Some(i64_atomic_rmw_atop_valid), i64_atomic_rmw16_xchg_u, MemoryInt),
+    (Some(i64_atomic_rmw_atop_valid), i64_atomic_rmw32_add_u, MemoryInt),
+    (Some(i64_atomic_rmw_atop_valid), i64_atomic_rmw32_sub_u, MemoryInt),
+    (Some(i64_atomic_rmw_atop_valid), i64_atomic_rmw32_and_u, MemoryInt),
+    (Some(i64_atomic_rmw_atop_valid), i64_atomic_rmw32_or_u, MemoryInt),
+    (Some(i64_atomic_rmw_atop_valid), i64_atomic_rmw32_xor_u, MemoryInt),
+    (Some(i64_atomic_rmw_atop_valid), i64_atomic_rmw32_xchg_u, MemoryInt),
+    (Some(i32_atomic_rmw_cmpxchg_valid), i32_atomic_rmw_cmpxchg, MemoryInt),
+    (Some(i64_atomic_rmw_cmpxchg_valid), i64_atomic_rmw_cmpxchg, MemoryInt),
+    (Some(i32_atomic_rmw_cmpxchg_valid), i32_atomic_rmw8_cmpxchg_u, MemoryInt),
+    (Some(i64_atomic_rmw_cmpxchg_valid), i64_atomic_rmw8_cmpxchg_u, MemoryInt),
+    (Some(i32_atomic_rmw_cmpxchg_valid), i32_atomic_rmw16_cmpxchg_u, MemoryInt),
+    (Some(i64_atomic_rmw_cmpxchg_valid), i64_atomic_rmw16_cmpxchg_u, MemoryInt),
+    (Some(i64_atomic_rmw_cmpxchg_valid), i64_atomic_rmw32_cmpxchg_u, MemoryInt),
+    (Some(atomic_notify_valid), atomic_notify, MemoryInt),
+    (Some(atomic_wait32_valid), atomic_wait32, MemoryInt),
+    (Some(atomic_wait64_valid), atomic_wait64, MemoryInt),
+    (Some(atomic_instruction_valid), atomic_fence, MemoryInt),
 }
 
 pub(crate) struct CodeBuilderAllocations {
@@ -7331,5 +7399,262 @@ fn i64_mul_wide_u(
     builder.pop_operands(module, &[ValType::I64; 2]);
     builder.push_operands(&[ValType::I64; 2]);
     instructions.push(Instruction::I64MulWideU);
+    Ok(())
+}
+
+#[inline]
+fn atomic_instruction_valid(module: &Module, _builder: &mut CodeBuilder) -> bool {
+    module.config.threads_enabled
+}
+
+#[inline]
+fn atomic_load_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    atomic_instruction_valid(module, builder) && have_memory_and_offset(module, builder)
+}
+
+#[inline]
+fn i32_atomic_store_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    atomic_instruction_valid(module, builder) && i32_store_valid(module, builder)
+}
+
+#[inline]
+fn i64_atomic_store_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    atomic_instruction_valid(module, builder) && i64_store_valid(module, builder)
+}
+
+#[inline]
+fn atomic_stack_op_valid(
+    module: &Module,
+    builder: &mut CodeBuilder,
+    stack_types: &[ValType],
+) -> bool {
+    atomic_instruction_valid(module, builder)
+        && builder.types_on_stack(module, stack_types)
+        && ((builder.allocs.memory32.len() > 0
+            && builder.type_on_stack_at(module, stack_types.len(), ValType::I32))
+            || (builder.allocs.memory64.len() > 0
+                && builder.type_on_stack_at(module, stack_types.len(), ValType::I64)))
+}
+
+#[inline]
+fn i32_atomic_rmw_atop_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    atomic_stack_op_valid(module, builder, &[ValType::I32])
+}
+
+#[inline]
+fn i64_atomic_rmw_atop_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    atomic_stack_op_valid(module, builder, &[ValType::I64])
+}
+
+#[inline]
+fn i32_atomic_rmw_cmpxchg_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    atomic_stack_op_valid(module, builder, &[ValType::I32, ValType::I32])
+}
+
+#[inline]
+fn i64_atomic_rmw_cmpxchg_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    atomic_stack_op_valid(module, builder, &[ValType::I64, ValType::I64])
+}
+
+#[inline]
+fn atomic_notify_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    atomic_stack_op_valid(module, builder, &[ValType::I32])
+}
+
+#[inline]
+fn atomic_wait32_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    atomic_stack_op_valid(module, builder, &[ValType::I32, ValType::I64])
+}
+
+#[inline]
+fn atomic_wait64_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    atomic_stack_op_valid(module, builder, &[ValType::I64, ValType::I64])
+}
+
+macro_rules! atomic_load {
+    ($instr:ident, $valtype:ident, $fn_name:ident, [$($memarg_align:expr),*]) => {
+        fn $fn_name(
+            u: &mut Unstructured,
+            module: &Module,
+            builder: &mut CodeBuilder,
+            instructions: &mut Vec<Instruction>,
+        ) -> Result<()> {
+            let memarg = mem_arg(u, module, builder, &[$($memarg_align),*])?;
+            builder.push_operands(&[ValType::$valtype]);
+            instructions.push(Instruction::$instr(memarg));
+            Ok(())
+        }
+    };
+}
+
+macro_rules! atomic_store {
+    ($instr:ident, $valtype:ident, $fn_name:ident, [$($memarg_align:expr),*]) => {
+        fn $fn_name(
+            u: &mut Unstructured,
+            module: &Module,
+            builder: &mut CodeBuilder,
+            instructions: &mut Vec<Instruction>,
+        ) -> Result<()> {
+            builder.pop_operands(module, &[ValType::$valtype]);
+            let memarg = mem_arg(u, module, builder, &[$($memarg_align),*])?;
+            instructions.push(Instruction::$instr(memarg));
+            Ok(())
+        }
+    };
+}
+
+macro_rules! atomic_rmw_atop {
+    ($valtype:ident, $instr:ident, $fn_name:ident, [$($memarg_align:expr),*]) => {
+        fn $fn_name(
+            u: &mut Unstructured,
+            module: &Module,
+            builder: &mut CodeBuilder,
+            instructions: &mut Vec<Instruction>,
+        ) -> Result<()> {
+            builder.pop_operands(module, &[ValType::$valtype]);
+            let memarg = mem_arg(u, module, builder, &[$($memarg_align),*])?;
+            builder.push_operands(&[ValType::$valtype]);
+            instructions.push(Instruction::$instr(memarg));
+            Ok(())
+        }
+    };
+}
+
+macro_rules! atomic_rmw_cmpxchg {
+    ($valtype:ident, $instr:ident, $fn_name:ident, [$($memarg_align:expr),*]) => {
+        fn $fn_name(
+            u: &mut Unstructured,
+            module: &Module,
+            builder: &mut CodeBuilder,
+            instructions: &mut Vec<Instruction>,
+        ) -> Result<()> {
+            builder.pop_operands(module, &[ValType::$valtype, ValType::$valtype]);
+            let memarg = mem_arg(u, module, builder, &[$($memarg_align),*])?;
+            builder.push_operands(&[ValType::$valtype]);
+            instructions.push(Instruction::$instr(memarg));
+            Ok(())
+        }
+    };
+}
+
+atomic_load!(I32AtomicLoad, I32, i32_atomic_load, [2]);
+atomic_load!(I64AtomicLoad, I64, i64_atomic_load, [3]);
+atomic_load!(I32AtomicLoad8U, I32, i32_atomic_load8_u, [0]);
+atomic_load!(I64AtomicLoad8U, I64, i64_atomic_load8_u, [0]);
+atomic_load!(I32AtomicLoad16U, I32, i32_atomic_load16_u, [1]);
+atomic_load!(I64AtomicLoad16U, I64, i64_atomic_load16_u, [1]);
+atomic_load!(I64AtomicLoad32U, I64, i64_atomic_load32_u, [2]);
+
+atomic_store!(I32AtomicStore, I32, i32_atomic_store, [2]);
+atomic_store!(I64AtomicStore, I64, i64_atomic_store, [3]);
+atomic_store!(I32AtomicStore8, I32, i32_atomic_store8, [0]);
+atomic_store!(I64AtomicStore8, I64, i64_atomic_store8, [0]);
+atomic_store!(I32AtomicStore16, I32, i32_atomic_store16, [1]);
+atomic_store!(I64AtomicStore16, I64, i64_atomic_store16, [1]);
+atomic_store!(I64AtomicStore32, I64, i64_atomic_store32, [2]);
+
+atomic_rmw_atop!(I32, I32AtomicRmwAdd, i32_atomic_rmw_add, [2]);
+atomic_rmw_atop!(I32, I32AtomicRmwSub, i32_atomic_rmw_sub, [2]);
+atomic_rmw_atop!(I32, I32AtomicRmwAnd, i32_atomic_rmw_and, [2]);
+atomic_rmw_atop!(I32, I32AtomicRmwOr, i32_atomic_rmw_or, [2]);
+atomic_rmw_atop!(I32, I32AtomicRmwXor, i32_atomic_rmw_xor, [2]);
+atomic_rmw_atop!(I32, I32AtomicRmwXchg, i32_atomic_rmw_xchg, [2]);
+
+atomic_rmw_atop!(I64, I64AtomicRmwAdd, i64_atomic_rmw_add, [3]);
+atomic_rmw_atop!(I64, I64AtomicRmwSub, i64_atomic_rmw_sub, [3]);
+atomic_rmw_atop!(I64, I64AtomicRmwAnd, i64_atomic_rmw_and, [3]);
+atomic_rmw_atop!(I64, I64AtomicRmwOr, i64_atomic_rmw_or, [3]);
+atomic_rmw_atop!(I64, I64AtomicRmwXor, i64_atomic_rmw_xor, [3]);
+atomic_rmw_atop!(I64, I64AtomicRmwXchg, i64_atomic_rmw_xchg, [3]);
+
+atomic_rmw_atop!(I32, I32AtomicRmw8AddU, i32_atomic_rmw8_add_u, [0]);
+atomic_rmw_atop!(I32, I32AtomicRmw8SubU, i32_atomic_rmw8_sub_u, [0]);
+atomic_rmw_atop!(I32, I32AtomicRmw8AndU, i32_atomic_rmw8_and_u, [0]);
+atomic_rmw_atop!(I32, I32AtomicRmw8OrU, i32_atomic_rmw8_or_u, [0]);
+atomic_rmw_atop!(I32, I32AtomicRmw8XorU, i32_atomic_rmw8_xor_u, [0]);
+atomic_rmw_atop!(I32, I32AtomicRmw8XchgU, i32_atomic_rmw8_xchg_u, [0]);
+
+atomic_rmw_atop!(I64, I64AtomicRmw8AddU, i64_atomic_rmw8_add_u, [0]);
+atomic_rmw_atop!(I64, I64AtomicRmw8SubU, i64_atomic_rmw8_sub_u, [0]);
+atomic_rmw_atop!(I64, I64AtomicRmw8AndU, i64_atomic_rmw8_and_u, [0]);
+atomic_rmw_atop!(I64, I64AtomicRmw8OrU, i64_atomic_rmw8_or_u, [0]);
+atomic_rmw_atop!(I64, I64AtomicRmw8XorU, i64_atomic_rmw8_xor_u, [0]);
+atomic_rmw_atop!(I64, I64AtomicRmw8XchgU, i64_atomic_rmw8_xchg_u, [0]);
+
+atomic_rmw_atop!(I32, I32AtomicRmw16AddU, i32_atomic_rmw16_add_u, [1]);
+atomic_rmw_atop!(I32, I32AtomicRmw16SubU, i32_atomic_rmw16_sub_u, [1]);
+atomic_rmw_atop!(I32, I32AtomicRmw16AndU, i32_atomic_rmw16_and_u, [1]);
+atomic_rmw_atop!(I32, I32AtomicRmw16OrU, i32_atomic_rmw16_or_u, [1]);
+atomic_rmw_atop!(I32, I32AtomicRmw16XorU, i32_atomic_rmw16_xor_u, [1]);
+atomic_rmw_atop!(I32, I32AtomicRmw16XchgU, i32_atomic_rmw16_xchg_u, [1]);
+
+atomic_rmw_atop!(I64, I64AtomicRmw16AddU, i64_atomic_rmw16_add_u, [1]);
+atomic_rmw_atop!(I64, I64AtomicRmw16SubU, i64_atomic_rmw16_sub_u, [1]);
+atomic_rmw_atop!(I64, I64AtomicRmw16AndU, i64_atomic_rmw16_and_u, [1]);
+atomic_rmw_atop!(I64, I64AtomicRmw16OrU, i64_atomic_rmw16_or_u, [1]);
+atomic_rmw_atop!(I64, I64AtomicRmw16XorU, i64_atomic_rmw16_xor_u, [1]);
+atomic_rmw_atop!(I64, I64AtomicRmw16XchgU, i64_atomic_rmw16_xchg_u, [1]);
+
+atomic_rmw_atop!(I64, I64AtomicRmw32AddU, i64_atomic_rmw32_add_u, [2]);
+atomic_rmw_atop!(I64, I64AtomicRmw32SubU, i64_atomic_rmw32_sub_u, [2]);
+atomic_rmw_atop!(I64, I64AtomicRmw32AndU, i64_atomic_rmw32_and_u, [2]);
+atomic_rmw_atop!(I64, I64AtomicRmw32OrU, i64_atomic_rmw32_or_u, [2]);
+atomic_rmw_atop!(I64, I64AtomicRmw32XorU, i64_atomic_rmw32_xor_u, [2]);
+atomic_rmw_atop!(I64, I64AtomicRmw32XchgU, i64_atomic_rmw32_xchg_u, [2]);
+
+atomic_rmw_cmpxchg!(I32, I32AtomicRmwCmpxchg, i32_atomic_rmw_cmpxchg, [2]);
+atomic_rmw_cmpxchg!(I64, I64AtomicRmwCmpxchg, i64_atomic_rmw_cmpxchg, [3]);
+atomic_rmw_cmpxchg!(I32, I32AtomicRmw8CmpxchgU, i32_atomic_rmw8_cmpxchg_u, [0]);
+atomic_rmw_cmpxchg!(I64, I64AtomicRmw8CmpxchgU, i64_atomic_rmw8_cmpxchg_u, [0]);
+atomic_rmw_cmpxchg!(I32, I32AtomicRmw16CmpxchgU, i32_atomic_rmw16_cmpxchg_u, [1]);
+atomic_rmw_cmpxchg!(I64, I64AtomicRmw16CmpxchgU, i64_atomic_rmw16_cmpxchg_u, [1]);
+atomic_rmw_cmpxchg!(I64, I64AtomicRmw32CmpxchgU, i64_atomic_rmw32_cmpxchg_u, [2]);
+
+fn atomic_notify(
+    u: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    builder.pop_operands(module, &[ValType::I32]);
+    let memarg = mem_arg(u, module, builder, &[2])?;
+    builder.push_operands(&[ValType::I32]);
+    instructions.push(Instruction::MemoryAtomicNotify(memarg));
+    Ok(())
+}
+
+fn atomic_wait32(
+    u: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    builder.pop_operands(module, &[ValType::I32, ValType::I64]);
+    let memarg = mem_arg(u, module, builder, &[2])?;
+    builder.push_operands(&[ValType::I32]);
+    instructions.push(Instruction::MemoryAtomicWait32(memarg));
+    Ok(())
+}
+
+fn atomic_wait64(
+    u: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
+    let memarg = mem_arg(u, module, builder, &[3])?;
+    builder.push_operands(&[ValType::I32]);
+    instructions.push(Instruction::MemoryAtomicWait64(memarg));
+    Ok(())
+}
+
+fn atomic_fence(
+    _u: &mut Unstructured,
+    _module: &Module,
+    _builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    instructions.push(Instruction::AtomicFence);
     Ok(())
 }
