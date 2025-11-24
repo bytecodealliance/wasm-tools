@@ -20,6 +20,8 @@ pub struct TypeEncodingMaps<'a> {
     pub id_to_index: HashMap<TypeId, u32>,
     pub def_to_index: HashMap<&'a TypeDefKind, u32>,
     pub func_type_map: HashMap<FunctionKey<'a>, u32>,
+    pub unit_future: Option<u32>,
+    pub unit_stream: Option<u32>,
 }
 
 impl<'a> TypeEncodingMaps<'a> {
@@ -371,6 +373,26 @@ pub trait ValtypeEncoder<'a> {
         let (index, encoder) = self.defined_type();
         encoder.stream(ty);
         Ok(ComponentValType::Type(index))
+    }
+
+    fn encode_unit_future(&mut self) -> u32 {
+        if let Some(index) = self.type_encoding_maps().unit_future {
+            return index;
+        }
+        let (index, encoder) = self.defined_type();
+        encoder.future(None);
+        self.type_encoding_maps().unit_future = Some(index);
+        index
+    }
+
+    fn encode_unit_stream(&mut self) -> u32 {
+        if let Some(index) = self.type_encoding_maps().unit_stream {
+            return index;
+        }
+        let (index, encoder) = self.defined_type();
+        encoder.stream(None);
+        self.type_encoding_maps().unit_stream = Some(index);
+        index
     }
 }
 

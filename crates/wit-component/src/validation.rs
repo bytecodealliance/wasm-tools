@@ -3,7 +3,7 @@ use crate::{ComponentEncoder, StringEncoding};
 use anyhow::{Context, Result, anyhow, bail};
 use indexmap::{IndexMap, IndexSet, map::Entry};
 use std::fmt;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::mem;
 use wasm_encoder::ExportKind;
 use wasmparser::names::{ComponentName, ComponentNameKind};
@@ -135,16 +135,16 @@ pub enum ImportInstance {
 /// type appears, consider encoding them in the name mangling stream on an
 /// individual basis, similar to how we encode `error-context.*` built-in
 /// imports.
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct PayloadInfo {
     /// The original, mangled import name used to import this built-in
     /// (currently used only for hashing and debugging).
     pub name: String,
     /// The resolved type id for the `stream` or `future` type of interest.
-    pub ty: TypeId,
-    /// The component-level function import or export where the type appeared as
-    /// a parameter or result type.
-    pub function: String,
+    ///
+    /// If `None` this means that it's a "unit" payload or has no associated
+    /// type being sent.
+    pub ty: PayloadType,
     /// The world key representing the import or export context of `function`.
     pub key: WorldKey,
     /// The interface that `function` was imported from or exported in, if any.
@@ -156,27 +156,34 @@ pub struct PayloadInfo {
     pub imported: bool,
 }
 
+/// The type of future/stream referenced by a `PayloadInfo`
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
+pub enum PayloadType {
+    /// This is a future or stream located in a `Resolve` where `id` points to
+    /// either of `TypeDefKind::{Future, Stream}`.
+    Type {
+        id: TypeId,
+        /// The component-level function import or export where the type
+        /// appeared as a parameter or result type.
+        function: String,
+    },
+    /// This is a `future` (no type)
+    UnitFuture,
+    /// This is a `stream` (no type)
+    UnitStream,
+}
+
 impl PayloadInfo {
     /// Returns the payload type that this future/stream type is using.
     pub fn payload(&self, resolve: &Resolve) -> Option<Type> {
-        match resolve.types[self.ty].kind {
+        let id = match self.ty {
+            PayloadType::Type { id, .. } => id,
+            PayloadType::UnitFuture | PayloadType::UnitStream => return None,
+        };
+        match resolve.types[id].kind {
             TypeDefKind::Future(payload) | TypeDefKind::Stream(payload) => payload,
             _ => unreachable!(),
         }
-    }
-}
-
-impl Hash for PayloadInfo {
-    /// We derive `Hash` for this type by hand and exclude the `function` field
-    /// because (A) `Function` doesn't implement `Hash` and (B) the other fields
-    /// are sufficient to uniquely identify the type of interest, which function
-    /// it appeared in, and which parameter or return type we found it in.
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.name.hash(state);
-        self.ty.hash(state);
-        self.key.hash(state);
-        self.interface.hash(state);
-        self.imported.hash(state);
     }
 }
 
@@ -1994,30 +2001,48 @@ impl Legacy {
     ) -> Option<PayloadInfo> {
         // parse the `prefix` into `func_name` and `type_index`, bailing out
         // with `None` if anything doesn't match.
-        let (type_index, func_name) = prefixed_integer(name, prefix)?;
-        let type_index = type_index as usize;
+        let (index_or_unit, func_name) = prefixed_intrinsic(name, prefix)?;
+        let ty = match index_or_unit {
+            "unit" => {
+                if name.starts_with("[future") {
+                    PayloadType::UnitFuture
+                } else if name.starts_with("[stream") {
+                    PayloadType::UnitStream
+                } else {
+                    unreachable!()
+                }
+            }
+            other => {
+                // Note that this is parsed as a `u32` to ensure that the
+                // integer parsing is the same across platforms regardless of
+                // the the width of `usize`.
+                let type_index = other.parse::<u32>().ok()? as usize;
 
-        // Double-check that `func_name` is indeed a function name within
-        // this interface/world. Then additionally double-check that
-        // `type_index` is indeed a valid index for this function's type
-        // signature.
-        let function = get_function(
-            lookup_context.resolve,
-            lookup_context.world,
-            func_name,
-            lookup_context.id,
-            lookup_context.import,
-        )
-        .ok()?;
-        let ty = *function
-            .find_futures_and_streams(lookup_context.resolve)
-            .get(type_index)?;
+                // Double-check that `func_name` is indeed a function name within
+                // this interface/world. Then additionally double-check that
+                // `type_index` is indeed a valid index for this function's type
+                // signature.
+                let function = get_function(
+                    lookup_context.resolve,
+                    lookup_context.world,
+                    func_name,
+                    lookup_context.id,
+                    lookup_context.import,
+                )
+                .ok()?;
+                PayloadType::Type {
+                    id: *function
+                        .find_futures_and_streams(lookup_context.resolve)
+                        .get(type_index)?,
+                    function: function.name.clone(),
+                }
+            }
+        };
 
         // And if all that passes wrap up everything in a `PayloadInfo`.
         Some(PayloadInfo {
             name: name.to_string(),
             ty,
-            function: function.name.clone(),
             key: lookup_context
                 .key
                 .clone()
@@ -2631,14 +2656,20 @@ fn validate_func_sig(name: &str, expected: &FuncType, ty: &wasmparser::FuncType)
     Ok(())
 }
 
-/// Matches `name` as `[${prefix}N]...`, and if found returns `(N, "...")`
-fn prefixed_integer<'a>(name: &'a str, prefix: &str) -> Option<(u32, &'a str)> {
+/// Matches `name` as `[${prefix}S]...`, and if found returns `("S", "...")`
+fn prefixed_intrinsic<'a>(name: &'a str, prefix: &str) -> Option<(&'a str, &'a str)> {
     assert!(prefix.starts_with("["));
     assert!(prefix.ends_with("-"));
     let suffix = name.strip_prefix(prefix)?;
     let index = suffix.find(']')?;
     let rest = &suffix[index + 1..];
-    let n = suffix[..index].parse().ok()?;
+    Some((&suffix[..index], rest))
+}
+
+/// Matches `name` as `[${prefix}N]...`, and if found returns `(N, "...")`
+fn prefixed_integer<'a>(name: &'a str, prefix: &str) -> Option<(u32, &'a str)> {
+    let (suffix, rest) = prefixed_intrinsic(name, prefix)?;
+    let n = suffix.parse().ok()?;
     Some((n, rest))
 }
 
