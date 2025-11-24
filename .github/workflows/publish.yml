@@ -23,7 +23,7 @@ jobs:
       && github.event_name == 'push'
       && github.ref == 'refs/heads/main'
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
         fetch-depth: 0
