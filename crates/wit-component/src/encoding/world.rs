@@ -1,6 +1,6 @@
 use super::{Adapter, ComponentEncoder, LibraryInfo, RequiredOptions};
 use crate::validation::{
-    Import, ImportMap, ValidatedModule, validate_adapter_module, validate_module,
+    Import, ImportMap, PayloadType, ValidatedModule, validate_adapter_module, validate_module,
 };
 use anyhow::{Context, Result};
 use indexmap::{IndexMap, IndexSet};
@@ -396,7 +396,9 @@ impl<'a> ComponentWorld<'a> {
                 | Import::FutureCancelWrite { info, async_: _ }
                 | Import::FutureDropReadable(info)
                 | Import::FutureDropWritable(info) => {
-                    live.add_type_id(resolve, info.ty);
+                    if let PayloadType::Type { id, .. } = info.ty {
+                        live.add_type_id(resolve, id);
+                    }
                 }
 
                 // The `task.return` intrinsic needs to be able to refer to the

@@ -73,7 +73,9 @@
 
 use crate::StringEncoding;
 use crate::metadata::{self, Bindgen, ModuleMetadata};
-use crate::validation::{Export, ExportMap, Import, ImportInstance, ImportMap, PayloadInfo};
+use crate::validation::{
+    Export, ExportMap, Import, ImportInstance, ImportMap, PayloadInfo, PayloadType,
+};
 use anyhow::{Context, Result, anyhow, bail};
 use indexmap::{IndexMap, IndexSet};
 use std::borrow::Cow;
@@ -1337,20 +1339,21 @@ impl<'a> EncodingState<'a> {
                     let metadata = self.info.module_metadata_for(*for_module);
                     let exports = self.info.exports_for(*for_module);
                     let instance_index = self.instance_for(*for_module);
-                    let (encoding, realloc) = if info.imported {
-                        (
-                            metadata
-                                .import_encodings
-                                .get(resolve, &info.key, &info.function),
-                            exports.import_realloc_for(info.interface, &info.function),
-                        )
-                    } else {
-                        (
-                            metadata
-                                .export_encodings
-                                .get(resolve, &info.key, &info.function),
-                            exports.export_realloc_for(&info.key, &info.function),
-                        )
+                    let (encoding, realloc) = match &info.ty {
+                        PayloadType::Type { function, .. } => {
+                            if info.imported {
+                                (
+                                    metadata.import_encodings.get(resolve, &info.key, function),
+                                    exports.import_realloc_for(info.interface, function),
+                                )
+                            } else {
+                                (
+                                    metadata.export_encodings.get(resolve, &info.key, function),
+                                    exports.export_realloc_for(&info.key, function),
+                                )
+                            }
+                        }
+                        PayloadType::UnitFuture | PayloadType::UnitStream => (None, None),
                     };
                     let encoding = encoding.unwrap_or(StringEncoding::UTF8);
                     let realloc_index = realloc.map(|name| {
@@ -1506,16 +1509,19 @@ impl<'a> EncodingState<'a> {
         // Finally though exports do use `info.interface`. Honestly I'm not
         // really entirely sure why. Fuzzing is happy though, and truly
         // everything must be ok if the fuzzers are happy, right?
-        let ComponentValType::Type(type_index) = if info.imported || info.interface.is_none() {
+        let mut encoder = if info.imported || info.interface.is_none() {
             self.root_import_type_encoder(None)
         } else {
             self.root_export_type_encoder(info.interface)
-        }
-        .encode_valtype(resolve, &Type::Id(info.ty))?
-        else {
-            unreachable!()
         };
-        Ok(type_index)
+        match info.ty {
+            PayloadType::Type { id, .. } => match encoder.encode_valtype(resolve, &Type::Id(id))? {
+                ComponentValType::Type(index) => Ok(index),
+                ComponentValType::Primitive(_) => unreachable!(),
+            },
+            PayloadType::UnitFuture => Ok(encoder.encode_unit_future()),
+            PayloadType::UnitStream => Ok(encoder.encode_unit_stream()),
+        }
     }
 
     /// This is a helper function that will declare any types necessary for
