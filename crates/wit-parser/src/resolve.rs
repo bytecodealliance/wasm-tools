@@ -3559,6 +3559,52 @@ impl Remap {
             self.resolve_include(id, include_world, names, *span, pkg_id, resolve)?;
         }
 
+        // Validate that there are no case-insensitive duplicate names in imports/exports
+        Self::validate_world_case_insensitive_names(resolve, id)?;
+
+        Ok(())
+    }
+
+    /// Validates that a world's imports and exports don't have case-insensitive
+    /// duplicate names. Per the WIT specification, kebab-case identifiers are
+    /// case-insensitive within the same scope.
+    fn validate_world_case_insensitive_names(resolve: &Resolve, world_id: WorldId) -> Result<()> {
+        let world = &resolve.worlds[world_id];
+
+        // Helper closure to check for case-insensitive duplicates in a map
+        let validate_names = |items: &IndexMap<WorldKey, WorldItem>,
+                              item_type: &str|
+         -> Result<()> {
+            let mut seen_lowercase: HashMap<String, String> = HashMap::new();
+
+            for key in items.keys() {
+                // Only WorldKey::Name variants can have case-insensitive conflicts
+                if let WorldKey::Name(name) = key {
+                    let lowercase_name = name.to_lowercase();
+
+                    if let Some(existing_name) = seen_lowercase.get(&lowercase_name) {
+                        // Only error on case-insensitive duplicates (e.g., "foo" vs "FOO").
+                        // Exact duplicates would have been caught earlier.
+                        if existing_name != name {
+                            bail!(
+                                "{item_type} `{name}` conflicts with {item_type} `{existing_name}` \
+                                (kebab-case identifiers are case-insensitive)"
+                            );
+                        }
+                    }
+
+                    seen_lowercase.insert(lowercase_name, name.clone());
+                }
+            }
+
+            Ok(())
+        };
+
+        validate_names(&world.imports, "import")
+            .with_context(|| format!("failed to validate imports in world `{}`", world.name))?;
+        validate_names(&world.exports, "export")
+            .with_context(|| format!("failed to validate exports in world `{}`", world.name))?;
+
         Ok(())
     }
 
