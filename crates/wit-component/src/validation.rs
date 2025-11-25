@@ -142,7 +142,7 @@ pub struct PayloadInfo {
     pub name: String,
     /// The resolved type id for the `stream` or `future` type of interest.
     ///
-    /// If `None` this means that it's a "unit" payload or has no associated
+    /// If `Unit{Future,Stream}` this means that it's a "unit" payload or has no associated
     /// type being sent.
     pub ty: PayloadType,
     /// The world key representing the import or export context of `function`.
