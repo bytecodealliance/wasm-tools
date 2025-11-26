@@ -1,0 +1,294 @@
+{
+  "source_filename": "tests/testsuite/proposals/custom-descriptors/exact-func-import.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 1,
+      "filename": "exact-func-import.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 28,
+      "filename": "exact-func-import.1.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 37,
+      "filename": "exact-func-import.2.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "module_definition",
+      "line": 50,
+      "filename": "exact-func-import.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 60,
+      "name": "A",
+      "filename": "exact-func-import.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 64,
+      "as": "A"
+    },
+    {
+      "type": "module",
+      "line": 67,
+      "name": "B",
+      "filename": "exact-func-import.5.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 73,
+      "as": "B"
+    },
+    {
+      "type": "module",
+      "line": 76,
+      "filename": "exact-func-import.6.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 83,
+      "filename": "exact-func-import.7.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 90,
+      "filename": "exact-func-import.8.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 113,
+      "action": {
+        "type": "invoke",
+        "field": "exact-test",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 114,
+      "action": {
+        "type": "invoke",
+        "field": "exact-cast",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "funcref"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 115,
+      "action": {
+        "type": "invoke",
+        "field": "exact-br-on-cast",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "funcref"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 116,
+      "action": {
+        "type": "invoke",
+        "field": "exact-br-on-cast-fail",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "funcref"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 119,
+      "name": "C",
+      "filename": "exact-func-import.9.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 125,
+      "as": "C"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 129,
+      "filename": "exact-func-import.10.wasm",
+      "module_type": "binary",
+      "text": "incompatible import type"
+    },
+    {
+      "type": "module",
+      "line": 138,
+      "name": "D",
+      "filename": "exact-func-import.11.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 144,
+      "as": "D"
+    },
+    {
+      "type": "module",
+      "line": 147,
+      "filename": "exact-func-import.12.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 155,
+      "filename": "exact-func-import.13.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 179,
+      "action": {
+        "type": "invoke",
+        "field": "exact-test",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 180,
+      "action": {
+        "type": "invoke",
+        "field": "exact-cast",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "funcref"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 181,
+      "action": {
+        "type": "invoke",
+        "field": "exact-br-on-cast",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "funcref"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 182,
+      "action": {
+        "type": "invoke",
+        "field": "exact-br-on-cast-fail",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "funcref"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 186,
+      "filename": "exact-func-import.14.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 210,
+      "action": {
+        "type": "invoke",
+        "field": "exact-test",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 211,
+      "action": {
+        "type": "invoke",
+        "field": "exact-cast",
+        "args": []
+      },
+      "text": "cast failure"
+    },
+    {
+      "type": "assert_trap",
+      "line": 212,
+      "action": {
+        "type": "invoke",
+        "field": "exact-br-on-cast",
+        "args": []
+      },
+      "text": "unreachable"
+    },
+    {
+      "type": "assert_trap",
+      "line": 213,
+      "action": {
+        "type": "invoke",
+        "field": "exact-br-on-cast-fail",
+        "args": []
+      },
+      "text": "unreachable"
+    },
+    {
+      "type": "module_definition",
+      "line": 219,
+      "filename": "exact-func-import.15.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 238,
+      "filename": "exact-func-import.16.wasm",
+      "module_type": "binary",
+      "text": "malformed export kind"
+    }
+  ]
+}

@@ -1217,7 +1217,7 @@ impl Printer<'_, '_> {
             self.newline(offset)?;
             self.print_import(state, &import, true)?;
             match import.ty {
-                TypeRef::Func(idx) => {
+                TypeRef::Func(idx) | TypeRef::FuncExact(idx) => {
                     debug_assert!(state.core.func_to_type.len() == state.core.funcs as usize);
                     state.core.funcs += 1;
                     state.core.func_to_type.push(Some(idx))
@@ -1258,6 +1258,16 @@ impl Printer<'_, '_> {
                     self.result.write_str(" ")?;
                 }
                 self.print_core_type_ref(state, *f)?;
+            }
+            TypeRef::FuncExact(f) => {
+                self.start_group("func ")?;
+                if index {
+                    self.print_name(&state.core.func_names, state.core.funcs)?;
+                    self.result.write_str(" ")?;
+                }
+                self.start_group("exact ")?;
+                self.print_core_type_ref(state, *f)?;
+                self.end_group()?;
             }
             TypeRef::Table(f) => self.print_table_type(state, f, index)?,
             TypeRef::Memory(f) => self.print_memory_type(state, f, index)?,
@@ -1648,7 +1658,7 @@ impl Printer<'_, '_> {
 
     fn print_external_kind(&mut self, state: &State, kind: ExternalKind, index: u32) -> Result<()> {
         match kind {
-            ExternalKind::Func => {
+            ExternalKind::Func | ExternalKind::FuncExact => {
                 self.start_group("func ")?;
                 self.print_idx(&state.core.func_names, index)?;
             }

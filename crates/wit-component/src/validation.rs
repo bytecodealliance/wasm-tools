@@ -556,6 +556,7 @@ impl ImportMap {
                     TypeRef::Memory(_) => ExportKind::Memory,
                     TypeRef::Global(_) => ExportKind::Global,
                     TypeRef::Tag(_) => ExportKind::Tag,
+                    TypeRef::FuncExact(_) => bail!("Unexpected func_exact export"),
                 },
             });
         }

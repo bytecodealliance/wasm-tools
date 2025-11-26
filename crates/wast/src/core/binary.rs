@@ -511,6 +511,7 @@ impl ItemKind<'_> {
         use wasm_encoder::EntityType as ET;
         match self {
             ItemKind::Func(t) => ET::Function(t.unwrap_u32()),
+            ItemKind::FuncExact(t) => ET::FunctionExact(t.unwrap_u32()),
             ItemKind::Table(t) => ET::Table(t.to_table_type()),
             ItemKind::Memory(t) => ET::Memory(t.to_memory_type()),
             ItemKind::Global(t) => ET::Global(t.to_global_type()),
@@ -1026,7 +1027,7 @@ fn find_names<'a>(
         let (kind, id, name) = match field {
             ModuleField::Import(i) => (
                 match i.item.kind {
-                    ItemKind::Func(_) => Name::Func,
+                    ItemKind::Func(_) | ItemKind::FuncExact(_) => Name::Func,
                     ItemKind::Table(_) => Name::Table,
                     ItemKind::Memory(_) => Name::Memory,
                     ItemKind::Global(_) => Name::Global,

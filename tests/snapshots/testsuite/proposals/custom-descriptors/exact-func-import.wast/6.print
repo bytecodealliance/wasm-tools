@@ -1,0 +1,5 @@
+(module $B
+  (type $f (;0;) (func))
+  (import "A" "f" (func (;0;) (type $f)))
+  (export "f" (func 0))
+)

@@ -492,6 +492,7 @@ pub(crate) struct Module {
     pub functions: Vec<u32>,
     pub tags: Vec<CoreTypeId>,
     pub function_references: Set<u32>,
+    pub exact_function_imports: Set<u32>,
     pub imports: IndexMap<(String, String), Vec<EntityType>>,
     pub exports: IndexMap<String, EntityType>,
     pub type_size: u32,
@@ -513,6 +514,7 @@ impl Module {
             functions: Default::default(),
             tags: Default::default(),
             function_references: Default::default(),
+            exact_function_imports: Default::default(),
             imports: Default::default(),
             exports: Default::default(),
             type_size: 1,
@@ -552,6 +554,13 @@ impl Module {
         let (len, max, desc) = match import.ty {
             TypeRef::Func(type_index) => {
                 self.functions.push(type_index);
+                self.num_imported_functions += 1;
+                (self.functions.len(), MAX_WASM_FUNCTIONS, "functions")
+            }
+            TypeRef::FuncExact(type_index) => {
+                self.functions.push(type_index);
+                self.exact_function_imports
+                    .insert(self.num_imported_functions);
                 self.num_imported_functions += 1;
                 (self.functions.len(), MAX_WASM_FUNCTIONS, "functions")
             }
@@ -675,6 +684,10 @@ impl Module {
             TypeRef::Func(type_index) => {
                 self.func_type_at(*type_index, types, offset)?;
                 EntityType::Func(self.types[*type_index as usize])
+            }
+            TypeRef::FuncExact(type_index) => {
+                self.func_type_at(*type_index, types, offset)?;
+                EntityType::FuncExact(self.types[*type_index as usize])
             }
             TypeRef::Table(t) => {
                 self.check_table_type(t, types, offset)?;
@@ -937,7 +950,7 @@ impl Module {
         };
 
         Ok(match export.kind {
-            ExternalKind::Func => {
+            ExternalKind::Func | ExternalKind::FuncExact => {
                 check("function", export.index, self.functions.len())?;
                 self.function_references.insert(export.index);
                 EntityType::Func(self.types[self.functions[export.index as usize] as usize])
@@ -1100,6 +1113,14 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
     fn is_function_referenced(&self, idx: u32) -> bool {
         self.module.function_references.contains(&idx)
     }
+
+    fn has_function_exact_type(&self, idx: u32) -> bool {
+        if idx >= self.module.num_imported_functions {
+            true
+        } else {
+            self.module.exact_function_imports.contains(&idx)
+        }
+    }
 }
 
 /// The implementation of [`WasmModuleResources`] used by
@@ -1179,6 +1200,14 @@ impl WasmModuleResources for ValidatorResources {
 
     fn is_function_referenced(&self, idx: u32) -> bool {
         self.0.function_references.contains(&idx)
+    }
+
+    fn has_function_exact_type(&self, idx: u32) -> bool {
+        if idx >= self.0.num_imported_functions {
+            true
+        } else {
+            self.0.exact_function_imports.contains(&idx)
+        }
     }
 }
 

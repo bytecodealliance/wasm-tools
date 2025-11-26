@@ -1356,6 +1356,9 @@ impl<'a> ModuleTypeCreator<'a> {
     ) -> Result<wasm_encoder::EntityType> {
         Ok(match ty {
             EntityType::Func(id) => wasm_encoder::EntityType::Function(self.convert_func(id)?),
+            EntityType::FuncExact(id) => {
+                wasm_encoder::EntityType::FunctionExact(self.convert_func(id)?)
+            }
             EntityType::Table(t) => wasm_encoder::EntityType::Table(wasm_encoder::TableType {
                 shared: t.shared,
                 maximum: t.maximum,

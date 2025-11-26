@@ -101,7 +101,7 @@ impl<'a> ModuleInfo<'a> {
 
                     for ty in reader {
                         match ty?.ty {
-                            wasmparser::TypeRef::Func(ty) => {
+                            wasmparser::TypeRef::Func(ty) | wasmparser::TypeRef::FuncExact(ty) => {
                                 // Save imported functions
                                 info.function_map.push(ty);
                                 info.imported_functions_count += 1;

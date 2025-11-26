@@ -1,0 +1,5 @@
+(module
+  (type $super (;0;) (sub (func)))
+  (type $sub (;1;) (sub $super (func)))
+  (import "D" "f" (func (;0;) (exact (type $sub))))
+)

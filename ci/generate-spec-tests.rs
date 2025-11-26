@@ -41,7 +41,8 @@ fn copy_test(src: &Path, dst: &Path) {
     }
 
     let directive = match dst.file_name().and_then(|s| s.to_str()) {
-        Some("exact-func-import.wast") => "FAIL",
+        // Disable tests by doing something like:
+        // Some("exact-func-import.wast") => "FAIL",
         Some(_) | None => "RUN",
     };
 

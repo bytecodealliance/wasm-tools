@@ -1,0 +1,33 @@
+(module
+  (type $f (;0;) (func))
+  (type (;1;) (func (result i32)))
+  (type (;2;) (func (result (ref (exact $f)))))
+  (type (;3;) (func (result funcref)))
+  (import "A" "f" (func $1 (;0;) (type $f)))
+  (export "exact-test" (func 1))
+  (export "exact-cast" (func 2))
+  (export "exact-br-on-cast" (func 3))
+  (export "exact-br-on-cast-fail" (func 4))
+  (elem (;0;) declare func $1)
+  (func (;1;) (type 1) (result i32)
+    ref.func $1
+    ref.test (ref (exact $f))
+  )
+  (func (;2;) (type 2) (result (ref (exact $f)))
+    ref.func $1
+    ref.cast (ref (exact $f))
+  )
+  (func (;3;) (type 3) (result funcref)
+    ref.func $1
+    br_on_cast 0 funcref (ref (exact $f))
+    unreachable
+  )
+  (func (;4;) (type 3) (result funcref)
+    block (result funcref) ;; label = @1
+      ref.func $1
+      br_on_cast_fail 0 (;@1;) funcref (ref (exact $f))
+      return
+    end
+    unreachable
+  )
+)

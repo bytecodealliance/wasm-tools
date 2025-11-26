@@ -254,6 +254,9 @@ impl<'a> Module<'a> {
                                 ty,
                             }),
                             TypeRef::Tag(_) => bail!("unsupported `tag` type"),
+                            TypeRef::FuncExact(_) => {
+                                bail!("unsupported `func_exact` type")
+                            }
                         }
                     }
                 }
@@ -365,7 +368,7 @@ impl<'a> Module<'a> {
         let exports = mem::take(&mut self.exports);
         for (_, e) in exports.iter() {
             match e.kind {
-                ExternalKind::Func => self.func(e.index),
+                ExternalKind::Func | ExternalKind::FuncExact => self.func(e.index),
                 ExternalKind::Global => self.global(e.index),
                 ExternalKind::Table => self.table(e.index),
                 ExternalKind::Memory => self.memory(e.index),

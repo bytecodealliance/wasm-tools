@@ -349,7 +349,9 @@ impl<'a> TypeEncoder<'a> {
         ty: wasmparser::types::EntityType,
     ) -> EntityType {
         match ty {
-            wasmparser::types::EntityType::Func(id) => {
+            wasmparser::types::EntityType::Func(id)
+            | wasmparser::types::EntityType::FuncExact(id) => {
+                let exact = matches!(ty, wasmparser::types::EntityType::FuncExact(_));
                 let ty = &self.0.types[id].unwrap_func();
                 let idx = match types.entry(ComponentCoreTypeId::Sub(id).into()) {
                     Entry::Occupied(e) => *e.get(),
@@ -362,7 +364,11 @@ impl<'a> TypeEncoder<'a> {
                         *e.insert(index)
                     }
                 };
-                EntityType::Function(idx)
+                if exact {
+                    EntityType::FunctionExact(idx)
+                } else {
+                    EntityType::Function(idx)
+                }
             }
             wasmparser::types::EntityType::Table(ty) => EntityType::Table(ty.try_into().unwrap()),
             wasmparser::types::EntityType::Memory(ty) => EntityType::Memory(ty.into()),

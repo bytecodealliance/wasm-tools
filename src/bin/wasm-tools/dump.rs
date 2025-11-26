@@ -119,6 +119,9 @@ impl<'a> Dump<'a> {
                     write!(me.state, "import ")?;
                     match imp.ty {
                         TypeRef::Func(_) => write!(me.state, "[func {}]", inc(&mut i.core_funcs))?,
+                        TypeRef::FuncExact(_) => {
+                            write!(me.state, "[func_exact {}]", inc(&mut i.core_funcs))?
+                        }
                         TypeRef::Memory(_) => {
                             write!(me.state, "[memory {}]", inc(&mut i.core_memories))?
                         }
@@ -366,7 +369,9 @@ impl<'a> Dump<'a> {
                                 ..
                             } => ("component", inc(&mut i.components)),
                             ComponentAlias::CoreInstanceExport { kind, .. } => match kind {
-                                ExternalKind::Func => ("core func", inc(&mut i.core_funcs)),
+                                ExternalKind::Func | ExternalKind::FuncExact => {
+                                    ("core func", inc(&mut i.core_funcs))
+                                }
                                 ExternalKind::Table => ("core table", inc(&mut i.core_tables)),
                                 ExternalKind::Memory => ("core memory", inc(&mut i.core_memories)),
                                 ExternalKind::Global => ("core global", inc(&mut i.core_globals)),

@@ -54,6 +54,7 @@ pub enum ItemKind<'a> {
     Memory(MemoryType),
     Global(GlobalType<'a>),
     Tag(TagType<'a>),
+    FuncExact(TypeUse<'a, FunctionType<'a>>),
 }
 
 impl<'a> Parse<'a> for ItemSig<'a> {
@@ -61,11 +62,21 @@ impl<'a> Parse<'a> for ItemSig<'a> {
         let mut l = parser.lookahead1();
         if l.peek::<kw::func>()? {
             let span = parser.parse::<kw::func>()?.0;
+            let id = parser.parse()?;
+            let name = parser.parse()?;
+            let kind = if parser.peek2::<kw::exact>()? {
+                ItemKind::FuncExact(parser.parens(|p| {
+                    p.parse::<kw::exact>()?;
+                    p.parse()
+                })?)
+            } else {
+                ItemKind::Func(parser.parse()?)
+            };
             Ok(ItemSig {
                 span,
-                id: parser.parse()?,
-                name: parser.parse()?,
-                kind: ItemKind::Func(parser.parse()?),
+                id,
+                name,
+                kind,
             })
         } else if l.peek::<kw::table>()? {
             let span = parser.parse::<kw::table>()?.0;

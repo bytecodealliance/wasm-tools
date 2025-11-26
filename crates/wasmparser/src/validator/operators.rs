@@ -3219,11 +3219,16 @@ where
         }
 
         let index = UnpackedIndex::Id(type_id);
-        let ty = ValType::Ref(
-            RefType::new(false, HeapType::Concrete(index)).ok_or_else(|| {
-                BinaryReaderError::new("implementation limit: type index too large", self.offset)
-            })?,
-        );
+        let hty = if self.features.custom_descriptors()
+            && self.resources.has_function_exact_type(function_index)
+        {
+            HeapType::Exact(index)
+        } else {
+            HeapType::Concrete(index)
+        };
+        let ty = ValType::Ref(RefType::new(false, hty).ok_or_else(|| {
+            BinaryReaderError::new("implementation limit: type index too large", self.offset)
+        })?);
         self.push_operand(ty)?;
         Ok(())
     }

@@ -391,6 +391,9 @@ mod tests {
         fn is_function_referenced(&self, _idx: u32) -> bool {
             todo!()
         }
+        fn has_function_exact_type(&self, _idx: u32) -> bool {
+            todo!()
+        }
     }
 
     #[test]

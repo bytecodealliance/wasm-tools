@@ -3585,8 +3585,18 @@ impl<'a> SubtypeCx<'a> {
 
     pub(crate) fn entity_type(&self, a: &EntityType, b: &EntityType, offset: usize) -> Result<()> {
         match (a, b) {
-            (EntityType::Func(a), EntityType::Func(b)) => self.core_func_type(*a, *b, offset),
+            (EntityType::Func(a), EntityType::Func(b))
+            | (EntityType::FuncExact(a), EntityType::Func(b)) => {
+                self.core_func_type(*a, *b, offset)
+            }
             (EntityType::Func(_), b) => bail!(offset, "expected {}, found func", b.desc()),
+            (EntityType::FuncExact(a), EntityType::FuncExact(b)) => {
+                self.core_func_type(*b, *a, offset)?;
+                self.core_func_type(*a, *b, offset)
+            }
+            (EntityType::FuncExact(_), b) => {
+                bail!(offset, "expected {}, found func_exact", b.desc())
+            }
             (EntityType::Table(a), EntityType::Table(b)) => Self::table_type(a, b, offset),
             (EntityType::Table(_), b) => bail!(offset, "expected {}, found table", b.desc()),
             (EntityType::Memory(a), EntityType::Memory(b)) => Self::memory_type(a, b, offset),

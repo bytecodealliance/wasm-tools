@@ -1,0 +1,9 @@
+(module
+  (type $f (;0;) (func))
+  (type (;1;) (func (result (ref $f))))
+  (import "" "" (func $1 (;0;) (type $f)))
+  (global (;0;) (ref $f) ref.func $1)
+  (func (;1;) (type 1) (result (ref $f))
+    ref.func $1
+  )
+)

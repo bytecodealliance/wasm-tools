@@ -307,6 +307,7 @@ impl<'a> BinaryReader<'a> {
             0x02 => Ok(ExternalKind::Memory),
             0x03 => Ok(ExternalKind::Global),
             0x04 => Ok(ExternalKind::Tag),
+            0x20 => Ok(ExternalKind::FuncExact),
             x => Err(Self::invalid_leading_byte_error(x, "external kind", offset)),
         }
     }
