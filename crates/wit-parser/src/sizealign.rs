@@ -274,6 +274,9 @@ impl SizeAlign {
             TypeDefKind::List(_) => {
                 ElementInfo::new(ArchitectureSize::new(0, 2), Alignment::Pointer)
             }
+            TypeDefKind::Map(_, _) => {
+                ElementInfo::new(ArchitectureSize::new(0, 2), Alignment::Pointer)
+            }
             TypeDefKind::Record(r) => self.record(r.fields.iter().map(|f| &f.ty)),
             TypeDefKind::Tuple(t) => self.record(t.types.iter()),
             TypeDefKind::Flags(f) => match f.repr() {

@@ -169,6 +169,20 @@ impl Printer<'_, '_> {
         Ok(())
     }
 
+    pub(crate) fn print_map_type(
+        &mut self,
+        state: &State,
+        key_ty: &ComponentValType,
+        value_ty: &ComponentValType,
+    ) -> Result<()> {
+        self.start_group("map ")?;
+        self.print_component_val_type(state, key_ty)?;
+        self.result.write_str(" ")?;
+        self.print_component_val_type(state, value_ty)?;
+        self.end_group()?;
+        Ok(())
+    }
+
     pub(crate) fn print_fixed_size_list_type(
         &mut self,
         state: &State,
@@ -278,6 +292,7 @@ impl Printer<'_, '_> {
             ComponentDefinedType::Record(fields) => self.print_record_type(state, fields)?,
             ComponentDefinedType::Variant(cases) => self.print_variant_type(state, cases)?,
             ComponentDefinedType::List(ty) => self.print_list_type(state, ty)?,
+            ComponentDefinedType::Map(key, value) => self.print_map_type(state, key, value)?,
             ComponentDefinedType::FixedSizeList(ty, elements) => {
                 self.print_fixed_size_list_type(state, ty, *elements)?
             }

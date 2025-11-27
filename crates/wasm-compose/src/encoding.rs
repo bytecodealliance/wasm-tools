@@ -656,6 +656,7 @@ impl<'a> TypeEncoder<'a> {
             ComponentDefinedType::Record(r) => self.record(state, r),
             ComponentDefinedType::Variant(v) => self.variant(state, v),
             ComponentDefinedType::List(ty) => self.list(state, *ty),
+            ComponentDefinedType::Map(key, value) => self.map(state, *key, *value),
             ComponentDefinedType::FixedSizeList(ty, elements) => {
                 self.fixed_size_list(state, *ty, *elements)
             }
@@ -716,6 +717,19 @@ impl<'a> TypeEncoder<'a> {
         let ty = self.component_val_type(state, ty);
         let index = state.cur.encodable.type_count();
         state.cur.encodable.ty().defined_type().list(ty);
+        index
+    }
+
+    fn map(
+        &self,
+        state: &mut TypeState<'a>,
+        key: ct::ComponentValType,
+        value: ct::ComponentValType,
+    ) -> u32 {
+        let key = self.component_val_type(state, key);
+        let value = self.component_val_type(state, value);
+        let index = state.cur.encodable.type_count();
+        state.cur.encodable.ty().defined_type().map(key, value);
         index
     }
 
@@ -1259,6 +1273,10 @@ impl DependencyRegistrar<'_, '_> {
             ComponentDefinedType::List(t)
             | ComponentDefinedType::FixedSizeList(t, _)
             | ComponentDefinedType::Option(t) => self.val_type(*t),
+            ComponentDefinedType::Map(k, v) => {
+                self.val_type(*k);
+                self.val_type(*v);
+            }
             ComponentDefinedType::Own(r) | ComponentDefinedType::Borrow(r) => {
                 self.ty(ComponentAnyTypeId::Resource(*r))
             }
