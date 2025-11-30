@@ -46,8 +46,10 @@ pub struct Resolver<'a> {
     /// Metadata about foreign dependencies which are not defined in this
     /// package. This map is keyed by the name of the package being imported
     /// from. The next level of key is the name of the interface being imported
-    /// from, and the final value is the assigned ID of the interface.
-    foreign_deps: IndexMap<PackageName, IndexMap<&'a str, AstItem>>,
+    /// from, and the final value is a tuple containing the assigned ID of the
+    /// dependency, and a Vector of the Stability attributes associated with each
+    /// of its imports.
+    foreign_deps: IndexMap<PackageName, IndexMap<&'a str, (AstItem, Vec<Stability>)>>,
 
     /// All interfaces that are present within `self.foreign_deps`.
     foreign_interfaces: HashSet<InterfaceId>,
@@ -233,7 +235,9 @@ impl<'a> Resolver<'a> {
                     (
                         name.clone(),
                         deps.iter()
-                            .map(|(name, id)| (name.to_string(), *id))
+                            .map(|(name, (id, stabilities))| {
+                                (name.to_string(), (*id, stabilities.clone()))
+                            })
                             .collect(),
                     )
                 })
@@ -257,18 +261,20 @@ impl<'a> Resolver<'a> {
         let mut foreign_worlds = mem::take(&mut self.foreign_worlds);
         for decl_list in decl_lists {
             decl_list
-                .for_each_path(&mut |_, _attrs, path, _names, world_or_iface| {
+                .for_each_path(&mut |_, attrs, path, _names, world_or_iface| {
                     let (id, name) = match path {
                         ast::UsePath::Package { id, name } => (id, name),
                         _ => return Ok(()),
                     };
 
+                    let stability = self.stability(attrs)?;
+
                     let deps = foreign_deps.entry(id.package_name()).or_insert_with(|| {
                         self.foreign_dep_spans.push(id.span);
                         IndexMap::new()
                     });
-                    let id = *deps.entry(name.name).or_insert_with(|| {
-                        match world_or_iface {
+                    let (id, stabilities) = deps.entry(name.name).or_insert_with(|| {
+                        let id = match world_or_iface {
                             WorldOrInterface::World => {
                                 log::trace!(
                                     "creating a world for foreign dep: {}/{}",
@@ -287,10 +293,13 @@ impl<'a> Resolver<'a> {
                                 );
                                 AstItem::Interface(self.alloc_interface(name.span))
                             }
-                        }
+                        };
+                        (id, Vec::new())
                     });
 
-                    let _ = match id {
+                    stabilities.push(stability);
+
+                    let _ = match *id {
                         AstItem::Interface(id) => foreign_interfaces.insert(id),
                         AstItem::World(id) => foreign_worlds.insert(id),
                     };
@@ -520,7 +529,7 @@ impl<'a> Resolver<'a> {
                                 )
                             })?,
                             ast::UsePath::Package { id, name } => {
-                                self.foreign_deps[&id.package_name()][name.name]
+                                self.foreign_deps[&id.package_name()][name.name].0
                             }
                         };
                         (name.name, item)
@@ -1104,7 +1113,7 @@ impl<'a> Resolver<'a> {
                 }
             }
             ast::UsePath::Package { id, name } => Ok((
-                self.foreign_deps[&id.package_name()][name.name],
+                self.foreign_deps[&id.package_name()][name.name].0,
                 name.name.into(),
                 name.span,
             )),

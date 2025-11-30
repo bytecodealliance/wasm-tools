@@ -103,7 +103,7 @@ pub struct UnresolvedPackage {
     /// interface name followed by the identifier within `self.interfaces`. The
     /// fields of `self.interfaces` describes the required types that are from
     /// each foreign interface.
-    pub foreign_deps: IndexMap<PackageName, IndexMap<String, AstItem>>,
+    pub foreign_deps: IndexMap<PackageName, IndexMap<String, (AstItem, Vec<Stability>)>>,
 
     /// Doc comments for this package.
     pub docs: Docs,
