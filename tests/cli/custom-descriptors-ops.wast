@@ -117,7 +117,7 @@
       drop
     )
   )
- "type mismatch: expected (ref null (exact"
+ "type with descriptor requires descriptor allocation"
 )
 
 (assert_invalid
@@ -139,7 +139,7 @@
       drop
     )
   )
-  "type mismatch: expected (ref null (exact"
+  "type with descriptor requires descriptor allocation"
 )
 
 (assert_invalid

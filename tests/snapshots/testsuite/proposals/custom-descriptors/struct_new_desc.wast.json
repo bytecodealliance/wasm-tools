@@ -18,7 +18,7 @@
       "line": 114,
       "filename": "struct_new_desc.2.wasm",
       "module_type": "binary",
-      "text": "type mismatch"
+      "text": "type with descriptor requires descriptor allocation"
     },
     {
       "type": "assert_invalid",
@@ -29,62 +29,132 @@
     },
     {
       "type": "assert_invalid",
-      "line": 143,
+      "line": 142,
       "filename": "struct_new_desc.4.wasm",
       "module_type": "binary",
-      "text": "type mismatch"
+      "text": "type with descriptor requires descriptor allocation"
     },
     {
       "type": "assert_invalid",
-      "line": 157,
+      "line": 156,
       "filename": "struct_new_desc.5.wasm",
       "module_type": "binary",
-      "text": "type mismatch"
+      "text": "type with descriptor requires descriptor allocation"
     },
     {
       "type": "assert_invalid",
-      "line": 171,
+      "line": 170,
       "filename": "struct_new_desc.6.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 185,
+      "line": 184,
       "filename": "struct_new_desc.7.wasm",
       "module_type": "binary",
-      "text": "type mismatch"
+      "text": "type with descriptor requires descriptor allocation"
     },
     {
       "type": "assert_invalid",
-      "line": 201,
+      "line": 198,
       "filename": "struct_new_desc.8.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 217,
+      "line": 213,
       "filename": "struct_new_desc.9.wasm",
+      "module_type": "binary",
+      "text": "type without descriptor requires non-descriptor allocation"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 228,
+      "filename": "struct_new_desc.10.wasm",
+      "module_type": "binary",
+      "text": "type without descriptor requires non-descriptor allocation"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 243,
+      "filename": "struct_new_desc.11.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 233,
-      "filename": "struct_new_desc.10.wasm",
+      "line": 258,
+      "filename": "struct_new_desc.12.wasm",
+      "module_type": "binary",
+      "text": "type without descriptor requires non-descriptor allocation"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 273,
+      "filename": "struct_new_desc.13.wasm",
+      "module_type": "binary",
+      "text": "type without descriptor requires non-descriptor allocation"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 288,
+      "filename": "struct_new_desc.14.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 302,
+      "filename": "struct_new_desc.15.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 316,
+      "filename": "struct_new_desc.16.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 330,
+      "filename": "struct_new_desc.17.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 346,
+      "filename": "struct_new_desc.18.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 362,
+      "filename": "struct_new_desc.19.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 378,
+      "filename": "struct_new_desc.20.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "module",
-      "line": 248,
-      "filename": "struct_new_desc.11.wasm",
+      "line": 393,
+      "filename": "struct_new_desc.21.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_return",
-      "line": 341,
+      "line": 486,
       "action": {
         "type": "get",
         "field": "b"
@@ -97,7 +167,7 @@
     },
     {
       "type": "assert_return",
-      "line": 342,
+      "line": 487,
       "action": {
         "type": "invoke",
         "field": "new-new",
@@ -111,7 +181,7 @@
     },
     {
       "type": "assert_return",
-      "line": 343,
+      "line": 488,
       "action": {
         "type": "invoke",
         "field": "new-global",
@@ -125,7 +195,7 @@
     },
     {
       "type": "assert_return",
-      "line": 344,
+      "line": 489,
       "action": {
         "type": "invoke",
         "field": "new-call",
@@ -139,7 +209,7 @@
     },
     {
       "type": "assert_return",
-      "line": 345,
+      "line": 490,
       "action": {
         "type": "invoke",
         "field": "new-pair",
@@ -153,7 +223,7 @@
     },
     {
       "type": "assert_return",
-      "line": 346,
+      "line": 491,
       "action": {
         "type": "invoke",
         "field": "new-chain",
@@ -167,7 +237,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 347,
+      "line": 492,
       "action": {
         "type": "invoke",
         "field": "new-null",
@@ -177,7 +247,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 348,
+      "line": 493,
       "action": {
         "type": "invoke",
         "field": "new-null-global",
@@ -187,7 +257,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 349,
+      "line": 494,
       "action": {
         "type": "invoke",
         "field": "new-null-call",
@@ -197,7 +267,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 350,
+      "line": 495,
       "action": {
         "type": "invoke",
         "field": "new-null-pair",
@@ -207,7 +277,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 351,
+      "line": 496,
       "action": {
         "type": "invoke",
         "field": "new-null-chain-1",
@@ -217,7 +287,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 352,
+      "line": 497,
       "action": {
         "type": "invoke",
         "field": "new-null-chain-2",
@@ -227,47 +297,47 @@
     },
     {
       "type": "assert_uninstantiable",
-      "line": 355,
-      "filename": "struct_new_desc.12.wasm",
+      "line": 500,
+      "filename": "struct_new_desc.22.wasm",
       "module_type": "binary",
       "text": "null descriptor reference"
     },
     {
       "type": "assert_uninstantiable",
-      "line": 366,
-      "filename": "struct_new_desc.13.wasm",
+      "line": 511,
+      "filename": "struct_new_desc.23.wasm",
       "module_type": "binary",
       "text": "null descriptor reference"
     },
     {
       "type": "assert_uninstantiable",
-      "line": 377,
-      "filename": "struct_new_desc.14.wasm",
+      "line": 522,
+      "filename": "struct_new_desc.24.wasm",
       "module_type": "binary",
       "text": "null descriptor reference"
     },
     {
       "type": "module",
-      "line": 390,
+      "line": 535,
       "name": "A",
-      "filename": "struct_new_desc.15.wasm",
+      "filename": "struct_new_desc.25.wasm",
       "module_type": "binary"
     },
     {
       "type": "register",
-      "line": 409,
+      "line": 554,
       "as": "A"
     },
     {
       "type": "module",
-      "line": 411,
+      "line": 556,
       "name": "B",
-      "filename": "struct_new_desc.16.wasm",
+      "filename": "struct_new_desc.26.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_return",
-      "line": 443,
+      "line": 588,
       "action": {
         "type": "get",
         "field": "a"
@@ -280,7 +350,7 @@
     },
     {
       "type": "assert_return",
-      "line": 444,
+      "line": 589,
       "action": {
         "type": "invoke",
         "field": "new-global",
@@ -294,7 +364,7 @@
     },
     {
       "type": "assert_return",
-      "line": 445,
+      "line": 590,
       "action": {
         "type": "invoke",
         "field": "new-call",
@@ -308,7 +378,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 446,
+      "line": 591,
       "action": {
         "type": "invoke",
         "field": "null-global",
@@ -318,7 +388,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 447,
+      "line": 592,
       "action": {
         "type": "invoke",
         "field": "null-call",

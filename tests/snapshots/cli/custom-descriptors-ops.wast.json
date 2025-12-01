@@ -12,14 +12,14 @@
       "line": 101,
       "filename": "custom-descriptors-ops.1.wasm",
       "module_type": "binary",
-      "text": "type mismatch: expected (ref null (exact"
+      "text": "type with descriptor requires descriptor allocation"
     },
     {
       "type": "assert_invalid",
       "line": 124,
       "filename": "custom-descriptors-ops.2.wasm",
       "module_type": "binary",
-      "text": "type mismatch: expected (ref null (exact"
+      "text": "type with descriptor requires descriptor allocation"
     },
     {
       "type": "assert_invalid",
