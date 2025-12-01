@@ -9,7 +9,7 @@
   (type (;5;) (func (result i32 i32 eqref)))
   (global $b1 (;0;) (ref (exact $b)) struct.new $b)
   (global $b2 (;1;) (ref (exact $b)) struct.new $b)
-  (global $a1 (;2;) (ref (exact $a)) global.get $b1 struct.new $a)
+  (global $a1 (;2;) (ref (exact $a)) global.get $b1 struct.new_desc $a)
   (export "cast-succeeds-null" (func 2))
   (export "cast-succeeds-val" (func 3))
   (export "cast-fails-null" (func 4))

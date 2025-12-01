@@ -1204,6 +1204,8 @@ instructions! {
         I64MulWideU : [0xfc, 22] : "i64.mul_wide_u",
 
         // Custom descriptors
+        StructNewDesc(Index<'a>) : [0xfb, 32] : "struct.new_desc",
+        StructNewDefaultDesc(Index<'a>) : [0xfb, 33] : "struct.new_default_desc",
         RefGetDesc(Index<'a>): [0xfb, 34] : "ref.get_desc",
         RefCastDesc(RefCastDesc<'a>) : [] : "ref.cast_desc",
         BrOnCastDesc(Box<BrOnCastDesc<'a>>) : [] : "br_on_cast_desc",

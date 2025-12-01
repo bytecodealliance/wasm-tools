@@ -161,25 +161,14 @@ fn visit_call_indirect(module: &dyn ModuleArity, ty: u32, _table: u32) -> Option
 
 fn visit_struct_new(module: &dyn ModuleArity, ty: u32) -> Option<(u32, u32)> {
     let ty = module.sub_type_at(ty)?;
-    let descriptor = if let Some(_) = ty.composite_type.descriptor_idx {
-        1
-    } else {
-        0
-    };
     let (params, _results) = module.sub_type_arity(ty)?;
-    Some((params + descriptor, 1))
+    Some((params, 1))
 }
 
-fn visit_struct_new_default(module: &dyn ModuleArity, ty: u32) -> Option<(u32, u32)> {
+fn visit_struct_new_desc(module: &dyn ModuleArity, ty: u32) -> Option<(u32, u32)> {
     let ty = module.sub_type_at(ty)?;
-    Some((
-        if let Some(_) = ty.composite_type.descriptor_idx {
-            1
-        } else {
-            0
-        },
-        1,
-    ))
+    let (params, _results) = module.sub_type_arity(ty)?;
+    Some((params + 1, 1))
 }
 
 fn visit_array_new_fixed(_module: &dyn ModuleArity, _ty: u32, size: u32) -> Option<(u32, u32)> {

@@ -11,7 +11,7 @@
   (export "check-eq" (func 1))
   (func (;0;) (type 2) (result (ref null $a))
     global.get 0
-    struct.new $a
+    struct.new_desc $a
   )
   (func (;1;) (type 3) (param (ref null $a)) (result i32)
     local.get 0

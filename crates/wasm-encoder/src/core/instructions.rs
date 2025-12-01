@@ -1446,6 +1446,22 @@ impl<'a> InstructionSink<'a> {
         self
     }
 
+    /// Encode [`Instruction::StructNewDesc`].
+    pub fn struct_new_desc(&mut self, type_index: u32) -> &mut Self {
+        self.sink.push(0xfb);
+        self.sink.push(0x20);
+        type_index.encode(self.sink);
+        self
+    }
+
+    /// Encode [`Instruction::StructNewDefaultDesc`].
+    pub fn struct_new_default_desc(&mut self, type_index: u32) -> &mut Self {
+        self.sink.push(0xfb);
+        self.sink.push(0x21);
+        type_index.encode(self.sink);
+        self
+    }
+
     /// Encode [`Instruction::ArrayNew`].
     pub fn array_new(&mut self, type_index: u32) -> &mut Self {
         self.sink.push(0xfb);

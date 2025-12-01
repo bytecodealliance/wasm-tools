@@ -17,16 +17,16 @@
   (func $f_impl (;0;) (type $f) (result i32)
     unreachable
   )
-  (func $test-struct-new (;1;) (type 5)
+  (func $test-struct-new-desc (;1;) (type 5)
     i32.const 3
     global.get $g1
-    struct.new $t1
+    struct.new_desc $t1
     drop
     global.get $g1
-    struct.new_default $t1
+    struct.new_default_desc $t1
     drop
     global.get $g1sub
-    struct.new_default $t1sub
+    struct.new_default_desc $t1sub
     drop
   )
   (func $test-exact-types (;2;) (type 5)
@@ -56,7 +56,7 @@
   )
   (func $test-get-desc (;4;) (type 6) (param $rtt (ref (exact $t2)))
     local.get $rtt
-    struct.new_default $t1
+    struct.new_default_desc $t1
     ref.get_desc $t1
     local.set $rtt
   )

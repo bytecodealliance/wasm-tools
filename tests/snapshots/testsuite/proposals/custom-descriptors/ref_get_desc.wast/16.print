@@ -17,9 +17,9 @@
   (type (;11;) (func (result i32)))
   (global $b1 (;0;) (ref (exact $b)) i32.const 1 struct.new $b)
   (global $b2 (;1;) (ref (exact $b)) i32.const 2 struct.new $b)
-  (global $a1 (;2;) (ref null $a) global.get $b1 struct.new $a)
-  (global $a2 (;3;) (ref null (exact $a)) global.get $b2 struct.new $a)
-  (global $a3 (;4;) (ref (exact $a)) i32.const 3 struct.new $b struct.new $a)
+  (global $a1 (;2;) (ref null $a) global.get $b1 struct.new_desc $a)
+  (global $a2 (;3;) (ref null (exact $a)) global.get $b2 struct.new_desc $a)
+  (global $a3 (;4;) (ref (exact $a)) i32.const 3 struct.new $b struct.new_desc $a)
   (global $null (;5;) (ref null $a) ref.null none)
   (global $null-exact (;6;) (ref null (exact $a)) ref.null (exact $a))
   (export "null" (func 4))
@@ -47,11 +47,11 @@
   (func $alloc-i32 (;2;) (type 7) (param i32) (result (ref (exact $a)))
     local.get 0
     struct.new $b
-    struct.new $a
+    struct.new_desc $a
   )
   (func $alloc-desc (;3;) (type 8) (param (ref (exact $b))) (result (ref (exact $a)))
     local.get 0
-    struct.new $a
+    struct.new_desc $a
   )
   (func (;4;) (type 9) (result anyref)
     ref.null none
@@ -84,7 +84,7 @@
   (func (;11;) (type 11) (result i32)
     i32.const 0
     struct.new $b
-    struct.new $a
+    struct.new_desc $a
     ref.get_desc $a
     struct.get $b 0
   )
@@ -122,14 +122,14 @@
     local.set 0
     local.get 0
     local.get 0
-    struct.new $a
+    struct.new_desc $a
     ref.get_desc $a
     ref.eq
   )
   (func (;18;) (type 11) (result i32)
     struct.new_default $b
     struct.new_default $b
-    struct.new $a
+    struct.new_desc $a
     ref.get_desc $a
     ref.eq
   )
@@ -138,10 +138,10 @@
     struct.new $three
     local.set $three
     local.get $three
-    struct.new $two
+    struct.new_desc $two
     local.set $two
     local.get $two
-    struct.new $one
+    struct.new_desc $one
     local.set $one
     local.get $three
     local.get $one

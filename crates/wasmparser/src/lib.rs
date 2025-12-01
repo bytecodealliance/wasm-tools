@@ -259,7 +259,7 @@ macro_rules! _for_each_operator_group {
             @gc {
                 RefEq => visit_ref_eq (arity 2 -> 1)
                 StructNew { struct_type_index: u32 } => visit_struct_new (arity custom)
-                StructNewDefault { struct_type_index: u32 } => visit_struct_new_default (arity custom)
+                StructNewDefault { struct_type_index: u32 } => visit_struct_new_default (arity 0 -> 1)
                 StructGet { struct_type_index: u32, field_index: u32 } => visit_struct_get (arity 1 -> 1)
                 StructGetS { struct_type_index: u32, field_index: u32 } => visit_struct_get_s (arity 1 -> 1)
                 StructGetU { struct_type_index: u32, field_index: u32 } => visit_struct_get_u (arity 1 -> 1)
@@ -297,7 +297,11 @@ macro_rules! _for_each_operator_group {
                 RefI31 => visit_ref_i31 (arity 1 -> 1)
                 I31GetS => visit_i31_get_s (arity 1 -> 1)
                 I31GetU => visit_i31_get_u (arity 1 -> 1)
+            }
 
+            @custom_descriptors {
+                StructNewDesc { struct_type_index: u32 } => visit_struct_new_desc (arity custom)
+                StructNewDefaultDesc { struct_type_index: u32 } => visit_struct_new_default_desc (arity 1 -> 1)
                 RefGetDesc { type_index: u32 } => visit_ref_get_desc (arity 1 -> 1)
                 RefCastDescNonNull { hty: $crate::HeapType } => visit_ref_cast_desc_non_null (arity 2 -> 1)
                 RefCastDescNullable { hty: $crate::HeapType } => visit_ref_cast_desc_nullable (arity 2 -> 1)
@@ -970,6 +974,7 @@ _for_each_operator_group!(define_for_each_simd_operator);
 /// - `@gc`: [Wasm `gc` proposal]
 /// - `@stack_switching`: [Wasm `stack-switching` proposal]
 /// - `@wide_arithmetic`: [Wasm `wide-arithmetic` proposal]
+/// - `@custom_descriptors` : [Wasm `custom-descriptors` proposal]
 ///
 /// [Wasm `exception-handling` proposal]:
 /// https://github.com/WebAssembly/exception-handling

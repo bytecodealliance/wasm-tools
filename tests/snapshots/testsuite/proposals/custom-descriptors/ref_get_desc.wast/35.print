@@ -21,12 +21,12 @@
   )
   (func (;3;) (type 5) (result i32)
     global.get $b
-    struct.new $a
+    struct.new_desc $a
     call $check-eq
   )
   (func (;4;) (type 5) (result i32)
     struct.new $b
-    struct.new $a
+    struct.new_desc $a
     call $check-eq
   )
 )

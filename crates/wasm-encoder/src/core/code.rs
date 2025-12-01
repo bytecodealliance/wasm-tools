@@ -714,6 +714,8 @@ pub enum Instruction<'a> {
         struct_type_index: u32,
         field_index: u32,
     },
+    StructNewDesc(u32),
+    StructNewDefaultDesc(u32),
 
     ArrayNew(u32),
     ArrayNewDefault(u32),
@@ -1589,6 +1591,10 @@ impl Encode for Instruction<'_> {
                 struct_type_index,
                 field_index,
             } => sink.struct_set(struct_type_index, field_index),
+            Instruction::StructNewDesc(type_index) => sink.struct_new_desc(type_index),
+            Instruction::StructNewDefaultDesc(type_index) => {
+                sink.struct_new_default_desc(type_index)
+            }
             Instruction::ArrayNew(type_index) => sink.array_new(type_index),
             Instruction::ArrayNewDefault(type_index) => sink.array_new_default(type_index),
             Instruction::ArrayNewFixed {

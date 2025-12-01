@@ -10,7 +10,7 @@
   (import "A" "null-b" (global $null-b (;1;) (ref null (exact $b))))
   (import "A" "new-b" (func $new-b (;0;) (type 3)))
   (import "A" "new-null-b" (func $new-null-b (;1;) (type 3)))
-  (global (;2;) (ref (exact $a)) global.get $b struct.new $a)
+  (global (;2;) (ref (exact $a)) global.get $b struct.new_desc $a)
   (export "a" (global 2))
   (export "new-global" (func 2))
   (export "new-call" (func 3))
@@ -18,18 +18,18 @@
   (export "null-call" (func 5))
   (func (;2;) (type 4) (result (ref (exact $a)))
     global.get $b
-    struct.new $a
+    struct.new_desc $a
   )
   (func (;3;) (type 4) (result (ref (exact $a)))
     call $new-b
-    struct.new $a
+    struct.new_desc $a
   )
   (func (;4;) (type 4) (result (ref (exact $a)))
     global.get $null-b
-    struct.new $a
+    struct.new_desc $a
   )
   (func (;5;) (type 4) (result (ref (exact $a)))
     call $new-null-b
-    struct.new $a
+    struct.new_desc $a
   )
 )

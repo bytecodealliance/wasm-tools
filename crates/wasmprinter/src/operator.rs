@@ -1326,6 +1326,8 @@ macro_rules! define_visit {
     (name StructGetS) => ("struct.get_s");
     (name StructGetU) => ("struct.get_u");
     (name StructSet) => ("struct.set");
+    (name StructNewDesc) => ("struct.new_desc");
+    (name StructNewDefaultDesc) => ("struct.new_default_desc");
     (name ArrayNew) => ("array.new");
     (name ArrayNewDefault) => ("array.new_default");
     (name ArrayNewFixed) => ("array.new_fixed");
