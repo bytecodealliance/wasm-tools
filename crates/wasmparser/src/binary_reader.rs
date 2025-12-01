@@ -1363,6 +1363,14 @@ impl<'a> BinaryReader<'a> {
             0x1d => visitor.visit_i31_get_s(),
             0x1e => visitor.visit_i31_get_u(),
 
+            0x20 => {
+                let type_index = self.read_var_u32()?;
+                visitor.visit_struct_new_desc(type_index)
+            }
+            0x21 => {
+                let type_index = self.read_var_u32()?;
+                visitor.visit_struct_new_default_desc(type_index)
+            }
             0x22 => visitor.visit_ref_get_desc(self.read()?),
             0x23 => visitor.visit_ref_cast_desc_non_null(self.read()?),
             0x24 => visitor.visit_ref_cast_desc_nullable(self.read()?),

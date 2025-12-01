@@ -402,6 +402,14 @@ impl ModuleState {
                 $self.validate_gc("struct.new_default")?;
                 $self.validator().visit_struct_new_default($type_index)
             }};
+            (@visit $self:ident visit_struct_new_desc $type_index:ident) => {{
+                $self.validate_gc("struct.new_desc")?;
+                $self.validator().visit_struct_new_desc($type_index)
+            }};
+            (@visit $self:ident visit_struct_new_default_desc $type_index:ident) => {{
+                $self.validate_gc("struct.new_default_desc")?;
+                $self.validator().visit_struct_new_default_desc($type_index)
+            }};
             (@visit $self:ident visit_array_new $type_index:ident) => {{
                 $self.validate_gc("array.new")?;
                 $self.validator().visit_array_new($type_index)

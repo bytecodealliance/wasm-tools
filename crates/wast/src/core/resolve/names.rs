@@ -675,6 +675,9 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 self.resolver.resolve(&mut s.tag_index, Ns::Tag)?;
             }
 
+            StructNewDesc(i) | StructNewDefaultDesc(i) => {
+                self.resolver.resolve(i, Ns::Type)?;
+            }
             RefGetDesc(i) => {
                 self.resolver.resolve(i, Ns::Type)?;
             }

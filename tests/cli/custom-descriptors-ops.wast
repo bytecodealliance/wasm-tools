@@ -19,18 +19,18 @@
     unreachable
   )
 
-  (func $test-struct-new
+  (func $test-struct-new-desc
     i32.const 3
     global.get $g1
-    struct.new $t1
+    struct.new_desc $t1
     drop
 
     global.get $g1
-    struct.new_default $t1
+    struct.new_default_desc $t1
     drop
 
     global.get $g1sub
-    struct.new_default $t1sub
+    struct.new_default_desc $t1sub
     drop
   )
 
@@ -68,7 +68,7 @@
 
   (func $test-get-desc (param $rtt (ref (exact $t2)))
     local.get $rtt
-    struct.new_default $t1
+    struct.new_default_desc $t1
     ref.get_desc $t1
     local.set $rtt
   )
@@ -159,7 +159,7 @@
       global.get $g1
       i32.const 2
       f32.const 1
-      struct.new $t1sub
+      struct.new_desc $t1sub
       drop
     )
   )
