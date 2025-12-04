@@ -3174,11 +3174,55 @@ impl Remap {
 
             let pkg = &resolve.packages[pkgid];
             let span = &unresolved.interface_spans[unresolved_iface_id.index()];
-            let iface_id = pkg
-                .interfaces
-                .get(interface)
-                .copied()
-                .ok_or_else(|| Error::new(span.span, "interface not found in package"))?;
+
+            // This closure examines the unresolved worlds' imports and exports and returns true
+            // if all of the references to unresolved_iface_id are disabled by feature gating.
+            // If any enabled references exist, or no references (gated or otherwise) exist, return false.
+            let is_gated = |resolve: &Resolve| -> Result<bool> {
+                let mut found_gated_ref = false;
+
+                // Search for unresolved_iface_id in the set of all unresolved worlds' imports and exports
+                for (_, world) in &unresolved.worlds {
+                    let world_is_enabled =
+                        resolve.include_stability(&world.stability, &pkgid, None)?;
+
+                    for (_, item) in world.imports.iter().chain(world.exports.iter()) {
+                        if let WorldItem::Interface { id, stability } = item {
+                            // Found unresolved_iface_id within the set of worlds' imports and exports
+                            if *id == unresolved_iface_id {
+                                let item_is_enabled =
+                                    resolve.include_stability(stability, &pkgid, None)?;
+
+                                // A reference to unresolved_iface_id exists, and it is not disabled by feature-gating, so return Ok(false)
+                                if world_is_enabled && item_is_enabled {
+                                    return Ok(false);
+                                }
+
+                                found_gated_ref = true;
+                            }
+                        }
+                    }
+                }
+
+                Ok(found_gated_ref)
+            };
+
+            let iface_id = match pkg.interfaces.get(interface) {
+                Some(id) => *id,
+                None => {
+                    if is_gated(resolve)? {
+                        // The interface's references are disabled by feature-gating so use
+                        // 'None' as a placeholder as this reference will not be used
+                        assert_eq!(self.interfaces.len(), unresolved_iface_id.index());
+                        self.interfaces.push(None);
+                        continue;
+                    } else {
+                        // Enabled references to the absent interface must be present, so fail
+                        bail!(Error::new(span.span, "interface not found in package"));
+                    }
+                }
+            };
+
             assert_eq!(self.interfaces.len(), unresolved_iface_id.index());
             self.interfaces.push(Some(iface_id));
         }
