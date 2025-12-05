@@ -90,9 +90,6 @@ pub enum CanonicalFunction {
     /// A function which returns the number of threads that can be expected to
     /// execute concurrently
     ThreadAvailableParallelism,
-    /// A function which tells the host to enable or disable backpressure for
-    /// the caller's instance.
-    BackpressureSet,
     /// A function which tells the host to enable backpressure by incrementing
     /// the component's counter by 1.
     BackpressureInc,
@@ -329,7 +326,6 @@ impl<'a> FromReader<'a> for CanonicalFunction {
             0x04 => CanonicalFunction::ResourceRep {
                 resource: reader.read()?,
             },
-            0x08 => CanonicalFunction::BackpressureSet,
             0x24 => CanonicalFunction::BackpressureInc,
             0x25 => CanonicalFunction::BackpressureDec,
             0x09 => CanonicalFunction::TaskReturn {

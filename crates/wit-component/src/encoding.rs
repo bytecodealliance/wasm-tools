@@ -1807,10 +1807,6 @@ impl<'a> EncodingState<'a> {
                     ))
                 }
             }
-            Import::BackpressureSet => {
-                let index = self.component.backpressure_set();
-                Ok((ExportKind::Func, index))
-            }
             Import::BackpressureInc => {
                 let index = self.component.backpressure_inc();
                 Ok((ExportKind::Func, index))
@@ -2396,7 +2392,6 @@ impl<'a> Shims<'a> {
                 | Import::ExportedResourceNew(..)
                 | Import::ExportedTaskCancel
                 | Import::ErrorContextDrop
-                | Import::BackpressureSet
                 | Import::BackpressureInc
                 | Import::BackpressureDec
                 | Import::ThreadYield { .. }

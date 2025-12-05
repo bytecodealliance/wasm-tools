@@ -54,7 +54,6 @@ pub enum CoreFuncKind<'a> {
     ThreadSpawnRef(CanonThreadSpawnRef<'a>),
     ThreadSpawnIndirect(CanonThreadSpawnIndirect<'a>),
     ThreadAvailableParallelism(CanonThreadAvailableParallelism),
-    BackpressureSet,
     BackpressureInc,
     BackpressureDec,
     TaskReturn(CanonTaskReturn<'a>),
@@ -126,9 +125,6 @@ impl<'a> CoreFuncKind<'a> {
             Ok(CoreFuncKind::ThreadSpawnIndirect(parser.parse()?))
         } else if l.peek::<kw::thread_available_parallelism>()? {
             Ok(CoreFuncKind::ThreadAvailableParallelism(parser.parse()?))
-        } else if l.peek::<kw::backpressure_set>()? {
-            parser.parse::<kw::backpressure_set>()?;
-            Ok(CoreFuncKind::BackpressureSet)
         } else if l.peek::<kw::backpressure_inc>()? {
             parser.parse::<kw::backpressure_inc>()?;
             Ok(CoreFuncKind::BackpressureInc)

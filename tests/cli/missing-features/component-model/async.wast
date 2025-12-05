@@ -30,18 +30,6 @@
   "canonical option `async` requires the component model async feature"
 )
 
-;; backpressure.set
-(assert_invalid
-  (component
-    (core module $m
-      (import "" "backpressure.set" (func $backpressure-set (param i32)))
-    )
-    (core func $backpressure.set (canon backpressure.set))
-    (core instance $i (instantiate $m (with "" (instance (export "backpressure.set" (func $backpressure.set))))))
-  )
-  "`backpressure.set` requires the component model async feature"
-)
-
 ;; backpressure.inc
 (assert_invalid
   (component

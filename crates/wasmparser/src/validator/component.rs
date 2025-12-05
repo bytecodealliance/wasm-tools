@@ -1185,7 +1185,6 @@ impl ComponentState {
             CanonicalFunction::ThreadAvailableParallelism => {
                 self.thread_available_parallelism(types, offset)
             }
-            CanonicalFunction::BackpressureSet => self.backpressure_set(types, offset),
             CanonicalFunction::BackpressureInc => self.backpressure_inc(types, offset),
             CanonicalFunction::BackpressureDec => self.backpressure_dec(types, offset),
             CanonicalFunction::TaskReturn { result, options } => {
@@ -1390,19 +1389,6 @@ impl ComponentState {
         let rep = self.check_local_resource(resource, types, offset)?;
         let id = types.intern_func_type(FuncType::new([ValType::I32], [rep]), offset);
         self.core_funcs.push(id);
-        Ok(())
-    }
-
-    fn backpressure_set(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
-        if !self.features.cm_async() {
-            bail!(
-                offset,
-                "`backpressure.set` requires the component model async feature"
-            )
-        }
-
-        self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset));
         Ok(())
     }
 

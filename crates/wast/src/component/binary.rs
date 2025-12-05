@@ -370,10 +370,6 @@ impl<'a> Encoder<'a> {
                     self.core_func_names.push(name);
                     self.funcs.thread_available_parallelism();
                 }
-                CoreFuncKind::BackpressureSet => {
-                    self.core_func_names.push(name);
-                    self.funcs.backpressure_set();
-                }
                 CoreFuncKind::BackpressureInc => {
                     self.core_func_names.push(name);
                     self.funcs.backpressure_inc();

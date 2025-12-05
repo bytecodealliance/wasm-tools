@@ -280,12 +280,6 @@ pub enum Import {
     /// The `context.set` intrinsic for the nth slot of storage.
     ContextSet(u32),
 
-    /// A `canon backpressure.set` intrinsic.
-    ///
-    /// This allows the guest to dynamically indicate whether it's ready for
-    /// additional concurrent calls.
-    BackpressureSet,
-
     /// A `canon backpressure.inc` intrinsic.
     BackpressureInc,
 
@@ -604,12 +598,6 @@ impl ImportMap {
                 let expected = FuncType::new([ValType::I32], []);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::ErrorContextDrop);
-            }
-
-            if names.backpressure_set(name) {
-                let expected = FuncType::new([ValType::I32], []);
-                validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::BackpressureSet);
             }
 
             if names.backpressure_inc(name) {
@@ -1546,7 +1534,6 @@ trait NameMangling {
     fn resource_rep_name<'a>(&self, name: &'a str) -> Option<&'a str>;
     fn task_return_name<'a>(&self, name: &'a str) -> Option<&'a str>;
     fn task_cancel(&self, name: &str) -> bool;
-    fn backpressure_set(&self, name: &str) -> bool;
     fn backpressure_inc(&self, name: &str) -> bool;
     fn backpressure_dec(&self, name: &str) -> bool;
     fn waitable_set_new(&self, name: &str) -> bool;
@@ -1699,9 +1686,6 @@ impl NameMangling for Standard {
         None
     }
     fn task_cancel(&self, _name: &str) -> bool {
-        false
-    }
-    fn backpressure_set(&self, _name: &str) -> bool {
         false
     }
     fn backpressure_inc(&self, _name: &str) -> bool {
@@ -2143,9 +2127,6 @@ impl NameMangling for Legacy {
     }
     fn task_cancel(&self, name: &str) -> bool {
         name == "[task-cancel]"
-    }
-    fn backpressure_set(&self, name: &str) -> bool {
-        name == "[backpressure-set]"
     }
     fn backpressure_inc(&self, name: &str) -> bool {
         name == "[backpressure-inc]"

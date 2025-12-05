@@ -478,12 +478,6 @@ impl ComponentBuilder {
         self.core_funcs.add(Some("thread.available-parallelism"))
     }
 
-    /// Declares a new `backpressure.set` intrinsic.
-    pub fn backpressure_set(&mut self) -> u32 {
-        self.canonical_functions().backpressure_set();
-        self.core_funcs.add(Some("backpressure.set"))
-    }
-
     /// Declares a new `backpressure.inc` intrinsic.
     pub fn backpressure_inc(&mut self) -> u32 {
         self.canonical_functions().backpressure_inc();
