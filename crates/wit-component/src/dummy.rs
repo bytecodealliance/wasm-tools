@@ -362,7 +362,6 @@ fn push_root_async_intrinsics(dst: &mut String) {
     dst.push_str(
         r#"
 (import "[export]$root" "[task-cancel]" (func))
-(import "$root" "[backpressure-set]" (func (param i32)))
 (import "$root" "[backpressure-inc]" (func))
 (import "$root" "[backpressure-dec]" (func))
 (import "$root" "[waitable-set-new]" (func (result i32)))

@@ -395,7 +395,6 @@ impl<'a> Resolver<'a> {
                     self.core_item_ref(&mut info.table)?;
                 }
                 CoreFuncKind::ThreadAvailableParallelism(_)
-                | CoreFuncKind::BackpressureSet
                 | CoreFuncKind::BackpressureInc
                 | CoreFuncKind::BackpressureDec
                 | CoreFuncKind::TaskCancel

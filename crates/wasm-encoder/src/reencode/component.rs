@@ -977,9 +977,6 @@ pub mod component_utils {
             wasmparser::CanonicalFunction::ThreadAvailableParallelism => {
                 section.thread_available_parallelism();
             }
-            wasmparser::CanonicalFunction::BackpressureSet => {
-                section.backpressure_set();
-            }
             wasmparser::CanonicalFunction::BackpressureInc => {
                 section.backpressure_inc();
             }

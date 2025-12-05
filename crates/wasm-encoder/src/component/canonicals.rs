@@ -196,16 +196,6 @@ impl CanonicalFunctionSection {
         self
     }
 
-    /// Defines a function which tells the host to enable or disable
-    /// backpressure for the caller's instance.  When backpressure is enabled,
-    /// the host must not start any new calls to that instance until
-    /// backpressure is disabled.
-    pub fn backpressure_set(&mut self) -> &mut Self {
-        self.bytes.push(0x08);
-        self.num_added += 1;
-        self
-    }
-
     /// Defines a function which tells the host to increment the backpressure
     /// counter.
     pub fn backpressure_inc(&mut self) -> &mut Self {

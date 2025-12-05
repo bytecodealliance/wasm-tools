@@ -1,5 +1,4 @@
 (module
-  (import "$root" "[backpressure-set]" (func (param i32)))
   (import "$root" "[backpressure-inc]" (func))
   (import "$root" "[backpressure-dec]" (func))
   (import "[export]$root" "[task-cancel]" (func))

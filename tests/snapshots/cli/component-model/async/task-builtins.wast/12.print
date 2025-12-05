@@ -1,11 +1,11 @@
 (component
   (core module $m (;0;)
-    (type (;0;) (func))
-    (import "" "task.cancel" (func $task-cancel (;0;) (type 0)))
+    (type (;0;) (func (result i32)))
+    (import "" "waitable-set.new" (func (;0;) (type 0)))
   )
-  (core func $task-cancel (;0;) (canon task.cancel))
+  (core func $waitable-set-new (;0;) (canon waitable-set.new))
   (core instance (;0;)
-    (export "task.cancel" (func $task-cancel))
+    (export "waitable-set.new" (func $waitable-set-new))
   )
   (core instance $i (;1;) (instantiate $m
       (with "" (instance 0))

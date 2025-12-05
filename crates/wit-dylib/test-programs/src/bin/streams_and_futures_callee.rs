@@ -119,7 +119,7 @@ impl TestCase for MyInterpreter {
                     unreachable!()
                 };
 
-                let rx = FutureReader::new(rx, vtable);
+                let rx = unsafe { FutureReader::new(rx, vtable) };
 
                 async_support::spawn(async move { tx.write(rx.await).await.unwrap() });
 

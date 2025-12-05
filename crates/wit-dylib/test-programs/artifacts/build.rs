@@ -11,11 +11,20 @@ fn main() {
     let debug = std::env::var("OPT_LEVEL").unwrap() == "0";
     cargo
         .arg("build")
-        .arg("--target").arg(target)
+        .arg("--target")
+        .arg(target)
         .arg("--package=test-programs")
         .env("CARGO_TARGET_DIR", &out_dir)
-        .env(format!("CARGO_TARGET_{upcase}_RUSTFLAGS"), "-Clink-self-contained=n -Clink-arg=-Wl,--skip-wit-component,--no-entry,--export=cabi_realloc -Clink-arg=-shared")
-        .env(format!("CARGO_TARGET_{upcase}_LINKER"), wasi_sdk_path.join("bin/clang"))
+        .env(
+            format!("CARGO_TARGET_{upcase}_RUSTFLAGS"),
+            "-Clink-self-contained=n \
+            -Clink-arg=-Wl,--skip-wit-component,--no-entry,--export=cabi_realloc \
+            -Clink-arg=-shared",
+        )
+        .env(
+            format!("CARGO_TARGET_{upcase}_LINKER"),
+            wasi_sdk_path.join("bin/clang"),
+        )
         .env_remove("CARGO_ENCODED_RUSTFLAGS");
     if !debug {
         cargo.arg("--release");

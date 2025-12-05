@@ -1,25 +1,11 @@
 ;; RUN: wast --assert default --snapshot tests/snapshots % -f cm-async
 
-;; backpressure.set
-(component
-  (core module $m
-    (import "" "backpressure.set" (func $backpressure.set (param i32)))
+;; backpressure.set -- removed from the spec
+(assert_malformed
+  (component quote
+    "(core func (canon backpressure.set))"
   )
-  (core func $backpressure.set (canon backpressure.set))
-  (core instance $i (instantiate $m (with "" (instance (export "backpressure.set" (func $backpressure.set))))))
-)
-
-;; backpressure.set; incorrect type
-(assert_invalid
-  (component
-    (core module $m
-      (import "" "backpressure.set" (func $backpressure.set (param i32 i32)))
-    )
-    (core func $backpressure.set (canon backpressure.set))
-    (core instance $i (instantiate $m (with "" (instance (export "backpressure.set" (func $backpressure.set))))))
-  )
-  "type mismatch for export `backpressure.set` of module instantiation argument ``"
-)
+  "unexpected token")
 
 ;; backpressure.inc
 (component
@@ -78,14 +64,14 @@
 
 (assert_invalid
   (component
-    (core func $f (canon backpressure.set))
+    (core func $f (canon backpressure.inc))
     (core func $task-return (canon task.return (result u32) (callback $f)))
   )
   "cannot specify callback without async")
 
 (assert_invalid
   (component
-    (core func $f (canon backpressure.set))
+    (core func $f (canon backpressure.inc))
     (core func $task-return (canon task.return (result u32) (post-return $f)))
   )
   "cannot specify `post-return` option on `task.return`")
@@ -391,8 +377,10 @@
 ;; different forms of canonical intrinsics
 
 (component
-  (core func (canon backpressure.set))
-  (canon backpressure.set (core func))
+  (core func (canon backpressure.inc))
+  (canon backpressure.inc (core func))
+  (core func (canon backpressure.dec))
+  (canon backpressure.dec (core func))
   (core func (canon task.return))
   (canon task.return (core func))
   (core func (canon task.cancel))

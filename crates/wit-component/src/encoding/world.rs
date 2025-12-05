@@ -417,7 +417,6 @@ impl<'a> ComponentWorld<'a> {
                 | Import::Item(_)
                 | Import::ContextGet(_)
                 | Import::ContextSet(_)
-                | Import::BackpressureSet
                 | Import::BackpressureInc
                 | Import::BackpressureDec
                 | Import::WaitableSetNew

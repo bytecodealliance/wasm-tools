@@ -947,9 +947,6 @@ impl Printer<'_, '_> {
                         Ok(())
                     })?;
                 }
-                CanonicalFunction::BackpressureSet => {
-                    self.print_intrinsic(state, "canon backpressure.set", &|_, _| Ok(()))?;
-                }
                 CanonicalFunction::BackpressureInc => {
                     self.print_intrinsic(state, "canon backpressure.inc", &|_, _| Ok(()))?;
                 }
