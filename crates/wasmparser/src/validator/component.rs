@@ -951,6 +951,9 @@ impl ComponentState {
             ComponentDefinedType::List(ty)
             | ComponentDefinedType::FixedSizeList(ty, _)
             | ComponentDefinedType::Option(ty) => types.type_named_valtype(ty, set),
+            ComponentDefinedType::Map(k, v) => {
+                types.type_named_valtype(k, set) && types.type_named_valtype(v, set)
+            }
 
             // The resource referred to by own/borrow must be named.
             ComponentDefinedType::Own(id) | ComponentDefinedType::Borrow(id) => {
@@ -3916,6 +3919,10 @@ impl ComponentState {
             }
             crate::ComponentDefinedType::List(ty) => Ok(ComponentDefinedType::List(
                 self.create_component_val_type(ty, offset)?,
+            )),
+            crate::ComponentDefinedType::Map(key, value) => Ok(ComponentDefinedType::Map(
+                self.create_component_val_type(key, offset)?,
+                self.create_component_val_type(value, offset)?,
             )),
             crate::ComponentDefinedType::FixedSizeList(ty, elements) => {
                 if !self.features.cm_fixed_size_list() {

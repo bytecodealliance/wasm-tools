@@ -574,6 +574,7 @@ package {name} is defined in two different locations:\n\
 
             Type::Id(id) => match &self.types[*id].kind {
                 TypeDefKind::List(_)
+                | TypeDefKind::Map(_, _)
                 | TypeDefKind::Variant(_)
                 | TypeDefKind::Enum(_)
                 | TypeDefKind::Option(_)
@@ -3312,6 +3313,10 @@ impl Remap {
             Option(t) | List(t, ..) | FixedSizeList(t, ..) | Future(Some(t)) | Stream(Some(t)) => {
                 self.update_ty(resolve, t, span)?
             }
+            Map(k, v) => {
+                self.update_ty(resolve, k, span)?;
+                self.update_ty(resolve, v, span)?;
+            }
             Result(r) => {
                 if let Some(ty) = &mut r.ok {
                     self.update_ty(resolve, ty, span)?;
@@ -3806,6 +3811,9 @@ impl Remap {
             | TypeDefKind::Future(Some(ty))
             | TypeDefKind::Stream(Some(ty))
             | TypeDefKind::Option(ty) => self.type_has_borrow(resolve, ty),
+            TypeDefKind::Map(k, v) => {
+                self.type_has_borrow(resolve, k) || self.type_has_borrow(resolve, v)
+            }
             TypeDefKind::Result(r) => [&r.ok, &r.err]
                 .iter()
                 .filter_map(|t| t.as_ref())
