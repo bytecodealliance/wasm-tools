@@ -6,7 +6,7 @@ publish = false
 
 [dependencies]
 wit-dylib-ffi = { path = '../ffi', features = ["async-runtime"] }
-wit-bindgen = { workspace = true }
+wit-bindgen = { workspace = true, features = ['async-spawn'] }
 rand = { workspace = true }
 
 [lints]

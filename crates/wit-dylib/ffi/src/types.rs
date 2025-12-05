@@ -444,27 +444,27 @@ impl ImportFunction {
             type ParamsLower = ();
             type Results = ();
 
-            fn abi_layout(&self) -> Layout {
+            fn abi_layout(&mut self) -> Layout {
                 Layout::from_size_align(self.ptr.async_abi_area_size, self.ptr.async_abi_area_align)
                     .unwrap()
             }
 
-            fn results_offset(&self) -> usize {
+            fn results_offset(&mut self) -> usize {
                 0
             }
 
-            unsafe fn params_lower(&self, (): (), _: *mut u8) {}
-            unsafe fn params_dealloc_lists(&self, (): ()) {}
-            unsafe fn params_dealloc_lists_and_own(&self, (): ()) {}
+            unsafe fn params_lower(&mut self, (): (), _: *mut u8) {}
+            unsafe fn params_dealloc_lists(&mut self, (): ()) {}
+            unsafe fn params_dealloc_lists_and_own(&mut self, (): ()) {}
 
-            unsafe fn call_import(&self, (): (), ptr: *mut u8) -> u32 {
+            unsafe fn call_import(&mut self, (): (), ptr: *mut u8) -> u32 {
                 unsafe {
                     let cx: *mut _ = self.cx;
                     self.ptr.async_impl.unwrap()(cx.cast(), ptr.cast())
                 }
             }
 
-            unsafe fn results_lift(&self, ptr: *mut u8) {
+            unsafe fn results_lift(&mut self, ptr: *mut u8) {
                 unsafe {
                     let cx: *mut _ = self.cx;
                     self.ptr.async_lift_impl.unwrap()(cx.cast(), ptr.cast());

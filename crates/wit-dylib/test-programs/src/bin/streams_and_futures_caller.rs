@@ -87,7 +87,7 @@ impl TestCase for MyInterpreter {
                 unreachable!()
             };
 
-            let rx = FutureReader::new(rx, vtable);
+            let rx = unsafe { FutureReader::new(rx, vtable) };
 
             let data = "Beware the Jubjub bird, and shun\n\tThe frumious Bandersnatch!";
             tx.write(data.to_string()).await.unwrap();
