@@ -71,10 +71,13 @@ impl ModuleImportMap {
                 // import section in the `module` we're building.
                 ImportSection(i) => {
                     let mut new_import_section = ImportSection::new();
-                    for import in i.clone() {
-                        found_duplicate_imports = ret
-                            .push_import(&mut new_import_section, import?)?
-                            || found_duplicate_imports;
+                    for imports in i.clone() {
+                        let imports = imports?;
+                        for import in imports.iter() {
+                            found_duplicate_imports = ret
+                                .push_import(&mut new_import_section, import?)?
+                                || found_duplicate_imports;
+                        }
                     }
                     module.section(&new_import_section);
                 }
@@ -117,7 +120,8 @@ impl ModuleImportMap {
         if !module_map.contains_key(import.name) {
             let prev = module_map.insert(import.name.to_string(), None);
             assert!(prev.is_none());
-            RoundtripReencoder.parse_import(new_import_section, import)?;
+            RoundtripReencoder
+                .parse_imports(new_import_section, wasmparser::Imports::Single(import))?;
             return Ok(false);
         }
 
@@ -143,7 +147,8 @@ impl ModuleImportMap {
         // section.
         let mut new_import = import;
         new_import.name = &new_name;
-        RoundtripReencoder.parse_import(new_import_section, new_import)?;
+        RoundtripReencoder
+            .parse_imports(new_import_section, wasmparser::Imports::Single(new_import))?;
 
         // Also record that `new_name` was originally known as `import.name`
         // for later lookup in `original_names` below.

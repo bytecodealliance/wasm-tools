@@ -433,12 +433,12 @@ pub trait Reencode {
 
     /// Parses the single [`wasmparser::Import`] provided and adds it to the
     /// `import` section.
-    fn parse_import(
+    fn parse_imports(
         &mut self,
-        imports: &mut crate::ImportSection,
-        import: wasmparser::Import<'_>,
+        import_section: &mut crate::ImportSection,
+        imports: wasmparser::Imports<'_>,
     ) -> Result<(), Error<Self::Error>> {
-        utils::parse_import(self, imports, import)
+        utils::parse_imports(self, import_section, imports)
     }
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
@@ -1435,27 +1435,28 @@ pub mod utils {
     /// all the imports to the `import` section.
     pub fn parse_import_section<T: ?Sized + Reencode>(
         reencoder: &mut T,
-        imports: &mut crate::ImportSection,
+        import_section: &mut crate::ImportSection,
         section: wasmparser::ImportSectionReader<'_>,
     ) -> Result<(), Error<T::Error>> {
-        for import in section {
-            reencoder.parse_import(imports, import?)?;
+        for imports in section {
+            reencoder.parse_imports(import_section, imports?)?;
         }
         Ok(())
     }
 
-    /// Parses the single [`wasmparser::Import`] provided and adds it to the
-    /// `import` section.
-    pub fn parse_import<T: ?Sized + Reencode>(
+    pub fn parse_imports<T: ?Sized + Reencode>(
         reencoder: &mut T,
-        imports: &mut crate::ImportSection,
-        import: wasmparser::Import<'_>,
+        import_section: &mut crate::ImportSection,
+        imports: wasmparser::Imports<'_>,
     ) -> Result<(), Error<T::Error>> {
-        imports.import(
-            import.module,
-            import.name,
-            reencoder.entity_type(import.ty)?,
-        );
+        for import in imports.iter() {
+            let import = import?;
+            import_section.import(
+                import.module,
+                import.name,
+                reencoder.entity_type(import.ty)?,
+            );
+        }
         Ok(())
     }
 

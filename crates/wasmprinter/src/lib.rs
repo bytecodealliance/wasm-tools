@@ -1212,27 +1212,31 @@ impl Printer<'_, '_> {
     }
 
     fn print_imports(&mut self, state: &mut State, parser: ImportSectionReader<'_>) -> Result<()> {
-        for import in parser.into_iter_with_offsets() {
-            let (offset, import) = import?;
+        for imports in parser.into_iter_with_offsets() {
+            let (offset, imports) = imports?;
             self.newline(offset)?;
-            self.print_import(state, &import, true)?;
-            match import.ty {
-                TypeRef::Func(idx) | TypeRef::FuncExact(idx) => {
-                    debug_assert!(state.core.func_to_type.len() == state.core.funcs as usize);
-                    state.core.funcs += 1;
-                    state.core.func_to_type.push(Some(idx))
+
+            for import in imports.iter() {
+                let import = import?;
+                self.print_import(state, &import, true)?;
+                match import.ty {
+                    TypeRef::Func(idx) | TypeRef::FuncExact(idx) => {
+                        debug_assert!(state.core.func_to_type.len() == state.core.funcs as usize);
+                        state.core.funcs += 1;
+                        state.core.func_to_type.push(Some(idx))
+                    }
+                    TypeRef::Table(_) => state.core.tables += 1,
+                    TypeRef::Memory(_) => state.core.memories += 1,
+                    TypeRef::Tag(TagType {
+                        kind: _,
+                        func_type_idx: idx,
+                    }) => {
+                        debug_assert!(state.core.tag_to_type.len() == state.core.tags as usize);
+                        state.core.tags += 1;
+                        state.core.tag_to_type.push(Some(idx))
+                    }
+                    TypeRef::Global(_) => state.core.globals += 1,
                 }
-                TypeRef::Table(_) => state.core.tables += 1,
-                TypeRef::Memory(_) => state.core.memories += 1,
-                TypeRef::Tag(TagType {
-                    kind: _,
-                    func_type_idx: idx,
-                }) => {
-                    debug_assert!(state.core.tag_to_type.len() == state.core.tags as usize);
-                    state.core.tags += 1;
-                    state.core.tag_to_type.push(Some(idx))
-                }
-                TypeRef::Global(_) => state.core.globals += 1,
             }
         }
         Ok(())

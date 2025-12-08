@@ -1280,9 +1280,12 @@ impl Module {
                     }
                 }
                 wasmparser::Payload::ImportSection(import_reader) => {
-                    for im in import_reader {
-                        let im = im.expect("could not read import");
-                        required_imports.push(im);
+                    for imports in import_reader {
+                        let imports = imports.expect("could not read imports");
+                        for im in imports.iter() {
+                            let im = im.expect("could not read import");
+                            required_imports.push(im);
+                        }
                     }
                 }
                 wasmparser::Payload::ExportSection(export_reader) => {
@@ -1661,15 +1664,18 @@ impl Module {
                     }
                 }
                 wasmparser::Payload::ImportSection(import_reader) => {
-                    for im in import_reader {
-                        let im = im.expect("could not read import");
-                        // We can immediately filter whether this is an import we want to
-                        // use.
-                        let use_import = u.arbitrary().unwrap_or(false);
-                        if !use_import {
-                            continue;
+                    for imports in import_reader {
+                        let imports = imports.expect("could not read imports");
+                        for im in imports.iter() {
+                            let im = im.expect("could not read import");
+                            // We can immediately filter whether this is an import we want to
+                            // use.
+                            let use_import = u.arbitrary().unwrap_or(false);
+                            if !use_import {
+                                continue;
+                            }
+                            available_imports.push(im);
                         }
-                        available_imports.push(im);
                     }
                 }
                 _ => {}

@@ -13,6 +13,8 @@
  * limitations under the License.
  */
 
+use std::boxed::Box;
+
 use crate::{
     BinaryReader, ExternalKind, FromReader, GlobalType, MemoryType, Result, SectionLimited,
     TableType, TagType,
@@ -39,6 +41,16 @@ pub enum TypeRef {
     FuncExact(u32),
 }
 
+/// Represents a group of imports in a WebAssembly module.
+pub enum Imports<'a> {
+    /// The group contains a single import.
+    Single(Import<'a>),
+    /// The group contains many imports that share the same module name, but have different types.
+    Compact1(ImportGroup1<'a>),
+    /// The group contains many imports that share the same module name and type.
+    Compact2(ImportGroup2<'a>),
+}
+
 /// Represents an import in a WebAssembly module.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Import<'a> {
@@ -50,13 +62,99 @@ pub struct Import<'a> {
     pub ty: TypeRef,
 }
 
+/// A group of imports that share a common module name, but have different types.
+pub struct ImportGroup1<'a> {
+    /// The module being imported from.
+    pub module: &'a str,
+    /// The imported items.
+    pub items: SectionLimited<'a, ImportItemCompact<'a>>,
+}
+
+/// A single compact import item.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct ImportItemCompact<'a> {
+    /// The name of the imported item.
+    pub name: &'a str,
+    /// The type of the imported item.
+    pub ty: TypeRef,
+}
+
+/// A group of imports that share a common module name and type.
+pub struct ImportGroup2<'a> {
+    /// The module each item will be imported from.
+    pub module: &'a str,
+    /// The type of the imported items.
+    pub ty: TypeRef,
+    /// The imported item names.
+    pub items: SectionLimited<'a, &'a str>,
+}
+
 /// A reader for the import section of a WebAssembly module.
-pub type ImportSectionReader<'a> = SectionLimited<'a, Import<'a>>;
+pub type ImportSectionReader<'a> = SectionLimited<'a, Imports<'a>>;
+
+impl<'a> FromReader<'a> for Imports<'a> {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        let module = reader.read_string()?;
+        let single_item_name = reader.read_string()?;
+        let discriminator = reader.peek_bytes(1)?[0];
+        match (single_item_name, discriminator) {
+            ("", 0x7F) => {
+                // Compact encoding 1: one module name, many item names / types
+                reader.read_bytes(1)?;
+                // FIXME(#188) shouldn't need to skip here
+                let items = reader.skip(|reader| {
+                    let count = reader.read_var_u32()?;
+                    for _ in 0..count {
+                        reader.skip_string()?;
+                        reader.read::<TypeRef>()?;
+                    }
+                    Ok(())
+                })?;
+                Ok(Imports::Compact1(ImportGroup1 {
+                    module,
+                    items: SectionLimited::new(items)?,
+                }))
+            }
+            ("", 0x7E) => {
+                // Compact encoding 1: one module name / type, many item names
+                reader.read_bytes(1)?;
+                let ty: TypeRef = reader.read()?;
+                // FIXME(#188) shouldn't need to skip here
+                let items = reader.skip(|reader| {
+                    let count = reader.read_var_u32()?;
+                    for _ in 0..count {
+                        reader.skip_string()?;
+                    }
+                    Ok(())
+                })?;
+                Ok(Imports::Compact2(ImportGroup2 {
+                    module,
+                    ty,
+                    items: SectionLimited::new(items)?,
+                }))
+            }
+            _ => Ok(Imports::Single(Import {
+                module: module,
+                name: single_item_name,
+                ty: reader.read()?,
+            })),
+        }
+    }
+}
 
 impl<'a> FromReader<'a> for Import<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         Ok(Import {
             module: reader.read()?,
+            name: reader.read()?,
+            ty: reader.read()?,
+        })
+    }
+}
+
+impl<'a> FromReader<'a> for ImportItemCompact<'a> {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        Ok(ImportItemCompact {
             name: reader.read()?,
             ty: reader.read()?,
         })
@@ -73,5 +171,75 @@ impl<'a> FromReader<'a> for TypeRef {
             ExternalKind::Global => TypeRef::Global(reader.read()?),
             ExternalKind::Tag => TypeRef::Tag(reader.read()?),
         })
+    }
+}
+
+// Iterator implementations to streamline usage of the Imports type in its
+// various possible encodings
+
+impl<'a> Imports<'a> {
+    /// TODO
+    pub fn iter(&self) -> impl Iterator<Item = Result<Import<'a>>> + 'a {
+        self.iter_with_offsets(0)
+            .map(|res| res.map(|(_, import)| import))
+    }
+
+    /// TODO
+    pub fn iter_with_offsets(&self, start_offset: usize) -> ImportsIter<'a> {
+        match self {
+            Imports::Single(import) => {
+                ImportsIter::Single(std::iter::once(Ok((start_offset, *import))))
+            }
+            Imports::Compact1(g) => {
+                let module = g.module;
+                let it = g.items.clone().into_iter_with_offsets().map(move |res| {
+                    let (offset, item) = res?;
+                    Ok((
+                        offset,
+                        Import {
+                            module: module,
+                            name: item.name,
+                            ty: item.ty,
+                        },
+                    ))
+                });
+                ImportsIter::Many(Box::new(it))
+            }
+            Imports::Compact2(g) => {
+                let module = g.module;
+                let ty = g.ty;
+                let it = g.items.clone().into_iter_with_offsets().map(move |res| {
+                    let (offset, item) = res?;
+                    Ok((
+                        offset,
+                        Import {
+                            module: module,
+                            name: item,
+                            ty: ty,
+                        },
+                    ))
+                });
+                ImportsIter::Many(Box::new(it))
+            }
+        }
+    }
+}
+
+/// TODO
+pub enum ImportsIter<'a> {
+    /// TODO
+    Single(std::iter::Once<Result<(usize, Import<'a>)>>),
+    /// TODO
+    Many(Box<dyn Iterator<Item = Result<(usize, Import<'a>)>> + 'a>),
+}
+
+impl<'a> Iterator for ImportsIter<'a> {
+    type Item = Result<(usize, Import<'a>)>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            ImportsIter::Single(it) => it.next(),
+            ImportsIter::Many(it) => it.next(),
+        }
     }
 }
