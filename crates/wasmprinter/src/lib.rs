@@ -1212,27 +1212,63 @@ impl Printer<'_, '_> {
     }
 
     fn print_imports(&mut self, state: &mut State, parser: ImportSectionReader<'_>) -> Result<()> {
-        for import in parser.into_iter_with_offsets() {
-            let (offset, import) = import?;
+        let update_state = |state: &mut State, ty: TypeRef| match ty {
+            TypeRef::Func(idx) | TypeRef::FuncExact(idx) => {
+                debug_assert!(state.core.func_to_type.len() == state.core.funcs as usize);
+                state.core.funcs += 1;
+                state.core.func_to_type.push(Some(idx))
+            }
+            TypeRef::Table(_) => state.core.tables += 1,
+            TypeRef::Memory(_) => state.core.memories += 1,
+            TypeRef::Tag(TagType {
+                kind: _,
+                func_type_idx: idx,
+            }) => {
+                debug_assert!(state.core.tag_to_type.len() == state.core.tags as usize);
+                state.core.tags += 1;
+                state.core.tag_to_type.push(Some(idx))
+            }
+            TypeRef::Global(_) => state.core.globals += 1,
+        };
+
+        for imports in parser.into_iter_with_offsets() {
+            let (offset, imports) = imports?;
             self.newline(offset)?;
-            self.print_import(state, &import, true)?;
-            match import.ty {
-                TypeRef::Func(idx) | TypeRef::FuncExact(idx) => {
-                    debug_assert!(state.core.func_to_type.len() == state.core.funcs as usize);
-                    state.core.funcs += 1;
-                    state.core.func_to_type.push(Some(idx))
+            match imports {
+                Imports::Single(_, import) => {
+                    self.print_import(state, &import, true)?;
+                    update_state(state, import.ty);
                 }
-                TypeRef::Table(_) => state.core.tables += 1,
-                TypeRef::Memory(_) => state.core.memories += 1,
-                TypeRef::Tag(TagType {
-                    kind: _,
-                    func_type_idx: idx,
-                }) => {
-                    debug_assert!(state.core.tag_to_type.len() == state.core.tags as usize);
-                    state.core.tags += 1;
-                    state.core.tag_to_type.push(Some(idx))
+                Imports::Compact1 { module, items } => {
+                    self.start_group("import ")?;
+                    self.print_str(module)?;
+                    for res in items.into_iter_with_offsets() {
+                        let (offset, item) = res?;
+                        self.newline(offset)?;
+                        self.start_group("item ")?;
+                        self.print_str(item.name)?;
+                        self.result.write_str(" ")?;
+                        self.print_import_ty(state, &item.ty, true)?;
+                        self.end_group()?;
+                        update_state(state, item.ty);
+                    }
+                    self.end_group()?;
                 }
-                TypeRef::Global(_) => state.core.globals += 1,
+                Imports::Compact2 { module, ty, names } => {
+                    self.start_group("import ")?;
+                    self.print_str(module)?;
+                    for res in names.into_iter_with_offsets() {
+                        let (offset, item) = res?;
+                        self.newline(offset)?;
+                        self.start_group("item ")?;
+                        self.print_str(item)?;
+                        self.end_group()?;
+                        update_state(state, ty);
+                    }
+                    self.newline(offset)?;
+                    self.print_import_ty(state, &ty, false)?;
+                    self.end_group()?;
+                }
             }
         }
         Ok(())

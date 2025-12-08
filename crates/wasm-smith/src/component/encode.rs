@@ -147,7 +147,7 @@ impl CoreType {
                         ModuleTypeDef::Import(imp) => {
                             enc_mod_ty.import(
                                 &imp.module,
-                                &imp.field,
+                                &imp.name,
                                 crate::core::encode::translate_entity_type(&imp.entity_type),
                             );
                         }

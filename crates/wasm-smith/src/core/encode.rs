@@ -62,11 +62,7 @@ impl Module {
 
         let mut section = wasm_encoder::ImportSection::new();
         for im in &self.imports {
-            section.import(
-                &im.module,
-                &im.field,
-                translate_entity_type(&im.entity_type),
-            );
+            section.import(&im.module, &im.name, translate_entity_type(&im.entity_type));
         }
         module.section(&section);
     }
