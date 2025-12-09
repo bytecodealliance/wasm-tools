@@ -1463,7 +1463,7 @@ pub mod utils {
         imports: wasmparser::Imports<'_>,
     ) -> Result<(), Error<T::Error>> {
         import_section.imports(match imports {
-            wasmparser::Imports::Single(import) => Imports::Single(crate::Import {
+            wasmparser::Imports::Single(_, import) => Imports::Single(crate::Import {
                 module: import.module,
                 item: import.name,
                 ty: reencoder.entity_type(import.ty)?,
@@ -1481,7 +1481,7 @@ pub mod utils {
         imports: &mut crate::ImportSection,
         import: wasmparser::Import<'_>,
     ) -> Result<(), Error<T::Error>> {
-        reencoder.parse_imports(imports, wasmparser::Imports::Single(import))?;
+        reencoder.parse_imports(imports, wasmparser::Imports::Single(0, import))?;
         Ok(())
     }
 

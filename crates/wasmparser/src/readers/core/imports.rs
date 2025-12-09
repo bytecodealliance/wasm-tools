@@ -13,11 +13,12 @@
  * limitations under the License.
  */
 
+use core::mem;
 use std::boxed::Box;
 
 use crate::{
-    BinaryReader, ExternalKind, FromReader, GlobalType, MemoryType, Result, SectionLimited,
-    TableType, TagType,
+    BinaryReader, BinaryReaderError, ExternalKind, FromReader, GlobalType, MemoryType, Result,
+    SectionLimited, SectionLimitedIntoIterWithOffsets, TableType, TagType,
 };
 
 /// Represents a reference to a type definition in a WebAssembly module.
@@ -42,10 +43,10 @@ pub enum TypeRef {
 }
 
 /// Represents a group of imports in a WebAssembly module.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Imports<'a> {
     /// The group contains a single import.
-    Single(Import<'a>),
+    Single(usize, Import<'a>),
     /// The group contains many imports that share the same module name, but have different types.
     Compact1(ImportGroup1<'a>),
     /// The group contains many imports that share the same module name and type.
@@ -64,7 +65,7 @@ pub struct Import<'a> {
 }
 
 /// A group of imports that share a common module name, but have different types.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ImportGroup1<'a> {
     /// The module being imported from.
     pub module: &'a str,
@@ -82,7 +83,7 @@ pub struct ImportItemCompact<'a> {
 }
 
 /// A group of imports that share a common module name and type.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ImportGroup2<'a> {
     /// The module each item will be imported from.
     pub module: &'a str,
@@ -97,6 +98,7 @@ pub type ImportSectionReader<'a> = SectionLimited<'a, Imports<'a>>;
 
 impl<'a> FromReader<'a> for Imports<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        let start = reader.current_position();
         let module = reader.read_string()?;
         let single_item_name = reader.read_string()?;
         let discriminator = reader.peek_bytes(1)?[0];
@@ -136,11 +138,14 @@ impl<'a> FromReader<'a> for Imports<'a> {
                     items: SectionLimited::new(items)?,
                 }))
             }
-            _ => Ok(Imports::Single(Import {
-                module: module,
-                name: single_item_name,
-                ty: reader.read()?,
-            })),
+            _ => Ok(Imports::Single(
+                start,
+                Import {
+                    module: module,
+                    name: single_item_name,
+                    ty: reader.read()?,
+                },
+            )),
         }
     }
 }
@@ -189,113 +194,103 @@ impl<'a> SectionLimited<'a, Imports<'a>> {
 
     /// TODO
     pub fn into_imports_with_offsets(self) -> impl Iterator<Item = Result<(usize, Import<'a>)>> {
-        self.into_iter_with_offsets().flat_map(|res| match res {
-            Ok((offset, imports)) => {
-                let iter: Box<dyn Iterator<Item = Result<(usize, Import<'a>)>> + 'a> = match imports
-                {
-                    Imports::Single(import) => Box::new(std::iter::once(Ok((offset, import)))),
-                    Imports::Compact1(group) => {
-                        Box::new(group.items.into_iter_with_offsets().map(|res| {
-                            res.map(|(offset, item)| {
-                                (
-                                    offset,
-                                    Import {
-                                        module: group.module,
-                                        name: item.name,
-                                        ty: item.ty,
-                                    },
-                                )
-                            })
-                        }))
-                    }
-                    Imports::Compact2(group) => {
-                        let module = group.module;
-                        let ty = group.ty;
-                        Box::new(group.items.into_iter_with_offsets().map(move |res| {
-                            res.map(|(offset, item)| {
-                                (
-                                    offset,
-                                    Import {
-                                        module: module,
-                                        name: item,
-                                        ty: ty,
-                                    },
-                                )
-                            })
-                        }))
-                    }
-                };
-                iter
-            }
-            Err(err) => Box::new(std::iter::once(Err(err))),
+        self.into_iter().flat_map(|res| match res {
+            Ok(imports) => imports.into_iter(),
+            Err(e) => ImportsIter {
+                state: ImportsIterState::Error(e),
+            },
         })
     }
 }
 
-// TODO: Surely there is a way to unify this iterator logic with the above. Surely...
-impl<'a> Imports<'a> {
-    /// TODO
-    pub fn iter(&self) -> impl Iterator<Item = Result<Import<'a>>> + 'a {
-        self.iter_with_offsets(0)
-            .map(|res| res.map(|(_, import)| import))
-    }
+impl<'a> IntoIterator for Imports<'a> {
+    type Item = Result<(usize, Import<'a>)>;
+    type IntoIter = ImportsIter<'a>;
 
-    /// TODO
-    pub fn iter_with_offsets(&self, start_offset: usize) -> ImportsIter<'a> {
-        match self {
-            Imports::Single(import) => {
-                ImportsIter::Single(std::iter::once(Ok((start_offset, *import))))
-            }
-            Imports::Compact1(g) => {
-                let module = g.module;
-                let it = g.items.clone().into_iter_with_offsets().map(move |res| {
-                    let (offset, item) = res?;
-                    Ok((
-                        offset,
-                        Import {
-                            module: module,
-                            name: item.name,
-                            ty: item.ty,
-                        },
-                    ))
-                });
-                ImportsIter::Many(Box::new(it))
-            }
-            Imports::Compact2(g) => {
-                let module = g.module;
-                let ty = g.ty;
-                let it = g.items.clone().into_iter_with_offsets().map(move |res| {
-                    let (offset, item) = res?;
-                    Ok((
-                        offset,
-                        Import {
-                            module: module,
-                            name: item,
-                            ty: ty,
-                        },
-                    ))
-                });
-                ImportsIter::Many(Box::new(it))
-            }
+    fn into_iter(self) -> Self::IntoIter {
+        ImportsIter {
+            state: match self {
+                Imports::Single(start, import) => ImportsIterState::Single(start, import),
+                Imports::Compact1(group) => ImportsIterState::Compact1 {
+                    module: group.module,
+                    iter: group.items.into_iter_with_offsets(),
+                },
+                Imports::Compact2(group) => ImportsIterState::Compact2 {
+                    module: group.module,
+                    ty: group.ty,
+                    iter: group.items.into_iter_with_offsets(),
+                },
+            },
         }
     }
 }
 
 /// TODO
-pub enum ImportsIter<'a> {
-    /// TODO
-    Single(std::iter::Once<Result<(usize, Import<'a>)>>),
-    /// TODO
-    Many(Box<dyn Iterator<Item = Result<(usize, Import<'a>)>> + 'a>),
+pub struct ImportsIter<'a> {
+    state: ImportsIterState<'a>,
+}
+
+enum ImportsIterState<'a> {
+    Done,
+    Error(BinaryReaderError),
+    Single(usize, Import<'a>),
+    Compact1 {
+        module: &'a str,
+        iter: SectionLimitedIntoIterWithOffsets<'a, ImportItemCompact<'a>>,
+    },
+    Compact2 {
+        module: &'a str,
+        ty: TypeRef,
+        iter: SectionLimitedIntoIterWithOffsets<'a, &'a str>,
+    },
 }
 
 impl<'a> Iterator for ImportsIter<'a> {
     type Item = Result<(usize, Import<'a>)>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            ImportsIter::Single(it) => it.next(),
-            ImportsIter::Many(it) => it.next(),
+        match &mut self.state {
+            ImportsIterState::Done => None,
+            ImportsIterState::Error(_) => {
+                let ImportsIterState::Error(e) =
+                    mem::replace(&mut self.state, ImportsIterState::Done)
+                else {
+                    unreachable!()
+                };
+                Some(Err(e))
+            }
+
+            ImportsIterState::Single(offset, i) => {
+                let ret = Some(Ok((*offset, i.clone())));
+                self.state = ImportsIterState::Done;
+                ret
+            }
+            ImportsIterState::Compact1 { module, iter } => {
+                let item = iter.next()?;
+                Some(item.map(|(offset, item)| {
+                    (
+                        offset,
+                        Import {
+                            module,
+                            name: item.name,
+                            ty: item.ty,
+                        },
+                    )
+                }))
+            }
+            ImportsIterState::Compact2 { module, ty, iter } => {
+                let item = iter.next()?;
+                Some(item.map(|(offset, name)| {
+                    (
+                        offset,
+                        Import {
+                            module,
+                            name,
+                            ty: *ty,
+                        },
+                    )
+                }))
+            }
         }
     }
 }

@@ -768,9 +768,9 @@ impl Validator {
                 state.module.assert_mut().imports.reserve(count as usize);
                 Ok(())
             },
-            |state, types, imports, offset| {
+            |state, types, imports, _offset| {
                 let state = state.module.assert_mut();
-                for import_and_offset in imports.iter_with_offsets(offset) {
+                for import_and_offset in imports {
                     let (offset, import) = import_and_offset?;
                     state.add_import(import, types, offset)?;
                 }

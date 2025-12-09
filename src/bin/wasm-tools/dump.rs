@@ -139,7 +139,7 @@ impl<'a> Dump<'a> {
                     };
 
                     match imports {
-                        Imports::Single(imp) => {
+                        Imports::Single(_, imp) => {
                             write!(me.state, "import ")?;
                             print_ty(me, imp.ty)?;
                             write!(me.state, " {imp:?}")?;

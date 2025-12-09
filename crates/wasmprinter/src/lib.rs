@@ -1235,7 +1235,7 @@ impl Printer<'_, '_> {
             let (offset, imports) = imports?;
             self.newline(offset)?;
             match imports {
-                Imports::Single(import) => {
+                Imports::Single(_, import) => {
                     self.print_import(state, &import, true)?;
                     update_state(state, import.ty);
                 }
