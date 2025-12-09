@@ -54,7 +54,7 @@ fn smoke_test_imports_config() {
                     // list of expected imports (i.e. we don't generate
                     // arbitrary ones), and that we handle the logic correctly
                     // (i.e. signature types are as expected)
-                    for import in rdr {
+                    for import in rdr.into_imports() {
                         let import = import.unwrap();
                         use AvailableImportKind as I;
                         let entry = imports_seen.get_mut(&(import.module, import.name));
