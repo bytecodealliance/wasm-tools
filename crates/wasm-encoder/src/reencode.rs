@@ -1468,8 +1468,31 @@ pub mod utils {
                 item: import.name,
                 ty: reencoder.entity_type(import.ty)?,
             }),
-            wasmparser::Imports::Compact1(group) => todo!(),
-            wasmparser::Imports::Compact2(group) => todo!(),
+            wasmparser::Imports::Compact1(group) => {
+                let mut items = Vec::new();
+                for item in group.items {
+                    let item = item?;
+                    items.push(crate::ImportCompact {
+                        item: item.name,
+                        ty: reencoder.entity_type(item.ty)?,
+                    })
+                }
+                Imports::Compact1(crate::ImportGroupCompact1 {
+                    module: group.module,
+                    items: items.into(),
+                })
+            }
+            wasmparser::Imports::Compact2(group) => {
+                let items = group
+                    .items
+                    .into_iter()
+                    .collect::<wasmparser::Result<Vec<_>>>()?;
+                Imports::Compact2(crate::ImportGroupCompact2 {
+                    module: group.module,
+                    ty: reencoder.entity_type(group.ty)?,
+                    items: items.into(),
+                })
+            }
         });
         Ok(())
     }
