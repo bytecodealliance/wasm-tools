@@ -274,35 +274,33 @@ impl Reencode for RemoveItem<'_> {
         let mut table = 0;
         let mut memory = 0;
         let mut tag = 0;
-        for import_group in section {
-            for item in import_group?.iter() {
-                let item = item?;
-                let retain;
-                match &item.ty {
-                    wasmparser::TypeRef::Func(_) | wasmparser::TypeRef::FuncExact(_) => {
-                        retain = self.item != Item::Function || self.idx != function;
-                        function += 1;
-                    }
-                    wasmparser::TypeRef::Table(_) => {
-                        retain = self.item != Item::Table || self.idx != table;
-                        table += 1;
-                    }
-                    wasmparser::TypeRef::Memory(_) => {
-                        retain = self.item != Item::Memory || self.idx != memory;
-                        memory += 1;
-                    }
-                    wasmparser::TypeRef::Global(_) => {
-                        retain = self.item != Item::Global || self.idx != global;
-                        global += 1;
-                    }
-                    wasmparser::TypeRef::Tag(_) => {
-                        retain = self.item != Item::Tag || self.idx != tag;
-                        tag += 1;
-                    }
+        for item in section.into_imports() {
+            let item = item?;
+            let retain;
+            match &item.ty {
+                wasmparser::TypeRef::Func(_) | wasmparser::TypeRef::FuncExact(_) => {
+                    retain = self.item != Item::Function || self.idx != function;
+                    function += 1;
                 }
-                if retain {
-                    self.parse_imports(imports, wasmparser::Imports::Single(item))?;
+                wasmparser::TypeRef::Table(_) => {
+                    retain = self.item != Item::Table || self.idx != table;
+                    table += 1;
                 }
+                wasmparser::TypeRef::Memory(_) => {
+                    retain = self.item != Item::Memory || self.idx != memory;
+                    memory += 1;
+                }
+                wasmparser::TypeRef::Global(_) => {
+                    retain = self.item != Item::Global || self.idx != global;
+                    global += 1;
+                }
+                wasmparser::TypeRef::Tag(_) => {
+                    retain = self.item != Item::Tag || self.idx != tag;
+                    tag += 1;
+                }
+            }
+            if retain {
+                self.parse_imports(imports, wasmparser::Imports::Single(item))?;
             }
         }
         Ok(())

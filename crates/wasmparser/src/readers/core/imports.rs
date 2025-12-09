@@ -116,7 +116,7 @@ impl<'a> FromReader<'a> for Imports<'a> {
                 }))
             }
             ("", 0x7E) => {
-                // Compact encoding 1: one module name / type, many item names
+                // Compact encoding 2: one module name / type, many item names
                 reader.read_bytes(1)?;
                 let ty: TypeRef = reader.read()?;
                 // FIXME(#188) shouldn't need to skip here
@@ -177,6 +177,59 @@ impl<'a> FromReader<'a> for TypeRef {
 // Iterator implementations to streamline usage of the Imports type in its
 // various possible encodings
 
+impl<'a> SectionLimited<'a, Imports<'a>> {
+    /// TODO
+    pub fn into_imports(self) -> impl Iterator<Item = Result<Import<'a>>> {
+        self.into_imports_with_offsets()
+            .map(|res| res.map(|(_, import)| import))
+    }
+
+    /// TODO
+    pub fn into_imports_with_offsets(self) -> impl Iterator<Item = Result<(usize, Import<'a>)>> {
+        self.into_iter_with_offsets().flat_map(|res| match res {
+            Ok((offset, imports)) => {
+                let iter: Box<dyn Iterator<Item = Result<(usize, Import<'a>)>> + 'a> = match imports
+                {
+                    Imports::Single(import) => Box::new(std::iter::once(Ok((offset, import)))),
+                    Imports::Compact1(group) => {
+                        Box::new(group.items.into_iter_with_offsets().map(|res| {
+                            res.map(|(offset, item)| {
+                                (
+                                    offset,
+                                    Import {
+                                        module: group.module,
+                                        name: item.name,
+                                        ty: item.ty,
+                                    },
+                                )
+                            })
+                        }))
+                    }
+                    Imports::Compact2(group) => {
+                        let module = group.module;
+                        let ty = group.ty;
+                        Box::new(group.items.into_iter_with_offsets().map(move |res| {
+                            res.map(|(offset, item)| {
+                                (
+                                    offset,
+                                    Import {
+                                        module: module,
+                                        name: item,
+                                        ty: ty,
+                                    },
+                                )
+                            })
+                        }))
+                    }
+                };
+                iter
+            }
+            Err(err) => Box::new(std::iter::once(Err(err))),
+        })
+    }
+}
+
+// TODO: Surely there is a way to unify this iterator logic with the above. Surely...
 impl<'a> Imports<'a> {
     /// TODO
     pub fn iter(&self) -> impl Iterator<Item = Result<Import<'a>>> + 'a {

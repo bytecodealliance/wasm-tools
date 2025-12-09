@@ -293,164 +293,155 @@ impl<'a> Metadata<'a> {
                 }
 
                 Payload::ImportSection(reader) => {
-                    for imports in reader {
-                        let imports = imports?;
-                        for import in imports.iter() {
-                            let import = import?;
+                    for import in reader.into_imports() {
+                        let import = import?;
 
-                            match import.ty {
-                                TypeRef::Func(ty) => {
-                                    function_types.push(usize::try_from(ty).unwrap())
+                        match import.ty {
+                            TypeRef::Func(ty) => function_types.push(usize::try_from(ty).unwrap()),
+                            TypeRef::Global(ty) => global_types.push(ty),
+                            _ => (),
+                        }
+
+                        let type_error = || {
+                            bail!(
+                                "unexpected type for {}:{}: {:?}",
+                                import.module,
+                                import.name,
+                                import.ty
+                            )
+                        };
+
+                        match (import.module, import.name) {
+                            ("env", "memory") => {
+                                if !matches!(import.ty, TypeRef::Memory(_)) {
+                                    return type_error();
                                 }
-                                TypeRef::Global(ty) => global_types.push(ty),
-                                _ => (),
                             }
-
-                            let type_error = || {
-                                bail!(
-                                    "unexpected type for {}:{}: {:?}",
-                                    import.module,
-                                    import.name,
-                                    import.ty
-                                )
-                            };
-
-                            match (import.module, import.name) {
-                                ("env", "memory") => {
-                                    if !matches!(import.ty, TypeRef::Memory(_)) {
-                                        return type_error();
-                                    }
-                                }
-                                ("env", "__asyncify_data" | "__asyncify_state") => {
-                                    result.is_asyncified = true;
-                                    if !matches!(
-                                        import.ty,
-                                        TypeRef::Global(wasmparser::GlobalType {
-                                            content_type: ValType::I32,
-                                            ..
-                                        })
-                                    ) {
-                                        return type_error();
-                                    }
-                                }
-                                ("env", "__memory_base" | "__table_base" | "__stack_pointer") => {
-                                    if !matches!(
-                                        import.ty,
-                                        TypeRef::Global(wasmparser::GlobalType {
-                                            content_type: ValType::I32,
-                                            ..
-                                        })
-                                    ) {
-                                        return type_error();
-                                    }
-                                }
-                                ("env", "__indirect_function_table") => {
-                                    if let TypeRef::Table(TableType {
-                                        element_type,
-                                        maximum: None,
-                                        ..
-                                    }) = import.ty
-                                    {
-                                        if element_type != RefType::FUNCREF {
-                                            return type_error();
-                                        }
-                                    } else {
-                                        return type_error();
-                                    }
-                                }
-                                ("env", name) => match import.ty {
-                                    TypeRef::Func(ty) => {
-                                        result.env_imports.insert((
-                                            name,
-                                            (
-                                                FunctionType::try_from(
-                                                    &types[usize::try_from(ty).unwrap()],
-                                                )?,
-                                                import_info
-                                                    .get(&("env", name))
-                                                    .copied()
-                                                    .unwrap_or_default(),
-                                            ),
-                                        ));
-                                    }
-                                    TypeRef::Tag(TagType {
-                                        kind: TagKind::Exception,
-                                        func_type_idx,
-                                    }) => {
-                                        result.tag_imports.insert((
-                                            name,
-                                            FunctionType::try_from(
-                                                &types[usize::try_from(func_type_idx).unwrap()],
-                                            )?,
-                                        ));
-                                    }
-                                    _ => return type_error(),
-                                },
-                                ("GOT.mem", name) => {
-                                    if let TypeRef::Global(wasmparser::GlobalType {
+                            ("env", "__asyncify_data" | "__asyncify_state") => {
+                                result.is_asyncified = true;
+                                if !matches!(
+                                    import.ty,
+                                    TypeRef::Global(wasmparser::GlobalType {
                                         content_type: ValType::I32,
                                         ..
-                                    }) = import.ty
-                                    {
-                                        match name {
-                                            "__heap_base" | "__heap_end" | "__stack_high"
-                                            | "__stack_low" => (),
-                                            _ => {
-                                                result.memory_address_imports.insert(name);
-                                            }
-                                        }
-                                    } else {
-                                        return type_error();
-                                    }
+                                    })
+                                ) {
+                                    return type_error();
                                 }
-                                ("GOT.func", name) => {
-                                    if let TypeRef::Global(wasmparser::GlobalType {
+                            }
+                            ("env", "__memory_base" | "__table_base" | "__stack_pointer") => {
+                                if !matches!(
+                                    import.ty,
+                                    TypeRef::Global(wasmparser::GlobalType {
                                         content_type: ValType::I32,
                                         ..
-                                    }) = import.ty
-                                    {
-                                        result.table_address_imports.insert(name);
-                                    } else {
+                                    })
+                                ) {
+                                    return type_error();
+                                }
+                            }
+                            ("env", "__indirect_function_table") => {
+                                if let TypeRef::Table(TableType {
+                                    element_type,
+                                    maximum: None,
+                                    ..
+                                }) = import.ty
+                                {
+                                    if element_type != RefType::FUNCREF {
                                         return type_error();
                                     }
+                                } else {
+                                    return type_error();
                                 }
-                                (module, name) if adapter_names.contains(module) => {
-                                    let ty = match import.ty {
-                                        TypeRef::Global(wasmparser::GlobalType {
-                                            content_type,
-                                            mutable,
-                                            shared,
-                                        }) => Type::Global(GlobalType {
-                                            ty: content_type.try_into()?,
-                                            mutable,
-                                            shared,
-                                        }),
-                                        TypeRef::Func(ty) => {
-                                            Type::Function(FunctionType::try_from(
-                                                &types[usize::try_from(ty).unwrap()],
-                                            )?)
-                                        }
-                                        ty => {
-                                            bail!(
-                                                "unsupported import kind for {module}.{name}: {ty:?}",
-                                            )
-                                        }
-                                    };
-                                    let flags = import_info
-                                        .get(&(module, name))
-                                        .copied()
-                                        .unwrap_or_default();
-                                    result.imports.insert(Import {
-                                        module,
+                            }
+                            ("env", name) => match import.ty {
+                                TypeRef::Func(ty) => {
+                                    result.env_imports.insert((
                                         name,
-                                        ty,
-                                        flags,
-                                    });
+                                        (
+                                            FunctionType::try_from(
+                                                &types[usize::try_from(ty).unwrap()],
+                                            )?,
+                                            import_info
+                                                .get(&("env", name))
+                                                .copied()
+                                                .unwrap_or_default(),
+                                        ),
+                                    ));
                                 }
-                                _ => {
-                                    if !matches!(import.ty, TypeRef::Func(_) | TypeRef::Global(_)) {
-                                        return type_error();
+                                TypeRef::Tag(TagType {
+                                    kind: TagKind::Exception,
+                                    func_type_idx,
+                                }) => {
+                                    result.tag_imports.insert((
+                                        name,
+                                        FunctionType::try_from(
+                                            &types[usize::try_from(func_type_idx).unwrap()],
+                                        )?,
+                                    ));
+                                }
+                                _ => return type_error(),
+                            },
+                            ("GOT.mem", name) => {
+                                if let TypeRef::Global(wasmparser::GlobalType {
+                                    content_type: ValType::I32,
+                                    ..
+                                }) = import.ty
+                                {
+                                    match name {
+                                        "__heap_base" | "__heap_end" | "__stack_high"
+                                        | "__stack_low" => (),
+                                        _ => {
+                                            result.memory_address_imports.insert(name);
+                                        }
                                     }
+                                } else {
+                                    return type_error();
+                                }
+                            }
+                            ("GOT.func", name) => {
+                                if let TypeRef::Global(wasmparser::GlobalType {
+                                    content_type: ValType::I32,
+                                    ..
+                                }) = import.ty
+                                {
+                                    result.table_address_imports.insert(name);
+                                } else {
+                                    return type_error();
+                                }
+                            }
+                            (module, name) if adapter_names.contains(module) => {
+                                let ty = match import.ty {
+                                    TypeRef::Global(wasmparser::GlobalType {
+                                        content_type,
+                                        mutable,
+                                        shared,
+                                    }) => Type::Global(GlobalType {
+                                        ty: content_type.try_into()?,
+                                        mutable,
+                                        shared,
+                                    }),
+                                    TypeRef::Func(ty) => Type::Function(FunctionType::try_from(
+                                        &types[usize::try_from(ty).unwrap()],
+                                    )?),
+                                    ty => {
+                                        bail!("unsupported import kind for {module}.{name}: {ty:?}",)
+                                    }
+                                };
+                                let flags = import_info
+                                    .get(&(module, name))
+                                    .copied()
+                                    .unwrap_or_default();
+                                result.imports.insert(Import {
+                                    module,
+                                    name,
+                                    ty,
+                                    flags,
+                                });
+                            }
+                            _ => {
+                                if !matches!(import.ty, TypeRef::Func(_) | TypeRef::Global(_)) {
+                                    return type_error();
                                 }
                             }
                         }

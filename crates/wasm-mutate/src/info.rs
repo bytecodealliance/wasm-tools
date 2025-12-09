@@ -99,34 +99,31 @@ impl<'a> ModuleInfo<'a> {
                     info.imports = Some(info.raw_sections.len());
                     info.section(SectionId::Import.into(), reader.range(), input_wasm);
 
-                    for imports in reader {
-                        for ty in imports?.iter() {
-                            match ty?.ty {
-                                wasmparser::TypeRef::Func(ty)
-                                | wasmparser::TypeRef::FuncExact(ty) => {
-                                    // Save imported functions
-                                    info.function_map.push(ty);
-                                    info.imported_functions_count += 1;
-                                }
-                                wasmparser::TypeRef::Global(ty) => {
-                                    let ty = PrimitiveTypeInfo::try_from(ty.content_type)?;
-                                    info.global_types.push(ty);
-                                    info.imported_globals_count += 1;
-                                }
-                                wasmparser::TypeRef::Memory(ty) => {
-                                    info.memory_count += 1;
-                                    info.imported_memories_count += 1;
-                                    info.memory_types.push(ty);
-                                }
-                                wasmparser::TypeRef::Table(ty) => {
-                                    info.table_count += 1;
-                                    info.imported_tables_count += 1;
-                                    info.table_types.push(ty);
-                                }
-                                wasmparser::TypeRef::Tag(_ty) => {
-                                    info.tag_count += 1;
-                                    info.imported_tags_count += 1;
-                                }
+                    for ty in reader.into_imports() {
+                        match ty?.ty {
+                            wasmparser::TypeRef::Func(ty) | wasmparser::TypeRef::FuncExact(ty) => {
+                                // Save imported functions
+                                info.function_map.push(ty);
+                                info.imported_functions_count += 1;
+                            }
+                            wasmparser::TypeRef::Global(ty) => {
+                                let ty = PrimitiveTypeInfo::try_from(ty.content_type)?;
+                                info.global_types.push(ty);
+                                info.imported_globals_count += 1;
+                            }
+                            wasmparser::TypeRef::Memory(ty) => {
+                                info.memory_count += 1;
+                                info.imported_memories_count += 1;
+                                info.memory_types.push(ty);
+                            }
+                            wasmparser::TypeRef::Table(ty) => {
+                                info.table_count += 1;
+                                info.imported_tables_count += 1;
+                                info.table_types.push(ty);
+                            }
+                            wasmparser::TypeRef::Tag(_ty) => {
+                                info.tag_count += 1;
+                                info.imported_tags_count += 1;
                             }
                         }
                     }

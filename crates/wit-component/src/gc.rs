@@ -234,31 +234,28 @@ impl<'a> Module<'a> {
                     }
                 }
                 Payload::ImportSection(s) => {
-                    for imports in s {
-                        let imports = imports?;
-                        for i in imports.iter() {
-                            let i = i?;
-                            match i.ty {
-                                TypeRef::Func(ty) => self.funcs.push(Func {
-                                    def: Definition::Import(i.module, i.name),
-                                    ty,
-                                }),
-                                TypeRef::Table(ty) => self.tables.push(Table {
-                                    def: Definition::Import(i.module, i.name),
-                                    ty,
-                                }),
-                                TypeRef::Global(ty) => self.globals.push(Global {
-                                    def: Definition::Import(i.module, i.name),
-                                    ty,
-                                }),
-                                TypeRef::Memory(ty) => self.memories.push(Memory {
-                                    def: Definition::Import(i.module, i.name),
-                                    ty,
-                                }),
-                                TypeRef::Tag(_) => bail!("unsupported `tag` type"),
-                                TypeRef::FuncExact(_) => {
-                                    bail!("unsupported `func_exact` type")
-                                }
+                    for i in s.into_imports() {
+                        let i = i?;
+                        match i.ty {
+                            TypeRef::Func(ty) => self.funcs.push(Func {
+                                def: Definition::Import(i.module, i.name),
+                                ty,
+                            }),
+                            TypeRef::Table(ty) => self.tables.push(Table {
+                                def: Definition::Import(i.module, i.name),
+                                ty,
+                            }),
+                            TypeRef::Global(ty) => self.globals.push(Global {
+                                def: Definition::Import(i.module, i.name),
+                                ty,
+                            }),
+                            TypeRef::Memory(ty) => self.memories.push(Memory {
+                                def: Definition::Import(i.module, i.name),
+                                ty,
+                            }),
+                            TypeRef::Tag(_) => bail!("unsupported `tag` type"),
+                            TypeRef::FuncExact(_) => {
+                                bail!("unsupported `func_exact` type")
                             }
                         }
                     }

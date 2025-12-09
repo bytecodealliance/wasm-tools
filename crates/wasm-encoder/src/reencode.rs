@@ -431,7 +431,7 @@ pub trait Reencode {
         utils::parse_import_section(self, imports, section)
     }
 
-    /// Parses the single [`wasmparser::Import`] provided and adds it to the
+    /// Parses a [`wasmparser::Imports`] and adds all of its contents to the
     /// `import` section.
     fn parse_imports(
         &mut self,
@@ -439,6 +439,16 @@ pub trait Reencode {
         imports: wasmparser::Imports<'_>,
     ) -> Result<(), Error<Self::Error>> {
         utils::parse_imports(self, import_section, imports)
+    }
+
+    /// Parses the single [`wasmparser::Import`] provided and adds it to the
+    /// `import` section.
+    fn parse_import(
+        &mut self,
+        imports: &mut crate::ImportSection,
+        import: wasmparser::Import<'_>,
+    ) -> Result<(), Error<Self::Error>> {
+        utils::parse_import(self, imports, import)
     }
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
@@ -1444,6 +1454,8 @@ pub mod utils {
         Ok(())
     }
 
+    /// Parses a [`wasmparser::Imports`] and adds all of its contents to the
+    /// `import` section.
     pub fn parse_imports<T: ?Sized + Reencode>(
         reencoder: &mut T,
         import_section: &mut crate::ImportSection,
@@ -1451,6 +1463,7 @@ pub mod utils {
     ) -> Result<(), Error<T::Error>> {
         for import in imports.iter() {
             let import = import?;
+            // TODO: Encode using new encodings
             import_section.import(
                 import.module,
                 import.name,
@@ -1458,6 +1471,16 @@ pub mod utils {
             );
         }
         Ok(())
+    }
+
+    /// Parses the single [`wasmparser::Import`] provided and adds it to the
+    /// `import` section.
+    pub fn parse_import<T: ?Sized + Reencode>(
+        reencoder: &mut T,
+        imports: &mut crate::ImportSection,
+        import: wasmparser::Import<'_>,
+    ) -> Result<(), Error<T::Error>> {
+        parse_imports(reencoder, imports, wasmparser::Imports::Single(import))
     }
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
