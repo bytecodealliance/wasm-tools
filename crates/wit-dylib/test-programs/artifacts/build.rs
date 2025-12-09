@@ -4,7 +4,15 @@ use std::process::Command;
 
 fn main() {
     let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
-    let wasi_sdk_path = PathBuf::from(std::env::var("WASI_SDK_PATH").unwrap());
+    let wasi_sdk_path = PathBuf::from(std::env::var("WASI_SDK_PATH").expect(
+        "
+The $WASI_SDK_PATH environment variable isn't set and thus these tests can't be
+built. If you're testing the entier workspace pass `--exclude wit-dylib` to
+Cargo to avoid testing this crate, and otherwise you can install the sdk through
+https://github.com/webassembly/wasi-sdk
+
+            ",
+    ));
     let target = "wasm32-wasip2";
     let upcase = target.to_uppercase().replace("-", "_");
     let mut cargo = Command::new("cargo");
