@@ -97,7 +97,7 @@ pub type ImportSectionReader<'a> = SectionLimited<'a, Imports<'a>>;
 
 impl<'a> FromReader<'a> for Imports<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        let start = reader.current_position();
+        let start = reader.original_position();
         let module = reader.read_string()?;
         let single_item_name = reader.read_string()?;
         let discriminator = reader.peek_bytes(1)?[0];
