@@ -14,7 +14,6 @@
  */
 
 use core::mem;
-use std::boxed::Box;
 
 use crate::{
     BinaryReader, BinaryReaderError, ExternalKind, FromReader, GlobalType, MemoryType, Result,
