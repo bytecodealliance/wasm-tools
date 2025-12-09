@@ -260,7 +260,7 @@ impl<'a> Iterator for ImportsIter<'a> {
             }
 
             ImportsIterState::Single(offset, i) => {
-                let ret = Some(Ok((*offset, i.clone())));
+                let ret = Some(Ok((*offset, *i)));
                 self.state = ImportsIterState::Done;
                 ret
             }
