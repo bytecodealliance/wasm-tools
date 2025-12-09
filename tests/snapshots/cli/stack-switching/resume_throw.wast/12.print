@@ -1,0 +1,10 @@
+(module
+  (type $f (;0;) (func))
+  (type $k (;1;) (cont $f))
+  (tag $exn (;0;) (type $f))
+  (export "throw_null" (func 0))
+  (func (;0;) (type $f)
+    ref.null $k
+    resume_throw $k $exn
+  )
+)

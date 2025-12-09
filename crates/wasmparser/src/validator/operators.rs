@@ -4368,6 +4368,16 @@ where
         }
         Ok(())
     }
+    fn visit_resume_throw_ref(&mut self, type_index: u32, table: ResumeTable) -> Self::Output {
+        let ft = self.check_resume_table(table, type_index)?;
+        self.pop_concrete_ref(true, type_index)?;
+        self.pop_operand(Some(ValType::EXNREF))?;
+
+        for &ty in ft.results() {
+            self.push_operand(ty)?
+        }
+        Ok(())
+    }
     fn visit_switch(&mut self, type_index: u32, tag_index: u32) -> Self::Output {
         // [t1* (ref null $ct2)] -> [te1*]
         let cont_ty = self.cont_type_at(type_index)?;

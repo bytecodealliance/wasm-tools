@@ -1,0 +1,234 @@
+{
+  "source_filename": "tests/cli/stack-switching/resume_throw.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 6,
+      "filename": "resume_throw.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 25,
+      "action": {
+        "type": "invoke",
+        "field": "throw_never",
+        "args": []
+      },
+      "expected": []
+    },
+    {
+      "type": "module",
+      "line": 28,
+      "filename": "resume_throw.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 48,
+      "action": {
+        "type": "invoke",
+        "field": "throw_never_i32",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 51,
+      "filename": "resume_throw.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 71,
+      "action": {
+        "type": "invoke",
+        "field": "throw_never_ref",
+        "args": [
+          {
+            "type": "externref",
+            "value": "1"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "externref",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 74,
+      "filename": "resume_throw.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 98,
+      "action": {
+        "type": "invoke",
+        "field": "throw_handled",
+        "args": []
+      },
+      "expected": []
+    },
+    {
+      "type": "module",
+      "line": 101,
+      "filename": "resume_throw.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_exception",
+      "line": 121,
+      "action": {
+        "type": "invoke",
+        "field": "throw_unhandled",
+        "args": []
+      }
+    },
+    {
+      "type": "module",
+      "line": 124,
+      "filename": "resume_throw.5.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_trap",
+      "line": 140,
+      "action": {
+        "type": "invoke",
+        "field": "throw_consumed",
+        "args": []
+      },
+      "text": "continuation already consumed"
+    },
+    {
+      "type": "module",
+      "line": 143,
+      "filename": "resume_throw.6.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_trap",
+      "line": 151,
+      "action": {
+        "type": "invoke",
+        "field": "throw_null",
+        "args": []
+      },
+      "text": "null continuation reference"
+    },
+    {
+      "type": "module",
+      "line": 154,
+      "filename": "resume_throw.7.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 192,
+      "action": {
+        "type": "invoke",
+        "field": "throw_handled_ref",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 196,
+      "filename": "resume_throw.8.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_exception",
+      "line": 215,
+      "action": {
+        "type": "invoke",
+        "field": "throw_unhandled_ref",
+        "args": []
+      }
+    },
+    {
+      "type": "module",
+      "line": 218,
+      "filename": "resume_throw.9.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_trap",
+      "line": 242,
+      "action": {
+        "type": "invoke",
+        "field": "throw_consumed_ref",
+        "args": []
+      },
+      "text": "continuation already consumed"
+    },
+    {
+      "type": "module",
+      "line": 245,
+      "filename": "resume_throw.10.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_trap",
+      "line": 258,
+      "action": {
+        "type": "invoke",
+        "field": "throw_null_ref",
+        "args": []
+      },
+      "text": "null continuation reference"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 263,
+      "filename": "resume_throw.11.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 274,
+      "filename": "resume_throw.12.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 286,
+      "filename": "resume_throw.13.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 297,
+      "filename": "resume_throw.14.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 308,
+      "filename": "resume_throw.15.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    }
+  ]
+}

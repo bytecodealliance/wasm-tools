@@ -1308,6 +1308,10 @@ pub enum Instruction<'a> {
         tag_index: u32,
         resume_table: Cow<'a, [Handle]>,
     },
+    ResumeThrowRef {
+        cont_type_index: u32,
+        resume_table: Cow<'a, [Handle]>,
+    },
     Switch {
         cont_type_index: u32,
         tag_index: u32,
@@ -2156,6 +2160,10 @@ impl Encode for Instruction<'_> {
                 tag_index,
                 ref resume_table,
             } => sink.resume_throw(cont_type_index, tag_index, resume_table.iter().cloned()),
+            Instruction::ResumeThrowRef {
+                cont_type_index,
+                ref resume_table,
+            } => sink.resume_throw_ref(cont_type_index, resume_table.iter().cloned()),
             Instruction::Switch {
                 cont_type_index,
                 tag_index,

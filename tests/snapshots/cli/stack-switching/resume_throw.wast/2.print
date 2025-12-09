@@ -1,0 +1,23 @@
+(module
+  (type $f (;0;) (func))
+  (type $k (;1;) (cont $f))
+  (type (;2;) (func (param i32)))
+  (type (;3;) (func (result i32)))
+  (tag $exn_i32 (;0;) (type 2) (param i32))
+  (export "throw_never_i32" (func 1))
+  (elem (;0;) declare func $never)
+  (func $never (;0;) (type $f)
+    unreachable
+  )
+  (func (;1;) (type 3) (result i32)
+    block $h (result i32)
+      try_table (result i32) (catch $exn_i32 $h) ;; label = @2
+        i32.const 42
+        ref.func $never
+        cont.new $k
+        resume_throw $k $exn_i32
+        unreachable
+      end
+    end
+  )
+)

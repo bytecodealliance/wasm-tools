@@ -1,0 +1,41 @@
+(module
+  (type $f (;0;) (func (result i32)))
+  (type $k (;1;) (cont $f))
+  (type (;2;) (func (param i32)))
+  (type (;3;) (func))
+  (type (;4;) (func (result i32 exnref)))
+  (tag $e0 (;0;) (type 2) (param i32))
+  (tag $yield (;1;) (type 3))
+  (export "throw_handled_ref" (func 0))
+  (elem (;0;) declare func $yield42)
+  (func (;0;) (type $f) (result i32)
+    (local $k_ref (ref $k))
+    ref.func $yield42
+    cont.new $k
+    local.set $k_ref
+    block $y (result (ref $k))
+      local.get $k_ref
+      resume $k (on $yield $y)
+      unreachable
+    end
+    local.set $k_ref
+    block $h (type 4) (result i32 exnref)
+      try_table (catch_ref $e0 $h) ;; label = @2
+        i32.const 42
+        throw $e0
+      end
+      unreachable
+    end
+    local.get $k_ref
+    resume_throw_ref $k
+    return
+  )
+  (func $yield42 (;1;) (type $f) (result i32)
+    block $h (result i32)
+      try_table (result i32) (catch $e0 $h) ;; label = @2
+        suspend $yield
+        unreachable
+      end
+    end
+  )
+)

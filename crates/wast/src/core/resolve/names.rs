@@ -677,6 +677,10 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 self.resolver.resolve(&mut rt.tag_index, Ns::Tag)?;
                 self.resolve_resume_table(&mut rt.table)?;
             }
+            ResumeThrowRef(rt) => {
+                self.resolver.resolve(&mut rt.type_index, Ns::Type)?;
+                self.resolve_resume_table(&mut rt.table)?;
+            }
             Switch(s) => {
                 self.resolver.resolve(&mut s.type_index, Ns::Type)?;
                 self.resolver.resolve(&mut s.tag_index, Ns::Tag)?;
