@@ -300,7 +300,7 @@ impl Reencode for RemoveItem<'_> {
                 }
             }
             if retain {
-                self.parse_imports(imports, wasmparser::Imports::Single(item))?;
+                self.parse_import(imports, item)?;
             }
         }
         Ok(())
