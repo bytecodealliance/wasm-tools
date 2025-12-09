@@ -446,6 +446,8 @@ pub enum ComponentDefinedType<'a> {
     Variant(Box<[VariantCase<'a>]>),
     /// The type is a list of the given value type.
     List(ComponentValType),
+    /// The type is a map of the given key and value types.
+    Map(ComponentValType, ComponentValType),
     /// The type is a fixed size list of the given value type.
     FixedSizeList(ComponentValType, u32),
     /// The type is a tuple of the given value types.
@@ -487,6 +489,7 @@ impl<'a> ComponentDefinedType<'a> {
                     .collect::<Result<_>>()?,
             ),
             0x70 => ComponentDefinedType::List(reader.read()?),
+            0x63 => ComponentDefinedType::Map(reader.read()?, reader.read()?),
             0x6f => ComponentDefinedType::Tuple(
                 reader
                     .read_iter(MAX_WASM_TUPLE_TYPES, "tuple types")?

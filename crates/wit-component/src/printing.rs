@@ -602,6 +602,14 @@ impl<O: Output> WitPrinter<O> {
                         self.print_type_name(resolve, ty)?;
                         self.output.generic_args_end();
                     }
+                    TypeDefKind::Map(key_ty, value_ty) => {
+                        self.output.ty("map", TypeKind::BuiltIn);
+                        self.output.generic_args_start();
+                        self.print_type_name(resolve, key_ty)?;
+                        self.output.str(", ");
+                        self.print_type_name(resolve, value_ty)?;
+                        self.output.generic_args_end();
+                    }
                     TypeDefKind::FixedSizeList(ty, size) => {
                         self.output.ty("list", TypeKind::BuiltIn);
                         self.output.generic_args_start();
@@ -782,6 +790,9 @@ impl<O: Output> WitPrinter<O> {
                     TypeDefKind::Enum(e) => self.declare_enum(ty.name.as_deref(), e)?,
                     TypeDefKind::List(inner) => {
                         self.declare_list(resolve, ty.name.as_deref(), inner)?
+                    }
+                    TypeDefKind::Map(key, value) => {
+                        self.declare_map(resolve, ty.name.as_deref(), key, value)?
                     }
                     TypeDefKind::FixedSizeList(inner, size) => {
                         self.declare_fixed_size_list(resolve, ty.name.as_deref(), inner, *size)?
@@ -991,6 +1002,31 @@ impl<O: Output> WitPrinter<O> {
             self.output.ty("list", TypeKind::BuiltIn);
             self.output.str("<");
             self.print_type_name(resolve, ty)?;
+            self.output.str(">");
+            self.output.semicolon();
+            return Ok(());
+        }
+
+        Ok(())
+    }
+
+    fn declare_map(
+        &mut self,
+        resolve: &Resolve,
+        name: Option<&str>,
+        key_ty: &Type,
+        value_ty: &Type,
+    ) -> Result<()> {
+        if let Some(name) = name {
+            self.output.keyword("type");
+            self.output.str(" ");
+            self.print_name_type(name, TypeKind::Map);
+            self.output.str(" = ");
+            self.output.ty("map", TypeKind::BuiltIn);
+            self.output.str("<");
+            self.print_type_name(resolve, key_ty)?;
+            self.output.str(", ");
+            self.print_type_name(resolve, value_ty)?;
             self.output.str(">");
             self.output.semicolon();
             return Ok(());
@@ -1339,6 +1375,8 @@ pub enum TypeKind {
     InterfacePath,
     /// A list type name.
     List,
+    /// A map type name.
+    Map,
     /// A namespace declaration.
     NamespaceDeclaration,
     /// A namespace when printing a path, for example in `use`.

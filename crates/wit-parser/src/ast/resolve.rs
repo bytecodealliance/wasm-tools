@@ -92,6 +92,7 @@ enum Key {
     Tuple(Vec<Type>),
     Enum(Vec<String>),
     List(Type),
+    Map(Type, Type),
     FixedSizeList(Type, u32),
     Option(Type),
     Result(Option<Type>, Option<Type>),
@@ -1180,6 +1181,11 @@ impl<'a> Resolver<'a> {
                 let ty = self.resolve_type(&list.ty, stability)?;
                 TypeDefKind::List(ty)
             }
+            ast::Type::Map(map) => {
+                let key_ty = self.resolve_type(&map.key, stability)?;
+                let value_ty = self.resolve_type(&map.value, stability)?;
+                TypeDefKind::Map(key_ty, value_ty)
+            }
             ast::Type::FixedSizeList(list) => {
                 let ty = self.resolve_type(&list.ty, stability)?;
                 TypeDefKind::FixedSizeList(ty, list.size)
@@ -1367,6 +1373,9 @@ impl<'a> Resolver<'a> {
                 TypeDefKind::List(ty)
                 | TypeDefKind::FixedSizeList(ty, _)
                 | TypeDefKind::Option(ty) => find_in_type(types, *ty),
+                TypeDefKind::Map(k, v) => {
+                    find_in_type(types, *k).or_else(|| find_in_type(types, *v))
+                }
                 TypeDefKind::Future(ty) | TypeDefKind::Stream(ty) => {
                     ty.as_ref().and_then(|ty| find_in_type(types, *ty))
                 }
@@ -1458,6 +1467,7 @@ impl<'a> Resolver<'a> {
                 Key::Enum(r.cases.iter().map(|f| f.name.clone()).collect::<Vec<_>>())
             }
             TypeDefKind::List(ty) => Key::List(*ty),
+            TypeDefKind::Map(k, v) => Key::Map(*k, *v),
             TypeDefKind::FixedSizeList(ty, size) => Key::FixedSizeList(*ty, *size),
             TypeDefKind::Option(t) => Key::Option(*t),
             TypeDefKind::Result(r) => Key::Result(r.ok, r.err),
@@ -1747,6 +1757,10 @@ fn collect_deps<'a>(ty: &ast::Type<'a>, deps: &mut Vec<ast::Id<'a>>) {
         ast::Type::Option(ast::Option_ { ty, .. })
         | ast::Type::List(ast::List { ty, .. })
         | ast::Type::FixedSizeList(ast::FixedSizeList { ty, .. }) => collect_deps(ty, deps),
+        ast::Type::Map(ast::Map { key, value, .. }) => {
+            collect_deps(key, deps);
+            collect_deps(value, deps);
+        }
         ast::Type::Result(r) => {
             if let Some(ty) = &r.ok {
                 collect_deps(ty, deps);
