@@ -663,7 +663,7 @@ impl Reencode for RoundtripReencoder {
 #[allow(missing_docs)] // FIXME
 pub mod utils {
     use super::{Error, Reencode};
-    use crate::{CoreTypeEncoder, Encode};
+    use crate::{CoreTypeEncoder, Encode, Imports};
     use alloc::vec::Vec;
     use core::ops::Range;
 
@@ -1449,7 +1449,8 @@ pub mod utils {
         section: wasmparser::ImportSectionReader<'_>,
     ) -> Result<(), Error<T::Error>> {
         for imports in section {
-            reencoder.parse_imports(import_section, imports?)?;
+            let imports = imports?;
+            reencoder.parse_imports(import_section, imports)?;
         }
         Ok(())
     }
@@ -1461,15 +1462,15 @@ pub mod utils {
         import_section: &mut crate::ImportSection,
         imports: wasmparser::Imports<'_>,
     ) -> Result<(), Error<T::Error>> {
-        for import in imports.iter() {
-            let import = import?;
-            // TODO: Encode using new encodings
-            import_section.import(
-                import.module,
-                import.name,
-                reencoder.entity_type(import.ty)?,
-            );
-        }
+        import_section.imports(match imports {
+            wasmparser::Imports::Single(import) => Imports::Single(crate::Import {
+                module: import.module,
+                item: import.name,
+                ty: reencoder.entity_type(import.ty)?,
+            }),
+            wasmparser::Imports::Compact1(group) => todo!(),
+            wasmparser::Imports::Compact2(group) => todo!(),
+        });
         Ok(())
     }
 
@@ -1480,7 +1481,8 @@ pub mod utils {
         imports: &mut crate::ImportSection,
         import: wasmparser::Import<'_>,
     ) -> Result<(), Error<T::Error>> {
-        parse_imports(reencoder, imports, wasmparser::Imports::Single(import))
+        reencoder.parse_imports(imports, wasmparser::Imports::Single(import))?;
+        Ok(())
     }
 
     /// Parses the input `section` given from the `wasmparser` crate and adds

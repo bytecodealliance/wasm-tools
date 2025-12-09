@@ -3,6 +3,7 @@ use crate::{
     CORE_TABLE_SORT, CORE_TAG_SORT, Encode, GlobalType, MemoryType, Section, SectionId, TableType,
     TagType, encode_section,
 };
+use alloc::borrow::Cow;
 use alloc::vec::Vec;
 
 /// The type of an entity.
@@ -83,6 +84,57 @@ impl From<TagType> for EntityType {
     }
 }
 
+/// TODO
+#[derive(Clone, Debug)]
+pub struct Import<'a> {
+    /// TODO
+    pub module: &'a str,
+    /// TODO
+    pub item: &'a str,
+    /// TODO
+    pub ty: EntityType,
+}
+
+/// TODO
+#[derive(Clone, Debug)]
+pub struct ImportCompact<'a> {
+    /// TODO
+    pub item: &'a str,
+    /// TODO
+    pub ty: EntityType,
+}
+
+/// TODO
+#[derive(Clone, Debug)]
+pub struct ImportGroupCompact1<'a> {
+    /// TODO
+    pub module: &'a str,
+    /// TODO
+    pub items: Cow<'a, [ImportCompact<'a>]>,
+}
+
+/// TODO
+#[derive(Clone, Debug)]
+pub struct ImportGroupCompact2<'a> {
+    /// TODO
+    pub module: &'a str,
+    /// TODO
+    pub ty: EntityType,
+    /// TODO
+    pub items: Cow<'a, [&'a str]>,
+}
+
+/// TODO
+#[derive(Clone, Debug)]
+pub enum Imports<'a> {
+    /// TODO
+    Single(Import<'a>),
+    /// TODO
+    Compact1(ImportGroupCompact1<'a>),
+    /// TODO
+    Compact2(ImportGroupCompact2<'a>),
+}
+
 /// An encoder for the import section of WebAssembly modules.
 ///
 /// # Example
@@ -130,13 +182,48 @@ impl ImportSection {
         self.num_added == 0
     }
 
+    /// Define imports in the import section.
+    pub fn imports<'a>(&mut self, imports: Imports<'a>) -> &mut Self {
+        match imports {
+            Imports::Single(import) => {
+                import.module.encode(&mut self.bytes);
+                import.item.encode(&mut self.bytes);
+                import.ty.encode(&mut self.bytes);
+                self.num_added += 1;
+            }
+            Imports::Compact1(group) => {
+                group.module.encode(&mut self.bytes);
+                self.bytes.push(0x00); // empty name
+                self.bytes.push(0x7F);
+                group.items.len().encode(&mut self.bytes);
+                for item in group.items.iter() {
+                    item.item.encode(&mut self.bytes);
+                    item.ty.encode(&mut self.bytes);
+                    self.num_added += 1;
+                }
+            }
+            Imports::Compact2(group) => {
+                group.module.encode(&mut self.bytes);
+                self.bytes.push(0x00); // empty name
+                self.bytes.push(0x7E);
+                group.ty.encode(&mut self.bytes);
+                group.items.len().encode(&mut self.bytes);
+                for item in group.items.iter() {
+                    item.encode(&mut self.bytes);
+                    self.num_added += 1;
+                }
+            }
+        }
+        self
+    }
+
     /// Define an import in the import section.
     pub fn import(&mut self, module: &str, field: &str, ty: impl Into<EntityType>) -> &mut Self {
-        module.encode(&mut self.bytes);
-        field.encode(&mut self.bytes);
-        ty.into().encode(&mut self.bytes);
-        self.num_added += 1;
-        self
+        self.imports(Imports::Single(Import {
+            module,
+            item: field,
+            ty: ty.into(),
+        }))
     }
 }
 
