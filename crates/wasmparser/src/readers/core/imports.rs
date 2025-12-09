@@ -42,6 +42,7 @@ pub enum TypeRef {
 }
 
 /// Represents a group of imports in a WebAssembly module.
+#[derive(Debug)]
 pub enum Imports<'a> {
     /// The group contains a single import.
     Single(Import<'a>),
@@ -63,6 +64,7 @@ pub struct Import<'a> {
 }
 
 /// A group of imports that share a common module name, but have different types.
+#[derive(Debug)]
 pub struct ImportGroup1<'a> {
     /// The module being imported from.
     pub module: &'a str,
@@ -80,6 +82,7 @@ pub struct ImportItemCompact<'a> {
 }
 
 /// A group of imports that share a common module name and type.
+#[derive(Debug)]
 pub struct ImportGroup2<'a> {
     /// The module each item will be imported from.
     pub module: &'a str,
