@@ -179,7 +179,8 @@ pub(crate) fn encode(
     // will internally emit the branch hints section if necessary.
     let names = find_names(module_id, module_name, fields, &types);
     let num_import_funcs = imports
-        .iter()
+        .into_iter()
+        .flat_map(|group| group)
         .filter(|i| matches!(i.item.kind, ItemKind::Func(..)))
         .count() as u32;
     let mut dwarf = dwarf::Dwarf::new(num_import_funcs, opts, &names, &types);
@@ -491,12 +492,33 @@ impl From<StorageType<'_>> for wasm_encoder::StorageType {
     }
 }
 
-impl SectionItem for Import<'_> {
+impl SectionItem for Imports<'_> {
     type Section = wasm_encoder::ImportSection;
     const ANCHOR: CustomPlaceAnchor = CustomPlaceAnchor::Import;
 
     fn encode(&self, section: &mut wasm_encoder::ImportSection) {
-        section.import(self.module, self.field, self.item.to_entity_type());
+        section.imports(match &self.items {
+            ImportItems::Single(import) => wasm_encoder::Imports::Single(wasm_encoder::Import {
+                module: import.module,
+                item: import.field,
+                ty: import.item.to_entity_type(),
+            }),
+            ImportItems::Group1 { module, items } => wasm_encoder::Imports::Compact1 {
+                module,
+                items: items
+                    .into_iter()
+                    .map(|foo| wasm_encoder::ImportCompact {
+                        item: foo.name,
+                        ty: foo.sig.as_ref().unwrap().to_entity_type(),
+                    })
+                    .collect(),
+            },
+            ImportItems::Group2 { module, sig, items } => wasm_encoder::Imports::Compact2 {
+                module,
+                ty: sig.to_entity_type(),
+                items: items.into(),
+            },
+        });
     }
 }
 
@@ -1025,17 +1047,19 @@ fn find_names<'a>(
     for field in fields {
         // Extract the kind/id/name from whatever kind of field this is...
         let (kind, id, name) = match field {
-            ModuleField::Import(i) => (
-                match i.item.kind {
-                    ItemKind::Func(_) | ItemKind::FuncExact(_) => Name::Func,
-                    ItemKind::Table(_) => Name::Table,
-                    ItemKind::Memory(_) => Name::Memory,
-                    ItemKind::Global(_) => Name::Global,
-                    ItemKind::Tag(_) => Name::Tag,
-                },
-                &i.item.id,
-                &i.item.name,
-            ),
+            ModuleField::Import(imports) => {
+                for i in imports {
+                    let name = match i.item.kind {
+                        ItemKind::Func(_) | ItemKind::FuncExact(_) => Name::Func,
+                        ItemKind::Table(_) => Name::Table,
+                        ItemKind::Memory(_) => Name::Memory,
+                        ItemKind::Global(_) => Name::Global,
+                        ItemKind::Tag(_) => Name::Tag,
+                    };
+                    names.push((name, &i.item.id, &i.item.name, field));
+                }
+                continue;
+            }
             ModuleField::Global(g) => (Name::Global, &g.id, &g.name),
             ModuleField::Table(t) => (Name::Table, &t.id, &t.name),
             ModuleField::Memory(m) => (Name::Memory, &m.id, &m.name),

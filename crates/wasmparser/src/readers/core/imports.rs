@@ -47,9 +47,21 @@ pub enum Imports<'a> {
     /// The group contains a single import.
     Single(usize, Import<'a>),
     /// The group contains many imports that share the same module name, but have different types.
-    Compact1(ImportGroup1<'a>),
+    Compact1 {
+        /// The module being imported from.
+        module: &'a str,
+        /// The imported items.
+        items: SectionLimited<'a, ImportItemCompact<'a>>,
+    },
     /// The group contains many imports that share the same module name and type.
-    Compact2(ImportGroup2<'a>),
+    Compact2 {
+        /// The module each item will be imported from.
+        module: &'a str,
+        /// The type of the imported items.
+        ty: TypeRef,
+        /// The imported item names.
+        items: SectionLimited<'a, &'a str>,
+    },
 }
 
 /// Represents an import in a WebAssembly module.
@@ -63,15 +75,6 @@ pub struct Import<'a> {
     pub ty: TypeRef,
 }
 
-/// A group of imports that share a common module name, but have different types.
-#[derive(Debug, Clone)]
-pub struct ImportGroup1<'a> {
-    /// The module being imported from.
-    pub module: &'a str,
-    /// The imported items.
-    pub items: SectionLimited<'a, ImportItemCompact<'a>>,
-}
-
 /// A single compact import item.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct ImportItemCompact<'a> {
@@ -79,17 +82,6 @@ pub struct ImportItemCompact<'a> {
     pub name: &'a str,
     /// The type of the imported item.
     pub ty: TypeRef,
-}
-
-/// A group of imports that share a common module name and type.
-#[derive(Debug, Clone)]
-pub struct ImportGroup2<'a> {
-    /// The module each item will be imported from.
-    pub module: &'a str,
-    /// The type of the imported items.
-    pub ty: TypeRef,
-    /// The imported item names.
-    pub items: SectionLimited<'a, &'a str>,
 }
 
 /// A reader for the import section of a WebAssembly module.
@@ -114,10 +106,10 @@ impl<'a> FromReader<'a> for Imports<'a> {
                     }
                     Ok(())
                 })?;
-                Ok(Imports::Compact1(ImportGroup1 {
+                Ok(Imports::Compact1 {
                     module,
                     items: SectionLimited::new(items)?,
-                }))
+                })
             }
             ("", 0x7E) => {
                 // Compact encoding 2: one module name / type, many item names
@@ -131,11 +123,11 @@ impl<'a> FromReader<'a> for Imports<'a> {
                     }
                     Ok(())
                 })?;
-                Ok(Imports::Compact2(ImportGroup2 {
+                Ok(Imports::Compact2 {
                     module,
                     ty,
                     items: SectionLimited::new(items)?,
-                }))
+                })
             }
             _ => Ok(Imports::Single(
                 start,
@@ -210,14 +202,14 @@ impl<'a> IntoIterator for Imports<'a> {
         ImportsIter {
             state: match self {
                 Imports::Single(start, import) => ImportsIterState::Single(start, import),
-                Imports::Compact1(group) => ImportsIterState::Compact1 {
-                    module: group.module,
-                    iter: group.items.into_iter_with_offsets(),
+                Imports::Compact1 { module, items } => ImportsIterState::Compact1 {
+                    module: module,
+                    iter: items.into_iter_with_offsets(),
                 },
-                Imports::Compact2(group) => ImportsIterState::Compact2 {
-                    module: group.module,
-                    ty: group.ty,
-                    iter: group.items.into_iter_with_offsets(),
+                Imports::Compact2 { module, ty, items } => ImportsIterState::Compact2 {
+                    module: module,
+                    ty: ty,
+                    iter: items.into_iter_with_offsets(),
                 },
             },
         }

@@ -106,33 +106,25 @@ pub struct ImportCompact<'a> {
 
 /// TODO
 #[derive(Clone, Debug)]
-pub struct ImportGroupCompact1<'a> {
-    /// TODO
-    pub module: &'a str,
-    /// TODO
-    pub items: Cow<'a, [ImportCompact<'a>]>,
-}
-
-/// TODO
-#[derive(Clone, Debug)]
-pub struct ImportGroupCompact2<'a> {
-    /// TODO
-    pub module: &'a str,
-    /// TODO
-    pub ty: EntityType,
-    /// TODO
-    pub items: Cow<'a, [&'a str]>,
-}
-
-/// TODO
-#[derive(Clone, Debug)]
 pub enum Imports<'a> {
     /// TODO
     Single(Import<'a>),
     /// TODO
-    Compact1(ImportGroupCompact1<'a>),
+    Compact1 {
+        /// TODO
+        module: &'a str,
+        /// TODO
+        items: Cow<'a, [ImportCompact<'a>]>,
+    },
     /// TODO
-    Compact2(ImportGroupCompact2<'a>),
+    Compact2 {
+        /// TODO
+        module: &'a str,
+        /// TODO
+        ty: EntityType,
+        /// TODO
+        items: Cow<'a, [&'a str]>,
+    },
 }
 
 /// An encoder for the import section of WebAssembly modules.
@@ -191,24 +183,24 @@ impl ImportSection {
                 import.ty.encode(&mut self.bytes);
                 self.num_added += 1;
             }
-            Imports::Compact1(group) => {
-                group.module.encode(&mut self.bytes);
+            Imports::Compact1 { module, items } => {
+                module.encode(&mut self.bytes);
                 self.bytes.push(0x00); // empty name
                 self.bytes.push(0x7F);
-                group.items.len().encode(&mut self.bytes);
-                for item in group.items.iter() {
+                items.len().encode(&mut self.bytes);
+                for item in items.iter() {
                     item.item.encode(&mut self.bytes);
                     item.ty.encode(&mut self.bytes);
                     self.num_added += 1;
                 }
             }
-            Imports::Compact2(group) => {
-                group.module.encode(&mut self.bytes);
+            Imports::Compact2 { module, ty, items } => {
+                module.encode(&mut self.bytes);
                 self.bytes.push(0x00); // empty name
                 self.bytes.push(0x7E);
-                group.ty.encode(&mut self.bytes);
-                group.items.len().encode(&mut self.bytes);
-                for item in group.items.iter() {
+                ty.encode(&mut self.bytes);
+                items.len().encode(&mut self.bytes);
+                for item in items.iter() {
                     item.encode(&mut self.bytes);
                     self.num_added += 1;
                 }

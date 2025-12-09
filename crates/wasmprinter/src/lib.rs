@@ -1239,11 +1239,11 @@ impl Printer<'_, '_> {
                     self.print_import(state, &import, true)?;
                     update_state(state, import.ty);
                 }
-                Imports::Compact1(group) => {
+                Imports::Compact1 { module, items } => {
                     self.start_group("import ")?;
-                    self.print_str(group.module)?;
+                    self.print_str(module)?;
                     self.result.write_str(" ")?;
-                    for res in group.items.into_iter_with_offsets() {
+                    for res in items.into_iter_with_offsets() {
                         let (offset, item) = res?;
                         self.newline(offset)?;
                         self.start_group("item ")?;
@@ -1255,20 +1255,20 @@ impl Printer<'_, '_> {
                     }
                     self.end_group()?;
                 }
-                Imports::Compact2(group) => {
+                Imports::Compact2 { module, ty, items } => {
                     self.start_group("import ")?;
-                    self.print_str(group.module)?;
+                    self.print_str(module)?;
                     self.result.write_str(" ")?;
-                    for res in group.items.into_iter_with_offsets() {
+                    for res in items.into_iter_with_offsets() {
                         let (offset, item) = res?;
                         self.newline(offset)?;
                         self.start_group("item ")?;
                         self.print_str(item)?;
                         self.end_group()?;
-                        update_state(state, group.ty);
+                        update_state(state, ty);
                     }
                     self.newline(offset)?;
-                    self.print_import_ty(state, &group.ty, false)?;
+                    self.print_import_ty(state, &ty, false)?;
                     self.end_group()?;
                 }
             }

@@ -926,8 +926,10 @@ impl From<&ModuleType<'_>> for wasm_encoder::ModuleType {
                     }
                     _ => unreachable!("only outer type aliases are supported"),
                 },
-                ModuleTypeDecl::Import(i) => {
-                    encoded.import(i.module, i.field, i.item.to_entity_type());
+                ModuleTypeDecl::Import(imports) => {
+                    for i in imports {
+                        encoded.import(i.module, i.field, i.item.to_entity_type());
+                    }
                 }
                 ModuleTypeDecl::Export(name, item) => {
                     encoded.export(name, item.to_entity_type());

@@ -1,9 +1,41 @@
 use crate::core::*;
 use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
-use crate::token::{Id, NameAnnotation, Span};
+use crate::token::{Id, LParen, NameAnnotation, Span};
 
 /// An `import` statement and entry in a WebAssembly module.
+#[derive(Debug, Clone)]
+pub struct Imports<'a> {
+    /// Where this `import` statement was defined
+    pub span: Span,
+    /// All items inside the `import` statement
+    pub items: ImportItems<'a>,
+}
+
+#[derive(Debug, Clone)]
+pub enum ImportItems<'a> {
+    Single(Import<'a>),
+    Group1 {
+        module: &'a str,
+        items: Vec<ImportGroupItem<'a>>,
+    },
+    Group2 {
+        module: &'a str,
+        sig: ItemSig<'a>,
+        items: Vec<&'a str>,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub struct ImportGroupItem<'a> {
+    /// Where this `item` was defined
+    pub span: Span,
+    pub name: &'a str,
+    pub sig: Option<ItemSig<'a>>,
+}
+
+/// A single fully-qualified import. May not correspond to a single (import)
+/// statement.
 #[derive(Debug, Clone)]
 pub struct Import<'a> {
     /// Where this `import` was defined
@@ -16,18 +48,132 @@ pub struct Import<'a> {
     pub item: ItemSig<'a>,
 }
 
-impl<'a> Parse<'a> for Import<'a> {
+enum CompactImportEncoding {
+    Unknown,
+    Encoding1,
+    Encoding2,
+}
+
+impl<'a> Parse<'a> for Imports<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::import>()?.0;
         let module = parser.parse()?;
-        let field = parser.parse()?;
-        let item = parser.parens(|p| p.parse())?;
-        Ok(Import {
+        if parser.peek::<LParen>()? {
+            let mut encoding = CompactImportEncoding::Unknown;
+            let mut items = Vec::new();
+            while parser.peek2::<kw::item>()? {
+                let item: ImportGroupItem = parser.parens(|p| p.parse())?;
+                match item.sig {
+                    Some(_) => {
+                        // Compact encoding 1 (name / type pairs)
+                        match encoding {
+                            CompactImportEncoding::Unknown => {
+                                encoding = CompactImportEncoding::Encoding1
+                            }
+                            CompactImportEncoding::Encoding1 => {}
+                            CompactImportEncoding::Encoding2 => {
+                                return Err(parser.error("unexpected import type"));
+                            }
+                        }
+                    }
+                    None => {
+                        // Compact encoding 2 (names only)
+                        match encoding {
+                            CompactImportEncoding::Unknown => {
+                                encoding = CompactImportEncoding::Encoding2
+                            }
+                            CompactImportEncoding::Encoding1 => {
+                                return Err(parser.error("unexpected `)`"));
+                            }
+                            CompactImportEncoding::Encoding2 => {}
+                        }
+                    }
+                }
+                items.push(item);
+            }
+
+            match encoding {
+                CompactImportEncoding::Unknown => Err(parser.error("expected import items")),
+                CompactImportEncoding::Encoding1 => Ok(Imports {
+                    span,
+                    items: ImportItems::Group1 { module, items },
+                }),
+                CompactImportEncoding::Encoding2 => {
+                    let sig: ItemSig = parser.parens(|p| p.parse())?;
+                    let names = items
+                        .iter()
+                        .map(|item| {
+                            if item.sig.is_some() {
+                                unreachable!();
+                            }
+                            item.name
+                        })
+                        .collect();
+                    Ok(Imports {
+                        span,
+                        items: ImportItems::Group2 {
+                            module,
+                            sig,
+                            items: names,
+                        },
+                    })
+                }
+            }
+        } else {
+            // Single item
+            let field = parser.parse()?;
+            let item = parser.parens(|p| p.parse())?;
+            Ok(Imports {
+                span,
+                items: ImportItems::Single(Import {
+                    span,
+                    module,
+                    field,
+                    item,
+                }),
+            })
+        }
+    }
+}
+
+impl<'a> Parse<'a> for ImportGroupItem<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let span = parser.parse::<kw::item>()?.0;
+        Ok(ImportGroupItem {
             span,
-            module,
-            field,
-            item,
+            name: parser.parse()?,
+            sig: if parser.is_empty() {
+                None
+            } else {
+                Some(parser.parens(|p| p.parse())?)
+            },
         })
+    }
+}
+
+impl<'a> IntoIterator for &'a Imports<'a> {
+    type Item = &'a Import<'a>;
+    type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match &self.items {
+            ImportItems::Single(import) => Box::new(std::iter::once(import)),
+            ImportItems::Group1 { module, items } => todo!(),
+            ImportItems::Group2 { module, sig, items } => todo!(),
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a mut Imports<'a> {
+    type Item = &'a mut Import<'a>;
+    type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match &mut self.items {
+            ImportItems::Single(import) => Box::new(std::iter::once(import)),
+            ImportItems::Group1 { module, items } => todo!(),
+            ImportItems::Group2 { module, sig, items } => todo!(),
+        }
     }
 }
 
