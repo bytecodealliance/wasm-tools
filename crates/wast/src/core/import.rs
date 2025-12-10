@@ -138,27 +138,6 @@ impl<'a> Imports<'a> {
     }
 }
 
-// impl<'a> IntoIterator for Imports<'a> {
-//     type Item = Import<'a>;
-//     type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'a>;
-
-//     fn into_iter(self) -> Self::IntoIter {
-//         match &self.items {
-//             ImportItems::Single(import) => Box::new(std::iter::once(import)),
-//             ImportItems::Group1 { module, items } => {
-//                 let module = *module;
-//                 Box::new(items.iter().map(move |item| Import {
-//                     span: item.span,
-//                     module: module,
-//                     field: item.name,
-//                     item: item.sig.unwrap(),
-//                 }))
-//             }
-//             ImportItems::Group2 { module, sig, items } => todo!(),
-//         }
-//     }
-// }
-
 struct ImportGroupItemCommon<'a> {
     span: Span,
     name: &'a str,
