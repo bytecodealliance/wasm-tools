@@ -93,8 +93,12 @@ impl<'a> FromReader<'a> for Imports<'a> {
         let module = reader.read_string()?;
         let single_item_name = reader.read_string()?;
         let discriminator = reader.peek_bytes(1)?[0];
-        match (single_item_name, discriminator) {
-            ("", 0x7F) => {
+        match (
+            single_item_name,
+            discriminator,
+            reader.features().compact_imports(),
+        ) {
+            ("", 0x7F, true) => {
                 // Compact encoding 1: one module name, many item names / types
                 reader.read_bytes(1)?;
                 // FIXME(#188) shouldn't need to skip here
@@ -111,7 +115,7 @@ impl<'a> FromReader<'a> for Imports<'a> {
                     items: SectionLimited::new(items)?,
                 })
             }
-            ("", 0x7E) => {
+            ("", 0x7E, true) => {
                 // Compact encoding 2: one module name / type, many item names
                 reader.read_bytes(1)?;
                 let ty: TypeRef = reader.read()?;
