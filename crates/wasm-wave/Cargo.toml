@@ -21,7 +21,7 @@ wit = ["dep:wit-parser", "std"]
 
 [dependencies]
 logos = { version = "0.14.2", default-features = false, features = ["export_derive", "forbid_unsafe"] }
-thiserror = { version = "2.0.12", default-features = false }
+thiserror = { workspace = true }
 wit-parser = { workspace = true, optional = true }
 
 [dev-dependencies]
