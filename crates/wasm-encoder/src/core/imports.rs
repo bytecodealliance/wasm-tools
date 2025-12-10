@@ -181,7 +181,6 @@ impl ImportSection {
                 import.module.encode(&mut self.bytes);
                 import.name.encode(&mut self.bytes);
                 import.ty.encode(&mut self.bytes);
-                self.num_added += 1;
             }
             Imports::Compact1 { module, items } => {
                 module.encode(&mut self.bytes);
@@ -191,7 +190,6 @@ impl ImportSection {
                 for item in items.iter() {
                     item.name.encode(&mut self.bytes);
                     item.ty.encode(&mut self.bytes);
-                    self.num_added += 1;
                 }
             }
             Imports::Compact2 { module, ty, names } => {
@@ -202,10 +200,10 @@ impl ImportSection {
                 names.len().encode(&mut self.bytes);
                 for item in names.iter() {
                     item.encode(&mut self.bytes);
-                    self.num_added += 1;
                 }
             }
         }
+        self.num_added += 1;
         self
     }
 
