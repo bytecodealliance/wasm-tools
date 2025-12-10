@@ -1,4 +1,5 @@
 use crate::wasm::{WasmType, WasmTypeKind, WasmValueError};
+use alloc::{borrow::Cow, boxed::Box};
 
 /// The WasmValue trait may be implemented to represent values to be
 /// (de)serialized with WAVE, notably [`value::Value`](crate::value::Value).
@@ -324,5 +325,4 @@ macro_rules! unwrap_val {
         }
     };
 }
-use alloc::{borrow::Cow, boxed::Box};
 pub(crate) use unwrap_val;

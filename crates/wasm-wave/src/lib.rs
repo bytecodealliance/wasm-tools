@@ -4,9 +4,11 @@
 //!
 //! For more information, see the [README](https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-wave#readme).
 #![deny(missing_docs)]
-#![cfg_attr(not(feature = "std"), no_std)]
+#![no_std]
 
 extern crate alloc;
+#[cfg(feature = "std")]
+extern crate std;
 
 pub mod ast;
 pub mod lex;
