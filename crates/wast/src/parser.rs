@@ -147,31 +147,7 @@ pub fn parse<'a, T: Parse<'a>>(buf: &'a ParseBuffer<'a>) -> Result<T> {
 ///
 /// ## When to parse `(` and `)`?
 ///
-/// Conventionally types are not responsible for parsing their own `(` and `)`
-/// tokens which surround the type. For example WebAssembly imports look like:
-///
-/// ```text
-/// (import "foo" "bar" (func (type 0)))
-/// ```
-///
-/// but the [`Import`](crate::core::Import) type parser looks like:
-///
-/// ```
-/// # use wast::kw;
-/// # use wast::parser::{Parser, Parse, Result};
-/// # struct Import<'a>(&'a str);
-/// impl<'a> Parse<'a> for Import<'a> {
-///     fn parse(parser: Parser<'a>) -> Result<Self> {
-///         parser.parse::<kw::import>()?;
-///         // ...
-/// # panic!()
-///     }
-/// }
-/// ```
-///
-/// It is assumed here that the `(` and `)` tokens which surround an `import`
-/// statement in the WebAssembly text format are parsed by the parent item
-/// parsing `Import`.
+/// TODO: NEW DOCS BECAUSE IMPORTS ARE COMPLICATED NOW
 ///
 /// Note that this is just a convention, so it's not necessarily required for
 /// all types. It's recommended that your types stick to this convention where
