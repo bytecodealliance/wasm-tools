@@ -103,11 +103,7 @@ version = "0.243.0"
 # message to wasm-tools maintainers to discuss. In some cases it's possible to
 # add version detection to build scripts but in other cases this may not be
 # reasonable to expect.
-#
-# NB: if this number increases to 1.81-or-later delete
-# `crates/wasmparser/build.rs` and `crates/wasm-encoder/build.rs` scripts
-# as they are no longer necessary.
-rust-version = "1.76.0"
+rust-version = "1.81.0"
 
 [workspace.dependencies]
 ahash = { version = "0.8.11", default-features = false }
