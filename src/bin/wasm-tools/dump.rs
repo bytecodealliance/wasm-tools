@@ -144,15 +144,10 @@ impl<'a> Dump<'a> {
                             print_ty(me, imp.ty)?;
                             write!(me.state, " {imp:?}")?;
                         }
-                        Imports::Compact1(g) => {
+                        Imports::Compact1 { module, items } => {
                             writeln!(me.dst, "--- import group (common module) ---")?;
-                            write!(
-                                me.state,
-                                "module: {0:?}, count: {1}",
-                                g.module,
-                                g.items.count()
-                            )?;
-                            for item in g.items.into_iter_with_offsets() {
+                            write!(me.state, "module: {0:?}, count: {1}", module, items.count())?;
+                            for item in items.into_iter_with_offsets() {
                                 let (offset, imp) = item?;
                                 me.print(offset)?;
                                 write!(me.state, "import ")?;
@@ -160,20 +155,20 @@ impl<'a> Dump<'a> {
                                 write!(me.state, " {imp:?}")?;
                             }
                         }
-                        Imports::Compact2(g) => {
+                        Imports::Compact2 { module, ty, items } => {
                             writeln!(me.dst, "--- import group (common module and type) ---")?;
                             write!(
                                 me.state,
                                 "module: {0:?}, type: {1:?}, count: {2}",
-                                g.module,
-                                g.ty,
-                                g.items.count()
+                                module,
+                                ty,
+                                items.count()
                             )?;
-                            for item in g.items.into_iter_with_offsets() {
+                            for item in items.into_iter_with_offsets() {
                                 let (offset, imp) = item?;
                                 me.print(offset)?;
                                 write!(me.state, "import ")?;
-                                print_ty(me, g.ty)?;
+                                print_ty(me, ty)?;
                                 write!(me.state, " {imp:?}")?;
                             }
                         }

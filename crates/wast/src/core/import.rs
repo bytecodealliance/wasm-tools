@@ -12,25 +12,37 @@ pub struct Imports<'a> {
     pub items: ImportItems<'a>,
 }
 
+/// TODO
 #[derive(Debug, Clone)]
 pub enum ImportItems<'a> {
+    /// TODO
     Single(Import<'a>),
+    /// TODO
     Group1 {
+        /// TODO
         module: &'a str,
+        /// TODO
         items: Vec<ImportGroupItem<'a>>,
     },
+    /// TODO
     Group2 {
+        /// TODO
         module: &'a str,
+        /// TODO
         sig: ItemSig<'a>,
+        /// TODO
         items: Vec<&'a str>,
     },
 }
 
+/// TODO
 #[derive(Debug, Clone)]
 pub struct ImportGroupItem<'a> {
     /// Where this `item` was defined
     pub span: Span,
+    /// TODO
     pub name: &'a str,
+    /// TODO
     pub sig: Option<ItemSig<'a>>,
 }
 
@@ -55,6 +67,7 @@ enum CompactImportEncoding {
 }
 
 impl<'a> Imports<'a> {
+    /// TODO
     pub fn single(span: Span, module: &'a str, field: &'a str, item: ItemSig<'a>) -> Self {
         Self {
             span,
@@ -67,8 +80,20 @@ impl<'a> Imports<'a> {
         }
     }
 
-    pub fn iter_item_sigs_mut(&mut self) -> impl Iterator<Item = &mut ItemSig<'a>> {
-        todo!()
+    /// TODO
+    pub fn sigs_mut(&mut self) -> Vec<&mut ItemSig<'a>> {
+        match &mut self.items {
+            ImportItems::Single(import) => vec![&mut import.item],
+            ImportItems::Group1 { module: _, items } => items
+                .iter_mut()
+                .map(|item| item.sig.as_mut().unwrap())
+                .collect(),
+            ImportItems::Group2 {
+                module: _,
+                sig,
+                items: _,
+            } => vec![sig],
+        }
     }
 }
 

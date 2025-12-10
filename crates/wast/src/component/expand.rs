@@ -437,7 +437,7 @@ impl<'a> Expander<'a> {
                 ModuleTypeDecl::Rec(_) => {}
                 ModuleTypeDecl::Alias(_) => {}
                 ModuleTypeDecl::Import(imports) => {
-                    for sig in imports.iter_item_sigs_mut() {
+                    for sig in imports.sigs_mut() {
                         expand_sig(sig, &mut to_prepend, &mut func_type_to_idx);
                     }
                 }

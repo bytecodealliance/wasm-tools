@@ -129,7 +129,7 @@ impl<'a> Resolver<'a> {
     fn resolve_field(&self, field: &mut ModuleField<'a>) -> Result<(), Error> {
         match field {
             ModuleField::Import(imports) => {
-                for sig in imports.iter_item_sigs_mut() {
+                for sig in imports.sigs_mut() {
                     self.resolve_item_sig(sig)?;
                 }
                 Ok(())
