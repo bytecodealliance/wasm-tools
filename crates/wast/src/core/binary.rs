@@ -498,10 +498,10 @@ impl SectionItem for Imports<'_> {
 
     fn encode(&self, section: &mut wasm_encoder::ImportSection) {
         section.imports(match &self.items {
-            ImportItems::Single { module, field, sig } => {
+            ImportItems::Single { module, name, sig } => {
                 wasm_encoder::Imports::Single(wasm_encoder::Import {
                     module: module,
-                    item: field,
+                    name,
                     ty: sig.to_entity_type(),
                 })
             }
@@ -510,7 +510,7 @@ impl SectionItem for Imports<'_> {
                 items: items
                     .into_iter()
                     .map(|foo| wasm_encoder::ImportCompact {
-                        item: foo.name,
+                        name: foo.name,
                         ty: foo.sig.to_entity_type(),
                     })
                     .collect(),
@@ -518,7 +518,7 @@ impl SectionItem for Imports<'_> {
             ImportItems::Group2 { module, sig, items } => wasm_encoder::Imports::Compact2 {
                 module,
                 ty: sig.to_entity_type(),
-                items: items.into_iter().map(|item| item.name).collect(),
+                names: items.into_iter().map(|item| item.name).collect(),
             },
         });
     }

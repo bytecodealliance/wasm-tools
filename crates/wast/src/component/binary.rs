@@ -927,8 +927,8 @@ impl From<&ModuleType<'_>> for wasm_encoder::ModuleType {
                     _ => unreachable!("only outer type aliases are supported"),
                 },
                 ModuleTypeDecl::Import(imports) => match &imports.items {
-                    core::ImportItems::Single { module, field, sig } => {
-                        encoded.import(module, field, sig.to_entity_type());
+                    core::ImportItems::Single { module, name, sig } => {
+                        encoded.import(module, name, sig.to_entity_type());
                     }
                     core::ImportItems::Group1 { module, items } => {
                         for item in items {

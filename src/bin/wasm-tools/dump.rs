@@ -155,16 +155,16 @@ impl<'a> Dump<'a> {
                                 write!(me.state, " {imp:?}")?;
                             }
                         }
-                        Imports::Compact2 { module, ty, items } => {
+                        Imports::Compact2 { module, ty, names } => {
                             writeln!(me.dst, "--- import group (common module and type) ---")?;
                             write!(
                                 me.state,
                                 "module: {0:?}, type: {1:?}, count: {2}",
                                 module,
                                 ty,
-                                items.count()
+                                names.count()
                             )?;
-                            for item in items.into_iter_with_offsets() {
+                            for item in names.into_iter_with_offsets() {
                                 let (offset, imp) = item?;
                                 me.print(offset)?;
                                 write!(me.state, "import ")?;

@@ -1465,7 +1465,7 @@ pub mod utils {
         import_section.imports(match imports {
             wasmparser::Imports::Single(_, import) => Imports::Single(crate::Import {
                 module: import.module,
-                item: import.name,
+                name: import.name,
                 ty: reencoder.entity_type(import.ty)?,
             }),
             wasmparser::Imports::Compact1 { module, items } => {
@@ -1473,7 +1473,7 @@ pub mod utils {
                 for item in items {
                     let item = item?;
                     new_items.push(crate::ImportCompact {
-                        item: item.name,
+                        name: item.name,
                         ty: reencoder.entity_type(item.ty)?,
                     })
                 }
@@ -1482,12 +1482,12 @@ pub mod utils {
                     items: new_items.into(),
                 }
             }
-            wasmparser::Imports::Compact2 { module, ty, items } => {
-                let items = items.into_iter().collect::<wasmparser::Result<Vec<_>>>()?;
+            wasmparser::Imports::Compact2 { module, ty, names } => {
+                let names = names.into_iter().collect::<wasmparser::Result<Vec<_>>>()?;
                 Imports::Compact2 {
                     module: module,
                     ty: reencoder.entity_type(ty)?,
-                    items: items.into(),
+                    names: names.into(),
                 }
             }
         });

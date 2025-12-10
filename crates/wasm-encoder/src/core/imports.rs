@@ -90,7 +90,7 @@ pub struct Import<'a> {
     /// TODO
     pub module: &'a str,
     /// TODO
-    pub item: &'a str,
+    pub name: &'a str,
     /// TODO
     pub ty: EntityType,
 }
@@ -99,7 +99,7 @@ pub struct Import<'a> {
 #[derive(Clone, Debug)]
 pub struct ImportCompact<'a> {
     /// TODO
-    pub item: &'a str,
+    pub name: &'a str,
     /// TODO
     pub ty: EntityType,
 }
@@ -123,7 +123,7 @@ pub enum Imports<'a> {
         /// TODO
         ty: EntityType,
         /// TODO
-        items: Cow<'a, [&'a str]>,
+        names: Cow<'a, [&'a str]>,
     },
 }
 
@@ -179,7 +179,7 @@ impl ImportSection {
         match imports {
             Imports::Single(import) => {
                 import.module.encode(&mut self.bytes);
-                import.item.encode(&mut self.bytes);
+                import.name.encode(&mut self.bytes);
                 import.ty.encode(&mut self.bytes);
                 self.num_added += 1;
             }
@@ -189,18 +189,18 @@ impl ImportSection {
                 self.bytes.push(0x7F);
                 items.len().encode(&mut self.bytes);
                 for item in items.iter() {
-                    item.item.encode(&mut self.bytes);
+                    item.name.encode(&mut self.bytes);
                     item.ty.encode(&mut self.bytes);
                     self.num_added += 1;
                 }
             }
-            Imports::Compact2 { module, ty, items } => {
+            Imports::Compact2 { module, ty, names } => {
                 module.encode(&mut self.bytes);
                 self.bytes.push(0x00); // empty name
                 self.bytes.push(0x7E);
                 ty.encode(&mut self.bytes);
-                items.len().encode(&mut self.bytes);
-                for item in items.iter() {
+                names.len().encode(&mut self.bytes);
+                for item in names.iter() {
                     item.encode(&mut self.bytes);
                     self.num_added += 1;
                 }
@@ -210,10 +210,10 @@ impl ImportSection {
     }
 
     /// Define an import in the import section.
-    pub fn import(&mut self, module: &str, field: &str, ty: impl Into<EntityType>) -> &mut Self {
+    pub fn import(&mut self, module: &str, name: &str, ty: impl Into<EntityType>) -> &mut Self {
         self.imports(Imports::Single(Import {
             module,
-            item: field,
+            name,
             ty: ty.into(),
         }))
     }

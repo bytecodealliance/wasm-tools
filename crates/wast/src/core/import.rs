@@ -20,7 +20,7 @@ pub enum ImportItems<'a> {
         /// The module that this statement is importing from
         module: &'a str,
         /// The name of the field in the module this statement imports from.
-        field: &'a str,
+        name: &'a str,
         /// The item that's being imported.
         sig: ItemSig<'a>,
     },
@@ -70,10 +70,10 @@ enum CompactImportEncoding {
 
 impl<'a> Imports<'a> {
     /// Constructs an Imports object for a single import item.
-    pub fn single(span: Span, module: &'a str, field: &'a str, sig: ItemSig<'a>) -> Self {
+    pub fn single(span: Span, module: &'a str, name: &'a str, sig: ItemSig<'a>) -> Self {
         Self {
             span,
-            items: ImportItems::Single { module, field, sig },
+            items: ImportItems::Single { module, name, sig },
         }
     }
 
@@ -82,7 +82,7 @@ impl<'a> Imports<'a> {
         match &self.items {
             ImportItems::Single {
                 module: _,
-                field: _,
+                name: _,
                 sig: _,
             } => 1,
             ImportItems::Group1 { module: _, items } => items.len(),
@@ -100,7 +100,7 @@ impl<'a> Imports<'a> {
         let res = match &self.items {
             ImportItems::Single {
                 module: _,
-                field: _,
+                name: _,
                 sig,
             } => vec![sig],
             ImportItems::Group1 { module: _, items } => {
@@ -123,7 +123,7 @@ impl<'a> Imports<'a> {
         match &mut self.items {
             ImportItems::Single {
                 module: _,
-                field: _,
+                name: _,
                 sig: item,
             } => vec![item],
             ImportItems::Group1 { module: _, items } => {

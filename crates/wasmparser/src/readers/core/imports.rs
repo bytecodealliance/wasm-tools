@@ -60,7 +60,7 @@ pub enum Imports<'a> {
         /// The type of the imported items.
         ty: TypeRef,
         /// The imported item names.
-        items: SectionLimited<'a, &'a str>,
+        names: SectionLimited<'a, &'a str>,
     },
 }
 
@@ -120,7 +120,7 @@ impl<'a> FromReader<'a> for Imports<'a> {
                 reader.read_bytes(1)?;
                 let ty: TypeRef = reader.read()?;
                 // FIXME(#188) shouldn't need to skip here
-                let items = reader.skip(|reader| {
+                let names = reader.skip(|reader| {
                     let count = reader.read_var_u32()?;
                     for _ in 0..count {
                         reader.skip_string()?;
@@ -130,7 +130,7 @@ impl<'a> FromReader<'a> for Imports<'a> {
                 Ok(Imports::Compact2 {
                     module,
                     ty,
-                    items: SectionLimited::new(items)?,
+                    names: SectionLimited::new(names)?,
                 })
             }
             _ => Ok(Imports::Single(
@@ -210,7 +210,11 @@ impl<'a> IntoIterator for Imports<'a> {
                     module: module,
                     iter: items.into_iter_with_offsets(),
                 },
-                Imports::Compact2 { module, ty, items } => ImportsIterState::Compact2 {
+                Imports::Compact2 {
+                    module,
+                    ty,
+                    names: items,
+                } => ImportsIterState::Compact2 {
                     module: module,
                     ty: ty,
                     iter: items.into_iter_with_offsets(),

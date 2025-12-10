@@ -1255,11 +1255,11 @@ impl Printer<'_, '_> {
                     }
                     self.end_group()?;
                 }
-                Imports::Compact2 { module, ty, items } => {
+                Imports::Compact2 { module, ty, names } => {
                     self.start_group("import ")?;
                     self.print_str(module)?;
                     self.result.write_str(" ")?;
-                    for res in items.into_iter_with_offsets() {
+                    for res in names.into_iter_with_offsets() {
                         let (offset, item) = res?;
                         self.newline(offset)?;
                         self.start_group("item ")?;
