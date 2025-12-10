@@ -93,11 +93,7 @@ impl<'a> FromReader<'a> for Imports<'a> {
         let module = reader.read_string()?;
         let single_item_name = reader.read_string()?;
         let discriminator = reader.peek_bytes(1)?[0];
-        match (
-            single_item_name,
-            discriminator,
-            reader.features().compact_imports(),
-        ) {
+        match (single_item_name, discriminator, reader.compact_imports()) {
             ("", 0x7F, true) => {
                 // Compact encoding 1: one module name, many item names / types
                 reader.read_bytes(1)?;
