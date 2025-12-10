@@ -8,7 +8,7 @@ on:
   # used with for all release branches (wildcard pattern turns that off)
   push:
     branches:
-      - "release-*"
+    - 'release-*'
 
 # Cancel any in-flight jobs for the same PR/branch so there's only one active
 # at a time
@@ -28,47 +28,47 @@ jobs:
       fail-fast: ${{ github.event_name != 'pull_request' }}
       matrix:
         include:
-          - build: x86_64-linux
-            os: ubuntu-latest
-          - build: x86_64-musl
-            os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-          - build: x86_64-macos
-            os: macos-latest
-            target: x86_64-apple-darwin
-          - build: aarch64-macos
-            os: macos-latest
-            target: aarch64-apple-darwin
-          - build: x86_64-windows
-            os: windows-latest
-          - build: aarch64-linux
-            os: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-          - build: aarch64-musl
-            os: ubuntu-latest
-            target: aarch64-unknown-linux-musl
-          - build: wasm32-wasip1
-            os: ubuntu-latest
-            target: wasm32-wasip1
+        - build: x86_64-linux
+          os: ubuntu-latest
+        - build: x86_64-musl
+          os: ubuntu-latest
+          target: x86_64-unknown-linux-musl
+        - build: x86_64-macos
+          os: macos-latest
+          target: x86_64-apple-darwin
+        - build: aarch64-macos
+          os: macos-latest
+          target: aarch64-apple-darwin
+        - build: x86_64-windows
+          os: windows-latest
+        - build: aarch64-linux
+          os: ubuntu-latest
+          target: aarch64-unknown-linux-gnu
+        - build: aarch64-musl
+          os: ubuntu-latest
+          target: aarch64-unknown-linux-musl
+        - build: wasm32-wasip1
+          os: ubuntu-latest
+          target: wasm32-wasip1
     steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: true
-      - uses: ./.github/actions/install-rust
-      - uses: bytecodealliance/wasmtime/.github/actions/binary-compatible-builds@release-28.0.0
-        with:
-          name: ${{ matrix.build }}
-        if: matrix.build != 'wasm32-wasip1'
-      - run: |
-          echo CARGO_BUILD_TARGET=${{ matrix.target }} >> $GITHUB_ENV
-          rustup target add ${{ matrix.target }}
-        if: matrix.target != ''
-      - run: $CENTOS cargo build --release
-      - run: ./ci/build-tarballs.sh "${{ matrix.build }}" "${{ matrix.target }}"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: bins-${{ matrix.build }}
-          path: dist
+    - uses: actions/checkout@v6
+      with:
+        submodules: true
+    - uses: ./.github/actions/install-rust
+    - uses: bytecodealliance/wasmtime/.github/actions/binary-compatible-builds@release-28.0.0
+      with:
+        name: ${{ matrix.build }}
+      if: matrix.build != 'wasm32-wasip1'
+    - run: |
+        echo CARGO_BUILD_TARGET=${{ matrix.target }} >> $GITHUB_ENV
+        rustup target add ${{ matrix.target }}
+      if: matrix.target != ''
+    - run: $CENTOS cargo build --release
+    - run: ./ci/build-tarballs.sh "${{ matrix.build }}" "${{ matrix.target }}"
+    - uses: actions/upload-artifact@v4
+      with:
+        name: bins-${{ matrix.build }}
+        path: dist
 
   test-prefer-btree-collections:
     name: Test (no-hash-maps)
@@ -115,26 +115,26 @@ jobs:
               RUST_BACKTRACE: 1
     env: ${{ matrix.env || fromJSON('{}') }}
     steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: true
-      - uses: ./.github/actions/install-rust
-        with:
-          toolchain: ${{ matrix.rust }}
-      - run: cargo test --locked --all ${{ matrix.flags }}
+    - uses: actions/checkout@v6
+      with:
+        submodules: true
+    - uses: ./.github/actions/install-rust
+      with:
+        toolchain: ${{ matrix.rust }}
+    - run: cargo test --locked --all ${{ matrix.flags }}
 
   test_extra_features:
     name: Test with extra Cargo features
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: true
-      - uses: ./.github/actions/install-rust
-      - run: cargo test --locked -p wasmparser --benches
-      - run: cargo test --locked -p wasm-encoder --all-features
-      - run: cargo test -p wasm-smith --features wasmparser
-      - run: cargo test -p wasm-smith --features component-model
+    - uses: actions/checkout@v6
+      with:
+        submodules: true
+    - uses: ./.github/actions/install-rust
+    - run: cargo test --locked -p wasmparser --benches
+    - run: cargo test --locked -p wasm-encoder --all-features
+    - run: cargo test -p wasm-smith --features wasmparser
+    - run: cargo test -p wasm-smith --features component-model
 
   test_capi:
     name: Test the C API
@@ -147,76 +147,76 @@ jobs:
           - os: macos-latest
           - os: windows-latest
     steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: true
-      - uses: ./.github/actions/install-rust
-      - run: cmake -S examples -B examples/build -DCMAKE_BUILD_TYPE=Release
-      - run: cmake --build examples/build --config Release
+    - uses: actions/checkout@v6
+      with:
+        submodules: true
+    - uses: ./.github/actions/install-rust
+    - run: cmake -S examples -B examples/build -DCMAKE_BUILD_TYPE=Release
+    - run: cmake --build examples/build --config Release
 
   testdl:
     name: Test libdl.so
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: true
-      - uses: ./.github/actions/install-rust
-        with:
-          toolchain: 1.89.0
-      - run: rustup target add wasm32-wasip1
-      - run: cd crates/wit-component/dl && bash check.sh
+    - uses: actions/checkout@v6
+      with:
+        submodules: true
+    - uses: ./.github/actions/install-rust
+      with:
+        toolchain: 1.89.0
+    - run: rustup target add wasm32-wasip1
+    - run: cd crates/wit-component/dl && bash check.sh
 
   wasm:
     name: Test on WebAssembly
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: true
-      - uses: ./.github/actions/install-rust
-      - run: rustup target add wasm32-wasip1
-      - run: |
-          tag=v10.0.1
-          curl -LO https://github.com/bytecodealliance/wasmtime/releases/download/${tag}/wasmtime-${tag}-x86_64-linux.tar.xz
-          tar xf wasmtime-${tag}-x86_64-linux.tar.xz
-          echo `pwd`/wasmtime-${tag}-x86_64-linux >> $GITHUB_PATH
-          echo CARGO_TARGET_WASM32_WASIP1_RUNNER='wasmtime run --dir . --' >> $GITHUB_ENV
-          echo CARGO_BUILD_TARGET='wasm32-wasip1' >> $GITHUB_ENV
-      - run: |
-          cargo --locked test --workspace \
-            --exclude fuzz-stats \
-            --exclude wasm-tools-fuzz \
-            --exclude wasm-mutate-stats \
-            --exclude dl \
-            --exclude test-programs
+    - uses: actions/checkout@v6
+      with:
+        submodules: true
+    - uses: ./.github/actions/install-rust
+    - run: rustup target add wasm32-wasip1
+    - run: |
+        tag=v10.0.1
+        curl -LO https://github.com/bytecodealliance/wasmtime/releases/download/${tag}/wasmtime-${tag}-x86_64-linux.tar.xz
+        tar xf wasmtime-${tag}-x86_64-linux.tar.xz
+        echo `pwd`/wasmtime-${tag}-x86_64-linux >> $GITHUB_PATH
+        echo CARGO_TARGET_WASM32_WASIP1_RUNNER='wasmtime run --dir . --' >> $GITHUB_ENV
+        echo CARGO_BUILD_TARGET='wasm32-wasip1' >> $GITHUB_ENV
+    - run: |
+        cargo --locked test --workspace \
+          --exclude fuzz-stats \
+          --exclude wasm-tools-fuzz \
+          --exclude wasm-mutate-stats \
+          --exclude dl \
+          --exclude test-programs
 
   rustfmt:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: ./.github/actions/install-rust
-      - run: rustup component add rustfmt
-      - run: printf "\n" > playground/component/src/bindings.rs
-      # Note that this doesn't use `cargo fmt` because that doesn't format
-      # modules-defined-in-macros which is in use in `wast` for example. This is
-      # the best alternative I can come up with at this time
-      - run: find . -name '*.rs' | xargs rustfmt --check --edition 2021
+    - uses: actions/checkout@v6
+    - uses: ./.github/actions/install-rust
+    - run: rustup component add rustfmt
+    - run: printf "\n" > playground/component/src/bindings.rs
+    # Note that this doesn't use `cargo fmt` because that doesn't format
+    # modules-defined-in-macros which is in use in `wast` for example. This is
+    # the best alternative I can come up with at this time
+    - run: find . -name '*.rs' | xargs rustfmt --check --edition 2021
 
   fuzz:
     name: Fuzz
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: true
-      - uses: ./.github/actions/install-rust
-        with:
-          toolchain: nightly
-      - run: cargo install cargo-fuzz
-      - run: cargo fuzz build --dev -s none
-      - run: cargo fuzz build --dev --features wasmtime -s none
+    - uses: actions/checkout@v6
+      with:
+        submodules: true
+    - uses: ./.github/actions/install-rust
+      with:
+        toolchain: nightly
+    - run: cargo install cargo-fuzz
+    - run: cargo fuzz build --dev -s none
+    - run: cargo fuzz build --dev --features wasmtime -s none
 
   check:
     runs-on: ubuntu-latest
@@ -331,15 +331,15 @@ jobs:
     if: github.repository_owner == 'bytecodealliance'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: true
-      - uses: ./.github/actions/install-rust
-      - run: rustc ci/publish.rs
-      # Make sure we can bump version numbers for the next release
-      - run: ./publish bump
-      # Make sure the tree is publish-able as-is
-      - run: ./publish verify
+    - uses: actions/checkout@v6
+      with:
+        submodules: true
+    - uses: ./.github/actions/install-rust
+    - run: rustc ci/publish.rs
+    # Make sure we can bump version numbers for the next release
+    - run: ./publish bump
+    # Make sure the tree is publish-able as-is
+    - run: ./publish verify
 
   # "Join node" which the merge queue waits on.
   ci-status:
@@ -363,15 +363,15 @@ jobs:
     if: always()
 
     steps:
-      - name: Successful test and build
-        if: ${{ !(contains(needs.*.result, 'failure')) }}
-        run: exit 0
-      - name: Failing test and build
-        if: ${{ contains(needs.*.result, 'failure') }}
-        run: exit 1
-      - name: Report failure on cancellation
-        if: ${{ contains(needs.*.result, 'cancelled') || cancelled() }}
-        run: exit 1
+    - name: Successful test and build
+      if: ${{ !(contains(needs.*.result, 'failure')) }}
+      run: exit 0
+    - name: Failing test and build
+      if: ${{ contains(needs.*.result, 'failure') }}
+      run: exit 1
+    - name: Report failure on cancellation
+      if: ${{ contains(needs.*.result, 'cancelled') || cancelled() }}
+      run: exit 1
 
   # Once CI has finished on `release-*` branches test to see if a release needs
   # to be made based on the commits of this push.
@@ -384,10 +384,10 @@ jobs:
       && github.event_name == 'push'
       && startsWith(github.ref, 'refs/heads/release-')
     steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: true
-          fetch-depth: 0
-      - uses: ./.github/actions/publish-release
-        with:
-          cargo_token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    - uses: actions/checkout@v6
+      with:
+        submodules: true
+        fetch-depth: 0
+    - uses: ./.github/actions/publish-release
+      with:
+        cargo_token: ${{ secrets.CARGO_REGISTRY_TOKEN }}

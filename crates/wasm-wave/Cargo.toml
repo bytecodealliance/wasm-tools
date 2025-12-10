@@ -20,8 +20,8 @@ std = []
 wit = ["dep:wit-parser", "std"]
 
 [dependencies]
-logos = { version = "0.14.2", features = ["forbid_unsafe"] }
-thiserror = { workspace = true, default-features = false }
+logos = { version = "0.14.2", default-features = false, features = ["export_derive", "forbid_unsafe"] }
+thiserror = { version = "2.0.12", default-features = false }
 wit-parser = { workspace = true, optional = true }
 
 [dev-dependencies]
