@@ -1,3 +1,4 @@
+use alloc::{string::String, vec::Vec};
 use wit_parser::{
     Enum, Flags, Function, Record, Resolve, Result_, Tuple, Type, TypeDefKind, TypeId, Variant,
 };
@@ -21,7 +22,7 @@ pub fn resolve_wit_func_type(
     let resolver = TypeResolver { resolve };
     let params = resolver.resolve_params(&function.params)?;
     let results = match &function.result {
-        Some(ty) => vec![("".into(), resolver.resolve_type(*ty)?)],
+        Some(ty) => [("".into(), resolver.resolve_type(*ty)?)].to_vec(),
         None => Vec::new(),
     };
     value::FuncType::new(params, results)
@@ -157,6 +158,8 @@ impl<'a> TypeResolver<'a> {
 
 #[cfg(test)]
 mod tests {
+
+    use alloc::string::ToString;
 
     use super::*;
 

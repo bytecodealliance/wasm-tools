@@ -1,6 +1,6 @@
 //! WAVE writer
 
-use std::{fmt::Debug, io::Write};
+use core::fmt::Write;
 
 use thiserror::Error;
 
@@ -173,11 +173,11 @@ impl<W: Write> Writer<W> {
     }
 
     fn write_str(&mut self, s: impl AsRef<str>) -> Result<(), WriterError> {
-        self.inner.write_all(s.as_ref().as_bytes())?;
+        self.inner.write_str(s.as_ref())?;
         Ok(())
     }
 
-    fn write_display(&mut self, d: impl std::fmt::Display) -> Result<(), WriterError> {
+    fn write_display(&mut self, d: impl core::fmt::Display) -> Result<(), WriterError> {
         write!(self.inner, "{d}")?;
         Ok(())
     }
@@ -206,5 +206,5 @@ impl<W> AsMut<W> for Writer<W> {
 pub enum WriterError {
     /// An error from the underlying writer
     #[error("write failed: {0}")]
-    Io(#[from] std::io::Error),
+    Io(#[from] core::fmt::Error),
 }

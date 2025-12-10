@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use crate::wasm::{WasmType, WasmTypeKind, WasmValueError};
 
 /// The WasmValue trait may be implemented to represent values to be
@@ -326,4 +324,5 @@ macro_rules! unwrap_val {
         }
     };
 }
+use alloc::{borrow::Cow, boxed::Box};
 pub(crate) use unwrap_val;

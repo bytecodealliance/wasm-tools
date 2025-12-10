@@ -1,8 +1,14 @@
 //! Parsing types
 
-use std::{collections::HashSet, error::Error, fmt::Display};
+use core::{error::Error, fmt::Display};
 
-use indexmap::IndexMap;
+use alloc::{
+    boxed::Box,
+    collections::{BTreeMap, btree_set::BTreeSet},
+    format,
+    string::{String, ToString},
+    vec::Vec,
+};
 
 use crate::{
     WasmValue,
@@ -140,7 +146,7 @@ impl<'source> Parser<'source> {
     }
 
     fn finish_record(&mut self, start: usize) -> Result<Node, ParserError> {
-        let mut seen = HashSet::with_capacity(1);
+        let mut seen = BTreeSet::new();
         let mut children = Vec::with_capacity(2);
         loop {
             // Parse field label
@@ -176,7 +182,7 @@ impl<'source> Parser<'source> {
     }
 
     fn finish_flags(&mut self, start: usize) -> Result<Node, ParserError> {
-        let mut flags = IndexMap::with_capacity(1);
+        let mut flags = BTreeMap::new();
         loop {
             // Parse flag label
             let label = self.parse_label()?;
@@ -305,7 +311,7 @@ impl<'source> Parser<'source> {
     }
 
     fn parse_comma_separated_nodes(&mut self, end_token: Token) -> Result<Vec<Node>, ParserError> {
-        let mut nodes = vec![];
+        let mut nodes = Vec::new();
         if self.next_is(end_token) {
             self.advance()?;
             return Ok(nodes);
@@ -392,7 +398,7 @@ impl ParserError {
 }
 
 impl Display for ParserError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         if let Some(source) = &self.source {
             write!(f, "{}: {} at {:?}", self.kind, source, self.span)
         } else if let Some(detail) = &self.detail {
@@ -431,7 +437,7 @@ pub enum ParserErrorKind {
 }
 
 impl Display for ParserErrorKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let msg = match self {
             ParserErrorKind::EmptyTuple => "empty tuple",
             ParserErrorKind::MultipleChars => "multiple characters in char value",

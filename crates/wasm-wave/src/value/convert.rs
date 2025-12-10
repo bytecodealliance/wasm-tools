@@ -1,3 +1,8 @@
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
+
 use crate::{
     WasmValue,
     value::ValueEnum,
@@ -170,7 +175,7 @@ macro_rules! impl_tuple {
         $(
             impl<$($var: ValueTyped),*> ValueTyped for ($($var),*,) {
                 fn value_type() -> Type {
-                    Type::tuple(vec![$($var::value_type()),*]).unwrap()
+                    Type::tuple([$($var::value_type()),*].to_vec()).unwrap()
                 }
             }
 
@@ -181,7 +186,7 @@ macro_rules! impl_tuple {
                     $(
                         let $var = $var.into();
                     )*
-                    Value::make_tuple(&ty, vec![$($var),*]).unwrap()
+                    Value::make_tuple(&ty, [$($var),*].to_vec()).unwrap()
                 }
             }
 
@@ -214,6 +219,8 @@ impl_tuple!(
 
 #[cfg(test)]
 mod tests {
+    use alloc::string::String;
+
     use crate::value::{Type, Value};
 
     #[test]
@@ -246,7 +253,7 @@ mod tests {
             (f64::NEG_INFINITY.into(), "-inf"),
             ('x'.into(), "'x'"),
             ("str".into(), "\"str\""),
-            (vec![1, 2, 3].into(), "[1, 2, 3]"),
+            ([1, 2, 3].to_vec().into(), "[1, 2, 3]"),
             ([1, 2, 3].into(), "[1, 2, 3]"),
             (['a'; 3].into(), "['a', 'a', 'a']"),
             (Some(1).into(), "some(1)"),

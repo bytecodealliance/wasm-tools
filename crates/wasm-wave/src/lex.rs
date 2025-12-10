@@ -1,6 +1,6 @@
 //! Lexing types
 
-use std::fmt::Display;
+use core::fmt::Display;
 
 pub use logos::Span;
 
@@ -68,7 +68,7 @@ pub enum Token {
 }
 
 impl Display for Token {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{self:?}")
     }
 }
@@ -123,7 +123,7 @@ impl Keyword {
 }
 
 impl Display for Keyword {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str(match self {
             Keyword::True => "true",
             Keyword::False => "false",

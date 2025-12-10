@@ -1,3 +1,5 @@
+#![cfg(feature = "wit")]
+
 use anyhow::{Context, Result};
 use std::{collections::HashMap, fmt::Write, fs, path::Path, sync::OnceLock};
 

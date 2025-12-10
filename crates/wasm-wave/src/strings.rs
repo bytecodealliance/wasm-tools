@@ -1,4 +1,6 @@
-use std::{borrow::Cow, str::Split};
+use core::str::Split;
+
+use alloc::{borrow::Cow, string::ToString};
 
 use crate::parser::{ParserError, ParserErrorKind};
 
