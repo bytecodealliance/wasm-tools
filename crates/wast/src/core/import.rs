@@ -182,15 +182,7 @@ impl<'a> Parse<'a> for Imports<'a> {
             // Single item
             let field = parser.parse()?;
             let item = parser.parens(|p| p.parse())?;
-            Ok(Imports {
-                span,
-                items: ImportItems::Single(Import {
-                    span,
-                    module,
-                    field,
-                    item,
-                }),
-            })
+            Ok(Imports::single(span, module, field, item))
         }
     }
 }

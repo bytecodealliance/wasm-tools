@@ -23,13 +23,13 @@
 //!
 //! ```
 //! use wast::kw;
-//! use wast::core::{Import, Func};
+//! use wast::core::{Imports, Func};
 //! use wast::parser::{Parser, Parse, Result};
 //!
 //! // Fields of a WebAssembly which only allow imports and functions, and all
 //! // imports must come before all the functions
 //! struct OnlyImportsAndFunctions<'a> {
-//!     imports: Vec<Import<'a>>,
+//!     imports: Vec<Imports<'a>>,
 //!     functions: Vec<Func<'a>>,
 //! }
 //!
@@ -185,14 +185,14 @@ pub fn parse<'a, T: Parse<'a>>(buf: &'a ParseBuffer<'a>) -> Result<T> {
 /// before all functions. An example [`Parse`] implementation might look like:
 ///
 /// ```
-/// use wast::core::{Import, Func};
+/// use wast::core::{Imports, Func};
 /// use wast::kw;
 /// use wast::parser::{Parser, Parse, Result};
 ///
 /// // Fields of a WebAssembly which only allow imports and functions, and all
 /// // imports must come before all the functions
 /// struct OnlyImportsAndFunctions<'a> {
-///     imports: Vec<Import<'a>>,
+///     imports: Vec<Imports<'a>>,
 ///     functions: Vec<Func<'a>>,
 /// }
 ///
