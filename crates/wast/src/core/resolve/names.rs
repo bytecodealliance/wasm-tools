@@ -86,15 +86,15 @@ impl<'a> Resolver<'a> {
     fn register(&mut self, item: &ModuleField<'a>) -> Result<(), Error> {
         match item {
             ModuleField::Import(imports) => {
-                for i in imports {
-                    match &i.item.kind {
+                for sig in imports.item_sigs() {
+                    match &sig.kind {
                         ItemKind::Func(_) | ItemKind::FuncExact(_) => {
-                            self.funcs.register(i.item.id, "func")?
+                            self.funcs.register(sig.id, "func")?
                         }
-                        ItemKind::Memory(_) => self.memories.register(i.item.id, "memory")?,
-                        ItemKind::Table(_) => self.tables.register(i.item.id, "table")?,
-                        ItemKind::Global(_) => self.globals.register(i.item.id, "global")?,
-                        ItemKind::Tag(_) => self.tags.register(i.item.id, "tag")?,
+                        ItemKind::Memory(_) => self.memories.register(sig.id, "memory")?,
+                        ItemKind::Table(_) => self.tables.register(sig.id, "table")?,
+                        ItemKind::Global(_) => self.globals.register(sig.id, "global")?,
+                        ItemKind::Tag(_) => self.tags.register(sig.id, "tag")?,
                     };
                 }
                 return Ok(());
@@ -129,7 +129,7 @@ impl<'a> Resolver<'a> {
     fn resolve_field(&self, field: &mut ModuleField<'a>) -> Result<(), Error> {
         match field {
             ModuleField::Import(imports) => {
-                for sig in imports.sigs_mut() {
+                for sig in imports.unique_sigs_mut() {
                     self.resolve_item_sig(sig)?;
                 }
                 Ok(())

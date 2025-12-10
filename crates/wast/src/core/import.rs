@@ -16,13 +16,20 @@ pub struct Imports<'a> {
 #[derive(Debug, Clone)]
 pub enum ImportItems<'a> {
     /// TODO
-    Single(Import<'a>),
+    Single {
+        /// The module that this statement is importing from
+        module: &'a str,
+        /// The name of the field in the module this statement imports from.
+        field: &'a str,
+        /// The item that's being imported.
+        sig: ItemSig<'a>,
+    },
     /// TODO
     Group1 {
         /// TODO
         module: &'a str,
         /// TODO
-        items: Vec<ImportGroupItem<'a>>,
+        items: Vec<ImportGroup1Item<'a>>,
     },
     /// TODO
     Group2 {
@@ -31,33 +38,28 @@ pub enum ImportItems<'a> {
         /// TODO
         sig: ItemSig<'a>,
         /// TODO
-        items: Vec<&'a str>,
+        items: Vec<ImportGroup2Item<'a>>,
     },
 }
 
 /// TODO
 #[derive(Debug, Clone)]
-pub struct ImportGroupItem<'a> {
+pub struct ImportGroup1Item<'a> {
     /// Where this `item` was defined
     pub span: Span,
     /// TODO
     pub name: &'a str,
     /// TODO
-    pub sig: Option<ItemSig<'a>>,
+    pub sig: ItemSig<'a>,
 }
 
-/// A single fully-qualified import. May not correspond to a single (import)
-/// statement.
+/// TODO
 #[derive(Debug, Clone)]
-pub struct Import<'a> {
-    /// Where this `import` was defined
+pub struct ImportGroup2Item<'a> {
+    /// Where this `item` was defined
     pub span: Span,
-    /// The module that this statement is importing from
-    pub module: &'a str,
-    /// The name of the field in the module this statement imports from.
-    pub field: &'a str,
-    /// The item that's being imported.
-    pub item: ItemSig<'a>,
+    /// TODO
+    pub name: &'a str,
 }
 
 enum CompactImportEncoding {
@@ -67,27 +69,66 @@ enum CompactImportEncoding {
 }
 
 impl<'a> Imports<'a> {
-    /// TODO
-    pub fn single(span: Span, module: &'a str, field: &'a str, item: ItemSig<'a>) -> Self {
+    /// Constructs an Imports object for a single import item.
+    pub fn single(span: Span, module: &'a str, field: &'a str, sig: ItemSig<'a>) -> Self {
         Self {
             span,
-            items: ImportItems::Single(Import {
-                span,
-                module: module,
-                field: field,
-                item: item,
-            }),
+            items: ImportItems::Single { module, field, sig },
         }
     }
 
-    /// TODO
-    pub fn sigs_mut(&mut self) -> Vec<&mut ItemSig<'a>> {
+    /// Returns the number of import items defined in the group.
+    pub fn num_items(&self) -> usize {
+        match &self.items {
+            ImportItems::Single {
+                module: _,
+                field: _,
+                sig: _,
+            } => 1,
+            ImportItems::Group1 { module: _, items } => items.len(),
+            ImportItems::Group2 {
+                module: _,
+                sig: _,
+                items,
+            } => items.len(),
+        }
+    }
+
+    /// Returns the ItemSig for each defined import in the group. Items using
+    /// compact encoding 2 will share an ItemSig.
+    pub fn item_sigs(&self) -> Vec<&ItemSig<'a>> {
+        let res = match &self.items {
+            ImportItems::Single {
+                module: _,
+                field: _,
+                sig,
+            } => vec![sig],
+            ImportItems::Group1 { module: _, items } => {
+                items.iter().map(|item| &item.sig).collect()
+            }
+            ImportItems::Group2 {
+                module: _,
+                sig,
+                items,
+            } => vec![sig; items.len()],
+        };
+        debug_assert!(res.len() == self.num_items());
+        res
+    }
+
+    /// Returns mutable references to each ItemSig defined in the group. This
+    /// may be less than the number of imports defined in the group, if items
+    /// share a sig.
+    pub fn unique_sigs_mut(&mut self) -> Vec<&mut ItemSig<'a>> {
         match &mut self.items {
-            ImportItems::Single(import) => vec![&mut import.item],
-            ImportItems::Group1 { module: _, items } => items
-                .iter_mut()
-                .map(|item| item.sig.as_mut().unwrap())
-                .collect(),
+            ImportItems::Single {
+                module: _,
+                field: _,
+                sig: item,
+            } => vec![item],
+            ImportItems::Group1 { module: _, items } => {
+                items.iter_mut().map(|item| &mut item.sig).collect()
+            }
             ImportItems::Group2 {
                 module: _,
                 sig,
@@ -97,20 +138,31 @@ impl<'a> Imports<'a> {
     }
 }
 
-impl<'a, 'b> IntoIterator for &'b Imports<'a>
-where
-    'a: 'b,
-{
-    type Item = &'b Import<'a>;
-    type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'b>;
+// impl<'a> IntoIterator for Imports<'a> {
+//     type Item = Import<'a>;
+//     type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'a>;
 
-    fn into_iter(self) -> Self::IntoIter {
-        match &self.items {
-            ImportItems::Single(import) => Box::new(std::iter::once(import)),
-            ImportItems::Group1 { module, items } => todo!(),
-            ImportItems::Group2 { module, sig, items } => todo!(),
-        }
-    }
+//     fn into_iter(self) -> Self::IntoIter {
+//         match &self.items {
+//             ImportItems::Single(import) => Box::new(std::iter::once(import)),
+//             ImportItems::Group1 { module, items } => {
+//                 let module = *module;
+//                 Box::new(items.iter().map(move |item| Import {
+//                     span: item.span,
+//                     module: module,
+//                     field: item.name,
+//                     item: item.sig.unwrap(),
+//                 }))
+//             }
+//             ImportItems::Group2 { module, sig, items } => todo!(),
+//         }
+//     }
+// }
+
+struct ImportGroupItemCommon<'a> {
+    span: Span,
+    name: &'a str,
+    sig: Option<ItemSig<'a>>,
 }
 
 impl<'a> Parse<'a> for Imports<'a> {
@@ -121,7 +173,7 @@ impl<'a> Parse<'a> for Imports<'a> {
             let mut encoding = CompactImportEncoding::Unknown;
             let mut items = Vec::new();
             while parser.peek2::<kw::item>()? {
-                let item: ImportGroupItem = parser.parens(|p| p.parse())?;
+                let item: ImportGroupItemCommon = parser.parens(|p| p.parse())?;
                 match item.sig {
                     Some(_) => {
                         // Compact encoding 1 (name / type pairs)
@@ -155,25 +207,32 @@ impl<'a> Parse<'a> for Imports<'a> {
                 CompactImportEncoding::Unknown => Err(parser.error("expected import items")),
                 CompactImportEncoding::Encoding1 => Ok(Imports {
                     span,
-                    items: ImportItems::Group1 { module, items },
+                    items: ImportItems::Group1 {
+                        module,
+                        items: items
+                            .into_iter()
+                            .map(|item| ImportGroup1Item {
+                                span: item.span,
+                                name: item.name,
+                                sig: item.sig.unwrap(),
+                            })
+                            .collect(),
+                    },
                 }),
                 CompactImportEncoding::Encoding2 => {
                     let sig: ItemSig = parser.parens(|p| p.parse())?;
-                    let names = items
-                        .iter()
-                        .map(|item| {
-                            if item.sig.is_some() {
-                                unreachable!();
-                            }
-                            item.name
-                        })
-                        .collect();
                     Ok(Imports {
                         span,
                         items: ImportItems::Group2 {
                             module,
                             sig,
-                            items: names,
+                            items: items
+                                .into_iter()
+                                .map(|item| ImportGroup2Item {
+                                    span: item.span,
+                                    name: item.name,
+                                })
+                                .collect(),
                         },
                     })
                 }
@@ -181,16 +240,16 @@ impl<'a> Parse<'a> for Imports<'a> {
         } else {
             // Single item
             let field = parser.parse()?;
-            let item = parser.parens(|p| p.parse())?;
-            Ok(Imports::single(span, module, field, item))
+            let sig = parser.parens(|p| p.parse())?;
+            Ok(Imports::single(span, module, field, sig))
         }
     }
 }
 
-impl<'a> Parse<'a> for ImportGroupItem<'a> {
+impl<'a> Parse<'a> for ImportGroupItemCommon<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::item>()?.0;
-        Ok(ImportGroupItem {
+        Ok(ImportGroupItemCommon {
             span,
             name: parser.parse()?,
             sig: if parser.is_empty() {
