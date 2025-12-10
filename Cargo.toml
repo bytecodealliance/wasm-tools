@@ -81,7 +81,8 @@ uninlined_format_args = 'warn'
 unnecessary_mut_passed = 'warn'
 unnecessary_fallible_conversions = 'warn'
 unnecessary_cast = 'warn'
-allow_attributes_without_reason = 'warn'
+# TODO: find time to re-enable this
+# allow_attributes_without_reason = 'warn'
 
 [workspace.package]
 edition = '2021'
