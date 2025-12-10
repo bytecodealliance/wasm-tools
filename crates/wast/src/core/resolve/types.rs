@@ -70,8 +70,8 @@ impl<'a> Expander<'a> {
             ModuleField::Rec(_) => {}
 
             ModuleField::Import(imports) => {
-                for i in imports.into_iter() {
-                    self.expand_item_sig(&mut i.item);
+                for sig in imports.iter_item_sigs_mut() {
+                    self.expand_item_sig(sig);
                 }
             }
             ModuleField::Func(f) => {

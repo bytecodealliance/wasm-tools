@@ -54,6 +54,40 @@ enum CompactImportEncoding {
     Encoding2,
 }
 
+impl<'a> Imports<'a> {
+    pub fn single(span: Span, module: &'a str, field: &'a str, item: ItemSig<'a>) -> Self {
+        Self {
+            span,
+            items: ImportItems::Single(Import {
+                span,
+                module: module,
+                field: field,
+                item: item,
+            }),
+        }
+    }
+
+    pub fn iter_item_sigs_mut(&mut self) -> impl Iterator<Item = &mut ItemSig<'a>> {
+        todo!()
+    }
+}
+
+impl<'a, 'b> IntoIterator for &'b Imports<'a>
+where
+    'a: 'b,
+{
+    type Item = &'b Import<'a>;
+    type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'b>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match &self.items {
+            ImportItems::Single(import) => Box::new(std::iter::once(import)),
+            ImportItems::Group1 { module, items } => todo!(),
+            ImportItems::Group2 { module, sig, items } => todo!(),
+        }
+    }
+}
+
 impl<'a> Parse<'a> for Imports<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::import>()?.0;
@@ -148,32 +182,6 @@ impl<'a> Parse<'a> for ImportGroupItem<'a> {
                 Some(parser.parens(|p| p.parse())?)
             },
         })
-    }
-}
-
-impl<'a> IntoIterator for &'a Imports<'a> {
-    type Item = &'a Import<'a>;
-    type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        match &self.items {
-            ImportItems::Single(import) => Box::new(std::iter::once(import)),
-            ImportItems::Group1 { module, items } => todo!(),
-            ImportItems::Group2 { module, sig, items } => todo!(),
-        }
-    }
-}
-
-impl<'a> IntoIterator for &'a mut Imports<'a> {
-    type Item = &'a mut Import<'a>;
-    type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        match &mut self.items {
-            ImportItems::Single(import) => Box::new(std::iter::once(import)),
-            ImportItems::Group1 { module, items } => todo!(),
-            ImportItems::Group2 { module, sig, items } => todo!(),
-        }
     }
 }
 

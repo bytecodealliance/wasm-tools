@@ -928,8 +928,8 @@ impl<'a> Resolver<'a> {
                 }
 
                 ModuleTypeDecl::Import(imports) => {
-                    for import in imports {
-                        resolve_item_sig(resolver, &mut import.item)?;
+                    for sig in imports.iter_item_sigs_mut() {
+                        resolve_item_sig(resolver, sig)?;
                     }
                     Ok(())
                 }

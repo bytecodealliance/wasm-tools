@@ -206,20 +206,17 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                 }
                 match e.kind {
                     TagKind::Import(import) => {
-                        item = ModuleField::Import(Imports {
-                            span: e.span,
-                            items: ImportItems::Single(Import {
+                        item = ModuleField::Import(Imports::single(
+                            e.span,
+                            import.module,
+                            import.field,
+                            ItemSig {
                                 span: e.span,
-                                module: import.module,
-                                field: import.field,
-                                item: ItemSig {
-                                    span: e.span,
-                                    id: e.id,
-                                    name: None,
-                                    kind: ItemKind::Tag(e.ty.clone()),
-                                },
-                            }),
-                        });
+                                id: e.id,
+                                name: None,
+                                kind: ItemKind::Tag(e.ty.clone()),
+                            },
+                        ));
                     }
                     TagKind::Inline { .. } => {}
                 }
