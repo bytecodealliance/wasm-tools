@@ -200,6 +200,9 @@ impl<'a> Parse<'a> for Imports<'a> {
                 }),
                 CompactImportEncoding::Encoding2 => {
                     let sig: ItemSig = parser.parens(|p| p.parse())?;
+                    if let Some(id) = sig.id {
+                        return Err(parser.error_at(id.span(), "identifier not allowed"));
+                    }
                     Ok(Imports {
                         span,
                         items: ImportItems::Group2 {
