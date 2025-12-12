@@ -84,45 +84,45 @@ impl From<TagType> for EntityType {
     }
 }
 
-/// TODO
+/// An import item to be used with [`Imports::Single`].
 #[derive(Clone, Debug)]
 pub struct Import<'a> {
-    /// TODO
+    /// The import's module name.
     pub module: &'a str,
-    /// TODO
+    /// The import's item name.
     pub name: &'a str,
-    /// TODO
+    /// The import's time.
     pub ty: EntityType,
 }
 
-/// TODO
+/// An import item to be used with [`Imports::Compact1`].
 #[derive(Clone, Debug)]
 pub struct ImportCompact<'a> {
-    /// TODO
+    /// The import's item name.
     pub name: &'a str,
-    /// TODO
+    /// The import's type.
     pub ty: EntityType,
 }
 
-/// TODO
+/// A single entry in the import section of a WebAssembly module, possibly containing multiple imports.
 #[derive(Clone, Debug)]
 pub enum Imports<'a> {
-    /// TODO
+    /// A single import item.
     Single(Import<'a>),
-    /// TODO
+    /// A group of imports with a common module name.
     Compact1 {
-        /// TODO
+        /// The common module name.
         module: &'a str,
-        /// TODO
+        /// The individual import items (name/type).
         items: Cow<'a, [ImportCompact<'a>]>,
     },
-    /// TODO
+    /// A group of imports with a common module name and type.
     Compact2 {
-        /// TODO
+        /// The common module name.
         module: &'a str,
-        /// TODO
+        /// The common import type.
         ty: EntityType,
-        /// TODO
+        /// The individual import item names.
         names: Cow<'a, [&'a str]>,
     },
 }

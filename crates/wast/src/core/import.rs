@@ -6,59 +6,78 @@ use crate::token::{Id, LParen, NameAnnotation, Span};
 /// An `import` statement and entry in a WebAssembly module.
 #[derive(Debug, Clone)]
 pub struct Imports<'a> {
-    /// Where this `import` statement was defined
+    /// Where this `import` statement was defined.
     pub span: Span,
-    /// All items inside the `import` statement
+    /// All items inside the `import` statement.
     pub items: ImportItems<'a>,
 }
 
-/// TODO
+/// The individual items inside an `import` statement, possibly in one of the
+/// "compact" forms.
 #[derive(Debug, Clone)]
 pub enum ImportItems<'a> {
-    /// TODO
+    /// A single import item:
+    ///
+    /// ```text
+    /// (import "mod" "name" <type>)
+    /// ```
     Single {
-        /// The module that this statement is importing from
+        /// The name of the module being importing from.
         module: &'a str,
-        /// The name of the field in the module this statement imports from.
+        /// The name of the field in the module being imported from.
         name: &'a str,
-        /// The item that's being imported.
+        /// The type of the item being imported.
         sig: ItemSig<'a>,
     },
-    /// TODO
+
+    /// A group of import items with a common module name:
+    ///
+    /// ```text
+    /// (import "mod" (item "foo" <type>) (item "bar" <type>))
+    /// ```
     Group1 {
-        /// TODO
+        /// The name of the module being imported from.
         module: &'a str,
-        /// TODO
+        /// The individual items being imported (name/type).
         items: Vec<ImportGroup1Item<'a>>,
     },
-    /// TODO
+
+    /// A group of import items with a common module name and type:
+    ///
+    /// ```text
+    /// (import "mod" (item "foo") (item "bar") <type>)
+    /// ```
     Group2 {
-        /// TODO
+        /// The name of the module being imported from.
         module: &'a str,
-        /// TODO
+        /// The type of all the items being imported.
         sig: ItemSig<'a>,
-        /// TODO
+        /// The individual items being imported (names only).
         items: Vec<ImportGroup2Item<'a>>,
     },
 }
 
-/// TODO
+/// An item in a group of compact imports sharing a module name. Used with [`ImportItems::Group1`].
+///
+/// ```text
+/// (item "foo" <type>)
+/// ```
 #[derive(Debug, Clone)]
 pub struct ImportGroup1Item<'a> {
-    /// Where this `item` was defined
+    /// Where this `item` was defined.
     pub span: Span,
-    /// TODO
+    /// The name of the item being imported.
     pub name: &'a str,
-    /// TODO
+    /// The type of the item being imported.
     pub sig: ItemSig<'a>,
 }
 
-/// TODO
+/// An item in a group of compact imports sharing a module name and type. Used with [`ImportItems::Group2`].
 #[derive(Debug, Clone)]
 pub struct ImportGroup2Item<'a> {
-    /// Where this `item` was defined
+    /// Where this `item` was defined.
     pub span: Span,
-    /// TODO
+    /// The name of the item being imported.
     pub name: &'a str,
 }
 

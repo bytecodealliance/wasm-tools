@@ -177,13 +177,15 @@ impl<'a> FromReader<'a> for TypeRef {
 // various possible encodings
 
 impl<'a> SectionLimited<'a, Imports<'a>> {
-    /// TODO
+    /// Converts the section into an iterator over individual [`Import`]s, flattening any groups
+    /// of compact imports.
     pub fn into_imports(self) -> impl Iterator<Item = Result<Import<'a>>> {
         self.into_imports_with_offsets()
             .map(|res| res.map(|(_, import)| import))
     }
 
-    /// TODO
+    /// Converts the section into an iterator over individual [`Import`]s and their offsets,
+    /// flattening any groups of compact imports.
     pub fn into_imports_with_offsets(self) -> impl Iterator<Item = Result<(usize, Import<'a>)>> {
         self.into_iter().flat_map(|res| match res {
             Ok(imports) => imports.into_iter(),
@@ -220,7 +222,7 @@ impl<'a> IntoIterator for Imports<'a> {
     }
 }
 
-/// TODO
+/// An iterator over the [`Import`]s in a single [`Imports`] object.
 pub struct ImportsIter<'a> {
     state: ImportsIterState<'a>,
 }
