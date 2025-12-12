@@ -360,7 +360,7 @@ pub(crate) struct Import {
     /// The name of the module providing this entity.
     pub(crate) module: String,
     /// The name of the entity.
-    pub(crate) field: String,
+    pub(crate) name: String,
     /// The type of this entity.
     pub(crate) entity_type: EntityType,
 }
@@ -1280,7 +1280,7 @@ impl Module {
                     }
                 }
                 wasmparser::Payload::ImportSection(import_reader) => {
-                    for im in import_reader {
+                    for im in import_reader.into_imports() {
                         let im = im.expect("could not read import");
                         required_imports.push(im);
                     }
@@ -1418,7 +1418,7 @@ impl Module {
             };
             new_imports.push(Import {
                 module: import.module.to_string(),
-                field: import.name.to_string(),
+                name: import.name.to_string(),
                 entity_type,
             });
             self.num_imports += 1;
@@ -1578,7 +1578,7 @@ impl Module {
                 }
                 import_strings.insert(import_pair.clone());
             }
-            let (module, field) = import_pair;
+            let (module, name) = import_pair;
 
             // Once our name is determined, then we push the typed item into the
             // appropriate namespace.
@@ -1593,7 +1593,7 @@ impl Module {
             self.num_imports += 1;
             self.imports.push(Import {
                 module,
-                field,
+                name,
                 entity_type,
             });
             Ok(true)
@@ -1661,7 +1661,7 @@ impl Module {
                     }
                 }
                 wasmparser::Payload::ImportSection(import_reader) => {
-                    for im in import_reader {
+                    for im in import_reader.into_imports() {
                         let im = im.expect("could not read import");
                         // We can immediately filter whether this is an import we want to
                         // use.
@@ -1773,7 +1773,7 @@ impl Module {
             };
             new_imports.push(Import {
                 module: import.module.to_string(),
-                field: import.name.to_string(),
+                name: import.name.to_string(),
                 entity_type,
             });
             self.num_imports += 1;

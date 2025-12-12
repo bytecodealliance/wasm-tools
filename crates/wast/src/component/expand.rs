@@ -436,8 +436,10 @@ impl<'a> Expander<'a> {
                 },
                 ModuleTypeDecl::Rec(_) => {}
                 ModuleTypeDecl::Alias(_) => {}
-                ModuleTypeDecl::Import(ty) => {
-                    expand_sig(&mut ty.item, &mut to_prepend, &mut func_type_to_idx);
+                ModuleTypeDecl::Import(imports) => {
+                    for sig in imports.unique_sigs_mut() {
+                        expand_sig(sig, &mut to_prepend, &mut func_type_to_idx);
+                    }
                 }
                 ModuleTypeDecl::Export(_, item) => {
                     expand_sig(item, &mut to_prepend, &mut func_type_to_idx);

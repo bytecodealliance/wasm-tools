@@ -211,7 +211,7 @@ impl<'a> Parse<'a> for Data<'a> {
     }
 }
 
-/// Differnet ways the value of a data segment can be defined.
+/// Different ways the value of a data segment can be defined.
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub enum DataVal<'a> {

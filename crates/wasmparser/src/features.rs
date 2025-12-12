@@ -303,6 +303,9 @@ define_wasm_features! {
 
         // Custom descriptors proposal.
         pub custom_descriptors: CUSTOM_DESCRIPTORS(1 << 36) = false;
+
+        // Compact import section proposal.
+        pub compact_imports: COMPACT_IMPORTS(1 << 37) = false;
     }
 }
 

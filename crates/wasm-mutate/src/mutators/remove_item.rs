@@ -274,7 +274,7 @@ impl Reencode for RemoveItem<'_> {
         let mut table = 0;
         let mut memory = 0;
         let mut tag = 0;
-        for item in section {
+        for item in section.into_imports() {
             let item = item?;
             let retain;
             match &item.ty {

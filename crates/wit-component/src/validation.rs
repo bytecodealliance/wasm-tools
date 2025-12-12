@@ -76,7 +76,7 @@ impl ValidatedModule {
                     bail!("data is not a WebAssembly module");
                 }
                 Payload::ImportSection(s) => {
-                    for import in s {
+                    for import in s.into_imports() {
                         let import = import?;
                         ret.imports.add(import, encoder, import_map, info, types)?;
                     }

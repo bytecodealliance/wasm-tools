@@ -99,7 +99,7 @@ impl<'a> ModuleInfo<'a> {
                     info.imports = Some(info.raw_sections.len());
                     info.section(SectionId::Import.into(), reader.range(), input_wasm);
 
-                    for ty in reader {
+                    for ty in reader.into_imports() {
                         match ty?.ty {
                             wasmparser::TypeRef::Func(ty) | wasmparser::TypeRef::FuncExact(ty) => {
                                 // Save imported functions

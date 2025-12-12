@@ -927,7 +927,12 @@ impl<'a> Resolver<'a> {
                     Ok(())
                 }
 
-                ModuleTypeDecl::Import(import) => resolve_item_sig(resolver, &mut import.item),
+                ModuleTypeDecl::Import(imports) => {
+                    for sig in imports.unique_sigs_mut() {
+                        resolve_item_sig(resolver, sig)?;
+                    }
+                    Ok(())
+                }
                 ModuleTypeDecl::Export(_, item) => resolve_item_sig(resolver, item),
             },
             |state, decl| {

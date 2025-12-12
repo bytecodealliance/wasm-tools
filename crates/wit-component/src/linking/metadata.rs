@@ -293,7 +293,7 @@ impl<'a> Metadata<'a> {
                 }
 
                 Payload::ImportSection(reader) => {
-                    for import in reader {
+                    for import in reader.into_imports() {
                         let import = import?;
 
                         match import.ty {

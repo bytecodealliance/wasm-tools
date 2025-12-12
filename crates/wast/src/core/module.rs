@@ -130,7 +130,7 @@ impl<'a> Parse<'a> for Module<'a> {
 pub enum ModuleField<'a> {
     Type(Type<'a>),
     Rec(Rec<'a>),
-    Import(Import<'a>),
+    Import(Imports<'a>),
     Func(Func<'a>),
     Table(Table<'a>),
     Memory(Memory<'a>),
