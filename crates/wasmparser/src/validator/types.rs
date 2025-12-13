@@ -100,7 +100,6 @@ macro_rules! define_type_id {
         };
     };
 }
-pub(crate) use define_type_id;
 
 /// Represents a unique identifier for a core type type known to a
 /// [`crate::Validator`].
