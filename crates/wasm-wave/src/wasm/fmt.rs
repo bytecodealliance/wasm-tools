@@ -1,4 +1,6 @@
-use std::fmt::Display;
+use core::fmt::Display;
+
+use alloc::{string::ToString, vec::Vec};
 
 use crate::{
     WasmValue,
@@ -10,7 +12,7 @@ use crate::{
 pub struct DisplayType<'a, T: WasmType>(pub &'a T);
 
 impl<T: WasmType> Display for DisplayType<'_, T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let ty = self.0;
         match ty.kind() {
             WasmTypeKind::List => {
@@ -96,12 +98,10 @@ impl<T: WasmType> Display for DisplayType<'_, T> {
 pub struct DisplayValue<'a, T: WasmValue>(pub &'a T);
 
 impl<T: WasmValue> Display for DisplayValue<'_, T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut buf = vec![];
-        Writer::new(&mut buf)
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        Writer::new(f)
             .write_value(self.0)
-            .map_err(|_| std::fmt::Error)?;
-        f.write_str(String::from_utf8_lossy(&buf).as_ref())
+            .map_err(|_| core::fmt::Error)
     }
 }
 
@@ -109,7 +109,7 @@ impl<T: WasmValue> Display for DisplayValue<'_, T> {
 pub struct DisplayFunc<T: WasmFunc>(pub T);
 
 impl<T: WasmFunc> Display for DisplayFunc<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str("func(")?;
         let mut param_names = self.0.param_names();
         for (idx, ty) in self.0.params().enumerate() {
@@ -156,7 +156,7 @@ impl<T: WasmFunc> Display for DisplayFunc<T> {
 pub struct DisplayFuncArgs<'a, T: WasmValue>(pub &'a [T]);
 
 impl<T: WasmValue> Display for DisplayFuncArgs<'_, T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str("(")?;
         for (idx, v) in self.0.iter().enumerate() {
             if idx != 0 {
@@ -172,7 +172,7 @@ impl<T: WasmValue> Display for DisplayFuncArgs<'_, T> {
 pub struct DisplayFuncResults<'a, T: WasmValue>(pub &'a [T]);
 
 impl<T: WasmValue> Display for DisplayFuncResults<'_, T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         if self.0.len() == 1 {
             DisplayValue(&self.0[0]).fmt(f)
         } else {
@@ -183,6 +183,8 @@ impl<T: WasmValue> Display for DisplayFuncResults<'_, T> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::string::ToString;
+
     use crate::value::Type;
 
     #[test]

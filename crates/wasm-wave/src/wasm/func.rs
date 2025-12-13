@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use alloc::{borrow::Cow, boxed::Box};
 
 use crate::wasm::WasmType;
 
@@ -18,7 +18,7 @@ pub trait WasmFunc {
     /// length as the iterator returned by `params` or empty if this WasmFunc
     /// impl does not support param names.
     fn param_names(&self) -> Box<dyn Iterator<Item = Cow<'_, str>> + '_> {
-        Box::new(std::iter::empty())
+        Box::new(core::iter::empty())
     }
 
     /// Returns an iterator of the func's result types.
@@ -28,6 +28,6 @@ pub trait WasmFunc {
     /// length as the iterator returned by `results` or empty if there are no
     /// named results or if this WasmFunc impl does not support result names.
     fn result_names(&self) -> Box<dyn Iterator<Item = Cow<'_, str>> + '_> {
-        Box::new(std::iter::empty())
+        Box::new(core::iter::empty())
     }
 }

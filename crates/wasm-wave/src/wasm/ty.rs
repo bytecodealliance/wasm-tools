@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt::Debug};
+use alloc::{borrow::Cow, boxed::Box};
 
 /// The kind of a [`WasmType`]. These correspond to the value types defined by the
 /// [Component Model design](https://github.com/WebAssembly/component-model/blob/673d5c43c3cc0f4aeb8996a5c0931af623f16808/design/mvp/WIT.md).
@@ -32,8 +32,8 @@ pub enum WasmTypeKind {
     Unsupported,
 }
 
-impl std::fmt::Display for WasmTypeKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for WasmTypeKind {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str(match self {
             WasmTypeKind::Bool => "bool",
             WasmTypeKind::S8 => "s8",

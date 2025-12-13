@@ -1,6 +1,6 @@
 //! Untyped value
 
-use std::borrow::Cow;
+use alloc::{borrow::Cow, vec::Vec};
 
 use crate::{Parser, WasmValue, ast::Node, lex::Keyword, parser::ParserError};
 
@@ -48,8 +48,8 @@ impl<'source> UntypedValue<'source> {
     }
 }
 
-impl std::fmt::Display for UntypedValue<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for UntypedValue<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         fmt_node(f, &self.node, &self.source)
     }
 }
@@ -125,13 +125,13 @@ impl<'source> UntypedFuncCall<'source> {
     ) -> Result<Vec<V>, ParserError> {
         match &self.params {
             Some(params) => params.to_wasm_params(types, self.source()),
-            None => Ok(vec![]),
+            None => Ok(Vec::new()),
         }
     }
 }
 
-impl std::fmt::Display for UntypedFuncCall<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for UntypedFuncCall<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str(self.name.slice(&self.source))?;
         match &self.params {
             Some(params) => fmt_node(f, params, &self.source),
@@ -140,7 +140,7 @@ impl std::fmt::Display for UntypedFuncCall<'_> {
     }
 }
 
-fn fmt_node(f: &mut impl std::fmt::Write, node: &Node, src: &str) -> std::fmt::Result {
+fn fmt_node(f: &mut impl core::fmt::Write, node: &Node, src: &str) -> core::fmt::Result {
     use crate::ast::NodeType::*;
     match node.ty() {
         BoolTrue | BoolFalse | Number | Char | String | MultilineString | Label => {
@@ -188,12 +188,12 @@ fn fmt_node(f: &mut impl std::fmt::Write, node: &Node, src: &str) -> std::fmt::R
 }
 
 fn fmt_sequence<'a>(
-    f: &mut impl std::fmt::Write,
+    f: &mut impl core::fmt::Write,
     open: char,
     close: char,
     nodes: impl Iterator<Item = &'a Node>,
     src: &str,
-) -> std::fmt::Result {
+) -> core::fmt::Result {
     f.write_char(open)?;
     for (idx, node) in nodes.enumerate() {
         if idx != 0 {
@@ -205,11 +205,11 @@ fn fmt_sequence<'a>(
 }
 
 fn fmt_variant(
-    f: &mut impl std::fmt::Write,
+    f: &mut impl core::fmt::Write,
     case: &str,
     payload: Option<&Node>,
     src: &str,
-) -> std::fmt::Result {
+) -> core::fmt::Result {
     f.write_str(case)?;
     if let Some(node) = payload {
         f.write_char('(')?;
@@ -219,7 +219,7 @@ fn fmt_variant(
     Ok(())
 }
 
-impl From<ParserError> for std::fmt::Error {
+impl From<ParserError> for core::fmt::Error {
     fn from(_: ParserError) -> Self {
         Self
     }
@@ -227,6 +227,8 @@ impl From<ParserError> for std::fmt::Error {
 
 #[cfg(test)]
 mod tests {
+    use alloc::string::ToString;
+
     use super::*;
 
     #[test]
