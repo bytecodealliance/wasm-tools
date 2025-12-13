@@ -100,6 +100,7 @@ macro_rules! define_type_id {
         };
     };
 }
+#[cfg(feature = "component-model")]
 pub(crate) use define_type_id;
 
 /// Represents a unique identifier for a core type type known to a

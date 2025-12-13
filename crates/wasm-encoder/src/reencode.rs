@@ -3,13 +3,9 @@
 //! The [`RoundtripReencoder`] allows encoding identical wasm to the parsed
 //! input.
 
-#[cfg(all(not(feature = "std"), core_error))]
-use core::error::Error as StdError;
-#[cfg(feature = "std")]
-use std::error::Error as StdError;
-
 use crate::CoreTypeEncoder;
 use core::convert::Infallible;
+use core::error::Error as StdError;
 
 #[cfg(feature = "component-model")]
 mod component;
@@ -625,7 +621,6 @@ impl<E: core::fmt::Display> core::fmt::Display for Error<E> {
     }
 }
 
-#[cfg(any(feature = "std", core_error))]
 impl<E: 'static + StdError> StdError for Error<E> {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
