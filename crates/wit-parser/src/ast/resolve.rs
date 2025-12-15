@@ -1184,6 +1184,19 @@ impl<'a> Resolver<'a> {
             ast::Type::Map(map) => {
                 let key_ty = self.resolve_type(&map.key, stability)?;
                 let value_ty = self.resolve_type(&map.value, stability)?;
+
+                match key_ty {
+                    Type::Bool | Type::U8 | Type::U16 | Type::U32 | Type::U64 |
+                    Type::S8 | Type::S16 | Type::S32 | Type::S64 |
+                    Type::Char | Type::String => {}
+                    _ => {
+                        bail!(Error::new(
+                            map.span,
+                            "invalid map key type: map keys must be bool, u8, u16, u32, u64, s8, s16, s32, s64, char, or string",
+                        ))
+                    }
+                }
+
                 TypeDefKind::Map(key_ty, value_ty)
             }
             ast::Type::FixedSizeList(list) => {
