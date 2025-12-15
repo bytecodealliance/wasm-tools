@@ -1186,9 +1186,17 @@ impl<'a> Resolver<'a> {
                 let value_ty = self.resolve_type(&map.value, stability)?;
 
                 match key_ty {
-                    Type::Bool | Type::U8 | Type::U16 | Type::U32 | Type::U64 |
-                    Type::S8 | Type::S16 | Type::S32 | Type::S64 |
-                    Type::Char | Type::String => {}
+                    Type::Bool
+                    | Type::U8
+                    | Type::U16
+                    | Type::U32
+                    | Type::U64
+                    | Type::S8
+                    | Type::S16
+                    | Type::S32
+                    | Type::S64
+                    | Type::Char
+                    | Type::String => {}
                     _ => {
                         bail!(Error::new(
                             map.span,
