@@ -9,10 +9,15 @@ mod func;
 #[cfg(feature = "wit")]
 mod wit;
 
+use alloc::{
+    borrow::{Cow, ToOwned},
+    boxed::Box,
+    collections::BTreeMap,
+    sync::Arc,
+    vec::Vec,
+};
 #[cfg(feature = "wit")]
 pub use wit::{resolve_wit_func_type, resolve_wit_type};
-
-use std::{borrow::Cow, collections::HashMap, sync::Arc};
 
 use crate::{
     canonicalize_nan32, canonicalize_nan64,
@@ -183,7 +188,7 @@ impl WasmValue for Value {
         Self(ValueEnum::F64(val))
     }
 
-    fn make_string(val: std::borrow::Cow<str>) -> Self {
+    fn make_string(val: alloc::borrow::Cow<str>) -> Self {
         Self(ValueEnum::String(val.into()))
     }
 
@@ -206,7 +211,7 @@ impl WasmValue for Value {
         fields: impl IntoIterator<Item = (&'a str, Self)>,
     ) -> Result<Self, WasmValueError> {
         ensure_type_kind(ty, WasmTypeKind::Record)?;
-        let mut field_vals: HashMap<_, _> = fields.into_iter().collect();
+        let mut field_vals: BTreeMap<_, _> = fields.into_iter().collect();
         let mut fields = Vec::with_capacity(field_vals.len());
         for (name, ty) in ty.record_fields() {
             let val = field_vals
@@ -325,7 +330,7 @@ impl WasmValue for Value {
         canonicalize_nan64(val)
     }
 
-    fn unwrap_string(&self) -> std::borrow::Cow<'_, str> {
+    fn unwrap_string(&self) -> alloc::borrow::Cow<'_, str> {
         unwrap_val!(&self.0, ValueEnum::String, "string")
             .as_ref()
             .into()

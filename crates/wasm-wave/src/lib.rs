@@ -4,6 +4,11 @@
 //!
 //! For more information, see the [README](https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-wave#readme).
 #![deny(missing_docs)]
+#![no_std]
+
+extern crate alloc;
+#[cfg(feature = "std")]
+extern crate std;
 
 pub mod ast;
 pub mod lex;
@@ -14,6 +19,7 @@ pub mod value;
 pub mod wasm;
 pub mod writer;
 
+use alloc::string::String;
 use parser::Parser;
 use wasm::WasmValue;
 use writer::Writer;
@@ -47,9 +53,9 @@ pub fn from_str<V: WasmValue>(ty: &V::Type, s: &str) -> Result<V, parser::Parser
 /// # Ok(())
 /// # }
 pub fn to_string(val: &impl WasmValue) -> Result<String, writer::WriterError> {
-    let mut buf = vec![];
+    let mut buf = String::new();
     Writer::new(&mut buf).write_value(val)?;
-    Ok(String::from_utf8(buf).unwrap_or_else(|err| panic!("invalid UTF-8: {err:?}")))
+    Ok(buf)
 }
 
 fn canonicalize_nan32(val: f32) -> f32 {

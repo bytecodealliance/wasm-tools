@@ -1,6 +1,13 @@
 //! Abstract syntax tree types
 
-use std::{borrow::Cow, collections::HashMap, str::FromStr};
+use core::str::FromStr;
+
+use alloc::{
+    borrow::Cow,
+    collections::BTreeMap,
+    string::{String, ToString},
+    vec::Vec,
+};
 
 use crate::{
     lex::Span,
@@ -281,7 +288,7 @@ impl Node {
     }
 
     fn to_wasm_record<V: WasmValue>(&self, ty: &V::Type, src: &str) -> Result<V, ParserError> {
-        let values = self.as_record(src)?.collect::<HashMap<_, _>>();
+        let values = self.as_record(src)?.collect::<BTreeMap<_, _>>();
         let record_fields = ty.record_fields().collect::<Vec<_>>();
         let fields = record_fields
             .iter()

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, sync::Arc};
+use alloc::{borrow::Cow, boxed::Box, sync::Arc};
 
 use crate::wasm::{WasmType, WasmTypeKind, maybe_unwrap_type};
 
@@ -217,7 +217,7 @@ impl WasmType for Type {
 
     fn record_fields(&self) -> Box<dyn Iterator<Item = (Cow<'_, str>, Self)> + '_> {
         let TypeEnum::Record(record) = &self.0 else {
-            return Box::new(std::iter::empty());
+            return Box::new(core::iter::empty());
         };
         Box::new(
             record
@@ -229,14 +229,14 @@ impl WasmType for Type {
 
     fn tuple_element_types(&self) -> Box<dyn Iterator<Item = Self> + '_> {
         let TypeEnum::Tuple(tuple) = &self.0 else {
-            return Box::new(std::iter::empty());
+            return Box::new(core::iter::empty());
         };
         Box::new(tuple.elements.iter().cloned())
     }
 
     fn variant_cases(&self) -> Box<dyn Iterator<Item = (Cow<'_, str>, Option<Self>)> + '_> {
         let TypeEnum::Variant(variant) = &self.0 else {
-            return Box::new(std::iter::empty());
+            return Box::new(core::iter::empty());
         };
         Box::new(
             variant
@@ -248,7 +248,7 @@ impl WasmType for Type {
 
     fn enum_cases(&self) -> Box<dyn Iterator<Item = Cow<'_, str>> + '_> {
         let TypeEnum::Enum(enum_) = &self.0 else {
-            return Box::new(std::iter::empty());
+            return Box::new(core::iter::empty());
         };
         Box::new(enum_.cases.iter().map(|name| name.as_ref().into()))
     }
@@ -265,14 +265,14 @@ impl WasmType for Type {
 
     fn flags_names(&self) -> Box<dyn Iterator<Item = Cow<'_, str>> + '_> {
         let TypeEnum::Flags(flags) = &self.0 else {
-            return Box::new(std::iter::empty());
+            return Box::new(core::iter::empty());
         };
         Box::new(flags.flags.iter().map(|name| name.as_ref().into()))
     }
 }
 
-impl std::fmt::Display for Type {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for Type {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         crate::wasm::DisplayType(self).fmt(f)
     }
 }

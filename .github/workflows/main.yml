@@ -286,6 +286,11 @@ jobs:
       - run: cargo check --no-default-features -p wasm-metadata
       - run: cargo check --no-default-features -p wasm-metadata --features serde
       - run: cargo check --no-default-features -p wasm-metadata --features oci
+      - run: cargo check --no-default-features -p wasm-wave
+      - run: cargo check --no-default-features -p wasm-wave --target x86_64-unknown-none
+      - run: cargo check --no-default-features -p wasm-wave --features std
+      - run: cargo check --no-default-features -p wasm-wave --features wit
+      - run: cargo check --no-default-features -p wasm-wave --features std,wit
       - run: |
           if cargo tree -p wasm-smith --no-default-features -e no-dev | grep wasmparser; then
             echo wasm-smith without default features should not depend on wasmparser

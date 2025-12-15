@@ -2416,7 +2416,6 @@ name = "wasm-wave"
 version = "0.243.0"
 dependencies = [
  "anyhow",
- "indexmap 2.10.0",
  "logos",
  "thiserror 2.0.12",
  "wit-parser 0.243.0",

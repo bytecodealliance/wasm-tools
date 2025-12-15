@@ -5,6 +5,7 @@ mod func;
 mod ty;
 mod val;
 
+use alloc::string::{String, ToString};
 pub use fmt::{DisplayFunc, DisplayFuncArgs, DisplayFuncResults, DisplayType, DisplayValue};
 pub use func::WasmFunc;
 pub use ty::{WasmType, WasmTypeKind};
@@ -50,8 +51,8 @@ impl WasmValueError {
     }
 }
 
-impl std::fmt::Display for WasmValueError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for WasmValueError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::MissingField(name) => {
                 write!(f, "missing field {name:?}")
@@ -75,4 +76,4 @@ impl std::fmt::Display for WasmValueError {
     }
 }
 
-impl std::error::Error for WasmValueError {}
+impl core::error::Error for WasmValueError {}

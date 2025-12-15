@@ -15,12 +15,12 @@ readme = "README.md"
 workspace = true
 
 [features]
-default = ["wit"]
-wit = ["dep:wit-parser"]
+default = ["std", "wit"]
+std = []
+wit = ["dep:wit-parser", "std"]
 
 [dependencies]
-indexmap = { workspace = true, features = ["std"] }
-logos = { version = "0.14.2", features = ["forbid_unsafe"] }
+logos = { version = "0.14.2", default-features = false, features = ["export_derive", "forbid_unsafe"] }
 thiserror = { workspace = true }
 wit-parser = { workspace = true, optional = true }
 

@@ -1,3 +1,5 @@
+use alloc::{boxed::Box, string::String, vec::Vec};
+
 use crate::wasm::WasmFunc;
 
 use super::{Type, WasmValueError};
@@ -39,7 +41,7 @@ impl WasmFunc for FuncType {
         Box::new(self.params.iter().map(|(_, ty)| ty.clone()))
     }
 
-    fn param_names(&self) -> Box<dyn Iterator<Item = std::borrow::Cow<'_, str>> + '_> {
+    fn param_names(&self) -> Box<dyn Iterator<Item = alloc::borrow::Cow<'_, str>> + '_> {
         Box::new(self.params.iter().map(|(name, _)| name.into()))
     }
 
@@ -47,7 +49,7 @@ impl WasmFunc for FuncType {
         Box::new(self.results.iter().map(|(_, ty)| ty.clone()))
     }
 
-    fn result_names(&self) -> Box<dyn Iterator<Item = std::borrow::Cow<'_, str>> + '_> {
+    fn result_names(&self) -> Box<dyn Iterator<Item = alloc::borrow::Cow<'_, str>> + '_> {
         Box::new(
             self.results
                 .iter()
@@ -56,8 +58,8 @@ impl WasmFunc for FuncType {
     }
 }
 
-impl std::fmt::Display for FuncType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for FuncType {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         crate::wasm::DisplayFunc(self.clone()).fmt(f)
     }
 }
