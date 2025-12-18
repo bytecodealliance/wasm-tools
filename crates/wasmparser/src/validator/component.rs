@@ -1627,7 +1627,7 @@ impl ComponentState {
 
         let ty_id = self
             .check_options(types, options, offset)?
-            .require_memory(offset)?
+            .require_memory_if(offset, || elem_ty.is_some())?
             .require_realloc_if(offset, || elem_ty.is_some_and(|ty| ty.contains_ptr(types)))?
             .check_lower(offset)?
             .check_core_type(
@@ -1655,13 +1655,13 @@ impl ComponentState {
         }
 
         let ty = self.defined_type_at(ty, offset)?;
-        let ComponentDefinedType::Stream(_) = &types[ty] else {
+        let ComponentDefinedType::Stream(elem_ty) = &types[ty] else {
             bail!(offset, "`stream.write` requires a stream type")
         };
 
         let ty_id = self
             .check_options(types, options, offset)?
-            .require_memory(offset)?
+            .require_memory_if(offset, || elem_ty.is_some())?
             .check_lower(offset)?
             .check_core_type(
                 types,
