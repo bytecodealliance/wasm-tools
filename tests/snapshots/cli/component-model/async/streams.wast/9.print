@@ -1,12 +1,12 @@
 (component
   (core module $m (;0;)
     (type (;0;) (func (param i32 i32 i32) (result i32)))
-    (import "" "stream.read" (func $stream-read (;0;) (type 0)))
+    (import "" "stream.write" (func $stream-write (;0;) (type 0)))
   )
   (type $stream-type (;0;) (stream))
-  (core func $stream-read (;0;) (canon stream.read $stream-type async))
+  (core func $stream-write (;0;) (canon stream.write $stream-type async))
   (core instance (;0;)
-    (export "stream.read" (func $stream-read))
+    (export "stream.write" (func $stream-write))
   )
   (core instance $i (;1;) (instantiate $m
       (with "" (instance 0))
