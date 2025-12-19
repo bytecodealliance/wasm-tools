@@ -1,0 +1,19 @@
+{
+  "source_filename": "tests/cli/compact-imports/compact-imports-rejected.wast",
+  "commands": [
+    {
+      "type": "assert_malformed",
+      "line": 4,
+      "filename": "compact-imports-rejected.0.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte 0x7F with compact imports proposal disabled"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 13,
+      "filename": "compact-imports-rejected.1.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte 0x7E with compact imports proposal disabled"
+    }
+  ]
+}
