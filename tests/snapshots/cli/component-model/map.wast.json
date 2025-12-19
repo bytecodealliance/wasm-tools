@@ -1,0 +1,55 @@
+{
+  "source_filename": "tests/cli/component-model/map.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "map.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 15,
+      "filename": "map.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 28,
+      "filename": "map.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 33,
+      "filename": "map.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 38,
+      "filename": "map.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 43,
+      "filename": "map.5.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 49,
+      "filename": "map.6.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for import `x`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 61,
+      "filename": "map.7.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for import `x`"
+    }
+  ]
+}

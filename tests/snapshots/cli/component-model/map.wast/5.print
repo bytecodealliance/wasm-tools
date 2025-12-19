@@ -1,0 +1,6 @@
+(component
+  (type (;0;) (option string))
+  (type $map-with-option (;1;) (map u32 0))
+  (type (;2;) (func (param "x" $map-with-option)))
+  (import "f" (func (;0;) (type 2)))
+)

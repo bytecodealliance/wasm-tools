@@ -32,7 +32,7 @@
 (assert_invalid
   (component
     (type $map-type (map u32 string))
-    (func (export "f") (param "x" $map-type))
+    (import "f" (func (param "x" $map-type)))
   )
   "Maps require the component model map feature"
 )

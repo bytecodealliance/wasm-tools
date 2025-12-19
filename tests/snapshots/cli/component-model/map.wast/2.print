@@ -1,0 +1,5 @@
+(component
+  (type $map-type (;0;) (map u32 string))
+  (type (;1;) (func (param "x" $map-type)))
+  (import "f" (func (;0;) (type 1)))
+)

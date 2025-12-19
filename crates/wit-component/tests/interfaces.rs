@@ -3,6 +3,7 @@ use libtest_mimic::{Arguments, Trial};
 use pretty_assertions::assert_eq;
 use std::fs;
 use std::path::Path;
+use wasmparser::WasmFeatures;
 use wit_component::WitPrinter;
 use wit_parser::{PackageId, Resolve, UnresolvedPackageGroup};
 
@@ -61,7 +62,7 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
     let wasm = wit_component::encode(&resolve, package)?;
     let wat = wasmprinter::print_bytes(&wasm)?;
     assert_output(&path.with_extension("wat"), &wat)?;
-    wasmparser::Validator::new()
+    wasmparser::Validator::new_with_features(WasmFeatures::all())
         .validate_all(&wasm)
         .context("failed to validate wasm output")?;
 

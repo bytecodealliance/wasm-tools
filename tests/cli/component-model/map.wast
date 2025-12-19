@@ -3,7 +3,7 @@
 (component
   (core module $m
     (memory (export "memory") 1)
-    (func (export "ret-map") (result i32 i32) unreachable)
+    (func (export "ret-map") (result i32) unreachable)
   )
   (core instance $i (instantiate $m))
 
@@ -14,33 +14,35 @@
 
 (component
   (core module $m
+    (memory (export "memory") 1)
     (func (export "param-map") (param i32 i32) unreachable)
+    (func (export "realloc") (param i32 i32 i32 i32) (result i32) unreachable)
   )
   (core instance $i (instantiate $m))
 
   (func (export "param-map") (param "m" (map string u32))
-    (canon lift (core func $i "param-map"))
+    (canon lift (core func $i "param-map") (memory $i "memory") (realloc (func $i "realloc")))
   )
 )
 
 (component
   (type $map-type (map u32 string))
-  (func (export "f") (param "x" $map-type))
+  (import "f" (func (param "x" $map-type)))
 )
 
 (component
   (type $nested-map (map string (map string u32)))
-  (func (export "f") (param "x" $nested-map))
+  (import "f" (func (param "x" $nested-map)))
 )
 
 (component
   (type $map-with-list (map string (list u32)))
-  (func (export "f") (param "x" $map-with-list))
+  (import "f" (func (param "x" $map-with-list)))
 )
 
 (component
   (type $map-with-option (map u32 (option string)))
-  (func (export "f") (param "x" $map-with-option))
+  (import "f" (func (param "x" $map-with-option)))
 )
 
 (assert_invalid
