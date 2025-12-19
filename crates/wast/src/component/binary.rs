@@ -926,9 +926,21 @@ impl From<&ModuleType<'_>> for wasm_encoder::ModuleType {
                     }
                     _ => unreachable!("only outer type aliases are supported"),
                 },
-                ModuleTypeDecl::Import(i) => {
-                    encoded.import(i.module, i.field, i.item.to_entity_type());
-                }
+                ModuleTypeDecl::Import(imports) => match &imports.items {
+                    core::ImportItems::Single { module, name, sig } => {
+                        encoded.import(module, name, sig.to_entity_type());
+                    }
+                    core::ImportItems::Group1 { module, items } => {
+                        for item in items {
+                            encoded.import(module, item.name, item.sig.to_entity_type());
+                        }
+                    }
+                    core::ImportItems::Group2 { module, sig, items } => {
+                        for item in items {
+                            encoded.import(module, item.name, sig.to_entity_type());
+                        }
+                    }
+                },
                 ModuleTypeDecl::Export(name, item) => {
                     encoded.export(name, item.to_entity_type());
                 }

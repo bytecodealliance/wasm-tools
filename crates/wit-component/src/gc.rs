@@ -234,7 +234,7 @@ impl<'a> Module<'a> {
                     }
                 }
                 Payload::ImportSection(s) => {
-                    for i in s {
+                    for i in s.into_imports() {
                         let i = i?;
                         match i.ty {
                             TypeRef::Func(ty) => self.funcs.push(Func {

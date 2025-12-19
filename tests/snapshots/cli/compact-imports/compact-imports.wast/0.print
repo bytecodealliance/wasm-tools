@@ -1,0 +1,20 @@
+(module
+  (type (;0;) (func (result i32)))
+  (type (;1;) (func (result i64)))
+  (global (;0;) i32 i32.const 1)
+  (global (;1;) i32 i32.const 20)
+  (global (;2;) i32 i32.const 300)
+  (global (;3;) i32 i32.const 4000)
+  (export "fi32" (func 0))
+  (export "fi64" (func 1))
+  (export "g1" (global 0))
+  (export "g20" (global 1))
+  (export "g300" (global 2))
+  (export "g4000" (global 3))
+  (func (;0;) (type 0) (result i32)
+    i32.const 123
+  )
+  (func (;1;) (type 1) (result i64)
+    i64.const 456
+  )
+)

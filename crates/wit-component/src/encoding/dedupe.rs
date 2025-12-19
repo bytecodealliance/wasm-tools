@@ -71,7 +71,7 @@ impl ModuleImportMap {
                 // import section in the `module` we're building.
                 ImportSection(i) => {
                     let mut new_import_section = ImportSection::new();
-                    for import in i.clone() {
+                    for import in i.clone().into_imports() {
                         found_duplicate_imports = ret
                             .push_import(&mut new_import_section, import?)?
                             || found_duplicate_imports;

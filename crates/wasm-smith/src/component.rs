@@ -792,7 +792,7 @@ impl ComponentBuilder {
                 0 => {
                     let module = crate::limited_string(100, u)?;
                     let existing_module_imports = imports.entry(module.clone()).or_default();
-                    let field = crate::unique_string(100, existing_module_imports, u)?;
+                    let name = crate::unique_string(100, existing_module_imports, u)?;
                     let entity_type = match self.arbitrary_core_entity_type(
                         u,
                         &types,
@@ -804,7 +804,7 @@ impl ComponentBuilder {
                     };
                     defs.push(ModuleTypeDef::Import(crate::core::Import {
                         module,
-                        field,
+                        name,
                         entity_type,
                     }));
                 }

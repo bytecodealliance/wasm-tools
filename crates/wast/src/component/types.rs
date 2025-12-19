@@ -88,7 +88,7 @@ pub enum ModuleTypeDecl<'a> {
     /// An alias local to the component type.
     Alias(Alias<'a>),
     /// An import.
-    Import(core::Import<'a>),
+    Import(core::Imports<'a>),
     /// An export.
     Export(&'a str, core::ItemSig<'a>),
 }

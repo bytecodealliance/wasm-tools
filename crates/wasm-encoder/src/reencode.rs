@@ -427,6 +427,16 @@ pub trait Reencode {
         utils::parse_import_section(self, imports, section)
     }
 
+    /// Parses a [`wasmparser::Imports`] and adds all of its contents to the
+    /// `import` section.
+    fn parse_imports(
+        &mut self,
+        import_section: &mut crate::ImportSection,
+        imports: wasmparser::Imports<'_>,
+    ) -> Result<(), Error<Self::Error>> {
+        utils::parse_imports(self, import_section, imports)
+    }
+
     /// Parses the single [`wasmparser::Import`] provided and adds it to the
     /// `import` section.
     fn parse_import(
@@ -648,7 +658,7 @@ impl Reencode for RoundtripReencoder {
 #[allow(missing_docs)] // FIXME
 pub mod utils {
     use super::{Error, Reencode};
-    use crate::{CoreTypeEncoder, Encode};
+    use crate::{CoreTypeEncoder, Encode, Imports};
     use alloc::vec::Vec;
     use core::ops::Range;
 
@@ -1430,12 +1440,52 @@ pub mod utils {
     /// all the imports to the `import` section.
     pub fn parse_import_section<T: ?Sized + Reencode>(
         reencoder: &mut T,
-        imports: &mut crate::ImportSection,
+        import_section: &mut crate::ImportSection,
         section: wasmparser::ImportSectionReader<'_>,
     ) -> Result<(), Error<T::Error>> {
-        for import in section {
-            reencoder.parse_import(imports, import?)?;
+        for imports in section {
+            let imports = imports?;
+            reencoder.parse_imports(import_section, imports)?;
         }
+        Ok(())
+    }
+
+    /// Parses a [`wasmparser::Imports`] and adds all of its contents to the
+    /// `import` section.
+    pub fn parse_imports<T: ?Sized + Reencode>(
+        reencoder: &mut T,
+        import_section: &mut crate::ImportSection,
+        imports: wasmparser::Imports<'_>,
+    ) -> Result<(), Error<T::Error>> {
+        import_section.imports(match imports {
+            wasmparser::Imports::Single(_, import) => Imports::Single(crate::Import {
+                module: import.module,
+                name: import.name,
+                ty: reencoder.entity_type(import.ty)?,
+            }),
+            wasmparser::Imports::Compact1 { module, items } => {
+                let mut new_items: Vec<crate::ImportCompact> = Vec::new();
+                for item in items {
+                    let item = item?;
+                    new_items.push(crate::ImportCompact {
+                        name: item.name,
+                        ty: reencoder.entity_type(item.ty)?,
+                    })
+                }
+                Imports::Compact1 {
+                    module: module,
+                    items: new_items.into(),
+                }
+            }
+            wasmparser::Imports::Compact2 { module, ty, names } => {
+                let names = names.into_iter().collect::<wasmparser::Result<Vec<_>>>()?;
+                Imports::Compact2 {
+                    module: module,
+                    ty: reencoder.entity_type(ty)?,
+                    names: names.into(),
+                }
+            }
+        });
         Ok(())
     }
 
@@ -1446,11 +1496,7 @@ pub mod utils {
         imports: &mut crate::ImportSection,
         import: wasmparser::Import<'_>,
     ) -> Result<(), Error<T::Error>> {
-        imports.import(
-            import.module,
-            import.name,
-            reencoder.entity_type(import.ty)?,
-        );
+        reencoder.parse_imports(imports, wasmparser::Imports::Single(0, import))?;
         Ok(())
     }
 

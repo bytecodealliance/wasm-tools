@@ -115,25 +115,64 @@ impl<'a> Dump<'a> {
                     }
                     me.print(end)
                 })?,
-                Payload::ImportSection(s) => self.section(s, "import", |me, end, imp| {
-                    write!(me.state, "import ")?;
-                    match imp.ty {
-                        TypeRef::Func(_) => write!(me.state, "[func {}]", inc(&mut i.core_funcs))?,
-                        TypeRef::FuncExact(_) => {
-                            write!(me.state, "[func_exact {}]", inc(&mut i.core_funcs))?
+                Payload::ImportSection(s) => self.section(s, "import", |me, end, imports| {
+                    let mut print_ty = |me: &mut Dump, ty: TypeRef| -> std::fmt::Result {
+                        match ty {
+                            TypeRef::Func(_) => {
+                                write!(me.state, "[func {}]", inc(&mut i.core_funcs))?
+                            }
+                            TypeRef::FuncExact(_) => {
+                                write!(me.state, "[func_exact {}]", inc(&mut i.core_funcs))?
+                            }
+                            TypeRef::Memory(_) => {
+                                write!(me.state, "[memory {}]", inc(&mut i.core_memories))?
+                            }
+                            TypeRef::Tag(_) => write!(me.state, "[tag {}]", inc(&mut i.core_tags))?,
+                            TypeRef::Table(_) => {
+                                write!(me.state, "[table {}]", inc(&mut i.core_tables))?
+                            }
+                            TypeRef::Global(_) => {
+                                write!(me.state, "[global {}]", inc(&mut i.core_globals))?
+                            }
                         }
-                        TypeRef::Memory(_) => {
-                            write!(me.state, "[memory {}]", inc(&mut i.core_memories))?
+                        Ok(())
+                    };
+
+                    match imports {
+                        Imports::Single(_, imp) => {
+                            write!(me.state, "import ")?;
+                            print_ty(me, imp.ty)?;
+                            write!(me.state, " {imp:?}")?;
                         }
-                        TypeRef::Tag(_) => write!(me.state, "[tag {}]", inc(&mut i.core_tags))?,
-                        TypeRef::Table(_) => {
-                            write!(me.state, "[table {}]", inc(&mut i.core_tables))?
+                        Imports::Compact1 { module, items } => {
+                            writeln!(me.dst, "--- import group (common module) ---")?;
+                            write!(me.state, "module: {0:?}, count: {1}", module, items.count())?;
+                            for item in items.into_iter_with_offsets() {
+                                let (offset, imp) = item?;
+                                me.print(offset)?;
+                                write!(me.state, "import ")?;
+                                print_ty(me, imp.ty)?;
+                                write!(me.state, " {imp:?}")?;
+                            }
                         }
-                        TypeRef::Global(_) => {
-                            write!(me.state, "[global {}]", inc(&mut i.core_globals))?
+                        Imports::Compact2 { module, ty, names } => {
+                            writeln!(me.dst, "--- import group (common module and type) ---")?;
+                            write!(
+                                me.state,
+                                "module: {0:?}, type: {1:?}, count: {2}",
+                                module,
+                                ty,
+                                names.count()
+                            )?;
+                            for item in names.into_iter_with_offsets() {
+                                let (offset, imp) = item?;
+                                me.print(offset)?;
+                                write!(me.state, "import ")?;
+                                print_ty(me, ty)?;
+                                write!(me.state, " {imp:?}")?;
+                            }
                         }
                     }
-                    write!(me.state, " {imp:?}")?;
                     me.print(end)
                 })?,
                 Payload::FunctionSection(s) => {

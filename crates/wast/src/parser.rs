@@ -23,13 +23,13 @@
 //!
 //! ```
 //! use wast::kw;
-//! use wast::core::{Import, Func};
+//! use wast::core::{Imports, Func};
 //! use wast::parser::{Parser, Parse, Result};
 //!
 //! // Fields of a WebAssembly which only allow imports and functions, and all
 //! // imports must come before all the functions
 //! struct OnlyImportsAndFunctions<'a> {
-//!     imports: Vec<Import<'a>>,
+//!     imports: Vec<Imports<'a>>,
 //!     functions: Vec<Func<'a>>,
 //! }
 //!
@@ -130,9 +130,9 @@ pub fn parse<'a, T: Parse<'a>>(buf: &'a ParseBuffer<'a>) -> Result<T> {
 
 /// A trait for parsing a fragment of syntax in a recursive descent fashion.
 ///
-/// The [`Parse`] trait is main abstraction you'll be working with when defining
-/// custom parser or custom syntax for your WebAssembly text format (or when
-/// using the official format items). Almost all items in the
+/// The [`Parse`] trait is the main abstraction you'll be working with when
+/// defining custom parsers or custom syntax for your WebAssembly text format
+/// (or when using the official format items). Almost all items in the
 /// [`core`](crate::core) module implement the [`Parse`] trait, and you'll
 /// commonly use this with:
 ///
@@ -141,83 +141,83 @@ pub fn parse<'a, T: Parse<'a>>(buf: &'a ParseBuffer<'a>) -> Result<T> {
 ///   input stream and then parse remaining items.
 ///
 /// Implementation of [`Parse`] take a [`Parser`] as input and will mutate the
-/// parser as they parse syntax. Once a token is consume it cannot be
+/// parser as they parse syntax. Once a token is consumed it cannot be
 /// "un-consumed". Utilities such as [`Parser::peek`] and [`Parser::lookahead1`]
 /// can be used to determine what to parse next.
 ///
 /// ## When to parse `(` and `)`?
 ///
 /// Conventionally types are not responsible for parsing their own `(` and `)`
-/// tokens which surround the type. For example WebAssembly imports look like:
+/// tokens which surround the type. For example, WebAssembly globals look like:
 ///
 /// ```text
-/// (import "foo" "bar" (func (type 0)))
+/// (global (mut i32))
 /// ```
 ///
-/// but the [`Import`](crate::core::Import) type parser looks like:
+/// But the [`Global`](crate::core::Global) type parser looks like:
 ///
 /// ```
 /// # use wast::kw;
 /// # use wast::parser::{Parser, Parse, Result};
-/// # struct Import<'a>(&'a str);
-/// impl<'a> Parse<'a> for Import<'a> {
+/// # struct Global<'a>(&'a str);
+/// impl<'a> Parse<'a> for Global<'a> {
 ///     fn parse(parser: Parser<'a>) -> Result<Self> {
-///         parser.parse::<kw::import>()?;
+///         parser.parse::<kw::global>()?;
 ///         // ...
 /// # panic!()
 ///     }
 /// }
 /// ```
 ///
-/// It is assumed here that the `(` and `)` tokens which surround an `import`
+/// It is assumed here that the `(` and `)` tokens which surround a `global`
 /// statement in the WebAssembly text format are parsed by the parent item
-/// parsing `Import`.
+/// parsing `Global`.
 ///
 /// Note that this is just a convention, so it's not necessarily required for
 /// all types. It's recommended that your types stick to this convention where
 /// possible to avoid nested calls to [`Parser::parens`] or accidentally trying
-/// to parse too many parenthesis.
+/// to parse too many parentheses.
 ///
 /// # Examples
 ///
 /// Let's say you want to define your own WebAssembly text format which only
-/// contains imports and functions. You also require all imports to be listed
+/// contains globals and functions. You also require all globals to be listed
 /// before all functions. An example [`Parse`] implementation might look like:
 ///
 /// ```
-/// use wast::core::{Import, Func};
+/// use wast::core::{Global, Func};
 /// use wast::kw;
 /// use wast::parser::{Parser, Parse, Result};
 ///
-/// // Fields of a WebAssembly which only allow imports and functions, and all
-/// // imports must come before all the functions
-/// struct OnlyImportsAndFunctions<'a> {
-///     imports: Vec<Import<'a>>,
+/// // Fields of a WebAssembly which only allow globals and functions, and all
+/// // globals must come before all the functions
+/// struct OnlyGlobalsAndFunctions<'a> {
+///     globals: Vec<Global<'a>>,
 ///     functions: Vec<Func<'a>>,
 /// }
 ///
-/// impl<'a> Parse<'a> for OnlyImportsAndFunctions<'a> {
+/// impl<'a> Parse<'a> for OnlyGlobalsAndFunctions<'a> {
 ///     fn parse(parser: Parser<'a>) -> Result<Self> {
-///         // While the second token is `import` (the first is `(`, so we care
-///         // about the second) we parse an `ast::ModuleImport` inside of
-///         // parentheses. The `parens` function here ensures that what we
-///         // parse inside of it is surrounded by `(` and `)`.
-///         let mut imports = Vec::new();
-///         while parser.peek2::<kw::import>()? {
-///             let import = parser.parens(|p| p.parse())?;
-///             imports.push(import);
+///         // While the second token is `global` (the first is `(`, so we care
+///         // about the second) we parse a `Global` inside of parentheses. The
+///         // `parens` function here ensures that what we parse inside of it
+///         // is surrounded by `(` and `)`.
+///         let mut globals = Vec::new();
+///         while parser.peek2::<kw::global>()? {
+///             let global = parser.parens(|p| p.parse())?;
+///             globals.push(global);
 ///         }
 ///
 ///         // Afterwards we assume everything else is a function. Note that
 ///         // `parse` here is a generic function and type inference figures out
-///         // that we're parsing functions here and imports above.
+///         // that we're parsing functions here and globals above.
 ///         let mut functions = Vec::new();
 ///         while !parser.is_empty() {
 ///             let func = parser.parens(|p| p.parse())?;
 ///             functions.push(func);
 ///         }
 ///
-///         Ok(OnlyImportsAndFunctions { imports, functions })
+///         Ok(OnlyGlobalsAndFunctions { globals, functions })
 ///     }
 /// }
 /// ```
