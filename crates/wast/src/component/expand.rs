@@ -559,6 +559,10 @@ impl<'a> Expander<'a> {
             }) => {
                 self.expand_component_val_ty(t);
             }
+            ComponentDefinedType::Map(Map { key: k, value: v }) => {
+                self.expand_component_val_ty(k);
+                self.expand_component_val_ty(v);
+            }
             ComponentDefinedType::Tuple(t) => {
                 for field in t.fields.iter_mut() {
                     self.expand_component_val_ty(field);

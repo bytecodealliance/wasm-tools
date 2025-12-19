@@ -3922,16 +3922,13 @@ impl ComponentState {
             )),
             crate::ComponentDefinedType::Map(key, value) => {
                 if !self.features.cm_map() {
-                    bail!(
-                        offset,
-                        "Maps require the component model map feature"
-                    )
+                    bail!(offset, "Maps require the component model map feature")
                 }
                 Ok(ComponentDefinedType::Map(
                     self.create_component_val_type(key, offset)?,
                     self.create_component_val_type(value, offset)?,
                 ))
-            },
+            }
             crate::ComponentDefinedType::FixedSizeList(ty, elements) => {
                 if !self.features.cm_fixed_size_list() {
                     bail!(
