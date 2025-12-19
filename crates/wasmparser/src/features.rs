@@ -286,6 +286,11 @@ define_wasm_features! {
         /// Corresponds to the 🛸 character in
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
         pub cm_gc: CM_GC(1 << 33) = false;
+        /// Support for maps in the component model proposal.
+        ///
+        /// Corresponds to the 🗺️ character in
+        /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
+        pub cm_map: CM_MAP(1 << 37) = false;
 
         /// Subset of the reference-types WebAssembly proposal which only
         /// encompasses the leb-encoding of the table immediate to the
