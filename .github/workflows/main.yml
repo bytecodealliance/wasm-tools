@@ -154,6 +154,8 @@ jobs:
     - run: cargo test --locked -p wasm-encoder --all-features
     - run: cargo test -p wasm-smith --features wasmparser
     - run: cargo test -p wasm-smith --features component-model
+    - run: cargo test --locked -p wasmparser --features atomic
+    - run: cargo test --locked -F wasmparser/atomic
 
   test_capi:
     name: Test the C API
@@ -276,6 +278,7 @@ jobs:
       - run: cargo check --no-default-features -p wasmparser --target x86_64-unknown-none --features validate,serde,prefer-btree-collections
       - run: cargo check --no-default-features -p wasmparser --features std
       - run: cargo check --no-default-features -p wasmparser --features validate
+      - run: cargo check --no-default-features -p wasmparser --features validate,atomic
       - run: cargo check --no-default-features -p wasmparser --features features
       - run: cargo check --no-default-features -p wasmparser --features features,validate
       - run: cargo check --no-default-features -p wasmparser --features prefer-btree-collections

@@ -38,6 +38,7 @@ use core::{cmp, iter, mem};
 #[cfg(feature = "simd")]
 mod simd;
 
+#[derive(Clone, PartialEq)]
 pub(crate) struct OperatorValidator {
     pub(super) locals: Locals,
     local_inits: LocalInits,
@@ -63,9 +64,131 @@ pub(crate) struct OperatorValidator {
     /// "pop".
     #[cfg(debug_assertions)]
     pub(crate) pop_push_log: Vec<bool>,
+
+    /// When "atomic" validation of an operator is pending, this is a trace
+    /// of discarded info that can restore the OperatorValidator to its
+    /// pre-operator state if necessary.
+    #[cfg(feature = "atomic")]
+    transaction: Transaction,
+}
+
+#[cfg(feature = "atomic")]
+#[derive(Clone, PartialEq)]
+enum Transaction {
+    Active(RollbackLog),
+    Inactive(RollbackLogAllocations),
+}
+
+#[cfg(feature = "atomic")]
+#[derive(Clone, Default, PartialEq)]
+struct RollbackLog {
+    /// A trace of operands popped. Pushes are recorded as `None`.
+    operands: Vec<Option<MaybeType>>,
+
+    /// A trace of frames popped. Pushes are recorded as `None`.
+    frames: Vec<Option<Frame>>,
+
+    /// A trace of local init indices reset at the end of a frame.
+    inits: Vec<u32>,
+
+    /// The local init height when transaction was begun.
+    init_height: usize,
+
+    /// Whether the current frame was made unreachable.
+    unreachable: bool,
+}
+
+#[cfg(feature = "atomic")]
+#[derive(Clone, Default, PartialEq)]
+struct RollbackLogAllocations {
+    operands: Vec<Option<MaybeType>>,
+    frames: Vec<Option<Frame>>,
+    inits: Vec<u32>,
+}
+
+#[cfg(feature = "atomic")]
+impl Transaction {
+    fn begin(&mut self, init_height: usize) {
+        match self {
+            Transaction::Active(_) => panic!("transaction already in progress"),
+            Transaction::Inactive(allocs) => {
+                *self = Transaction::Active(RollbackLog::new(init_height, mem::take(allocs)))
+            }
+        }
+    }
+
+    fn end(&mut self) {
+        if let Transaction::Active(log) = self {
+            *self = Transaction::Inactive(mem::take(log).into_allocations())
+        }
+    }
+
+    fn into_allocations(self) -> RollbackLogAllocations {
+        match self {
+            Transaction::Active(log) => log.into_allocations(),
+            Transaction::Inactive(allocs) => allocs,
+        }
+    }
+
+    fn map(&mut self, f: impl FnOnce(&mut RollbackLog)) {
+        if let Transaction::Active(log) = self {
+            f(log);
+        }
+    }
+}
+
+#[cfg(feature = "atomic")]
+impl RollbackLog {
+    fn new(init_height: usize, allocs: RollbackLogAllocations) -> Self {
+        let RollbackLogAllocations {
+            operands,
+            frames,
+            inits,
+        } = allocs;
+        debug_assert!(operands.is_empty());
+        debug_assert!(frames.is_empty());
+        debug_assert!(inits.is_empty());
+        Self {
+            operands,
+            frames,
+            inits,
+            init_height,
+            unreachable: false,
+        }
+    }
+
+    fn into_allocations(self) -> RollbackLogAllocations {
+        fn clear<T>(mut tmp: Vec<T>) -> Vec<T> {
+            tmp.clear();
+            tmp
+        }
+        RollbackLogAllocations {
+            operands: clear(self.operands),
+            frames: clear(self.frames),
+            inits: clear(self.inits),
+        }
+    }
+
+    fn record_push(&mut self) {
+        self.operands.push(None);
+    }
+
+    fn record_pop(&mut self, ty: MaybeType) {
+        self.operands.push(Some(ty));
+    }
+
+    fn push_ctrl(&mut self) {
+        self.frames.push(None);
+    }
+
+    fn pop_ctrl(&mut self, frame: Frame, inits: Vec<u32>) {
+        self.frames.push(Some(frame));
+        self.inits.extend(inits);
+    }
 }
 
 /// Captures the initialization of non-defaultable locals.
+#[derive(Clone, PartialEq)]
 struct LocalInits {
     /// Records if a local is already initialized.
     local_inits: Vec<bool>,
@@ -141,11 +264,15 @@ impl LocalInits {
 
     /// Pops a control frame via its `height`.
     ///
-    /// This uninitializes all locals that have been initialized within it.
-    pub fn pop_ctrl(&mut self, height: usize) {
-        for local_index in self.inits.split_off(height) {
-            self.local_inits[local_index as usize] = false;
+    /// This uninitializes all locals that have been initialized within it
+    /// and returns their indexes.
+    #[inline]
+    pub fn pop_ctrl(&mut self, height: usize) -> Vec<u32> {
+        let inits = self.inits.split_off(height);
+        for local_index in &inits {
+            self.local_inits[*local_index as usize] = false;
         }
+        inits
     }
 
     /// Clears the [`LocalInits`].
@@ -167,6 +294,7 @@ impl LocalInits {
 // it if you so like.
 const MAX_LOCALS_TO_TRACK: u32 = 50;
 
+#[derive(Clone, PartialEq)]
 pub(super) struct Locals {
     // Total number of locals in the function.
     num_locals: u32,
@@ -196,7 +324,7 @@ pub(super) struct Locals {
 //
 // This structure corresponds to `ctrl_frame` as specified at in the validation
 // appendix of the wasm spec
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Frame {
     /// Indicator for what kind of instruction pushed this frame.
     pub kind: FrameKind,
@@ -225,6 +353,8 @@ pub struct OperatorValidatorAllocations {
     local_inits: LocalInits,
     locals_first: Vec<ValType>,
     locals_uncached: Vec<(u32, ValType)>,
+    #[cfg(feature = "atomic")]
+    rollback_log: RollbackLogAllocations,
 }
 
 /// Type storage within the validator.
@@ -233,7 +363,7 @@ pub struct OperatorValidatorAllocations {
 /// fully know an operand's type. this unknown state is known as the `bottom`
 /// type in the WebAssembly specification. Validating further instructions may
 /// give us more information; either partial (`PartialRef`) or fully known.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 enum MaybeType<T = ValType> {
     /// The operand has no available type information due to unreachable code.
     ///
@@ -330,11 +460,12 @@ impl OperatorValidator {
             local_inits,
             locals_first,
             locals_uncached,
+            #[cfg(feature = "atomic")]
+            rollback_log,
         } = allocs;
         debug_assert!(popped_types_tmp.is_empty());
         debug_assert!(control.is_empty());
         debug_assert!(operands.is_empty());
-        debug_assert!(local_inits.is_empty());
         debug_assert!(local_inits.is_empty());
         debug_assert!(locals_first.is_empty());
         debug_assert!(locals_uncached.is_empty());
@@ -352,6 +483,8 @@ impl OperatorValidator {
             shared: false,
             #[cfg(debug_assertions)]
             pop_push_log: vec![],
+            #[cfg(feature = "atomic")]
+            transaction: Transaction::Inactive(rollback_log),
         }
     }
 
@@ -539,6 +672,8 @@ impl OperatorValidator {
             },
             locals_first: clear(self.locals.first),
             locals_uncached: clear(self.locals.uncached),
+            #[cfg(feature = "atomic")]
+            rollback_log: self.transaction.into_allocations(),
         }
     }
 
@@ -554,6 +689,61 @@ impl OperatorValidator {
         {
             self.pop_push_log.push(true);
         }
+    }
+
+    #[cfg(feature = "atomic")]
+    pub(super) fn begin_atomic_op(&mut self) {
+        self.transaction.begin(self.local_inits.height());
+    }
+
+    #[cfg(feature = "atomic")]
+    pub(super) fn commit(&mut self) {
+        self.transaction.end();
+    }
+
+    /// Reverse the actions in the rollback log. This is used by `FuncValidator::atomic_op()`
+    /// if validating the operator fails. The rollback log is sufficient to handle
+    /// the mutations of any individual operator (but not necessarily multiple operators).
+    #[cfg(feature = "atomic")]
+    pub(super) fn rollback(&mut self) {
+        let Transaction::Active(rollback_log) = &self.transaction else {
+            panic!("no transaction pending");
+        };
+
+        if rollback_log.unreachable {
+            self.control.last_mut().unwrap().unreachable = false;
+        }
+
+        for x in rollback_log.operands.iter().rev() {
+            match x {
+                None => {
+                    self.operands.pop();
+                }
+                Some(mt) => self.operands.push(*mt),
+            }
+        }
+
+        for x in rollback_log.frames.iter().rev() {
+            match x {
+                None => {
+                    let frame = self.control.pop().unwrap();
+                    self.local_inits.pop_ctrl(frame.init_height);
+                }
+                Some(frame) => {
+                    self.control.push(*frame);
+                }
+            }
+        }
+
+        for idx in &rollback_log.inits {
+            self.local_inits.set_init(*idx);
+        }
+
+        if self.local_inits.height() > rollback_log.init_height {
+            self.local_inits.pop_ctrl(rollback_log.init_height);
+        }
+
+        self.transaction.end();
     }
 }
 
@@ -603,6 +793,8 @@ where
 
         self.operands.push(maybe_ty);
         self.record_push();
+        #[cfg(feature = "atomic")]
+        self.transaction.map(|log| log.record_push());
         Ok(())
     }
 
@@ -727,6 +919,9 @@ where
                 if Some(actual_ty) == expected {
                     if let Some(control) = self.control.last() {
                         if self.operands.len() >= control.height {
+                            #[cfg(feature = "atomic")]
+                            self.transaction
+                                .map(|log| log.record_pop(MaybeType::Known(actual_ty)));
                             self.record_pop();
                             return Ok(MaybeType::Known(actual_ty));
                         }
@@ -764,7 +959,10 @@ where
                     "type mismatch: expected {desc} but nothing on stack"
                 )
             } else {
-                self.operands.pop().unwrap()
+                let ty = self.operands.pop().unwrap();
+                #[cfg(feature = "atomic")]
+                self.transaction.map(|log| log.record_pop(ty));
+                ty
             }
         };
         if let Some(expected) = expected {
@@ -937,9 +1135,25 @@ where
     /// Flags the current control frame as unreachable, additionally truncating
     /// the currently active operand stack.
     fn unreachable(&mut self) -> Result<()> {
+        #[cfg(feature = "atomic")]
+        if !self.control.last().unwrap().unreachable {
+            self.transaction.map(|log| log.unreachable = true);
+        }
+
         let control = self.control.last_mut().unwrap();
         control.unreachable = true;
         let new_height = control.height;
+
+        #[cfg(feature = "atomic")]
+        {
+            let ops = self.operands.split_off(new_height);
+            self.transaction.map(|log| {
+                for op in ops.iter().rev() {
+                    log.record_pop(*op);
+                }
+            });
+        }
+
         self.operands.truncate(new_height);
         Ok(())
     }
@@ -974,6 +1188,8 @@ where
             unreachable: false,
             init_height,
         });
+        #[cfg(feature = "atomic")]
+        self.transaction.map(|log| log.push_ctrl());
     }
 
     /// Pops a frame from the control stack.
@@ -986,10 +1202,6 @@ where
         let frame = self.control.last().unwrap();
         let ty = frame.block_type;
         let height = frame.height;
-        let init_height = frame.init_height;
-
-        // reset_locals in the spec
-        self.local_inits.pop_ctrl(init_height);
 
         // Pop all the result types, in reverse order, from the operand stack.
         // These types will, possibly, be transferred to the next frame.
@@ -1006,8 +1218,13 @@ where
             );
         }
 
-        // And then we can remove it!
-        Ok(self.control.pop().unwrap())
+        // And then we can remove it and reset_locals.
+        let frame = self.control.pop().unwrap();
+        let _inits = self.local_inits.pop_ctrl(frame.init_height);
+        #[cfg(feature = "atomic")]
+        self.transaction.map(|log| log.pop_ctrl(frame, _inits));
+
+        Ok(frame)
     }
 
     /// Validates a relative jump to the `depth` specified.
@@ -2094,8 +2311,10 @@ where
     fn visit_end(&mut self) -> Self::Output {
         let mut frame = self.pop_ctrl()?;
 
-        // Note that this `if` isn't included in the appendix right
-        // now, but it's used to allow for `if` statements that are
+        // Note that this `if` isn't included in the appendix;
+        // the `if ... end` abbreviation for `if ... else [] end`
+        // is part of the binary and text formats.
+        // This is used to allow for `if` statements that are
         // missing an `else` block which have the same parameter/return
         // types on the block (since that's valid).
         if frame.kind == FrameKind::If {

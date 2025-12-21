@@ -57,6 +57,7 @@ impl<T: WasmModuleResources> FuncToValidate<T> {
 ///
 /// This is a finalized validator which is ready to process a [`FunctionBody`].
 /// This is created from the [`FuncToValidate::into_validator`] method.
+#[derive(Clone)]
 pub struct FuncValidator<T> {
     validator: OperatorValidator,
     resources: T,
@@ -121,6 +122,19 @@ impl<T: WasmModuleResources> FuncValidator<T> {
             reader.set_features(self.validator.features);
         }
         while !reader.eof() {
+            // In a debug build, verify that `rollback` successfully returns the
+            // validator to its previous state after each (valid or invalid) operator.
+            #[cfg(all(debug_assertions, feature = "atomic"))]
+            {
+                let snapshot = self.validator.clone();
+                let op = reader.peek_operator(&self.visitor(reader.original_position()))?;
+                self.validator.begin_atomic_op();
+                let _ = self.op(reader.original_position(), &op);
+                self.validator.rollback();
+                self.validator.pop_push_log.clear();
+                assert!(self.validator == snapshot);
+            }
+
             // In a debug build, verify that the validator's pops and pushes to and from
             // the operand stack match the operator's arity.
             #[cfg(debug_assertions)]
@@ -200,6 +214,20 @@ arity mismatch in validation
     /// error messages.
     pub fn op(&mut self, offset: usize, operator: &Operator<'_>) -> Result<()> {
         self.visitor(offset).visit_operator(operator)
+    }
+
+    /// Validates the next operator in a function, rolling back the validator
+    /// to its previous state if this is unsuccesful.
+    #[cfg(feature = "atomic")]
+    pub fn atomic_op(&mut self, offset: usize, operator: &Operator<'_>) -> Result<()> {
+        self.validator.begin_atomic_op();
+        let res = self.op(offset, operator);
+        if res.is_ok() {
+            self.validator.commit();
+        } else {
+            self.validator.rollback();
+        }
+        res
     }
 
     /// Get the operator visitor for the next operator in the function.
