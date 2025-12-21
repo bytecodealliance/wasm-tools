@@ -27,7 +27,7 @@ macro_rules! define_wasm_features {
         /// This is the disabled zero-size version of this structure because the
         /// `features` feature was disabled at compile time of this crate.
         #[cfg(not(feature = "features"))]
-        #[derive(Clone, Debug, Default, Hash, Copy)]
+        #[derive(Clone, Debug, Default, Hash, Copy, PartialEq)]
         pub struct WasmFeatures {
             _priv: (),
         }
