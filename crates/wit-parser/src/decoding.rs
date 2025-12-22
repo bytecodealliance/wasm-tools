@@ -1261,6 +1261,7 @@ impl WitPackageDecoder<'_> {
         match &kind {
             TypeDefKind::Type(_)
             | TypeDefKind::List(_)
+            | TypeDefKind::Map(_, _)
             | TypeDefKind::FixedSizeList(..)
             | TypeDefKind::Tuple(_)
             | TypeDefKind::Option(_)
@@ -1300,6 +1301,12 @@ impl WitPackageDecoder<'_> {
             ComponentDefinedType::List(t) => {
                 let t = self.convert_valtype(t)?;
                 Ok(TypeDefKind::List(t))
+            }
+
+            ComponentDefinedType::Map(k, v) => {
+                let k = self.convert_valtype(k)?;
+                let v = self.convert_valtype(v)?;
+                Ok(TypeDefKind::Map(k, v))
             }
 
             ComponentDefinedType::FixedSizeList(t, size) => {
@@ -1598,6 +1605,16 @@ impl Registrar<'_> {
                     _ => bail!("expected a list"),
                 };
                 self.valtype(t, ty)
+            }
+
+            ComponentDefinedType::Map(k, v) => {
+                let (key_ty, value_ty) = match &self.resolve.types[id].kind {
+                    TypeDefKind::Map(k, v) => (k, v),
+                    TypeDefKind::Type(Type::Id(_)) => return Ok(()),
+                    _ => bail!("expected a map"),
+                };
+                self.valtype(k, key_ty)?;
+                self.valtype(v, value_ty)
             }
 
             ComponentDefinedType::FixedSizeList(t, elements) => {

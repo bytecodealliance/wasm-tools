@@ -754,6 +754,7 @@ enum Type<'a> {
     String(Span),
     Name(Id<'a>),
     List(List<'a>),
+    Map(Map<'a>),
     FixedSizeList(FixedSizeList<'a>),
     Handle(Handle<'a>),
     Resource(Resource<'a>),
@@ -910,6 +911,12 @@ struct Option_<'a> {
 struct List<'a> {
     span: Span,
     ty: Box<Type<'a>>,
+}
+
+struct Map<'a> {
+    span: Span,
+    key: Box<Type<'a>>,
+    value: Box<Type<'a>>,
 }
 
 struct FixedSizeList<'a> {
@@ -1406,6 +1413,20 @@ impl<'a> Type<'a> {
                 }
             }
 
+            // map<K, V>
+            Some((span, Token::Map)) => {
+                tokens.expect(Token::LessThan)?;
+                let key = Type::parse(tokens)?;
+                tokens.expect(Token::Comma)?;
+                let value = Type::parse(tokens)?;
+                tokens.expect(Token::GreaterThan)?;
+                Ok(Type::Map(Map {
+                    span,
+                    key: Box::new(key),
+                    value: Box::new(value),
+                }))
+            }
+
             // option<T>
             Some((span, Token::Option_)) => {
                 tokens.expect(Token::LessThan)?;
@@ -1516,6 +1537,7 @@ impl<'a> Type<'a> {
             | Type::ErrorContext(span) => *span,
             Type::Name(id) => id.span,
             Type::List(l) => l.span,
+            Type::Map(m) => m.span,
             Type::FixedSizeList(l) => l.span,
             Type::Handle(h) => h.span(),
             Type::Resource(r) => r.span,

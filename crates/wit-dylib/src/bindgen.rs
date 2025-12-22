@@ -1115,6 +1115,11 @@ impl<'a> FunctionCompiler<'a> {
                 todo!("fixed-size-list")
             }
 
+            TypeDefKind::Map(k, v) => {
+                let _ = (k, v);
+                todo!("map")
+            }
+
             // Should not be possible to hit during lowering.
             TypeDefKind::Resource => unreachable!(),
             TypeDefKind::Unknown => unreachable!(),
@@ -1580,6 +1585,11 @@ impl<'a> FunctionCompiler<'a> {
 
                 self.free_temp_local(l_ptr);
                 self.free_temp_local(l_len);
+            }
+
+            TypeDefKind::Map(k, v) => {
+                let _ = (k, v);
+                todo!("map")
             }
 
             // Should not be possible to hit during lifting.

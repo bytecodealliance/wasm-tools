@@ -144,6 +144,10 @@ impl<'a> Cloner<'a> {
             | TypeDefKind::FixedSizeList(ty, ..) => {
                 self.ty(ty);
             }
+            TypeDefKind::Map(k, v) => {
+                self.ty(k);
+                self.ty(v);
+            }
             TypeDefKind::Tuple(list) => {
                 for ty in list.types.iter_mut() {
                     self.ty(ty);

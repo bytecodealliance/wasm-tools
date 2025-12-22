@@ -566,6 +566,10 @@ impl<'a> Resolver<'a> {
             }) => {
                 self.component_val_type(t)?;
             }
+            ComponentDefinedType::Map(Map { key: k, value: v }) => {
+                self.component_val_type(k)?;
+                self.component_val_type(v)?;
+            }
             ComponentDefinedType::Tuple(t) => {
                 for field in t.fields.iter_mut() {
                     self.component_val_type(field)?;

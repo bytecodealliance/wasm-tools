@@ -1,0 +1,26 @@
+{
+  "source_filename": "tests/cli/missing-features/component-model/map.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "map.0.wasm",
+      "module_type": "binary",
+      "text": "Maps require the component model map feature (at offset 0x54)"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 19,
+      "filename": "map.1.wasm",
+      "module_type": "binary",
+      "text": "Maps require the component model map feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 33,
+      "filename": "map.2.wasm",
+      "module_type": "binary",
+      "text": "Maps require the component model map feature"
+    }
+  ]
+}

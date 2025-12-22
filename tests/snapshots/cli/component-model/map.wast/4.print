@@ -1,0 +1,6 @@
+(component
+  (type (;0;) (list u32))
+  (type $map-with-list (;1;) (map string 0))
+  (type (;2;) (func (param "x" $map-with-list)))
+  (import "f" (func (;0;) (type 2)))
+)

@@ -386,6 +386,7 @@ pub enum ComponentDefinedType<'a> {
     Record(Record<'a>),
     Variant(Variant<'a>),
     List(List<'a>),
+    Map(Map<'a>),
     FixedSizeList(FixedSizeList<'a>),
     Tuple(Tuple<'a>),
     Flags(Flags<'a>),
@@ -407,6 +408,8 @@ impl<'a> ComponentDefinedType<'a> {
             Ok(Self::Variant(parser.parse()?))
         } else if l.peek::<kw::list>()? {
             parse_list(parser)
+        } else if l.peek::<kw::map>()? {
+            Ok(Self::Map(parser.parse()?))
         } else if l.peek::<kw::tuple>()? {
             Ok(Self::Tuple(parser.parse()?))
         } else if l.peek::<kw::flags>()? {
@@ -451,6 +454,7 @@ impl Peek for ComponentDefinedType<'_> {
                 Some(("record", _))
                     | Some(("variant", _))
                     | Some(("list", _))
+                    | Some(("map", _))
                     | Some(("tuple", _))
                     | Some(("flags", _))
                     | Some(("enum", _))
@@ -587,6 +591,15 @@ pub struct List<'a> {
     pub element: Box<ComponentValType<'a>>,
 }
 
+/// A map type.
+#[derive(Debug)]
+pub struct Map<'a> {
+    /// The key type of the map.
+    pub key: Box<ComponentValType<'a>>,
+    /// The value type of the map.
+    pub value: Box<ComponentValType<'a>>,
+}
+
 /// A fixed size list type.
 #[derive(Debug)]
 pub struct FixedSizeList<'a> {
@@ -609,6 +622,18 @@ fn parse_list<'a>(parser: Parser<'a>) -> Result<ComponentDefinedType<'a>> {
         Ok(ComponentDefinedType::List(List {
             element: Box::new(tp),
         }))
+    }
+}
+
+impl<'a> Parse<'a> for Map<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.parse::<kw::map>()?;
+        let key = parser.parse()?;
+        let value = parser.parse()?;
+        Ok(Self {
+            key: Box::new(key),
+            value: Box::new(value),
+        })
     }
 }
 

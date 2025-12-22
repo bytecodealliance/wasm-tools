@@ -620,6 +620,13 @@ impl ComponentDefinedTypeEncoder<'_> {
         ty.into().encode(self.0);
     }
 
+    /// Define a map type.
+    pub fn map(self, key: impl Into<ComponentValType>, value: impl Into<ComponentValType>) {
+        self.0.push(0x63);
+        key.into().encode(self.0);
+        value.into().encode(self.0);
+    }
+
     /// Define a fixed size list type.
     pub fn fixed_size_list(self, ty: impl Into<ComponentValType>, elements: u32) {
         self.0.push(0x67);

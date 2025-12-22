@@ -1,0 +1,6 @@
+(component
+  (type (;0;) (map string u32))
+  (type $nested-map (;1;) (map string 0))
+  (type (;2;) (func (param "x" $nested-map)))
+  (import "f" (func (;0;) (type 2)))
+)

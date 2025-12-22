@@ -1,0 +1,18 @@
+(component
+  (core module $m (;0;)
+    (type (;0;) (func (result i32)))
+    (memory (;0;) 1)
+    (export "memory" (memory 0))
+    (export "ret-map" (func 0))
+    (func (;0;) (type 0) (result i32)
+      unreachable
+    )
+  )
+  (core instance $i (;0;) (instantiate $m))
+  (type (;0;) (map string u32))
+  (type (;1;) (func (result 0)))
+  (alias core export $i "ret-map" (core func (;0;)))
+  (alias core export $i "memory" (core memory (;0;)))
+  (func (;0;) (type 1) (canon lift (core func 0) (memory 0)))
+  (export (;1;) "ret-map" (func 0))
+)

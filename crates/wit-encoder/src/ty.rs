@@ -26,6 +26,7 @@ pub enum Type {
     Option(Box<Type>),
     Result(Box<Result_>),
     List(Box<Type>),
+    Map(Box<Type>, Box<Type>),
     FixedSizeList(Box<Type>, u32),
     Tuple(Tuple),
     Future(Option<Box<Type>>),
@@ -58,6 +59,9 @@ impl Type {
     }
     pub fn list(type_: Type) -> Self {
         Type::List(Box::new(type_))
+    }
+    pub fn map(key: Type, value: Type) -> Self {
+        Type::Map(Box::new(key), Box::new(value))
     }
     pub fn fixed_size_list(type_: Type, size: u32) -> Self {
         Type::FixedSizeList(Box::new(type_), size)
@@ -119,6 +123,9 @@ impl Display for Type {
             Type::Result(result) => result.fmt(f),
             Type::List(type_) => {
                 write!(f, "list<{type_}>")
+            }
+            Type::Map(key, value) => {
+                write!(f, "map<{key}, {value}>")
             }
             Type::FixedSizeList(type_, size) => {
                 write!(f, "list<{type_}, {size}>")

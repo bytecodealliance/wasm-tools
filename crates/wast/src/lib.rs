@@ -533,6 +533,7 @@ pub mod kw {
     custom_keyword!(option);
     custom_keyword!(tuple);
     custom_keyword!(list);
+    custom_keyword!(map);
     custom_keyword!(error);
     custom_keyword!(canon);
     custom_keyword!(lift);

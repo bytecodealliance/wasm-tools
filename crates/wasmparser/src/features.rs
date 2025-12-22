@@ -306,6 +306,12 @@ define_wasm_features! {
 
         // Compact import section proposal.
         pub compact_imports: COMPACT_IMPORTS(1 << 37) = false;
+
+        /// Support for maps in the component model proposal.
+        ///
+        /// Corresponds to the 🗺️ character in
+        /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
+        pub cm_map: CM_MAP(1 << 38) = false;
     }
 }
 
