@@ -168,6 +168,12 @@ impl<W: Write> Writer<W> {
                 self.write_str("}")?;
                 Ok(())
             }
+            WasmTypeKind::Handle => {
+                let label = val.unwrap_handle();
+                self.write_str("#")?;
+                self.write_display(label)?;
+                Ok(())
+            }
             WasmTypeKind::Unsupported => panic!("unsupported value type"),
         }
     }
