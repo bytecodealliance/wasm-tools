@@ -53,20 +53,17 @@ impl KebabStr {
     fn is_kebab_case(&self) -> bool {
         let mut lower = false;
         let mut upper = false;
-        let mut is_first = true;
         let mut has_digit = false;
         for c in self.chars() {
             match c {
                 'a'..='z' if !lower && !upper => lower = true,
                 'A'..='Z' if !lower && !upper => upper = true,
-                '0'..='9' if !lower && !upper && !is_first => has_digit = true,
                 'a'..='z' if lower => {}
                 'A'..='Z' if upper => {}
                 '0'..='9' if lower || upper => has_digit = true,
                 '-' if lower || upper || has_digit => {
                     lower = false;
                     upper = false;
-                    is_first = false;
                     has_digit = false;
                 }
                 _ => return false,

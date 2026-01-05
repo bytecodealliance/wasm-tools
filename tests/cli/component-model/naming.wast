@@ -31,6 +31,13 @@
 
 (assert_invalid
   (component
+    (type (flags "a-1-c"))
+  )
+  "flag name `a-1-c` is not in kebab case"
+)
+
+(assert_invalid
+  (component
     (type (enum "NevEr"))
   )
   "enum tag name `NevEr` is not in kebab case"
@@ -128,7 +135,3 @@
     (import "[static]a.a" (func))
   )
   "import name `[static]a.a` conflicts with previous name `a`")
-
-(component
-  (type (flags "a-1-c"))
-)
