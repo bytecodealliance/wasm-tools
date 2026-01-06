@@ -30,41 +30,60 @@ jobs:
         include:
         - build: x86_64-linux
           os: ubuntu-latest
+          env:
+            CARGO_BUILD_TARGET: x86_64-unknown-linux-gnu
+            DOCKER_IMAGE: ./ci/docker/x86_64-linux/Dockerfile
         - build: x86_64-musl
           os: ubuntu-latest
-          target: x86_64-unknown-linux-musl
-        - build: x86_64-macos
-          os: macos-latest
-          target: x86_64-apple-darwin
-        - build: aarch64-macos
-          os: macos-latest
-          target: aarch64-apple-darwin
-        - build: x86_64-windows
-          os: windows-latest
+          env:
+            CARGO_BUILD_TARGET: x86_64-unknown-linux-musl
+            DOCKER_IMAGE: ./ci/docker/x86_64-musl/Dockerfile
         - build: aarch64-linux
           os: ubuntu-latest
-          target: aarch64-unknown-linux-gnu
+          env:
+            CARGO_BUILD_TARGET: aarch64-unknown-linux-gnu
+            DOCKER_IMAGE: ./ci/docker/aarch64-linux/Dockerfile
         - build: aarch64-musl
           os: ubuntu-latest
-          target: aarch64-unknown-linux-musl
+          env:
+            CARGO_BUILD_TARGET: aarch64-unknown-linux-musl
+            DOCKER_IMAGE: ./ci/docker/aarch64-musl/Dockerfile
+
+        - build: x86_64-macos
+          os: macos-latest
+          env:
+            CARGO_BUILD_TARGET: x86_64-apple-darwin
+            MACOSX_DEPLOYMENT_TARGET: 10.12
+        - build: aarch64-macos
+          os: macos-latest
+          env:
+            CARGO_BUILD_TARGET: aarch64-apple-darwin
+            MACOSX_DEPLOYMENT_TARGET: 10.12
+
+        - build: x86_64-windows
+          os: windows-latest
+          env:
+            CARGO_BUILD_TARGET: x86_64-pc-windows-msvc
+            RUSTFLAGS: -Ctarget-feature=+crt-static
+        - build: aarch64-windows
+          os: windows-11-arm
+          env:
+            CARGO_BUILD_TARGET: aarch64-pc-windows-msvc
+            RUSTFLAGS: -Ctarget-feature=+crt-static
+
         - build: wasm32-wasip1
           os: ubuntu-latest
-          target: wasm32-wasip1
+          env:
+            CARGO_BUILD_TARGET: wasm32-wasip1
+    env: ${{ matrix.env }}
     steps:
     - uses: actions/checkout@v6
       with:
         submodules: true
     - uses: ./.github/actions/install-rust
-    - uses: bytecodealliance/wasmtime/.github/actions/binary-compatible-builds@release-28.0.0
-      with:
-        name: ${{ matrix.build }}
-      if: matrix.build != 'wasm32-wasip1'
-    - run: |
-        echo CARGO_BUILD_TARGET=${{ matrix.target }} >> $GITHUB_ENV
-        rustup target add ${{ matrix.target }}
-      if: matrix.target != ''
-    - run: $CENTOS cargo build --release
-    - run: ./ci/build-tarballs.sh "${{ matrix.build }}" "${{ matrix.target }}"
+    - run: rustup target add $CARGO_BUILD_TARGET
+    - run: ./ci/build-release-artifacts.sh
+    - run: ./ci/build-tarballs.sh "${{ matrix.build }}"
     - uses: actions/upload-artifact@v4
       with:
         name: bins-${{ matrix.build }}

@@ -3,7 +3,7 @@
 set -ex
 
 platform=$1
-target=$2
+target=$CARGO_BUILD_TARGET
 
 rm -rf tmp
 mkdir tmp
@@ -15,17 +15,20 @@ bin_pkgname=wasm-tools-$tag-$platform
 mkdir tmp/$bin_pkgname
 cp LICENSE-* README.md tmp/$bin_pkgname
 
-fmt=tar
-if [ "$platform" = "x86_64-windows" ]; then
-  cp target/release/wasm-tools.exe tmp/$bin_pkgname
-  fmt=zip
-elif [ "$target" = "wasm32-wasip1" ]; then
-  cp target/wasm32-wasip1/release/wasm-tools.wasm tmp/$bin_pkgname
-elif [ "$target" = "" ]; then
-  cp target/release/wasm-tools tmp/$bin_pkgname
-else
-  cp target/$target/release/wasm-tools tmp/$bin_pkgname
-fi
+case $platform in
+  *-windows)
+    fmt=zip
+    cp target/$target/release/wasm-tools.exe tmp/$bin_pkgname
+    ;;
+  wasm*)
+    fmt=tar
+    cp target/$target/release/wasm-tools.wasm tmp/$bin_pkgname
+    ;;
+  *)
+    fmt=tar
+    cp target/$target/release/wasm-tools tmp/$bin_pkgname
+    ;;
+esac
 
 
 mktarball() {
