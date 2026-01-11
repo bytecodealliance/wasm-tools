@@ -1,6 +1,6 @@
-use crate::Type;
+use crate::{IndexMap, Type};
+use alloc::string::{String, ToString};
 use id_arena::{Arena, Id};
-use indexmap::IndexMap;
 use semver::Version;
 use serde::ser::{SerializeMap, SerializeSeq, Serializer};
 use serde::{Deserialize, Serialize, de::Error};

@@ -1,4 +1,7 @@
-use std::{
+use alloc::format;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::{
     cmp::Ordering,
     num::NonZeroUsize,
     ops::{Add, AddAssign},
@@ -21,8 +24,8 @@ impl Default for Alignment {
     }
 }
 
-impl std::fmt::Debug for Alignment {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Alignment {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Alignment::Pointer => f.write_str("ptr"),
             Alignment::Bytes(b) => f.write_fmt(format_args!("{}", b.get())),
@@ -42,19 +45,19 @@ impl Ord for Alignment {
     /// as a Pointer is either four or eight byte aligned, depending on the architecture
     fn cmp(&self, other: &Self) -> Ordering {
         match (self, other) {
-            (Alignment::Pointer, Alignment::Pointer) => std::cmp::Ordering::Equal,
+            (Alignment::Pointer, Alignment::Pointer) => Ordering::Equal,
             (Alignment::Pointer, Alignment::Bytes(b)) => {
                 if b.get() > 4 {
-                    std::cmp::Ordering::Less
+                    Ordering::Less
                 } else {
-                    std::cmp::Ordering::Greater
+                    Ordering::Greater
                 }
             }
             (Alignment::Bytes(b), Alignment::Pointer) => {
                 if b.get() > 4 {
-                    std::cmp::Ordering::Greater
+                    Ordering::Greater
                 } else {
-                    std::cmp::Ordering::Less
+                    Ordering::Less
                 }
             }
             (Alignment::Bytes(a), Alignment::Bytes(b)) => a.cmp(b),
@@ -121,8 +124,8 @@ impl From<Alignment> for ArchitectureSize {
     }
 }
 
-impl std::fmt::Debug for ArchitectureSize {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for ArchitectureSize {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str(&self.format("ptrsz"))
     }
 }
@@ -132,7 +135,7 @@ impl ArchitectureSize {
         Self { bytes, pointers }
     }
 
-    pub fn max<B: std::borrow::Borrow<Self>>(&self, other: B) -> Self {
+    pub fn max<B: core::borrow::Borrow<Self>>(&self, other: B) -> Self {
         let other = other.borrow();
         let self32 = self.size_wasm32();
         let self64 = self.size_wasm64();
@@ -454,6 +457,7 @@ pub fn align_to_arch(val: ArchitectureSize, align: Alignment) -> ArchitectureSiz
 #[cfg(test)]
 mod test {
     use super::*;
+    use alloc::vec;
 
     #[test]
     fn align() {

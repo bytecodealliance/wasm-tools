@@ -17,9 +17,10 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
+ahash = { workspace = true, features = ["compile-time-rng"] }
 anyhow = { workspace = true }
 id-arena = { workspace = true }
-indexmap = { workspace = true, features = ['std'] }
+indexmap = { workspace = true }
 log = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true, optional = true }
@@ -30,7 +31,10 @@ wasmparser = { workspace = true, optional = true, features = ['std', 'validate',
 wat = { workspace = true, optional = true, features = ['component-model'] }
 
 [features]
-default = ['serde', 'decoding']
+default = ['std', 'serde', 'decoding']
+
+# Enables use of std::path::Path and filesystem-related APIs.
+std = []
 
 # Enables support for `derive(Serialize, Deserialize)` on many structures, such
 # as `Resolve`, which can assist when encoding `Resolve` as JSON for example.
@@ -38,7 +42,7 @@ serde = ['dep:serde', 'dep:serde_derive', 'indexmap/serde', 'serde_json']
 
 # Enables support for decoding WIT from WebAssembly. This can be done to support
 # decoding a WIT package encoded as wasm automatically.
-decoding = ['dep:wasmparser']
+decoding = ['std', 'dep:wasmparser']
 
 # Enables support for parsing the wasm text format in conjunction with the
 # `decoding` feature.

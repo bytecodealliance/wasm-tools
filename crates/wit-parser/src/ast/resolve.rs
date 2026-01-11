@@ -1,9 +1,12 @@
 use super::{ParamList, WorldOrInterface};
 use crate::ast::toposort::toposort;
 use crate::*;
+use alloc::collections::{BTreeMap, BTreeSet};
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
+use alloc::{format, vec};
 use anyhow::bail;
-use std::collections::{HashMap, HashSet};
-use std::mem;
+use core::mem;
 
 #[derive(Default)]
 pub struct Resolver<'a> {
@@ -23,7 +26,7 @@ pub struct Resolver<'a> {
 
     // Interning structure for types which-need-not-be-named such as
     // `list<string>` and such.
-    anon_types: HashMap<Key, TypeId>,
+    anon_types: BTreeMap<Key, TypeId>,
 
     /// The index within `self.ast_items` that lookups should go through. This
     /// is updated as the ASTs are walked.
@@ -52,9 +55,9 @@ pub struct Resolver<'a> {
     foreign_deps: IndexMap<PackageName, IndexMap<&'a str, (AstItem, Vec<Stability>)>>,
 
     /// All interfaces that are present within `self.foreign_deps`.
-    foreign_interfaces: HashSet<InterfaceId>,
+    foreign_interfaces: BTreeSet<InterfaceId>,
 
-    foreign_worlds: HashSet<WorldId>,
+    foreign_worlds: BTreeSet<WorldId>,
 
     /// The current type lookup scope which will eventually make its way into
     /// `self.interface_types`.
@@ -85,7 +88,7 @@ pub struct Resolver<'a> {
     required_resource_types: Vec<(TypeId, Span)>,
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum Key {
     Variant(Vec<(String, Option<Type>)>),
     BorrowHandle(TypeId),
@@ -184,8 +187,8 @@ impl<'a> Resolver<'a> {
         // Use the topological ordering of all interfaces to resolve all
         // interfaces in-order. Note that a reverse-mapping from ID to AST is
         // generated here to assist with this.
-        let mut iface_id_to_ast = IndexMap::new();
-        let mut world_id_to_ast = IndexMap::new();
+        let mut iface_id_to_ast = IndexMap::default();
+        let mut world_id_to_ast = IndexMap::default();
         for (i, decl_list) in decl_lists.iter().enumerate() {
             for item in decl_list.items.iter() {
                 match item {
@@ -272,7 +275,7 @@ impl<'a> Resolver<'a> {
 
                     let deps = foreign_deps.entry(id.package_name()).or_insert_with(|| {
                         self.foreign_dep_spans.push(id.span);
-                        IndexMap::new()
+                        IndexMap::default()
                     });
                     let (id, stabilities) = deps.entry(name.name).or_insert_with(|| {
                         let id = match world_or_iface {
@@ -315,17 +318,17 @@ impl<'a> Resolver<'a> {
     }
 
     fn alloc_interface(&mut self, span: Span) -> InterfaceId {
-        self.interface_types.push(IndexMap::new());
+        self.interface_types.push(IndexMap::default());
         self.interface_spans.push(InterfaceSpan {
             span,
             funcs: Vec::new(),
         });
         self.interfaces.alloc(Interface {
             name: None,
-            types: IndexMap::new(),
+            types: IndexMap::default(),
             docs: Docs::default(),
             stability: Default::default(),
-            functions: IndexMap::new(),
+            functions: IndexMap::default(),
             package: None,
         })
     }
@@ -340,8 +343,8 @@ impl<'a> Resolver<'a> {
         self.worlds.alloc(World {
             name: String::new(),
             docs: Docs::default(),
-            exports: IndexMap::new(),
-            imports: IndexMap::new(),
+            exports: IndexMap::default(),
+            imports: IndexMap::default(),
             package: None,
             includes: Default::default(),
             include_names: Default::default(),
@@ -356,15 +359,15 @@ impl<'a> Resolver<'a> {
         &mut self,
         decl_lists: &[ast::DeclList<'a>],
     ) -> Result<(Vec<InterfaceId>, Vec<WorldId>)> {
-        let mut package_items = IndexMap::new();
+        let mut package_items = IndexMap::default();
 
         // Validate that all worlds and interfaces have unique names within this
         // package across all ASTs which make up the package.
-        let mut names = HashMap::new();
+        let mut names = BTreeMap::new();
         let mut decl_list_namespaces = Vec::new();
-        let mut order = IndexMap::new();
+        let mut order = IndexMap::default();
         for decl_list in decl_lists {
-            let mut decl_list_ns = IndexMap::new();
+            let mut decl_list_ns = IndexMap::default();
             for item in decl_list.items.iter() {
                 match item {
                     ast::AstItem::Interface(i) => {
@@ -418,7 +421,7 @@ impl<'a> Resolver<'a> {
             // at the top level and whether they point to other items in this
             // package or foreign items. Foreign deps are ignored for
             // topological ordering.
-            let mut decl_list_ns = IndexMap::new();
+            let mut decl_list_ns = IndexMap::default();
             for item in decl_list.items.iter() {
                 let (name, src) = match item {
                     ast::AstItem::Use(u) => {
@@ -485,7 +488,7 @@ impl<'a> Resolver<'a> {
         // Allocate interfaces in-order now that the ordering is defined. This
         // is then used to build up internal maps for each AST which are stored
         // in `self.ast_items`.
-        let mut ids = IndexMap::new();
+        let mut ids = IndexMap::default();
         let mut iface_id_order = Vec::new();
         let mut world_id_order = Vec::new();
         for name in order {
@@ -508,7 +511,7 @@ impl<'a> Resolver<'a> {
             };
         }
         for decl_list in decl_lists {
-            let mut items = IndexMap::new();
+            let mut items = IndexMap::default();
             for item in decl_list.items.iter() {
                 let (name, ast_item) = match item {
                     ast::AstItem::Use(u) => {
@@ -658,8 +661,8 @@ impl<'a> Resolver<'a> {
             }
         }
 
-        let mut imported_interfaces = HashSet::new();
-        let mut exported_interfaces = HashSet::new();
+        let mut imported_interfaces = BTreeSet::new();
+        let mut exported_interfaces = BTreeSet::new();
         for item in world.items.iter() {
             let (docs, attrs, kind, desc, spans, interfaces) = match item {
                 ast::WorldItem::Import(import) => (
@@ -909,8 +912,8 @@ impl<'a> Resolver<'a> {
         // sort, and then define all types. This will define types in a
         // topological fashion, forbid cycles, and weed out references to
         // undefined types all in one go.
-        let mut type_deps = IndexMap::new();
-        let mut type_defs = IndexMap::new();
+        let mut type_deps = IndexMap::default();
+        let mut type_defs = IndexMap::default();
         for field in fields {
             match field {
                 TypeItem::Def(t) => {
@@ -1230,7 +1233,7 @@ impl<'a> Resolver<'a> {
                 // Validate here that the resource doesn't have any duplicate-ly
                 // named methods and that there's at most one constructor.
                 let mut ctors = 0;
-                let mut names = HashSet::new();
+                let mut names = BTreeSet::new();
                 for func in resource.funcs.iter() {
                     match func {
                         ast::ResourceFunc::Method(f) | ast::ResourceFunc::Static(f) => {
@@ -1630,7 +1633,7 @@ impl<'a> Resolver<'a> {
         kind: &FunctionKind,
         span: Span,
     ) -> Result<Vec<(String, Type)>> {
-        let mut ret = IndexMap::new();
+        let mut ret = IndexMap::default();
         match *kind {
             // These kinds of methods don't have any adjustments to the
             // parameters, so do nothing here.

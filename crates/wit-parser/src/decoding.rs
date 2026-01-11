@@ -1,8 +1,11 @@
 use crate::*;
-use anyhow::{anyhow, bail};
-use indexmap::IndexSet;
-use std::mem;
-use std::{collections::HashMap, io::Read};
+use alloc::collections::BTreeMap;
+use alloc::string::{String, ToString};
+use alloc::vec;
+use alloc::vec::Vec;
+use anyhow::{Context, anyhow, bail};
+use core::mem;
+use std::io::Read;
 use wasmparser::Chunk;
 use wasmparser::{
     ComponentExternalKind, Parser, Payload, PrimitiveValType, ValidPayload, Validator,
@@ -46,7 +49,6 @@ enum WitEncodingVersion {
 
 impl ComponentInfo {
     /// Creates a new component info by parsing the given WebAssembly component bytes.
-
     fn from_reader(mut reader: impl Read) -> Result<Self> {
         let mut validator = Validator::new_with_features(WasmFeatures::all());
         let mut externs = Vec::new();
@@ -219,8 +221,8 @@ impl ComponentInfo {
 
         let mut pkg_name = None;
 
-        let mut interfaces = IndexMap::new();
-        let mut worlds = IndexMap::new();
+        let mut interfaces = IndexMap::default();
+        let mut worlds = IndexMap::default();
         let mut fields = PackageFields {
             interfaces: &mut interfaces,
             worlds: &mut worlds,
@@ -466,8 +468,8 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
     };
 
     let mut decoder = WitPackageDecoder::new(types);
-    let mut interfaces = IndexMap::new();
-    let mut worlds = IndexMap::new();
+    let mut interfaces = IndexMap::default();
+    let mut worlds = IndexMap::default();
     let ty = &types[world];
     assert_eq!(ty.imports.len(), 0);
     assert_eq!(ty.exports.len(), 1);
@@ -505,8 +507,8 @@ struct WitPackageDecoder<'a> {
     resolve: Resolve,
     types: &'a Types,
     foreign_packages: IndexMap<String, Package>,
-    iface_to_package_index: HashMap<InterfaceId, usize>,
-    named_interfaces: HashMap<String, InterfaceId>,
+    iface_to_package_index: BTreeMap<InterfaceId, usize>,
+    named_interfaces: BTreeMap<String, InterfaceId>,
 
     /// A map which tracks named resources to what their corresponding `TypeId`
     /// is. This first layer of key in this map is the owner scope of a
@@ -515,10 +517,10 @@ struct WitPackageDecoder<'a> {
     /// and points to the actual ID of the resource.
     ///
     /// This map is populated in `register_type_export`.
-    resources: HashMap<TypeOwner, HashMap<String, TypeId>>,
+    resources: BTreeMap<TypeOwner, BTreeMap<String, TypeId>>,
 
     /// A map from a type id to what it's been translated to.
-    type_map: HashMap<ComponentAnyTypeId, TypeId>,
+    type_map: BTreeMap<ComponentAnyTypeId, TypeId>,
 }
 
 impl WitPackageDecoder<'_> {
@@ -526,7 +528,7 @@ impl WitPackageDecoder<'_> {
         WitPackageDecoder {
             resolve: Resolve::default(),
             types,
-            type_map: HashMap::new(),
+            type_map: BTreeMap::new(),
             foreign_packages: Default::default(),
             iface_to_package_index: Default::default(),
             named_interfaces: Default::default(),
@@ -896,7 +898,7 @@ impl WitPackageDecoder<'_> {
                     name: Some(name.interface().to_string()),
                     docs: Default::default(),
                     types: IndexMap::default(),
-                    functions: IndexMap::new(),
+                    functions: IndexMap::default(),
                     package: None,
                     stability: Default::default(),
                 })
@@ -951,7 +953,7 @@ impl WitPackageDecoder<'_> {
             name: interface_name.clone(),
             docs: Default::default(),
             types: IndexMap::default(),
-            functions: IndexMap::new(),
+            functions: IndexMap::default(),
             package: None,
             stability: Default::default(),
         };
@@ -1059,7 +1061,7 @@ impl WitPackageDecoder<'_> {
             let prev = self
                 .resources
                 .entry(owner)
-                .or_insert(HashMap::new())
+                .or_insert(BTreeMap::new())
                 .insert(name.to_string(), ty);
             assert!(prev.is_none());
         }
@@ -1456,7 +1458,7 @@ impl WitPackageDecoder<'_> {
     fn finish(mut self, package: Package) -> (Resolve, PackageId) {
         // Build a topological ordering is then calculated by visiting all the
         // transitive dependencies of packages.
-        let mut order = IndexSet::new();
+        let mut order = IndexSet::default();
         for i in 0..self.foreign_packages.len() {
             self.visit_package(i, &mut order);
         }
@@ -1580,7 +1582,7 @@ impl WitPackageDecoder<'_> {
 /// wit-defined type.
 struct Registrar<'a> {
     types: &'a Types,
-    type_map: &'a mut HashMap<ComponentAnyTypeId, TypeId>,
+    type_map: &'a mut BTreeMap<ComponentAnyTypeId, TypeId>,
     resolve: &'a Resolve,
 }
 

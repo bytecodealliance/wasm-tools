@@ -108,7 +108,7 @@ rust-version = "1.81.0"
 
 [workspace.dependencies]
 ahash = { version = "0.8.11", default-features = false }
-anyhow = "1.0.58"
+anyhow = { version = "1.0.58", default-features = false }
 arbitrary = "1.1.0"
 bitflags = "2.5.0"
 bytesize = "2.0.0"
@@ -119,7 +119,7 @@ criterion = { version = "0.5.1", default-features = false }
 env_logger = "0.11"
 gimli = "0.31.1"
 hashbrown = { version = "0.15.2", default-features = false, features = ['default-hasher'] }
-id-arena = "2"
+id-arena = { git = "https://github.com/wilfreddenton/id-arena", branch = "fix-no-std", default-features = false }
 indexmap = { version = "2.7.0", default-features = false }
 indoc = "2.0.5"
 leb128fmt = { version = "0.1.0", default-features = false }
