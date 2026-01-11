@@ -184,6 +184,7 @@ fn fmt_node(f: &mut impl core::fmt::Write, node: &Node, src: &str) -> core::fmt:
             }
             f.write_char('}')
         }
+        Handle => todo!(),
     }
 }
 
