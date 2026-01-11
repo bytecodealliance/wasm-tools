@@ -295,6 +295,18 @@ impl From<V128> for u128 {
     }
 }
 
+impl From<i128> for V128 {
+    fn from(value: i128) -> Self {
+        V128(i128::to_le_bytes(value))
+    }
+}
+
+impl From<u128> for V128 {
+    fn from(value: u128) -> Self {
+        V128(u128::to_le_bytes(value))
+    }
+}
+
 /// Represents the memory ordering for atomic instructions.
 ///
 /// For an in-depth explanation of memory orderings, see the C++ documentation
