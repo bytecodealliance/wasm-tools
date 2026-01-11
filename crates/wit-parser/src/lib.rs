@@ -1,11 +1,32 @@
+#![no_std]
+
+extern crate alloc;
+
+#[cfg(feature = "std")]
+extern crate std;
+
 use crate::abi::AbiVariant;
-use anyhow::{Context, Result, bail};
+use alloc::format;
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
+#[cfg(feature = "std")]
+use anyhow::Context;
+use anyhow::{Result, bail};
 use id_arena::{Arena, Id};
-use indexmap::IndexMap;
 use semver::Version;
-use std::borrow::Cow;
-use std::fmt;
-use std::hash::{Hash, Hasher};
+
+#[cfg(feature = "std")]
+pub type IndexMap<K, V> = indexmap::IndexMap<K, V, std::hash::RandomState>;
+#[cfg(feature = "std")]
+pub type IndexSet<T> = indexmap::IndexSet<T, std::hash::RandomState>;
+#[cfg(not(feature = "std"))]
+pub type IndexMap<K, V> = indexmap::IndexMap<K, V, ahash::RandomState>;
+#[cfg(not(feature = "std"))]
+pub type IndexSet<T> = indexmap::IndexSet<T, ahash::RandomState>;
+use alloc::borrow::Cow;
+use core::fmt;
+use core::hash::{Hash, Hasher};
+#[cfg(feature = "std")]
 use std::path::Path;
 
 #[cfg(feature = "decoding")]
@@ -108,6 +129,7 @@ pub struct UnresolvedPackage {
     /// Doc comments for this package.
     pub docs: Docs,
 
+    #[cfg_attr(not(feature = "std"), allow(dead_code))]
     package_name_span: Span,
     unknown_type_spans: Vec<Span>,
     interface_spans: Vec<InterfaceSpan>,
@@ -273,7 +295,7 @@ impl fmt::Display for Error {
     }
 }
 
-impl std::error::Error for Error {}
+impl core::error::Error for Error {}
 
 #[derive(Debug)]
 struct PackageNotFoundError {
@@ -319,7 +341,7 @@ impl fmt::Display for PackageNotFoundError {
     }
 }
 
-impl std::error::Error for PackageNotFoundError {}
+impl core::error::Error for PackageNotFoundError {}
 
 impl UnresolvedPackageGroup {
     /// Parses the given string as a wit document.
@@ -327,9 +349,19 @@ impl UnresolvedPackageGroup {
     /// The `path` argument is used for error reporting. The `contents` provided
     /// are considered to be the contents of `path`. This function does not read
     /// the filesystem.
+    #[cfg(feature = "std")]
     pub fn parse(path: impl AsRef<Path>, contents: &str) -> Result<UnresolvedPackageGroup> {
+        Self::parse_str(&path.as_ref().display().to_string(), contents)
+    }
+
+    /// Parses the given string as a wit document.
+    ///
+    /// The `path` argument is used for error reporting. The `contents` provided
+    /// are considered to be the contents of `path`. This function does not read
+    /// the filesystem.
+    pub fn parse_str(path: &str, contents: &str) -> Result<UnresolvedPackageGroup> {
         let mut map = SourceMap::default();
-        map.push(path.as_ref(), contents);
+        map.push_str(path, contents);
         map.parse()
     }
 
@@ -338,6 +370,7 @@ impl UnresolvedPackageGroup {
     /// The path provided is inferred whether it's a file or a directory. A file
     /// is parsed with [`UnresolvedPackageGroup::parse_file`] and a directory is
     /// parsed with [`UnresolvedPackageGroup::parse_dir`].
+    #[cfg(feature = "std")]
     pub fn parse_path(path: impl AsRef<Path>) -> Result<UnresolvedPackageGroup> {
         let path = path.as_ref();
         if path.is_dir() {
@@ -351,6 +384,7 @@ impl UnresolvedPackageGroup {
     ///
     /// The return value represents all packages found in the WIT file which
     /// might be either one or multiple depending on the syntax used.
+    #[cfg(feature = "std")]
     pub fn parse_file(path: impl AsRef<Path>) -> Result<UnresolvedPackageGroup> {
         let path = path.as_ref();
         let contents = std::fs::read_to_string(path)
@@ -364,6 +398,7 @@ impl UnresolvedPackageGroup {
     /// `*.wit` files are parsed and assumed to be part of the same package
     /// grouping. This is useful when a WIT package is split across multiple
     /// files.
+    #[cfg(feature = "std")]
     pub fn parse_dir(path: impl AsRef<Path>) -> Result<UnresolvedPackageGroup> {
         let path = path.as_ref();
         let mut map = SourceMap::default();
@@ -636,7 +671,7 @@ impl TypeDefKind {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum TypeOwner {
@@ -662,7 +697,7 @@ pub enum Handle {
     Borrow(TypeId),
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone)]
 pub enum Type {
     Bool,
     U8,
@@ -982,7 +1017,7 @@ pub enum Mangling {
     Legacy,
 }
 
-impl std::str::FromStr for Mangling {
+impl core::str::FromStr for Mangling {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Mangling> {
@@ -1359,6 +1394,7 @@ impl Default for Stability {
 #[cfg(test)]
 mod test {
     use super::*;
+    use alloc::vec;
 
     #[test]
     fn test_discriminant_type() {

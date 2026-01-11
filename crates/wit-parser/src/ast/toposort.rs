@@ -1,9 +1,12 @@
+use crate::IndexMap;
 use crate::ast::{Id, Span};
+use alloc::collections::BinaryHeap;
+use alloc::string::{String, ToString};
+use alloc::vec;
+use alloc::vec::Vec;
 use anyhow::Result;
-use indexmap::IndexMap;
-use std::collections::BinaryHeap;
-use std::fmt;
-use std::mem;
+use core::fmt;
+use core::mem;
 
 #[derive(Default, Clone)]
 struct State {
@@ -173,7 +176,7 @@ impl fmt::Display for Error {
     }
 }
 
-impl std::error::Error for Error {}
+impl core::error::Error for Error {}
 
 #[cfg(test)]
 mod tests {
@@ -189,25 +192,25 @@ mod tests {
     #[test]
     fn smoke() {
         let empty: Vec<&str> = Vec::new();
-        assert_eq!(toposort("", &IndexMap::new()).unwrap(), empty);
+        assert_eq!(toposort("", &IndexMap::default()).unwrap(), empty);
 
-        let mut nonexistent = IndexMap::new();
+        let mut nonexistent = IndexMap::default();
         nonexistent.insert("a", vec![id("b")]);
         assert!(matches!(
             toposort("", &nonexistent),
             Err(Error::NonexistentDep { .. })
         ));
 
-        let mut one = IndexMap::new();
+        let mut one = IndexMap::default();
         one.insert("a", vec![]);
         assert_eq!(toposort("", &one).unwrap(), ["a"]);
 
-        let mut two = IndexMap::new();
+        let mut two = IndexMap::default();
         two.insert("a", vec![]);
         two.insert("b", vec![id("a")]);
         assert_eq!(toposort("", &two).unwrap(), ["a", "b"]);
 
-        let mut two = IndexMap::new();
+        let mut two = IndexMap::default();
         two.insert("a", vec![id("b")]);
         two.insert("b", vec![]);
         assert_eq!(toposort("", &two).unwrap(), ["b", "a"]);
@@ -215,11 +218,11 @@ mod tests {
 
     #[test]
     fn cycles() {
-        let mut cycle = IndexMap::new();
+        let mut cycle = IndexMap::default();
         cycle.insert("a", vec![id("a")]);
         assert!(matches!(toposort("", &cycle), Err(Error::Cycle { .. })));
 
-        let mut cycle = IndexMap::new();
+        let mut cycle = IndexMap::default();
         cycle.insert("a", vec![id("b")]);
         cycle.insert("b", vec![id("c")]);
         cycle.insert("c", vec![id("a")]);
@@ -228,7 +231,7 @@ mod tests {
 
     #[test]
     fn depend_twice() {
-        let mut two = IndexMap::new();
+        let mut two = IndexMap::default();
         two.insert("b", vec![id("a"), id("a")]);
         two.insert("a", vec![]);
         assert_eq!(toposort("", &two).unwrap(), ["a", "b"]);
@@ -236,12 +239,12 @@ mod tests {
 
     #[test]
     fn preserve_order() {
-        let mut order = IndexMap::new();
+        let mut order = IndexMap::default();
         order.insert("a", vec![]);
         order.insert("b", vec![]);
         assert_eq!(toposort("", &order).unwrap(), ["a", "b"]);
 
-        let mut order = IndexMap::new();
+        let mut order = IndexMap::default();
         order.insert("b", vec![]);
         order.insert("a", vec![]);
         assert_eq!(toposort("", &order).unwrap(), ["b", "a"]);

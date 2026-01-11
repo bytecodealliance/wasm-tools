@@ -1,4 +1,5 @@
 use crate::{Function, Handle, Int, Resolve, Type, TypeDefKind};
+use alloc::vec::Vec;
 
 /// A core WebAssembly signature with params and results.
 #[derive(Clone, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]

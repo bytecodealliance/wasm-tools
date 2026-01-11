@@ -1,7 +1,9 @@
+#[cfg(test)]
+use alloc::{vec, vec::Vec};
 use anyhow::{Result, bail};
-use std::char;
-use std::fmt;
-use std::str;
+use core::char;
+use core::fmt;
+use core::str;
 use unicode_xid::UnicodeXID;
 
 use self::Token::*;
@@ -136,10 +138,13 @@ impl<'a> Tokenizer<'a> {
                 chars: input.char_indices(),
             },
             require_f32_f64: require_f32_f64.unwrap_or_else(|| {
+                #[cfg(feature = "std")]
                 match std::env::var("WIT_REQUIRE_F32_F64") {
                     Ok(s) => s == "1",
                     Err(_) => REQUIRE_F32_F64_BY_DEFAULT,
                 }
+                #[cfg(not(feature = "std"))]
+                REQUIRE_F32_F64_BY_DEFAULT
             }),
         };
         // Eat utf-8 BOM
@@ -588,7 +593,7 @@ impl Token {
     }
 }
 
-impl std::error::Error for Error {}
+impl core::error::Error for Error {}
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

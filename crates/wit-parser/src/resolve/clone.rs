@@ -18,28 +18,28 @@
 //! cloning everything within a `Resolve`.
 
 use crate::*;
-use std::collections::HashMap;
+use alloc::collections::BTreeMap;
 
 /// Represents the results of cloning types and/or interfaces as part of a
 /// `Resolve::merge_worlds` operation.
 #[derive(Default)]
 pub struct CloneMaps {
-    pub(super) types: HashMap<TypeId, TypeId>,
-    pub(super) interfaces: HashMap<InterfaceId, InterfaceId>,
+    pub(super) types: BTreeMap<TypeId, TypeId>,
+    pub(super) interfaces: BTreeMap<InterfaceId, InterfaceId>,
 }
 
 impl CloneMaps {
     /// The types cloned during a `Resolve::merge_worlds` operation.
     ///
     /// The key is the original type, and the value is the clone.
-    pub fn types(&self) -> &HashMap<TypeId, TypeId> {
+    pub fn types(&self) -> &BTreeMap<TypeId, TypeId> {
         &self.types
     }
 
     /// The interfaces cloned during a `Resolve::merge_worlds` operation.
     ///
     /// The key is the original interface, and the value is the clone.
-    pub fn interfaces(&self) -> &HashMap<InterfaceId, InterfaceId> {
+    pub fn interfaces(&self) -> &BTreeMap<InterfaceId, InterfaceId> {
         &self.interfaces
     }
 }
@@ -52,7 +52,7 @@ pub struct Cloner<'a> {
     /// This map keeps track, in the current scope of types, of all copied
     /// types. This deduplicates copying types to ensure that they're only
     /// copied at most once.
-    pub types: HashMap<TypeId, TypeId>,
+    pub types: BTreeMap<TypeId, TypeId>,
 
     /// If `None` then it's inferred from `self.new_owner`.
     pub new_package: Option<PackageId>,
@@ -201,7 +201,7 @@ impl<'a> Cloner<'a> {
         }
     }
 
-    fn interface(&mut self, id: &mut InterfaceId, cloned_types: &mut HashMap<TypeId, TypeId>) {
+    fn interface(&mut self, id: &mut InterfaceId, cloned_types: &mut BTreeMap<TypeId, TypeId>) {
         let mut new = self.resolve.interfaces[*id].clone();
         let next_id = self.resolve.interfaces.next_id();
         let mut clone = Cloner::new(

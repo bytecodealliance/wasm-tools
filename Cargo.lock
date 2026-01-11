@@ -31,6 +31,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a15f179cd60c4584b8a8c596927aadc462e27f2ca70c04e0071964a73ba7a75"
 dependencies = [
  "cfg-if",
+ "const-random",
  "once_cell",
  "version_check",
  "zerocopy",
@@ -389,6 +390,26 @@ dependencies = [
  "wasmprinter 0.244.0",
  "wat",
  "wit-bindgen-rt 0.26.0",
+]
+
+[[package]]
+name = "const-random"
+version = "0.1.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87e00182fe74b066627d63b85fd550ac2998d4b0bd86bfed477a0ae4c7c71359"
+dependencies = [
+ "const-random-macro",
+]
+
+[[package]]
+name = "const-random-macro"
+version = "0.1.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9d839f2a20b0aee515dc581a6172f2321f96cab76c1a38a4c584a194955390e"
+dependencies = [
+ "getrandom 0.2.16",
+ "once_cell",
+ "tiny-keccak",
 ]
 
 [[package]]
@@ -896,6 +917,17 @@ dependencies = [
 
 [[package]]
 name = "getrandom"
+version = "0.2.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "335ff9f135e4384c8150d6f27c6daed433577f86b4750418338c01a1a2528592"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "wasi 0.11.1+wasi-snapshot-preview1",
+]
+
+[[package]]
+name = "getrandom"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26145e563e54f2cadc477553f1ec5ee650b00862f0a58bcd12cbdc5f0ea2d2f4"
@@ -903,7 +935,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "r-efi",
- "wasi",
+ "wasi 0.14.2+wasi-0.2.4",
 ]
 
 [[package]]
@@ -1095,6 +1127,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25a2bc672d1148e28034f176e01fffebb08b35768468cc954630da77a1449005"
 
 [[package]]
+name = "id-arena"
+version = "2.2.1"
+source = "git+https://github.com/wilfreddenton/id-arena?branch=fix-no-std#7ab6639237382b92ae60a1f97145d847473b880e"
+
+[[package]]
 name = "idna"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1245,7 +1282,7 @@ version = "0.1.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "38f262f097c174adebe41eb73d66ae9c06b2844fb0da69969647bbddd9b0538a"
 dependencies = [
- "getrandom",
+ "getrandom 0.3.3",
  "libc",
 ]
 
@@ -1633,7 +1670,7 @@ version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "99d9a13982dcf210057a8a78572b2217b667c3beacbf3a0d8b454f6f82837d38"
 dependencies = [
- "getrandom",
+ "getrandom 0.3.3",
 ]
 
 [[package]]
@@ -1933,7 +1970,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8a64e3985349f2441a1a9ef0b853f869006c3855f2cda6862a94d26ebb9d6a1"
 dependencies = [
  "fastrand",
- "getrandom",
+ "getrandom 0.3.3",
  "once_cell",
  "rustix 1.0.7",
  "windows-sys 0.59.0",
@@ -2005,6 +2042,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "tiny-keccak"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c9d3793400a45f954c52e73d068316d76b6f4e36977e3fcebb13a2721e80237"
+dependencies = [
+ "crunchy",
 ]
 
 [[package]]
@@ -2129,6 +2175,12 @@ dependencies = [
  "same-file",
  "winapi-util",
 ]
+
+[[package]]
+name = "wasi"
+version = "0.11.1+wasi-snapshot-preview1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ccf3ec651a847eb01de73ccad15eb7d99f80485de043efb2f370cd654f4ea44b"
 
 [[package]]
 name = "wasi"
@@ -3092,7 +3144,7 @@ name = "wit-encoder"
 version = "0.244.0"
 dependencies = [
  "anyhow",
- "id-arena",
+ "id-arena 2.2.1 (git+https://github.com/wilfreddenton/id-arena?branch=fix-no-std)",
  "indoc",
  "pretty_assertions",
  "semver",
@@ -3107,7 +3159,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "681d526d6ea42e28f9afe9eae2b50e0b0a627aef8822c75eb04078db84d03e57"
 dependencies = [
  "anyhow",
- "id-arena",
+ "id-arena 2.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "indexmap 2.10.0",
  "log",
  "semver",
@@ -3125,7 +3177,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f22f1cd55247a2e616870b619766e9522df36b7abafbb29bbeb34b7a9da7e9f0"
 dependencies = [
  "anyhow",
- "id-arena",
+ "id-arena 2.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "indexmap 2.10.0",
  "log",
  "semver",
@@ -3143,7 +3195,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df983a8608e513d8997f435bb74207bf0933d0e49ca97aa9d8a6157164b9b7fc"
 dependencies = [
  "anyhow",
- "id-arena",
+ "id-arena 2.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "indexmap 2.10.0",
  "log",
  "semver",
@@ -3158,9 +3210,10 @@ dependencies = [
 name = "wit-parser"
 version = "0.244.0"
 dependencies = [
+ "ahash",
  "anyhow",
  "env_logger",
- "id-arena",
+ "id-arena 2.2.1 (git+https://github.com/wilfreddenton/id-arena?branch=fix-no-std)",
  "indexmap 2.10.0",
  "libtest-mimic",
  "log",
