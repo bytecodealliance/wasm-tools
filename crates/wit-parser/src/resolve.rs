@@ -1,5 +1,6 @@
 use alloc::borrow::ToOwned;
-use alloc::collections::{BTreeMap, BTreeSet, btree_map};
+#[cfg(feature = "std")]
+use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::{format, vec};
@@ -9,12 +10,16 @@ use core::mem;
 #[cfg(feature = "std")]
 use std::path::{Path, PathBuf};
 
-use crate::{IndexMap, IndexSet};
+use crate::*;
 use anyhow::{Context, Result, anyhow, bail};
 use id_arena::{Arena, Id};
+#[cfg(not(feature = "std"))]
+use indexmap::map::Entry;
 use semver::Version;
 #[cfg(feature = "serde")]
 use serde_derive::Serialize;
+#[cfg(feature = "std")]
+use std::collections::hash_map::Entry;
 
 use crate::ast::lex::Span;
 use crate::ast::{ParsedUsePath, parse_use_path};
@@ -201,7 +206,7 @@ fn visit<'a>(
     pkg: &'a UnresolvedPackage,
     pkg_details_map: &'a BTreeMap<PackageName, (UnresolvedPackage, usize)>,
     order: &mut IndexSet<PackageName>,
-    visiting: &mut BTreeSet<&'a PackageName>,
+    visiting: &mut HashSet<&'a PackageName>,
     source_maps: &[SourceMap],
 ) -> Result<()> {
     if order.contains(&pkg.name) {
@@ -332,7 +337,7 @@ package {name} is defined in two different locations:\n\
         // and otherwise determine the order that packages must be added to
         // this `Resolve`.
         let mut order = IndexSet::default();
-        let mut visiting = BTreeSet::new();
+        let mut visiting = HashSet::new();
         for pkg_details in pkg_details_map.values() {
             let (pkg, _) = pkg_details;
             visit(
@@ -869,7 +874,7 @@ package {name} is defined in two different locations:\n\
     fn update_world_imports_stability(
         from_item: (&WorldKey, &WorldItem),
         into_items: &mut IndexMap<WorldKey, WorldItem>,
-        interface_map: &BTreeMap<Id<Interface>, Id<Interface>>,
+        interface_map: &HashMap<Id<Interface>, Id<Interface>>,
     ) -> Result<()> {
         match from_item.0 {
             WorldKey::Name(_) => {
@@ -962,7 +967,7 @@ package {name} is defined in two different locations:\n\
         //
         // This is the set of interfaces which exports depend on that are
         // themselves not exports.
-        let mut must_be_imported = BTreeMap::new();
+        let mut must_be_imported = HashMap::new();
         for (key, export) in into_world.exports.iter() {
             for dep in self.world_item_direct_deps(export) {
                 if into_world.exports.contains_key(&WorldKey::Interface(dep)) {
@@ -1103,7 +1108,7 @@ package {name} is defined in two different locations:\n\
         into: &World,
         name: &WorldKey,
         item: &WorldItem,
-        must_be_imported: &BTreeMap<InterfaceId, WorldKey>,
+        must_be_imported: &HashMap<InterfaceId, WorldKey>,
     ) -> Result<()> {
         assert!(!into.exports.contains_key(name));
         let name = self.name_world_key(name);
@@ -1123,7 +1128,7 @@ package {name} is defined in two different locations:\n\
         // the meaning of the preexisting world by ensuring that it's not in the
         // set of "must be imported" items.
         if let WorldItem::Interface { id, .. } = item {
-            if let Some(export) = must_be_imported.get(&id) {
+            if let Some(export) = must_be_imported.get(id) {
                 let export_name = self.name_world_key(export);
                 bail!(
                     "export `{export_name}` depends on `{name}` \
@@ -1177,7 +1182,7 @@ package {name} is defined in two different locations:\n\
     ///
     /// Note that `f` may be called with the same id multiple times.
     fn foreach_interface_dep(&self, id: InterfaceId, f: &mut dyn FnMut(InterfaceId)) {
-        self._foreach_interface_dep(id, f, &mut BTreeSet::new())
+        self._foreach_interface_dep(id, f, &mut HashSet::new())
     }
 
     // Internal detail of `foreach_interface_dep` which uses a hash map to prune
@@ -1187,7 +1192,7 @@ package {name} is defined in two different locations:\n\
         &self,
         id: InterfaceId,
         f: &mut dyn FnMut(InterfaceId),
-        visited: &mut BTreeSet<InterfaceId>,
+        visited: &mut HashSet<InterfaceId>,
     ) {
         if !visited.insert(id) {
             return;
@@ -1671,15 +1676,15 @@ package {name} is defined in two different locations:\n\
         let mut package_interfaces = Vec::new();
         let mut package_worlds = Vec::new();
         for (id, pkg) in self.packages.iter() {
-            let mut interfaces = BTreeSet::new();
+            let mut interfaces = HashSet::new();
             for (name, iface) in pkg.interfaces.iter() {
                 assert!(interfaces.insert(*iface));
                 let iface = &self.interfaces[*iface];
                 assert_eq!(name, iface.name.as_ref().unwrap());
                 assert_eq!(iface.package.unwrap(), id);
             }
-            package_interfaces.push(pkg.interfaces.values().copied().collect::<BTreeSet<_>>());
-            let mut worlds = BTreeSet::new();
+            package_interfaces.push(pkg.interfaces.values().copied().collect::<HashSet<_>>());
+            let mut worlds = HashSet::new();
             for (name, world) in pkg.worlds.iter() {
                 assert!(worlds.insert(*world));
                 assert_eq!(
@@ -1691,7 +1696,7 @@ package {name} is defined in two different locations:\n\
                 assert_eq!(*name, world.name);
                 assert_eq!(world.package.unwrap(), id);
             }
-            package_worlds.push(pkg.worlds.values().copied().collect::<BTreeSet<_>>());
+            package_worlds.push(pkg.worlds.values().copied().collect::<HashSet<_>>());
         }
 
         let mut interface_types = Vec::new();
@@ -1706,7 +1711,7 @@ package {name} is defined in two different locations:\n\
                 assert_eq!(ty.name.as_ref(), Some(name));
                 assert_eq!(ty.owner, TypeOwner::Interface(id));
             }
-            interface_types.push(iface.types.values().copied().collect::<BTreeSet<_>>());
+            interface_types.push(iface.types.values().copied().collect::<HashSet<_>>());
             for (name, f) in iface.functions.iter() {
                 assert_eq!(*name, f.name);
             }
@@ -1721,7 +1726,7 @@ package {name} is defined in two different locations:\n\
             }
             assert!(world.includes.is_empty());
 
-            let mut types = BTreeSet::new();
+            let mut types = HashSet::new();
             for (name, item) in world.imports.iter().chain(world.exports.iter()) {
                 log::debug!("validating world item: {}", self.name_world_key(name));
                 match item {
@@ -2251,7 +2256,7 @@ package {name} is defined in two different locations:\n\
         imports: &mut IndexMap<WorldKey, WorldItem>,
         exports: &mut IndexMap<WorldKey, WorldItem>,
     ) -> Result<()> {
-        let mut required_imports = BTreeSet::new();
+        let mut required_imports = HashSet::new();
         for (id, (key, stability)) in export_interfaces.iter() {
             let name = self.name_world_key(&key);
             let ok = add_world_export(
@@ -2295,7 +2300,7 @@ package {name} is defined in two different locations:\n\
             imports: &mut IndexMap<WorldKey, WorldItem>,
             exports: &mut IndexMap<WorldKey, WorldItem>,
             export_interfaces: &IndexMap<InterfaceId, (WorldKey, &Stability)>,
-            required_imports: &mut BTreeSet<InterfaceId>,
+            required_imports: &mut HashSet<InterfaceId>,
             id: InterfaceId,
             key: &WorldKey,
             add_export: bool,
@@ -2370,8 +2375,8 @@ package {name} is defined in two different locations:\n\
         // At the same time a `to_remove` set is maintained to remember what
         // interfaces are being removed from `from` and `into`. All of
         // `to_remove` are placed with a known other version.
-        let mut semver_tracks = BTreeMap::new();
-        let mut to_remove = BTreeSet::new();
+        let mut semver_tracks = HashMap::new();
+        let mut to_remove = HashSet::new();
         for (key, _) in world.imports.iter() {
             let iface_id = match key {
                 WorldKey::Interface(id) => *id,
@@ -2388,10 +2393,10 @@ package {name} is defined in two different locations:\n\
                 track.1,
             );
             match semver_tracks.entry(track.clone()) {
-                btree_map::Entry::Vacant(e) => {
+                Entry::Vacant(e) => {
                     e.insert((version, iface_id));
                 }
-                btree_map::Entry::Occupied(mut e) => match version.cmp(&e.get().0) {
+                Entry::Occupied(mut e) => match version.cmp(&e.get().0) {
                     Ordering::Greater => {
                         to_remove.insert(e.get().1);
                         e.insert((version, iface_id));
@@ -2406,7 +2411,7 @@ package {name} is defined in two different locations:\n\
 
         // Build a map of "this interface is replaced with this interface" using
         // the results of the loop above.
-        let mut replacements = BTreeMap::new();
+        let mut replacements = HashMap::new();
         for id in to_remove {
             let (track, _) = self.semver_track(id).unwrap();
             let (_, latest) = semver_tracks[&track];
@@ -2498,7 +2503,7 @@ package {name} is defined in two different locations:\n\
     fn update_interface_deps_of_world_item(
         &mut self,
         item: &WorldItem,
-        replacements: &BTreeMap<InterfaceId, InterfaceId>,
+        replacements: &HashMap<InterfaceId, InterfaceId>,
     ) {
         match *item {
             WorldItem::Type(t) => self.update_interface_dep_of_type(t, &replacements),
@@ -2541,7 +2546,7 @@ package {name} is defined in two different locations:\n\
     fn update_interface_dep_of_type(
         &mut self,
         ty: TypeId,
-        replacements: &BTreeMap<InterfaceId, InterfaceId>,
+        replacements: &HashMap<InterfaceId, InterfaceId>,
     ) {
         let to_replace = match self.type_interface_dep(ty) {
             Some(id) => id,
@@ -2829,7 +2834,7 @@ pub struct Remap {
     ///
     /// The key of this map is the resource id `T` in the new resolve, and
     /// the value is the `own<T>` type pointing to `T`.
-    own_handles: BTreeMap<TypeId, TypeId>,
+    own_handles: HashMap<TypeId, TypeId>,
 
     type_has_borrow: Vec<Option<bool>>,
 }
@@ -3127,8 +3132,8 @@ impl Remap {
     ) -> Result<()> {
         // Invert the `foreign_deps` map to be keyed by world id to get
         // used in the loops below.
-        let mut world_to_package = BTreeMap::new();
-        let mut interface_to_package = BTreeMap::new();
+        let mut world_to_package = HashMap::new();
+        let mut interface_to_package = HashMap::new();
         for (i, (pkg_name, worlds_or_ifaces)) in unresolved.foreign_deps.iter().enumerate() {
             for (name, (item, stabilities)) in worlds_or_ifaces {
                 match item {
@@ -3193,10 +3198,7 @@ impl Remap {
     fn process_foreign_interfaces(
         &mut self,
         unresolved: &UnresolvedPackage,
-        interface_to_package: &BTreeMap<
-            InterfaceId,
-            (&PackageName, &String, Span, &Vec<Stability>),
-        >,
+        interface_to_package: &HashMap<InterfaceId, (&PackageName, &String, Span, &Vec<Stability>)>,
         resolve: &mut Resolve,
         parent_pkg_id: &PackageId,
     ) -> Result<(), anyhow::Error> {
@@ -3261,7 +3263,7 @@ impl Remap {
     fn process_foreign_worlds(
         &mut self,
         unresolved: &UnresolvedPackage,
-        world_to_package: &BTreeMap<WorldId, (&PackageName, &String, Span, &Vec<Stability>)>,
+        world_to_package: &HashMap<WorldId, (&PackageName, &String, Span, &Vec<Stability>)>,
         resolve: &mut Resolve,
         parent_pkg_id: &PackageId,
     ) -> Result<(), anyhow::Error> {
@@ -3662,7 +3664,7 @@ impl Remap {
         let validate_names = |items: &IndexMap<WorldKey, WorldItem>,
                               item_type: &str|
          -> Result<()> {
-            let mut seen_lowercase: BTreeMap<String, String> = BTreeMap::new();
+            let mut seen_lowercase: HashMap<String, String> = HashMap::new();
 
             for key in items.keys() {
                 // Only WorldKey::Name variants can have case-insensitive conflicts
@@ -3909,19 +3911,19 @@ impl Remap {
 struct MergeMap<'a> {
     /// A map of package ids in `from` to those in `into` for those that are
     /// found to be equivalent.
-    package_map: BTreeMap<PackageId, PackageId>,
+    package_map: HashMap<PackageId, PackageId>,
 
     /// A map of interface ids in `from` to those in `into` for those that are
     /// found to be equivalent.
-    interface_map: BTreeMap<InterfaceId, InterfaceId>,
+    interface_map: HashMap<InterfaceId, InterfaceId>,
 
     /// A map of type ids in `from` to those in `into` for those that are
     /// found to be equivalent.
-    type_map: BTreeMap<TypeId, TypeId>,
+    type_map: HashMap<TypeId, TypeId>,
 
     /// A map of world ids in `from` to those in `into` for those that are
     /// found to be equivalent.
-    world_map: BTreeMap<WorldId, WorldId>,
+    world_map: HashMap<WorldId, WorldId>,
 
     /// A list of documents that need to be added to packages in `into`.
     ///
@@ -4190,7 +4192,7 @@ impl<'a> MergeMap<'a> {
 
     fn map_name(
         from_name: &WorldKey,
-        interface_map: &BTreeMap<InterfaceId, InterfaceId>,
+        interface_map: &HashMap<InterfaceId, InterfaceId>,
     ) -> WorldKey {
         match from_name {
             WorldKey::Name(s) => WorldKey::Name(s.clone()),
@@ -4217,7 +4219,7 @@ impl<'a> MergeMap<'a> {
                     // if either is unnamed it won't be present in
                     // `interface_map` so this'll return an error.
                     _ => {
-                        if self.interface_map.get(&from) != Some(&into) {
+                        if self.interface_map.get(from) != Some(into) {
                             bail!("interfaces are not the same");
                         }
                     }

@@ -1,5 +1,4 @@
 use crate::*;
-use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
@@ -507,8 +506,8 @@ struct WitPackageDecoder<'a> {
     resolve: Resolve,
     types: &'a Types,
     foreign_packages: IndexMap<String, Package>,
-    iface_to_package_index: BTreeMap<InterfaceId, usize>,
-    named_interfaces: BTreeMap<String, InterfaceId>,
+    iface_to_package_index: HashMap<InterfaceId, usize>,
+    named_interfaces: HashMap<String, InterfaceId>,
 
     /// A map which tracks named resources to what their corresponding `TypeId`
     /// is. This first layer of key in this map is the owner scope of a
@@ -517,10 +516,10 @@ struct WitPackageDecoder<'a> {
     /// and points to the actual ID of the resource.
     ///
     /// This map is populated in `register_type_export`.
-    resources: BTreeMap<TypeOwner, BTreeMap<String, TypeId>>,
+    resources: HashMap<TypeOwner, HashMap<String, TypeId>>,
 
     /// A map from a type id to what it's been translated to.
-    type_map: BTreeMap<ComponentAnyTypeId, TypeId>,
+    type_map: HashMap<ComponentAnyTypeId, TypeId>,
 }
 
 impl WitPackageDecoder<'_> {
@@ -528,7 +527,7 @@ impl WitPackageDecoder<'_> {
         WitPackageDecoder {
             resolve: Resolve::default(),
             types,
-            type_map: BTreeMap::new(),
+            type_map: HashMap::new(),
             foreign_packages: Default::default(),
             iface_to_package_index: Default::default(),
             named_interfaces: Default::default(),
@@ -1061,7 +1060,7 @@ impl WitPackageDecoder<'_> {
             let prev = self
                 .resources
                 .entry(owner)
-                .or_insert(BTreeMap::new())
+                .or_insert(HashMap::new())
                 .insert(name.to_string(), ty);
             assert!(prev.is_none());
         }
@@ -1249,7 +1248,8 @@ impl WitPackageDecoder<'_> {
         };
 
         // Don't create duplicate types for anything previously created.
-        if let Some(ret) = self.type_map.get(&id.into()) {
+        let key: ComponentAnyTypeId = id.into();
+        if let Some(ret) = self.type_map.get(&key) {
             return Ok(Type::Id(*ret));
         }
 
@@ -1404,12 +1404,14 @@ impl WitPackageDecoder<'_> {
             }
 
             ComponentDefinedType::Own(id) => {
-                let id = self.type_map[&(*id).into()];
+                let key: ComponentAnyTypeId = (*id).into();
+                let id = self.type_map[&key];
                 Ok(TypeDefKind::Handle(Handle::Own(id)))
             }
 
             ComponentDefinedType::Borrow(id) => {
-                let id = self.type_map[&(*id).into()];
+                let key: ComponentAnyTypeId = (*id).into();
+                let id = self.type_map[&key];
                 Ok(TypeDefKind::Handle(Handle::Borrow(id)))
             }
 
@@ -1582,7 +1584,7 @@ impl WitPackageDecoder<'_> {
 /// wit-defined type.
 struct Registrar<'a> {
     types: &'a Types,
-    type_map: &'a mut BTreeMap<ComponentAnyTypeId, TypeId>,
+    type_map: &'a mut HashMap<ComponentAnyTypeId, TypeId>,
     resolve: &'a Resolve,
 }
 

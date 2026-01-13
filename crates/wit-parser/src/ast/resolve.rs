@@ -1,7 +1,6 @@
 use super::{ParamList, WorldOrInterface};
 use crate::ast::toposort::toposort;
 use crate::*;
-use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::{format, vec};
@@ -26,7 +25,7 @@ pub struct Resolver<'a> {
 
     // Interning structure for types which-need-not-be-named such as
     // `list<string>` and such.
-    anon_types: BTreeMap<Key, TypeId>,
+    anon_types: HashMap<Key, TypeId>,
 
     /// The index within `self.ast_items` that lookups should go through. This
     /// is updated as the ASTs are walked.
@@ -55,9 +54,9 @@ pub struct Resolver<'a> {
     foreign_deps: IndexMap<PackageName, IndexMap<&'a str, (AstItem, Vec<Stability>)>>,
 
     /// All interfaces that are present within `self.foreign_deps`.
-    foreign_interfaces: BTreeSet<InterfaceId>,
+    foreign_interfaces: HashSet<InterfaceId>,
 
-    foreign_worlds: BTreeSet<WorldId>,
+    foreign_worlds: HashSet<WorldId>,
 
     /// The current type lookup scope which will eventually make its way into
     /// `self.interface_types`.
@@ -88,7 +87,7 @@ pub struct Resolver<'a> {
     required_resource_types: Vec<(TypeId, Span)>,
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(PartialEq, Eq, Hash)]
 enum Key {
     Variant(Vec<(String, Option<Type>)>),
     BorrowHandle(TypeId),
@@ -363,7 +362,7 @@ impl<'a> Resolver<'a> {
 
         // Validate that all worlds and interfaces have unique names within this
         // package across all ASTs which make up the package.
-        let mut names = BTreeMap::new();
+        let mut names = HashMap::new();
         let mut decl_list_namespaces = Vec::new();
         let mut order = IndexMap::default();
         for decl_list in decl_lists {
@@ -661,8 +660,8 @@ impl<'a> Resolver<'a> {
             }
         }
 
-        let mut imported_interfaces = BTreeSet::new();
-        let mut exported_interfaces = BTreeSet::new();
+        let mut imported_interfaces = HashSet::new();
+        let mut exported_interfaces = HashSet::new();
         for item in world.items.iter() {
             let (docs, attrs, kind, desc, spans, interfaces) = match item {
                 ast::WorldItem::Import(import) => (
@@ -1233,7 +1232,7 @@ impl<'a> Resolver<'a> {
                 // Validate here that the resource doesn't have any duplicate-ly
                 // named methods and that there's at most one constructor.
                 let mut ctors = 0;
-                let mut names = BTreeSet::new();
+                let mut names = HashSet::new();
                 for func in resource.funcs.iter() {
                     match func {
                         ast::ResourceFunc::Method(f) | ast::ResourceFunc::Static(f) => {

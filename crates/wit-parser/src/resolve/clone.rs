@@ -18,28 +18,27 @@
 //! cloning everything within a `Resolve`.
 
 use crate::*;
-use alloc::collections::BTreeMap;
 
 /// Represents the results of cloning types and/or interfaces as part of a
 /// `Resolve::merge_worlds` operation.
 #[derive(Default)]
 pub struct CloneMaps {
-    pub(super) types: BTreeMap<TypeId, TypeId>,
-    pub(super) interfaces: BTreeMap<InterfaceId, InterfaceId>,
+    pub(super) types: HashMap<TypeId, TypeId>,
+    pub(super) interfaces: HashMap<InterfaceId, InterfaceId>,
 }
 
 impl CloneMaps {
     /// The types cloned during a `Resolve::merge_worlds` operation.
     ///
     /// The key is the original type, and the value is the clone.
-    pub fn types(&self) -> &BTreeMap<TypeId, TypeId> {
+    pub fn types(&self) -> &HashMap<TypeId, TypeId> {
         &self.types
     }
 
     /// The interfaces cloned during a `Resolve::merge_worlds` operation.
     ///
     /// The key is the original interface, and the value is the clone.
-    pub fn interfaces(&self) -> &BTreeMap<InterfaceId, InterfaceId> {
+    pub fn interfaces(&self) -> &HashMap<InterfaceId, InterfaceId> {
         &self.interfaces
     }
 }
@@ -52,7 +51,7 @@ pub struct Cloner<'a> {
     /// This map keeps track, in the current scope of types, of all copied
     /// types. This deduplicates copying types to ensure that they're only
     /// copied at most once.
-    pub types: BTreeMap<TypeId, TypeId>,
+    pub types: HashMap<TypeId, TypeId>,
 
     /// If `None` then it's inferred from `self.new_owner`.
     pub new_package: Option<PackageId>,
@@ -116,7 +115,7 @@ impl<'a> Cloner<'a> {
             let id = self.resolve.types.alloc(new);
             self.types.insert(*ty, id);
         }
-        *ty = self.types[ty];
+        *ty = self.types[&*ty];
     }
 
     fn type_def(&mut self, def: &mut TypeDef) {
@@ -201,7 +200,7 @@ impl<'a> Cloner<'a> {
         }
     }
 
-    fn interface(&mut self, id: &mut InterfaceId, cloned_types: &mut BTreeMap<TypeId, TypeId>) {
+    fn interface(&mut self, id: &mut InterfaceId, cloned_types: &mut HashMap<TypeId, TypeId>) {
         let mut new = self.resolve.interfaces[*id].clone();
         let next_id = self.resolve.interfaces.next_id();
         let mut clone = Cloner::new(
