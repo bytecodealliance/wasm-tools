@@ -421,12 +421,9 @@ pub struct EncodingState<'a> {
     /// Metadata about the world inferred from the input to `ComponentEncoder`.
     info: &'a ComponentWorld<'a>,
 
-    /// Maps from original export name to wrapper function index.
+    /// Maps from original export name to task initialization wrapper function index.
     /// Used to wrap exports with __wasilibc_init_task calls.
-    export_wrappers: HashMap<String, u32>,
-
-    /// Index of wasilibc init task wrapper module instance, if any.
-    wrapper_instance_index: Option<u32>,
+    export_task_initialization_wrappers: HashMap<String, u32>,
 }
 
 impl<'a> EncodingState<'a> {
@@ -1068,7 +1065,7 @@ impl<'a> EncodingState<'a> {
         let instance_index = self.instance_for(module);
         // If we generated a wasilibc init task wrapper for this export, use that,
         // otherwise alias the original export.
-        let core_func_index = if let Some(&wrapper_idx) = self.export_wrappers.get(core_name) {
+        let core_func_index = if let Some(&wrapper_idx) = self.export_task_initialization_wrappers.get(core_name) {
             wrapper_idx
         } else {
             self.core_alias_export(Some(core_name), instance_index, core_name, ExportKind::Func)
@@ -2377,13 +2374,11 @@ impl<'a> EncodingState<'a> {
             [("", ModuleArg::Instance(wrapper_args_idx))],
         );
 
-        self.wrapper_instance_index = Some(wrapper_instance);
-
         // Map original names to wrapper indices
         for (name, _, _) in funcs_to_wrap {
             let wrapper_idx =
                 self.core_alias_export(Some(&name), wrapper_instance, &name, ExportKind::Func);
-            self.export_wrappers.insert(name.into(), wrapper_idx);
+            self.export_task_initialization_wrappers.insert(name.into(), wrapper_idx);
         }
 
         Ok(())
@@ -3322,8 +3317,7 @@ impl ComponentEncoder {
             exported_instances: Default::default(),
             aliased_core_items: Default::default(),
             info: &world,
-            export_wrappers: HashMap::new(),
-            wrapper_instance_index: None,
+            export_task_initialization_wrappers: HashMap::new(),
         };
         state.encode_imports(&self.import_name_map)?;
         state.encode_core_modules();
