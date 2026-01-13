@@ -2263,6 +2263,7 @@ impl<'a> EncodingState<'a> {
         types.ty().function([], []);
         let wasilibc_init_task_type_idx = 0;
 
+        // Import __wasilibc_init_task and __wasilibc_init_task_async into the wrapper module
         imports.import(
             "",
             wasilibc_init_task,
@@ -2332,8 +2333,8 @@ impl<'a> EncodingState<'a> {
             .component
             .core_module(Some("wasilibc-init-wrappers"), &wrapper_module);
 
+        // Prepare imports for instantiating the wrapper module
         let mut wrapper_imports = Vec::new();
-
         let init_idx = self.core_alias_export(
             Some(wasilibc_init_task),
             instance_index,
@@ -2349,7 +2350,7 @@ impl<'a> EncodingState<'a> {
         wrapper_imports.push((wasilibc_init_task.into(), ExportKind::Func, init_idx));
         wrapper_imports.push((wasilibc_init_task_async.into(), ExportKind::Func, init_async_idx));
         
-        // Import all original functions
+        // Import all original exports to be wrapped
         for (name, func, _) in &funcs_to_wrap {
             let orig_idx =
                 self.core_alias_export(Some(name), instance_index, name, ExportKind::Func);
