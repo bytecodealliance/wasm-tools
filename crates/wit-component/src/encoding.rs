@@ -2232,23 +2232,20 @@ impl<'a> EncodingState<'a> {
 
         // Collect the exports that we will need to wrap, alongside information
         // that we'll need to build the wrappers.
-        let mut funcs_to_wrap = Vec::new();
-        for (core_name, export) in exports.iter() {
-            match export {
-                Export::WorldFunc(key, _, abi) => {
-                    let func = match &world.exports[key] {
-                        WorldItem::Function(f) => f,
-                        _ => continue,
-                    };
-                    funcs_to_wrap.push((core_name, func, abi));
-                }
+        let funcs_to_wrap: Vec<_> = exports
+            .iter()
+            .flat_map(|(core_name, export)| match export {
+                Export::WorldFunc(key, _, abi) => match &world.exports[key] {
+                    WorldItem::Function(f) => Some((core_name, f, abi)),
+                    _ => None,
+                },
                 Export::InterfaceFunc(_, id, func_name, abi) => {
                     let func = &resolve.interfaces[*id].functions[func_name.as_str()];
-                    funcs_to_wrap.push((core_name, func, abi));
+                    Some((core_name, func, abi))
                 }
-                _ => continue,
-            }
-        }
+                _ => None,
+            })
+            .collect();
 
         if funcs_to_wrap.is_empty() {
             // No exports, so no wrappers are needed.
