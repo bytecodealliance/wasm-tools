@@ -1111,6 +1111,12 @@ pub enum Export {
 
     /// __indirect_function_table, used for `thread.new-indirect`
     IndirectFunctionTable,
+
+    /// __wasilibc_init_task, used for wasi-libc initialization
+    WasiLibCInitTask,
+
+    /// __wasilibc_init_task_async, used for wasi-libc initialization for async-lifted exports
+    WasiLibCInitTaskAsync,
 }
 
 impl ExportMap {
@@ -1209,6 +1215,14 @@ impl ExportMap {
             let expected = FuncType::new([], []);
             validate_func_sig(name, &expected, ty)?;
             return Ok(Some(Export::Initialize));
+        } else if Some(name) == names.export_wasilibc_init_task() {
+            let expected = FuncType::new([], []);
+            validate_func_sig(name, &expected, ty)?;
+            return Ok(Some(Export::WasiLibCInitTask));
+        } else if Some(name) == names.export_wasilibc_init_task_async() {
+            let expected = FuncType::new([], []);
+            validate_func_sig(name, &expected, ty)?;
+            return Ok(Some(Export::WasiLibCInitTaskAsync));
         }
 
         let full_name = name;
@@ -1372,6 +1386,16 @@ impl ExportMap {
         self.find(|t| matches!(t, Export::IndirectFunctionTable))
     }
 
+    /// Returns the `__wasilibc_init_task` function, if exported, for this module.
+    pub fn wasilibc_init_task(&self) -> Option<&str> {
+        self.find(|t| matches!(t, Export::WasiLibCInitTask))
+    }
+
+    /// Returns the `__wasilibc_init_task_async` function, if exported, for this module.
+    pub fn wasilibc_init_task_async(&self) -> Option<&str> {
+        self.find(|t| matches!(t, Export::WasiLibCInitTaskAsync))
+    }
+
     /// Returns the `_initialize` intrinsic, if exported, for this module.
     pub fn initialize(&self) -> Option<&str> {
         self.find(|m| matches!(m, Export::Initialize))
@@ -1529,6 +1553,8 @@ trait NameMangling {
     fn export_initialize(&self) -> &str;
     fn export_realloc(&self) -> &str;
     fn export_indirect_function_table(&self) -> Option<&str>;
+    fn export_wasilibc_init_task(&self) -> Option<&str>;
+    fn export_wasilibc_init_task_async(&self) -> Option<&str>;
     fn resource_drop_name<'a>(&self, name: &'a str) -> Option<&'a str>;
     fn resource_new_name<'a>(&self, name: &'a str) -> Option<&'a str>;
     fn resource_rep_name<'a>(&self, name: &'a str) -> Option<&'a str>;
@@ -1671,6 +1697,12 @@ impl NameMangling for Standard {
         "_realloc"
     }
     fn export_indirect_function_table(&self) -> Option<&str> {
+        None
+    }
+    fn export_wasilibc_init_task(&self) -> Option<&str> {
+        None
+    }
+    fn export_wasilibc_init_task_async(&self) -> Option<&str> {
         None
     }
     fn resource_drop_name<'a>(&self, name: &'a str) -> Option<&'a str> {
@@ -2112,6 +2144,12 @@ impl NameMangling for Legacy {
     }
     fn export_indirect_function_table(&self) -> Option<&str> {
         Some("__indirect_function_table")
+    }
+    fn export_wasilibc_init_task(&self) -> Option<&str> {
+        Some("__wasilibc_init_task")
+    }
+    fn export_wasilibc_init_task_async(&self) -> Option<&str> {
+        Some("__wasilibc_init_task_async")
     }
     fn resource_drop_name<'a>(&self, name: &'a str) -> Option<&'a str> {
         name.strip_prefix("[resource-drop]")

@@ -116,6 +116,32 @@ fn to_val_type(ty: &WasmType) -> ValType {
     }
 }
 
+            fn import_func_name(f: &Function) -> String {
+            match f.kind {
+                FunctionKind::Freestanding | FunctionKind::AsyncFreestanding => {
+                    format!("import-func-{}", f.item_name())
+                }
+
+                // transform `[method]foo.bar` into `import-method-foo-bar` to
+                // have it be a valid kebab-name which can't conflict with
+                // anything else.
+                //
+                // There's probably a better and more "formal" way to do this
+                // but quick-and-dirty string manipulation should work well
+                // enough for now hopefully.
+                FunctionKind::Method(_)
+                | FunctionKind::AsyncMethod(_)
+                | FunctionKind::Static(_)
+                | FunctionKind::AsyncStatic(_)
+                | FunctionKind::Constructor(_) => {
+                    format!(
+                        "import-{}",
+                        f.name.replace('[', "").replace([']', '.', ' '], "-")
+                    )
+                }
+            }
+        }
+
 bitflags::bitflags! {
     /// Options in the `canon lower` or `canon lift` required for a particular
     /// function.
@@ -394,6 +420,13 @@ pub struct EncodingState<'a> {
 
     /// Metadata about the world inferred from the input to `ComponentEncoder`.
     info: &'a ComponentWorld<'a>,
+
+    /// Maps from original export name to wrapper function index.
+    /// Used to wrap exports with __wasilibc_init_task calls.
+    export_wrappers: HashMap<String, u32>,
+
+    /// Index of wasilibc init task wrapper module instance, if any.
+    wrapper_instance_index: Option<u32>,
 }
 
 impl<'a> EncodingState<'a> {
@@ -600,6 +633,10 @@ impl<'a> EncodingState<'a> {
         // at the end.
         self.instantiate_main_module(&shims)?;
 
+        // Create any wrappers needed for initializing tasks if wasilibc is
+        // being used.
+        self.create_export_task_initialization_wrappers()?;
+
         // Separate the adapters according which should be instantiated before
         // and after indirect lowerings are encoded.
         let (before, after) = self
@@ -688,7 +725,9 @@ impl<'a> EncodingState<'a> {
                 | Export::GeneralPurposeImportRealloc
                 | Export::Initialize
                 | Export::ReallocForAdapter
-                | Export::IndirectFunctionTable => continue,
+                | Export::IndirectFunctionTable
+                | Export::WasiLibCInitTask   
+                | Export::WasiLibCInitTaskAsync => continue,
             }
         }
 
@@ -1014,32 +1053,6 @@ impl<'a> EncodingState<'a> {
                 name
             }
         }
-
-        fn import_func_name(f: &Function) -> String {
-            match f.kind {
-                FunctionKind::Freestanding | FunctionKind::AsyncFreestanding => {
-                    format!("import-func-{}", f.item_name())
-                }
-
-                // transform `[method]foo.bar` into `import-method-foo-bar` to
-                // have it be a valid kebab-name which can't conflict with
-                // anything else.
-                //
-                // There's probably a better and more "formal" way to do this
-                // but quick-and-dirty string manipulation should work well
-                // enough for now hopefully.
-                FunctionKind::Method(_)
-                | FunctionKind::AsyncMethod(_)
-                | FunctionKind::Static(_)
-                | FunctionKind::AsyncStatic(_)
-                | FunctionKind::Constructor(_) => {
-                    format!(
-                        "import-{}",
-                        f.name.replace('[', "").replace([']', '.', ' '], "-")
-                    )
-                }
-            }
-        }
     }
 
     fn encode_lift(
@@ -1053,8 +1066,13 @@ impl<'a> EncodingState<'a> {
         let resolve = &self.info.encoder.metadata.resolve;
         let metadata = self.info.module_metadata_for(module);
         let instance_index = self.instance_for(module);
-        let core_func_index =
-            self.core_alias_export(Some(core_name), instance_index, core_name, ExportKind::Func);
+        // If we generated a wasilibc init task wrapper for this export, use that,
+        // otherwise alias the original export.
+        let core_func_index = if let Some(&wrapper_idx) = self.export_wrappers.get(core_name) {
+            wrapper_idx
+        } else {
+            self.core_alias_export(Some(core_name), instance_index, core_name, ExportKind::Func)
+        };
         let exports = self.info.exports_for(module);
 
         let options = RequiredOptions::for_export(
@@ -2189,6 +2207,187 @@ impl<'a> EncodingState<'a> {
                     .core_alias_export(debug_name, instance, name, kind)
             })
     }
+
+    /// wasi-libc defines `__wasilibc_init_task(_async)` functions that must be called
+    /// at the start of every exported function to set up the stack pointer and
+    /// thread-local storage. To achieve this, we create a wrapper module called 
+    /// `wasilibc-init-wrappers` that imports the original exports and the
+    /// task initialization functions, and defines wrapper functions that call
+    /// the relevant task initialization function before delegating to the original export.
+    /// We then instantiate this wrapper module and use its exports as the final
+    /// exports of the component. If we don't find a `__wasilibc_init_task` export,
+    /// we elide the wrapper module entirely.
+    fn create_export_task_initialization_wrappers(&mut self) -> Result<()> {
+        let instance_index = self.instance_index.unwrap();
+        let resolve = &self.info.encoder.metadata.resolve;
+        let world = &resolve.worlds[self.info.encoder.metadata.world];
+        let exports = self.info.exports_for(CustomModule::Main);
+        let wasilibc_init_task = "__wasilibc_init_task";
+        let wasilibc_init_task_async = "__wasilibc_init_task_async";
+
+        let wasilibc_init_task_export = exports.wasilibc_init_task();
+        let wasilibc_init_task_async_export = exports.wasilibc_init_task_async();
+        if wasilibc_init_task_export.is_none() || wasilibc_init_task_async_export.is_none() {
+            // __wasilibc_init_task(_async) was not exported by the main module,
+            // so no wrappers are needed.
+            return Ok(()); 
+        }
+
+        // Collect the exports that we will need to wrap, alongside information
+        // that we'll need to build the wrappers.
+        let mut funcs_to_wrap = Vec::new();
+        for (core_name, export) in exports.iter() {
+            match export {
+                Export::WorldFunc(key, _, abi) => {
+                    let func = match &world.exports[key] {
+                        WorldItem::Function(f) => f,
+                        _ => continue,
+                    };
+                    funcs_to_wrap.push((core_name, func, abi));
+                }
+                Export::InterfaceFunc(_, id, func_name, abi) => {
+                    let func = &resolve.interfaces[*id].functions[func_name.as_str()];
+                    funcs_to_wrap.push((core_name, func, abi));
+                }
+                _ => continue,
+            }
+        }
+
+        if funcs_to_wrap.is_empty() {
+            // No exports, so no wrappers are needed.
+            return Ok(());
+        }
+
+        // Now we build the wrapper module
+        let mut types = TypeSection::new();
+        let mut imports = ImportSection::new();
+        let mut functions = FunctionSection::new();
+        let mut exports_section = ExportSection::new();
+        let mut code = CodeSection::new();
+
+        // Type for __wasilibc_init_task(_async): () -> ()
+        types.ty().function([], []);
+        let wasilibc_init_task_type_idx = 0;
+
+        imports.import(
+            "",
+            wasilibc_init_task,
+            EntityType::Function(wasilibc_init_task_type_idx),
+        );        
+        imports.import(
+            "",
+            wasilibc_init_task_async,
+            EntityType::Function(wasilibc_init_task_type_idx),
+        );
+        let wasilibc_init_task_func_idx = 0u32;
+        let wasilibc_init_task_async_func_idx = 1u32;
+
+        let mut type_indices = HashMap::new();
+        let mut next_type_idx = 1u32;
+        let mut next_func_idx = 2u32;
+
+        // Create wrapper functions for each export
+        for &(name, func, abi) in funcs_to_wrap.iter() {
+            let sig = resolve.wasm_signature(*abi, func);
+            let type_idx = *type_indices.entry(sig.clone()).or_insert_with(|| {
+                let idx = next_type_idx;
+                types.ty().function(
+                    sig.params.iter().map(to_val_type),
+                    sig.results.iter().map(to_val_type),
+                );
+                next_type_idx += 1;
+                idx
+            });
+
+            imports.import(
+                "",
+                &import_func_name(func),
+                EntityType::Function(type_idx),
+            );
+            let orig_func_idx = next_func_idx;
+            next_func_idx += 1;
+
+            let wrapper_func_idx = next_func_idx;
+            functions.function(type_idx);
+
+            let mut func = wasm_encoder::Function::new([]);
+            if abi.is_async() {
+                func.instruction(&Instruction::Call(wasilibc_init_task_async_func_idx));
+            } else {
+                func.instruction(&Instruction::Call(wasilibc_init_task_func_idx));
+            }
+            for i in 0..sig.params.len() as u32 {
+                func.instruction(&Instruction::LocalGet(i));
+            }
+            func.instruction(&Instruction::Call(orig_func_idx));
+            func.instruction(&Instruction::End);
+            code.function(&func);
+
+            exports_section.export(name, ExportKind::Func, wrapper_func_idx);
+            next_func_idx += 1;
+        }
+
+        let mut wrapper_module = Module::new();
+        wrapper_module.section(&types);
+        wrapper_module.section(&imports);
+        wrapper_module.section(&functions);
+        wrapper_module.section(&exports_section);
+        wrapper_module.section(&code);
+
+        let wrapper_module_idx = self
+            .component
+            .core_module(Some("wasilibc-init-wrappers"), &wrapper_module);
+
+        let mut wrapper_imports = Vec::new();
+
+        let init_idx = self.core_alias_export(
+            Some(wasilibc_init_task),
+            instance_index,
+            wasilibc_init_task,
+            ExportKind::Func,
+        );
+        let init_async_idx = self.core_alias_export(
+            Some(wasilibc_init_task_async),
+            instance_index,
+            wasilibc_init_task_async,
+            ExportKind::Func,
+        );
+        wrapper_imports.push((wasilibc_init_task.into(), ExportKind::Func, init_idx));
+        wrapper_imports.push((wasilibc_init_task_async.into(), ExportKind::Func, init_async_idx));
+        
+        // Import all original functions
+        for (name, func, _) in &funcs_to_wrap {
+            let orig_idx =
+                self.core_alias_export(Some(name), instance_index, name, ExportKind::Func);
+            wrapper_imports.push((
+                import_func_name(func),
+                ExportKind::Func,
+                orig_idx,
+            ));
+        }
+
+        let wrapper_args_idx = self.component.core_instantiate_exports(
+            Some("wasilibc-init-wrappers-args"),
+            wrapper_imports.iter().map(|(n, k, i)| (n.as_str(), *k, *i)),
+        );
+
+        let wrapper_instance = self.component.core_instantiate(
+            Some("wasilibc-init-wrappers-instance"),
+            wrapper_module_idx,
+            [("", ModuleArg::Instance(wrapper_args_idx))],
+        );
+
+        self.wrapper_instance_index = Some(wrapper_instance);
+
+        // Map original names to wrapper indices
+        for (name, _, _) in funcs_to_wrap {
+            let wrapper_idx =
+                self.core_alias_export(Some(&name), wrapper_instance, &name, ExportKind::Func);
+            self.export_wrappers.insert(name.into(), wrapper_idx);
+        }
+
+        Ok(())
+    }
 }
 
 /// A list of "shims" which start out during the component instantiation process
@@ -3123,6 +3322,8 @@ impl ComponentEncoder {
             exported_instances: Default::default(),
             aliased_core_items: Default::default(),
             info: &world,
+            export_wrappers: HashMap::new(),
+            wrapper_instance_index: None,
         };
         state.encode_imports(&self.import_name_map)?;
         state.encode_core_modules();
