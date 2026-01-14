@@ -595,7 +595,11 @@ package {name} is defined in two different locations:\n\
     /// are the contents of a WIT package.
     #[cfg(feature = "std")]
     pub fn push_str(&mut self, path: impl AsRef<Path>, contents: &str) -> Result<PackageId> {
-        self.push_source(&path.as_ref().display().to_string(), contents)
+        let path = path
+            .as_ref()
+            .to_str()
+            .ok_or_else(|| anyhow!("path is not valid utf-8: {:?}", path.as_ref()))?;
+        self.push_source(path, contents)
     }
 
     /// Convenience method for combining [`UnresolvedPackageGroup::parse_str`] and

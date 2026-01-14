@@ -20,9 +20,9 @@ pub type IndexMap<K, V> = indexmap::IndexMap<K, V, std::hash::RandomState>;
 #[cfg(feature = "std")]
 pub type IndexSet<T> = indexmap::IndexSet<T, std::hash::RandomState>;
 #[cfg(not(feature = "std"))]
-pub type IndexMap<K, V> = indexmap::IndexMap<K, V, ahash::RandomState>;
+pub type IndexMap<K, V> = indexmap::IndexMap<K, V, hashbrown::DefaultHashBuilder>;
 #[cfg(not(feature = "std"))]
-pub type IndexSet<T> = indexmap::IndexSet<T, ahash::RandomState>;
+pub type IndexSet<T> = indexmap::IndexSet<T, hashbrown::DefaultHashBuilder>;
 
 #[cfg(feature = "std")]
 pub(crate) use std::collections::{HashMap, HashSet};
@@ -358,7 +358,11 @@ impl UnresolvedPackageGroup {
     /// the filesystem.
     #[cfg(feature = "std")]
     pub fn parse(path: impl AsRef<Path>, contents: &str) -> Result<UnresolvedPackageGroup> {
-        Self::parse_str(&path.as_ref().display().to_string(), contents)
+        let path = path
+            .as_ref()
+            .to_str()
+            .ok_or_else(|| anyhow::anyhow!("path is not valid utf-8: {:?}", path.as_ref()))?;
+        Self::parse_str(path, contents)
     }
 
     /// Parses the given string as a wit document.

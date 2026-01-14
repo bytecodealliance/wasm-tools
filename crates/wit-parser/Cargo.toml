@@ -17,7 +17,6 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-ahash = { workspace = true, features = ["compile-time-rng"] }
 anyhow = { workspace = true }
 hashbrown = { workspace = true }
 id-arena = { workspace = true }
