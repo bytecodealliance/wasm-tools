@@ -12,9 +12,9 @@ use std::path::{Path, PathBuf};
 
 use crate::*;
 use anyhow::{Context, Result, anyhow, bail};
-use id_arena::{Arena, Id};
 #[cfg(not(feature = "std"))]
-use indexmap::map::Entry;
+use hashbrown::hash_map::Entry;
+use id_arena::{Arena, Id};
 use semver::Version;
 #[cfg(feature = "serde")]
 use serde_derive::Serialize;
@@ -2418,6 +2418,9 @@ package {name} is defined in two different locations:\n\
             let prev = replacements.insert(id, latest);
             assert!(prev.is_none());
         }
+        // Explicit drop needed for hashbrown compatibility - hashbrown's HashMap
+        // destructor may access stored references, extending the borrow.
+        drop(semver_tracks);
 
         // Validate that `merge_world_item` succeeds for merging all removed
         // interfaces with their replacement. This is a double-check that the

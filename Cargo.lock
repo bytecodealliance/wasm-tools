@@ -3213,6 +3213,7 @@ dependencies = [
  "ahash",
  "anyhow",
  "env_logger",
+ "hashbrown 0.15.4",
  "id-arena 2.2.1 (git+https://github.com/wilfreddenton/id-arena?branch=fix-no-std)",
  "indexmap 2.10.0",
  "libtest-mimic",
