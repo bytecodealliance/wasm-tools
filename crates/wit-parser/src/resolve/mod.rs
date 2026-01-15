@@ -6,8 +6,6 @@ use alloc::{format, vec};
 use core::cmp::Ordering;
 use core::fmt;
 use core::mem;
-#[cfg(feature = "std")]
-use std::path::Path;
 
 use crate::*;
 use anyhow::{Context, Result, anyhow, bail};
@@ -34,6 +32,11 @@ use crate::{
 pub use clone::CloneMaps;
 
 mod clone;
+
+#[cfg(feature = "std")]
+mod fs;
+#[cfg(feature = "std")]
+pub use fs::PackageSourceMap;
 
 /// Representation of a fully resolved set of WIT packages.
 ///
@@ -133,7 +136,14 @@ pub struct PackageSources {
 }
 
 impl PackageSources {
-    fn from_source_maps(
+    pub fn from_single_source(package_id: PackageId, source: &str) -> Self {
+        Self {
+            sources: vec![vec![source.to_owned()]],
+            package_id_to_source_map_idx: BTreeMap::from([(package_id, 0)]),
+        }
+    }
+
+    pub fn from_source_maps(
         source_maps: Vec<SourceMap>,
         package_id_to_source_map_idx: BTreeMap<PackageId, usize>,
     ) -> PackageSources {
@@ -156,58 +166,23 @@ impl PackageSources {
             package_id_to_source_map_idx,
         }
     }
-}
 
-/// All the sources used during resolving a directory or path.
-#[cfg(feature = "std")]
-#[derive(Clone, Debug)]
-pub struct PackageSourceMap {
-    inner: PackageSources,
-}
-
-#[cfg(feature = "std")]
-impl PackageSourceMap {
-    fn from_single_source(package_id: PackageId, source: &Path) -> Self {
-        Self {
-            inner: PackageSources {
-                sources: vec![vec![source.display().to_string()]],
-                package_id_to_source_map_idx: BTreeMap::from([(package_id, 0)]),
-            },
-        }
-    }
-
-    fn from_inner(inner: PackageSources) -> Self {
-        Self { inner }
-    }
-
-    /// All unique source paths.
-    pub fn paths(&self) -> impl Iterator<Item = &Path> {
-        // Usually any two source map should not have duplicated source paths,
-        // but it can happen, e.g. with using [`Resolve::push_str`] directly.
-        // To be sure we use a set for deduplication here.
-        self.inner
-            .sources
+    /// All unique source names.
+    pub fn source_names(&self) -> impl Iterator<Item = &str> {
+        self.sources
             .iter()
             .flatten()
-            .map(|s| Path::new(s))
-            .collect::<IndexSet<&Path>>()
+            .map(|s| s.as_str())
+            .collect::<IndexSet<&str>>()
             .into_iter()
     }
 
-    /// Source paths for package
-    pub fn package_paths(&self, id: PackageId) -> Option<impl Iterator<Item = &Path>> {
-        self.inner
-            .package_id_to_source_map_idx
+    /// Source names for a specific package.
+    pub fn package_source_names(&self, id: PackageId) -> Option<impl Iterator<Item = &str>> {
+        self.package_id_to_source_map_idx
             .get(&id)
-            .map(|&idx| self.inner.sources[idx].iter().map(|s| Path::new(s)))
+            .map(|&idx| self.sources[idx].iter().map(|s| s.as_str()))
     }
-}
-
-#[cfg(feature = "std")]
-enum ParsedFile {
-    #[cfg(feature = "decoding")]
-    Package(PackageId),
-    Unresolved(UnresolvedPackageGroup),
 }
 
 /// Visitor helper for performing topological sort on a group of packages.
@@ -271,33 +246,6 @@ impl Resolve {
     /// will be all the main package in the directory itself. The `PackageId` value is useful
     /// to pass to [`Resolve::select_world`] to take a user-specified world in a
     /// conventional fashion and select which to use for bindings generation.
-    ///
-    /// The returned [`PackageSourceMap`] contains all the sources used during this operation.
-    /// This can be useful for systems that want to rebuild or regenerate bindings based on files modified,
-    /// or for ones which like to identify the used files for a package.
-    ///
-    /// More information can also be found at [`Resolve::push_dir`] and
-    /// [`Resolve::push_file`].
-    #[cfg(feature = "std")]
-    pub fn push_path(&mut self, path: impl AsRef<Path>) -> Result<(PackageId, PackageSourceMap)> {
-        self._push_path(path.as_ref())
-    }
-
-    #[cfg(feature = "std")]
-    fn _push_path(&mut self, path: &Path) -> Result<(PackageId, PackageSourceMap)> {
-        if path.is_dir() {
-            self.push_dir(path).with_context(|| {
-                format!(
-                    "failed to resolve directory while parsing WIT for path [{}]",
-                    path.display()
-                )
-            })
-        } else {
-            let id = self.push_file(path)?;
-            Ok((id, PackageSourceMap::from_single_source(id, path)))
-        }
-    }
-
     fn sort_unresolved_packages(
         &mut self,
         main: UnresolvedPackageGroup,
@@ -382,167 +330,6 @@ package {name} is defined in two different locations:\n\
         ))
     }
 
-    /// Parses the filesystem directory at `path` as a WIT package and returns
-    /// a fully resolved [`PackageId`] list as a result.
-    ///
-    /// The directory itself is parsed with [`UnresolvedPackageGroup::parse_dir`]
-    /// and then all packages found are inserted into this `Resolve`. The `path`
-    /// specified may have a `deps` subdirectory which is probed automatically
-    /// for any other WIT dependencies.
-    ///
-    /// The `deps` folder may contain:
-    ///
-    /// * `$path/deps/my-package/*.wit` - a directory that may contain multiple
-    ///   WIT files. This is parsed with [`UnresolvedPackageGroup::parse_dir`]
-    ///   and then inserted into this [`Resolve`]. Note that cannot recursively
-    ///   contain a `deps` directory.
-    /// * `$path/deps/my-package.wit` - a single-file WIT package. This is
-    ///   parsed with [`Resolve::push_file`] and then added to `self` for
-    ///   name resolution.
-    /// * `$path/deps/my-package.{wasm,wat}` - a wasm-encoded WIT package either
-    ///   in the text for binary format.
-    ///
-    /// In all cases entries in the `deps` folder are added to `self` first
-    /// before adding files found in `path` itself. All WIT packages found are
-    /// candidates for name-based resolution that other packages may use.
-    ///
-    /// This function returns a tuple of two values. The first value is a
-    /// [`PackageId`], which represents the main WIT package found within
-    /// `path`. This argument is useful for passing to [`Resolve::select_world`]
-    /// for choosing something to bindgen with.
-    ///
-    /// The second value returned is a [`PackageSourceMap`], which contains all the sources
-    /// that were parsed during resolving. This can be useful for:
-    /// * build systems that want to rebuild bindings whenever one of the files changed
-    /// * or other tools, which want to identify the sources for the resolved packages
-    #[cfg(feature = "std")]
-    pub fn push_dir(&mut self, path: impl AsRef<Path>) -> Result<(PackageId, PackageSourceMap)> {
-        self._push_dir(path.as_ref())
-    }
-
-    #[cfg(feature = "std")]
-    fn _push_dir(&mut self, path: &Path) -> Result<(PackageId, PackageSourceMap)> {
-        let top_pkg = UnresolvedPackageGroup::parse_dir(path)
-            .with_context(|| format!("failed to parse package: {}", path.display()))?;
-        let deps = path.join("deps");
-        let deps = self
-            .parse_deps_dir(&deps)
-            .with_context(|| format!("failed to parse dependency directory: {}", deps.display()))?;
-
-        let (pkg_id, inner) = self.sort_unresolved_packages(top_pkg, deps)?;
-        Ok((pkg_id, PackageSourceMap::from_inner(inner)))
-    }
-
-    #[cfg(feature = "std")]
-    fn parse_deps_dir(&mut self, path: &Path) -> Result<Vec<UnresolvedPackageGroup>> {
-        let mut ret = Vec::new();
-        if !path.exists() {
-            return Ok(ret);
-        }
-        let mut entries = path
-            .read_dir()
-            .and_then(|i| i.collect::<std::io::Result<Vec<_>>>())
-            .context("failed to read directory")?;
-        entries.sort_by_key(|e| e.file_name());
-        for dep in entries {
-            let path = dep.path();
-            let pkg = if dep.file_type()?.is_dir() || path.metadata()?.is_dir() {
-                // If this entry is a directory or a symlink point to a
-                // directory then always parse it as an `UnresolvedPackage`
-                // since it's intentional to not support recursive `deps`
-                // directories.
-                UnresolvedPackageGroup::parse_dir(&path)
-                    .with_context(|| format!("failed to parse package: {}", path.display()))?
-            } else {
-                // If this entry is a file then we may want to ignore it but
-                // this may also be a standalone WIT file or a `*.wasm` or
-                // `*.wat` encoded package.
-                let filename = dep.file_name();
-                match Path::new(&filename).extension().and_then(|s| s.to_str()) {
-                    Some("wit") | Some("wat") | Some("wasm") => match self._push_file(&path)? {
-                        #[cfg(feature = "decoding")]
-                        ParsedFile::Package(_) => continue,
-                        ParsedFile::Unresolved(pkg) => pkg,
-                    },
-
-                    // Other files in deps dir are ignored for now to avoid
-                    // accidentally including things like `.DS_Store` files in
-                    // the call below to `parse_dir`.
-                    _ => continue,
-                }
-            };
-            ret.push(pkg);
-        }
-        Ok(ret)
-    }
-
-    /// Parses the contents of `path` from the filesystem and pushes the result
-    /// into this `Resolve`.
-    ///
-    /// The `path` referenced here can be one of:
-    ///
-    /// * A WIT file. Note that in this case this single WIT file will be the
-    ///   entire package and any dependencies it has must already be in `self`.
-    /// * A WIT package encoded as WebAssembly, either in text or binary form.
-    ///   In this the package and all of its dependencies are automatically
-    ///   inserted into `self`.
-    ///
-    /// In both situations the `PackageId`s of the resulting resolved packages
-    /// are returned from this method. The return value is mostly useful in
-    /// conjunction with [`Resolve::select_world`].
-    #[cfg(feature = "std")]
-    pub fn push_file(&mut self, path: impl AsRef<Path>) -> Result<PackageId> {
-        match self._push_file(path.as_ref())? {
-            #[cfg(feature = "decoding")]
-            ParsedFile::Package(id) => Ok(id),
-            ParsedFile::Unresolved(pkg) => self.push_group(pkg),
-        }
-    }
-
-    #[cfg(feature = "std")]
-    fn _push_file(&mut self, path: &Path) -> Result<ParsedFile> {
-        let contents = std::fs::read(path)
-            .with_context(|| format!("failed to read path for WIT [{}]", path.display()))?;
-
-        // If decoding is enabled at compile time then try to see if this is a
-        // wasm file.
-        #[cfg(feature = "decoding")]
-        {
-            use crate::decoding::{DecodedWasm, decode};
-
-            #[cfg(feature = "wat")]
-            let is_wasm = wat::Detect::from_bytes(&contents).is_wasm();
-            #[cfg(not(feature = "wat"))]
-            let is_wasm = wasmparser::Parser::is_component(&contents);
-
-            if is_wasm {
-                #[cfg(feature = "wat")]
-                let contents = wat::parse_bytes(&contents).map_err(|mut e| {
-                    e.set_path(path);
-                    e
-                })?;
-
-                match decode(&contents)? {
-                    DecodedWasm::Component(..) => {
-                        bail!("found an actual component instead of an encoded WIT package in wasm")
-                    }
-                    DecodedWasm::WitPackage(resolve, pkg) => {
-                        let remap = self.merge(resolve)?;
-                        return Ok(ParsedFile::Package(remap.packages[pkg.index()]));
-                    }
-                }
-            }
-        }
-
-        // If this wasn't a wasm file then assume it's a WIT file.
-        let text = match core::str::from_utf8(&contents) {
-            Ok(s) => s,
-            Err(_) => bail!("input file is not valid utf-8 [{}]", path.display()),
-        };
-        let pkgs = UnresolvedPackageGroup::parse(path, text)?;
-        Ok(ParsedFile::Unresolved(pkgs))
-    }
-
     /// Appends a new [`UnresolvedPackage`] to this [`Resolve`], creating a
     /// fully resolved package with no dangling references.
     ///
@@ -577,21 +364,6 @@ package {name} is defined in two different locations:\n\
     pub fn push_group(&mut self, unresolved_group: UnresolvedPackageGroup) -> Result<PackageId> {
         let (pkg_id, _) = self.sort_unresolved_packages(unresolved_group, Vec::new())?;
         Ok(pkg_id)
-    }
-
-    /// Convenience method for combining [`UnresolvedPackageGroup::parse`] and
-    /// [`Resolve::push_group`].
-    ///
-    /// The `path` provided is used for error messages but otherwise is not
-    /// read. This method does not touch the filesystem. The `contents` provided
-    /// are the contents of a WIT package.
-    #[cfg(feature = "std")]
-    pub fn push_str(&mut self, path: impl AsRef<Path>, contents: &str) -> Result<PackageId> {
-        let path = path
-            .as_ref()
-            .to_str()
-            .ok_or_else(|| anyhow!("path is not valid utf-8: {:?}", path.as_ref()))?;
-        self.push_source(path, contents)
     }
 
     /// Convenience method for combining [`UnresolvedPackageGroup::parse_str`] and
