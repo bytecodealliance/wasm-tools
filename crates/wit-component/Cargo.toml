@@ -22,7 +22,7 @@ all-features = true
 [dependencies]
 anyhow = { workspace = true }
 bitflags = "2.3.3"
-indexmap = { workspace = true }
+indexmap = { workspace = true, features = ["std"] }
 log = "0.4.17"
 serde = { workspace = true }
 serde_derive = { workspace = true }
