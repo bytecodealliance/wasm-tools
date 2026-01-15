@@ -14,7 +14,7 @@ workspace = true
 [dependencies]
 arbitrary = { workspace = true, features = ["derive"] }
 clap = { workspace = true, optional = true }
-indexmap = { workspace = true }
+indexmap = { workspace = true, features = ["std"] }
 log = { workspace = true }
 semver = { workspace = true }
 wit-component = { workspace = true }

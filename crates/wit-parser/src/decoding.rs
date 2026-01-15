@@ -1,8 +1,10 @@
 use crate::*;
-use anyhow::{anyhow, bail};
-use indexmap::IndexSet;
-use std::mem;
-use std::{collections::HashMap, io::Read};
+use alloc::string::{String, ToString};
+use alloc::vec;
+use alloc::vec::Vec;
+use anyhow::{Context, anyhow, bail};
+use core::mem;
+use std::io::Read;
 use wasmparser::Chunk;
 use wasmparser::{
     ComponentExternalKind, Parser, Payload, PrimitiveValType, ValidPayload, Validator,
@@ -46,7 +48,6 @@ enum WitEncodingVersion {
 
 impl ComponentInfo {
     /// Creates a new component info by parsing the given WebAssembly component bytes.
-
     fn from_reader(mut reader: impl Read) -> Result<Self> {
         let mut validator = Validator::new_with_features(WasmFeatures::all());
         let mut externs = Vec::new();
@@ -219,8 +220,8 @@ impl ComponentInfo {
 
         let mut pkg_name = None;
 
-        let mut interfaces = IndexMap::new();
-        let mut worlds = IndexMap::new();
+        let mut interfaces = IndexMap::default();
+        let mut worlds = IndexMap::default();
         let mut fields = PackageFields {
             interfaces: &mut interfaces,
             worlds: &mut worlds,
@@ -466,8 +467,8 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
     };
 
     let mut decoder = WitPackageDecoder::new(types);
-    let mut interfaces = IndexMap::new();
-    let mut worlds = IndexMap::new();
+    let mut interfaces = IndexMap::default();
+    let mut worlds = IndexMap::default();
     let ty = &types[world];
     assert_eq!(ty.imports.len(), 0);
     assert_eq!(ty.exports.len(), 1);
@@ -896,7 +897,7 @@ impl WitPackageDecoder<'_> {
                     name: Some(name.interface().to_string()),
                     docs: Default::default(),
                     types: IndexMap::default(),
-                    functions: IndexMap::new(),
+                    functions: IndexMap::default(),
                     package: None,
                     stability: Default::default(),
                 })
@@ -951,7 +952,7 @@ impl WitPackageDecoder<'_> {
             name: interface_name.clone(),
             docs: Default::default(),
             types: IndexMap::default(),
-            functions: IndexMap::new(),
+            functions: IndexMap::default(),
             package: None,
             stability: Default::default(),
         };
@@ -1247,7 +1248,8 @@ impl WitPackageDecoder<'_> {
         };
 
         // Don't create duplicate types for anything previously created.
-        if let Some(ret) = self.type_map.get(&id.into()) {
+        let key: ComponentAnyTypeId = id.into();
+        if let Some(ret) = self.type_map.get(&key) {
             return Ok(Type::Id(*ret));
         }
 
@@ -1402,12 +1404,14 @@ impl WitPackageDecoder<'_> {
             }
 
             ComponentDefinedType::Own(id) => {
-                let id = self.type_map[&(*id).into()];
+                let key: ComponentAnyTypeId = (*id).into();
+                let id = self.type_map[&key];
                 Ok(TypeDefKind::Handle(Handle::Own(id)))
             }
 
             ComponentDefinedType::Borrow(id) => {
-                let id = self.type_map[&(*id).into()];
+                let key: ComponentAnyTypeId = (*id).into();
+                let id = self.type_map[&key];
                 Ok(TypeDefKind::Handle(Handle::Borrow(id)))
             }
 
@@ -1456,7 +1460,7 @@ impl WitPackageDecoder<'_> {
     fn finish(mut self, package: Package) -> (Resolve, PackageId) {
         // Build a topological ordering is then calculated by visiting all the
         // transitive dependencies of packages.
-        let mut order = IndexSet::new();
+        let mut order = IndexSet::default();
         for i in 0..self.foreign_packages.len() {
             self.visit_package(i, &mut order);
         }

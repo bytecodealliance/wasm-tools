@@ -15,11 +15,15 @@
 //! format to store this information inline.
 
 use crate::{
-    Docs, Function, InterfaceId, PackageId, Resolve, Stability, TypeDefKind, TypeId, WorldId,
-    WorldItem, WorldKey,
+    Docs, Function, IndexMap, InterfaceId, PackageId, Resolve, Stability, TypeDefKind, TypeId,
+    WorldId, WorldItem, WorldKey,
 };
+use alloc::string::{String, ToString};
+#[cfg(feature = "serde")]
+use alloc::vec;
+#[cfg(feature = "serde")]
+use alloc::vec::Vec;
 use anyhow::{Result, bail};
-use indexmap::IndexMap;
 #[cfg(feature = "serde")]
 use serde_derive::{Deserialize, Serialize};
 
@@ -739,7 +743,7 @@ impl TypeMetadata {
         Ok(())
     }
 
-    fn inject_items<T: std::fmt::Debug>(
+    fn inject_items<T: core::fmt::Debug>(
         &self,
         items: &mut [T],
         f: impl Fn(&mut T) -> (&String, &mut Docs),

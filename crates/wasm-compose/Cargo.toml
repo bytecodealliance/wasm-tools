@@ -18,7 +18,7 @@ workspace = true
 anyhow = { workspace = true }
 heck = "0.5.0"
 im-rc = "15.1.0"
-indexmap = { workspace = true, features = ["serde"] }
+indexmap = { workspace = true, features = ["std", "serde"] }
 log = { workspace = true }
 petgraph = "0.6.2"
 serde = { workspace = true }

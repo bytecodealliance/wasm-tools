@@ -13,7 +13,7 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true, optional = true }
-indexmap = { workspace = true, features = ["serde"] }
+indexmap = { workspace = true, features = ["std", "serde"] }
 serde = { workspace = true, optional = true }
 serde_derive = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }

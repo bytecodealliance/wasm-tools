@@ -265,6 +265,7 @@ jobs:
       - run: cargo check --no-default-features --features wast
       - run: cargo check --no-default-features --features wit-dylib
       - run: cargo check --no-default-features -p wit-parser
+      - run: cargo check --no-default-features -p wit-parser --target x86_64-unknown-none
       - run: cargo check --no-default-features -p wit-parser --features wat
       - run: cargo check --no-default-features -p wit-parser --features serde
       - run: cargo check --no-default-features -p wit-parser --features decoding

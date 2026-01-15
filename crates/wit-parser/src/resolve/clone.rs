@@ -18,7 +18,6 @@
 //! cloning everything within a `Resolve`.
 
 use crate::*;
-use std::collections::HashMap;
 
 /// Represents the results of cloning types and/or interfaces as part of a
 /// `Resolve::merge_worlds` operation.
@@ -116,7 +115,7 @@ impl<'a> Cloner<'a> {
             let id = self.resolve.types.alloc(new);
             self.types.insert(*ty, id);
         }
-        *ty = self.types[ty];
+        *ty = self.types[&*ty];
     }
 
     fn type_def(&mut self, def: &mut TypeDef) {
