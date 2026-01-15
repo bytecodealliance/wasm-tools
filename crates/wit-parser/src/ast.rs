@@ -1907,7 +1907,6 @@ impl SourceMap {
         return msg;
     }
 
-    #[cfg(feature = "std")]
     pub(crate) fn render_location(&self, span: Span) -> String {
         let src = self.source_for_offset(span.start);
         let start = src.to_relative_offset(span.start);

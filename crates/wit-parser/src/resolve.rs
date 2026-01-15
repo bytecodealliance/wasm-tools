@@ -1,5 +1,4 @@
 use alloc::borrow::ToOwned;
-#[cfg(feature = "std")]
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
@@ -8,7 +7,7 @@ use core::cmp::Ordering;
 use core::fmt;
 use core::mem;
 #[cfg(feature = "std")]
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::*;
 use anyhow::{Context, Result, anyhow, bail};
@@ -126,27 +125,18 @@ pub struct Package {
 
 pub type PackageId = Id<Package>;
 
-/// All the sources used during resolving a directory or path.
-#[cfg(feature = "std")]
+/// Source name mappings for resolved packages (no_std compatible).
 #[derive(Clone, Debug)]
-pub struct PackageSourceMap {
-    sources: Vec<Vec<PathBuf>>,
+pub struct PackageSources {
+    sources: Vec<Vec<String>>,
     package_id_to_source_map_idx: BTreeMap<PackageId, usize>,
 }
 
-#[cfg(feature = "std")]
-impl PackageSourceMap {
-    fn from_single_source(package_id: PackageId, source: &Path) -> Self {
-        Self {
-            sources: vec![vec![source.to_path_buf()]],
-            package_id_to_source_map_idx: BTreeMap::from([(package_id, 0)]),
-        }
-    }
-
+impl PackageSources {
     fn from_source_maps(
         source_maps: Vec<SourceMap>,
         package_id_to_source_map_idx: BTreeMap<PackageId, usize>,
-    ) -> PackageSourceMap {
+    ) -> PackageSources {
         for (package_id, idx) in &package_id_to_source_map_idx {
             if *idx >= source_maps.len() {
                 panic!(
@@ -161,15 +151,33 @@ impl PackageSourceMap {
         Self {
             sources: source_maps
                 .into_iter()
-                .map(|source_map| {
-                    source_map
-                        .source_files()
-                        .map(|path| path.to_path_buf())
-                        .collect()
-                })
+                .map(|source_map| source_map.source_names().map(|s| s.to_owned()).collect())
                 .collect(),
             package_id_to_source_map_idx,
         }
+    }
+}
+
+/// All the sources used during resolving a directory or path.
+#[cfg(feature = "std")]
+#[derive(Clone, Debug)]
+pub struct PackageSourceMap {
+    inner: PackageSources,
+}
+
+#[cfg(feature = "std")]
+impl PackageSourceMap {
+    fn from_single_source(package_id: PackageId, source: &Path) -> Self {
+        Self {
+            inner: PackageSources {
+                sources: vec![vec![source.display().to_string()]],
+                package_id_to_source_map_idx: BTreeMap::from([(package_id, 0)]),
+            },
+        }
+    }
+
+    fn from_inner(inner: PackageSources) -> Self {
+        Self { inner }
     }
 
     /// All unique source paths.
@@ -177,19 +185,21 @@ impl PackageSourceMap {
         // Usually any two source map should not have duplicated source paths,
         // but it can happen, e.g. with using [`Resolve::push_str`] directly.
         // To be sure we use a set for deduplication here.
-        self.sources
+        self.inner
+            .sources
             .iter()
             .flatten()
-            .map(|path_buf| path_buf.as_ref())
+            .map(|s| Path::new(s))
             .collect::<IndexSet<&Path>>()
             .into_iter()
     }
 
     /// Source paths for package
     pub fn package_paths(&self, id: PackageId) -> Option<impl Iterator<Item = &Path>> {
-        self.package_id_to_source_map_idx
+        self.inner
+            .package_id_to_source_map_idx
             .get(&id)
-            .map(|&idx| self.sources[idx].iter().map(|path_buf| path_buf.as_ref()))
+            .map(|&idx| self.inner.sources[idx].iter().map(|s| Path::new(s)))
     }
 }
 
@@ -201,7 +211,6 @@ enum ParsedFile {
 }
 
 /// Visitor helper for performing topological sort on a group of packages.
-#[cfg(feature = "std")]
 fn visit<'a>(
     pkg: &'a UnresolvedPackage,
     pkg_details_map: &'a BTreeMap<PackageName, (UnresolvedPackage, usize)>,
@@ -289,12 +298,11 @@ impl Resolve {
         }
     }
 
-    #[cfg(feature = "std")]
     fn sort_unresolved_packages(
         &mut self,
         main: UnresolvedPackageGroup,
         deps: Vec<UnresolvedPackageGroup>,
-    ) -> Result<(PackageId, PackageSourceMap)> {
+    ) -> Result<(PackageId, PackageSources)> {
         let mut pkg_details_map = BTreeMap::new();
         let mut source_maps = Vec::new();
 
@@ -337,16 +345,18 @@ package {name} is defined in two different locations:\n\
         // and otherwise determine the order that packages must be added to
         // this `Resolve`.
         let mut order = IndexSet::default();
-        let mut visiting = HashSet::new();
-        for pkg_details in pkg_details_map.values() {
-            let (pkg, _) = pkg_details;
-            visit(
-                pkg,
-                &pkg_details_map,
-                &mut order,
-                &mut visiting,
-                &source_maps,
-            )?;
+        {
+            let mut visiting = HashSet::new();
+            for pkg_details in pkg_details_map.values() {
+                let (pkg, _) = pkg_details;
+                visit(
+                    pkg,
+                    &pkg_details_map,
+                    &mut order,
+                    &mut visiting,
+                    &source_maps,
+                )?;
+            }
         }
 
         // Ensure that the final output is topologically sorted. Use a set to ensure that we render
@@ -368,7 +378,7 @@ package {name} is defined in two different locations:\n\
 
         Ok((
             main_pkg_id.unwrap(),
-            PackageSourceMap::from_source_maps(source_maps, package_id_to_source_map_idx),
+            PackageSources::from_source_maps(source_maps, package_id_to_source_map_idx),
         ))
     }
 
@@ -419,7 +429,8 @@ package {name} is defined in two different locations:\n\
             .parse_deps_dir(&deps)
             .with_context(|| format!("failed to parse dependency directory: {}", deps.display()))?;
 
-        self.sort_unresolved_packages(top_pkg, deps)
+        let (pkg_id, inner) = self.sort_unresolved_packages(top_pkg, deps)?;
+        Ok((pkg_id, PackageSourceMap::from_inner(inner)))
     }
 
     #[cfg(feature = "std")]
@@ -563,28 +574,9 @@ package {name} is defined in two different locations:\n\
     /// which corresponds to the package that was just inserted.
     ///
     /// The returned [`PackageId`]s are listed in topologically sorted order.
-    #[cfg(feature = "std")]
     pub fn push_group(&mut self, unresolved_group: UnresolvedPackageGroup) -> Result<PackageId> {
         let (pkg_id, _) = self.sort_unresolved_packages(unresolved_group, Vec::new())?;
         Ok(pkg_id)
-    }
-
-    /// The returned [`PackageId`]s are listed in topologically sorted order.
-    #[cfg(not(feature = "std"))]
-    pub fn push_group(&mut self, unresolved_group: UnresolvedPackageGroup) -> Result<PackageId> {
-        let UnresolvedPackageGroup {
-            main,
-            nested,
-            source_map,
-        } = unresolved_group;
-
-        // Add nested packages first
-        for pkg in nested {
-            self.push(pkg, &source_map)?;
-        }
-
-        // Add the main package
-        self.push(main, &source_map)
     }
 
     /// Convenience method for combining [`UnresolvedPackageGroup::parse`] and
