@@ -1090,14 +1090,9 @@ dependencies = [
 
 [[package]]
 name = "id-arena"
-version = "2.2.1"
+version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25a2bc672d1148e28034f176e01fffebb08b35768468cc954630da77a1449005"
-
-[[package]]
-name = "id-arena"
-version = "2.2.1"
-source = "git+https://github.com/wilfreddenton/id-arena?branch=fix-no-std#7ab6639237382b92ae60a1f97145d847473b880e"
+checksum = "3d3067d79b975e8844ca9eb072e16b31c3c1c36928edf9c6789548c524d0d954"
 
 [[package]]
 name = "idna"
@@ -3097,7 +3092,7 @@ name = "wit-encoder"
 version = "0.244.0"
 dependencies = [
  "anyhow",
- "id-arena 2.2.1 (git+https://github.com/wilfreddenton/id-arena?branch=fix-no-std)",
+ "id-arena",
  "indoc",
  "pretty_assertions",
  "semver",
@@ -3112,7 +3107,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "681d526d6ea42e28f9afe9eae2b50e0b0a627aef8822c75eb04078db84d03e57"
 dependencies = [
  "anyhow",
- "id-arena 2.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "id-arena",
  "indexmap 2.10.0",
  "log",
  "semver",
@@ -3130,7 +3125,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f22f1cd55247a2e616870b619766e9522df36b7abafbb29bbeb34b7a9da7e9f0"
 dependencies = [
  "anyhow",
- "id-arena 2.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "id-arena",
  "indexmap 2.10.0",
  "log",
  "semver",
@@ -3148,7 +3143,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df983a8608e513d8997f435bb74207bf0933d0e49ca97aa9d8a6157164b9b7fc"
 dependencies = [
  "anyhow",
- "id-arena 2.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "id-arena",
  "indexmap 2.10.0",
  "log",
  "semver",
@@ -3166,7 +3161,7 @@ dependencies = [
  "anyhow",
  "env_logger",
  "hashbrown 0.15.4",
- "id-arena 2.2.1 (git+https://github.com/wilfreddenton/id-arena?branch=fix-no-std)",
+ "id-arena",
  "indexmap 2.10.0",
  "libtest-mimic",
  "log",
