@@ -84,7 +84,7 @@ impl Resolve {
     }
 
     /// Parses the filesystem directory at `path` as a WIT package and returns
-    /// a fully resolved [`PackageId`] list as a result.
+    /// a fully resolved [`super::PackageId`] list as a result.
     ///
     /// The directory itself is parsed with [`UnresolvedPackageGroup::parse_dir`]
     /// and then all packages found are inserted into this `Resolve`. The `path`
@@ -108,7 +108,7 @@ impl Resolve {
     /// candidates for name-based resolution that other packages may use.
     ///
     /// This function returns a tuple of two values. The first value is a
-    /// [`PackageId`], which represents the main WIT package found within
+    /// [`super::PackageId`], which represents the main WIT package found within
     /// `path`. This argument is useful for passing to [`Resolve::select_world`]
     /// for choosing something to bindgen with.
     ///
