@@ -251,7 +251,7 @@ impl Resolve {
         &mut self,
         main: UnresolvedPackageGroup,
         deps: Vec<UnresolvedPackageGroup>,
-        mut validator: Option<&mut V>,
+        validator: &mut V,
     ) -> Result<(PackageId, PackageSources)> {
         let mut pkg_details_map = BTreeMap::new();
         let mut source_maps = Vec::new();
@@ -318,8 +318,7 @@ package {name} is defined in two different locations:\n\
             let (pkg, source_map_index) = pkg_details_map.remove(&name).unwrap();
             let source_map = &source_maps[source_map_index];
             let is_main = pkg.name == main_name;
-            let id = source_map
-                .rewrite_error(|| Remap::default().append(self, pkg, validator.as_deref_mut()))?;
+            let id = source_map.rewrite_error(|| Remap::default().append(self, pkg, validator))?;
             if is_main {
                 assert!(main_pkg_id.is_none());
                 main_pkg_id = Some(id);
@@ -348,9 +347,8 @@ package {name} is defined in two different locations:\n\
         unresolved: UnresolvedPackage,
         source_map: &SourceMap,
     ) -> Result<PackageId> {
-        let ret = source_map.rewrite_error(|| {
-            Remap::default().append(self, unresolved, None::<&mut NoopValidator>)
-        });
+        let ret = source_map
+            .rewrite_error(|| Remap::default().append(self, unresolved, &mut NoopValidator));
         if ret.is_ok() {
             #[cfg(debug_assertions)]
             self.assert_valid();
@@ -367,11 +365,8 @@ package {name} is defined in two different locations:\n\
     ///
     /// The returned [`PackageId`]s are listed in topologically sorted order.
     pub fn push_group(&mut self, unresolved_group: UnresolvedPackageGroup) -> Result<PackageId> {
-        let (pkg_id, _) = self.sort_unresolved_packages(
-            unresolved_group,
-            Vec::new(),
-            None::<&mut NoopValidator>,
-        )?;
+        let (pkg_id, _) =
+            self.sort_unresolved_packages(unresolved_group, Vec::new(), &mut NoopValidator)?;
         Ok(pkg_id)
     }
 
@@ -395,8 +390,7 @@ package {name} is defined in two different locations:\n\
         source_map: &SourceMap,
         validator: &mut V,
     ) -> Result<PackageId> {
-        let ret =
-            source_map.rewrite_error(|| Remap::default().append(self, unresolved, Some(validator)));
+        let ret = source_map.rewrite_error(|| Remap::default().append(self, unresolved, validator));
         if ret.is_ok() {
             #[cfg(debug_assertions)]
             self.assert_valid();
@@ -413,8 +407,7 @@ package {name} is defined in two different locations:\n\
         unresolved_group: UnresolvedPackageGroup,
         validator: &mut V,
     ) -> Result<PackageId> {
-        let (pkg_id, _) =
-            self.sort_unresolved_packages(unresolved_group, Vec::new(), Some(validator))?;
+        let (pkg_id, _) = self.sort_unresolved_packages(unresolved_group, Vec::new(), validator)?;
         Ok(pkg_id)
     }
 
@@ -2716,7 +2709,7 @@ impl Remap {
         &mut self,
         resolve: &mut Resolve,
         unresolved: UnresolvedPackage,
-        mut validator: Option<&mut V>,
+        validator: &mut V,
     ) -> Result<PackageId> {
         let pkgid = resolve.packages.alloc(Package {
             name: unresolved.name.clone(),
@@ -2779,10 +2772,9 @@ impl Remap {
             };
             self.types.push(Some(new_id));
 
-            if let Some(v) = validator.as_mut() {
-                v.validate_type(resolve, new_id, *span)
-                    .map_err(anyhow::Error::from)?;
-            }
+            validator
+                .validate_type(resolve, new_id, *span)
+                .map_err(anyhow::Error::from)?;
         }
 
         // Next transfer all interfaces into `Resolve`, updating type ids
@@ -2817,12 +2809,11 @@ impl Remap {
             assert!(iface.package.is_none());
             iface.package = Some(pkgid);
 
-            if let Some(v) = validator.as_mut() {
-                for (name, func) in &iface.functions {
-                    let func_span = span.funcs.first().copied().unwrap_or(span.span);
-                    v.validate_function(resolve, name, func, func_span)
-                        .map_err(anyhow::Error::from)?;
-                }
+            for (name, func) in &iface.functions {
+                let func_span = span.funcs.first().copied().unwrap_or(span.span);
+                validator
+                    .validate_function(resolve, name, func, func_span)
+                    .map_err(anyhow::Error::from)?;
             }
 
             self.update_interface(resolve, &mut iface, Some(span))?;
@@ -2830,10 +2821,9 @@ impl Remap {
             assert_eq!(self.interfaces.len(), id.index());
             self.interfaces.push(Some(new_id));
 
-            if let Some(v) = validator.as_mut() {
-                v.validate_interface(resolve, new_id, span.span)
-                    .map_err(anyhow::Error::from)?;
-            }
+            validator
+                .validate_interface(resolve, new_id, span.span)
+                .map_err(anyhow::Error::from)?;
         }
 
         // Now that interfaces are identified go back through the types and
@@ -2887,10 +2877,9 @@ impl Remap {
             assert_eq!(self.worlds.len(), id.index());
             self.worlds.push(Some(new_id));
 
-            if let Some(v) = validator.as_mut() {
-                v.validate_world(resolve, new_id, span.span)
-                    .map_err(anyhow::Error::from)?;
-            }
+            validator
+                .validate_world(resolve, new_id, span.span)
+                .map_err(anyhow::Error::from)?;
         }
 
         // As with interfaces, now update the ids of world-owned types.

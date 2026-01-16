@@ -131,8 +131,7 @@ impl Resolve {
             .parse_deps_dir(&deps)
             .with_context(|| format!("failed to parse dependency directory: {}", deps.display()))?;
 
-        let (pkg_id, inner) =
-            self.sort_unresolved_packages(top_pkg, deps, None::<&mut NoopValidator>)?;
+        let (pkg_id, inner) = self.sort_unresolved_packages(top_pkg, deps, &mut NoopValidator)?;
         Ok((pkg_id, PackageSourceMap::from_inner(inner)))
     }
 
