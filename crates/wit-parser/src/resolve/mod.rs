@@ -2714,6 +2714,7 @@ impl Remap {
                     kind: TypeDefKind::Handle(Handle::Own(id)),
                     docs: _,
                     stability: _,
+                    span: _,
                 } => *self.own_handles.entry(id).or_insert(new_id),
 
                 // Everything not-related to `own<T>` doesn't get its ID
@@ -3234,6 +3235,7 @@ impl Remap {
                     kind: TypeDefKind::Handle(Handle::Own(*id)),
                     docs: Default::default(),
                     stability: Default::default(),
+                    span: None,
                 })
             });
         }
@@ -4089,7 +4091,8 @@ impl core::error::Error for InvalidTransitiveDependency {}
 
 #[cfg(test)]
 mod tests {
-    use crate::Resolve;
+    use crate::alloc::string::ToString;
+    use crate::{Resolve, WorldItem, WorldKey};
     use anyhow::Result;
 
     #[test]
@@ -4456,6 +4459,209 @@ mod tests {
                 .select_world(&[wit2], Some("example:wit2/foo"))
                 .is_ok()
         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn span_preservation() -> Result<()> {
+        let mut resolve = Resolve::default();
+        let pkg = resolve.push_str(
+            "test.wit",
+            r#"
+                package foo:bar;
+
+                interface my-iface {
+                    type my-type = u32;
+                    my-func: func();
+                }
+
+                world my-world {
+                    export my-export: func();
+                }
+            "#,
+        )?;
+
+        let iface_id = resolve.packages[pkg].interfaces["my-iface"];
+        assert!(resolve.interfaces[iface_id].span.is_some());
+
+        let type_id = resolve.interfaces[iface_id].types["my-type"];
+        assert!(resolve.types[type_id].span.is_some());
+
+        assert!(
+            resolve.interfaces[iface_id].functions["my-func"]
+                .span
+                .is_some()
+        );
+
+        let world_id = resolve.packages[pkg].worlds["my-world"];
+        assert!(resolve.worlds[world_id].span.is_some());
+
+        let WorldItem::Function(f) =
+            &resolve.worlds[world_id].exports[&WorldKey::Name("my-export".to_string())]
+        else {
+            panic!("expected function");
+        };
+        assert!(f.span.is_some());
+
+        Ok(())
+    }
+
+    #[test]
+    fn span_preservation_through_merge() -> Result<()> {
+        let mut resolve1 = Resolve::default();
+        resolve1.push_str(
+            "test1.wit",
+            r#"
+                package foo:bar;
+
+                interface iface1 {
+                    type type1 = u32;
+                    func1: func();
+                }
+            "#,
+        )?;
+
+        let mut resolve2 = Resolve::default();
+        let pkg2 = resolve2.push_str(
+            "test2.wit",
+            r#"
+                package foo:baz;
+
+                interface iface2 {
+                    type type2 = string;
+                    func2: func();
+                }
+            "#,
+        )?;
+
+        let iface2_old_id = resolve2.packages[pkg2].interfaces["iface2"];
+        let remap = resolve1.merge(resolve2)?;
+        let iface2_id = remap.interfaces[iface2_old_id.index()].unwrap();
+
+        assert!(resolve1.interfaces[iface2_id].span.is_some());
+
+        let type2_id = resolve1.interfaces[iface2_id].types["type2"];
+        assert!(resolve1.types[type2_id].span.is_some());
+
+        assert!(
+            resolve1.interfaces[iface2_id].functions["func2"]
+                .span
+                .is_some()
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn span_preservation_through_include() -> Result<()> {
+        let mut resolve = Resolve::default();
+        let pkg = resolve.push_str(
+            "test.wit",
+            r#"
+                package foo:bar;
+
+                world base {
+                    export my-func: func();
+                }
+
+                world extended {
+                    include base;
+                }
+            "#,
+        )?;
+
+        let base_id = resolve.packages[pkg].worlds["base"];
+        let extended_id = resolve.packages[pkg].worlds["extended"];
+
+        let WorldItem::Function(base_func) =
+            &resolve.worlds[base_id].exports[&WorldKey::Name("my-func".to_string())]
+        else {
+            panic!("expected function");
+        };
+        assert!(base_func.span.is_some());
+
+        let WorldItem::Function(extended_func) =
+            &resolve.worlds[extended_id].exports[&WorldKey::Name("my-func".to_string())]
+        else {
+            panic!("expected function");
+        };
+        assert!(extended_func.span.is_some());
+
+        Ok(())
+    }
+
+    #[test]
+    fn span_preservation_through_include_with_rename() -> Result<()> {
+        let mut resolve = Resolve::default();
+        let pkg = resolve.push_str(
+            "test.wit",
+            r#"
+                package foo:bar;
+
+                world base {
+                    export original-name: func();
+                }
+
+                world extended {
+                    include base with { original-name as renamed-func }
+                }
+            "#,
+        )?;
+
+        let extended_id = resolve.packages[pkg].worlds["extended"];
+
+        let WorldItem::Function(f) =
+            &resolve.worlds[extended_id].exports[&WorldKey::Name("renamed-func".to_string())]
+        else {
+            panic!("expected function");
+        };
+        assert!(f.span.is_some());
+
+        assert!(
+            !resolve.worlds[extended_id]
+                .exports
+                .contains_key(&WorldKey::Name("original-name".to_string()))
+        );
+
+        Ok(())
+    }
+
+    /// Test that spans work when included world is defined after the including world
+    #[test]
+    fn span_preservation_through_include_reverse_order() -> Result<()> {
+        let mut resolve = Resolve::default();
+        let pkg = resolve.push_str(
+            "test.wit",
+            r#"
+                package foo:bar;
+
+                world extended {
+                    include base;
+                }
+
+                world base {
+                    export my-func: func();
+                }
+            "#,
+        )?;
+
+        let base_id = resolve.packages[pkg].worlds["base"];
+        let extended_id = resolve.packages[pkg].worlds["extended"];
+
+        let WorldItem::Function(base_func) =
+            &resolve.worlds[base_id].exports[&WorldKey::Name("my-func".to_string())]
+        else {
+            panic!("expected function");
+        };
+        assert!(base_func.span.is_some());
+
+        let WorldItem::Function(extended_func) =
+            &resolve.worlds[extended_id].exports[&WorldKey::Name("my-func".to_string())]
+        else {
+            panic!("expected function");
+        };
+        assert!(extended_func.span.is_some());
 
         Ok(())
     }

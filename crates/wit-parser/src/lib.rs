@@ -46,7 +46,7 @@ pub use metadata::PackageMetadata;
 pub mod abi;
 mod ast;
 pub use ast::SourceMap;
-use ast::lex::Span;
+pub use ast::lex::Span;
 pub use ast::{ParsedUsePath, parse_use_path};
 mod sizealign;
 pub use sizealign::*;
@@ -473,6 +473,10 @@ pub struct World {
     /// All the included worlds names. Empty if this is fully resolved
     #[cfg_attr(feature = "serde", serde(skip))]
     pub include_names: Vec<Vec<IncludeName>>,
+
+    /// Source span for this world, if parsed from WIT text.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub span: Option<Span>,
 }
 
 #[derive(Debug, Clone)]
@@ -610,6 +614,10 @@ pub struct Interface {
     /// The package that owns this interface.
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_optional_id"))]
     pub package: Option<PackageId>,
+
+    /// Source span for this interface, if parsed from WIT text.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub span: Option<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -626,6 +634,9 @@ pub struct TypeDef {
         serde(skip_serializing_if = "Stability::is_unknown")
     )]
     pub stability: Stability,
+    /// Source span for this type, if parsed from WIT text.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub span: Option<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
@@ -888,6 +899,10 @@ pub struct Function {
         serde(skip_serializing_if = "Stability::is_unknown")
     )]
     pub stability: Stability,
+
+    /// Source span for this function, if parsed from WIT text.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub span: Option<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1428,6 +1443,7 @@ mod test {
             owner: TypeOwner::None,
             docs: Docs::default(),
             stability: Stability::Unknown,
+            span: None,
         });
         let t1 = resolve.types.alloc(TypeDef {
             name: None,
@@ -1435,6 +1451,7 @@ mod test {
             owner: TypeOwner::None,
             docs: Docs::default(),
             stability: Stability::Unknown,
+            span: None,
         });
         let t2 = resolve.types.alloc(TypeDef {
             name: None,
@@ -1442,6 +1459,7 @@ mod test {
             owner: TypeOwner::None,
             docs: Docs::default(),
             stability: Stability::Unknown,
+            span: None,
         });
         let found = Function {
             name: "foo".into(),
@@ -1450,6 +1468,7 @@ mod test {
             result: Some(Type::Id(t2)),
             docs: Docs::default(),
             stability: Stability::Unknown,
+            span: None,
         }
         .find_futures_and_streams(&resolve);
         assert_eq!(3, found.len());
