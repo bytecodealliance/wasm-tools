@@ -46,7 +46,7 @@ pub use metadata::PackageMetadata;
 pub mod abi;
 mod ast;
 pub use ast::SourceMap;
-use ast::lex::Span;
+pub use ast::lex::Span;
 pub use ast::{ParsedUsePath, parse_use_path};
 mod sizealign;
 pub use sizealign::*;
@@ -279,15 +279,17 @@ impl fmt::Display for PackageName {
     }
 }
 
+/// An error with span information for source location rendering.
 #[derive(Debug)]
-struct Error {
+pub struct Error {
     span: Span,
     msg: String,
     highlighted: Option<String>,
 }
 
 impl Error {
-    fn new(span: Span, msg: impl Into<String>) -> Error {
+    /// Creates a new error with the given span and message.
+    pub fn new(span: Span, msg: impl Into<String>) -> Error {
         Error {
             span,
             msg: msg.into(),
@@ -349,6 +351,55 @@ impl fmt::Display for PackageNotFoundError {
 }
 
 impl core::error::Error for PackageNotFoundError {}
+
+/// A trait for custom validation during WIT resolution.
+///
+/// Validators receive resolved items along with their source spans,
+/// allowing custom validation rules with precise error locations.
+///
+/// All methods have default no-op implementations, so validators only
+/// need to implement the methods they care about.
+pub trait Validator {
+    /// Called for each resolved type definition.
+    fn validate_type(&mut self, resolve: &Resolve, id: TypeId, span: Span) -> Result<(), Error> {
+        let _ = (resolve, id, span);
+        Ok(())
+    }
+
+    /// Called for each resolved function.
+    fn validate_function(
+        &mut self,
+        resolve: &Resolve,
+        name: &str,
+        func: &Function,
+        span: Span,
+    ) -> Result<(), Error> {
+        let _ = (resolve, name, func, span);
+        Ok(())
+    }
+
+    /// Called for each resolved interface.
+    fn validate_interface(
+        &mut self,
+        resolve: &Resolve,
+        id: InterfaceId,
+        span: Span,
+    ) -> Result<(), Error> {
+        let _ = (resolve, id, span);
+        Ok(())
+    }
+
+    /// Called for each resolved world.
+    fn validate_world(&mut self, resolve: &Resolve, id: WorldId, span: Span) -> Result<(), Error> {
+        let _ = (resolve, id, span);
+        Ok(())
+    }
+}
+
+/// A no-op validator that accepts everything.
+pub(crate) struct NoopValidator;
+
+impl Validator for NoopValidator {}
 
 impl UnresolvedPackageGroup {
     /// Parses the given string as a wit document.

@@ -24,9 +24,10 @@ use crate::ast::{ParsedUsePath, parse_use_path};
 use crate::serde_::{serialize_arena, serialize_id_map};
 use crate::{
     AstItem, Docs, Error, Function, FunctionKind, Handle, IncludeName, Interface, InterfaceId,
-    InterfaceSpan, LiftLowerAbi, ManglingAndAbi, PackageName, PackageNotFoundError, SourceMap,
-    Stability, Type, TypeDef, TypeDefKind, TypeId, TypeIdVisitor, TypeOwner, UnresolvedPackage,
-    UnresolvedPackageGroup, World, WorldId, WorldItem, WorldKey, WorldSpan,
+    InterfaceSpan, LiftLowerAbi, ManglingAndAbi, NoopValidator, PackageName, PackageNotFoundError,
+    SourceMap, Stability, Type, TypeDef, TypeDefKind, TypeId, TypeIdVisitor, TypeOwner,
+    UnresolvedPackage, UnresolvedPackageGroup, Validator, World, WorldId, WorldItem, WorldKey,
+    WorldSpan,
 };
 
 pub use clone::CloneMaps;
@@ -246,10 +247,11 @@ impl Resolve {
     /// will be all the main package in the directory itself. The `PackageId` value is useful
     /// to pass to [`Resolve::select_world`] to take a user-specified world in a
     /// conventional fashion and select which to use for bindings generation.
-    fn sort_unresolved_packages(
+    fn sort_unresolved_packages<V: Validator>(
         &mut self,
         main: UnresolvedPackageGroup,
         deps: Vec<UnresolvedPackageGroup>,
+        mut validator: Option<&mut V>,
     ) -> Result<(PackageId, PackageSources)> {
         let mut pkg_details_map = BTreeMap::new();
         let mut source_maps = Vec::new();
@@ -316,7 +318,8 @@ package {name} is defined in two different locations:\n\
             let (pkg, source_map_index) = pkg_details_map.remove(&name).unwrap();
             let source_map = &source_maps[source_map_index];
             let is_main = pkg.name == main_name;
-            let id = self.push(pkg, source_map)?;
+            let id = source_map
+                .rewrite_error(|| Remap::default().append(self, pkg, validator.as_deref_mut()))?;
             if is_main {
                 assert!(main_pkg_id.is_none());
                 main_pkg_id = Some(id);
@@ -345,7 +348,9 @@ package {name} is defined in two different locations:\n\
         unresolved: UnresolvedPackage,
         source_map: &SourceMap,
     ) -> Result<PackageId> {
-        let ret = source_map.rewrite_error(|| Remap::default().append(self, unresolved));
+        let ret = source_map.rewrite_error(|| {
+            Remap::default().append(self, unresolved, None::<&mut NoopValidator>)
+        });
         if ret.is_ok() {
             #[cfg(debug_assertions)]
             self.assert_valid();
@@ -362,7 +367,11 @@ package {name} is defined in two different locations:\n\
     ///
     /// The returned [`PackageId`]s are listed in topologically sorted order.
     pub fn push_group(&mut self, unresolved_group: UnresolvedPackageGroup) -> Result<PackageId> {
-        let (pkg_id, _) = self.sort_unresolved_packages(unresolved_group, Vec::new())?;
+        let (pkg_id, _) = self.sort_unresolved_packages(
+            unresolved_group,
+            Vec::new(),
+            None::<&mut NoopValidator>,
+        )?;
         Ok(pkg_id)
     }
 
@@ -374,6 +383,55 @@ package {name} is defined in two different locations:\n\
     /// are the contents of a WIT package.
     pub fn push_source(&mut self, path: &str, contents: &str) -> Result<PackageId> {
         self.push_group(UnresolvedPackageGroup::parse_str(path, contents)?)
+    }
+
+    /// Like [`Resolve::push`], but calls the validator during resolution.
+    ///
+    /// The validator receives resolved items along with their source spans,
+    /// allowing custom validation rules with precise error locations.
+    pub fn push_with_validator<V: Validator>(
+        &mut self,
+        unresolved: UnresolvedPackage,
+        source_map: &SourceMap,
+        validator: &mut V,
+    ) -> Result<PackageId> {
+        let ret =
+            source_map.rewrite_error(|| Remap::default().append(self, unresolved, Some(validator)));
+        if ret.is_ok() {
+            #[cfg(debug_assertions)]
+            self.assert_valid();
+        }
+        ret
+    }
+
+    /// Like [`Resolve::push_group`], but calls the validator during resolution.
+    ///
+    /// The validator receives resolved items along with their source spans,
+    /// allowing custom validation rules with precise error locations.
+    pub fn push_group_with_validator<V: Validator>(
+        &mut self,
+        unresolved_group: UnresolvedPackageGroup,
+        validator: &mut V,
+    ) -> Result<PackageId> {
+        let (pkg_id, _) =
+            self.sort_unresolved_packages(unresolved_group, Vec::new(), Some(validator))?;
+        Ok(pkg_id)
+    }
+
+    /// Like [`Resolve::push_source`], but calls the validator during resolution.
+    ///
+    /// The validator receives resolved items along with their source spans,
+    /// allowing custom validation rules with precise error locations.
+    pub fn push_source_with_validator<V: Validator>(
+        &mut self,
+        path: &str,
+        contents: &str,
+        validator: &mut V,
+    ) -> Result<PackageId> {
+        self.push_group_with_validator(
+            UnresolvedPackageGroup::parse_str(path, contents)?,
+            validator,
+        )
     }
 
     pub fn all_bits_valid(&self, ty: &Type) -> bool {
@@ -2654,10 +2712,11 @@ impl Remap {
         apply_map(&self.worlds, id, "world", span)
     }
 
-    fn append(
+    fn append<V: Validator>(
         &mut self,
         resolve: &mut Resolve,
         unresolved: UnresolvedPackage,
+        mut validator: Option<&mut V>,
     ) -> Result<PackageId> {
         let pkgid = resolve.packages.alloc(Package {
             name: unresolved.name.clone(),
@@ -2719,6 +2778,11 @@ impl Remap {
                 _ => new_id,
             };
             self.types.push(Some(new_id));
+
+            if let Some(v) = validator.as_mut() {
+                v.validate_type(resolve, new_id, *span)
+                    .map_err(anyhow::Error::from)?;
+            }
         }
 
         // Next transfer all interfaces into `Resolve`, updating type ids
@@ -2752,10 +2816,24 @@ impl Remap {
             }
             assert!(iface.package.is_none());
             iface.package = Some(pkgid);
+
+            if let Some(v) = validator.as_mut() {
+                for (name, func) in &iface.functions {
+                    let func_span = span.funcs.first().copied().unwrap_or(span.span);
+                    v.validate_function(resolve, name, func, func_span)
+                        .map_err(anyhow::Error::from)?;
+                }
+            }
+
             self.update_interface(resolve, &mut iface, Some(span))?;
             let new_id = resolve.interfaces.alloc(iface);
             assert_eq!(self.interfaces.len(), id.index());
             self.interfaces.push(Some(new_id));
+
+            if let Some(v) = validator.as_mut() {
+                v.validate_interface(resolve, new_id, span.span)
+                    .map_err(anyhow::Error::from)?;
+            }
         }
 
         // Now that interfaces are identified go back through the types and
@@ -2808,6 +2886,11 @@ impl Remap {
             let new_id = resolve.worlds.alloc(world);
             assert_eq!(self.worlds.len(), id.index());
             self.worlds.push(Some(new_id));
+
+            if let Some(v) = validator.as_mut() {
+                v.validate_world(resolve, new_id, span.span)
+                    .map_err(anyhow::Error::from)?;
+            }
         }
 
         // As with interfaces, now update the ids of world-owned types.
@@ -4454,5 +4537,261 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    mod validator_tests {
+        use crate::{Error, Function, InterfaceId, Resolve, Span, TypeId, Validator, WorldId};
+        use alloc::format;
+        use alloc::string::{String, ToString};
+        use alloc::vec::Vec;
+
+        struct NoEmptyRecordsValidator;
+
+        impl Validator for NoEmptyRecordsValidator {
+            fn validate_type(
+                &mut self,
+                resolve: &Resolve,
+                id: TypeId,
+                span: Span,
+            ) -> Result<(), Error> {
+                let ty = &resolve.types[id];
+                if let crate::TypeDefKind::Record(r) = &ty.kind {
+                    if r.fields.is_empty() {
+                        return Err(Error::new(
+                            span,
+                            format!(
+                                "empty records are not allowed: '{}'",
+                                ty.name.as_deref().unwrap_or("<anonymous>")
+                            ),
+                        ));
+                    }
+                }
+                Ok(())
+            }
+        }
+
+        #[test]
+        fn validator_allows_valid_wit() {
+            let mut resolve = Resolve::default();
+            let mut validator = NoEmptyRecordsValidator;
+            let result = resolve.push_source_with_validator(
+                "test.wit",
+                r#"
+                    package test:pkg;
+
+                    interface foo {
+                        record my-record {
+                            name: string,
+                            value: u32,
+                        }
+                    }
+                "#,
+                &mut validator,
+            );
+            assert!(result.is_ok(), "Expected valid WIT to pass validation");
+        }
+
+        #[test]
+        fn validator_rejects_empty_record() {
+            let mut resolve = Resolve::default();
+            let mut validator = NoEmptyRecordsValidator;
+            let result = resolve.push_source_with_validator(
+                "test.wit",
+                "package test:pkg;\ninterface foo {\n    record empty {}\n}\n",
+                &mut validator,
+            );
+            assert!(result.is_err(), "Expected empty record to be rejected");
+            let err = result.unwrap_err().to_string();
+            assert!(
+                err.contains("empty records are not allowed"),
+                "Error should mention empty records: {err}"
+            );
+            assert!(
+                err.contains("test.wit:3:"),
+                "Error should point to line 3: {err}"
+            );
+        }
+
+        struct RequireAsyncValidator;
+
+        impl Validator for RequireAsyncValidator {
+            fn validate_function(
+                &mut self,
+                _resolve: &Resolve,
+                name: &str,
+                func: &Function,
+                span: Span,
+            ) -> Result<(), Error> {
+                if !matches!(func.kind, crate::FunctionKind::AsyncFreestanding) {
+                    return Err(Error::new(span, format!("function '{name}' must be async")));
+                }
+                Ok(())
+            }
+        }
+
+        #[test]
+        fn validator_allows_async_functions() {
+            let mut resolve = Resolve::default();
+            let mut validator = RequireAsyncValidator;
+            let result = resolve.push_source_with_validator(
+                "test.wit",
+                r#"
+                    package test:pkg;
+
+                    interface foo {
+                        my-func: async func() -> string;
+                    }
+                "#,
+                &mut validator,
+            );
+            assert!(result.is_ok(), "Expected async function to pass validation");
+        }
+
+        #[test]
+        fn validator_rejects_sync_functions() {
+            let mut resolve = Resolve::default();
+            let mut validator = RequireAsyncValidator;
+            let result = resolve.push_source_with_validator(
+                "test.wit",
+                "package test:pkg;\ninterface foo {\n    my-func: func() -> string;\n}\n",
+                &mut validator,
+            );
+            assert!(result.is_err(), "Expected sync function to be rejected");
+            let err = result.unwrap_err().to_string();
+            assert!(
+                err.contains("must be async"),
+                "Error should mention async requirement: {err}"
+            );
+            assert!(
+                err.contains("test.wit:3:"),
+                "Error should point to line 3: {err}"
+            );
+        }
+
+        struct TrackingValidator {
+            types_seen: Vec<String>,
+            functions_seen: Vec<String>,
+            interfaces_seen: Vec<String>,
+            worlds_seen: Vec<String>,
+        }
+
+        impl TrackingValidator {
+            fn new() -> Self {
+                Self {
+                    types_seen: Vec::new(),
+                    functions_seen: Vec::new(),
+                    interfaces_seen: Vec::new(),
+                    worlds_seen: Vec::new(),
+                }
+            }
+        }
+
+        impl Validator for TrackingValidator {
+            fn validate_type(
+                &mut self,
+                resolve: &Resolve,
+                id: TypeId,
+                _span: Span,
+            ) -> Result<(), Error> {
+                if let Some(name) = &resolve.types[id].name {
+                    self.types_seen.push(name.clone());
+                }
+                Ok(())
+            }
+
+            fn validate_function(
+                &mut self,
+                _resolve: &Resolve,
+                name: &str,
+                _func: &Function,
+                _span: Span,
+            ) -> Result<(), Error> {
+                self.functions_seen.push(name.to_string());
+                Ok(())
+            }
+
+            fn validate_interface(
+                &mut self,
+                resolve: &Resolve,
+                id: InterfaceId,
+                _span: Span,
+            ) -> Result<(), Error> {
+                if let Some(name) = &resolve.interfaces[id].name {
+                    self.interfaces_seen.push(name.clone());
+                }
+                Ok(())
+            }
+
+            fn validate_world(
+                &mut self,
+                resolve: &Resolve,
+                id: WorldId,
+                _span: Span,
+            ) -> Result<(), Error> {
+                self.worlds_seen.push(resolve.worlds[id].name.clone());
+                Ok(())
+            }
+        }
+
+        #[test]
+        fn validator_sees_all_items() {
+            let mut resolve = Resolve::default();
+            let mut validator = TrackingValidator::new();
+            let result = resolve.push_source_with_validator(
+                "test.wit",
+                r#"
+                    package test:pkg;
+
+                    interface my-interface {
+                        record my-record {
+                            field: string,
+                        }
+
+                        my-func: func(r: my-record) -> string;
+                    }
+
+                    world my-world {
+                        export my-interface;
+                    }
+                "#,
+                &mut validator,
+            );
+            assert!(result.is_ok(), "Expected parsing to succeed");
+
+            assert!(
+                validator.types_seen.contains(&"my-record".to_string()),
+                "Should see my-record type"
+            );
+            assert!(
+                validator.functions_seen.contains(&"my-func".to_string()),
+                "Should see my-func function"
+            );
+            assert!(
+                validator
+                    .interfaces_seen
+                    .contains(&"my-interface".to_string()),
+                "Should see my-interface"
+            );
+            assert!(
+                validator.worlds_seen.contains(&"my-world".to_string()),
+                "Should see my-world"
+            );
+        }
+
+        #[test]
+        fn validator_error_includes_location() {
+            let mut resolve = Resolve::default();
+            let mut validator = NoEmptyRecordsValidator;
+            let result = resolve.push_source_with_validator(
+                "test.wit",
+                "package test:pkg;\n\ninterface foo {\n    record empty {}\n}\n",
+                &mut validator,
+            );
+            let err = result.unwrap_err().to_string();
+            assert!(
+                err.contains("test.wit:4:"),
+                "Error should point to line 4, got: {err}"
+            );
+        }
     }
 }

@@ -7,7 +7,7 @@ use std::vec::Vec;
 use anyhow::{Context, Result, bail};
 
 use super::{PackageSources, Resolve};
-use crate::UnresolvedPackageGroup;
+use crate::{NoopValidator, UnresolvedPackageGroup};
 
 /// All the sources used during resolving a directory or path.
 #[derive(Clone, Debug)]
@@ -131,7 +131,8 @@ impl Resolve {
             .parse_deps_dir(&deps)
             .with_context(|| format!("failed to parse dependency directory: {}", deps.display()))?;
 
-        let (pkg_id, inner) = self.sort_unresolved_packages(top_pkg, deps)?;
+        let (pkg_id, inner) =
+            self.sort_unresolved_packages(top_pkg, deps, None::<&mut NoopValidator>)?;
         Ok((pkg_id, PackageSourceMap::from_inner(inner)))
     }
 
