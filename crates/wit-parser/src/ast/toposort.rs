@@ -185,7 +185,11 @@ mod tests {
     fn id(name: &str) -> Id<'_> {
         Id {
             name,
-            span: Span { start: 0, end: 0 },
+            span: Span {
+                start: 0,
+                end: 0,
+                source_map: 0,
+            },
         }
     }
 
