@@ -1900,7 +1900,8 @@ impl SourceMap {
         return msg;
     }
 
-    pub(crate) fn render_location(&self, span: Span) -> String {
+    /// Renders a span as a human-readable location string (e.g., "file.wit:10:5").
+    pub fn render_location(&self, span: Span) -> String {
         let src = self.source_for_offset(span.start);
         let start = src.to_relative_offset(span.start);
         let (line, col) = src.linecol(start);
