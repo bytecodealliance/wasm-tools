@@ -136,7 +136,6 @@ pub struct UnresolvedPackage {
     /// Doc comments for this package.
     pub docs: Docs,
 
-    #[cfg_attr(not(feature = "std"), allow(dead_code))]
     package_name_span: Span,
     unknown_type_spans: Vec<Span>,
     interface_spans: Vec<InterfaceSpan>,
