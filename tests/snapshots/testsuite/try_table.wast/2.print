@@ -45,6 +45,8 @@
   (export "return-call-in-try-catch" (func 22))
   (export "return-call-indirect-in-try-catch" (func 23))
   (export "try-with-param" (func 24))
+  (export "duplicated-catches" (func 25))
+  (export "catch-all-before-catch" (func 26))
   (elem (;0;) (table 0) (i32.const 0) func $throw-void)
   (func $throw-if (;1;) (type 5) (param i32) (result i32)
     local.get 0
@@ -311,5 +313,31 @@
     try_table (type 1) (param i32) ;; label = @1
       drop
     end
+  )
+  (func (;25;) (type 14) (result i32)
+    block ;; label = @1
+      block ;; label = @2
+        try_table (catch $e0 0 (;@2;)) (catch $e0 1 (;@1;)) ;; label = @3
+          throw $e0
+        end
+      end
+      i32.const 2
+      return
+    end
+    i32.const 3
+    return
+  )
+  (func (;26;) (type 14) (result i32)
+    block ;; label = @1
+      block ;; label = @2
+        try_table (catch_all 0 (;@2;)) (catch $e0 1 (;@1;)) ;; label = @3
+          throw $e0
+        end
+      end
+      i32.const 2
+      return
+    end
+    i32.const 3
+    return
   )
 )
