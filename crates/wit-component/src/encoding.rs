@@ -2219,8 +2219,6 @@ impl<'a> EncodingState<'a> {
         let resolve = &self.info.encoder.metadata.resolve;
         let world = &resolve.worlds[self.info.encoder.metadata.world];
         let exports = self.info.exports_for(CustomModule::Main);
-        let wasm_init_task = "__wasm_init_task";
-        let wasm_init_async_task = "__wasm_init_async_task";
 
         let wasm_init_task_export = exports.wasm_init_task();
         let wasm_init_async_task_export = exports.wasm_init_async_task();
@@ -2229,6 +2227,8 @@ impl<'a> EncodingState<'a> {
             // so no wrappers are needed.
             return Ok(()); 
         }
+        let wasm_init_task = wasm_init_task_export.unwrap();
+        let wasm_init_async_task = wasm_init_async_task_export.unwrap();
 
         // Collect the exports that we will need to wrap, alongside information
         // that we'll need to build the wrappers.
