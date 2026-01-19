@@ -2234,16 +2234,18 @@ impl<'a> EncodingState<'a> {
         // that we'll need to build the wrappers.
         let funcs_to_wrap: Vec<_> = exports
             .iter()
-            .flat_map(|(core_name, export)| match export {
-                Export::WorldFunc(key, _, abi) => match &world.exports[key] {
-                    WorldItem::Function(f) => Some((core_name, f, abi)),
+            .flat_map(|(core_name, export)| {
+                match export {
+                    Export::WorldFunc(key, _, abi) => match &world.exports[key] {
+                        WorldItem::Function(f) => Some((core_name, f, abi)),
+                        _ => None,
+                    },
+                    Export::InterfaceFunc(_, id, func_name, abi) => {
+                        let func = &resolve.interfaces[*id].functions[func_name.as_str()];
+                        Some((core_name, func, abi))
+                    }
                     _ => None,
-                },
-                Export::InterfaceFunc(_, id, func_name, abi) => {
-                    let func = &resolve.interfaces[*id].functions[func_name.as_str()];
-                    Some((core_name, func, abi))
                 }
-                _ => None,
             })
             .collect();
 
@@ -2281,7 +2283,15 @@ impl<'a> EncodingState<'a> {
         let mut next_type_idx = 1u32;
         let mut next_func_idx = 2u32;
 
-        // Create wrapper functions for each export
+        // First pass: create all types and import all original functions
+        struct FuncInfo<'a> {
+            name: &'a str,
+            type_idx: u32,
+            orig_func_idx: u32,
+            is_async: bool,
+            n_params: usize,
+        }
+        let mut func_info = Vec::new();
         for &(name, func, abi) in funcs_to_wrap.iter() {
             let sig = resolve.wasm_signature(*abi, func);
             let type_idx = *type_indices.entry(sig.clone()).or_insert_with(|| {
@@ -2302,23 +2312,34 @@ impl<'a> EncodingState<'a> {
             let orig_func_idx = next_func_idx;
             next_func_idx += 1;
 
+            func_info.push(FuncInfo {
+                name,
+                type_idx,
+                orig_func_idx,
+                is_async: abi.is_async(),
+                n_params: sig.params.len(),
+            });
+        }
+
+        // Second pass: define wrapper functions
+        for info in func_info.iter() {
             let wrapper_func_idx = next_func_idx;
-            functions.function(type_idx);
+            functions.function(info.type_idx);
 
             let mut func = wasm_encoder::Function::new([]);
-            if abi.is_async() {
+            if info.is_async {
                 func.instruction(&Instruction::Call(wasm_init_async_task_func_idx));
             } else {
                 func.instruction(&Instruction::Call(wasm_init_task_func_idx));
             }
-            for i in 0..sig.params.len() as u32 {
+            for i in 0..info.n_params as u32 {
                 func.instruction(&Instruction::LocalGet(i));
             }
-            func.instruction(&Instruction::Call(orig_func_idx));
+            func.instruction(&Instruction::Call(info.orig_func_idx));
             func.instruction(&Instruction::End);
             code.function(&func);
 
-            exports_section.export(name, ExportKind::Func, wrapper_func_idx);
+            exports_section.export(info.name, ExportKind::Func, wrapper_func_idx);
             next_func_idx += 1;
         }
 
