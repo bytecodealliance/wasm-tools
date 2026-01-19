@@ -1063,7 +1063,7 @@ impl<'a> EncodingState<'a> {
         let resolve = &self.info.encoder.metadata.resolve;
         let metadata = self.info.module_metadata_for(module);
         let instance_index = self.instance_for(module);
-        // If we generated a init task wrapper for this export, use that,
+        // If we generated an init task wrapper for this export, use that,
         // otherwise alias the original export.
         let core_func_index = if let Some(&wrapper_idx) = self.export_task_initialization_wrappers.get(core_name) {
             wrapper_idx
