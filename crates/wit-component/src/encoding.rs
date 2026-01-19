@@ -116,31 +116,31 @@ fn to_val_type(ty: &WasmType) -> ValType {
     }
 }
 
-            fn import_func_name(f: &Function) -> String {
-            match f.kind {
-                FunctionKind::Freestanding | FunctionKind::AsyncFreestanding => {
-                    format!("import-func-{}", f.item_name())
-                }
-
-                // transform `[method]foo.bar` into `import-method-foo-bar` to
-                // have it be a valid kebab-name which can't conflict with
-                // anything else.
-                //
-                // There's probably a better and more "formal" way to do this
-                // but quick-and-dirty string manipulation should work well
-                // enough for now hopefully.
-                FunctionKind::Method(_)
-                | FunctionKind::AsyncMethod(_)
-                | FunctionKind::Static(_)
-                | FunctionKind::AsyncStatic(_)
-                | FunctionKind::Constructor(_) => {
-                    format!(
-                        "import-{}",
-                        f.name.replace('[', "").replace([']', '.', ' '], "-")
-                    )
-                }
-            }
+fn import_func_name(f: &Function) -> String {
+    match f.kind {
+        FunctionKind::Freestanding | FunctionKind::AsyncFreestanding => {
+            format!("import-func-{}", f.item_name())
         }
+
+        // transform `[method]foo.bar` into `import-method-foo-bar` to
+        // have it be a valid kebab-name which can't conflict with
+        // anything else.
+        //
+        // There's probably a better and more "formal" way to do this
+        // but quick-and-dirty string manipulation should work well
+        // enough for now hopefully.
+        FunctionKind::Method(_)
+        | FunctionKind::AsyncMethod(_)
+        | FunctionKind::Static(_)
+        | FunctionKind::AsyncStatic(_)
+        | FunctionKind::Constructor(_) => {
+            format!(
+                "import-{}",
+                f.name.replace('[', "").replace([']', '.', ' '], "-")
+            )
+        }
+    }
+}
 
 bitflags::bitflags! {
     /// Options in the `canon lower` or `canon lift` required for a particular
@@ -723,7 +723,7 @@ impl<'a> EncodingState<'a> {
                 | Export::Initialize
                 | Export::ReallocForAdapter
                 | Export::IndirectFunctionTable
-                | Export::WasmInitTask   
+                | Export::WasmInitTask
                 | Export::WasmInitAsyncTask => continue,
             }
         }
@@ -1065,11 +1065,12 @@ impl<'a> EncodingState<'a> {
         let instance_index = self.instance_for(module);
         // If we generated an init task wrapper for this export, use that,
         // otherwise alias the original export.
-        let core_func_index = if let Some(&wrapper_idx) = self.export_task_initialization_wrappers.get(core_name) {
-            wrapper_idx
-        } else {
-            self.core_alias_export(Some(core_name), instance_index, core_name, ExportKind::Func)
-        };
+        let core_func_index =
+            if let Some(&wrapper_idx) = self.export_task_initialization_wrappers.get(core_name) {
+                wrapper_idx
+            } else {
+                self.core_alias_export(Some(core_name), instance_index, core_name, ExportKind::Func)
+            };
         let exports = self.info.exports_for(module);
 
         let options = RequiredOptions::for_export(
@@ -2207,7 +2208,7 @@ impl<'a> EncodingState<'a> {
 
     /// Modules may define `__wasm_init_(async_)task` functions that must be called
     /// at the start of every exported function to set up the stack pointer and
-    /// thread-local storage. To achieve this, we create a wrapper module called 
+    /// thread-local storage. To achieve this, we create a wrapper module called
     /// `task-init-wrappers` that imports the original exports and the
     /// task initialization functions, and defines wrapper functions that call
     /// the relevant task initialization function before delegating to the original export.
@@ -2225,7 +2226,7 @@ impl<'a> EncodingState<'a> {
         if wasm_init_task_export.is_none() || wasm_init_async_task_export.is_none() {
             // __wasm_init_(async_)task was not exported by the main module,
             // so no wrappers are needed.
-            return Ok(()); 
+            return Ok(());
         }
         let wasm_init_task = wasm_init_task_export.unwrap();
         let wasm_init_async_task = wasm_init_async_task_export.unwrap();
@@ -2234,18 +2235,16 @@ impl<'a> EncodingState<'a> {
         // that we'll need to build the wrappers.
         let funcs_to_wrap: Vec<_> = exports
             .iter()
-            .flat_map(|(core_name, export)| {
-                match export {
-                    Export::WorldFunc(key, _, abi) => match &world.exports[key] {
-                        WorldItem::Function(f) => Some((core_name, f, abi)),
-                        _ => None,
-                    },
-                    Export::InterfaceFunc(_, id, func_name, abi) => {
-                        let func = &resolve.interfaces[*id].functions[func_name.as_str()];
-                        Some((core_name, func, abi))
-                    }
+            .flat_map(|(core_name, export)| match export {
+                Export::WorldFunc(key, _, abi) => match &world.exports[key] {
+                    WorldItem::Function(f) => Some((core_name, f, abi)),
                     _ => None,
+                },
+                Export::InterfaceFunc(_, id, func_name, abi) => {
+                    let func = &resolve.interfaces[*id].functions[func_name.as_str()];
+                    Some((core_name, func, abi))
                 }
+                _ => None,
             })
             .collect();
 
@@ -2270,7 +2269,7 @@ impl<'a> EncodingState<'a> {
             "",
             wasm_init_task,
             EntityType::Function(wasm_init_task_type_idx),
-        );        
+        );
         imports.import(
             "",
             wasm_init_async_task,
@@ -2304,11 +2303,7 @@ impl<'a> EncodingState<'a> {
                 idx
             });
 
-            imports.import(
-                "",
-                &import_func_name(func),
-                EntityType::Function(type_idx),
-            );
+            imports.import("", &import_func_name(func), EntityType::Function(type_idx));
             let orig_func_idx = next_func_idx;
             next_func_idx += 1;
 
@@ -2369,17 +2364,17 @@ impl<'a> EncodingState<'a> {
             ExportKind::Func,
         );
         wrapper_imports.push((wasm_init_task.into(), ExportKind::Func, init_idx));
-        wrapper_imports.push((wasm_init_async_task.into(), ExportKind::Func, init_async_idx));
-        
+        wrapper_imports.push((
+            wasm_init_async_task.into(),
+            ExportKind::Func,
+            init_async_idx,
+        ));
+
         // Import all original exports to be wrapped
         for (name, func, _) in &funcs_to_wrap {
             let orig_idx =
                 self.core_alias_export(Some(name), instance_index, name, ExportKind::Func);
-            wrapper_imports.push((
-                import_func_name(func),
-                ExportKind::Func,
-                orig_idx,
-            ));
+            wrapper_imports.push((import_func_name(func), ExportKind::Func, orig_idx));
         }
 
         let wrapper_args_idx = self.component.core_instantiate_exports(
@@ -2397,7 +2392,8 @@ impl<'a> EncodingState<'a> {
         for (name, _, _) in funcs_to_wrap {
             let wrapper_idx =
                 self.core_alias_export(Some(&name), wrapper_instance, &name, ExportKind::Func);
-            self.export_task_initialization_wrappers.insert(name.into(), wrapper_idx);
+            self.export_task_initialization_wrappers
+                .insert(name.into(), wrapper_idx);
         }
 
         Ok(())
