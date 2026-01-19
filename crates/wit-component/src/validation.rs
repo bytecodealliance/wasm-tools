@@ -2149,7 +2149,7 @@ impl NameMangling for Legacy {
         Some("__wasm_init_task")
     }
     fn export_wasm_init_async_task(&self) -> Option<&str> {
-        Some("__wasm_init_task_async")
+        Some("__wasm_init_async_task")
     }
     fn resource_drop_name<'a>(&self, name: &'a str) -> Option<&'a str> {
         name.strip_prefix("[resource-drop]")

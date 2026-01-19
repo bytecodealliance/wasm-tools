@@ -2219,8 +2219,8 @@ impl<'a> EncodingState<'a> {
         let resolve = &self.info.encoder.metadata.resolve;
         let world = &resolve.worlds[self.info.encoder.metadata.world];
         let exports = self.info.exports_for(CustomModule::Main);
-        let wasm_init_task = "_wasm_init_task";
-        let wasm_init_async_task = "_wasm_init_async_task";
+        let wasm_init_task = "__wasm_init_task";
+        let wasm_init_async_task = "__wasm_init_async_task";
 
         let wasm_init_task_export = exports.wasm_init_task();
         let wasm_init_async_task_export = exports.wasm_init_async_task();
@@ -2263,7 +2263,7 @@ impl<'a> EncodingState<'a> {
         types.ty().function([], []);
         let wasm_init_task_type_idx = 0;
 
-        // Import _wasm_init_task and _wasm_init_async_task into the wrapper module
+        // Import __wasm_init_task and __wasm_init_async_task into the wrapper module
         imports.import(
             "",
             wasm_init_task,

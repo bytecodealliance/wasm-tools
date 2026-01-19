@@ -1,0 +1,6 @@
+package foo:foo;
+
+world module {
+  export foo: func();
+  export bar: func();
+}

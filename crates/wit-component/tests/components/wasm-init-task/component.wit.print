@@ -1,0 +1,6 @@
+package root:component;
+
+world root {
+  export foo: func();
+  export bar: func();
+}
