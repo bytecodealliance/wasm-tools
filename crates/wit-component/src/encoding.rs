@@ -2205,7 +2205,7 @@ impl<'a> EncodingState<'a> {
             })
     }
 
-    /// Modules may define `_wasm_init_(async_)task` functions that must be called
+    /// Modules may define `__wasm_init_(async_)task` functions that must be called
     /// at the start of every exported function to set up the stack pointer and
     /// thread-local storage. To achieve this, we create a wrapper module called 
     /// `task-init-wrappers` that imports the original exports and the
@@ -2225,7 +2225,7 @@ impl<'a> EncodingState<'a> {
         let wasm_init_task_export = exports.wasm_init_task();
         let wasm_init_async_task_export = exports.wasm_init_async_task();
         if wasm_init_task_export.is_none() || wasm_init_async_task_export.is_none() {
-            // _wasm_init_(async_)task was not exported by the main module,
+            // __wasm_init_(async_)task was not exported by the main module,
             // so no wrappers are needed.
             return Ok(()); 
         }
@@ -2259,7 +2259,7 @@ impl<'a> EncodingState<'a> {
         let mut exports_section = ExportSection::new();
         let mut code = CodeSection::new();
 
-        // Type for _wasm_init_(async_)task: () -> ()
+        // Type for __wasm_init_(async_)task: () -> ()
         types.ty().function([], []);
         let wasm_init_task_type_idx = 0;
 
