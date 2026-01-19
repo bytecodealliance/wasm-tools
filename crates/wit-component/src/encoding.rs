@@ -2205,7 +2205,7 @@ impl<'a> EncodingState<'a> {
             })
     }
 
-    /// wasi-libc defines `_wasm_init_(async_)task` functions that must be called
+    /// Modules may define `_wasm_init_(async_)task` functions that must be called
     /// at the start of every exported function to set up the stack pointer and
     /// thread-local storage. To achieve this, we create a wrapper module called 
     /// `task-init-wrappers` that imports the original exports and the
