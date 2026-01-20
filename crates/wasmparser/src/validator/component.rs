@@ -3937,7 +3937,10 @@ impl ComponentState {
                     )
                 }
                 if elements < 1 {
-                    bail!(offset, "Fixed-length lists must have more than zero elements")
+                    bail!(
+                        offset,
+                        "Fixed-length lists must have more than zero elements"
+                    )
                 }
                 Ok(ComponentDefinedType::FixedLengthList(
                     self.create_component_val_type(ty, offset)?,
