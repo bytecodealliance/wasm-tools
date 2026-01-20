@@ -112,7 +112,7 @@ jobs:
           - os: ubuntu-latest
             rust: beta
           - os: ubuntu-latest
-            rust: nightly-2025-12-05
+            rust: nightly-2026-01-20
           - os: macos-latest
             rust: stable
           - os: windows-latest
