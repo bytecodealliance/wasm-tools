@@ -1,0 +1,10 @@
+package foo:foo;
+
+world module {
+  export async-stackful: func();
+  export async-callback: func();
+  export sync: func();
+  export async-stackful-argret: func(s: string) -> string;
+  export async-callback-argret: func(s: string) -> string;
+  export sync-argret: func(s: string) -> string;
+}
