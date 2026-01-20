@@ -1,43 +1,43 @@
 {
-  "source_filename": "tests/cli/component-model/fixed-length-list.wast",
+  "source_filename": "tests/cli/component-model/fixed-length-lists.wast",
   "commands": [
     {
       "type": "module",
       "line": 3,
-      "filename": "fixed-length-list.0.wasm",
+      "filename": "fixed-length-lists.0.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
       "line": 15,
-      "filename": "fixed-length-list.1.wasm",
+      "filename": "fixed-length-lists.1.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
       "line": 27,
-      "filename": "fixed-length-list.2.wasm",
+      "filename": "fixed-length-lists.2.wasm",
       "module_type": "binary",
-      "text": "Fixed size lists must have more than zero elements (at offset 0x54)"
+      "text": "Fixed length-lists must have more than zero elements (at offset 0x54)"
     },
     {
       "type": "assert_malformed",
       "line": 42,
-      "filename": "fixed-length-list.3.wat",
+      "filename": "fixed-length-lists.3.wat",
       "module_type": "text",
       "text": "invalid u32 number: constant out of range"
     },
     {
       "type": "assert_invalid",
       "line": 57,
-      "filename": "fixed-length-list.4.wasm",
+      "filename": "fixed-length-lists.4.wasm",
       "module_type": "binary",
       "text": "type mismatch for import `x`"
     },
     {
       "type": "assert_invalid",
       "line": 70,
-      "filename": "fixed-length-list.5.wasm",
+      "filename": "fixed-length-lists.5.wasm",
       "module_type": "binary",
       "text": "type mismatch for import `x`"
     }
