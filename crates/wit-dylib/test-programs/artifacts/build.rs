@@ -33,6 +33,12 @@ https://github.com/webassembly/wasi-sdk
             format!("CARGO_TARGET_{upcase}_LINKER"),
             wasi_sdk_path.join("bin/clang"),
         )
+        // FIXME: this is needed since the Rust standard library is depending on
+        // a buggy libc crate which has bindings for symbols that don't exist.
+        // Once libc is updated in rust-lang/rust and that propagates to stable
+        // this can be removed.
+        .env("CARGO_PROFILE_DEV_LTO", "true")
+        .env("CARGO_PROFILE_RELEASE_LTO", "true")
         .env_remove("CARGO_ENCODED_RUSTFLAGS");
     if !debug {
         cargo.arg("--release");
