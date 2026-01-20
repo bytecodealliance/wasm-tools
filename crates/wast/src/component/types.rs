@@ -387,7 +387,7 @@ pub enum ComponentDefinedType<'a> {
     Variant(Variant<'a>),
     List(List<'a>),
     Map(Map<'a>),
-    FixedSizeList(FixedSizeList<'a>),
+    FixedLengthList(FixedLengthList<'a>),
     Tuple(Tuple<'a>),
     Flags(Flags<'a>),
     Enum(Enum<'a>),
@@ -600,9 +600,9 @@ pub struct Map<'a> {
     pub value: Box<ComponentValType<'a>>,
 }
 
-/// A fixed size list type.
+/// A fixed-length list type.
 #[derive(Debug)]
-pub struct FixedSizeList<'a> {
+pub struct FixedLengthList<'a> {
     /// The element type of the array.
     pub element: Box<ComponentValType<'a>>,
     /// Number of Elements
@@ -614,7 +614,7 @@ fn parse_list<'a>(parser: Parser<'a>) -> Result<ComponentDefinedType<'a>> {
     let tp = parser.parse()?;
     let elements = parser.parse::<Option<u32>>()?;
     if let Some(elements) = elements {
-        Ok(ComponentDefinedType::FixedSizeList(FixedSizeList {
+        Ok(ComponentDefinedType::FixedLengthList(FixedLengthList {
             element: Box::new(tp),
             elements,
         }))

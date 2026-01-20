@@ -1470,8 +1470,8 @@ pub enum ComponentDefinedType {
     List(ComponentValType),
     /// The type is a map.
     Map(ComponentValType, ComponentValType),
-    /// The type is a fixed size list.
-    FixedSizeList(ComponentValType, u32),
+    /// The type is a fixed-length list.
+    FixedLengthList(ComponentValType, u32),
     /// The type is a tuple.
     Tuple(TupleType),
     /// The type is a set of flags.
@@ -1512,7 +1512,7 @@ impl TypeData for ComponentDefinedType {
             Self::Record(r) => r.info,
             Self::Variant(v) => v.info,
             Self::Tuple(t) => t.info,
-            Self::List(ty) | Self::FixedSizeList(ty, _) | Self::Option(ty) => ty.info(types),
+            Self::List(ty) | Self::FixedLengthList(ty, _) | Self::Option(ty) => ty.info(types),
             Self::Map(k, v) => {
                 let mut info = k.info(types);
                 info.combine(v.info(types), 0).unwrap();
@@ -1546,7 +1546,7 @@ impl ComponentDefinedType {
             | Self::Borrow(_)
             | Self::Future(_)
             | Self::Stream(_) => false,
-            Self::Option(ty) | Self::FixedSizeList(ty, _) => ty.contains_ptr(types),
+            Self::Option(ty) | Self::FixedLengthList(ty, _) => ty.contains_ptr(types),
             Self::Result { ok, err } => {
                 ok.map(|ty| ty.contains_ptr(types)).unwrap_or(false)
                     || err.map(|ty| ty.contains_ptr(types)).unwrap_or(false)
@@ -1569,7 +1569,7 @@ impl ComponentDefinedType {
             Self::List(_) | Self::Map(_, _) => {
                 lowered_types.try_push(ValType::I32) && lowered_types.try_push(ValType::I32)
             }
-            Self::FixedSizeList(ty, length) => {
+            Self::FixedLengthList(ty, length) => {
                 (0..*length).all(|_n| ty.push_wasm_types(types, lowered_types))
             }
             Self::Tuple(t) => t
@@ -1647,7 +1647,7 @@ impl ComponentDefinedType {
             ComponentDefinedType::Option(_) => "option",
             ComponentDefinedType::List(_) => "list",
             ComponentDefinedType::Map(_, _) => "map",
-            ComponentDefinedType::FixedSizeList(_, _) => "fixed size list",
+            ComponentDefinedType::FixedLengthList(_, _) => "fixed-length list",
             ComponentDefinedType::Result { .. } => "result",
             ComponentDefinedType::Own(_) => "own",
             ComponentDefinedType::Borrow(_) => "borrow",
@@ -1671,7 +1671,7 @@ impl ComponentDefinedType {
 
             ComponentDefinedType::Variant(ty) => ty.lower_gc(types, abi, options, offset, core),
 
-            ComponentDefinedType::List(ty) | ComponentDefinedType::FixedSizeList(ty, _) => {
+            ComponentDefinedType::List(ty) | ComponentDefinedType::FixedLengthList(ty, _) => {
                 let id = match core.as_concrete_ref() {
                     Some(id) => id,
                     None => bail!(
@@ -2524,7 +2524,7 @@ impl TypeAlloc {
                 }
             }
             ComponentDefinedType::List(ty)
-            | ComponentDefinedType::FixedSizeList(ty, _)
+            | ComponentDefinedType::FixedLengthList(ty, _)
             | ComponentDefinedType::Option(ty) => {
                 self.free_variables_valtype(ty, set);
             }
@@ -2672,7 +2672,7 @@ impl TypeAlloc {
                         .unwrap_or(true)
             }
             ComponentDefinedType::List(ty)
-            | ComponentDefinedType::FixedSizeList(ty, _)
+            | ComponentDefinedType::FixedLengthList(ty, _)
             | ComponentDefinedType::Option(ty) => self.type_named_valtype(ty, set),
             ComponentDefinedType::Map(k, v) => {
                 self.type_named_valtype(k, set) && self.type_named_valtype(v, set)
@@ -2865,7 +2865,7 @@ where
                 }
             }
             ComponentDefinedType::List(ty)
-            | ComponentDefinedType::FixedSizeList(ty, _)
+            | ComponentDefinedType::FixedLengthList(ty, _)
             | ComponentDefinedType::Option(ty) => {
                 any_changed |= self.remap_valtype(ty, map);
             }
@@ -3791,14 +3791,14 @@ impl<'a> SubtypeCx<'a> {
                     .with_context(|| "type mismatch in map value")
             }
             (Map(_, _), b) => bail!(offset, "expected {}, found map", b.desc()),
-            (FixedSizeList(a, asize), FixedSizeList(b, bsize)) => {
+            (FixedLengthList(a, asize), FixedLengthList(b, bsize)) => {
                 if asize != bsize {
-                    bail!(offset, "expected fixed size {bsize}, found size {asize}")
+                    bail!(offset, "expected fixed-length {bsize}, found size {asize}")
                 } else {
                     self.component_val_type(a, b, offset)
                 }
             }
-            (FixedSizeList(_, _), b) => bail!(offset, "expected {}, found list", b.desc()),
+            (FixedLengthList(_, _), b) => bail!(offset, "expected {}, found list", b.desc()),
             (Option(_), b) => bail!(offset, "expected {}, found option", b.desc()),
             (Tuple(a), Tuple(b)) => {
                 if a.types.len() != b.types.len() {

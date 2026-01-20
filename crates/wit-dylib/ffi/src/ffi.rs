@@ -24,7 +24,7 @@ pub const WIT_TYPE_ENUM: u32 = 20;
 pub const WIT_TYPE_OPTION: u32 = 21;
 pub const WIT_TYPE_RESULT: u32 = 22;
 pub const WIT_TYPE_LIST: u32 = 23;
-pub const WIT_TYPE_FIXED_SIZE_LIST: u32 = 24;
+pub const WIT_TYPE_FIXED_LENGTH_LIST: u32 = 24;
 pub const WIT_TYPE_FUTURE: u32 = 25;
 pub const WIT_TYPE_STREAM: u32 = 26;
 pub const WIT_TYPE_ALIAS: u32 = 27;
@@ -169,13 +169,13 @@ pub struct wit_list {
 pub type wit_list_t = wit_list;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct wit_fixed_size_list {
+pub struct wit_fixed_length_list {
     pub interface: *const ::std::os::raw::c_char,
     pub name: *const ::std::os::raw::c_char,
     pub size: usize,
     pub ty: wit_type_t,
 }
-pub type wit_fixed_size_list_t = wit_fixed_size_list;
+pub type wit_fixed_length_list_t = wit_fixed_length_list;
 pub type wit_lift_fn_t = ::std::option::Option<
     unsafe extern "C" fn(cx: *mut ::std::os::raw::c_void, buffer: *const ::std::os::raw::c_void),
 >;
@@ -280,8 +280,8 @@ pub struct wit {
     pub results: *const wit_result_t,
     pub num_lists: usize,
     pub lists: *const wit_list_t,
-    pub num_fixed_size_lists: usize,
-    pub fixed_size_lists: *const wit_fixed_size_list_t,
+    pub num_fixed_length_lists: usize,
+    pub fixed_length_lists: *const wit_fixed_length_list_t,
     pub num_futures: usize,
     pub futures: *const wit_future_t,
     pub num_streams: usize,

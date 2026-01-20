@@ -627,8 +627,8 @@ impl ComponentDefinedTypeEncoder<'_> {
         value.into().encode(self.0);
     }
 
-    /// Define a fixed size list type.
-    pub fn fixed_size_list(self, ty: impl Into<ComponentValType>, elements: u32) {
+    /// Define a fixed-length list type.
+    pub fn fixed_length_list(self, ty: impl Into<ComponentValType>, elements: u32) {
         self.0.push(0x67);
         ty.into().encode(self.0);
         elements.encode(self.0);

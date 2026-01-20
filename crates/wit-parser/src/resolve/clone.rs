@@ -140,7 +140,7 @@ impl<'a> Cloner<'a> {
             }
             TypeDefKind::Option(ty)
             | TypeDefKind::List(ty)
-            | TypeDefKind::FixedSizeList(ty, ..) => {
+            | TypeDefKind::FixedLengthList(ty, ..) => {
                 self.ty(ty);
             }
             TypeDefKind::Map(k, v) => {

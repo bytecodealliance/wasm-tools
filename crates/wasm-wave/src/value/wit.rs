@@ -71,8 +71,8 @@ impl<'a> TypeResolver<'a> {
             TypeDefKind::Option(some_type) => self.resolve_option(some_type),
             TypeDefKind::Result(result) => self.resolve_result(result),
             TypeDefKind::List(element_type) => self.resolve_list(element_type),
-            TypeDefKind::FixedSizeList(element_type, elements) => {
-                self.resolve_fixed_size_list(element_type, *elements)
+            TypeDefKind::FixedLengthList(element_type, elements) => {
+                self.resolve_fixed_length_list(element_type, *elements)
             }
             TypeDefKind::Type(Type::Bool) => Ok(value::Type::BOOL),
             TypeDefKind::Type(Type::U8) => Ok(value::Type::U8),
@@ -150,9 +150,9 @@ impl<'a> TypeResolver<'a> {
         Ok(value::Type::list(element_type))
     }
 
-    fn resolve_fixed_size_list(&self, element_type: &Type, elements: u32) -> ValueResult {
+    fn resolve_fixed_length_list(&self, element_type: &Type, elements: u32) -> ValueResult {
         let element_type = self.resolve_type(*element_type)?;
-        Ok(value::Type::fixed_size_list(element_type, elements))
+        Ok(value::Type::fixed_length_list(element_type, elements))
     }
 }
 

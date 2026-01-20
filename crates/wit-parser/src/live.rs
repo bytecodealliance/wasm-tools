@@ -135,7 +135,7 @@ pub trait TypeIdVisitor {
         match &ty.kind {
             TypeDefKind::Type(t)
             | TypeDefKind::List(t)
-            | TypeDefKind::FixedSizeList(t, ..)
+            | TypeDefKind::FixedLengthList(t, ..)
             | TypeDefKind::Option(t)
             | TypeDefKind::Future(Some(t))
             | TypeDefKind::Stream(Some(t)) => self.visit_type(resolve, t),

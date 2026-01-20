@@ -1,4 +1,4 @@
-expected fixed size, found keyword `type`
+expected fixed-length, found keyword `type`
      --> tests/ui/parse-fail/bad-list2.wit:6:3
       |
     6 |   type y = u32

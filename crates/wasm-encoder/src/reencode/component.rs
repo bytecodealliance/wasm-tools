@@ -775,8 +775,8 @@ pub mod component_utils {
                     reencoder.component_val_type(v),
                 );
             }
-            wasmparser::ComponentDefinedType::FixedSizeList(t, elements) => {
-                defined.fixed_size_list(reencoder.component_val_type(t), elements);
+            wasmparser::ComponentDefinedType::FixedLengthList(t, elements) => {
+                defined.fixed_length_list(reencoder.component_val_type(t), elements);
             }
             wasmparser::ComponentDefinedType::Tuple(t) => {
                 defined.tuple(t.iter().map(|t| reencoder.component_val_type(*t)));

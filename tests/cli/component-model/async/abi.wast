@@ -1,4 +1,4 @@
-;; RUN: wast --assert default --snapshot tests/snapshots % -f cm-async,cm-fixed-size-list
+;; RUN: wast --assert default --snapshot tests/snapshots % -f cm-async,cm-fixed-length-lists
 
 ;; async lower
 (component

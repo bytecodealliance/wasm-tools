@@ -1110,9 +1110,9 @@ impl<'a> FunctionCompiler<'a> {
 
             // TODO: expand inline? Use a loop if `len` is too big? How much to
             // share with lowering a list above? Deal with it later.
-            TypeDefKind::FixedSizeList(t, len) => {
+            TypeDefKind::FixedLengthList(t, len) => {
                 let _ = (t, len);
-                todo!("fixed-size-list")
+                todo!("fixed-length-list")
             }
 
             TypeDefKind::Map(k, v) => {
@@ -1453,9 +1453,9 @@ impl<'a> FunctionCompiler<'a> {
 
             // TODO: expand inline? Use a loop if `len` is too big? How much to
             // share with lowering a list above? Deal with it later.
-            TypeDefKind::FixedSizeList(t, len) => {
+            TypeDefKind::FixedLengthList(t, len) => {
                 let _ = (t, len);
-                todo!("fixed-size-list")
+                todo!("fixed-length-list")
             }
 
             // Variant-like items all go through the `lift_variant` helper.

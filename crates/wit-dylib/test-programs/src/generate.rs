@@ -77,7 +77,7 @@ impl Generator {
             Type::ErrorContext => todo!(),
             Type::Stream(_) => todo!(),
             Type::Future(_) => todo!(),
-            Type::FixedSizeList(_) => todo!(),
+            Type::FixedLengthList(_) => todo!(),
         }
     }
 

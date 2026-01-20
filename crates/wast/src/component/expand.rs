@@ -553,7 +553,7 @@ impl<'a> Expander<'a> {
                 }
             }
             ComponentDefinedType::List(List { element: t })
-            | ComponentDefinedType::FixedSizeList(FixedSizeList {
+            | ComponentDefinedType::FixedLengthList(FixedLengthList {
                 element: t,
                 elements: _,
             }) => {

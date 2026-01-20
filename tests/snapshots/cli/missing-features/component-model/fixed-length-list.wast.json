@@ -1,0 +1,19 @@
+{
+  "source_filename": "tests/cli/missing-features/component-model/fixed-length-list.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "fixed-length-list.0.wasm",
+      "module_type": "binary",
+      "text": "Fixed size lists require the component model fixed-length list feature (at offset 0x54)"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 19,
+      "filename": "fixed-length-list.1.wasm",
+      "module_type": "binary",
+      "text": "Fixed size lists require the component model fixed-length list feature"
+    }
+  ]
+}

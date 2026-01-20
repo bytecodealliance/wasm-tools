@@ -657,8 +657,8 @@ impl<'a> TypeEncoder<'a> {
             ComponentDefinedType::Variant(v) => self.variant(state, v),
             ComponentDefinedType::List(ty) => self.list(state, *ty),
             ComponentDefinedType::Map(key, value) => self.map(state, *key, *value),
-            ComponentDefinedType::FixedSizeList(ty, elements) => {
-                self.fixed_size_list(state, *ty, *elements)
+            ComponentDefinedType::FixedLengthList(ty, elements) => {
+                self.fixed_length_list(state, *ty, *elements)
             }
             ComponentDefinedType::Tuple(t) => self.tuple(state, t),
             ComponentDefinedType::Flags(names) => Self::flags(&mut state.cur.encodable, names),
@@ -733,7 +733,7 @@ impl<'a> TypeEncoder<'a> {
         index
     }
 
-    fn fixed_size_list(
+    fn fixed_length_list(
         &self,
         state: &mut TypeState<'a>,
         ty: ct::ComponentValType,
@@ -746,7 +746,7 @@ impl<'a> TypeEncoder<'a> {
             .encodable
             .ty()
             .defined_type()
-            .fixed_size_list(ty, elements);
+            .fixed_length_list(ty, elements);
         index
     }
 
@@ -1271,7 +1271,7 @@ impl DependencyRegistrar<'_, '_> {
             | ComponentDefinedType::Enum(_)
             | ComponentDefinedType::Flags(_) => {}
             ComponentDefinedType::List(t)
-            | ComponentDefinedType::FixedSizeList(t, _)
+            | ComponentDefinedType::FixedLengthList(t, _)
             | ComponentDefinedType::Option(t) => self.val_type(*t),
             ComponentDefinedType::Map(k, v) => {
                 self.val_type(*k);

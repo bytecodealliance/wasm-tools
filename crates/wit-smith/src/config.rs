@@ -27,8 +27,8 @@ pub struct Config {
     pub streams: bool,
     #[cfg_attr(feature = "clap", clap(long, default_value_t = Config::default().error_context))]
     pub error_context: bool,
-    #[cfg_attr(feature = "clap", clap(long, default_value_t = Config::default().fixed_size_list))]
-    pub fixed_size_list: bool,
+    #[cfg_attr(feature = "clap", clap(long, default_value_t = Config::default().fixed_length_lists))]
+    pub fixed_length_lists: bool,
     #[cfg_attr(feature = "clap", clap(long, default_value_t = Config::default().world_include))]
     pub world_include: bool,
 }
@@ -48,7 +48,7 @@ impl Default for Config {
             futures: false,
             streams: false,
             error_context: false,
-            fixed_size_list: false,
+            fixed_length_lists: false,
             world_include: false,
         }
     }
@@ -69,7 +69,7 @@ impl Arbitrary<'_> for Config {
             futures: u.arbitrary()?,
             streams: u.arbitrary()?,
             error_context: u.arbitrary()?,
-            fixed_size_list: u.arbitrary()?,
+            fixed_length_lists: u.arbitrary()?,
             world_include: false,
         })
     }

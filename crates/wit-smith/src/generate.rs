@@ -1090,7 +1090,7 @@ impl<'a> InterfaceGenerator<'a> {
             Option,
             Result,
             List,
-            FixedSizeList,
+            FixedLengthList,
             Stream,
             Future,
             ErrorContext,
@@ -1172,8 +1172,8 @@ impl<'a> InterfaceGenerator<'a> {
                     self.gen_type(u, fuel, dst)?;
                     dst.push_str(">");
                 }
-                Kind::FixedSizeList => {
-                    if !self.generator.config.fixed_size_list {
+                Kind::FixedLengthList => {
+                    if !self.generator.config.fixed_length_lists {
                         continue;
                     }
                     *fuel = match fuel.checked_sub(1) {

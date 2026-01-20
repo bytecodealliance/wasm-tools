@@ -1,5 +1,5 @@
-// RUN[parse]: component wit % -t | validate -f cm-fixed-size-list
-// RUN[abi]: component embed --dummy % | component new | validate -f cm-fixed-size-list
+// RUN[parse]: component wit % -t | validate -f cm-fixed-length-lists
+// RUN[abi]: component embed --dummy % | component new | validate -f cm-fixed-length-lists
 
 package a:b;
 

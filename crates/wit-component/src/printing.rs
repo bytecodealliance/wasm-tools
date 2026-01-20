@@ -610,7 +610,7 @@ impl<O: Output> WitPrinter<O> {
                         self.print_type_name(resolve, value_ty)?;
                         self.output.generic_args_end();
                     }
-                    TypeDefKind::FixedSizeList(ty, size) => {
+                    TypeDefKind::FixedLengthList(ty, size) => {
                         self.output.ty("list", TypeKind::BuiltIn);
                         self.output.generic_args_start();
                         self.print_type_name(resolve, ty)?;
@@ -794,8 +794,8 @@ impl<O: Output> WitPrinter<O> {
                     TypeDefKind::Map(key, value) => {
                         self.declare_map(resolve, ty.name.as_deref(), key, value)?
                     }
-                    TypeDefKind::FixedSizeList(inner, size) => {
-                        self.declare_fixed_size_list(resolve, ty.name.as_deref(), inner, *size)?
+                    TypeDefKind::FixedLengthList(inner, size) => {
+                        self.declare_fixed_length_list(resolve, ty.name.as_deref(), inner, *size)?
                     }
                     TypeDefKind::Type(inner) => match ty.name.as_deref() {
                         Some(name) => {
@@ -1035,7 +1035,7 @@ impl<O: Output> WitPrinter<O> {
         Ok(())
     }
 
-    fn declare_fixed_size_list(
+    fn declare_fixed_length_list(
         &mut self,
         resolve: &Resolve,
         name: Option<&str>,

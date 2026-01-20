@@ -703,7 +703,7 @@
     {
       "name": "t51a",
       "kind": {
-        "fixed-size-list": [
+        "fixed-length-list": [
           "u32",
           4
         ]
@@ -715,7 +715,7 @@
     {
       "name": null,
       "kind": {
-        "fixed-size-list": [
+        "fixed-length-list": [
           "u32",
           4
         ]
@@ -725,7 +725,7 @@
     {
       "name": "t51b",
       "kind": {
-        "fixed-size-list": [
+        "fixed-length-list": [
           53,
           2
         ]

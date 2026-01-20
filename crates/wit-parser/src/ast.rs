@@ -760,7 +760,7 @@ enum Type<'a> {
     Name(Id<'a>),
     List(List<'a>),
     Map(Map<'a>),
-    FixedSizeList(FixedSizeList<'a>),
+    FixedLengthList(FixedLengthList<'a>),
     Handle(Handle<'a>),
     Resource(Resource<'a>),
     Record(Record<'a>),
@@ -924,7 +924,7 @@ struct Map<'a> {
     value: Box<Type<'a>>,
 }
 
-struct FixedSizeList<'a> {
+struct FixedLengthList<'a> {
     span: Span,
     ty: Box<Type<'a>>,
     size: u32,
@@ -1398,14 +1398,14 @@ impl<'a> Type<'a> {
                         let size: u32 = tokens.get_span(span).parse()?;
                         Some(size)
                     } else {
-                        return Err(err_expected(tokens, "fixed size", number).into());
+                        return Err(err_expected(tokens, "fixed-length", number).into());
                     }
                 } else {
                     None
                 };
                 tokens.expect(Token::GreaterThan)?;
                 if let Some(size) = size {
-                    Ok(Type::FixedSizeList(FixedSizeList {
+                    Ok(Type::FixedLengthList(FixedLengthList {
                         span,
                         ty: Box::new(ty),
                         size,
@@ -1543,7 +1543,7 @@ impl<'a> Type<'a> {
             Type::Name(id) => id.span,
             Type::List(l) => l.span,
             Type::Map(m) => m.span,
-            Type::FixedSizeList(l) => l.span,
+            Type::FixedLengthList(l) => l.span,
             Type::Handle(h) => h.span(),
             Type::Resource(r) => r.span,
             Type::Record(r) => r.span,

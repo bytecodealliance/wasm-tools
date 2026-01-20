@@ -400,7 +400,9 @@ package {name} is defined in two different locations:\n\
                 | TypeDefKind::Result(_)
                 | TypeDefKind::Future(_)
                 | TypeDefKind::Stream(_) => false,
-                TypeDefKind::Type(t) | TypeDefKind::FixedSizeList(t, ..) => self.all_bits_valid(t),
+                TypeDefKind::Type(t) | TypeDefKind::FixedLengthList(t, ..) => {
+                    self.all_bits_valid(t)
+                }
 
                 TypeDefKind::Handle(h) => match h {
                     crate::Handle::Own(_) => true,
@@ -3165,9 +3167,11 @@ impl Remap {
                     }
                 }
             }
-            Option(t) | List(t, ..) | FixedSizeList(t, ..) | Future(Some(t)) | Stream(Some(t)) => {
-                self.update_ty(resolve, t, span)?
-            }
+            Option(t)
+            | List(t, ..)
+            | FixedLengthList(t, ..)
+            | Future(Some(t))
+            | Stream(Some(t)) => self.update_ty(resolve, t, span)?,
             Map(k, v) => {
                 self.update_ty(resolve, k, span)?;
                 self.update_ty(resolve, v, span)?;
@@ -3662,7 +3666,7 @@ impl Remap {
             TypeDefKind::Tuple(t) => t.types.iter().any(|t| self.type_has_borrow(resolve, t)),
             TypeDefKind::Enum(_) => false,
             TypeDefKind::List(ty)
-            | TypeDefKind::FixedSizeList(ty, ..)
+            | TypeDefKind::FixedLengthList(ty, ..)
             | TypeDefKind::Future(Some(ty))
             | TypeDefKind::Stream(Some(ty))
             | TypeDefKind::Option(ty) => self.type_has_borrow(resolve, ty),
