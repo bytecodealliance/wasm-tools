@@ -262,7 +262,7 @@
           }
         ]
       },
-      "text": "out of bounds"
+      "text": "out of bounds memory access"
     },
     {
       "type": "module",
@@ -737,7 +737,7 @@
           }
         ]
       },
-      "text": "out of bounds"
+      "text": "out of bounds memory access"
     },
     {
       "type": "assert_return",
@@ -988,7 +988,7 @@
           }
         ]
       },
-      "text": "out of bounds"
+      "text": "out of bounds memory access"
     },
     {
       "type": "assert_trap",
@@ -1011,7 +1011,7 @@
           }
         ]
       },
-      "text": "out of bounds"
+      "text": "out of bounds memory access"
     },
     {
       "type": "module",
@@ -1144,7 +1144,7 @@
           }
         ]
       },
-      "text": "out of bounds"
+      "text": "out of bounds memory access"
     },
     {
       "type": "assert_return",
@@ -1251,7 +1251,7 @@
           }
         ]
       },
-      "text": "out of bounds"
+      "text": "out of bounds memory access"
     },
     {
       "type": "assert_trap",
@@ -1274,7 +1274,7 @@
           }
         ]
       },
-      "text": "out of bounds"
+      "text": "out of bounds memory access"
     },
     {
       "type": "action",
