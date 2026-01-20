@@ -12,7 +12,7 @@
       (canon lift (core func $i "ret-list") (memory $i "memory"))
     )
   )
-  "Fixed size lists require the component model fixed-length list feature (at offset 0x54)"
+  "Fixed-length lists require the component model fixed-length lists feature (at offset 0x54)"
 )
 
 (assert_invalid
@@ -26,5 +26,5 @@
       (canon lift (core func $i "param-list"))
     )
   )
-  "Fixed size lists require the component model fixed-length list feature"
+  "Fixed-length lists require the component model fixed-length lists feature"
 )

@@ -18,7 +18,7 @@
       "line": 27,
       "filename": "fixed-length-lists.2.wasm",
       "module_type": "binary",
-      "text": "Fixed length-lists must have more than zero elements (at offset 0x54)"
+      "text": "Fixed-length lists must have more than zero elements (at offset 0x54)"
     },
     {
       "type": "assert_malformed",

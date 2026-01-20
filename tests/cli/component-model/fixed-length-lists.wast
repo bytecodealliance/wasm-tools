@@ -35,7 +35,7 @@
       (canon lift (core func $i "ret-list") (memory $i "memory"))
     )
   )
-  "Fixed size lists must have more than zero elements (at offset 0x54)"
+  "Fixed-length lists must have more than zero elements (at offset 0x54)"
 )
 
 (assert_malformed

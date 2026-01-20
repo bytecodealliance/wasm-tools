@@ -3933,11 +3933,11 @@ impl ComponentState {
                 if !self.features.cm_fixed_length_lists() {
                     bail!(
                         offset,
-                        "Fixed size lists require the component model fixed-length list feature"
+                        "Fixed-length lists require the component model fixed-length lists feature"
                     )
                 }
                 if elements < 1 {
-                    bail!(offset, "Fixed size lists must have more than zero elements")
+                    bail!(offset, "Fixed-length lists must have more than zero elements")
                 }
                 Ok(ComponentDefinedType::FixedLengthList(
                     self.create_component_val_type(ty, offset)?,
