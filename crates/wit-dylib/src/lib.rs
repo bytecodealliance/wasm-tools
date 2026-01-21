@@ -768,18 +768,18 @@ impl Adapter {
                 });
                 metadata::Type::List(index)
             }
-            TypeDefKind::FixedSizeList(t, len) => {
-                let index = self.metadata.fixed_size_lists.len();
+            TypeDefKind::FixedLengthList(t, len) => {
+                let index = self.metadata.fixed_length_lists.len();
                 self.metadata
-                    .fixed_size_lists
-                    .push(metadata::FixedSizeList {
+                    .fixed_length_lists
+                    .push(metadata::FixedLengthList {
                         id,
                         interface,
                         name,
                         len: *len,
                         ty: self.lookup_ty(t),
                     });
-                metadata::Type::FixedSizeList(index)
+                metadata::Type::FixedLengthList(index)
             }
             TypeDefKind::Future(t) => {
                 let index = self.metadata.futures.len();

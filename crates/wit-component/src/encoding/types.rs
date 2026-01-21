@@ -196,10 +196,10 @@ pub trait ValtypeEncoder<'a> {
                         encoder.map(key, value);
                         ComponentValType::Type(index)
                     }
-                    TypeDefKind::FixedSizeList(ty, elements) => {
+                    TypeDefKind::FixedLengthList(ty, elements) => {
                         let ty = self.encode_valtype(resolve, ty)?;
                         let (index, encoder) = self.defined_type();
-                        encoder.fixed_size_list(ty, *elements);
+                        encoder.fixed_length_list(ty, *elements);
                         ComponentValType::Type(index)
                     }
                     TypeDefKind::Type(ty) => self.encode_valtype(resolve, ty)?,

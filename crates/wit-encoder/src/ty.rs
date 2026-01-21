@@ -27,7 +27,7 @@ pub enum Type {
     Result(Box<Result_>),
     List(Box<Type>),
     Map(Box<Type>, Box<Type>),
-    FixedSizeList(Box<Type>, u32),
+    FixedLengthList(Box<Type>, u32),
     Tuple(Tuple),
     Future(Option<Box<Type>>),
     Stream(Option<Box<Type>>),
@@ -63,8 +63,8 @@ impl Type {
     pub fn map(key: Type, value: Type) -> Self {
         Type::Map(Box::new(key), Box::new(value))
     }
-    pub fn fixed_size_list(type_: Type, size: u32) -> Self {
-        Type::FixedSizeList(Box::new(type_), size)
+    pub fn fixed_length_list(type_: Type, size: u32) -> Self {
+        Type::FixedLengthList(Box::new(type_), size)
     }
     pub fn tuple(types: impl IntoIterator<Item = Type>) -> Self {
         Type::Tuple(Tuple {
@@ -127,7 +127,7 @@ impl Display for Type {
             Type::Map(key, value) => {
                 write!(f, "map<{key}, {value}>")
             }
-            Type::FixedSizeList(type_, size) => {
+            Type::FixedLengthList(type_, size) => {
                 write!(f, "list<{type_}, {size}>")
             }
             Type::Tuple(tuple) => tuple.fmt(f),

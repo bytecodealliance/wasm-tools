@@ -97,7 +97,7 @@ enum Key {
     Enum(Vec<String>),
     List(Type),
     Map(Type, Type),
-    FixedSizeList(Type, u32),
+    FixedLengthList(Type, u32),
     Option(Type),
     Result(Option<Type>, Option<Type>),
     Future(Option<Type>),
@@ -1218,9 +1218,9 @@ impl<'a> Resolver<'a> {
 
                 TypeDefKind::Map(key_ty, value_ty)
             }
-            ast::Type::FixedSizeList(list) => {
+            ast::Type::FixedLengthList(list) => {
                 let ty = self.resolve_type(&list.ty, stability)?;
-                TypeDefKind::FixedSizeList(ty, list.size)
+                TypeDefKind::FixedLengthList(ty, list.size)
             }
             ast::Type::Handle(handle) => TypeDefKind::Handle(match handle {
                 ast::Handle::Own { resource } => Handle::Own(self.validate_resource(resource)?),
@@ -1403,7 +1403,7 @@ impl<'a> Resolver<'a> {
                 }
                 TypeDefKind::Tuple(t) => t.types.iter().find_map(|ty| find_in_type(types, *ty)),
                 TypeDefKind::List(ty)
-                | TypeDefKind::FixedSizeList(ty, _)
+                | TypeDefKind::FixedLengthList(ty, _)
                 | TypeDefKind::Option(ty) => find_in_type(types, *ty),
                 TypeDefKind::Map(k, v) => {
                     find_in_type(types, *k).or_else(|| find_in_type(types, *v))
@@ -1500,7 +1500,7 @@ impl<'a> Resolver<'a> {
             }
             TypeDefKind::List(ty) => Key::List(*ty),
             TypeDefKind::Map(k, v) => Key::Map(*k, *v),
-            TypeDefKind::FixedSizeList(ty, size) => Key::FixedSizeList(*ty, *size),
+            TypeDefKind::FixedLengthList(ty, size) => Key::FixedLengthList(*ty, *size),
             TypeDefKind::Option(t) => Key::Option(*t),
             TypeDefKind::Result(r) => Key::Result(r.ok, r.err),
             TypeDefKind::Future(ty) => Key::Future(*ty),
@@ -1788,7 +1788,7 @@ fn collect_deps<'a>(ty: &ast::Type<'a>, deps: &mut Vec<ast::Id<'a>>) {
         }
         ast::Type::Option(ast::Option_ { ty, .. })
         | ast::Type::List(ast::List { ty, .. })
-        | ast::Type::FixedSizeList(ast::FixedSizeList { ty, .. }) => collect_deps(ty, deps),
+        | ast::Type::FixedLengthList(ast::FixedLengthList { ty, .. }) => collect_deps(ty, deps),
         ast::Type::Map(ast::Map { key, value, .. }) => {
             collect_deps(key, deps);
             collect_deps(value, deps);

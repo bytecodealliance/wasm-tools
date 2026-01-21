@@ -183,7 +183,7 @@ impl Printer<'_, '_> {
         Ok(())
     }
 
-    pub(crate) fn print_fixed_size_list_type(
+    pub(crate) fn print_fixed_length_list_type(
         &mut self,
         state: &State,
         element_ty: &ComponentValType,
@@ -293,8 +293,8 @@ impl Printer<'_, '_> {
             ComponentDefinedType::Variant(cases) => self.print_variant_type(state, cases)?,
             ComponentDefinedType::List(ty) => self.print_list_type(state, ty)?,
             ComponentDefinedType::Map(key, value) => self.print_map_type(state, key, value)?,
-            ComponentDefinedType::FixedSizeList(ty, elements) => {
-                self.print_fixed_size_list_type(state, ty, *elements)?
+            ComponentDefinedType::FixedLengthList(ty, elements) => {
+                self.print_fixed_length_list_type(state, ty, *elements)?
             }
             ComponentDefinedType::Tuple(tys) => self.print_tuple_type(state, tys)?,
             ComponentDefinedType::Flags(names) => self.print_flag_or_enum_type("flags", names)?,

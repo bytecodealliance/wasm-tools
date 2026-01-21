@@ -340,7 +340,7 @@ impl Resolve {
                     result.push(WasmType::Pointer) && result.push(WasmType::Length)
                 }
 
-                TypeDefKind::FixedSizeList(ty, size) => {
+                TypeDefKind::FixedLengthList(ty, size) => {
                     self.push_flat_list((0..*size).map(|_| ty), result)
                 }
 

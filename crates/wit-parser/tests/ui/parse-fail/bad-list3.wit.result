@@ -1,4 +1,4 @@
-expected fixed size, found '>'
+expected fixed-length, found '>'
      --> tests/ui/parse-fail/bad-list3.wit:4:21
       |
     4 |   type a = list<u32,>

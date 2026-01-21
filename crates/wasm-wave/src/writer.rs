@@ -75,7 +75,7 @@ impl<W: Write> Writer<W> {
                 }
                 self.write_str("]")
             }
-            WasmTypeKind::FixedSizeList => {
+            WasmTypeKind::FixedLengthList => {
                 self.write_str("[")?;
                 for (idx, val) in val.unwrap_list().enumerate() {
                     if idx != 0 {

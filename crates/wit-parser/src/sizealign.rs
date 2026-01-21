@@ -263,7 +263,7 @@ impl SizeAlign {
     fn calculate(&self, ty: &TypeDef) -> ElementInfo {
         match &ty.kind {
             TypeDefKind::Type(t) => ElementInfo::new(self.size(t), self.align(t)),
-            TypeDefKind::FixedSizeList(t, size) => {
+            TypeDefKind::FixedLengthList(t, size) => {
                 let field_align = self.align(t);
                 let field_size = self.size(t);
                 ElementInfo::new(

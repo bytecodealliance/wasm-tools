@@ -112,8 +112,8 @@ fn encode_defined_type(encoder: ComponentDefinedTypeEncoder, ty: &ComponentDefin
         ComponentDefinedType::Map(m) => {
             encoder.map(m.key.as_ref(), m.value.as_ref());
         }
-        ComponentDefinedType::FixedSizeList(l) => {
-            encoder.fixed_size_list(l.element.as_ref(), l.elements);
+        ComponentDefinedType::FixedLengthList(l) => {
+            encoder.fixed_length_list(l.element.as_ref(), l.elements);
         }
         ComponentDefinedType::Tuple(t) => {
             encoder.tuple(t.fields.iter());

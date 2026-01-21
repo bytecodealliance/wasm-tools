@@ -30,7 +30,7 @@ impl TestCase for MyInterpreter {
         assert_eq!(wit.iter_lists().len(), 0);
         assert_eq!(wit.iter_options().len(), 0);
         assert_eq!(wit.iter_results().len(), 0);
-        assert_eq!(wit.iter_fixed_size_lists().len(), 0);
+        assert_eq!(wit.iter_fixed_length_lists().len(), 0);
         assert_eq!(wit.iter_variants().len(), 0);
         assert_eq!(wit.iter_flags().len(), 0);
         assert_eq!(wit.iter_enums().len(), 0);

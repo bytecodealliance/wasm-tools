@@ -250,23 +250,23 @@ impl Wit {
         self.raw_lists().iter().map(|e| List { wit: *self, ptr: e })
     }
 
-    fn raw_fixed_size_lists(&self) -> &'static [ffi::wit_fixed_size_list_t] {
-        unsafe { slice(self.ptr.fixed_size_lists, self.ptr.num_fixed_size_lists) }
+    fn raw_fixed_length_lists(&self) -> &'static [ffi::wit_fixed_length_list_t] {
+        unsafe { slice(self.ptr.fixed_length_lists, self.ptr.num_fixed_length_lists) }
     }
 
-    pub fn fixed_size_list(&self, index: usize) -> FixedSizeList {
-        FixedSizeList {
+    pub fn fixed_length_list(&self, index: usize) -> FixedLengthList {
+        FixedLengthList {
             wit: *self,
-            ptr: &self.raw_fixed_size_lists()[index],
+            ptr: &self.raw_fixed_length_lists()[index],
         }
     }
 
-    pub fn iter_fixed_size_lists(
+    pub fn iter_fixed_length_lists(
         &self,
-    ) -> impl ExactSizeIterator<Item = FixedSizeList> + Clone + '_ {
-        self.raw_fixed_size_lists()
+    ) -> impl ExactSizeIterator<Item = FixedLengthList> + Clone + '_ {
+        self.raw_fixed_length_lists()
             .iter()
-            .map(|e| FixedSizeList { wit: *self, ptr: e })
+            .map(|e| FixedLengthList { wit: *self, ptr: e })
     }
 
     fn raw_futures(&self) -> &'static [ffi::wit_future_t] {
@@ -582,7 +582,7 @@ pub enum Type {
     Option(WitOption),
     Result(WitResult),
     List(List),
-    FixedSizeList(FixedSizeList),
+    FixedLengthList(FixedLengthList),
     Future(Future),
     Stream(Stream),
     Alias(Alias),
@@ -616,7 +616,7 @@ impl Type {
             ffi::WIT_TYPE_OPTION => Self::Option(wit.option(index)),
             ffi::WIT_TYPE_RESULT => Self::Result(wit.result(index)),
             ffi::WIT_TYPE_LIST => Self::List(wit.list(index)),
-            ffi::WIT_TYPE_FIXED_SIZE_LIST => Self::FixedSizeList(wit.fixed_size_list(index)),
+            ffi::WIT_TYPE_FIXED_LENGTH_LIST => Self::FixedLengthList(wit.fixed_length_list(index)),
             ffi::WIT_TYPE_FUTURE => Self::Future(wit.future(index)),
             ffi::WIT_TYPE_STREAM => Self::Stream(wit.stream(index)),
             ffi::WIT_TYPE_ALIAS => Self::Alias(wit.alias(index)),
@@ -1000,16 +1000,16 @@ impl fmt::Debug for List {
 }
 
 #[derive(Copy, Clone)]
-pub struct FixedSizeList {
+pub struct FixedLengthList {
     wit: Wit,
-    ptr: &'static ffi::wit_fixed_size_list_t,
+    ptr: &'static ffi::wit_fixed_length_list_t,
 }
 
-impl_extra_traits!(FixedSizeList);
+impl_extra_traits!(FixedLengthList);
 
-impl FixedSizeList {
+impl FixedLengthList {
     pub fn index(&self) -> usize {
-        unsafe { (&raw const *self.ptr).offset_from_unsigned(self.wit.ptr.fixed_size_lists) }
+        unsafe { (&raw const *self.ptr).offset_from_unsigned(self.wit.ptr.fixed_length_lists) }
     }
 
     pub fn interface(&self) -> Option<&'static str> {
@@ -1029,9 +1029,9 @@ impl FixedSizeList {
     }
 }
 
-impl fmt::Debug for FixedSizeList {
+impl fmt::Debug for FixedLengthList {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("FixedSizeList")
+        f.debug_struct("FixedLengthList")
             .field("interface", &self.interface())
             .field("name", &self.name())
             .field("ty", &self.ty())

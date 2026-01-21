@@ -1,4 +1,4 @@
-expected fixed size, found keyword `u32`
+expected fixed-length, found keyword `u32`
      --> tests/ui/parse-fail/bad-list4.wit:4:22
       |
     4 |   type b = list<u32, u32>

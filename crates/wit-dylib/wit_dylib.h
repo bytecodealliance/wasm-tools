@@ -46,7 +46,7 @@ typedef uint32_t wit_type_t;
 #define WIT_TYPE_OPTION 21
 #define WIT_TYPE_RESULT 22
 #define WIT_TYPE_LIST 23
-#define WIT_TYPE_FIXED_SIZE_LIST 24
+#define WIT_TYPE_FIXED_LENGTH_LIST 24
 #define WIT_TYPE_FUTURE 25
 #define WIT_TYPE_STREAM 26
 #define WIT_TYPE_ALIAS 27
@@ -199,12 +199,12 @@ typedef struct wit_list {
      wit_type_t ty;
 } wit_list_t;
 
-typedef struct wit_fixed_size_list {
+typedef struct wit_fixed_length_list {
      const char *interface;
      const char *name;
      size_t size;
      wit_type_t ty;
-} wit_fixed_size_list_t;
+} wit_fixed_length_list_t;
 
 typedef void(*wit_lift_fn_t)(void* cx, const void *buffer);
 typedef void(*wit_lower_fn_t)(void* cx, void *buffer);
@@ -292,8 +292,8 @@ typedef struct wit {
      const wit_result_t *results;
      size_t num_lists;
      const wit_list_t *lists;
-     size_t num_fixed_size_lists;
-     const wit_fixed_size_list_t *fixed_size_lists;
+     size_t num_fixed_length_lists;
+     const wit_fixed_length_list_t *fixed_length_lists;
      size_t num_futures;
      const wit_future_t *futures;
      size_t num_streams;

@@ -949,7 +949,7 @@ impl ComponentState {
                         .unwrap_or(true)
             }
             ComponentDefinedType::List(ty)
-            | ComponentDefinedType::FixedSizeList(ty, _)
+            | ComponentDefinedType::FixedLengthList(ty, _)
             | ComponentDefinedType::Option(ty) => types.type_named_valtype(ty, set),
             ComponentDefinedType::Map(k, v) => {
                 types.type_named_valtype(k, set) && types.type_named_valtype(v, set)
@@ -3929,17 +3929,20 @@ impl ComponentState {
                     self.create_component_val_type(value, offset)?,
                 ))
             }
-            crate::ComponentDefinedType::FixedSizeList(ty, elements) => {
-                if !self.features.cm_fixed_size_list() {
+            crate::ComponentDefinedType::FixedLengthList(ty, elements) => {
+                if !self.features.cm_fixed_length_lists() {
                     bail!(
                         offset,
-                        "Fixed size lists require the component model fixed size list feature"
+                        "Fixed-length lists require the component model fixed-length lists feature"
                     )
                 }
                 if elements < 1 {
-                    bail!(offset, "Fixed size lists must have more than zero elements")
+                    bail!(
+                        offset,
+                        "Fixed-length lists must have more than zero elements"
+                    )
                 }
-                Ok(ComponentDefinedType::FixedSizeList(
+                Ok(ComponentDefinedType::FixedLengthList(
                     self.create_component_val_type(ty, offset)?,
                     elements,
                 ))

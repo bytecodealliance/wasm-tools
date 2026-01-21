@@ -62,7 +62,7 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
     let iters = 200;
     let mut config = u.arbitrary::<wit_smith::Config>()?;
     config.error_context = false;
-    config.fixed_size_list = false;
+    config.fixed_length_lists = false;
     config.futures = false; // TODO
     config.streams = false; // TODO
     config.async_ = false;
