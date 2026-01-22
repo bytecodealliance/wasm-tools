@@ -1334,6 +1334,13 @@ impl<'a> Encode for ResumeThrow<'a> {
     }
 }
 
+impl<'a> Encode for ResumeThrowRef<'a> {
+    fn encode(&self, dst: &mut Vec<u8>) {
+        self.type_index.encode(dst);
+        self.table.encode(dst);
+    }
+}
+
 impl<'a> Encode for ResumeTable<'a> {
     fn encode(&self, dst: &mut Vec<u8>) {
         self.handlers.encode(dst);

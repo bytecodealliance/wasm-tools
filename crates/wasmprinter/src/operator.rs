@@ -1402,6 +1402,7 @@ macro_rules! define_visit {
     (name Suspend) => ("suspend");
     (name Resume) => ("resume");
     (name ResumeThrow) => ("resume_throw");
+    (name ResumeThrowRef) => ("resume_throw_ref");
     (name Switch) => ("switch");
     (name I64Add128) => ("i64.add128");
     (name I64Sub128) => ("i64.sub128");

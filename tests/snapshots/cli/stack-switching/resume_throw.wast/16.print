@@ -1,0 +1,21 @@
+(module
+  (type $f (;0;) (func))
+  (type $k (;1;) (cont $f))
+  (tag $e0 (;0;) (type $f))
+  (export "throw_unhandled_ref" (func 1))
+  (elem (;0;) declare func $no_handler)
+  (func $no_handler (;0;) (type $f)
+    unreachable
+  )
+  (func (;1;) (type $f)
+    block $h (result exnref)
+      try_table (catch_ref $e0 $h) ;; label = @2
+        throw $e0
+      end
+      unreachable
+    end
+    ref.func $no_handler
+    cont.new $k
+    resume_throw_ref $k
+  )
+)

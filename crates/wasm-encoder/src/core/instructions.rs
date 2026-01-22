@@ -4588,9 +4588,24 @@ impl<'a> InstructionSink<'a> {
         self
     }
 
+    /// Encode [`Instruction::ResumeThrowRef`].
+    pub fn resume_throw_ref<V: IntoIterator<Item = Handle>>(
+        &mut self,
+        cont_type_index: u32,
+        resume_table: V,
+    ) -> &mut Self
+    where
+        V::IntoIter: ExactSizeIterator,
+    {
+        self.sink.push(0xE5);
+        cont_type_index.encode(self.sink);
+        encode_vec(resume_table, self.sink);
+        self
+    }
+
     /// Encode [`Instruction::Switch`].
     pub fn switch(&mut self, cont_type_index: u32, tag_index: u32) -> &mut Self {
-        self.sink.push(0xE5);
+        self.sink.push(0xE6);
         cont_type_index.encode(self.sink);
         tag_index.encode(self.sink);
         self

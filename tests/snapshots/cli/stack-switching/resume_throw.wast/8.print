@@ -1,0 +1,20 @@
+(module
+  (type $f (;0;) (func))
+  (type $k (;1;) (cont $f))
+  (tag $exn (;0;) (type $f))
+  (tag $e1 (;1;) (type $f))
+  (export "throw_unhandled" (func 1))
+  (elem (;0;) declare func $no_handler)
+  (func $no_handler (;0;) (type $f)
+    suspend $e1
+  )
+  (func (;1;) (type $f)
+    block $h (result (ref $k))
+      ref.func $no_handler
+      cont.new $k
+      resume $k (on $e1 $h)
+      unreachable
+    end
+    resume_throw $k $exn
+  )
+)

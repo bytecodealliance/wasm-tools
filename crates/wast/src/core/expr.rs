@@ -1195,7 +1195,8 @@ instructions! {
         Suspend(Index<'a>)             : [0xe2] : "suspend",
         Resume(Resume<'a>)             : [0xe3] : "resume",
         ResumeThrow(ResumeThrow<'a>)   : [0xe4] : "resume_throw",
-        Switch(Switch<'a>)             : [0xe5] : "switch",
+        ResumeThrowRef(ResumeThrowRef<'a>) : [0xe5] : "resume_throw_ref",
+        Switch(Switch<'a>)             : [0xe6] : "switch",
 
         // Wide arithmetic proposal
         I64Add128   : [0xfc, 19] : "i64.add128",
@@ -1308,6 +1309,23 @@ impl<'a> Parse<'a> for ResumeThrow<'a> {
         Ok(ResumeThrow {
             type_index: parser.parse()?,
             tag_index: parser.parse()?,
+            table: parser.parse()?,
+        })
+    }
+}
+
+/// Extra information associated with the resume_throw_ref instruction
+#[derive(Debug, Clone)]
+#[allow(missing_docs)]
+pub struct ResumeThrowRef<'a> {
+    pub type_index: Index<'a>,
+    pub table: ResumeTable<'a>,
+}
+
+impl<'a> Parse<'a> for ResumeThrowRef<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        Ok(ResumeThrowRef {
+            type_index: parser.parse()?,
             table: parser.parse()?,
         })
     }

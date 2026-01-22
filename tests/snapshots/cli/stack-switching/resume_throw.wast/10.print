@@ -1,0 +1,18 @@
+(module
+  (type $f (;0;) (func))
+  (type $k (;1;) (cont $f))
+  (tag $exn (;0;) (type $f))
+  (export "throw_consumed" (func 1))
+  (elem (;0;) declare func $f1)
+  (func $f1 (;0;) (type $f))
+  (func (;1;) (type $f)
+    (local $k_ref (ref $k))
+    ref.func $f1
+    cont.new $k
+    local.set $k_ref
+    local.get $k_ref
+    resume $k
+    local.get $k_ref
+    resume_throw $k $exn
+  )
+)

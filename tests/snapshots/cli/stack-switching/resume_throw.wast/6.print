@@ -1,0 +1,24 @@
+(module
+  (type $f (;0;) (func))
+  (type $k (;1;) (cont $f))
+  (tag $exn (;0;) (type $f))
+  (tag $e1 (;1;) (type $f))
+  (export "throw_handled" (func 1))
+  (elem (;0;) declare func $handler)
+  (func $handler (;0;) (type $f)
+    block $h
+      try_table (catch $exn $h) ;; label = @2
+        suspend $e1
+      end
+    end
+  )
+  (func (;1;) (type $f)
+    block $h (result (ref $k))
+      ref.func $handler
+      cont.new $k
+      resume $k (on $e1 $h)
+      unreachable
+    end
+    resume_throw $k $exn
+  )
+)

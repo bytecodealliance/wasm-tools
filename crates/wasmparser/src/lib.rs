@@ -788,6 +788,7 @@ macro_rules! _for_each_operator_group {
                 Suspend { tag_index: u32 } => visit_suspend (arity custom)
                 Resume { cont_type_index: u32, resume_table: $crate::ResumeTable } => visit_resume (arity custom)
                 ResumeThrow { cont_type_index: u32, tag_index: u32, resume_table: $crate::ResumeTable } => visit_resume_throw (arity custom)
+                ResumeThrowRef { cont_type_index: u32, resume_table: $crate::ResumeTable } => visit_resume_throw_ref (arity custom)
                 Switch { cont_type_index: u32, tag_index: u32 } => visit_switch (arity custom)
             }
 
