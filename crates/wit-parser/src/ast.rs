@@ -1693,7 +1693,6 @@ fn eat_id(tokens: &mut Tokenizer<'_>, expected: &str) -> Result<Span> {
 pub struct SourceMap {
     sources: Vec<Source>,
     offset: u32,
-    require_f32_f64: Option<bool>,
 }
 
 #[derive(Clone)]
@@ -1707,11 +1706,6 @@ impl SourceMap {
     /// Creates a new empty source map.
     pub fn new() -> SourceMap {
         SourceMap::default()
-    }
-
-    #[doc(hidden)] // NB: only here for a transitionary period
-    pub fn set_require_f32_f64(&mut self, enable: bool) {
-        self.require_f32_f64 = Some(enable);
     }
 
     /// Reads the file `path` on the filesystem and appends its contents to this
@@ -1778,7 +1772,6 @@ impl SourceMap {
                     // passing through the source to get tokenized.
                     &src.contents[..src.contents.len() - 1],
                     src.offset,
-                    self.require_f32_f64,
                 )
                 .with_context(|| format!("failed to tokenize path: {}", src.path))?;
                 let mut file = PackageFile::parse(&mut tokens)?;
@@ -1965,7 +1958,7 @@ pub enum ParsedUsePath {
 }
 
 pub fn parse_use_path(s: &str) -> Result<ParsedUsePath> {
-    let mut tokens = Tokenizer::new(s, 0, None)?;
+    let mut tokens = Tokenizer::new(s, 0)?;
     let path = UsePath::parse(&mut tokens)?;
     if tokens.next()?.is_some() {
         bail!("trailing tokens in path specifier");

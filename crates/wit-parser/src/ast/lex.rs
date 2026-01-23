@@ -13,7 +13,6 @@ pub struct Tokenizer<'a> {
     input: &'a str,
     span_offset: u32,
     chars: CrlfFold<'a>,
-    require_f32_f64: bool,
 }
 
 #[derive(Clone)]
@@ -120,15 +119,8 @@ pub enum Error {
     },
 }
 
-// NB: keep in sync with `crates/wit-component/src/printing.rs`.
-const REQUIRE_F32_F64_BY_DEFAULT: bool = true;
-
 impl<'a> Tokenizer<'a> {
-    pub fn new(
-        input: &'a str,
-        span_offset: u32,
-        require_f32_f64: Option<bool>,
-    ) -> Result<Tokenizer<'a>> {
+    pub fn new(input: &'a str, span_offset: u32) -> Result<Tokenizer<'a>> {
         detect_invalid_input(input)?;
 
         let mut t = Tokenizer {
@@ -137,15 +129,6 @@ impl<'a> Tokenizer<'a> {
             chars: CrlfFold {
                 chars: input.char_indices(),
             },
-            require_f32_f64: require_f32_f64.unwrap_or_else(|| {
-                #[cfg(feature = "std")]
-                match std::env::var("WIT_REQUIRE_F32_F64") {
-                    Ok(s) => s == "1",
-                    Err(_) => REQUIRE_F32_F64_BY_DEFAULT,
-                }
-                #[cfg(not(feature = "std"))]
-                REQUIRE_F32_F64_BY_DEFAULT
-            }),
         };
         // Eat utf-8 BOM
         t.eatc('\u{feff}');
@@ -289,8 +272,6 @@ impl<'a> Tokenizer<'a> {
                     "s64" => S64,
                     "f32" => F32,
                     "f64" => F64,
-                    "float32" if !self.require_f32_f64 => F32,
-                    "float64" if !self.require_f32_f64 => F64,
                     "char" => Char,
                     "resource" => Resource,
                     "own" => Own,
@@ -673,7 +654,7 @@ fn test_validate_id() {
 #[test]
 fn test_tokenizer() {
     fn collect(s: &str) -> Result<Vec<Token>> {
-        let mut t = Tokenizer::new(s, 0, None)?;
+        let mut t = Tokenizer::new(s, 0)?;
         let mut tokens = Vec::new();
         while let Some(token) = t.next()? {
             tokens.push(token.1);
