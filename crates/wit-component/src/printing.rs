@@ -1229,6 +1229,7 @@ fn is_keyword(name: &str) -> bool {
             | "constructor"
             | "error-context"
             | "async"
+            | "map"
     )
 }
 
