@@ -116,7 +116,7 @@ impl LocalInits {
         self.local_inits.resize(new_len, is_defaultable);
     }
 
-    /// Returns `true` if the local at `local_index` has already been initialized.
+    /// Returns `true` if the local at `local_index` has not been initialized.
     #[inline]
     pub fn is_uninit(&self, local_index: u32) -> bool {
         if local_index < self.first_non_default_local {
@@ -134,8 +134,8 @@ impl LocalInits {
         }
     }
 
-    /// Registers a new control frame and returns its `height`.
-    pub fn push_ctrl(&mut self) -> usize {
+    /// Returns the current `height` (number of local inits).
+    pub fn height(&self) -> usize {
         self.inits.len()
     }
 
@@ -951,10 +951,22 @@ where
     /// breaks interact with this block's type. Additionally the type signature
     /// of the block is specified by `ty`.
     fn push_ctrl(&mut self, kind: FrameKind, ty: BlockType) -> Result<()> {
+        self.push_bare_ctrl(kind, ty);
+        // All of the parameters are now also available in this control frame,
+        // so we push them here in order.
+        for ty in self.params(ty)? {
+            self.push_operand(ty)?;
+        }
+        Ok(())
+    }
+
+    /// Pushes a new frame onto the control stack, without its block params.
+    /// This is used by `push_ctrl` above and directly by LegacyCatch and LegacyCatchAll.
+    fn push_bare_ctrl(&mut self, kind: FrameKind, ty: BlockType) {
         // Push a new frame which has a snapshot of the height of the current
         // operand stack.
         let height = self.operands.len();
-        let init_height = self.local_inits.push_ctrl();
+        let init_height = self.local_inits.height();
         self.control.push(Frame {
             kind,
             block_type: ty,
@@ -962,12 +974,6 @@ where
             unreachable: false,
             init_height,
         });
-        // All of the parameters are now also available in this control frame,
-        // so we push them here in order.
-        for ty in self.params(ty)? {
-            self.push_operand(ty)?;
-        }
-        Ok(())
     }
 
     /// Pops a frame from the control stack.
@@ -1987,9 +1993,7 @@ where
     }
     fn visit_else(&mut self) -> Self::Output {
         let frame = self.pop_ctrl()?;
-        if frame.kind != FrameKind::If {
-            bail!(self.offset, "else found outside of an `if` block");
-        }
+        debug_assert_eq!(frame.kind, FrameKind::If); // syntactic requirement, enforced by reader
         self.push_ctrl(FrameKind::Else, frame.block_type)?;
         Ok(())
     }
@@ -4210,20 +4214,9 @@ where
     }
     fn visit_catch(&mut self, index: u32) -> Self::Output {
         let frame = self.pop_ctrl()?;
-        if frame.kind != FrameKind::LegacyTry && frame.kind != FrameKind::LegacyCatch {
-            bail!(self.offset, "catch found outside of an `try` block");
-        }
-        // Start a new frame and push `exnref` value.
-        let height = self.operands.len();
-        let init_height = self.local_inits.push_ctrl();
-        self.control.push(Frame {
-            kind: FrameKind::LegacyCatch,
-            block_type: frame.block_type,
-            height,
-            unreachable: false,
-            init_height,
-        });
-        // Push exception argument types.
+        debug_assert!(frame.kind == FrameKind::LegacyTry || frame.kind == FrameKind::LegacyCatch);
+        // Start a new frame and push exception argument types.
+        self.push_bare_ctrl(FrameKind::LegacyCatch, frame.block_type);
         let ty = self.exception_tag_at(index)?;
         for ty in ty.params() {
             self.push_operand(*ty)?;
@@ -4245,9 +4238,7 @@ where
     }
     fn visit_delegate(&mut self, relative_depth: u32) -> Self::Output {
         let frame = self.pop_ctrl()?;
-        if frame.kind != FrameKind::LegacyTry {
-            bail!(self.offset, "delegate found outside of an `try` block");
-        }
+        debug_assert_eq!(frame.kind, FrameKind::LegacyTry);
         // This operation is not a jump, but we need to check the
         // depth for validity
         let _ = self.jump(relative_depth)?;
@@ -4258,20 +4249,8 @@ where
     }
     fn visit_catch_all(&mut self) -> Self::Output {
         let frame = self.pop_ctrl()?;
-        if frame.kind == FrameKind::LegacyCatchAll {
-            bail!(self.offset, "only one catch_all allowed per `try` block");
-        } else if frame.kind != FrameKind::LegacyTry && frame.kind != FrameKind::LegacyCatch {
-            bail!(self.offset, "catch_all found outside of a `try` block");
-        }
-        let height = self.operands.len();
-        let init_height = self.local_inits.push_ctrl();
-        self.control.push(Frame {
-            kind: FrameKind::LegacyCatchAll,
-            block_type: frame.block_type,
-            height,
-            unreachable: false,
-            init_height,
-        });
+        debug_assert!(frame.kind == FrameKind::LegacyTry || frame.kind == FrameKind::LegacyCatch);
+        self.push_bare_ctrl(FrameKind::LegacyCatchAll, frame.block_type);
         Ok(())
     }
     fn visit_cont_new(&mut self, type_index: u32) -> Self::Output {
