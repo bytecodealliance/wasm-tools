@@ -2094,8 +2094,10 @@ where
     fn visit_end(&mut self) -> Self::Output {
         let mut frame = self.pop_ctrl()?;
 
-        // Note that this `if` isn't included in the appendix right
-        // now, but it's used to allow for `if` statements that are
+        // Note that this `if` isn't included in the appendix;
+        // the `if ... end` abbreviation for `if ... else [] end`
+        // is part of the binary and text formats.
+        // This is used to allow for `if` statements that are
         // missing an `else` block which have the same parameter/return
         // types on the block (since that's valid).
         if frame.kind == FrameKind::If {
