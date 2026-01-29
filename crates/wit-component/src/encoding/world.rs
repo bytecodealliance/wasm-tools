@@ -433,10 +433,11 @@ impl<'a> ComponentWorld<'a> {
                 | Import::ExportedTaskCancel
                 | Import::ThreadIndex
                 | Import::ThreadNewIndirect { .. }
-                | Import::ThreadSwitchTo { .. }
+                | Import::ThreadSuspendToSuspended { .. }
                 | Import::ThreadSuspend { .. }
-                | Import::ThreadResumeLater
-                | Import::ThreadYieldTo { .. } => {}
+                | Import::ThreadSuspendTo { .. }
+                | Import::ThreadUnsuspend
+                | Import::ThreadYieldToSuspended { .. } => {}
             }
         }
     }

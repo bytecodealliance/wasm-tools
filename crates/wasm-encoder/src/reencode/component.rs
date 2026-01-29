@@ -1121,17 +1121,20 @@ pub mod component_utils {
                 let table_index = reencoder.table_index(table_index)?;
                 section.thread_new_indirect(func_ty, table_index);
             }
-            wasmparser::CanonicalFunction::ThreadSwitchTo { cancellable } => {
-                section.thread_switch_to(cancellable);
+            wasmparser::CanonicalFunction::ThreadSuspendToSuspended { cancellable } => {
+                section.thread_suspend_to_suspended(cancellable);
             }
             wasmparser::CanonicalFunction::ThreadSuspend { cancellable } => {
                 section.thread_suspend(cancellable);
             }
-            wasmparser::CanonicalFunction::ThreadResumeLater => {
-                section.thread_resume_later();
+            wasmparser::CanonicalFunction::ThreadSuspendTo { cancellable } => {
+                section.thread_suspend_to(cancellable);
             }
-            wasmparser::CanonicalFunction::ThreadYieldTo { cancellable } => {
-                section.thread_yield_to(cancellable);
+            wasmparser::CanonicalFunction::ThreadUnsuspend => {
+                section.thread_unsuspend();
+            }
+            wasmparser::CanonicalFunction::ThreadYieldToSuspended { cancellable } => {
+                section.thread_yield_to_suspended(cancellable);
             }
         }
         Ok(())

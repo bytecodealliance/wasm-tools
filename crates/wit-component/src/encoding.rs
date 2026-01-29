@@ -1997,20 +1997,24 @@ impl<'a> EncodingState<'a> {
                     func_ty: FuncType::new([ValType::I32], []),
                 },
             )),
-            Import::ThreadSwitchTo { cancellable } => {
-                let index = self.component.thread_switch_to(*cancellable);
+            Import::ThreadSuspendToSuspended { cancellable } => {
+                let index = self.component.thread_suspend_to_suspended(*cancellable);
                 Ok((ExportKind::Func, index))
             }
             Import::ThreadSuspend { cancellable } => {
                 let index = self.component.thread_suspend(*cancellable);
                 Ok((ExportKind::Func, index))
             }
-            Import::ThreadResumeLater => {
-                let index = self.component.thread_resume_later();
+            Import::ThreadSuspendTo { cancellable } => {
+                let index = self.component.thread_suspend_to(*cancellable);
                 Ok((ExportKind::Func, index))
             }
-            Import::ThreadYieldTo { cancellable } => {
-                let index = self.component.thread_yield_to(*cancellable);
+            Import::ThreadUnsuspend => {
+                let index = self.component.thread_unsuspend();
+                Ok((ExportKind::Func, index))
+            }
+            Import::ThreadYieldToSuspended { cancellable } => {
+                let index = self.component.thread_yield_to_suspended(*cancellable);
                 Ok((ExportKind::Func, index))
             }
         }
@@ -2625,10 +2629,11 @@ impl<'a> Shims<'a> {
                 | Import::ContextGet(_)
                 | Import::ContextSet(_)
                 | Import::ThreadIndex
-                | Import::ThreadSwitchTo { .. }
+                | Import::ThreadSuspendToSuspended { .. }
                 | Import::ThreadSuspend { .. }
-                | Import::ThreadResumeLater
-                | Import::ThreadYieldTo { .. } => {}
+                | Import::ThreadSuspendTo { .. }
+                | Import::ThreadUnsuspend
+                | Import::ThreadYieldToSuspended { .. } => {}
 
                 // If `task.return` needs to be indirect then generate a shim
                 // for it, otherwise skip the shim and let it get materialized

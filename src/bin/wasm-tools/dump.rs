@@ -499,10 +499,11 @@ impl<'a> Dump<'a> {
                             | CanonicalFunction::ErrorContextDrop
                             | CanonicalFunction::ThreadIndex
                             | CanonicalFunction::ThreadNewIndirect { .. }
-                            | CanonicalFunction::ThreadSwitchTo { .. }
+                            | CanonicalFunction::ThreadSuspendToSuspended { .. }
                             | CanonicalFunction::ThreadSuspend { .. }
-                            | CanonicalFunction::ThreadResumeLater { .. }
-                            | CanonicalFunction::ThreadYieldTo { .. } => {
+                            | CanonicalFunction::ThreadSuspendTo { .. }
+                            | CanonicalFunction::ThreadUnsuspend { .. }
+                            | CanonicalFunction::ThreadYieldToSuspended { .. } => {
                                 ("core func", &mut i.core_funcs)
                             }
                         };

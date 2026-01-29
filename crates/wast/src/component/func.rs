@@ -87,10 +87,11 @@ pub enum CoreFuncKind<'a> {
     WaitableJoin,
     ThreadIndex,
     ThreadNewIndirect(CanonThreadNewIndirect<'a>),
-    ThreadSwitchTo(CanonThreadSwitchTo),
+    ThreadSuspendToSuspended(CanonThreadSuspendToSuspended),
     ThreadSuspend(CanonThreadSuspend),
-    ThreadResumeLater,
-    ThreadYieldTo(CanonThreadYieldTo),
+    ThreadSuspendTo(CanonThreadSuspendTo),
+    ThreadUnsuspend,
+    ThreadYieldToSuspended(CanonThreadYieldToSuspended),
 }
 
 impl<'a> Parse<'a> for CoreFuncKind<'a> {
@@ -204,15 +205,17 @@ impl<'a> CoreFuncKind<'a> {
             Ok(CoreFuncKind::ThreadIndex)
         } else if l.peek::<kw::thread_new_indirect>()? {
             Ok(CoreFuncKind::ThreadNewIndirect(parser.parse()?))
-        } else if l.peek::<kw::thread_switch_to>()? {
-            Ok(CoreFuncKind::ThreadSwitchTo(parser.parse()?))
+        } else if l.peek::<kw::thread_suspend_to_suspended>()? {
+            Ok(CoreFuncKind::ThreadSuspendToSuspended(parser.parse()?))
         } else if l.peek::<kw::thread_suspend>()? {
             Ok(CoreFuncKind::ThreadSuspend(parser.parse()?))
-        } else if l.peek::<kw::thread_resume_later>()? {
-            parser.parse::<kw::thread_resume_later>()?;
-            Ok(CoreFuncKind::ThreadResumeLater)
-        } else if l.peek::<kw::thread_yield_to>()? {
-            Ok(CoreFuncKind::ThreadYieldTo(parser.parse()?))
+        } else if l.peek::<kw::thread_suspend_to>()? {
+            Ok(CoreFuncKind::ThreadSuspendTo(parser.parse()?))
+        } else if l.peek::<kw::thread_unsuspend>()? {
+            parser.parse::<kw::thread_unsuspend>()?;
+            Ok(CoreFuncKind::ThreadUnsuspend)
+        } else if l.peek::<kw::thread_yield_to_suspended>()? {
+            Ok(CoreFuncKind::ThreadYieldToSuspended(parser.parse()?))
         } else {
             Err(l.error())
         }
@@ -972,16 +975,16 @@ impl<'a> Parse<'a> for CanonThreadNewIndirect<'a> {
     }
 }
 
-/// Information relating to the `thread.switch-to` intrinsic.
+/// Information relating to the `thread.suspend-to-suspended` intrinsic.
 #[derive(Debug)]
-pub struct CanonThreadSwitchTo {
+pub struct CanonThreadSuspendToSuspended {
     /// Whether the thread can be cancelled while suspended at this point.
     pub cancellable: bool,
 }
 
-impl<'a> Parse<'a> for CanonThreadSwitchTo {
+impl<'a> Parse<'a> for CanonThreadSuspendToSuspended {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::thread_switch_to>()?;
+        parser.parse::<kw::thread_suspend_to_suspended>()?;
         let cancellable = parser.parse::<Option<kw::cancellable>>()?.is_some();
         Ok(Self { cancellable })
     }
@@ -1001,15 +1004,29 @@ impl<'a> Parse<'a> for CanonThreadSuspend {
     }
 }
 
-/// Information relating to the `thread.yield-to` intrinsic.
+/// Information relating to the `thread.suspend-to` intrinsic.
 #[derive(Debug)]
-pub struct CanonThreadYieldTo {
+pub struct CanonThreadSuspendTo {
+    /// Whether the thread can be cancelled while suspended at this point.
+    pub cancellable: bool,
+}
+impl<'a> Parse<'a> for CanonThreadSuspendTo {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.parse::<kw::thread_suspend_to>()?;
+        let cancellable = parser.parse::<Option<kw::cancellable>>()?.is_some();
+        Ok(Self { cancellable })
+    }
+}
+
+/// Information relating to the `thread.yield-to-suspended` intrinsic.
+#[derive(Debug)]
+pub struct CanonThreadYieldToSuspended {
     /// Whether the thread can be cancelled while yielding at this point.
     pub cancellable: bool,
 }
-impl<'a> Parse<'a> for CanonThreadYieldTo {
+impl<'a> Parse<'a> for CanonThreadYieldToSuspended {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::thread_yield_to>()?;
+        parser.parse::<kw::thread_yield_to_suspended>()?;
         let cancellable = parser.parse::<Option<kw::cancellable>>()?.is_some();
         Ok(Self { cancellable })
     }

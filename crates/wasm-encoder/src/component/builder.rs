@@ -708,10 +708,16 @@ impl ComponentBuilder {
         self.core_funcs.add(Some("thread.new-indirect"))
     }
 
-    /// Declares a new `thread.switch-to` intrinsic.
-    pub fn thread_switch_to(&mut self, cancellable: bool) -> u32 {
-        self.canonical_functions().thread_switch_to(cancellable);
-        self.core_funcs.add(Some("thread.switch-to"))
+    /// Declares a new `thread.suspend-to-suspended` intrinsic.
+    pub fn thread_suspend_to_suspended(&mut self, cancellable: bool) -> u32 {
+        self.canonical_functions().thread_suspend_to_suspended(cancellable);
+        self.core_funcs.add(Some("thread.suspend-to-suspended"))
+    }
+
+    /// Declares a new `thread.suspend-to` intrinsic.
+    pub fn thread_suspend_to(&mut self, cancellable: bool) -> u32 {
+        self.canonical_functions().thread_suspend_to(cancellable);
+        self.core_funcs.add(Some("thread.suspend-to"))
     }
 
     /// Declares a new `thread.suspend` intrinsic.
@@ -720,16 +726,16 @@ impl ComponentBuilder {
         self.core_funcs.add(Some("thread.suspend"))
     }
 
-    /// Declares a new `thread.resume-later` intrinsic.
-    pub fn thread_resume_later(&mut self) -> u32 {
-        self.canonical_functions().thread_resume_later();
-        self.core_funcs.add(Some("thread.resume-later"))
+    /// Declares a new `thread.unsuspend` intrinsic.
+    pub fn thread_unsuspend(&mut self) -> u32 {
+        self.canonical_functions().thread_unsuspend();
+        self.core_funcs.add(Some("thread.unsuspend"))
     }
 
-    /// Declares a new `thread.yield-to` intrinsic.
-    pub fn thread_yield_to(&mut self, cancellable: bool) -> u32 {
-        self.canonical_functions().thread_yield_to(cancellable);
-        self.core_funcs.add(Some("thread.yield-to"))
+    /// Declares a new `thread.yield-to-suspended` intrinsic.
+    pub fn thread_yield_to_suspended(&mut self, cancellable: bool) -> u32 {
+        self.canonical_functions().thread_yield_to_suspended(cancellable);
+        self.core_funcs.add(Some("thread.yield-to-suspended"))
     }
 
     /// Adds a new custom section to this component.

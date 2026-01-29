@@ -274,8 +274,8 @@ pub enum CanonicalFunction {
         /// The index of the table to use.
         table_index: u32,
     },
-    /// A function to suspend the current thread and switch to the given thread.
-    ThreadSwitchTo {
+    /// A function to suspend the current thread and switch to the given suspended thread.
+    ThreadSuspendToSuspended {
         /// Whether or not the thread can be cancelled while awaiting resumption.
         cancellable: bool,
     },
@@ -284,10 +284,15 @@ pub enum CanonicalFunction {
         /// Whether or not the thread can be cancelled while suspended.
         cancellable: bool,
     },
+    /// A function to suspend the current thread and switch to another thread.
+    ThreadSuspendTo {
+        /// Whether or not the thread can be cancelled while suspended.
+        cancellable: bool,
+    },
     /// A function to schedule the given thread to be resumed later.
-    ThreadResumeLater,
-    /// A function to suspend the current thread and switch to the given thread.
-    ThreadYieldTo {
+    ThreadUnsuspend,
+    /// A function to yield to the given suspended thread.
+    ThreadYieldToSuspended {
         /// Whether or not the thread can be cancelled while yielding.
         cancellable: bool,
     },
@@ -406,14 +411,17 @@ impl<'a> FromReader<'a> for CanonicalFunction {
                 func_ty_index: reader.read()?,
                 table_index: reader.read()?,
             },
-            0x28 => CanonicalFunction::ThreadSwitchTo {
+            0x28 => CanonicalFunction::ThreadSuspendToSuspended {
                 cancellable: reader.read()?,
             },
             0x29 => CanonicalFunction::ThreadSuspend {
                 cancellable: reader.read()?,
             },
-            0x2a => CanonicalFunction::ThreadResumeLater,
-            0x2b => CanonicalFunction::ThreadYieldTo {
+            0x2a => CanonicalFunction::ThreadUnsuspend,
+            0x2b => CanonicalFunction::ThreadYieldToSuspended {
+                cancellable: reader.read()?,
+            },
+            0x2c => CanonicalFunction::ThreadSuspendTo {
                 cancellable: reader.read()?,
             },
             0x06 => CanonicalFunction::SubtaskCancel {

@@ -116,25 +116,46 @@
   "type mismatch for export `thread.index` of module instantiation argument ``"
 )
 
-;; thread.switch-to
+;; thread.suspend-to-suspended
 (component
   (core module $m
-    (import "" "thread.switch-to" (func $thread.switch-to (param i32) (result i32)))
+    (import "" "thread.suspend-to-suspended" (func $thread.suspend-to-suspended (param i32) (result i32)))
   )
-  (core func $thread.switch-to (canon thread.switch-to cancellable))
-  (core instance $i (instantiate $m (with "" (instance (export "thread.switch-to" (func $thread.switch-to))))))
+  (core func $thread.suspend-to-suspended (canon thread.suspend-to-suspended cancellable))
+  (core instance $i (instantiate $m (with "" (instance (export "thread.suspend-to-suspended" (func $thread.suspend-to-suspended))))))
 )
 
-;; thread.switch-to; incorrect type
+;; thread.suspend-to-suspended; incorrect type
 (assert_invalid
   (component
     (core module $m
-      (import "" "thread.switch-to" (func $thread.switch-to (param i32)))
+      (import "" "thread.suspend-to-suspended" (func $thread.suspend-to-suspended (param i32)))
     )
-    (core func $thread.switch-to (canon thread.switch-to cancellable))
-    (core instance $i (instantiate $m (with "" (instance (export "thread.switch-to" (func $thread.switch-to))))))
+    (core func $thread.suspend-to-suspended (canon thread.suspend-to-suspended cancellable))
+    (core instance $i (instantiate $m (with "" (instance (export "thread.suspend-to-suspended" (func $thread.suspend-to-suspended))))))
   )
-  "type mismatch for export `thread.switch-to` of module instantiation argument ``"
+  "type mismatch for export `thread.suspend-to-suspended` of module instantiation argument ``"
+)
+
+;; thread.suspend-to
+(component
+  (core module $m
+    (import "" "thread.suspend-to" (func $thread.suspend-to (param i32) (result i32)))
+  )
+  (core func $thread.suspend-to (canon thread.suspend-to cancellable))
+  (core instance $i (instantiate $m (with "" (instance (export "thread.suspend-to" (func $thread.suspend-to))))))
+)
+
+;; thread.suspend-to; incorrect type
+(assert_invalid
+  (component
+    (core module $m
+      (import "" "thread.suspend-to" (func $thread.suspend-to (param i32)))
+    )
+    (core func $thread.suspend-to (canon thread.suspend-to cancellable))
+    (core instance $i (instantiate $m (with "" (instance (export "thread.suspend-to" (func $thread.suspend-to))))))
+  )
+  "type mismatch for export `thread.suspend-to` of module instantiation argument ``"
 )
 
 ;; different forms of canonical intrinsics
@@ -154,20 +175,24 @@
   (core type $start (func (param i32)))
   (core func (canon thread.new-indirect $start (table $start-table)))
   (canon thread.new-indirect $start (table $start-table) (core func))
-  (core func (canon thread.switch-to))
-  (canon thread.switch-to (core func))
-  (core func (canon thread.switch-to cancellable))
-  (canon thread.switch-to cancellable (core func))
+  (core func (canon thread.suspend-to-suspended))
+  (canon thread.suspend-to-suspended (core func))
+  (core func (canon thread.suspend-to-suspended cancellable))
+  (canon thread.suspend-to-suspended cancellable (core func))
   (core func (canon thread.suspend))
   (canon thread.suspend (core func))
   (core func (canon thread.suspend cancellable))
   (canon thread.suspend cancellable (core func))
-  (core func (canon thread.resume-later))
-  (canon thread.resume-later (core func))
-  (core func (canon thread.yield-to))
-  (canon thread.yield-to (core func))
-  (core func (canon thread.yield-to cancellable))
-  (canon thread.yield-to cancellable (core func))
+  (core func (canon thread.suspend-to))
+  (canon thread.suspend-to (core func))
+  (core func (canon thread.suspend-to cancellable))
+  (canon thread.suspend-to cancellable (core func))
+  (core func (canon thread.unsuspend))
+  (canon thread.unsuspend (core func))
+  (core func (canon thread.yield-to-suspended))
+  (canon thread.yield-to-suspended (core func))
+  (core func (canon thread.yield-to-suspended cancellable))
+  (canon thread.yield-to-suspended cancellable (core func))
 )
 
 (component

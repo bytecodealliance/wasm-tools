@@ -1264,16 +1264,19 @@ impl ComponentState {
                 func_ty_index,
                 table_index,
             } => self.thread_new_indirect(func_ty_index, table_index, types, offset),
-            CanonicalFunction::ThreadSwitchTo { cancellable } => {
-                self.thread_switch_to(cancellable, types, offset)
+            CanonicalFunction::ThreadSuspendToSuspended { cancellable } => {
+                self.thread_suspend_to_suspended(cancellable, types, offset)
             }
             CanonicalFunction::ThreadSuspend { cancellable } => {
                 self.thread_suspend(cancellable, types, offset)
             }
-            CanonicalFunction::ThreadResumeLater => self.thread_resume_later(types, offset),
+            CanonicalFunction::ThreadSuspendTo { cancellable } => {
+                self.thread_suspend_to(cancellable, types, offset)
+            }
+            CanonicalFunction::ThreadUnsuspend => self.thread_unsuspend(types, offset),
 
-            CanonicalFunction::ThreadYieldTo { cancellable } => {
-                self.thread_yield_to(cancellable, types, offset)
+            CanonicalFunction::ThreadYieldToSuspended { cancellable } => {
+                self.thread_yield_to_suspended(cancellable, types, offset)
             }
         }
     }
@@ -2203,7 +2206,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn thread_switch_to(
+    fn thread_suspend_to_suspended(
         &mut self,
         _cancellable: bool,
         types: &mut TypeAlloc,
@@ -2212,7 +2215,7 @@ impl ComponentState {
         if !self.features.cm_threading() {
             bail!(
                 offset,
-                "`thread.switch_to` requires the component model threading feature"
+                "`thread.suspend_to_suspended` requires the component model threading feature"
             )
         }
 
@@ -2238,19 +2241,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn thread_resume_later(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
-        if !self.features.cm_threading() {
-            bail!(
-                offset,
-                "`thread.resume_later` requires the component model threading feature"
-            )
-        }
-        self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset));
-        Ok(())
-    }
-
-    fn thread_yield_to(
+    fn thread_suspend_to(
         &mut self,
         _cancellable: bool,
         types: &mut TypeAlloc,
@@ -2259,7 +2250,36 @@ impl ComponentState {
         if !self.features.cm_threading() {
             bail!(
                 offset,
-                "`thread.yield_to` requires the component model threading feature"
+                "`thread.suspend_to` requires the component model threading feature"
+            )
+        }
+        self.core_funcs
+            .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset));
+        Ok(())
+    }
+
+    fn thread_unsuspend(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+        if !self.features.cm_threading() {
+            bail!(
+                offset,
+                "`thread.unsuspend` requires the component model threading feature"
+            )
+        }
+        self.core_funcs
+            .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset));
+        Ok(())
+    }
+
+    fn thread_yield_to_suspended(
+        &mut self,
+        _cancellable: bool,
+        types: &mut TypeAlloc,
+        offset: usize,
+    ) -> Result<()> {
+        if !self.features.cm_threading() {
+            bail!(
+                offset,
+                "`thread.yield_to_suspended` requires the component model threading feature"
             )
         }
         self.core_funcs
