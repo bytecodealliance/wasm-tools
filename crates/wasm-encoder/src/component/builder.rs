@@ -710,7 +710,8 @@ impl ComponentBuilder {
 
     /// Declares a new `thread.suspend-to-suspended` intrinsic.
     pub fn thread_suspend_to_suspended(&mut self, cancellable: bool) -> u32 {
-        self.canonical_functions().thread_suspend_to_suspended(cancellable);
+        self.canonical_functions()
+            .thread_suspend_to_suspended(cancellable);
         self.core_funcs.add(Some("thread.suspend-to-suspended"))
     }
 
@@ -734,7 +735,8 @@ impl ComponentBuilder {
 
     /// Declares a new `thread.yield-to-suspended` intrinsic.
     pub fn thread_yield_to_suspended(&mut self, cancellable: bool) -> u32 {
-        self.canonical_functions().thread_yield_to_suspended(cancellable);
+        self.canonical_functions()
+            .thread_yield_to_suspended(cancellable);
         self.core_funcs.add(Some("thread.yield-to-suspended"))
     }
 
