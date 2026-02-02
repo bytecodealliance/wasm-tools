@@ -479,6 +479,22 @@ pub struct World {
     pub span: Option<Span>,
 }
 
+impl World {
+    /// Adjusts all spans in this world by adding the given byte offset.
+    pub fn adjust_spans(&mut self, offset: u32) {
+        if let Some(s) = &mut self.span {
+            s.adjust(offset);
+        }
+        for item in self.imports.values_mut().chain(self.exports.values_mut()) {
+            if let WorldItem::Function(f) = item {
+                if let Some(s) = &mut f.span {
+                    s.adjust(offset);
+                }
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct IncludeName {
     /// The name of the item
@@ -620,6 +636,20 @@ pub struct Interface {
     pub span: Option<Span>,
 }
 
+impl Interface {
+    /// Adjusts all spans in this interface by adding the given byte offset.
+    pub fn adjust_spans(&mut self, offset: u32) {
+        if let Some(s) = &mut self.span {
+            s.adjust(offset);
+        }
+        for func in self.functions.values_mut() {
+            if let Some(s) = &mut func.span {
+                s.adjust(offset);
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct TypeDef {
@@ -637,6 +667,49 @@ pub struct TypeDef {
     /// Source span for this type, if parsed from WIT text.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub span: Option<Span>,
+}
+
+impl TypeDef {
+    /// Adjusts all spans in this type definition by adding the given byte offset.
+    ///
+    /// This is used when merging source maps to update spans to point to the
+    /// correct location in the combined source map.
+    pub fn adjust_spans(&mut self, offset: u32) {
+        if let Some(s) = &mut self.span {
+            s.adjust(offset);
+        }
+        match &mut self.kind {
+            TypeDefKind::Record(r) => {
+                for field in &mut r.fields {
+                    if let Some(s) = &mut field.span {
+                        s.adjust(offset);
+                    }
+                }
+            }
+            TypeDefKind::Variant(v) => {
+                for case in &mut v.cases {
+                    if let Some(s) = &mut case.span {
+                        s.adjust(offset);
+                    }
+                }
+            }
+            TypeDefKind::Enum(e) => {
+                for case in &mut e.cases {
+                    if let Some(s) = &mut case.span {
+                        s.adjust(offset);
+                    }
+                }
+            }
+            TypeDefKind::Flags(f) => {
+                for flag in &mut f.flags {
+                    if let Some(s) = &mut flag.span {
+                        s.adjust(offset);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
@@ -760,6 +833,9 @@ pub struct Field {
     pub ty: Type,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
+    /// Source span for this field, if parsed from WIT text.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub span: Option<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
@@ -774,6 +850,9 @@ pub struct Flag {
     pub name: String,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
+    /// Source span for this flag, if parsed from WIT text.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub span: Option<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -824,6 +903,9 @@ pub struct Case {
     pub ty: Option<Type>,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
+    /// Source span for this variant case, if parsed from WIT text.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub span: Option<Span>,
 }
 
 impl Variant {
@@ -844,6 +926,9 @@ pub struct EnumCase {
     pub name: String,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
+    /// Source span for this enum case, if parsed from WIT text.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub span: Option<Span>,
 }
 
 impl Enum {

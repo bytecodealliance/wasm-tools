@@ -521,7 +521,7 @@ package {name} is defined in two different locations:\n\
                     log::debug!("moving type {:?}", ty.name);
                     moved_types.push(id);
                     remap.update_typedef(self, &mut ty, None)?;
-                    Remap::adjust_span(&mut ty.span, span_offset);
+                    ty.adjust_spans(span_offset);
                     self.types.alloc(ty)
                 }
             };
@@ -540,10 +540,7 @@ package {name} is defined in two different locations:\n\
                     log::debug!("moving interface {:?}", iface.name);
                     moved_interfaces.push(id);
                     remap.update_interface(self, &mut iface, None)?;
-                    Remap::adjust_span(&mut iface.span, span_offset);
-                    for func in iface.functions.values_mut() {
-                        Remap::adjust_span(&mut func.span, span_offset);
-                    }
+                    iface.adjust_spans(span_offset);
                     self.interfaces.alloc(iface)
                 }
             };
@@ -591,13 +588,7 @@ package {name} is defined in two different locations:\n\
                     };
                     update(&mut world.imports)?;
                     update(&mut world.exports)?;
-                    Remap::adjust_span(&mut world.span, span_offset);
-                    // Also adjust spans on functions directly in world imports/exports
-                    for item in world.imports.values_mut().chain(world.exports.values_mut()) {
-                        if let WorldItem::Function(f) = item {
-                            Remap::adjust_span(&mut f.span, span_offset);
-                        }
-                    }
+                    world.adjust_spans(span_offset);
                     self.worlds.alloc(world)
                 }
             };
@@ -2696,13 +2687,6 @@ impl Remap {
         apply_map(&self.worlds, id, "world", span)
     }
 
-    fn adjust_span(span: &mut Option<Span>, offset: u32) {
-        if let Some(s) = span {
-            s.start += offset;
-            s.end += offset;
-        }
-    }
-
     fn append(
         &mut self,
         resolve: &mut Resolve,
@@ -2748,7 +2732,7 @@ impl Remap {
             }
 
             self.update_typedef(resolve, &mut ty, Some(*span))?;
-            Self::adjust_span(&mut ty.span, span_offset);
+            ty.adjust_spans(span_offset);
             let new_id = resolve.types.alloc(ty);
             assert_eq!(self.types.len(), id.index());
 
@@ -2805,10 +2789,7 @@ impl Remap {
             assert!(iface.package.is_none());
             iface.package = Some(pkgid);
             self.update_interface(resolve, &mut iface, Some(span))?;
-            Self::adjust_span(&mut iface.span, span_offset);
-            for func in iface.functions.values_mut() {
-                Self::adjust_span(&mut func.span, span_offset);
-            }
+            iface.adjust_spans(span_offset);
             let new_id = resolve.interfaces.alloc(iface);
             assert_eq!(self.interfaces.len(), id.index());
             self.interfaces.push(Some(new_id));
@@ -2860,13 +2841,7 @@ impl Remap {
                 continue;
             }
             self.update_world(&mut world, resolve, &pkgid, &span)?;
-            Self::adjust_span(&mut world.span, span_offset);
-            // Also adjust spans on functions directly in world imports/exports
-            for item in world.imports.values_mut().chain(world.exports.values_mut()) {
-                if let WorldItem::Function(f) = item {
-                    Self::adjust_span(&mut f.span, span_offset);
-                }
-            }
+            world.adjust_spans(span_offset);
 
             let new_id = resolve.worlds.alloc(world);
             assert_eq!(self.worlds.len(), id.index());

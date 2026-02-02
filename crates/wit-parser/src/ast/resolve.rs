@@ -1270,6 +1270,7 @@ impl<'a> Resolver<'a> {
                             docs: self.docs(&field.docs),
                             name: field.name.name.to_string(),
                             ty: self.resolve_type(&field.ty, stability)?,
+                            span: Some(field.name.span),
                         })
                     })
                     .collect::<Result<Vec<_>>>()?;
@@ -1282,6 +1283,7 @@ impl<'a> Resolver<'a> {
                     .map(|flag| Flag {
                         docs: self.docs(&flag.docs),
                         name: flag.name.name.to_string(),
+                        span: Some(flag.name.span),
                     })
                     .collect::<Vec<_>>();
                 TypeDefKind::Flags(Flags { flags })
@@ -1306,6 +1308,7 @@ impl<'a> Resolver<'a> {
                             docs: self.docs(&case.docs),
                             name: case.name.name.to_string(),
                             ty: self.resolve_optional_type(case.ty.as_ref(), stability)?,
+                            span: Some(case.name.span),
                         })
                     })
                     .collect::<Result<Vec<_>>>()?;
@@ -1322,6 +1325,7 @@ impl<'a> Resolver<'a> {
                         Ok(EnumCase {
                             docs: self.docs(&case.docs),
                             name: case.name.name.to_string(),
+                            span: Some(case.name.span),
                         })
                     })
                     .collect::<Result<Vec<_>>>()?;

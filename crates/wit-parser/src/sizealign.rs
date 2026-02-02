@@ -612,11 +612,13 @@ mod test {
                     name: String::new(),
                     ty: Type::String,
                     docs: Default::default(),
+                    span: None,
                 },
                 crate::Field {
                     name: String::new(),
                     ty: Type::U64,
                     docs: Default::default(),
+                    span: None,
                 },
             ],
         };

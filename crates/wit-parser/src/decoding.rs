@@ -1360,6 +1360,7 @@ impl WitPackageDecoder<'_> {
                                 format!("failed to convert record field '{name}'")
                             })?,
                             docs: Default::default(),
+                            span: None,
                         })
                     })
                     .collect::<Result<_>>()?;
@@ -1378,6 +1379,7 @@ impl WitPackageDecoder<'_> {
                                 None => None,
                             },
                             docs: Default::default(),
+                            span: None,
                         })
                     })
                     .collect::<Result<_>>()?;
@@ -1390,6 +1392,7 @@ impl WitPackageDecoder<'_> {
                     .map(|name| Flag {
                         name: name.to_string(),
                         docs: Default::default(),
+                        span: None,
                     })
                     .collect();
                 Ok(TypeDefKind::Flags(Flags { flags }))
@@ -1402,6 +1405,7 @@ impl WitPackageDecoder<'_> {
                     .map(|name| EnumCase {
                         name: name.into(),
                         docs: Default::default(),
+                        span: None,
                     })
                     .collect();
                 Ok(TypeDefKind::Enum(Enum { cases }))
