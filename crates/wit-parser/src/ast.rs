@@ -298,7 +298,6 @@ impl<'a> PackageName<'a> {
                     .as_ref()
                     .map(|(s, _)| s.end)
                     .unwrap_or(name.span.end),
-                source_map: 0,
             },
             namespace,
             name,
@@ -609,7 +608,6 @@ impl<'a> UsePath<'a> {
                     span: Span {
                         start: namespace.span.start,
                         end: pkg_name.span.end,
-                        source_map: 0,
                     },
                     namespace,
                     name: pkg_name,
@@ -718,11 +716,7 @@ impl<'a> From<&'a str> for Id<'a> {
     fn from(s: &'a str) -> Id<'a> {
         Id {
             name: s.into(),
-            span: Span {
-                start: 0,
-                end: 0,
-                source_map: 0,
-            },
+            span: Span { start: 0, end: 0 },
         }
     }
 }
@@ -737,11 +731,7 @@ impl<'a> Default for Docs<'a> {
     fn default() -> Self {
         Self {
             docs: Default::default(),
-            span: Span {
-                start: 0,
-                end: 0,
-                source_map: 0,
-            },
+            span: Span { start: 0, end: 0 },
         }
     }
 }
@@ -1256,11 +1246,7 @@ fn parse_version(tokens: &mut Tokenizer<'_>) -> Result<(Span, Version)> {
     tokens.expect(Token::Integer)?;
     tokens.expect(Token::Period)?;
     let end = tokens.expect(Token::Integer)?.end;
-    let mut span = Span {
-        start,
-        end,
-        source_map: 0,
-    };
+    let mut span = Span { start, end };
     eat_ids(tokens, Token::Minus, &mut span)?;
     eat_ids(tokens, Token::Plus, &mut span)?;
     let string = tokens.get_span(span);
@@ -1766,6 +1752,21 @@ impl SourceMap {
             contents,
         });
         self.offset = new_offset;
+    }
+
+    /// Appends all sources from another `SourceMap` into this one.
+    ///
+    /// Returns the byte offset that should be added to all `Span.start` and
+    /// `Span.end` values from the appended source map to make them valid
+    /// in the combined source map.
+    pub fn append(&mut self, other: SourceMap) -> u32 {
+        let base = self.offset;
+        for mut source in other.sources {
+            source.offset += base;
+            self.sources.push(source);
+        }
+        self.offset += other.offset;
+        base
     }
 
     /// Parses the files added to this source map into a

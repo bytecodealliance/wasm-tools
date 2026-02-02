@@ -100,9 +100,9 @@ pub struct Resolve {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub all_features: bool,
 
-    /// Source maps for converting spans to file locations.
+    /// Source map for converting spans to file locations.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub source_maps: Vec<SourceMap>,
+    pub source_map: SourceMap,
 }
 
 /// A WIT package within a `Resolve`.
@@ -311,26 +311,28 @@ package {name} is defined in two different locations:\n\
             }
         }
 
-        // Ensure that the final output is topologically sorted. Use a set to ensure that we render
-        // the buffers for each `SourceMap` only once, even though multiple packages may reference
-        // the same `SourceMap`.
+        // Ensure that the final output is topologically sorted. Track which source maps
+        // have been appended and their byte offsets to avoid duplicating them.
         let mut package_id_to_source_map_idx = BTreeMap::new();
         let mut main_pkg_id = None;
-        let source_map_base = u32::try_from(self.source_maps.len()).unwrap();
+        let mut source_map_offsets: HashMap<usize, u32> = HashMap::new();
         for name in order {
             let (pkg, source_map_index) = pkg_details_map.remove(&name).unwrap();
             let source_map = &source_maps[source_map_index];
             let is_main = pkg.name == main_name;
-            let final_source_map_index = source_map_base + u32::try_from(source_map_index).unwrap();
-            let id = self.push_with_source_map_index(pkg, source_map, final_source_map_index)?;
+
+            // Get or compute the span offset for this source map
+            let span_offset = *source_map_offsets
+                .entry(source_map_index)
+                .or_insert_with(|| self.source_map.append(source_map.clone()));
+
+            let id = self.push_with_span_offset(pkg, source_map, span_offset)?;
             if is_main {
                 assert!(main_pkg_id.is_none());
                 main_pkg_id = Some(id);
             }
             package_id_to_source_map_idx.insert(id, source_map_index);
         }
-
-        self.source_maps.extend(source_maps.iter().cloned());
 
         Ok((
             main_pkg_id.unwrap(),
@@ -353,17 +355,17 @@ package {name} is defined in two different locations:\n\
         unresolved: UnresolvedPackage,
         source_map: &SourceMap,
     ) -> Result<PackageId> {
-        self.push_with_source_map_index(unresolved, source_map, 0)
+        self.push_with_span_offset(unresolved, source_map, 0)
     }
 
-    fn push_with_source_map_index(
+    fn push_with_span_offset(
         &mut self,
         unresolved: UnresolvedPackage,
         source_map: &SourceMap,
-        source_map_index: u32,
+        span_offset: u32,
     ) -> Result<PackageId> {
-        let ret = source_map
-            .rewrite_error(|| Remap::default().append(self, unresolved, source_map_index));
+        let ret =
+            source_map.rewrite_error(|| Remap::default().append(self, unresolved, span_offset));
         if ret.is_ok() {
             #[cfg(debug_assertions)]
             self.assert_valid();
@@ -395,12 +397,8 @@ package {name} is defined in two different locations:\n\
     }
 
     /// Renders a span as a human-readable location string (e.g., "file.wit:10:5").
-    ///
-    /// Returns `None` if the span's source_map index doesn't exist in this Resolve.
-    pub fn render_location(&self, span: Span) -> Option<String> {
-        self.source_maps
-            .get(span.source_map as usize)
-            .map(|source_map| source_map.render_location(span))
+    pub fn render_location(&self, span: Span) -> String {
+        self.source_map.render_location(span)
     }
 
     pub fn all_bits_valid(&self, ty: &Type) -> bool {
@@ -506,11 +504,11 @@ package {name} is defined in two different locations:\n\
             packages,
             package_names,
             features: _,
-            source_maps,
+            source_map,
             ..
         } = resolve;
 
-        let source_map_offset = u32::try_from(self.source_maps.len()).unwrap();
+        let span_offset = self.source_map.append(source_map);
 
         let mut moved_types = Vec::new();
         for (id, mut ty) in types {
@@ -523,9 +521,7 @@ package {name} is defined in two different locations:\n\
                     log::debug!("moving type {:?}", ty.name);
                     moved_types.push(id);
                     remap.update_typedef(self, &mut ty, None)?;
-                    if let Some(ref mut s) = ty.span {
-                        s.source_map += source_map_offset;
-                    }
+                    Remap::adjust_span(&mut ty.span, span_offset);
                     self.types.alloc(ty)
                 }
             };
@@ -544,13 +540,9 @@ package {name} is defined in two different locations:\n\
                     log::debug!("moving interface {:?}", iface.name);
                     moved_interfaces.push(id);
                     remap.update_interface(self, &mut iface, None)?;
-                    if let Some(ref mut s) = iface.span {
-                        s.source_map += source_map_offset;
-                    }
+                    Remap::adjust_span(&mut iface.span, span_offset);
                     for func in iface.functions.values_mut() {
-                        if let Some(ref mut s) = func.span {
-                            s.source_map += source_map_offset;
-                        }
+                        Remap::adjust_span(&mut func.span, span_offset);
                     }
                     self.interfaces.alloc(iface)
                 }
@@ -599,8 +591,12 @@ package {name} is defined in two different locations:\n\
                     };
                     update(&mut world.imports)?;
                     update(&mut world.exports)?;
-                    if let Some(ref mut s) = world.span {
-                        s.source_map += source_map_offset;
+                    Remap::adjust_span(&mut world.span, span_offset);
+                    // Also adjust spans on functions directly in world imports/exports
+                    for item in world.imports.values_mut().chain(world.exports.values_mut()) {
+                        if let WorldItem::Function(f) = item {
+                            Remap::adjust_span(&mut f.span, span_offset);
+                        }
                     }
                     self.worlds.alloc(world)
                 }
@@ -679,8 +675,6 @@ package {name} is defined in two different locations:\n\
         }
 
         log::trace!("now have {} packages", self.packages.len());
-
-        self.source_maps.extend(source_maps);
 
         #[cfg(debug_assertions)]
         self.assert_valid();
@@ -2702,11 +2696,18 @@ impl Remap {
         apply_map(&self.worlds, id, "world", span)
     }
 
+    fn adjust_span(span: &mut Option<Span>, offset: u32) {
+        if let Some(s) = span {
+            s.start += offset;
+            s.end += offset;
+        }
+    }
+
     fn append(
         &mut self,
         resolve: &mut Resolve,
         unresolved: UnresolvedPackage,
-        source_map_index: u32,
+        span_offset: u32,
     ) -> Result<PackageId> {
         let pkgid = resolve.packages.alloc(Package {
             name: unresolved.name.clone(),
@@ -2747,9 +2748,7 @@ impl Remap {
             }
 
             self.update_typedef(resolve, &mut ty, Some(*span))?;
-            if let Some(ref mut s) = ty.span {
-                s.source_map = source_map_index;
-            }
+            Self::adjust_span(&mut ty.span, span_offset);
             let new_id = resolve.types.alloc(ty);
             assert_eq!(self.types.len(), id.index());
 
@@ -2806,13 +2805,9 @@ impl Remap {
             assert!(iface.package.is_none());
             iface.package = Some(pkgid);
             self.update_interface(resolve, &mut iface, Some(span))?;
-            if let Some(ref mut s) = iface.span {
-                s.source_map = source_map_index;
-            }
+            Self::adjust_span(&mut iface.span, span_offset);
             for func in iface.functions.values_mut() {
-                if let Some(ref mut s) = func.span {
-                    s.source_map = source_map_index;
-                }
+                Self::adjust_span(&mut func.span, span_offset);
             }
             let new_id = resolve.interfaces.alloc(iface);
             assert_eq!(self.interfaces.len(), id.index());
@@ -2865,8 +2860,12 @@ impl Remap {
                 continue;
             }
             self.update_world(&mut world, resolve, &pkgid, &span)?;
-            if let Some(ref mut s) = world.span {
-                s.source_map = source_map_index;
+            Self::adjust_span(&mut world.span, span_offset);
+            // Also adjust spans on functions directly in world imports/exports
+            for item in world.imports.values_mut().chain(world.exports.values_mut()) {
+                if let WorldItem::Function(f) = item {
+                    Self::adjust_span(&mut f.span, span_offset);
+                }
             }
 
             let new_id = resolve.worlds.alloc(world);
@@ -4747,7 +4746,7 @@ world my-world {
 
         let iface_id = resolve.packages[pkg].interfaces["my-iface"];
         let iface_span = resolve.interfaces[iface_id].span.unwrap();
-        let iface_loc = resolve.render_location(iface_span).unwrap();
+        let iface_loc = resolve.render_location(iface_span);
         assert!(
             iface_loc.contains(":3:"),
             "interface location was {iface_loc}"
@@ -4755,18 +4754,18 @@ world my-world {
 
         let type_id = resolve.interfaces[iface_id].types["my-type"];
         let type_span = resolve.types[type_id].span.unwrap();
-        let type_loc = resolve.render_location(type_span).unwrap();
+        let type_loc = resolve.render_location(type_span);
         assert!(type_loc.contains(":4:"), "type location was {type_loc}");
 
         let func_span = resolve.interfaces[iface_id].functions["my-func"]
             .span
             .unwrap();
-        let func_loc = resolve.render_location(func_span).unwrap();
+        let func_loc = resolve.render_location(func_span);
         assert!(func_loc.contains(":5:"), "function location was {func_loc}");
 
         let world_id = resolve.packages[pkg].worlds["my-world"];
         let world_span = resolve.worlds[world_id].span.unwrap();
-        let world_loc = resolve.render_location(world_span).unwrap();
+        let world_loc = resolve.render_location(world_span);
         assert!(world_loc.contains(":8:"), "world location was {world_loc}");
 
         let WorldItem::Function(export_func) =
@@ -4774,7 +4773,7 @@ world my-world {
         else {
             panic!("expected function");
         };
-        let export_loc = resolve.render_location(export_func.span.unwrap()).unwrap();
+        let export_loc = resolve.render_location(export_func.span.unwrap());
         assert!(
             export_loc.contains(":9:"),
             "export location was {export_loc}"
@@ -4812,7 +4811,7 @@ interface iface2 {
         let iface2_id = remap.interfaces[iface2_old_id.index()].unwrap();
 
         let iface2_span = resolve1.interfaces[iface2_id].span.unwrap();
-        let iface2_loc = resolve1.render_location(iface2_span).unwrap();
+        let iface2_loc = resolve1.render_location(iface2_span);
         assert!(
             iface2_loc.contains("second.wit"),
             "should reference second.wit, got {iface2_loc}"
@@ -4825,7 +4824,7 @@ interface iface2 {
         let func2_span = resolve1.interfaces[iface2_id].functions["func2"]
             .span
             .unwrap();
-        let func2_loc = resolve1.render_location(func2_span).unwrap();
+        let func2_loc = resolve1.render_location(func2_span);
         assert!(
             func2_loc.contains("second.wit"),
             "should reference second.wit, got {func2_loc}"
@@ -4864,7 +4863,7 @@ interface second-iface {
 
         let iface1_id = resolve.packages[pkg1].interfaces["first-iface"];
         let iface1_span = resolve.interfaces[iface1_id].span.unwrap();
-        let iface1_loc = resolve.render_location(iface1_span).unwrap();
+        let iface1_loc = resolve.render_location(iface1_span);
         assert!(
             iface1_loc.contains("first.wit"),
             "should reference first.wit, got {iface1_loc}"
@@ -4877,7 +4876,7 @@ interface second-iface {
         let func1_span = resolve.interfaces[iface1_id].functions["first-func"]
             .span
             .unwrap();
-        let func1_loc = resolve.render_location(func1_span).unwrap();
+        let func1_loc = resolve.render_location(func1_span);
         assert!(
             func1_loc.contains("first.wit"),
             "should reference first.wit, got {func1_loc}"
@@ -4889,7 +4888,7 @@ interface second-iface {
 
         let iface2_id = resolve.packages[pkg2].interfaces["second-iface"];
         let iface2_span = resolve.interfaces[iface2_id].span.unwrap();
-        let iface2_loc = resolve.render_location(iface2_span).unwrap();
+        let iface2_loc = resolve.render_location(iface2_span);
         assert!(
             iface2_loc.contains("second.wit"),
             "should reference second.wit, got {iface2_loc}"
@@ -4902,7 +4901,7 @@ interface second-iface {
         let func2_span = resolve.interfaces[iface2_id].functions["second-func"]
             .span
             .unwrap();
-        let func2_loc = resolve.render_location(func2_span).unwrap();
+        let func2_loc = resolve.render_location(func2_span);
         assert!(
             func2_loc.contains("second.wit"),
             "should reference second.wit, got {func2_loc}"

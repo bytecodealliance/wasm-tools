@@ -27,8 +27,6 @@ pub struct Span {
     pub start: u32,
     /// The end of the range (exclusive).
     pub end: u32,
-    /// Index into the source maps vector identifying which source map this span belongs to.
-    pub source_map: u32,
 }
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone)]
@@ -329,14 +327,7 @@ impl<'a> Tokenizer<'a> {
         };
 
         let end = self.span_offset + u32::try_from(end).unwrap();
-        Ok(Some((
-            Span {
-                start,
-                end,
-                source_map: 0,
-            },
-            token,
-        )))
+        Ok(Some((Span { start, end }, token)))
     }
 
     pub fn eat(&mut self, expected: Token) -> Result<bool, Error> {
@@ -385,11 +376,7 @@ impl<'a> Tokenizer<'a> {
 
     pub fn eof_span(&self) -> Span {
         let end = self.span_offset + u32::try_from(self.input.len()).unwrap();
-        Span {
-            start: end,
-            end,
-            source_map: 0,
-        }
+        Span { start: end, end }
     }
 }
 
