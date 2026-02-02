@@ -4888,4 +4888,138 @@ interface second-iface {
 
         Ok(())
     }
+
+    #[test]
+    fn span_preservation_for_fields_and_cases() -> Result<()> {
+        use crate::TypeDefKind;
+
+        let mut resolve = Resolve::default();
+        let pkg = resolve.push_str(
+            "test.wit",
+            r#"
+                package foo:bar;
+
+                interface my-iface {
+                    record my-record {
+                        field1: u32,
+                        field2: string,
+                    }
+
+                    flags my-flags {
+                        flag1,
+                        flag2,
+                    }
+
+                    variant my-variant {
+                        case1,
+                        case2(u32),
+                    }
+
+                    enum my-enum {
+                        val1,
+                        val2,
+                    }
+                }
+            "#,
+        )?;
+
+        let iface_id = resolve.packages[pkg].interfaces["my-iface"];
+
+        // Check record fields have spans
+        let record_id = resolve.interfaces[iface_id].types["my-record"];
+        let TypeDefKind::Record(record) = &resolve.types[record_id].kind else {
+            panic!("expected record");
+        };
+        assert!(record.fields[0].span.is_some(), "field1 should have span");
+        assert!(record.fields[1].span.is_some(), "field2 should have span");
+
+        // Check flags have spans
+        let flags_id = resolve.interfaces[iface_id].types["my-flags"];
+        let TypeDefKind::Flags(flags) = &resolve.types[flags_id].kind else {
+            panic!("expected flags");
+        };
+        assert!(flags.flags[0].span.is_some(), "flag1 should have span");
+        assert!(flags.flags[1].span.is_some(), "flag2 should have span");
+
+        // Check variant cases have spans
+        let variant_id = resolve.interfaces[iface_id].types["my-variant"];
+        let TypeDefKind::Variant(variant) = &resolve.types[variant_id].kind else {
+            panic!("expected variant");
+        };
+        assert!(variant.cases[0].span.is_some(), "case1 should have span");
+        assert!(variant.cases[1].span.is_some(), "case2 should have span");
+
+        // Check enum cases have spans
+        let enum_id = resolve.interfaces[iface_id].types["my-enum"];
+        let TypeDefKind::Enum(e) = &resolve.types[enum_id].kind else {
+            panic!("expected enum");
+        };
+        assert!(e.cases[0].span.is_some(), "val1 should have span");
+        assert!(e.cases[1].span.is_some(), "val2 should have span");
+
+        Ok(())
+    }
+
+    #[test]
+    fn span_preservation_for_fields_through_merge() -> Result<()> {
+        use crate::TypeDefKind;
+
+        let mut resolve1 = Resolve::default();
+        resolve1.push_str(
+            "test1.wit",
+            r#"
+                package foo:bar;
+
+                interface iface1 {
+                    record rec1 {
+                        f1: u32,
+                    }
+                }
+            "#,
+        )?;
+
+        let mut resolve2 = Resolve::default();
+        let pkg2 = resolve2.push_str(
+            "test2.wit",
+            r#"
+                package foo:baz;
+
+                interface iface2 {
+                    record rec2 {
+                        f2: string,
+                    }
+
+                    variant var2 {
+                        c2,
+                    }
+                }
+            "#,
+        )?;
+
+        let iface2_old_id = resolve2.packages[pkg2].interfaces["iface2"];
+        let rec2_old_id = resolve2.interfaces[iface2_old_id].types["rec2"];
+        let var2_old_id = resolve2.interfaces[iface2_old_id].types["var2"];
+
+        let remap = resolve1.merge(resolve2)?;
+
+        let rec2_id = remap.types[rec2_old_id.index()].unwrap();
+        let TypeDefKind::Record(record) = &resolve1.types[rec2_id].kind else {
+            panic!("expected record");
+        };
+        assert!(
+            record.fields[0].span.is_some(),
+            "field should have span after merge"
+        );
+
+        let var2_id = remap.types[var2_old_id.index()].unwrap();
+        let TypeDefKind::Variant(variant) = &resolve1.types[var2_id].kind else {
+            panic!("expected variant");
+        };
+        assert!(
+            variant.cases[0].span.is_some(),
+            "case should have span after merge"
+        );
+
+        Ok(())
+    }
 }
