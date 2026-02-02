@@ -98,13 +98,11 @@ fn encode_defined_type(encoder: ComponentDefinedTypeEncoder, ty: &ComponentDefin
             encoder.record(r.fields.iter().map(|f| (f.name, &f.ty)));
         }
         ComponentDefinedType::Variant(v) => {
-            encoder.variant(v.cases.iter().map(|c| {
-                (
-                    c.name,
-                    c.ty.as_ref().map(Into::into),
-                    c.refines.as_ref().map(Into::into),
-                )
-            }));
+            encoder.variant(
+                v.cases
+                    .iter()
+                    .map(|c| (c.name, c.ty.as_ref().map(Into::into))),
+            );
         }
         ComponentDefinedType::List(l) => {
             encoder.list(l.element.as_ref());
@@ -823,15 +821,6 @@ impl From<PrimitiveValType> for wasm_encoder::PrimitiveValType {
             PrimitiveValType::Char => Self::Char,
             PrimitiveValType::String => Self::String,
             PrimitiveValType::ErrorContext => Self::ErrorContext,
-        }
-    }
-}
-
-impl From<&Refinement<'_>> for u32 {
-    fn from(r: &Refinement) -> Self {
-        match r {
-            Refinement::Index(..) => unreachable!("should be resolved by now"),
-            Refinement::Resolved(i) => *i,
         }
     }
 }

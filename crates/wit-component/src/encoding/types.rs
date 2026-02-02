@@ -325,7 +325,6 @@ pub trait ValtypeEncoder<'a> {
                 Ok((
                     c.name.as_str(),
                     self.encode_optional_valtype(resolve, c.ty.as_ref())?,
-                    None, // TODO: support defaulting case values in the future
                 ))
             })
             .collect::<Result<Vec<_>>>()?;

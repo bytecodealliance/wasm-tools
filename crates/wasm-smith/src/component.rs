@@ -1367,14 +1367,7 @@ impl ComponentBuilder {
                 .then(|| self.arbitrary_component_val_type(u))
                 .transpose()?;
 
-            let refines = if !cases.is_empty() && u.arbitrary()? {
-                let max_cases = u32::try_from(cases.len() - 1).unwrap();
-                Some(u.int_in_range(0..=max_cases)?)
-            } else {
-                None
-            };
-
-            cases.push((name, ty, refines));
+            cases.push((name, ty));
             Ok(true)
         })?;
 
@@ -2093,7 +2086,7 @@ struct RecordType {
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct VariantType {
-    cases: Vec<(String, Option<ComponentValType>, Option<u32>)>,
+    cases: Vec<(String, Option<ComponentValType>)>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

@@ -4058,16 +4058,7 @@ impl ComponentState {
             ));
         }
 
-        for (i, case) in cases.iter().enumerate() {
-            if let Some(refines) = case.refines {
-                if refines >= i as u32 {
-                    return Err(BinaryReaderError::new(
-                        "variant case can only refine a previously defined case",
-                        offset,
-                    ));
-                }
-            }
-
+        for case in cases {
             let name = to_kebab_str(case.name, "variant case", offset)?;
 
             let ty = case
@@ -4086,15 +4077,7 @@ impl ComponentState {
                     if let Some(ty) = ty {
                         info.combine(ty.info(types), offset)?;
                     }
-
-                    // Safety: the use of `KebabStr::new_unchecked` here is safe because the string
-                    // was already verified to be kebab case.
-                    e.insert(VariantCase {
-                        ty,
-                        refines: case
-                            .refines
-                            .map(|i| KebabStr::new_unchecked(cases[i as usize].name).to_owned()),
-                    });
+                    e.insert(VariantCase { ty });
                 }
             }
         }

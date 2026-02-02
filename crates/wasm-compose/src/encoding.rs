@@ -702,9 +702,6 @@ impl<'a> TypeEncoder<'a> {
                 (
                     n.as_str(),
                     c.ty.map(|ty| self.component_val_type(state, ty)),
-                    c.refines
-                        .as_deref()
-                        .map(|r| variant.cases.iter().position(|(n, _)| n == r).unwrap() as u32),
                 )
             })
             .collect::<Vec<_>>();

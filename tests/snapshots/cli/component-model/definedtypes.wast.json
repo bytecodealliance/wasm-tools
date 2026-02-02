@@ -13,166 +13,131 @@
       "line": 48,
       "filename": "definedtypes.1.wat",
       "module_type": "text",
-      "text": "variant case cannot refine itself"
-    },
-    {
-      "type": "assert_malformed",
-      "line": 55,
-      "filename": "definedtypes.2.wat",
-      "module_type": "text",
-      "text": "unknown variant case"
-    },
-    {
-      "type": "assert_malformed",
-      "line": 62,
-      "filename": "definedtypes.3.wat",
-      "module_type": "text",
-      "text": "unknown variant case"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 71,
-      "filename": "definedtypes.4.wasm",
-      "module_type": "binary",
-      "text": "variant case can only refine a previously defined case"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 79,
-      "filename": "definedtypes.5.wasm",
-      "module_type": "binary",
-      "text": "variant case can only refine a previously defined case"
-    },
-    {
-      "type": "assert_malformed",
-      "line": 87,
-      "filename": "definedtypes.6.wat",
-      "module_type": "text",
       "text": "duplicate variant case identifier"
     },
     {
       "type": "assert_invalid",
-      "line": 95,
+      "line": 56,
+      "filename": "definedtypes.2.wasm",
+      "module_type": "binary",
+      "text": "type index 0 is not a defined type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 63,
+      "filename": "definedtypes.3.wasm",
+      "module_type": "binary",
+      "text": "type index 0 is not a defined type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 70,
+      "filename": "definedtypes.4.wasm",
+      "module_type": "binary",
+      "text": "type index 0 is not a defined type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 77,
+      "filename": "definedtypes.5.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 80,
+      "filename": "definedtypes.6.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 83,
       "filename": "definedtypes.7.wasm",
       "module_type": "binary",
-      "text": "type index 0 is not a defined type"
+      "text": "index out of bounds"
     },
     {
       "type": "assert_invalid",
-      "line": 102,
+      "line": 86,
       "filename": "definedtypes.8.wasm",
       "module_type": "binary",
-      "text": "type index 0 is not a defined type"
+      "text": "index out of bounds"
     },
     {
       "type": "assert_invalid",
-      "line": 109,
+      "line": 89,
       "filename": "definedtypes.9.wasm",
       "module_type": "binary",
-      "text": "type index 0 is not a defined type"
+      "text": "index out of bounds"
     },
     {
       "type": "assert_invalid",
-      "line": 116,
+      "line": 92,
       "filename": "definedtypes.10.wasm",
       "module_type": "binary",
       "text": "index out of bounds"
     },
     {
       "type": "assert_invalid",
-      "line": 119,
+      "line": 96,
       "filename": "definedtypes.11.wasm",
-      "module_type": "binary",
-      "text": "index out of bounds"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 122,
-      "filename": "definedtypes.12.wasm",
-      "module_type": "binary",
-      "text": "index out of bounds"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 125,
-      "filename": "definedtypes.13.wasm",
-      "module_type": "binary",
-      "text": "index out of bounds"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 128,
-      "filename": "definedtypes.14.wasm",
-      "module_type": "binary",
-      "text": "index out of bounds"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 131,
-      "filename": "definedtypes.15.wasm",
-      "module_type": "binary",
-      "text": "index out of bounds"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 135,
-      "filename": "definedtypes.16.wasm",
       "module_type": "binary",
       "text": "record field name `A-b-C-d` conflicts with previous field name `a-B-c-D`"
     },
     {
       "type": "assert_invalid",
-      "line": 138,
-      "filename": "definedtypes.17.wasm",
+      "line": 99,
+      "filename": "definedtypes.12.wasm",
       "module_type": "binary",
       "text": "variant case name `x` conflicts with previous case name `x`"
     },
     {
       "type": "assert_invalid",
-      "line": 141,
-      "filename": "definedtypes.18.wasm",
+      "line": 102,
+      "filename": "definedtypes.13.wasm",
       "module_type": "binary",
       "text": "flag name `X` conflicts with previous flag name `x`"
     },
     {
       "type": "assert_invalid",
-      "line": 144,
-      "filename": "definedtypes.19.wasm",
+      "line": 105,
+      "filename": "definedtypes.14.wasm",
       "module_type": "binary",
       "text": "enum tag name `X` conflicts with previous tag name `x`"
     },
     {
       "type": "assert_invalid",
-      "line": 148,
-      "filename": "definedtypes.20.wasm",
+      "line": 109,
+      "filename": "definedtypes.15.wasm",
       "module_type": "binary",
       "text": "name cannot be empty"
     },
     {
       "type": "assert_invalid",
-      "line": 151,
-      "filename": "definedtypes.21.wasm",
+      "line": 112,
+      "filename": "definedtypes.16.wasm",
       "module_type": "binary",
       "text": "name cannot be empty"
     },
     {
       "type": "assert_invalid",
-      "line": 154,
-      "filename": "definedtypes.22.wasm",
+      "line": 115,
+      "filename": "definedtypes.17.wasm",
       "module_type": "binary",
       "text": "name cannot be empty"
     },
     {
       "type": "assert_invalid",
-      "line": 157,
-      "filename": "definedtypes.23.wasm",
+      "line": 118,
+      "filename": "definedtypes.18.wasm",
       "module_type": "binary",
       "text": "name cannot be empty"
     },
     {
       "type": "assert_invalid",
-      "line": 161,
-      "filename": "definedtypes.24.wasm",
+      "line": 122,
+      "filename": "definedtypes.19.wasm",
       "module_type": "binary",
       "text": "variant type must have at least one case"
     }

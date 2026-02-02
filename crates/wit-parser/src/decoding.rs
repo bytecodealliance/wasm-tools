@@ -1364,9 +1364,6 @@ impl WitPackageDecoder<'_> {
                     .cases
                     .iter()
                     .map(|(name, case)| {
-                        if case.refines.is_some() {
-                            bail!("unimplemented support for `refines`");
-                        }
                         Ok(Case {
                             name: name.to_string(),
                             ty: match &case.ty {
