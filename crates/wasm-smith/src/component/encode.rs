@@ -229,11 +229,7 @@ impl DefinedType {
                 enc.record(ty.fields.iter().map(|(name, ty)| (name.as_str(), *ty)));
             }
             Self::Variant(ty) => {
-                enc.variant(
-                    ty.cases
-                        .iter()
-                        .map(|(name, ty, refines)| (name.as_str(), *ty, *refines)),
-                );
+                enc.variant(ty.cases.iter().map(|(name, ty)| (name.as_str(), *ty)));
             }
             Self::List(ty) => {
                 enc.list(ty.elem_ty);

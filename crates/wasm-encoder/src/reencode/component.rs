@@ -758,13 +758,10 @@ pub mod component_utils {
                 );
             }
             wasmparser::ComponentDefinedType::Variant(v) => {
-                defined.variant(v.iter().map(|case| {
-                    (
-                        case.name,
-                        case.ty.map(|t| reencoder.component_val_type(t)),
-                        case.refines,
-                    )
-                }));
+                defined.variant(
+                    v.iter()
+                        .map(|case| (case.name, case.ty.map(|t| reencoder.component_val_type(t)))),
+                );
             }
             wasmparser::ComponentDefinedType::List(t) => {
                 defined.list(reencoder.component_val_type(t));

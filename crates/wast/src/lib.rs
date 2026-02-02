@@ -522,7 +522,6 @@ pub mod kw {
     custom_keyword!(u64);
     custom_keyword!(char);
     custom_keyword!(case);
-    custom_keyword!(refines);
     custom_keyword!(record);
     custom_keyword!(string);
     custom_keyword!(bool_ = "bool");

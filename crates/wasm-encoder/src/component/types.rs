@@ -601,16 +601,16 @@ impl ComponentDefinedTypeEncoder<'_> {
     /// Define a variant type.
     pub fn variant<'a, C>(self, cases: C)
     where
-        C: IntoIterator<Item = (&'a str, Option<ComponentValType>, Option<u32>)>,
+        C: IntoIterator<Item = (&'a str, Option<ComponentValType>)>,
         C::IntoIter: ExactSizeIterator,
     {
         let cases = cases.into_iter();
         self.0.push(0x71);
         cases.len().encode(self.0);
-        for (name, ty, refines) in cases {
+        for (name, ty) in cases {
             name.encode(self.0);
             ty.encode(self.0);
-            refines.encode(self.0);
+            self.0.push(0x00);
         }
     }
 

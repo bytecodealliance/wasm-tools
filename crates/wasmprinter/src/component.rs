@@ -145,12 +145,6 @@ impl Printer<'_, '_> {
                 self.print_component_val_type(state, &ty)?;
             }
 
-            if let Some(refines) = case.refines {
-                self.result.write_str(" ")?;
-                self.start_group("refines ")?;
-                write!(&mut self.result, "{refines}")?;
-                self.end_group()?;
-            }
             self.end_group()?;
         }
         self.end_group()?;

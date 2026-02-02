@@ -1346,8 +1346,6 @@ impl ComponentFuncType {
 pub struct VariantCase {
     /// The variant case type.
     pub ty: Option<ComponentValType>,
-    /// The name of the variant case refined by this one.
-    pub refines: Option<KebabString>,
 }
 
 /// Represents a record type.

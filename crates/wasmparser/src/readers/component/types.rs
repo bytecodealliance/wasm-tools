@@ -417,21 +417,17 @@ pub struct VariantCase<'a> {
     pub name: &'a str,
     /// The value type of the variant case.
     pub ty: Option<ComponentValType>,
-    /// The index of the variant case that is refined by this one.
-    pub refines: Option<u32>,
 }
 
 impl<'a> FromReader<'a> for VariantCase<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        Ok(VariantCase {
-            name: reader.read()?,
-            ty: reader.read()?,
-            refines: match reader.read_u8()? {
-                0x0 => None,
-                0x1 => Some(reader.read_var_u32()?),
-                x => return reader.invalid_leading_byte(x, "variant case refines"),
-            },
-        })
+        let name = reader.read()?;
+        let ty = reader.read()?;
+        match reader.read_u8()? {
+            0x0 => {}
+            x => return reader.invalid_leading_byte(x, "zero byte required"),
+        }
+        Ok(VariantCase { name, ty })
     }
 }
 

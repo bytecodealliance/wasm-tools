@@ -22,8 +22,8 @@
 
   (type $A15a (variant (case "x")))
   (type $A15b (variant (case "x" $A1)))
-  (type $A15c (variant (case $x "x") (case $y "y" string (refines $x)) (case "z" string (refines $y))))
-  (type $A15d (variant (case "x") (case "y" string (refines 0)) (case "z" string (refines 1))))
+  (type $A15c (variant (case $x "x") (case $y "y" string) (case "z" string)))
+  (type $A15d (variant (case "x") (case "y" string) (case "z" string)))
 
   (type $A16a (list (tuple u8)))
   (type $A16b (list $A3))
@@ -42,45 +42,6 @@
   (type $A22b (result $A7))
   (type $A22c (result (error $A8)))
   (type $A22d (result $A9 (error $A10a)))
-)
-
-(assert_malformed
-  (component quote
-    "(type $t (variant (case $x \"x\" string (refines $x))))"
-  )
-  "variant case cannot refine itself"
-)
-
-(assert_malformed
-  (component quote
-    "(type $t (variant (case \"x\" (refines $y)) (case $y \"y\" string)))"
-  )
-  "unknown variant case"
-)
-
-(assert_malformed
-  (component quote
-    "(type $t string)"
-    "(type $v (variant (case \"x\" $t (refines $z))))"
-  )
-  "unknown variant case"
-)
-
-
-(assert_invalid
-  (component
-    (type $t string)
-    (type $v (variant (case "x" $t (refines 1))))
-  )
-  "variant case can only refine a previously defined case"
-)
-
-(assert_invalid
-  (component
-    (type $t string)
-    (type $v (variant (case "x" $t) (case "y" u64 (refines 2)) (case "z" string)))
-  )
-  "variant case can only refine a previously defined case"
 )
 
 (assert_malformed
