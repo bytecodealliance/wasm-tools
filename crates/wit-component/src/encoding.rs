@@ -2017,6 +2017,10 @@ impl<'a> EncodingState<'a> {
                 let index = self.component.thread_yield_to_suspended(*cancellable);
                 Ok((ExportKind::Func, index))
             }
+            Import::ThreadExit => {
+                let index = self.component.thread_exit();
+                Ok((ExportKind::Func, index))
+            }
         }
     }
 
@@ -2633,7 +2637,8 @@ impl<'a> Shims<'a> {
                 | Import::ThreadSuspend { .. }
                 | Import::ThreadSuspendTo { .. }
                 | Import::ThreadUnsuspend
-                | Import::ThreadYieldToSuspended { .. } => {}
+                | Import::ThreadYieldToSuspended { .. } 
+                | Import::ThreadExit => {}
 
                 // If `task.return` needs to be indirect then generate a shim
                 // for it, otherwise skip the shim and let it get materialized

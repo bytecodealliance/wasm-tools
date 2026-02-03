@@ -12,6 +12,7 @@
   (import "$root" "[thread-unsuspend]" (func (param i32)))
   (import "$root" "[thread-yield-to-suspended]" (func (param i32) (result i32)))
   (import "$root" "[thread-suspend-to]" (func (param i32) (result i32)))
+  (import "$root" "[thread-exit]" (func))
   (func (export "thread_main") (param i32) unreachable)
   (func (export "[async-lift-stackful]foo") (param i32 i32) unreachable)
   (func (export "[async-lift-stackful]foo:foo/bar#foo") (param i32 i32) unreachable)

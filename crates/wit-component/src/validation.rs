@@ -433,7 +433,7 @@ pub enum Import {
 
     /// A `canon thread.suspend-to-suspended` intrinsic.
     ///
-    /// This allows the guest to switch execution to another thread.
+    /// This allows the guest to switch execution to another suspended thread.
     ThreadSuspendToSuspended { cancellable: bool },
 
     /// A `canon thread.suspend` intrinsic.
@@ -444,7 +444,8 @@ pub enum Import {
 
     /// A `canon thread.suspend-to` intrinsic.
     ///
-    /// This allows the guest to suspend the current thread and switch to another thread.
+    /// This allows the guest to suspend the current thread and switch to another thread
+    /// that might not be suspended.
     ThreadSuspendTo { cancellable: bool },
 
     /// A `canon thread.unsuspend` intrinsic.
@@ -454,8 +455,13 @@ pub enum Import {
 
     /// A `canon thread.yield-to-suspended` intrinsic.
     ///
-    /// This allows the guest to suspend, yielding execution to a specified thread.
+    /// This allows the guest to suspend, yielding execution to a specified suspended thread.
     ThreadYieldToSuspended { cancellable: bool },
+
+    /// A `canon thread.exit` intrinsic.
+    ///
+    /// This allows the guest to terminate the current thread.
+    ThreadExit,
 }
 
 impl ImportMap {
@@ -737,6 +743,11 @@ impl ImportMap {
                 return Ok(Import::ThreadYieldToSuspended {
                     cancellable: info.cancellable,
                 });
+            }
+            if names.thread_exit(name) {
+                let expected = FuncType::new([], []);
+                validate_func_sig(name, &expected, ty)?;
+                return Ok(Import::ThreadExit);
             }
 
             let (key_name, abi) = names.world_key_name_and_abi(name);
@@ -1659,6 +1670,7 @@ trait NameMangling {
     fn thread_suspend_to(&self, name: &str) -> Option<MaybeCancellable<()>>;
     fn thread_unsuspend(&self, name: &str) -> bool;
     fn thread_yield_to_suspended(&self, name: &str) -> Option<MaybeCancellable<()>>;
+    fn thread_exit(&self, name: &str) -> bool;
     fn module_to_interface(
         &self,
         module: &str,
@@ -1807,6 +1819,9 @@ impl NameMangling for Standard {
     }
     fn thread_yield_to_suspended(&self, _name: &str) -> Option<MaybeCancellable<()>> {
         None
+    }
+    fn thread_exit(&self, _name: &str) -> bool {
+        false
     }
     fn future_new(
         &self,
@@ -2269,6 +2284,9 @@ impl NameMangling for Legacy {
     }
     fn thread_yield_to_suspended(&self, name: &str) -> Option<MaybeCancellable<()>> {
         self.match_with_cancellable_prefix(name, "[thread-yield-to-suspended]")
+    }
+    fn thread_exit(&self, name: &str) -> bool {
+        name == "[thread-exit]"
     }
     fn future_new(&self, lookup_context: &PayloadLookupContext, name: &str) -> Option<PayloadInfo> {
         self.prefixed_payload(lookup_context, name, "[future-new-")

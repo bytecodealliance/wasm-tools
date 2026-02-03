@@ -437,7 +437,8 @@ impl<'a> ComponentWorld<'a> {
                 | Import::ThreadSuspend { .. }
                 | Import::ThreadSuspendTo { .. }
                 | Import::ThreadUnsuspend
-                | Import::ThreadYieldToSuspended { .. } => {}
+                | Import::ThreadYieldToSuspended { .. }
+                | Import::ThreadExit => {}
             }
         }
     }

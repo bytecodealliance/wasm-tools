@@ -19,6 +19,7 @@
     (import "$root" "[thread-unsuspend]" (func (;9;) (type $thread-start-func-ty)))
     (import "$root" "[thread-yield-to-suspended]" (func (;10;) (type 5)))
     (import "$root" "[thread-suspend-to]" (func (;11;) (type 5)))
+    (import "$root" "[thread-exit]" (func (;12;) (type 1)))
     (table (;0;) 1 1 funcref)
     (memory (;0;) 1)
     (export "thread_main" (func 12))
