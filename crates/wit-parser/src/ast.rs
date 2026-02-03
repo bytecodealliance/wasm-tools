@@ -1773,7 +1773,7 @@ impl SourceMap {
     /// [`UnresolvedPackageGroup`].
     pub fn parse(self) -> Result<UnresolvedPackageGroup> {
         let mut nested = Vec::new();
-        let main = self.rewrite_error(|| {
+        let main = self.rewrite_error(0, || {
             let mut resolver = Resolver::default();
             let mut srcs = self.sources.iter().collect::<Vec<_>>();
             srcs.sort_by_key(|src| &src.path);
@@ -1828,7 +1828,7 @@ impl SourceMap {
         })
     }
 
-    pub(crate) fn rewrite_error<F, T>(&self, f: F) -> Result<T>
+    pub(crate) fn rewrite_error<F, T>(&self, span_offset: u32, f: F) -> Result<T>
     where
         F: FnOnce() -> Result<T>,
     {
@@ -1837,6 +1837,7 @@ impl SourceMap {
             Err(e) => e,
         };
         if let Some(parse) = err.downcast_mut::<Error>() {
+            parse.span.adjust(span_offset);
             if parse.highlighted.is_none() {
                 let msg = self.highlight_err(parse.span.start, Some(parse.span.end), &parse.msg);
                 parse.highlighted = Some(msg);
@@ -1846,6 +1847,7 @@ impl SourceMap {
             return Err(err);
         }
         if let Some(notfound) = err.downcast_mut::<PackageNotFoundError>() {
+            notfound.span.adjust(span_offset);
             if notfound.highlighted.is_none() {
                 let msg = self.highlight_err(
                     notfound.span.start,
@@ -1866,13 +1868,14 @@ impl SourceMap {
                 | lex::Error::Wanted { at, .. }
                 | lex::Error::InvalidCharInId(at, _)
                 | lex::Error::IdPartEmpty(at)
-                | lex::Error::InvalidEscape(at, _) => *at,
+                | lex::Error::InvalidEscape(at, _) => *at + span_offset,
             };
             let msg = self.highlight_err(pos, None, lex);
             bail!("{msg}")
         }
 
         if let Some(sort) = err.downcast_mut::<toposort::Error>() {
+            sort.adjust_span(span_offset);
             if sort.highlighted().is_none() {
                 let span = match sort {
                     toposort::Error::NonexistentDep { span, .. }

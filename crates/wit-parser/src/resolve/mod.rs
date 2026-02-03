@@ -204,7 +204,7 @@ fn visit<'a>(
     match pkg_details_map.get(&pkg.name) {
         Some(pkg_details) => {
             let (_, source_maps_index) = pkg_details;
-            source_maps[*source_maps_index].rewrite_error(|| {
+            source_maps[*source_maps_index].rewrite_error(0, || {
                 for (i, (dep, _)) in pkg.foreign_deps.iter().enumerate() {
                     let span = pkg.foreign_dep_spans[i];
                     if !visiting.insert(dep) {
@@ -324,9 +324,9 @@ package {name} is defined in two different locations:\n\
             // Get or compute the span offset for this source map
             let span_offset = *source_map_offsets
                 .entry(source_map_index)
-                .or_insert_with(|| self.source_map.append(source_map.clone()));
+                .or_insert_with(|| self.push_source_map(source_map.clone()));
 
-            let id = self.push_with_span_offset(pkg, source_map, span_offset)?;
+            let id = self.push(pkg, span_offset)?;
             if is_main {
                 assert!(main_pkg_id.is_none());
                 main_pkg_id = Some(id);
@@ -340,6 +340,16 @@ package {name} is defined in two different locations:\n\
         ))
     }
 
+    /// Appends a source map to this [`Resolve`]'s internal source map.
+    ///
+    /// Returns the byte offset that should be passed to [`Resolve::push`] for
+    /// packages parsed from this source map. This offset ensures that spans
+    /// in the resolved package point to the correct location in the combined
+    /// source map.
+    pub fn push_source_map(&mut self, source_map: SourceMap) -> u32 {
+        self.source_map.append(source_map)
+    }
+
     /// Appends a new [`UnresolvedPackage`] to this [`Resolve`], creating a
     /// fully resolved package with no dangling references.
     ///
@@ -347,30 +357,20 @@ package {name} is defined in two different locations:\n\
     /// within this `Resolve` via previous calls to `push` or other methods such
     /// as [`Resolve::push_path`].
     ///
+    /// The `span_offset` should be the value returned by
+    /// [`Resolve::push_source_map`] if the source map was appended to this
+    /// resolve, or `0` if this is a standalone package.
+    ///
     /// Any dependency resolution error or otherwise world-elaboration error
     /// will be returned here, if successful a package identifier is returned
     /// which corresponds to the package that was just inserted.
-    pub fn push(
-        &mut self,
-        unresolved: UnresolvedPackage,
-        source_map: &SourceMap,
-    ) -> Result<PackageId> {
-        self.push_with_span_offset(unresolved, source_map, 0)
-    }
-
-    fn push_with_span_offset(
-        &mut self,
-        unresolved: UnresolvedPackage,
-        source_map: &SourceMap,
-        span_offset: u32,
-    ) -> Result<PackageId> {
-        let ret =
-            source_map.rewrite_error(|| Remap::default().append(self, unresolved, span_offset));
+    pub fn push(&mut self, unresolved: UnresolvedPackage, span_offset: u32) -> Result<PackageId> {
+        let ret = Remap::default().append(self, unresolved, span_offset);
         if ret.is_ok() {
             #[cfg(debug_assertions)]
             self.assert_valid();
         }
-        ret
+        self.source_map.rewrite_error(span_offset, || ret)
     }
 
     /// Appends new [`UnresolvedPackageGroup`] to this [`Resolve`], creating a

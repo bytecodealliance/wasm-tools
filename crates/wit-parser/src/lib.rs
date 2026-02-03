@@ -481,15 +481,13 @@ pub struct World {
 
 impl World {
     /// Adjusts all spans in this world by adding the given byte offset.
-    pub fn adjust_spans(&mut self, offset: u32) {
+    pub(crate) fn adjust_spans(&mut self, offset: u32) {
         if let Some(s) = &mut self.span {
             s.adjust(offset);
         }
         for item in self.imports.values_mut().chain(self.exports.values_mut()) {
             if let WorldItem::Function(f) = item {
-                if let Some(s) = &mut f.span {
-                    s.adjust(offset);
-                }
+                f.adjust_spans(offset);
             }
         }
     }
@@ -638,14 +636,12 @@ pub struct Interface {
 
 impl Interface {
     /// Adjusts all spans in this interface by adding the given byte offset.
-    pub fn adjust_spans(&mut self, offset: u32) {
+    pub(crate) fn adjust_spans(&mut self, offset: u32) {
         if let Some(s) = &mut self.span {
             s.adjust(offset);
         }
         for func in self.functions.values_mut() {
-            if let Some(s) = &mut func.span {
-                s.adjust(offset);
-            }
+            func.adjust_spans(offset);
         }
     }
 }
@@ -674,7 +670,7 @@ impl TypeDef {
     ///
     /// This is used when merging source maps to update spans to point to the
     /// correct location in the combined source map.
-    pub fn adjust_spans(&mut self, offset: u32) {
+    pub(crate) fn adjust_spans(&mut self, offset: u32) {
         if let Some(s) = &mut self.span {
             s.adjust(offset);
         }
@@ -1251,6 +1247,13 @@ impl ManglingAndAbi {
 }
 
 impl Function {
+    /// Adjusts all spans in this function by adding the given byte offset.
+    pub(crate) fn adjust_spans(&mut self, offset: u32) {
+        if let Some(s) = &mut self.span {
+            s.adjust(offset);
+        }
+    }
+
     pub fn item_name(&self) -> &str {
         match &self.kind {
             FunctionKind::Freestanding | FunctionKind::AsyncFreestanding => &self.name,
