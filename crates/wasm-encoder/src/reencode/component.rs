@@ -1136,6 +1136,9 @@ pub mod component_utils {
             wasmparser::CanonicalFunction::ThreadYieldToSuspended { cancellable } => {
                 section.thread_yield_to_suspended(cancellable);
             }
+            wasmparser::CanonicalFunction::ThreadExit => {
+                section.thread_exit();
+            }
         }
         Ok(())
     }

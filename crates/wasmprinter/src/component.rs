@@ -1204,6 +1204,9 @@ impl Printer<'_, '_> {
                         Ok(())
                     })?;
                 }
+                CanonicalFunction::ThreadExit => {
+                    self.print_intrinsic(state, "canon thread.exit", &|_, _| Ok(()))?;
+                }
             }
         }
 

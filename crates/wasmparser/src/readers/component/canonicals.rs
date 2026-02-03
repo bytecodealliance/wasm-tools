@@ -296,6 +296,8 @@ pub enum CanonicalFunction {
         /// Whether or not the thread can be cancelled while yielding.
         cancellable: bool,
     },
+    /// A function to terminate the current thread.
+    ThreadExit,
 }
 
 /// A reader for the canonical section of a WebAssembly component.
@@ -424,6 +426,7 @@ impl<'a> FromReader<'a> for CanonicalFunction {
             0x2c => CanonicalFunction::ThreadSuspendTo {
                 cancellable: reader.read()?,
             },
+            0x2d => CanonicalFunction::ThreadExit,
             0x06 => CanonicalFunction::SubtaskCancel {
                 async_: reader.read()?,
             },

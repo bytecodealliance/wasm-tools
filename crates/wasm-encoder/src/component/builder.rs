@@ -740,6 +740,12 @@ impl ComponentBuilder {
         self.core_funcs.add(Some("thread.yield-to-suspended"))
     }
 
+    /// Declares a new `thread.exit` intrinsic.
+    pub fn thread_exit(&mut self) -> u32 {
+        self.canonical_functions().thread_exit();
+        self.core_funcs.add(Some("thread.exit"))
+    }
+
     /// Adds a new custom section to this component.
     pub fn custom_section(&mut self, section: &CustomSection<'_>) {
         self.flush();

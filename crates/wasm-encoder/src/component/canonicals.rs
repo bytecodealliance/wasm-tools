@@ -566,6 +566,13 @@ impl CanonicalFunctionSection {
         self
     }
 
+    /// Declare a new `thread.exit` intrinsic, used to terminate the current thread.
+    pub fn thread_exit(&mut self) -> &mut Self {
+        self.bytes.push(0x2d);
+        self.num_added += 1;
+        self
+    }
+
     fn encode_options<O>(&mut self, options: O) -> &mut Self
     where
         O: IntoIterator<Item = CanonicalOption>,

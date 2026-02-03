@@ -609,6 +609,7 @@ pub mod kw {
     custom_keyword!(thread_suspend_to = "thread.suspend-to");
     custom_keyword!(thread_unsuspend = "thread.unsuspend");
     custom_keyword!(thread_yield_to_suspended = "thread.yield-to-suspended");
+    custom_keyword!(thread_exit = "thread.exit");
     custom_keyword!(cancellable);
 }
 

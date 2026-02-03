@@ -480,6 +480,7 @@ impl<'a> Resolver<'a> {
                 CoreFuncKind::ThreadSuspendTo(_) => {}
                 CoreFuncKind::ThreadUnsuspend => {}
                 CoreFuncKind::ThreadYieldToSuspended(_) => {}
+                CoreFuncKind::ThreadExit => {}
             },
         }
 

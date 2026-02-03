@@ -92,6 +92,7 @@ pub enum CoreFuncKind<'a> {
     ThreadSuspendTo(CanonThreadSuspendTo),
     ThreadUnsuspend,
     ThreadYieldToSuspended(CanonThreadYieldToSuspended),
+    ThreadExit,
 }
 
 impl<'a> Parse<'a> for CoreFuncKind<'a> {
@@ -216,6 +217,9 @@ impl<'a> CoreFuncKind<'a> {
             Ok(CoreFuncKind::ThreadUnsuspend)
         } else if l.peek::<kw::thread_yield_to_suspended>()? {
             Ok(CoreFuncKind::ThreadYieldToSuspended(parser.parse()?))
+        } else if l.peek::<kw::thread_exit>()? {
+            parser.parse::<kw::thread_exit>()?;
+            Ok(CoreFuncKind::ThreadExit)
         } else {
             Err(l.error())
         }

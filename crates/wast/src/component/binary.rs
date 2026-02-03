@@ -539,6 +539,10 @@ impl<'a> Encoder<'a> {
                     self.core_func_names.push(name);
                     self.funcs.thread_yield_to_suspended(info.cancellable);
                 }
+                CoreFuncKind::ThreadExit => {
+                    self.core_func_names.push(name);
+                    self.funcs.thread_exit();
+                }
             },
         }
 
