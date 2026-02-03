@@ -504,9 +504,7 @@ impl<'a> Dump<'a> {
                             | CanonicalFunction::ThreadSuspendTo { .. }
                             | CanonicalFunction::ThreadUnsuspend { .. }
                             | CanonicalFunction::ThreadYieldToSuspended { .. }
-                            | CanonicalFunction::ThreadExit => {
-                                ("core func", &mut i.core_funcs)
-                            }
+                            | CanonicalFunction::ThreadExit => ("core func", &mut i.core_funcs),
                         };
 
                         write!(me.state, "[{} {}] {:?}", name, inc(col), f)?;
