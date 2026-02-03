@@ -503,7 +503,8 @@ impl<'a> Dump<'a> {
                             | CanonicalFunction::ThreadSuspend { .. }
                             | CanonicalFunction::ThreadSuspendTo { .. }
                             | CanonicalFunction::ThreadUnsuspend { .. }
-                            | CanonicalFunction::ThreadYieldToSuspended { .. } => {
+                            | CanonicalFunction::ThreadYieldToSuspended { .. }
+                            | CanonicalFunction::ThreadExit => {
                                 ("core func", &mut i.core_funcs)
                             }
                         };

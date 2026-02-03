@@ -1274,10 +1274,10 @@ impl ComponentState {
                 self.thread_suspend_to(cancellable, types, offset)
             }
             CanonicalFunction::ThreadUnsuspend => self.thread_unsuspend(types, offset),
-
             CanonicalFunction::ThreadYieldToSuspended { cancellable } => {
                 self.thread_yield_to_suspended(cancellable, types, offset)
             }
+            CanonicalFunction::ThreadExit => self.thread_exit(types, offset),
         }
     }
 
@@ -2284,6 +2284,18 @@ impl ComponentState {
         }
         self.core_funcs
             .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset));
+        Ok(())
+    }
+
+    fn thread_exit(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+        if !self.features.cm_threading() {
+            bail!(
+                offset,
+                "`thread.exit` requires the component model threading feature"
+            )
+        }
+        self.core_funcs
+            .push(types.intern_func_type(FuncType::new([], []), offset));
         Ok(())
     }
 
