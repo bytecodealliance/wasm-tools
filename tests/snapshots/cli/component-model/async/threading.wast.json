@@ -122,8 +122,21 @@
     },
     {
       "type": "module",
-      "line": 198,
+      "line": 201,
       "filename": "threading.18.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 211,
+      "filename": "threading.19.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `thread.exit` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 221,
+      "filename": "threading.20.wasm",
       "module_type": "binary"
     }
   ]

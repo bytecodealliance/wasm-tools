@@ -10,5 +10,6 @@
     (core func (canon thread.suspend))
     (core func (canon thread.suspend-to))
     (core func (canon thread.unsuspend))
-    (core func (canon thread.yield-to-suspended)))
+    (core func (canon thread.yield-to-suspended))
+    (core func (canon thread.exit)))
   "requires the component model threading feature")

@@ -193,6 +193,29 @@
   (canon thread.yield-to-suspended (core func))
   (core func (canon thread.yield-to-suspended cancellable))
   (canon thread.yield-to-suspended cancellable (core func))
+  (core func (canon thread.exit))
+  (canon thread.exit (core func))
+)
+
+;; thread.exit
+(component
+  (core module $m
+    (import "" "thread.exit" (func $thread.exit))
+  )
+  (core func $thread.exit (canon thread.exit))
+  (core instance $i (instantiate $m (with "" (instance (export "thread.exit" (func $thread.exit))))))
+)
+
+;; thread.exit; incorrect type
+(assert_invalid
+  (component
+    (core module $m
+      (import "" "thread.exit" (func $thread.exit (param i32)))
+    )
+    (core func $thread.exit (canon thread.exit))
+    (core instance $i (instantiate $m (with "" (instance (export "thread.exit" (func $thread.exit))))))
+  )
+  "type mismatch for export `thread.exit` of module instantiation argument ``"
 )
 
 (component

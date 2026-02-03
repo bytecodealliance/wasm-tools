@@ -30,4 +30,6 @@
   (core func (;21;) (canon thread.yield-to-suspended))
   (core func (;22;) (canon thread.yield-to-suspended cancellable))
   (core func (;23;) (canon thread.yield-to-suspended cancellable))
+  (core func (;24;) (canon thread.exit))
+  (core func (;25;) (canon thread.exit))
 )
