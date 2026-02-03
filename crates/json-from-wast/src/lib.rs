@@ -560,7 +560,7 @@ where
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(tag = "type", content = "value",rename_all = "lowercase")]
+#[serde(tag = "type", content = "value", rename_all = "lowercase")]
 pub enum ComponentConst<'a> {
     #[serde(borrow)]
     String(Cow<'a, str>),
