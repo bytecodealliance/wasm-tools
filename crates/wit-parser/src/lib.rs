@@ -146,6 +146,58 @@ pub struct UnresolvedPackage {
     required_resource_types: Vec<(TypeId, Span)>,
 }
 
+impl UnresolvedPackage {
+    /// Adjusts all spans in this package by adding the given byte offset.
+    ///
+    /// This is used when merging source maps to update spans to point to the
+    /// correct location in the combined source map.
+    pub(crate) fn adjust_spans(&mut self, offset: u32) {
+        // Adjust parallel vec spans
+        self.package_name_span.adjust(offset);
+        for span in &mut self.unknown_type_spans {
+            span.adjust(offset);
+        }
+        for ispan in &mut self.interface_spans {
+            ispan.span.adjust(offset);
+            for span in &mut ispan.funcs {
+                span.adjust(offset);
+            }
+        }
+        for wspan in &mut self.world_spans {
+            wspan.span.adjust(offset);
+            for span in &mut wspan.imports {
+                span.adjust(offset);
+            }
+            for span in &mut wspan.exports {
+                span.adjust(offset);
+            }
+            for span in &mut wspan.includes {
+                span.adjust(offset);
+            }
+        }
+        for span in &mut self.type_spans {
+            span.adjust(offset);
+        }
+        for span in &mut self.foreign_dep_spans {
+            span.adjust(offset);
+        }
+        for (_, span) in &mut self.required_resource_types {
+            span.adjust(offset);
+        }
+
+        // Adjust spans on arena items
+        for (_, world) in self.worlds.iter_mut() {
+            world.adjust_spans(offset);
+        }
+        for (_, iface) in self.interfaces.iter_mut() {
+            iface.adjust_spans(offset);
+        }
+        for (_, ty) in self.types.iter_mut() {
+            ty.adjust_spans(offset);
+        }
+    }
+}
+
 /// Tracks a set of packages, all pulled from the same group of WIT source files.
 #[derive(Clone)]
 pub struct UnresolvedPackageGroup {

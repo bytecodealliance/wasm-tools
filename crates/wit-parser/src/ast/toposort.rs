@@ -158,13 +158,6 @@ impl Error {
             }
         }
     }
-    pub(crate) fn adjust_span(&mut self, offset: u32) {
-        match self {
-            Error::NonexistentDep { span, .. } | Error::Cycle { span, .. } => {
-                span.adjust(offset);
-            }
-        }
-    }
 }
 
 impl fmt::Display for Error {

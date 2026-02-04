@@ -204,7 +204,7 @@ fn visit<'a>(
     match pkg_details_map.get(&pkg.name) {
         Some(pkg_details) => {
             let (_, source_maps_index) = pkg_details;
-            source_maps[*source_maps_index].rewrite_error(0, || {
+            source_maps[*source_maps_index].rewrite_error(|| {
                 for (i, (dep, _)) in pkg.foreign_deps.iter().enumerate() {
                     let span = pkg.foreign_dep_spans[i];
                     if !visiting.insert(dep) {
@@ -364,13 +364,18 @@ package {name} is defined in two different locations:\n\
     /// Any dependency resolution error or otherwise world-elaboration error
     /// will be returned here, if successful a package identifier is returned
     /// which corresponds to the package that was just inserted.
-    pub fn push(&mut self, unresolved: UnresolvedPackage, span_offset: u32) -> Result<PackageId> {
-        let ret = Remap::default().append(self, unresolved, span_offset);
+    pub fn push(
+        &mut self,
+        mut unresolved: UnresolvedPackage,
+        span_offset: u32,
+    ) -> Result<PackageId> {
+        unresolved.adjust_spans(span_offset);
+        let ret = Remap::default().append(self, unresolved);
         if ret.is_ok() {
             #[cfg(debug_assertions)]
             self.assert_valid();
         }
-        self.source_map.rewrite_error(span_offset, || ret)
+        self.source_map.rewrite_error(|| ret)
     }
 
     /// Appends new [`UnresolvedPackageGroup`] to this [`Resolve`], creating a
@@ -2691,7 +2696,6 @@ impl Remap {
         &mut self,
         resolve: &mut Resolve,
         unresolved: UnresolvedPackage,
-        span_offset: u32,
     ) -> Result<PackageId> {
         let pkgid = resolve.packages.alloc(Package {
             name: unresolved.name.clone(),
@@ -2732,7 +2736,6 @@ impl Remap {
             }
 
             self.update_typedef(resolve, &mut ty, Some(*span))?;
-            ty.adjust_spans(span_offset);
             let new_id = resolve.types.alloc(ty);
             assert_eq!(self.types.len(), id.index());
 
@@ -2789,7 +2792,6 @@ impl Remap {
             assert!(iface.package.is_none());
             iface.package = Some(pkgid);
             self.update_interface(resolve, &mut iface, Some(span))?;
-            iface.adjust_spans(span_offset);
             let new_id = resolve.interfaces.alloc(iface);
             assert_eq!(self.interfaces.len(), id.index());
             self.interfaces.push(Some(new_id));
@@ -2841,7 +2843,6 @@ impl Remap {
                 continue;
             }
             self.update_world(&mut world, resolve, &pkgid, &span)?;
-            world.adjust_spans(span_offset);
 
             let new_id = resolve.worlds.alloc(world);
             assert_eq!(self.worlds.len(), id.index());
