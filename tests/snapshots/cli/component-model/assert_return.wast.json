@@ -1,0 +1,26 @@
+{
+  "source_filename": "tests/cli/component-model/assert_return.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "assert_return.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 9,
+      "action": {
+        "type": "invoke",
+        "field": "a",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    }
+  ]
+}

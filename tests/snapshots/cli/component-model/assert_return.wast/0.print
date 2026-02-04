@@ -1,0 +1,14 @@
+(component
+  (core module $m (;0;)
+    (type (;0;) (func (result i32)))
+    (export "" (func 0))
+    (func (;0;) (type 0) (result i32)
+      i32.const 1
+    )
+  )
+  (core instance $m (;0;) (instantiate $m))
+  (type (;0;) (func (result u32)))
+  (alias core export $m "" (core func (;0;)))
+  (func (;0;) (type 0) (canon lift (core func 0)))
+  (export (;1;) "a" (func 0))
+)
