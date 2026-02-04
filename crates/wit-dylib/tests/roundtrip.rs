@@ -133,6 +133,7 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
                     result: Some(Type::U32),
                     stability: Default::default(),
                     docs: Default::default(),
+                    span: None,
                 },
             );
             funcs.insert(
@@ -144,6 +145,7 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
                     result: None,
                     stability: Default::default(),
                     docs: Default::default(),
+                    span: None,
                 },
             );
             funcs.insert(
@@ -155,10 +157,12 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
                     result: Some(Type::U32),
                     stability: Default::default(),
                     docs: Default::default(),
+                    span: None,
                 },
             );
             funcs
         },
+        span: None,
     });
 
     // Generate two worlds in our custom package, one for the callee and one for
@@ -173,6 +177,7 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
         includes: Default::default(),
         include_names: Default::default(),
         docs: Default::default(),
+        span: None,
     });
     let caller = resolve.worlds.alloc(World {
         name: "caller".to_string(),
@@ -183,6 +188,7 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
         includes: Default::default(),
         include_names: Default::default(),
         docs: Default::default(),
+        span: None,
     });
 
     // Add an extra import/export for our synthesized interfaces as well.
@@ -214,6 +220,7 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
             result: None,
             stability: Default::default(),
             docs: Default::default(),
+            span: None,
         }),
     );
 
@@ -316,6 +323,7 @@ fn update_resources(resolve: &mut Resolve) {
             owner: TypeOwner::None,
             docs: Default::default(),
             stability: Default::default(),
+            span: None,
         });
         let borrow = resolve.types.alloc(TypeDef {
             name: None,
@@ -323,6 +331,7 @@ fn update_resources(resolve: &mut Resolve) {
             owner: TypeOwner::None,
             docs: Default::default(),
             stability: Default::default(),
+            span: None,
         });
         let iface = &mut resolve.interfaces[interface_id];
         let ctor = format!("[constructor]{resource_name}");
@@ -339,6 +348,7 @@ fn update_resources(resolve: &mut Resolve) {
                 result: Some(Type::Id(own)),
                 stability: Default::default(),
                 docs: Default::default(),
+                span: None,
             },
         );
         iface.functions.insert(
@@ -350,6 +360,7 @@ fn update_resources(resolve: &mut Resolve) {
                 result: Some(Type::U32),
                 stability: Default::default(),
                 docs: Default::default(),
+                span: None,
             },
         );
     }

@@ -21,12 +21,20 @@ struct CrlfFold<'a> {
 }
 
 /// A span, designating a range of bytes where a token is located.
-#[derive(Eq, PartialEq, Debug, Clone, Copy)]
+#[derive(Eq, PartialEq, Debug, Clone, Copy, Hash)]
 pub struct Span {
     /// The start of the range.
     pub start: u32,
     /// The end of the range (exclusive).
     pub end: u32,
+}
+
+impl Span {
+    /// Adjusts this span by adding the given byte offset to both start and end.
+    pub fn adjust(&mut self, offset: u32) {
+        self.start += offset;
+        self.end += offset;
+    }
 }
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone)]

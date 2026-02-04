@@ -46,7 +46,7 @@ pub use metadata::PackageMetadata;
 pub mod abi;
 mod ast;
 pub use ast::SourceMap;
-use ast::lex::Span;
+pub use ast::lex::Span;
 pub use ast::{ParsedUsePath, parse_use_path};
 mod sizealign;
 pub use sizealign::*;
@@ -144,6 +144,58 @@ pub struct UnresolvedPackage {
     type_spans: Vec<Span>,
     foreign_dep_spans: Vec<Span>,
     required_resource_types: Vec<(TypeId, Span)>,
+}
+
+impl UnresolvedPackage {
+    /// Adjusts all spans in this package by adding the given byte offset.
+    ///
+    /// This is used when merging source maps to update spans to point to the
+    /// correct location in the combined source map.
+    pub(crate) fn adjust_spans(&mut self, offset: u32) {
+        // Adjust parallel vec spans
+        self.package_name_span.adjust(offset);
+        for span in &mut self.unknown_type_spans {
+            span.adjust(offset);
+        }
+        for ispan in &mut self.interface_spans {
+            ispan.span.adjust(offset);
+            for span in &mut ispan.funcs {
+                span.adjust(offset);
+            }
+        }
+        for wspan in &mut self.world_spans {
+            wspan.span.adjust(offset);
+            for span in &mut wspan.imports {
+                span.adjust(offset);
+            }
+            for span in &mut wspan.exports {
+                span.adjust(offset);
+            }
+            for span in &mut wspan.includes {
+                span.adjust(offset);
+            }
+        }
+        for span in &mut self.type_spans {
+            span.adjust(offset);
+        }
+        for span in &mut self.foreign_dep_spans {
+            span.adjust(offset);
+        }
+        for (_, span) in &mut self.required_resource_types {
+            span.adjust(offset);
+        }
+
+        // Adjust spans on arena items
+        for (_, world) in self.worlds.iter_mut() {
+            world.adjust_spans(offset);
+        }
+        for (_, iface) in self.interfaces.iter_mut() {
+            iface.adjust_spans(offset);
+        }
+        for (_, ty) in self.types.iter_mut() {
+            ty.adjust_spans(offset);
+        }
+    }
 }
 
 /// Tracks a set of packages, all pulled from the same group of WIT source files.
@@ -473,6 +525,24 @@ pub struct World {
     /// All the included worlds names. Empty if this is fully resolved
     #[cfg_attr(feature = "serde", serde(skip))]
     pub include_names: Vec<Vec<IncludeName>>,
+
+    /// Source span for this world, if parsed from WIT text.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub span: Option<Span>,
+}
+
+impl World {
+    /// Adjusts all spans in this world by adding the given byte offset.
+    pub(crate) fn adjust_spans(&mut self, offset: u32) {
+        if let Some(s) = &mut self.span {
+            s.adjust(offset);
+        }
+        for item in self.imports.values_mut().chain(self.exports.values_mut()) {
+            if let WorldItem::Function(f) = item {
+                f.adjust_spans(offset);
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -610,6 +680,22 @@ pub struct Interface {
     /// The package that owns this interface.
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_optional_id"))]
     pub package: Option<PackageId>,
+
+    /// Source span for this interface, if parsed from WIT text.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub span: Option<Span>,
+}
+
+impl Interface {
+    /// Adjusts all spans in this interface by adding the given byte offset.
+    pub(crate) fn adjust_spans(&mut self, offset: u32) {
+        if let Some(s) = &mut self.span {
+            s.adjust(offset);
+        }
+        for func in self.functions.values_mut() {
+            func.adjust_spans(offset);
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -626,6 +712,52 @@ pub struct TypeDef {
         serde(skip_serializing_if = "Stability::is_unknown")
     )]
     pub stability: Stability,
+    /// Source span for this type, if parsed from WIT text.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub span: Option<Span>,
+}
+
+impl TypeDef {
+    /// Adjusts all spans in this type definition by adding the given byte offset.
+    ///
+    /// This is used when merging source maps to update spans to point to the
+    /// correct location in the combined source map.
+    pub(crate) fn adjust_spans(&mut self, offset: u32) {
+        if let Some(s) = &mut self.span {
+            s.adjust(offset);
+        }
+        match &mut self.kind {
+            TypeDefKind::Record(r) => {
+                for field in &mut r.fields {
+                    if let Some(s) = &mut field.span {
+                        s.adjust(offset);
+                    }
+                }
+            }
+            TypeDefKind::Variant(v) => {
+                for case in &mut v.cases {
+                    if let Some(s) = &mut case.span {
+                        s.adjust(offset);
+                    }
+                }
+            }
+            TypeDefKind::Enum(e) => {
+                for case in &mut e.cases {
+                    if let Some(s) = &mut case.span {
+                        s.adjust(offset);
+                    }
+                }
+            }
+            TypeDefKind::Flags(f) => {
+                for flag in &mut f.flags {
+                    if let Some(s) = &mut flag.span {
+                        s.adjust(offset);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
@@ -749,6 +881,9 @@ pub struct Field {
     pub ty: Type,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
+    /// Source span for this field, if parsed from WIT text.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub span: Option<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
@@ -763,6 +898,9 @@ pub struct Flag {
     pub name: String,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
+    /// Source span for this flag, if parsed from WIT text.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub span: Option<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -813,6 +951,9 @@ pub struct Case {
     pub ty: Option<Type>,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
+    /// Source span for this variant case, if parsed from WIT text.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub span: Option<Span>,
 }
 
 impl Variant {
@@ -833,6 +974,9 @@ pub struct EnumCase {
     pub name: String,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
+    /// Source span for this enum case, if parsed from WIT text.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub span: Option<Span>,
 }
 
 impl Enum {
@@ -888,6 +1032,10 @@ pub struct Function {
         serde(skip_serializing_if = "Stability::is_unknown")
     )]
     pub stability: Stability,
+
+    /// Source span for this function, if parsed from WIT text.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub span: Option<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1151,6 +1299,13 @@ impl ManglingAndAbi {
 }
 
 impl Function {
+    /// Adjusts all spans in this function by adding the given byte offset.
+    pub(crate) fn adjust_spans(&mut self, offset: u32) {
+        if let Some(s) = &mut self.span {
+            s.adjust(offset);
+        }
+    }
+
     pub fn item_name(&self) -> &str {
         match &self.kind {
             FunctionKind::Freestanding | FunctionKind::AsyncFreestanding => &self.name,
@@ -1428,6 +1583,7 @@ mod test {
             owner: TypeOwner::None,
             docs: Docs::default(),
             stability: Stability::Unknown,
+            span: None,
         });
         let t1 = resolve.types.alloc(TypeDef {
             name: None,
@@ -1435,6 +1591,7 @@ mod test {
             owner: TypeOwner::None,
             docs: Docs::default(),
             stability: Stability::Unknown,
+            span: None,
         });
         let t2 = resolve.types.alloc(TypeDef {
             name: None,
@@ -1442,6 +1599,7 @@ mod test {
             owner: TypeOwner::None,
             docs: Docs::default(),
             stability: Stability::Unknown,
+            span: None,
         });
         let found = Function {
             name: "foo".into(),
@@ -1450,6 +1608,7 @@ mod test {
             result: Some(Type::Id(t2)),
             docs: Docs::default(),
             stability: Stability::Unknown,
+            span: None,
         }
         .find_futures_and_streams(&resolve);
         assert_eq!(3, found.len());

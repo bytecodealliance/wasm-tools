@@ -1689,13 +1689,13 @@ fn eat_id(tokens: &mut Tokenizer<'_>, expected: &str) -> Result<Span> {
 /// [`UnresolvedPackage`].
 ///
 /// [`UnresolvedPackage`]: crate::UnresolvedPackage
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct SourceMap {
     sources: Vec<Source>,
     offset: u32,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct Source {
     offset: u32,
     path: String,
@@ -1752,6 +1752,21 @@ impl SourceMap {
             contents,
         });
         self.offset = new_offset;
+    }
+
+    /// Appends all sources from another `SourceMap` into this one.
+    ///
+    /// Returns the byte offset that should be added to all `Span.start` and
+    /// `Span.end` values from the appended source map to make them valid
+    /// in the combined source map.
+    pub fn append(&mut self, other: SourceMap) -> u32 {
+        let base = self.offset;
+        for mut source in other.sources {
+            source.offset += base;
+            self.sources.push(source);
+        }
+        self.offset += other.offset;
+        base
     }
 
     /// Parses the files added to this source map into a
@@ -1900,7 +1915,8 @@ impl SourceMap {
         return msg;
     }
 
-    pub(crate) fn render_location(&self, span: Span) -> String {
+    /// Renders a span as a human-readable location string (e.g., "file.wit:10:5").
+    pub fn render_location(&self, span: Span) -> String {
         let src = self.source_for_offset(span.start);
         let start = src.to_relative_offset(span.start);
         let (line, col) = src.linecol(start);

@@ -92,6 +92,7 @@ impl Default for Bindgen {
             include_names: Default::default(),
             package: Some(package),
             stability: Default::default(),
+            span: None,
         });
         resolve.packages[package]
             .worlds

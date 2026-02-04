@@ -329,6 +329,7 @@ impl<'a> Resolver<'a> {
             stability: Default::default(),
             functions: IndexMap::default(),
             package: None,
+            span: Some(span),
         })
     }
 
@@ -348,6 +349,7 @@ impl<'a> Resolver<'a> {
             includes: Default::default(),
             include_names: Default::default(),
             stability: Default::default(),
+            span: Some(span),
         })
     }
 
@@ -599,6 +601,7 @@ impl<'a> Resolver<'a> {
                         kind: TypeDefKind::Unknown,
                         name: Some(name.name.name.to_string()),
                         owner: TypeOwner::Interface(iface),
+                        span: Some(name.name.span),
                     });
                     self.unknown_type_spans.push(name.name.span);
                     self.type_spans.push(name.name.span);
@@ -951,6 +954,7 @@ impl<'a> Resolver<'a> {
                 kind,
                 name: Some(def.name.name.to_string()),
                 owner,
+                span: Some(def.name.span),
             });
             self.type_spans.push(def.name.span);
             self.define_interface_name(&def.name, TypeOrItem::Type(id))?;
@@ -999,6 +1003,7 @@ impl<'a> Resolver<'a> {
                 )),
             };
             self.type_spans.push(name.name.span);
+            let span = name.name.span;
             let name = name.as_.as_ref().unwrap_or(&name.name);
             let id = self.types.alloc(TypeDef {
                 docs: Docs::default(),
@@ -1006,6 +1011,7 @@ impl<'a> Resolver<'a> {
                 kind: TypeDefKind::Type(Type::Id(id)),
                 name: Some(name.name.to_string()),
                 owner,
+                span: Some(span),
             });
             self.define_interface_name(name, TypeOrItem::Type(id))?;
         }
@@ -1096,6 +1102,7 @@ impl<'a> Resolver<'a> {
             kind,
             params,
             result,
+            span: Some(func.span),
         })
     }
 
@@ -1263,6 +1270,7 @@ impl<'a> Resolver<'a> {
                             docs: self.docs(&field.docs),
                             name: field.name.name.to_string(),
                             ty: self.resolve_type(&field.ty, stability)?,
+                            span: Some(field.name.span),
                         })
                     })
                     .collect::<Result<Vec<_>>>()?;
@@ -1275,6 +1283,7 @@ impl<'a> Resolver<'a> {
                     .map(|flag| Flag {
                         docs: self.docs(&flag.docs),
                         name: flag.name.name.to_string(),
+                        span: Some(flag.name.span),
                     })
                     .collect::<Vec<_>>();
                 TypeDefKind::Flags(Flags { flags })
@@ -1299,6 +1308,7 @@ impl<'a> Resolver<'a> {
                             docs: self.docs(&case.docs),
                             name: case.name.name.to_string(),
                             ty: self.resolve_optional_type(case.ty.as_ref(), stability)?,
+                            span: Some(case.name.span),
                         })
                     })
                     .collect::<Result<Vec<_>>>()?;
@@ -1315,6 +1325,7 @@ impl<'a> Resolver<'a> {
                         Ok(EnumCase {
                             docs: self.docs(&case.docs),
                             name: case.name.name.to_string(),
+                            span: Some(case.name.span),
                         })
                     })
                     .collect::<Result<Vec<_>>>()?;
@@ -1453,6 +1464,7 @@ impl<'a> Resolver<'a> {
                 docs: Docs::default(),
                 stability,
                 owner: TypeOwner::None,
+                span: Some(ty.span()),
             },
             ty.span(),
         ))
@@ -1654,6 +1666,7 @@ impl<'a> Resolver<'a> {
                         kind,
                         name: None,
                         owner: TypeOwner::None,
+                        span: Some(span),
                     },
                     span,
                 );
