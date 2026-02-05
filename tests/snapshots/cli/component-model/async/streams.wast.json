@@ -111,6 +111,27 @@
       "filename": "streams.16.wasm",
       "module_type": "binary",
       "text": "type mismatch for export `stream.drop-writable` of module instantiation argument ``"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 217,
+      "filename": "streams.17.wasm",
+      "module_type": "binary",
+      "text": "`stream<char>` is not valid at this time, use `stream<u8>` with a defined by encoding instead for now"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 221,
+      "filename": "streams.18.wasm",
+      "module_type": "binary",
+      "text": "`stream<char>` is not valid at this time, use `stream<u8>` with a defined by encoding instead for now"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 225,
+      "filename": "streams.19.wasm",
+      "module_type": "binary",
+      "text": "`stream<char>` is not valid at this time, use `stream<u8>` with a defined by encoding instead for now"
     }
   ]
 }

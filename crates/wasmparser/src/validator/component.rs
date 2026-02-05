@@ -3965,10 +3965,25 @@ impl ComponentState {
                         "`stream` requires the component model async feature"
                     )
                 }
-                Ok(ComponentDefinedType::Stream(
-                    ty.map(|ty| self.create_component_val_type(ty, offset))
-                        .transpose()?,
-                ))
+                let ty = ty
+                    .map(|ty| self.create_component_val_type(ty, offset))
+                    .transpose()?;
+                let prim = match ty {
+                    Some(ComponentValType::Primitive(p)) => Some(p),
+                    Some(ComponentValType::Type(id)) => match types[id] {
+                        ComponentDefinedType::Primitive(p) => Some(p),
+                        _ => None,
+                    },
+                    None => None,
+                };
+                if prim == Some(crate::PrimitiveValType::Char) {
+                    bail!(
+                        offset,
+                        "`stream<char>` is not valid at this time, use `stream<u8>` \
+                         with a defined by encoding instead for now"
+                    )
+                }
+                Ok(ComponentDefinedType::Stream(ty))
             }
         }
     }
