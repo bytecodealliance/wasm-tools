@@ -211,3 +211,17 @@
   )
   "type mismatch for export `stream.drop-writable` of module instantiation argument ``"
 )
+
+;; stream<char> isn't valid yet
+(assert_invalid
+  (component (type (stream char)))
+  "`stream<char>` is not valid at this time, use `stream<u8>` with a defined by encoding instead for now"
+)
+(assert_invalid
+  (component (type $t char) (type (stream $t)))
+  "`stream<char>` is not valid at this time, use `stream<u8>` with a defined by encoding instead for now"
+)
+(assert_invalid
+  (component (type (func (param "x" (stream char)))))
+  "`stream<char>` is not valid at this time, use `stream<u8>` with a defined by encoding instead for now"
+)
