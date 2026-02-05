@@ -148,17 +148,15 @@
   "type mismatch for export `waitable-set.wait` of module instantiation argument ``"
 )
 
-(assert_invalid
-  (component
-    (core module $libc (memory (export "memory") 1))
-    (core instance $libc (instantiate $libc))
-    (core module $m
-      (import "" "waitable-set.wait" (func $waitable-set-wait (param i32 i32) (result i32)))
-    )
-    (core func $waitable-set-wait (canon waitable-set.wait cancellable (memory $libc "memory")))
-    (core instance $i (instantiate $m (with "" (instance (export "waitable-set.wait" (func $waitable-set-wait))))))
+(component
+  (core module $libc (memory (export "memory") 1))
+  (core instance $libc (instantiate $libc))
+  (core module $m
+    (import "" "waitable-set.wait" (func $waitable-set-wait (param i32 i32) (result i32)))
   )
-  "requires the component model async stackful feature")
+  (core func $waitable-set-wait (canon waitable-set.wait cancellable (memory $libc "memory")))
+  (core instance $i (instantiate $m (with "" (instance (export "waitable-set.wait" (func $waitable-set-wait))))))
+)
 
 ;; waitable-set.poll
 (component
@@ -170,17 +168,15 @@
   (core func $waitable-set-poll (canon waitable-set.poll (memory $libc "memory")))
   (core instance $i (instantiate $m (with "" (instance (export "waitable-set.poll" (func $waitable-set-poll))))))
 )
-(assert_invalid
-  (component
-    (core module $libc (memory (export "memory") 1))
-    (core instance $libc (instantiate $libc))
-    (core module $m
-      (import "" "waitable-set.poll" (func $waitable-set-poll (param i32 i32) (result i32)))
-    )
-    (core func $waitable-set-poll (canon waitable-set.poll cancellable (memory $libc "memory")))
-    (core instance $i (instantiate $m (with "" (instance (export "waitable-set.poll" (func $waitable-set-poll))))))
+(component
+  (core module $libc (memory (export "memory") 1))
+  (core instance $libc (instantiate $libc))
+  (core module $m
+    (import "" "waitable-set.poll" (func $waitable-set-poll (param i32 i32) (result i32)))
   )
-  "requires the component model async stackful feature")
+  (core func $waitable-set-poll (canon waitable-set.poll cancellable (memory $libc "memory")))
+  (core instance $i (instantiate $m (with "" (instance (export "waitable-set.poll" (func $waitable-set-poll))))))
+)
 
 ;; waitable-set.poll; incorrect type
 (assert_invalid
@@ -298,15 +294,13 @@
   (core instance $i (instantiate $m (with "" (instance (export "thread.yield" (func $thread.yield))))))
 )
 
-(assert_invalid
-  (component
-    (core module $m
-      (import "" "thread.yield" (func $thread.yield (result i32)))
-    )
-    (core func $thread.yield (canon thread.yield cancellable))
-    (core instance $i (instantiate $m (with "" (instance (export "thread.yield" (func $thread.yield))))))
+(component
+  (core module $m
+    (import "" "thread.yield" (func $thread.yield (result i32)))
   )
-  "requires the component model async stackful feature")
+  (core func $thread.yield (canon thread.yield cancellable))
+  (core instance $i (instantiate $m (with "" (instance (export "thread.yield" (func $thread.yield))))))
+)
 
 ;; thread.yield; incorrect type
 (assert_invalid
