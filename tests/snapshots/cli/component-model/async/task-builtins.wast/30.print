@@ -1,0 +1,14 @@
+(component
+  (core module $m (;0;)
+    (type (;0;) (func (result i32)))
+    (import "" "thread.yield" (func $thread.yield (;0;) (type 0)))
+  )
+  (core func $thread.yield (;0;) (canon thread.yield cancellable))
+  (core instance (;0;)
+    (export "thread.yield" (func $thread.yield))
+  )
+  (core instance $i (;1;) (instantiate $m
+      (with "" (instance 0))
+    )
+  )
+)
