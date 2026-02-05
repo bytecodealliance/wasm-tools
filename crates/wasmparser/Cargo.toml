@@ -90,4 +90,4 @@ simd = []
 
 # A feature that allows validating an operator atomically, leaving the validator
 # unchanged if the operator is invalid.
-atomic = []
+try-op = []

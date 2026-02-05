@@ -124,11 +124,11 @@ impl<T: WasmModuleResources> FuncValidator<T> {
         while !reader.eof() {
             // In a debug build, verify that `rollback` successfully returns the
             // validator to its previous state after each (valid or invalid) operator.
-            #[cfg(all(debug_assertions, feature = "atomic"))]
+            #[cfg(all(debug_assertions, feature = "try-op"))]
             {
                 let snapshot = self.validator.clone();
                 let op = reader.peek_operator(&self.visitor(reader.original_position()))?;
-                self.validator.begin_atomic_op();
+                self.validator.begin_try_op();
                 let _ = self.op(reader.original_position(), &op);
                 self.validator.rollback();
                 self.validator.pop_push_log.clear();
@@ -208,19 +208,21 @@ arity mismatch in validation
 
     /// Validates the next operator in a function.
     ///
-    /// This functions is expected to be called once-per-operator in a
+    /// This function is expected to be called once-per-operator in a
     /// WebAssembly function. Each operator's offset in the original binary and
     /// the operator itself are passed to this function to provide more useful
-    /// error messages.
+    /// error messages. On error, the validator may be left in an undefined
+    /// state and should not be reused.
     pub fn op(&mut self, offset: usize, operator: &Operator<'_>) -> Result<()> {
         self.visitor(offset).visit_operator(operator)
     }
 
     /// Validates the next operator in a function, rolling back the validator
-    /// to its previous state if this is unsuccesful.
-    #[cfg(feature = "atomic")]
-    pub fn atomic_op(&mut self, offset: usize, operator: &Operator<'_>) -> Result<()> {
-        self.validator.begin_atomic_op();
+    /// to its previous state if this is unsuccesful. The validator may be reused
+    /// even after an error.
+    #[cfg(feature = "try-op")]
+    pub fn try_op(&mut self, offset: usize, operator: &Operator<'_>) -> Result<()> {
+        self.validator.begin_try_op();
         let res = self.op(offset, operator);
         if res.is_ok() {
             self.validator.commit();
