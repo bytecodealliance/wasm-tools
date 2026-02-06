@@ -4,10 +4,14 @@
       "name": "foo",
       "imports": {
         "a": {
-          "type": 1
+          "type": {
+            "id": 1
+          }
         },
         "b": {
-          "type": 2
+          "type": {
+            "id": 2
+          }
         }
       },
       "exports": {
@@ -36,7 +40,9 @@
           }
         },
         "t": {
-          "type": 3
+          "type": {
+            "id": 3
+          }
         }
       },
       "exports": {
@@ -55,10 +61,14 @@
       "name": "the-test",
       "imports": {
         "a": {
-          "type": 4
+          "type": {
+            "id": 4
+          }
         },
         "b": {
-          "type": 5
+          "type": {
+            "id": 5
+          }
         },
         "foo": {
           "function": {

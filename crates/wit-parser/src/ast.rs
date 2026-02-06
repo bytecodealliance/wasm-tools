@@ -292,12 +292,12 @@ impl<'a> PackageName<'a> {
         let version = parse_opt_version(tokens)?;
         Ok(PackageName {
             docs,
-            span: Span {
-                start: namespace.span.start,
+            span: Span::Range {
+                start: namespace.span.start(),
                 end: version
                     .as_ref()
-                    .map(|(s, _)| s.end)
-                    .unwrap_or(name.span.end),
+                    .map(|(s, _)| s.end())
+                    .unwrap_or(name.span.end()),
             },
             namespace,
             name,
@@ -605,9 +605,9 @@ impl<'a> UsePath<'a> {
             Ok(UsePath::Package {
                 id: PackageName {
                     docs: Default::default(),
-                    span: Span {
-                        start: namespace.span.start,
-                        end: pkg_name.span.end,
+                    span: Span::Range {
+                        start: namespace.span.start(),
+                        end: pkg_name.span.end(),
                     },
                     namespace,
                     name: pkg_name,
@@ -716,7 +716,7 @@ impl<'a> From<&'a str> for Id<'a> {
     fn from(s: &'a str) -> Id<'a> {
         Id {
             name: s.into(),
-            span: Span { start: 0, end: 0 },
+            span: Default::default(),
         }
     }
 }
@@ -731,7 +731,7 @@ impl<'a> Default for Docs<'a> {
     fn default() -> Self {
         Self {
             docs: Default::default(),
-            span: Span { start: 0, end: 0 },
+            span: Default::default(),
         }
     }
 }
@@ -1241,12 +1241,12 @@ fn parse_opt_version(tokens: &mut Tokenizer<'_>) -> Result<Option<(Span, Version
 }
 
 fn parse_version(tokens: &mut Tokenizer<'_>) -> Result<(Span, Version)> {
-    let start = tokens.expect(Token::Integer)?.start;
+    let start = tokens.expect(Token::Integer)?.start();
     tokens.expect(Token::Period)?;
     tokens.expect(Token::Integer)?;
     tokens.expect(Token::Period)?;
-    let end = tokens.expect(Token::Integer)?.end;
-    let mut span = Span { start, end };
+    let end = tokens.expect(Token::Integer)?.end();
+    let mut span = Span::Range { start, end };
     eat_ids(tokens, Token::Minus, &mut span)?;
     eat_ids(tokens, Token::Plus, &mut span)?;
     let string = tokens.get_span(span);
@@ -1314,12 +1314,12 @@ fn parse_version(tokens: &mut Tokenizer<'_>) -> Result<(Span, Version)> {
             let mut clone = tokens.clone();
             match clone.next()? {
                 Some((span, Token::Id | Token::Integer | Token::Minus)) => {
-                    end.end = span.end;
+                    end.set_end(span.end());
                     *tokens = clone;
                 }
                 Some((_span, Token::Period)) => match clone.next()? {
                     Some((span, Token::Id | Token::Integer | Token::Minus)) => {
-                        end.end = span.end;
+                        end.set_end(span.end());
                         *tokens = clone;
                     }
                     _ => break Ok(()),
@@ -1340,7 +1340,7 @@ fn parse_docs<'a>(tokens: &mut Tokenizer<'a>) -> Result<Docs<'a>> {
             Token::Comment => {
                 let comment = tokens.get_span(span);
                 if !started {
-                    docs.span.start = span.start;
+                    docs.span.set_start(span.start());
                     started = true;
                 }
                 let trailing_ws = comment
@@ -1348,7 +1348,7 @@ fn parse_docs<'a>(tokens: &mut Tokenizer<'a>) -> Result<Docs<'a>> {
                     .rev()
                     .take_while(|ch| ch.is_ascii_whitespace())
                     .count();
-                docs.span.end = span.end - (trailing_ws as u32);
+                docs.span.set_end(span.end() - (trailing_ws as u32));
                 docs.docs.push(comment.into());
             }
             _ => break,
@@ -1837,25 +1837,11 @@ impl SourceMap {
             Err(e) => e,
         };
         if let Some(parse) = err.downcast_mut::<Error>() {
-            if parse.highlighted.is_none() {
-                let msg = self.highlight_err(parse.span.start, Some(parse.span.end), &parse.msg);
-                parse.highlighted = Some(msg);
-            }
-        }
-        if let Some(_) = err.downcast_mut::<Error>() {
+            parse.highlight(self);
             return Err(err);
         }
         if let Some(notfound) = err.downcast_mut::<PackageNotFoundError>() {
-            if notfound.highlighted.is_none() {
-                let msg = self.highlight_err(
-                    notfound.span.start,
-                    Some(notfound.span.end),
-                    &format!("{notfound}"),
-                );
-                notfound.highlighted = Some(msg);
-            }
-        }
-        if let Some(_) = err.downcast_mut::<PackageNotFoundError>() {
+            notfound.highlight(self);
             return Err(err);
         }
 
@@ -1873,17 +1859,17 @@ impl SourceMap {
         }
 
         if let Some(sort) = err.downcast_mut::<toposort::Error>() {
-            if sort.highlighted().is_none() {
-                let span = match sort {
-                    toposort::Error::NonexistentDep { span, .. }
-                    | toposort::Error::Cycle { span, .. } => *span,
-                };
-                let highlighted = self.highlight_err(span.start, Some(span.end), &sort);
-                sort.set_highlighted(highlighted);
-            }
+            sort.highlight(self);
         }
 
         Err(err)
+    }
+
+    pub(crate) fn highlight_span(&self, span: Span, err: impl fmt::Display) -> Option<String> {
+        if !span.is_known() {
+            return None;
+        }
+        Some(self.highlight_err(span.start(), Some(span.end()), err))
     }
 
     fn highlight_err(&self, start: u32, end: Option<u32>, err: impl fmt::Display) -> String {
@@ -1917,15 +1903,20 @@ impl SourceMap {
 
     /// Renders a span as a human-readable location string (e.g., "file.wit:10:5").
     pub fn render_location(&self, span: Span) -> String {
-        let src = self.source_for_offset(span.start);
-        let start = src.to_relative_offset(span.start);
-        let (line, col) = src.linecol(start);
-        format!(
-            "{file}:{line}:{col}",
-            file = src.path,
-            line = line + 1,
-            col = col + 1,
-        )
+        match span {
+            Span::Unknown => "<unknown>".to_string(),
+            Span::Range { start, .. } => {
+                let src = self.source_for_offset(start);
+                let rel_start = src.to_relative_offset(start);
+                let (line, col) = src.linecol(rel_start);
+                format!(
+                    "{file}:{line}:{col}",
+                    file = src.path,
+                    line = line + 1,
+                    col = col + 1,
+                )
+            }
+        }
     }
 
     fn source_for_offset(&self, start: u32) -> &Source {

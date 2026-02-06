@@ -504,9 +504,9 @@ impl<'a> EncodingState<'a> {
         // FIXME: ideally this would use the liveness analysis from
         // world-building to only encode live types, not all type in a world.
         for (_name, item) in world.imports.iter() {
-            if let WorldItem::Type(ty) = item {
+            if let WorldItem::Type { id, .. } = item {
                 self.root_import_type_encoder(None)
-                    .encode_valtype(resolve, &Type::Id(*ty))?;
+                    .encode_valtype(resolve, &Type::Id(*id))?;
             }
         }
 
@@ -577,7 +577,7 @@ impl<'a> EncodingState<'a> {
         for (name, item) in resolve.worlds[world].imports.iter() {
             let func = match item {
                 WorldItem::Function(f) => f,
-                WorldItem::Interface { .. } | WorldItem::Type(_) => continue,
+                WorldItem::Interface { .. } | WorldItem::Type { .. } => continue,
             };
             let name = resolve.name_world_key(name);
             if !(info
@@ -752,7 +752,7 @@ impl<'a> EncodingState<'a> {
                         core_names,
                     )?;
                 }
-                WorldItem::Type(_) => unreachable!(),
+                WorldItem::Type { .. } => unreachable!(),
             }
         }
 
@@ -2932,7 +2932,7 @@ impl<'a> Shims<'a> {
                         result: wit_result,
                         docs: Default::default(),
                         stability: Stability::Unknown,
-                        span: None,
+                        span: Default::default(),
                     },
                     if async_ {
                         AbiVariant::GuestImportAsync
@@ -3030,7 +3030,7 @@ fn task_return_options_and_type(
         result: None,
         docs: Default::default(),
         stability: Stability::Unknown,
-        span: None,
+        span: Default::default(),
     };
     let abi = AbiVariant::GuestImport;
     let options = RequiredOptions::for_import(resolve, &func_tmp, abi);

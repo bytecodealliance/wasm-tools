@@ -9,7 +9,9 @@
           }
         },
         "t": {
-          "type": 1
+          "type": {
+            "id": 1
+          }
         },
         "foo": {
           "function": {

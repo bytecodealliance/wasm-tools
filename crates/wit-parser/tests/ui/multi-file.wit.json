@@ -27,7 +27,9 @@
           }
         },
         "x": {
-          "type": 15
+          "type": {
+            "id": 15
+          }
         },
         "foo": {
           "function": {

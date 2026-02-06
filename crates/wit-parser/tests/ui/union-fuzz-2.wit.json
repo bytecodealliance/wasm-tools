@@ -19,7 +19,9 @@
       "name": "bar",
       "imports": {
         "foo": {
-          "type": 0
+          "type": {
+            "id": 0
+          }
         }
       },
       "exports": {

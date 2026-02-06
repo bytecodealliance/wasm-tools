@@ -110,7 +110,7 @@ impl<'a> ComponentWorld<'a> {
                         WorldItem::Interface { id, .. } => {
                             resolve.interfaces[*id].functions.is_empty()
                         }
-                        WorldItem::Type(_) => true,
+                        WorldItem::Type { .. } => true,
                     })
             };
             if no_required_by_import() && no_required_exports() && library_info.is_none() {
@@ -251,11 +251,11 @@ impl<'a> ComponentWorld<'a> {
             let name = resolve.name_world_key(name);
             log::trace!("register import `{name}`");
             let import_map_key = match item {
-                WorldItem::Function(_) | WorldItem::Type(_) => None,
+                WorldItem::Function(_) | WorldItem::Type { .. } => None,
                 WorldItem::Interface { .. } => Some(name),
             };
             let interface_id = match item {
-                WorldItem::Function(_) | WorldItem::Type(_) => None,
+                WorldItem::Function(_) | WorldItem::Type { .. } => None,
                 WorldItem::Interface { id, .. } => Some(*id),
             };
             let interface = import_map
@@ -269,8 +269,8 @@ impl<'a> ComponentWorld<'a> {
                 WorldItem::Function(func) => {
                     interface.add_func(required, resolve, func);
                 }
-                WorldItem::Type(ty) => {
-                    interface.add_type(required, resolve, *ty);
+                WorldItem::Type { id, .. } => {
+                    interface.add_type(required, resolve, *id);
                 }
                 WorldItem::Interface { id, .. } => {
                     for (_name, ty) in resolve.interfaces[*id].types.iter() {
@@ -317,7 +317,7 @@ impl<'a> ComponentWorld<'a> {
             log::trace!("add live world export `{}`", resolve.name_world_key(name));
             let id = match item {
                 WorldItem::Interface { id, .. } => id,
-                WorldItem::Function(_) | WorldItem::Type(_) => {
+                WorldItem::Function(_) | WorldItem::Type { .. } => {
                     live.add_world_item(resolve, item);
                     continue;
                 }
@@ -359,7 +359,7 @@ impl<'a> ComponentWorld<'a> {
         // encoded and therefore unconditionally live here. Once encoding is
         // based on conditionally-live things then this should be removed.
         for (_, item) in world.imports.iter() {
-            if let WorldItem::Type(id) = item {
+            if let WorldItem::Type { id, .. } = item {
                 live.add_type_id(resolve, *id);
             }
         }
@@ -450,7 +450,7 @@ impl<'a> ComponentWorld<'a> {
             let id = match item {
                 WorldItem::Function(_) => continue,
                 WorldItem::Interface { id, .. } => *id,
-                WorldItem::Type(_) => unreachable!(),
+                WorldItem::Type { .. } => unreachable!(),
             };
             let mut set = HashSet::new();
 

@@ -21,19 +21,74 @@ struct CrlfFold<'a> {
 }
 
 /// A span, designating a range of bytes where a token is located.
-#[derive(Eq, PartialEq, Debug, Clone, Copy, Hash)]
-pub struct Span {
-    /// The start of the range.
-    pub start: u32,
-    /// The end of the range (exclusive).
-    pub end: u32,
+#[derive(Eq, PartialEq, Debug, Clone, Copy, Hash, Default)]
+pub enum Span {
+    /// No source location available (e.g., decoded from binary).
+    #[default]
+    Unknown,
+    /// A range in the source text.
+    Range {
+        /// The start of the range.
+        start: u32,
+        /// The end of the range (exclusive).
+        end: u32,
+    },
 }
 
 impl Span {
     /// Adjusts this span by adding the given byte offset to both start and end.
     pub fn adjust(&mut self, offset: u32) {
-        self.start += offset;
-        self.end += offset;
+        if let Span::Range { start, end } = self {
+            *start += offset;
+            *end += offset;
+        }
+    }
+
+    /// Returns the start offset, panicking if this is an unknown span.
+    pub fn start(&self) -> u32 {
+        match self {
+            Span::Unknown => panic!("cannot get start of unknown span"),
+            Span::Range { start, .. } => *start,
+        }
+    }
+
+    /// Returns the end offset, panicking if this is an unknown span.
+    pub fn end(&self) -> u32 {
+        match self {
+            Span::Unknown => panic!("cannot get end of unknown span"),
+            Span::Range { end, .. } => *end,
+        }
+    }
+
+    /// Sets the end offset. If this is Unknown, converts to a zero-width Range at that position.
+    pub fn set_end(&mut self, new_end: u32) {
+        match self {
+            Span::Unknown => {
+                *self = Span::Range {
+                    start: new_end,
+                    end: new_end,
+                }
+            }
+            Span::Range { end, .. } => *end = new_end,
+        }
+    }
+
+    /// Sets the start offset. If this is Unknown, converts to a zero-width Range at that position.
+    pub fn set_start(&mut self, new_start: u32) {
+        match self {
+            Span::Unknown => {
+                *self = Span::Range {
+                    start: new_start,
+                    end: new_start,
+                }
+            }
+            Span::Range { start, .. } => *start = new_start,
+        }
+    }
+
+    /// Returns true if this span has a known source location.
+    pub fn is_known(&self) -> bool {
+        matches!(self, Span::Range { .. })
     }
 }
 
@@ -149,21 +204,21 @@ impl<'a> Tokenizer<'a> {
     }
 
     pub fn get_span(&self, span: Span) -> &'a str {
-        let start = usize::try_from(span.start - self.span_offset).unwrap();
-        let end = usize::try_from(span.end - self.span_offset).unwrap();
+        let start = usize::try_from(span.start() - self.span_offset).unwrap();
+        let end = usize::try_from(span.end() - self.span_offset).unwrap();
         &self.input[start..end]
     }
 
     pub fn parse_id(&self, span: Span) -> Result<&'a str> {
         let ret = self.get_span(span);
-        validate_id(span.start, &ret)?;
+        validate_id(span.start(), &ret)?;
         Ok(ret)
     }
 
     pub fn parse_explicit_id(&self, span: Span) -> Result<&'a str> {
         let token = self.get_span(span);
         let id_part = token.strip_prefix('%').unwrap();
-        validate_id(span.start, id_part)?;
+        validate_id(span.start(), id_part)?;
         Ok(id_part)
     }
 
@@ -335,7 +390,7 @@ impl<'a> Tokenizer<'a> {
         };
 
         let end = self.span_offset + u32::try_from(end).unwrap();
-        Ok(Some((Span { start, end }, token)))
+        Ok(Some((Span::Range { start, end }, token)))
     }
 
     pub fn eat(&mut self, expected: Token) -> Result<bool, Error> {
@@ -357,7 +412,7 @@ impl<'a> Tokenizer<'a> {
                     Ok(span)
                 } else {
                     Err(Error::Wanted {
-                        at: span.start,
+                        at: span.start(),
                         expected: expected.describe(),
                         found: found.describe(),
                     })
@@ -384,7 +439,7 @@ impl<'a> Tokenizer<'a> {
 
     pub fn eof_span(&self) -> Span {
         let end = self.span_offset + u32::try_from(self.input.len()).unwrap();
-        Span { start: end, end }
+        Span::Range { start: end, end }
     }
 }
 

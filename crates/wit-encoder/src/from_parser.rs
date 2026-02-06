@@ -84,8 +84,8 @@ impl<'a> Converter<'a> {
                         output.item(WorldItem::function_import(func));
                     }
                 }
-                wit_parser::WorldItem::Type(type_id) => {
-                    let (target, item, rename) = self.convert_world_item_type(package_id, *type_id);
+                wit_parser::WorldItem::Type { id, .. } => {
+                    let (target, item, rename) = self.convert_world_item_type(package_id, *id);
                     output.use_type(target, item, rename)
                 }
             }
@@ -112,8 +112,8 @@ impl<'a> Converter<'a> {
                         output.item(WorldItem::function_export(func));
                     }
                 }
-                wit_parser::WorldItem::Type(type_id) => {
-                    let (target, item, rename) = self.convert_world_item_type(package_id, *type_id);
+                wit_parser::WorldItem::Type { id, .. } => {
+                    let (target, item, rename) = self.convert_world_item_type(package_id, *id);
                     output.use_type(target, item, rename)
                 }
             }

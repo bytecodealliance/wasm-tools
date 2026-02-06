@@ -4,13 +4,19 @@
       "name": "w",
       "imports": {
         "a": {
-          "type": 17
+          "type": {
+            "id": 17
+          }
         },
         "b": {
-          "type": 18
+          "type": {
+            "id": 18
+          }
         },
         "c": {
-          "type": 19
+          "type": {
+            "id": 19
+          }
         },
         "[constructor]c": {
           "function": {

@@ -309,9 +309,8 @@ impl ComponentInfo {
             exports: Default::default(),
             package: None,
             includes: Default::default(),
-            include_names: Default::default(),
             stability: Default::default(),
-            span: None,
+            span: Default::default(),
         });
         let mut package = Package {
             // Similar to `world_name` above this is arbitrarily chosen as it's
@@ -664,6 +663,7 @@ impl WitPackageDecoder<'_> {
                     WorldItem::Interface {
                         id,
                         stability: Default::default(),
+                        span: Default::default(),
                     },
                 )
             }
@@ -681,7 +681,13 @@ impl WitPackageDecoder<'_> {
                 let id = self
                     .register_type_export(name, owner, referenced, created)
                     .with_context(|| format!("failed to decode type from export `{name}`"))?;
-                (WorldKey::Name(name.to_string()), WorldItem::Type(id))
+                (
+                    WorldKey::Name(name.to_string()),
+                    WorldItem::Type {
+                        id,
+                        span: Default::default(),
+                    },
+                )
             }
             // All other imports do not form part of the component's world
             _ => return Ok(()),
@@ -723,6 +729,7 @@ impl WitPackageDecoder<'_> {
                     WorldItem::Interface {
                         id,
                         stability: Default::default(),
+                        span: Default::default(),
                     },
                 )
             }
@@ -901,7 +908,7 @@ impl WitPackageDecoder<'_> {
                     functions: IndexMap::default(),
                     package: None,
                     stability: Default::default(),
-                    span: None,
+                    span: Default::default(),
                 })
             });
 
@@ -957,7 +964,7 @@ impl WitPackageDecoder<'_> {
             functions: IndexMap::default(),
             package: None,
             stability: Default::default(),
-            span: None,
+            span: Default::default(),
         };
 
         let owner = TypeOwner::Interface(self.resolve.interfaces.next_id());
@@ -1054,7 +1061,7 @@ impl WitPackageDecoder<'_> {
             docs: Default::default(),
             stability: Default::default(),
             owner,
-            span: None,
+            span: Default::default(),
         });
 
         // If this is a resource then doubly-register it in `self.resources` so
@@ -1089,10 +1096,9 @@ impl WitPackageDecoder<'_> {
             imports: Default::default(),
             exports: Default::default(),
             includes: Default::default(),
-            include_names: Default::default(),
             package: None,
             stability: Default::default(),
-            span: None,
+            span: Default::default(),
         };
 
         let owner = TypeOwner::World(self.resolve.worlds.next_id());
@@ -1118,6 +1124,7 @@ impl WitPackageDecoder<'_> {
                         WorldItem::Interface {
                             id,
                             stability: Default::default(),
+                            span: Default::default(),
                         },
                     )
                 }
@@ -1127,7 +1134,13 @@ impl WitPackageDecoder<'_> {
                 } => {
                     let ty =
                         self.register_type_export(name.as_str(), owner, *referenced, *created)?;
-                    (WorldKey::Name(name.to_string()), WorldItem::Type(ty))
+                    (
+                        WorldKey::Name(name.to_string()),
+                        WorldItem::Type {
+                            id: ty,
+                            span: Default::default(),
+                        },
+                    )
                 }
                 ComponentEntityType::Func(idx) => {
                     let ty = &self.types[*idx];
@@ -1160,6 +1173,7 @@ impl WitPackageDecoder<'_> {
                         WorldItem::Interface {
                             id,
                             stability: Default::default(),
+                            span: Default::default(),
                         },
                     )
                 }
@@ -1243,7 +1257,7 @@ impl WitPackageDecoder<'_> {
             name: name.to_string(),
             params,
             result,
-            span: None,
+            span: Default::default(),
         })
     }
 
@@ -1293,7 +1307,7 @@ impl WitPackageDecoder<'_> {
             stability: Default::default(),
             owner: TypeOwner::None,
             kind,
-            span: None,
+            span: Default::default(),
         });
         let prev = self.type_map.insert(id.into(), ty);
         assert!(prev.is_none());
@@ -1360,7 +1374,7 @@ impl WitPackageDecoder<'_> {
                                 format!("failed to convert record field '{name}'")
                             })?,
                             docs: Default::default(),
-                            span: None,
+                            span: Default::default(),
                         })
                     })
                     .collect::<Result<_>>()?;
@@ -1379,7 +1393,7 @@ impl WitPackageDecoder<'_> {
                                 None => None,
                             },
                             docs: Default::default(),
-                            span: None,
+                            span: Default::default(),
                         })
                     })
                     .collect::<Result<_>>()?;
@@ -1392,7 +1406,7 @@ impl WitPackageDecoder<'_> {
                     .map(|name| Flag {
                         name: name.to_string(),
                         docs: Default::default(),
-                        span: None,
+                        span: Default::default(),
                     })
                     .collect();
                 Ok(TypeDefKind::Flags(Flags { flags }))
@@ -1405,7 +1419,7 @@ impl WitPackageDecoder<'_> {
                     .map(|name| EnumCase {
                         name: name.into(),
                         docs: Default::default(),
-                        span: None,
+                        span: Default::default(),
                     })
                     .collect();
                 Ok(TypeDefKind::Enum(Enum { cases }))
@@ -1572,7 +1586,7 @@ impl WitPackageDecoder<'_> {
                 })
                 .filter_map(|item| match item {
                     WorldItem::Interface { id, .. } => Some(*id),
-                    WorldItem::Function(_) | WorldItem::Type(_) => None,
+                    WorldItem::Function(_) | WorldItem::Type { .. } => None,
                 }),
         );
         for iface in interfaces {

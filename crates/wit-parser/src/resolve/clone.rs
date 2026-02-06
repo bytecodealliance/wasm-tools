@@ -77,10 +77,10 @@ impl<'a> Cloner<'a> {
         let from = &self.resolve.worlds[from];
         for (name, into_import) in into.imports.iter() {
             let WorldKey::Name(_) = name else { continue };
-            let WorldItem::Type(into_id) = into_import else {
+            let WorldItem::Type { id: into_id, .. } = into_import else {
                 continue;
             };
-            let Some(WorldItem::Type(from_id)) = from.imports.get(name) else {
+            let Some(WorldItem::Type { id: from_id, .. }) = from.imports.get(name) else {
                 continue;
             };
             self.types.insert(*from_id, *into_id);
@@ -94,8 +94,8 @@ impl<'a> Cloner<'a> {
         }
 
         match item {
-            WorldItem::Type(t) => {
-                self.type_id(t);
+            WorldItem::Type { id, .. } => {
+                self.type_id(id);
             }
             WorldItem::Function(f) => {
                 self.function(f);

@@ -22,7 +22,7 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId, mangling: ManglingAndAbi)
                     push_imported_type_intrinsics(&mut wat, resolve, Some(name), *ty, mangling);
                 }
             }
-            WorldItem::Type(id) => {
+            WorldItem::Type { id, .. } => {
                 push_imported_type_intrinsics(&mut wat, resolve, None, *id, mangling);
             }
         }
@@ -47,7 +47,7 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId, mangling: ManglingAndAbi)
                     push_exported_type_intrinsics(&mut wat, resolve, Some(name), *ty, mangling);
                 }
             }
-            WorldItem::Type(_) => {}
+            WorldItem::Type { .. } => {}
         }
     }
 
@@ -64,7 +64,7 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId, mangling: ManglingAndAbi)
                     push_exported_resource_functions(&mut wat, resolve, name, *ty, mangling);
                 }
             }
-            WorldItem::Type(_) => {}
+            WorldItem::Type { .. } => {}
         }
     }
 

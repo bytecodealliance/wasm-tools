@@ -302,7 +302,7 @@ impl WorldMetadata {
                         let prev = map.insert(name.to_string(), data);
                         assert!(prev.is_none());
                     }
-                    WorldItem::Type(id) => {
+                    WorldItem::Type { id, .. } => {
                         let data = TypeMetadata::extract(resolve, *id);
                         if !data.is_empty() {
                             types.insert(name.to_string(), data);
@@ -382,7 +382,7 @@ impl WorldMetadata {
                     None => world.exports.get_mut(&key),
                 }
             };
-            let Some(WorldItem::Interface { id, stability }) = item else {
+            let Some(WorldItem::Interface { id, stability, .. }) = item else {
                 bail!("missing interface {name:?}");
             };
             *stability = data.stability.clone();
@@ -393,7 +393,7 @@ impl WorldMetadata {
         // Process all types, which are always imported, for this world.
         for (name, data) in &self.types {
             let key = WorldKey::Name(name.to_string());
-            let Some(WorldItem::Type(id)) = resolve.worlds[id].imports.get(&key) else {
+            let Some(WorldItem::Type { id, .. }) = resolve.worlds[id].imports.get(&key) else {
                 bail!("missing type {name:?}");
             };
             data.inject(resolve, *id)?;

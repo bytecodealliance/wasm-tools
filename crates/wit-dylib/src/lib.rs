@@ -305,7 +305,7 @@ impl Adapter {
                         self.collect_payload_data_for_func(resolve, Some(key), func, "", data);
                     }
                 }
-                WorldItem::Type(_) => {}
+                WorldItem::Type { .. } => {}
                 WorldItem::Function(func) => {
                     self.collect_payload_data_for_func(resolve, None, func, "", data);
                 }
@@ -325,7 +325,7 @@ impl Adapter {
                         );
                     }
                 }
-                WorldItem::Type(_) => unreachable!(),
+                WorldItem::Type { .. } => unreachable!(),
                 WorldItem::Function(func) => {
                     self.collect_payload_data_for_func(resolve, None, func, "[export]", data);
                 }
@@ -355,8 +355,8 @@ impl Adapter {
                         self.add_imported_type_intrinsics(resolve, Some(interface), *ty);
                     }
                 }
-                WorldItem::Type(ty) => {
-                    self.add_imported_type_intrinsics(resolve, None, *ty);
+                WorldItem::Type { id, .. } => {
+                    self.add_imported_type_intrinsics(resolve, None, *id);
                 }
                 WorldItem::Function(func) => {
                     self.add_imported_func(resolve, None, func, &mut ret);
@@ -384,7 +384,7 @@ impl Adapter {
                         );
                     }
                 }
-                WorldItem::Type(_) => unreachable!(),
+                WorldItem::Type { .. } => unreachable!(),
             }
         }
 
@@ -596,7 +596,7 @@ impl Adapter {
             match export {
                 WorldItem::Function(func) => import_types.add_func(resolve, func),
                 WorldItem::Interface { .. } => {}
-                WorldItem::Type(_) => unreachable!(),
+                WorldItem::Type { .. } => unreachable!(),
             }
         }
         for ty in import_types.iter() {
@@ -1385,7 +1385,7 @@ fn imported_types_used_by_exported_interfaces(resolve: &Resolve, world: WorldId)
                 exported_interfaces.insert(*id);
                 live_export_types.add_interface(resolve, *id)
             }
-            WorldItem::Type(_) => unreachable!(),
+            WorldItem::Type { .. } => unreachable!(),
         }
     }
 
