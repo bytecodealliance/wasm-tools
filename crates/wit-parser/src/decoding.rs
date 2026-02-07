@@ -343,7 +343,10 @@ impl ComponentInfo {
             }
         }
 
-        let (resolve, _) = decoder.finish(package);
+        let (mut resolve, pkg) = decoder.finish(package);
+        if let Some(package_metadata) = &self.package_metadata {
+            package_metadata.inject(&mut resolve, pkg)?;
+        }
         Ok((resolve, world))
     }
 }
