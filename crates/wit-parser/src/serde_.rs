@@ -1,4 +1,4 @@
-use crate::{IndexMap, Type};
+use crate::{IndexMap, Span, Type};
 use alloc::string::{String, ToString};
 use id_arena::{Arena, Id};
 use semver::Version;
@@ -29,6 +29,19 @@ where
     S: Serializer,
 {
     serializer.serialize_u64(id.index() as u64)
+}
+
+/// Variant-level serialize_with for struct variants that have an id and a
+/// skipped span, preserving the old newtype serialization format.
+pub fn serialize_id_ignore_span<T, S>(
+    id: &Id<T>,
+    _span: &Span,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serialize_id(id, serializer)
 }
 
 pub fn serialize_optional_id<T, S>(id: &Option<Id<T>>, serializer: S) -> Result<S::Ok, S::Error>

@@ -89,10 +89,9 @@ impl Default for Bindgen {
             imports: Default::default(),
             exports: Default::default(),
             includes: Default::default(),
-            include_names: Default::default(),
             package: Some(package),
             stability: Default::default(),
-            span: None,
+            span: Default::default(),
         });
         resolve.packages[package]
             .worlds
@@ -170,7 +169,7 @@ impl EncodingMap {
                         self.encodings.insert(key, encoding);
                     }
                 }
-                WorldItem::Type(_) => {}
+                WorldItem::Type { .. } => {}
             }
         }
     }
@@ -411,7 +410,7 @@ impl Bindgen {
             .resolve
             .merge(resolve)
             .context("failed to merge WIT package sets together")?;
-        let world = remap.map_world(world, None)?;
+        let world = remap.map_world(world, Default::default())?;
         let exports = self.resolve.worlds[world].exports.keys().cloned().collect();
         self.resolve
             .merge_worlds(world, self.world, &mut CloneMaps::default())

@@ -88,6 +88,7 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
                 WorldItem::Interface {
                     id: *id,
                     stability: Default::default(),
+                    span: Default::default(),
                 },
             )
         })
@@ -133,7 +134,7 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
                     result: Some(Type::U32),
                     stability: Default::default(),
                     docs: Default::default(),
-                    span: None,
+                    span: Default::default(),
                 },
             );
             funcs.insert(
@@ -145,7 +146,7 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
                     result: None,
                     stability: Default::default(),
                     docs: Default::default(),
-                    span: None,
+                    span: Default::default(),
                 },
             );
             funcs.insert(
@@ -157,12 +158,12 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
                     result: Some(Type::U32),
                     stability: Default::default(),
                     docs: Default::default(),
-                    span: None,
+                    span: Default::default(),
                 },
             );
             funcs
         },
-        span: None,
+        span: Default::default(),
     });
 
     // Generate two worlds in our custom package, one for the callee and one for
@@ -175,9 +176,8 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
         exports: world_items.clone(),
         imports: Default::default(),
         includes: Default::default(),
-        include_names: Default::default(),
         docs: Default::default(),
-        span: None,
+        span: Default::default(),
     });
     let caller = resolve.worlds.alloc(World {
         name: "caller".to_string(),
@@ -186,9 +186,8 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
         imports: world_items,
         exports: Default::default(),
         includes: Default::default(),
-        include_names: Default::default(),
         docs: Default::default(),
-        span: None,
+        span: Default::default(),
     });
 
     // Add an extra import/export for our synthesized interfaces as well.
@@ -197,6 +196,7 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
         WorldItem::Interface {
             id: alloc,
             stability: Default::default(),
+            span: Default::default(),
         },
     );
     resolve.worlds[caller].imports.insert(
@@ -204,6 +204,7 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
         WorldItem::Interface {
             id: alloc,
             stability: Default::default(),
+            span: Default::default(),
         },
     );
 
@@ -220,7 +221,7 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
             result: None,
             stability: Default::default(),
             docs: Default::default(),
-            span: None,
+            span: Default::default(),
         }),
     );
 
@@ -323,7 +324,7 @@ fn update_resources(resolve: &mut Resolve) {
             owner: TypeOwner::None,
             docs: Default::default(),
             stability: Default::default(),
-            span: None,
+            span: Default::default(),
         });
         let borrow = resolve.types.alloc(TypeDef {
             name: None,
@@ -331,7 +332,7 @@ fn update_resources(resolve: &mut Resolve) {
             owner: TypeOwner::None,
             docs: Default::default(),
             stability: Default::default(),
-            span: None,
+            span: Default::default(),
         });
         let iface = &mut resolve.interfaces[interface_id];
         let ctor = format!("[constructor]{resource_name}");
@@ -348,7 +349,7 @@ fn update_resources(resolve: &mut Resolve) {
                 result: Some(Type::Id(own)),
                 stability: Default::default(),
                 docs: Default::default(),
-                span: None,
+                span: Default::default(),
             },
         );
         iface.functions.insert(
@@ -360,7 +361,7 @@ fn update_resources(resolve: &mut Resolve) {
                 result: Some(Type::U32),
                 stability: Default::default(),
                 docs: Default::default(),
-                span: None,
+                span: Default::default(),
             },
         );
     }

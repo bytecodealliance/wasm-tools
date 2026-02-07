@@ -139,9 +139,6 @@ pub struct UnresolvedPackage {
     #[cfg_attr(not(feature = "std"), allow(dead_code))]
     package_name_span: Span,
     unknown_type_spans: Vec<Span>,
-    interface_spans: Vec<InterfaceSpan>,
-    world_spans: Vec<WorldSpan>,
-    type_spans: Vec<Span>,
     foreign_dep_spans: Vec<Span>,
     required_resource_types: Vec<(TypeId, Span)>,
 }
@@ -155,27 +152,6 @@ impl UnresolvedPackage {
         // Adjust parallel vec spans
         self.package_name_span.adjust(offset);
         for span in &mut self.unknown_type_spans {
-            span.adjust(offset);
-        }
-        for ispan in &mut self.interface_spans {
-            ispan.span.adjust(offset);
-            for span in &mut ispan.funcs {
-                span.adjust(offset);
-            }
-        }
-        for wspan in &mut self.world_spans {
-            wspan.span.adjust(offset);
-            for span in &mut wspan.imports {
-                span.adjust(offset);
-            }
-            for span in &mut wspan.exports {
-                span.adjust(offset);
-            }
-            for span in &mut wspan.includes {
-                span.adjust(offset);
-            }
-        }
-        for span in &mut self.type_spans {
             span.adjust(offset);
         }
         for span in &mut self.foreign_dep_spans {
@@ -212,20 +188,6 @@ pub struct UnresolvedPackageGroup {
 
     /// A set of processed source files from which these packages have been parsed.
     pub source_map: SourceMap,
-}
-
-#[derive(Clone)]
-struct WorldSpan {
-    span: Span,
-    imports: Vec<Span>,
-    exports: Vec<Span>,
-    includes: Vec<Span>,
-}
-
-#[derive(Clone)]
-struct InterfaceSpan {
-    span: Span,
-    funcs: Vec<Span>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -346,6 +308,13 @@ impl Error {
             highlighted: None,
         }
     }
+
+    /// Highlights this error using the given source map, if the span is known.
+    fn highlight(&mut self, source_map: &ast::SourceMap) {
+        if self.highlighted.is_none() {
+            self.highlighted = source_map.highlight_span(self.span, &self.msg);
+        }
+    }
 }
 
 impl fmt::Display for Error {
@@ -371,6 +340,13 @@ impl PackageNotFoundError {
             requested,
             known,
             highlighted: None,
+        }
+    }
+
+    /// Highlights this error using the given source map, if the span is known.
+    fn highlight(&mut self, source_map: &ast::SourceMap) {
+        if self.highlighted.is_none() {
+            self.highlighted = source_map.highlight_span(self.span, &format!("{self}"));
         }
     }
 }
@@ -518,29 +494,24 @@ pub struct World {
     )]
     pub stability: Stability,
 
-    /// All the included worlds from this world. Empty if this is fully resolved
+    /// All the included worlds from this world. Empty if this is fully resolved.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub includes: Vec<(Stability, WorldId)>,
+    pub includes: Vec<WorldInclude>,
 
-    /// All the included worlds names. Empty if this is fully resolved
+    /// Source span for this world.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub include_names: Vec<Vec<IncludeName>>,
-
-    /// Source span for this world, if parsed from WIT text.
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub span: Option<Span>,
+    pub span: Span,
 }
 
 impl World {
     /// Adjusts all spans in this world by adding the given byte offset.
     pub(crate) fn adjust_spans(&mut self, offset: u32) {
-        if let Some(s) = &mut self.span {
-            s.adjust(offset);
-        }
+        self.span.adjust(offset);
         for item in self.imports.values_mut().chain(self.exports.values_mut()) {
-            if let WorldItem::Function(f) = item {
-                f.adjust_spans(offset);
-            }
+            item.adjust_spans(offset);
+        }
+        for include in &mut self.includes {
+            include.span.adjust(offset);
         }
     }
 }
@@ -552,6 +523,23 @@ pub struct IncludeName {
 
     /// The name to be replaced with
     pub as_: String,
+}
+
+/// An entry in the `includes` list of a world, representing an `include`
+/// statement in WIT.
+#[derive(Debug, Clone)]
+pub struct WorldInclude {
+    /// The stability annotation on this include.
+    pub stability: Stability,
+
+    /// The world being included.
+    pub id: WorldId,
+
+    /// Names being renamed as part of this include.
+    pub names: Vec<IncludeName>,
+
+    /// Source span for this include statement.
+    pub span: Span,
 }
 
 /// The key to the import/export maps of a world. Either a kebab-name or a
@@ -626,6 +614,8 @@ pub enum WorldItem {
             serde(skip_serializing_if = "Stability::is_unknown")
         )]
         stability: Stability,
+        #[cfg_attr(feature = "serde", serde(skip))]
+        span: Span,
     },
 
     /// A function is being directly imported or exported from this world.
@@ -634,8 +624,8 @@ pub enum WorldItem {
     /// A type is being exported from this world.
     ///
     /// Note that types are never imported into worlds at this time.
-    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
-    Type(TypeId),
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id_ignore_span"))]
+    Type { id: TypeId, span: Span },
 }
 
 impl WorldItem {
@@ -643,7 +633,23 @@ impl WorldItem {
         match self {
             WorldItem::Interface { stability, .. } => stability,
             WorldItem::Function(f) => &f.stability,
-            WorldItem::Type(id) => &resolve.types[*id].stability,
+            WorldItem::Type { id, .. } => &resolve.types[*id].stability,
+        }
+    }
+
+    pub fn span(&self) -> Span {
+        match self {
+            WorldItem::Interface { span, .. } => *span,
+            WorldItem::Function(f) => f.span,
+            WorldItem::Type { span, .. } => *span,
+        }
+    }
+
+    pub(crate) fn adjust_spans(&mut self, offset: u32) {
+        match self {
+            WorldItem::Function(f) => f.adjust_spans(offset),
+            WorldItem::Interface { span, .. } => span.adjust(offset),
+            WorldItem::Type { span, .. } => span.adjust(offset),
         }
     }
 }
@@ -681,17 +687,15 @@ pub struct Interface {
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_optional_id"))]
     pub package: Option<PackageId>,
 
-    /// Source span for this interface, if parsed from WIT text.
+    /// Source span for this interface.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub span: Option<Span>,
+    pub span: Span,
 }
 
 impl Interface {
     /// Adjusts all spans in this interface by adding the given byte offset.
     pub(crate) fn adjust_spans(&mut self, offset: u32) {
-        if let Some(s) = &mut self.span {
-            s.adjust(offset);
-        }
+        self.span.adjust(offset);
         for func in self.functions.values_mut() {
             func.adjust_spans(offset);
         }
@@ -712,9 +716,9 @@ pub struct TypeDef {
         serde(skip_serializing_if = "Stability::is_unknown")
     )]
     pub stability: Stability,
-    /// Source span for this type, if parsed from WIT text.
+    /// Source span for this type.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub span: Option<Span>,
+    pub span: Span,
 }
 
 impl TypeDef {
@@ -723,36 +727,26 @@ impl TypeDef {
     /// This is used when merging source maps to update spans to point to the
     /// correct location in the combined source map.
     pub(crate) fn adjust_spans(&mut self, offset: u32) {
-        if let Some(s) = &mut self.span {
-            s.adjust(offset);
-        }
+        self.span.adjust(offset);
         match &mut self.kind {
             TypeDefKind::Record(r) => {
                 for field in &mut r.fields {
-                    if let Some(s) = &mut field.span {
-                        s.adjust(offset);
-                    }
+                    field.span.adjust(offset);
                 }
             }
             TypeDefKind::Variant(v) => {
                 for case in &mut v.cases {
-                    if let Some(s) = &mut case.span {
-                        s.adjust(offset);
-                    }
+                    case.span.adjust(offset);
                 }
             }
             TypeDefKind::Enum(e) => {
                 for case in &mut e.cases {
-                    if let Some(s) = &mut case.span {
-                        s.adjust(offset);
-                    }
+                    case.span.adjust(offset);
                 }
             }
             TypeDefKind::Flags(f) => {
                 for flag in &mut f.flags {
-                    if let Some(s) = &mut flag.span {
-                        s.adjust(offset);
-                    }
+                    flag.span.adjust(offset);
                 }
             }
             _ => {}
@@ -881,9 +875,9 @@ pub struct Field {
     pub ty: Type,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
-    /// Source span for this field, if parsed from WIT text.
+    /// Source span for this field.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub span: Option<Span>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
@@ -898,9 +892,9 @@ pub struct Flag {
     pub name: String,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
-    /// Source span for this flag, if parsed from WIT text.
+    /// Source span for this flag.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub span: Option<Span>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -951,9 +945,9 @@ pub struct Case {
     pub ty: Option<Type>,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
-    /// Source span for this variant case, if parsed from WIT text.
+    /// Source span for this variant case.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub span: Option<Span>,
+    pub span: Span,
 }
 
 impl Variant {
@@ -974,9 +968,9 @@ pub struct EnumCase {
     pub name: String,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
-    /// Source span for this enum case, if parsed from WIT text.
+    /// Source span for this enum case.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub span: Option<Span>,
+    pub span: Span,
 }
 
 impl Enum {
@@ -1033,9 +1027,9 @@ pub struct Function {
     )]
     pub stability: Stability,
 
-    /// Source span for this function, if parsed from WIT text.
+    /// Source span for this function.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub span: Option<Span>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1301,9 +1295,7 @@ impl ManglingAndAbi {
 impl Function {
     /// Adjusts all spans in this function by adding the given byte offset.
     pub(crate) fn adjust_spans(&mut self, offset: u32) {
-        if let Some(s) = &mut self.span {
-            s.adjust(offset);
-        }
+        self.span.adjust(offset);
     }
 
     pub fn item_name(&self) -> &str {
@@ -1583,7 +1575,7 @@ mod test {
             owner: TypeOwner::None,
             docs: Docs::default(),
             stability: Stability::Unknown,
-            span: None,
+            span: Default::default(),
         });
         let t1 = resolve.types.alloc(TypeDef {
             name: None,
@@ -1591,7 +1583,7 @@ mod test {
             owner: TypeOwner::None,
             docs: Docs::default(),
             stability: Stability::Unknown,
-            span: None,
+            span: Default::default(),
         });
         let t2 = resolve.types.alloc(TypeDef {
             name: None,
@@ -1599,7 +1591,7 @@ mod test {
             owner: TypeOwner::None,
             docs: Docs::default(),
             stability: Stability::Unknown,
-            span: None,
+            span: Default::default(),
         });
         let found = Function {
             name: "foo".into(),
@@ -1608,7 +1600,7 @@ mod test {
             result: Some(Type::Id(t2)),
             docs: Docs::default(),
             stability: Stability::Unknown,
-            span: None,
+            span: Default::default(),
         }
         .find_futures_and_streams(&resolve);
         assert_eq!(3, found.len());

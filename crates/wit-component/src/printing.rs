@@ -402,8 +402,8 @@ impl<O: Output> WitPrinter<O> {
         let mut function_imports_to_print = Vec::new();
         for (name, import) in world.imports.iter() {
             match import {
-                WorldItem::Type(t) => match name {
-                    WorldKey::Name(s) => types.push((s.as_str(), *t)),
+                WorldItem::Type { id, .. } => match name {
+                    WorldKey::Name(s) => types.push((s.as_str(), *id)),
                     WorldKey::Interface(_) => unreachable!(),
                 },
                 _ => {
@@ -458,7 +458,7 @@ impl<O: Output> WitPrinter<O> {
                 WorldItem::Interface { id, .. } => &resolve.interfaces[*id].docs,
                 WorldItem::Function(f) => &f.docs,
                 // Types are handled separately
-                WorldItem::Type(_) => unreachable!(),
+                WorldItem::Type { .. } => unreachable!(),
             });
         }
 
@@ -484,7 +484,7 @@ impl<O: Output> WitPrinter<O> {
                         self.output.semicolon();
                     }
                     // Types are handled separately
-                    WorldItem::Type(_) => unreachable!(),
+                    WorldItem::Type { .. } => unreachable!(),
                 }
             }
             WorldKey::Interface(id) => {

@@ -86,10 +86,10 @@ pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentTyp
                 let idx = component.encode_func_type(resolve, f)?;
                 ComponentTypeRef::Func(idx)
             }
-            WorldItem::Type(t) => {
+            WorldItem::Type { id, .. } => {
                 component.interface = None;
                 component.import_types = true;
-                component.encode_valtype(resolve, &Type::Id(*t))?;
+                component.encode_valtype(resolve, &Type::Id(*id))?;
                 component.import_types = false;
                 continue;
             }
@@ -111,7 +111,7 @@ pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentTyp
                 let idx = component.encode_func_type(resolve, f)?;
                 ComponentTypeRef::Func(idx)
             }
-            WorldItem::Type(_) => unreachable!(),
+            WorldItem::Type { .. } => unreachable!(),
         };
         component.outer.export(&name, ty);
     }

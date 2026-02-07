@@ -1,6 +1,7 @@
 use crate::IndexMap;
 use crate::ast::{Id, Span};
 use alloc::collections::BinaryHeap;
+use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
@@ -151,10 +152,19 @@ impl Error {
             }
         }
     }
-    pub(crate) fn set_highlighted(&mut self, string: String) {
+
+    /// Highlights this error using the given source map, if the span is known.
+    pub(crate) fn highlight(&mut self, source_map: &crate::ast::SourceMap) {
+        if self.highlighted().is_some() {
+            return;
+        }
+        let span = match self {
+            Error::NonexistentDep { span, .. } | Error::Cycle { span, .. } => *span,
+        };
+        let msg = source_map.highlight_span(span, &format!("{self}"));
         match self {
             Error::NonexistentDep { highlighted, .. } | Error::Cycle { highlighted, .. } => {
-                *highlighted = Some(string);
+                *highlighted = msg;
             }
         }
     }
@@ -185,7 +195,7 @@ mod tests {
     fn id(name: &str) -> Id<'_> {
         Id {
             name,
-            span: Span { start: 0, end: 0 },
+            span: Default::default(),
         }
     }
 

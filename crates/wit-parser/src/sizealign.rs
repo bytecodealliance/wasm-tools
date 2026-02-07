@@ -564,7 +564,7 @@ mod test {
             owner: crate::TypeOwner::None,
             docs: Default::default(),
             stability: Default::default(),
-            span: None,
+            span: Default::default(),
         });
         assert_eq!(elem.size, ArchitectureSize::new(usize::MAX, 0));
         assert_eq!(
@@ -585,7 +585,7 @@ mod test {
             owner: crate::TypeOwner::None,
             docs: Default::default(),
             stability: Default::default(),
-            span: None,
+            span: Default::default(),
         });
         obj.fill(&resolve);
         let my_result = crate::Result_ {
@@ -598,7 +598,7 @@ mod test {
             owner: crate::TypeOwner::None,
             docs: Default::default(),
             stability: Default::default(),
-            span: None,
+            span: Default::default(),
         });
         assert_eq!(elem.size, ArchitectureSize::new(8, 2));
         assert_eq!(elem.align, Alignment::Pointer);
@@ -612,13 +612,13 @@ mod test {
                     name: String::new(),
                     ty: Type::String,
                     docs: Default::default(),
-                    span: None,
+                    span: Default::default(),
                 },
                 crate::Field {
                     name: String::new(),
                     ty: Type::U64,
                     docs: Default::default(),
-                    span: None,
+                    span: Default::default(),
                 },
             ],
         };
@@ -628,7 +628,7 @@ mod test {
             owner: crate::TypeOwner::None,
             docs: Default::default(),
             stability: Default::default(),
-            span: None,
+            span: Default::default(),
         });
         assert_eq!(elem.size, ArchitectureSize::new(8, 2));
         assert_eq!(elem.align, Alignment::Bytes(NonZeroUsize::new(8).unwrap()));

@@ -1493,7 +1493,7 @@ impl ExportMap {
                 WorldItem::Function(f) => {
                     require_world_func(&f.name)?;
                 }
-                WorldItem::Type(_) => unreachable!(),
+                WorldItem::Type { .. } => unreachable!(),
             }
         }
 
@@ -1978,7 +1978,7 @@ impl Standard {
             let id = match &world.exports[export] {
                 WorldItem::Interface { id, .. } => *id,
                 WorldItem::Function(_) => continue,
-                WorldItem::Type(_) => unreachable!(),
+                WorldItem::Type { .. } => unreachable!(),
             };
             let remaining = match export {
                 WorldKey::Name(name) => export_name.strip_prefix(name),
@@ -2449,7 +2449,7 @@ impl NameMangling for Legacy {
                     }
                 }
 
-                WorldItem::Type(_) => unreachable!(),
+                WorldItem::Type { .. } => unreachable!(),
             }
         }
 
@@ -2468,7 +2468,7 @@ impl NameMangling for Legacy {
             let id = match &world.exports[name] {
                 WorldItem::Interface { id, .. } => *id,
                 WorldItem::Function(_) => continue,
-                WorldItem::Type(_) => unreachable!(),
+                WorldItem::Type { .. } => unreachable!(),
             };
             let name = resolve.name_world_key(name);
             let resource = match export_name
@@ -2618,9 +2618,9 @@ fn resource_test_for_world<'a>(
 ) -> impl Fn(&str) -> Option<TypeId> + 'a {
     let world = &resolve.worlds[id];
     move |name: &str| match world.imports.get(&WorldKey::Name(name.to_string()))? {
-        WorldItem::Type(r) => {
-            if matches!(resolve.types[*r].kind, TypeDefKind::Resource) {
-                Some(*r)
+        WorldItem::Type { id, .. } => {
+            if matches!(resolve.types[*id].kind, TypeDefKind::Resource) {
+                Some(*id)
             } else {
                 None
             }
