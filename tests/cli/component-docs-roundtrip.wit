@@ -1,0 +1,17 @@
+// RUN: component wit % --wasm | component wit
+
+package foo:docs-test;
+
+/// The interface.
+interface my-interface {
+  /// The function.
+  my-func: func(
+    /// The function's argument.
+    my-arg: string,
+  ) -> string;
+}
+
+/// A world with documentation.
+world my-world {
+  export my-interface;
+}
