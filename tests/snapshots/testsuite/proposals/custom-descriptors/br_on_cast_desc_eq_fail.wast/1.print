@@ -32,7 +32,7 @@
     block (result (ref null $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref null $a) (ref null $a)
+      br_on_cast_desc_eq_fail 1 (ref null $a) (ref null $a)
     end
     unreachable
   )
@@ -40,7 +40,7 @@
     block (result (ref null (exact $a))) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref null $a) (ref null (exact $a))
+      br_on_cast_desc_eq_fail 1 (ref null $a) (ref null (exact $a))
     end
     unreachable
   )
@@ -48,7 +48,7 @@
     block (result (ref null $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 i31ref (ref null $a)
+      br_on_cast_desc_eq_fail 1 i31ref (ref null $a)
     end
     unreachable
   )
@@ -56,7 +56,7 @@
     block (result (ref null (exact $a))) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 i31ref (ref null (exact $a))
+      br_on_cast_desc_eq_fail 1 i31ref (ref null (exact $a))
     end
     unreachable
   )
@@ -64,7 +64,7 @@
     block (result (ref null $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref null $e) (ref null $a)
+      br_on_cast_desc_eq_fail 1 (ref null $e) (ref null $a)
     end
     unreachable
   )
@@ -72,7 +72,7 @@
     block (result (ref null (exact $a))) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref null $e) (ref null (exact $a))
+      br_on_cast_desc_eq_fail 1 (ref null $e) (ref null (exact $a))
     end
     unreachable
   )
@@ -80,7 +80,7 @@
     block (result (ref null $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref null (exact $e)) (ref null $a)
+      br_on_cast_desc_eq_fail 1 (ref null (exact $e)) (ref null $a)
     end
     unreachable
   )
@@ -88,7 +88,7 @@
     block (result (ref null (exact $a))) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref null (exact $e)) (ref null (exact $a))
+      br_on_cast_desc_eq_fail 1 (ref null (exact $e)) (ref null (exact $a))
     end
     unreachable
   )
@@ -96,7 +96,7 @@
     block (result (ref null $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref null $c) (ref null $a)
+      br_on_cast_desc_eq_fail 1 (ref null $c) (ref null $a)
     end
     unreachable
   )
@@ -104,7 +104,7 @@
     block (result (ref null (exact $a))) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref null $c) (ref null (exact $a))
+      br_on_cast_desc_eq_fail 1 (ref null $c) (ref null (exact $a))
     end
     unreachable
   )
@@ -112,7 +112,7 @@
     block (result (ref null $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref null (exact $c)) (ref null $a)
+      br_on_cast_desc_eq_fail 1 (ref null (exact $c)) (ref null $a)
     end
     unreachable
   )
@@ -120,7 +120,7 @@
     block (result (ref null (exact $a))) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref null (exact $c)) (ref null (exact $a))
+      br_on_cast_desc_eq_fail 1 (ref null (exact $c)) (ref null (exact $a))
     end
     unreachable
   )
@@ -128,7 +128,7 @@
     block (result (ref null $c)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref null $a) (ref null $c)
+      br_on_cast_desc_eq_fail 1 (ref null $a) (ref null $c)
     end
     unreachable
   )
@@ -136,7 +136,7 @@
     block (result (ref null (exact $c))) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref null $a) (ref null (exact $c))
+      br_on_cast_desc_eq_fail 1 (ref null $a) (ref null (exact $c))
     end
     unreachable
   )
@@ -144,7 +144,7 @@
     block (result (ref null $c)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref null (exact $a)) (ref null $c)
+      br_on_cast_desc_eq_fail 1 (ref null (exact $a)) (ref null $c)
     end
     unreachable
   )
@@ -152,7 +152,7 @@
     block (result (ref null (exact $c))) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref null (exact $a)) (ref null (exact $c))
+      br_on_cast_desc_eq_fail 1 (ref null (exact $a)) (ref null (exact $c))
     end
     unreachable
   )
@@ -160,7 +160,7 @@
     block (result (ref null $a)) ;; label = @1
       ref.null none
       local.get 0
-      br_on_cast_desc_fail 1 nullref (ref null $a)
+      br_on_cast_desc_eq_fail 1 nullref (ref null $a)
     end
     unreachable
   )
@@ -168,7 +168,7 @@
     block (result (ref null (exact $a))) ;; label = @1
       ref.null none
       local.get 0
-      br_on_cast_desc_fail 1 nullref (ref null (exact $a))
+      br_on_cast_desc_eq_fail 1 nullref (ref null (exact $a))
     end
     unreachable
   )
@@ -176,7 +176,7 @@
     block (result (ref null $a)) ;; label = @1
       unreachable
       local.get 0
-      br_on_cast_desc_fail 1 anyref (ref null $a)
+      br_on_cast_desc_eq_fail 1 anyref (ref null $a)
     end
     unreachable
   )
@@ -184,7 +184,7 @@
     block (result (ref null (exact $a))) ;; label = @1
       unreachable
       local.get 0
-      br_on_cast_desc_fail 1 anyref (ref null (exact $a))
+      br_on_cast_desc_eq_fail 1 anyref (ref null (exact $a))
     end
     unreachable
   )
@@ -192,7 +192,7 @@
     block (result (ref null $d)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 anyref (ref null $d)
+      br_on_cast_desc_eq_fail 1 anyref (ref null $d)
     end
     unreachable
   )
@@ -200,7 +200,7 @@
     block (result (ref null (exact $d))) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 anyref (ref null (exact $d))
+      br_on_cast_desc_eq_fail 1 anyref (ref null (exact $d))
     end
     unreachable
   )

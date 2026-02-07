@@ -119,451 +119,451 @@
   (func (;0;) (type 5) (result anyref)
     global.get $a-null
     global.get $b-null
-    ref.cast_desc (ref null $a)
+    ref.cast_desc_eq (ref null $a)
   )
   (func (;1;) (type 5) (result anyref)
     global.get $a1
     global.get $b-null
-    ref.cast_desc (ref null $a)
+    ref.cast_desc_eq (ref null $a)
   )
   (func (;2;) (type 5) (result anyref)
     global.get $a-null
     global.get $b1
-    ref.cast_desc (ref null $a)
+    ref.cast_desc_eq (ref null $a)
   )
   (func (;3;) (type 5) (result anyref)
     global.get $a1
     global.get $b1
-    ref.cast_desc (ref null $a)
+    ref.cast_desc_eq (ref null $a)
   )
   (func (;4;) (type 5) (result anyref)
     global.get $a1
     global.get $b2
-    ref.cast_desc (ref null $a)
+    ref.cast_desc_eq (ref null $a)
   )
   (func (;5;) (type 5) (result anyref)
     global.get $a-null
     global.get $b-null
-    ref.cast_desc (ref $a)
+    ref.cast_desc_eq (ref $a)
   )
   (func (;6;) (type 5) (result anyref)
     global.get $a1
     global.get $b-null
-    ref.cast_desc (ref $a)
+    ref.cast_desc_eq (ref $a)
   )
   (func (;7;) (type 5) (result anyref)
     global.get $a-null
     global.get $b1
-    ref.cast_desc (ref $a)
+    ref.cast_desc_eq (ref $a)
   )
   (func (;8;) (type 5) (result anyref)
     global.get $a1
     global.get $b1
-    ref.cast_desc (ref $a)
+    ref.cast_desc_eq (ref $a)
   )
   (func (;9;) (type 5) (result anyref)
     global.get $a1
     global.get $b2
-    ref.cast_desc (ref $a)
+    ref.cast_desc_eq (ref $a)
   )
   (func (;10;) (type 5) (result anyref)
     global.get $a-null
     global.get $b-null
-    ref.cast_desc (ref null (exact $a))
+    ref.cast_desc_eq (ref null (exact $a))
   )
   (func (;11;) (type 5) (result anyref)
     global.get $a1
     global.get $b-null
-    ref.cast_desc (ref null (exact $a))
+    ref.cast_desc_eq (ref null (exact $a))
   )
   (func (;12;) (type 5) (result anyref)
     global.get $a-null
     global.get $b1-exact
-    ref.cast_desc (ref null (exact $a))
+    ref.cast_desc_eq (ref null (exact $a))
   )
   (func (;13;) (type 5) (result anyref)
     global.get $a1
     global.get $b1-exact
-    ref.cast_desc (ref null (exact $a))
+    ref.cast_desc_eq (ref null (exact $a))
   )
   (func (;14;) (type 5) (result anyref)
     global.get $a1
     global.get $b2-exact
-    ref.cast_desc (ref null (exact $a))
+    ref.cast_desc_eq (ref null (exact $a))
   )
   (func (;15;) (type 5) (result anyref)
     global.get $a-null
     global.get $b-null
-    ref.cast_desc (ref (exact $a))
+    ref.cast_desc_eq (ref (exact $a))
   )
   (func (;16;) (type 5) (result anyref)
     global.get $a1
     global.get $b-null
-    ref.cast_desc (ref (exact $a))
+    ref.cast_desc_eq (ref (exact $a))
   )
   (func (;17;) (type 5) (result anyref)
     global.get $a-null
     global.get $b1-exact
-    ref.cast_desc (ref (exact $a))
+    ref.cast_desc_eq (ref (exact $a))
   )
   (func (;18;) (type 5) (result anyref)
     global.get $a1
     global.get $b1-exact
-    ref.cast_desc (ref (exact $a))
+    ref.cast_desc_eq (ref (exact $a))
   )
   (func (;19;) (type 5) (result anyref)
     global.get $a1
     global.get $b2-exact
-    ref.cast_desc (ref (exact $a))
+    ref.cast_desc_eq (ref (exact $a))
   )
   (func (;20;) (type 5) (result anyref)
     global.get $a-null
     global.get $d-null
-    ref.cast_desc (ref null $c)
+    ref.cast_desc_eq (ref null $c)
   )
   (func (;21;) (type 5) (result anyref)
     global.get $c1-as-a
     global.get $d-null
-    ref.cast_desc (ref null $c)
+    ref.cast_desc_eq (ref null $c)
   )
   (func (;22;) (type 5) (result anyref)
     global.get $a-null
     global.get $d1
-    ref.cast_desc (ref null $c)
+    ref.cast_desc_eq (ref null $c)
   )
   (func (;23;) (type 5) (result anyref)
     global.get $c1-as-a
     global.get $d1
-    ref.cast_desc (ref null $c)
+    ref.cast_desc_eq (ref null $c)
   )
   (func (;24;) (type 5) (result anyref)
     global.get $c1-as-a
     global.get $d2
-    ref.cast_desc (ref null $c)
+    ref.cast_desc_eq (ref null $c)
   )
   (func (;25;) (type 5) (result anyref)
     global.get $a-null
     global.get $d-null
-    ref.cast_desc (ref $c)
+    ref.cast_desc_eq (ref $c)
   )
   (func (;26;) (type 5) (result anyref)
     global.get $c1-as-a
     global.get $d-null
-    ref.cast_desc (ref $c)
+    ref.cast_desc_eq (ref $c)
   )
   (func (;27;) (type 5) (result anyref)
     global.get $a-null
     global.get $d1
-    ref.cast_desc (ref $c)
+    ref.cast_desc_eq (ref $c)
   )
   (func (;28;) (type 5) (result anyref)
     global.get $c1-as-a
     global.get $d1
-    ref.cast_desc (ref $c)
+    ref.cast_desc_eq (ref $c)
   )
   (func (;29;) (type 5) (result anyref)
     global.get $c1-as-a
     global.get $d2
-    ref.cast_desc (ref $c)
+    ref.cast_desc_eq (ref $c)
   )
   (func (;30;) (type 5) (result anyref)
     global.get $a-null
     global.get $d-null
-    ref.cast_desc (ref null (exact $c))
+    ref.cast_desc_eq (ref null (exact $c))
   )
   (func (;31;) (type 5) (result anyref)
     global.get $c1-as-a
     global.get $d-null
-    ref.cast_desc (ref null (exact $c))
+    ref.cast_desc_eq (ref null (exact $c))
   )
   (func (;32;) (type 5) (result anyref)
     global.get $a-null
     global.get $d1-exact
-    ref.cast_desc (ref null (exact $c))
+    ref.cast_desc_eq (ref null (exact $c))
   )
   (func (;33;) (type 5) (result anyref)
     global.get $c1-as-a
     global.get $d1-exact
-    ref.cast_desc (ref null (exact $c))
+    ref.cast_desc_eq (ref null (exact $c))
   )
   (func (;34;) (type 5) (result anyref)
     global.get $c1-as-a
     global.get $d2-exact
-    ref.cast_desc (ref null (exact $c))
+    ref.cast_desc_eq (ref null (exact $c))
   )
   (func (;35;) (type 5) (result anyref)
     global.get $a-null
     global.get $d-null
-    ref.cast_desc (ref (exact $c))
+    ref.cast_desc_eq (ref (exact $c))
   )
   (func (;36;) (type 5) (result anyref)
     global.get $c1-as-a
     global.get $d-null
-    ref.cast_desc (ref (exact $c))
+    ref.cast_desc_eq (ref (exact $c))
   )
   (func (;37;) (type 5) (result anyref)
     global.get $a-null
     global.get $d1-exact
-    ref.cast_desc (ref (exact $c))
+    ref.cast_desc_eq (ref (exact $c))
   )
   (func (;38;) (type 5) (result anyref)
     global.get $c1-as-a
     global.get $d1-exact
-    ref.cast_desc (ref (exact $c))
+    ref.cast_desc_eq (ref (exact $c))
   )
   (func (;39;) (type 5) (result anyref)
     global.get $c1-as-a
     global.get $d2-exact
-    ref.cast_desc (ref (exact $c))
+    ref.cast_desc_eq (ref (exact $c))
   )
   (func (;40;) (type 5) (result anyref)
     global.get $c-null
     global.get $d-null
-    ref.cast_desc (ref null $a)
+    ref.cast_desc_eq (ref null $a)
   )
   (func (;41;) (type 5) (result anyref)
     global.get $c1
     global.get $d-null
-    ref.cast_desc (ref null $a)
+    ref.cast_desc_eq (ref null $a)
   )
   (func (;42;) (type 5) (result anyref)
     global.get $c-null
     global.get $d1
-    ref.cast_desc (ref null $a)
+    ref.cast_desc_eq (ref null $a)
   )
   (func (;43;) (type 5) (result anyref)
     global.get $c1
     global.get $d1
-    ref.cast_desc (ref null $a)
+    ref.cast_desc_eq (ref null $a)
   )
   (func (;44;) (type 5) (result anyref)
     global.get $c1
     global.get $d2
-    ref.cast_desc (ref null $a)
+    ref.cast_desc_eq (ref null $a)
   )
   (func (;45;) (type 5) (result anyref)
     global.get $c-null
     global.get $d-null
-    ref.cast_desc (ref $a)
+    ref.cast_desc_eq (ref $a)
   )
   (func (;46;) (type 5) (result anyref)
     global.get $c1
     global.get $d-null
-    ref.cast_desc (ref $a)
+    ref.cast_desc_eq (ref $a)
   )
   (func (;47;) (type 5) (result anyref)
     global.get $c-null
     global.get $d1
-    ref.cast_desc (ref $a)
+    ref.cast_desc_eq (ref $a)
   )
   (func (;48;) (type 5) (result anyref)
     global.get $c1
     global.get $d1
-    ref.cast_desc (ref $a)
+    ref.cast_desc_eq (ref $a)
   )
   (func (;49;) (type 5) (result anyref)
     global.get $c1
     global.get $d2
-    ref.cast_desc (ref $a)
+    ref.cast_desc_eq (ref $a)
   )
   (func (;50;) (type 5) (result anyref)
     global.get $c-null
     global.get $b-null
-    ref.cast_desc (ref null (exact $a))
+    ref.cast_desc_eq (ref null (exact $a))
   )
   (func (;51;) (type 5) (result anyref)
     global.get $c1
     global.get $b-null
-    ref.cast_desc (ref null (exact $a))
+    ref.cast_desc_eq (ref null (exact $a))
   )
   (func (;52;) (type 5) (result anyref)
     global.get $c-null
     global.get $b1-exact
-    ref.cast_desc (ref null (exact $a))
+    ref.cast_desc_eq (ref null (exact $a))
   )
   (func (;53;) (type 5) (result anyref)
     global.get $c1
     global.get $b1-exact
-    ref.cast_desc (ref null (exact $a))
+    ref.cast_desc_eq (ref null (exact $a))
   )
   (func (;54;) (type 5) (result anyref)
     global.get $c-null
     global.get $b-null
-    ref.cast_desc (ref (exact $a))
+    ref.cast_desc_eq (ref (exact $a))
   )
   (func (;55;) (type 5) (result anyref)
     global.get $c1
     global.get $b-null
-    ref.cast_desc (ref (exact $a))
+    ref.cast_desc_eq (ref (exact $a))
   )
   (func (;56;) (type 5) (result anyref)
     global.get $c-null
     global.get $b1-exact
-    ref.cast_desc (ref (exact $a))
+    ref.cast_desc_eq (ref (exact $a))
   )
   (func (;57;) (type 5) (result anyref)
     global.get $c1
     global.get $b1-exact
-    ref.cast_desc (ref (exact $a))
+    ref.cast_desc_eq (ref (exact $a))
   )
   (func (;58;) (type 5) (result anyref)
     global.get $no-desc-null
     global.get $b-null
-    ref.cast_desc (ref null $a)
+    ref.cast_desc_eq (ref null $a)
   )
   (func (;59;) (type 5) (result anyref)
     global.get $no-desc
     global.get $b-null
-    ref.cast_desc (ref null $a)
+    ref.cast_desc_eq (ref null $a)
   )
   (func (;60;) (type 5) (result anyref)
     global.get $no-desc-null
     global.get $b1
-    ref.cast_desc (ref null $a)
+    ref.cast_desc_eq (ref null $a)
   )
   (func (;61;) (type 5) (result anyref)
     global.get $no-desc
     global.get $b1
-    ref.cast_desc (ref null $a)
+    ref.cast_desc_eq (ref null $a)
   )
   (func (;62;) (type 5) (result anyref)
     global.get $no-desc-null
     global.get $b-null
-    ref.cast_desc (ref $a)
+    ref.cast_desc_eq (ref $a)
   )
   (func (;63;) (type 5) (result anyref)
     global.get $no-desc
     global.get $b-null
-    ref.cast_desc (ref $a)
+    ref.cast_desc_eq (ref $a)
   )
   (func (;64;) (type 5) (result anyref)
     global.get $no-desc-null
     global.get $b1
-    ref.cast_desc (ref $a)
+    ref.cast_desc_eq (ref $a)
   )
   (func (;65;) (type 5) (result anyref)
     global.get $no-desc
     global.get $b1
-    ref.cast_desc (ref $a)
+    ref.cast_desc_eq (ref $a)
   )
   (func (;66;) (type 5) (result anyref)
     global.get $no-desc-null
     global.get $b-null
-    ref.cast_desc (ref null (exact $a))
+    ref.cast_desc_eq (ref null (exact $a))
   )
   (func (;67;) (type 5) (result anyref)
     global.get $no-desc
     global.get $b-null
-    ref.cast_desc (ref null (exact $a))
+    ref.cast_desc_eq (ref null (exact $a))
   )
   (func (;68;) (type 5) (result anyref)
     global.get $no-desc-null
     global.get $b1-exact
-    ref.cast_desc (ref null (exact $a))
+    ref.cast_desc_eq (ref null (exact $a))
   )
   (func (;69;) (type 5) (result anyref)
     global.get $no-desc
     global.get $b1-exact
-    ref.cast_desc (ref null (exact $a))
+    ref.cast_desc_eq (ref null (exact $a))
   )
   (func (;70;) (type 5) (result anyref)
     global.get $no-desc-null
     global.get $b-null
-    ref.cast_desc (ref (exact $a))
+    ref.cast_desc_eq (ref (exact $a))
   )
   (func (;71;) (type 5) (result anyref)
     global.get $no-desc
     global.get $b-null
-    ref.cast_desc (ref (exact $a))
+    ref.cast_desc_eq (ref (exact $a))
   )
   (func (;72;) (type 5) (result anyref)
     global.get $no-desc-null
     global.get $b1-exact
-    ref.cast_desc (ref (exact $a))
+    ref.cast_desc_eq (ref (exact $a))
   )
   (func (;73;) (type 5) (result anyref)
     global.get $no-desc
     global.get $b1-exact
-    ref.cast_desc (ref (exact $a))
+    ref.cast_desc_eq (ref (exact $a))
   )
   (func (;74;) (type 5) (result anyref)
     global.get $i31-null
     global.get $b-null
-    ref.cast_desc (ref null $a)
+    ref.cast_desc_eq (ref null $a)
   )
   (func (;75;) (type 5) (result anyref)
     global.get $i31
     global.get $b-null
-    ref.cast_desc (ref null $a)
+    ref.cast_desc_eq (ref null $a)
   )
   (func (;76;) (type 5) (result anyref)
     global.get $i31-null
     global.get $b1
-    ref.cast_desc (ref null $a)
+    ref.cast_desc_eq (ref null $a)
   )
   (func (;77;) (type 5) (result anyref)
     global.get $i31
     global.get $b1
-    ref.cast_desc (ref null $a)
+    ref.cast_desc_eq (ref null $a)
   )
   (func (;78;) (type 5) (result anyref)
     global.get $i31-null
     global.get $b-null
-    ref.cast_desc (ref $a)
+    ref.cast_desc_eq (ref $a)
   )
   (func (;79;) (type 5) (result anyref)
     global.get $i31
     global.get $b-null
-    ref.cast_desc (ref $a)
+    ref.cast_desc_eq (ref $a)
   )
   (func (;80;) (type 5) (result anyref)
     global.get $i31-null
     global.get $b1
-    ref.cast_desc (ref $a)
+    ref.cast_desc_eq (ref $a)
   )
   (func (;81;) (type 5) (result anyref)
     global.get $i31
     global.get $b1
-    ref.cast_desc (ref $a)
+    ref.cast_desc_eq (ref $a)
   )
   (func (;82;) (type 5) (result anyref)
     global.get $i31-null
     global.get $b-null
-    ref.cast_desc (ref null (exact $a))
+    ref.cast_desc_eq (ref null (exact $a))
   )
   (func (;83;) (type 5) (result anyref)
     global.get $i31
     global.get $b-null
-    ref.cast_desc (ref null (exact $a))
+    ref.cast_desc_eq (ref null (exact $a))
   )
   (func (;84;) (type 5) (result anyref)
     global.get $i31-null
     global.get $b1-exact
-    ref.cast_desc (ref null (exact $a))
+    ref.cast_desc_eq (ref null (exact $a))
   )
   (func (;85;) (type 5) (result anyref)
     global.get $i31
     global.get $b1-exact
-    ref.cast_desc (ref null (exact $a))
+    ref.cast_desc_eq (ref null (exact $a))
   )
   (func (;86;) (type 5) (result anyref)
     global.get $i31-null
     global.get $b-null
-    ref.cast_desc (ref (exact $a))
+    ref.cast_desc_eq (ref (exact $a))
   )
   (func (;87;) (type 5) (result anyref)
     global.get $i31
     global.get $b-null
-    ref.cast_desc (ref (exact $a))
+    ref.cast_desc_eq (ref (exact $a))
   )
   (func (;88;) (type 5) (result anyref)
     global.get $i31-null
     global.get $b1-exact
-    ref.cast_desc (ref (exact $a))
+    ref.cast_desc_eq (ref (exact $a))
   )
   (func (;89;) (type 5) (result anyref)
     global.get $i31
     global.get $b1-exact
-    ref.cast_desc (ref (exact $a))
+    ref.cast_desc_eq (ref (exact $a))
   )
 )

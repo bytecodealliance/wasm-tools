@@ -14,7 +14,7 @@
       i32.const 42
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 anyref (ref null $a)
+      br_on_cast_desc_eq_fail 1 anyref (ref null $a)
     end
     unreachable
   )
@@ -24,7 +24,7 @@
       i64.const 1337
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 anyref (ref null $a)
+      br_on_cast_desc_eq_fail 1 anyref (ref null $a)
     end
     unreachable
   )
@@ -33,7 +33,7 @@
       local.get 1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 anyref (ref null $a)
+      br_on_cast_desc_eq_fail 1 anyref (ref null $a)
     end
     unreachable
   )

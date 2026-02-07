@@ -1,134 +1,134 @@
 {
-  "source_filename": "tests/testsuite/proposals/custom-descriptors/ref_cast_desc.wast",
+  "source_filename": "tests/testsuite/proposals/custom-descriptors/ref_cast_desc_eq.wast",
   "commands": [
     {
       "type": "module",
       "line": 3,
-      "filename": "ref_cast_desc.0.wasm",
+      "filename": "ref_cast_desc_eq.0.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
       "line": 168,
-      "filename": "ref_cast_desc.1.wasm",
+      "filename": "ref_cast_desc_eq.1.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
       "line": 267,
-      "filename": "ref_cast_desc.2.wasm",
+      "filename": "ref_cast_desc_eq.2.wasm",
       "module_type": "binary",
       "text": "unknown type"
     },
     {
       "type": "assert_invalid",
       "line": 277,
-      "filename": "ref_cast_desc.3.wasm",
+      "filename": "ref_cast_desc_eq.3.wasm",
       "module_type": "binary",
       "text": "type any does not have a descriptor"
     },
     {
       "type": "assert_invalid",
       "line": 287,
-      "filename": "ref_cast_desc.4.wasm",
+      "filename": "ref_cast_desc_eq.4.wasm",
       "module_type": "binary",
       "text": "type none does not have a descriptor"
     },
     {
       "type": "assert_invalid",
       "line": 297,
-      "filename": "ref_cast_desc.5.wasm",
+      "filename": "ref_cast_desc_eq.5.wasm",
       "module_type": "binary",
       "text": "type 0 does not have a descriptor"
     },
     {
       "type": "assert_invalid",
       "line": 308,
-      "filename": "ref_cast_desc.6.wasm",
+      "filename": "ref_cast_desc_eq.6.wasm",
       "module_type": "binary",
       "text": "type 1 does not have a descriptor"
     },
     {
       "type": "assert_invalid",
       "line": 322,
-      "filename": "ref_cast_desc.7.wasm",
+      "filename": "ref_cast_desc_eq.7.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 336,
-      "filename": "ref_cast_desc.8.wasm",
+      "filename": "ref_cast_desc_eq.8.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 350,
-      "filename": "ref_cast_desc.9.wasm",
+      "filename": "ref_cast_desc_eq.9.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 364,
-      "filename": "ref_cast_desc.10.wasm",
+      "filename": "ref_cast_desc_eq.10.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 380,
-      "filename": "ref_cast_desc.11.wasm",
+      "filename": "ref_cast_desc_eq.11.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 394,
-      "filename": "ref_cast_desc.12.wasm",
+      "filename": "ref_cast_desc_eq.12.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 410,
-      "filename": "ref_cast_desc.13.wasm",
+      "filename": "ref_cast_desc_eq.13.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 426,
-      "filename": "ref_cast_desc.14.wasm",
+      "filename": "ref_cast_desc_eq.14.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 442,
-      "filename": "ref_cast_desc.15.wasm",
+      "filename": "ref_cast_desc_eq.15.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 458,
-      "filename": "ref_cast_desc.16.wasm",
+      "filename": "ref_cast_desc_eq.16.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 474,
-      "filename": "ref_cast_desc.17.wasm",
+      "filename": "ref_cast_desc_eq.17.wasm",
       "module_type": "binary",
       "text": "constant expression required"
     },
     {
       "type": "module",
       "line": 487,
-      "filename": "ref_cast_desc.18.wasm",
+      "filename": "ref_cast_desc_eq.18.wasm",
       "module_type": "binary"
     },
     {
