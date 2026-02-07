@@ -103,7 +103,7 @@ impl<'a> CustomSectionReader<'a> {
 /// Return value of [`CustomSectionReader::as_known`].
 ///
 /// Note that this is `#[non_exhaustive]` because depending on crate features
-/// this enumeration will different entries.
+/// this enumeration will contain different entries.
 #[allow(missing_docs)]
 #[non_exhaustive]
 pub enum KnownCustom<'a> {
