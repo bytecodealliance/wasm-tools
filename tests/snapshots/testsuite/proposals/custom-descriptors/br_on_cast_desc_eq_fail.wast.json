@@ -1,194 +1,194 @@
 {
-  "source_filename": "tests/testsuite/proposals/custom-descriptors/br_on_cast_desc.wast",
+  "source_filename": "tests/testsuite/proposals/custom-descriptors/br_on_cast_desc_eq_fail.wast",
   "commands": [
     {
       "type": "module",
       "line": 3,
-      "filename": "br_on_cast_desc.0.wasm",
+      "filename": "br_on_cast_desc_eq_fail.0.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 456,
-      "filename": "br_on_cast_desc.1.wasm",
+      "line": 432,
+      "filename": "br_on_cast_desc_eq_fail.1.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 685,
-      "filename": "br_on_cast_desc.2.wasm",
+      "line": 663,
+      "filename": "br_on_cast_desc_eq_fail.2.wasm",
       "module_type": "binary",
       "text": "unknown type"
     },
     {
       "type": "assert_invalid",
-      "line": 697,
-      "filename": "br_on_cast_desc.3.wasm",
+      "line": 675,
+      "filename": "br_on_cast_desc_eq_fail.3.wasm",
       "module_type": "binary",
       "text": "type any does not have a descriptor"
     },
     {
       "type": "assert_invalid",
-      "line": 709,
-      "filename": "br_on_cast_desc.4.wasm",
+      "line": 687,
+      "filename": "br_on_cast_desc_eq_fail.4.wasm",
       "module_type": "binary",
       "text": "type none does not have a descriptor"
     },
     {
       "type": "assert_invalid",
-      "line": 721,
-      "filename": "br_on_cast_desc.5.wasm",
+      "line": 699,
+      "filename": "br_on_cast_desc_eq_fail.5.wasm",
       "module_type": "binary",
       "text": "type 0 does not have a descriptor"
     },
     {
       "type": "assert_invalid",
-      "line": 734,
-      "filename": "br_on_cast_desc.6.wasm",
+      "line": 712,
+      "filename": "br_on_cast_desc_eq_fail.6.wasm",
       "module_type": "binary",
       "text": "type 1 does not have a descriptor"
     },
     {
       "type": "assert_invalid",
-      "line": 748,
-      "filename": "br_on_cast_desc.7.wasm",
+      "line": 726,
+      "filename": "br_on_cast_desc_eq_fail.7.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 765,
-      "filename": "br_on_cast_desc.8.wasm",
+      "line": 743,
+      "filename": "br_on_cast_desc_eq_fail.8.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 782,
-      "filename": "br_on_cast_desc.9.wasm",
+      "line": 760,
+      "filename": "br_on_cast_desc_eq_fail.9.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 799,
-      "filename": "br_on_cast_desc.10.wasm",
+      "line": 777,
+      "filename": "br_on_cast_desc_eq_fail.10.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 818,
-      "filename": "br_on_cast_desc.11.wasm",
+      "line": 796,
+      "filename": "br_on_cast_desc_eq_fail.11.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 835,
-      "filename": "br_on_cast_desc.12.wasm",
+      "line": 813,
+      "filename": "br_on_cast_desc_eq_fail.12.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 851,
-      "filename": "br_on_cast_desc.13.wasm",
+      "line": 829,
+      "filename": "br_on_cast_desc_eq_fail.13.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 870,
-      "filename": "br_on_cast_desc.14.wasm",
+      "line": 850,
+      "filename": "br_on_cast_desc_eq_fail.14.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 889,
-      "filename": "br_on_cast_desc.15.wasm",
+      "line": 871,
+      "filename": "br_on_cast_desc_eq_fail.15.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 908,
-      "filename": "br_on_cast_desc.16.wasm",
+      "line": 892,
+      "filename": "br_on_cast_desc_eq_fail.16.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 926,
-      "filename": "br_on_cast_desc.17.wasm",
+      "line": 912,
+      "filename": "br_on_cast_desc_eq_fail.17.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 946,
-      "filename": "br_on_cast_desc.18.wasm",
+      "line": 931,
+      "filename": "br_on_cast_desc_eq_fail.18.wasm",
       "module_type": "binary",
       "text": "constant expression required"
     },
     {
       "type": "module",
-      "line": 959,
-      "filename": "br_on_cast_desc.19.wasm",
+      "line": 944,
+      "filename": "br_on_cast_desc_eq_fail.19.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 1004,
-      "filename": "br_on_cast_desc.20.wasm",
+      "line": 989,
+      "filename": "br_on_cast_desc_eq_fail.20.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1021,
-      "filename": "br_on_cast_desc.21.wasm",
+      "line": 1006,
+      "filename": "br_on_cast_desc_eq_fail.21.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1039,
-      "filename": "br_on_cast_desc.22.wasm",
+      "line": 1024,
+      "filename": "br_on_cast_desc_eq_fail.22.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1058,
-      "filename": "br_on_cast_desc.23.wasm",
+      "line": 1043,
+      "filename": "br_on_cast_desc_eq_fail.23.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1077,
-      "filename": "br_on_cast_desc.24.wasm",
+      "line": 1062,
+      "filename": "br_on_cast_desc_eq_fail.24.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1096,
-      "filename": "br_on_cast_desc.25.wasm",
+      "line": 1082,
+      "filename": "br_on_cast_desc_eq_fail.25.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "module",
-      "line": 1116,
-      "filename": "br_on_cast_desc.26.wasm",
+      "line": 1102,
+      "filename": "br_on_cast_desc_eq_fail.26.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_trap",
-      "line": 1801,
+      "line": 1787,
       "action": {
         "type": "invoke",
         "field": "self-nullable-null-null",
@@ -198,7 +198,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 1802,
+      "line": 1788,
       "action": {
         "type": "invoke",
         "field": "self-nullable-val-null",
@@ -208,40 +208,10 @@
     },
     {
       "type": "assert_return",
-      "line": 1803,
+      "line": 1789,
       "action": {
         "type": "invoke",
         "field": "self-nullable-null-desc",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "1"
-        }
-      ]
-    },
-    {
-      "type": "assert_return",
-      "line": 1804,
-      "action": {
-        "type": "invoke",
-        "field": "self-nullable-val-desc",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "1"
-        }
-      ]
-    },
-    {
-      "type": "assert_return",
-      "line": 1805,
-      "action": {
-        "type": "invoke",
-        "field": "self-nullable-val-other",
         "args": []
       },
       "expected": [
@@ -252,8 +222,38 @@
       ]
     },
     {
+      "type": "assert_return",
+      "line": 1790,
+      "action": {
+        "type": "invoke",
+        "field": "self-nullable-val-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1791,
+      "action": {
+        "type": "invoke",
+        "field": "self-nullable-val-other",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
       "type": "assert_trap",
-      "line": 1807,
+      "line": 1793,
       "action": {
         "type": "invoke",
         "field": "self-nonnullable-null-null",
@@ -263,7 +263,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 1808,
+      "line": 1794,
       "action": {
         "type": "invoke",
         "field": "self-nonnullable-val-null",
@@ -273,25 +273,10 @@
     },
     {
       "type": "assert_return",
-      "line": 1809,
+      "line": 1795,
       "action": {
         "type": "invoke",
         "field": "self-nonnullable-null-desc",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "0"
-        }
-      ]
-    },
-    {
-      "type": "assert_return",
-      "line": 1810,
-      "action": {
-        "type": "invoke",
-        "field": "self-nonnullable-val-desc",
         "args": []
       },
       "expected": [
@@ -303,10 +288,10 @@
     },
     {
       "type": "assert_return",
-      "line": 1811,
+      "line": 1796,
       "action": {
         "type": "invoke",
-        "field": "self-nonnullable-val-other",
+        "field": "self-nonnullable-val-desc",
         "args": []
       },
       "expected": [
@@ -317,8 +302,23 @@
       ]
     },
     {
+      "type": "assert_return",
+      "line": 1797,
+      "action": {
+        "type": "invoke",
+        "field": "self-nonnullable-val-other",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
       "type": "assert_trap",
-      "line": 1813,
+      "line": 1799,
       "action": {
         "type": "invoke",
         "field": "self-exact-nullable-null-null",
@@ -328,7 +328,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 1814,
+      "line": 1800,
       "action": {
         "type": "invoke",
         "field": "self-exact-nullable-val-null",
@@ -338,40 +338,10 @@
     },
     {
       "type": "assert_return",
-      "line": 1815,
+      "line": 1801,
       "action": {
         "type": "invoke",
         "field": "self-exact-nullable-null-desc",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "1"
-        }
-      ]
-    },
-    {
-      "type": "assert_return",
-      "line": 1816,
-      "action": {
-        "type": "invoke",
-        "field": "self-exact-nullable-val-desc",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "1"
-        }
-      ]
-    },
-    {
-      "type": "assert_return",
-      "line": 1817,
-      "action": {
-        "type": "invoke",
-        "field": "self-exact-nullable-val-other",
         "args": []
       },
       "expected": [
@@ -382,8 +352,38 @@
       ]
     },
     {
+      "type": "assert_return",
+      "line": 1802,
+      "action": {
+        "type": "invoke",
+        "field": "self-exact-nullable-val-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1803,
+      "action": {
+        "type": "invoke",
+        "field": "self-exact-nullable-val-other",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
       "type": "assert_trap",
-      "line": 1819,
+      "line": 1805,
       "action": {
         "type": "invoke",
         "field": "self-exact-nonnullable-null-null",
@@ -393,7 +393,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 1820,
+      "line": 1806,
       "action": {
         "type": "invoke",
         "field": "self-exact-nonnullable-val-null",
@@ -403,25 +403,10 @@
     },
     {
       "type": "assert_return",
-      "line": 1821,
+      "line": 1807,
       "action": {
         "type": "invoke",
         "field": "self-exact-nonnullable-null-desc",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "0"
-        }
-      ]
-    },
-    {
-      "type": "assert_return",
-      "line": 1822,
-      "action": {
-        "type": "invoke",
-        "field": "self-exact-nonnullable-val-desc",
         "args": []
       },
       "expected": [
@@ -433,10 +418,10 @@
     },
     {
       "type": "assert_return",
-      "line": 1823,
+      "line": 1808,
       "action": {
         "type": "invoke",
-        "field": "self-exact-nonnullable-val-other",
+        "field": "self-exact-nonnullable-val-desc",
         "args": []
       },
       "expected": [
@@ -447,8 +432,23 @@
       ]
     },
     {
+      "type": "assert_return",
+      "line": 1809,
+      "action": {
+        "type": "invoke",
+        "field": "self-exact-nonnullable-val-other",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
       "type": "assert_trap",
-      "line": 1825,
+      "line": 1811,
       "action": {
         "type": "invoke",
         "field": "down-nullable-null-null",
@@ -458,7 +458,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 1826,
+      "line": 1812,
       "action": {
         "type": "invoke",
         "field": "down-nullable-val-null",
@@ -468,40 +468,10 @@
     },
     {
       "type": "assert_return",
-      "line": 1827,
+      "line": 1813,
       "action": {
         "type": "invoke",
         "field": "down-nullable-null-desc",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "1"
-        }
-      ]
-    },
-    {
-      "type": "assert_return",
-      "line": 1828,
-      "action": {
-        "type": "invoke",
-        "field": "down-nullable-val-desc",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "1"
-        }
-      ]
-    },
-    {
-      "type": "assert_return",
-      "line": 1829,
-      "action": {
-        "type": "invoke",
-        "field": "down-nullable-val-other",
         "args": []
       },
       "expected": [
@@ -512,8 +482,38 @@
       ]
     },
     {
+      "type": "assert_return",
+      "line": 1814,
+      "action": {
+        "type": "invoke",
+        "field": "down-nullable-val-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1815,
+      "action": {
+        "type": "invoke",
+        "field": "down-nullable-val-other",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
       "type": "assert_trap",
-      "line": 1831,
+      "line": 1817,
       "action": {
         "type": "invoke",
         "field": "down-nonnullable-null-null",
@@ -523,7 +523,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 1832,
+      "line": 1818,
       "action": {
         "type": "invoke",
         "field": "down-nonnullable-val-null",
@@ -533,25 +533,10 @@
     },
     {
       "type": "assert_return",
-      "line": 1833,
+      "line": 1819,
       "action": {
         "type": "invoke",
         "field": "down-nonnullable-null-desc",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "0"
-        }
-      ]
-    },
-    {
-      "type": "assert_return",
-      "line": 1834,
-      "action": {
-        "type": "invoke",
-        "field": "down-nonnullable-val-desc",
         "args": []
       },
       "expected": [
@@ -563,10 +548,10 @@
     },
     {
       "type": "assert_return",
-      "line": 1835,
+      "line": 1820,
       "action": {
         "type": "invoke",
-        "field": "down-nonnullable-val-other",
+        "field": "down-nonnullable-val-desc",
         "args": []
       },
       "expected": [
@@ -577,8 +562,23 @@
       ]
     },
     {
+      "type": "assert_return",
+      "line": 1821,
+      "action": {
+        "type": "invoke",
+        "field": "down-nonnullable-val-other",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
       "type": "assert_trap",
-      "line": 1837,
+      "line": 1823,
       "action": {
         "type": "invoke",
         "field": "down-exact-nullable-null-null",
@@ -588,7 +588,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 1838,
+      "line": 1824,
       "action": {
         "type": "invoke",
         "field": "down-exact-nullable-val-null",
@@ -598,40 +598,10 @@
     },
     {
       "type": "assert_return",
-      "line": 1839,
+      "line": 1825,
       "action": {
         "type": "invoke",
         "field": "down-exact-nullable-null-desc",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "1"
-        }
-      ]
-    },
-    {
-      "type": "assert_return",
-      "line": 1840,
-      "action": {
-        "type": "invoke",
-        "field": "down-exact-nullable-val-desc",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "1"
-        }
-      ]
-    },
-    {
-      "type": "assert_return",
-      "line": 1841,
-      "action": {
-        "type": "invoke",
-        "field": "down-exact-nullable-val-other",
         "args": []
       },
       "expected": [
@@ -642,8 +612,38 @@
       ]
     },
     {
+      "type": "assert_return",
+      "line": 1826,
+      "action": {
+        "type": "invoke",
+        "field": "down-exact-nullable-val-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1827,
+      "action": {
+        "type": "invoke",
+        "field": "down-exact-nullable-val-other",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
       "type": "assert_trap",
-      "line": 1843,
+      "line": 1829,
       "action": {
         "type": "invoke",
         "field": "down-exact-nonnullable-null-null",
@@ -653,7 +653,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 1844,
+      "line": 1830,
       "action": {
         "type": "invoke",
         "field": "down-exact-nonnullable-val-null",
@@ -663,25 +663,10 @@
     },
     {
       "type": "assert_return",
-      "line": 1845,
+      "line": 1831,
       "action": {
         "type": "invoke",
         "field": "down-exact-nonnullable-null-desc",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "0"
-        }
-      ]
-    },
-    {
-      "type": "assert_return",
-      "line": 1846,
-      "action": {
-        "type": "invoke",
-        "field": "down-exact-nonnullable-val-desc",
         "args": []
       },
       "expected": [
@@ -693,10 +678,10 @@
     },
     {
       "type": "assert_return",
-      "line": 1847,
+      "line": 1832,
       "action": {
         "type": "invoke",
-        "field": "down-exact-nonnullable-val-other",
+        "field": "down-exact-nonnullable-val-desc",
         "args": []
       },
       "expected": [
@@ -707,8 +692,23 @@
       ]
     },
     {
+      "type": "assert_return",
+      "line": 1833,
+      "action": {
+        "type": "invoke",
+        "field": "down-exact-nonnullable-val-other",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
       "type": "assert_trap",
-      "line": 1849,
+      "line": 1835,
       "action": {
         "type": "invoke",
         "field": "up-nullable-null-null",
@@ -718,7 +718,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 1850,
+      "line": 1836,
       "action": {
         "type": "invoke",
         "field": "up-nullable-val-null",
@@ -728,40 +728,10 @@
     },
     {
       "type": "assert_return",
-      "line": 1851,
+      "line": 1837,
       "action": {
         "type": "invoke",
         "field": "up-nullable-null-desc",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "1"
-        }
-      ]
-    },
-    {
-      "type": "assert_return",
-      "line": 1852,
-      "action": {
-        "type": "invoke",
-        "field": "up-nullable-val-desc",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "1"
-        }
-      ]
-    },
-    {
-      "type": "assert_return",
-      "line": 1853,
-      "action": {
-        "type": "invoke",
-        "field": "up-nullable-val-other",
         "args": []
       },
       "expected": [
@@ -772,8 +742,38 @@
       ]
     },
     {
+      "type": "assert_return",
+      "line": 1838,
+      "action": {
+        "type": "invoke",
+        "field": "up-nullable-val-desc",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1839,
+      "action": {
+        "type": "invoke",
+        "field": "up-nullable-val-other",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
       "type": "assert_trap",
-      "line": 1855,
+      "line": 1841,
       "action": {
         "type": "invoke",
         "field": "up-nonnullable-null-null",
@@ -783,7 +783,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 1856,
+      "line": 1842,
       "action": {
         "type": "invoke",
         "field": "up-nonnullable-val-null",
@@ -793,25 +793,10 @@
     },
     {
       "type": "assert_return",
-      "line": 1857,
+      "line": 1843,
       "action": {
         "type": "invoke",
         "field": "up-nonnullable-null-desc",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "0"
-        }
-      ]
-    },
-    {
-      "type": "assert_return",
-      "line": 1858,
-      "action": {
-        "type": "invoke",
-        "field": "up-nonnullable-val-desc",
         "args": []
       },
       "expected": [
@@ -823,10 +808,10 @@
     },
     {
       "type": "assert_return",
-      "line": 1859,
+      "line": 1844,
       "action": {
         "type": "invoke",
-        "field": "up-nonnullable-val-other",
+        "field": "up-nonnullable-val-desc",
         "args": []
       },
       "expected": [
@@ -837,8 +822,23 @@
       ]
     },
     {
+      "type": "assert_return",
+      "line": 1845,
+      "action": {
+        "type": "invoke",
+        "field": "up-nonnullable-val-other",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
       "type": "assert_trap",
-      "line": 1861,
+      "line": 1847,
       "action": {
         "type": "invoke",
         "field": "up-exact-nullable-null-null",
@@ -848,7 +848,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 1862,
+      "line": 1848,
       "action": {
         "type": "invoke",
         "field": "up-exact-nullable-val-null",
@@ -858,25 +858,10 @@
     },
     {
       "type": "assert_return",
-      "line": 1863,
+      "line": 1849,
       "action": {
         "type": "invoke",
         "field": "up-exact-nullable-null-desc",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "1"
-        }
-      ]
-    },
-    {
-      "type": "assert_return",
-      "line": 1864,
-      "action": {
-        "type": "invoke",
-        "field": "up-exact-nullable-val-other",
         "args": []
       },
       "expected": [
@@ -887,8 +872,23 @@
       ]
     },
     {
+      "type": "assert_return",
+      "line": 1850,
+      "action": {
+        "type": "invoke",
+        "field": "up-exact-nullable-val-other",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
       "type": "assert_trap",
-      "line": 1866,
+      "line": 1852,
       "action": {
         "type": "invoke",
         "field": "up-exact-nonnullable-null-null",
@@ -898,7 +898,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 1867,
+      "line": 1853,
       "action": {
         "type": "invoke",
         "field": "up-exact-nonnullable-val-null",
@@ -908,7 +908,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1868,
+      "line": 1854,
       "action": {
         "type": "invoke",
         "field": "up-exact-nonnullable-null-desc",
@@ -917,13 +917,13 @@
       "expected": [
         {
           "type": "i32",
-          "value": "0"
+          "value": "1"
         }
       ]
     },
     {
       "type": "assert_return",
-      "line": 1869,
+      "line": 1855,
       "action": {
         "type": "invoke",
         "field": "up-exact-nonnullable-val-other",
@@ -932,13 +932,13 @@
       "expected": [
         {
           "type": "i32",
-          "value": "0"
+          "value": "1"
         }
       ]
     },
     {
       "type": "assert_trap",
-      "line": 1871,
+      "line": 1857,
       "action": {
         "type": "invoke",
         "field": "nodesc-nullable-null-null",
@@ -948,7 +948,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 1872,
+      "line": 1858,
       "action": {
         "type": "invoke",
         "field": "nodesc-nullable-val-null",
@@ -958,25 +958,10 @@
     },
     {
       "type": "assert_return",
-      "line": 1873,
+      "line": 1859,
       "action": {
         "type": "invoke",
         "field": "nodesc-nullable-null-desc",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "1"
-        }
-      ]
-    },
-    {
-      "type": "assert_return",
-      "line": 1874,
-      "action": {
-        "type": "invoke",
-        "field": "nodesc-nullable-val-other",
         "args": []
       },
       "expected": [
@@ -987,8 +972,23 @@
       ]
     },
     {
+      "type": "assert_return",
+      "line": 1860,
+      "action": {
+        "type": "invoke",
+        "field": "nodesc-nullable-val-other",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
       "type": "assert_trap",
-      "line": 1876,
+      "line": 1862,
       "action": {
         "type": "invoke",
         "field": "nodesc-nonnullable-null-null",
@@ -998,7 +998,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 1877,
+      "line": 1863,
       "action": {
         "type": "invoke",
         "field": "nodesc-nonnullable-val-null",
@@ -1008,7 +1008,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1878,
+      "line": 1864,
       "action": {
         "type": "invoke",
         "field": "nodesc-nonnullable-null-desc",
@@ -1017,13 +1017,13 @@
       "expected": [
         {
           "type": "i32",
-          "value": "0"
+          "value": "1"
         }
       ]
     },
     {
       "type": "assert_return",
-      "line": 1879,
+      "line": 1865,
       "action": {
         "type": "invoke",
         "field": "nodesc-nonnullable-val-other",
@@ -1032,13 +1032,13 @@
       "expected": [
         {
           "type": "i32",
-          "value": "0"
+          "value": "1"
         }
       ]
     },
     {
       "type": "assert_trap",
-      "line": 1881,
+      "line": 1867,
       "action": {
         "type": "invoke",
         "field": "nodesc-exact-nullable-null-null",
@@ -1048,7 +1048,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 1882,
+      "line": 1868,
       "action": {
         "type": "invoke",
         "field": "nodesc-exact-nullable-val-null",
@@ -1058,25 +1058,10 @@
     },
     {
       "type": "assert_return",
-      "line": 1883,
+      "line": 1869,
       "action": {
         "type": "invoke",
         "field": "nodesc-exact-nullable-null-desc",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "1"
-        }
-      ]
-    },
-    {
-      "type": "assert_return",
-      "line": 1884,
-      "action": {
-        "type": "invoke",
-        "field": "nodesc-exact-nullable-val-other",
         "args": []
       },
       "expected": [
@@ -1087,8 +1072,23 @@
       ]
     },
     {
+      "type": "assert_return",
+      "line": 1870,
+      "action": {
+        "type": "invoke",
+        "field": "nodesc-exact-nullable-val-other",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
       "type": "assert_trap",
-      "line": 1886,
+      "line": 1872,
       "action": {
         "type": "invoke",
         "field": "nodesc-exact-nonnullable-null-null",
@@ -1098,7 +1098,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 1887,
+      "line": 1873,
       "action": {
         "type": "invoke",
         "field": "nodesc-exact-nonnullable-val-null",
@@ -1108,7 +1108,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1888,
+      "line": 1874,
       "action": {
         "type": "invoke",
         "field": "nodesc-exact-nonnullable-null-desc",
@@ -1117,13 +1117,13 @@
       "expected": [
         {
           "type": "i32",
-          "value": "0"
+          "value": "1"
         }
       ]
     },
     {
       "type": "assert_return",
-      "line": 1889,
+      "line": 1875,
       "action": {
         "type": "invoke",
         "field": "nodesc-exact-nonnullable-val-other",
@@ -1132,13 +1132,13 @@
       "expected": [
         {
           "type": "i32",
-          "value": "0"
+          "value": "1"
         }
       ]
     },
     {
       "type": "assert_trap",
-      "line": 1891,
+      "line": 1877,
       "action": {
         "type": "invoke",
         "field": "i31-nullable-null-null",
@@ -1148,7 +1148,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 1892,
+      "line": 1878,
       "action": {
         "type": "invoke",
         "field": "i31-nullable-val-null",
@@ -1158,25 +1158,10 @@
     },
     {
       "type": "assert_return",
-      "line": 1893,
+      "line": 1879,
       "action": {
         "type": "invoke",
         "field": "i31-nullable-null-desc",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "1"
-        }
-      ]
-    },
-    {
-      "type": "assert_return",
-      "line": 1894,
-      "action": {
-        "type": "invoke",
-        "field": "i31-nullable-val-other",
         "args": []
       },
       "expected": [
@@ -1187,8 +1172,23 @@
       ]
     },
     {
+      "type": "assert_return",
+      "line": 1880,
+      "action": {
+        "type": "invoke",
+        "field": "i31-nullable-val-other",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
       "type": "assert_trap",
-      "line": 1896,
+      "line": 1882,
       "action": {
         "type": "invoke",
         "field": "i31-nonnullable-null-null",
@@ -1198,7 +1198,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 1897,
+      "line": 1883,
       "action": {
         "type": "invoke",
         "field": "i31-nonnullable-val-null",
@@ -1208,60 +1208,10 @@
     },
     {
       "type": "assert_return",
-      "line": 1898,
+      "line": 1884,
       "action": {
         "type": "invoke",
         "field": "i31-nonnullable-null-desc",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "0"
-        }
-      ]
-    },
-    {
-      "type": "assert_return",
-      "line": 1899,
-      "action": {
-        "type": "invoke",
-        "field": "i31-nonnullable-val-other",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "0"
-        }
-      ]
-    },
-    {
-      "type": "assert_trap",
-      "line": 1901,
-      "action": {
-        "type": "invoke",
-        "field": "i31-exact-nullable-null-null",
-        "args": []
-      },
-      "text": "null descriptor reference"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1902,
-      "action": {
-        "type": "invoke",
-        "field": "i31-exact-nullable-val-null",
-        "args": []
-      },
-      "text": "null descriptor reference"
-    },
-    {
-      "type": "assert_return",
-      "line": 1903,
-      "action": {
-        "type": "invoke",
-        "field": "i31-exact-nullable-null-desc",
         "args": []
       },
       "expected": [
@@ -1273,10 +1223,45 @@
     },
     {
       "type": "assert_return",
-      "line": 1904,
+      "line": 1885,
       "action": {
         "type": "invoke",
-        "field": "i31-exact-nullable-val-other",
+        "field": "i31-nonnullable-val-other",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 1887,
+      "action": {
+        "type": "invoke",
+        "field": "i31-exact-nullable-null-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1888,
+      "action": {
+        "type": "invoke",
+        "field": "i31-exact-nullable-val-null",
+        "args": []
+      },
+      "text": "null descriptor reference"
+    },
+    {
+      "type": "assert_return",
+      "line": 1889,
+      "action": {
+        "type": "invoke",
+        "field": "i31-exact-nullable-null-desc",
         "args": []
       },
       "expected": [
@@ -1287,8 +1272,23 @@
       ]
     },
     {
+      "type": "assert_return",
+      "line": 1890,
+      "action": {
+        "type": "invoke",
+        "field": "i31-exact-nullable-val-other",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
       "type": "assert_trap",
-      "line": 1906,
+      "line": 1892,
       "action": {
         "type": "invoke",
         "field": "i31-exact-nonnullable-null-null",
@@ -1298,7 +1298,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 1907,
+      "line": 1893,
       "action": {
         "type": "invoke",
         "field": "i31-exact-nonnullable-val-null",
@@ -1308,7 +1308,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1908,
+      "line": 1894,
       "action": {
         "type": "invoke",
         "field": "i31-exact-nonnullable-null-desc",
@@ -1317,13 +1317,13 @@
       "expected": [
         {
           "type": "i32",
-          "value": "0"
+          "value": "1"
         }
       ]
     },
     {
       "type": "assert_return",
-      "line": 1909,
+      "line": 1895,
       "action": {
         "type": "invoke",
         "field": "i31-exact-nonnullable-val-other",
@@ -1332,19 +1332,19 @@
       "expected": [
         {
           "type": "i32",
-          "value": "0"
+          "value": "1"
         }
       ]
     },
     {
       "type": "module",
-      "line": 1911,
-      "filename": "br_on_cast_desc.27.wasm",
+      "line": 1897,
+      "filename": "br_on_cast_desc_eq_fail.27.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_return",
-      "line": 1992,
+      "line": 1978,
       "action": {
         "type": "invoke",
         "field": "cast-succeeds-null",
@@ -1354,7 +1354,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1993,
+      "line": 1979,
       "action": {
         "type": "invoke",
         "field": "cast-succeeds-val",
@@ -1364,7 +1364,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1994,
+      "line": 1980,
       "action": {
         "type": "invoke",
         "field": "cast-fails-null",
@@ -1374,7 +1374,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1995,
+      "line": 1981,
       "action": {
         "type": "invoke",
         "field": "cast-fails-val",

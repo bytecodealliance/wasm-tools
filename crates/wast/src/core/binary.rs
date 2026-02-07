@@ -1599,7 +1599,7 @@ impl Encode for BrOnCastFail<'_> {
     }
 }
 
-impl Encode for RefCastDesc<'_> {
+impl Encode for RefCastDescEq<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         e.push(0xfb);
         if self.r#type.nullable {
@@ -1611,7 +1611,7 @@ impl Encode for RefCastDesc<'_> {
     }
 }
 
-impl Encode for BrOnCastDesc<'_> {
+impl Encode for BrOnCastDescEq<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         e.push(0xfb);
         e.push(0x25);
@@ -1625,7 +1625,7 @@ impl Encode for BrOnCastDesc<'_> {
     }
 }
 
-impl Encode for BrOnCastDescFail<'_> {
+impl Encode for BrOnCastDescEqFail<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         e.push(0xfb);
         e.push(0x26);

@@ -81,19 +81,19 @@
   (func $test-cast-desc (param $i (ref $t1)) (param $desc (ref null (exact $t2))) (result (ref null (exact $t1)))
     local.get $i
     local.get $desc
-    ref.cast_desc (ref null (exact $t1))
+    ref.cast_desc_eq (ref null (exact $t1))
   )
 
   (func $test-br_on_cast_desc (param $i (ref null $t1sub)) (param $desc (ref null $t2)) (result (ref null $t1))
     local.get $i
     local.get $desc
-    br_on_cast_desc 0 (ref null $t1sub) (ref null $t1)
+    br_on_cast_desc_eq 0 (ref null $t1sub) (ref null $t1)
   )
 
   (func $test-br_on_cast_desc_fail (param $i (ref null $t1sub)) (param $desc (ref null $t2)) (result (ref null $t1))
     local.get $i
     local.get $desc
-    br_on_cast_desc_fail 0 (ref null $t1sub) (ref null $t1)
+    br_on_cast_desc_eq_fail 0 (ref null $t1sub) (ref null $t1)
   )
 )
 
@@ -183,7 +183,7 @@
     (func $test-br_on_cast_desc-bad-types (param $i (ref null $f)) (param $desc (ref null $t2)) (result (ref null $t1))
       local.get $i
       local.get $desc
-      br_on_cast_desc 0 (ref null $f) (ref null $t1)
+      br_on_cast_desc_eq 0 (ref null $f) (ref null $t1)
     )
 
   )

@@ -1369,8 +1369,8 @@ impl<'a> BinaryReader<'a> {
                 visitor.visit_struct_new_default_desc(type_index)
             }
             0x22 => visitor.visit_ref_get_desc(self.read()?),
-            0x23 => visitor.visit_ref_cast_desc_non_null(self.read()?),
-            0x24 => visitor.visit_ref_cast_desc_nullable(self.read()?),
+            0x23 => visitor.visit_ref_cast_desc_eq_non_null(self.read()?),
+            0x24 => visitor.visit_ref_cast_desc_eq_nullable(self.read()?),
             0x25 => {
                 let pos = self.original_position();
                 let cast_flags = self.read_u8()?;
@@ -1392,7 +1392,7 @@ impl<'a> BinaryReader<'a> {
                     RefType::new(to_type_nullable, to_heap_type).ok_or_else(|| {
                         format_err!(pos, "implementation error: type index too large")
                     })?;
-                visitor.visit_br_on_cast_desc(relative_depth, from_ref_type, to_ref_type)
+                visitor.visit_br_on_cast_desc_eq(relative_depth, from_ref_type, to_ref_type)
             }
             0x26 => {
                 let pos = self.original_position();
@@ -1415,7 +1415,7 @@ impl<'a> BinaryReader<'a> {
                     RefType::new(to_type_nullable, to_heap_type).ok_or_else(|| {
                         format_err!(pos, "implementation error: type index too large")
                     })?;
-                visitor.visit_br_on_cast_desc_fail(relative_depth, from_ref_type, to_ref_type)
+                visitor.visit_br_on_cast_desc_eq_fail(relative_depth, from_ref_type, to_ref_type)
             }
 
             _ => bail!(pos, "unknown 0xfb subopcode: 0x{code:x}"),

@@ -40,41 +40,7 @@
       i32.const 2
       ref.null none
       global.get $b1
-      br_on_cast_desc_fail 0 (;@1;) eqref (ref null $a)
-      ref.null none
-      call $assert-eq-ref
-      i32.const 2
-      call $assert-eq-i32
-      i32.const 1
-      call $assert-eq-i32
-      return
-    end
-    unreachable
-  )
-  (func (;3;) (type 4)
-    block (type 5) (result i32 i32 eqref) ;; label = @1
-      i32.const 1
-      i32.const 2
-      global.get $a1
-      global.get $b1
-      br_on_cast_desc_fail 0 (;@1;) eqref (ref null $a)
-      global.get $a1
-      call $assert-eq-ref
-      i32.const 2
-      call $assert-eq-i32
-      i32.const 1
-      call $assert-eq-i32
-      return
-    end
-    unreachable
-  )
-  (func (;4;) (type 4)
-    block (type 5) (result i32 i32 eqref) ;; label = @1
-      i32.const 1
-      i32.const 2
-      ref.null none
-      global.get $b2
-      br_on_cast_desc_fail 0 (;@1;) eqref (ref $a)
+      br_on_cast_desc_eq 0 (;@1;) eqref (ref null $a)
       unreachable
     end
     ref.null none
@@ -84,13 +50,13 @@
     i32.const 1
     call $assert-eq-i32
   )
-  (func (;5;) (type 4)
+  (func (;3;) (type 4)
     block (type 5) (result i32 i32 eqref) ;; label = @1
       i32.const 1
       i32.const 2
       global.get $a1
-      global.get $b2
-      br_on_cast_desc_fail 0 (;@1;) eqref (ref $a)
+      global.get $b1
+      br_on_cast_desc_eq 0 (;@1;) eqref (ref null $a)
       unreachable
     end
     global.get $a1
@@ -99,5 +65,39 @@
     call $assert-eq-i32
     i32.const 1
     call $assert-eq-i32
+  )
+  (func (;4;) (type 4)
+    block (type 5) (result i32 i32 eqref) ;; label = @1
+      i32.const 1
+      i32.const 2
+      ref.null none
+      global.get $b2
+      br_on_cast_desc_eq 0 (;@1;) eqref (ref $a)
+      ref.null none
+      call $assert-eq-ref
+      i32.const 2
+      call $assert-eq-i32
+      i32.const 1
+      call $assert-eq-i32
+      return
+    end
+    unreachable
+  )
+  (func (;5;) (type 4)
+    block (type 5) (result i32 i32 eqref) ;; label = @1
+      i32.const 1
+      i32.const 2
+      global.get $a1
+      global.get $b2
+      br_on_cast_desc_eq 0 (;@1;) eqref (ref $a)
+      global.get $a1
+      call $assert-eq-ref
+      i32.const 2
+      call $assert-eq-i32
+      i32.const 1
+      call $assert-eq-i32
+      return
+    end
+    unreachable
   )
 )

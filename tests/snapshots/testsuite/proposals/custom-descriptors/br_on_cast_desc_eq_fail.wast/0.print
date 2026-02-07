@@ -36,7 +36,7 @@
     block (result (ref null $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 anyref (ref null $a)
+      br_on_cast_desc_eq_fail 1 anyref (ref null $a)
     end
     unreachable
   )
@@ -44,14 +44,14 @@
     block (result (ref $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 anyref (ref $a)
+      br_on_cast_desc_eq_fail 1 anyref (ref $a)
     end
   )
   (func (;2;) (type 6) (param anyref (ref $b)) (result (ref any))
     block (result (ref null $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 anyref (ref null $a)
+      br_on_cast_desc_eq_fail 1 anyref (ref null $a)
     end
     unreachable
   )
@@ -59,14 +59,14 @@
     block (result (ref $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 anyref (ref $a)
+      br_on_cast_desc_eq_fail 1 anyref (ref $a)
     end
   )
   (func (;4;) (type 8) (param (ref any) (ref null $b)) (result (ref any))
     block (result (ref null $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref any) (ref null $a)
+      br_on_cast_desc_eq_fail 1 (ref any) (ref null $a)
     end
     unreachable
   )
@@ -74,14 +74,14 @@
     block (result (ref $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref any) (ref $a)
+      br_on_cast_desc_eq_fail 1 (ref any) (ref $a)
     end
   )
   (func (;6;) (type 9) (param (ref any) (ref $b)) (result (ref any))
     block (result (ref null $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref any) (ref null $a)
+      br_on_cast_desc_eq_fail 1 (ref any) (ref null $a)
     end
     unreachable
   )
@@ -89,14 +89,14 @@
     block (result (ref $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref any) (ref $a)
+      br_on_cast_desc_eq_fail 1 (ref any) (ref $a)
     end
   )
   (func (;8;) (type 10) (param anyref (ref null $d)) (result (ref any))
     block (result (ref null $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 anyref (ref null $a)
+      br_on_cast_desc_eq_fail 1 anyref (ref null $a)
     end
     unreachable
   )
@@ -104,14 +104,14 @@
     block (result (ref $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 anyref (ref $a)
+      br_on_cast_desc_eq_fail 1 anyref (ref $a)
     end
   )
   (func (;10;) (type 12) (param anyref (ref $d)) (result (ref any))
     block (result (ref null $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 anyref (ref null $a)
+      br_on_cast_desc_eq_fail 1 anyref (ref null $a)
     end
     unreachable
   )
@@ -119,14 +119,14 @@
     block (result (ref $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 anyref (ref $a)
+      br_on_cast_desc_eq_fail 1 anyref (ref $a)
     end
   )
   (func (;12;) (type 14) (param (ref any) (ref null $d)) (result (ref any))
     block (result (ref null $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref any) (ref null $a)
+      br_on_cast_desc_eq_fail 1 (ref any) (ref null $a)
     end
     unreachable
   )
@@ -134,14 +134,14 @@
     block (result (ref $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref any) (ref $a)
+      br_on_cast_desc_eq_fail 1 (ref any) (ref $a)
     end
   )
   (func (;14;) (type 15) (param (ref any) (ref $d)) (result (ref any))
     block (result (ref null $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref any) (ref null $a)
+      br_on_cast_desc_eq_fail 1 (ref any) (ref null $a)
     end
     unreachable
   )
@@ -149,14 +149,14 @@
     block (result (ref $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref any) (ref $a)
+      br_on_cast_desc_eq_fail 1 (ref any) (ref $a)
     end
   )
   (func (;16;) (type 16) (param anyref (ref null (exact $d))) (result (ref any))
     block (result (ref null $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 anyref (ref null $a)
+      br_on_cast_desc_eq_fail 1 anyref (ref null $a)
     end
     unreachable
   )
@@ -164,14 +164,14 @@
     block (result (ref $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 anyref (ref $a)
+      br_on_cast_desc_eq_fail 1 anyref (ref $a)
     end
   )
   (func (;18;) (type 18) (param anyref (ref (exact $d))) (result (ref any))
     block (result (ref null $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 anyref (ref null $a)
+      br_on_cast_desc_eq_fail 1 anyref (ref null $a)
     end
     unreachable
   )
@@ -179,14 +179,14 @@
     block (result (ref $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 anyref (ref $a)
+      br_on_cast_desc_eq_fail 1 anyref (ref $a)
     end
   )
   (func (;20;) (type 20) (param (ref any) (ref null (exact $d))) (result (ref any))
     block (result (ref null $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref any) (ref null $a)
+      br_on_cast_desc_eq_fail 1 (ref any) (ref null $a)
     end
     unreachable
   )
@@ -194,14 +194,14 @@
     block (result (ref $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref any) (ref $a)
+      br_on_cast_desc_eq_fail 1 (ref any) (ref $a)
     end
   )
   (func (;22;) (type 21) (param (ref any) (ref (exact $d))) (result (ref any))
     block (result (ref null $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref any) (ref null $a)
+      br_on_cast_desc_eq_fail 1 (ref any) (ref null $a)
     end
     unreachable
   )
@@ -209,14 +209,14 @@
     block (result (ref $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref any) (ref $a)
+      br_on_cast_desc_eq_fail 1 (ref any) (ref $a)
     end
   )
   (func (;24;) (type 22) (param anyref (ref null (exact $b))) (result (ref any))
     block (result (ref null $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 anyref (ref null (exact $a))
+      br_on_cast_desc_eq_fail 1 anyref (ref null (exact $a))
     end
     unreachable
   )
@@ -224,14 +224,14 @@
     block (result (ref $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 anyref (ref (exact $a))
+      br_on_cast_desc_eq_fail 1 anyref (ref (exact $a))
     end
   )
   (func (;26;) (type 24) (param anyref (ref (exact $b))) (result (ref any))
     block (result (ref null $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 anyref (ref null (exact $a))
+      br_on_cast_desc_eq_fail 1 anyref (ref null (exact $a))
     end
     unreachable
   )
@@ -239,14 +239,14 @@
     block (result (ref $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 anyref (ref (exact $a))
+      br_on_cast_desc_eq_fail 1 anyref (ref (exact $a))
     end
   )
   (func (;28;) (type 26) (param (ref any) (ref null (exact $b))) (result (ref any))
     block (result (ref null $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref any) (ref null (exact $a))
+      br_on_cast_desc_eq_fail 1 (ref any) (ref null (exact $a))
     end
     unreachable
   )
@@ -254,14 +254,14 @@
     block (result (ref $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref any) (ref (exact $a))
+      br_on_cast_desc_eq_fail 1 (ref any) (ref (exact $a))
     end
   )
   (func (;30;) (type 27) (param (ref any) (ref (exact $b))) (result (ref any))
     block (result (ref null $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref any) (ref null (exact $a))
+      br_on_cast_desc_eq_fail 1 (ref any) (ref null (exact $a))
     end
     unreachable
   )
@@ -269,14 +269,14 @@
     block (result (ref $a)) ;; label = @1
       local.get 0
       local.get 1
-      br_on_cast_desc_fail 1 (ref any) (ref (exact $a))
+      br_on_cast_desc_eq_fail 1 (ref any) (ref (exact $a))
     end
   )
   (func (;32;) (type 28) (param anyref) (result (ref any))
     block (result (ref null $a)) ;; label = @1
       local.get 0
       unreachable
-      br_on_cast_desc_fail 1 anyref (ref null $a)
+      br_on_cast_desc_eq_fail 1 anyref (ref null $a)
     end
     unreachable
   )
@@ -284,14 +284,14 @@
     block (result (ref $a)) ;; label = @1
       local.get 0
       unreachable
-      br_on_cast_desc_fail 1 anyref (ref $a)
+      br_on_cast_desc_eq_fail 1 anyref (ref $a)
     end
   )
   (func (;34;) (type 30) (param (ref any)) (result (ref any))
     block (result (ref null $a)) ;; label = @1
       local.get 0
       unreachable
-      br_on_cast_desc_fail 1 (ref any) (ref null $a)
+      br_on_cast_desc_eq_fail 1 (ref any) (ref null $a)
     end
     unreachable
   )
@@ -299,14 +299,14 @@
     block (result (ref $a)) ;; label = @1
       local.get 0
       unreachable
-      br_on_cast_desc_fail 1 (ref any) (ref $a)
+      br_on_cast_desc_eq_fail 1 (ref any) (ref $a)
     end
   )
   (func (;36;) (type 28) (param anyref) (result (ref any))
     block (result (ref null (exact $a))) ;; label = @1
       local.get 0
       unreachable
-      br_on_cast_desc_fail 1 anyref (ref null (exact $a))
+      br_on_cast_desc_eq_fail 1 anyref (ref null (exact $a))
     end
     unreachable
   )
@@ -314,14 +314,14 @@
     block (result (ref (exact $a))) ;; label = @1
       local.get 0
       unreachable
-      br_on_cast_desc_fail 1 anyref (ref (exact $a))
+      br_on_cast_desc_eq_fail 1 anyref (ref (exact $a))
     end
   )
   (func (;38;) (type 30) (param (ref any)) (result (ref any))
     block (result (ref null (exact $a))) ;; label = @1
       local.get 0
       unreachable
-      br_on_cast_desc_fail 1 (ref any) (ref null (exact $a))
+      br_on_cast_desc_eq_fail 1 (ref any) (ref null (exact $a))
     end
     unreachable
   )
@@ -329,14 +329,14 @@
     block (result (ref (exact $a))) ;; label = @1
       local.get 0
       unreachable
-      br_on_cast_desc_fail 1 (ref any) (ref (exact $a))
+      br_on_cast_desc_eq_fail 1 (ref any) (ref (exact $a))
     end
   )
   (func (;40;) (type 28) (param anyref) (result (ref any))
     block (result (ref null $a)) ;; label = @1
       local.get 0
       ref.null none
-      br_on_cast_desc_fail 1 anyref (ref null $a)
+      br_on_cast_desc_eq_fail 1 anyref (ref null $a)
     end
     unreachable
   )
@@ -344,14 +344,14 @@
     block (result (ref $a)) ;; label = @1
       local.get 0
       ref.null none
-      br_on_cast_desc_fail 1 anyref (ref $a)
+      br_on_cast_desc_eq_fail 1 anyref (ref $a)
     end
   )
   (func (;42;) (type 30) (param (ref any)) (result (ref any))
     block (result (ref null $a)) ;; label = @1
       local.get 0
       ref.null none
-      br_on_cast_desc_fail 1 (ref any) (ref null $a)
+      br_on_cast_desc_eq_fail 1 (ref any) (ref null $a)
     end
     unreachable
   )
@@ -359,14 +359,14 @@
     block (result (ref $a)) ;; label = @1
       local.get 0
       ref.null none
-      br_on_cast_desc_fail 1 (ref any) (ref $a)
+      br_on_cast_desc_eq_fail 1 (ref any) (ref $a)
     end
   )
   (func (;44;) (type 28) (param anyref) (result (ref any))
     block (result (ref null (exact $a))) ;; label = @1
       local.get 0
       ref.null none
-      br_on_cast_desc_fail 1 anyref (ref null (exact $a))
+      br_on_cast_desc_eq_fail 1 anyref (ref null (exact $a))
     end
     unreachable
   )
@@ -374,14 +374,14 @@
     block (result (ref (exact $a))) ;; label = @1
       local.get 0
       ref.null none
-      br_on_cast_desc_fail 1 anyref (ref (exact $a))
+      br_on_cast_desc_eq_fail 1 anyref (ref (exact $a))
     end
   )
   (func (;46;) (type 30) (param (ref any)) (result (ref any))
     block (result (ref null (exact $a))) ;; label = @1
       local.get 0
       ref.null none
-      br_on_cast_desc_fail 1 (ref any) (ref null (exact $a))
+      br_on_cast_desc_eq_fail 1 (ref any) (ref null (exact $a))
     end
     unreachable
   )
@@ -389,7 +389,7 @@
     block (result (ref (exact $a))) ;; label = @1
       local.get 0
       ref.null none
-      br_on_cast_desc_fail 1 (ref any) (ref (exact $a))
+      br_on_cast_desc_eq_fail 1 (ref any) (ref (exact $a))
     end
   )
 )

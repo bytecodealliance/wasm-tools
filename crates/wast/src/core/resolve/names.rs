@@ -692,15 +692,15 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             RefGetDesc(i) => {
                 self.resolver.resolve(i, Ns::Type)?;
             }
-            RefCastDesc(i) => {
+            RefCastDescEq(i) => {
                 self.resolver.resolve_reftype(&mut i.r#type)?;
             }
-            BrOnCastDesc(i) => {
+            BrOnCastDescEq(i) => {
                 self.resolve_label(&mut i.label)?;
                 self.resolver.resolve_reftype(&mut i.to_type)?;
                 self.resolver.resolve_reftype(&mut i.from_type)?;
             }
-            BrOnCastDescFail(i) => {
+            BrOnCastDescEqFail(i) => {
                 self.resolve_label(&mut i.label)?;
                 self.resolver.resolve_reftype(&mut i.to_type)?;
                 self.resolver.resolve_reftype(&mut i.from_type)?;
