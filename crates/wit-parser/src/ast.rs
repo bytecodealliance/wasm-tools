@@ -292,13 +292,13 @@ impl<'a> PackageName<'a> {
         let version = parse_opt_version(tokens)?;
         Ok(PackageName {
             docs,
-            span: Span::Range {
-                start: namespace.span.start(),
-                end: version
+            span: Span::new(
+                namespace.span.start(),
+                version
                     .as_ref()
                     .map(|(s, _)| s.end())
                     .unwrap_or(name.span.end()),
-            },
+            ),
             namespace,
             name,
             version,
@@ -605,10 +605,7 @@ impl<'a> UsePath<'a> {
             Ok(UsePath::Package {
                 id: PackageName {
                     docs: Default::default(),
-                    span: Span::Range {
-                        start: namespace.span.start(),
-                        end: pkg_name.span.end(),
-                    },
+                    span: Span::new(namespace.span.start(), pkg_name.span.end()),
                     namespace,
                     name: pkg_name,
                     version,
@@ -1246,7 +1243,7 @@ fn parse_version(tokens: &mut Tokenizer<'_>) -> Result<(Span, Version)> {
     tokens.expect(Token::Integer)?;
     tokens.expect(Token::Period)?;
     let end = tokens.expect(Token::Integer)?.end();
-    let mut span = Span::Range { start, end };
+    let mut span = Span::new(start, end);
     eat_ids(tokens, Token::Minus, &mut span)?;
     eat_ids(tokens, Token::Plus, &mut span)?;
     let string = tokens.get_span(span);
@@ -1903,20 +1900,19 @@ impl SourceMap {
 
     /// Renders a span as a human-readable location string (e.g., "file.wit:10:5").
     pub fn render_location(&self, span: Span) -> String {
-        match span {
-            Span::Unknown => "<unknown>".to_string(),
-            Span::Range { start, .. } => {
-                let src = self.source_for_offset(start);
-                let rel_start = src.to_relative_offset(start);
-                let (line, col) = src.linecol(rel_start);
-                format!(
-                    "{file}:{line}:{col}",
-                    file = src.path,
-                    line = line + 1,
-                    col = col + 1,
-                )
-            }
+        if !span.is_known() {
+            return "<unknown>".to_string();
         }
+        let start = span.start();
+        let src = self.source_for_offset(start);
+        let rel_start = src.to_relative_offset(start);
+        let (line, col) = src.linecol(rel_start);
+        format!(
+            "{file}:{line}:{col}",
+            file = src.path,
+            line = line + 1,
+            col = col + 1,
+        )
     }
 
     fn source_for_offset(&self, start: u32) -> &Source {
