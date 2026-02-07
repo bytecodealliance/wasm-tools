@@ -4,9 +4,7 @@
       "name": "a",
       "imports": {
         "r": {
-          "type": {
-            "id": 0
-          }
+          "type": 0
         },
         "f": {
           "function": {
@@ -76,9 +74,7 @@
       "name": "b",
       "imports": {
         "s": {
-          "type": {
-            "id": 4
-          }
+          "type": 4
         },
         "f": {
           "function": {

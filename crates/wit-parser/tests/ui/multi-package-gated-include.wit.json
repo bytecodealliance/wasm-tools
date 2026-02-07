@@ -139,19 +139,13 @@
           }
         },
         "stable-resource": {
-          "type": {
-            "id": 4
-          }
+          "type": 4
         },
         "unversioned-resource": {
-          "type": {
-            "id": 5
-          }
+          "type": 5
         },
         "unstable-resource": {
-          "type": {
-            "id": 6
-          }
+          "type": 6
         }
       },
       "exports": {},
@@ -201,19 +195,13 @@
           }
         },
         "stable-resource": {
-          "type": {
-            "id": 7
-          }
+          "type": 7
         },
         "unversioned-resource": {
-          "type": {
-            "id": 8
-          }
+          "type": 8
         },
         "unstable-resource": {
-          "type": {
-            "id": 9
-          }
+          "type": 9
         }
       },
       "exports": {},
@@ -258,19 +246,13 @@
           }
         },
         "stable-resource": {
-          "type": {
-            "id": 10
-          }
+          "type": 10
         },
         "unversioned-resource": {
-          "type": {
-            "id": 11
-          }
+          "type": 11
         },
         "unstable-resource": {
-          "type": {
-            "id": 12
-          }
+          "type": 12
         }
       },
       "exports": {},
@@ -315,19 +297,13 @@
           }
         },
         "stable-resource": {
-          "type": {
-            "id": 13
-          }
+          "type": 13
         },
         "unversioned-resource": {
-          "type": {
-            "id": 14
-          }
+          "type": 14
         },
         "unstable-resource": {
-          "type": {
-            "id": 15
-          }
+          "type": 15
         }
       },
       "exports": {},

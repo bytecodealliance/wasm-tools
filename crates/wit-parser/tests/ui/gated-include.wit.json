@@ -156,9 +156,7 @@
           }
         },
         "stable-resource": {
-          "type": {
-            "id": 3
-          }
+          "type": 3
         }
       },
       "exports": {},
@@ -193,9 +191,7 @@
           }
         },
         "stable-resource": {
-          "type": {
-            "id": 4
-          }
+          "type": 4
         }
       },
       "exports": {},

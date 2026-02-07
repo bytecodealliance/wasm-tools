@@ -624,12 +624,8 @@ pub enum WorldItem {
     /// A type is being exported from this world.
     ///
     /// Note that types are never imported into worlds at this time.
-    Type {
-        #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
-        id: TypeId,
-        #[cfg_attr(feature = "serde", serde(skip))]
-        span: Span,
-    },
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id_ignore_span"))]
+    Type { id: TypeId, span: Span },
 }
 
 impl WorldItem {
