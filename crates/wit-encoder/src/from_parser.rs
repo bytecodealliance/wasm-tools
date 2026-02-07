@@ -466,11 +466,11 @@ impl<'a> Converter<'a> {
         }
     }
 
-    fn convert_params(&self, params: &[(String, wit_parser::Type)]) -> Params {
+    fn convert_params(&self, params: &[wit_parser::Param]) -> Params {
         let mut output = Params::empty();
-        for (name, ty) in params.iter() {
-            let name = name.to_string();
-            let ty = self.convert_type(ty);
+        for param in params.iter() {
+            let name = param.name.to_string();
+            let ty = self.convert_type(&param.ty);
             output.push(name, ty);
         }
         output

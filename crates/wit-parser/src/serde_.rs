@@ -91,29 +91,6 @@ impl Serialize for Type {
     }
 }
 
-pub fn serialize_params<S>(params: &[(String, Type)], serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let mut seq = serializer.serialize_seq(Some(params.len()))?;
-    for (name, typ) in params.iter() {
-        let param = Param {
-            name: name.to_string(),
-            typ: *typ,
-        };
-        seq.serialize_element(&param)?;
-    }
-    seq.end()
-}
-
-#[derive(Debug, Clone, PartialEq, serde_derive::Serialize)]
-struct Param {
-    #[serde(skip_serializing_if = "String::is_empty")]
-    pub name: String,
-    #[serde(rename = "type")]
-    pub typ: Type,
-}
-
 pub fn serialize_version<S>(version: &Version, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,

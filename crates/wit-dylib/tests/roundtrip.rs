@@ -39,7 +39,7 @@ use std::process::Command;
 use tempfile::TempDir;
 use wit_parser::decoding::DecodedWasm;
 use wit_parser::{
-    Function, FunctionKind, Handle, Interface, Package, PackageName, Resolve, Type, TypeDef,
+    Function, FunctionKind, Handle, Interface, Package, PackageName, Param, Resolve, Type, TypeDef,
     TypeDefKind, TypeOwner, World, WorldItem, WorldKey,
 };
 
@@ -142,7 +142,11 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
                 Function {
                     name: "set-seed".to_string(),
                     kind: FunctionKind::Freestanding,
-                    params: vec![("seed".to_string(), Type::U64)],
+                    params: vec![Param {
+                        name: "seed".to_string(),
+                        ty: Type::U64,
+                        span: Default::default(),
+                    }],
                     result: None,
                     stability: Default::default(),
                     docs: Default::default(),
@@ -215,8 +219,16 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
             name: "run".to_string(),
             kind: FunctionKind::Freestanding,
             params: vec![
-                ("iters".to_string(), Type::U32),
-                ("seed".to_string(), Type::U64),
+                Param {
+                    name: "iters".to_string(),
+                    ty: Type::U32,
+                    span: Default::default(),
+                },
+                Param {
+                    name: "seed".to_string(),
+                    ty: Type::U64,
+                    span: Default::default(),
+                },
             ],
             result: None,
             stability: Default::default(),
@@ -345,7 +357,11 @@ fn update_resources(resolve: &mut Resolve) {
             Function {
                 name: ctor,
                 kind: FunctionKind::Constructor(resource_id),
-                params: vec![("rep".to_string(), Type::U32)],
+                params: vec![Param {
+                    name: "rep".to_string(),
+                    ty: Type::U32,
+                    span: Default::default(),
+                }],
                 result: Some(Type::Id(own)),
                 stability: Default::default(),
                 docs: Default::default(),
@@ -357,7 +373,11 @@ fn update_resources(resolve: &mut Resolve) {
             Function {
                 name: rep,
                 kind: FunctionKind::Method(resource_id),
-                params: vec![("self".to_string(), Type::Id(borrow))],
+                params: vec![Param {
+                    name: "self".to_string(),
+                    ty: Type::Id(borrow),
+                    span: Default::default(),
+                }],
                 result: Some(Type::U32),
                 stability: Default::default(),
                 docs: Default::default(),

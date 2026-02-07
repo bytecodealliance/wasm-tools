@@ -116,8 +116,8 @@ pub trait TypeIdVisitor {
             FunctionKind::Freestanding | FunctionKind::AsyncFreestanding => {}
         }
 
-        for (_, ty) in func.params.iter() {
-            self.visit_type(resolve, ty);
+        for param in func.params.iter() {
+            self.visit_type(resolve, &param.ty);
         }
         if let Some(ty) = &func.result {
             self.visit_type(resolve, ty);

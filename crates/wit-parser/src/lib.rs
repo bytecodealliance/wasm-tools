@@ -1011,11 +1011,21 @@ impl Docs {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct Param {
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "String::is_empty"))]
+    pub name: String,
+    #[cfg_attr(feature = "serde", serde(rename = "type"))]
+    pub ty: Type,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Function {
     pub name: String,
     pub kind: FunctionKind,
-    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_params"))]
-    pub params: Vec<(String, Type)>,
+    pub params: Vec<Param>,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub result: Option<Type>,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
@@ -1296,6 +1306,9 @@ impl Function {
     /// Adjusts all spans in this function by adding the given byte offset.
     pub(crate) fn adjust_spans(&mut self, offset: u32) {
         self.span.adjust(offset);
+        for param in &mut self.params {
+            param.span.adjust(offset);
+        }
     }
 
     pub fn item_name(&self) -> &str {
@@ -1314,7 +1327,7 @@ impl Function {
     /// Note that this iterator is not transitive, it only iterates over the
     /// direct references to types that this function has.
     pub fn parameter_and_result_types(&self) -> impl Iterator<Item = Type> + '_ {
-        self.params.iter().map(|(_, t)| *t).chain(self.result)
+        self.params.iter().map(|p| p.ty).chain(self.result)
     }
 
     /// Gets the core export name for this function.
@@ -1359,8 +1372,8 @@ impl Function {
     /// indicate a call to `stream.new` for `stream<u8>`.
     pub fn find_futures_and_streams(&self, resolve: &Resolve) -> Vec<TypeId> {
         let mut results = Vec::new();
-        for (_, ty) in self.params.iter() {
-            find_futures_and_streams(resolve, *ty, &mut results);
+        for param in self.params.iter() {
+            find_futures_and_streams(resolve, param.ty, &mut results);
         }
         if let Some(ty) = self.result {
             find_futures_and_streams(resolve, ty, &mut results);
@@ -1409,7 +1422,11 @@ impl Function {
         func_tmp.params = Vec::new();
         func_tmp.result = None;
         if let Some(ty) = self.result {
-            func_tmp.params.push(("x".to_string(), ty));
+            func_tmp.params.push(Param {
+                name: "x".to_string(),
+                ty,
+                span: Default::default(),
+            });
         }
         let sig = resolve.wasm_signature(AbiVariant::GuestImport, &func_tmp);
         (module, name, sig)
@@ -1596,7 +1613,18 @@ mod test {
         let found = Function {
             name: "foo".into(),
             kind: FunctionKind::Freestanding,
-            params: vec![("p1".into(), Type::Id(t1)), ("p2".into(), Type::U32)],
+            params: vec![
+                Param {
+                    name: "p1".into(),
+                    ty: Type::Id(t1),
+                    span: Default::default(),
+                },
+                Param {
+                    name: "p2".into(),
+                    ty: Type::U32,
+                    span: Default::default(),
+                },
+            ],
             result: Some(Type::Id(t2)),
             docs: Docs::default(),
             stability: Stability::Unknown,

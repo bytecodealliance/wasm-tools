@@ -192,8 +192,8 @@ impl<'a> Cloner<'a> {
         if let Some(id) = func.kind.resource_mut() {
             self.type_id(id);
         }
-        for (_, ty) in func.params.iter_mut() {
-            self.ty(ty);
+        for param in func.params.iter_mut() {
+            self.ty(&mut param.ty);
         }
         if let Some(ty) = &mut func.result {
             self.ty(ty);

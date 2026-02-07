@@ -3,15 +3,42 @@ use anyhow::Result;
 use std::collections::HashMap;
 use wasm_encoder::*;
 use wit_parser::{
-    Enum, Flags, Function, Handle, InterfaceId, Record, Resolve, Result_, Tuple, Type, TypeDefKind,
-    TypeId, TypeOwner, Variant,
+    Enum, Flags, Function, Handle, InterfaceId, Param, Record, Resolve, Result_, Tuple, Type,
+    TypeDefKind, TypeId, TypeOwner, Variant,
 };
+
+/// A view of `&[Param]` that compares and hashes by name and type only,
+/// ignoring source spans.
+#[derive(Clone)]
+struct ParamSignatures<'a>(&'a [Param]);
+
+impl PartialEq for ParamSignatures<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.len() == other.0.len()
+            && self
+                .0
+                .iter()
+                .zip(other.0)
+                .all(|(a, b)| a.name == b.name && a.ty == b.ty)
+    }
+}
+
+impl Eq for ParamSignatures<'_> {}
+
+impl std::hash::Hash for ParamSignatures<'_> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        for p in self.0 {
+            p.name.hash(state);
+            p.ty.hash(state);
+        }
+    }
+}
 
 /// Represents a key type for interface function definitions.
 #[derive(Hash, PartialEq, Eq, Clone)]
 pub struct FunctionKey<'a> {
     async_: bool,
-    params: &'a [(String, Type)],
+    params: ParamSignatures<'a>,
     result: &'a Option<Type>,
 }
 
@@ -102,7 +129,7 @@ pub trait ValtypeEncoder<'a> {
     fn encode_func_type(&mut self, resolve: &'a Resolve, func: &'a Function) -> Result<u32> {
         let key = FunctionKey {
             async_: func.kind.is_async(),
-            params: &func.params,
+            params: ParamSignatures(&func.params),
             result: &func.result,
         };
         if let Some(index) = self.type_encoding_maps().func_type_map.get(&key) {
@@ -128,11 +155,11 @@ pub trait ValtypeEncoder<'a> {
     fn encode_params(
         &mut self,
         resolve: &'a Resolve,
-        params: &'a [(String, Type)],
+        params: &'a [Param],
     ) -> Result<Vec<(&'a str, ComponentValType)>> {
         params
             .iter()
-            .map(|(name, ty)| Ok((name.as_str(), self.encode_valtype(resolve, ty)?)))
+            .map(|p| Ok((p.name.as_str(), self.encode_valtype(resolve, &p.ty)?)))
             .collect::<Result<_>>()
     }
 

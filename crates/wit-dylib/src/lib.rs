@@ -1015,11 +1015,7 @@ impl Adapter {
             sync_import_elem_index,
             async_import_elem_index,
             async_import_lift_results_elem_index,
-            args: func
-                .params
-                .iter()
-                .map(|(_, ty)| self.lookup_ty(ty))
-                .collect(),
+            args: func.params.iter().map(|p| self.lookup_ty(&p.ty)).collect(),
             result: func.result.map(|t| self.lookup_ty(&t)),
             async_abi_area: self.async_import_abi_area(resolve, mangling, func),
         })
@@ -1149,11 +1145,7 @@ impl Adapter {
             interface: export.interface.map(|k| resolve.name_world_key(k)),
             name: func.name.clone(),
             async_export_task_return_elem_index,
-            args: func
-                .params
-                .iter()
-                .map(|(_, ty)| self.lookup_ty(ty))
-                .collect(),
+            args: func.params.iter().map(|p| self.lookup_ty(&p.ty)).collect(),
             result: func.result.map(|t| self.lookup_ty(&t)),
         })
     }
