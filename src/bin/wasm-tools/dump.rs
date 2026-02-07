@@ -499,12 +499,12 @@ impl<'a> Dump<'a> {
                             | CanonicalFunction::ErrorContextDrop
                             | CanonicalFunction::ThreadIndex
                             | CanonicalFunction::ThreadNewIndirect { .. }
-                            | CanonicalFunction::ThreadSwitchTo { .. }
+                            | CanonicalFunction::ThreadSuspendToSuspended { .. }
                             | CanonicalFunction::ThreadSuspend { .. }
-                            | CanonicalFunction::ThreadResumeLater { .. }
-                            | CanonicalFunction::ThreadYieldTo { .. } => {
-                                ("core func", &mut i.core_funcs)
-                            }
+                            | CanonicalFunction::ThreadSuspendTo { .. }
+                            | CanonicalFunction::ThreadUnsuspend { .. }
+                            | CanonicalFunction::ThreadYieldToSuspended { .. }
+                            | CanonicalFunction::ThreadExit => ("core func", &mut i.core_funcs),
                         };
 
                         write!(me.state, "[{} {}] {:?}", name, inc(col), f)?;

@@ -431,10 +431,10 @@ pub enum Import {
     /// This allows the guest to create a new thread running a specified function.
     ThreadNewIndirect,
 
-    /// A `canon thread.switch-to` intrinsic.
+    /// A `canon thread.suspend-to-suspended` intrinsic.
     ///
-    /// This allows the guest to switch execution to another thread.
-    ThreadSwitchTo { cancellable: bool },
+    /// This allows the guest to switch execution to another suspended thread.
+    ThreadSuspendToSuspended { cancellable: bool },
 
     /// A `canon thread.suspend` intrinsic.
     ///
@@ -442,15 +442,26 @@ pub enum Import {
     /// an unspecified thread.
     ThreadSuspend { cancellable: bool },
 
-    /// A `canon thread.resume-later` intrinsic.
+    /// A `canon thread.suspend-to` intrinsic.
+    ///
+    /// This allows the guest to suspend the current thread and switch to another thread
+    /// that might not be suspended.
+    ThreadSuspendTo { cancellable: bool },
+
+    /// A `canon thread.unsuspend` intrinsic.
     ///
     /// This allows the guest to mark a suspended thread for later resumption.
-    ThreadResumeLater,
+    ThreadUnsuspend,
 
-    /// A `canon thread.yield-to` intrinsic.
+    /// A `canon thread.yield-to-suspended` intrinsic.
     ///
-    /// This allows the guest to suspend, yielding execution to a specified thread.
-    ThreadYieldTo { cancellable: bool },
+    /// This allows the guest to suspend, yielding execution to a specified suspended thread.
+    ThreadYieldToSuspended { cancellable: bool },
+
+    /// A `canon thread.exit` intrinsic.
+    ///
+    /// This allows the guest to terminate the current thread.
+    ThreadExit,
 }
 
 impl ImportMap {
@@ -700,10 +711,10 @@ impl ImportMap {
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::ThreadNewIndirect);
             }
-            if let Some(info) = names.thread_switch_to(name) {
+            if let Some(info) = names.thread_suspend_to_suspended(name) {
                 let expected = FuncType::new([ValType::I32], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::ThreadSwitchTo {
+                return Ok(Import::ThreadSuspendToSuspended {
                     cancellable: info.cancellable,
                 });
             }
@@ -714,17 +725,29 @@ impl ImportMap {
                     cancellable: info.cancellable,
                 });
             }
-            if names.thread_resume_later(name) {
-                let expected = FuncType::new([ValType::I32], []);
-                validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::ThreadResumeLater);
-            }
-            if let Some(info) = names.thread_yield_to(name) {
+            if let Some(info) = names.thread_suspend_to(name) {
                 let expected = FuncType::new([ValType::I32], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::ThreadYieldTo {
+                return Ok(Import::ThreadSuspendTo {
                     cancellable: info.cancellable,
                 });
+            }
+            if names.thread_unsuspend(name) {
+                let expected = FuncType::new([ValType::I32], []);
+                validate_func_sig(name, &expected, ty)?;
+                return Ok(Import::ThreadUnsuspend);
+            }
+            if let Some(info) = names.thread_yield_to_suspended(name) {
+                let expected = FuncType::new([ValType::I32], [ValType::I32]);
+                validate_func_sig(name, &expected, ty)?;
+                return Ok(Import::ThreadYieldToSuspended {
+                    cancellable: info.cancellable,
+                });
+            }
+            if names.thread_exit(name) {
+                let expected = FuncType::new([], []);
+                validate_func_sig(name, &expected, ty)?;
+                return Ok(Import::ThreadExit);
             }
 
             let (key_name, abi) = names.world_key_name_and_abi(name);
@@ -1642,10 +1665,12 @@ trait NameMangling {
     ) -> Option<PayloadInfo>;
     fn thread_index(&self, name: &str) -> bool;
     fn thread_new_indirect(&self, name: &str) -> bool;
-    fn thread_switch_to(&self, name: &str) -> Option<MaybeCancellable<()>>;
+    fn thread_suspend_to_suspended(&self, name: &str) -> Option<MaybeCancellable<()>>;
     fn thread_suspend(&self, name: &str) -> Option<MaybeCancellable<()>>;
-    fn thread_resume_later(&self, name: &str) -> bool;
-    fn thread_yield_to(&self, name: &str) -> Option<MaybeCancellable<()>>;
+    fn thread_suspend_to(&self, name: &str) -> Option<MaybeCancellable<()>>;
+    fn thread_unsuspend(&self, name: &str) -> bool;
+    fn thread_yield_to_suspended(&self, name: &str) -> Option<MaybeCancellable<()>>;
+    fn thread_exit(&self, name: &str) -> bool;
     fn module_to_interface(
         &self,
         module: &str,
@@ -1780,17 +1805,23 @@ impl NameMangling for Standard {
     fn thread_new_indirect(&self, _name: &str) -> bool {
         false
     }
-    fn thread_switch_to(&self, _name: &str) -> Option<MaybeCancellable<()>> {
+    fn thread_suspend_to_suspended(&self, _name: &str) -> Option<MaybeCancellable<()>> {
         None
     }
     fn thread_suspend(&self, _name: &str) -> Option<MaybeCancellable<()>> {
         None
     }
-    fn thread_resume_later(&self, _name: &str) -> bool {
+    fn thread_suspend_to(&self, _name: &str) -> Option<MaybeCancellable<()>> {
+        None
+    }
+    fn thread_unsuspend(&self, _name: &str) -> bool {
         false
     }
-    fn thread_yield_to(&self, _name: &str) -> Option<MaybeCancellable<()>> {
+    fn thread_yield_to_suspended(&self, _name: &str) -> Option<MaybeCancellable<()>> {
         None
+    }
+    fn thread_exit(&self, _name: &str) -> bool {
+        false
     }
     fn future_new(
         &self,
@@ -2239,17 +2270,23 @@ impl NameMangling for Legacy {
         // For now, we'll fix the type of the start function and the table to extract it from
         name == "[thread-new-indirect-v0]"
     }
-    fn thread_switch_to(&self, name: &str) -> Option<MaybeCancellable<()>> {
-        self.match_with_cancellable_prefix(name, "[thread-switch-to]")
+    fn thread_suspend_to_suspended(&self, name: &str) -> Option<MaybeCancellable<()>> {
+        self.match_with_cancellable_prefix(name, "[thread-suspend-to-suspended]")
     }
     fn thread_suspend(&self, name: &str) -> Option<MaybeCancellable<()>> {
         self.match_with_cancellable_prefix(name, "[thread-suspend]")
     }
-    fn thread_resume_later(&self, name: &str) -> bool {
-        name == "[thread-resume-later]"
+    fn thread_suspend_to(&self, name: &str) -> Option<MaybeCancellable<()>> {
+        self.match_with_cancellable_prefix(name, "[thread-suspend-to]")
     }
-    fn thread_yield_to(&self, name: &str) -> Option<MaybeCancellable<()>> {
-        self.match_with_cancellable_prefix(name, "[thread-yield-to]")
+    fn thread_unsuspend(&self, name: &str) -> bool {
+        name == "[thread-unsuspend]"
+    }
+    fn thread_yield_to_suspended(&self, name: &str) -> Option<MaybeCancellable<()>> {
+        self.match_with_cancellable_prefix(name, "[thread-yield-to-suspended]")
+    }
+    fn thread_exit(&self, name: &str) -> bool {
+        name == "[thread-exit]"
     }
     fn future_new(&self, lookup_context: &PayloadLookupContext, name: &str) -> Option<PayloadInfo> {
         self.prefixed_payload(lookup_context, name, "[future-new-")

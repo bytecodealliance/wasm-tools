@@ -6,8 +6,10 @@
   (component
     (core func (canon thread.index))
     (core func (canon thread.new-indirect 0 (table 0)))
-    (core func (canon thread.switch-to))
+    (core func (canon thread.suspend-to-suspended))
     (core func (canon thread.suspend))
-    (core func (canon thread.resume-later))
-    (core func (canon thread.yield-to)))
+    (core func (canon thread.suspend-to))
+    (core func (canon thread.unsuspend))
+    (core func (canon thread.yield-to-suspended))
+    (core func (canon thread.exit)))
   "requires the component model threading feature")

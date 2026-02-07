@@ -1,0 +1,14 @@
+(component
+  (core module $m (;0;)
+    (type (;0;) (func))
+    (import "" "thread.exit" (func $thread.exit (;0;) (type 0)))
+  )
+  (core func $thread.exit (;0;) (canon thread.exit))
+  (core instance (;0;)
+    (export "thread.exit" (func $thread.exit))
+  )
+  (core instance $i (;1;) (instantiate $m
+      (with "" (instance 0))
+    )
+  )
+)

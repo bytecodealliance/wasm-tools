@@ -475,10 +475,12 @@ impl<'a> Resolver<'a> {
                     self.resolve_ns(&mut info.ty, Ns::CoreType)?;
                     self.core_item_ref(&mut info.table)?;
                 }
-                CoreFuncKind::ThreadSwitchTo(_) => {}
+                CoreFuncKind::ThreadSuspendToSuspended(_) => {}
                 CoreFuncKind::ThreadSuspend(_) => {}
-                CoreFuncKind::ThreadResumeLater => {}
-                CoreFuncKind::ThreadYieldTo(_) => {}
+                CoreFuncKind::ThreadSuspendTo(_) => {}
+                CoreFuncKind::ThreadUnsuspend => {}
+                CoreFuncKind::ThreadYieldToSuspended(_) => {}
+                CoreFuncKind::ThreadExit => {}
             },
         }
 

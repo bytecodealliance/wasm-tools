@@ -1,11 +1,11 @@
 (component
   (core module $m (;0;)
     (type (;0;) (func (param i32) (result i32)))
-    (import "" "thread.switch-to" (func $thread.switch-to (;0;) (type 0)))
+    (import "" "thread.suspend-to-suspended" (func $thread.suspend-to-suspended (;0;) (type 0)))
   )
-  (core func $thread.switch-to (;0;) (canon thread.switch-to cancellable))
+  (core func $thread.suspend-to-suspended (;0;) (canon thread.suspend-to-suspended cancellable))
   (core instance (;0;)
-    (export "thread.switch-to" (func $thread.switch-to))
+    (export "thread.suspend-to-suspended" (func $thread.suspend-to-suspended))
   )
   (core instance $i (;1;) (instantiate $m
       (with "" (instance 0))
