@@ -1133,7 +1133,7 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
 
 /// The implementation of [`WasmModuleResources`] used by
 /// [`Validator`](crate::Validator).
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ValidatorResources(pub(crate) Arc<Module>);
 
 impl WasmModuleResources for ValidatorResources {
