@@ -1875,6 +1875,15 @@ impl SourceMap {
         let end = end.map(|end| src.to_relative_offset(end));
         let (line, col) = src.linecol(start);
         let snippet = src.contents.lines().nth(line).unwrap_or("");
+        let line = line + 1;
+        let col = col + 1;
+
+        // If the snippet is too large then don't overload output on a terminal
+        // for example and instead just print the error. This also sidesteps
+        // Rust's restriction that `>0$` below has to be less than `u16::MAX`.
+        if snippet.len() > 500 {
+            return format!("{}:{line}:{col}: {err}", src.path);
+        }
         let mut msg = format!(
             "\
 {err}
@@ -1882,10 +1891,8 @@ impl SourceMap {
       |
  {line:4} | {snippet}
       | {marker:>0$}",
-            col + 1,
+            col,
             file = src.path,
-            line = line + 1,
-            col = col + 1,
             marker = "^",
         );
         if let Some(end) = end {
