@@ -42,5 +42,18 @@ pub fn smith(config: &Config, u: &mut Unstructured<'_>) -> Result<Vec<u8>> {
     }
     let pkg = last.unwrap();
 
-    Ok(wit_component::encode(&resolve, pkg).expect("failed to encode WIT document"))
+    let wasm = wit_component::encode(&resolve, pkg).expect("failed to encode WIT document");
+
+    // Handle disallowing `stream<char>` here vs not generating it to start
+    // with as it's a bit easier to handle.
+    if let Err(e) = wasmparser::Validator::new_with_features(wasmparser::WasmFeatures::all())
+        .validate_all(&wasm)
+    {
+        if e.to_string()
+            .contains("`stream<char>` is not valid at this time")
+        {
+            return Err(arbitrary::Error::IncorrectFormat);
+        }
+    }
+    Ok(wasm)
 }
