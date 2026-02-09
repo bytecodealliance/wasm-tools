@@ -3197,6 +3197,7 @@ dependencies = [
  "indexmap 2.10.0",
  "log",
  "semver",
+ "wasmparser 0.244.0",
  "wit-component 0.244.0",
  "wit-parser 0.244.0",
 ]

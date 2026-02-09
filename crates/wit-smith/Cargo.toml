@@ -19,3 +19,4 @@ log = { workspace = true }
 semver = { workspace = true }
 wit-component = { workspace = true }
 wit-parser = { workspace = true }
+wasmparser = { workspace = true }
