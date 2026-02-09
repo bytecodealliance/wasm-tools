@@ -3313,8 +3313,8 @@ impl Remap {
         if let Some(id) = func.kind.resource_mut() {
             self.update_type_id(id, span)?;
         }
-        for (_, ty) in func.params.iter_mut() {
-            self.update_ty(resolve, ty, span)?;
+        for param in func.params.iter_mut() {
+            self.update_ty(resolve, &mut param.ty, span)?;
         }
         if let Some(ty) = &mut func.result {
             self.update_ty(resolve, ty, span)?;
@@ -3897,14 +3897,21 @@ impl<'a> MergeMap<'a> {
         if from_func.params.len() != into_func.params.len() {
             bail!("different number of function parameters");
         }
-        for ((from_name, from_ty), (into_name, into_ty)) in
-            from_func.params.iter().zip(&into_func.params)
-        {
-            if from_name != into_name {
-                bail!("different function parameter names: {from_name} != {into_name}");
+        for (from_param, into_param) in from_func.params.iter().zip(&into_func.params) {
+            if from_param.name != into_param.name {
+                bail!(
+                    "different function parameter names: {} != {}",
+                    from_param.name,
+                    into_param.name
+                );
             }
-            self.build_type(from_ty, into_ty)
-                .with_context(|| format!("different function parameter types for `{from_name}`"))?;
+            self.build_type(&from_param.ty, &into_param.ty)
+                .with_context(|| {
+                    format!(
+                        "different function parameter types for `{}`",
+                        from_param.name
+                    )
+                })?;
         }
         match (&from_func.result, &into_func.result) {
             (Some(from_ty), Some(into_ty)) => {
@@ -4973,6 +4980,78 @@ interface second-iface {
             variant.cases[0].span.is_known(),
             "case should have span after merge"
         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn param_spans_point_to_names() -> Result<()> {
+        let source = "\
+package foo:bar;
+
+interface iface {
+    my-func: func(a: u32, b: string);
+}
+";
+        let mut resolve = Resolve::default();
+        let pkg = resolve.push_str("test.wit", source)?;
+
+        let iface_id = resolve.packages[pkg].interfaces["iface"];
+        let func = &resolve.interfaces[iface_id].functions["my-func"];
+        assert_eq!(func.params.len(), 2);
+        for param in &func.params {
+            let start = param.span.start() as usize;
+            let end = param.span.end() as usize;
+            let snippet = &source[start..end];
+            assert_eq!(
+                snippet, param.name,
+                "param `{}` span points to {:?}",
+                param.name, snippet
+            );
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn param_spans_preserved_through_merge() -> Result<()> {
+        let mut resolve1 = Resolve::default();
+        resolve1.push_str(
+            "test1.wit",
+            r#"
+                package foo:bar;
+
+                interface iface1 {
+                    f1: func(x: u32);
+                }
+            "#,
+        )?;
+
+        let mut resolve2 = Resolve::default();
+        let pkg2 = resolve2.push_str(
+            "test2.wit",
+            r#"
+                package foo:baz;
+
+                interface iface2 {
+                    f2: func(y: string, z: bool);
+                }
+            "#,
+        )?;
+
+        let iface2_old_id = resolve2.packages[pkg2].interfaces["iface2"];
+
+        let remap = resolve1.merge(resolve2)?;
+
+        let iface2_id = remap.interfaces[iface2_old_id.index()].unwrap();
+        let func = &resolve1.interfaces[iface2_id].functions["f2"];
+        for param in &func.params {
+            assert!(
+                param.span.is_known(),
+                "param `{}` should have span after merge",
+                param.name
+            );
+        }
 
         Ok(())
     }

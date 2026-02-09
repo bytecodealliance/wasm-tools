@@ -1,6 +1,7 @@
 use alloc::{string::String, vec::Vec};
 use wit_parser::{
-    Enum, Flags, Function, Record, Resolve, Result_, Tuple, Type, TypeDefKind, TypeId, Variant,
+    Enum, Flags, Function, Param, Record, Resolve, Result_, Tuple, Type, TypeDefKind, TypeId,
+    Variant,
 };
 
 use crate::{value, wasm::WasmValueError};
@@ -45,13 +46,13 @@ impl<'a> TypeResolver<'a> {
 
     fn resolve_params(
         &self,
-        params: &[(String, Type)],
+        params: &[Param],
     ) -> Result<Vec<(String, value::Type)>, WasmValueError> {
         params
             .iter()
-            .map(|(name, ty)| {
-                let ty = self.resolve_type(*ty)?;
-                Ok((name.clone(), ty))
+            .map(|p| {
+                let ty = self.resolve_type(p.ty)?;
+                Ok((p.name.clone(), ty))
             })
             .collect()
     }

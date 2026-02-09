@@ -196,7 +196,7 @@ pub fn async_import_abi_area_types<'a>(
     let include_params = sig.indirect_params;
     func.params
         .iter()
-        .filter_map(move |(_, ty)| if include_params { Some(ty) } else { None })
+        .filter_map(move |p| if include_params { Some(&p.ty) } else { None })
         .chain(func.result.iter())
 }
 
@@ -414,7 +414,11 @@ pub fn task_return(
     let mut dummy_func = func.clone();
     dummy_func.params = Vec::new();
     if let Some(ty) = dummy_func.result.take() {
-        dummy_func.params.push(("x".to_string(), ty));
+        dummy_func.params.push(wit_parser::Param {
+            name: "x".to_string(),
+            ty,
+            span: Default::default(),
+        });
     }
     import(
         adapter,
@@ -618,10 +622,7 @@ impl<'a> FunctionCompiler<'a> {
         // the responsibility of the caller to provide an appropriate parameter.
         let (abi_param_size, abi_param_align) = match abi {
             AbiVariant::GuestImport if sig.indirect_params => {
-                let info = self
-                    .adapter
-                    .sizes
-                    .params(func.params.iter().map(|(_, ty)| ty));
+                let info = self.adapter.sizes.params(func.params.iter().map(|p| &p.ty));
                 (
                     info.size.size_wasm32().try_into().unwrap(),
                     info.align.align_wasm32().try_into().unwrap(),
@@ -700,7 +701,7 @@ impl<'a> FunctionCompiler<'a> {
         indirect_params: impl FnOnce(&Self) -> Memory,
         retptr: impl FnOnce(&Self) -> Memory,
     ) {
-        let tys = func.params.iter().map(|(_, ty)| ty);
+        let tys = func.params.iter().map(|p| &p.ty);
 
         if sig.indirect_params {
             let mem = indirect_params(self);
@@ -721,10 +722,8 @@ impl<'a> FunctionCompiler<'a> {
             if sig.retptr {
                 self.free_temp_local(locals.pop().unwrap());
             }
-            let dsts = self.record_field_locs(
-                &AbiLoc::Stack(&locals),
-                func.params.iter().map(|(_, ty)| ty),
-            );
+            let dsts =
+                self.record_field_locs(&AbiLoc::Stack(&locals), func.params.iter().map(|p| &p.ty));
             for (param, dst) in tys.zip(dsts) {
                 self.lower(*param, &dst);
             }
@@ -783,9 +782,9 @@ impl<'a> FunctionCompiler<'a> {
             AbiLoc::Stack(&temps)
         };
 
-        let srcs = self.record_field_locs(&src, func.params.iter().map(|(_, ty)| ty));
-        for ((_, param), src) in func.params.iter().zip(srcs) {
-            self.lift(&src, *param);
+        let srcs = self.record_field_locs(&src, func.params.iter().map(|p| &p.ty));
+        for (param, src) in func.params.iter().zip(srcs) {
+            self.lift(&src, param.ty);
         }
 
         // If parameters were passed indirectly than the caller of this export
@@ -793,10 +792,7 @@ impl<'a> FunctionCompiler<'a> {
         // allocation here after all the parameters were lowered onto the stack.
         if let AbiLoc::Memory(mem) = &src {
             assert!(sig.indirect_params);
-            let info = self
-                .adapter
-                .sizes
-                .record(func.params.iter().map(|(_, ty)| ty));
+            let info = self.adapter.sizes.record(func.params.iter().map(|p| &p.ty));
             self.local_get_ctx();
             self.ins().local_get(mem.addr.idx);
             assert_eq!(mem.offset, 0);

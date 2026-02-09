@@ -85,8 +85,8 @@ use std::mem;
 use wasm_encoder::*;
 use wasmparser::{Validator, WasmFeatures};
 use wit_parser::{
-    Function, FunctionKind, InterfaceId, LiveTypes, Resolve, Stability, Type, TypeDefKind, TypeId,
-    TypeOwner, WorldItem, WorldKey,
+    Function, FunctionKind, InterfaceId, LiveTypes, Param, Resolve, Stability, Type, TypeDefKind,
+    TypeId, TypeOwner, WorldItem, WorldKey,
     abi::{AbiVariant, WasmSignature, WasmType},
 };
 
@@ -167,7 +167,7 @@ impl RequiredOptions {
         // Lift the params and lower the results for imports
         ret.add_lift(TypeContents::for_types(
             resolve,
-            func.params.iter().map(|(_, t)| t),
+            func.params.iter().map(|p| &p.ty),
         ));
         ret.add_lower(TypeContents::for_types(resolve, &func.result));
 
@@ -188,7 +188,7 @@ impl RequiredOptions {
         // Lower the params and lift the results for exports
         ret.add_lower(TypeContents::for_types(
             resolve,
-            func.params.iter().map(|(_, t)| t),
+            func.params.iter().map(|p| &p.ty),
         ));
         ret.add_lift(TypeContents::for_types(resolve, &func.result));
 
@@ -2926,7 +2926,11 @@ impl<'a> Shims<'a> {
                         name: String::new(),
                         kind: FunctionKind::Freestanding,
                         params: match wit_param {
-                            Some(ty) => vec![("a".to_string(), ty)],
+                            Some(ty) => vec![Param {
+                                name: "a".to_string(),
+                                ty,
+                                span: Default::default(),
+                            }],
                             None => Vec::new(),
                         },
                         result: wit_result,
@@ -3024,7 +3028,11 @@ fn task_return_options_and_type(
         name: String::new(),
         kind: FunctionKind::Freestanding,
         params: match ty {
-            Some(ty) => vec![("a".to_string(), ty)],
+            Some(ty) => vec![Param {
+                name: "a".to_string(),
+                ty,
+                span: Default::default(),
+            }],
             None => Vec::new(),
         },
         result: None,

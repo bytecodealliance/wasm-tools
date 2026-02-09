@@ -1611,8 +1611,8 @@ impl<'a> Resolver<'a> {
         params: &ParamList<'_>,
         kind: &FunctionKind,
         span: Span,
-    ) -> Result<Vec<(String, Type)>> {
-        let mut ret = IndexMap::default();
+    ) -> Result<Vec<Param>> {
+        let mut ret = Vec::new();
         match *kind {
             // These kinds of methods don't have any adjustments to the
             // parameters, so do nothing here.
@@ -1635,22 +1635,27 @@ impl<'a> Resolver<'a> {
                     owner: TypeOwner::None,
                     span,
                 });
-                ret.insert("self".to_string(), shared);
+                ret.push(Param {
+                    name: "self".to_string(),
+                    ty: shared,
+                    span,
+                });
             }
         }
         for (name, ty) in params {
-            let prev = ret.insert(
-                name.name.to_string(),
-                self.resolve_type(ty, &Stability::Unknown)?,
-            );
-            if prev.is_some() {
+            if ret.iter().any(|p| p.name == name.name) {
                 bail!(Error::new(
                     name.span,
                     format!("param `{}` is defined more than once", name.name),
                 ))
             }
+            ret.push(Param {
+                name: name.name.to_string(),
+                ty: self.resolve_type(ty, &Stability::Unknown)?,
+                span: name.span,
+            });
         }
-        Ok(ret.into_iter().collect())
+        Ok(ret)
     }
 
     fn resolve_result(

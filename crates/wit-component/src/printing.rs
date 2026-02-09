@@ -352,13 +352,13 @@ impl<O: Output> WitPrinter<O> {
             FunctionKind::Method(_) | FunctionKind::AsyncMethod(_) => 1,
             _ => 0,
         };
-        for (i, (name, ty)) in func.params.iter().skip(params_to_skip).enumerate() {
+        for (i, param) in func.params.iter().skip(params_to_skip).enumerate() {
             if i > 0 {
                 self.output.str(", ");
             }
-            self.print_name_param(name);
+            self.print_name_param(&param.name);
             self.output.str(": ");
-            self.print_type_name(resolve, ty)?;
+            self.print_type_name(resolve, &param.ty)?;
         }
         self.output.str(")");
 
