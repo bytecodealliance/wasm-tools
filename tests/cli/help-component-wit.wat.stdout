@@ -102,6 +102,17 @@ Options:
           can be used to explore outside of that command what's happening to the
           WIT.
 
+      --generate-nominal-type-ids <WORLD>
+          Generates unique type IDs for nominal types in the world provided.
+          
+          This option can be used to affect the `--json` output of this command,
+          for example, and it is intended to make the job of bindings generators
+          easier by ensuring that each `TypeId` corresponds to a single type to
+          generate in the target language. This will modify the `world`
+          specified to duplicate exported interfaces, if needed, to ensure that
+          if they're both imported and exported it generates unique types in the
+          guest language.
+
       --features <FEATURES>
           Features to enable when parsing the `wit` option.
           

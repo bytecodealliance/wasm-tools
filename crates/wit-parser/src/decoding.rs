@@ -912,6 +912,7 @@ impl WitPackageDecoder<'_> {
                     package: None,
                     stability: Default::default(),
                     span: Default::default(),
+                    clone_of: None,
                 })
             });
 
@@ -968,6 +969,7 @@ impl WitPackageDecoder<'_> {
             package: None,
             stability: Default::default(),
             span: Default::default(),
+            clone_of: None,
         };
 
         let owner = TypeOwner::Interface(self.resolve.interfaces.next_id());

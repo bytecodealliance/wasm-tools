@@ -761,7 +761,8 @@ pub struct WitOpts {
     #[clap(
         long,
         conflicts_with = "importize_world",
-        conflicts_with = "merge_world_imports_based_on_semver"
+        conflicts_with = "merge_world_imports_based_on_semver",
+        conflicts_with = "generate_nominal_type_ids"
     )]
     importize: bool,
 
@@ -783,6 +784,7 @@ pub struct WitOpts {
         long,
         conflicts_with = "importize",
         conflicts_with = "merge_world_imports_based_on_semver",
+        conflicts_with = "generate_nominal_type_ids",
         value_name = "WORLD"
     )]
     importize_world: Option<String>,
@@ -798,9 +800,28 @@ pub struct WitOpts {
         long,
         conflicts_with = "importize",
         conflicts_with = "importize_world",
+        conflicts_with = "generate_nominal_type_ids",
         value_name = "WORLD"
     )]
     merge_world_imports_based_on_semver: Option<String>,
+
+    /// Generates unique type IDs for nominal types in the world provided.
+    ///
+    /// This option can be used to affect the `--json` output of this command,
+    /// for example, and it is intended to make the job of bindings generators
+    /// easier by ensuring that each `TypeId` corresponds to a single type to
+    /// generate in the target language. This will modify the `world` specified
+    /// to duplicate exported interfaces, if needed, to ensure that if they're
+    /// both imported and exported it generates unique types in the guest
+    /// language.
+    #[clap(
+        long,
+        conflicts_with = "importize",
+        conflicts_with = "importize_world",
+        conflicts_with = "merge_world_imports_based_on_semver",
+        value_name = "WORLD"
+    )]
+    generate_nominal_type_ids: Option<String>,
 
     /// Features to enable when parsing the `wit` option.
     ///
@@ -852,6 +873,8 @@ impl WitOpts {
                 .context("failed to merge world imports based on semver")?;
             let resolve = mem::take(resolve);
             decoded = DecodedWasm::Component(resolve, world_id);
+        } else if let Some(world) = &self.generate_nominal_type_ids {
+            self.generate_nominal_type_ids(&mut decoded, world)?;
         }
 
         // Now that the WIT document has been decoded, it's time to emit it.
@@ -958,6 +981,21 @@ impl WitOpts {
         resolve
             .importize(world_id, out_world_name.cloned())
             .context("failed to move world exports to imports")?;
+        let resolve = mem::take(resolve);
+        *decoded = DecodedWasm::Component(resolve, world_id);
+        Ok(())
+    }
+
+    fn generate_nominal_type_ids(&self, decoded: &mut DecodedWasm, world: &str) -> Result<()> {
+        let (resolve, pkg) = match decoded {
+            DecodedWasm::Component(resolve, world_id) => {
+                let pkg = resolve.worlds[*world_id].package.unwrap();
+                (resolve, pkg)
+            }
+            DecodedWasm::WitPackage(resolve, pkg) => (resolve, *pkg),
+        };
+        let world_id = resolve.select_world(&[pkg], Some(world))?;
+        resolve.generate_nominal_type_ids(world_id);
         let resolve = mem::take(resolve);
         *decoded = DecodedWasm::Component(resolve, world_id);
         Ok(())

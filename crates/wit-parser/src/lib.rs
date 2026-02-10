@@ -690,6 +690,18 @@ pub struct Interface {
     /// Source span for this interface.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub span: Span,
+
+    /// The interface that this one was cloned from, if any.
+    ///
+    /// Applicable for [`Resolve::generate_nominal_type_ids`].
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            skip_serializing_if = "Option::is_none",
+            serialize_with = "serialize_optional_id",
+        )
+    )]
+    pub clone_of: Option<InterfaceId>,
 }
 
 impl Interface {

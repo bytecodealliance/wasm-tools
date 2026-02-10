@@ -118,9 +118,9 @@ comfy-table = { version = "7.1.3", default-features = false }
 criterion = { version = "0.5.1", default-features = false }
 env_logger = "0.11"
 gimli = "0.31.1"
-hashbrown = { version = "0.15.2", default-features = false, features = ['default-hasher'] }
+hashbrown = { version = "0.16.1", default-features = false, features = ['default-hasher'] }
 id-arena = { version = "2.3.0", default-features = false }
-indexmap = { version = "2.7.0", default-features = false }
+indexmap = { version = "2.13.0", default-features = false }
 indoc = "2.0.5"
 leb128fmt = { version = "0.1.0", default-features = false }
 libfuzzer-sys = "0.4.0"
