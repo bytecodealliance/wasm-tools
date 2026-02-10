@@ -104,7 +104,7 @@ version = "0.244.0"
 # message to wasm-tools maintainers to discuss. In some cases it's possible to
 # add version detection to build scripts but in other cases this may not be
 # reasonable to expect.
-rust-version = "1.81.0"
+rust-version = "1.82.0"
 
 [workspace.dependencies]
 ahash = { version = "0.8.11", default-features = false }
