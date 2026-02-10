@@ -45,13 +45,9 @@ impl CloneMaps {
 
 pub struct Cloner<'a> {
     pub resolve: &'a mut Resolve,
+    pub maps: &'a mut CloneMaps,
     prev_owner: TypeOwner,
     new_owner: TypeOwner,
-
-    /// This map keeps track, in the current scope of types, of all copied
-    /// types. This deduplicates copying types to ensure that they're only
-    /// copied at most once.
-    pub types: HashMap<TypeId, TypeId>,
 
     /// If `None` then it's inferred from `self.new_owner`.
     pub new_package: Option<PackageId>,
@@ -60,6 +56,7 @@ pub struct Cloner<'a> {
 impl<'a> Cloner<'a> {
     pub fn new(
         resolve: &'a mut Resolve,
+        maps: &'a mut CloneMaps,
         prev_owner: TypeOwner,
         new_owner: TypeOwner,
     ) -> Cloner<'a> {
@@ -67,7 +64,7 @@ impl<'a> Cloner<'a> {
             prev_owner,
             new_owner,
             resolve,
-            types: Default::default(),
+            maps,
             new_package: None,
         }
     }
@@ -83,11 +80,11 @@ impl<'a> Cloner<'a> {
             let Some(WorldItem::Type { id: from_id, .. }) = from.imports.get(name) else {
                 continue;
             };
-            self.types.insert(*from_id, *into_id);
+            self.maps.types.insert(*from_id, *into_id);
         }
     }
 
-    pub fn world_item(&mut self, key: &WorldKey, item: &mut WorldItem, clone_maps: &mut CloneMaps) {
+    pub fn world_item(&mut self, key: &WorldKey, item: &mut WorldItem) {
         match key {
             WorldKey::Name(_) => {}
             WorldKey::Interface(_) => return,
@@ -101,21 +98,19 @@ impl<'a> Cloner<'a> {
                 self.function(f);
             }
             WorldItem::Interface { id, .. } => {
-                let old = *id;
-                self.interface(id, &mut clone_maps.types);
-                clone_maps.interfaces.insert(old, *id);
+                self.interface(id);
             }
         }
     }
 
     fn type_id(&mut self, ty: &mut TypeId) {
-        if !self.types.contains_key(ty) {
+        if !self.maps.types.contains_key(ty) {
             let mut new = self.resolve.types[*ty].clone();
             self.type_def(&mut new);
             let id = self.resolve.types.alloc(new);
-            self.types.insert(*ty, id);
+            self.maps.types.insert(*ty, id);
         }
-        *ty = self.types[&*ty];
+        *ty = self.maps.types[&*ty];
     }
 
     fn type_def(&mut self, def: &mut TypeDef) {
@@ -127,8 +122,15 @@ impl<'a> Cloner<'a> {
             TypeDefKind::Type(Type::Id(id)) => {
                 if self.resolve.types[*id].owner == self.prev_owner {
                     self.type_id(id);
+                } else if let Some(new_id) = self.maps.types.get(id) {
+                    *id = *new_id;
                 } else {
-                    // ..
+                    // This type isn't owned by `self.prev_owner`, nor is there
+                    // a listed mapping for it. This most likely means that
+                    // `def` is equivalent to a `use` importing from another
+                    // interface and `id` is the type being imported. In this
+                    // situation it's left as-is to continue importing from
+                    // that interface.
                 }
             }
             TypeDefKind::Type(_)
@@ -200,12 +202,14 @@ impl<'a> Cloner<'a> {
         }
     }
 
-    fn interface(&mut self, id: &mut InterfaceId, cloned_types: &mut HashMap<TypeId, TypeId>) {
-        let mut new = self.resolve.interfaces[*id].clone();
+    pub fn interface(&mut self, id: &mut InterfaceId) {
+        let old_id = *id;
+        let mut new = self.resolve.interfaces[old_id].clone();
         let next_id = self.resolve.interfaces.next_id();
         let mut clone = Cloner::new(
             self.resolve,
-            TypeOwner::Interface(*id),
+            self.maps,
+            TypeOwner::Interface(old_id),
             TypeOwner::Interface(next_id),
         );
         for id in new.types.values_mut() {
@@ -214,13 +218,15 @@ impl<'a> Cloner<'a> {
         for func in new.functions.values_mut() {
             clone.function(func);
         }
-        cloned_types.extend(clone.types);
         new.package = Some(self.new_package.unwrap_or_else(|| match self.new_owner {
             TypeOwner::Interface(id) => self.resolve.interfaces[id].package.unwrap(),
             TypeOwner::World(id) => self.resolve.worlds[id].package.unwrap(),
             TypeOwner::None => unreachable!(),
         }));
+        new.clone_of = Some(old_id);
         *id = self.resolve.interfaces.alloc(new);
+        let prev = self.maps.interfaces.insert(old_id, next_id);
+        assert!(prev.is_none());
         assert_eq!(*id, next_id);
     }
 }

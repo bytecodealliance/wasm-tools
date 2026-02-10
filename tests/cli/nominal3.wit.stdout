@@ -1,0 +1,103 @@
+{
+  "worlds": [
+    {
+      "name": "foo",
+      "imports": {
+        "interface-0": {
+          "interface": {
+            "id": 0
+          }
+        }
+      },
+      "exports": {
+        "interface-1": {
+          "interface": {
+            "id": 1
+          }
+        }
+      },
+      "package": 0
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "x",
+      "types": {
+        "r": 0
+      },
+      "functions": {
+        "hi": {
+          "name": "hi",
+          "kind": "freestanding",
+          "params": [],
+          "result": 2
+        }
+      },
+      "package": 0
+    },
+    {
+      "name": "y",
+      "types": {
+        "r": 1
+      },
+      "functions": {
+        "hi": {
+          "name": "hi",
+          "kind": "freestanding",
+          "params": [],
+          "result": 3
+        }
+      },
+      "package": 0
+    }
+  ],
+  "types": [
+    {
+      "name": "r",
+      "kind": "resource",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "name": "r",
+      "kind": "resource",
+      "owner": {
+        "interface": 1
+      }
+    },
+    {
+      "name": null,
+      "kind": {
+        "handle": {
+          "own": 0
+        }
+      },
+      "owner": null
+    },
+    {
+      "name": null,
+      "kind": {
+        "handle": {
+          "own": 1
+        }
+      },
+      "owner": null
+    }
+  ],
+  "packages": [
+    {
+      "name": "a:b",
+      "docs": {
+        "contents": "RUN: component wit --generate-nominal-type-ids foo % --json"
+      },
+      "interfaces": {
+        "x": 0,
+        "y": 1
+      },
+      "worlds": {
+        "foo": 0
+      }
+    }
+  ]
+}

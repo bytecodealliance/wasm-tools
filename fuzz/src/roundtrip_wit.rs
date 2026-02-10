@@ -90,6 +90,11 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
         log::debug!("... importizing this world");
         let mut resolve2 = resolve.clone();
         let _ = resolve2.importize(id, None);
+
+        // Test out `generate_nominal_type_ids`
+        log::debug!("... calling `generate_nominal_type_ids`");
+        let mut resolve2 = resolve.clone();
+        resolve2.generate_nominal_type_ids(id);
     }
 
     if decoded_bindgens.len() < 2 {

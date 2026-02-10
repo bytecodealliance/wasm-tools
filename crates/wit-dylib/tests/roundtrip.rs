@@ -168,6 +168,7 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
             funcs
         },
         span: Default::default(),
+        clone_of: None,
     });
 
     // Generate two worlds in our custom package, one for the callee and one for

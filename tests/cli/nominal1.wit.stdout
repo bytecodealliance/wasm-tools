@@ -1,0 +1,103 @@
+{
+  "worlds": [
+    {
+      "name": "foo",
+      "imports": {
+        "interface-0": {
+          "interface": {
+            "id": 0
+          }
+        }
+      },
+      "exports": {
+        "interface-1": {
+          "interface": {
+            "id": 1
+          }
+        }
+      },
+      "package": 0
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "x",
+      "types": {
+        "r": 0
+      },
+      "functions": {
+        "hi": {
+          "name": "hi",
+          "kind": "freestanding",
+          "params": [],
+          "result": 1
+        }
+      },
+      "package": 0
+    },
+    {
+      "name": "x",
+      "types": {
+        "r": 2
+      },
+      "functions": {
+        "hi": {
+          "name": "hi",
+          "kind": "freestanding",
+          "params": [],
+          "result": 3
+        }
+      },
+      "package": 0,
+      "clone_of": 0
+    }
+  ],
+  "types": [
+    {
+      "name": "r",
+      "kind": "resource",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "name": null,
+      "kind": {
+        "handle": {
+          "own": 0
+        }
+      },
+      "owner": null
+    },
+    {
+      "name": "r",
+      "kind": "resource",
+      "owner": {
+        "interface": 1
+      }
+    },
+    {
+      "name": null,
+      "kind": {
+        "handle": {
+          "own": 2
+        }
+      },
+      "owner": null
+    }
+  ],
+  "packages": [
+    {
+      "name": "a:b",
+      "docs": {
+        "contents": "RUN: component wit --generate-nominal-type-ids foo % --json"
+      },
+      "interfaces": {
+        "x": 0
+      },
+      "worlds": {
+        "foo": 0
+      }
+    }
+  ]
+}

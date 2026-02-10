@@ -40,6 +40,8 @@ Options:
       --merge-world-imports-based-on-semver <WORLD>
           Updates the world specified to deduplicate all of its imports based on
           semver versions
+      --generate-nominal-type-ids <WORLD>
+          Generates unique type IDs for nominal types in the world provided
       --features <FEATURES>
           Features to enable when parsing the `wit` option
       --all-features

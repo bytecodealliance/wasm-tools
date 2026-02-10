@@ -313,6 +313,7 @@ impl<'a> Resolver<'a> {
             functions: IndexMap::default(),
             package: None,
             span,
+            clone_of: None,
         })
     }
 

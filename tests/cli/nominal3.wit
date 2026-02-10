@@ -1,0 +1,18 @@
+// RUN: component wit --generate-nominal-type-ids foo % --json
+
+package a:b;
+
+interface x {
+  resource r;
+  hi: func() -> r;
+}
+
+interface y {
+  resource r;
+  hi: func() -> r;
+}
+
+world foo {
+  import x;
+  export y;
+}
