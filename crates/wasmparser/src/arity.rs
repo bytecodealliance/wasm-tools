@@ -307,7 +307,7 @@ fn visit_switch(module: &dyn ModuleArity, cont: u32, _tag: u32) -> Option<(u32, 
     Some((params, cont_params))
 }
 
-fn visit_br_on_cast_desc(
+fn visit_br_on_cast_desc_eq(
     module: &dyn ModuleArity,
     depth: u32,
     _from: RefType,
@@ -317,7 +317,7 @@ fn visit_br_on_cast_desc(
     Some((params + 1, params))
 }
 
-fn visit_br_on_cast_desc_fail(
+fn visit_br_on_cast_desc_eq_fail(
     module: &dyn ModuleArity,
     depth: u32,
     _from: RefType,

@@ -1208,9 +1208,9 @@ instructions! {
         StructNewDesc(Index<'a>) : [0xfb, 32] : "struct.new_desc",
         StructNewDefaultDesc(Index<'a>) : [0xfb, 33] : "struct.new_default_desc",
         RefGetDesc(Index<'a>): [0xfb, 34] : "ref.get_desc",
-        RefCastDesc(RefCastDesc<'a>) : [] : "ref.cast_desc",
-        BrOnCastDesc(Box<BrOnCastDesc<'a>>) : [] : "br_on_cast_desc",
-        BrOnCastDescFail(Box<BrOnCastDescFail<'a>>) : [] : "br_on_cast_desc_fail",
+        RefCastDescEq(RefCastDescEq<'a>) : [] : "ref.cast_desc_eq",
+        BrOnCastDescEq(Box<BrOnCastDescEq<'a>>) : [] : "br_on_cast_desc_eq",
+        BrOnCastDescEqFail(Box<BrOnCastDescEqFail<'a>>) : [] : "br_on_cast_desc_eq_fail",
     }
 }
 
@@ -1974,22 +1974,22 @@ impl<'a> Parse<'a> for BrOnCastFail<'a> {
 
 /// Extra data associated with the `ref.cast_desc` instruction
 #[derive(Debug, Clone)]
-pub struct RefCastDesc<'a> {
+pub struct RefCastDescEq<'a> {
     /// The type to cast to.
     pub r#type: RefType<'a>,
 }
 
-impl<'a> Parse<'a> for RefCastDesc<'a> {
+impl<'a> Parse<'a> for RefCastDescEq<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        Ok(RefCastDesc {
+        Ok(RefCastDescEq {
             r#type: parser.parse()?,
         })
     }
 }
 
-/// Extra data associated with the `br_on_cast_desc` instruction
+/// Extra data associated with the `br_on_cast_desc_eq` instruction
 #[derive(Debug, Clone)]
-pub struct BrOnCastDesc<'a> {
+pub struct BrOnCastDescEq<'a> {
     /// The label to branch to.
     pub label: Index<'a>,
     /// The type we're casting from.
@@ -1998,9 +1998,9 @@ pub struct BrOnCastDesc<'a> {
     pub to_type: RefType<'a>,
 }
 
-impl<'a> Parse<'a> for BrOnCastDesc<'a> {
+impl<'a> Parse<'a> for BrOnCastDescEq<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        Ok(BrOnCastDesc {
+        Ok(BrOnCastDescEq {
             label: parser.parse()?,
             from_type: parser.parse()?,
             to_type: parser.parse()?,
@@ -2010,7 +2010,7 @@ impl<'a> Parse<'a> for BrOnCastDesc<'a> {
 
 /// Extra data associated with the `br_on_cast_desc_fail` instruction
 #[derive(Debug, Clone)]
-pub struct BrOnCastDescFail<'a> {
+pub struct BrOnCastDescEqFail<'a> {
     /// The label to branch to.
     pub label: Index<'a>,
     /// The type we're casting from.
@@ -2019,9 +2019,9 @@ pub struct BrOnCastDescFail<'a> {
     pub to_type: RefType<'a>,
 }
 
-impl<'a> Parse<'a> for BrOnCastDescFail<'a> {
+impl<'a> Parse<'a> for BrOnCastDescEqFail<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        Ok(BrOnCastDescFail {
+        Ok(BrOnCastDescEqFail {
             label: parser.parse()?,
             from_type: parser.parse()?,
             to_type: parser.parse()?,

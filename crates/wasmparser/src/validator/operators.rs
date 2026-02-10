@@ -1527,7 +1527,7 @@ where
 
     /// Common helper for both nullable and non-nullable variants of `ref.cast_desc`
     /// instructions.
-    fn check_ref_cast_desc(&mut self, nullable: bool, heap_type: HeapType) -> Result<()> {
+    fn check_ref_cast_desc_eq(&mut self, nullable: bool, heap_type: HeapType) -> Result<()> {
         let is_exact = self.check_maybe_exact_descriptor_ref(heap_type)?;
 
         self.check_downcast(nullable, heap_type)?;
@@ -4549,13 +4549,13 @@ where
         }
     }
 
-    fn visit_ref_cast_desc_non_null(&mut self, heap_type: HeapType) -> Self::Output {
-        self.check_ref_cast_desc(false, heap_type)
+    fn visit_ref_cast_desc_eq_non_null(&mut self, heap_type: HeapType) -> Self::Output {
+        self.check_ref_cast_desc_eq(false, heap_type)
     }
-    fn visit_ref_cast_desc_nullable(&mut self, heap_type: HeapType) -> Self::Output {
-        self.check_ref_cast_desc(true, heap_type)
+    fn visit_ref_cast_desc_eq_nullable(&mut self, heap_type: HeapType) -> Self::Output {
+        self.check_ref_cast_desc_eq(true, heap_type)
     }
-    fn visit_br_on_cast_desc(
+    fn visit_br_on_cast_desc_eq(
         &mut self,
         relative_depth: u32,
         mut from_ref_type: RefType,
@@ -4595,7 +4595,7 @@ where
         self.push_operand(diff_ty)?;
         Ok(())
     }
-    fn visit_br_on_cast_desc_fail(
+    fn visit_br_on_cast_desc_eq_fail(
         &mut self,
         relative_depth: u32,
         mut from_ref_type: RefType,
