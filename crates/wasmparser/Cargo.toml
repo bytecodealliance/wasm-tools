@@ -87,3 +87,7 @@ component-model = ['dep:semver']
 # proposals for WebAssembly. This is enabled by default but if your use case is
 # only interested in working on non-SIMD code then this feature can be disabled.
 simd = []
+
+# A feature that allows validating an operator atomically, leaving the validator
+# unchanged if the operator is invalid.
+try-op = []

@@ -57,6 +57,7 @@ impl<T: WasmModuleResources> FuncToValidate<T> {
 ///
 /// This is a finalized validator which is ready to process a [`FunctionBody`].
 /// This is created from the [`FuncToValidate::into_validator`] method.
+#[derive(Clone)]
 pub struct FuncValidator<T> {
     validator: OperatorValidator,
     resources: T,
@@ -121,6 +122,19 @@ impl<T: WasmModuleResources> FuncValidator<T> {
             reader.set_features(self.validator.features);
         }
         while !reader.eof() {
+            // In a `debug_check_try_op` build, verify that `rollback` successfully returns the
+            // validator to its previous state after each (valid or invalid) operator.
+            #[cfg(all(debug_check_try_op, feature = "try-op"))]
+            {
+                let snapshot = self.validator.clone();
+                let op = reader.peek_operator(&self.visitor(reader.original_position()))?;
+                self.validator.begin_try_op();
+                let _ = self.op(reader.original_position(), &op);
+                self.validator.rollback();
+                self.validator.pop_push_log.clear();
+                assert!(self.validator == snapshot);
+            }
+
             // In a debug build, verify that the validator's pops and pushes to and from
             // the operand stack match the operator's arity.
             #[cfg(debug_assertions)]
@@ -194,12 +208,28 @@ arity mismatch in validation
 
     /// Validates the next operator in a function.
     ///
-    /// This functions is expected to be called once-per-operator in a
+    /// This function is expected to be called once-per-operator in a
     /// WebAssembly function. Each operator's offset in the original binary and
     /// the operator itself are passed to this function to provide more useful
-    /// error messages.
+    /// error messages. On error, the validator may be left in an undefined
+    /// state and should not be reused.
     pub fn op(&mut self, offset: usize, operator: &Operator<'_>) -> Result<()> {
         self.visitor(offset).visit_operator(operator)
+    }
+
+    /// Validates the next operator in a function, rolling back the validator
+    /// to its previous state if this is unsuccesful. The validator may be reused
+    /// even after an error.
+    #[cfg(feature = "try-op")]
+    pub fn try_op(&mut self, offset: usize, operator: &Operator<'_>) -> Result<()> {
+        self.validator.begin_try_op();
+        let res = self.op(offset, operator);
+        if res.is_ok() {
+            self.validator.commit();
+        } else {
+            self.validator.rollback();
+        }
+        res
     }
 
     /// Get the operator visitor for the next operator in the function.
