@@ -203,12 +203,13 @@ impl<'a> Cloner<'a> {
     }
 
     pub fn interface(&mut self, id: &mut InterfaceId) {
-        let mut new = self.resolve.interfaces[*id].clone();
+        let old_id = *id;
+        let mut new = self.resolve.interfaces[old_id].clone();
         let next_id = self.resolve.interfaces.next_id();
         let mut clone = Cloner::new(
             self.resolve,
             self.maps,
-            TypeOwner::Interface(*id),
+            TypeOwner::Interface(old_id),
             TypeOwner::Interface(next_id),
         );
         for id in new.types.values_mut() {
@@ -222,9 +223,9 @@ impl<'a> Cloner<'a> {
             TypeOwner::World(id) => self.resolve.worlds[id].package.unwrap(),
             TypeOwner::None => unreachable!(),
         }));
-        new.clone_of = Some(*id);
+        new.clone_of = Some(old_id);
         *id = self.resolve.interfaces.alloc(new);
-        let prev = self.maps.interfaces.insert(*id, next_id);
+        let prev = self.maps.interfaces.insert(old_id, next_id);
         assert!(prev.is_none());
         assert_eq!(*id, next_id);
     }
