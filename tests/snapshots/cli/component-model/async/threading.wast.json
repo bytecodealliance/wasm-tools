@@ -99,18 +99,31 @@
       "line": 130,
       "filename": "threading.14.wasm",
       "module_type": "binary",
-      "text": "type mismatch for export `thread.switch-to` of module instantiation argument ``"
+      "text": "type mismatch for export `thread.suspend-to-suspended` of module instantiation argument ``"
     },
     {
       "type": "module",
-      "line": 142,
+      "line": 141,
       "filename": "threading.15.wasm",
       "module_type": "binary"
     },
     {
-      "type": "module",
-      "line": 173,
+      "type": "assert_invalid",
+      "line": 151,
       "filename": "threading.16.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `thread.suspend-to` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 163,
+      "filename": "threading.17.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 198,
+      "filename": "threading.18.wasm",
       "module_type": "binary"
     }
   ]

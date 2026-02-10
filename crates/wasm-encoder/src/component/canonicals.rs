@@ -522,9 +522,9 @@ impl CanonicalFunctionSection {
         self
     }
 
-    /// Declare a new `thread.switch-to` intrinsic, used to switch execution to
-    /// another thread.
-    pub fn thread_switch_to(&mut self, cancellable: bool) -> &mut Self {
+    /// Declare a new `thread.suspend-to-suspended` intrinsic, used to switch execution to
+    /// another suspended thread.
+    pub fn thread_suspend_to_suspended(&mut self, cancellable: bool) -> &mut Self {
         self.bytes.push(0x28);
         self.bytes.push(if cancellable { 1 } else { 0 });
         self.num_added += 1;
@@ -540,17 +540,26 @@ impl CanonicalFunctionSection {
         self
     }
 
-    /// Declare a new `thread.resume-later` intrinsic, used to resume execution
+    /// Declare a new `thread.suspend-to` intrinsic, used to suspend the current
+    /// thread and switch to another thread that might not be suspended.
+    pub fn thread_suspend_to(&mut self, cancellable: bool) -> &mut Self {
+        self.bytes.push(0x2c);
+        self.bytes.push(if cancellable { 1 } else { 0 });
+        self.num_added += 1;
+        self
+    }
+
+    /// Declare a new `thread.unsuspend` intrinsic, used to resume execution
     /// of the given thread.
-    pub fn thread_resume_later(&mut self) -> &mut Self {
+    pub fn thread_unsuspend(&mut self) -> &mut Self {
         self.bytes.push(0x2a);
         self.num_added += 1;
         self
     }
 
-    /// Declare a new `thread.yield-to` intrinsic, used to yield execution to
-    /// a given thread.
-    pub fn thread_yield_to(&mut self, cancellable: bool) -> &mut Self {
+    /// Declare a new `thread.yield-to-suspended` intrinsic, used to yield execution to
+    /// a given suspended thread.
+    pub fn thread_yield_to_suspended(&mut self, cancellable: bool) -> &mut Self {
         self.bytes.push(0x2b);
         self.bytes.push(if cancellable { 1 } else { 0 });
         self.num_added += 1;

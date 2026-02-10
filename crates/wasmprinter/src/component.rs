@@ -1163,8 +1163,8 @@ impl Printer<'_, '_> {
                         me.end_group()
                     })?;
                 }
-                CanonicalFunction::ThreadSwitchTo { cancellable } => {
-                    self.print_intrinsic(state, "canon thread.switch-to", &|me, _| {
+                CanonicalFunction::ThreadSuspendToSuspended { cancellable } => {
+                    self.print_intrinsic(state, "canon thread.suspend-to-suspended", &|me, _| {
                         if cancellable {
                             me.result.write_str(" cancellable")?;
                         }
@@ -1179,11 +1179,19 @@ impl Printer<'_, '_> {
                         Ok(())
                     })?;
                 }
-                CanonicalFunction::ThreadResumeLater => {
-                    self.print_intrinsic(state, "canon thread.resume-later", &|_, _| Ok(()))?;
+                CanonicalFunction::ThreadSuspendTo { cancellable } => {
+                    self.print_intrinsic(state, "canon thread.suspend-to", &|me, _| {
+                        if cancellable {
+                            me.result.write_str(" cancellable")?;
+                        }
+                        Ok(())
+                    })?;
                 }
-                CanonicalFunction::ThreadYieldTo { cancellable } => {
-                    self.print_intrinsic(state, "canon thread.yield-to", &|me, _| {
+                CanonicalFunction::ThreadUnsuspend => {
+                    self.print_intrinsic(state, "canon thread.unsuspend", &|_, _| Ok(()))?;
+                }
+                CanonicalFunction::ThreadYieldToSuspended { cancellable } => {
+                    self.print_intrinsic(state, "canon thread.yield-to-suspended", &|me, _| {
                         if cancellable {
                             me.result.write_str(" cancellable")?;
                         }

@@ -603,10 +603,11 @@ pub mod kw {
     custom_keyword!(context_set = "context.set");
     custom_keyword!(thread_index = "thread.index");
     custom_keyword!(thread_new_indirect = "thread.new-indirect");
-    custom_keyword!(thread_switch_to = "thread.switch-to");
+    custom_keyword!(thread_suspend_to_suspended = "thread.suspend-to-suspended");
     custom_keyword!(thread_suspend = "thread.suspend");
-    custom_keyword!(thread_resume_later = "thread.resume-later");
-    custom_keyword!(thread_yield_to = "thread.yield-to");
+    custom_keyword!(thread_suspend_to = "thread.suspend-to");
+    custom_keyword!(thread_unsuspend = "thread.unsuspend");
+    custom_keyword!(thread_yield_to_suspended = "thread.yield-to-suspended");
     custom_keyword!(cancellable);
 }
 
