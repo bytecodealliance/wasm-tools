@@ -122,9 +122,9 @@ impl<T: WasmModuleResources> FuncValidator<T> {
             reader.set_features(self.validator.features);
         }
         while !reader.eof() {
-            // In a debug build, verify that `rollback` successfully returns the
+            // In a `debug_check_try_op` build, verify that `rollback` successfully returns the
             // validator to its previous state after each (valid or invalid) operator.
-            #[cfg(all(debug_assertions, feature = "try-op"))]
+            #[cfg(all(debug_check_try_op, feature = "try-op"))]
             {
                 let snapshot = self.validator.clone();
                 let op = reader.peek_operator(&self.visitor(reader.original_position()))?;

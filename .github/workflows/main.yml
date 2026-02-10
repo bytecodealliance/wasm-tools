@@ -132,6 +132,12 @@ jobs:
             rust: stable
             env:
               RUST_BACKTRACE: 1
+          # test the 'try_op' feature
+          - os: ubuntu-latest
+            rust: stable
+            env:
+              RUSTFLAGS: --cfg=debug_check_try_op
+            flags: -F wasmparser/try-op
     env: ${{ matrix.env || fromJSON('{}') }}
     steps:
     - uses: actions/checkout@v6
@@ -155,7 +161,6 @@ jobs:
     - run: cargo test -p wasm-smith --features wasmparser
     - run: cargo test -p wasm-smith --features component-model
     - run: cargo test --locked -p wasmparser --features try-op
-    - run: cargo test --locked -F wasmparser/try-op
 
   test_capi:
     name: Test the C API
