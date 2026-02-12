@@ -1,6 +1,7 @@
 //! Value enum for WAVE values.
 
-mod convert;
+#[allow(missing_docs)]
+pub mod convert;
 #[cfg(test)]
 mod tests;
 mod ty;
@@ -62,6 +63,7 @@ pub(super) enum ValueEnum {
     Option(OptionValue),
     Result(ResultValue),
     Flags(Flags),
+    Handle(Box<str>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -161,6 +163,7 @@ impl WasmValue for Value {
             ValueEnum::Option(_) => WasmTypeKind::Option,
             ValueEnum::Result(_) => WasmTypeKind::Result,
             ValueEnum::Flags(_) => WasmTypeKind::Flags,
+            ValueEnum::Handle(_) => WasmTypeKind::Handle,
         }
     }
 
@@ -190,6 +193,10 @@ impl WasmValue for Value {
 
     fn make_string(val: alloc::borrow::Cow<str>) -> Self {
         Self(ValueEnum::String(val.into()))
+    }
+
+    fn make_handle(val: std::borrow::Cow<str>) -> Self {
+        Self(ValueEnum::Handle(val.into()))
     }
 
     fn make_list(
@@ -335,6 +342,13 @@ impl WasmValue for Value {
             .as_ref()
             .into()
     }
+
+    fn unwrap_handle(&self) -> std::borrow::Cow<'_, str> {
+        unwrap_val!(&self.0, ValueEnum::Handle, "handle")
+            .as_ref()
+            .into()
+    }
+
     fn unwrap_list(&self) -> Box<dyn Iterator<Item = Cow<'_, Self>> + '_> {
         let list = unwrap_val!(&self.0, ValueEnum::List, "list");
         Box::new(list.elements.iter().map(cow))
@@ -539,6 +553,7 @@ fn check_type2(expected: &Type, val: &Value) -> Result<(), WasmValueError> {
                 return wrong_value_type();
             }
         }
+        (ValueEnum::Handle(_), Type(TypeEnum::Handle(_))) => {}
         (_, _) => return wrong_value_type(),
     };
     Ok(())

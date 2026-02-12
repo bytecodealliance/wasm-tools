@@ -90,6 +90,14 @@ fn option_round_trips() {
 }
 
 #[test]
+fn resource_round_trips() {
+    let ty = Type::handle("test");
+    test_value_round_trip(Value::make_handle("test42".into()));
+    let ty = Type::handle("test");
+    test_value_round_trip(Value::make_handle("test42".into()));
+}
+
+#[test]
 fn result_round_trips() {
     let no_payloads = Type::result(None, None);
     let both_payloads = Type::result(Some(Type::U8), Some(Type::STRING));
@@ -142,6 +150,11 @@ fn local_ty(val: &Value) -> Type {
         ValueEnum::Option(inner) => Type(TypeEnum::Option(inner.ty.clone())),
         ValueEnum::Result(inner) => Type(TypeEnum::Result(inner.ty.clone())),
         ValueEnum::Flags(inner) => Type(TypeEnum::Flags(inner.ty.clone())),
+        ValueEnum::Handle(inner) => Type(TypeEnum::Handle(std::sync::Arc::new(
+            crate::value::ty::HandleType {
+                name: inner.to_string(),
+            },
+        ))),
     }
 }
 

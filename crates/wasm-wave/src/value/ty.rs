@@ -18,6 +18,7 @@ pub(super) enum TypeEnum {
     Option(Arc<OptionType>),
     Result(Arc<ResultType>),
     Flags(Arc<FlagsType>),
+    Handle(Arc<HandleType>),
 }
 
 #[allow(missing_docs)]
@@ -135,6 +136,13 @@ impl Type {
         Some(Self(TypeEnum::Flags(Arc::new(FlagsType { flags }))))
     }
 
+    /// Returns a handle type with the given name.
+    pub fn handle(name: &str) -> Self {
+        Self(TypeEnum::Handle(Arc::new(HandleType {
+            name: name.to_string(),
+        })))
+    }
+
     /// Returns a [`Type`] matching the given [`WasmType`]. Returns None if the
     /// given type is unsupported or otherwise invalid.
     pub fn from_wasm_type(ty: &impl WasmType) -> Option<Self> {
@@ -194,6 +202,11 @@ pub struct FlagsType {
     pub(super) flags: Box<[Box<str>]>,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct HandleType {
+    pub(super) name: String,
+}
+
 impl WasmType for Type {
     fn kind(&self) -> WasmTypeKind {
         match self.0 {
@@ -207,6 +220,7 @@ impl WasmType for Type {
             TypeEnum::Option(_) => WasmTypeKind::Option,
             TypeEnum::Result(_) => WasmTypeKind::Result,
             TypeEnum::Flags(_) => WasmTypeKind::Flags,
+            TypeEnum::Handle(_) => WasmTypeKind::Handle,
         }
     }
 
@@ -268,6 +282,11 @@ impl WasmType for Type {
             return Box::new(core::iter::empty());
         };
         Box::new(flags.flags.iter().map(|name| name.as_ref().into()))
+    }
+
+    fn handle_type(&self) -> &str {
+        let res = maybe_unwrap_type!(&self.0, TypeEnum::Handle).unwrap();
+        &res.name
     }
 }
 

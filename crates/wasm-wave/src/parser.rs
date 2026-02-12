@@ -87,6 +87,7 @@ impl<'source> Parser<'source> {
             Token::ParenOpen => self.parse_tuple()?,
             Token::BracketOpen => self.parse_list()?,
             Token::BraceOpen => self.parse_record_or_flags()?,
+            Token::Sharp => self.parse_handle()?,
             Token::LabelOrKeyword => match Keyword::decode(self.slice()) {
                 Some(Keyword::True) => self.leaf_node(NodeType::BoolTrue),
                 Some(Keyword::False) => self.leaf_node(NodeType::BoolFalse),
@@ -103,6 +104,13 @@ impl<'source> Parser<'source> {
             | Token::Colon
             | Token::Comma => return Err(self.unexpected_token()),
         })
+    }
+
+    fn parse_handle(&mut self) -> Result<Node, ParserError> {
+        let start = self.span().start;
+        self.advance()?;
+        let label = self.parse_label()?;
+        Ok(Node::new(NodeType::Handle, start..self.span().end, [label]))
     }
 
     fn parse_tuple(&mut self) -> Result<Node, ParserError> {
@@ -488,6 +496,20 @@ mod tests {
         assert_eq!(
             parse_value("false", &ty),
             Value::make_result(&ty, Ok(Some(Value::make_bool(false)))).unwrap()
+        );
+    }
+
+    #[test]
+    fn parse_resource() {
+        let ty = Type::handle("test_resource");
+        assert_eq!(
+            parse_value("#http-body-42", &ty),
+            Value::make_handle("http-body-42".into())
+        );
+        let ty = Type::handle("resource");
+        assert_eq!(
+            parse_value("#borrow-http-body", &ty),
+            Value::make_handle("borrow-http-body".into())
         );
     }
 
