@@ -2644,6 +2644,7 @@ package {name} is defined in two different locations:\n\
             // above) and the `CloneMaps` are shared amongst interfaces. This
             // means that future clones will use the types produced here too.
             let mut new_id = id;
+            cloner.new_package = cloner.resolve.interfaces[new_id].package;
             cloner.interface(&mut new_id);
 
             // Load up the previous `key` and go ahead and mutate the
