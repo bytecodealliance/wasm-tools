@@ -4538,6 +4538,7 @@ impl ComponentNameContext {
                 | ComponentNameKind::Method(_)
                 | ComponentNameKind::Static(_)
                 | ComponentNameKind::Constructor(_)
+                | ComponentNameKind::Implements(_)
                 | ComponentNameKind::Interface(_) => {}
 
                 ComponentNameKind::Hash(_)
@@ -4607,6 +4608,17 @@ impl ComponentNameContext {
             | ComponentNameKind::Url(_)
             | ComponentNameKind::Dependency(_)
             | ComponentNameKind::Hash(_) => {}
+
+            // `[implements=<I>]L` may only appear on instance imports/exports.
+            ComponentNameKind::Implements(imp) => match ty {
+                ComponentEntityType::Instance(_) => {}
+                _ => bail!(
+                    offset,
+                    "`implements` name `[implements=<{}>]{}` can only be used with instance types",
+                    imp.interface(),
+                    imp.label(),
+                ),
+            },
 
             // Constructors must return `(own $resource)` or
             // `(result (own $Tresource))` and the `$resource` must be named
