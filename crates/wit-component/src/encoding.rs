@@ -3050,32 +3050,11 @@ fn task_return_options_and_type(
         span: Default::default(),
     };
     let abi = AbiVariant::GuestImport;
-    let mut options = RequiredOptions::for_import(resolve, &func_tmp, abi);
-    let mut extra_options = TypeContents::for_types(resolve, func.params.iter().map(|p| &p.ty));
-    if let Some(ty) = &func.result {
-        extra_options |= task_return_payload_contents(resolve, ty);
-    }
-    if extra_options.contains(TypeContents::NEEDS_MEMORY) {
-        options |= RequiredOptions::MEMORY;
-    }
-    if extra_options.contains(TypeContents::STRING) {
-        options |= RequiredOptions::MEMORY | RequiredOptions::STRING_ENCODING;
-    }
+    let mut options = RequiredOptions::for_import(resolve, func, abi);
+    // `task.return` does not support a `realloc` canonical option.
+    options.remove(RequiredOptions::REALLOC);
     let sig = resolve.wasm_signature(abi, &func_tmp);
     (options, sig)
-}
-
-fn task_return_payload_contents(resolve: &Resolve, ty: &Type) -> TypeContents {
-    match ty {
-        Type::Id(id) => match &resolve.types[*id].kind {
-            TypeDefKind::Future(Some(t)) | TypeDefKind::Stream(Some(t)) => {
-                TypeContents::for_type(resolve, t)
-            }
-            TypeDefKind::Type(t) => task_return_payload_contents(resolve, t),
-            _ => TypeContents::empty(),
-        },
-        _ => TypeContents::empty(),
-    }
 }
 
 /// Alias argument to an instantiation
