@@ -584,8 +584,11 @@ package {name} is defined in two different locations:\n\
                                 WorldItem::Function(f) => {
                                     remap.update_function(self, f, Default::default())?
                                 }
-                                WorldItem::Interface { id, .. } => {
-                                    *id = remap.map_interface(*id, Default::default())?
+                                WorldItem::Interface { id, implements, .. } => {
+                                    *id = remap.map_interface(*id, Default::default())?;
+                                    if let Some(imp) = implements {
+                                        *imp = remap.map_interface(*imp, Default::default())?;
+                                    }
                                 }
                                 WorldItem::Type { id, .. } => {
                                     *id = remap.map_type(*id, Default::default())?
@@ -646,6 +649,9 @@ package {name} is defined in two different locations:\n\
             let id = remap.map_interface(id, Default::default())?;
             if let Some(pkg) = self.interfaces[id].package.as_mut() {
                 *pkg = remap.packages[pkg.index()];
+            }
+            if let Some(clone_of) = self.interfaces[id].clone_of.as_mut() {
+                *clone_of = remap.map_interface(*clone_of, Default::default())?;
             }
         }
         for id in moved_types {
@@ -1374,6 +1380,28 @@ package {name} is defined in two different locations:\n\
         }
     }
 
+    /// Produces the binary extern name for a world key + item pair.
+    ///
+    /// For items with `implements`, produces `[implements=<I>]label`.
+    /// Otherwise delegates to [`Resolve::name_world_key`].
+    pub fn name_world_key_with_item(&self, key: &WorldKey, item: &WorldItem) -> String {
+        if let (
+            WorldKey::Name(label),
+            WorldItem::Interface {
+                implements: Some(iface_id),
+                ..
+            },
+        ) = (key, item)
+        {
+            let iface_name = self
+                .id_of(*iface_id)
+                .expect("unexpected anonymous interface");
+            format!("[implements=<{iface_name}>]{label}")
+        } else {
+            self.name_world_key(key)
+        }
+    }
+
     /// Same as [`Resolve::name_world_key`] except that `WorldKey::Interfaces`
     /// uses [`Resolve::canonicalized_id_of`].
     pub fn name_canonicalized_world_key(&self, key: &WorldKey) -> String {
@@ -1736,7 +1764,14 @@ package {name} is defined in two different locations:\n\
         if let TypeDefKind::Type(Type::Id(other)) = ty.kind {
             if let TypeOwner::Interface(id) = self.types[other].owner {
                 let key = WorldKey::Interface(id);
-                assert!(world.imports.contains_key(&key));
+                // The interface may be imported directly, or via an
+                // `implements` item under a different label (where the
+                // WorldItem's `id` is a clone of the implemented interface).
+                let imported = world.imports.contains_key(&key)
+                    || world.imports.values().any(
+                        |item| matches!(item, WorldItem::Interface { id: iid, .. } if *iid == id),
+                    );
+                assert!(imported);
                 return;
             }
         }
@@ -1932,8 +1967,19 @@ package {name} is defined in two different locations:\n\
             match item {
                 // Interfaces get their dependencies added first followed by the
                 // interface itself.
-                WorldItem::Interface { id, stability, .. } => {
-                    self.elaborate_world_import(&mut new_imports, name.clone(), *id, &stability);
+                WorldItem::Interface {
+                    id,
+                    stability,
+                    implements,
+                    ..
+                } => {
+                    self.elaborate_world_import(
+                        &mut new_imports,
+                        name.clone(),
+                        *id,
+                        &stability,
+                        *implements,
+                    );
                 }
 
                 // Functions are added as-is since their dependence on types in
@@ -1953,6 +1999,7 @@ package {name} is defined in two different locations:\n\
                             WorldKey::Interface(dep),
                             dep,
                             &self.types[*id].stability,
+                            None,
                         );
                     }
                     let prev = new_imports.insert(name.clone(), item.clone());
@@ -1967,12 +2014,18 @@ package {name} is defined in two different locations:\n\
         // the new exports list during this loop but interfaces are all deferred
         // to be handled in the `elaborate_world_exports` function.
         let mut new_exports = IndexMap::default();
-        let mut export_interfaces = IndexMap::default();
+        let mut export_interfaces = Vec::new();
+        let mut export_interface_ids = HashSet::new();
         for (name, item) in world.exports.iter() {
             match item {
-                WorldItem::Interface { id, stability, .. } => {
-                    let prev = export_interfaces.insert(*id, (name.clone(), stability));
-                    assert!(prev.is_none());
+                WorldItem::Interface {
+                    id,
+                    stability,
+                    implements,
+                    ..
+                } => {
+                    export_interfaces.push((*id, name.clone(), stability, *implements));
+                    export_interface_ids.insert(*id);
                 }
                 WorldItem::Function(_) => {
                     let prev = new_exports.insert(name.clone(), item.clone());
@@ -1982,7 +2035,12 @@ package {name} is defined in two different locations:\n\
             }
         }
 
-        self.elaborate_world_exports(&export_interfaces, &mut new_imports, &mut new_exports)?;
+        self.elaborate_world_exports(
+            &export_interfaces,
+            &export_interface_ids,
+            &mut new_imports,
+            &mut new_exports,
+        )?;
 
         // In addition to sorting at the start of elaboration also sort here at
         // the end of elaboration to handle types being interspersed with
@@ -2006,18 +2064,20 @@ package {name} is defined in two different locations:\n\
         key: WorldKey,
         id: InterfaceId,
         stability: &Stability,
+        implements: Option<InterfaceId>,
     ) {
         if imports.contains_key(&key) {
             return;
         }
         for dep in self.interface_direct_deps(id) {
-            self.elaborate_world_import(imports, WorldKey::Interface(dep), dep, stability);
+            self.elaborate_world_import(imports, WorldKey::Interface(dep), dep, stability, None);
         }
         let prev = imports.insert(
             key,
             WorldItem::Interface {
                 id,
                 stability: stability.clone(),
+                implements,
                 span: Default::default(),
             },
         );
@@ -2072,23 +2132,25 @@ package {name} is defined in two different locations:\n\
     /// operation fails.
     fn elaborate_world_exports(
         &self,
-        export_interfaces: &IndexMap<InterfaceId, (WorldKey, &Stability)>,
+        export_interfaces: &[(InterfaceId, WorldKey, &Stability, Option<InterfaceId>)],
+        export_interface_ids: &HashSet<InterfaceId>,
         imports: &mut IndexMap<WorldKey, WorldItem>,
         exports: &mut IndexMap<WorldKey, WorldItem>,
     ) -> Result<()> {
         let mut required_imports = HashSet::new();
-        for (id, (key, stability)) in export_interfaces.iter() {
+        for (id, key, stability, implements) in export_interfaces.iter() {
             let name = self.name_world_key(&key);
             let ok = add_world_export(
                 self,
                 imports,
                 exports,
-                export_interfaces,
+                export_interface_ids,
                 &mut required_imports,
                 *id,
                 key,
                 true,
                 stability,
+                *implements,
             );
             if !ok {
                 bail!(
@@ -2119,12 +2181,13 @@ package {name} is defined in two different locations:\n\
             resolve: &Resolve,
             imports: &mut IndexMap<WorldKey, WorldItem>,
             exports: &mut IndexMap<WorldKey, WorldItem>,
-            export_interfaces: &IndexMap<InterfaceId, (WorldKey, &Stability)>,
+            export_interface_ids: &HashSet<InterfaceId>,
             required_imports: &mut HashSet<InterfaceId>,
             id: InterfaceId,
             key: &WorldKey,
             add_export: bool,
             stability: &Stability,
+            implements: Option<InterfaceId>,
         ) -> bool {
             if exports.contains_key(key) {
                 if add_export {
@@ -2140,17 +2203,18 @@ package {name} is defined in two different locations:\n\
             }
             let ok = resolve.interface_direct_deps(id).all(|dep| {
                 let key = WorldKey::Interface(dep);
-                let add_export = add_export && export_interfaces.contains_key(&dep);
+                let add_export = add_export && export_interface_ids.contains(&dep);
                 add_world_export(
                     resolve,
                     imports,
                     exports,
-                    export_interfaces,
+                    export_interface_ids,
                     required_imports,
                     dep,
                     &key,
                     add_export,
                     stability,
+                    None,
                 )
             });
             if !ok {
@@ -2159,6 +2223,7 @@ package {name} is defined in two different locations:\n\
             let item = WorldItem::Interface {
                 id,
                 stability: stability.clone(),
+                implements,
                 span: Default::default(),
             };
             if add_export {
@@ -2252,11 +2317,13 @@ package {name} is defined in two different locations:\n\
                 &WorldItem::Interface {
                     id: *to_replace,
                     stability: Default::default(),
+                    implements: None,
                     span: Default::default(),
                 },
                 &WorldItem::Interface {
                     id: *replace_with,
                     stability: Default::default(),
+                    implements: None,
                     span: Default::default(),
                 },
             )
@@ -3499,8 +3566,11 @@ impl Remap {
             }
             self.update_world_key(&mut name, span)?;
             match &mut item {
-                WorldItem::Interface { id, .. } => {
+                WorldItem::Interface { id, implements, .. } => {
                     *id = self.map_interface(*id, span)?;
+                    if let Some(imp) = implements {
+                        *imp = self.map_interface(*imp, span)?;
+                    }
                 }
                 WorldItem::Function(f) => {
                     self.update_function(resolve, f, span)?;
