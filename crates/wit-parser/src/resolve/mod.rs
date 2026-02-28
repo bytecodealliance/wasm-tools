@@ -1580,11 +1580,18 @@ package {name} is defined in two different locations:\n\
             for (name, item) in world.imports.iter().chain(world.exports.iter()) {
                 log::debug!("validating world item: {}", self.name_world_key(name));
                 match item {
-                    WorldItem::Interface { id, .. } => {
-                        // anonymous interfaces must belong to the same package
-                        // as the world's package.
+                    WorldItem::Interface { id, implements, .. } => {
                         if matches!(name, WorldKey::Name(_)) {
-                            assert_eq!(self.interfaces[*id].package, world.package);
+                            if implements.is_none() {
+                                // Anonymous interfaces must belong to the same
+                                // package as the world's package.
+                                assert_eq!(self.interfaces[*id].package, world.package);
+                            } else {
+                                // Implements items use `WorldKey::Name` but can
+                                // reference interfaces from other packages.
+                                // Verify the target interface exists.
+                                assert!(self.interfaces.get(*id).is_some());
+                            }
                         }
                     }
                     WorldItem::Function(f) => {
