@@ -401,6 +401,7 @@ pub struct EncodingState<'a> {
 
     /// Imported instances and what index they were imported as.
     imported_instances: IndexMap<InterfaceId, u32>,
+    imported_instances_by_name: HashMap<String, u32>,
     imported_funcs: IndexMap<String, u32>,
     exported_instances: IndexMap<InterfaceId, u32>,
 
@@ -456,6 +457,18 @@ impl<'a> EncodingState<'a> {
         }
     }
 
+    fn world_import_name(&self, key: &WorldKey) -> String {
+        let resolve = &self.info.encoder.metadata.resolve;
+        let world = &resolve.worlds[self.info.encoder.metadata.world];
+        resolve.name_world_key_with_item(key, &world.imports[key])
+    }
+
+    fn world_export_name(&self, key: &WorldKey) -> String {
+        let resolve = &self.info.encoder.metadata.resolve;
+        let world = &resolve.worlds[self.info.encoder.metadata.world];
+        resolve.name_world_key_with_item(key, &world.exports[key])
+    }
+
     fn root_import_type_encoder(
         &mut self,
         interface: Option<InterfaceId>,
@@ -492,7 +505,8 @@ impl<'a> EncodingState<'a> {
         for (name, info) in self.info.import_map.iter() {
             match name {
                 Some(name) => {
-                    self.encode_interface_import(name_map.get(name).unwrap_or(name), info)?
+                    let import_name = name_map.get(name).unwrap_or(name);
+                    self.encode_interface_import(import_name, name, info)?
                 }
                 None => has_funcs = true,
             }
@@ -517,7 +531,12 @@ impl<'a> EncodingState<'a> {
         Ok(())
     }
 
-    fn encode_interface_import(&mut self, name: &str, info: &ImportedInterface) -> Result<()> {
+    fn encode_interface_import(
+        &mut self,
+        name: &str,
+        import_key: &str,
+        info: &ImportedInterface,
+    ) -> Result<()> {
         let resolve = &self.info.encoder.metadata.resolve;
         let interface_id = info.interface.as_ref().unwrap();
         let interface_id = *interface_id;
@@ -566,8 +585,11 @@ impl<'a> EncodingState<'a> {
         let instance_idx = self
             .component
             .import(name, ComponentTypeRef::Instance(instance_type_idx));
-        let prev = self.imported_instances.insert(interface_id, instance_idx);
-        assert!(prev.is_none());
+        self.imported_instances
+            .entry(interface_id)
+            .or_insert(instance_idx);
+        self.imported_instances_by_name
+            .insert(import_key.to_string(), instance_idx);
         Ok(())
     }
 
@@ -704,9 +726,9 @@ impl<'a> EncodingState<'a> {
                     let prev = world_func_core_names.insert(name, core_name);
                     assert!(prev.is_none());
                 }
-                Export::InterfaceFunc(_, id, name, _) => {
+                Export::InterfaceFunc(key, _id, name, _) => {
                     let prev = interface_func_core_names
-                        .entry(id)
+                        .entry(key)
                         .or_insert(IndexMap::new())
                         .insert(name.as_str(), core_name);
                     assert!(prev.is_none());
@@ -731,7 +753,7 @@ impl<'a> EncodingState<'a> {
         let world = &resolve.worlds[self.info.encoder.metadata.world];
 
         for export_name in exports {
-            let export_string = resolve.name_world_key(export_name);
+            let export_string = self.world_export_name(export_name);
             match &world.exports[export_name] {
                 WorldItem::Function(func) => {
                     let ty = self
@@ -743,7 +765,7 @@ impl<'a> EncodingState<'a> {
                         .export(&export_string, ComponentExportKind::Func, idx, None);
                 }
                 WorldItem::Interface { id, .. } => {
-                    let core_names = interface_func_core_names.get(id);
+                    let core_names = interface_func_core_names.get(export_name);
                     self.encode_interface_export(
                         &export_string,
                         module,
@@ -966,8 +988,7 @@ impl<'a> EncodingState<'a> {
             instance_index,
             None,
         );
-        let prev = self.exported_instances.insert(export, idx);
-        assert!(prev.is_none());
+        self.exported_instances.entry(export).or_insert(idx);
 
         // After everything is all said and done remove all the type information
         // about type exports of this interface. Any entries in the map
@@ -1292,11 +1313,12 @@ impl<'a> EncodingState<'a> {
                     realloc,
                     encoding,
                 } => {
-                    let interface = &self.info.import_map[interface];
-                    let ((name, _), _) = interface.lowerings.get_index(*index).unwrap();
-                    let func_index = match &interface.interface {
-                        Some(interface_id) => {
-                            let instance_index = self.imported_instances[interface_id];
+                    let import = &self.info.import_map[interface];
+                    let ((name, _), _) = import.lowerings.get_index(*index).unwrap();
+                    let func_index = match interface {
+                        Some(iface_key) => {
+                            let instance_index =
+                                self.imported_instances_by_name[iface_key.as_str()];
                             self.component.alias_export(
                                 instance_index,
                                 name,
@@ -1309,7 +1331,7 @@ impl<'a> EncodingState<'a> {
                     let realloc = self
                         .info
                         .exports_for(*realloc)
-                        .import_realloc_for(interface.interface, name)
+                        .import_realloc_for(import.interface, name)
                         .map(|name| {
                             let instance = self.instance_for(*realloc);
                             self.core_alias_export(
@@ -1785,7 +1807,7 @@ impl<'a> EncodingState<'a> {
                 self.materialize_wit_import(
                     shims,
                     for_module,
-                    iface.map(|_| resolve.name_world_key(key)),
+                    iface.map(|_| self.world_import_name(key)),
                     &format!("{name}_drop"),
                     key,
                     AbiVariant::GuestImport,
@@ -1955,7 +1977,7 @@ impl<'a> EncodingState<'a> {
             Import::InterfaceFunc(key, _, name, abi) => self.materialize_wit_import(
                 shims,
                 for_module,
-                Some(resolve.name_world_key(key)),
+                Some(self.world_import_name(key)),
                 name,
                 key,
                 *abi,
@@ -2072,9 +2094,9 @@ impl<'a> EncodingState<'a> {
             // All direct lowerings can be `canon lower`'d here immediately
             // and passed as arguments.
             Lowering::Direct => {
-                let func_index = match &import.interface {
-                    Some(interface) => {
-                        let instance_index = self.imported_instances[interface];
+                let func_index = match &interface_key {
+                    Some(iface_key) => {
+                        let instance_index = self.imported_instances_by_name[iface_key.as_str()];
                         self.component
                             .alias_export(instance_index, name, ComponentExportKind::Func)
                     }
@@ -2849,6 +2871,7 @@ impl<'a> Shims<'a> {
                 // metadata out of this `match` to the loop below to figure that
                 // out.
                 Import::InterfaceFunc(key, _, name, abi) => {
+                    let wit_world = &resolve.worlds[world.encoder.metadata.world];
                     self.append_indirect_wit_func(
                         world,
                         for_module,
@@ -2856,7 +2879,7 @@ impl<'a> Shims<'a> {
                         field,
                         key,
                         name,
-                        Some(resolve.name_world_key(key)),
+                        Some(resolve.name_world_key_with_item(key, &wit_world.imports[key])),
                         *abi,
                     )?;
                 }
@@ -3343,6 +3366,7 @@ impl ComponentEncoder {
             import_type_encoding_maps: Default::default(),
             export_type_encoding_maps: Default::default(),
             imported_instances: Default::default(),
+            imported_instances_by_name: Default::default(),
             imported_funcs: Default::default(),
             exported_instances: Default::default(),
             aliased_core_items: Default::default(),
