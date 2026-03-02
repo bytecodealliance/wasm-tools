@@ -268,7 +268,7 @@ pub enum Import {
     /// As of this writing, only async-lifted exports use `task.return`, but the
     /// plan is to also support it for sync-lifted exports in the future as
     /// well.
-    ExportedTaskReturn(WorldKey, Option<InterfaceId>, String, Option<Type>),
+    ExportedTaskReturn(WorldKey, Option<InterfaceId>, Function),
 
     /// A `canon task.cancel` intrinsic for an exported function.
     ///
@@ -901,12 +901,7 @@ impl ImportMap {
                 let key = key.unwrap_or_else(|| WorldKey::Name(name.to_string()));
                 // TODO: should call `validate_func_sig` but would require
                 // calculating the expected signature based of `func.result`.
-                return Ok(Some(Import::ExportedTaskReturn(
-                    key,
-                    id,
-                    func.name.clone(),
-                    func.result,
-                )));
+                return Ok(Some(Import::ExportedTaskReturn(key, id, func.clone())));
             }
             if names.task_cancel(name) {
                 let expected = FuncType::new([], []);
