@@ -1,7 +1,8 @@
 use wit_parser::abi::WasmType;
 use wit_parser::{
-    Function, LiftLowerAbi, ManglingAndAbi, Resolve, ResourceIntrinsic, TypeDefKind, TypeId,
-    WasmExport, WasmExportKind, WasmImport, WorldId, WorldItem, WorldKey,
+    Function, FutureIntrinsic, LiftLowerAbi, ManglingAndAbi, Resolve, ResourceIntrinsic,
+    StreamIntrinsic, TypeDefKind, TypeId, WasmExport, WasmExportKind, WasmImport, WorldId,
+    WorldItem, WorldKey,
 };
 
 /// Generate a dummy implementation core Wasm module for a given WIT document
@@ -98,7 +99,7 @@ fn push_imported_func(
     wat.push_str("))\n");
 
     if mangling.is_async() {
-        push_imported_future_and_stream_intrinsics(wat, resolve, "", interface, func);
+        push_imported_future_and_stream_intrinsics(wat, resolve, mangling, false, interface, func);
     }
 }
 
@@ -156,63 +157,127 @@ fn push_exported_func_intrinsics(
     push_tys(wat, "result", &sig.results);
     wat.push_str("))\n");
 
-    push_imported_future_and_stream_intrinsics(wat, resolve, "[export]", interface, func);
+    push_imported_future_and_stream_intrinsics(wat, resolve, mangling, true, interface, func);
 }
 
 fn push_imported_future_and_stream_intrinsics(
     wat: &mut String,
     resolve: &Resolve,
-    module_prefix: &str,
+    mangling: ManglingAndAbi,
+    exported: bool,
     interface: Option<&WorldKey>,
     func: &Function,
 ) {
-    let module = match interface {
-        Some(key) => format!("{module_prefix}{}", resolve.name_world_key(key)),
-        None => format!("{module_prefix}$root"),
-    };
-    let name = &func.name;
-
     for (i, id) in func
         .find_futures_and_streams(resolve)
         .into_iter()
         .enumerate()
     {
+        let type_index = u32::try_from(i).unwrap();
         match &resolve.types[id].kind {
             TypeDefKind::Future(_) => {
+                let mut module = None;
+                let mut intrinsic_name = |intrinsic, async_| {
+                    let (m, name) = resolve.wasm_import_name(
+                        mangling,
+                        WasmImport::FutureIntrinsic {
+                            interface,
+                            func,
+                            type_index: Some(type_index),
+                            intrinsic,
+                            exported,
+                            async_,
+                        },
+                    );
+                    if let Some(prev) = &module {
+                        debug_assert_eq!(prev, &m);
+                    } else {
+                        module = Some(m);
+                    }
+                    name
+                };
+
+                let new = intrinsic_name(FutureIntrinsic::New, false);
+                let read = intrinsic_name(FutureIntrinsic::Read, false);
+                let write = intrinsic_name(FutureIntrinsic::Write, false);
+                let cancel_read = intrinsic_name(FutureIntrinsic::CancelRead, false);
+                let cancel_write = intrinsic_name(FutureIntrinsic::CancelWrite, false);
+                let drop_readable = intrinsic_name(FutureIntrinsic::DropReadable, false);
+                let drop_writable = intrinsic_name(FutureIntrinsic::DropWritable, false);
+                let async_read = intrinsic_name(FutureIntrinsic::Read, true);
+                let async_write = intrinsic_name(FutureIntrinsic::Write, true);
+                let async_cancel_read = intrinsic_name(FutureIntrinsic::CancelRead, true);
+                let async_cancel_write = intrinsic_name(FutureIntrinsic::CancelWrite, true);
+                let module = module.unwrap();
+
                 wat.push_str(&format!(
                     r#"
-(import {module:?} "[future-new-{i}]{name}" (func (result i64)))
-(import {module:?} "[future-read-{i}]{name}" (func (param i32 i32) (result i32)))
-(import {module:?} "[future-write-{i}]{name}" (func (param i32 i32) (result i32)))
-(import {module:?} "[future-cancel-read-{i}]{name}" (func (param i32) (result i32)))
-(import {module:?} "[future-cancel-write-{i}]{name}" (func (param i32) (result i32)))
-(import {module:?} "[future-drop-readable-{i}]{name}" (func (param i32)))
-(import {module:?} "[future-drop-writable-{i}]{name}" (func (param i32)))
-(import {module:?} "[async-lower][future-read-{i}]{name}" (func (param i32 i32) (result i32)))
-(import {module:?} "[async-lower][future-write-{i}]{name}" (func (param i32 i32) (result i32)))
+(import {module:?} {new:?} (func (result i64)))
+(import {module:?} {read:?} (func (param i32 i32) (result i32)))
+(import {module:?} {write:?} (func (param i32 i32) (result i32)))
+(import {module:?} {cancel_read:?} (func (param i32) (result i32)))
+(import {module:?} {cancel_write:?} (func (param i32) (result i32)))
+(import {module:?} {drop_readable:?} (func (param i32)))
+(import {module:?} {drop_writable:?} (func (param i32)))
+(import {module:?} {async_read:?} (func (param i32 i32) (result i32)))
+(import {module:?} {async_write:?} (func (param i32 i32) (result i32)))
 
 ;; deferred behind 🚝
-;;(import {module:?} "[async-lower][future-cancel-read-{i}]{name}" (func (param i32) (result i32)))
-;;(import {module:?} "[async-lower][future-cancel-write-{i}]{name}" (func (param i32) (result i32)))
+;;(import {module:?} {async_cancel_read:?} (func (param i32) (result i32)))
+;;(import {module:?} {async_cancel_write:?} (func (param i32) (result i32)))
 "#
                 ));
             }
             TypeDefKind::Stream(_) => {
+                let mut module = None;
+                let mut intrinsic_name = |intrinsic, async_| {
+                    let (m, name) = resolve.wasm_import_name(
+                        mangling,
+                        WasmImport::StreamIntrinsic {
+                            interface,
+                            func,
+                            type_index: Some(type_index),
+                            intrinsic,
+                            exported,
+                            async_,
+                        },
+                    );
+                    if let Some(prev) = &module {
+                        debug_assert_eq!(prev, &m);
+                    } else {
+                        module = Some(m);
+                    }
+                    name
+                };
+
+                let new = intrinsic_name(StreamIntrinsic::New, false);
+                let read = intrinsic_name(StreamIntrinsic::Read, false);
+                let write = intrinsic_name(StreamIntrinsic::Write, false);
+                let cancel_read = intrinsic_name(StreamIntrinsic::CancelRead, false);
+                let cancel_write = intrinsic_name(StreamIntrinsic::CancelWrite, false);
+                let drop_readable = intrinsic_name(StreamIntrinsic::DropReadable, false);
+                let drop_writable = intrinsic_name(StreamIntrinsic::DropWritable, false);
+                let async_read = intrinsic_name(StreamIntrinsic::Read, true);
+                let async_write = intrinsic_name(StreamIntrinsic::Write, true);
+                let async_cancel_read = intrinsic_name(StreamIntrinsic::CancelRead, true);
+                let async_cancel_write = intrinsic_name(StreamIntrinsic::CancelWrite, true);
+                let module = module.unwrap();
+
                 wat.push_str(&format!(
                     r#"
-(import {module:?} "[stream-new-{i}]{name}" (func (result i64)))
-(import {module:?} "[stream-read-{i}]{name}" (func (param i32 i32 i32) (result i32)))
-(import {module:?} "[stream-write-{i}]{name}" (func (param i32 i32 i32) (result i32)))
-(import {module:?} "[stream-cancel-read-{i}]{name}" (func (param i32) (result i32)))
-(import {module:?} "[stream-cancel-write-{i}]{name}" (func (param i32) (result i32)))
-(import {module:?} "[stream-drop-readable-{i}]{name}" (func (param i32)))
-(import {module:?} "[stream-drop-writable-{i}]{name}" (func (param i32)))
-(import {module:?} "[async-lower][stream-read-{i}]{name}" (func (param i32 i32 i32) (result i32)))
-(import {module:?} "[async-lower][stream-write-{i}]{name}" (func (param i32 i32 i32) (result i32)))
+(import {module:?} {new:?} (func (result i64)))
+(import {module:?} {read:?} (func (param i32 i32 i32) (result i32)))
+(import {module:?} {write:?} (func (param i32 i32 i32) (result i32)))
+(import {module:?} {cancel_read:?} (func (param i32) (result i32)))
+(import {module:?} {cancel_write:?} (func (param i32) (result i32)))
+(import {module:?} {drop_readable:?} (func (param i32)))
+(import {module:?} {drop_writable:?} (func (param i32)))
+(import {module:?} {async_read:?} (func (param i32 i32 i32) (result i32)))
+(import {module:?} {async_write:?} (func (param i32 i32 i32) (result i32)))
 
 ;; deferred behind 🚝
-;;(import {module:?} "[async-lower][stream-cancel-read-{i}]{name}" (func (param i32) (result i32)))
-;;(import {module:?} "[async-lower][stream-cancel-write-{i}]{name}" (func (param i32) (result i32)))
+;;(import {module:?} {async_cancel_read:?} (func (param i32) (result i32)))
+;;(import {module:?} {async_cancel_write:?} (func (param i32) (result i32)))
 "#
                 ));
             }
