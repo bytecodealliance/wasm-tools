@@ -179,6 +179,13 @@ pub trait WasmValue: Clone + Sized {
         unimplemented!()
     }
 
+    /// Returns a new WasmValue of the given type.
+    /// # Panics
+    /// Panics if the type is not implemented (the trait default).
+    fn make_handle(label: Cow<str>) -> Self {
+        unimplemented!()
+    }
+
     /// Returns the underlying value of the WasmValue, panicing if it's the wrong type.
     /// # Panics
     /// Panics if `self` is not of the right type.
@@ -313,6 +320,13 @@ pub trait WasmValue: Clone + Sized {
     /// # Panics
     /// Panics if `self` is not of the right type.
     fn unwrap_flags(&self) -> Box<dyn Iterator<Item = Cow<'_, str>> + '_> {
+        unimplemented!()
+    }
+
+    /// Returns the resource handle label.
+    /// # Panics
+    /// Panics if `self` is not of the right type.
+    fn unwrap_handle(&self) -> Cow<'_, str> {
         unimplemented!()
     }
 }

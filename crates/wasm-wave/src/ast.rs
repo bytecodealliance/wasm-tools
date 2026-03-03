@@ -234,6 +234,7 @@ impl Node {
             WasmTypeKind::Option => self.to_wasm_option(ty, src)?,
             WasmTypeKind::Result => self.to_wasm_result(ty, src)?,
             WasmTypeKind::Flags => self.to_wasm_flags(ty, src)?,
+            WasmTypeKind::Handle => self.to_wasm_handle(ty, src)?,
             other => {
                 return Err(
                     self.wasm_value_error(WasmValueError::UnsupportedType(other.to_string()))
@@ -359,6 +360,17 @@ impl Node {
         V::make_option(ty, value).map_err(|err| self.wasm_value_error(err))
     }
 
+    fn to_wasm_handle<V: WasmValue>(&self, _ty: &V::Type, src: &str) -> Result<V, ParserError> {
+        self.ensure_type(NodeType::Handle)?;
+        match self.children.as_slice() {
+            [label] => {
+                let label = label.as_label(src)?;
+                Ok(V::make_handle(label.into()))
+            }
+            _ => Err(self.error(ParserErrorKind::InvalidType)),
+        }
+    }
+
     fn to_wasm_result<V: WasmValue>(&self, ty: &V::Type, src: &str) -> Result<V, ParserError> {
         let (ok_type, err_type) = ty.result_types().unwrap();
         let value = match self.ty {
@@ -477,4 +489,7 @@ pub enum NodeType {
     /// Flags
     /// Child nodes are flag Labels.
     Flags,
+    /// Handle
+    /// Child node is a opaque label.
+    Handle,
 }
