@@ -168,12 +168,7 @@ fn push_imported_future_and_stream_intrinsics(
     interface: Option<&WorldKey>,
     func: &Function,
 ) {
-    for (i, id) in func
-        .find_futures_and_streams(resolve)
-        .into_iter()
-        .enumerate()
-    {
-        let type_index = u32::try_from(i).unwrap();
+    for id in func.find_futures_and_streams(resolve).into_iter() {
         match &resolve.types[id].kind {
             TypeDefKind::Future(_) => {
                 let mut module = None;
@@ -183,7 +178,7 @@ fn push_imported_future_and_stream_intrinsics(
                         WasmImport::FutureIntrinsic {
                             interface,
                             func,
-                            type_index: Some(type_index),
+                            ty: Some(id),
                             intrinsic,
                             exported,
                             async_,
@@ -236,7 +231,7 @@ fn push_imported_future_and_stream_intrinsics(
                         WasmImport::StreamIntrinsic {
                             interface,
                             func,
-                            type_index: Some(type_index),
+                            ty: Some(id),
                             intrinsic,
                             exported,
                             async_,

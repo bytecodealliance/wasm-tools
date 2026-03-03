@@ -2482,7 +2482,7 @@ package {name} is defined in two different locations:\n\
                 WasmImport::FutureIntrinsic {
                     interface,
                     func,
-                    type_index,
+                    ty,
                     intrinsic,
                     exported,
                     async_,
@@ -2492,8 +2492,18 @@ package {name} is defined in two different locations:\n\
                         Some(key) => format!("{module_prefix}{}", self.name_world_key(key)),
                         None => format!("{module_prefix}$root"),
                     };
-                    let type_index = match type_index {
-                        Some(i) => i.to_string(),
+                    let type_index = match ty {
+                        Some(ty) => func
+                            .find_futures_and_streams(self)
+                            .into_iter()
+                            .position(|candidate| candidate == ty)
+                            .unwrap_or_else(|| {
+                                panic!(
+                                    "future type {ty:?} not found in `find_futures_and_streams` for `{}`",
+                                    func.name
+                                )
+                            })
+                            .to_string(),
                         None => "unit".to_string(),
                     };
                     let (async_prefix, name) = match intrinsic {
@@ -2530,7 +2540,7 @@ package {name} is defined in two different locations:\n\
                 WasmImport::StreamIntrinsic {
                     interface,
                     func,
-                    type_index,
+                    ty,
                     intrinsic,
                     exported,
                     async_,
@@ -2540,8 +2550,18 @@ package {name} is defined in two different locations:\n\
                         Some(key) => format!("{module_prefix}{}", self.name_world_key(key)),
                         None => format!("{module_prefix}$root"),
                     };
-                    let type_index = match type_index {
-                        Some(i) => i.to_string(),
+                    let type_index = match ty {
+                        Some(ty) => func
+                            .find_futures_and_streams(self)
+                            .into_iter()
+                            .position(|candidate| candidate == ty)
+                            .unwrap_or_else(|| {
+                                panic!(
+                                    "stream type {ty:?} not found in `find_futures_and_streams` for `{}`",
+                                    func.name
+                                )
+                            })
+                            .to_string(),
                         None => "unit".to_string(),
                     };
                     let (async_prefix, name) = match intrinsic {
@@ -2818,10 +2838,10 @@ pub enum WasmImport<'a> {
         /// The function whose signature this future type appears in.
         func: &'a Function,
 
-        /// The index into `func.find_futures_and_streams(resolve)`.
+        /// The future type appearing in `func.find_futures_and_streams(resolve)`.
         ///
         /// Use `None` for the special `unit` payload case.
-        type_index: Option<u32>,
+        ty: Option<TypeId>,
 
         /// The intrinsic that's being imported.
         intrinsic: FutureIntrinsic,
@@ -2845,10 +2865,10 @@ pub enum WasmImport<'a> {
         /// The function whose signature this stream type appears in.
         func: &'a Function,
 
-        /// The index into `func.find_futures_and_streams(resolve)`.
+        /// The stream type appearing in `func.find_futures_and_streams(resolve)`.
         ///
         /// Use `None` for the special `unit` payload case.
-        type_index: Option<u32>,
+        ty: Option<TypeId>,
 
         /// The intrinsic that's being imported.
         intrinsic: StreamIntrinsic,
@@ -4516,6 +4536,8 @@ mod tests {
         else {
             panic!("expected `export-func` to be a top-level world export");
         };
+        let import_types = import_func.find_futures_and_streams(&resolve);
+        assert_eq!(import_types.len(), 3);
 
         let (interface_key, interface_func) = world
             .imports
@@ -4528,13 +4550,15 @@ mod tests {
                 _ => None,
             })
             .expect("expected interface import");
+        let interface_types = interface_func.find_futures_and_streams(&resolve);
+        assert_eq!(interface_types.len(), 2);
 
         let (module, name) = resolve.wasm_import_name(
             mangling,
             WasmImport::FutureIntrinsic {
                 interface: None,
                 func: import_func,
-                type_index: Some(0),
+                ty: Some(import_types[0]),
                 intrinsic: FutureIntrinsic::New,
                 exported: false,
                 async_: false,
@@ -4548,7 +4572,7 @@ mod tests {
             WasmImport::FutureIntrinsic {
                 interface: None,
                 func: import_func,
-                type_index: Some(1),
+                ty: Some(import_types[1]),
                 intrinsic: FutureIntrinsic::Read,
                 exported: false,
                 async_: true,
@@ -4562,7 +4586,7 @@ mod tests {
             WasmImport::StreamIntrinsic {
                 interface: None,
                 func: import_func,
-                type_index: Some(2),
+                ty: Some(import_types[2]),
                 intrinsic: StreamIntrinsic::CancelRead,
                 exported: false,
                 async_: true,
@@ -4576,7 +4600,7 @@ mod tests {
             WasmImport::FutureIntrinsic {
                 interface: None,
                 func: export_func,
-                type_index: None,
+                ty: None,
                 intrinsic: FutureIntrinsic::DropReadable,
                 exported: true,
                 async_: false,
@@ -4590,7 +4614,7 @@ mod tests {
             WasmImport::StreamIntrinsic {
                 interface: None,
                 func: export_func,
-                type_index: None,
+                ty: None,
                 intrinsic: StreamIntrinsic::Write,
                 exported: true,
                 async_: true,
@@ -4604,7 +4628,7 @@ mod tests {
             WasmImport::StreamIntrinsic {
                 interface: Some(&interface_key),
                 func: interface_func,
-                type_index: Some(1),
+                ty: Some(interface_types[1]),
                 intrinsic: StreamIntrinsic::Read,
                 exported: true,
                 async_: false,
