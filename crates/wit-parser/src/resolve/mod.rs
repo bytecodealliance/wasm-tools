@@ -2436,6 +2436,13 @@ package {name} is defined in two different locations:\n\
                     };
                     (module, name)
                 }
+                WasmImport::FutureIntrinsic { .. } | WasmImport::StreamIntrinsic { .. } => {
+                    panic!(
+                        "at the time of writing, standard32 name mangling only supports the \
+                         synchronous ABI and does not define future/stream intrinsic imports; \
+                         use legacy mangling for these imports"
+                    )
+                }
             },
             ManglingAndAbi::Legacy(abi) => match import {
                 WasmImport::Func { interface, func } => {
@@ -2471,6 +2478,122 @@ package {name} is defined in two different locations:\n\
                         }
                     };
                     (module, format!("{}{name}", abi.import_prefix()))
+                }
+                WasmImport::FutureIntrinsic {
+                    interface,
+                    func,
+                    ty,
+                    intrinsic,
+                    exported,
+                    async_,
+                } => {
+                    let module_prefix = if exported { "[export]" } else { "" };
+                    let module = match interface {
+                        Some(key) => format!("{module_prefix}{}", self.name_world_key(key)),
+                        None => format!("{module_prefix}$root"),
+                    };
+                    let type_index = match ty {
+                        Some(ty) => func
+                            .find_futures_and_streams(self)
+                            .into_iter()
+                            .position(|candidate| candidate == ty)
+                            .unwrap_or_else(|| {
+                                panic!(
+                                    "future type {ty:?} not found in `find_futures_and_streams` for `{}`",
+                                    func.name
+                                )
+                            })
+                            .to_string(),
+                        None => "unit".to_string(),
+                    };
+                    let (async_prefix, name) = match intrinsic {
+                        FutureIntrinsic::New => {
+                            assert!(!async_, "future.new cannot be async-lowered");
+                            ("", "new")
+                        }
+                        FutureIntrinsic::Read => {
+                            (if async_ { "[async-lower]" } else { "" }, "read")
+                        }
+                        FutureIntrinsic::Write => {
+                            (if async_ { "[async-lower]" } else { "" }, "write")
+                        }
+                        FutureIntrinsic::CancelRead => {
+                            (if async_ { "[async-lower]" } else { "" }, "cancel-read")
+                        }
+                        FutureIntrinsic::CancelWrite => {
+                            (if async_ { "[async-lower]" } else { "" }, "cancel-write")
+                        }
+                        FutureIntrinsic::DropReadable => {
+                            assert!(!async_, "future.drop-readable cannot be async-lowered");
+                            ("", "drop-readable")
+                        }
+                        FutureIntrinsic::DropWritable => {
+                            assert!(!async_, "future.drop-writable cannot be async-lowered");
+                            ("", "drop-writable")
+                        }
+                    };
+                    (
+                        module,
+                        format!("{async_prefix}[future-{name}-{type_index}]{}", func.name),
+                    )
+                }
+                WasmImport::StreamIntrinsic {
+                    interface,
+                    func,
+                    ty,
+                    intrinsic,
+                    exported,
+                    async_,
+                } => {
+                    let module_prefix = if exported { "[export]" } else { "" };
+                    let module = match interface {
+                        Some(key) => format!("{module_prefix}{}", self.name_world_key(key)),
+                        None => format!("{module_prefix}$root"),
+                    };
+                    let type_index = match ty {
+                        Some(ty) => func
+                            .find_futures_and_streams(self)
+                            .into_iter()
+                            .position(|candidate| candidate == ty)
+                            .unwrap_or_else(|| {
+                                panic!(
+                                    "stream type {ty:?} not found in `find_futures_and_streams` for `{}`",
+                                    func.name
+                                )
+                            })
+                            .to_string(),
+                        None => "unit".to_string(),
+                    };
+                    let (async_prefix, name) = match intrinsic {
+                        StreamIntrinsic::New => {
+                            assert!(!async_, "stream.new cannot be async-lowered");
+                            ("", "new")
+                        }
+                        StreamIntrinsic::Read => {
+                            (if async_ { "[async-lower]" } else { "" }, "read")
+                        }
+                        StreamIntrinsic::Write => {
+                            (if async_ { "[async-lower]" } else { "" }, "write")
+                        }
+                        StreamIntrinsic::CancelRead => {
+                            (if async_ { "[async-lower]" } else { "" }, "cancel-read")
+                        }
+                        StreamIntrinsic::CancelWrite => {
+                            (if async_ { "[async-lower]" } else { "" }, "cancel-write")
+                        }
+                        StreamIntrinsic::DropReadable => {
+                            assert!(!async_, "stream.drop-readable cannot be async-lowered");
+                            ("", "drop-readable")
+                        }
+                        StreamIntrinsic::DropWritable => {
+                            assert!(!async_, "stream.drop-writable cannot be async-lowered");
+                            ("", "drop-writable")
+                        }
+                    };
+                    (
+                        module,
+                        format!("{async_prefix}[stream-{name}-{type_index}]{}", func.name),
+                    )
                 }
             },
         }
@@ -2688,7 +2811,7 @@ pub enum WasmImport<'a> {
         /// The name of the interface that the function is being imported from.
         ///
         /// If the function is imported directly from the world then this is
-        /// `Noen`.
+        /// `None`.
         interface: Option<&'a WorldKey>,
 
         /// The function being imported.
@@ -2706,6 +2829,60 @@ pub enum WasmImport<'a> {
         /// The intrinsic that's being imported.
         intrinsic: ResourceIntrinsic,
     },
+
+    /// A future-related intrinsic is being imported.
+    FutureIntrinsic {
+        /// The optional interface to import from, same as `WasmImport::Func`.
+        interface: Option<&'a WorldKey>,
+
+        /// The function whose signature this future type appears in.
+        func: &'a Function,
+
+        /// The future type appearing in `func.find_futures_and_streams(resolve)`.
+        ///
+        /// Use `None` for the special `unit` payload case.
+        ty: Option<TypeId>,
+
+        /// The intrinsic that's being imported.
+        intrinsic: FutureIntrinsic,
+
+        /// Whether this import is for an exported WIT function.
+        ///
+        /// This controls whether the module name is prefixed with `[export]`.
+        exported: bool,
+
+        /// Whether this intrinsic import is async-lowered.
+        ///
+        /// This is only valid for read/write/cancel intrinsics.
+        async_: bool,
+    },
+
+    /// A stream-related intrinsic is being imported.
+    StreamIntrinsic {
+        /// The optional interface to import from, same as `WasmImport::Func`.
+        interface: Option<&'a WorldKey>,
+
+        /// The function whose signature this stream type appears in.
+        func: &'a Function,
+
+        /// The stream type appearing in `func.find_futures_and_streams(resolve)`.
+        ///
+        /// Use `None` for the special `unit` payload case.
+        ty: Option<TypeId>,
+
+        /// The intrinsic that's being imported.
+        intrinsic: StreamIntrinsic,
+
+        /// Whether this import is for an exported WIT function.
+        ///
+        /// This controls whether the module name is prefixed with `[export]`.
+        exported: bool,
+
+        /// Whether this intrinsic import is async-lowered.
+        ///
+        /// This is only valid for read/write/cancel intrinsics.
+        async_: bool,
+    },
 }
 
 /// Intrinsic definitions to go with [`WasmImport::ResourceIntrinsic`] which
@@ -2716,6 +2893,32 @@ pub enum ResourceIntrinsic {
     ExportedDrop,
     ExportedNew,
     ExportedRep,
+}
+
+/// Intrinsic definitions to go with [`WasmImport::FutureIntrinsic`] which
+/// also goes with [`Resolve::wasm_import_name`].
+#[derive(Debug)]
+pub enum FutureIntrinsic {
+    New,
+    Read,
+    Write,
+    CancelRead,
+    CancelWrite,
+    DropReadable,
+    DropWritable,
+}
+
+/// Intrinsic definitions to go with [`WasmImport::StreamIntrinsic`] which
+/// also goes with [`Resolve::wasm_import_name`].
+#[derive(Debug)]
+pub enum StreamIntrinsic {
+    New,
+    Read,
+    Write,
+    CancelRead,
+    CancelWrite,
+    DropReadable,
+    DropWritable,
 }
 
 /// Indicates whether a function export is a normal export, a post-return
@@ -4232,6 +4435,7 @@ impl core::error::Error for InvalidTransitiveDependency {}
 
 #[cfg(test)]
 mod tests {
+    use crate::alloc::format;
     use crate::alloc::string::ToString;
     use crate::{Resolve, WorldItem, WorldKey};
     use anyhow::Result;
@@ -4293,6 +4497,149 @@ mod tests {
                 .select_world(&[dummy], Some("foo:baz/foo@0.2.0"))
                 .is_ok()
         );
+        Ok(())
+    }
+
+    #[test]
+    fn wasm_import_name_future_and_stream_intrinsics() -> Result<()> {
+        use crate::{FutureIntrinsic, LiftLowerAbi, ManglingAndAbi, StreamIntrinsic, WasmImport};
+
+        let mut resolve = Resolve::default();
+        let pkg = resolve.push_str(
+            "test.wit",
+            r#"
+                package foo:bar;
+
+                interface iface {
+                    iface-func: func(x: future<u32>) -> stream<u32>;
+                }
+
+                world w {
+                    import import-func: func(x: future<future<u32>>, y: u32) -> stream<string>;
+                    export export-func: func(x: future, y: stream);
+                    import iface;
+                    export iface;
+                }
+            "#,
+        )?;
+        let world = resolve.packages[pkg].worlds["w"];
+        let world = &resolve.worlds[world];
+        let mangling = ManglingAndAbi::Legacy(LiftLowerAbi::AsyncStackful);
+
+        let WorldItem::Function(import_func) =
+            &world.imports[&WorldKey::Name("import-func".to_string())]
+        else {
+            panic!("expected `import-func` to be a top-level world import");
+        };
+        let WorldItem::Function(export_func) =
+            &world.exports[&WorldKey::Name("export-func".to_string())]
+        else {
+            panic!("expected `export-func` to be a top-level world export");
+        };
+        let import_types = import_func.find_futures_and_streams(&resolve);
+        assert_eq!(import_types.len(), 3);
+
+        let (interface_key, interface_func) = world
+            .imports
+            .iter()
+            .find_map(|(key, item)| match item {
+                WorldItem::Interface { id, .. } => Some((
+                    key.clone(),
+                    &resolve.interfaces[*id].functions["iface-func"],
+                )),
+                _ => None,
+            })
+            .expect("expected interface import");
+        let interface_types = interface_func.find_futures_and_streams(&resolve);
+        assert_eq!(interface_types.len(), 2);
+
+        let (module, name) = resolve.wasm_import_name(
+            mangling,
+            WasmImport::FutureIntrinsic {
+                interface: None,
+                func: import_func,
+                ty: Some(import_types[0]),
+                intrinsic: FutureIntrinsic::New,
+                exported: false,
+                async_: false,
+            },
+        );
+        assert_eq!(module, "$root");
+        assert_eq!(name, "[future-new-0]import-func");
+
+        let (module, name) = resolve.wasm_import_name(
+            mangling,
+            WasmImport::FutureIntrinsic {
+                interface: None,
+                func: import_func,
+                ty: Some(import_types[1]),
+                intrinsic: FutureIntrinsic::Read,
+                exported: false,
+                async_: true,
+            },
+        );
+        assert_eq!(module, "$root");
+        assert_eq!(name, "[async-lower][future-read-1]import-func");
+
+        let (module, name) = resolve.wasm_import_name(
+            mangling,
+            WasmImport::StreamIntrinsic {
+                interface: None,
+                func: import_func,
+                ty: Some(import_types[2]),
+                intrinsic: StreamIntrinsic::CancelRead,
+                exported: false,
+                async_: true,
+            },
+        );
+        assert_eq!(module, "$root");
+        assert_eq!(name, "[async-lower][stream-cancel-read-2]import-func");
+
+        let (module, name) = resolve.wasm_import_name(
+            mangling,
+            WasmImport::FutureIntrinsic {
+                interface: None,
+                func: export_func,
+                ty: None,
+                intrinsic: FutureIntrinsic::DropReadable,
+                exported: true,
+                async_: false,
+            },
+        );
+        assert_eq!(module, "[export]$root");
+        assert_eq!(name, "[future-drop-readable-unit]export-func");
+
+        let (module, name) = resolve.wasm_import_name(
+            mangling,
+            WasmImport::StreamIntrinsic {
+                interface: None,
+                func: export_func,
+                ty: None,
+                intrinsic: StreamIntrinsic::Write,
+                exported: true,
+                async_: true,
+            },
+        );
+        assert_eq!(module, "[export]$root");
+        assert_eq!(name, "[async-lower][stream-write-unit]export-func");
+
+        let (module, name) = resolve.wasm_import_name(
+            mangling,
+            WasmImport::StreamIntrinsic {
+                interface: Some(&interface_key),
+                func: interface_func,
+                ty: Some(interface_types[1]),
+                intrinsic: StreamIntrinsic::Read,
+                exported: true,
+                async_: false,
+            },
+        );
+        assert_eq!(
+            module,
+            format!("[export]{}", resolve.name_world_key(&interface_key))
+        );
+        assert_eq!(name, "[stream-read-1]iface-func");
+
         Ok(())
     }
 
