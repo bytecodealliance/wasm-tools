@@ -1,0 +1,5 @@
+import `primary` conflicts with prior func of same name
+     --> tests/ui/parse-fail/implements-conflicts-func.wit:10:10
+      |
+   10 |   import primary: store;
+      |          ^------
