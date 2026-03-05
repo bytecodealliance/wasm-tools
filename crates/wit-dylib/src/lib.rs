@@ -15,7 +15,7 @@ use wit_parser::{
 
 mod async_;
 mod bindgen;
-mod metadata;
+pub mod metadata;
 pub use crate::async_::AsyncFilterSet;
 pub use crate::metadata::Metadata;
 
