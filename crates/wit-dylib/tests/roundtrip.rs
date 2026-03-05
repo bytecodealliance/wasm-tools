@@ -67,7 +67,6 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
     config.streams = false; // TODO
     config.async_ = false;
     let wasm = wit_smith::smith(&config, u)?;
-    std::fs::write("./hello.wasm", &wasm).unwrap();
     let (mut resolve, _pkg) = match wit_parser::decoding::decode(&wasm).unwrap() {
         DecodedWasm::WitPackage(resolve, pkg) => (resolve, pkg),
         DecodedWasm::Component(..) => unreachable!(),
