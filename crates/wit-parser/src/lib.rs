@@ -97,7 +97,7 @@ pub type TypeId = Id<TypeDef>;
 /// will connect the `foreign_deps` field of this structure to packages
 /// previously inserted within the [`Resolve`]. Embedders are responsible for
 /// performing this resolution themselves.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct UnresolvedPackage {
     /// The namespace, name, and version information for this package.
     pub name: PackageName,
@@ -175,7 +175,7 @@ impl UnresolvedPackage {
 }
 
 /// Tracks a set of packages, all pulled from the same group of WIT source files.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct UnresolvedPackageGroup {
     /// The "main" package in this package group which was found at the root of
     /// the WIT files.
@@ -190,7 +190,7 @@ pub struct UnresolvedPackageGroup {
     pub source_map: SourceMap,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum AstItem {
@@ -467,7 +467,7 @@ impl UnresolvedPackageGroup {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct World {
     /// The WIT identifier name of this world.
@@ -516,7 +516,7 @@ impl World {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IncludeName {
     /// The name of the item
     pub name: String,
@@ -527,7 +527,7 @@ pub struct IncludeName {
 
 /// An entry in the `includes` list of a world, representing an `include`
 /// statement in WIT.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WorldInclude {
     /// The stability annotation on this include.
     pub stability: Stability,
@@ -600,7 +600,7 @@ impl WorldKey {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum WorldItem {
@@ -654,7 +654,7 @@ impl WorldItem {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Interface {
     /// Optionally listed name of this interface.
@@ -714,7 +714,7 @@ impl Interface {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct TypeDef {
     pub name: Option<String>,
