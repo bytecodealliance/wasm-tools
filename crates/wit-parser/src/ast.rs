@@ -1686,13 +1686,13 @@ fn eat_id(tokens: &mut Tokenizer<'_>, expected: &str) -> Result<Span> {
 /// [`UnresolvedPackage`].
 ///
 /// [`UnresolvedPackage`]: crate::UnresolvedPackage
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct SourceMap {
     sources: Vec<Source>,
     offset: u32,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct Source {
     offset: u32,
     path: String,
