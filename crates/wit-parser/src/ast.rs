@@ -1843,14 +1843,7 @@ impl SourceMap {
         }
 
         if let Some(lex) = err.downcast_ref::<lex::Error>() {
-            let pos = match lex {
-                lex::Error::Unexpected(at, _)
-                | lex::Error::UnterminatedComment(at)
-                | lex::Error::Wanted { at, .. }
-                | lex::Error::InvalidCharInId(at, _)
-                | lex::Error::IdPartEmpty(at)
-                | lex::Error::InvalidEscape(at, _) => *at,
-            };
+            let pos = lex.position();
             let msg = self.highlight_err(pos, None, lex);
             bail!("{msg}")
         }
