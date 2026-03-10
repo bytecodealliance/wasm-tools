@@ -294,38 +294,6 @@ impl fmt::Display for PackageName {
     }
 }
 
-// #[derive(Clone, Debug)]
-// struct Error {
-//     span: Span,
-//     msg: String,
-//     highlighted: Option<String>,
-// }
-//
-// impl Error {
-//     fn new(span: Span, msg: impl Into<String>) -> Error {
-//         Error {
-//             span,
-//             msg: msg.into(),
-//             highlighted: None,
-//         }
-//     }
-//
-//     /// Highlights this error using the given source map, if the span is known.
-//     fn highlight(&mut self, source_map: &ast::SourceMap) {
-//         if self.highlighted.is_none() {
-//             self.highlighted = source_map.highlight_span(self.span, &self.msg);
-//         }
-//     }
-// }
-//
-// impl fmt::Display for Error {
-//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//         self.highlighted.as_ref().unwrap_or(&self.msg).fmt(f)
-//     }
-// }
-//
-// impl core::error::Error for Error {}
-//
 #[derive(Clone, Debug)]
 pub struct PackageNotFoundError {
     pub span: Span,
