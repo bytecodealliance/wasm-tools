@@ -10,8 +10,7 @@ use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 #[cfg(feature = "std")]
-use anyhow::Context;
-use anyhow::{Result, bail};
+use anyhow::Context as _;
 use id_arena::{Arena, Id};
 use semver::Version;
 
@@ -33,6 +32,7 @@ pub(crate) use hashbrown::{HashMap, HashSet};
 use alloc::borrow::Cow;
 use core::fmt;
 use core::hash::{Hash, Hasher};
+use core::result::Result;
 #[cfg(feature = "std")]
 use std::path::Path;
 
@@ -46,8 +46,9 @@ pub use metadata::PackageMetadata;
 pub mod abi;
 mod ast;
 pub use ast::SourceMap;
+pub use ast::WitError;
 pub use ast::lex::Span;
-pub use ast::{ParsedUsePath, parse_use_path};
+pub use ast::{ParseError, ParsedUsePath, SpanLocation, parse_use_path};
 mod sizealign;
 pub use sizealign::*;
 mod resolve;
@@ -63,7 +64,7 @@ mod serde_;
 use serde_::*;
 
 /// Checks if the given string is a legal identifier in wit.
-pub fn validate_id(s: &str) -> Result<()> {
+pub fn validate_id(s: &str) -> anyhow::Result<()> {
     ast::validate_id(0, s)?;
     Ok(())
 }
@@ -293,44 +294,43 @@ impl fmt::Display for PackageName {
     }
 }
 
-#[derive(Debug)]
-struct Error {
-    span: Span,
-    msg: String,
-    highlighted: Option<String>,
-}
-
-impl Error {
-    fn new(span: Span, msg: impl Into<String>) -> Error {
-        Error {
-            span,
-            msg: msg.into(),
-            highlighted: None,
-        }
-    }
-
-    /// Highlights this error using the given source map, if the span is known.
-    fn highlight(&mut self, source_map: &ast::SourceMap) {
-        if self.highlighted.is_none() {
-            self.highlighted = source_map.highlight_span(self.span, &self.msg);
-        }
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.highlighted.as_ref().unwrap_or(&self.msg).fmt(f)
-    }
-}
-
-impl core::error::Error for Error {}
-
-#[derive(Debug)]
-struct PackageNotFoundError {
-    span: Span,
-    requested: PackageName,
-    known: Vec<PackageName>,
-    highlighted: Option<String>,
+// #[derive(Clone, Debug)]
+// struct Error {
+//     span: Span,
+//     msg: String,
+//     highlighted: Option<String>,
+// }
+//
+// impl Error {
+//     fn new(span: Span, msg: impl Into<String>) -> Error {
+//         Error {
+//             span,
+//             msg: msg.into(),
+//             highlighted: None,
+//         }
+//     }
+//
+//     /// Highlights this error using the given source map, if the span is known.
+//     fn highlight(&mut self, source_map: &ast::SourceMap) {
+//         if self.highlighted.is_none() {
+//             self.highlighted = source_map.highlight_span(self.span, &self.msg);
+//         }
+//     }
+// }
+//
+// impl fmt::Display for Error {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         self.highlighted.as_ref().unwrap_or(&self.msg).fmt(f)
+//     }
+// }
+//
+// impl core::error::Error for Error {}
+//
+#[derive(Clone, Debug)]
+pub struct PackageNotFoundError {
+    pub span: Span,
+    pub requested: PackageName,
+    pub known: Vec<PackageName>,
 }
 
 impl PackageNotFoundError {
@@ -339,23 +339,12 @@ impl PackageNotFoundError {
             span,
             requested,
             known,
-            highlighted: None,
-        }
-    }
-
-    /// Highlights this error using the given source map, if the span is known.
-    fn highlight(&mut self, source_map: &ast::SourceMap) {
-        if self.highlighted.is_none() {
-            self.highlighted = source_map.highlight_span(self.span, &format!("{self}"));
         }
     }
 }
 
 impl fmt::Display for PackageNotFoundError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(highlighted) = &self.highlighted {
-            return highlighted.fmt(f);
-        }
         if self.known.is_empty() {
             write!(
                 f,
@@ -385,12 +374,18 @@ impl UnresolvedPackageGroup {
     /// are considered to be the contents of `path`. This function does not read
     /// the filesystem.
     #[cfg(feature = "std")]
-    pub fn parse(path: impl AsRef<Path>, contents: &str) -> Result<UnresolvedPackageGroup> {
+    pub fn parse(path: impl AsRef<Path>, contents: &str) -> anyhow::Result<UnresolvedPackageGroup> {
         let path = path
             .as_ref()
             .to_str()
             .ok_or_else(|| anyhow::anyhow!("path is not valid utf-8: {:?}", path.as_ref()))?;
-        Self::parse_str(path, contents)
+        let mut map = ast::SourceMap::default();
+        map.push_str(path, contents);
+        // TODO: avoid clone by changing `SourceMap::parse` to return the map
+        // back on error, e.g. `Err((SourceMap, WitError))`.
+        let map_for_err = map.clone();
+        map.parse()
+            .map_err(|e| anyhow::anyhow!("{}", e.highlight(&map_for_err)))
     }
 
     /// Parses the given string as a wit document.
@@ -398,7 +393,7 @@ impl UnresolvedPackageGroup {
     /// The `path` argument is used for error reporting. The `contents` provided
     /// are considered to be the contents of `path`. This function does not read
     /// the filesystem.
-    pub fn parse_str(path: &str, contents: &str) -> Result<UnresolvedPackageGroup> {
+    pub fn parse_str(path: &str, contents: &str) -> Result<UnresolvedPackageGroup, WitError> {
         let mut map = SourceMap::default();
         map.push_str(path, contents);
         map.parse()
@@ -410,7 +405,7 @@ impl UnresolvedPackageGroup {
     /// is parsed with [`UnresolvedPackageGroup::parse_file`] and a directory is
     /// parsed with [`UnresolvedPackageGroup::parse_dir`].
     #[cfg(feature = "std")]
-    pub fn parse_path(path: impl AsRef<Path>) -> Result<UnresolvedPackageGroup> {
+    pub fn parse_path(path: impl AsRef<Path>) -> anyhow::Result<UnresolvedPackageGroup> {
         let path = path.as_ref();
         if path.is_dir() {
             UnresolvedPackageGroup::parse_dir(path)
@@ -424,7 +419,7 @@ impl UnresolvedPackageGroup {
     /// The return value represents all packages found in the WIT file which
     /// might be either one or multiple depending on the syntax used.
     #[cfg(feature = "std")]
-    pub fn parse_file(path: impl AsRef<Path>) -> Result<UnresolvedPackageGroup> {
+    pub fn parse_file(path: impl AsRef<Path>) -> anyhow::Result<UnresolvedPackageGroup> {
         let path = path.as_ref();
         let contents = std::fs::read_to_string(path)
             .with_context(|| format!("failed to read file {path:?}"))?;
@@ -438,7 +433,7 @@ impl UnresolvedPackageGroup {
     /// grouping. This is useful when a WIT package is split across multiple
     /// files.
     #[cfg(feature = "std")]
-    pub fn parse_dir(path: impl AsRef<Path>) -> Result<UnresolvedPackageGroup> {
+    pub fn parse_dir(path: impl AsRef<Path>) -> anyhow::Result<UnresolvedPackageGroup> {
         let path = path.as_ref();
         let mut map = SourceMap::default();
         let cx = || format!("failed to read directory {path:?}");
@@ -463,7 +458,11 @@ impl UnresolvedPackageGroup {
             }
             map.push_file(&path)?;
         }
+        // TODO: avoid clone by changing `SourceMap::parse` to return the map
+        // back on error, e.g. `Err((SourceMap, WitError))`.
+        let map_for_err = map.clone();
         map.parse()
+            .map_err(|e| anyhow::anyhow!("{}", e.highlight(&map_for_err)))
     }
 }
 
@@ -1195,12 +1194,12 @@ pub enum Mangling {
 impl core::str::FromStr for Mangling {
     type Err = anyhow::Error;
 
-    fn from_str(s: &str) -> Result<Mangling> {
+    fn from_str(s: &str) -> anyhow::Result<Mangling> {
         match s {
             "legacy" => Ok(Mangling::Legacy),
             "standard32" => Ok(Mangling::Standard32),
             _ => {
-                bail!(
+                anyhow::bail!(
                     "unknown name mangling `{s}`, \
                      supported values are `legacy` or `standard32`"
                 )
