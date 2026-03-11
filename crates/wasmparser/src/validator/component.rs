@@ -2446,29 +2446,42 @@ impl ComponentState {
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
+        let component = components.last_mut().unwrap();
+
+        match component.kind {
+            // For a component itself all alias kind are allowed.
+            ComponentKind::Component => {}
+
+            // For instance/component types only aliases to `type` or `instance`
+            // items are allowed, and all other aliases are rejected.
+            ComponentKind::InstanceType | ComponentKind::ComponentType => match &alias {
+                crate::ComponentAlias::InstanceExport {
+                    kind: ComponentExternalKind::Type | ComponentExternalKind::Instance,
+                    ..
+                }
+                | crate::ComponentAlias::Outer {
+                    kind: ComponentOuterAliasKind::Type | ComponentOuterAliasKind::CoreType,
+                    ..
+                } => {}
+
+                _ => bail!(
+                    offset,
+                    "aliases in a component or instance type may only refer to types or instances"
+                ),
+            },
+        }
+
         match alias {
             crate::ComponentAlias::InstanceExport {
                 instance_index,
                 kind,
                 name,
-            } => components.last_mut().unwrap().alias_instance_export(
-                instance_index,
-                kind,
-                name,
-                types,
-                offset,
-            ),
+            } => component.alias_instance_export(instance_index, kind, name, types, offset),
             crate::ComponentAlias::CoreInstanceExport {
                 instance_index,
                 kind,
                 name,
-            } => components.last_mut().unwrap().alias_core_instance_export(
-                instance_index,
-                kind,
-                name,
-                types,
-                offset,
-            ),
+            } => component.alias_core_instance_export(instance_index, kind, name, types, offset),
             crate::ComponentAlias::Outer { kind, count, index } => match kind {
                 ComponentOuterAliasKind::CoreModule => {
                     Self::alias_module(components, count, index, offset)
