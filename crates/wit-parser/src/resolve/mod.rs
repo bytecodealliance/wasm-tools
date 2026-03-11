@@ -195,28 +195,27 @@ fn visit<'a>(
     pkg_details_map: &'a BTreeMap<PackageName, (UnresolvedPackage, usize)>,
     order: &mut IndexSet<PackageName>,
     visiting: &mut HashSet<&'a PackageName>,
-    source_maps: &[SourceMap],
+    source_map_offsets: &[u32],
 ) -> Result<(), WitError> {
     if order.contains(&pkg.name) {
         return Ok(());
     }
 
+    let (_, sm_idx) = pkg_details_map
+        .get(&pkg.name)
+        .expect("No pkg_details found for package when doing topological sort");
+    let offset = source_map_offsets[*sm_idx];
     for (i, (dep, _)) in pkg.foreign_deps.iter().enumerate() {
-        let span = pkg.foreign_dep_spans[i];
+        let mut span = pkg.foreign_dep_spans[i];
+        span.adjust(offset);
         if !visiting.insert(dep) {
-            let (_, source_map_index) = pkg_details_map.get(&pkg.name).unwrap();
-            let source_map = &source_maps[*source_map_index];
-            let span_location = source_map.get_location(span);
-            let highlighted = source_map.highlight_span(span, "package creates a dependency cycle");
             return Err(WitError::PackageCycle {
                 package: dep.clone(),
-                span_location,
-                highlighted,
+                span,
             });
         }
-        if let Some(dep) = pkg_details_map.get(dep) {
-            let (dep_pkg, _) = dep;
-            visit(dep_pkg, pkg_details_map, order, visiting, source_maps)?;
+        if let Some((dep_pkg, _)) = pkg_details_map.get(dep) {
+            visit(dep_pkg, pkg_details_map, order, visiting, source_map_offsets)?;
         }
         assert!(visiting.remove(dep));
     }
@@ -230,35 +229,18 @@ impl Resolve {
         Resolve::default()
     }
 
-    /// Parse WIT packages from the input `path`.
-    ///
-    /// The input `path` can be one of:
-    ///
-    /// * A directory containing a WIT package with an optional `deps` directory
-    ///   for any dependent WIT packages it references.
-    /// * A single standalone WIT file.
-    /// * A wasm-encoded WIT package as a single file in the wasm binary format.
-    /// * A wasm-encoded WIT package as a single file in the wasm text format.
-    ///
-    /// In all of these cases packages are allowed to depend on previously
-    /// inserted packages into this `Resolve`. Resolution for packages is based
-    /// on the name of each package and reference.
-    ///
-    /// This method returns a `PackageId` and additionally a `PackageSourceMap`.
-    /// The `PackageId` represent the main package that was parsed. For example if a single WIT
-    /// file was specified  this will be the main package found in the file. For a directory this
-    /// will be all the main package in the directory itself. The `PackageId` value is useful
-    /// to pass to [`Resolve::select_world`] to take a user-specified world in a
-    /// conventional fashion and select which to use for bindings generation.
+    /// Merge `main` and `deps` into this [`Resolve`], topologically sorting
+    /// them internally. Returns the [`PackageId`] of `main` and a
+    /// [`PackageSources`] covering all groups.
     fn sort_unresolved_packages(
         &mut self,
         main: UnresolvedPackageGroup,
         deps: Vec<UnresolvedPackageGroup>,
     ) -> Result<(PackageId, PackageSources), WitError> {
-        let mut pkg_details_map = BTreeMap::new();
-        let mut source_maps = Vec::new();
+        let mut source_maps: Vec<SourceMap> = Vec::new();
+        let mut all_packages: Vec<(UnresolvedPackage, usize)> = Vec::new();
 
-        let mut insert = |group: UnresolvedPackageGroup| -> Result<(), WitError> {
+        let mut collect = |group: UnresolvedPackageGroup| {
             let UnresolvedPackageGroup {
                 main,
                 nested,
@@ -266,66 +248,70 @@ impl Resolve {
             } = group;
             let i = source_maps.len();
             source_maps.push(source_map);
-
             for pkg in nested.into_iter().chain([main]) {
-                let name = pkg.name.clone();
-                let my_span = pkg.package_name_span;
-                let (prev_pkg, prev_i) = match pkg_details_map.insert(name.clone(), (pkg, i)) {
-                    Some(pair) => pair,
-                    None => continue,
-                };
-                let loc1 = source_maps[i].render_location(my_span);
-                let loc2 = source_maps[prev_i].render_location(prev_pkg.package_name_span);
-                return Err(WitError::DuplicatePackage { name, loc1, loc2 });
+                all_packages.push((pkg, i));
             }
-            Ok(())
         };
 
         let main_name = main.main.name.clone();
-        insert(main)?;
+        collect(main);
         for dep in deps {
-            insert(dep)?;
+            collect(dep);
+        }
+
+        // Merge all source maps into resolve.source_map upfront so that every
+        // span produced during toposort and duplicate detection is valid in
+        // resolve.source_map and can be located by rewrite_error below.
+        // Each group has exactly one source map, so a Vec of offsets suffices.
+        let source_map_offsets: Vec<u32> = source_maps
+            .iter()
+            .map(|sm| self.push_source_map(sm.clone()))
+            .collect();
+
+        let mut pkg_details_map: BTreeMap<PackageName, (UnresolvedPackage, usize)> =
+            BTreeMap::new();
+        for (pkg, sm_idx) in all_packages {
+            let name = pkg.name.clone();
+            let my_span = pkg.package_name_span;
+            let offset = source_map_offsets[sm_idx];
+            if let Some((prev_pkg, prev_idx)) = pkg_details_map.insert(name.clone(), (pkg, sm_idx))
+            {
+                let prev_offset = source_map_offsets[prev_idx];
+                let mut span1 = my_span;
+                span1.adjust(offset);
+                let mut span2 = prev_pkg.package_name_span;
+                span2.adjust(prev_offset);
+                return Err(WitError::DuplicatePackage { name, span1, span2 });
+            }
         }
 
         // Perform a simple topological sort which will bail out on cycles
         // and otherwise determine the order that packages must be added to
         // this `Resolve`.
         let mut order = IndexSet::default();
-        {
-            let mut visiting = HashSet::new();
-            for pkg_details in pkg_details_map.values() {
-                let (pkg, _) = pkg_details;
-                visit(
-                    pkg,
-                    &pkg_details_map,
-                    &mut order,
-                    &mut visiting,
-                    &source_maps,
-                )?;
-            }
+        let mut visiting = HashSet::new();
+        for (pkg, _) in pkg_details_map.values() {
+            visit(
+                pkg,
+                &pkg_details_map,
+                &mut order,
+                &mut visiting,
+                &source_map_offsets,
+            )?;
         }
 
-        // Ensure that the final output is topologically sorted. Track which source maps
-        // have been appended and their byte offsets to avoid duplicating them.
         let mut package_id_to_source_map_idx = BTreeMap::new();
         let mut main_pkg_id = None;
-        let mut source_map_offsets: HashMap<usize, u32> = HashMap::new();
         for name in order {
-            let (pkg, source_map_index) = pkg_details_map.remove(&name).unwrap();
-            let source_map = &source_maps[source_map_index];
+            let (pkg, sm_idx) = pkg_details_map.remove(&name).unwrap();
+            let span_offset = source_map_offsets[sm_idx];
             let is_main = pkg.name == main_name;
-
-            // Get or compute the span offset for this source map
-            let span_offset = *source_map_offsets
-                .entry(source_map_index)
-                .or_insert_with(|| self.push_source_map(source_map.clone()));
-
             let id = self.push(pkg, span_offset)?;
             if is_main {
                 assert!(main_pkg_id.is_none());
                 main_pkg_id = Some(id);
             }
-            package_id_to_source_map_idx.insert(id, source_map_index);
+            package_id_to_source_map_idx.insert(id, sm_idx);
         }
 
         Ok((
@@ -4453,7 +4439,8 @@ fn merge_include_stability(
 mod tests {
     use crate::alloc::format;
     use crate::alloc::string::ToString;
-    use crate::{Resolve, WorldItem, WorldKey};
+    use crate::alloc::vec;
+    use crate::{Resolve, UnresolvedPackageGroup, WorldItem, WorldKey};
     use anyhow::Result;
 
     #[test]
@@ -5511,6 +5498,48 @@ interface iface {
         }
 
         Ok(())
+    }
+
+    #[test]
+    fn push_groups_resolves_dep_before_main() -> Result<()> {
+        // push_groups must topologically sort main + deps internally and succeed
+        // even when the dep is listed after main in the caller's mental model.
+        let dep = UnresolvedPackageGroup::parse_str(
+            "file:///dep.wit",
+            "package foo:dep;\ninterface i { type t = u32; }",
+        )?;
+        let main = UnresolvedPackageGroup::parse_str(
+            "file:///main.wit",
+            "package foo:main;\ninterface j { use foo:dep/i.{t}; type u = t; }",
+        )?;
+        let mut resolve = Resolve::default();
+        resolve.push_groups(main, vec![dep])?;
+        assert_eq!(resolve.packages.len(), 2);
+        Ok(())
+    }
+
+    #[test]
+    fn push_groups_cycle_error_contains_location() {
+        // A cross-group cycle must produce an error message with a file URI and
+        // line/col. This validates that source maps are merged into resolve.source_map
+        // *before* toposort runs, so the span in the cycle error is resolvable.
+        let a = UnresolvedPackageGroup::parse_str(
+            "file:///a.wit",
+            "package foo:a;\ninterface i { use foo:b/j.{}; }",
+        )
+        .unwrap();
+        let b = UnresolvedPackageGroup::parse_str(
+            "file:///b.wit",
+            "package foo:b;\ninterface j { use foo:a/i.{}; }",
+        )
+        .unwrap();
+        let mut resolve = Resolve::default();
+        let err = resolve.push_groups(a, vec![b]).unwrap_err();
+        let msg = err.highlight(&resolve.source_map);
+        assert!(
+            msg.contains("file:///"),
+            "cycle error should contain a file URI, got: {msg}"
+        );
     }
 
     #[test]
