@@ -629,6 +629,7 @@ impl Token {
 impl core::error::Error for Error {}
 
 impl Error {
+    /// Returns the byte offset in the source map where this error occurred.
     pub fn position(&self) -> u32 {
         match self {
             Error::ControlCodepoint(at, _)
