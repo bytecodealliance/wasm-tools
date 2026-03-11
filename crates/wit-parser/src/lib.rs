@@ -293,47 +293,6 @@ impl fmt::Display for PackageName {
         Ok(())
     }
 }
-//
-// #[derive(Clone, Debug)]
-// pub struct PackageNotFoundError {
-//     pub span: Span,
-//     pub requested: PackageName,
-//     pub known: Vec<PackageName>,
-// }
-//
-// impl PackageNotFoundError {
-//     pub fn new(span: Span, requested: PackageName, known: Vec<PackageName>) -> Self {
-//         Self {
-//             span,
-//             requested,
-//             known,
-//         }
-//     }
-// }
-//
-// impl fmt::Display for PackageNotFoundError {
-//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//         if self.known.is_empty() {
-//             write!(
-//                 f,
-//                 "package '{}' not found. no known packages.",
-//                 self.requested
-//             )?;
-//         } else {
-//             write!(
-//                 f,
-//                 "package '{}' not found. known packages:\n",
-//                 self.requested
-//             )?;
-//             for known in self.known.iter() {
-//                 write!(f, "    {known}\n")?;
-//             }
-//         }
-//         Ok(())
-//     }
-// }
-
-// impl core::error::Error for PackageNotFoundError {}
 
 impl UnresolvedPackageGroup {
     /// Parses the given string as a wit document.
