@@ -1,4 +1,5 @@
-use crate::{PackageNotFoundError, UnresolvedPackageGroup};
+use crate::UnresolvedPackageGroup;
+use crate::ast::error::{ParseErrorKind, ParseErrors};
 use alloc::borrow::Cow;
 use alloc::boxed::Box;
 use alloc::format;
@@ -13,6 +14,7 @@ use semver::Version;
 #[cfg(feature = "std")]
 use std::path::Path;
 
+pub mod error;
 pub mod lex;
 
 pub use resolve::Resolver;
@@ -34,7 +36,7 @@ impl<'a> PackageFile<'a> {
     ///
     /// This will optionally start with `package foo:bar;` and then will have a
     /// list of ast items after it.
-    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self, WitError> {
+    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self, ParseErrors> {
         let mut package_name_tokens_peek = tokens.clone();
         let docs = parse_docs(&mut package_name_tokens_peek)?;
 
@@ -63,10 +65,10 @@ impl<'a> PackageFile<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self, WitError> {
+    ) -> Result<Self, ParseErrors> {
         let span = tokens.expect(Token::Package)?;
         if !attributes.is_empty() {
-            return Err(WitError::Parse(ParseError {
+            return Err(ParseErrors::single(ParseErrorKind::Syntax {
                 span: span,
                 message: format!("cannot place attributes on nested packages"),
             }));
@@ -125,7 +127,7 @@ impl<'a> DeclList<'a> {
     fn parse_until(
         tokens: &mut Tokenizer<'a>,
         end: Option<Token>,
-    ) -> Result<DeclList<'a>, WitError> {
+    ) -> Result<DeclList<'a>, ParseErrors> {
         let mut items = Vec::new();
         let mut docs = parse_docs(tokens)?;
         loop {
@@ -155,8 +157,8 @@ impl<'a> DeclList<'a> {
             &'b UsePath<'a>,
             Option<&'b [UseName<'a>]>,
             WorldOrInterface,
-        ) -> Result<(), WitError>,
-    ) -> Result<(), WitError> {
+        ) -> Result<(), ParseErrors>,
+    ) -> Result<(), ParseErrors> {
         for item in self.items.iter() {
             match item {
                 AstItem::World(world) => {
@@ -263,7 +265,7 @@ enum AstItem<'a> {
 }
 
 impl<'a> AstItem<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self, WitError> {
+    fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self, ParseErrors> {
         let attributes = Attribute::parse_list(tokens)?;
         match tokens.clone().next()? {
             Some((_span, Token::Interface)) => {
@@ -289,7 +291,7 @@ struct PackageName<'a> {
 }
 
 impl<'a> PackageName<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self, WitError> {
+    fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self, ParseErrors> {
         let namespace = parse_id(tokens)?;
         tokens.expect(Token::Colon)?;
         let name = parse_id(tokens)?;
@@ -326,7 +328,10 @@ struct ToplevelUse<'a> {
 }
 
 impl<'a> ToplevelUse<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>, attributes: Vec<Attribute<'a>>) -> Result<Self, WitError> {
+    fn parse(
+        tokens: &mut Tokenizer<'a>,
+        attributes: Vec<Attribute<'a>>,
+    ) -> Result<Self, ParseErrors> {
         let span = tokens.expect(Token::Use)?;
         let item = UsePath::parse(tokens)?;
         let as_ = if tokens.eat(Token::As)? {
@@ -356,7 +361,7 @@ impl<'a> World<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self, WitError> {
+    ) -> Result<Self, ParseErrors> {
         tokens.expect(Token::World)?;
         let name = parse_id(tokens)?;
         let items = Self::parse_items(tokens)?;
@@ -368,7 +373,7 @@ impl<'a> World<'a> {
         })
     }
 
-    fn parse_items(tokens: &mut Tokenizer<'a>) -> Result<Vec<WorldItem<'a>>, WitError> {
+    fn parse_items(tokens: &mut Tokenizer<'a>) -> Result<Vec<WorldItem<'a>>, ParseErrors> {
         tokens.expect(Token::LeftBrace)?;
         let mut items = Vec::new();
         loop {
@@ -396,7 +401,7 @@ impl<'a> WorldItem<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<WorldItem<'a>, WitError> {
+    ) -> Result<WorldItem<'a>, ParseErrors> {
         match tokens.clone().next()? {
             Some((_span, Token::Import)) => {
                 Import::parse(tokens, docs, attributes).map(WorldItem::Import)
@@ -447,7 +452,7 @@ impl<'a> Import<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Import<'a>, WitError> {
+    ) -> Result<Import<'a>, ParseErrors> {
         tokens.expect(Token::Import)?;
         let kind = ExternKind::parse(tokens)?;
         Ok(Import {
@@ -469,7 +474,7 @@ impl<'a> Export<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Export<'a>, WitError> {
+    ) -> Result<Export<'a>, ParseErrors> {
         tokens.expect(Token::Export)?;
         let kind = ExternKind::parse(tokens)?;
         Ok(Export {
@@ -487,7 +492,7 @@ enum ExternKind<'a> {
 }
 
 impl<'a> ExternKind<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>) -> Result<ExternKind<'a>, WitError> {
+    fn parse(tokens: &mut Tokenizer<'a>) -> Result<ExternKind<'a>, ParseErrors> {
         // Create a copy of the token stream to test out if this is a function
         // or an interface import. In those situations the token stream gets
         // reset to the state of the clone and we continue down those paths.
@@ -544,7 +549,7 @@ impl<'a> Interface<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self, WitError> {
+    ) -> Result<Self, ParseErrors> {
         tokens.expect(Token::Interface)?;
         let name = parse_id(tokens)?;
         let items = Self::parse_items(tokens)?;
@@ -558,7 +563,7 @@ impl<'a> Interface<'a> {
 
     pub(super) fn parse_items(
         tokens: &mut Tokenizer<'a>,
-    ) -> Result<Vec<InterfaceItem<'a>>, WitError> {
+    ) -> Result<Vec<InterfaceItem<'a>>, ParseErrors> {
         tokens.expect(Token::LeftBrace)?;
         let mut items = Vec::new();
         loop {
@@ -599,7 +604,7 @@ enum UsePath<'a> {
 }
 
 impl<'a> UsePath<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self, WitError> {
+    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self, ParseErrors> {
         let id = parse_id(tokens)?;
         if tokens.eat(Token::Colon)? {
             // `foo:bar/baz@1.0`
@@ -638,7 +643,10 @@ struct UseName<'a> {
 }
 
 impl<'a> Use<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>, attributes: Vec<Attribute<'a>>) -> Result<Self, WitError> {
+    fn parse(
+        tokens: &mut Tokenizer<'a>,
+        attributes: Vec<Attribute<'a>>,
+    ) -> Result<Self, ParseErrors> {
         tokens.expect(Token::Use)?;
         let from = UsePath::parse(tokens)?;
         tokens.expect(Token::Period)?;
@@ -680,7 +688,10 @@ struct IncludeName<'a> {
 }
 
 impl<'a> Include<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>, attributes: Vec<Attribute<'a>>) -> Result<Self, WitError> {
+    fn parse(
+        tokens: &mut Tokenizer<'a>,
+        attributes: Vec<Attribute<'a>>,
+    ) -> Result<Self, ParseErrors> {
         tokens.expect(Token::Include)?;
         let from = UsePath::parse(tokens)?;
 
@@ -807,7 +818,7 @@ impl<'a> ResourceFunc<'a> {
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
         tokens: &mut Tokenizer<'a>,
-    ) -> Result<Self, WitError> {
+    ) -> Result<Self, ParseErrors> {
         match tokens.clone().next()? {
             Some((span, Token::Constructor)) => {
                 tokens.expect(Token::Constructor)?;
@@ -971,11 +982,11 @@ struct Func<'a> {
 }
 
 impl<'a> Func<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Func<'a>, WitError> {
+    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Func<'a>, ParseErrors> {
         fn parse_params<'a>(
             tokens: &mut Tokenizer<'a>,
             left_paren: bool,
-        ) -> Result<ParamList<'a>, WitError> {
+        ) -> Result<ParamList<'a>, ParseErrors> {
             if left_paren {
                 tokens.expect(Token::LeftParen)?;
             };
@@ -1010,7 +1021,7 @@ impl<'a> InterfaceItem<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<InterfaceItem<'a>, WitError> {
+    ) -> Result<InterfaceItem<'a>, ParseErrors> {
         match tokens.clone().next()? {
             Some((_span, Token::Type)) => {
                 TypeDef::parse(tokens, docs, attributes).map(InterfaceItem::TypeDef)
@@ -1044,7 +1055,7 @@ impl<'a> TypeDef<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self, WitError> {
+    ) -> Result<Self, ParseErrors> {
         tokens.expect(Token::Type)?;
         let name = parse_id(tokens)?;
         tokens.expect(Token::Equals)?;
@@ -1062,7 +1073,7 @@ impl<'a> TypeDef<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self, WitError> {
+    ) -> Result<Self, ParseErrors> {
         tokens.expect(Token::Flags)?;
         let name = parse_id(tokens)?;
         let ty = Type::Flags(Flags {
@@ -1089,7 +1100,7 @@ impl<'a> TypeDef<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self, WitError> {
+    ) -> Result<Self, ParseErrors> {
         tokens.expect(Token::Resource)?;
         let name = parse_id(tokens)?;
         let mut funcs = Vec::new();
@@ -1118,7 +1129,7 @@ impl<'a> TypeDef<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self, WitError> {
+    ) -> Result<Self, ParseErrors> {
         tokens.expect(Token::Record)?;
         let name = parse_id(tokens)?;
         let ty = Type::Record(Record {
@@ -1147,7 +1158,7 @@ impl<'a> TypeDef<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self, WitError> {
+    ) -> Result<Self, ParseErrors> {
         tokens.expect(Token::Variant)?;
         let name = parse_id(tokens)?;
         let ty = Type::Variant(Variant {
@@ -1181,7 +1192,7 @@ impl<'a> TypeDef<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self, WitError> {
+    ) -> Result<Self, ParseErrors> {
         tokens.expect(Token::Enum)?;
         let name = parse_id(tokens)?;
         let ty = Type::Enum(Enum {
@@ -1210,7 +1221,7 @@ impl<'a> NamedFunc<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self, WitError> {
+    ) -> Result<Self, ParseErrors> {
         let name = parse_id(tokens)?;
         tokens.expect(Token::Colon)?;
         let func = Func::parse(tokens)?;
@@ -1224,7 +1235,7 @@ impl<'a> NamedFunc<'a> {
     }
 }
 
-fn parse_id<'a>(tokens: &mut Tokenizer<'a>) -> Result<Id<'a>, WitError> {
+fn parse_id<'a>(tokens: &mut Tokenizer<'a>) -> Result<Id<'a>, ParseErrors> {
     match tokens.next()? {
         Some((span, Token::Id)) => Ok(Id {
             name: tokens.parse_id(span)?,
@@ -1238,7 +1249,7 @@ fn parse_id<'a>(tokens: &mut Tokenizer<'a>) -> Result<Id<'a>, WitError> {
     }
 }
 
-fn parse_opt_version(tokens: &mut Tokenizer<'_>) -> Result<Option<(Span, Version)>, WitError> {
+fn parse_opt_version(tokens: &mut Tokenizer<'_>) -> Result<Option<(Span, Version)>, ParseErrors> {
     if tokens.eat(Token::At)? {
         parse_version(tokens).map(Some)
     } else {
@@ -1246,7 +1257,7 @@ fn parse_opt_version(tokens: &mut Tokenizer<'_>) -> Result<Option<(Span, Version
     }
 }
 
-fn parse_version(tokens: &mut Tokenizer<'_>) -> Result<(Span, Version), WitError> {
+fn parse_version(tokens: &mut Tokenizer<'_>) -> Result<(Span, Version), ParseErrors> {
     let start = tokens.expect(Token::Integer)?.start();
     tokens.expect(Token::Period)?;
     tokens.expect(Token::Integer)?;
@@ -1257,7 +1268,7 @@ fn parse_version(tokens: &mut Tokenizer<'_>) -> Result<(Span, Version), WitError
     eat_ids(tokens, Token::Plus, &mut span)?;
     let string = tokens.get_span(span);
     let version = Version::parse(string).map_err(|e| {
-        WitError::Parse(ParseError {
+        ParseErrors::single(ParseErrorKind::Syntax {
             span,
             message: e.to_string(),
         })
@@ -1374,7 +1385,7 @@ fn parse_docs<'a>(tokens: &mut Tokenizer<'a>) -> Result<Docs<'a>, lex::Error> {
 }
 
 impl<'a> Type<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self, WitError> {
+    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self, ParseErrors> {
         match tokens.next()? {
             Some((span, Token::U8)) => Ok(Type::U8(span)),
             Some((span, Token::U16)) => Ok(Type::U16(span)),
@@ -1411,7 +1422,7 @@ impl<'a> Type<'a> {
                     let number = tokens.next()?;
                     if let Some((span, Token::Integer)) = number {
                         let size: u32 = tokens.get_span(span).parse().map_err(|e| {
-                            WitError::Parse(ParseError {
+                            ParseErrors::single(ParseErrorKind::Syntax {
                                 span,
                                 message: format!("invalid list size: {e}"),
                             })
@@ -1583,8 +1594,8 @@ fn parse_list<'a, T>(
     tokens: &mut Tokenizer<'a>,
     start: Token,
     end: Token,
-    parse: impl FnMut(Docs<'a>, &mut Tokenizer<'a>) -> Result<T, WitError>,
-) -> Result<Vec<T>, WitError> {
+    parse: impl FnMut(Docs<'a>, &mut Tokenizer<'a>) -> Result<T, ParseErrors>,
+) -> Result<Vec<T>, ParseErrors> {
     tokens.expect(start)?;
     parse_list_trailer(tokens, end, parse)
 }
@@ -1592,8 +1603,8 @@ fn parse_list<'a, T>(
 fn parse_list_trailer<'a, T>(
     tokens: &mut Tokenizer<'a>,
     end: Token,
-    mut parse: impl FnMut(Docs<'a>, &mut Tokenizer<'a>) -> Result<T, WitError>,
-) -> Result<Vec<T>, WitError> {
+    mut parse: impl FnMut(Docs<'a>, &mut Tokenizer<'a>) -> Result<T, ParseErrors>,
+) -> Result<Vec<T>, ParseErrors> {
     let mut items = Vec::new();
     loop {
         // get docs before we skip them to try to eat the end token
@@ -1621,13 +1632,13 @@ fn err_expected(
     tokens: &Tokenizer<'_>,
     expected: &'static str,
     found: Option<(Span, Token)>,
-) -> WitError {
+) -> ParseErrors {
     match found {
-        Some((span, token)) => WitError::Parse(ParseError {
+        Some((span, token)) => ParseErrors::single(ParseErrorKind::Syntax {
             span,
             message: format!("expected {}, found {}", expected, token.describe()),
         }),
-        None => WitError::Parse(ParseError {
+        None => ParseErrors::single(ParseErrorKind::Syntax {
             span: tokens.eof_span(),
             message: format!("expected {expected}, found eof"),
         }),
@@ -1641,7 +1652,7 @@ enum Attribute<'a> {
 }
 
 impl<'a> Attribute<'a> {
-    fn parse_list(tokens: &mut Tokenizer<'a>) -> Result<Vec<Attribute<'a>>, WitError> {
+    fn parse_list(tokens: &mut Tokenizer<'a>) -> Result<Vec<Attribute<'a>>, ParseErrors> {
         let mut ret = Vec::new();
         while tokens.eat(Token::At)? {
             let id = parse_id(tokens)?;
@@ -1680,7 +1691,7 @@ impl<'a> Attribute<'a> {
                     }
                 }
                 other => {
-                    return Err(WitError::Parse(ParseError {
+                    return Err(ParseErrors::single(ParseErrorKind::Syntax {
                         span: id.span,
                         message: format!("unknown attribute `{other}`"),
                     }));
@@ -1700,10 +1711,10 @@ impl<'a> Attribute<'a> {
     }
 }
 
-fn eat_id(tokens: &mut Tokenizer<'_>, expected: &str) -> Result<Span, WitError> {
+fn eat_id(tokens: &mut Tokenizer<'_>, expected: &str) -> Result<Span, ParseErrors> {
     let id = parse_id(tokens)?;
     if id.name != expected {
-        return Err(WitError::Parse(ParseError {
+        return Err(ParseErrors::single(ParseErrorKind::Syntax {
             span: id.span,
             message: format!("expected `{expected}`, found `{}`", id.name),
         }));
@@ -1737,132 +1748,131 @@ pub struct SpanLocation {
     /// UTF-8 byte offet within the file (end)
     pub end: usize,
 }
+//
+// #[derive(Debug)]
+// pub struct ParseError {
+//     pub span: Span,
+//     pub message: String,
+// }
 
-#[derive(Debug)]
-pub struct ParseError {
-    pub span: Span,
-    pub message: String,
-}
-
-#[non_exhaustive]
-#[derive(Debug)]
-pub enum WitError {
-    Lex(lex::Error),
-    Parse(ParseError),
-    PackageNotFound(PackageNotFoundError),
-    TopoSortError(toposort::Error),
-    /// An interface transitively depends on another interface in an
-    /// incompatible way with respect to imports and exports.
-    ///
-    /// The `name` is the interface with the invalid transitive dependency.
-    /// The `span` points to the world where the conflict was detected.
-    ///
-    /// Note: a future improvement would be to also provide a path showing
-    /// how the interfaces are connected, to help the user understand why
-    /// the dependency is invalid.
-    InvalidTransitiveDependency {
-        name: String,
-        span: Span,
-    },
-    /// Two separate source locations define the same package name.
-    ///
-    /// `span1` and `span2` are global spans valid in the `SourceMap` of the
-    /// `Resolve` that produced this error.
-    DuplicatePackage {
-        name: crate::PackageName,
-        span1: Span,
-        span2: Span,
-    },
-    /// A dependency cycle was detected among packages.
-    ///
-    /// `package` is the package whose `use` statement closes the cycle.
-    /// `span` is a global span valid in the `SourceMap` of the `Resolve`
-    /// that produced this error, pointing to the `use` that closes the cycle.
-    PackageCycle {
-        package: crate::PackageName,
-        span: Span,
-    },
-}
-
-impl From<lex::Error> for WitError {
-    fn from(e: lex::Error) -> Self {
-        WitError::Lex(e)
-    }
-}
-
-impl From<toposort::Error> for WitError {
-    fn from(e: toposort::Error) -> Self {
-        WitError::TopoSortError(e)
-    }
-}
-
-impl core::fmt::Display for WitError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            WitError::Lex(e) => fmt::Display::fmt(e, f),
-            WitError::Parse(e) => e.message.fmt(f),
-            WitError::PackageNotFound(e) => fmt::Display::fmt(e, f),
-            WitError::TopoSortError(e) => fmt::Display::fmt(e, f),
-            WitError::InvalidTransitiveDependency { name, .. } => write!(
-                f,
-                "interface `{name}` transitively depends on an interface in incompatible ways",
-            ),
-            WitError::DuplicatePackage { name, .. } => write!(
-                f,
-                "package `{name}` is defined in two different locations",
-            ),
-            WitError::PackageCycle { package, .. } => {
-                write!(f, "package `{package}` creates a dependency cycle")
-            }
-        }
-    }
-}
-
-impl core::error::Error for WitError {}
-
-impl WitError {
-    /// Format this error with source context from `source_map`.
-    ///
-    /// Returns a string with the error message and a highlighted excerpt of the
-    /// relevant source, suitable for display to end users. Falls back to the
-    /// plain message if no span information is available.
-    pub fn highlight(&self, source_map: &SourceMap) -> String {
-        match self {
-            WitError::Parse(e) => source_map
-                .highlight_span(e.span, &e.message)
-                .unwrap_or_else(|| e.message.clone()),
-            WitError::Lex(e) => {
-                let span = Span::new(e.position(), e.position() + 1);
-                source_map
-                    .highlight_span(span, e)
-                    .unwrap_or_else(|| e.to_string())
-            }
-            WitError::PackageNotFound(e) => {
-                let msg = e.to_string();
-                source_map.highlight_span(e.span, &msg).unwrap_or(msg)
-            }
-            WitError::TopoSortError(e) => {
-                let msg = e.to_string();
-                source_map.highlight_span(e.span(), &msg).unwrap_or(msg)
-            }
-            WitError::InvalidTransitiveDependency { span, .. } => {
-                let msg = self.to_string();
-                source_map.highlight_span(*span, &msg).unwrap_or(msg)
-            }
-            WitError::DuplicatePackage { name, span1, span2 } => {
-                let loc1 = source_map.render_location(*span1);
-                let loc2 = source_map.render_location(*span2);
-                format!(
-                    "package `{name}` is defined in two different locations:\n  * {loc1}\n  * {loc2}"
-                )
-            }
-            WitError::PackageCycle { package, span } => {
-                let msg = format!("package `{package}` creates a dependency cycle");
-                source_map.highlight_span(*span, &msg).unwrap_or(msg)
-            }
-        }
-    }
-}
+// #[non_exhaustive]
+// #[derive(Debug)]
+// pub enum WitError {
+//     Lex(lex::Error),
+//     Parse(ParseError),
+//     PackageNotFound(PackageNotFoundError),
+//     TopoSortError(toposort::Error),
+//     /// An interface transitively depends on another interface in an
+//     /// incompatible way with respect to imports and exports.
+//     ///
+//     /// The `name` is the interface with the invalid transitive dependency.
+//     /// The `span` points to the world where the conflict was detected.
+//     ///
+//     /// Note: a future improvement would be to also provide a path showing
+//     /// how the interfaces are connected, to help the user understand why
+//     /// the dependency is invalid.
+//     InvalidTransitiveDependency {
+//         name: String,
+//         span: Span,
+//     },
+//     /// Two separate source locations define the same package name.
+//     ///
+//     /// `span1` and `span2` are global spans valid in the `SourceMap` of the
+//     /// `Resolve` that produced this error.
+//     DuplicatePackage {
+//         name: crate::PackageName,
+//         span1: Span,
+//         span2: Span,
+//     },
+//     /// A dependency cycle was detected among packages.
+//     ///
+//     /// `package` is the package whose `use` statement closes the cycle.
+//     /// `span` is a global span valid in the `SourceMap` of the `Resolve`
+//     /// that produced this error, pointing to the `use` that closes the cycle.
+//     PackageCycle {
+//         package: crate::PackageName,
+//         span: Span,
+//     },
+// }
+//
+// impl From<lex::Error> for WitError {
+//     fn from(e: lex::Error) -> Self {
+//         WitError::Lex(e)
+//     }
+// }
+//
+// impl From<toposort::Error> for WitError {
+//     fn from(e: toposort::Error) -> Self {
+//         WitError::TopoSortError(e)
+//     }
+// }
+//
+// impl core::fmt::Display for WitError {
+//     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+//         match self {
+//             WitError::Lex(e) => fmt::Display::fmt(e, f),
+//             WitError::Parse(e) => e.message.fmt(f),
+//             WitError::PackageNotFound(e) => fmt::Display::fmt(e, f),
+//             WitError::TopoSortError(e) => fmt::Display::fmt(e, f),
+//             WitError::InvalidTransitiveDependency { name, .. } => write!(
+//                 f,
+//                 "interface `{name}` transitively depends on an interface in incompatible ways",
+//             ),
+//             WitError::DuplicatePackage { name, .. } => {
+//                 write!(f, "package `{name}` is defined in two different locations",)
+//             }
+//             WitError::PackageCycle { package, .. } => {
+//                 write!(f, "package `{package}` creates a dependency cycle")
+//             }
+//         }
+//     }
+// }
+//
+// impl core::error::Error for WitError {}
+//
+// impl WitError {
+//     /// Format this error with source context from `source_map`.
+//     ///
+//     /// Returns a string with the error message and a highlighted excerpt of the
+//     /// relevant source, suitable for display to end users. Falls back to the
+//     /// plain message if no span information is available.
+//     pub fn highlight(&self, source_map: &SourceMap) -> String {
+//         match self {
+//             WitError::Parse(e) => source_map
+//                 .highlight_span(e.span, &e.message)
+//                 .unwrap_or_else(|| e.message.clone()),
+//             WitError::Lex(e) => {
+//                 let span = Span::new(e.position(), e.position() + 1);
+//                 source_map
+//                     .highlight_span(span, e)
+//                     .unwrap_or_else(|| e.to_string())
+//             }
+//             WitError::PackageNotFound(e) => {
+//                 let msg = e.to_string();
+//                 source_map.highlight_span(e.span, &msg).unwrap_or(msg)
+//             }
+//             WitError::TopoSortError(e) => {
+//                 let msg = e.to_string();
+//                 source_map.highlight_span(e.span(), &msg).unwrap_or(msg)
+//             }
+//             WitError::InvalidTransitiveDependency { span, .. } => {
+//                 let msg = self.to_string();
+//                 source_map.highlight_span(*span, &msg).unwrap_or(msg)
+//             }
+//             WitError::DuplicatePackage { name, span1, span2 } => {
+//                 let loc1 = source_map.render_location(*span1);
+//                 let loc2 = source_map.render_location(*span2);
+//                 format!(
+//                     "package `{name}` is defined in two different locations:\n  * {loc1}\n  * {loc2}"
+//                 )
+//             }
+//             WitError::PackageCycle { package, span } => {
+//                 let msg = format!("package `{package}` creates a dependency cycle");
+//                 source_map.highlight_span(*span, &msg).unwrap_or(msg)
+//             }
+//         }
+//     }
+// }
 
 impl SourceMap {
     /// Creates a new empty source map.
@@ -1933,7 +1943,7 @@ impl SourceMap {
 
     /// Parses the files added to this source map into a
     /// [`UnresolvedPackageGroup`].
-    pub fn parse(self) -> Result<UnresolvedPackageGroup, WitError> {
+    pub fn parse(self) -> Result<UnresolvedPackageGroup, ParseErrors> {
         let mut nested = Vec::new();
         let mut resolver = Resolver::default();
         let mut srcs = self.sources.iter().collect::<Vec<_>>();

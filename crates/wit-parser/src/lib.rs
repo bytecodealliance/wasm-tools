@@ -46,9 +46,9 @@ pub use metadata::PackageMetadata;
 pub mod abi;
 mod ast;
 pub use ast::SourceMap;
-pub use ast::WitError;
+pub use ast::error::{ParseErrorKind, ParseErrors};
 pub use ast::lex::Span;
-pub use ast::{ParseError, ParsedUsePath, SpanLocation, parse_use_path};
+pub use ast::{ParsedUsePath, SpanLocation, parse_use_path};
 mod sizealign;
 pub use sizealign::*;
 mod resolve;
@@ -293,47 +293,47 @@ impl fmt::Display for PackageName {
         Ok(())
     }
 }
+//
+// #[derive(Clone, Debug)]
+// pub struct PackageNotFoundError {
+//     pub span: Span,
+//     pub requested: PackageName,
+//     pub known: Vec<PackageName>,
+// }
+//
+// impl PackageNotFoundError {
+//     pub fn new(span: Span, requested: PackageName, known: Vec<PackageName>) -> Self {
+//         Self {
+//             span,
+//             requested,
+//             known,
+//         }
+//     }
+// }
+//
+// impl fmt::Display for PackageNotFoundError {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         if self.known.is_empty() {
+//             write!(
+//                 f,
+//                 "package '{}' not found. no known packages.",
+//                 self.requested
+//             )?;
+//         } else {
+//             write!(
+//                 f,
+//                 "package '{}' not found. known packages:\n",
+//                 self.requested
+//             )?;
+//             for known in self.known.iter() {
+//                 write!(f, "    {known}\n")?;
+//             }
+//         }
+//         Ok(())
+//     }
+// }
 
-#[derive(Clone, Debug)]
-pub struct PackageNotFoundError {
-    pub span: Span,
-    pub requested: PackageName,
-    pub known: Vec<PackageName>,
-}
-
-impl PackageNotFoundError {
-    pub fn new(span: Span, requested: PackageName, known: Vec<PackageName>) -> Self {
-        Self {
-            span,
-            requested,
-            known,
-        }
-    }
-}
-
-impl fmt::Display for PackageNotFoundError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.known.is_empty() {
-            write!(
-                f,
-                "package '{}' not found. no known packages.",
-                self.requested
-            )?;
-        } else {
-            write!(
-                f,
-                "package '{}' not found. known packages:\n",
-                self.requested
-            )?;
-            for known in self.known.iter() {
-                write!(f, "    {known}\n")?;
-            }
-        }
-        Ok(())
-    }
-}
-
-impl core::error::Error for PackageNotFoundError {}
+// impl core::error::Error for PackageNotFoundError {}
 
 impl UnresolvedPackageGroup {
     /// Parses the given string as a wit document.
@@ -361,7 +361,7 @@ impl UnresolvedPackageGroup {
     /// The `path` argument is used for error reporting. The `contents` provided
     /// are considered to be the contents of `path`. This function does not read
     /// the filesystem.
-    pub fn parse_str(path: &str, contents: &str) -> Result<UnresolvedPackageGroup, WitError> {
+    pub fn parse_str(path: &str, contents: &str) -> Result<UnresolvedPackageGroup, ParseErrors> {
         let mut map = SourceMap::default();
         map.push_str(path, contents);
         map.parse()

@@ -1,6 +1,6 @@
 use super::{ParamList, WorldOrInterface};
+use crate::ast::error::{ParseErrorKind, ParseErrors};
 use crate::ast::toposort::toposort;
-use crate::ast::{ParseError, WitError};
 use crate::*;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
@@ -107,7 +107,7 @@ enum TypeOrItem {
 }
 
 impl<'a> Resolver<'a> {
-    pub(super) fn push(&mut self, file: ast::PackageFile<'a>) -> Result<(), WitError> {
+    pub(super) fn push(&mut self, file: ast::PackageFile<'a>) -> Result<(), ParseErrors> {
         // As each WIT file is pushed into this resolver keep track of the
         // current package name assigned. Only one file needs to mention it, but
         // if multiple mention it then they must all match.
@@ -115,7 +115,7 @@ impl<'a> Resolver<'a> {
             let cur_name = cur.package_name();
             if let Some((prev, _)) = &self.package_name {
                 if cur_name != *prev {
-                    return Err(WitError::Parse(ParseError {
+                    return Err(ParseErrors::single(ParseErrorKind::Syntax {
                         span: cur.span,
                         message: format!(
                             "package identifier `{cur_name}` does not match \
@@ -130,7 +130,7 @@ impl<'a> Resolver<'a> {
             let docs = self.docs(&cur.docs);
             if docs.contents.is_some() {
                 if self.package_docs.contents.is_some() {
-                    return Err(WitError::Parse(ParseError {
+                    return Err(ParseErrors::single(ParseErrorKind::Syntax {
                         span: cur.docs.span,
                         message: "found doc comments on multiple 'package' items".to_owned(),
                     }));
@@ -147,7 +147,7 @@ impl<'a> Resolver<'a> {
                 ast::AstItem::Package(pkg) => pkg.package_id.as_ref().unwrap().span,
                 _ => continue,
             };
-            return Err(WitError::Parse(ParseError {
+            return Err(ParseErrors::single(ParseErrorKind::Syntax {
                 span: span,
                 message: "nested packages must be placed at the top-level".to_owned(),
             }));
@@ -157,12 +157,12 @@ impl<'a> Resolver<'a> {
         Ok(())
     }
 
-    pub(crate) fn resolve(&mut self) -> Result<UnresolvedPackage, WitError> {
+    pub(crate) fn resolve(&mut self) -> Result<UnresolvedPackage, ParseErrors> {
         // At least one of the WIT files must have a `package` annotation.
         let (name, package_name_span) = match &self.package_name {
             Some(name) => name.clone(),
             None => {
-                return Err(WitError::Parse(ParseError {
+                return Err(ParseErrors::single(ParseErrorKind::Syntax {
                     span: Span::default(),
                     message: "no `package` header was found in any WIT file for this package"
                         .to_owned(),
@@ -342,7 +342,7 @@ impl<'a> Resolver<'a> {
     fn populate_ast_items(
         &mut self,
         decl_lists: &[ast::DeclList<'a>],
-    ) -> Result<(Vec<InterfaceId>, Vec<WorldId>), WitError> {
+    ) -> Result<(Vec<InterfaceId>, Vec<WorldId>), ParseErrors> {
         let mut package_items = IndexMap::default();
 
         // Validate that all worlds and interfaces have unique names within this
@@ -356,7 +356,7 @@ impl<'a> Resolver<'a> {
                 match item {
                     ast::AstItem::Interface(i) => {
                         if package_items.insert(i.name.name, i.name.span).is_some() {
-                            return Err(WitError::Parse(ParseError {
+                            return Err(ParseErrors::single(ParseErrorKind::Syntax {
                                 span: i.name.span,
                                 message: format!("duplicate item named `{}`", i.name.name),
                             }));
@@ -370,7 +370,7 @@ impl<'a> Resolver<'a> {
                     }
                     ast::AstItem::World(w) => {
                         if package_items.insert(w.name.name, w.name.span).is_some() {
-                            return Err(WitError::Parse(ParseError {
+                            return Err(ParseErrors::single(ParseErrorKind::Syntax {
                                 span: w.name.span,
                                 message: format!("duplicate item named `{}`", w.name.name),
                             }));
@@ -421,7 +421,7 @@ impl<'a> Resolver<'a> {
                     ast::AstItem::Package(_) => unreachable!(),
                 };
                 if decl_list_ns.insert(name.name, (name.span, src)).is_some() {
-                    return Err(WitError::Parse(ParseError {
+                    return Err(ParseErrors::single(ParseErrorKind::Syntax {
                         span: name.span,
                         message: format!("duplicate name `{}` in this file", name.name),
                     }));
@@ -452,12 +452,11 @@ impl<'a> Resolver<'a> {
                             order[iface.name].push(used_name.clone());
                         }
                         None => {
-                            return Err(WitError::Parse(ParseError {
+                            return Err(ParseErrors::single(ParseErrorKind::ItemNotFound {
                                 span: used_name.span,
-                                message: format!(
-                                    "interface or world `{name}` not found in package",
-                                    name = used_name.name
-                                ),
+                                name: used_name.name.to_string(),
+                                kind: "interface or world".to_string(),
+                                hint: None,
                             }));
                         }
                     },
@@ -500,7 +499,7 @@ impl<'a> Resolver<'a> {
                 let (name, ast_item) = match item {
                     ast::AstItem::Use(u) => {
                         if !u.attributes.is_empty() {
-                            return Err(WitError::Parse(ParseError {
+                            return Err(ParseErrors::single(ParseErrorKind::Syntax {
                                 span: u.span,
                                 message: format!("attributes not allowed on top-level use"),
                             }));
@@ -508,7 +507,7 @@ impl<'a> Resolver<'a> {
                         let name = u.as_.as_ref().unwrap_or(u.item.name());
                         let item = match &u.item {
                             ast::UsePath::Id(name) => *ids.get(name.name).ok_or_else(|| {
-                                WitError::Parse(ParseError {
+                                ParseErrors::single(ParseErrorKind::Syntax {
                                     span: name.span,
                                     message: format!(
                                         "interface or world `{name}` does not exist",
@@ -555,7 +554,10 @@ impl<'a> Resolver<'a> {
     /// This is done after all interfaces are generated so `self.resolve_path`
     /// can be used to determine if what's being imported from is a foreign
     /// interface or not.
-    fn populate_foreign_types(&mut self, decl_lists: &[ast::DeclList<'a>]) -> Result<(), WitError> {
+    fn populate_foreign_types(
+        &mut self,
+        decl_lists: &[ast::DeclList<'a>],
+    ) -> Result<(), ParseErrors> {
         for (i, decl_list) in decl_lists.iter().enumerate() {
             self.cur_ast_index = i;
             decl_list.for_each_path(&mut |_, attrs, path, names, _| {
@@ -603,7 +605,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         world_id: WorldId,
         world: &ast::World<'a>,
-    ) -> Result<WorldId, WitError> {
+    ) -> Result<WorldId, ParseErrors> {
         let docs = self.docs(&world.docs);
         self.worlds[world_id].docs = docs;
         let stability = self.stability(&world.attributes)?;
@@ -637,7 +639,7 @@ impl<'a> Resolver<'a> {
                         WorldItem::Type { id, span: *span },
                     );
                     if prev.is_some() {
-                        return Err(WitError::Parse(ParseError {
+                        return Err(ParseErrors::single(ParseErrorKind::Syntax {
                             span: *span,
                             message: format!(
                                 "import `{name}` conflicts with prior import of same name"
@@ -716,7 +718,7 @@ impl<'a> Resolver<'a> {
             };
             if let WorldItem::Interface { id, .. } = world_item {
                 if !interfaces.insert(id) {
-                    return Err(WitError::Parse(ParseError {
+                    return Err(ParseErrors::single(ParseErrorKind::Syntax {
                         span: kind.span(),
                         message: format!("interface cannot be {desc}ed more than once"),
                     }));
@@ -738,7 +740,7 @@ impl<'a> Resolver<'a> {
                     WorldKey::Name(name) => name,
                     WorldKey::Interface(..) => unreachable!(),
                 };
-                return Err(WitError::Parse(ParseError {
+                return Err(ParseErrors::single(ParseErrorKind::Syntax {
                     span: kind.span(),
                     message: format!("{desc} `{name}` conflicts with prior {prev} of same name",),
                 }));
@@ -754,7 +756,7 @@ impl<'a> Resolver<'a> {
         docs: &ast::Docs<'a>,
         attrs: &[ast::Attribute<'a>],
         kind: &ast::ExternKind<'a>,
-    ) -> Result<WorldItem, WitError> {
+    ) -> Result<WorldItem, ParseErrors> {
         match kind {
             ast::ExternKind::Interface(name, items) => {
                 let prev = mem::take(&mut self.type_lookup);
@@ -802,7 +804,7 @@ impl<'a> Resolver<'a> {
         fields: &[ast::InterfaceItem<'a>],
         docs: &ast::Docs<'a>,
         attrs: &[ast::Attribute<'a>],
-    ) -> Result<(), WitError> {
+    ) -> Result<(), ParseErrors> {
         let docs = self.docs(docs);
         self.interfaces[interface_id].docs = docs;
         let stability = self.stability(attrs)?;
@@ -878,7 +880,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         owner: TypeOwner,
         fields: impl Iterator<Item = TypeItem<'a, 'b>> + Clone,
-    ) -> Result<(), WitError>
+    ) -> Result<(), ParseErrors>
     where
         'a: 'b,
     {
@@ -905,7 +907,7 @@ impl<'a> Resolver<'a> {
                 TypeItem::Def(t) => {
                     let prev = type_defs.insert(t.name.name, Some(t));
                     if prev.is_some() {
-                        return Err(WitError::Parse(ParseError {
+                        return Err(ParseErrors::single(ParseErrorKind::Syntax {
                             span: t.name.span,
                             message: format!("name `{}` is defined more than once", t.name.name),
                         }));
@@ -925,7 +927,7 @@ impl<'a> Resolver<'a> {
         }
         let order = toposort("type", &type_deps)
             .map_err(attach_old_float_type_context)
-            .map_err(WitError::TopoSortError)?;
+            .map_err(ParseErrors::from)?;
         for ty in order {
             let def = match type_defs.swap_remove(&ty).unwrap() {
                 Some(def) => def,
@@ -964,7 +966,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn resolve_use(&mut self, owner: TypeOwner, u: &ast::Use<'a>) -> Result<(), WitError> {
+    fn resolve_use(&mut self, owner: TypeOwner, u: &ast::Use<'a>) -> Result<(), ParseErrors> {
         let (item, name, span) = self.resolve_ast_item_path(&u.from)?;
         let use_from = self.extract_iface_from_item(&item, &name, span)?;
         let stability = self.stability(&u.attributes)?;
@@ -974,15 +976,17 @@ impl<'a> Resolver<'a> {
             let id = match lookup.get(name.name.name) {
                 Some((TypeOrItem::Type(id), _)) => *id,
                 Some((TypeOrItem::Item(s), _)) => {
-                    return Err(WitError::Parse(ParseError {
+                    return Err(ParseErrors::single(ParseErrorKind::Syntax {
                         span: name.name.span,
                         message: format!("cannot import {s} `{}`", name.name.name),
                     }));
                 }
                 None => {
-                    return Err(WitError::Parse(ParseError {
+                    return Err(ParseErrors::single(ParseErrorKind::ItemNotFound {
                         span: name.name.span,
-                        message: format!("name `{}` is not defined", name.name.name),
+                        name: name.name.name.to_string(),
+                        kind: "name".to_string(),
+                        hint: None,
                     }));
                 }
             };
@@ -1002,7 +1006,11 @@ impl<'a> Resolver<'a> {
     }
 
     /// For each name in the `include`, resolve the path of the include, add it to the self.includes
-    fn resolve_include(&mut self, world_id: WorldId, i: &ast::Include<'a>) -> Result<(), WitError> {
+    fn resolve_include(
+        &mut self,
+        world_id: WorldId,
+        i: &ast::Include<'a>,
+    ) -> Result<(), ParseErrors> {
         let stability = self.stability(&i.attributes)?;
         let (item, name, span) = self.resolve_ast_item_path(&i.from)?;
         let include_from = self.extract_world_from_item(&item, &name, span)?;
@@ -1026,7 +1034,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         func: &ast::ResourceFunc<'_>,
         resource: &ast::Id<'_>,
-    ) -> Result<Function, WitError> {
+    ) -> Result<Function, ParseErrors> {
         let resource_id = match self.type_lookup.get(resource.name) {
             Some((TypeOrItem::Type(id), _)) => *id,
             _ => panic!("type lookup for resource failed"),
@@ -1075,7 +1083,7 @@ impl<'a> Resolver<'a> {
         name_span: Span,
         func: &ast::Func,
         kind: FunctionKind,
-    ) -> Result<Function, WitError> {
+    ) -> Result<Function, ParseErrors> {
         let docs = self.docs(docs);
         let stability = self.stability(attrs)?;
         let params = self.resolve_params(&func.params, &kind, func.span)?;
@@ -1094,7 +1102,7 @@ impl<'a> Resolver<'a> {
     fn resolve_ast_item_path(
         &self,
         path: &ast::UsePath<'a>,
-    ) -> Result<(AstItem, String, Span), WitError> {
+    ) -> Result<(AstItem, String, Span), ParseErrors> {
         match path {
             ast::UsePath::Id(id) => {
                 let item = self.ast_items[self.cur_ast_index]
@@ -1103,9 +1111,11 @@ impl<'a> Resolver<'a> {
                 match item {
                     Some(item) => Ok((*item, id.name.into(), id.span)),
                     None => {
-                        return Err(WitError::Parse(ParseError {
+                        return Err(ParseErrors::single(ParseErrorKind::ItemNotFound {
                             span: id.span,
-                            message: format!("interface or world `{}` does not exist", id.name),
+                            name: id.name.to_string(),
+                            kind: "interface or world".to_owned(),
+                            hint: None,
                         }));
                     }
                 }
@@ -1123,11 +1133,11 @@ impl<'a> Resolver<'a> {
         item: &AstItem,
         name: &str,
         span: Span,
-    ) -> Result<InterfaceId, WitError> {
+    ) -> Result<InterfaceId, ParseErrors> {
         match item {
             AstItem::Interface(id) => Ok(*id),
             AstItem::World(_) => {
-                return Err(WitError::Parse(ParseError {
+                return Err(ParseErrors::single(ParseErrorKind::Syntax {
                     span,
                     message: format!("name `{name}` is defined as a world, not an interface"),
                 }));
@@ -1140,11 +1150,11 @@ impl<'a> Resolver<'a> {
         item: &AstItem,
         name: &str,
         span: Span,
-    ) -> Result<WorldId, WitError> {
+    ) -> Result<WorldId, ParseErrors> {
         match item {
             AstItem::World(id) => Ok(*id),
             AstItem::Interface(_) => {
-                return Err(WitError::Parse(ParseError {
+                return Err(ParseErrors::single(ParseErrorKind::Syntax {
                     span,
                     message: format!("name `{name}` is defined as an interface, not a world"),
                 }));
@@ -1156,10 +1166,10 @@ impl<'a> Resolver<'a> {
         &mut self,
         name: &ast::Id<'a>,
         item: TypeOrItem,
-    ) -> Result<(), WitError> {
+    ) -> Result<(), ParseErrors> {
         let prev = self.type_lookup.insert(name.name, (item, name.span));
         if prev.is_some() {
-            return Err(WitError::Parse(ParseError {
+            return Err(ParseErrors::single(ParseErrorKind::Syntax {
                 span: name.span,
                 message: format!("name `{}` is defined more than once", name.name),
             }));
@@ -1172,7 +1182,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         ty: &ast::Type<'_>,
         stability: &Stability,
-    ) -> Result<TypeDefKind, WitError> {
+    ) -> Result<TypeDefKind, ParseErrors> {
         Ok(match ty {
             ast::Type::Bool(_) => TypeDefKind::Type(Type::Bool),
             ast::Type::U8(_) => TypeDefKind::Type(Type::U8),
@@ -1213,7 +1223,7 @@ impl<'a> Resolver<'a> {
                     | Type::Char
                     | Type::String => {}
                     _ => {
-                        return Err(WitError::Parse(ParseError {
+                        return Err(ParseErrors::single(ParseErrorKind::Syntax {
                             span: map.span,
                             message:  "invalid map key type: map keys must be bool, u8, u16, u32, u64, s8, s16, s32, s64, char, or string".to_owned(),
                         }));
@@ -1241,7 +1251,7 @@ impl<'a> Resolver<'a> {
                     match func {
                         ast::ResourceFunc::Method(f) | ast::ResourceFunc::Static(f) => {
                             if !names.insert(&f.name.name) {
-                                return Err(WitError::Parse(ParseError {
+                                return Err(ParseErrors::single(ParseErrorKind::Syntax {
                                     span: f.name.span,
                                     message: format!("duplicate function name `{}`", f.name.name),
                                 }));
@@ -1250,7 +1260,7 @@ impl<'a> Resolver<'a> {
                         ast::ResourceFunc::Constructor(f) => {
                             ctors += 1;
                             if ctors > 1 {
-                                return Err(WitError::Parse(ParseError {
+                                return Err(ParseErrors::single(ParseErrorKind::Syntax {
                                     span: f.name.span,
                                     message: "duplicate constructors".to_owned(),
                                 }));
@@ -1273,7 +1283,7 @@ impl<'a> Resolver<'a> {
                             span: field.name.span,
                         })
                     })
-                    .collect::<Result<Vec<_>, WitError>>()?;
+                    .collect::<Result<Vec<_>, ParseErrors>>()?;
                 TypeDefKind::Record(Record { fields })
             }
             ast::Type::Flags(flags) => {
@@ -1293,12 +1303,12 @@ impl<'a> Resolver<'a> {
                     .types
                     .iter()
                     .map(|ty| self.resolve_type(ty, stability))
-                    .collect::<Result<Vec<_>, WitError>>()?;
+                    .collect::<Result<Vec<_>, ParseErrors>>()?;
                 TypeDefKind::Tuple(Tuple { types })
             }
             ast::Type::Variant(variant) => {
                 if variant.cases.is_empty() {
-                    return Err(WitError::Parse(ParseError {
+                    return Err(ParseErrors::single(ParseErrorKind::Syntax {
                         span: variant.span,
                         message: "empty variant".to_owned(),
                     }));
@@ -1314,12 +1324,12 @@ impl<'a> Resolver<'a> {
                             span: case.name.span,
                         })
                     })
-                    .collect::<Result<Vec<_>, WitError>>()?;
+                    .collect::<Result<Vec<_>, ParseErrors>>()?;
                 TypeDefKind::Variant(Variant { cases })
             }
             ast::Type::Enum(e) => {
                 if e.cases.is_empty() {
-                    return Err(WitError::Parse(ParseError {
+                    return Err(ParseErrors::single(ParseErrorKind::Syntax {
                         span: e.span,
                         message: "empty enum".to_owned(),
                     }));
@@ -1334,7 +1344,7 @@ impl<'a> Resolver<'a> {
                             span: case.name.span,
                         })
                     })
-                    .collect::<Result<Vec<_>, WitError>>()?;
+                    .collect::<Result<Vec<_>, ParseErrors>>()?;
                 TypeDefKind::Enum(Enum { cases })
             }
             ast::Type::Option(ty) => TypeDefKind::Option(self.resolve_type(&ty.ty, stability)?),
@@ -1351,17 +1361,17 @@ impl<'a> Resolver<'a> {
         })
     }
 
-    fn resolve_type_name(&mut self, name: &ast::Id<'_>) -> Result<TypeId, WitError> {
+    fn resolve_type_name(&mut self, name: &ast::Id<'_>) -> Result<TypeId, ParseErrors> {
         match self.type_lookup.get(name.name) {
             Some((TypeOrItem::Type(id), _)) => Ok(*id),
             Some((TypeOrItem::Item(s), _)) => {
-                return Err(WitError::Parse(ParseError {
+                return Err(ParseErrors::single(ParseErrorKind::Syntax {
                     span: name.span,
                     message: format!("cannot use {s} `{name}` as a type", name = name.name),
                 }));
             }
             None => {
-                return Err(WitError::Parse(ParseError {
+                return Err(ParseErrors::single(ParseErrorKind::Syntax {
                     span: name.span,
                     message: format!("name `{name}` is not defined", name = name.name),
                 }));
@@ -1369,7 +1379,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn validate_resource(&mut self, name: &ast::Id<'_>) -> Result<TypeId, WitError> {
+    fn validate_resource(&mut self, name: &ast::Id<'_>) -> Result<TypeId, ParseErrors> {
         let id = self.resolve_type_name(name)?;
         let mut cur = id;
         loop {
@@ -1381,7 +1391,7 @@ impl<'a> Resolver<'a> {
                     break Ok(id);
                 }
                 _ => {
-                    return Err(WitError::Parse(ParseError {
+                    return Err(ParseErrors::single(ParseErrorKind::Syntax {
                         span: name.span,
                         message: format!(
                             "type `{}` used in a handle must be a resource",
@@ -1466,7 +1476,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         ty: &super::Type<'_>,
         stability: &Stability,
-    ) -> Result<Type, WitError> {
+    ) -> Result<Type, ParseErrors> {
         // Resources must be declared at the top level to have their methods
         // processed appropriately, but resources also shouldn't show up
         // recursively so assert that's not happening here.
@@ -1490,7 +1500,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         ty: Option<&super::Type<'_>>,
         stability: &Stability,
-    ) -> Result<Option<Type>, WitError> {
+    ) -> Result<Option<Type>, ParseErrors> {
         match ty {
             Some(ty) => Ok(Some(self.resolve_type(ty, stability)?)),
             None => Ok(None),
@@ -1596,7 +1606,7 @@ impl<'a> Resolver<'a> {
         Docs { contents }
     }
 
-    fn stability(&mut self, attrs: &[ast::Attribute<'_>]) -> Result<Stability, WitError> {
+    fn stability(&mut self, attrs: &[ast::Attribute<'_>]) -> Result<Stability, ParseErrors> {
         match attrs {
             [] => Ok(Stability::Unknown),
 
@@ -1640,13 +1650,13 @@ impl<'a> Resolver<'a> {
                 deprecated: Some(version.clone()),
             }),
             [ast::Attribute::Deprecated { span, .. }] => {
-                return Err(WitError::Parse(ParseError {
+                return Err(ParseErrors::single(ParseErrorKind::Syntax {
                     span: *span,
                     message: "must pair @deprecated with either @since or @unstable".to_owned(),
                 }));
             }
             [_, b, ..] => {
-                return Err(WitError::Parse(ParseError {
+                return Err(ParseErrors::single(ParseErrorKind::Syntax {
                     span: b.span(),
                     message: "unsupported combination of attributes".to_owned(),
                 }));
@@ -1659,7 +1669,7 @@ impl<'a> Resolver<'a> {
         params: &ParamList<'_>,
         kind: &FunctionKind,
         span: Span,
-    ) -> Result<Vec<Param>, WitError> {
+    ) -> Result<Vec<Param>, ParseErrors> {
         let mut ret = Vec::new();
         match *kind {
             // These kinds of methods don't have any adjustments to the
@@ -1692,7 +1702,7 @@ impl<'a> Resolver<'a> {
         }
         for (name, ty) in params {
             if ret.iter().any(|p| p.name == name.name) {
-                return Err(WitError::Parse(ParseError {
+                return Err(ParseErrors::single(ParseErrorKind::Syntax {
                     span: name.span,
                     message: format!("param `{}` is defined more than once", name.name),
                 }));
@@ -1711,7 +1721,7 @@ impl<'a> Resolver<'a> {
         result: &Option<ast::Type<'_>>,
         kind: &FunctionKind,
         _span: Span,
-    ) -> Result<Option<Type>, WitError> {
+    ) -> Result<Option<Type>, ParseErrors> {
         match *kind {
             // These kinds of methods don't have any adjustments to the return
             // values, so plumb them through as-is.
@@ -1743,7 +1753,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         resource_id: TypeId,
         result_ast: &ast::Type<'_>,
-    ) -> Result<Type, WitError> {
+    ) -> Result<Type, ParseErrors> {
         let result = self.resolve_type(result_ast, &Stability::Unknown)?;
         let ok_type = match result {
             Type::Id(id) => match &self.types[id].kind {
@@ -1753,7 +1763,7 @@ impl<'a> Resolver<'a> {
             _ => None,
         };
         let Some(ok_type) = ok_type else {
-            return Err(WitError::Parse(ParseError {
+            return Err(ParseErrors::single(ParseErrorKind::Syntax {
                 span: result_ast.span(),
                 message: "if a constructor return type is declared it must be a `result`"
                     .to_owned(),
@@ -1768,7 +1778,7 @@ impl<'a> Resolver<'a> {
                     } else {
                         result_ast.span()
                     };
-                return Err(WitError::Parse(ParseError {
+                return Err(ParseErrors::single(ParseErrorKind::Syntax {
                     span: ok_span,
                     message: "the `ok` type must be the resource being constructed".to_owned(),
                 }));

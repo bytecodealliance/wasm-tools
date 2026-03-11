@@ -6,7 +6,10 @@
 //! type structures.
 
 use arbitrary::{Result, Unstructured};
-use wit_parser::{Resolve, WitError};
+use wit_parser::{
+    Resolve,
+    error::{ResolveErrorKind, ResolveErrors},
+};
 
 mod config;
 pub use self::config::Config;
@@ -28,8 +31,8 @@ pub fn smith(config: &Config, u: &mut Unstructured<'_>) -> Result<Vec<u8>> {
             Ok(id) => id,
             Err(e) => {
                 if matches!(
-                    e.downcast_ref::<WitError>(),
-                    Some(WitError::InvalidTransitiveDependency { .. })
+                    e.downcast_ref::<ResolveErrors>(),
+                    Some(e) if e.iter().any(|k| matches!(k, ResolveErrorKind::InvalidTransitiveDependency { .. }))
                 ) {
                     return Err(arbitrary::Error::IncorrectFormat);
                 }
