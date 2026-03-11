@@ -1,8 +1,8 @@
 #[cfg(test)]
 use alloc::{vec, vec::Vec};
-use anyhow::{Result, bail};
 use core::char;
 use core::fmt;
+use core::result::Result;
 use core::str;
 use unicode_xid::UnicodeXID;
 
@@ -166,6 +166,9 @@ pub enum Token {
 #[derive(Eq, PartialEq, Debug)]
 #[allow(dead_code)]
 pub enum Error {
+    ControlCodepoint(u32, char),
+    DeprecatedCodepoint(u32, char),
+    ForbiddenCodepoint(u32, char),
     InvalidCharInId(u32, char),
     IdPartEmpty(u32),
     InvalidEscape(u32, char),
@@ -179,7 +182,7 @@ pub enum Error {
 }
 
 impl<'a> Tokenizer<'a> {
-    pub fn new(input: &'a str, span_offset: u32) -> Result<Tokenizer<'a>> {
+    pub fn new(input: &'a str, span_offset: u32) -> Result<Tokenizer<'a>, Error> {
         detect_invalid_input(input)?;
 
         let mut t = Tokenizer {
@@ -194,7 +197,7 @@ impl<'a> Tokenizer<'a> {
         Ok(t)
     }
 
-    pub fn expect_semicolon(&mut self) -> Result<()> {
+    pub fn expect_semicolon(&mut self) -> Result<(), Error> {
         self.expect(Token::Semicolon)?;
         Ok(())
     }
@@ -205,13 +208,13 @@ impl<'a> Tokenizer<'a> {
         &self.input[start..end]
     }
 
-    pub fn parse_id(&self, span: Span) -> Result<&'a str> {
+    pub fn parse_id(&self, span: Span) -> Result<&'a str, Error> {
         let ret = self.get_span(span);
         validate_id(span.start(), &ret)?;
         Ok(ret)
     }
 
-    pub fn parse_explicit_id(&self, span: Span) -> Result<&'a str> {
+    pub fn parse_explicit_id(&self, span: Span) -> Result<&'a str, Error> {
         let token = self.get_span(span);
         let id_part = token.strip_prefix('%').unwrap();
         validate_id(span.start(), id_part)?;
@@ -456,13 +459,11 @@ impl<'a> Iterator for CrlfFold<'a> {
     }
 }
 
-fn detect_invalid_input(input: &str) -> Result<()> {
+fn detect_invalid_input(input: &str) -> Result<(), Error> {
     // Disallow specific codepoints.
-    let mut line = 1;
-    for ch in input.chars() {
+    for (pos, ch) in input.char_indices() {
         match ch {
-            '\n' => line += 1,
-            '\r' | '\t' => {}
+            '\n' | '\r' | '\t' => {}
 
             // Bidirectional override codepoints can be used to craft source code that
             // appears to have a different meaning than its actual meaning. See
@@ -471,11 +472,7 @@ fn detect_invalid_input(input: &str) -> Result<()> {
             // [CVE-2021-42574]: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-42574
             '\u{202a}' | '\u{202b}' | '\u{202c}' | '\u{202d}' | '\u{202e}' | '\u{2066}'
             | '\u{2067}' | '\u{2068}' | '\u{2069}' => {
-                bail!(
-                    "Input contains bidirectional override codepoint {:?} at line {}",
-                    ch.escape_unicode(),
-                    line
-                );
+                return Err(Error::ForbiddenCodepoint(u32::try_from(pos).unwrap(), ch));
             }
 
             // Disallow several characters which are deprecated or discouraged in Unicode.
@@ -487,18 +484,14 @@ fn detect_invalid_input(input: &str) -> Result<()> {
             // Unicode 13.0.0, sec. 16.4 Khmer, Characters Whose Use Is Discouraged.
             '\u{149}' | '\u{673}' | '\u{f77}' | '\u{f79}' | '\u{17a3}' | '\u{17a4}'
             | '\u{17b4}' | '\u{17b5}' => {
-                bail!(
-                    "Codepoint {:?} at line {} is discouraged by Unicode",
-                    ch.escape_unicode(),
-                    line
-                );
+                return Err(Error::DeprecatedCodepoint(u32::try_from(pos).unwrap(), ch));
             }
 
             // Disallow control codes other than the ones explicitly recognized above,
             // so that viewing a wit file on a terminal doesn't have surprising side
             // effects or appear to have a different meaning than its actual meaning.
             ch if ch.is_control() => {
-                bail!("Control code '{}' at line {}", ch.escape_unicode(), line);
+                return Err(Error::ControlCodepoint(u32::try_from(pos).unwrap(), ch));
             }
 
             _ => {}
@@ -635,9 +628,41 @@ impl Token {
 
 impl core::error::Error for Error {}
 
+impl Error {
+    /// Returns the byte offset in the source map where this error occurred.
+    pub fn position(&self) -> u32 {
+        match self {
+            Error::ControlCodepoint(at, _)
+            | Error::DeprecatedCodepoint(at, _)
+            | Error::ForbiddenCodepoint(at, _)
+            | Error::InvalidCharInId(at, _)
+            | Error::IdPartEmpty(at)
+            | Error::InvalidEscape(at, _)
+            | Error::Unexpected(at, _)
+            | Error::UnterminatedComment(at) => *at,
+            Error::Wanted { at, .. } => *at,
+        }
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Error::ControlCodepoint(_, ch) => write!(f, "Control code '{}'", ch.escape_unicode()),
+            Error::DeprecatedCodepoint(_, ch) => {
+                write!(
+                    f,
+                    "Codepoint {:?} is discouraged by Unicode",
+                    ch.escape_unicode()
+                )
+            }
+            Error::ForbiddenCodepoint(_, ch) => {
+                write!(
+                    f,
+                    "Input contains bidirectional override codepoint {:?}",
+                    ch.escape_unicode()
+                )
+            }
             Error::Unexpected(_, ch) => write!(f, "unexpected character {ch:?}"),
             Error::UnterminatedComment(_) => write!(f, "unterminated block comment"),
             Error::Wanted {
@@ -712,7 +737,7 @@ fn test_validate_id() {
 
 #[test]
 fn test_tokenizer() {
-    fn collect(s: &str) -> Result<Vec<Token>> {
+    fn collect(s: &str) -> Result<Vec<Token>, Error> {
         let mut t = Tokenizer::new(s, 0)?;
         let mut tokens = Vec::new();
         while let Some(token) = t.next()? {
