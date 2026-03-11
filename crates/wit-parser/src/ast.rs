@@ -1766,25 +1766,21 @@ pub enum WitError {
     },
     /// Two separate source locations define the same package name.
     ///
-    /// `loc1` and `loc2` are pre-rendered location strings (e.g.
-    /// `"file.wit:3:1"`) because the two spans live in different source maps
-    /// that may not be available to the caller.
+    /// `span1` and `span2` are global spans valid in the `SourceMap` of the
+    /// `Resolve` that produced this error.
     DuplicatePackage {
         name: crate::PackageName,
-        loc1: String,
-        loc2: String,
+        span1: Span,
+        span2: Span,
     },
     /// A dependency cycle was detected among packages.
     ///
     /// `package` is the package whose `use` statement closes the cycle.
-    /// `span_location` points to that `use` statement for programmatic
-    /// consumers (e.g. an LSP). `highlighted` is a pre-rendered source
-    /// excerpt for CLI display, produced at detection time when the
-    /// individual package's source map is still available.
+    /// `span` is a global span valid in the `SourceMap` of the `Resolve`
+    /// that produced this error, pointing to the `use` that closes the cycle.
     PackageCycle {
         package: crate::PackageName,
-        span_location: Option<SpanLocation>,
-        highlighted: Option<String>,
+        span: Span,
     },
 }
 
@@ -1811,9 +1807,9 @@ impl core::fmt::Display for WitError {
                 f,
                 "interface `{name}` transitively depends on an interface in incompatible ways",
             ),
-            WitError::DuplicatePackage { name, loc1, loc2 } => write!(
+            WitError::DuplicatePackage { name, .. } => write!(
                 f,
-                "package `{name}` is defined in two different locations:\n  * {loc1}\n  * {loc2}",
+                "package `{name}` is defined in two different locations",
             ),
             WitError::PackageCycle { package, .. } => {
                 write!(f, "package `{package}` creates a dependency cycle")
@@ -1853,17 +1849,17 @@ impl WitError {
                 let msg = self.to_string();
                 source_map.highlight_span(*span, &msg).unwrap_or(msg)
             }
-            // DuplicatePackage has no span — locations are pre-rendered strings.
-            WitError::DuplicatePackage { .. } => self.to_string(),
-            // Cycle carries a pre-rendered highlighted string computed at
-            // detection time when the package's source map was still available.
-            WitError::PackageCycle {
-                highlighted: Some(s),
-                ..
-            } => s.clone(),
-            WitError::PackageCycle {
-                highlighted: None, ..
-            } => self.to_string(),
+            WitError::DuplicatePackage { name, span1, span2 } => {
+                let loc1 = source_map.render_location(*span1);
+                let loc2 = source_map.render_location(*span2);
+                format!(
+                    "package `{name}` is defined in two different locations:\n  * {loc1}\n  * {loc2}"
+                )
+            }
+            WitError::PackageCycle { package, span } => {
+                let msg = format!("package `{package}` creates a dependency cycle");
+                source_map.highlight_span(*span, &msg).unwrap_or(msg)
+            }
         }
     }
 }
