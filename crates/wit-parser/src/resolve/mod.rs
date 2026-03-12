@@ -401,7 +401,7 @@ impl Resolve {
     }
 
     /// Appends a main [`UnresolvedPackageGroup`] and its dependencies to this
-    /// [`Resolve`] in a single call, returning a structured [`WitError`] on
+    /// [`Resolve`] in a single call, returning a structured [`ResolveErrors`] on
     /// failure.
     ///
     /// This is the preferred alternative to calling [`Resolve::push_group`]
@@ -410,7 +410,7 @@ impl Resolve {
     /// or [`UnresolvedPackageGroup::parse_str`]). Wit-parser sorts them into
     /// the correct topological order internally and detects dependency cycles.
     ///
-    /// On error, spans in the returned [`WitError`] are absolute within
+    /// On error, spans in the returned [`ResolveErrors`] are absolute within
     /// `self.source_map` and can be resolved with
     /// [`SourceMap::get_location`].
     ///

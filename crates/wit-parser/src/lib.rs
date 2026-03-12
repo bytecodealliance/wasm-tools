@@ -309,7 +309,7 @@ impl UnresolvedPackageGroup {
         let mut map = ast::SourceMap::default();
         map.push_str(path, contents);
         // TODO: avoid clone by changing `SourceMap::parse` to return the map
-        // back on error, e.g. `Err((SourceMap, WitError))`.
+        // back on error, e.g. `Err((SourceMap, ParseErrors))`.
         let map_for_err = map.clone();
         map.parse()
             .map_err(|e| anyhow::anyhow!("{}", e.highlight(&map_for_err)))
@@ -386,7 +386,7 @@ impl UnresolvedPackageGroup {
             map.push_file(&path)?;
         }
         // TODO: avoid clone by changing `SourceMap::parse` to return the map
-        // back on error, e.g. `Err((SourceMap, WitError))`.
+        // back on error, e.g. `Err((SourceMap, ParseErrors))`.
         let map_for_err = map.clone();
         map.parse()
             .map_err(|e| anyhow::anyhow!("{}", e.highlight(&map_for_err)))
