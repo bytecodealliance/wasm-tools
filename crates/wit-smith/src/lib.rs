@@ -32,7 +32,8 @@ pub fn smith(config: &Config, u: &mut Unstructured<'_>) -> Result<Vec<u8>> {
             Err(e) => {
                 if matches!(
                     e.downcast_ref::<ResolveErrors>(),
-                    Some(e) if e.iter().any(|k| matches!(k, ResolveErrorKind::InvalidTransitiveDependency { .. }))
+                    Some(e) if matches!(e.kind(),
+                ResolveErrorKind::InvalidTransitiveDependency { .. })
                 ) {
                     return Err(arbitrary::Error::IncorrectFormat);
                 }

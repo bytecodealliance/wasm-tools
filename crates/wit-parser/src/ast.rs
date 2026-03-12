@@ -68,7 +68,7 @@ impl<'a> PackageFile<'a> {
     ) -> Result<Self, ParseErrors> {
         let span = tokens.expect(Token::Package)?;
         if !attributes.is_empty() {
-            return Err(ParseErrors::single(ParseErrorKind::Syntax {
+            return Err(ParseErrors::from(ParseErrorKind::Syntax {
                 span: span,
                 message: format!("cannot place attributes on nested packages"),
             }));
@@ -1268,7 +1268,7 @@ fn parse_version(tokens: &mut Tokenizer<'_>) -> Result<(Span, Version), ParseErr
     eat_ids(tokens, Token::Plus, &mut span)?;
     let string = tokens.get_span(span);
     let version = Version::parse(string).map_err(|e| {
-        ParseErrors::single(ParseErrorKind::Syntax {
+        ParseErrors::from(ParseErrorKind::Syntax {
             span,
             message: e.to_string(),
         })
@@ -1422,7 +1422,7 @@ impl<'a> Type<'a> {
                     let number = tokens.next()?;
                     if let Some((span, Token::Integer)) = number {
                         let size: u32 = tokens.get_span(span).parse().map_err(|e| {
-                            ParseErrors::single(ParseErrorKind::Syntax {
+                            ParseErrors::from(ParseErrorKind::Syntax {
                                 span,
                                 message: format!("invalid list size: {e}"),
                             })
@@ -1634,11 +1634,11 @@ fn err_expected(
     found: Option<(Span, Token)>,
 ) -> ParseErrors {
     match found {
-        Some((span, token)) => ParseErrors::single(ParseErrorKind::Syntax {
+        Some((span, token)) => ParseErrors::from(ParseErrorKind::Syntax {
             span,
             message: format!("expected {}, found {}", expected, token.describe()),
         }),
-        None => ParseErrors::single(ParseErrorKind::Syntax {
+        None => ParseErrors::from(ParseErrorKind::Syntax {
             span: tokens.eof_span(),
             message: format!("expected {expected}, found eof"),
         }),
@@ -1691,7 +1691,7 @@ impl<'a> Attribute<'a> {
                     }
                 }
                 other => {
-                    return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                    return Err(ParseErrors::from(ParseErrorKind::Syntax {
                         span: id.span,
                         message: format!("unknown attribute `{other}`"),
                     }));
@@ -1714,7 +1714,7 @@ impl<'a> Attribute<'a> {
 fn eat_id(tokens: &mut Tokenizer<'_>, expected: &str) -> Result<Span, ParseErrors> {
     let id = parse_id(tokens)?;
     if id.name != expected {
-        return Err(ParseErrors::single(ParseErrorKind::Syntax {
+        return Err(ParseErrors::from(ParseErrorKind::Syntax {
             span: id.span,
             message: format!("expected `{expected}`, found `{}`", id.name),
         }));

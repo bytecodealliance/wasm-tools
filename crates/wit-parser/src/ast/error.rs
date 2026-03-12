@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct ParseErrors(Box<[ParseErrorKind]>);
+pub struct ParseErrors(Box<ParseErrorKind>);
 
 #[non_exhaustive]
 #[derive(Debug)]
@@ -68,44 +68,35 @@ impl fmt::Display for ParseErrorKind {
 }
 
 impl ParseErrors {
-    pub(crate) fn single(kind: ParseErrorKind) -> Self {
-        ParseErrors(Box::new([kind]))
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = &ParseErrorKind> {
-        self.0.iter()
+    pub fn kind(&self) -> &ParseErrorKind {
+        &self.0
     }
 
     pub fn highlight(&self, source_map: &SourceMap) -> String {
-        self.0
-            .iter()
-            .map(|e| {
-                source_map
-                    .highlight_span(e.span(), e)
-                    .unwrap_or_else(|| e.to_string())
-            })
-            .collect::<alloc::vec::Vec<_>>()
-            .join("\n")
+        let e = self.kind();
+        source_map
+            .highlight_span(e.span(), e)
+            .unwrap_or_else(|| e.to_string())
     }
 }
 
 impl fmt::Display for ParseErrors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for (i, e) in self.0.iter().enumerate() {
-            if i > 0 {
-                f.write_str("\n")?;
-            }
-            fmt::Display::fmt(e, f)?;
-        }
-        Ok(())
+        fmt::Display::fmt(self.kind(), f)
     }
 }
 
 impl core::error::Error for ParseErrors {}
 
+impl From<ParseErrorKind> for ParseErrors {
+    fn from(kind: ParseErrorKind) -> Self {
+        ParseErrors(Box::new(kind))
+    }
+}
+
 impl From<lex::Error> for ParseErrors {
     fn from(e: lex::Error) -> Self {
-        ParseErrors::single(ParseErrorKind::Lex(e))
+        ParseErrorKind::Lex(e).into()
     }
 }
 
@@ -127,6 +118,6 @@ impl From<toposort::Error> for ParseErrors {
                 ParseErrorKind::TypeCycle { span, name, kind }
             }
         };
-        ParseErrors::single(kind)
+        kind.into()
     }
 }

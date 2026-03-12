@@ -7,51 +7,42 @@ use core::fmt;
 use crate::{PackageName, SourceMap, Span};
 
 #[derive(Clone, Debug)]
-pub struct ResolveErrors(Box<[ResolveErrorKind]>);
+pub struct ResolveErrors(Box<ResolveErrorKind>);
 
 impl ResolveErrors {
-    pub(crate) fn single(kind: ResolveErrorKind) -> Self {
-        ResolveErrors(Box::new([kind]))
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = &ResolveErrorKind> {
-        self.0.iter()
+    pub fn kind(&self) -> &ResolveErrorKind {
+        &self.0
     }
 
     pub fn highlight(&self, source_map: &SourceMap) -> String {
-        self.0
-              .iter()
-              .map(|e| {
-                  let msg = e.to_string();
-                  match e {
-                      ResolveErrorKind::DuplicatePackage { name, span1, span2 } => {
-                          let loc1 = source_map.render_location(*span1);
-                          let loc2 = source_map.render_location(*span2);
-                          format!("package `{name}` is defined in two different locations:\n  * {loc1}\n  * {loc2}")
-                      }
-                      _ => source_map
-                          .highlight_span(e.span(), &msg)
-                          .unwrap_or(msg),
-                  }
-              })
-              .collect::<alloc::vec::Vec<_>>()
-              .join("\n")
+        let e = self.kind();
+        let msg = e.to_string();
+        match e {
+            ResolveErrorKind::DuplicatePackage { name, span1, span2 } => {
+                let loc1 = source_map.render_location(*span1);
+                let loc2 = source_map.render_location(*span2);
+                format!(
+                    "package `{name}` is defined in two different locations:\n  * {loc1}\n  * {loc2}"
+                )
+            }
+            _ => source_map.highlight_span(e.span(), &msg).unwrap_or(msg),
+        }
     }
 }
 
 impl fmt::Display for ResolveErrors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for (i, e) in self.0.iter().enumerate() {
-            if i > 0 {
-                f.write_str("\n")?;
-            }
-            fmt::Display::fmt(e, f)?;
-        }
-        Ok(())
+        fmt::Display::fmt(self.kind(), f)
     }
 }
 
 impl core::error::Error for ResolveErrors {}
+
+impl From<ResolveErrorKind> for ResolveErrors {
+    fn from(kind: ResolveErrorKind) -> Self {
+        ResolveErrors(Box::new(kind))
+    }
+}
 
 #[non_exhaustive]
 #[derive(Clone, Debug)]

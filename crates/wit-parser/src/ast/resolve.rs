@@ -115,7 +115,7 @@ impl<'a> Resolver<'a> {
             let cur_name = cur.package_name();
             if let Some((prev, _)) = &self.package_name {
                 if cur_name != *prev {
-                    return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                    return Err(ParseErrors::from(ParseErrorKind::Syntax {
                         span: cur.span,
                         message: format!(
                             "package identifier `{cur_name}` does not match \
@@ -130,7 +130,7 @@ impl<'a> Resolver<'a> {
             let docs = self.docs(&cur.docs);
             if docs.contents.is_some() {
                 if self.package_docs.contents.is_some() {
-                    return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                    return Err(ParseErrors::from(ParseErrorKind::Syntax {
                         span: cur.docs.span,
                         message: "found doc comments on multiple 'package' items".to_owned(),
                     }));
@@ -147,7 +147,7 @@ impl<'a> Resolver<'a> {
                 ast::AstItem::Package(pkg) => pkg.package_id.as_ref().unwrap().span,
                 _ => continue,
             };
-            return Err(ParseErrors::single(ParseErrorKind::Syntax {
+            return Err(ParseErrors::from(ParseErrorKind::Syntax {
                 span: span,
                 message: "nested packages must be placed at the top-level".to_owned(),
             }));
@@ -162,7 +162,7 @@ impl<'a> Resolver<'a> {
         let (name, package_name_span) = match &self.package_name {
             Some(name) => name.clone(),
             None => {
-                return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                return Err(ParseErrors::from(ParseErrorKind::Syntax {
                     span: Span::default(),
                     message: "no `package` header was found in any WIT file for this package"
                         .to_owned(),
@@ -356,7 +356,7 @@ impl<'a> Resolver<'a> {
                 match item {
                     ast::AstItem::Interface(i) => {
                         if package_items.insert(i.name.name, i.name.span).is_some() {
-                            return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                            return Err(ParseErrors::from(ParseErrorKind::Syntax {
                                 span: i.name.span,
                                 message: format!("duplicate item named `{}`", i.name.name),
                             }));
@@ -370,7 +370,7 @@ impl<'a> Resolver<'a> {
                     }
                     ast::AstItem::World(w) => {
                         if package_items.insert(w.name.name, w.name.span).is_some() {
-                            return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                            return Err(ParseErrors::from(ParseErrorKind::Syntax {
                                 span: w.name.span,
                                 message: format!("duplicate item named `{}`", w.name.name),
                             }));
@@ -421,7 +421,7 @@ impl<'a> Resolver<'a> {
                     ast::AstItem::Package(_) => unreachable!(),
                 };
                 if decl_list_ns.insert(name.name, (name.span, src)).is_some() {
-                    return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                    return Err(ParseErrors::from(ParseErrorKind::Syntax {
                         span: name.span,
                         message: format!("duplicate name `{}` in this file", name.name),
                     }));
@@ -452,7 +452,7 @@ impl<'a> Resolver<'a> {
                             order[iface.name].push(used_name.clone());
                         }
                         None => {
-                            return Err(ParseErrors::single(ParseErrorKind::ItemNotFound {
+                            return Err(ParseErrors::from(ParseErrorKind::ItemNotFound {
                                 span: used_name.span,
                                 name: used_name.name.to_string(),
                                 kind: "interface or world".to_string(),
@@ -499,7 +499,7 @@ impl<'a> Resolver<'a> {
                 let (name, ast_item) = match item {
                     ast::AstItem::Use(u) => {
                         if !u.attributes.is_empty() {
-                            return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                            return Err(ParseErrors::from(ParseErrorKind::Syntax {
                                 span: u.span,
                                 message: format!("attributes not allowed on top-level use"),
                             }));
@@ -507,7 +507,7 @@ impl<'a> Resolver<'a> {
                         let name = u.as_.as_ref().unwrap_or(u.item.name());
                         let item = match &u.item {
                             ast::UsePath::Id(name) => *ids.get(name.name).ok_or_else(|| {
-                                ParseErrors::single(ParseErrorKind::Syntax {
+                                ParseErrors::from(ParseErrorKind::Syntax {
                                     span: name.span,
                                     message: format!(
                                         "interface or world `{name}` does not exist",
@@ -639,7 +639,7 @@ impl<'a> Resolver<'a> {
                         WorldItem::Type { id, span: *span },
                     );
                     if prev.is_some() {
-                        return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                        return Err(ParseErrors::from(ParseErrorKind::Syntax {
                             span: *span,
                             message: format!(
                                 "import `{name}` conflicts with prior import of same name"
@@ -718,7 +718,7 @@ impl<'a> Resolver<'a> {
             };
             if let WorldItem::Interface { id, .. } = world_item {
                 if !interfaces.insert(id) {
-                    return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                    return Err(ParseErrors::from(ParseErrorKind::Syntax {
                         span: kind.span(),
                         message: format!("interface cannot be {desc}ed more than once"),
                     }));
@@ -740,7 +740,7 @@ impl<'a> Resolver<'a> {
                     WorldKey::Name(name) => name,
                     WorldKey::Interface(..) => unreachable!(),
                 };
-                return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                return Err(ParseErrors::from(ParseErrorKind::Syntax {
                     span: kind.span(),
                     message: format!("{desc} `{name}` conflicts with prior {prev} of same name",),
                 }));
@@ -907,7 +907,7 @@ impl<'a> Resolver<'a> {
                 TypeItem::Def(t) => {
                     let prev = type_defs.insert(t.name.name, Some(t));
                     if prev.is_some() {
-                        return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                        return Err(ParseErrors::from(ParseErrorKind::Syntax {
                             span: t.name.span,
                             message: format!("name `{}` is defined more than once", t.name.name),
                         }));
@@ -976,13 +976,13 @@ impl<'a> Resolver<'a> {
             let id = match lookup.get(name.name.name) {
                 Some((TypeOrItem::Type(id), _)) => *id,
                 Some((TypeOrItem::Item(s), _)) => {
-                    return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                    return Err(ParseErrors::from(ParseErrorKind::Syntax {
                         span: name.name.span,
                         message: format!("cannot import {s} `{}`", name.name.name),
                     }));
                 }
                 None => {
-                    return Err(ParseErrors::single(ParseErrorKind::ItemNotFound {
+                    return Err(ParseErrors::from(ParseErrorKind::ItemNotFound {
                         span: name.name.span,
                         name: name.name.name.to_string(),
                         kind: "name".to_string(),
@@ -1111,7 +1111,7 @@ impl<'a> Resolver<'a> {
                 match item {
                     Some(item) => Ok((*item, id.name.into(), id.span)),
                     None => {
-                        return Err(ParseErrors::single(ParseErrorKind::ItemNotFound {
+                        return Err(ParseErrors::from(ParseErrorKind::ItemNotFound {
                             span: id.span,
                             name: id.name.to_string(),
                             kind: "interface or world".to_owned(),
@@ -1137,7 +1137,7 @@ impl<'a> Resolver<'a> {
         match item {
             AstItem::Interface(id) => Ok(*id),
             AstItem::World(_) => {
-                return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                return Err(ParseErrors::from(ParseErrorKind::Syntax {
                     span,
                     message: format!("name `{name}` is defined as a world, not an interface"),
                 }));
@@ -1154,7 +1154,7 @@ impl<'a> Resolver<'a> {
         match item {
             AstItem::World(id) => Ok(*id),
             AstItem::Interface(_) => {
-                return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                return Err(ParseErrors::from(ParseErrorKind::Syntax {
                     span,
                     message: format!("name `{name}` is defined as an interface, not a world"),
                 }));
@@ -1169,7 +1169,7 @@ impl<'a> Resolver<'a> {
     ) -> Result<(), ParseErrors> {
         let prev = self.type_lookup.insert(name.name, (item, name.span));
         if prev.is_some() {
-            return Err(ParseErrors::single(ParseErrorKind::Syntax {
+            return Err(ParseErrors::from(ParseErrorKind::Syntax {
                 span: name.span,
                 message: format!("name `{}` is defined more than once", name.name),
             }));
@@ -1223,7 +1223,7 @@ impl<'a> Resolver<'a> {
                     | Type::Char
                     | Type::String => {}
                     _ => {
-                        return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                        return Err(ParseErrors::from(ParseErrorKind::Syntax {
                             span: map.span,
                             message:  "invalid map key type: map keys must be bool, u8, u16, u32, u64, s8, s16, s32, s64, char, or string".to_owned(),
                         }));
@@ -1251,7 +1251,7 @@ impl<'a> Resolver<'a> {
                     match func {
                         ast::ResourceFunc::Method(f) | ast::ResourceFunc::Static(f) => {
                             if !names.insert(&f.name.name) {
-                                return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                                return Err(ParseErrors::from(ParseErrorKind::Syntax {
                                     span: f.name.span,
                                     message: format!("duplicate function name `{}`", f.name.name),
                                 }));
@@ -1260,7 +1260,7 @@ impl<'a> Resolver<'a> {
                         ast::ResourceFunc::Constructor(f) => {
                             ctors += 1;
                             if ctors > 1 {
-                                return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                                return Err(ParseErrors::from(ParseErrorKind::Syntax {
                                     span: f.name.span,
                                     message: "duplicate constructors".to_owned(),
                                 }));
@@ -1308,7 +1308,7 @@ impl<'a> Resolver<'a> {
             }
             ast::Type::Variant(variant) => {
                 if variant.cases.is_empty() {
-                    return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                    return Err(ParseErrors::from(ParseErrorKind::Syntax {
                         span: variant.span,
                         message: "empty variant".to_owned(),
                     }));
@@ -1329,7 +1329,7 @@ impl<'a> Resolver<'a> {
             }
             ast::Type::Enum(e) => {
                 if e.cases.is_empty() {
-                    return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                    return Err(ParseErrors::from(ParseErrorKind::Syntax {
                         span: e.span,
                         message: "empty enum".to_owned(),
                     }));
@@ -1365,13 +1365,13 @@ impl<'a> Resolver<'a> {
         match self.type_lookup.get(name.name) {
             Some((TypeOrItem::Type(id), _)) => Ok(*id),
             Some((TypeOrItem::Item(s), _)) => {
-                return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                return Err(ParseErrors::from(ParseErrorKind::Syntax {
                     span: name.span,
                     message: format!("cannot use {s} `{name}` as a type", name = name.name),
                 }));
             }
             None => {
-                return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                return Err(ParseErrors::from(ParseErrorKind::Syntax {
                     span: name.span,
                     message: format!("name `{name}` is not defined", name = name.name),
                 }));
@@ -1391,7 +1391,7 @@ impl<'a> Resolver<'a> {
                     break Ok(id);
                 }
                 _ => {
-                    return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                    return Err(ParseErrors::from(ParseErrorKind::Syntax {
                         span: name.span,
                         message: format!(
                             "type `{}` used in a handle must be a resource",
@@ -1650,13 +1650,13 @@ impl<'a> Resolver<'a> {
                 deprecated: Some(version.clone()),
             }),
             [ast::Attribute::Deprecated { span, .. }] => {
-                return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                return Err(ParseErrors::from(ParseErrorKind::Syntax {
                     span: *span,
                     message: "must pair @deprecated with either @since or @unstable".to_owned(),
                 }));
             }
             [_, b, ..] => {
-                return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                return Err(ParseErrors::from(ParseErrorKind::Syntax {
                     span: b.span(),
                     message: "unsupported combination of attributes".to_owned(),
                 }));
@@ -1702,7 +1702,7 @@ impl<'a> Resolver<'a> {
         }
         for (name, ty) in params {
             if ret.iter().any(|p| p.name == name.name) {
-                return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                return Err(ParseErrors::from(ParseErrorKind::Syntax {
                     span: name.span,
                     message: format!("param `{}` is defined more than once", name.name),
                 }));
@@ -1763,7 +1763,7 @@ impl<'a> Resolver<'a> {
             _ => None,
         };
         let Some(ok_type) = ok_type else {
-            return Err(ParseErrors::single(ParseErrorKind::Syntax {
+            return Err(ParseErrors::from(ParseErrorKind::Syntax {
                 span: result_ast.span(),
                 message: "if a constructor return type is declared it must be a `result`"
                     .to_owned(),
@@ -1778,7 +1778,7 @@ impl<'a> Resolver<'a> {
                     } else {
                         result_ast.span()
                     };
-                return Err(ParseErrors::single(ParseErrorKind::Syntax {
+                return Err(ParseErrors::from(ParseErrorKind::Syntax {
                     span: ok_span,
                     message: "the `ok` type must be the resource being constructed".to_owned(),
                 }));
