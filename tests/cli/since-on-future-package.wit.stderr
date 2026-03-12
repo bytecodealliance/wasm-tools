@@ -3,4 +3,3 @@ error: feature gate cannot reference unreleased version 0.1.1 of package [test:i
       |
     9 |   b: func(s: string) -> string;
       |   ^
-
