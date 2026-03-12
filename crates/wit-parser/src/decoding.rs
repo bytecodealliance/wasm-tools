@@ -2,7 +2,7 @@ use crate::*;
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
-use anyhow::{Context, anyhow, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use core::mem;
 use std::io::Read;
 use wasmparser::Chunk;
@@ -48,7 +48,7 @@ enum WitEncodingVersion {
 
 impl ComponentInfo {
     /// Creates a new component info by parsing the given WebAssembly component bytes.
-    fn from_reader(mut reader: impl Read) -> anyhow::Result<Self> {
+    fn from_reader(mut reader: impl Read) -> Result<Self> {
         let mut validator = Validator::new_with_features(WasmFeatures::all());
         let mut externs = Vec::new();
         let mut depth = 1;
@@ -185,7 +185,7 @@ impl ComponentInfo {
         }
     }
 
-    fn decode_wit_v1_package(&self) -> anyhow::Result<(Resolve, PackageId)> {
+    fn decode_wit_v1_package(&self) -> Result<(Resolve, PackageId)> {
         let mut decoder = WitPackageDecoder::new(&self.types);
 
         let mut pkg = None;
@@ -215,7 +215,7 @@ impl ComponentInfo {
         Ok((resolve, package))
     }
 
-    fn decode_wit_v2_package(&self) -> anyhow::Result<(Resolve, PackageId)> {
+    fn decode_wit_v2_package(&self) -> Result<(Resolve, PackageId)> {
         let mut decoder = WitPackageDecoder::new(&self.types);
 
         let mut pkg_name = None;
@@ -295,7 +295,7 @@ impl ComponentInfo {
         Ok((resolve, package))
     }
 
-    fn decode_component(&self) -> anyhow::Result<(Resolve, WorldId)> {
+    fn decode_component(&self) -> Result<(Resolve, WorldId)> {
         assert!(self.is_wit_package().is_none());
         let mut decoder = WitPackageDecoder::new(&self.types);
         // Note that this name is arbitrarily chosen. We may one day perhaps
@@ -383,7 +383,7 @@ impl DecodedWasm {
 }
 
 /// Decode for incremental reading
-pub fn decode_reader(reader: impl Read) -> anyhow::Result<DecodedWasm> {
+pub fn decode_reader(reader: impl Read) -> Result<DecodedWasm> {
     let info = ComponentInfo::from_reader(reader)?;
 
     if let Some(version) = info.is_wit_package() {
@@ -412,7 +412,7 @@ pub fn decode_reader(reader: impl Read) -> anyhow::Result<DecodedWasm> {
 /// The WebAssembly binary provided here can either be a
 /// WIT-package-encoded-as-binary or an actual component itself. A [`Resolve`]
 /// is always created and the return value indicates which was detected.
-pub fn decode(bytes: &[u8]) -> anyhow::Result<DecodedWasm> {
+pub fn decode(bytes: &[u8]) -> Result<DecodedWasm> {
     decode_reader(bytes)
 }
 
@@ -423,7 +423,7 @@ pub fn decode(bytes: &[u8]) -> anyhow::Result<DecodedWasm> {
 /// itself imports nothing and exports a single component, and the single
 /// component export represents the world. The name of the export is also the
 /// name of the package/world/etc.
-pub fn decode_world(wasm: &[u8]) -> anyhow::Result<(Resolve, WorldId)> {
+pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
     let mut validator = Validator::new_with_features(WasmFeatures::all());
     let mut exports = Vec::new();
     let mut depth = 1;
@@ -538,11 +538,7 @@ impl WitPackageDecoder<'_> {
         }
     }
 
-    fn decode_v1_package(
-        &mut self,
-        name: &ComponentName,
-        ty: &ComponentType,
-    ) -> anyhow::Result<Package> {
+    fn decode_v1_package(&mut self, name: &ComponentName, ty: &ComponentType) -> Result<Package> {
         // Process all imports for this package first, where imports are
         // importing from remote packages.
         for (name, ty) in ty.imports.iter() {
@@ -598,7 +594,7 @@ impl WitPackageDecoder<'_> {
         imports: &wasmparser::collections::IndexMap<String, ComponentEntityType>,
         ty: &ComponentInstanceType,
         fields: &mut PackageFields<'a>,
-    ) -> anyhow::Result<PackageName> {
+    ) -> Result<PackageName> {
         let component_name = self
             .parse_component_name(name)
             .context("expected world name to have an ID form")?;
@@ -627,7 +623,7 @@ impl WitPackageDecoder<'_> {
         name: &str,
         ty: &ComponentType,
         fields: &mut PackageFields<'a>,
-    ) -> anyhow::Result<PackageName> {
+    ) -> Result<PackageName> {
         let kebab_name = self
             .parse_component_name(name)
             .context("expected world name to have an ID form")?;
@@ -647,7 +643,7 @@ impl WitPackageDecoder<'_> {
         name: &str,
         world: WorldId,
         package: &mut PackageFields<'a>,
-    ) -> anyhow::Result<()> {
+    ) -> Result<()> {
         log::debug!("decoding component import `{name}`");
         let ty = self
             .types
@@ -708,7 +704,7 @@ impl WitPackageDecoder<'_> {
         export: &DecodingExport,
         world: WorldId,
         package: &mut PackageFields<'a>,
-    ) -> anyhow::Result<()> {
+    ) -> Result<()> {
         let name = &export.name;
         log::debug!("decoding component export `{name}`");
         let types = self.types.as_ref();
@@ -757,11 +753,7 @@ impl WitPackageDecoder<'_> {
     /// dependency the foreign package structure, types, etc, all need to be
     /// created. For a local dependency it's instead ensured that all the types
     /// line up with the previous definitions.
-    fn register_import(
-        &mut self,
-        name: &str,
-        ty: &ComponentInstanceType,
-    ) -> anyhow::Result<InterfaceId> {
+    fn register_import(&mut self, name: &str, ty: &ComponentInstanceType) -> Result<InterfaceId> {
         let (is_local, interface) = match self.named_interfaces.get(name) {
             Some(id) => (true, *id),
             None => (false, self.extract_dep_interface(name)?),
@@ -891,7 +883,7 @@ impl WitPackageDecoder<'_> {
 
     /// This will parse the `name_string` as a component model ID string and
     /// ensure that there's an `InterfaceId` corresponding to its components.
-    fn extract_dep_interface(&mut self, name_string: &str) -> anyhow::Result<InterfaceId> {
+    fn extract_dep_interface(&mut self, name_string: &str) -> Result<InterfaceId> {
         let name = ComponentName::new(name_string, 0).unwrap();
         let name = match name.kind() {
             ComponentNameKind::Interface(name) => name,
@@ -955,7 +947,7 @@ impl WitPackageDecoder<'_> {
         name: &str,
         ty: &ComponentInstanceType,
         package: &mut PackageFields<'a>,
-    ) -> anyhow::Result<(WorldKey, InterfaceId)> {
+    ) -> Result<(WorldKey, InterfaceId)> {
         // If this interface's name is already known then that means this is an
         // interface that's both imported and exported.  Use `register_import`
         // to draw connections between types and this interface's types.
@@ -1025,15 +1017,12 @@ impl WitPackageDecoder<'_> {
         Ok((key, id))
     }
 
-    fn parse_component_name(&self, name: &str) -> anyhow::Result<ComponentName> {
+    fn parse_component_name(&self, name: &str) -> Result<ComponentName> {
         ComponentName::new(name, 0)
             .with_context(|| format!("cannot extract item name from: {name}"))
     }
 
-    fn extract_interface_name_from_component_name(
-        &self,
-        name: &str,
-    ) -> anyhow::Result<Option<String>> {
+    fn extract_interface_name_from_component_name(&self, name: &str) -> Result<Option<String>> {
         let component_name = self.parse_component_name(name)?;
         match component_name.kind() {
             ComponentNameKind::Interface(name) => Ok(Some(name.interface().to_string())),
@@ -1048,7 +1037,7 @@ impl WitPackageDecoder<'_> {
         owner: TypeOwner,
         referenced: ComponentAnyTypeId,
         created: ComponentAnyTypeId,
-    ) -> anyhow::Result<TypeId> {
+    ) -> Result<TypeId> {
         let kind = match self.find_alias(referenced) {
             // If this `TypeId` points to a type which has
             // previously been defined, meaning we're aliasing a
@@ -1102,7 +1091,7 @@ impl WitPackageDecoder<'_> {
         name: &str,
         ty: &ComponentType,
         package: &mut PackageFields<'a>,
-    ) -> anyhow::Result<WorldId> {
+    ) -> Result<WorldId> {
         let name = self
             .extract_interface_name_from_component_name(name)?
             .context("expected world name to have an ID form")?;
@@ -1215,7 +1204,7 @@ impl WitPackageDecoder<'_> {
         name: &str,
         ty: &ComponentFuncType,
         owner: TypeOwner,
-    ) -> anyhow::Result<Function> {
+    ) -> Result<Function> {
         let name = ComponentName::new(name, 0).unwrap();
         let params = ty
             .params
@@ -1227,7 +1216,7 @@ impl WitPackageDecoder<'_> {
                     span: Default::default(),
                 })
             })
-            .collect::<anyhow::Result<Vec<_>>>()
+            .collect::<Result<Vec<_>>>()
             .context("failed to convert params")?;
         let result = match &ty.result {
             Some(ty) => Some(
@@ -1283,7 +1272,7 @@ impl WitPackageDecoder<'_> {
         })
     }
 
-    fn convert_valtype(&mut self, ty: &ComponentValType) -> anyhow::Result<Type> {
+    fn convert_valtype(&mut self, ty: &ComponentValType) -> Result<Type> {
         let id = match ty {
             ComponentValType::Primitive(ty) => return Ok(self.convert_primitive(*ty)),
             ComponentValType::Type(id) => *id,
@@ -1339,7 +1328,7 @@ impl WitPackageDecoder<'_> {
     /// Converts a wasmparser `ComponentDefinedType`, the definition of a type
     /// in the component model, to a WIT `TypeDefKind` to get inserted into the
     /// types arena by the caller.
-    fn convert_defined(&mut self, ty: &ComponentDefinedType) -> anyhow::Result<TypeDefKind> {
+    fn convert_defined(&mut self, ty: &ComponentDefinedType) -> Result<TypeDefKind> {
         match ty {
             ComponentDefinedType::Primitive(t) => Ok(TypeDefKind::Type(self.convert_primitive(*t))),
 
@@ -1364,7 +1353,7 @@ impl WitPackageDecoder<'_> {
                     .types
                     .iter()
                     .map(|t| self.convert_valtype(t))
-                    .collect::<anyhow::Result<_>>()?;
+                    .collect::<Result<_>>()?;
                 Ok(TypeDefKind::Tuple(Tuple { types }))
             }
 
@@ -1399,7 +1388,7 @@ impl WitPackageDecoder<'_> {
                             span: Default::default(),
                         })
                     })
-                    .collect::<anyhow::Result<_>>()?;
+                    .collect::<Result<_>>()?;
                 Ok(TypeDefKind::Record(Record { fields }))
             }
 
@@ -1418,7 +1407,7 @@ impl WitPackageDecoder<'_> {
                             span: Default::default(),
                         })
                     })
-                    .collect::<anyhow::Result<_>>()?;
+                    .collect::<Result<_>>()?;
                 Ok(TypeDefKind::Variant(Variant { cases }))
             }
 
@@ -1488,7 +1477,7 @@ impl WitPackageDecoder<'_> {
         }
     }
 
-    fn register_defined(&mut self, id: TypeId, def: &ComponentDefinedType) -> anyhow::Result<()> {
+    fn register_defined(&mut self, id: TypeId, def: &ComponentDefinedType) -> Result<()> {
         Registrar {
             types: &self.types,
             type_map: &mut self.type_map,
@@ -1635,7 +1624,7 @@ struct Registrar<'a> {
 impl Registrar<'_> {
     /// Verifies that the wasm structure of `def` matches the wit structure of
     /// `id` and recursively registers types.
-    fn defined(&mut self, id: TypeId, def: &ComponentDefinedType) -> anyhow::Result<()> {
+    fn defined(&mut self, id: TypeId, def: &ComponentDefinedType) -> Result<()> {
         match def {
             ComponentDefinedType::Primitive(_) => Ok(()),
 
@@ -1791,7 +1780,7 @@ impl Registrar<'_> {
         }
     }
 
-    fn valtype(&mut self, wasm: &ComponentValType, wit: &Type) -> anyhow::Result<()> {
+    fn valtype(&mut self, wasm: &ComponentValType, wit: &Type) -> Result<()> {
         let wasm = match wasm {
             ComponentValType::Type(wasm) => *wasm,
             ComponentValType::Primitive(_wasm) => {
