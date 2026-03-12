@@ -507,12 +507,11 @@ impl<'a> Resolver<'a> {
                         let name = u.as_.as_ref().unwrap_or(u.item.name());
                         let item = match &u.item {
                             ast::UsePath::Id(name) => *ids.get(name.name).ok_or_else(|| {
-                                ParseErrors::from(ParseErrorKind::Syntax {
+                                ParseErrors::from(ParseErrorKind::ItemNotFound {
                                     span: name.span,
-                                    message: format!(
-                                        "interface or world `{name}` does not exist",
-                                        name = name.name
-                                    ),
+                                    name: name.name.to_string(),
+                                    kind: "interface or world".to_owned(),
+                                    hint: None,
                                 })
                             })?,
                             ast::UsePath::Package { id, name } => {
@@ -1371,9 +1370,11 @@ impl<'a> Resolver<'a> {
                 }));
             }
             None => {
-                return Err(ParseErrors::from(ParseErrorKind::Syntax {
+                return Err(ParseErrors::from(ParseErrorKind::ItemNotFound {
                     span: name.span,
-                    message: format!("name `{name}` is not defined", name = name.name),
+                    name: name.name.to_string(),
+                    kind: "name".to_owned(),
+                    hint: None,
                 }));
             }
         }
