@@ -48,6 +48,11 @@ jobs:
           env:
             CARGO_BUILD_TARGET: aarch64-unknown-linux-musl
             DOCKER_IMAGE: ./ci/docker/aarch64-musl/Dockerfile
+        - build: riscv64-linux
+          os: ubuntu-latest
+          env:
+            CARGO_BUILD_TARGET: riscv64gc-unknown-linux-gnu
+            DOCKER_IMAGE: ./ci/docker/riscv64-linux/Dockerfile
 
         - build: x86_64-macos
           os: macos-latest
