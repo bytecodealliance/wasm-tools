@@ -1,4 +1,4 @@
-name `nonexistent` is not defined
+name `nonexistent` does not exist
      --> tests/ui/parse-fail/bad-function2.wit:6:16
       |
     6 |   x: func() -> nonexistent;
