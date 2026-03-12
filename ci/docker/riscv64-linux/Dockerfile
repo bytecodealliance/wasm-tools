@@ -1,4 +1,4 @@
-FROM ubuntu:16.04
+FROM ubuntu:18.04
 
 RUN apt-get update -y && apt-get install -y gcc gcc-riscv64-linux-gnu ca-certificates git
 RUN git config --global --add safe.directory '*'
