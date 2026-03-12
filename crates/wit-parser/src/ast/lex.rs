@@ -166,14 +166,14 @@ pub enum Token {
 #[derive(Eq, PartialEq, Debug)]
 #[allow(dead_code)]
 pub enum Error {
+    ControlCodepoint(u32, char),
+    DeprecatedCodepoint(u32, char),
+    ForbiddenCodepoint(u32, char),
     InvalidCharInId(u32, char),
     IdPartEmpty(u32),
     InvalidEscape(u32, char),
     Unexpected(u32, char),
     UnterminatedComment(u32),
-    ForbiddenCodepoint(u32, char),
-    DeprecatedCodepoint(u32, char),
-    ControlCodepoint(u32, char),
     Wanted {
         at: u32,
         expected: &'static str,
@@ -629,16 +629,17 @@ impl Token {
 impl core::error::Error for Error {}
 
 impl Error {
+    /// Returns the byte offset in the source map where this error occurred.
     pub fn position(&self) -> u32 {
         match self {
-            Error::InvalidCharInId(at, _)
+            Error::ControlCodepoint(at, _)
+            | Error::DeprecatedCodepoint(at, _)
+            | Error::ForbiddenCodepoint(at, _)
+            | Error::InvalidCharInId(at, _)
             | Error::IdPartEmpty(at)
             | Error::InvalidEscape(at, _)
             | Error::Unexpected(at, _)
-            | Error::UnterminatedComment(at)
-            | Error::ForbiddenCodepoint(at, _)
-            | Error::DeprecatedCodepoint(at, _)
-            | Error::ControlCodepoint(at, _) => *at,
+            | Error::UnterminatedComment(at) => *at,
             Error::Wanted { at, .. } => *at,
         }
     }
@@ -647,6 +648,21 @@ impl Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Error::ControlCodepoint(_, ch) => write!(f, "Control code '{}'", ch.escape_unicode()),
+            Error::DeprecatedCodepoint(_, ch) => {
+                write!(
+                    f,
+                    "Codepoint {:?} is discouraged by Unicode",
+                    ch.escape_unicode()
+                )
+            }
+            Error::ForbiddenCodepoint(_, ch) => {
+                write!(
+                    f,
+                    "Input contains bidirectional override codepoint {:?}",
+                    ch.escape_unicode()
+                )
+            }
             Error::Unexpected(_, ch) => write!(f, "unexpected character {ch:?}"),
             Error::UnterminatedComment(_) => write!(f, "unterminated block comment"),
             Error::Wanted {
@@ -655,21 +671,6 @@ impl fmt::Display for Error {
             Error::InvalidCharInId(_, ch) => write!(f, "invalid character in identifier {ch:?}"),
             Error::IdPartEmpty(_) => write!(f, "identifiers must have characters between '-'s"),
             Error::InvalidEscape(_, ch) => write!(f, "invalid escape in string {ch:?}"),
-            Error::ForbiddenCodepoint(_, ch) => {
-                write!(
-                    f,
-                    "Input contains bidirectional override codepoint {:?}",
-                    ch.escape_unicode()
-                )
-            }
-            Error::DeprecatedCodepoint(_, ch) => {
-                write!(
-                    f,
-                    "Codepoint {:?} is discouraged by Unicode",
-                    ch.escape_unicode()
-                )
-            }
-            Error::ControlCodepoint(_, ch) => write!(f, "Control code '{}'", ch.escape_unicode()),
         }
     }
 }
@@ -736,9 +737,7 @@ fn test_validate_id() {
 
 #[test]
 fn test_tokenizer() {
-    use anyhow::Result;
-
-    fn collect(s: &str) -> Result<Vec<Token>> {
+    fn collect(s: &str) -> Result<Vec<Token>, Error> {
         let mut t = Tokenizer::new(s, 0)?;
         let mut tokens = Vec::new();
         while let Some(token) = t.next()? {
