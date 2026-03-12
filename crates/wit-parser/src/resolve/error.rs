@@ -90,11 +90,11 @@ impl fmt::Display for ResolveErrorKind {
                 requested, known, ..
             } => {
                 if known.is_empty() {
-                    write!(f, "package `{requested}` not found")
+                    write!(f, "package '{requested}' not found")
                 } else {
-                    write!(f, "package `{requested}` not found; known packages:")?;
+                    write!(f, "package '{requested}' not found. known packages:")?;
                     for k in known {
-                        write!(f, "\n  {k}")?;
+                        write!(f, "\n    {k}")?;
                     }
                     Ok(())
                 }
