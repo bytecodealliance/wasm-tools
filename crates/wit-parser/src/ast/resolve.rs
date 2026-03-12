@@ -1,4 +1,5 @@
 use super::{ParamList, WorldOrInterface};
+use crate::alloc::borrow::ToOwned;
 use crate::ast::error::{ParseErrorKind, ParseErrors};
 use crate::ast::toposort::toposort;
 use crate::*;
@@ -7,7 +8,6 @@ use alloc::vec::Vec;
 use alloc::{format, vec};
 use core::mem;
 use core::result::Result;
-use std::borrow::ToOwned;
 
 #[derive(Default)]
 pub struct Resolver<'a> {

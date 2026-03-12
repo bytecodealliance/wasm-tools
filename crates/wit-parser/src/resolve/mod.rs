@@ -301,15 +301,17 @@ impl Resolve {
         // and otherwise determine the order that packages must be added to
         // this `Resolve`.
         let mut order = IndexSet::default();
-        let mut visiting = HashSet::new();
-        for (pkg, _) in pkg_details_map.values() {
-            visit(
-                pkg,
-                &pkg_details_map,
-                &mut order,
-                &mut visiting,
-                &source_map_offsets,
-            )?;
+        {
+            let mut visiting = HashSet::new();
+            for (pkg, _) in pkg_details_map.values() {
+                visit(
+                    pkg,
+                    &pkg_details_map,
+                    &mut order,
+                    &mut visiting,
+                    &source_map_offsets,
+                )?;
+            }
         }
 
         let mut package_id_to_source_map_idx = BTreeMap::new();

@@ -5,6 +5,7 @@ use alloc::boxed::Box;
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
+#[cfg(feature = "std")]
 use anyhow::Context as _;
 use core::fmt;
 use core::mem;
