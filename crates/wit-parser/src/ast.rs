@@ -1890,7 +1890,7 @@ impl SourceMap {
         Err(err)
     }
 
-    pub fn highlight_span(&self, span: Span, err: impl fmt::Display) -> Option<String> {
+    pub(crate) fn highlight_span(&self, span: Span, err: impl fmt::Display) -> Option<String> {
         if !span.is_known() {
             return None;
         }
