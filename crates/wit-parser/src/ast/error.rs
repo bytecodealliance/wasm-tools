@@ -13,15 +13,14 @@ pub enum PackageParseErrorKind {
     /// invalid attribute, etc.)
     Syntax { span: Span, message: String },
     /// A type/interface/world references a name that does not exist within
-    /// the same package. Arises from within-package toposort.
+    /// the same package.
     ItemNotFound {
         span: Span,
         name: String,
         kind: String,
         hint: Option<String>,
     },
-    /// A type/interface/world depends on itself. Arises from within-package
-    /// toposort.
+    /// A type/interface/world depends on itself.
     TypeCycle {
         span: Span,
         name: String,
