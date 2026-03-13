@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[non_exhaustive]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum PackageParseErrorKind {
     /// Lexer error (invalid character, unterminated comment, etc.)
     Lex(lex::Error),
@@ -64,7 +64,7 @@ impl fmt::Display for PackageParseErrorKind {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct PackageParseErrors(Box<PackageParseErrorKind>);
 
 impl PackageParseErrors {
