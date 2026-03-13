@@ -926,9 +926,7 @@ impl<'a> Resolver<'a> {
                 }
             }
         }
-        let order = toposort("type", &type_deps)
-            .map_err(attach_old_float_type_context)
-            .map_err(PackageParseErrors::from)?;
+        let order = toposort("type", &type_deps).map_err(attach_old_float_type_context)?;
         for ty in order {
             let def = match type_defs.swap_remove(&ty).unwrap() {
                 Some(def) => def,
@@ -949,8 +947,8 @@ impl<'a> Resolver<'a> {
         }
         return Ok(());
 
-        fn attach_old_float_type_context(mut err: ast::toposort::Error) -> ast::toposort::Error {
-            if let ast::toposort::Error::NonexistentDep { name, hint, .. } = &mut err {
+        fn attach_old_float_type_context(mut err: PackageParseErrorKind) -> PackageParseErrorKind {
+            if let PackageParseErrorKind::ItemNotFound { name, hint, .. } = &mut err {
                 let new = match name.as_str() {
                     "float32" => "f32",
                     "float64" => "f64",

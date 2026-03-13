@@ -1,10 +1,10 @@
+use super::error::PackageParseErrorKind;
 use crate::IndexMap;
-use crate::ast::{Id, Span};
+use crate::ast::Id;
 use alloc::collections::BinaryHeap;
-use alloc::string::{String, ToString};
+use alloc::string::ToString;
 use alloc::vec;
 use alloc::vec::Vec;
-use core::fmt;
 use core::mem;
 use core::result::Result;
 
@@ -45,21 +45,21 @@ struct State {
 pub fn toposort<'a>(
     kind: &str,
     deps: &IndexMap<&'a str, Vec<Id<'a>>>,
-) -> Result<Vec<&'a str>, Error> {
+) -> Result<Vec<&'a str>, PackageParseErrorKind> {
     // Initialize a `State` per-node with the number of outbound edges and
     // additionally filling out the `reverse_deps` array.
     let mut states = vec![State::default(); deps.len()];
     for (i, (_, edges)) in deps.iter().enumerate() {
         states[i].outbound_remaining = edges.len();
         for edge in edges {
-            let (j, _, _) = deps
-                .get_full(edge.name)
-                .ok_or_else(|| Error::NonexistentDep {
-                    span: edge.span,
-                    name: edge.name.to_string(),
-                    kind: kind.to_string(),
-                    hint: None,
-                })?;
+            let (j, _, _) =
+                deps.get_full(edge.name)
+                    .ok_or_else(|| PackageParseErrorKind::ItemNotFound {
+                        span: edge.span,
+                        name: edge.name.to_string(),
+                        kind: kind.to_string(),
+                        hint: None,
+                    })?;
             states[j].reverse_deps.push(i);
         }
     }
@@ -115,7 +115,7 @@ pub fn toposort<'a>(
             if states[j].outbound_remaining == 0 {
                 continue;
             }
-            return Err(Error::Cycle {
+            return Err(PackageParseErrorKind::TypeCycle {
                 span: dep.span,
                 name: dep.name.to_string(),
                 kind: kind.to_string(),
@@ -125,52 +125,6 @@ pub fn toposort<'a>(
 
     unreachable!()
 }
-
-#[derive(Clone, Debug)]
-pub enum Error {
-    NonexistentDep {
-        span: Span,
-        name: String,
-        kind: String,
-        /// Optional hint to display after the main error message, e.g. to
-        /// suggest a renamed type.
-        hint: Option<String>,
-    },
-    Cycle {
-        span: Span,
-        name: String,
-        kind: String,
-    },
-}
-
-impl Error {
-    pub fn span(&self) -> Span {
-        match self {
-            Error::NonexistentDep { span, .. } | Error::Cycle { span, .. } => *span,
-        }
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Error::NonexistentDep {
-                kind, name, hint, ..
-            } => {
-                write!(f, "{kind} `{name}` does not exist")?;
-                if let Some(hint) = hint {
-                    write!(f, "\n{hint}")?;
-                }
-                Ok(())
-            }
-            Error::Cycle { kind, name, .. } => {
-                write!(f, "{kind} `{name}` depends on itself")
-            }
-        }
-    }
-}
-
-impl core::error::Error for Error {}
 
 #[cfg(test)]
 mod tests {
@@ -192,7 +146,7 @@ mod tests {
         nonexistent.insert("a", vec![id("b")]);
         assert!(matches!(
             toposort("", &nonexistent),
-            Err(Error::NonexistentDep { .. })
+            Err(PackageParseErrorKind::ItemNotFound { .. })
         ));
 
         let mut one = IndexMap::default();
@@ -214,13 +168,19 @@ mod tests {
     fn cycles() {
         let mut cycle = IndexMap::default();
         cycle.insert("a", vec![id("a")]);
-        assert!(matches!(toposort("", &cycle), Err(Error::Cycle { .. })));
+        assert!(matches!(
+            toposort("", &cycle),
+            Err(PackageParseErrorKind::TypeCycle { .. })
+        ));
 
         let mut cycle = IndexMap::default();
         cycle.insert("a", vec![id("b")]);
         cycle.insert("b", vec![id("c")]);
         cycle.insert("c", vec![id("a")]);
-        assert!(matches!(toposort("", &cycle), Err(Error::Cycle { .. })));
+        assert!(matches!(
+            toposort("", &cycle),
+            Err(PackageParseErrorKind::TypeCycle { .. })
+        ));
     }
 
     #[test]

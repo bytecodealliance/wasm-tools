@@ -2,10 +2,7 @@ use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use core::fmt;
 
-use crate::{
-    SourceMap, Span,
-    ast::{lex, toposort},
-};
+use crate::{SourceMap, Span, ast::lex};
 
 #[non_exhaustive]
 #[derive(Debug, PartialEq, Eq)]
@@ -98,27 +95,5 @@ impl From<PackageParseErrorKind> for PackageParseErrors {
 impl From<lex::Error> for PackageParseErrors {
     fn from(e: lex::Error) -> Self {
         PackageParseErrorKind::Lex(e).into()
-    }
-}
-
-impl From<toposort::Error> for PackageParseErrors {
-    fn from(e: toposort::Error) -> Self {
-        let kind = match e {
-            toposort::Error::NonexistentDep {
-                span,
-                name,
-                kind,
-                hint,
-            } => PackageParseErrorKind::ItemNotFound {
-                span,
-                name,
-                kind,
-                hint,
-            },
-            toposort::Error::Cycle { span, name, kind } => {
-                PackageParseErrorKind::TypeCycle { span, name, kind }
-            }
-        };
-        kind.into()
     }
 }
