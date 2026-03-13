@@ -1,11 +1,13 @@
 use super::{ParamList, WorldOrInterface};
+use crate::alloc::borrow::ToOwned;
+use crate::ast::error::{PackageParseErrorKind, PackageParseErrors};
 use crate::ast::toposort::toposort;
 use crate::*;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::{format, vec};
-use anyhow::bail;
 use core::mem;
+use core::result::Result;
 
 #[derive(Default)]
 pub struct Resolver<'a> {
@@ -105,7 +107,7 @@ enum TypeOrItem {
 }
 
 impl<'a> Resolver<'a> {
-    pub(super) fn push(&mut self, file: ast::PackageFile<'a>) -> Result<()> {
+    pub(super) fn push(&mut self, file: ast::PackageFile<'a>) -> Result<(), PackageParseErrors> {
         // As each WIT file is pushed into this resolver keep track of the
         // current package name assigned. Only one file needs to mention it, but
         // if multiple mention it then they must all match.
@@ -113,13 +115,13 @@ impl<'a> Resolver<'a> {
             let cur_name = cur.package_name();
             if let Some((prev, _)) = &self.package_name {
                 if cur_name != *prev {
-                    bail!(Error::new(
-                        cur.span,
-                        format!(
+                    return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
+                        span: cur.span,
+                        message: format!(
                             "package identifier `{cur_name}` does not match \
                              previous package name of `{prev}`"
                         ),
-                    ))
+                    }));
                 }
             }
             self.package_name = Some((cur_name, cur.span));
@@ -128,10 +130,10 @@ impl<'a> Resolver<'a> {
             let docs = self.docs(&cur.docs);
             if docs.contents.is_some() {
                 if self.package_docs.contents.is_some() {
-                    bail!(Error::new(
-                        cur.docs.span,
-                        "found doc comments on multiple 'package' items"
-                    ))
+                    return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
+                        span: cur.docs.span,
+                        message: "found doc comments on multiple 'package' items".to_owned(),
+                    }));
                 }
                 self.package_docs = docs;
             }
@@ -145,22 +147,26 @@ impl<'a> Resolver<'a> {
                 ast::AstItem::Package(pkg) => pkg.package_id.as_ref().unwrap().span,
                 _ => continue,
             };
-            bail!(Error::new(
-                span,
-                "nested packages must be placed at the top-level"
-            ))
+            return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
+                span: span,
+                message: "nested packages must be placed at the top-level".to_owned(),
+            }));
         }
 
         self.decl_lists.push(file.decl_list);
         Ok(())
     }
 
-    pub(crate) fn resolve(&mut self) -> Result<UnresolvedPackage> {
+    pub(crate) fn resolve(&mut self) -> Result<UnresolvedPackage, PackageParseErrors> {
         // At least one of the WIT files must have a `package` annotation.
         let (name, package_name_span) = match &self.package_name {
             Some(name) => name.clone(),
             None => {
-                bail!("no `package` header was found in any WIT file for this package")
+                return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
+                    span: Span::default(),
+                    message: "no `package` header was found in any WIT file for this package"
+                        .to_owned(),
+                }));
             }
         };
 
@@ -336,7 +342,7 @@ impl<'a> Resolver<'a> {
     fn populate_ast_items(
         &mut self,
         decl_lists: &[ast::DeclList<'a>],
-    ) -> Result<(Vec<InterfaceId>, Vec<WorldId>)> {
+    ) -> Result<(Vec<InterfaceId>, Vec<WorldId>), PackageParseErrors> {
         let mut package_items = IndexMap::default();
 
         // Validate that all worlds and interfaces have unique names within this
@@ -350,10 +356,10 @@ impl<'a> Resolver<'a> {
                 match item {
                     ast::AstItem::Interface(i) => {
                         if package_items.insert(i.name.name, i.name.span).is_some() {
-                            bail!(Error::new(
-                                i.name.span,
-                                format!("duplicate item named `{}`", i.name.name),
-                            ))
+                            return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
+                                span: i.name.span,
+                                message: format!("duplicate item named `{}`", i.name.name),
+                            }));
                         }
                         let prev = decl_list_ns.insert(i.name.name, ());
                         assert!(prev.is_none());
@@ -364,10 +370,10 @@ impl<'a> Resolver<'a> {
                     }
                     ast::AstItem::World(w) => {
                         if package_items.insert(w.name.name, w.name.span).is_some() {
-                            bail!(Error::new(
-                                w.name.span,
-                                format!("duplicate item named `{}`", w.name.name),
-                            ))
+                            return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
+                                span: w.name.span,
+                                message: format!("duplicate item named `{}`", w.name.name),
+                            }));
                         }
                         let prev = decl_list_ns.insert(w.name.name, ());
                         assert!(prev.is_none());
@@ -415,10 +421,10 @@ impl<'a> Resolver<'a> {
                     ast::AstItem::Package(_) => unreachable!(),
                 };
                 if decl_list_ns.insert(name.name, (name.span, src)).is_some() {
-                    bail!(Error::new(
-                        name.span,
-                        format!("duplicate name `{}` in this file", name.name),
-                    ));
+                    return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
+                        span: name.span,
+                        message: format!("duplicate name `{}` in this file", name.name),
+                    }));
                 }
             }
 
@@ -446,13 +452,14 @@ impl<'a> Resolver<'a> {
                             order[iface.name].push(used_name.clone());
                         }
                         None => {
-                            bail!(Error::new(
-                                used_name.span,
-                                format!(
-                                    "interface or world `{name}` not found in package",
-                                    name = used_name.name
-                                ),
-                            ))
+                            return Err(PackageParseErrors::from(
+                                PackageParseErrorKind::ItemNotFound {
+                                    span: used_name.span,
+                                    name: used_name.name.to_string(),
+                                    kind: "interface or world".to_string(),
+                                    hint: None,
+                                },
+                            ));
                         }
                     },
                 }
@@ -494,21 +501,20 @@ impl<'a> Resolver<'a> {
                 let (name, ast_item) = match item {
                     ast::AstItem::Use(u) => {
                         if !u.attributes.is_empty() {
-                            bail!(Error::new(
-                                u.span,
-                                format!("attributes not allowed on top-level use"),
-                            ))
+                            return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
+                                span: u.span,
+                                message: format!("attributes not allowed on top-level use"),
+                            }));
                         }
                         let name = u.as_.as_ref().unwrap_or(u.item.name());
                         let item = match &u.item {
                             ast::UsePath::Id(name) => *ids.get(name.name).ok_or_else(|| {
-                                Error::new(
-                                    name.span,
-                                    format!(
-                                        "interface or world `{name}` does not exist",
-                                        name = name.name
-                                    ),
-                                )
+                                PackageParseErrors::from(PackageParseErrorKind::ItemNotFound {
+                                    span: name.span,
+                                    name: name.name.to_string(),
+                                    kind: "interface or world".to_owned(),
+                                    hint: None,
+                                })
                             })?,
                             ast::UsePath::Package { id, name } => {
                                 self.foreign_deps[&id.package_name()][name.name].0
@@ -549,7 +555,10 @@ impl<'a> Resolver<'a> {
     /// This is done after all interfaces are generated so `self.resolve_path`
     /// can be used to determine if what's being imported from is a foreign
     /// interface or not.
-    fn populate_foreign_types(&mut self, decl_lists: &[ast::DeclList<'a>]) -> Result<()> {
+    fn populate_foreign_types(
+        &mut self,
+        decl_lists: &[ast::DeclList<'a>],
+    ) -> Result<(), PackageParseErrors> {
         for (i, decl_list) in decl_lists.iter().enumerate() {
             self.cur_ast_index = i;
             decl_list.for_each_path(&mut |_, attrs, path, names, _| {
@@ -593,7 +602,11 @@ impl<'a> Resolver<'a> {
         Ok(())
     }
 
-    fn resolve_world(&mut self, world_id: WorldId, world: &ast::World<'a>) -> Result<WorldId> {
+    fn resolve_world(
+        &mut self,
+        world_id: WorldId,
+        world: &ast::World<'a>,
+    ) -> Result<WorldId, PackageParseErrors> {
         let docs = self.docs(&world.docs);
         self.worlds[world_id].docs = docs;
         let stability = self.stability(&world.attributes)?;
@@ -627,10 +640,12 @@ impl<'a> Resolver<'a> {
                         WorldItem::Type { id, span: *span },
                     );
                     if prev.is_some() {
-                        bail!(Error::new(
-                            *span,
-                            format!("import `{name}` conflicts with prior import of same name"),
-                        ))
+                        return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
+                            span: *span,
+                            message: format!(
+                                "import `{name}` conflicts with prior import of same name"
+                            ),
+                        }));
                     }
                 }
                 TypeOrItem::Item(_) => unreachable!(),
@@ -704,10 +719,10 @@ impl<'a> Resolver<'a> {
             };
             if let WorldItem::Interface { id, .. } = world_item {
                 if !interfaces.insert(id) {
-                    bail!(Error::new(
-                        kind.span(),
-                        format!("interface cannot be {desc}ed more than once"),
-                    ))
+                    return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
+                        span: kind.span(),
+                        message: format!("interface cannot be {desc}ed more than once"),
+                    }));
                 }
             }
             let dst = if desc == "import" {
@@ -726,10 +741,10 @@ impl<'a> Resolver<'a> {
                     WorldKey::Name(name) => name,
                     WorldKey::Interface(..) => unreachable!(),
                 };
-                bail!(Error::new(
-                    kind.span(),
-                    format!("{desc} `{name}` conflicts with prior {prev} of same name",),
-                ))
+                return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
+                    span: kind.span(),
+                    message: format!("{desc} `{name}` conflicts with prior {prev} of same name",),
+                }));
             }
         }
         self.type_lookup.clear();
@@ -742,7 +757,7 @@ impl<'a> Resolver<'a> {
         docs: &ast::Docs<'a>,
         attrs: &[ast::Attribute<'a>],
         kind: &ast::ExternKind<'a>,
-    ) -> Result<WorldItem> {
+    ) -> Result<WorldItem, PackageParseErrors> {
         match kind {
             ast::ExternKind::Interface(name, items) => {
                 let prev = mem::take(&mut self.type_lookup);
@@ -790,7 +805,7 @@ impl<'a> Resolver<'a> {
         fields: &[ast::InterfaceItem<'a>],
         docs: &ast::Docs<'a>,
         attrs: &[ast::Attribute<'a>],
-    ) -> Result<()> {
+    ) -> Result<(), PackageParseErrors> {
         let docs = self.docs(docs);
         self.interfaces[interface_id].docs = docs;
         let stability = self.stability(attrs)?;
@@ -866,7 +881,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         owner: TypeOwner,
         fields: impl Iterator<Item = TypeItem<'a, 'b>> + Clone,
-    ) -> Result<()>
+    ) -> Result<(), PackageParseErrors>
     where
         'a: 'b,
     {
@@ -893,10 +908,10 @@ impl<'a> Resolver<'a> {
                 TypeItem::Def(t) => {
                     let prev = type_defs.insert(t.name.name, Some(t));
                     if prev.is_some() {
-                        bail!(Error::new(
-                            t.name.span,
-                            format!("name `{}` is defined more than once", t.name.name),
-                        ))
+                        return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
+                            span: t.name.span,
+                            message: format!("name `{}` is defined more than once", t.name.name),
+                        }));
                     }
                     let mut deps = Vec::new();
                     collect_deps(&t.ty, &mut deps);
@@ -911,7 +926,9 @@ impl<'a> Resolver<'a> {
                 }
             }
         }
-        let order = toposort("type", &type_deps).map_err(attach_old_float_type_context)?;
+        let order = toposort("type", &type_deps)
+            .map_err(attach_old_float_type_context)
+            .map_err(PackageParseErrors::from)?;
         for ty in order {
             let def = match type_defs.swap_remove(&ty).unwrap() {
                 Some(def) => def,
@@ -932,28 +949,29 @@ impl<'a> Resolver<'a> {
         }
         return Ok(());
 
-        fn attach_old_float_type_context(err: ast::toposort::Error) -> anyhow::Error {
-            let name = match &err {
-                ast::toposort::Error::NonexistentDep { name, .. } => name,
-                _ => return err.into(),
-            };
-            let new = match name.as_str() {
-                "float32" => "f32",
-                "float64" => "f64",
-                _ => return err.into(),
-            };
-
-            let context = format!(
-                "the `{name}` type has been renamed to `{new}` and is \
-                 no longer accepted, but the `WIT_REQUIRE_F32_F64=0` \
-                 environment variable can be used to temporarily \
-                 disable this error"
-            );
-            anyhow::Error::from(err).context(context)
+        fn attach_old_float_type_context(mut err: ast::toposort::Error) -> ast::toposort::Error {
+            if let ast::toposort::Error::NonexistentDep { name, hint, .. } = &mut err {
+                let new = match name.as_str() {
+                    "float32" => "f32",
+                    "float64" => "f64",
+                    _ => return err,
+                };
+                *hint = Some(format!(
+                    "the `{name}` type has been renamed to `{new}` and is \
+                     no longer accepted, but the `WIT_REQUIRE_F32_F64=0` \
+                     environment variable can be used to temporarily \
+                     disable this error"
+                ));
+            }
+            err
         }
     }
 
-    fn resolve_use(&mut self, owner: TypeOwner, u: &ast::Use<'a>) -> Result<()> {
+    fn resolve_use(
+        &mut self,
+        owner: TypeOwner,
+        u: &ast::Use<'a>,
+    ) -> Result<(), PackageParseErrors> {
         let (item, name, span) = self.resolve_ast_item_path(&u.from)?;
         let use_from = self.extract_iface_from_item(&item, &name, span)?;
         let stability = self.stability(&u.attributes)?;
@@ -963,15 +981,21 @@ impl<'a> Resolver<'a> {
             let id = match lookup.get(name.name.name) {
                 Some((TypeOrItem::Type(id), _)) => *id,
                 Some((TypeOrItem::Item(s), _)) => {
-                    bail!(Error::new(
-                        name.name.span,
-                        format!("cannot import {s} `{}`", name.name.name),
-                    ))
+                    return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
+                        span: name.name.span,
+                        message: format!("cannot import {s} `{}`", name.name.name),
+                    }));
                 }
-                None => bail!(Error::new(
-                    name.name.span,
-                    format!("name `{}` is not defined", name.name.name),
-                )),
+                None => {
+                    return Err(PackageParseErrors::from(
+                        PackageParseErrorKind::ItemNotFound {
+                            span: name.name.span,
+                            name: name.name.name.to_string(),
+                            kind: "name".to_string(),
+                            hint: None,
+                        },
+                    ));
+                }
             };
             let span = name.name.span;
             let name = name.as_.as_ref().unwrap_or(&name.name);
@@ -989,7 +1013,11 @@ impl<'a> Resolver<'a> {
     }
 
     /// For each name in the `include`, resolve the path of the include, add it to the self.includes
-    fn resolve_include(&mut self, world_id: WorldId, i: &ast::Include<'a>) -> Result<()> {
+    fn resolve_include(
+        &mut self,
+        world_id: WorldId,
+        i: &ast::Include<'a>,
+    ) -> Result<(), PackageParseErrors> {
         let stability = self.stability(&i.attributes)?;
         let (item, name, span) = self.resolve_ast_item_path(&i.from)?;
         let include_from = self.extract_world_from_item(&item, &name, span)?;
@@ -1013,7 +1041,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         func: &ast::ResourceFunc<'_>,
         resource: &ast::Id<'_>,
-    ) -> Result<Function> {
+    ) -> Result<Function, PackageParseErrors> {
         let resource_id = match self.type_lookup.get(resource.name) {
             Some((TypeOrItem::Type(id), _)) => *id,
             _ => panic!("type lookup for resource failed"),
@@ -1062,7 +1090,7 @@ impl<'a> Resolver<'a> {
         name_span: Span,
         func: &ast::Func,
         kind: FunctionKind,
-    ) -> Result<Function> {
+    ) -> Result<Function, PackageParseErrors> {
         let docs = self.docs(docs);
         let stability = self.stability(attrs)?;
         let params = self.resolve_params(&func.params, &kind, func.span)?;
@@ -1078,7 +1106,10 @@ impl<'a> Resolver<'a> {
         })
     }
 
-    fn resolve_ast_item_path(&self, path: &ast::UsePath<'a>) -> Result<(AstItem, String, Span)> {
+    fn resolve_ast_item_path(
+        &self,
+        path: &ast::UsePath<'a>,
+    ) -> Result<(AstItem, String, Span), PackageParseErrors> {
         match path {
             ast::UsePath::Id(id) => {
                 let item = self.ast_items[self.cur_ast_index]
@@ -1087,10 +1118,14 @@ impl<'a> Resolver<'a> {
                 match item {
                     Some(item) => Ok((*item, id.name.into(), id.span)),
                     None => {
-                        bail!(Error::new(
-                            id.span,
-                            format!("interface or world `{}` does not exist", id.name),
-                        ))
+                        return Err(PackageParseErrors::from(
+                            PackageParseErrorKind::ItemNotFound {
+                                span: id.span,
+                                name: id.name.to_string(),
+                                kind: "interface or world".to_owned(),
+                                hint: None,
+                            },
+                        ));
                     }
                 }
             }
@@ -1107,37 +1142,46 @@ impl<'a> Resolver<'a> {
         item: &AstItem,
         name: &str,
         span: Span,
-    ) -> Result<InterfaceId> {
+    ) -> Result<InterfaceId, PackageParseErrors> {
         match item {
             AstItem::Interface(id) => Ok(*id),
             AstItem::World(_) => {
-                bail!(Error::new(
+                return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
                     span,
-                    format!("name `{name}` is defined as a world, not an interface"),
-                ))
+                    message: format!("name `{name}` is defined as a world, not an interface"),
+                }));
             }
         }
     }
 
-    fn extract_world_from_item(&self, item: &AstItem, name: &str, span: Span) -> Result<WorldId> {
+    fn extract_world_from_item(
+        &self,
+        item: &AstItem,
+        name: &str,
+        span: Span,
+    ) -> Result<WorldId, PackageParseErrors> {
         match item {
             AstItem::World(id) => Ok(*id),
             AstItem::Interface(_) => {
-                bail!(Error::new(
+                return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
                     span,
-                    format!("name `{name}` is defined as an interface, not a world"),
-                ))
+                    message: format!("name `{name}` is defined as an interface, not a world"),
+                }));
             }
         }
     }
 
-    fn define_interface_name(&mut self, name: &ast::Id<'a>, item: TypeOrItem) -> Result<()> {
+    fn define_interface_name(
+        &mut self,
+        name: &ast::Id<'a>,
+        item: TypeOrItem,
+    ) -> Result<(), PackageParseErrors> {
         let prev = self.type_lookup.insert(name.name, (item, name.span));
         if prev.is_some() {
-            bail!(Error::new(
-                name.span,
-                format!("name `{}` is defined more than once", name.name),
-            ))
+            return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
+                span: name.span,
+                message: format!("name `{}` is defined more than once", name.name),
+            }));
         } else {
             Ok(())
         }
@@ -1147,7 +1191,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         ty: &ast::Type<'_>,
         stability: &Stability,
-    ) -> Result<TypeDefKind> {
+    ) -> Result<TypeDefKind, PackageParseErrors> {
         Ok(match ty {
             ast::Type::Bool(_) => TypeDefKind::Type(Type::Bool),
             ast::Type::U8(_) => TypeDefKind::Type(Type::U8),
@@ -1188,10 +1232,10 @@ impl<'a> Resolver<'a> {
                     | Type::Char
                     | Type::String => {}
                     _ => {
-                        bail!(Error::new(
-                            map.span,
-                            "invalid map key type: map keys must be bool, u8, u16, u32, u64, s8, s16, s32, s64, char, or string",
-                        ))
+                        return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
+                            span: map.span,
+                            message:  "invalid map key type: map keys must be bool, u8, u16, u32, u64, s8, s16, s32, s64, char, or string".to_owned(),
+                        }));
                     }
                 }
 
@@ -1216,16 +1260,26 @@ impl<'a> Resolver<'a> {
                     match func {
                         ast::ResourceFunc::Method(f) | ast::ResourceFunc::Static(f) => {
                             if !names.insert(&f.name.name) {
-                                bail!(Error::new(
-                                    f.name.span,
-                                    format!("duplicate function name `{}`", f.name.name),
-                                ))
+                                return Err(PackageParseErrors::from(
+                                    PackageParseErrorKind::Syntax {
+                                        span: f.name.span,
+                                        message: format!(
+                                            "duplicate function name `{}`",
+                                            f.name.name
+                                        ),
+                                    },
+                                ));
                             }
                         }
                         ast::ResourceFunc::Constructor(f) => {
                             ctors += 1;
                             if ctors > 1 {
-                                bail!(Error::new(f.name.span, "duplicate constructors"))
+                                return Err(PackageParseErrors::from(
+                                    PackageParseErrorKind::Syntax {
+                                        span: f.name.span,
+                                        message: "duplicate constructors".to_owned(),
+                                    },
+                                ));
                             }
                         }
                     }
@@ -1245,7 +1299,7 @@ impl<'a> Resolver<'a> {
                             span: field.name.span,
                         })
                     })
-                    .collect::<Result<Vec<_>>>()?;
+                    .collect::<Result<Vec<_>, PackageParseErrors>>()?;
                 TypeDefKind::Record(Record { fields })
             }
             ast::Type::Flags(flags) => {
@@ -1265,12 +1319,15 @@ impl<'a> Resolver<'a> {
                     .types
                     .iter()
                     .map(|ty| self.resolve_type(ty, stability))
-                    .collect::<Result<Vec<_>>>()?;
+                    .collect::<Result<Vec<_>, PackageParseErrors>>()?;
                 TypeDefKind::Tuple(Tuple { types })
             }
             ast::Type::Variant(variant) => {
                 if variant.cases.is_empty() {
-                    bail!(Error::new(variant.span, "empty variant"))
+                    return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
+                        span: variant.span,
+                        message: "empty variant".to_owned(),
+                    }));
                 }
                 let cases = variant
                     .cases
@@ -1283,12 +1340,15 @@ impl<'a> Resolver<'a> {
                             span: case.name.span,
                         })
                     })
-                    .collect::<Result<Vec<_>>>()?;
+                    .collect::<Result<Vec<_>, PackageParseErrors>>()?;
                 TypeDefKind::Variant(Variant { cases })
             }
             ast::Type::Enum(e) => {
                 if e.cases.is_empty() {
-                    bail!(Error::new(e.span, "empty enum"))
+                    return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
+                        span: e.span,
+                        message: "empty enum".to_owned(),
+                    }));
                 }
                 let cases = e
                     .cases
@@ -1300,7 +1360,7 @@ impl<'a> Resolver<'a> {
                             span: case.name.span,
                         })
                     })
-                    .collect::<Result<Vec<_>>>()?;
+                    .collect::<Result<Vec<_>, PackageParseErrors>>()?;
                 TypeDefKind::Enum(Enum { cases })
             }
             ast::Type::Option(ty) => TypeDefKind::Option(self.resolve_type(&ty.ty, stability)?),
@@ -1317,21 +1377,29 @@ impl<'a> Resolver<'a> {
         })
     }
 
-    fn resolve_type_name(&mut self, name: &ast::Id<'_>) -> Result<TypeId> {
+    fn resolve_type_name(&mut self, name: &ast::Id<'_>) -> Result<TypeId, PackageParseErrors> {
         match self.type_lookup.get(name.name) {
             Some((TypeOrItem::Type(id), _)) => Ok(*id),
-            Some((TypeOrItem::Item(s), _)) => bail!(Error::new(
-                name.span,
-                format!("cannot use {s} `{name}` as a type", name = name.name),
-            )),
-            None => bail!(Error::new(
-                name.span,
-                format!("name `{name}` is not defined", name = name.name),
-            )),
+            Some((TypeOrItem::Item(s), _)) => {
+                return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
+                    span: name.span,
+                    message: format!("cannot use {s} `{name}` as a type", name = name.name),
+                }));
+            }
+            None => {
+                return Err(PackageParseErrors::from(
+                    PackageParseErrorKind::ItemNotFound {
+                        span: name.span,
+                        name: name.name.to_string(),
+                        kind: "name".to_owned(),
+                        hint: None,
+                    },
+                ));
+            }
         }
     }
 
-    fn validate_resource(&mut self, name: &ast::Id<'_>) -> Result<TypeId> {
+    fn validate_resource(&mut self, name: &ast::Id<'_>) -> Result<TypeId, PackageParseErrors> {
         let id = self.resolve_type_name(name)?;
         let mut cur = id;
         loop {
@@ -1342,10 +1410,15 @@ impl<'a> Resolver<'a> {
                     self.required_resource_types.push((cur, name.span));
                     break Ok(id);
                 }
-                _ => bail!(Error::new(
-                    name.span,
-                    format!("type `{}` used in a handle must be a resource", name.name),
-                )),
+                _ => {
+                    return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
+                        span: name.span,
+                        message: format!(
+                            "type `{}` used in a handle must be a resource",
+                            name.name
+                        ),
+                    }));
+                }
             }
         }
     }
@@ -1419,7 +1492,11 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn resolve_type(&mut self, ty: &super::Type<'_>, stability: &Stability) -> Result<Type> {
+    fn resolve_type(
+        &mut self,
+        ty: &super::Type<'_>,
+        stability: &Stability,
+    ) -> Result<Type, PackageParseErrors> {
         // Resources must be declared at the top level to have their methods
         // processed appropriately, but resources also shouldn't show up
         // recursively so assert that's not happening here.
@@ -1443,7 +1520,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         ty: Option<&super::Type<'_>>,
         stability: &Stability,
-    ) -> Result<Option<Type>> {
+    ) -> Result<Option<Type>, PackageParseErrors> {
         match ty {
             Some(ty) => Ok(Some(self.resolve_type(ty, stability)?)),
             None => Ok(None),
@@ -1549,7 +1626,7 @@ impl<'a> Resolver<'a> {
         Docs { contents }
     }
 
-    fn stability(&mut self, attrs: &[ast::Attribute<'_>]) -> Result<Stability> {
+    fn stability(&mut self, attrs: &[ast::Attribute<'_>]) -> Result<Stability, PackageParseErrors> {
         match attrs {
             [] => Ok(Stability::Unknown),
 
@@ -1593,16 +1670,16 @@ impl<'a> Resolver<'a> {
                 deprecated: Some(version.clone()),
             }),
             [ast::Attribute::Deprecated { span, .. }] => {
-                bail!(Error::new(
-                    *span,
-                    "must pair @deprecated with either @since or @unstable",
-                ))
+                return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
+                    span: *span,
+                    message: "must pair @deprecated with either @since or @unstable".to_owned(),
+                }));
             }
             [_, b, ..] => {
-                bail!(Error::new(
-                    b.span(),
-                    "unsupported combination of attributes",
-                ))
+                return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
+                    span: b.span(),
+                    message: "unsupported combination of attributes".to_owned(),
+                }));
             }
         }
     }
@@ -1612,7 +1689,7 @@ impl<'a> Resolver<'a> {
         params: &ParamList<'_>,
         kind: &FunctionKind,
         span: Span,
-    ) -> Result<Vec<Param>> {
+    ) -> Result<Vec<Param>, PackageParseErrors> {
         let mut ret = Vec::new();
         match *kind {
             // These kinds of methods don't have any adjustments to the
@@ -1645,10 +1722,10 @@ impl<'a> Resolver<'a> {
         }
         for (name, ty) in params {
             if ret.iter().any(|p| p.name == name.name) {
-                bail!(Error::new(
-                    name.span,
-                    format!("param `{}` is defined more than once", name.name),
-                ))
+                return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
+                    span: name.span,
+                    message: format!("param `{}` is defined more than once", name.name),
+                }));
             }
             ret.push(Param {
                 name: name.name.to_string(),
@@ -1664,7 +1741,7 @@ impl<'a> Resolver<'a> {
         result: &Option<ast::Type<'_>>,
         kind: &FunctionKind,
         _span: Span,
-    ) -> Result<Option<Type>> {
+    ) -> Result<Option<Type>, PackageParseErrors> {
         match *kind {
             // These kinds of methods don't have any adjustments to the return
             // values, so plumb them through as-is.
@@ -1696,7 +1773,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         resource_id: TypeId,
         result_ast: &ast::Type<'_>,
-    ) -> Result<Type> {
+    ) -> Result<Type, PackageParseErrors> {
         let result = self.resolve_type(result_ast, &Stability::Unknown)?;
         let ok_type = match result {
             Type::Id(id) => match &self.types[id].kind {
@@ -1706,10 +1783,11 @@ impl<'a> Resolver<'a> {
             _ => None,
         };
         let Some(ok_type) = ok_type else {
-            bail!(Error::new(
-                result_ast.span(),
-                "if a constructor return type is declared it must be a `result`",
-            ));
+            return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
+                span: result_ast.span(),
+                message: "if a constructor return type is declared it must be a `result`"
+                    .to_owned(),
+            }));
         };
         match ok_type {
             Some(Type::Id(ok_id)) if resource_id == ok_id => Ok(result),
@@ -1720,10 +1798,10 @@ impl<'a> Resolver<'a> {
                     } else {
                         result_ast.span()
                     };
-                bail!(Error::new(
-                    ok_span,
-                    "the `ok` type must be the resource being constructed",
-                ));
+                return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
+                    span: ok_span,
+                    message: "the `ok` type must be the resource being constructed".to_owned(),
+                }));
             }
         }
     }

@@ -402,6 +402,7 @@ impl UnresolvedPackageGroup {
         let mut map = SourceMap::default();
         map.push_str(path, contents);
         map.parse()
+            .map_err(|(map, e)| anyhow::anyhow!("{}", e.highlight(&map)))
     }
 
     /// Parse a WIT package at the provided path.
@@ -464,6 +465,7 @@ impl UnresolvedPackageGroup {
             map.push_file(&path)?;
         }
         map.parse()
+            .map_err(|(map, e)| anyhow::anyhow!("{}", e.highlight(&map)))
     }
 }
 
