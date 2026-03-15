@@ -1845,25 +1845,6 @@ impl SourceMap {
         Ok((resolver.resolve()?, nested))
     }
 
-    /// Runs `f` and, on error, attempts to add source highlighting to resolver
-    /// error types that still use `anyhow`. Only needed until the resolver is
-    /// migrated to structured errors.
-    pub(crate) fn rewrite_error<F, T>(&self, f: F) -> anyhow::Result<T>
-    where
-        F: FnOnce() -> anyhow::Result<T>,
-    {
-        let mut err = match f() {
-            Ok(t) => return Ok(t),
-            Err(e) => e,
-        };
-        if let Some(e) = err.downcast_mut::<crate::Error>() {
-            e.highlight(self);
-        } else if let Some(e) = err.downcast_mut::<crate::PackageNotFoundError>() {
-            e.highlight(self);
-        }
-        Err(err)
-    }
-
     pub(crate) fn highlight_span(&self, span: Span, err: impl fmt::Display) -> Option<String> {
         if !span.is_known() {
             return None;
