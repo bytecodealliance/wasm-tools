@@ -101,6 +101,7 @@ impl fmt::Display for GlobalType {
 pub enum Type {
     Function(FunctionType),
     Global(GlobalType),
+    Tag(FunctionType),
 }
 
 impl fmt::Display for Type {
@@ -108,6 +109,7 @@ impl fmt::Display for Type {
         match self {
             Self::Function(ty) => write!(f, "function {ty}"),
             Self::Global(ty) => write!(f, "global {ty}"),
+            Self::Tag(ty) => write!(f, "tag {ty}"),
         }
     }
 }
@@ -117,6 +119,7 @@ impl From<&Type> for wasm_encoder::ExportKind {
         match value {
             Type::Function(_) => wasm_encoder::ExportKind::Func,
             Type::Global(_) => wasm_encoder::ExportKind::Global,
+            Type::Tag(_) => wasm_encoder::ExportKind::Tag,
         }
     }
 }
@@ -252,6 +255,7 @@ impl<'a> Metadata<'a> {
         let mut types = Vec::new();
         let mut function_types = Vec::new();
         let mut global_types = Vec::new();
+        let mut tag_types = Vec::new();
         let mut import_info = HashMap::new();
         let mut export_info = HashMap::new();
 
@@ -299,6 +303,7 @@ impl<'a> Metadata<'a> {
                         match import.ty {
                             TypeRef::Func(ty) => function_types.push(usize::try_from(ty).unwrap()),
                             TypeRef::Global(ty) => global_types.push(ty),
+                            TypeRef::Tag(ty) => tag_types.push(ty),
                             _ => (),
                         }
 
@@ -460,6 +465,12 @@ impl<'a> Metadata<'a> {
                     }
                 }
 
+                Payload::TagSection(reader) => {
+                    for tag in reader {
+                        tag_types.push(tag?);
+                    }
+                }
+
                 Payload::ExportSection(reader) => {
                     for export in reader {
                         let export = export?;
@@ -485,6 +496,13 @@ impl<'a> Metadata<'a> {
                                             shared: ty.shared,
                                         })
                                     }
+                                    ExternalKind::Tag => Type::Tag(FunctionType::try_from(
+                                        &types[usize::try_from(
+                                            tag_types[usize::try_from(export.index).unwrap()]
+                                                .func_type_idx,
+                                        )
+                                        .unwrap()],
+                                    )?),
                                     kind => {
                                         bail!(
                                             "unsupported export kind for {}: {kind:?}",
