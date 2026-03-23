@@ -1,13 +1,12 @@
 use crate::IndexMap;
 use crate::ast::{Id, Span};
 use alloc::collections::BinaryHeap;
-use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
-use anyhow::Result;
 use core::fmt;
 use core::mem;
+use core::result::Result;
 
 #[derive(Default, Clone)]
 struct State {
@@ -59,7 +58,7 @@ pub fn toposort<'a>(
                     span: edge.span,
                     name: edge.name.to_string(),
                     kind: kind.to_string(),
-                    highlighted: None,
+                    hint: None,
                 })?;
             states[j].reverse_deps.push(i);
         }
@@ -120,7 +119,6 @@ pub fn toposort<'a>(
                 span: dep.span,
                 name: dep.name.to_string(),
                 kind: kind.to_string(),
-                highlighted: None,
             });
         }
     }
@@ -128,56 +126,42 @@ pub fn toposort<'a>(
     unreachable!()
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Error {
     NonexistentDep {
         span: Span,
         name: String,
         kind: String,
-        highlighted: Option<String>,
+        /// Optional hint to display after the main error message, e.g. to
+        /// suggest a renamed type.
+        hint: Option<String>,
     },
     Cycle {
         span: Span,
         name: String,
         kind: String,
-        highlighted: Option<String>,
     },
 }
 
 impl Error {
-    pub(crate) fn highlighted(&self) -> Option<&str> {
+    pub fn span(&self) -> Span {
         match self {
-            Error::NonexistentDep { highlighted, .. } | Error::Cycle { highlighted, .. } => {
-                highlighted.as_deref()
-            }
-        }
-    }
-
-    /// Highlights this error using the given source map, if the span is known.
-    pub(crate) fn highlight(&mut self, source_map: &crate::ast::SourceMap) {
-        if self.highlighted().is_some() {
-            return;
-        }
-        let span = match self {
             Error::NonexistentDep { span, .. } | Error::Cycle { span, .. } => *span,
-        };
-        let msg = source_map.highlight_span(span, &format!("{self}"));
-        match self {
-            Error::NonexistentDep { highlighted, .. } | Error::Cycle { highlighted, .. } => {
-                *highlighted = msg;
-            }
         }
     }
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let Some(s) = self.highlighted() {
-            return f.write_str(s);
-        }
         match self {
-            Error::NonexistentDep { kind, name, .. } => {
-                write!(f, "{kind} `{name}` does not exist")
+            Error::NonexistentDep {
+                kind, name, hint, ..
+            } => {
+                write!(f, "{kind} `{name}` does not exist")?;
+                if let Some(hint) = hint {
+                    write!(f, "\n{hint}")?;
+                }
+                Ok(())
             }
             Error::Cycle { kind, name, .. } => {
                 write!(f, "{kind} `{name}` depends on itself")

@@ -2,7 +2,7 @@ use crate::*;
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
-use anyhow::{Context, anyhow, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use core::mem;
 use std::io::Read;
 use wasmparser::Chunk;

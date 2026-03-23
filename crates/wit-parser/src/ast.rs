@@ -1,17 +1,21 @@
-use crate::{Error, PackageNotFoundError, UnresolvedPackageGroup};
+use crate::UnresolvedPackageGroup;
+use crate::ast::error::{ParseErrorKind, ParseErrors};
 use alloc::borrow::Cow;
 use alloc::boxed::Box;
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
-use anyhow::{Context, Result, bail};
+#[cfg(feature = "std")]
+use anyhow::Context as _;
 use core::fmt;
 use core::mem;
+use core::result::Result;
 use lex::{Span, Token, Tokenizer};
 use semver::Version;
 #[cfg(feature = "std")]
 use std::path::Path;
 
+pub mod error;
 pub mod lex;
 
 pub use resolve::Resolver;
@@ -33,7 +37,7 @@ impl<'a> PackageFile<'a> {
     ///
     /// This will optionally start with `package foo:bar;` and then will have a
     /// list of ast items after it.
-    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self> {
+    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self, ParseErrors> {
         let mut package_name_tokens_peek = tokens.clone();
         let docs = parse_docs(&mut package_name_tokens_peek)?;
 
@@ -62,13 +66,13 @@ impl<'a> PackageFile<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self> {
+    ) -> Result<Self, ParseErrors> {
         let span = tokens.expect(Token::Package)?;
         if !attributes.is_empty() {
-            bail!(Error::new(
-                span,
-                format!("cannot place attributes on nested packages"),
-            ));
+            return Err(ParseErrors::from(ParseErrorKind::Syntax {
+                span: span,
+                message: format!("cannot place attributes on nested packages"),
+            }));
         }
         let package_id = PackageName::parse(tokens, docs)?;
         tokens.expect(Token::LeftBrace)?;
@@ -121,7 +125,10 @@ pub struct DeclList<'a> {
 }
 
 impl<'a> DeclList<'a> {
-    fn parse_until(tokens: &mut Tokenizer<'a>, end: Option<Token>) -> Result<DeclList<'a>> {
+    fn parse_until(
+        tokens: &mut Tokenizer<'a>,
+        end: Option<Token>,
+    ) -> Result<DeclList<'a>, ParseErrors> {
         let mut items = Vec::new();
         let mut docs = parse_docs(tokens)?;
         loop {
@@ -151,8 +158,8 @@ impl<'a> DeclList<'a> {
             &'b UsePath<'a>,
             Option<&'b [UseName<'a>]>,
             WorldOrInterface,
-        ) -> Result<()>,
-    ) -> Result<()> {
+        ) -> Result<(), ParseErrors>,
+    ) -> Result<(), ParseErrors> {
         for item in self.items.iter() {
             match item {
                 AstItem::World(world) => {
@@ -259,7 +266,7 @@ enum AstItem<'a> {
 }
 
 impl<'a> AstItem<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self> {
+    fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self, ParseErrors> {
         let attributes = Attribute::parse_list(tokens)?;
         match tokens.clone().next()? {
             Some((_span, Token::Interface)) => {
@@ -285,7 +292,7 @@ struct PackageName<'a> {
 }
 
 impl<'a> PackageName<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self> {
+    fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self, ParseErrors> {
         let namespace = parse_id(tokens)?;
         tokens.expect(Token::Colon)?;
         let name = parse_id(tokens)?;
@@ -322,7 +329,10 @@ struct ToplevelUse<'a> {
 }
 
 impl<'a> ToplevelUse<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>, attributes: Vec<Attribute<'a>>) -> Result<Self> {
+    fn parse(
+        tokens: &mut Tokenizer<'a>,
+        attributes: Vec<Attribute<'a>>,
+    ) -> Result<Self, ParseErrors> {
         let span = tokens.expect(Token::Use)?;
         let item = UsePath::parse(tokens)?;
         let as_ = if tokens.eat(Token::As)? {
@@ -352,7 +362,7 @@ impl<'a> World<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self> {
+    ) -> Result<Self, ParseErrors> {
         tokens.expect(Token::World)?;
         let name = parse_id(tokens)?;
         let items = Self::parse_items(tokens)?;
@@ -364,7 +374,7 @@ impl<'a> World<'a> {
         })
     }
 
-    fn parse_items(tokens: &mut Tokenizer<'a>) -> Result<Vec<WorldItem<'a>>> {
+    fn parse_items(tokens: &mut Tokenizer<'a>) -> Result<Vec<WorldItem<'a>>, ParseErrors> {
         tokens.expect(Token::LeftBrace)?;
         let mut items = Vec::new();
         loop {
@@ -392,7 +402,7 @@ impl<'a> WorldItem<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<WorldItem<'a>> {
+    ) -> Result<WorldItem<'a>, ParseErrors> {
         match tokens.clone().next()? {
             Some((_span, Token::Import)) => {
                 Import::parse(tokens, docs, attributes).map(WorldItem::Import)
@@ -443,7 +453,7 @@ impl<'a> Import<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Import<'a>> {
+    ) -> Result<Import<'a>, ParseErrors> {
         tokens.expect(Token::Import)?;
         let kind = ExternKind::parse(tokens)?;
         Ok(Import {
@@ -465,7 +475,7 @@ impl<'a> Export<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Export<'a>> {
+    ) -> Result<Export<'a>, ParseErrors> {
         tokens.expect(Token::Export)?;
         let kind = ExternKind::parse(tokens)?;
         Ok(Export {
@@ -483,7 +493,7 @@ enum ExternKind<'a> {
 }
 
 impl<'a> ExternKind<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>) -> Result<ExternKind<'a>> {
+    fn parse(tokens: &mut Tokenizer<'a>) -> Result<ExternKind<'a>, ParseErrors> {
         // Create a copy of the token stream to test out if this is a function
         // or an interface import. In those situations the token stream gets
         // reset to the state of the clone and we continue down those paths.
@@ -540,7 +550,7 @@ impl<'a> Interface<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self> {
+    ) -> Result<Self, ParseErrors> {
         tokens.expect(Token::Interface)?;
         let name = parse_id(tokens)?;
         let items = Self::parse_items(tokens)?;
@@ -552,7 +562,9 @@ impl<'a> Interface<'a> {
         })
     }
 
-    pub(super) fn parse_items(tokens: &mut Tokenizer<'a>) -> Result<Vec<InterfaceItem<'a>>> {
+    pub(super) fn parse_items(
+        tokens: &mut Tokenizer<'a>,
+    ) -> Result<Vec<InterfaceItem<'a>>, ParseErrors> {
         tokens.expect(Token::LeftBrace)?;
         let mut items = Vec::new();
         loop {
@@ -593,7 +605,7 @@ enum UsePath<'a> {
 }
 
 impl<'a> UsePath<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self> {
+    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self, ParseErrors> {
         let id = parse_id(tokens)?;
         if tokens.eat(Token::Colon)? {
             // `foo:bar/baz@1.0`
@@ -632,7 +644,10 @@ struct UseName<'a> {
 }
 
 impl<'a> Use<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>, attributes: Vec<Attribute<'a>>) -> Result<Self> {
+    fn parse(
+        tokens: &mut Tokenizer<'a>,
+        attributes: Vec<Attribute<'a>>,
+    ) -> Result<Self, ParseErrors> {
         tokens.expect(Token::Use)?;
         let from = UsePath::parse(tokens)?;
         tokens.expect(Token::Period)?;
@@ -674,7 +689,10 @@ struct IncludeName<'a> {
 }
 
 impl<'a> Include<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>, attributes: Vec<Attribute<'a>>) -> Result<Self> {
+    fn parse(
+        tokens: &mut Tokenizer<'a>,
+        attributes: Vec<Attribute<'a>>,
+    ) -> Result<Self, ParseErrors> {
         tokens.expect(Token::Include)?;
         let from = UsePath::parse(tokens)?;
 
@@ -801,7 +819,7 @@ impl<'a> ResourceFunc<'a> {
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
         tokens: &mut Tokenizer<'a>,
-    ) -> Result<Self> {
+    ) -> Result<Self, ParseErrors> {
         match tokens.clone().next()? {
             Some((span, Token::Constructor)) => {
                 tokens.expect(Token::Constructor)?;
@@ -965,8 +983,11 @@ struct Func<'a> {
 }
 
 impl<'a> Func<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Func<'a>> {
-        fn parse_params<'a>(tokens: &mut Tokenizer<'a>, left_paren: bool) -> Result<ParamList<'a>> {
+    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Func<'a>, ParseErrors> {
+        fn parse_params<'a>(
+            tokens: &mut Tokenizer<'a>,
+            left_paren: bool,
+        ) -> Result<ParamList<'a>, ParseErrors> {
             if left_paren {
                 tokens.expect(Token::LeftParen)?;
             };
@@ -1001,7 +1022,7 @@ impl<'a> InterfaceItem<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<InterfaceItem<'a>> {
+    ) -> Result<InterfaceItem<'a>, ParseErrors> {
         match tokens.clone().next()? {
             Some((_span, Token::Type)) => {
                 TypeDef::parse(tokens, docs, attributes).map(InterfaceItem::TypeDef)
@@ -1035,7 +1056,7 @@ impl<'a> TypeDef<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self> {
+    ) -> Result<Self, ParseErrors> {
         tokens.expect(Token::Type)?;
         let name = parse_id(tokens)?;
         tokens.expect(Token::Equals)?;
@@ -1053,7 +1074,7 @@ impl<'a> TypeDef<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self> {
+    ) -> Result<Self, ParseErrors> {
         tokens.expect(Token::Flags)?;
         let name = parse_id(tokens)?;
         let ty = Type::Flags(Flags {
@@ -1080,7 +1101,7 @@ impl<'a> TypeDef<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self> {
+    ) -> Result<Self, ParseErrors> {
         tokens.expect(Token::Resource)?;
         let name = parse_id(tokens)?;
         let mut funcs = Vec::new();
@@ -1109,7 +1130,7 @@ impl<'a> TypeDef<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self> {
+    ) -> Result<Self, ParseErrors> {
         tokens.expect(Token::Record)?;
         let name = parse_id(tokens)?;
         let ty = Type::Record(Record {
@@ -1138,7 +1159,7 @@ impl<'a> TypeDef<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self> {
+    ) -> Result<Self, ParseErrors> {
         tokens.expect(Token::Variant)?;
         let name = parse_id(tokens)?;
         let ty = Type::Variant(Variant {
@@ -1172,7 +1193,7 @@ impl<'a> TypeDef<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self> {
+    ) -> Result<Self, ParseErrors> {
         tokens.expect(Token::Enum)?;
         let name = parse_id(tokens)?;
         let ty = Type::Enum(Enum {
@@ -1201,7 +1222,7 @@ impl<'a> NamedFunc<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self> {
+    ) -> Result<Self, ParseErrors> {
         let name = parse_id(tokens)?;
         tokens.expect(Token::Colon)?;
         let func = Func::parse(tokens)?;
@@ -1215,7 +1236,7 @@ impl<'a> NamedFunc<'a> {
     }
 }
 
-fn parse_id<'a>(tokens: &mut Tokenizer<'a>) -> Result<Id<'a>> {
+fn parse_id<'a>(tokens: &mut Tokenizer<'a>) -> Result<Id<'a>, ParseErrors> {
     match tokens.next()? {
         Some((span, Token::Id)) => Ok(Id {
             name: tokens.parse_id(span)?,
@@ -1225,11 +1246,11 @@ fn parse_id<'a>(tokens: &mut Tokenizer<'a>) -> Result<Id<'a>> {
             name: tokens.parse_explicit_id(span)?,
             span,
         }),
-        other => Err(err_expected(tokens, "an identifier or string", other).into()),
+        other => Err(err_expected(tokens, "an identifier or string", other)),
     }
 }
 
-fn parse_opt_version(tokens: &mut Tokenizer<'_>) -> Result<Option<(Span, Version)>> {
+fn parse_opt_version(tokens: &mut Tokenizer<'_>) -> Result<Option<(Span, Version)>, ParseErrors> {
     if tokens.eat(Token::At)? {
         parse_version(tokens).map(Some)
     } else {
@@ -1237,7 +1258,7 @@ fn parse_opt_version(tokens: &mut Tokenizer<'_>) -> Result<Option<(Span, Version
     }
 }
 
-fn parse_version(tokens: &mut Tokenizer<'_>) -> Result<(Span, Version)> {
+fn parse_version(tokens: &mut Tokenizer<'_>) -> Result<(Span, Version), ParseErrors> {
     let start = tokens.expect(Token::Integer)?.start();
     tokens.expect(Token::Period)?;
     tokens.expect(Token::Integer)?;
@@ -1247,7 +1268,12 @@ fn parse_version(tokens: &mut Tokenizer<'_>) -> Result<(Span, Version)> {
     eat_ids(tokens, Token::Minus, &mut span)?;
     eat_ids(tokens, Token::Plus, &mut span)?;
     let string = tokens.get_span(span);
-    let version = Version::parse(string).map_err(|e| Error::new(span, e.to_string()))?;
+    let version = Version::parse(string).map_err(|e| {
+        ParseErrors::from(ParseErrorKind::Syntax {
+            span,
+            message: e.to_string(),
+        })
+    })?;
     return Ok((span, version));
 
     // According to `semver.org` this is what we're parsing:
@@ -1303,7 +1329,11 @@ fn parse_version(tokens: &mut Tokenizer<'_>) -> Result<(Span, Version)> {
     // Note that this additionally doesn't try to return any first-class errors.
     // Instead this bails out on something unrecognized for something else in
     // the system to return an error.
-    fn eat_ids(tokens: &mut Tokenizer<'_>, prefix: Token, end: &mut Span) -> Result<()> {
+    fn eat_ids(
+        tokens: &mut Tokenizer<'_>,
+        prefix: Token,
+        end: &mut Span,
+    ) -> Result<(), lex::Error> {
         if !tokens.eat(prefix)? {
             return Ok(());
         }
@@ -1327,7 +1357,7 @@ fn parse_version(tokens: &mut Tokenizer<'_>) -> Result<(Span, Version)> {
     }
 }
 
-fn parse_docs<'a>(tokens: &mut Tokenizer<'a>) -> Result<Docs<'a>> {
+fn parse_docs<'a>(tokens: &mut Tokenizer<'a>) -> Result<Docs<'a>, lex::Error> {
     let mut docs = Docs::default();
     let mut clone = tokens.clone();
     let mut started = false;
@@ -1356,7 +1386,7 @@ fn parse_docs<'a>(tokens: &mut Tokenizer<'a>) -> Result<Docs<'a>> {
 }
 
 impl<'a> Type<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self> {
+    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self, ParseErrors> {
         match tokens.next()? {
             Some((span, Token::U8)) => Ok(Type::U8(span)),
             Some((span, Token::U16)) => Ok(Type::U16(span)),
@@ -1392,7 +1422,12 @@ impl<'a> Type<'a> {
                 let size = if tokens.eat(Token::Comma)? {
                     let number = tokens.next()?;
                     if let Some((span, Token::Integer)) = number {
-                        let size: u32 = tokens.get_span(span).parse()?;
+                        let size: u32 = tokens.get_span(span).parse().map_err(|e| {
+                            ParseErrors::from(ParseErrorKind::Syntax {
+                                span,
+                                message: format!("invalid list size: {e}"),
+                            })
+                        })?;
                         Some(size)
                     } else {
                         return Err(err_expected(tokens, "fixed-length", number).into());
@@ -1560,8 +1595,8 @@ fn parse_list<'a, T>(
     tokens: &mut Tokenizer<'a>,
     start: Token,
     end: Token,
-    parse: impl FnMut(Docs<'a>, &mut Tokenizer<'a>) -> Result<T>,
-) -> Result<Vec<T>> {
+    parse: impl FnMut(Docs<'a>, &mut Tokenizer<'a>) -> Result<T, ParseErrors>,
+) -> Result<Vec<T>, ParseErrors> {
     tokens.expect(start)?;
     parse_list_trailer(tokens, end, parse)
 }
@@ -1569,8 +1604,8 @@ fn parse_list<'a, T>(
 fn parse_list_trailer<'a, T>(
     tokens: &mut Tokenizer<'a>,
     end: Token,
-    mut parse: impl FnMut(Docs<'a>, &mut Tokenizer<'a>) -> Result<T>,
-) -> Result<Vec<T>> {
+    mut parse: impl FnMut(Docs<'a>, &mut Tokenizer<'a>) -> Result<T, ParseErrors>,
+) -> Result<Vec<T>, ParseErrors> {
     let mut items = Vec::new();
     loop {
         // get docs before we skip them to try to eat the end token
@@ -1598,13 +1633,16 @@ fn err_expected(
     tokens: &Tokenizer<'_>,
     expected: &'static str,
     found: Option<(Span, Token)>,
-) -> Error {
+) -> ParseErrors {
     match found {
-        Some((span, token)) => Error::new(
+        Some((span, token)) => ParseErrors::from(ParseErrorKind::Syntax {
             span,
-            format!("expected {}, found {}", expected, token.describe()),
-        ),
-        None => Error::new(tokens.eof_span(), format!("expected {expected}, found eof")),
+            message: format!("expected {}, found {}", expected, token.describe()),
+        }),
+        None => ParseErrors::from(ParseErrorKind::Syntax {
+            span: tokens.eof_span(),
+            message: format!("expected {expected}, found eof"),
+        }),
     }
 }
 
@@ -1615,7 +1653,7 @@ enum Attribute<'a> {
 }
 
 impl<'a> Attribute<'a> {
-    fn parse_list(tokens: &mut Tokenizer<'a>) -> Result<Vec<Attribute<'a>>> {
+    fn parse_list(tokens: &mut Tokenizer<'a>) -> Result<Vec<Attribute<'a>>, ParseErrors> {
         let mut ret = Vec::new();
         while tokens.eat(Token::At)? {
             let id = parse_id(tokens)?;
@@ -1654,7 +1692,10 @@ impl<'a> Attribute<'a> {
                     }
                 }
                 other => {
-                    bail!(Error::new(id.span, format!("unknown attribute `{other}`"),))
+                    return Err(ParseErrors::from(ParseErrorKind::Syntax {
+                        span: id.span,
+                        message: format!("unknown attribute `{other}`"),
+                    }));
                 }
             };
             ret.push(attr);
@@ -1671,13 +1712,13 @@ impl<'a> Attribute<'a> {
     }
 }
 
-fn eat_id(tokens: &mut Tokenizer<'_>, expected: &str) -> Result<Span> {
+fn eat_id(tokens: &mut Tokenizer<'_>, expected: &str) -> Result<Span, ParseErrors> {
     let id = parse_id(tokens)?;
     if id.name != expected {
-        bail!(Error::new(
-            id.span,
-            format!("expected `{expected}`, found `{}`", id.name),
-        ));
+        return Err(ParseErrors::from(ParseErrorKind::Syntax {
+            span: id.span,
+            message: format!("expected `{expected}`, found `{}`", id.name),
+        }));
     }
     Ok(id.span)
 }
@@ -1699,6 +1740,16 @@ struct Source {
     contents: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SpanLocation {
+    /// File to which this span belongs
+    pub file: String,
+    /// UTF-8 byte offet within the file (start)
+    pub start: usize,
+    /// UTF-8 byte offet within the file (end)
+    pub end: usize,
+}
+
 impl SourceMap {
     /// Creates a new empty source map.
     pub fn new() -> SourceMap {
@@ -1708,7 +1759,7 @@ impl SourceMap {
     /// Reads the file `path` on the filesystem and appends its contents to this
     /// [`SourceMap`].
     #[cfg(feature = "std")]
-    pub fn push_file(&mut self, path: &Path) -> Result<()> {
+    pub fn push_file(&mut self, path: &Path) -> anyhow::Result<()> {
         let contents = std::fs::read_to_string(path)
             .with_context(|| format!("failed to read file {path:?}"))?;
         self.push(path, contents);
@@ -1768,94 +1819,55 @@ impl SourceMap {
 
     /// Parses the files added to this source map into a
     /// [`UnresolvedPackageGroup`].
-    pub fn parse(self) -> Result<UnresolvedPackageGroup> {
+    pub fn parse(self) -> Result<UnresolvedPackageGroup, ParseErrors> {
         let mut nested = Vec::new();
-        let main = self.rewrite_error(|| {
-            let mut resolver = Resolver::default();
-            let mut srcs = self.sources.iter().collect::<Vec<_>>();
-            srcs.sort_by_key(|src| &src.path);
+        let mut resolver = Resolver::default();
+        let mut srcs = self.sources.iter().collect::<Vec<_>>();
+        srcs.sort_by_key(|src| &src.path);
 
-            // Parse each source file individually. A tokenizer is created here
-            // form settings and then `PackageFile` is used to parse the whole
-            // stream of tokens.
-            for src in srcs {
-                let mut tokens = Tokenizer::new(
-                    // chop off the forcibly appended `\n` character when
-                    // passing through the source to get tokenized.
-                    &src.contents[..src.contents.len() - 1],
-                    src.offset,
-                )
-                .with_context(|| format!("failed to tokenize path: {}", src.path))?;
-                let mut file = PackageFile::parse(&mut tokens)?;
+        // Parse each source file individually. A tokenizer is created here
+        // from settings and then `PackageFile` is used to parse the whole
+        // stream of tokens.
+        for src in srcs {
+            let mut tokens = Tokenizer::new(
+                // chop off the forcibly appended `\n` character when
+                // passing through the source to get tokenized.
+                &src.contents[..src.contents.len() - 1],
+                src.offset,
+            )?;
+            let mut file = PackageFile::parse(&mut tokens)?;
 
-                // Filter out any nested packages and resolve them separately.
-                // Nested packages have only a single "file" so only one item
-                // is pushed into a `Resolver`. Note that a nested `Resolver`
-                // is used here, not the outer one.
-                //
-                // Note that filtering out `Package` items is required due to
-                // how the implementation of disallowing nested packages in
-                // nested packages currently works.
-                for item in mem::take(&mut file.decl_list.items) {
-                    match item {
-                        AstItem::Package(nested_pkg) => {
-                            let mut resolve = Resolver::default();
-                            resolve.push(nested_pkg).with_context(|| {
-                                format!("failed to handle nested package in: {}", src.path)
-                            })?;
-
-                            nested.push(resolve.resolve()?);
-                        }
-                        other => file.decl_list.items.push(other),
+            // Filter out any nested packages and resolve them separately.
+            // Nested packages have only a single "file" so only one item
+            // is pushed into a `Resolver`. Note that a nested `Resolver`
+            // is used here, not the outer one.
+            //
+            // Note that filtering out `Package` items is required due to
+            // how the implementation of disallowing nested packages in
+            // nested packages currently works.
+            for item in mem::take(&mut file.decl_list.items) {
+                match item {
+                    AstItem::Package(nested_pkg) => {
+                        let mut resolve = Resolver::default();
+                        resolve.push(nested_pkg)?;
+                        nested.push(resolve.resolve()?);
                     }
+                    other => file.decl_list.items.push(other),
                 }
-
-                // With nested packages handled push this file into the
-                // resolver.
-                resolver
-                    .push(file)
-                    .with_context(|| format!("failed to start resolving path: {}", src.path))?;
             }
-            Ok(resolver.resolve()?)
-        })?;
+
+            // With nested packages handled push this file into the resolver.
+            resolver.push(file)?;
+        }
+
         Ok(UnresolvedPackageGroup {
-            main,
+            main: resolver.resolve()?,
             nested,
             source_map: self,
         })
     }
 
-    pub(crate) fn rewrite_error<F, T>(&self, f: F) -> Result<T>
-    where
-        F: FnOnce() -> Result<T>,
-    {
-        let mut err = match f() {
-            Ok(t) => return Ok(t),
-            Err(e) => e,
-        };
-        if let Some(parse) = err.downcast_mut::<Error>() {
-            parse.highlight(self);
-            return Err(err);
-        }
-        if let Some(notfound) = err.downcast_mut::<PackageNotFoundError>() {
-            notfound.highlight(self);
-            return Err(err);
-        }
-
-        if let Some(lex) = err.downcast_ref::<lex::Error>() {
-            let pos = lex.position();
-            let msg = self.highlight_err(pos, None, lex);
-            bail!("{msg}")
-        }
-
-        if let Some(sort) = err.downcast_mut::<toposort::Error>() {
-            sort.highlight(self);
-        }
-
-        Err(err)
-    }
-
-    pub(crate) fn highlight_span(&self, span: Span, err: impl fmt::Display) -> Option<String> {
+    pub fn highlight_span(&self, span: Span, err: impl fmt::Display) -> Option<String> {
         if !span.is_known() {
             return None;
         }
@@ -1915,6 +1927,20 @@ impl SourceMap {
         )
     }
 
+    pub fn get_location(&self, span: Span) -> Option<SpanLocation> {
+        if !span.is_known() {
+            return None;
+        }
+        let start = span.start();
+        let end = span.end();
+        let src = self.source_for_offset(start);
+        Some(SpanLocation {
+            file: src.path.clone(),
+            start: src.to_relative_offset(start),
+            end: src.to_relative_offset(end),
+        })
+    }
+
     fn source_for_offset(&self, start: u32) -> &Source {
         let i = match self.sources.binary_search_by_key(&start, |src| src.offset) {
             Ok(i) => i,
@@ -1960,11 +1986,11 @@ pub enum ParsedUsePath {
     Package(crate::PackageName, String),
 }
 
-pub fn parse_use_path(s: &str) -> Result<ParsedUsePath> {
+pub fn parse_use_path(s: &str) -> anyhow::Result<ParsedUsePath> {
     let mut tokens = Tokenizer::new(s, 0)?;
     let path = UsePath::parse(&mut tokens)?;
     if tokens.next()?.is_some() {
-        bail!("trailing tokens in path specifier");
+        anyhow::bail!("trailing tokens in path specifier");
     }
     Ok(match path {
         UsePath::Id(id) => ParsedUsePath::Name(id.name.to_string()),

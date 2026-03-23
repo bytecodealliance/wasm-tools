@@ -131,7 +131,9 @@ impl Resolve {
             .parse_deps_dir(&deps)
             .with_context(|| format!("failed to parse dependency directory: {}", deps.display()))?;
 
-        let (pkg_id, inner) = self.sort_unresolved_packages(top_pkg, deps)?;
+        let sort_result = self.sort_unresolved_packages(top_pkg, deps);
+        let (pkg_id, inner) =
+            sort_result.map_err(|e| anyhow::anyhow!("{}", e.highlight(&self.source_map)))?;
         Ok((pkg_id, PackageSourceMap::from_inner(inner)))
     }
 
