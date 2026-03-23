@@ -1,4 +1,4 @@
-use crate::ast::error::{PackageParseErrorKind, PackageParseErrors};
+use crate::ast::error::PackageParseErrors;
 use crate::{UnresolvedPackage, UnresolvedPackageGroup};
 use alloc::borrow::Cow;
 use alloc::boxed::Box;
@@ -69,10 +69,10 @@ impl<'a> PackageFile<'a> {
     ) -> Result<Self, PackageParseErrors> {
         let span = tokens.expect(Token::Package)?;
         if !attributes.is_empty() {
-            return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
-                span: span,
-                message: format!("cannot place attributes on nested packages"),
-            }));
+            return Err(PackageParseErrors::new_syntax(
+                span,
+                format!("cannot place attributes on nested packages"),
+            ));
         }
         let package_id = PackageName::parse(tokens, docs)?;
         tokens.expect(Token::LeftBrace)?;
@@ -1270,12 +1270,8 @@ fn parse_version(tokens: &mut Tokenizer<'_>) -> Result<(Span, Version), PackageP
     eat_ids(tokens, Token::Minus, &mut span)?;
     eat_ids(tokens, Token::Plus, &mut span)?;
     let string = tokens.get_span(span);
-    let version = Version::parse(string).map_err(|e| {
-        PackageParseErrors::from(PackageParseErrorKind::Syntax {
-            span,
-            message: e.to_string(),
-        })
-    })?;
+    let version =
+        Version::parse(string).map_err(|e| PackageParseErrors::new_syntax(span, e.to_string()))?;
     return Ok((span, version));
 
     // According to `semver.org` this is what we're parsing:
@@ -1425,10 +1421,7 @@ impl<'a> Type<'a> {
                     let number = tokens.next()?;
                     if let Some((span, Token::Integer)) = number {
                         let size: u32 = tokens.get_span(span).parse().map_err(|e| {
-                            PackageParseErrors::from(PackageParseErrorKind::Syntax {
-                                span,
-                                message: format!("invalid list size: {e}"),
-                            })
+                            PackageParseErrors::new_syntax(span, format!("invalid list size: {e}"))
                         })?;
                         Some(size)
                     } else {
@@ -1637,14 +1630,14 @@ fn err_expected(
     found: Option<(Span, Token)>,
 ) -> PackageParseErrors {
     match found {
-        Some((span, token)) => PackageParseErrors::from(PackageParseErrorKind::Syntax {
+        Some((span, token)) => PackageParseErrors::new_syntax(
             span,
-            message: format!("expected {}, found {}", expected, token.describe()),
-        }),
-        None => PackageParseErrors::from(PackageParseErrorKind::Syntax {
-            span: tokens.eof_span(),
-            message: format!("expected {expected}, found eof"),
-        }),
+            format!("expected {}, found {}", expected, token.describe()),
+        ),
+        None => PackageParseErrors::new_syntax(
+            tokens.eof_span(),
+            format!("expected {expected}, found eof"),
+        ),
     }
 }
 
@@ -1694,10 +1687,10 @@ impl<'a> Attribute<'a> {
                     }
                 }
                 other => {
-                    return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
-                        span: id.span,
-                        message: format!("unknown attribute `{other}`"),
-                    }));
+                    return Err(PackageParseErrors::new_syntax(
+                        id.span,
+                        format!("unknown attribute `{other}`"),
+                    ));
                 }
             };
             ret.push(attr);
@@ -1717,10 +1710,10 @@ impl<'a> Attribute<'a> {
 fn eat_id(tokens: &mut Tokenizer<'_>, expected: &str) -> Result<Span, PackageParseErrors> {
     let id = parse_id(tokens)?;
     if id.name != expected {
-        return Err(PackageParseErrors::from(PackageParseErrorKind::Syntax {
-            span: id.span,
-            message: format!("expected `{expected}`, found `{}`", id.name),
-        }));
+        return Err(PackageParseErrors::new_syntax(
+            id.span,
+            format!("expected `{expected}`, found `{}`", id.name),
+        ));
     }
     Ok(id.span)
 }

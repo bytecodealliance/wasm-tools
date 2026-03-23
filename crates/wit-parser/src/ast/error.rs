@@ -64,6 +64,14 @@ impl fmt::Display for PackageParseErrorKind {
 pub struct PackageParseErrors(Box<PackageParseErrorKind>);
 
 impl PackageParseErrors {
+    pub fn new_syntax(span: Span, message: impl Into<String>) -> Self {
+        PackageParseErrorKind::Syntax {
+            span,
+            message: message.into(),
+        }
+        .into()
+    }
+
     pub fn kind(&self) -> &PackageParseErrorKind {
         &self.0
     }
