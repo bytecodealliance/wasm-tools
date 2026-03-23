@@ -1,6 +1,6 @@
-use super::error::PackageParseErrorKind;
-use crate::IndexMap;
+use super::error::PackageParseErrors;
 use crate::ast::Id;
+use crate::{IndexMap, PackageParseErrorKind};
 use alloc::collections::BinaryHeap;
 use alloc::string::ToString;
 use alloc::vec;
@@ -45,21 +45,21 @@ struct State {
 pub fn toposort<'a>(
     kind: &str,
     deps: &IndexMap<&'a str, Vec<Id<'a>>>,
-) -> Result<Vec<&'a str>, PackageParseErrorKind> {
+) -> Result<Vec<&'a str>, PackageParseErrors> {
     // Initialize a `State` per-node with the number of outbound edges and
     // additionally filling out the `reverse_deps` array.
     let mut states = vec![State::default(); deps.len()];
     for (i, (_, edges)) in deps.iter().enumerate() {
         states[i].outbound_remaining = edges.len();
         for edge in edges {
-            let (j, _, _) =
-                deps.get_full(edge.name)
-                    .ok_or_else(|| PackageParseErrorKind::ItemNotFound {
-                        span: edge.span,
-                        name: edge.name.to_string(),
-                        kind: kind.to_string(),
-                        hint: None,
-                    })?;
+            let (j, _, _) = deps.get_full(edge.name).ok_or_else(|| {
+                PackageParseErrors::from(PackageParseErrorKind::ItemNotFound {
+                    span: edge.span,
+                    name: edge.name.to_string(),
+                    kind: kind.to_string(),
+                    hint: None,
+                })
+            })?;
             states[j].reverse_deps.push(i);
         }
     }
@@ -119,7 +119,8 @@ pub fn toposort<'a>(
                 span: dep.span,
                 name: dep.name.to_string(),
                 kind: kind.to_string(),
-            });
+            }
+            .into());
         }
     }
 
@@ -145,8 +146,8 @@ mod tests {
         let mut nonexistent = IndexMap::default();
         nonexistent.insert("a", vec![id("b")]);
         assert!(matches!(
-            toposort("", &nonexistent),
-            Err(PackageParseErrorKind::ItemNotFound { .. })
+            toposort("", &nonexistent).unwrap_err().kind(),
+            PackageParseErrorKind::ItemNotFound { .. }
         ));
 
         let mut one = IndexMap::default();
@@ -169,8 +170,8 @@ mod tests {
         let mut cycle = IndexMap::default();
         cycle.insert("a", vec![id("a")]);
         assert!(matches!(
-            toposort("", &cycle),
-            Err(PackageParseErrorKind::TypeCycle { .. })
+            toposort("", &cycle).unwrap_err().kind(),
+            PackageParseErrorKind::TypeCycle { .. }
         ));
 
         let mut cycle = IndexMap::default();
@@ -178,8 +179,8 @@ mod tests {
         cycle.insert("b", vec![id("c")]);
         cycle.insert("c", vec![id("a")]);
         assert!(matches!(
-            toposort("", &cycle),
-            Err(PackageParseErrorKind::TypeCycle { .. })
+            toposort("", &cycle).unwrap_err().kind(),
+            PackageParseErrorKind::TypeCycle { .. }
         ));
     }
 

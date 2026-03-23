@@ -944,8 +944,8 @@ impl<'a> Resolver<'a> {
         }
         return Ok(());
 
-        fn attach_old_float_type_context(mut err: PackageParseErrorKind) -> PackageParseErrorKind {
-            if let PackageParseErrorKind::ItemNotFound { name, hint, .. } = &mut err {
+        fn attach_old_float_type_context(mut err: PackageParseErrors) -> PackageParseErrors {
+            if let PackageParseErrorKind::ItemNotFound { name, hint, .. } = err.kind_mut() {
                 let new = match name.as_str() {
                     "float32" => "f32",
                     "float64" => "f64",

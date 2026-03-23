@@ -76,6 +76,10 @@ impl PackageParseErrors {
         &self.0
     }
 
+    pub fn kind_mut(&mut self) -> &mut PackageParseErrorKind {
+        &mut self.0
+    }
+
     /// Format this error with source context (file:line:col + snippet)
     pub fn highlight(&self, source_map: &SourceMap) -> String {
         let e = self.kind();
