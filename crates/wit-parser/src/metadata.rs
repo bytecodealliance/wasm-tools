@@ -601,7 +601,7 @@ enum FunctionMetadata {
 
     /// In the v1+ format we're tracking at least docs but also the stability
     /// of functions.
-    DocsAndStabilty {
+    DocsAndStability {
         #[cfg_attr(
             feature = "serde",
             serde(default, skip_serializing_if = "Option::is_none")
@@ -620,7 +620,7 @@ impl FunctionMetadata {
         if TRY_TO_EMIT_V0_BY_DEFAULT && func.stability.is_unknown() {
             FunctionMetadata::JustDocs(func.docs.contents.clone())
         } else {
-            FunctionMetadata::DocsAndStabilty {
+            FunctionMetadata::DocsAndStability {
                 docs: func.docs.contents.clone(),
                 stability: func.stability.clone(),
             }
@@ -632,7 +632,7 @@ impl FunctionMetadata {
             FunctionMetadata::JustDocs(docs) => {
                 func.docs.contents = docs.clone();
             }
-            FunctionMetadata::DocsAndStabilty { docs, stability } => {
+            FunctionMetadata::DocsAndStability { docs, stability } => {
                 func.docs.contents = docs.clone();
                 func.stability = stability.clone();
             }
@@ -643,7 +643,7 @@ impl FunctionMetadata {
     fn is_empty(&self) -> bool {
         match self {
             FunctionMetadata::JustDocs(docs) => docs.is_none(),
-            FunctionMetadata::DocsAndStabilty { docs, stability } => {
+            FunctionMetadata::DocsAndStability { docs, stability } => {
                 docs.is_none() && stability.is_unknown()
             }
         }
@@ -653,7 +653,7 @@ impl FunctionMetadata {
     fn is_compatible_with_v0(&self) -> bool {
         match self {
             FunctionMetadata::JustDocs(_) => true,
-            FunctionMetadata::DocsAndStabilty { .. } => false,
+            FunctionMetadata::DocsAndStability { .. } => false,
         }
     }
 }

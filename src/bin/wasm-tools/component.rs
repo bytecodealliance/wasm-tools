@@ -1211,7 +1211,7 @@ pub struct UnbundleOpts {
     ///
     /// Modules that are larger than this value will be removed from the
     /// component and unbundled. Modules smaller than this value will be left in
-    /// place and bundled within the componente.
+    /// place and bundled within the components.
     #[clap(long, value_name = "SIZE", default_value_t = 10 << 10)]
     threshold: usize,
 

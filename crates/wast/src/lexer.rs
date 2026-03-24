@@ -903,7 +903,7 @@ impl<'a> Lexer<'a> {
         Ok(n)
     }
 
-    /// Reads a hexidecimal digit from the input stream, returning where it's
+    /// Reads a hexadecimal digit from the input stream, returning where it's
     /// defined and the hex value. Returns an error on EOF or an invalid hex
     /// digit.
     fn hexdigit(it: &mut str::Chars<'_>) -> Result<u8, LexError> {

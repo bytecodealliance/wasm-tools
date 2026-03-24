@@ -55,7 +55,7 @@ pub fn print_bytes(wasm: impl AsRef<[u8]>) -> Result<String> {
 
 /// Configuration used to print a WebAssembly binary.
 ///
-/// This structure is used to control the overal structure of how wasm binaries
+/// This structure is used to control the overall structure of how wasm binaries
 /// are printed and tweaks various ways that configures the output.
 #[derive(Debug)]
 pub struct Config {

@@ -1220,8 +1220,8 @@ fn is_keyword(name: &str) -> bool {
 pub trait Output {
     /// Push a string slice into a buffer or an output.
     ///
-    /// Parameter `src` can contain punctation characters, and must be escaped
-    /// when outputing to languages like HTML.
+    /// Parameter `src` can contain punctuation characters, and must be escaped
+    /// when outputting to languages like HTML.
     /// Helper function used exclusively by the default implementations of trait methods.
     /// This function is not called directly by `WitPrinter`.
     /// When overriding all the trait methods, users do not need to handle this function.
@@ -1244,8 +1244,8 @@ pub trait Output {
     /// Called only from the default implementation functions of this trait.
     fn indent_and_print(&mut self, src: &str) {
         assert!(!src.contains('\n'));
-        let idented = self.indent_if_needed();
-        if idented && src.starts_with(' ') {
+        let indented = self.indent_if_needed();
+        if indented && src.starts_with(' ') {
             panic!("cannot add a space at the beginning of a line");
         }
         self.push_str(src);
@@ -1317,8 +1317,8 @@ pub trait Output {
     }
 
     /// Any string that does not have a specialized function is added.
-    /// Parameter `src` can contain punctation characters, and must be escaped
-    /// when outputing to languages like HTML.
+    /// Parameter `src` can contain punctuation characters, and must be escaped
+    /// when outputting to languages like HTML.
     fn str(&mut self, src: &str) {
         self.indent_and_print(src);
     }
