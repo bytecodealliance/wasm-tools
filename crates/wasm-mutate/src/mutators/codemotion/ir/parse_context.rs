@@ -174,7 +174,7 @@ impl ParseContext {
         self.current_parsing.clone()
     }
 
-    /// Checks if the corrent code parsing has at least one instruction
+    /// Checks if the current code parsing has at least one instruction
     pub fn current_code_is_empty(&self) -> bool {
         self.current_code_range.start == self.current_code_range.end
     }
