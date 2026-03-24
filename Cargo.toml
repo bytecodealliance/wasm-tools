@@ -314,3 +314,16 @@ wast = [
   'json-from-wast',
 ]
 wit-dylib = ['dep:wit-dylib', 'wit-dylib/clap', 'wit-parser', 'wit-component']
+
+
+[workspace.metadata.typos.default]
+extend-ignore-words-re = [
+    '^[a-zA-Z]{1,3}$' # ignore words up to length 3
+]
+
+[workspace.metadata.typos.default.extend-words]
+# Data Source
+datas = "datas"
+
+[workspace.metadata.typos.files]
+extend-exclude = [ "docs/js/mermaid*.js", "crates/wasi-nn/**/*.txt", "*.isle" ]
