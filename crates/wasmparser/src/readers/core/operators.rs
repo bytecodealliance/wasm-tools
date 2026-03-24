@@ -356,7 +356,7 @@ pub trait FrameStack {
 /// The Wasm control stack for the [`OperatorsReader`].
 #[derive(Debug, Default, Clone)]
 pub struct ControlStack {
-    /// All frames on the control stack exclusing the top-most frame.
+    /// All frames on the control stack excluding the top-most frame.
     frames: Vec<FrameKind>,
     /// The top-most frame on the control stack if any.
     top: Option<FrameKind>,

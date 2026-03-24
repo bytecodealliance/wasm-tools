@@ -2427,7 +2427,7 @@ pub(crate) struct ComponentTypeAlloc {
     // It's used in one entry for all `ResourceId`s contained within.
     globally_unique_id: usize,
 
-    // This is a counter that's incremeneted each time `alloc_resource_id` is
+    // This is a counter that's incremented each time `alloc_resource_id` is
     // called.
     next_resource_id: u32,
 }

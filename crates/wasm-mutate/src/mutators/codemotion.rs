@@ -94,8 +94,8 @@ impl CodemotionMutator {
             }
 
             match filtered.choose(config.rng()) {
-                Some(choosen_mutator) => {
-                    let newfunc = choosen_mutator.mutate(
+                Some(chosen_mutator) => {
+                    let newfunc = chosen_mutator.mutate(
                         config,
                         &ast,
                         &self.copy_locals(reader)?,

@@ -7,7 +7,7 @@
 //! component whose type is the union of any `component-type*` custom sections found in the input modules.
 //!
 //! The entry point into this process is `Linker::encode`, which analyzes and topologically sorts the input
-//! modules, then sythesizes two additional modules:
+//! modules, then synthesizes two additional modules:
 //!
 //! - `main` AKA `env`: hosts the component's single memory and function table and exports any functions needed to
 //! break dependency cycles discovered in the input modules. Those functions use `call.indirect` to invoke the real
@@ -71,7 +71,7 @@ struct DlOpenables<'a> {
 
     /// Linear memory addresses where global variable addresses will live
     ///
-    /// The init module will fill in the correct values at insantiation time.
+    /// The init module will fill in the correct values at instantiation time.
     global_addresses: Vec<(&'a str, &'a str, u32)>,
 
     /// Number of function references to be stored in the main module's table

@@ -26,7 +26,7 @@ use std::{cell::RefCell, rc::Rc};
 /// return a random expression out of the parsing of the former integer
 /// expression `100`. When the egraph is constructed, the expression `100` is in
 /// the same eclass than `add 100 0`.  But, since we defined the rewriting rule
-/// for any node, recursivelly, all nodes are in the same equivalence class.
+/// for any node, recursively, all nodes are in the same equivalence class.
 ///
 /// If we call `lazy_expand` to randomly construct an expression out of the
 /// egraph starting at equivalence class `i`, a random node is first selected

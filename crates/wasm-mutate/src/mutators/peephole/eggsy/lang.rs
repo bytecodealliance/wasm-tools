@@ -164,7 +164,7 @@ macro_rules! lang {
     (@if_first_is_child ([Id; $n:tt]) { $($t:tt)* } else { $($f:tt)* }) => ($($t)*);
     (@if_first_is_child (Vec<Id>) { $($t:tt)* } else { $($f:tt)* }) => ($($t)*);
     (@if_first_is_child (Id) { $($t:tt)* } else { $($f:tt)* }) => ($($t)*);
-    // ... otherwise all other types or 0 types don't have a child as tthe first type
+    // ... otherwise all other types or 0 types don't have a child as the first type
     (@if_first_is_child ($($ty:tt)*) { $($t:tt)* } else { $($f:tt)* }) => ($($f)*);
 
     // Implementation of `from_op_str`.
@@ -962,11 +962,11 @@ lang! {
         Undef = "undef",
 
         /// Takes one i32 constant operand and turn it into a sum of two random
-        /// numbers whihch sum is the operand `i32.const x = i32.const r +
+        /// numbers which sum is the operand `i32.const x = i32.const r +
         /// i32.const (x - r) `
         UnfoldI32(Id) = "i32.unfold",
         /// Takes one i64 constant operand and turn it into a sum of two random
-        /// numbers whihch sum is the operand `i64.const x = i64.const r +
+        /// numbers which sum is the operand `i64.const x = i64.const r +
         /// i64.const (x - r) `
         UnfoldI64(Id) = "i64.unfold",
 
@@ -989,7 +989,7 @@ lang! {
         /// * Before: `?x => (container nop ?x)`
         /// * After: `?x => (container ?x nop)`
         /// * Before and after: `?x => (container nop ?x nop)`
-        /// * Stack-nuetral insertion: `?x => (container (drop i32.rand) ?x) `
+        /// * Stack-neutral insertion: `?x => (container (drop i32.rand) ?x) `
         Container(Vec<Id>) = "container",
 
         // End of custom mutation operations and instructions
@@ -1131,11 +1131,11 @@ impl fmt::Display for RefType {
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 pub struct MemArg {
-    /// Inmediate static offset of the store operator
+    /// Immediate static offset of the store operator
     pub static_offset: u64,
-    /// Inmediate align value of the store operator
+    /// Immediate align value of the store operator
     pub align: u8,
-    /// Inmediate mem value of the store operator
+    /// Immediate mem value of the store operator
     pub mem: u32,
 }
 
