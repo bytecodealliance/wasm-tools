@@ -122,7 +122,7 @@ impl ParseContext {
     }
 
     /// Pops nodes previously parsed, set them as the current parsing
-    /// and then returns a copy of the poped value
+    /// and then returns a copy of the popped value
     pub fn pop_state(&mut self) -> Result<Vec<usize>> {
         match self.stack.pop() {
             Some(new_state) => {

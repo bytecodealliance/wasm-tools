@@ -346,7 +346,7 @@ impl PeepholeMutator {
                             .or(config.info().data_count)
                             .or(code_index);
 
-                        // If the mutator is in this staeg, then it passes the can_mutate flter,
+                        // If the mutator is in this staeg, then it passes the can_mutate filter,
                         // which checks for code section existence
                         let insert_globals_before = insert_globals_before.unwrap();
                         let module = config.info().replace_multiple_sections(

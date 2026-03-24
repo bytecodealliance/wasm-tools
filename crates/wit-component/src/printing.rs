@@ -26,7 +26,7 @@ impl Default for WitPrinter {
 }
 
 impl<O: Output> WitPrinter<O> {
-    /// Craete new instance.
+    /// Create new instance.
     pub fn new(output: O) -> Self {
         Self {
             output,
