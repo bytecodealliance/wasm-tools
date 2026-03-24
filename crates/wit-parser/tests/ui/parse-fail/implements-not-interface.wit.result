@@ -1,0 +1,5 @@
+name `test` is defined as a world, not an interface
+     --> tests/ui/parse-fail/implements-not-interface.wit:5:19
+      |
+    5 |   import primary: test;
+      |                   ^---

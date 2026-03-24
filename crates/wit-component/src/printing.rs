@@ -468,6 +468,17 @@ impl<O: Output> WitPrinter<O> {
         match name {
             WorldKey::Name(name) => {
                 match item {
+                    WorldItem::Interface {
+                        id,
+                        implements: Some(_),
+                        ..
+                    } => {
+                        // `import label: use-path;` syntax
+                        self.print_name_type(name, TypeKind::Other);
+                        self.output.str(": ");
+                        self.print_path_to_interface(resolve, *id, cur_pkg)?;
+                        self.output.semicolon();
+                    }
                     WorldItem::Interface { id, .. } => {
                         self.print_name_type(name, TypeKind::Other);
                         self.output.str(": ");

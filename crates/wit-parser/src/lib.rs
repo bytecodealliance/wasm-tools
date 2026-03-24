@@ -614,6 +614,18 @@ pub enum WorldItem {
             serde(skip_serializing_if = "Stability::is_unknown")
         )]
         stability: Stability,
+        /// When `Some`, the interface is imported/exported under a plain name
+        /// using the `[implements=<I>]label` encoding. The `InterfaceId` here
+        /// identifies the named interface `I` that this import/export
+        /// implements.
+        #[cfg_attr(
+            feature = "serde",
+            serde(
+                skip_serializing_if = "Option::is_none",
+                serialize_with = "serialize_optional_id"
+            )
+        )]
+        implements: Option<InterfaceId>,
         #[cfg_attr(feature = "serde", serde(skip))]
         span: Span,
     },

@@ -1,0 +1,5 @@
+interface or world `nonexistent` does not exist
+     --> tests/ui/parse-fail/implements-nonexistent.wit:9:19
+      |
+    9 |   import primary: nonexistent;
+      |                   ^----------

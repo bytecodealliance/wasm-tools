@@ -87,6 +87,7 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
                 WorldItem::Interface {
                     id: *id,
                     stability: Default::default(),
+                    implements: None,
                     span: Default::default(),
                 },
             )
@@ -200,6 +201,7 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
         WorldItem::Interface {
             id: alloc,
             stability: Default::default(),
+            implements: None,
             span: Default::default(),
         },
     );
@@ -208,6 +210,7 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
         WorldItem::Interface {
             id: alloc,
             stability: Default::default(),
+            implements: None,
             span: Default::default(),
         },
     );
