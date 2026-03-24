@@ -1237,7 +1237,7 @@ fn escape_char(c: char) -> String {
     }
 }
 
-/// This is an attempt to protect agains the "trojan source" [1] problem where
+/// This is an attempt to protect against the "trojan source" [1] problem where
 /// unicode characters can cause editors to render source code differently
 /// for humans than the compiler itself sees.
 ///
