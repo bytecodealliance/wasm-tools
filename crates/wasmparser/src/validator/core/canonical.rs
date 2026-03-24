@@ -237,8 +237,7 @@ pub(crate) trait InternRecGroup {
                 (Some(a), Some(b)) => {
                     let a_id = self.at_packed_index(types, rec_group, a, offset)?;
                     if types[a_id].supertype_idx.is_none()
-                        || (map_canonical(types[a_id].supertype_idx.unwrap())?
-                            != map_canonical(b)?)
+                        || (map_canonical(types[a_id].supertype_idx.unwrap())? != map_canonical(b)?)
                     {
                         bail!(offset, "supertype of descriptor does not match");
                     }
