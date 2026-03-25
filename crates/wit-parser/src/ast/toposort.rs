@@ -1,12 +1,11 @@
 use super::error::PackageParseErrors;
 use crate::ast::Id;
-use crate::{IndexMap, PackageParseErrorKind};
+use crate::{IndexMap, PackageParseErrorKind, ParseResult};
 use alloc::collections::BinaryHeap;
 use alloc::string::ToString;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::mem;
-use core::result::Result;
 
 #[derive(Default, Clone)]
 struct State {
@@ -45,7 +44,7 @@ struct State {
 pub fn toposort<'a>(
     kind: &str,
     deps: &IndexMap<&'a str, Vec<Id<'a>>>,
-) -> Result<Vec<&'a str>, PackageParseErrors> {
+) -> ParseResult<Vec<&'a str>> {
     // Initialize a `State` per-node with the number of outbound edges and
     // additionally filling out the `reverse_deps` array.
     let mut states = vec![State::default(); deps.len()];

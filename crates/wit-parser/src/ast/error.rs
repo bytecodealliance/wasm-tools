@@ -4,6 +4,8 @@ use core::fmt;
 
 use crate::{SourceMap, Span, ast::lex};
 
+pub type ParseResult<T, E = PackageParseErrors> = Result<T, E>;
+
 #[non_exhaustive]
 #[derive(Debug, PartialEq, Eq)]
 pub enum PackageParseErrorKind {

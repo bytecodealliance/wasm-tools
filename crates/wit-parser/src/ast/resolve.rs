@@ -7,7 +7,6 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::{format, vec};
 use core::mem;
-use core::result::Result;
 
 #[derive(Default)]
 pub struct Resolver<'a> {
@@ -107,7 +106,7 @@ enum TypeOrItem {
 }
 
 impl<'a> Resolver<'a> {
-    pub(super) fn push(&mut self, file: ast::PackageFile<'a>) -> Result<(), PackageParseErrors> {
+    pub(super) fn push(&mut self, file: ast::PackageFile<'a>) -> ParseResult<()> {
         // As each WIT file is pushed into this resolver keep track of the
         // current package name assigned. Only one file needs to mention it, but
         // if multiple mention it then they must all match.
@@ -157,7 +156,7 @@ impl<'a> Resolver<'a> {
         Ok(())
     }
 
-    pub(crate) fn resolve(&mut self) -> Result<UnresolvedPackage, PackageParseErrors> {
+    pub(crate) fn resolve(&mut self) -> ParseResult<UnresolvedPackage> {
         // At least one of the WIT files must have a `package` annotation.
         let (name, package_name_span) = match &self.package_name {
             Some(name) => name.clone(),
@@ -341,7 +340,7 @@ impl<'a> Resolver<'a> {
     fn populate_ast_items(
         &mut self,
         decl_lists: &[ast::DeclList<'a>],
-    ) -> Result<(Vec<InterfaceId>, Vec<WorldId>), PackageParseErrors> {
+    ) -> ParseResult<(Vec<InterfaceId>, Vec<WorldId>)> {
         let mut package_items = IndexMap::default();
 
         // Validate that all worlds and interfaces have unique names within this
@@ -554,10 +553,7 @@ impl<'a> Resolver<'a> {
     /// This is done after all interfaces are generated so `self.resolve_path`
     /// can be used to determine if what's being imported from is a foreign
     /// interface or not.
-    fn populate_foreign_types(
-        &mut self,
-        decl_lists: &[ast::DeclList<'a>],
-    ) -> Result<(), PackageParseErrors> {
+    fn populate_foreign_types(&mut self, decl_lists: &[ast::DeclList<'a>]) -> ParseResult<()> {
         for (i, decl_list) in decl_lists.iter().enumerate() {
             self.cur_ast_index = i;
             decl_list.for_each_path(&mut |_, attrs, path, names, _| {
@@ -601,11 +597,7 @@ impl<'a> Resolver<'a> {
         Ok(())
     }
 
-    fn resolve_world(
-        &mut self,
-        world_id: WorldId,
-        world: &ast::World<'a>,
-    ) -> Result<WorldId, PackageParseErrors> {
+    fn resolve_world(&mut self, world_id: WorldId, world: &ast::World<'a>) -> ParseResult<WorldId> {
         let docs = self.docs(&world.docs);
         self.worlds[world_id].docs = docs;
         let stability = self.stability(&world.attributes)?;
@@ -754,7 +746,7 @@ impl<'a> Resolver<'a> {
         docs: &ast::Docs<'a>,
         attrs: &[ast::Attribute<'a>],
         kind: &ast::ExternKind<'a>,
-    ) -> Result<WorldItem, PackageParseErrors> {
+    ) -> ParseResult<WorldItem> {
         match kind {
             ast::ExternKind::Interface(name, items) => {
                 let prev = mem::take(&mut self.type_lookup);
@@ -802,7 +794,7 @@ impl<'a> Resolver<'a> {
         fields: &[ast::InterfaceItem<'a>],
         docs: &ast::Docs<'a>,
         attrs: &[ast::Attribute<'a>],
-    ) -> Result<(), PackageParseErrors> {
+    ) -> ParseResult<()> {
         let docs = self.docs(docs);
         self.interfaces[interface_id].docs = docs;
         let stability = self.stability(attrs)?;
@@ -878,7 +870,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         owner: TypeOwner,
         fields: impl Iterator<Item = TypeItem<'a, 'b>> + Clone,
-    ) -> Result<(), PackageParseErrors>
+    ) -> ParseResult<()>
     where
         'a: 'b,
     {
@@ -962,11 +954,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn resolve_use(
-        &mut self,
-        owner: TypeOwner,
-        u: &ast::Use<'a>,
-    ) -> Result<(), PackageParseErrors> {
+    fn resolve_use(&mut self, owner: TypeOwner, u: &ast::Use<'a>) -> ParseResult<()> {
         let (item, name, span) = self.resolve_ast_item_path(&u.from)?;
         let use_from = self.extract_iface_from_item(&item, &name, span)?;
         let stability = self.stability(&u.attributes)?;
@@ -1008,11 +996,7 @@ impl<'a> Resolver<'a> {
     }
 
     /// For each name in the `include`, resolve the path of the include, add it to the self.includes
-    fn resolve_include(
-        &mut self,
-        world_id: WorldId,
-        i: &ast::Include<'a>,
-    ) -> Result<(), PackageParseErrors> {
+    fn resolve_include(&mut self, world_id: WorldId, i: &ast::Include<'a>) -> ParseResult<()> {
         let stability = self.stability(&i.attributes)?;
         let (item, name, span) = self.resolve_ast_item_path(&i.from)?;
         let include_from = self.extract_world_from_item(&item, &name, span)?;
@@ -1036,7 +1020,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         func: &ast::ResourceFunc<'_>,
         resource: &ast::Id<'_>,
-    ) -> Result<Function, PackageParseErrors> {
+    ) -> ParseResult<Function> {
         let resource_id = match self.type_lookup.get(resource.name) {
             Some((TypeOrItem::Type(id), _)) => *id,
             _ => panic!("type lookup for resource failed"),
@@ -1085,7 +1069,7 @@ impl<'a> Resolver<'a> {
         name_span: Span,
         func: &ast::Func,
         kind: FunctionKind,
-    ) -> Result<Function, PackageParseErrors> {
+    ) -> ParseResult<Function> {
         let docs = self.docs(docs);
         let stability = self.stability(attrs)?;
         let params = self.resolve_params(&func.params, &kind, func.span)?;
@@ -1104,7 +1088,7 @@ impl<'a> Resolver<'a> {
     fn resolve_ast_item_path(
         &self,
         path: &ast::UsePath<'a>,
-    ) -> Result<(AstItem, String, Span), PackageParseErrors> {
+    ) -> ParseResult<(AstItem, String, Span)> {
         match path {
             ast::UsePath::Id(id) => {
                 let item = self.ast_items[self.cur_ast_index]
@@ -1137,7 +1121,7 @@ impl<'a> Resolver<'a> {
         item: &AstItem,
         name: &str,
         span: Span,
-    ) -> Result<InterfaceId, PackageParseErrors> {
+    ) -> ParseResult<InterfaceId> {
         match item {
             AstItem::Interface(id) => Ok(*id),
             AstItem::World(_) => {
@@ -1154,7 +1138,7 @@ impl<'a> Resolver<'a> {
         item: &AstItem,
         name: &str,
         span: Span,
-    ) -> Result<WorldId, PackageParseErrors> {
+    ) -> ParseResult<WorldId> {
         match item {
             AstItem::World(id) => Ok(*id),
             AstItem::Interface(_) => {
@@ -1166,11 +1150,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn define_interface_name(
-        &mut self,
-        name: &ast::Id<'a>,
-        item: TypeOrItem,
-    ) -> Result<(), PackageParseErrors> {
+    fn define_interface_name(&mut self, name: &ast::Id<'a>, item: TypeOrItem) -> ParseResult<()> {
         let prev = self.type_lookup.insert(name.name, (item, name.span));
         if prev.is_some() {
             return Err(PackageParseErrors::new_syntax(
@@ -1186,7 +1166,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         ty: &ast::Type<'_>,
         stability: &Stability,
-    ) -> Result<TypeDefKind, PackageParseErrors> {
+    ) -> ParseResult<TypeDefKind> {
         Ok(match ty {
             ast::Type::Bool(_) => TypeDefKind::Type(Type::Bool),
             ast::Type::U8(_) => TypeDefKind::Type(Type::U8),
@@ -1284,7 +1264,7 @@ impl<'a> Resolver<'a> {
                             span: field.name.span,
                         })
                     })
-                    .collect::<Result<Vec<_>, PackageParseErrors>>()?;
+                    .collect::<ParseResult<Vec<_>>>()?;
                 TypeDefKind::Record(Record { fields })
             }
             ast::Type::Flags(flags) => {
@@ -1304,7 +1284,7 @@ impl<'a> Resolver<'a> {
                     .types
                     .iter()
                     .map(|ty| self.resolve_type(ty, stability))
-                    .collect::<Result<Vec<_>, PackageParseErrors>>()?;
+                    .collect::<ParseResult<Vec<_>>>()?;
                 TypeDefKind::Tuple(Tuple { types })
             }
             ast::Type::Variant(variant) => {
@@ -1325,7 +1305,7 @@ impl<'a> Resolver<'a> {
                             span: case.name.span,
                         })
                     })
-                    .collect::<Result<Vec<_>, PackageParseErrors>>()?;
+                    .collect::<ParseResult<Vec<_>>>()?;
                 TypeDefKind::Variant(Variant { cases })
             }
             ast::Type::Enum(e) => {
@@ -1345,7 +1325,7 @@ impl<'a> Resolver<'a> {
                             span: case.name.span,
                         })
                     })
-                    .collect::<Result<Vec<_>, PackageParseErrors>>()?;
+                    .collect::<ParseResult<Vec<_>>>()?;
                 TypeDefKind::Enum(Enum { cases })
             }
             ast::Type::Option(ty) => TypeDefKind::Option(self.resolve_type(&ty.ty, stability)?),
@@ -1362,7 +1342,7 @@ impl<'a> Resolver<'a> {
         })
     }
 
-    fn resolve_type_name(&mut self, name: &ast::Id<'_>) -> Result<TypeId, PackageParseErrors> {
+    fn resolve_type_name(&mut self, name: &ast::Id<'_>) -> ParseResult<TypeId> {
         match self.type_lookup.get(name.name) {
             Some((TypeOrItem::Type(id), _)) => Ok(*id),
             Some((TypeOrItem::Item(s), _)) => {
@@ -1384,7 +1364,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn validate_resource(&mut self, name: &ast::Id<'_>) -> Result<TypeId, PackageParseErrors> {
+    fn validate_resource(&mut self, name: &ast::Id<'_>) -> ParseResult<TypeId> {
         let id = self.resolve_type_name(name)?;
         let mut cur = id;
         loop {
@@ -1474,11 +1454,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn resolve_type(
-        &mut self,
-        ty: &super::Type<'_>,
-        stability: &Stability,
-    ) -> Result<Type, PackageParseErrors> {
+    fn resolve_type(&mut self, ty: &super::Type<'_>, stability: &Stability) -> ParseResult<Type> {
         // Resources must be declared at the top level to have their methods
         // processed appropriately, but resources also shouldn't show up
         // recursively so assert that's not happening here.
@@ -1502,7 +1478,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         ty: Option<&super::Type<'_>>,
         stability: &Stability,
-    ) -> Result<Option<Type>, PackageParseErrors> {
+    ) -> ParseResult<Option<Type>> {
         match ty {
             Some(ty) => Ok(Some(self.resolve_type(ty, stability)?)),
             None => Ok(None),
@@ -1608,7 +1584,7 @@ impl<'a> Resolver<'a> {
         Docs { contents }
     }
 
-    fn stability(&mut self, attrs: &[ast::Attribute<'_>]) -> Result<Stability, PackageParseErrors> {
+    fn stability(&mut self, attrs: &[ast::Attribute<'_>]) -> ParseResult<Stability> {
         match attrs {
             [] => Ok(Stability::Unknown),
 
@@ -1671,7 +1647,7 @@ impl<'a> Resolver<'a> {
         params: &ParamList<'_>,
         kind: &FunctionKind,
         span: Span,
-    ) -> Result<Vec<Param>, PackageParseErrors> {
+    ) -> ParseResult<Vec<Param>> {
         let mut ret = Vec::new();
         match *kind {
             // These kinds of methods don't have any adjustments to the
@@ -1723,7 +1699,7 @@ impl<'a> Resolver<'a> {
         result: &Option<ast::Type<'_>>,
         kind: &FunctionKind,
         _span: Span,
-    ) -> Result<Option<Type>, PackageParseErrors> {
+    ) -> ParseResult<Option<Type>> {
         match *kind {
             // These kinds of methods don't have any adjustments to the return
             // values, so plumb them through as-is.
@@ -1755,7 +1731,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         resource_id: TypeId,
         result_ast: &ast::Type<'_>,
-    ) -> Result<Type, PackageParseErrors> {
+    ) -> ParseResult<Type> {
         let result = self.resolve_type(result_ast, &Stability::Unknown)?;
         let ok_type = match result {
             Type::Id(id) => match &self.types[id].kind {

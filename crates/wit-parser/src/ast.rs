@@ -1,5 +1,5 @@
 use crate::ast::error::PackageParseErrors;
-use crate::{UnresolvedPackage, UnresolvedPackageGroup};
+use crate::{ParseResult, UnresolvedPackage, UnresolvedPackageGroup};
 use alloc::borrow::Cow;
 use alloc::boxed::Box;
 use alloc::format;
@@ -37,7 +37,7 @@ impl<'a> PackageFile<'a> {
     ///
     /// This will optionally start with `package foo:bar;` and then will have a
     /// list of ast items after it.
-    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self, PackageParseErrors> {
+    fn parse(tokens: &mut Tokenizer<'a>) -> ParseResult<Self> {
         let mut package_name_tokens_peek = tokens.clone();
         let docs = parse_docs(&mut package_name_tokens_peek)?;
 
@@ -66,7 +66,7 @@ impl<'a> PackageFile<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self, PackageParseErrors> {
+    ) -> ParseResult<Self> {
         let span = tokens.expect(Token::Package)?;
         if !attributes.is_empty() {
             return Err(PackageParseErrors::new_syntax(
@@ -125,10 +125,7 @@ pub struct DeclList<'a> {
 }
 
 impl<'a> DeclList<'a> {
-    fn parse_until(
-        tokens: &mut Tokenizer<'a>,
-        end: Option<Token>,
-    ) -> Result<DeclList<'a>, PackageParseErrors> {
+    fn parse_until(tokens: &mut Tokenizer<'a>, end: Option<Token>) -> ParseResult<DeclList<'a>> {
         let mut items = Vec::new();
         let mut docs = parse_docs(tokens)?;
         loop {
@@ -158,8 +155,8 @@ impl<'a> DeclList<'a> {
             &'b UsePath<'a>,
             Option<&'b [UseName<'a>]>,
             WorldOrInterface,
-        ) -> Result<(), PackageParseErrors>,
-    ) -> Result<(), PackageParseErrors> {
+        ) -> ParseResult<()>,
+    ) -> ParseResult<()> {
         for item in self.items.iter() {
             match item {
                 AstItem::World(world) => {
@@ -266,7 +263,7 @@ enum AstItem<'a> {
 }
 
 impl<'a> AstItem<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self, PackageParseErrors> {
+    fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> ParseResult<Self> {
         let attributes = Attribute::parse_list(tokens)?;
         match tokens.clone().next()? {
             Some((_span, Token::Interface)) => {
@@ -292,7 +289,7 @@ struct PackageName<'a> {
 }
 
 impl<'a> PackageName<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self, PackageParseErrors> {
+    fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> ParseResult<Self> {
         let namespace = parse_id(tokens)?;
         tokens.expect(Token::Colon)?;
         let name = parse_id(tokens)?;
@@ -329,10 +326,7 @@ struct ToplevelUse<'a> {
 }
 
 impl<'a> ToplevelUse<'a> {
-    fn parse(
-        tokens: &mut Tokenizer<'a>,
-        attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self, PackageParseErrors> {
+    fn parse(tokens: &mut Tokenizer<'a>, attributes: Vec<Attribute<'a>>) -> ParseResult<Self> {
         let span = tokens.expect(Token::Use)?;
         let item = UsePath::parse(tokens)?;
         let as_ = if tokens.eat(Token::As)? {
@@ -362,7 +356,7 @@ impl<'a> World<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self, PackageParseErrors> {
+    ) -> ParseResult<Self> {
         tokens.expect(Token::World)?;
         let name = parse_id(tokens)?;
         let items = Self::parse_items(tokens)?;
@@ -374,7 +368,7 @@ impl<'a> World<'a> {
         })
     }
 
-    fn parse_items(tokens: &mut Tokenizer<'a>) -> Result<Vec<WorldItem<'a>>, PackageParseErrors> {
+    fn parse_items(tokens: &mut Tokenizer<'a>) -> ParseResult<Vec<WorldItem<'a>>> {
         tokens.expect(Token::LeftBrace)?;
         let mut items = Vec::new();
         loop {
@@ -402,7 +396,7 @@ impl<'a> WorldItem<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<WorldItem<'a>, PackageParseErrors> {
+    ) -> ParseResult<WorldItem<'a>> {
         match tokens.clone().next()? {
             Some((_span, Token::Import)) => {
                 Import::parse(tokens, docs, attributes).map(WorldItem::Import)
@@ -453,7 +447,7 @@ impl<'a> Import<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Import<'a>, PackageParseErrors> {
+    ) -> ParseResult<Import<'a>> {
         tokens.expect(Token::Import)?;
         let kind = ExternKind::parse(tokens)?;
         Ok(Import {
@@ -475,7 +469,7 @@ impl<'a> Export<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Export<'a>, PackageParseErrors> {
+    ) -> ParseResult<Export<'a>> {
         tokens.expect(Token::Export)?;
         let kind = ExternKind::parse(tokens)?;
         Ok(Export {
@@ -493,7 +487,7 @@ enum ExternKind<'a> {
 }
 
 impl<'a> ExternKind<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>) -> Result<ExternKind<'a>, PackageParseErrors> {
+    fn parse(tokens: &mut Tokenizer<'a>) -> ParseResult<ExternKind<'a>> {
         // Create a copy of the token stream to test out if this is a function
         // or an interface import. In those situations the token stream gets
         // reset to the state of the clone and we continue down those paths.
@@ -550,7 +544,7 @@ impl<'a> Interface<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self, PackageParseErrors> {
+    ) -> ParseResult<Self> {
         tokens.expect(Token::Interface)?;
         let name = parse_id(tokens)?;
         let items = Self::parse_items(tokens)?;
@@ -562,9 +556,7 @@ impl<'a> Interface<'a> {
         })
     }
 
-    pub(super) fn parse_items(
-        tokens: &mut Tokenizer<'a>,
-    ) -> Result<Vec<InterfaceItem<'a>>, PackageParseErrors> {
+    pub(super) fn parse_items(tokens: &mut Tokenizer<'a>) -> ParseResult<Vec<InterfaceItem<'a>>> {
         tokens.expect(Token::LeftBrace)?;
         let mut items = Vec::new();
         loop {
@@ -605,7 +597,7 @@ enum UsePath<'a> {
 }
 
 impl<'a> UsePath<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self, PackageParseErrors> {
+    fn parse(tokens: &mut Tokenizer<'a>) -> ParseResult<Self> {
         let id = parse_id(tokens)?;
         if tokens.eat(Token::Colon)? {
             // `foo:bar/baz@1.0`
@@ -644,10 +636,7 @@ struct UseName<'a> {
 }
 
 impl<'a> Use<'a> {
-    fn parse(
-        tokens: &mut Tokenizer<'a>,
-        attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self, PackageParseErrors> {
+    fn parse(tokens: &mut Tokenizer<'a>, attributes: Vec<Attribute<'a>>) -> ParseResult<Self> {
         tokens.expect(Token::Use)?;
         let from = UsePath::parse(tokens)?;
         tokens.expect(Token::Period)?;
@@ -689,10 +678,7 @@ struct IncludeName<'a> {
 }
 
 impl<'a> Include<'a> {
-    fn parse(
-        tokens: &mut Tokenizer<'a>,
-        attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self, PackageParseErrors> {
+    fn parse(tokens: &mut Tokenizer<'a>, attributes: Vec<Attribute<'a>>) -> ParseResult<Self> {
         tokens.expect(Token::Include)?;
         let from = UsePath::parse(tokens)?;
 
@@ -819,7 +805,7 @@ impl<'a> ResourceFunc<'a> {
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
         tokens: &mut Tokenizer<'a>,
-    ) -> Result<Self, PackageParseErrors> {
+    ) -> ParseResult<Self> {
         match tokens.clone().next()? {
             Some((span, Token::Constructor)) => {
                 tokens.expect(Token::Constructor)?;
@@ -983,11 +969,11 @@ struct Func<'a> {
 }
 
 impl<'a> Func<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Func<'a>, PackageParseErrors> {
+    fn parse(tokens: &mut Tokenizer<'a>) -> ParseResult<Func<'a>> {
         fn parse_params<'a>(
             tokens: &mut Tokenizer<'a>,
             left_paren: bool,
-        ) -> Result<ParamList<'a>, PackageParseErrors> {
+        ) -> ParseResult<ParamList<'a>> {
             if left_paren {
                 tokens.expect(Token::LeftParen)?;
             };
@@ -1022,7 +1008,7 @@ impl<'a> InterfaceItem<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<InterfaceItem<'a>, PackageParseErrors> {
+    ) -> ParseResult<InterfaceItem<'a>> {
         match tokens.clone().next()? {
             Some((_span, Token::Type)) => {
                 TypeDef::parse(tokens, docs, attributes).map(InterfaceItem::TypeDef)
@@ -1056,7 +1042,7 @@ impl<'a> TypeDef<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self, PackageParseErrors> {
+    ) -> ParseResult<Self> {
         tokens.expect(Token::Type)?;
         let name = parse_id(tokens)?;
         tokens.expect(Token::Equals)?;
@@ -1074,7 +1060,7 @@ impl<'a> TypeDef<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self, PackageParseErrors> {
+    ) -> ParseResult<Self> {
         tokens.expect(Token::Flags)?;
         let name = parse_id(tokens)?;
         let ty = Type::Flags(Flags {
@@ -1101,7 +1087,7 @@ impl<'a> TypeDef<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self, PackageParseErrors> {
+    ) -> ParseResult<Self> {
         tokens.expect(Token::Resource)?;
         let name = parse_id(tokens)?;
         let mut funcs = Vec::new();
@@ -1130,7 +1116,7 @@ impl<'a> TypeDef<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self, PackageParseErrors> {
+    ) -> ParseResult<Self> {
         tokens.expect(Token::Record)?;
         let name = parse_id(tokens)?;
         let ty = Type::Record(Record {
@@ -1159,7 +1145,7 @@ impl<'a> TypeDef<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self, PackageParseErrors> {
+    ) -> ParseResult<Self> {
         tokens.expect(Token::Variant)?;
         let name = parse_id(tokens)?;
         let ty = Type::Variant(Variant {
@@ -1193,7 +1179,7 @@ impl<'a> TypeDef<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self, PackageParseErrors> {
+    ) -> ParseResult<Self> {
         tokens.expect(Token::Enum)?;
         let name = parse_id(tokens)?;
         let ty = Type::Enum(Enum {
@@ -1222,7 +1208,7 @@ impl<'a> NamedFunc<'a> {
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self, PackageParseErrors> {
+    ) -> ParseResult<Self> {
         let name = parse_id(tokens)?;
         tokens.expect(Token::Colon)?;
         let func = Func::parse(tokens)?;
@@ -1236,7 +1222,7 @@ impl<'a> NamedFunc<'a> {
     }
 }
 
-fn parse_id<'a>(tokens: &mut Tokenizer<'a>) -> Result<Id<'a>, PackageParseErrors> {
+fn parse_id<'a>(tokens: &mut Tokenizer<'a>) -> ParseResult<Id<'a>> {
     match tokens.next()? {
         Some((span, Token::Id)) => Ok(Id {
             name: tokens.parse_id(span)?,
@@ -1250,9 +1236,7 @@ fn parse_id<'a>(tokens: &mut Tokenizer<'a>) -> Result<Id<'a>, PackageParseErrors
     }
 }
 
-fn parse_opt_version(
-    tokens: &mut Tokenizer<'_>,
-) -> Result<Option<(Span, Version)>, PackageParseErrors> {
+fn parse_opt_version(tokens: &mut Tokenizer<'_>) -> ParseResult<Option<(Span, Version)>> {
     if tokens.eat(Token::At)? {
         parse_version(tokens).map(Some)
     } else {
@@ -1260,7 +1244,7 @@ fn parse_opt_version(
     }
 }
 
-fn parse_version(tokens: &mut Tokenizer<'_>) -> Result<(Span, Version), PackageParseErrors> {
+fn parse_version(tokens: &mut Tokenizer<'_>) -> ParseResult<(Span, Version)> {
     let start = tokens.expect(Token::Integer)?.start();
     tokens.expect(Token::Period)?;
     tokens.expect(Token::Integer)?;
@@ -1384,7 +1368,7 @@ fn parse_docs<'a>(tokens: &mut Tokenizer<'a>) -> Result<Docs<'a>, lex::Error> {
 }
 
 impl<'a> Type<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self, PackageParseErrors> {
+    fn parse(tokens: &mut Tokenizer<'a>) -> ParseResult<Self> {
         match tokens.next()? {
             Some((span, Token::U8)) => Ok(Type::U8(span)),
             Some((span, Token::U16)) => Ok(Type::U16(span)),
@@ -1590,8 +1574,8 @@ fn parse_list<'a, T>(
     tokens: &mut Tokenizer<'a>,
     start: Token,
     end: Token,
-    parse: impl FnMut(Docs<'a>, &mut Tokenizer<'a>) -> Result<T, PackageParseErrors>,
-) -> Result<Vec<T>, PackageParseErrors> {
+    parse: impl FnMut(Docs<'a>, &mut Tokenizer<'a>) -> ParseResult<T>,
+) -> ParseResult<Vec<T>> {
     tokens.expect(start)?;
     parse_list_trailer(tokens, end, parse)
 }
@@ -1599,8 +1583,8 @@ fn parse_list<'a, T>(
 fn parse_list_trailer<'a, T>(
     tokens: &mut Tokenizer<'a>,
     end: Token,
-    mut parse: impl FnMut(Docs<'a>, &mut Tokenizer<'a>) -> Result<T, PackageParseErrors>,
-) -> Result<Vec<T>, PackageParseErrors> {
+    mut parse: impl FnMut(Docs<'a>, &mut Tokenizer<'a>) -> ParseResult<T>,
+) -> ParseResult<Vec<T>> {
     let mut items = Vec::new();
     loop {
         // get docs before we skip them to try to eat the end token
@@ -1648,7 +1632,7 @@ enum Attribute<'a> {
 }
 
 impl<'a> Attribute<'a> {
-    fn parse_list(tokens: &mut Tokenizer<'a>) -> Result<Vec<Attribute<'a>>, PackageParseErrors> {
+    fn parse_list(tokens: &mut Tokenizer<'a>) -> ParseResult<Vec<Attribute<'a>>> {
         let mut ret = Vec::new();
         while tokens.eat(Token::At)? {
             let id = parse_id(tokens)?;
@@ -1707,7 +1691,7 @@ impl<'a> Attribute<'a> {
     }
 }
 
-fn eat_id(tokens: &mut Tokenizer<'_>, expected: &str) -> Result<Span, PackageParseErrors> {
+fn eat_id(tokens: &mut Tokenizer<'_>, expected: &str) -> ParseResult<Span> {
     let id = parse_id(tokens)?;
     if id.name != expected {
         return Err(PackageParseErrors::new_syntax(
@@ -1818,9 +1802,7 @@ impl SourceMap {
         }
     }
 
-    fn parse_inner(
-        &self,
-    ) -> Result<(UnresolvedPackage, Vec<UnresolvedPackage>), PackageParseErrors> {
+    fn parse_inner(&self) -> ParseResult<(UnresolvedPackage, Vec<UnresolvedPackage>)> {
         let mut nested = Vec::new();
         let mut resolver = Resolver::default();
         let mut srcs = self.sources.iter().collect::<Vec<_>>();
