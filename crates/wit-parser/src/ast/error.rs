@@ -1,11 +1,19 @@
+//! Error types for WIT package parsing.
+//!
+//! The main types are [`ParseErrors`] (a single structured error) and
+//! [`ParseErrorKind`] (the underlying variant). [`ParseResult`] is a
+//! convenience alias for `Result<T, ParseErrors>`.
+
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use core::fmt;
 
 use crate::{SourceMap, Span, ast::lex};
 
+/// Convenience alias for a `Result` whose error type is [`ParseErrors`].
 pub type ParseResult<T, E = ParseErrors> = Result<T, E>;
 
+/// The category of error that occurred while parsing a WIT package.
 #[non_exhaustive]
 #[derive(Debug, PartialEq, Eq)]
 pub enum ParseErrorKind {
@@ -31,6 +39,7 @@ pub enum ParseErrorKind {
 }
 
 impl ParseErrorKind {
+    /// Returns the source span associated with this error.
     pub fn span(&self) -> Span {
         match self {
             ParseErrorKind::Lex(e) => Span::new(e.position(), e.position() + 1),
@@ -62,6 +71,10 @@ impl fmt::Display for ParseErrorKind {
     }
 }
 
+/// A single structured error from parsing a WIT package.
+///
+/// Carries a [`ParseErrorKind`] and can be formatted with source context via
+/// [`ParseErrors::highlight`].
 #[derive(Debug, PartialEq, Eq)]
 pub struct ParseErrors(Box<ParseErrorKind>);
 
@@ -74,10 +87,12 @@ impl ParseErrors {
         .into()
     }
 
+    /// Returns the underlying error kind.
     pub fn kind(&self) -> &ParseErrorKind {
         &self.0
     }
 
+    /// Returns a mutable reference to the underlying error kind.
     pub fn kind_mut(&mut self) -> &mut ParseErrorKind {
         &mut self.0
     }
