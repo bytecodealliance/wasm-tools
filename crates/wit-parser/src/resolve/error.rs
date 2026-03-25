@@ -1,3 +1,9 @@
+//! Error types for WIT package resolution.
+//!
+//! The main types are [`ResolveError`] (a single structured error) and
+//! [`ResolveErrorKind`] (the underlying variant). [`ResolveResult`] is a
+//! convenience alias for `Result<T, ResolveError>`.
+
 use alloc::boxed::Box;
 use alloc::format;
 use alloc::string::{String, ToString};
@@ -6,34 +12,36 @@ use core::fmt;
 
 use crate::{PackageName, SourceMap, Span};
 
+/// Convenience alias for a `Result` whose error type is [`ResolveError`].
+pub type ResolveResult<T, E = ResolveError> = Result<T, E>;
+
+/// The category of error that occurred while resolving a WIT package.
 #[non_exhaustive]
 #[derive(Debug, PartialEq, Eq)]
 pub enum ResolveErrorKind {
+    /// A referenced package could not be found among the known packages.
     PackageNotFound {
         span: Span,
         requested: PackageName,
         known: Vec<PackageName>,
     },
-    InvalidTransitiveDependency {
-        span: Span,
-        name: String,
-    },
+    /// An interface has a transitive dependency that creates an incompatible
+    /// import relationship.
+    InvalidTransitiveDependency { span: Span, name: String },
+    /// The same package is defined in two different locations.
     DuplicatePackage {
         name: PackageName,
         span1: Span,
         span2: Span,
     },
-    PackageCycle {
-        package: PackageName,
-        span: Span,
-    },
-    Semantic {
-        span: Span,
-        message: String,
-    },
+    /// Packages form a dependency cycle.
+    PackageCycle { package: PackageName, span: Span },
+    /// A semantic error during resolution (type mismatch, invalid use, etc.)
+    Semantic { span: Span, message: String },
 }
 
 impl ResolveErrorKind {
+    /// Returns the source span associated with this error.
     pub fn span(&self) -> Span {
         match self {
             ResolveErrorKind::PackageNotFound { span, .. }
@@ -76,14 +84,20 @@ impl fmt::Display for ResolveErrorKind {
     }
 }
 
+/// A single structured error from resolving a WIT package.
+///
+/// Carries a [`ResolveErrorKind`] and can be formatted with source context via
+/// [`ResolveError::highlight`].
 #[derive(Debug, PartialEq, Eq)]
-pub struct ResolveErrors(Box<ResolveErrorKind>);
+pub struct ResolveError(Box<ResolveErrorKind>);
 
-impl ResolveErrors {
+impl ResolveError {
+    /// Returns the underlying error kind.
     pub fn kind(&self) -> &ResolveErrorKind {
         &self.0
     }
 
+    /// Format this error with source context (file:line:col + snippet).
     pub fn highlight(&self, source_map: &SourceMap) -> String {
         let e = self.kind();
         let msg = e.to_string();
@@ -100,16 +114,16 @@ impl ResolveErrors {
     }
 }
 
-impl fmt::Display for ResolveErrors {
+impl fmt::Display for ResolveError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self.kind(), f)
     }
 }
 
-impl core::error::Error for ResolveErrors {}
+impl core::error::Error for ResolveError {}
 
-impl From<ResolveErrorKind> for ResolveErrors {
+impl From<ResolveErrorKind> for ResolveError {
     fn from(kind: ResolveErrorKind) -> Self {
-        ResolveErrors(Box::new(kind))
+        ResolveError(Box::new(kind))
     }
 }

@@ -5,9 +5,8 @@ use alloc::vec::Vec;
 use alloc::{format, vec};
 use core::cmp::Ordering;
 use core::mem;
-use core::result::Result;
 
-use crate::resolve::error::{ResolveErrorKind, ResolveErrors};
+use crate::resolve::error::{ResolveError, ResolveErrorKind};
 use crate::*;
 use anyhow::{Context, anyhow, bail};
 #[cfg(not(feature = "std"))]
@@ -198,7 +197,7 @@ fn visit<'a>(
     order: &mut IndexSet<PackageName>,
     visiting: &mut HashSet<&'a PackageName>,
     source_map_offsets: &[u32],
-) -> Result<(), ResolveErrors> {
+) -> ResolveResult<()> {
     if order.contains(&pkg.name) {
         return Ok(());
     }
@@ -211,7 +210,7 @@ fn visit<'a>(
         let mut span = pkg.foreign_dep_spans[i];
         span.adjust(offset);
         if !visiting.insert(dep) {
-            return Err(ResolveErrors::from(ResolveErrorKind::PackageCycle {
+            return Err(ResolveError::from(ResolveErrorKind::PackageCycle {
                 package: dep.clone(),
                 span,
             }));
@@ -244,7 +243,7 @@ impl Resolve {
         &mut self,
         main: UnresolvedPackageGroup,
         deps: Vec<UnresolvedPackageGroup>,
-    ) -> Result<(PackageId, PackageSources), ResolveErrors> {
+    ) -> ResolveResult<(PackageId, PackageSources)> {
         let mut source_maps: Vec<SourceMap> = Vec::new();
         let mut all_packages: Vec<(UnresolvedPackage, usize)> = Vec::new();
 
@@ -289,7 +288,7 @@ impl Resolve {
                 span1.adjust(offset);
                 let mut span2 = prev_pkg.package_name_span;
                 span2.adjust(prev_offset);
-                return Err(ResolveErrors::from(ResolveErrorKind::DuplicatePackage {
+                return Err(ResolveError::from(ResolveErrorKind::DuplicatePackage {
                     name,
                     span1,
                     span2,
@@ -362,7 +361,7 @@ impl Resolve {
         &mut self,
         mut unresolved: UnresolvedPackage,
         span_offset: u32,
-    ) -> Result<PackageId, ResolveErrors> {
+    ) -> ResolveResult<PackageId> {
         unresolved.adjust_spans(span_offset);
         let ret = Remap::default().append(self, unresolved);
         if ret.is_ok() {
@@ -401,7 +400,7 @@ impl Resolve {
     }
 
     /// Appends a main [`UnresolvedPackageGroup`] and its dependencies to this
-    /// [`Resolve`] in a single call, returning a structured [`ResolveErrors`] on
+    /// [`Resolve`] in a single call, returning a structured [`ResolveError`] on
     /// failure.
     ///
     /// This is the preferred alternative to calling [`Resolve::push_group`]
@@ -410,7 +409,7 @@ impl Resolve {
     /// or [`UnresolvedPackageGroup::parse_str`]). Wit-parser sorts them into
     /// the correct topological order internally and detects dependency cycles.
     ///
-    /// On error, spans in the returned [`ResolveErrors`] are absolute within
+    /// On error, spans in the returned [`ResolveError`] are absolute within
     /// `self.source_map` and can be resolved with
     /// [`SourceMap::get_location`].
     ///
@@ -419,7 +418,7 @@ impl Resolve {
         &mut self,
         main: UnresolvedPackageGroup,
         deps: Vec<UnresolvedPackageGroup>,
-    ) -> Result<PackageId, ResolveErrors> {
+    ) -> ResolveResult<PackageId> {
         let (pkg_id, _) = self.sort_unresolved_packages(main, deps)?;
         Ok(pkg_id)
     }
@@ -1853,7 +1852,7 @@ impl Resolve {
         stability: &Stability,
         pkg_id: &PackageId,
         span: Span,
-    ) -> Result<bool, ResolveErrors> {
+    ) -> ResolveResult<bool> {
         Ok(match stability {
             Stability::Unknown => true,
             // NOTE: deprecations are intentionally omitted -- an existing
@@ -1873,7 +1872,7 @@ impl Resolve {
                 // Use of feature gating with version specifiers inside a
                 // package that is not versioned is not allowed
                 let package_version = p.name.version.as_ref().ok_or_else(|| {
-                    ResolveErrors::from(ResolveErrorKind::Semantic {
+                    ResolveError::from(ResolveErrorKind::Semantic {
                         span: span,
                         message: format!(
                             "package [{}] contains a feature gate with a version \
@@ -1887,7 +1886,7 @@ impl Resolve {
                 // - released, then we can include it
                 // - unreleased, then we must check the feature (if present)
                 if since > package_version {
-                    return Err(ResolveErrors::from(ResolveErrorKind::Semantic {
+                    return Err(ResolveError::from(ResolveErrorKind::Semantic {
                         span,
                         message: format!(
                             "feature gate cannot reference unreleased version \
@@ -1916,7 +1915,7 @@ impl Resolve {
     /// noted on `elaborate_world_exports`.
     ///
     /// The world is mutated in-place in this `Resolve`.
-    fn elaborate_world(&mut self, world_id: WorldId, span: Span) -> Result<(), ResolveErrors> {
+    fn elaborate_world(&mut self, world_id: WorldId, span: Span) -> ResolveResult<()> {
         // First process all imports. This is easier than exports since the only
         // requirement here is that all interfaces need to be added with a
         // topological order between them.
@@ -2115,7 +2114,7 @@ impl Resolve {
         imports: &mut IndexMap<WorldKey, WorldItem>,
         exports: &mut IndexMap<WorldKey, WorldItem>,
         span: Span,
-    ) -> Result<(), ResolveErrors> {
+    ) -> ResolveResult<()> {
         let mut required_imports = HashSet::new();
         for (id, (key, stability)) in export_interfaces.iter() {
             let name = self.name_world_key(&key);
@@ -2148,7 +2147,7 @@ impl Resolve {
                 // more refactoring, so it's left to a future date in the
                 // hopes that most folks won't actually run into this for
                 // the time being.
-                return Err(ResolveErrors::from(
+                return Err(ResolveError::from(
                     ResolveErrorKind::InvalidTransitiveDependency { name, span },
                 ));
             }
@@ -3028,12 +3027,7 @@ pub struct Remap {
     type_has_borrow: Vec<Option<bool>>,
 }
 
-fn apply_map<T>(
-    map: &[Option<Id<T>>],
-    id: Id<T>,
-    desc: &str,
-    span: Span,
-) -> Result<Id<T>, ResolveErrors> {
+fn apply_map<T>(map: &[Option<Id<T>>], id: Id<T>, desc: &str, span: Span) -> ResolveResult<Id<T>> {
     match map.get(id.index()) {
         Some(Some(id)) => Ok(*id),
         Some(None) => {
@@ -3041,7 +3035,7 @@ fn apply_map<T>(
                 "found a reference to a {desc} which is excluded \
                  due to its feature not being activated"
             );
-            Err(ResolveErrors::from(ResolveErrorKind::Semantic {
+            Err(ResolveError::from(ResolveErrorKind::Semantic {
                 span,
                 message: msg,
             }))
@@ -3065,21 +3059,21 @@ fn rename(original_name: &str, include_name: &IncludeName) -> Option<String> {
 }
 
 impl Remap {
-    pub fn map_type(&self, id: TypeId, span: Span) -> Result<TypeId, ResolveErrors> {
+    pub fn map_type(&self, id: TypeId, span: Span) -> ResolveResult<TypeId> {
         apply_map(&self.types, id, "type", span)
     }
 
-    pub fn map_interface(&self, id: InterfaceId, span: Span) -> Result<InterfaceId, ResolveErrors> {
+    pub fn map_interface(&self, id: InterfaceId, span: Span) -> ResolveResult<InterfaceId> {
         apply_map(&self.interfaces, id, "interface", span)
     }
 
-    pub fn map_world(&self, id: WorldId, span: Span) -> Result<WorldId, ResolveErrors> {
+    pub fn map_world(&self, id: WorldId, span: Span) -> ResolveResult<WorldId> {
         apply_map(&self.worlds, id, "world", span)
     }
 
-    pub fn map_world_for_type(&self, id: WorldId, span: Span) -> Result<WorldId, ResolveErrors> {
+    pub fn map_world_for_type(&self, id: WorldId, span: Span) -> ResolveResult<WorldId> {
         self.map_world(id, span).map_err(|e| {
-            ResolveErrors::from(ResolveErrorKind::Semantic {
+            ResolveError::from(ResolveErrorKind::Semantic {
                 span,
                 message: format!("{e}; this type is not gated by a feature but its world is"),
             })
@@ -3090,9 +3084,9 @@ impl Remap {
         &self,
         id: InterfaceId,
         span: Span,
-    ) -> Result<InterfaceId, ResolveErrors> {
+    ) -> ResolveResult<InterfaceId> {
         self.map_interface(id, span).map_err(|e| {
-            ResolveErrors::from(ResolveErrorKind::Semantic {
+            ResolveError::from(ResolveErrorKind::Semantic {
                 span,
                 message: format!("{e}; this type is not gated by a feature but its interface is"),
             })
@@ -3103,7 +3097,7 @@ impl Remap {
         &mut self,
         resolve: &mut Resolve,
         unresolved: UnresolvedPackage,
-    ) -> Result<PackageId, ResolveErrors> {
+    ) -> ResolveResult<PackageId> {
         let pkgid = resolve.packages.alloc(Package {
             name: unresolved.name.clone(),
             docs: unresolved.docs.clone(),
@@ -3285,7 +3279,7 @@ impl Remap {
         resolve: &mut Resolve,
         pkgid: PackageId,
         unresolved: &UnresolvedPackage,
-    ) -> Result<(), ResolveErrors> {
+    ) -> ResolveResult<()> {
         // Invert the `foreign_deps` map to be keyed by world id to get
         // used in the loops below.
         let mut world_to_package = HashMap::new();
@@ -3338,7 +3332,7 @@ impl Remap {
                     TypeDefKind::Type(Type::Id(i)) => id = i,
                     TypeDefKind::Resource => break,
                     _ => {
-                        return Err(ResolveErrors::from(ResolveErrorKind::Semantic {
+                        return Err(ResolveError::from(ResolveErrorKind::Semantic {
                             span: *span,
                             message: format!("type used in a handle must be a resource"),
                         }));
@@ -3359,7 +3353,7 @@ impl Remap {
         interface_to_package: &HashMap<InterfaceId, (&PackageName, &String, Span, &Vec<Stability>)>,
         resolve: &mut Resolve,
         parent_pkg_id: &PackageId,
-    ) -> Result<(), ResolveErrors> {
+    ) -> ResolveResult<()> {
         for (unresolved_iface_id, unresolved_iface) in unresolved.interfaces.iter() {
             let (pkg_name, interface, span, stabilities) =
                 match interface_to_package.get(&unresolved_iface_id) {
@@ -3375,7 +3369,7 @@ impl Remap {
                 .get(pkg_name)
                 .copied()
                 .ok_or_else(|| {
-                    ResolveErrors::from(ResolveErrorKind::PackageNotFound {
+                    ResolveError::from(ResolveErrorKind::PackageNotFound {
                         span,
                         requested: pkg_name.clone(),
                         known: resolve.package_names.keys().cloned().collect(),
@@ -3402,7 +3396,7 @@ impl Remap {
             }
 
             let iface_id = pkg.interfaces.get(interface).copied().ok_or_else(|| {
-                ResolveErrors::from(ResolveErrorKind::Semantic {
+                ResolveError::from(ResolveErrorKind::Semantic {
                     span: iface_span,
                     message: "interface not found in package".to_owned(),
                 })
@@ -3425,7 +3419,7 @@ impl Remap {
         world_to_package: &HashMap<WorldId, (&PackageName, &String, Span, &Vec<Stability>)>,
         resolve: &mut Resolve,
         parent_pkg_id: &PackageId,
-    ) -> Result<(), ResolveErrors> {
+    ) -> ResolveResult<()> {
         for (unresolved_world_id, unresolved_world) in unresolved.worlds.iter() {
             let (pkg_name, world, span, stabilities) =
                 match world_to_package.get(&unresolved_world_id) {
@@ -3440,7 +3434,7 @@ impl Remap {
                 .get(pkg_name)
                 .copied()
                 .ok_or_else(|| {
-                    ResolveErrors::from(ResolveErrorKind::PackageNotFound {
+                    ResolveError::from(ResolveErrorKind::PackageNotFound {
                         span,
                         requested: pkg_name.clone(),
                         known: resolve.package_names.keys().cloned().collect(),
@@ -3463,7 +3457,7 @@ impl Remap {
             }
 
             let world_id = pkg.worlds.get(world).copied().ok_or_else(|| {
-                ResolveErrors::from(ResolveErrorKind::Semantic {
+                ResolveError::from(ResolveErrorKind::Semantic {
                     span: world_span,
                     message: "world not found in package".to_owned(),
                 })
@@ -3485,7 +3479,7 @@ impl Remap {
         unresolved: &UnresolvedPackage,
         pkgid: PackageId,
         resolve: &mut Resolve,
-    ) -> Result<(), ResolveErrors> {
+    ) -> ResolveResult<()> {
         for (unresolved_type_id, unresolved_ty) in unresolved.types.iter() {
             // All "Unknown" types should appear first so once we're no longer
             // in unknown territory it's package-defined types so break out of
@@ -3512,7 +3506,7 @@ impl Remap {
                 .types
                 .get(name)
                 .ok_or_else(|| {
-                    ResolveErrors::from(ResolveErrorKind::Semantic {
+                    ResolveError::from(ResolveErrorKind::Semantic {
                         span: span,
                         message: format!("type `{name}` not defined in interface"),
                     })
@@ -3533,7 +3527,7 @@ impl Remap {
         resolve: &mut Resolve,
         ty: &mut TypeDef,
         span: Span,
-    ) -> Result<(), ResolveErrors> {
+    ) -> ResolveResult<()> {
         // NB: note that `ty.owner` is not updated here since interfaces
         // haven't been mapped yet and that's done in a separate step.
         use crate::TypeDefKind::*;
@@ -3595,12 +3589,7 @@ impl Remap {
         Ok(())
     }
 
-    fn update_ty(
-        &mut self,
-        resolve: &mut Resolve,
-        ty: &mut Type,
-        span: Span,
-    ) -> Result<(), ResolveErrors> {
+    fn update_ty(&mut self, resolve: &mut Resolve, ty: &mut Type, span: Span) -> ResolveResult<()> {
         let id = match ty {
             Type::Id(id) => id,
             _ => return Ok(()),
@@ -3635,7 +3624,7 @@ impl Remap {
         Ok(())
     }
 
-    fn update_type_id(&self, id: &mut TypeId, span: Span) -> Result<(), ResolveErrors> {
+    fn update_type_id(&self, id: &mut TypeId, span: Span) -> ResolveResult<()> {
         *id = self.map_type(*id, span)?;
         Ok(())
     }
@@ -3644,7 +3633,7 @@ impl Remap {
         &mut self,
         resolve: &mut Resolve,
         iface: &mut Interface,
-    ) -> Result<(), ResolveErrors> {
+    ) -> ResolveResult<()> {
         iface.types.retain(|_, ty| self.types[ty.index()].is_some());
         let iface_pkg_id = iface.package.as_ref().unwrap_or_else(|| {
             panic!(
@@ -3686,7 +3675,7 @@ impl Remap {
         resolve: &mut Resolve,
         func: &mut Function,
         span: Span,
-    ) -> Result<(), ResolveErrors> {
+    ) -> ResolveResult<()> {
         if let Some(id) = func.kind.resource_mut() {
             self.update_type_id(id, span)?;
         }
@@ -3699,7 +3688,7 @@ impl Remap {
 
         if let Some(ty) = &func.result {
             if self.type_has_borrow(resolve, ty) {
-                return Err(ResolveErrors::from(ResolveErrorKind::Semantic {
+                return Err(ResolveError::from(ResolveErrorKind::Semantic {
                     span,
                     message: format!(
                         "function returns a type which contains \
@@ -3717,7 +3706,7 @@ impl Remap {
         world: &mut World,
         resolve: &mut Resolve,
         pkg_id: &PackageId,
-    ) -> Result<(), ResolveErrors> {
+    ) -> ResolveResult<()> {
         // Rewrite imports/exports with their updated versions. Note that this
         // may involve updating the key of the imports/exports maps so this
         // starts by emptying them out and then everything is re-inserted.
@@ -3766,7 +3755,7 @@ impl Remap {
         id: WorldId,
         resolve: &mut Resolve,
         pkg_id: &PackageId,
-    ) -> Result<(), ResolveErrors> {
+    ) -> ResolveResult<()> {
         let world = &mut resolve.worlds[id];
         // Resolve all `include` statements of the world which will add more
         // entries to the imports/exports list for this world.
@@ -3797,12 +3786,12 @@ impl Remap {
     fn validate_world_case_insensitive_names(
         resolve: &Resolve,
         world_id: WorldId,
-    ) -> Result<(), ResolveErrors> {
+    ) -> ResolveResult<()> {
         let world = &resolve.worlds[world_id];
 
         // Helper closure to check for case-insensitive duplicates in a map
         let validate_names =
-            |items: &IndexMap<WorldKey, WorldItem>, item_type: &str| -> Result<(), ResolveErrors> {
+            |items: &IndexMap<WorldKey, WorldItem>, item_type: &str| -> ResolveResult<()> {
                 let mut seen_lowercase: HashMap<String, String> = HashMap::new();
 
                 for key in items.keys() {
@@ -3817,7 +3806,7 @@ impl Remap {
                                 // TODO: `WorldKey::Name` does not carry a `Span`, so we
                                 // cannot point at the conflicting item. Add a span to
                                 // `WorldKey::Name` to improve this error.
-                                return Err(ResolveErrors::from(ResolveErrorKind::Semantic {
+                                return Err(ResolveError::from(ResolveErrorKind::Semantic {
                                     span: Span::default(),
                                     message: format!(
                                         "{item_type} `{name}` in world `{}` conflicts with \
@@ -3842,7 +3831,7 @@ impl Remap {
         Ok(())
     }
 
-    fn update_world_key(&self, key: &mut WorldKey, span: Span) -> Result<(), ResolveErrors> {
+    fn update_world_key(&self, key: &mut WorldKey, span: Span) -> ResolveResult<()> {
         match key {
             WorldKey::Name(_) => {}
             WorldKey::Interface(id) => {
@@ -3860,7 +3849,7 @@ impl Remap {
         span: Span,
         pkg_id: &PackageId,
         resolve: &mut Resolve,
-    ) -> Result<(), ResolveErrors> {
+    ) -> ResolveResult<()> {
         let world = &resolve.worlds[id];
         let include_world_id = self.map_world(include_world_id_orig, span)?;
         let include_world = resolve.worlds[include_world_id].clone();
@@ -3875,7 +3864,7 @@ impl Remap {
             self.remove_matching_name(export, &mut names_);
         }
         if !names_.is_empty() {
-            return Err(ResolveErrors::from(ResolveErrorKind::Semantic {
+            return Err(ResolveError::from(ResolveErrorKind::Semantic {
                 span,
                 message: format!(
                     "no import or export kebab-name `{}`. Note that an ID does not support renaming",
@@ -3934,7 +3923,7 @@ impl Remap {
         span: Span,
         item_type: &str,
         is_external_include: bool,
-    ) -> Result<(), ResolveErrors> {
+    ) -> ResolveResult<()> {
         match item.0 {
             WorldKey::Name(n) => {
                 let n = names
@@ -3958,7 +3947,7 @@ impl Remap {
 
                 let prev = get_items(cloner.resolve).insert(key, new_item);
                 if prev.is_some() {
-                    return Err(ResolveErrors::from(ResolveErrorKind::Semantic {
+                    return Err(ResolveError::from(ResolveErrorKind::Semantic {
                         span,
                         message: format!(
                             "{item_type} of `{n}` shadows previously {item_type}ed items"
@@ -4419,11 +4408,7 @@ impl<'a> MergeMap<'a> {
 /// This is done to keep up-to-date stability information if possible.
 /// Components for example don't carry stability information but WIT does so
 /// this tries to move from "unknown" to stable/unstable if possible.
-fn update_stability(
-    from: &Stability,
-    into: &mut Stability,
-    span: Span,
-) -> Result<(), ResolveErrors> {
+fn update_stability(from: &Stability, into: &mut Stability, span: Span) -> ResolveResult<()> {
     // If `from` is unknown or the two stability annotations are equal then
     // there's nothing to do here.
     if from == into || from.is_unknown() {
@@ -4438,7 +4423,7 @@ fn update_stability(
 
     // Failing all that this means that the two attributes are different so
     // generate an error.
-    Err(ResolveErrors::from(ResolveErrorKind::Semantic {
+    Err(ResolveError::from(ResolveErrorKind::Semantic {
         span,
         message: format!("mismatch in stability from '{from:?}' to '{into:?}'"),
     }))
@@ -4449,7 +4434,7 @@ fn merge_include_stability(
     into: &mut Stability,
     is_external_include: bool,
     span: Span,
-) -> Result<(), ResolveErrors> {
+) -> ResolveResult<()> {
     if is_external_include && from.is_stable() {
         log::trace!("dropped stability from external package");
         *into = Stability::Unknown;
