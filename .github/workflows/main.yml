@@ -430,5 +430,3 @@ jobs:
         submodules: true
         fetch-depth: 0
     - uses: ./.github/actions/publish-release
-      with:
-        cargo_token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
