@@ -391,14 +391,18 @@ package {name} is defined in two different locations:\n\
         Ok(pkg_id)
     }
 
-    /// Convenience method for combining [`UnresolvedPackageGroup::parse_str`] and
-    /// [`Resolve::push_group`].
+    /// Convenience method for combining [`SourceMap`] and [`Resolve::push_group`].
     ///
     /// The `path` provided is used for error messages but otherwise is not
     /// read. This method does not touch the filesystem. The `contents` provided
     /// are the contents of a WIT package.
     pub fn push_source(&mut self, path: &str, contents: &str) -> Result<PackageId> {
-        self.push_group(UnresolvedPackageGroup::parse_str(path, contents)?)
+        let mut map = SourceMap::default();
+        map.push_str(path, contents);
+        self.push_group(
+            map.parse()
+                .map_err(|(map, e)| anyhow::anyhow!("{}", e.highlight(&map)))?,
+        )
     }
 
     /// Renders a span as a human-readable location string (e.g., "file.wit:10:5").
