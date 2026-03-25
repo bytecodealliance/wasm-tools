@@ -1,4 +1,4 @@
-use crate::ast::error::ParseErrors;
+use crate::ast::error::ParseError;
 use crate::{ParseResult, UnresolvedPackage, UnresolvedPackageGroup};
 use alloc::borrow::Cow;
 use alloc::boxed::Box;
@@ -69,7 +69,7 @@ impl<'a> PackageFile<'a> {
     ) -> ParseResult<Self> {
         let span = tokens.expect(Token::Package)?;
         if !attributes.is_empty() {
-            return Err(ParseErrors::new_syntax(
+            return Err(ParseError::new_syntax(
                 span,
                 format!("cannot place attributes on nested packages"),
             ));
@@ -1255,7 +1255,7 @@ fn parse_version(tokens: &mut Tokenizer<'_>) -> ParseResult<(Span, Version)> {
     eat_ids(tokens, Token::Plus, &mut span)?;
     let string = tokens.get_span(span);
     let version =
-        Version::parse(string).map_err(|e| ParseErrors::new_syntax(span, e.to_string()))?;
+        Version::parse(string).map_err(|e| ParseError::new_syntax(span, e.to_string()))?;
     return Ok((span, version));
 
     // According to `semver.org` this is what we're parsing:
@@ -1405,7 +1405,7 @@ impl<'a> Type<'a> {
                     let number = tokens.next()?;
                     if let Some((span, Token::Integer)) = number {
                         let size: u32 = tokens.get_span(span).parse().map_err(|e| {
-                            ParseErrors::new_syntax(span, format!("invalid list size: {e}"))
+                            ParseError::new_syntax(span, format!("invalid list size: {e}"))
                         })?;
                         Some(size)
                     } else {
@@ -1612,14 +1612,14 @@ fn err_expected(
     tokens: &Tokenizer<'_>,
     expected: &'static str,
     found: Option<(Span, Token)>,
-) -> ParseErrors {
+) -> ParseError {
     match found {
-        Some((span, token)) => ParseErrors::new_syntax(
+        Some((span, token)) => ParseError::new_syntax(
             span,
             format!("expected {}, found {}", expected, token.describe()),
         ),
         None => {
-            ParseErrors::new_syntax(tokens.eof_span(), format!("expected {expected}, found eof"))
+            ParseError::new_syntax(tokens.eof_span(), format!("expected {expected}, found eof"))
         }
     }
 }
@@ -1670,7 +1670,7 @@ impl<'a> Attribute<'a> {
                     }
                 }
                 other => {
-                    return Err(ParseErrors::new_syntax(
+                    return Err(ParseError::new_syntax(
                         id.span,
                         format!("unknown attribute `{other}`"),
                     ));
@@ -1693,7 +1693,7 @@ impl<'a> Attribute<'a> {
 fn eat_id(tokens: &mut Tokenizer<'_>, expected: &str) -> ParseResult<Span> {
     let id = parse_id(tokens)?;
     if id.name != expected {
-        return Err(ParseErrors::new_syntax(
+        return Err(ParseError::new_syntax(
             id.span,
             format!("expected `{expected}`, found `{}`", id.name),
         ));
@@ -1790,7 +1790,7 @@ impl SourceMap {
     ///
     /// On failure returns `Err((self, e))` so the caller can use the source
     /// map for error formatting if needed.
-    pub fn parse(self) -> Result<UnresolvedPackageGroup, (Self, ParseErrors)> {
+    pub fn parse(self) -> Result<UnresolvedPackageGroup, (Self, ParseError)> {
         match self.parse_inner() {
             Ok((main, nested)) => Ok(UnresolvedPackageGroup {
                 main,

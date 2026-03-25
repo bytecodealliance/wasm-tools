@@ -1,4 +1,4 @@
-use super::error::ParseErrors;
+use super::error::ParseError;
 use crate::ast::Id;
 use crate::{IndexMap, ParseErrorKind, ParseResult};
 use alloc::collections::BinaryHeap;
@@ -52,7 +52,7 @@ pub fn toposort<'a>(
         states[i].outbound_remaining = edges.len();
         for edge in edges {
             let (j, _, _) = deps.get_full(edge.name).ok_or_else(|| {
-                ParseErrors::from(ParseErrorKind::ItemNotFound {
+                ParseError::from(ParseErrorKind::ItemNotFound {
                     span: edge.span,
                     name: edge.name.to_string(),
                     kind: kind.to_string(),
