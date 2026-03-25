@@ -218,7 +218,7 @@ arity mismatch in validation
     }
 
     /// Validates the next operator in a function, rolling back the validator
-    /// to its previous state if this is unsuccesful. The validator may be reused
+    /// to its previous state if this is unsuccessful. The validator may be reused
     /// even after an error.
     #[cfg(feature = "try-op")]
     pub fn try_op(&mut self, offset: usize, operator: &Operator<'_>) -> Result<()> {

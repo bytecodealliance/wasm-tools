@@ -865,7 +865,7 @@ where
                 // The "heap bottom" type only matches other references types,
                 // but not any integer types. Note that if the heap bottom is
                 // known to have a specific abstract heap type then a subtype
-                // check is performed against hte expected type.
+                // check is performed against the expected type.
                 (MaybeType::UnknownRef(actual_ty), ValType::Ref(expected)) => {
                     if let Some(actual) = actual_ty {
                         let expected_shared = self.resources.is_shared(expected);

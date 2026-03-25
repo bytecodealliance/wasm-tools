@@ -1,5 +1,5 @@
 //! A test that exercises sending arbitrary WIT values across an import/export
-//! boundary and ensuring that they are transmitted succesfully.
+//! boundary and ensuring that they are transmitted successfully.
 //!
 //! This test will use the `roundtrip_caller.rs` file to invoke functions in
 //! `roundtrip_callee.rs`. These precompiled components, provided through the

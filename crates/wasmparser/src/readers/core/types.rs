@@ -697,7 +697,7 @@ impl FuncType {
         }
     }
 
-    /// Creates a new [`FuncType`] fom its raw parts.
+    /// Creates a new [`FuncType`] from its raw parts.
     ///
     /// # Panics
     ///

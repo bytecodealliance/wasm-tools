@@ -7,7 +7,7 @@
 //! component whose type is the union of any `component-type*` custom sections found in the input modules.
 //!
 //! The entry point into this process is `Linker::encode`, which analyzes and topologically sorts the input
-//! modules, then sythesizes two additional modules:
+//! modules, then synthesizes two additional modules:
 //!
 //! - `main` AKA `env`: hosts the component's single memory and function table and exports any functions needed to
 //! break dependency cycles discovered in the input modules. Those functions use `call.indirect` to invoke the real
@@ -71,7 +71,7 @@ struct DlOpenables<'a> {
 
     /// Linear memory addresses where global variable addresses will live
     ///
-    /// The init module will fill in the correct values at insantiation time.
+    /// The init module will fill in the correct values at instantiation time.
     global_addresses: Vec<(&'a str, &'a str, u32)>,
 
     /// Number of function references to be stored in the main module's table
@@ -101,7 +101,7 @@ impl<'a> DlOpenables<'a> {
                 let mut symbols = metadata
                     .exports
                     .iter()
-                    .map(|export| {
+                    .filter_map(|export| {
                         let name_address = memory_base + u32::try_from(buffer.len()).unwrap();
                         write_bytes_padded(&mut buffer, export.key.name.as_bytes());
 
@@ -110,9 +110,10 @@ impl<'a> DlOpenables<'a> {
                                 table_base + get_and_increment(&mut function_count),
                             ),
                             Type::Global(_) => Address::Global(export.key.name),
+                            Type::Tag(_) => return None,
                         };
 
-                        (export.key.name, name_address, address)
+                        Some((export.key.name, name_address, address))
                     })
                     .collect::<Vec<_>>();
 
@@ -306,6 +307,7 @@ fn make_env_module<'a>(
                                 shared: ty.shared,
                             })
                         }
+                        Type::Tag(_) => continue,
                     },
                 );
             }
@@ -908,12 +910,9 @@ fn resolve_symbols<'a>(
 ) {
     let function_exporters = exporters
         .iter()
-        .filter_map(|(export, exporters)| {
-            if let Type::Function(_) = &export.ty {
-                Some((export.name, (export, exporters)))
-            } else {
-                None
-            }
+        .filter_map(|(export, exporters)| match &export.ty {
+            Type::Function(_) => Some((export.name, (export, exporters))),
+            Type::Global(_) | Type::Tag(_) => None,
         })
         .collect_unique::<IndexMap<_, _>>();
 
@@ -923,11 +922,11 @@ fn resolve_symbols<'a>(
 
     let mut triage = |metadata: &'a Metadata, export: Export<'a>| {
         if let Some((key, value)) = exporters.get_key_value(&export.key) {
+            // Note that we do not use `insert_unique` here since multiple libraries may import the same
+            // symbol, in which case we may redundantly insert the same value.
             match value.as_slice() {
                 [] => unreachable!(),
                 [exporter] => {
-                    // Note that we do not use `insert_unique` here since multiple libraries may import the same
-                    // symbol, in which case we may redundantly insert the same value.
                     resolved.insert(*key, *exporter);
                 }
                 [exporter, ..] => {
@@ -965,6 +964,19 @@ fn resolve_symbols<'a>(
                             mutable: false,
                             shared: false,
                         }),
+                    },
+                    flags: SymbolFlags::empty(),
+                },
+            );
+        }
+
+        for (name, ty) in &metadata.tag_imports {
+            triage(
+                metadata,
+                Export {
+                    key: ExportKey {
+                        name,
+                        ty: Type::Tag(ty.clone()),
                     },
                     flags: SymbolFlags::empty(),
                 },

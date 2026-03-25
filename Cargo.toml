@@ -314,3 +314,22 @@ wast = [
   'json-from-wast',
 ]
 wit-dylib = ['dep:wit-dylib', 'wit-dylib/clap', 'wit-parser', 'wit-component']
+
+
+# https://github.com/crate-ci/typos/blob/master/docs/reference.md
+[workspace.metadata.typos.default]
+extend-ignore-re = [
+    "(\\d\\w{2,}|\\w{2,}\\d)", # possible hex encoding
+]
+extend-ignore-words-re = [
+    '^[a-zA-Z]{1,2}$' # ignore words up to length 2
+]
+
+[workspace.metadata.typos.default.extend-words]
+# Data Source
+datas = "datas"
+# type shorthand
+tpe = "tpe"
+
+# greater or equal signed
+ges = "ges"

@@ -50,7 +50,7 @@ Several tokens are reserved WAVE keywords: `true`, `false`, `inf`, `nan`, `some`
 
 Kebab-case labels are used for record fields, variant cases, enum cases, and flags. Labels use ASCII alphanumeric characters and hyphens, following the [Wit identifier syntax](https://github.com/WebAssembly/component-model/blob/main/design/mvp/WIT.md#identifiers):
 
-- Labels consist of one or more hypen-separated words.
+- Labels consist of one or more hyphen-separated words.
   - `one`, `two-words`
 - Words consist of one ASCII letter followed by any number of ASCII alphanumeric characters.
   - `q`, `abc123`

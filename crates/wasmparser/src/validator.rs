@@ -278,7 +278,7 @@ impl WasmFeatures {
                 }
             }
             HeapType::Exact(_) => {
-                // Exact types were introduced wit hthe custom descriptors
+                // Exact types were introduced with the custom descriptors
                 // proposal.
                 if self.custom_descriptors() {
                     Ok(())

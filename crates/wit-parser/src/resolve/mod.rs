@@ -1141,7 +1141,7 @@ package {name} is defined in two different locations:\n\
     /// Selects a world from among the packages in a `Resolve`.
     ///
     /// A `Resolve` may have many packages, each with many worlds. Many WIT
-    /// tools need a specific world to operate on. This function choses a
+    /// tools need a specific world to operate on. This function chooses a
     /// world, failing if the choice is ambiguous.
     ///
     /// `main_packages` provides the package IDs returned by

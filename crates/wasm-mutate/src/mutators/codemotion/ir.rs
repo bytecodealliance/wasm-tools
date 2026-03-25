@@ -37,7 +37,7 @@ pub trait AstWriter {
 
     /// Default encoding for a loop node
     ///
-    /// This function is called by the defaut implementation
+    /// This function is called by the default implementation
     /// of the `write_loop` method
     fn write_loop_default<'a>(
         &self,
@@ -59,7 +59,7 @@ pub trait AstWriter {
 
     /// Default encoding for a block node
     ///
-    /// This function is called by the defaut implementation
+    /// This function is called by the default implementation
     /// of the `write_block` method
     fn write_block_default<'a>(
         &self,
@@ -131,7 +131,7 @@ pub trait AstWriter {
 
     /// Default encoding for an if-else node
     ///
-    /// This function is called by the defaut implementation
+    /// This function is called by the default implementation
     /// of the `write_if_else` method
     fn write_if_else_default<'a>(
         &self,
@@ -247,7 +247,7 @@ impl AstBuilder {
         self.parse(operators)
     }
 
-    /// Parsing algorith to construct the Ast
+    /// Parsing algorithm to construct the Ast
     fn parse<'a>(&self, operators: &'a [OperatorAndByteOffset]) -> crate::Result<Ast> {
         let mut parse_context = ParseContext::default();
         // Push the first frame, the root
