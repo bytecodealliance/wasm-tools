@@ -4,11 +4,11 @@ use core::fmt;
 
 use crate::{SourceMap, Span, ast::lex};
 
-pub type ParseResult<T, E = PackageParseErrors> = Result<T, E>;
+pub type ParseResult<T, E = ParseErrors> = Result<T, E>;
 
 #[non_exhaustive]
 #[derive(Debug, PartialEq, Eq)]
-pub enum PackageParseErrorKind {
+pub enum ParseErrorKind {
     /// Lexer error (invalid character, unterminated comment, etc.)
     Lex(lex::Error),
     /// Syntactic or semantic error within a single package (duplicate name,
@@ -30,23 +30,23 @@ pub enum PackageParseErrorKind {
     },
 }
 
-impl PackageParseErrorKind {
+impl ParseErrorKind {
     pub fn span(&self) -> Span {
         match self {
-            PackageParseErrorKind::Lex(e) => Span::new(e.position(), e.position() + 1),
-            PackageParseErrorKind::Syntax { span, .. }
-            | PackageParseErrorKind::ItemNotFound { span, .. }
-            | PackageParseErrorKind::TypeCycle { span, .. } => *span,
+            ParseErrorKind::Lex(e) => Span::new(e.position(), e.position() + 1),
+            ParseErrorKind::Syntax { span, .. }
+            | ParseErrorKind::ItemNotFound { span, .. }
+            | ParseErrorKind::TypeCycle { span, .. } => *span,
         }
     }
 }
 
-impl fmt::Display for PackageParseErrorKind {
+impl fmt::Display for ParseErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            PackageParseErrorKind::Lex(e) => fmt::Display::fmt(e, f),
-            PackageParseErrorKind::Syntax { message, .. } => message.fmt(f),
-            PackageParseErrorKind::ItemNotFound {
+            ParseErrorKind::Lex(e) => fmt::Display::fmt(e, f),
+            ParseErrorKind::Syntax { message, .. } => message.fmt(f),
+            ParseErrorKind::ItemNotFound {
                 kind, name, hint, ..
             } => {
                 write!(f, "{kind} `{name}` does not exist")?;
@@ -55,7 +55,7 @@ impl fmt::Display for PackageParseErrorKind {
                 }
                 Ok(())
             }
-            PackageParseErrorKind::TypeCycle { kind, name, .. } => {
+            ParseErrorKind::TypeCycle { kind, name, .. } => {
                 write!(f, "{kind} `{name}` depends on itself")
             }
         }
@@ -63,22 +63,22 @@ impl fmt::Display for PackageParseErrorKind {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct PackageParseErrors(Box<PackageParseErrorKind>);
+pub struct ParseErrors(Box<ParseErrorKind>);
 
-impl PackageParseErrors {
+impl ParseErrors {
     pub fn new_syntax(span: Span, message: impl Into<String>) -> Self {
-        PackageParseErrorKind::Syntax {
+        ParseErrorKind::Syntax {
             span,
             message: message.into(),
         }
         .into()
     }
 
-    pub fn kind(&self) -> &PackageParseErrorKind {
+    pub fn kind(&self) -> &ParseErrorKind {
         &self.0
     }
 
-    pub fn kind_mut(&mut self) -> &mut PackageParseErrorKind {
+    pub fn kind_mut(&mut self) -> &mut ParseErrorKind {
         &mut self.0
     }
 
@@ -91,22 +91,22 @@ impl PackageParseErrors {
     }
 }
 
-impl fmt::Display for PackageParseErrors {
+impl fmt::Display for ParseErrors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self.kind(), f)
     }
 }
 
-impl core::error::Error for PackageParseErrors {}
+impl core::error::Error for ParseErrors {}
 
-impl From<PackageParseErrorKind> for PackageParseErrors {
-    fn from(kind: PackageParseErrorKind) -> Self {
-        PackageParseErrors(Box::new(kind))
+impl From<ParseErrorKind> for ParseErrors {
+    fn from(kind: ParseErrorKind) -> Self {
+        ParseErrors(Box::new(kind))
     }
 }
 
-impl From<lex::Error> for PackageParseErrors {
+impl From<lex::Error> for ParseErrors {
     fn from(e: lex::Error) -> Self {
-        PackageParseErrorKind::Lex(e).into()
+        ParseErrorKind::Lex(e).into()
     }
 }

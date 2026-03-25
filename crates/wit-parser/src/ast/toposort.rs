@@ -1,6 +1,6 @@
-use super::error::PackageParseErrors;
+use super::error::ParseErrors;
 use crate::ast::Id;
-use crate::{IndexMap, PackageParseErrorKind, ParseResult};
+use crate::{IndexMap, ParseErrorKind, ParseResult};
 use alloc::collections::BinaryHeap;
 use alloc::string::ToString;
 use alloc::vec;
@@ -52,7 +52,7 @@ pub fn toposort<'a>(
         states[i].outbound_remaining = edges.len();
         for edge in edges {
             let (j, _, _) = deps.get_full(edge.name).ok_or_else(|| {
-                PackageParseErrors::from(PackageParseErrorKind::ItemNotFound {
+                ParseErrors::from(ParseErrorKind::ItemNotFound {
                     span: edge.span,
                     name: edge.name.to_string(),
                     kind: kind.to_string(),
@@ -114,7 +114,7 @@ pub fn toposort<'a>(
             if states[j].outbound_remaining == 0 {
                 continue;
             }
-            return Err(PackageParseErrorKind::TypeCycle {
+            return Err(ParseErrorKind::TypeCycle {
                 span: dep.span,
                 name: dep.name.to_string(),
                 kind: kind.to_string(),
@@ -146,7 +146,7 @@ mod tests {
         nonexistent.insert("a", vec![id("b")]);
         assert!(matches!(
             toposort("", &nonexistent).unwrap_err().kind(),
-            PackageParseErrorKind::ItemNotFound { .. }
+            ParseErrorKind::ItemNotFound { .. }
         ));
 
         let mut one = IndexMap::default();
@@ -170,7 +170,7 @@ mod tests {
         cycle.insert("a", vec![id("a")]);
         assert!(matches!(
             toposort("", &cycle).unwrap_err().kind(),
-            PackageParseErrorKind::TypeCycle { .. }
+            ParseErrorKind::TypeCycle { .. }
         ));
 
         let mut cycle = IndexMap::default();
@@ -179,7 +179,7 @@ mod tests {
         cycle.insert("c", vec![id("a")]);
         assert!(matches!(
             toposort("", &cycle).unwrap_err().kind(),
-            PackageParseErrorKind::TypeCycle { .. }
+            ParseErrorKind::TypeCycle { .. }
         ));
     }
 
