@@ -23,7 +23,7 @@ Cargo package manager to install:
 $ cargo install --locked wasm-tools
 ```
 
-Altenatively if you use [`cargo
+Alternatively if you use [`cargo
 binstall`](https://github.com/cargo-bins/cargo-binstall) then that can be used
 to install [the precompiled artifacts][artifacts] instead:
 
