@@ -364,8 +364,10 @@ jobs:
   typos:
     runs-on: ubuntu-latest
     steps:
-      - name: typos-action
-        uses: crate-ci/typos@v1.44.0
+      - uses: actions/checkout@v6
+      - uses: cargo-bins/cargo-binstall@v1.17.9
+      - run: cargo binstall typos-cli@1.44.0 --no-confirm
+      - run: typos
 
   verify-publish:
     if: github.repository_owner == 'bytecodealliance'
