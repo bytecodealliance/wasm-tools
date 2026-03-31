@@ -324,6 +324,9 @@ jobs:
       - run: cargo check --no-default-features -p wasm-wave --features std
       - run: cargo check --no-default-features -p wasm-wave --features wit
       - run: cargo check --no-default-features -p wasm-wave --features std,wit
+      - run: cargo check --no-default-features -p wasm-compose
+      - run: cargo check --no-default-features -p wasm-compose --features serde
+      - run: cargo check --no-default-features -p wasm-compose --features yaml
       - run: |
           if cargo tree -p wasm-smith --no-default-features -e no-dev | grep wasmparser; then
             echo wasm-smith without default features should not depend on wasmparser
