@@ -1,4 +1,4 @@
-name `b` is not defined
+name `b` does not exist
      --> tests/ui/parse-fail/world-top-level-func2.wit:3:23
       |
     3 |   import foo: func(a: b);
