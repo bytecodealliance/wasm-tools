@@ -1559,7 +1559,14 @@ where
     /// Common helper for checking the types of globals accessed with atomic RMW
     /// instructions, which only allow `i32` and `i64`.
     fn check_atomic_global_rmw_ty(&self, global_index: u32) -> Result<ValType> {
-        let ty = self.global_type_at(global_index)?.content_type;
+        let global = self.global_type_at(global_index)?;
+        if !global.mutable {
+            bail!(
+                self.offset,
+                "global is immutable: cannot modify it with `global.atomic.rmw.*`"
+            );
+        }
+        let ty = global.content_type;
         if !(ty == ValType::I32 || ty == ValType::I64) {
             bail!(
                 self.offset,
@@ -2452,7 +2459,14 @@ where
         _ordering: crate::Ordering,
         global_index: u32,
     ) -> Self::Output {
-        let ty = self.global_type_at(global_index)?.content_type;
+        let global = self.global_type_at(global_index)?;
+        if !global.mutable {
+            bail!(
+                self.offset,
+                "global is immutable: cannot modify it with `global.atomic.rmw.xchg`"
+            );
+        }
+        let ty = global.content_type;
         if !(ty == ValType::I32
             || ty == ValType::I64
             || self.resources.is_subtype(ty, RefType::ANYREF.into()))
@@ -2469,7 +2483,14 @@ where
         _ordering: crate::Ordering,
         global_index: u32,
     ) -> Self::Output {
-        let ty = self.global_type_at(global_index)?.content_type;
+        let global = self.global_type_at(global_index)?;
+        if !global.mutable {
+            bail!(
+                self.offset,
+                "global is immutable: cannot modify it with `global.atomic.rmw.cmpxchg`"
+            );
+        }
+        let ty = global.content_type;
         if !(ty == ValType::I32
             || ty == ValType::I64
             || self.resources.is_subtype(ty, RefType::EQREF.into()))
@@ -3709,7 +3730,7 @@ where
         struct_type_index: u32,
         field_index: u32,
     ) -> Self::Output {
-        self.visit_struct_get_s(struct_type_index, field_index)?;
+        self.visit_struct_get_u(struct_type_index, field_index)?;
         // This instruction has the same type restrictions as the non-`atomic` version.
         debug_assert!(matches!(
             self.struct_field_at(struct_type_index, field_index)?
