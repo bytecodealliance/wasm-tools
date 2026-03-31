@@ -124,7 +124,7 @@ impl Config {
         let config = fs::read_to_string(&path)
             .with_context(|| format!("failed to read configuration file `{}`", path.display()))?;
 
-        let mut config: Config = serde_yaml::from_str(&config)
+        let mut config: Config = serde_yaml2::from_str(&config)
             .with_context(|| format!("failed to parse configuration file `{}`", path.display()))?;
 
         config.dir = path.parent().map(Path::to_path_buf).unwrap_or_default();
