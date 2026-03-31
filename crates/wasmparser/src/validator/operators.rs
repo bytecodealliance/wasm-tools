@@ -1162,7 +1162,7 @@ where
                 "atomic instructions must always specify maximum alignment"
             );
         }
-        self.check_memory_index(memarg.memory)
+        self.check_memarg(memarg)
     }
 
     /// Validates a block type, primarily with various in-flight proposals.
