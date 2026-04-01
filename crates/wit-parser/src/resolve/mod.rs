@@ -406,7 +406,7 @@ impl Resolve {
     /// This is the preferred alternative to calling [`Resolve::push_group`]
     /// repeatedly when you have a package and its local dependencies available
     /// as in-memory [`UnresolvedPackageGroup`]s (e.g. from [`SourceMap::parse`]
-    /// or [`UnresolvedPackageGroup::parse_str`]). Wit-parser sorts them into
+    /// or [`SourceMap::parse`]). Wit-parser sorts them into
     /// the correct topological order internally and detects dependency cycles.
     ///
     /// On error, spans in the returned [`ResolveError`] are absolute within
@@ -429,8 +429,12 @@ impl Resolve {
     /// read. This method does not touch the filesystem. The `contents` provided
     /// are the contents of a WIT package.
     pub fn push_source(&mut self, path: &str, contents: &str) -> anyhow::Result<PackageId> {
-        let group = UnresolvedPackageGroup::parse_str(path, contents).map_err(|(_, e)| e)?;
-        self.push_group(group)
+        let mut map = SourceMap::default();
+        map.push_str(path, contents);
+        self.push_group(
+            map.parse()
+                .map_err(|(map, e)| anyhow::anyhow!("{}", e.highlight(&map)))?,
+        )
     }
 
     /// Renders a span as a human-readable location string (e.g., "file.wit:10:5").
@@ -4449,7 +4453,7 @@ mod tests {
     use crate::alloc::format;
     use crate::alloc::string::ToString;
     use crate::alloc::vec;
-    use crate::{Resolve, UnresolvedPackageGroup, WorldItem, WorldKey};
+    use crate::{Resolve, SourceMap, WorldItem, WorldKey};
     use anyhow::Result;
 
     #[test]
@@ -5513,16 +5517,22 @@ interface iface {
     fn push_groups_resolves_dep_before_main() -> Result<()> {
         // push_groups must topologically sort main + deps internally and succeed
         // even when the dep is listed after main in the caller's mental model.
-        let dep = UnresolvedPackageGroup::parse_str(
-            "file:///dep.wit",
-            "package foo:dep;\ninterface i { type t = u32; }",
-        )
-        .map_err(|(_, e)| e)?;
-        let main = UnresolvedPackageGroup::parse_str(
-            "file:///main.wit",
-            "package foo:main;\ninterface j { use foo:dep/i.{t}; type u = t; }",
-        )
-        .map_err(|(_, e)| e)?;
+        let dep = {
+            let mut map = SourceMap::default();
+            map.push_str(
+                "file:///dep.wit",
+                "package foo:dep;\ninterface i { type t = u32; }",
+            );
+            map.parse().map_err(|(_, e)| e)?
+        };
+        let main = {
+            let mut map = SourceMap::default();
+            map.push_str(
+                "file:///main.wit",
+                "package foo:main;\ninterface j { use foo:dep/i.{t}; type u = t; }",
+            );
+            map.parse().map_err(|(_, e)| e)?
+        };
         let mut resolve = Resolve::default();
         resolve.push_groups(main, vec![dep])?;
         assert_eq!(resolve.packages.len(), 2);
@@ -5534,16 +5544,22 @@ interface iface {
         // A cross-group cycle must produce an error message with a file URI and
         // line/col. This validates that source maps are merged into resolve.source_map
         // *before* toposort runs, so the span in the cycle error is resolvable.
-        let a = UnresolvedPackageGroup::parse_str(
-            "file:///a.wit",
-            "package foo:a;\ninterface i { use foo:b/j.{}; }",
-        )
-        .unwrap();
-        let b = UnresolvedPackageGroup::parse_str(
-            "file:///b.wit",
-            "package foo:b;\ninterface j { use foo:a/i.{}; }",
-        )
-        .unwrap();
+        let a = {
+            let mut map = SourceMap::default();
+            map.push_str(
+                "file:///a.wit",
+                "package foo:a;\ninterface i { use foo:b/j.{}; }",
+            );
+            map.parse().unwrap()
+        };
+        let b = {
+            let mut map = SourceMap::default();
+            map.push_str(
+                "file:///b.wit",
+                "package foo:b;\ninterface j { use foo:a/i.{}; }",
+            );
+            map.parse().unwrap()
+        };
         let mut resolve = Resolve::default();
         let err = resolve.push_groups(a, vec![b]).unwrap_err();
         let msg = err.highlight(&resolve.source_map);

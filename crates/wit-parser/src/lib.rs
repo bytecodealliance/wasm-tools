@@ -317,42 +317,6 @@ impl UnresolvedPackageGroup {
     /// The `path` argument is used for error reporting. The `contents` provided
     /// are considered to be the contents of `path`. This function does not read
     /// the filesystem.
-    pub fn parse_str(
-        path: &str,
-        contents: &str,
-    ) -> Result<UnresolvedPackageGroup, (SourceMap, ParseError)> {
-        let mut map = SourceMap::default();
-        map.push_str(path, contents);
-        map.parse()
-    }
-
-    /// Parse a WIT package at the provided path.
-    ///
-    /// The path provided is inferred whether it's a file or a directory. A file
-    /// is parsed with [`UnresolvedPackageGroup::parse_file`] and a directory is
-    /// parsed with [`UnresolvedPackageGroup::parse_dir`].
-    #[cfg(feature = "std")]
-    pub fn parse_path(path: impl AsRef<Path>) -> anyhow::Result<UnresolvedPackageGroup> {
-        let path = path.as_ref();
-        if path.is_dir() {
-            UnresolvedPackageGroup::parse_dir(path)
-        } else {
-            UnresolvedPackageGroup::parse_file(path)
-        }
-    }
-
-    /// Parses a WIT package from the file provided.
-    ///
-    /// The return value represents all packages found in the WIT file which
-    /// might be either one or multiple depending on the syntax used.
-    #[cfg(feature = "std")]
-    pub fn parse_file(path: impl AsRef<Path>) -> anyhow::Result<UnresolvedPackageGroup> {
-        let path = path.as_ref();
-        let contents = std::fs::read_to_string(path)
-            .with_context(|| format!("failed to read file {path:?}"))?;
-        Self::parse(path, &contents)
-    }
-
 
     /// Parses a WIT package from the directory provided.
     ///
