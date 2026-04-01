@@ -541,9 +541,43 @@ package {name} is defined in two different locations:\n\
         let mut moved_interfaces = Vec::new();
         for (id, mut iface) in interfaces {
             let new_id = match interface_map.get(&id).copied() {
-                Some(id) => {
-                    update_stability(&iface.stability, &mut self.interfaces[id].stability)?;
-                    id
+                Some(into_id) => {
+                    update_stability(&iface.stability, &mut self.interfaces[into_id].stability)?;
+
+                    // Add any extra types from `from`'s interface that
+                    // don't exist in `into`'s interface. These types were
+                    // already moved as new types above (since they weren't
+                    // in `type_map`), but they still need to be registered
+                    // in the target interface's `types` map.
+                    for (name, from_type_id) in iface.types.iter() {
+                        if self.interfaces[into_id].types.contains_key(name) {
+                            continue;
+                        }
+                        let new_type_id = remap.map_type(*from_type_id, Default::default())?;
+                        self.interfaces[into_id]
+                            .types
+                            .insert(name.clone(), new_type_id);
+                    }
+
+                    // Add any extra functions from `from`'s interface that
+                    // don't exist in `into`'s interface. These need their
+                    // type references remapped and spans adjusted.
+                    let extra_funcs: Vec<_> = iface
+                        .functions
+                        .into_iter()
+                        .filter(|(name, _)| {
+                            !self.interfaces[into_id]
+                                .functions
+                                .contains_key(name.as_str())
+                        })
+                        .collect();
+                    for (name, mut func) in extra_funcs {
+                        remap.update_function(self, &mut func, Default::default())?;
+                        func.adjust_spans(span_offset);
+                        self.interfaces[into_id].functions.insert(name, func);
+                    }
+
+                    into_id
                 }
                 None => {
                     log::debug!("moving interface {:?}", iface.name);
@@ -679,6 +713,11 @@ package {name} is defined in two different locations:\n\
         }
 
         log::trace!("now have {} packages", self.packages.len());
+
+        // Ensure the interfaces arena is in topological order after the
+        // merge. Newly-added interfaces may have been appended after
+        // existing interfaces that now depend on them.
+        self.topologically_sort_interfaces(Some(&mut remap));
 
         #[cfg(debug_assertions)]
         self.assert_valid();
@@ -1488,6 +1527,149 @@ package {name} is defined in two different locations:\n\
         }
         order.push(id);
         pushed[id.index()] = true;
+    }
+
+    /// Rebuilds the interfaces arena in topological order and updates all
+    /// InterfaceId references throughout this `Resolve`.
+    ///
+    /// After a merge, newly-added interfaces may appear after existing
+    /// interfaces that now depend on them. This method re-orders the
+    /// interfaces arena so that dependencies always precede dependents
+    /// within each package.
+    ///
+    /// The optional `remap` is updated so that its interface entries reflect
+    /// the new interface IDs.
+    fn topologically_sort_interfaces(&mut self, remap: Option<&mut Remap>) {
+        // Compute a global topological order: iterate packages in topological
+        // order, and within each package topologically sort interfaces based
+        // on their `use`-type dependencies.
+        let mut order = Vec::with_capacity(self.interfaces.len());
+        let mut visited = vec![false; self.interfaces.len()];
+
+        for pkg_id in self.topological_packages() {
+            let pkg = &self.packages[pkg_id];
+            for (_, &iface_id) in pkg.interfaces.iter() {
+                self.visit_interface_topo(iface_id, pkg_id, &mut visited, &mut order);
+            }
+        }
+
+        // Also include interfaces that don't belong to any package (shouldn't
+        // normally happen, but be safe).
+        for (id, _) in self.interfaces.iter() {
+            if !visited[id.index()] {
+                order.push(id);
+            }
+        }
+
+        // Check if already in order — if so, skip the rebuild.
+        let already_sorted = order
+            .iter()
+            .zip(order.iter().skip(1))
+            .all(|(a, b)| a.index() < b.index());
+        if already_sorted {
+            return;
+        }
+
+        // Build old-to-new mapping.
+        let mut old_to_new: Vec<Option<InterfaceId>> = vec![None; self.interfaces.len()];
+
+        // Consume the old arena and put items into a vec for random access.
+        let old_arena = mem::take(&mut self.interfaces);
+        let mut items: Vec<Option<Interface>> = old_arena
+            .into_iter()
+            .map(|(_, iface)| Some(iface))
+            .collect();
+
+        // Rebuild the arena in topological order.
+        for &old_id in &order {
+            let iface = items[old_id.index()].take().unwrap();
+            let new_id = self.interfaces.alloc(iface);
+            old_to_new[old_id.index()] = Some(new_id);
+        }
+
+        // Helper closure to map an old InterfaceId to the new one.
+        let map_iface = |id: InterfaceId| -> InterfaceId { old_to_new[id.index()].unwrap() };
+
+        // Update all InterfaceId references throughout the Resolve.
+
+        // 1. Package::interfaces
+        for (_, pkg) in self.packages.iter_mut() {
+            for (_, id) in pkg.interfaces.iter_mut() {
+                *id = map_iface(*id);
+            }
+        }
+
+        // 2. Types: TypeOwner::Interface
+        for (_, ty) in self.types.iter_mut() {
+            if let TypeOwner::Interface(id) = &mut ty.owner {
+                *id = map_iface(*id);
+            }
+        }
+
+        // 3. Worlds: imports/exports with WorldKey::Interface and WorldItem::Interface
+        for (_, world) in self.worlds.iter_mut() {
+            let imports = mem::take(&mut world.imports);
+            for (key, mut item) in imports {
+                let new_key = match key {
+                    WorldKey::Interface(id) => WorldKey::Interface(map_iface(id)),
+                    other => other,
+                };
+                if let WorldItem::Interface { id, .. } = &mut item {
+                    *id = map_iface(*id);
+                }
+                world.imports.insert(new_key, item);
+            }
+            let exports = mem::take(&mut world.exports);
+            for (key, mut item) in exports {
+                let new_key = match key {
+                    WorldKey::Interface(id) => WorldKey::Interface(map_iface(id)),
+                    other => other,
+                };
+                if let WorldItem::Interface { id, .. } = &mut item {
+                    *id = map_iface(*id);
+                }
+                world.exports.insert(new_key, item);
+            }
+        }
+
+        // 4. Interface::clone_of
+        for (_, iface) in self.interfaces.iter_mut() {
+            if let Some(id) = &mut iface.clone_of {
+                *id = map_iface(*id);
+            }
+        }
+
+        // 5. Update the Remap if provided.
+        if let Some(remap) = remap {
+            for entry in remap.interfaces.iter_mut() {
+                if let Some(id) = entry {
+                    *id = map_iface(*id);
+                }
+            }
+        }
+    }
+
+    /// Depth-first visit for topological sorting of interfaces within a package.
+    fn visit_interface_topo(
+        &self,
+        id: InterfaceId,
+        pkg_id: PackageId,
+        visited: &mut Vec<bool>,
+        order: &mut Vec<InterfaceId>,
+    ) {
+        if visited[id.index()] {
+            return;
+        }
+        visited[id.index()] = true;
+
+        // Visit same-package dependencies first.
+        for dep in self.interface_direct_deps(id) {
+            if self.interfaces[dep].package == Some(pkg_id) {
+                self.visit_interface_topo(dep, pkg_id, visited, order);
+            }
+        }
+
+        order.push(id);
     }
 
     #[doc(hidden)]
@@ -4149,24 +4331,54 @@ impl<'a> MergeMap<'a> {
         let from_interface = &self.from.interfaces[from_id];
         let into_interface = &self.into.interfaces[into_id];
 
-        // Unlike documents/interfaces above if an interface in `from`
-        // differs from the interface in `into` then that's considered an
-        // error. Changing interfaces can reflect changes in imports/exports
-        // which may not be expected so it's currently required that all
-        // interfaces, when merged, exactly match.
-        //
-        // One case to consider here, for example, is that if a world in
-        // `into` exports the interface `into_id` then if `from_id` were to
-        // add more items into `into` then it would unexpectedly require more
-        // items to be exported which may not work. In an import context this
-        // might work since it's "just more items available for import", but
-        // for now a conservative route of "interfaces must match" is taken.
+        // When merging interfaces, types and functions that exist in both
+        // `from` and `into` must match structurally. One interface is
+        // allowed to be a superset of the other (i.e., contain extra types
+        // or functions), which enables commutative merging of partial views
+        // of the same interface. However, if BOTH sides have items the
+        // other doesn't, they're considered incompatible.
+
+        let from_has_extra_types = from_interface
+            .types
+            .keys()
+            .any(|name| !into_interface.types.contains_key(name));
+        let into_has_extra_types = into_interface
+            .types
+            .keys()
+            .any(|name| !from_interface.types.contains_key(name));
+        if from_has_extra_types && into_has_extra_types {
+            let from_extra: Vec<_> = from_interface
+                .types
+                .keys()
+                .filter(|n| !into_interface.types.contains_key(n.as_str()))
+                .collect();
+            bail!("expected type `{}` to be present", from_extra[0],);
+        }
+
+        let from_has_extra_funcs = from_interface
+            .functions
+            .keys()
+            .any(|name| !into_interface.functions.contains_key(name));
+        let into_has_extra_funcs = into_interface
+            .functions
+            .keys()
+            .any(|name| !from_interface.functions.contains_key(name));
+        if from_has_extra_funcs && into_has_extra_funcs {
+            let from_extra: Vec<_> = from_interface
+                .functions
+                .keys()
+                .filter(|n| !into_interface.functions.contains_key(n.as_str()))
+                .collect();
+            bail!("expected function `{}` to be present", from_extra[0],);
+        }
 
         for (name, from_type_id) in from_interface.types.iter() {
-            let into_type_id = *into_interface
-                .types
-                .get(name)
-                .ok_or_else(|| anyhow!("expected type `{name}` to be present"))?;
+            let into_type_id = match into_interface.types.get(name) {
+                Some(id) => *id,
+                // Extra type in `from` not present in `into`; it will be
+                // moved as a new type and added to the interface later.
+                None => continue,
+            };
             let prev = self.type_map.insert(*from_type_id, into_type_id);
             assert!(prev.is_none());
 
@@ -4177,7 +4389,9 @@ impl<'a> MergeMap<'a> {
         for (name, from_func) in from_interface.functions.iter() {
             let into_func = match into_interface.functions.get(name) {
                 Some(func) => func,
-                None => bail!("expected function `{name}` to be present"),
+                // Extra function in `from` not present in `into`; it will
+                // be added to the interface during the merge phase.
+                None => continue,
             };
             self.build_function(from_func, into_func)
                 .with_context(|| format!("mismatch in function `{name}`"))?;
@@ -5540,6 +5754,103 @@ interface iface {
                 param.name
             );
         }
+
+        Ok(())
+    }
+
+    #[test]
+    fn merging_is_commutative() -> Result<()> {
+        let mut resolve1 = Resolve::default();
+        resolve1.push_str(
+            "test1.wit",
+            r#"
+                package wasi:io@0.2.0;
+
+                interface error {
+                    resource error;
+                }
+                interface streams {
+                    use error.{error};
+
+                    resource output-stream {
+                        check-write: func() -> result<u64, stream-error>;
+                        write: func(contents: list<u8>) -> result<_, stream-error>;
+                        blocking-write-and-flush: func(contents: list<u8>) -> result<_, stream-error>;
+                        blocking-flush: func() -> result<_, stream-error>;
+                    }
+
+                    variant stream-error {
+                        last-operation-failed(error),
+                        closed,
+                    }
+
+                    resource input-stream;
+                }
+            "#,
+        )?;
+
+        let mut resolve2 = Resolve::default();
+        resolve2.push_str(
+            "test2.wit",
+            r#"
+                package wasi:io@0.2.0;
+
+                interface error {
+                    resource error {
+                        to-debug-string: func() -> string;
+                    }
+                }
+                interface poll {
+                    resource pollable {
+                        ready: func() -> bool;
+                        block: func();
+                    }
+
+                    poll: func(in: list<borrow<pollable>>) -> list<u32>;
+                }
+                interface streams {
+                    use error.{error};
+                    use poll.{pollable};
+
+                    variant stream-error {
+                        last-operation-failed(error),
+                        closed,
+                    }
+
+                    resource input-stream {
+                        read: func(len: u64) -> result<list<u8>, stream-error>;
+                        blocking-read: func(len: u64) -> result<list<u8>, stream-error>;
+                        skip: func(len: u64) -> result<u64, stream-error>;
+                        blocking-skip: func(len: u64) -> result<u64, stream-error>;
+                        subscribe: func() -> pollable;
+                    }
+
+                    resource output-stream {
+                        check-write: func() -> result<u64, stream-error>;
+                        write: func(contents: list<u8>) -> result<_, stream-error>;
+                        blocking-write-and-flush: func(contents: list<u8>) -> result<_, stream-error>;
+                        flush: func() -> result<_, stream-error>;
+                        blocking-flush: func() -> result<_, stream-error>;
+                        subscribe: func() -> pollable;
+                        write-zeroes: func(len: u64) -> result<_, stream-error>;
+                        blocking-write-zeroes-and-flush: func(len: u64) -> result<_, stream-error>;
+                        splice: func(src: borrow<input-stream>, len: u64) -> result<u64, stream-error>;
+                        blocking-splice: func(src: borrow<input-stream>, len: u64) -> result<u64, stream-error>;
+                    }
+                }
+                world imports {
+                    import error;
+                    import poll;
+                    import streams;
+                }
+            "#,
+        )?;
+
+        let resolve1_clone = resolve1.clone();
+        let resolve2_clone = resolve2.clone();
+
+        let _ = resolve1.merge(resolve2_clone)?;
+        let _ = resolve2.merge(resolve1_clone)?;
 
         Ok(())
     }
