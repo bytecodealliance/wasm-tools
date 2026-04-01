@@ -312,12 +312,6 @@ impl UnresolvedPackageGroup {
             .map_err(|(map, e)| anyhow::anyhow!("{}", e.highlight(&map)))
     }
 
-    /// Parses the given string as a wit document.
-    ///
-    /// The `path` argument is used for error reporting. The `contents` provided
-    /// are considered to be the contents of `path`. This function does not read
-    /// the filesystem.
-
     /// Parses a WIT package from the directory provided.
     ///
     /// This method will look at all files under the `path` specified. All
