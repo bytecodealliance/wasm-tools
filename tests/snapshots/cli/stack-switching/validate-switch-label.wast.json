@@ -1,0 +1,45 @@
+{
+  "source_filename": "tests/cli/stack-switching/validate-switch-label.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "validate-switch-label.0.wasm",
+      "module_type": "binary",
+      "text": "type mismatch: switch tag does not match continuation"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 21,
+      "filename": "validate-switch-label.1.wasm",
+      "module_type": "binary",
+      "text": "type mismatch: switch tag does not match continuation"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 38,
+      "filename": "validate-switch-label.2.wasm",
+      "module_type": "binary",
+      "text": "type mismatch: switch tag does not match continuation"
+    },
+    {
+      "type": "module",
+      "line": 54,
+      "filename": "validate-switch-label.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 70,
+      "filename": "validate-switch-label.4.wasm",
+      "module_type": "binary",
+      "text": "type mismatch: switch tag does not match continuation"
+    },
+    {
+      "type": "module",
+      "line": 86,
+      "filename": "validate-switch-label.5.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

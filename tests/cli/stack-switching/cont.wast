@@ -187,6 +187,20 @@
       )
       (drop)
       (drop)))
+  "type mismatch between tag type and label type")
+
+(assert_invalid
+  (module
+    (type $ft (func))
+    (type $ct (cont $ft))
+    (tag $foo)
+    (func
+      (block $on_foo (result (ref $ft))
+        (resume $ct (on $foo $on_foo) (ref.null $ct))
+        (unreachable)
+      )
+      (drop)
+      (drop)))
   "non-continuation type")
 
 (assert_invalid
