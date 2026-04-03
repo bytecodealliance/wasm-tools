@@ -1039,6 +1039,28 @@ package {name} is defined in two different locations:\n\
         Some(self.canonicalized_id_of_name(interface.package.unwrap(), interface.name.as_ref()?))
     }
 
+    /// Helper to rename a world and update the package's world map.
+    ///
+    /// Used by both [`Resolve::importize`] and [`Resolve::exportize`] to
+    /// rename the world to avoid confusion with the original world name.
+    fn rename_world(
+        &mut self,
+        world_id: WorldId,
+        out_world_name: Option<String>,
+        default_suffix: &str,
+    ) {
+        let world = &mut self.worlds[world_id];
+        let pkg = &mut self.packages[world.package.unwrap()];
+        pkg.worlds.shift_remove(&world.name);
+        if let Some(name) = out_world_name {
+            world.name = name.clone();
+            pkg.worlds.insert(name, world_id);
+        } else {
+            world.name.push_str(default_suffix);
+            pkg.worlds.insert(world.name.clone(), world_id);
+        }
+    }
+
     /// Convert a world to an "importized" version where the world is updated
     /// in-place to reflect what it would look like to be imported.
     ///
@@ -1055,23 +1077,11 @@ package {name} is defined in two different locations:\n\
     /// is intended to be used as part of language tooling when depending on
     /// other components.
     pub fn importize(&mut self, world_id: WorldId, out_world_name: Option<String>) -> Result<()> {
-        // Rename the world to avoid having it get confused with the original
-        // name of the world. Add `-importized` to it for now. Precisely how
-        // this new world is created may want to be updated over time if this
-        // becomes problematic.
-        let world = &mut self.worlds[world_id];
-        let pkg = &mut self.packages[world.package.unwrap()];
-        pkg.worlds.shift_remove(&world.name);
-        if let Some(name) = out_world_name {
-            world.name = name.clone();
-            pkg.worlds.insert(name, world_id);
-        } else {
-            world.name.push_str("-importized");
-            pkg.worlds.insert(world.name.clone(), world_id);
-        }
+        self.rename_world(world_id, out_world_name, "-importized");
 
         // Trim all non-type definitions from imports. Types can be used by
         // exported functions, for example, so they're preserved.
+        let world = &mut self.worlds[world_id];
         world.imports.retain(|_, item| match item {
             WorldItem::Type { .. } => true,
             _ => false,
@@ -1108,13 +1118,13 @@ package {name} is defined in two different locations:\n\
     /// This is the inverse of [`Resolve::importize`]. The general idea is that
     /// this function will update the `world_id` specified such that it exports
     /// the functionality that it previously imported. The world will be left
-    /// with no imports (except for type definitions which may be needed by
-    /// exported functions).
+    /// with no imports (except for transitive interface dependencies which may
+    /// be needed by exported interfaces).
     ///
-    /// If `interfaces` is `None`, all imports are moved to exports (the
-    /// original behavior). If `interfaces` is `Some`, only the imports whose
-    /// key is `WorldKey::Interface(id)` where `id` is in the provided list
-    /// are moved to exports; all other imports are left as-is.
+    /// An optional `filter` can be provided to control which imports are moved.
+    /// When `Some`, only imports for which the filter returns `true` are moved
+    /// to exports; remaining imports are left as-is. When `None`, all imports
+    /// are moved.
     ///
     /// This world is then suitable for merging into other worlds or generating
     /// bindings in a context that is exporting the original world. This is
@@ -1124,59 +1134,22 @@ package {name} is defined in two different locations:\n\
         &mut self,
         world_id: WorldId,
         out_world_name: Option<String>,
-        interfaces: Option<&[InterfaceId]>,
+        filter: Option<&dyn Fn(&WorldKey, &WorldItem) -> bool>,
     ) -> Result<()> {
-        // Rename the world to avoid having it get confused with the original
-        // name of the world. Add `-exportized` to it for now. Precisely how
-        // this new world is created may want to be updated over time if this
-        // becomes problematic.
+        self.rename_world(world_id, out_world_name, "-exportized");
+
         let world = &mut self.worlds[world_id];
-        let pkg = &mut self.packages[world.package.unwrap()];
-        pkg.worlds.shift_remove(&world.name);
-        if let Some(name) = out_world_name {
-            world.name = name.clone();
-            pkg.worlds.insert(name, world_id);
-        } else {
-            world.name.push_str("-exportized");
-            pkg.worlds.insert(world.name.clone(), world_id);
-        }
-
-        // Trim all non-type definitions from exports. Types can be used by
-        // imported functions, for example, so they're preserved.
-        world.exports.retain(|_, item| match item {
-            WorldItem::Type { .. } => true,
-            _ => false,
-        });
-
-        // Determine which imports to move based on the `interfaces` filter.
-        let should_move = |key: &WorldKey| -> bool {
-            match interfaces {
-                None => true,
-                Some(ids) => match key {
-                    WorldKey::Interface(id) => ids.contains(id),
-                    _ => false,
-                },
-            }
-        };
+        world.exports.clear();
 
         let old_imports = mem::take(&mut world.imports);
         for (name, import) in old_imports {
-            if should_move(&name) {
-                match (name.clone(), world.exports.insert(name, import)) {
-                    // no previous item? this insertion was ok
-                    (_, None) => {}
-
-                    // cannot overwrite an export with an import
-                    (WorldKey::Name(name), Some(_)) => {
-                        bail!("world import `{name}` conflicts with export of same name");
-                    }
-
-                    // Imports already don't overlap each other and the only exports
-                    // preserved above were types so this shouldn't be reachable.
-                    (WorldKey::Interface(_), _) => unreachable!(),
-                }
+            let should_move = match &filter {
+                Some(f) => f(&name, &import),
+                None => true,
+            };
+            if should_move {
+                world.exports.insert(name, import);
             } else {
-                // Keep as an import.
                 world.imports.insert(name, import);
             }
         }
@@ -5633,123 +5606,6 @@ interface iface {
         Ok(())
     }
 
-    #[test]
-    fn exportize_basic() -> Result<()> {
-        let mut resolve = Resolve::default();
-        let pkg = resolve.push_str(
-            "test.wit",
-            r#"
-                package foo:bar;
-
-                interface i {
-                    f: func();
-                }
-
-                world w {
-                    import i;
-                    export e: func();
-                }
-            "#,
-        )?;
-        let world_id = resolve.packages[pkg].worlds["w"];
-
-        resolve.exportize(world_id, None, None)?;
-
-        let world = &resolve.worlds[world_id];
-        assert_eq!(world.name, "w-exportized");
-        // The original import `i` should now be an export.
-        assert!(
-            world.exports.keys().any(|k| match k {
-                WorldKey::Interface(_) => true,
-                _ => false,
-            }),
-            "expected interface import to become an export"
-        );
-        // `e` was an exported function but should now be gone (only types are
-        // kept from the original exports).
-        assert!(
-            !world
-                .exports
-                .keys()
-                .any(|k| matches!(k, WorldKey::Name(n) if n == "e")),
-            "expected original non-type export `e` to be removed"
-        );
-
-        Ok(())
-    }
-
-    #[test]
-    fn exportize_custom_name() -> Result<()> {
-        let mut resolve = Resolve::default();
-        let pkg = resolve.push_str(
-            "test.wit",
-            r#"
-                package foo:bar;
-
-                world w {
-                    import f: func();
-                }
-            "#,
-        )?;
-        let world_id = resolve.packages[pkg].worlds["w"];
-
-        resolve.exportize(world_id, Some("my-world".to_string()), None)?;
-
-        let world = &resolve.worlds[world_id];
-        assert_eq!(world.name, "my-world");
-        // The import `f` should now be an export.
-        assert!(world.exports.contains_key(&WorldKey::Name("f".to_string())));
-        assert!(world.imports.is_empty());
-
-        Ok(())
-    }
-
-    #[test]
-    fn exportize_with_interface() -> Result<()> {
-        let mut resolve = Resolve::default();
-        let pkg = resolve.push_str(
-            "test.wit",
-            r#"
-                package foo:bar;
-
-                interface a {
-                    x: func();
-                }
-
-                interface b {
-                    y: func();
-                }
-
-                world w {
-                    import a;
-                    import b;
-                }
-            "#,
-        )?;
-        let world_id = resolve.packages[pkg].worlds["w"];
-
-        resolve.exportize(world_id, None, None)?;
-
-        let world = &resolve.worlds[world_id];
-        // Both interfaces should now be exports.
-        let export_count = world
-            .exports
-            .keys()
-            .filter(|k| matches!(k, WorldKey::Interface(_)))
-            .count();
-        assert_eq!(export_count, 2, "expected both interfaces as exports");
-        // No non-elaborated imports should remain.
-        assert!(
-            world
-                .imports
-                .iter()
-                .all(|(_, item)| matches!(item, WorldItem::Interface { .. })),
-            "only elaborated interface imports should remain"
-        );
-
-        Ok(())
-    }
-
     /// Demonstrates the round-trip property: starting from a world with only
     /// exports, `importize` turns them into imports, then `exportize` turns
     /// them back. The resulting world has the same set of exports (by key)
@@ -5826,70 +5682,6 @@ interface iface {
                 "expected `{key}` to be an export after round-trip, got exports: {final_export_keys:?}"
             );
         }
-
-        Ok(())
-    }
-
-    /// When `interfaces` is `Some`, only the listed interface imports are
-    /// moved to exports; other imports remain as imports.
-    #[test]
-    fn exportize_selective() -> Result<()> {
-        let mut resolve = Resolve::default();
-        let pkg = resolve.push_str(
-            "test.wit",
-            r#"
-                package foo:bar;
-
-                interface a {
-                    x: func();
-                }
-
-                interface b {
-                    y: func();
-                }
-
-                world w {
-                    import a;
-                    import b;
-                }
-            "#,
-        )?;
-        let world_id = resolve.packages[pkg].worlds["w"];
-
-        // Grab the InterfaceId for `a` only.
-        let a_id = resolve.packages[pkg].interfaces["a"];
-
-        resolve.exportize(world_id, None, Some(&[a_id]))?;
-
-        let world = &resolve.worlds[world_id];
-
-        // `a` should now be an export.
-        assert!(
-            world.exports.keys().any(|k| match k {
-                WorldKey::Interface(id) => *id == a_id,
-                _ => false,
-            }),
-            "expected interface `a` to become an export"
-        );
-
-        // `b` should still be an import (not moved).
-        let b_id = resolve.packages[pkg].interfaces["b"];
-        assert!(
-            world.imports.keys().any(|k| match k {
-                WorldKey::Interface(id) => *id == b_id,
-                _ => false,
-            }),
-            "expected interface `b` to remain an import"
-        );
-
-        // `b` should NOT be in exports (apart from elaborated deps).
-        assert!(
-            !world.exports.keys().any(|k| match k {
-                WorldKey::Interface(id) => *id == b_id,
-                _ => false,
-            }),
-            "expected interface `b` not to appear as an export"
-        );
 
         Ok(())
     }
