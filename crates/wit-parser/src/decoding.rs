@@ -18,6 +18,19 @@ use wasmparser::{
     types::Types,
 };
 
+/// Parses an `[implements=<interface_name>]label` name, returning
+/// the interface name and label if the name matches this pattern.
+fn parse_implements_name(name: &str) -> Option<(&str, &str)> {
+    let rest = name.strip_prefix("[implements=<")?;
+    let end = rest.find(">]")?;
+    let interface = &rest[..end];
+    let label = &rest[end + 2..];
+    if interface.is_empty() || label.is_empty() {
+        return None;
+    }
+    Some((interface, label))
+}
+
 /// Represents information about a decoded WebAssembly component.
 struct ComponentInfo {
     /// Wasmparser-defined type information learned after a component is fully
@@ -654,21 +667,8 @@ impl WitPackageDecoder<'_> {
         let (name, item) = match ty {
             ComponentEntityType::Instance(i) => {
                 let ty = &self.types[i];
-                let (name, id) = if name.contains('/') {
-                    let id = self.register_import(name, ty)?;
-                    (WorldKey::Interface(id), id)
-                } else {
-                    self.register_interface(name, ty, package)
-                        .with_context(|| format!("failed to decode WIT from import `{name}`"))?
-                };
-                (
-                    name,
-                    WorldItem::Interface {
-                        id,
-                        stability: Default::default(),
-                        span: Default::default(),
-                    },
-                )
+                self.decode_world_instance(name, ty, package)
+                    .with_context(|| format!("failed to decode WIT from import `{name}`"))?
             }
             ComponentEntityType::Func(i) => {
                 let ty = &self.types[i];
@@ -720,21 +720,8 @@ impl WitPackageDecoder<'_> {
             }
             ComponentEntityType::Instance(i) => {
                 let ty = &types[i];
-                let (name, id) = if name.contains('/') {
-                    let id = self.register_import(name, ty)?;
-                    (WorldKey::Interface(id), id)
-                } else {
-                    self.register_interface(name, ty, package)
-                        .with_context(|| format!("failed to decode WIT from export `{name}`"))?
-                };
-                (
-                    name,
-                    WorldItem::Interface {
-                        id,
-                        stability: Default::default(),
-                        span: Default::default(),
-                    },
-                )
+                self.decode_world_instance(name, ty, package)
+                    .with_context(|| format!("failed to decode WIT from export `{name}`"))?
             }
             _ => {
                 bail!("component export `{name}` was not a function or instance")
@@ -742,6 +729,55 @@ impl WitPackageDecoder<'_> {
         };
         self.resolve.worlds[world].exports.insert(name, item);
         Ok(())
+    }
+
+    /// Decodes a component instance import/export name into a
+    /// `(WorldKey, WorldItem)` pair.
+    ///
+    /// Handles three name forms:
+    /// - `[implements=<I>]label` — named import/export implementing interface I
+    /// - `ns:pkg/iface` — qualified interface name, keyed by `InterfaceId`
+    /// - `plain-name` — unqualified name for an inline or local interface
+    fn decode_world_instance<'a>(
+        &mut self,
+        name: &str,
+        ty: &ComponentInstanceType,
+        package: &mut PackageFields<'a>,
+    ) -> Result<(WorldKey, WorldItem)> {
+        if let Some((iface_name, label)) = parse_implements_name(name) {
+            let id = self.register_import(iface_name, ty)?;
+            Ok((
+                WorldKey::Name(label.to_string()),
+                WorldItem::Interface {
+                    id,
+                    stability: Default::default(),
+                    implements: Some(id),
+                    span: Default::default(),
+                },
+            ))
+        } else if name.contains('/') {
+            let id = self.register_import(name, ty)?;
+            Ok((
+                WorldKey::Interface(id),
+                WorldItem::Interface {
+                    id,
+                    stability: Default::default(),
+                    implements: None,
+                    span: Default::default(),
+                },
+            ))
+        } else {
+            let (key, id) = self.register_interface(name, ty, package)?;
+            Ok((
+                key,
+                WorldItem::Interface {
+                    id,
+                    stability: Default::default(),
+                    implements: None,
+                    span: Default::default(),
+                },
+            ))
+        }
     }
 
     /// Registers that the `name` provided is either imported interface from a
@@ -1111,27 +1147,7 @@ impl WitPackageDecoder<'_> {
             let (name, item) = match ty {
                 ComponentEntityType::Instance(idx) => {
                     let ty = &self.types[*idx];
-                    let (name, id) = if name.contains('/') {
-                        // If a name is an interface import then it is either to
-                        // a package-local or foreign interface, and both
-                        // situations are handled in `register_import`.
-                        let id = self.register_import(name, ty)?;
-                        (WorldKey::Interface(id), id)
-                    } else {
-                        // A plain kebab-name indicates an inline interface that
-                        // wasn't declared explicitly elsewhere with a name, and
-                        // `register_interface` will create a new `Interface`
-                        // with no name.
-                        self.register_interface(name, ty, package)?
-                    };
-                    (
-                        name,
-                        WorldItem::Interface {
-                            id,
-                            stability: Default::default(),
-                            span: Default::default(),
-                        },
-                    )
+                    self.decode_world_instance(name, ty, package)?
                 }
                 ComponentEntityType::Type {
                     created,
@@ -1161,26 +1177,7 @@ impl WitPackageDecoder<'_> {
             let (name, item) = match ty {
                 ComponentEntityType::Instance(idx) => {
                     let ty = &self.types[*idx];
-                    let (name, id) = if name.contains('/') {
-                        // Note that despite this being an export this is
-                        // calling `register_import`. With a URL this interface
-                        // must have been previously defined so this will
-                        // trigger the logic of either filling in a remotely
-                        // defined interface or connecting items to local
-                        // definitions of our own interface.
-                        let id = self.register_import(name, ty)?;
-                        (WorldKey::Interface(id), id)
-                    } else {
-                        self.register_interface(name, ty, package)?
-                    };
-                    (
-                        name,
-                        WorldItem::Interface {
-                            id,
-                            stability: Default::default(),
-                            span: Default::default(),
-                        },
-                    )
+                    self.decode_world_instance(name, ty, package)?
                 }
 
                 ComponentEntityType::Func(idx) => {
@@ -1254,8 +1251,9 @@ impl WitPackageDecoder<'_> {
                     }
                 }
 
-                // Functions shouldn't have ID-based names at this time.
+                // Functions shouldn't have ID-based or implements names.
                 ComponentNameKind::Interface(_)
+                | ComponentNameKind::Implements(_)
                 | ComponentNameKind::Url(_)
                 | ComponentNameKind::Hash(_)
                 | ComponentNameKind::Dependency(_) => unreachable!(),
@@ -1572,8 +1570,14 @@ impl WitPackageDecoder<'_> {
             world.package = Some(pkg);
             for (name, item) in world.imports.iter().chain(world.exports.iter()) {
                 if let WorldKey::Name(_) = name {
-                    if let WorldItem::Interface { id, .. } = item {
-                        self.resolve.interfaces[*id].package = Some(pkg);
+                    if let WorldItem::Interface { id, implements, .. } = item {
+                        // Only reassign the package for anonymous (inline)
+                        // interfaces. Implements items use `WorldKey::Name`
+                        // but reference interfaces from other packages that
+                        // must keep their original package assignment.
+                        if implements.is_none() {
+                            self.resolve.interfaces[*id].package = Some(pkg);
+                        }
                     }
                 }
             }

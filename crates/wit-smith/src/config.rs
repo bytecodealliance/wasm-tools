@@ -31,6 +31,8 @@ pub struct Config {
     pub fixed_length_lists: bool,
     #[cfg_attr(feature = "clap", clap(long, default_value_t = Config::default().world_include))]
     pub world_include: bool,
+    #[cfg_attr(feature = "clap", clap(long, default_value_t = Config::default().implements))]
+    pub implements: bool,
 }
 
 impl Default for Config {
@@ -50,6 +52,7 @@ impl Default for Config {
             error_context: false,
             fixed_length_lists: false,
             world_include: false,
+            implements: false,
         }
     }
 }
@@ -71,6 +74,7 @@ impl Arbitrary<'_> for Config {
             error_context: u.arbitrary()?,
             fixed_length_lists: u.arbitrary()?,
             world_include: false,
+            implements: u.arbitrary()?,
         })
     }
 }
