@@ -1939,7 +1939,7 @@ where
         Ok(old_func_ty)
     }
 
-    /// Tests whethet `[p1] -> [r1] <: [p2] -> [r2]`
+    /// Tests whether `[p1] -> [r1] <: [p2] -> [r2]`
     fn is_func_subtype(
         &mut self,
         (p1, r1): (&[ValType], &[ValType]),
