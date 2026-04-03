@@ -1995,12 +1995,27 @@ pub struct MemoryType {
 
 impl MemoryType {
     /// Gets the index type for the memory.
-    pub fn index_type(&self) -> ValType {
+    pub const fn index_type(&self) -> ValType {
         if self.memory64 {
             ValType::I64
         } else {
             ValType::I32
         }
+    }
+
+    /// Returns the actual log2 of the page size of this linear memory,
+    /// returning the default if the memory itself doesn't specify.
+    pub const fn page_size_log2(&self) -> u32 {
+        const DEFAULT_WASM_PAGE_SIZE_LOG2: u32 = 16;
+        match self.page_size_log2 {
+            Some(log2) => log2,
+            None => DEFAULT_WASM_PAGE_SIZE_LOG2,
+        }
+    }
+
+    /// Returns the page size, in bytes, of this linear memory.
+    pub const fn page_size(&self) -> u32 {
+        1 << self.page_size_log2()
     }
 }
 

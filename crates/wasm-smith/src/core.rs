@@ -2916,7 +2916,7 @@ impl Module {
 
         // Interesting values related to memory bounds.
         for m in self.memories.iter() {
-            let min = m.minimum.saturating_mul(crate::page_size(m).into());
+            let min = m.minimum.saturating_mul(m.page_size().into());
             interesting(min);
             for i in 0..5 {
                 if let Some(x) = min.checked_add(1 << i) {
@@ -2928,7 +2928,7 @@ impl Module {
             }
 
             if let Some(max) = m.maximum {
-                let max = max.saturating_mul(crate::page_size(m).into());
+                let max = max.saturating_mul(m.page_size().into());
                 interesting(max);
                 for i in 0..5 {
                     if let Some(x) = max.checked_add(1 << i) {
