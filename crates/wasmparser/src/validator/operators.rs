@@ -1421,11 +1421,29 @@ where
         let sub_ty = RefType::new(nullable, heap_type).ok_or_else(|| {
             BinaryReaderError::new("implementation limit: type index too large", self.offset)
         })?;
-        let sup_ty = RefType::new(true, self.resources.top_type(&heap_type))
-            .expect("can't panic with non-concrete heap types");
+        let top = self.resources.top_type(&heap_type);
+        self.check_cast_to_allowed(top)?;
+        let sup_ty = RefType::new(true, top).expect("can't panic with non-concrete heap types");
 
         self.pop_ref(Some(sup_ty))?;
         Ok(sub_ty)
+    }
+
+    fn check_cast_to_allowed(&self, ty: HeapType) -> Result<()> {
+        let top = self.resources.top_type(&ty);
+        if matches!(
+            top,
+            HeapType::Abstract {
+                ty: AbstractHeapType::Cont,
+                ..
+            }
+        ) {
+            bail!(
+                self.offset,
+                "invalid cast: cannot cast to a continuation type"
+            );
+        }
+        Ok(())
     }
 
     /// Common helper for both nullable and non-nullable variants of `ref.test`
@@ -1463,6 +1481,8 @@ where
             }
             return Ok(());
         }
+
+        self.check_cast_to_allowed(to_ref_type.heap_type())?;
 
         if !self
             .resources
@@ -1842,77 +1862,76 @@ where
         table: ResumeTable,
         type_index: u32, // The type index annotation on the `resume` instruction, which `table` appears on.
     ) -> Result<&'resources FuncType> {
-        let cont_ty = self.cont_type_at(type_index)?;
+        // Note that comments here and type annotations come from the current
+        // overview of the stack-switching proposal at
+        // https://github.com/WebAssembly/stack-switching/blob/main/proposals/stack-switching/Explainer.md#instructions
+
         // ts1 -> ts2
+        let cont_ty = self.cont_type_at(type_index)?;
         let old_func_ty = self.func_type_of_cont_type(cont_ty);
+
         for handle in table.handlers {
             match handle {
                 Handle::OnLabel { tag, label } => {
-                    // ts1' -> ts2'
+                    // [t1*] -> [t2*]
                     let tag_ty = self.tag_at(tag)?;
-                    // ts1'' (ref (cont $ft))
-                    let block = self.jump(label)?;
-                    // Pop the continuation reference.
-                    match self.label_types(block.0, block.1)?.last() {
-                        Some(ValType::Ref(rt)) if rt.is_concrete_type_ref() => {
-                            let sub_ty = self.resources.sub_type_at_id(
-                                rt.type_index()
-                                    .unwrap()
-                                    .as_core_type_id()
-                                    .expect("canonicalized index"),
-                            );
-                            let new_cont = if let CompositeInnerType::Cont(cont) =
-                                &sub_ty.composite_type.inner
-                            {
-                                cont
-                            } else {
-                                bail!(self.offset, "non-continuation type");
-                            };
-                            let new_func_ty = self.func_type_of_cont_type(&new_cont);
-                            // Check that (ts2' -> ts2) <: $ft
-                            if new_func_ty.params().len() != tag_ty.results().len()
-                                || !self.is_subtype_many(new_func_ty.params(), tag_ty.results())
-                                || old_func_ty.results().len() != new_func_ty.results().len()
-                                || !self
-                                    .is_subtype_many(old_func_ty.results(), new_func_ty.results())
-                            {
-                                bail!(self.offset, "type mismatch in continuation type")
-                            }
-                            let expected_nargs = tag_ty.params().len() + 1;
-                            let actual_nargs = self.label_types(block.0, block.1)?.len();
-                            if actual_nargs != expected_nargs {
-                                bail!(
-                                    self.offset,
-                                    "type mismatch: expected {expected_nargs} label result(s), but label is annotated with {actual_nargs} results"
-                                )
-                            }
+                    let (ty, kind) = self.jump(label)?;
 
-                            let labeltys =
-                                self.label_types(block.0, block.1)?.take(expected_nargs - 1);
-
-                            // Check that ts1'' <: ts1'.
-                            for (tagty, &lblty) in labeltys.zip(tag_ty.params()) {
-                                if !self.resources.is_subtype(lblty, tagty) {
-                                    bail!(
-                                        self.offset,
-                                        "type mismatch between tag type and label type"
-                                    )
-                                }
-                            }
-                        }
-                        Some(ty) => {
-                            bail!(self.offset, "type mismatch: {}", ty_to_str(ty))
-                        }
-                        _ => bail!(
+                    // Check `C.labels[$label] = [t1'* (ref null? $ct)]`
+                    let mut label_tys = self.label_types(ty, kind)?;
+                    let ct = match label_tys.next_back() {
+                        Some(ValType::Ref(rt)) if rt.is_concrete_type_ref() => rt,
+                        Some(ty) => bail!(self.offset, "type mismatch: {}", ty_to_str(ty)),
+                        None => bail!(
                             self.offset,
                             "type mismatch: instruction requires continuation reference type but label has none"
                         ),
+                    };
+                    // Check `t1* <: t1'*`
+                    if tag_ty.params().len() != label_tys.len()
+                        || tag_ty
+                            .params()
+                            .iter()
+                            .copied()
+                            .zip(label_tys)
+                            .any(|(t1, t2)| !self.resources.is_subtype(t1, t2))
+                    {
+                        bail!(self.offset, "type mismatch between tag type and label type")
+                    }
+
+                    // Check `C.types[$ct] ~~ cont [t2'*] -> [t'*]`
+                    let sub_ty = self.resources.sub_type_at_id(
+                        ct.type_index()
+                            .unwrap()
+                            .as_core_type_id()
+                            .expect("canonicalized index"),
+                    );
+                    let new_cont =
+                        if let CompositeInnerType::Cont(cont) = &sub_ty.composite_type.inner {
+                            cont
+                        } else {
+                            bail!(self.offset, "non-continuation type");
+                        };
+                    let new_func_ty = self.func_type_of_cont_type(&new_cont);
+
+                    // Check `[t2*] -> [t*] <: [t2'*] -> [t'*]`
+                    if !self.is_func_subtype(
+                        (tag_ty.results(), old_func_ty.results()),
+                        (new_func_ty.params(), new_func_ty.results()),
+                    ) {
+                        bail!(self.offset, "type mismatch in continuation type")
                     }
                 }
                 Handle::OnSwitch { tag } => {
                     let tag_ty = self.tag_at(tag)?;
-                    if tag_ty.params().len() != 0 {
-                        bail!(self.offset, "type mismatch: non-empty tag parameter type")
+                    if !self.is_func_subtype(
+                        (tag_ty.params(), tag_ty.results()),
+                        (&[], old_func_ty.results()),
+                    ) {
+                        bail!(
+                            self.offset,
+                            "type mismatch: switch tag does not match continuation"
+                        )
                     }
                 }
             }
@@ -1920,13 +1939,24 @@ where
         Ok(old_func_ty)
     }
 
-    /// Applies `is_subtype` pointwise two equally sized collections
-    /// (i.e. equally sized after skipped elements).
-    fn is_subtype_many(&mut self, ts1: &[ValType], ts2: &[ValType]) -> bool {
-        debug_assert!(ts1.len() == ts2.len());
-        ts1.iter()
-            .zip(ts2.iter())
-            .all(|(ty1, ty2)| self.resources.is_subtype(*ty1, *ty2))
+    /// Tests whether `[p1] -> [r1] <: [p2] -> [r2]`
+    fn is_func_subtype(
+        &mut self,
+        (p1, r1): (&[ValType], &[ValType]),
+        (p2, r2): (&[ValType], &[ValType]),
+    ) -> bool {
+        // Note that the order of params/results is intentionally swapped
+        // and matches the variance needed for this subtyping check.
+        p1.len() == p2.len()
+            && p1
+                .iter()
+                .zip(p2.iter())
+                .all(|(t1, t2)| self.resources.is_subtype(*t2, *t1))
+            && r1.len() == r2.len()
+            && r1
+                .iter()
+                .zip(r2.iter())
+                .all(|(r1, r2)| self.resources.is_subtype(*r1, *r2))
     }
 
     fn check_binop128(&mut self) -> Result<()> {
@@ -4402,10 +4432,10 @@ where
         let argcnt = arg_func.params().len() - res_func.params().len();
 
         // Check that [ts1'] -> [ts2] <: [ts1''] -> [ts2']
-        if !self.is_subtype_many(res_func.params(), &arg_func.params()[argcnt..])
-            || arg_func.results().len() != res_func.results().len()
-            || !self.is_subtype_many(arg_func.results(), res_func.results())
-        {
+        if !self.is_func_subtype(
+            (&arg_func.params()[argcnt..], arg_func.results()),
+            (res_func.params(), res_func.results()),
+        ) {
             bail!(self.offset, "type mismatch in continuation types");
         }
 
@@ -4457,9 +4487,6 @@ where
         let ft = self.check_resume_table(table, type_index)?;
         // [ts1'] -> []
         let tag_ty = self.exception_tag_at(tag_index)?;
-        if tag_ty.results().len() != 0 {
-            bail!(self.offset, "type mismatch: non-empty tag result type")
-        }
         self.pop_concrete_ref(true, type_index)?;
         // Check that ts1' are available on the stack.
         for &ty in tag_ty.params().iter().rev() {
@@ -4508,11 +4535,10 @@ where
                         bail!(self.offset, "non-continuation type");
                     };
                 let other_func_ty = self.func_type_of_cont_type(&other_cont_ty);
-                if func_ty.results().len() != tag_ty.results().len()
-                    || !self.is_subtype_many(func_ty.results(), tag_ty.results())
-                    || other_func_ty.results().len() != tag_ty.results().len()
-                    || !self.is_subtype_many(tag_ty.results(), other_func_ty.results())
-                {
+                if !self.is_func_subtype(
+                    (tag_ty.results(), tag_ty.results()),
+                    (func_ty.results(), other_func_ty.results()),
+                ) {
                     bail!(self.offset, "type mismatch in continuation types")
                 }
 

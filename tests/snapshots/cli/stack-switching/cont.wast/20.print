@@ -1,8 +1,0 @@
-(module
-  (rec
-    (type $f1 (;0;) (func (param (ref $f2))))
-    (type $f2 (;1;) (func (param (ref $f1))))
-  )
-  (type $c1 (;2;) (cont $f1))
-  (type $c2 (;3;) (cont $f2))
-)
