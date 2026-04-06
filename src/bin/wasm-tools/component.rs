@@ -17,7 +17,7 @@ use wit_component::{
     ComponentEncoder, DecodedWasm, Linker, StringEncoding, WitPrinter, embed_component_metadata,
     metadata,
 };
-use wit_parser::{LiftLowerAbi, Mangling, ManglingAndAbi};
+use wit_parser::{LiftLowerAbi, Mangling, ManglingAndAbi, WorldItem, WorldKey};
 
 /// WebAssembly wit-based component tooling.
 #[derive(Parser)]
@@ -761,12 +761,14 @@ pub struct WitOpts {
     #[clap(
         long,
         conflicts_with = "importize_world",
+        conflicts_with = "exportize",
+        conflicts_with = "exportize_world",
         conflicts_with = "merge_world_imports_based_on_semver",
         conflicts_with = "generate_nominal_type_ids"
     )]
     importize: bool,
 
-    /// The name of the world to generate when using `--importize` or `importize-world`.
+    /// The name of the world to generate when using `--importize` or `--importize-world`.
     #[clap(long = "importize-out-world-name")]
     importize_out_world_name: Option<String>,
 
@@ -783,11 +785,62 @@ pub struct WitOpts {
     #[clap(
         long,
         conflicts_with = "importize",
+        conflicts_with = "exportize",
+        conflicts_with = "exportize_world",
         conflicts_with = "merge_world_imports_based_on_semver",
         conflicts_with = "generate_nominal_type_ids",
         value_name = "WORLD"
     )]
     importize_world: Option<String>,
+
+    /// Generates WIT to export the component specified to this command.
+    ///
+    /// This flag requires that the input is a binary component, not a
+    /// wasm-encoded WIT package. This will then generate a WIT world and output
+    /// that. The returned world will have exports corresponding to the imports
+    /// of the component which is input.
+    ///
+    /// This is similar to `--exportize-world`, but is used with components.
+    #[clap(
+        long,
+        conflicts_with = "importize",
+        conflicts_with = "importize_world",
+        conflicts_with = "exportize_world",
+        conflicts_with = "merge_world_imports_based_on_semver",
+        conflicts_with = "generate_nominal_type_ids"
+    )]
+    exportize: bool,
+
+    /// The name of the world to generate when using `--exportize` or `--exportize-world`.
+    #[clap(long = "exportize-out-world-name")]
+    exportize_out_world_name: Option<String>,
+
+    /// When used with `--exportize` or `--exportize-world`, only move the
+    /// specified imports to exports. Can be specified multiple times. If not
+    /// provided, all imports are moved.
+    #[clap(long = "exportize-import", value_name = "IMPORT")]
+    exportize_imports: Vec<String>,
+
+    /// Generates a WIT world to export a component which corresponds to the
+    /// selected world.
+    ///
+    /// This flag is used to indicate that the input is a WIT package and the
+    /// world passed here is the name of a WIT `world` within the package. The
+    /// output of the command will be the same WIT world but one that's
+    /// exporting the selected world. This effectively moves the world's imports
+    /// to exports.
+    ///
+    /// This is similar to `--exportize`, but is used with WIT packages.
+    #[clap(
+        long,
+        conflicts_with = "importize",
+        conflicts_with = "importize_world",
+        conflicts_with = "exportize",
+        conflicts_with = "merge_world_imports_based_on_semver",
+        conflicts_with = "generate_nominal_type_ids",
+        value_name = "WORLD"
+    )]
+    exportize_world: Option<String>,
 
     /// Updates the world specified to deduplicate all of its imports based on
     /// semver versions.
@@ -800,6 +853,8 @@ pub struct WitOpts {
         long,
         conflicts_with = "importize",
         conflicts_with = "importize_world",
+        conflicts_with = "exportize",
+        conflicts_with = "exportize_world",
         conflicts_with = "generate_nominal_type_ids",
         value_name = "WORLD"
     )]
@@ -818,6 +873,8 @@ pub struct WitOpts {
         long,
         conflicts_with = "importize",
         conflicts_with = "importize_world",
+        conflicts_with = "exportize",
+        conflicts_with = "exportize_world",
         conflicts_with = "merge_world_imports_based_on_semver",
         value_name = "WORLD"
     )]
@@ -854,6 +911,20 @@ impl WitOpts {
                 &mut decoded,
                 self.importize_world.as_deref(),
                 self.importize_out_world_name.as_ref(),
+            )?;
+        } else if self.exportize {
+            self.exportize(
+                &mut decoded,
+                None,
+                self.exportize_out_world_name.as_ref(),
+                &self.exportize_imports,
+            )?;
+        } else if self.exportize_world.is_some() {
+            self.exportize(
+                &mut decoded,
+                self.exportize_world.as_deref(),
+                self.exportize_out_world_name.as_ref(),
+                &self.exportize_imports,
             )?;
         } else if let Some(world) = &self.merge_world_imports_based_on_semver {
             let (resolve, world_id) = match &mut decoded {
@@ -981,6 +1052,62 @@ impl WitOpts {
         resolve
             .importize(world_id, out_world_name.cloned())
             .context("failed to move world exports to imports")?;
+        let resolve = mem::take(resolve);
+        *decoded = DecodedWasm::Component(resolve, world_id);
+        Ok(())
+    }
+
+    fn exportize(
+        &self,
+        decoded: &mut DecodedWasm,
+        world: Option<&str>,
+        out_world_name: Option<&String>,
+        import_names: &[String],
+    ) -> Result<()> {
+        let (resolve, world_id) = match (&mut *decoded, world) {
+            (DecodedWasm::Component(resolve, world), None) => (resolve, *world),
+            (DecodedWasm::Component(..), Some(_)) => {
+                bail!(
+                    "the `--exportize-world` flag is not compatible with a \
+                     component input, use `--exportize` instead"
+                );
+            }
+            (DecodedWasm::WitPackage(resolve, id), world) => {
+                let world = resolve.select_world(&[*id], world)?;
+                (resolve, world)
+            }
+        };
+        // Build a set of matching names (both plain names and interface names)
+        // before constructing the filter, to avoid borrowing `resolve` in the
+        // closure.
+        let filter: Option<Box<dyn Fn(&WorldKey, &WorldItem) -> bool>> = if import_names.is_empty()
+        {
+            None
+        } else {
+            let names: Vec<String> = import_names.to_vec();
+            let world = &resolve.worlds[world_id];
+            let matching_keys: Vec<WorldKey> = world
+                .imports
+                .keys()
+                .filter(|key| match key {
+                    WorldKey::Name(n) => names.iter().any(|f| f == n),
+                    WorldKey::Interface(id) => {
+                        let iface = &resolve.interfaces[*id];
+                        match &iface.name {
+                            Some(n) => names.iter().any(|f| f == n),
+                            None => false,
+                        }
+                    }
+                })
+                .cloned()
+                .collect();
+            Some(Box::new(move |key: &WorldKey, _item: &WorldItem| {
+                matching_keys.contains(key)
+            }))
+        };
+        resolve
+            .exportize(world_id, out_world_name.cloned(), filter.as_deref())
+            .context("failed to move world imports to exports")?;
         let resolve = mem::take(resolve);
         *decoded = DecodedWasm::Component(resolve, world_id);
         Ok(())

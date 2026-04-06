@@ -33,9 +33,21 @@ Options:
           Generates WIT to import the component specified to this command
       --importize-out-world-name <IMPORTIZE_OUT_WORLD_NAME>
           The name of the world to generate when using `--importize` or
-          `importize-world`
+          `--importize-world`
       --importize-world <WORLD>
           Generates a WIT world to import a component which corresponds to the
+          selected world
+      --exportize
+          Generates WIT to export the component specified to this command
+      --exportize-out-world-name <EXPORTIZE_OUT_WORLD_NAME>
+          The name of the world to generate when using `--exportize` or
+          `--exportize-world`
+      --exportize-import <IMPORT>
+          When used with `--exportize` or `--exportize-world`, only move the
+          specified imports to exports. Can be specified multiple times. If not
+          provided, all imports are moved
+      --exportize-world <WORLD>
+          Generates a WIT world to export a component which corresponds to the
           selected world
       --merge-world-imports-based-on-semver <WORLD>
           Updates the world specified to deduplicate all of its imports based on
