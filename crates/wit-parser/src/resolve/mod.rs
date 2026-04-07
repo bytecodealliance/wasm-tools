@@ -410,8 +410,7 @@ impl Resolve {
     /// the correct topological order internally and detects dependency cycles.
     ///
     /// On error, spans in the returned [`ResolveError`] are absolute within
-    /// `self.source_map` and can be resolved with
-    /// [`SourceMap::get_location`].
+    /// `self.source_map`.
     ///
     /// The returned [`PackageId`] corresponds to `main`.
     pub fn push_groups(
