@@ -1,0 +1,14 @@
+(module
+  (type $ft (;0;) (func (result i32)))
+  (type $ct (;1;) (cont $ft))
+  (type $tag_ft (;2;) (func (result i32)))
+  (type (;3;) (func))
+  (tag $t (;0;) (type $tag_ft) (result i32))
+  (func (;0;) (type 3)
+    block $label
+      ref.null $ct
+      resume $ct (on $t switch)
+      unreachable
+    end
+  )
+)

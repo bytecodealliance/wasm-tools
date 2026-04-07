@@ -1,6 +1,6 @@
 [package]
 name = "wast"
-version = "246.0.1"
+version = "246.0.2"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 edition.workspace = true
 license.workspace = true

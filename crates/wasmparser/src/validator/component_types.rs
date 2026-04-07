@@ -3670,6 +3670,9 @@ impl<'a> SubtypeCx<'a> {
         if a.memory64 != b.memory64 {
             bail!(offset, "mismatch in index type used for memories")
         }
+        if a.page_size_log2() != b.page_size_log2() {
+            bail!(offset, "mismatch in page size for memories")
+        }
         if limits_match!(a, b) {
             Ok(())
         } else {
