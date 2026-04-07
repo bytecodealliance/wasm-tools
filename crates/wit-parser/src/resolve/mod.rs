@@ -4125,45 +4125,11 @@ impl<'a> MergeMap<'a> {
         let into_interface = &self.into.interfaces[into_id];
 
         // When merging interfaces, types and functions that exist in both
-        // `from` and `into` must match structurally. One interface is
-        // allowed to be a superset of the other (i.e., contain extra types
-        // or functions), which enables commutative merging of partial views
-        // of the same interface. However, if BOTH sides have items the
-        // other doesn't, they're considered incompatible.
-
-        let from_has_extra_types = from_interface
-            .types
-            .keys()
-            .any(|name| !into_interface.types.contains_key(name));
-        let into_has_extra_types = into_interface
-            .types
-            .keys()
-            .any(|name| !from_interface.types.contains_key(name));
-        if from_has_extra_types && into_has_extra_types {
-            let from_extra: Vec<_> = from_interface
-                .types
-                .keys()
-                .filter(|n| !into_interface.types.contains_key(n.as_str()))
-                .collect();
-            bail!("expected type `{}` to be present", from_extra[0],);
-        }
-
-        let from_has_extra_funcs = from_interface
-            .functions
-            .keys()
-            .any(|name| !into_interface.functions.contains_key(name));
-        let into_has_extra_funcs = into_interface
-            .functions
-            .keys()
-            .any(|name| !from_interface.functions.contains_key(name));
-        if from_has_extra_funcs && into_has_extra_funcs {
-            let from_extra: Vec<_> = from_interface
-                .functions
-                .keys()
-                .filter(|n| !into_interface.functions.contains_key(n.as_str()))
-                .collect();
-            bail!("expected function `{}` to be present", from_extra[0],);
-        }
+        // `from` and `into` must match structurally. Either side is allowed
+        // to have extra types or functions not present in the other, which
+        // enables commutative merging of partial views of the same
+        // interface. The only requirement is that the intersection of the
+        // two interfaces is compatible.
 
         for (name, from_type_id) in from_interface.types.iter() {
             let into_type_id = match into_interface.types.get(name) {
@@ -5403,103 +5369,6 @@ interface iface {
                 param.name
             );
         }
-
-        Ok(())
-    }
-
-    #[test]
-    fn merging_is_commutative() -> Result<()> {
-        let mut resolve1 = Resolve::default();
-        resolve1.push_str(
-            "test1.wit",
-            r#"
-                package wasi:io@0.2.0;
-
-                interface error {
-                    resource error;
-                }
-                interface streams {
-                    use error.{error};
-
-                    resource output-stream {
-                        check-write: func() -> result<u64, stream-error>;
-                        write: func(contents: list<u8>) -> result<_, stream-error>;
-                        blocking-write-and-flush: func(contents: list<u8>) -> result<_, stream-error>;
-                        blocking-flush: func() -> result<_, stream-error>;
-                    }
-
-                    variant stream-error {
-                        last-operation-failed(error),
-                        closed,
-                    }
-
-                    resource input-stream;
-                }
-            "#,
-        )?;
-
-        let mut resolve2 = Resolve::default();
-        resolve2.push_str(
-            "test2.wit",
-            r#"
-                package wasi:io@0.2.0;
-
-                interface error {
-                    resource error {
-                        to-debug-string: func() -> string;
-                    }
-                }
-                interface poll {
-                    resource pollable {
-                        ready: func() -> bool;
-                        block: func();
-                    }
-
-                    poll: func(in: list<borrow<pollable>>) -> list<u32>;
-                }
-                interface streams {
-                    use error.{error};
-                    use poll.{pollable};
-
-                    variant stream-error {
-                        last-operation-failed(error),
-                        closed,
-                    }
-
-                    resource input-stream {
-                        read: func(len: u64) -> result<list<u8>, stream-error>;
-                        blocking-read: func(len: u64) -> result<list<u8>, stream-error>;
-                        skip: func(len: u64) -> result<u64, stream-error>;
-                        blocking-skip: func(len: u64) -> result<u64, stream-error>;
-                        subscribe: func() -> pollable;
-                    }
-
-                    resource output-stream {
-                        check-write: func() -> result<u64, stream-error>;
-                        write: func(contents: list<u8>) -> result<_, stream-error>;
-                        blocking-write-and-flush: func(contents: list<u8>) -> result<_, stream-error>;
-                        flush: func() -> result<_, stream-error>;
-                        blocking-flush: func() -> result<_, stream-error>;
-                        subscribe: func() -> pollable;
-                        write-zeroes: func(len: u64) -> result<_, stream-error>;
-                        blocking-write-zeroes-and-flush: func(len: u64) -> result<_, stream-error>;
-                        splice: func(src: borrow<input-stream>, len: u64) -> result<u64, stream-error>;
-                        blocking-splice: func(src: borrow<input-stream>, len: u64) -> result<u64, stream-error>;
-                    }
-                }
-                world imports {
-                    import error;
-                    import poll;
-                    import streams;
-                }
-            "#,
-        )?;
-
-        let resolve1_clone = resolve1.clone();
-        let resolve2_clone = resolve2.clone();
-
-        let _ = resolve1.merge(resolve2_clone)?;
-        let _ = resolve2.merge(resolve1_clone)?;
 
         Ok(())
     }

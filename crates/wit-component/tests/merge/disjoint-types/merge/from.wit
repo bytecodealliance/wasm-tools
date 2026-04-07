@@ -1,0 +1,6 @@
+package foo:%from;
+
+interface a {
+  use foo:foo/a.{a};
+}
+
