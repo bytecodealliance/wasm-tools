@@ -1,8 +1,4 @@
 //! Error types for WIT package resolution.
-//!
-//! The main types are [`ResolveError`] (a single structured error) and
-//! [`ResolveErrorKind`] (the underlying variant). [`ResolveResult`] is a
-//! convenience alias for `Result<T, ResolveError>`.
 
 use alloc::boxed::Box;
 use alloc::format;
@@ -85,9 +81,6 @@ impl fmt::Display for ResolveErrorKind {
 }
 
 /// A single structured error from resolving a WIT package.
-///
-/// Carries a [`ResolveErrorKind`] and can be formatted with source context via
-/// [`ResolveError::highlight`].
 #[derive(Debug, PartialEq, Eq)]
 pub struct ResolveError(Box<ResolveErrorKind>);
 
@@ -95,6 +88,11 @@ impl ResolveError {
     /// Returns the underlying error kind.
     pub fn kind(&self) -> &ResolveErrorKind {
         &self.0
+    }
+
+    /// Returns the underlying error kind (mutable).
+    pub fn kind_mut(&mut self) -> &mut ResolveErrorKind {
+        &mut self.0
     }
 
     /// Format this error with source context (file:line:col + snippet).
