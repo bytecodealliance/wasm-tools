@@ -1121,20 +1121,7 @@ impl Resolve {
         world_id: WorldId,
         out_world_name: Option<String>,
     ) -> anyhow::Result<()> {
-        // Rename the world to avoid having it get confused with the original
-        // name of the world. Add `-importized` to it for now. Precisely how
-        // this new world is created may want to be updated over time if this
-        // becomes problematic.
-        let world = &mut self.worlds[world_id];
-        let pkg = &mut self.packages[world.package.unwrap()];
-        pkg.worlds.shift_remove(&world.name);
-        if let Some(name) = out_world_name {
-            world.name = name.clone();
-            pkg.worlds.insert(name, world_id);
-        } else {
-            world.name.push_str("-importized");
-            pkg.worlds.insert(world.name.clone(), world_id);
-        }
+        self.rename_world(world_id, out_world_name, "-importized");
 
         // Trim all non-type definitions from imports. Types can be used by
         // exported functions, for example, so they're preserved.
@@ -1162,7 +1149,7 @@ impl Resolve {
 
         // Fill out any missing transitive interface imports by elaborating this
         // world which does that for us.
-        let world_span = self.worlds[world_id].span;
+        let world_span = world.span;
         self.elaborate_world(world_id, world_span)?;
 
         #[cfg(debug_assertions)]
