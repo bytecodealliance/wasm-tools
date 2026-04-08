@@ -377,20 +377,6 @@ impl Resolve {
     /// Any dependency resolution error or otherwise world-elaboration error
     /// will be returned here, if successful a package identifier is returned
     /// which corresponds to the package that was just inserted.
-    ///
-    /// If the package has dependencies that have not yet been pushed into this
-    /// [`Resolve`], use [`Resolve::push_groups`] instead to pass them all at
-    /// once and have dependency ordering and cycle detection handled internally.
-    /// Appends new [`UnresolvedPackageGroup`] to this [`Resolve`], creating a
-    /// fully resolved package with no dangling references.
-    ///
-    /// Any dependency resolution error or otherwise world-elaboration error
-    /// will be returned here, if successful a package identifier is returned
-    /// which corresponds to the package that was just inserted.
-    ///
-    /// If the package has dependencies that have not yet been pushed into this
-    /// [`Resolve`], use [`Resolve::push_groups`] instead to pass them all at
-    /// once and have dependency ordering and cycle detection handled internally.
     pub fn push_group(
         &mut self,
         unresolved_group: UnresolvedPackageGroup,
