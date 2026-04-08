@@ -394,31 +394,8 @@ impl Resolve {
     pub fn push_group(
         &mut self,
         unresolved_group: UnresolvedPackageGroup,
-    ) -> anyhow::Result<PackageId> {
-        self.push_groups(unresolved_group, Vec::new())
-            .map_err(|e| anyhow::anyhow!("{}", e.highlight(&self.source_map)))
-    }
-
-    /// Appends a main [`UnresolvedPackageGroup`] and its dependencies to this
-    /// [`Resolve`] in a single call, returning a structured [`ResolveError`] on
-    /// failure.
-    ///
-    /// This is the preferred alternative to calling [`Resolve::push_group`]
-    /// repeatedly when you have a package and its local dependencies available
-    /// as in-memory [`UnresolvedPackageGroup`]s (e.g. from [`SourceMap::parse`]
-    /// or [`SourceMap::parse`]). Wit-parser sorts them into
-    /// the correct topological order internally and detects dependency cycles.
-    ///
-    /// On error, spans in the returned [`ResolveError`] are absolute within
-    /// `self.source_map`.
-    ///
-    /// The returned [`PackageId`] corresponds to `main`.
-    pub fn push_groups(
-        &mut self,
-        main: UnresolvedPackageGroup,
-        deps: Vec<UnresolvedPackageGroup>,
     ) -> ResolveResult<PackageId> {
-        let (pkg_id, _) = self.sort_unresolved_packages(main, deps)?;
+        let (pkg_id, _) = self.sort_unresolved_packages(unresolved_group, Vec::new())?;
         Ok(pkg_id)
     }
 
@@ -434,6 +411,7 @@ impl Resolve {
             map.parse()
                 .map_err(|(map, e)| anyhow::anyhow!("{}", e.highlight(&map)))?,
         )
+        .map_err(|e| anyhow::anyhow!("{}", e.highlight(&self.source_map)))
     }
 
     /// Renders a span as a human-readable location string (e.g., "file.wit:10:5").
@@ -4513,9 +4491,8 @@ fn merge_include_stability(
 mod tests {
     use crate::alloc::format;
     use crate::alloc::string::{String, ToString};
-    use crate::alloc::vec;
     use crate::alloc::vec::Vec;
-    use crate::{Resolve, SourceMap, WorldItem, WorldKey};
+    use crate::{Resolve, WorldItem, WorldKey};
     use anyhow::Result;
 
     #[test]
@@ -5573,62 +5550,6 @@ interface iface {
         }
 
         Ok(())
-    }
-
-    #[test]
-    fn push_groups_resolves_dep_before_main() -> Result<()> {
-        // push_groups must topologically sort main + deps internally and succeed
-        // even when the dep is listed after main in the caller's mental model.
-        let dep = {
-            let mut map = SourceMap::default();
-            map.push_str(
-                "file:///dep.wit",
-                "package foo:dep;\ninterface i { type t = u32; }",
-            );
-            map.parse().map_err(|(_, e)| e)?
-        };
-        let main = {
-            let mut map = SourceMap::default();
-            map.push_str(
-                "file:///main.wit",
-                "package foo:main;\ninterface j { use foo:dep/i.{t}; type u = t; }",
-            );
-            map.parse().map_err(|(_, e)| e)?
-        };
-        let mut resolve = Resolve::default();
-        resolve.push_groups(main, vec![dep])?;
-        assert_eq!(resolve.packages.len(), 2);
-        Ok(())
-    }
-
-    #[test]
-    fn push_groups_cycle_error_contains_location() {
-        // A cross-group cycle must produce an error message with a file URI and
-        // line/col. This validates that source maps are merged into resolve.source_map
-        // *before* toposort runs, so the span in the cycle error is resolvable.
-        let a = {
-            let mut map = SourceMap::default();
-            map.push_str(
-                "file:///a.wit",
-                "package foo:a;\ninterface i { use foo:b/j.{}; }",
-            );
-            map.parse().unwrap()
-        };
-        let b = {
-            let mut map = SourceMap::default();
-            map.push_str(
-                "file:///b.wit",
-                "package foo:b;\ninterface j { use foo:a/i.{}; }",
-            );
-            map.parse().unwrap()
-        };
-        let mut resolve = Resolve::default();
-        let err = resolve.push_groups(a, vec![b]).unwrap_err();
-        let msg = err.highlight(&resolve.source_map);
-        assert!(
-            msg.contains("file:///"),
-            "cycle error should contain a file URI, got: {msg}"
-        );
     }
 
     #[test]
