@@ -202,10 +202,10 @@ fn visit<'a>(
         return Ok(());
     }
 
-    let (_, sm_idx) = pkg_details_map
+    let (_, source_maps_index) = pkg_details_map
         .get(&pkg.name)
         .expect("No pkg_details found for package when doing topological sort");
-    let offset = source_map_offsets[*sm_idx];
+    let offset = source_map_offsets[*source_maps_index];
     for (i, (dep, _)) in pkg.foreign_deps.iter().enumerate() {
         let mut span = pkg.foreign_dep_spans[i];
         span.adjust(offset);
