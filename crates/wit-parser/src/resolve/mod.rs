@@ -202,10 +202,10 @@ fn visit<'a>(
         return Ok(());
     }
 
-    let (_, sm_idx) = pkg_details_map
+    let (_, source_map_index) = pkg_details_map
         .get(&pkg.name)
         .expect("No pkg_details found for package when doing topological sort");
-    let offset = source_map_offsets[*sm_idx];
+    let offset = source_map_offsets[*source_map_index];
     for (i, (dep, _)) in pkg.foreign_deps.iter().enumerate() {
         let mut span = pkg.foreign_dep_spans[i];
         span.adjust(offset);
@@ -277,13 +277,14 @@ impl Resolve {
 
         let mut pkg_details_map: BTreeMap<PackageName, (UnresolvedPackage, usize)> =
             BTreeMap::new();
-        for (pkg, sm_idx) in all_packages {
+        for (pkg, source_map_index) in all_packages {
             let name = pkg.name.clone();
             let my_span = pkg.package_name_span;
-            let offset = source_map_offsets[sm_idx];
-            if let Some((prev_pkg, prev_idx)) = pkg_details_map.insert(name.clone(), (pkg, sm_idx))
+            let offset = source_map_offsets[source_map_index];
+            if let Some((prev_pkg, prev_source_map_index)) =
+                pkg_details_map.insert(name.clone(), (pkg, source_map_index))
             {
-                let prev_offset = source_map_offsets[prev_idx];
+                let prev_offset = source_map_offsets[prev_source_map_index];
                 let mut span1 = my_span;
                 span1.adjust(offset);
                 let mut span2 = prev_pkg.package_name_span;
@@ -316,15 +317,15 @@ impl Resolve {
         let mut package_id_to_source_map_idx = BTreeMap::new();
         let mut main_pkg_id = None;
         for name in order {
-            let (pkg, sm_idx) = pkg_details_map.remove(&name).unwrap();
-            let span_offset = source_map_offsets[sm_idx];
+            let (pkg, source_map_index) = pkg_details_map.remove(&name).unwrap();
+            let span_offset = source_map_offsets[source_map_index];
             let is_main = pkg.name == main_name;
             let id = self.push(pkg, span_offset)?;
             if is_main {
                 assert!(main_pkg_id.is_none());
                 main_pkg_id = Some(id);
             }
-            package_id_to_source_map_idx.insert(id, sm_idx);
+            package_id_to_source_map_idx.insert(id, source_map_index);
         }
 
         Ok((
