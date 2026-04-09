@@ -85,6 +85,15 @@ impl fmt::Display for ResolveErrorKind {
 pub struct ResolveError(Box<ResolveErrorKind>);
 
 impl ResolveError {
+    /// Creates a [`ResolveError`] with the [`ResolveErrorKind::Semantic`] variant.
+    pub fn new_semantic(span: Span, message: impl Into<String>) -> Self {
+        ResolveErrorKind::Semantic {
+            span,
+            message: message.into(),
+        }
+        .into()
+    }
+
     /// Returns the underlying error kind.
     pub fn kind(&self) -> &ResolveErrorKind {
         &self.0

@@ -1902,28 +1902,28 @@ impl Resolve {
                 // Use of feature gating with version specifiers inside a
                 // package that is not versioned is not allowed
                 let package_version = p.name.version.as_ref().ok_or_else(|| {
-                    ResolveError::from(ResolveErrorKind::Semantic {
-                        span: span,
-                        message: format!(
+                    ResolveError::new_semantic(
+                        span,
+                        format!(
                             "package [{}] contains a feature gate with a version \
                          specifier, so it must have a version",
                             p.name
                         ),
-                    })
+                    )
                 })?;
 
                 // If the version on the feature gate is:
                 // - released, then we can include it
                 // - unreleased, then we must check the feature (if present)
                 if since > package_version {
-                    return Err(ResolveError::from(ResolveErrorKind::Semantic {
+                    return Err(ResolveError::new_semantic(
                         span,
-                        message: format!(
+                        format!(
                             "feature gate cannot reference unreleased version \
                         {since} of package [{}] (current version {package_version})",
                             p.name
                         ),
-                    }));
+                    ));
                 }
 
                 true
@@ -3065,10 +3065,7 @@ fn apply_map<T>(map: &[Option<Id<T>>], id: Id<T>, desc: &str, span: Span) -> Res
                 "found a reference to a {desc} which is excluded \
                  due to its feature not being activated"
             );
-            Err(ResolveError::from(ResolveErrorKind::Semantic {
-                span,
-                message: msg,
-            }))
+            Err(ResolveError::new_semantic(span, msg))
         }
         None => panic!("request to remap a {desc} that has not yet been registered"),
     }
@@ -3103,10 +3100,10 @@ impl Remap {
 
     pub fn map_world_for_type(&self, id: WorldId, span: Span) -> ResolveResult<WorldId> {
         self.map_world(id, span).map_err(|e| {
-            ResolveError::from(ResolveErrorKind::Semantic {
+            ResolveError::new_semantic(
                 span,
-                message: format!("{e}; this type is not gated by a feature but its world is"),
-            })
+                format!("{e}; this type is not gated by a feature but its world is"),
+            )
         })
     }
 
@@ -3116,10 +3113,10 @@ impl Remap {
         span: Span,
     ) -> ResolveResult<InterfaceId> {
         self.map_interface(id, span).map_err(|e| {
-            ResolveError::from(ResolveErrorKind::Semantic {
+            ResolveError::new_semantic(
                 span,
-                message: format!("{e}; this type is not gated by a feature but its interface is"),
-            })
+                format!("{e}; this type is not gated by a feature but its interface is"),
+            )
         })
     }
 
@@ -3362,10 +3359,10 @@ impl Remap {
                     TypeDefKind::Type(Type::Id(i)) => id = i,
                     TypeDefKind::Resource => break,
                     _ => {
-                        return Err(ResolveError::from(ResolveErrorKind::Semantic {
-                            span: *span,
-                            message: format!("type used in a handle must be a resource"),
-                        }));
+                        return Err(ResolveError::new_semantic(
+                            *span,
+                            "type used in a handle must be a resource",
+                        ));
                     }
                 }
             }
@@ -3426,10 +3423,7 @@ impl Remap {
             }
 
             let iface_id = pkg.interfaces.get(interface).copied().ok_or_else(|| {
-                ResolveError::from(ResolveErrorKind::Semantic {
-                    span: iface_span,
-                    message: "interface not found in package".to_owned(),
-                })
+                ResolveError::new_semantic(iface_span, "interface not found in package")
             })?;
             assert_eq!(self.interfaces.len(), unresolved_iface_id.index());
             self.interfaces.push(Some(iface_id));
@@ -3487,10 +3481,7 @@ impl Remap {
             }
 
             let world_id = pkg.worlds.get(world).copied().ok_or_else(|| {
-                ResolveError::from(ResolveErrorKind::Semantic {
-                    span: world_span,
-                    message: "world not found in package".to_owned(),
-                })
+                ResolveError::new_semantic(world_span, "world not found in package")
             })?;
             assert_eq!(self.worlds.len(), unresolved_world_id.index());
             self.worlds.push(Some(world_id));
@@ -3536,10 +3527,10 @@ impl Remap {
                 .types
                 .get(name)
                 .ok_or_else(|| {
-                    ResolveError::from(ResolveErrorKind::Semantic {
-                        span: span,
-                        message: format!("type `{name}` not defined in interface"),
-                    })
+                    ResolveError::new_semantic(
+                        span,
+                        format!("type `{name}` not defined in interface"),
+                    )
                 })?;
             assert_eq!(self.types.len(), unresolved_type_id.index());
             self.types.push(Some(type_id));
@@ -3718,13 +3709,10 @@ impl Remap {
 
         if let Some(ty) = &func.result {
             if self.type_has_borrow(resolve, ty) {
-                return Err(ResolveError::from(ResolveErrorKind::Semantic {
+                return Err(ResolveError::new_semantic(
                     span,
-                    message: format!(
-                        "function returns a type which contains \
-                         a `borrow<T>` which is not supported"
-                    ),
-                }));
+                    "function returns a type which contains a `borrow<T>` which is not supported",
+                ));
             }
         }
 
@@ -3836,15 +3824,15 @@ impl Remap {
                                 // TODO: `WorldKey::Name` does not carry a `Span`, so we
                                 // cannot point at the conflicting item. Add a span to
                                 // `WorldKey::Name` to improve this error.
-                                return Err(ResolveError::from(ResolveErrorKind::Semantic {
-                                    span: Span::default(),
-                                    message: format!(
+                                return Err(ResolveError::new_semantic(
+                                    Span::default(),
+                                    format!(
                                         "{item_type} `{name}` in world `{}` conflicts with \
                                      {item_type} `{existing_name}` \
                                      (kebab-case identifiers are case-insensitive)",
                                         world.name,
                                     ),
-                                }));
+                                ));
                             }
                         }
 
@@ -3894,13 +3882,13 @@ impl Remap {
             self.remove_matching_name(export, &mut names_);
         }
         if !names_.is_empty() {
-            return Err(ResolveError::from(ResolveErrorKind::Semantic {
+            return Err(ResolveError::new_semantic(
                 span,
-                message: format!(
+                format!(
                     "no import or export kebab-name `{}`. Note that an ID does not support renaming",
                     names_[0].name
                 ),
-            }));
+            ));
         }
 
         let mut maps = Default::default();
@@ -3977,12 +3965,10 @@ impl Remap {
 
                 let prev = get_items(cloner.resolve).insert(key, new_item);
                 if prev.is_some() {
-                    return Err(ResolveError::from(ResolveErrorKind::Semantic {
+                    return Err(ResolveError::new_semantic(
                         span,
-                        message: format!(
-                            "{item_type} of `{n}` shadows previously {item_type}ed items"
-                        ),
-                    }));
+                        format!("{item_type} of `{n}` shadows previously {item_type}ed items"),
+                    ));
                 }
             }
             key @ WorldKey::Interface(_) => {
@@ -4453,10 +4439,10 @@ fn update_stability(from: &Stability, into: &mut Stability, span: Span) -> Resol
 
     // Failing all that this means that the two attributes are different so
     // generate an error.
-    Err(ResolveError::from(ResolveErrorKind::Semantic {
+    Err(ResolveError::new_semantic(
         span,
-        message: format!("mismatch in stability from '{from:?}' to '{into:?}'"),
-    }))
+        format!("mismatch in stability from '{from:?}' to '{into:?}'"),
+    ))
 }
 
 fn merge_include_stability(
