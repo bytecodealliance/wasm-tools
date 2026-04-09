@@ -4453,7 +4453,7 @@ fn update_stability(from: &Stability, into: &mut Stability) -> Result<()> {
 
     // Failing all that this means that the two attributes are different so
     // generate an error.
-    bail!("mismatch in stability from '{:?}' to '{:?}'", from, into)
+    bail!("mismatch in stability from '{from:?}' to '{into:?}'")
 }
 
 fn merge_include_stability(
