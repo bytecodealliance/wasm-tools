@@ -138,7 +138,7 @@ smallvec = "1.11.1"
 spdx = "0.10.1"
 termcolor = "1.2.0"
 url = "2.0.0"
-wasmtime = { version = "34.0.1", default-features = false, features = ['cranelift', 'component-model', 'runtime', 'gc-drc'] }
+wasmtime = { version = "36.0.7", default-features = false, features = ['cranelift', 'component-model', 'runtime', 'gc-drc'] }
 thiserror = { version = "2.0.12", default-features = false }
 tempfile = "3.2.0"
 wit-bindgen = { git = 'https://github.com/bytecodealliance/wit-bindgen', default-features = false }

@@ -763,7 +763,7 @@ impl Printer<'_, '_> {
                 }
 
                 other => match other.as_section() {
-                    Some((id, _)) => bail!("found unknown section `{}`", id),
+                    Some((id, _)) => bail!("found unknown section `{id}`"),
                     None => bail!("found unknown payload"),
                 },
             }

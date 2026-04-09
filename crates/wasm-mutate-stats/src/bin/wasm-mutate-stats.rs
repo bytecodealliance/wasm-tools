@@ -516,8 +516,7 @@ impl State {
                         let h1 = self.hash(&wasm);
                         self.save_crash(&wasm, None, seed, artifact_folder)?;
                         anyhow::bail!(format!(
-                            "Mutation invalid for entry {} seed {}.\n Crashing wasm is saved at crashes folder with name '<seed>.original.wasm'",
-                            h1, seed
+                            "Mutation invalid for entry {h1} seed {seed}.\n Crashing wasm is saved at crashes folder with name '<seed>.original.wasm'"
                         ))
                     }
                 },
@@ -542,8 +541,7 @@ impl State {
                                 let h2 = self.hash(&mutated);
                                 self.save_crash(&wasm, Some(&mutated), seed, artifact_folder)?;
                                 anyhow::bail!(format!(
-                                    "All generated Wasm should be valid {} -> {}, seed {}",
-                                    h1, h2, seed
+                                    "All generated Wasm should be valid {h1} -> {h2}, seed {seed}"
                                 ));
                             }
                         }
@@ -552,7 +550,7 @@ impl State {
                         // Stop writing worker
                         finish_writing_wrap.store(true, SeqCst);
                         self.save_crash(&wasm, None, seed, artifact_folder)?;
-                        anyhow::bail!(format!("Error during module writing {:?}", e));
+                        anyhow::bail!(format!("Error during module writing {e:?}"));
                     }
                 }
             }

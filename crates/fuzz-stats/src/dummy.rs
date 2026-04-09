@@ -58,6 +58,7 @@ pub fn dummy_ref(ty: &RefType) -> Ref {
         | HeapType::Struct
         | HeapType::ConcreteArray(_)
         | HeapType::ConcreteStruct(_) => Ref::Any(None),
+        _ => todo!(),
     }
 }
 
