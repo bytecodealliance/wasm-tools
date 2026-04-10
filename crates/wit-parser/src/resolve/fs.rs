@@ -19,7 +19,7 @@ impl PackageSourceMap {
     fn from_single_source(package_id: super::PackageId, source: &Path) -> Result<Self> {
         let path_str = source
             .to_str()
-            .ok_or_else(|| anyhow::anyhow!("path is not valid utf-8: {:?}", source))?;
+            .ok_or_else(|| anyhow::anyhow!("path is not valid utf-8: {source:?}"))?;
         Ok(Self {
             inner: PackageSources::from_single_source(package_id, path_str),
         })

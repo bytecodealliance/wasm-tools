@@ -426,7 +426,7 @@ impl Printer<'_, '_> {
 
     pub(crate) fn outer_state(states: &[State], count: u32) -> Result<&State> {
         if count as usize >= states.len() {
-            bail!("invalid outer alias count {}", count);
+            bail!("invalid outer alias count {count}");
         }
 
         let count: usize = std::cmp::min(count as usize, states.len() - 1);

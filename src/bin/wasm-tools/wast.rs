@@ -138,7 +138,7 @@ impl Opts {
             s.push_str("\n\n--------------------------------\n\n");
             s.push_str(&format!("{error:?}"));
         }
-        bail!("{}", s)
+        bail!("{s}")
     }
 
     fn read_wast(&self) -> Result<(&Path, String)> {
@@ -291,8 +291,7 @@ impl Opts {
                 // now, ensure that module is invalid
                 match self.test_wasm_valid(test, &binary_wasm) {
                     Ok(_) => bail!(
-                        "encoded and validated successfully but should have failed with: {}",
-                        message,
+                        "encoded and validated successfully but should have failed with: {message}",
                     ),
                     Err(e) => self.assert_error_matches(test, &format!("{e:?}"), message)?,
                 }
@@ -579,7 +578,7 @@ impl Opts {
             msg.push_str("\nfailed to dump actual");
         }
 
-        bail!("{}", msg);
+        bail!("{msg}");
     }
 
     /// Run `wasm-tools dump` over the `bytes` provided.

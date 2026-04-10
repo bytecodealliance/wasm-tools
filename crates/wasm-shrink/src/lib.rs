@@ -260,8 +260,7 @@ impl ShrinkRun {
         let result = predicate(&current)?;
         anyhow::ensure!(
             result.is_interesting(),
-            "The predicate does not consider the input Wasm interesting: {}",
-            result
+            "The predicate does not consider the input Wasm interesting: {result}"
         );
 
         // Next try running the predicate on an empty Wasm module.
@@ -281,8 +280,7 @@ impl ShrinkRun {
                      interesting, which is usually not desired and \
                      is a symptom of a bug in the predicate:\n\
                      \n\
-                     {}",
-                    result
+                     {result}"
                 );
             }
         }

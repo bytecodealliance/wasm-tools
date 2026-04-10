@@ -325,7 +325,7 @@ impl<'a> Module<'a> {
                 // sections that shouldn't appear in the specially-crafted core
                 // wasm adapter self we're processing
                 other => match other.as_section() {
-                    Some((id, _)) => bail!("unsupported section `{}` in adapter", id),
+                    Some((id, _)) => bail!("unsupported section `{id}` in adapter"),
                     None => bail!("unsupported payload in adapter"),
                 },
             }

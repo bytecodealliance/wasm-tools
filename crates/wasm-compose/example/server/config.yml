@@ -1,9 +1,0 @@
-search-paths:
-  - ../service/target/wasm32-wasi/release
-
-instantiations:
-  root:
-    arguments:
-      example:service/handler@0.1.0:
-        instance: svc
-        export: example:service/handler@0.1.0
