@@ -1,6 +1,0 @@
-(module $m
-  (memory (;0;) 0 (pagesize 0x1))
-  (memory (;1;) 0 (pagesize 0x10000))
-  (export "small-pages-memory" (memory 0))
-  (export "large-pages-memory" (memory 1))
-)

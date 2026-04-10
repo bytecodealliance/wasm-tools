@@ -1,0 +1,33 @@
+(module
+  (type $arrref_mut (;0;) (array (mut arrayref)))
+  (type (;1;) (func (param i32 i32 i32)))
+  (type (;2;) (func (param i32) (result i32)))
+  (type (;3;) (func (param i32 i32) (result i32)))
+  (global $g_arrref_mut (;0;) (ref $arrref_mut) i32.const 2 array.new_default $arrref_mut)
+  (export "array_init_elem" (func 0))
+  (export "array_len_nth" (func 1))
+  (export "array_eq_elems" (func 2))
+  (elem $e1 (;0;) arrayref (item i32.const 1 array.new_default $arrref_mut) (item i32.const 2 array.new_default $arrref_mut))
+  (func (;0;) (type 1) (param $1 i32) (param $2 i32) (param $3 i32)
+    global.get $g_arrref_mut
+    local.get $1
+    local.get $2
+    local.get $3
+    array.init_elem $arrref_mut $e1
+  )
+  (func (;1;) (type 2) (param $n i32) (result i32)
+    global.get $g_arrref_mut
+    local.get $n
+    array.get $arrref_mut
+    array.len
+  )
+  (func (;2;) (type 3) (param $i i32) (param $j i32) (result i32)
+    global.get $g_arrref_mut
+    local.get $i
+    array.get $arrref_mut
+    global.get $g_arrref_mut
+    local.get $j
+    array.get $arrref_mut
+    ref.eq
+  )
+)

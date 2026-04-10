@@ -1,0 +1,22 @@
+(module
+  (type $arr (;0;) (array (mut arrayref)))
+  (type (;1;) (func (result i32)))
+  (table $table (;0;) 2 arrayref)
+  (export "run" (func 0))
+  (elem $elem (;0;) arrayref (item i32.const 0 array.new_default $arr))
+  (func (;0;) (type 1) (result i32)
+    i32.const 0
+    i32.const 0
+    i32.const 1
+    table.init $elem
+    i32.const 1
+    i32.const 0
+    i32.const 1
+    table.init $elem
+    i32.const 0
+    table.get $table
+    i32.const 1
+    table.get $table
+    ref.eq
+  )
+)

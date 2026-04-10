@@ -6,6 +6,7 @@
     (if ;; label = @1
       (i32.const 0
         (@metadata.code.branch_hint "\00"))
+      (@metadata.code.branch_hint "\00")
       (then))
   )
 )

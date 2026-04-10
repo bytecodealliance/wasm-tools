@@ -1,0 +1,32 @@
+(module
+  (type $arr (;0;) (array (mut arrayref)))
+  (type (;1;) (func (result i32)))
+  (export "run" (func 0))
+  (elem $elem (;0;) arrayref (item i32.const 0 array.new_default $arr))
+  (func (;0;) (type 1) (result i32)
+    (local $a (ref null $arr)) (local $b (ref null $arr))
+    i32.const 1
+    array.new_default $arr
+    local.set $a
+    local.get $a
+    i32.const 0
+    i32.const 0
+    i32.const 1
+    array.init_elem $arr $elem
+    i32.const 1
+    array.new_default $arr
+    local.set $b
+    local.get $b
+    i32.const 0
+    i32.const 0
+    i32.const 1
+    array.init_elem $arr $elem
+    local.get $a
+    i32.const 0
+    array.get $arr
+    local.get $b
+    i32.const 0
+    array.get $arr
+    ref.eq
+  )
+)

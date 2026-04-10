@@ -17,26 +17,40 @@
       "line": 19,
       "filename": "memory_max.1.wasm",
       "module_type": "binary",
-      "text": "unknown import"
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 26,
       "filename": "memory_max.2.wasm",
       "module_type": "binary",
-      "text": "unknown import"
+      "text": "incompatible import type"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 32,
+      "filename": "memory_max.3.wasm",
+      "module_type": "binary",
+      "text": "incompatible import type"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 39,
+      "filename": "memory_max.4.wasm",
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_invalid",
-      "line": 35,
-      "filename": "memory_max.3.wasm",
+      "line": 47,
+      "filename": "memory_max.5.wasm",
       "module_type": "binary",
       "text": "memory size must be at most"
     },
     {
       "type": "assert_invalid",
-      "line": 41,
-      "filename": "memory_max.4.wasm",
+      "line": 53,
+      "filename": "memory_max.6.wasm",
       "module_type": "binary",
       "text": "memory size must be at most"
     }

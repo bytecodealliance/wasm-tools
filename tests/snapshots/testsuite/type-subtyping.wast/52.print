@@ -1,21 +1,22 @@
 (module
-  (type $t0 (;0;) (sub (func (result funcref))))
   (rec
-    (type $t1 (;1;) (sub $t0 (func (result (ref null $t1)))))
+    (type $f1 (;0;) (sub (func)))
+    (type (;1;) (struct (field (ref $f1))))
   )
   (rec
-    (type $t2 (;2;) (sub $t1 (func (result (ref null $t2)))))
+    (type $f2 (;2;) (sub (func)))
+    (type (;3;) (struct (field (ref $f2))))
   )
-  (export "f0" (func 0))
-  (export "f1" (func 1))
-  (export "f2" (func 2))
-  (func (;0;) (type $t0) (result funcref)
-    ref.null func
+  (rec
+    (type $g (;4;) (sub $f1 (func)))
+    (type (;5;) (struct))
   )
-  (func (;1;) (type $t1) (result (ref null $t1))
-    ref.null $t1
-  )
-  (func (;2;) (type $t2) (result (ref null $t2))
-    ref.null $t2
+  (type (;6;) (func (result i32)))
+  (export "run" (func 1))
+  (elem (;0;) declare func $g)
+  (func $g (;0;) (type $g))
+  (func (;1;) (type 6) (result i32)
+    ref.func $g
+    ref.test (ref $f1)
   )
 )
