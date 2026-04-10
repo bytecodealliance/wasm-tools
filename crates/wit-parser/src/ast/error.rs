@@ -67,7 +67,7 @@ impl fmt::Display for ParseErrorKind {
     }
 }
 
-/// A single structured error from resolving a WIT package.
+/// A single structured error from parsing a WIT package.
 #[derive(Debug, PartialEq, Eq)]
 pub struct ParseError(Box<ParseErrorKind>);
 
