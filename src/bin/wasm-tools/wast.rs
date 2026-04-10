@@ -268,7 +268,7 @@ impl Opts {
             }
 
             WastDirective::AssertMalformedCustom {
-                span,
+                span: _,
                 mut module,
                 message,
             } => match module.encode() {
@@ -313,7 +313,7 @@ impl Opts {
 
             WastDirective::AssertInvalidCustom {
                 mut module,
-                message,
+                message: _,
                 span: _,
             } => {
                 let binary_wasm = module.encode()?;
