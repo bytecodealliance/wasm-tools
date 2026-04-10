@@ -1,0 +1,85 @@
+(module
+  (type (;0;) (func (param i32)))
+  (type (;1;) (func))
+  (type (;2;) (func (param i32 i32) (result i32)))
+  (memory (;0;) 1 1)
+  (export "nested" (func 3))
+  (func $dummy (;0;) (type 1))
+  (func $test1 (;1;) (type 0) (param i32)
+    (local i32)
+    local.get 1
+    local.get 0
+    i32.eq
+    (@metadata.code.branch_hint "\00")
+    if ;; label = @1
+      return
+    end
+    return
+  )
+  (func $test2 (;2;) (type 0) (param i32)
+    (local i32)
+    local.get 1
+    local.get 0
+    i32.eq
+    (@metadata.code.branch_hint "\01")
+    if ;; label = @1
+      return
+    end
+    return
+  )
+  (func (;3;) (type 2) (param i32 i32) (result i32)
+    (@metadata.code.branch_hint "\00")
+    local.get 0
+    if (result i32) ;; label = @1
+      local.get 1
+      if ;; label = @2
+        call $dummy
+        block ;; label = @3
+        end
+        nop
+      end
+      local.get 1
+      if ;; label = @2
+      else
+        call $dummy
+        block ;; label = @3
+        end
+        nop
+      end
+      (@metadata.code.branch_hint "\01")
+      local.get 1
+      if (result i32) ;; label = @2
+        call $dummy
+        i32.const 9
+      else
+        call $dummy
+        i32.const 10
+      end
+    else
+      local.get 1
+      if ;; label = @2
+        call $dummy
+        block ;; label = @3
+        end
+        nop
+      end
+      (@metadata.code.branch_hint "\00")
+      local.get 1
+      if ;; label = @2
+      else
+        call $dummy
+        block ;; label = @3
+        end
+        nop
+      end
+      local.get 1
+      if (result i32) ;; label = @2
+        call $dummy
+        i32.const 10
+      else
+        call $dummy
+        i32.const 11
+      end
+    end
+  )
+)

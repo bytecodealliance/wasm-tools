@@ -74,24 +74,13 @@
 (module
   (func (@metadata.code.branch_hint "\00"))
   (func
-    (@metadata.code.branch_hint "\00")
     (@metadata.code.branch_hint "\01")
   )
   (func
     (@metadata.code.branch_hint "\00")
-    (@metadata.code.branch_hint "\00")
-    (@metadata.code.branch_hint "\00")
     i32.const 0
     (@metadata.code.branch_hint "\00")
-    (@metadata.code.branch_hint "\00")
-    (@metadata.code.branch_hint "\00")
     if
-    (@metadata.code.branch_hint "\00")
-    (@metadata.code.branch_hint "\00")
-    (@metadata.code.branch_hint "\00")
     end
-    (@metadata.code.branch_hint "\00")
-    (@metadata.code.branch_hint "\00")
-    (@metadata.code.branch_hint "\00")
   )
 )

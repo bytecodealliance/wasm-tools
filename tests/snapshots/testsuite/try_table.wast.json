@@ -938,6 +938,42 @@
       "filename": "try_table.15.wasm",
       "module_type": "binary",
       "text": "type mismatch"
+    },
+    {
+      "type": "module",
+      "line": 499,
+      "filename": "try_table.16.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 522,
+      "action": {
+        "type": "invoke",
+        "field": "as-br-target",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "111"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 523,
+      "action": {
+        "type": "invoke",
+        "field": "as-value-provider",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "333"
+        }
+      ]
     }
   ]
 }

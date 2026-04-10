@@ -1,11 +1,8 @@
 (module
-  (rec
-    (type $f1 (;0;) (sub (func)))
-    (type (;1;) (struct (field (ref $f1))))
-  )
-  (rec
-    (type $g1 (;2;) (sub $f1 (func)))
-    (type (;3;) (struct))
-  )
-  (import "M5" "g" (func (;0;) (type $g1)))
+  (type $t1 (;0;) (sub (func)))
+  (type $t2 (;1;) (func))
+  (export "f1" (func 0))
+  (export "f2" (func 1))
+  (func (;0;) (type $t1))
+  (func (;1;) (type $t2))
 )

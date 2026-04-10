@@ -165,14 +165,7 @@ struct State {
     core: CoreState,
     #[cfg(feature = "component-model")]
     component: ComponentState,
-    custom_section_place: Option<(&'static str, usize)>,
-    // `custom_section_place` stores the text representation of the location where
-    // a custom section should be serialized in the binary format.
-    // The tuple elements are a str (e.g. "after elem") and the line number
-    // where the custom section place was set. `update_custom_section_place` won't
-    // update the custom section place unless the line number changes; this prevents
-    // printing a place "after xxx" where the xxx section doesn't appear in the text format
-    // (e.g. because it was present but empty in the binary format).
+    custom_section_place: Option<&'static str>,
 }
 
 impl State {
@@ -485,8 +478,7 @@ impl Printer<'_, '_> {
                     match encoding {
                         Encoding::Module => {
                             states.push(State::new(Encoding::Module));
-                            states.last_mut().unwrap().custom_section_place =
-                                Some(("before first", self.line));
+                            states.last_mut().unwrap().custom_section_place = Some("before first");
                             if states.len() > 1 {
                                 self.start_group("core module")?;
                             } else {
@@ -546,7 +538,6 @@ impl Printer<'_, '_> {
                         self.result
                             .print_custom_section(c.name(), c.data_offset(), c.data())?;
                     if printed {
-                        self.update_custom_section_line(&mut states);
                         continue;
                     }
 
@@ -589,16 +580,19 @@ impl Printer<'_, '_> {
                         }
                     }
                     assert!(self.nesting == start);
-                    self.update_custom_section_line(&mut states);
                 }
                 Payload::TypeSection(s) => {
+                    if s.count() > 0 {
+                        self.update_custom_section_place(&mut states, "after type");
+                    }
                     self.print_types(states.last_mut().unwrap(), s)?;
-                    self.update_custom_section_place(&mut states, "after type");
                 }
                 Payload::ImportSection(s) => {
                     Self::ensure_module(&states)?;
+                    if s.count() > 0 {
+                        self.update_custom_section_place(&mut states, "after import");
+                    }
                     self.print_imports(states.last_mut().unwrap(), s)?;
-                    self.update_custom_section_place(&mut states, "after import");
                 }
                 Payload::FunctionSection(reader) => {
                     Self::ensure_module(&states)?;
@@ -609,35 +603,47 @@ impl Printer<'_, '_> {
                             MAX_WASM_FUNCTIONS
                         );
                     }
+                    if reader.count() > 0 {
+                        self.update_custom_section_place(&mut states, "after func");
+                    }
                     for ty in reader {
                         states.last_mut().unwrap().core.func_to_type.push(Some(ty?))
                     }
-                    self.update_custom_section_place(&mut states, "after func");
                 }
                 Payload::TableSection(s) => {
                     Self::ensure_module(&states)?;
+                    if s.count() > 0 {
+                        self.update_custom_section_place(&mut states, "after table");
+                    }
                     self.print_tables(states.last_mut().unwrap(), s)?;
-                    self.update_custom_section_place(&mut states, "after table");
                 }
                 Payload::MemorySection(s) => {
                     Self::ensure_module(&states)?;
+                    if s.count() > 0 {
+                        self.update_custom_section_place(&mut states, "after memory");
+                    }
                     self.print_memories(states.last_mut().unwrap(), s)?;
-                    self.update_custom_section_place(&mut states, "after memory");
                 }
                 Payload::TagSection(s) => {
                     Self::ensure_module(&states)?;
+                    if s.count() > 0 {
+                        self.update_custom_section_place(&mut states, "after tag");
+                    }
                     self.print_tags(states.last_mut().unwrap(), s)?;
-                    self.update_custom_section_place(&mut states, "after tag");
                 }
                 Payload::GlobalSection(s) => {
                     Self::ensure_module(&states)?;
+                    if s.count() > 0 {
+                        self.update_custom_section_place(&mut states, "after global");
+                    }
                     self.print_globals(states.last_mut().unwrap(), s)?;
-                    self.update_custom_section_place(&mut states, "after global");
                 }
                 Payload::ExportSection(s) => {
                     Self::ensure_module(&states)?;
+                    if s.count() > 0 {
+                        self.update_custom_section_place(&mut states, "after export");
+                    }
                     self.print_exports(states.last().unwrap(), s)?;
-                    self.update_custom_section_place(&mut states, "after export");
                 }
                 Payload::StartSection { func, range } => {
                     Self::ensure_module(&states)?;
@@ -649,8 +655,10 @@ impl Printer<'_, '_> {
                 }
                 Payload::ElementSection(s) => {
                     Self::ensure_module(&states)?;
+                    if s.count() > 0 {
+                        self.update_custom_section_place(&mut states, "after elem");
+                    }
                     self.print_elems(states.last_mut().unwrap(), s)?;
-                    self.update_custom_section_place(&mut states, "after elem");
                 }
                 Payload::CodeSectionStart { .. } => {
                     Self::ensure_module(&states)?;
@@ -669,8 +677,10 @@ impl Printer<'_, '_> {
                 }
                 Payload::DataSection(s) => {
                     Self::ensure_module(&states)?;
+                    if s.count() > 0 {
+                        self.update_custom_section_place(&mut states, "after data");
+                    }
                     self.print_data(states.last_mut().unwrap(), s)?;
-                    self.update_custom_section_place(&mut states, "after data");
                 }
 
                 #[cfg(feature = "component-model")]
@@ -774,19 +784,8 @@ impl Printer<'_, '_> {
 
     fn update_custom_section_place(&self, states: &mut Vec<State>, place: &'static str) {
         if let Some(last) = states.last_mut() {
-            if let Some((prev, prev_line)) = &mut last.custom_section_place {
-                if *prev_line != self.line {
-                    *prev = place;
-                    *prev_line = self.line;
-                }
-            }
-        }
-    }
-
-    fn update_custom_section_line(&self, states: &mut Vec<State>) {
-        if let Some(last) = states.last_mut() {
-            if let Some((_, prev_line)) = &mut last.custom_section_place {
-                *prev_line = self.line;
+            if let Some(prev) = &mut last.custom_section_place {
+                *prev = place;
             }
         }
     }
@@ -1997,7 +1996,7 @@ impl Printer<'_, '_> {
         self.newline(section.range().start)?;
         self.start_group("@custom ")?;
         self.print_str(section.name())?;
-        if let Some((place, _)) = state.custom_section_place {
+        if let Some(place) = state.custom_section_place {
             write!(self.result, " ({place})")?;
         }
         self.result.write_str(" ")?;

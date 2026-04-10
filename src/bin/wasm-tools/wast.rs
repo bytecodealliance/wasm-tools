@@ -267,6 +267,20 @@ impl Opts {
                 bail!("encoded and parsed successfully but should have failed with: {message:?}",)
             }
 
+            WastDirective::AssertMalformedCustom {
+                span: _,
+                mut module,
+                message,
+            } => match module.encode() {
+                Ok(_) => {
+                    bail!(
+                        "expected module to have a malformed custom section but parsed successfully"
+                    )
+                }
+                Err(e) => {
+                    self.assert_error_matches(test, &e.to_string(), message)?;
+                }
+            },
             WastDirective::AssertInvalid {
                 mut module,
                 message,
@@ -295,6 +309,21 @@ impl Opts {
                     ),
                     Err(e) => self.assert_error_matches(test, &format!("{e:?}"), message)?,
                 }
+            }
+
+            WastDirective::AssertInvalidCustom {
+                mut module,
+                message: _,
+                span: _,
+            } => {
+                let binary_wasm = module.encode()?;
+                let mut test_path = test.to_path_buf();
+                test_path.push(idx.to_string());
+                self.test_wasm(&test_path, &binary_wasm, true)?;
+
+                // NB: validity of custom sections is deferred to runtimes for
+                // now so this doesn't actually test anything about the custom
+                // section.
             }
 
             WastDirective::Thread(thread) => {

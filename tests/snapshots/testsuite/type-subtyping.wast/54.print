@@ -1,15 +1,32 @@
 (module
-  (type $t0 (;0;) (sub (func (result funcref))))
   (rec
-    (type $t1 (;1;) (sub $t0 (func (result (ref null $t1)))))
+    (type $f1 (;0;) (sub (func)))
+    (type $s1 (;1;) (sub (struct (field (ref $f1)))))
   )
   (rec
-    (type $t2 (;2;) (sub $t1 (func (result (ref null $t2)))))
+    (type $f2 (;2;) (sub (func)))
+    (type $s2 (;3;) (sub (struct (field (ref $f2)))))
   )
-  (import "M" "f0" (func (;0;) (type $t0)))
-  (import "M" "f1" (func (;1;) (type $t0)))
-  (import "M" "f1" (func (;2;) (type $t1)))
-  (import "M" "f2" (func (;3;) (type $t0)))
-  (import "M" "f2" (func (;4;) (type $t1)))
-  (import "M" "f2" (func (;5;) (type $t2)))
+  (rec
+    (type $g1 (;4;) (sub $f1 (func)))
+    (type (;5;) (sub $s1 (struct (field (ref $f1)) (field (ref $f1)) (field (ref $f2)) (field (ref $f2)) (field (ref $g1)))))
+  )
+  (rec
+    (type $g2 (;6;) (sub $f2 (func)))
+    (type (;7;) (sub $s2 (struct (field (ref $f1)) (field (ref $f2)) (field (ref $f1)) (field (ref $f2)) (field (ref $g2)))))
+  )
+  (rec
+    (type $h (;8;) (sub $g2 (func)))
+    (type (;9;) (struct))
+  )
+  (type (;10;) (func (result i32 i32)))
+  (export "run" (func 1))
+  (elem (;0;) declare func $h)
+  (func $h (;0;) (type $h))
+  (func (;1;) (type 10) (result i32 i32)
+    ref.func $h
+    ref.test (ref $f1)
+    ref.func $h
+    ref.test (ref $g1)
+  )
 )

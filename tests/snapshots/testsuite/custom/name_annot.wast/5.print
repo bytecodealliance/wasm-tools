@@ -1,0 +1,5 @@
+(module
+  (type $t (;0;) (func))
+  (func $"\u{3bb}" (;0;) (type $t))
+  (func $"#func1 \u{3bb}" (@name "\u{3bb}") (;1;) (type $t))
+)
