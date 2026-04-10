@@ -364,14 +364,6 @@ jobs:
       - run: rustup component add clippy
       - run: cargo clippy --workspace --all-targets --exclude dl --exclude component
 
-  typos:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: cargo-bins/cargo-binstall@v1.17.9
-      - run: cargo binstall typos-cli@1.44.0 --no-confirm
-      - run: typos
-
   verify-publish:
     if: github.repository_owner == 'bytecodealliance'
     runs-on: ubuntu-latest
@@ -391,21 +383,20 @@ jobs:
     name: Record the result of testing and building steps
     runs-on: ubuntu-latest
     needs:
-      - build
-      - check
-      - clippy
-      - doc
-      - fuzz
-      - generated_files_up_to_date
-      - rustfmt
       - test
-      - test-prefer-btree-collections
+      - testdl
+      - wasm
+      - rustfmt
+      - fuzz
+      - check
+      - doc
+      - build
+      - verify-publish
       - test_capi
       - test_extra_features
-      - testdl
-      - typos
-      - verify-publish
-      - wasm
+      - test-prefer-btree-collections
+      - clippy
+      - generated_files_up_to_date
     if: always()
 
     steps:
@@ -435,3 +426,5 @@ jobs:
         submodules: true
         fetch-depth: 0
     - uses: ./.github/actions/publish-release
+      with:
+        cargo_token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
