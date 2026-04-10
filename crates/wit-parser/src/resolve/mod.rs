@@ -1187,8 +1187,8 @@ impl Resolve {
 
         // Fill out any missing transitive interface imports by elaborating this
         // world which does that for us.
-        let span = world.span;
-        self.elaborate_world(world_id, span)?;
+        let world_span = world.span;
+        self.elaborate_world(world_id, world_span)?;
 
         #[cfg(debug_assertions)]
         self.assert_valid();
