@@ -3,7 +3,7 @@
 use super::Mutator;
 use crate::module::{PrimitiveTypeInfo, TypeInfo};
 use crate::{Result, WasmMutate};
-use rand::Rng;
+use rand::RngExt;
 use wasm_encoder::{CodeSection, Function, HeapType, Module};
 use wasmparser::CodeSectionReader;
 

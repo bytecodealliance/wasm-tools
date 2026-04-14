@@ -31,7 +31,7 @@ use crate::{
         },
     },
 };
-use rand::{Rng, prelude::*};
+use rand::{RngExt, prelude::*};
 use wasm_encoder::{CodeSection, Function, Module, ValType};
 use wasmparser::{CodeSectionReader, FunctionBody};
 

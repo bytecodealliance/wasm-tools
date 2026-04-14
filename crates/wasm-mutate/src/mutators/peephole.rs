@@ -39,7 +39,7 @@ use crate::{
     module::{PrimitiveTypeInfo, map_type},
 };
 use egg::{Rewrite, Runner};
-use rand::Rng;
+use rand::RngExt;
 use wasm_encoder::reencode::{Reencode, RoundtripReencoder};
 use wasm_encoder::{CodeSection, ConstExpr, Function, GlobalSection, Module, ValType};
 use wasmparser::{CodeSectionReader, FunctionBody, GlobalSectionReader, LocalsReader};

@@ -3,7 +3,7 @@ use crate::{
 };
 use rand::distr::{SampleString, StandardUniform};
 use rand::rngs::SmallRng;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use std::collections::HashMap;
 use std::mem;
 

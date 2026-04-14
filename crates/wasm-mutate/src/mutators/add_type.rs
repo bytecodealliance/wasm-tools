@@ -3,7 +3,7 @@
 use super::Mutator;
 use crate::Result;
 use crate::module::map_type;
-use rand::Rng;
+use rand::{Rng, RngExt};
 use std::iter;
 
 /// A mutator that appends a new type to the type section.
