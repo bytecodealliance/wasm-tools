@@ -453,18 +453,24 @@ impl State {
             let mut counter = 0;
 
             while !finish_writing_wrap_clone.load(Relaxed) {
-                // pop from worklist
-                if let Some(wasm) = to_write_clone.lock().unwrap().pop() {
+                // Pop from the worklist while holding the mutex for as short a window
+                // as possible — the previous form `if let Some(_) = to_write_clone.lock()
+                // .unwrap().pop()` keeps the temporary MutexGuard alive for the entire
+                // body of the `if let`, blocking the producers (and shutdown) on every
+                // file write.
+                let wasm = to_write_clone.lock().unwrap().pop();
+                if let Some(wasm) = wasm {
                     let filename = artifact_folder_cp.join(format!("mutated.{counter}.wasm"));
                     std::fs::write(filename, &wasm).context("Failed to write mutated wasm")?;
                     counter += 1;
                 }
             }
             eprintln!("Writing down pending mutated binaries!");
-            // Then write pending wasms
-            while let Some(wasm) = to_write_clone.lock().unwrap().pop() {
+            // Then write pending wasms — same lock-narrowing as above.
+            loop {
+                let wasm = to_write_clone.lock().unwrap().pop();
+                let Some(wasm) = wasm else { break };
                 let filename = artifact_folder_cp.join(format!("mutated.{counter}.wasm"));
-
                 std::fs::write(filename, &wasm).context("Failed to write mutated wasm")?;
                 counter += 1;
             }
