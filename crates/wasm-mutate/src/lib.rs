@@ -27,7 +27,7 @@ use crate::mutators::{
 };
 use info::ModuleInfo;
 use mutators::Mutator;
-use rand::{Rng, SeedableRng, rngs::SmallRng};
+use rand::{RngExt, SeedableRng, rngs::SmallRng};
 use std::sync::Arc;
 
 #[cfg(feature = "clap")]

@@ -3,7 +3,7 @@
 use super::Mutator;
 use crate::module::{PrimitiveTypeInfo, TypeInfo};
 use crate::{Result, WasmMutate};
-use rand::Rng;
+use rand::RngExt;
 use wasm_encoder::{AbstractHeapType, HeapType, Module};
 
 /// Mutator that adds new, empty functions to a Wasm module.

@@ -1,7 +1,7 @@
 use anyhow::Context;
 use clap::Parser;
 use core::sync::atomic::Ordering::{Relaxed, SeqCst};
-use rand::Rng;
+use rand::RngExt;
 use rand::{SeedableRng, rngs::SmallRng};
 use std::collections::hash_map::DefaultHasher;
 use std::ffi::OsStr;

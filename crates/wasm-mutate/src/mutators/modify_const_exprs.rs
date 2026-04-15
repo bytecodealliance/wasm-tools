@@ -2,7 +2,7 @@
 //! entities which require constant initializers.
 
 use crate::{Error, Mutator, ReencodeResult};
-use rand::Rng;
+use rand::RngExt;
 use wasm_encoder::reencode::{self, Reencode, RoundtripReencoder};
 use wasm_encoder::{ElementSection, GlobalSection};
 use wasmparser::{ConstExpr, ElementSectionReader, GlobalSectionReader};

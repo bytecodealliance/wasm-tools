@@ -6,7 +6,7 @@ use crate::{
     mutators::peephole::{EG, Lang, MemArg, eggsy::encoder::TraversalEvent},
 };
 use egg::{Id, Language, RecExpr};
-use rand::Rng;
+use rand::RngExt;
 use std::num::Wrapping;
 use wasm_encoder::Function;
 

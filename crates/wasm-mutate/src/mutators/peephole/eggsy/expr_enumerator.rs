@@ -9,7 +9,7 @@ use crate::mutators::peephole::{
     eggsy::{RandomExtractor, encoder::rebuild::build_expr_inner},
 };
 use egg::{AstSize, Id, Language, RecExpr};
-use rand::{Rng, SeedableRng, prelude::SmallRng};
+use rand::{RngExt, SeedableRng, prelude::SmallRng};
 use std::{cell::RefCell, rc::Rc};
 
 /// Returns a lazy iterator over all possible expressions that can be

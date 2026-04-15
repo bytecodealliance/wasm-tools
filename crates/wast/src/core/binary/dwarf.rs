@@ -96,6 +96,7 @@ impl<'a> Dwarf<'a> {
             encoding,
             LineEncoding::default(),
             LineString::StringRef(comp_dir_ref),
+            None,
             LineString::StringRef(comp_file_ref),
             None,
         );
@@ -511,7 +512,7 @@ mod tests {
     use super::{Dwarf, EncodeOptions, GenerateDwarf};
     use crate::token::Span;
     use rand::rngs::SmallRng;
-    use rand::{Rng, SeedableRng};
+    use rand::{RngExt, SeedableRng};
 
     fn linecol_test(contents: &str) {
         let mut dwarf = Dwarf::new(

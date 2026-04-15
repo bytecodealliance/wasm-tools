@@ -117,10 +117,10 @@ impl Opts {
             let naming = naming?;
             let name = match rustc_demangle::try_demangle(naming.name) {
                 Ok(name) => name.to_string(),
-                Err(_) => match cpp_demangle::Symbol::new(naming.name) {
-                    Ok(name) => name.to_string(),
-                    Err(_) => naming.name.to_string(),
-                },
+                Err(_) => cpp_demangle::Symbol::new(naming.name)
+                    .ok()
+                    .and_then(|s| s.demangle().ok())
+                    .unwrap_or_else(|| naming.name.to_string()),
             };
             ret.append(naming.index, &name);
         }
