@@ -715,6 +715,14 @@ package {name} is defined in two different locations:\n\
         // existing interfaces that now depend on them.
         self.topologically_sort_interfaces(Some(&mut remap));
 
+        // Re-elaborate all worlds after the merge. Merging may have added
+        // extra types to existing interfaces that introduce new interface
+        // dependencies not yet present in the world's imports.
+        let world_ids: Vec<_> = self.worlds.iter().map(|(id, _)| id).collect();
+        for world_id in world_ids {
+            self.elaborate_world(world_id)?;
+        }
+
         #[cfg(debug_assertions)]
         self.assert_valid();
         Ok(remap)
