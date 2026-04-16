@@ -398,7 +398,7 @@ version = "0.0.0"
 dependencies = [
  "wasmprinter 0.246.2",
  "wat",
- "wit-bindgen-rt 0.26.0",
+ "wit-bindgen 0.49.0",
 ]
 
 [[package]]
@@ -2098,7 +2098,7 @@ version = "0.14.2+wasi-0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9683f9a5a998d873c0d21fcbe3c083009670149a8fab228644b8bd36b2c48cb3"
 dependencies = [
- "wit-bindgen-rt 0.39.0",
+ "wit-bindgen-rt",
 ]
 
 [[package]]
@@ -3021,15 +3021,6 @@ dependencies = [
  "anyhow",
  "heck",
  "wit-parser 0.244.0",
-]
-
-[[package]]
-name = "wit-bindgen-rt"
-version = "0.26.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29c7526379ace8709ee9ab9f2bb50f112d95581063a59ef3097d9c10153886c9"
-dependencies = [
- "bitflags",
 ]
 
 [[package]]
