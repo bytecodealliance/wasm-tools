@@ -714,11 +714,6 @@ package {name} is defined in two different locations:\n\
 
         log::trace!("now have {} packages", self.packages.len());
 
-        // Ensure the interfaces arena is in topological order after the
-        // merge. Newly-added interfaces may have been appended after
-        // existing interfaces that now depend on them.
-        self.topologically_sort_interfaces(Some(&mut remap));
-
         // Re-elaborate all worlds after the merge. Merging may have added
         // extra types to existing interfaces that introduce new interface
         // dependencies not yet present in the world's imports.
@@ -1598,149 +1593,6 @@ package {name} is defined in two different locations:\n\
         pushed[id.index()] = true;
     }
 
-    /// Rebuilds the interfaces arena in topological order and updates all
-    /// InterfaceId references throughout this `Resolve`.
-    ///
-    /// After a merge, newly-added interfaces may appear after existing
-    /// interfaces that now depend on them. This method re-orders the
-    /// interfaces arena so that dependencies always precede dependents
-    /// within each package.
-    ///
-    /// The optional `remap` is updated so that its interface entries reflect
-    /// the new interface IDs.
-    fn topologically_sort_interfaces(&mut self, remap: Option<&mut Remap>) {
-        // Compute a global topological order: iterate packages in topological
-        // order, and within each package topologically sort interfaces based
-        // on their `use`-type dependencies.
-        let mut order = Vec::with_capacity(self.interfaces.len());
-        let mut visited = vec![false; self.interfaces.len()];
-
-        for pkg_id in self.topological_packages() {
-            let pkg = &self.packages[pkg_id];
-            for (_, &iface_id) in pkg.interfaces.iter() {
-                self.visit_interface_topo(iface_id, pkg_id, &mut visited, &mut order);
-            }
-        }
-
-        // Also include interfaces that don't belong to any package (shouldn't
-        // normally happen, but be safe).
-        for (id, _) in self.interfaces.iter() {
-            if !visited[id.index()] {
-                order.push(id);
-            }
-        }
-
-        // Check if already in order — if so, skip the rebuild.
-        let already_sorted = order
-            .iter()
-            .zip(order.iter().skip(1))
-            .all(|(a, b)| a.index() < b.index());
-        if already_sorted {
-            return;
-        }
-
-        // Build old-to-new mapping.
-        let mut old_to_new: Vec<Option<InterfaceId>> = vec![None; self.interfaces.len()];
-
-        // Consume the old arena and put items into a vec for random access.
-        let old_arena = mem::take(&mut self.interfaces);
-        let mut items: Vec<Option<Interface>> = old_arena
-            .into_iter()
-            .map(|(_, iface)| Some(iface))
-            .collect();
-
-        // Rebuild the arena in topological order.
-        for &old_id in &order {
-            let iface = items[old_id.index()].take().unwrap();
-            let new_id = self.interfaces.alloc(iface);
-            old_to_new[old_id.index()] = Some(new_id);
-        }
-
-        // Helper closure to map an old InterfaceId to the new one.
-        let map_iface = |id: InterfaceId| -> InterfaceId { old_to_new[id.index()].unwrap() };
-
-        // Update all InterfaceId references throughout the Resolve.
-
-        // 1. Package::interfaces
-        for (_, pkg) in self.packages.iter_mut() {
-            for (_, id) in pkg.interfaces.iter_mut() {
-                *id = map_iface(*id);
-            }
-        }
-
-        // 2. Types: TypeOwner::Interface
-        for (_, ty) in self.types.iter_mut() {
-            if let TypeOwner::Interface(id) = &mut ty.owner {
-                *id = map_iface(*id);
-            }
-        }
-
-        // 3. Worlds: imports/exports with WorldKey::Interface and WorldItem::Interface
-        for (_, world) in self.worlds.iter_mut() {
-            let imports = mem::take(&mut world.imports);
-            for (key, mut item) in imports {
-                let new_key = match key {
-                    WorldKey::Interface(id) => WorldKey::Interface(map_iface(id)),
-                    other => other,
-                };
-                if let WorldItem::Interface { id, .. } = &mut item {
-                    *id = map_iface(*id);
-                }
-                world.imports.insert(new_key, item);
-            }
-            let exports = mem::take(&mut world.exports);
-            for (key, mut item) in exports {
-                let new_key = match key {
-                    WorldKey::Interface(id) => WorldKey::Interface(map_iface(id)),
-                    other => other,
-                };
-                if let WorldItem::Interface { id, .. } = &mut item {
-                    *id = map_iface(*id);
-                }
-                world.exports.insert(new_key, item);
-            }
-        }
-
-        // 4. Interface::clone_of
-        for (_, iface) in self.interfaces.iter_mut() {
-            if let Some(id) = &mut iface.clone_of {
-                *id = map_iface(*id);
-            }
-        }
-
-        // 5. Update the Remap if provided.
-        if let Some(remap) = remap {
-            for entry in remap.interfaces.iter_mut() {
-                if let Some(id) = entry {
-                    *id = map_iface(*id);
-                }
-            }
-        }
-    }
-
-    /// Depth-first visit for topological sorting of interfaces within a package.
-    fn visit_interface_topo(
-        &self,
-        id: InterfaceId,
-        pkg_id: PackageId,
-        visited: &mut Vec<bool>,
-        order: &mut Vec<InterfaceId>,
-    ) {
-        if visited[id.index()] {
-            return;
-        }
-        visited[id.index()] = true;
-
-        // Visit same-package dependencies first.
-        for dep in self.interface_direct_deps(id) {
-            if self.interfaces[dep].package == Some(pkg_id) {
-                self.visit_interface_topo(dep, pkg_id, visited, order);
-            }
-        }
-
-        order.push(id);
-    }
-
     #[doc(hidden)]
     pub fn assert_valid(&self) {
         let mut package_interfaces = Vec::new();
@@ -1906,14 +1758,7 @@ package {name} is defined in two different locations:\n\
             let my_package_pos = positions.get_index_of(&my_package).unwrap();
             let other_package_pos = positions.get_index_of(&other_package).unwrap();
 
-            if my_package_pos == other_package_pos {
-                let interfaces = &positions[&my_package];
-                let my_interface_pos = interfaces.get_index_of(&my_interface).unwrap();
-                let other_interface_pos = interfaces.get_index_of(&other_interface).unwrap();
-                assert!(other_interface_pos <= my_interface_pos);
-            } else {
-                assert!(other_package_pos < my_package_pos);
-            }
+            assert!(other_package_pos <= my_package_pos);
         }
     }
 
