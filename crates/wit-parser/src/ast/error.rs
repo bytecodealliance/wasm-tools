@@ -1,11 +1,15 @@
+//! Error types for WIT parsing.
+
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use core::fmt;
 
 use crate::{SourceMap, Span, ast::lex};
 
+/// Convenience alias for a `Result` whose error type is [`ParseError`].
 pub type ParseResult<T, E = ParseError> = Result<T, E>;
 
+/// The category of error that occurred while parsing a WIT package.
 #[non_exhaustive]
 #[derive(Debug, PartialEq, Eq)]
 pub enum ParseErrorKind {
@@ -31,6 +35,7 @@ pub enum ParseErrorKind {
 }
 
 impl ParseErrorKind {
+    /// Returns the source span associated with this error.
     pub fn span(&self) -> Span {
         match self {
             ParseErrorKind::Lex(e) => Span::new(e.position(), e.position() + 1),
@@ -62,6 +67,7 @@ impl fmt::Display for ParseErrorKind {
     }
 }
 
+/// A single structured error from parsing a WIT package.
 #[derive(Debug, PartialEq, Eq)]
 pub struct ParseError(Box<ParseErrorKind>);
 
@@ -74,10 +80,12 @@ impl ParseError {
         .into()
     }
 
+    /// Returns the underlying error kind
     pub fn kind(&self) -> &ParseErrorKind {
         &self.0
     }
 
+    /// Returns the underlying error kind (mutable).
     pub fn kind_mut(&mut self) -> &mut ParseErrorKind {
         &mut self.0
     }

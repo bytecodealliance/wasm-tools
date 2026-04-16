@@ -10,8 +10,7 @@ use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 #[cfg(feature = "std")]
-use anyhow::Context;
-use anyhow::{Result, bail};
+use anyhow::Context as _;
 use id_arena::{Arena, Id};
 use semver::Version;
 
@@ -52,6 +51,7 @@ pub use ast::{ParsedUsePath, parse_use_path};
 mod sizealign;
 pub use sizealign::*;
 mod resolve;
+pub use resolve::error::*;
 pub use resolve::*;
 mod live;
 pub use live::{LiveTypes, TypeIdVisitor};
@@ -64,7 +64,7 @@ mod serde_;
 use serde_::*;
 
 /// Checks if the given string is a legal identifier in wit.
-pub fn validate_id(s: &str) -> Result<()> {
+pub fn validate_id(s: &str) -> anyhow::Result<()> {
     ast::validate_id(0, s)?;
     Ok(())
 }
@@ -294,91 +294,6 @@ impl fmt::Display for PackageName {
     }
 }
 
-#[derive(Debug)]
-struct Error {
-    span: Span,
-    msg: String,
-    highlighted: Option<String>,
-}
-
-impl Error {
-    fn new(span: Span, msg: impl Into<String>) -> Error {
-        Error {
-            span,
-            msg: msg.into(),
-            highlighted: None,
-        }
-    }
-
-    /// Highlights this error using the given source map, if the span is known.
-    fn highlight(&mut self, source_map: &ast::SourceMap) {
-        if self.highlighted.is_none() {
-            self.highlighted = source_map.highlight_span(self.span, &self.msg);
-        }
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.highlighted.as_ref().unwrap_or(&self.msg).fmt(f)
-    }
-}
-
-impl core::error::Error for Error {}
-
-#[derive(Debug)]
-struct PackageNotFoundError {
-    span: Span,
-    requested: PackageName,
-    known: Vec<PackageName>,
-    highlighted: Option<String>,
-}
-
-impl PackageNotFoundError {
-    pub fn new(span: Span, requested: PackageName, known: Vec<PackageName>) -> Self {
-        Self {
-            span,
-            requested,
-            known,
-            highlighted: None,
-        }
-    }
-
-    /// Highlights this error using the given source map, if the span is known.
-    fn highlight(&mut self, source_map: &ast::SourceMap) {
-        if self.highlighted.is_none() {
-            self.highlighted = source_map.highlight_span(self.span, &format!("{self}"));
-        }
-    }
-}
-
-impl fmt::Display for PackageNotFoundError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(highlighted) = &self.highlighted {
-            return highlighted.fmt(f);
-        }
-        if self.known.is_empty() {
-            write!(
-                f,
-                "package '{}' not found. no known packages.",
-                self.requested
-            )?;
-        } else {
-            write!(
-                f,
-                "package '{}' not found. known packages:\n",
-                self.requested
-            )?;
-            for known in self.known.iter() {
-                write!(f, "    {known}\n")?;
-            }
-        }
-        Ok(())
-    }
-}
-
-impl core::error::Error for PackageNotFoundError {}
-
 impl UnresolvedPackageGroup {
     /// Parses the given string as a wit document.
     ///
@@ -386,7 +301,7 @@ impl UnresolvedPackageGroup {
     /// are considered to be the contents of `path`. This function does not read
     /// the filesystem.
     #[cfg(feature = "std")]
-    pub fn parse(path: impl AsRef<Path>, contents: &str) -> Result<UnresolvedPackageGroup> {
+    pub fn parse(path: impl AsRef<Path>, contents: &str) -> anyhow::Result<UnresolvedPackageGroup> {
         let path = path
             .as_ref()
             .to_str()
@@ -404,7 +319,7 @@ impl UnresolvedPackageGroup {
     /// grouping. This is useful when a WIT package is split across multiple
     /// files.
     #[cfg(feature = "std")]
-    pub fn parse_dir(path: impl AsRef<Path>) -> Result<UnresolvedPackageGroup> {
+    pub fn parse_dir(path: impl AsRef<Path>) -> anyhow::Result<UnresolvedPackageGroup> {
         let path = path.as_ref();
         let mut map = SourceMap::default();
         let cx = || format!("failed to read directory {path:?}");
@@ -1162,12 +1077,12 @@ pub enum Mangling {
 impl core::str::FromStr for Mangling {
     type Err = anyhow::Error;
 
-    fn from_str(s: &str) -> Result<Mangling> {
+    fn from_str(s: &str) -> anyhow::Result<Mangling> {
         match s {
             "legacy" => Ok(Mangling::Legacy),
             "standard32" => Ok(Mangling::Standard32),
             _ => {
-                bail!(
+                anyhow::bail!(
                     "unknown name mangling `{s}`, \
                      supported values are `legacy` or `standard32`"
                 )

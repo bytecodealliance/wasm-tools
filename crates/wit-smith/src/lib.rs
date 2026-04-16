@@ -6,7 +6,7 @@
 //! type structures.
 
 use arbitrary::{Result, Unstructured};
-use wit_parser::{InvalidTransitiveDependency, Resolve};
+use wit_parser::{Resolve, ResolveErrorKind};
 
 mod config;
 pub use self::config::Config;
@@ -27,7 +27,10 @@ pub fn smith(config: &Config, u: &mut Unstructured<'_>) -> Result<Vec<u8>> {
         let id = match resolve.push_group(group) {
             Ok(id) => id,
             Err(e) => {
-                if e.is::<InvalidTransitiveDependency>() {
+                if matches!(
+                    e.kind(),
+                    ResolveErrorKind::InvalidTransitiveDependency { .. }
+                ) {
                     return Err(arbitrary::Error::IncorrectFormat);
                 }
                 let err = e.to_string();

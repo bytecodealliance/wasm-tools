@@ -2,6 +2,7 @@ use crate::*;
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
+use anyhow::Result;
 use anyhow::{Context, anyhow, bail};
 use core::mem;
 use std::io::Read;
