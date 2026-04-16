@@ -1,0 +1,7 @@
+package foo:bar;
+
+/// `into` only has `user` with `get` — no `dep` interface at all.
+
+interface user {
+  get: func() -> u32;
+}
