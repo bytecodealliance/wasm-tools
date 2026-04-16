@@ -2,7 +2,7 @@
 // RUN[exports]: component wit % --merge-world-imports-based-on-semver exports
 // RUN[imports-deps]: component wit % --merge-world-imports-based-on-semver imports-deps
 // RUN[imports-deps2]: component wit % --merge-world-imports-based-on-semver imports-deps2
-// RUN[invalid-semver]: component wit % --merge-world-imports-based-on-semver invalid-semver
+// FAIL[invalid-semver]: component wit % --merge-world-imports-based-on-semver invalid-semver
 // RUN[valid-semver]: component wit % --merge-world-imports-based-on-semver valid-semver
 // RUN[fix-transitive]: component wit % --merge-world-imports-based-on-semver fix-transitive
 

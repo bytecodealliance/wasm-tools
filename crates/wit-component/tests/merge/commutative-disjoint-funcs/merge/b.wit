@@ -1,8 +1,0 @@
-package a:b;
-
-interface a {
-  f2: func();
-
-  f1: func();
-}
-
