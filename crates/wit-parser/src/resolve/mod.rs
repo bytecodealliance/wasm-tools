@@ -2559,6 +2559,11 @@ package {name} is defined in two different locations:\n\
             assert!(prev.is_none());
         }
 
+        // The type-reference replacements above may have changed interface
+        // dependency edges, so re-sort interfaces topologically before
+        // elaborating worlds.
+        self.topologically_sort_interfaces(None);
+
         // Run through `elaborate_world` to reorder imports as appropriate and
         // fill anything back in if it's actually required by exports. For now
         // this doesn't tamper with exports at all. Also note that this is
