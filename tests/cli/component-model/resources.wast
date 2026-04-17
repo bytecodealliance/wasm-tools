@@ -50,7 +50,7 @@
 
 (assert_invalid
   (component
-    (type $x (resource (rep i64)))
+    (type $x (resource (rep v128)))
   )
   "resources can only be represented by `i32`")
 
