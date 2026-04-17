@@ -588,8 +588,11 @@ impl ComponentState {
                 }
 
                 // Current MVP restriction of the component model.
-                if rep != ValType::I32 {
-                    bail!(offset, "resources can only be represented by `i32`");
+                if rep != ValType::I32 && rep != ValType::I64 {
+                    bail!(
+                        offset,
+                        "resources can only be represented by `i32` or `i64`"
+                    );
                 }
 
                 // If specified validate that the destructor is both a valid
