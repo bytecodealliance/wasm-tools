@@ -4354,10 +4354,11 @@ impl ComponentState {
     /// Validates that the linear memory at `idx` is valid to use as a canonical
     /// ABI memory.
     ///
-    /// At this time this requires that the memory is a plain 32-bit linear
-    /// memory. Notably this disallows shared memory and 64-bit linear memories.
+    /// At this time this requires that the memory is a plain 32-bit or 64-bit linear
+    /// memory. Notably this disallows shared memory.
     fn cabi_memory_at(&self, idx: u32, offset: usize) -> Result<()> {
         let ty = self.memory_at(idx, offset)?;
+
         SubtypeCx::memory_type(
             ty,
             &MemoryType {
@@ -4369,18 +4370,24 @@ impl ComponentState {
             },
             offset,
         )
-        .or_else(|_| {
-            SubtypeCx::memory_type(
-                ty,
-                &MemoryType {
-                    initial: 0,
-                    maximum: None,
-                    memory64: true,
-                    shared: false,
-                    page_size_log2: None,
-                },
-                offset,
-            )
+        .or_else(|e| {
+            if e.message()
+                .contains("mismatch in index type used for memories")
+            {
+                SubtypeCx::memory_type(
+                    ty,
+                    &MemoryType {
+                        initial: 0,
+                        maximum: None,
+                        memory64: true,
+                        shared: false,
+                        page_size_log2: None,
+                    },
+                    offset,
+                )
+            } else {
+                Err(e)
+            }
         })
         .map_err(|mut e| {
             e.add_context("canonical ABI memory is not a 32-bit or 64-bit linear memory".into());
