@@ -4369,8 +4369,21 @@ impl ComponentState {
             },
             offset,
         )
+        .or_else(|_| {
+            SubtypeCx::memory_type(
+                ty,
+                &MemoryType {
+                    initial: 0,
+                    maximum: None,
+                    memory64: true,
+                    shared: false,
+                    page_size_log2: None,
+                },
+                offset,
+            )
+        })
         .map_err(|mut e| {
-            e.add_context("canonical ABI memory is not a 32-bit linear memory".into());
+            e.add_context("canonical ABI memory is not a 32-bit or 64-bit linear memory".into());
             e
         })
     }

@@ -31,4 +31,4 @@
     (alias core export $A "m" (core memory $m))
     (core func (canon lower (func $x) (memory $m)))
   )
-  "canonical ABI memory is not a 32-bit linear memory")
+  "canonical ABI memory is not a 32-bit or 64-bit linear memory")

@@ -18,7 +18,7 @@
       "line": 25,
       "filename": "not-accepted.2.wasm",
       "module_type": "binary",
-      "text": "canonical ABI memory is not a 32-bit linear memory"
+      "text": "canonical ABI memory is not a 32-bit or 64-bit linear memory"
     }
   ]
 }

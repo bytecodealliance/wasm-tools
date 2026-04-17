@@ -42,7 +42,6 @@
   (core instance (instantiate $B (with "" (instance (export "" (table $m))))))
 )
 
-(assert_invalid
   (component
     (import "x" (func $x (param "x" string)))
     (core module $A
@@ -51,4 +50,3 @@
     (alias core export $A "m" (core memory $m))
     (core func (canon lower (func $x) (memory $m)))
   )
-  "canonical ABI memory is not a 32-bit linear memory")
