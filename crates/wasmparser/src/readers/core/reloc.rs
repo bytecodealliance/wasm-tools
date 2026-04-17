@@ -242,8 +242,12 @@ pub struct RelocationEntry {
 impl RelocationEntry {
     /// Byte range relative to the start of the section indicated by
     /// `RelocSectionReader::section` targeted by this relocation.
-    pub fn relocation_range(&self) -> Range<usize> {
-        (self.offset as usize)..(self.offset as usize + self.ty.extent())
+    pub fn relocation_range(&self) -> Result<Range<usize>> {
+        let start = self.offset as usize;
+        let end = start
+            .checked_add(self.ty.extent())
+            .ok_or_else(|| crate::BinaryReaderError::new("relocation range end overflow", start))?;
+        Ok(start..end)
     }
 }
 
