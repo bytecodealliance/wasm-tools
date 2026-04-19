@@ -1,0 +1,5 @@
+import `primary` conflicts with prior interface of same name
+     --> tests/ui/parse-fail/implements-duplicate-label.wit:10:10
+      |
+   10 |   import primary: store;
+      |          ^------

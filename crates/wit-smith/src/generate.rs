@@ -647,6 +647,7 @@ impl<'a> InterfaceGenerator<'a> {
             Func(Direction),
             Interface(Direction),
             AnonInterface(Direction),
+            ImplementsInterface(Direction),
             Type,
             Use,
             Include,
@@ -666,9 +667,18 @@ impl<'a> InterfaceGenerator<'a> {
             && u.arbitrary()?
         {
             let kind = u.arbitrary::<ItemKind>()?;
+
+            // Gate config-disabled features early, before consuming any
+            // more random bytes, to keep byte consumption deterministic
+            // when a feature is toggled off.
+            if matches!(kind, ItemKind::ImplementsInterface(_)) && !self.generator.config.implements
+            {
+                continue;
+            }
+
             let (direction, named) = match kind {
                 ItemKind::Func(dir) | ItemKind::AnonInterface(dir) => (Some(dir), true),
-                ItemKind::Interface(dir) => (Some(dir), false),
+                ItemKind::Interface(dir) | ItemKind::ImplementsInterface(dir) => (Some(dir), false),
                 ItemKind::Type => (None, true),
                 ItemKind::Use => (None, false),
                 ItemKind::Include => (None, false),
@@ -748,6 +758,34 @@ impl<'a> InterfaceGenerator<'a> {
                     if !unique {
                         continue;
                     }
+                    part.push_str(";");
+                }
+                ItemKind::ImplementsInterface(dir) => {
+                    let names = match dir {
+                        Direction::Import => &mut self.unique_names,
+                        Direction::Export => &mut export_names,
+                    };
+                    let label = gen_unique_name(u, names)?;
+
+                    let mut path_str = String::new();
+                    if self
+                        .generator
+                        .gen_interface_path(u, self.file, &mut path_str)?
+                        .is_none()
+                    {
+                        continue;
+                    }
+
+                    self.generator.packages.add_name(
+                        self.package_name.to_string(),
+                        world_name.to_string(),
+                        label.to_string(),
+                    );
+
+                    part.push_str("%");
+                    part.push_str(&label);
+                    part.push_str(": ");
+                    part.push_str(&path_str);
                     part.push_str(";");
                 }
                 ItemKind::AnonInterface(_) => {

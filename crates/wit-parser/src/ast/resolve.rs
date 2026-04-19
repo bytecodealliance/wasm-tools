@@ -703,8 +703,18 @@ impl<'a> Resolver<'a> {
                     let id = self.extract_iface_from_item(&item, &name, span)?;
                     WorldKey::Interface(id)
                 }
+
+                // Named paths use the label as the key.
+                ast::ExternKind::NamedPath(name, _) => WorldKey::Name(name.name.to_string()),
             };
-            if let WorldItem::Interface { id, .. } = world_item {
+            if let WorldItem::Interface {
+                id,
+                implements: None,
+                ..
+            } = world_item
+            {
+                // Only enforce the single-import restriction for bare
+                // `ExternKind::Path` imports (not named/implements imports).
                 if !interfaces.insert(id) {
                     return Err(ParseError::new_syntax(
                         kind.span(),
@@ -755,6 +765,7 @@ impl<'a> Resolver<'a> {
                 Ok(WorldItem::Interface {
                     id,
                     stability,
+                    implements: None,
                     span: name.span,
                 })
             }
@@ -765,7 +776,19 @@ impl<'a> Resolver<'a> {
                 Ok(WorldItem::Interface {
                     id,
                     stability,
+                    implements: None,
                     span: item_span,
+                })
+            }
+            ast::ExternKind::NamedPath(name, path) => {
+                let stability = self.stability(attrs)?;
+                let (item, iface_name, item_span) = self.resolve_ast_item_path(path)?;
+                let id = self.extract_iface_from_item(&item, &iface_name, item_span)?;
+                Ok(WorldItem::Interface {
+                    id,
+                    stability,
+                    implements: Some(id),
+                    span: name.span,
                 })
             }
             ast::ExternKind::Func(name, func) => {

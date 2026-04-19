@@ -242,6 +242,7 @@ impl From<KebabString> for String {
 /// * a plain method name : `[method]a-b.c-d`
 /// * a plain static method name : `[static]a-b.c-d`
 /// * a plain constructor: `[constructor]a-b`
+/// * an implements name: `[implements=<a:b/c>]label`
 /// * an interface name: `wasi:cli/reactor@0.1.0`
 /// * a dependency name: `locked-dep=foo:bar/baz`
 /// * a URL name: `url=https://..`
@@ -252,6 +253,10 @@ impl From<KebabString> for String {
 /// Note that this type the `[method]...` and `[static]...` variants are
 /// considered equal and hash to the same value. This enables disallowing
 /// clashes between the two where method name overlap cannot happen.
+///
+/// Similarly, `[implements=<I>]L` is considered equal to a bare label `L`
+/// (they conflict on the same label). Two `[implements=<...>]` names with
+/// the same label also conflict, regardless of the interface name.
 #[derive(Clone)]
 pub struct ComponentName {
     raw: String,
@@ -264,6 +269,7 @@ enum ParsedComponentNameKind {
     Constructor,
     Method,
     Static,
+    Implements,
     Interface,
     Dependency,
     Url,
@@ -283,6 +289,9 @@ pub enum ComponentNameKind<'a> {
     /// `[static]a-b.c-d`
     #[allow(missing_docs)]
     Static(ResourceFunc<'a>),
+    /// A plain-named instance that implements a named interface, e.g.
+    /// `[implements=<a:b/c>]label`.
+    Implements(ImplementsName<'a>),
     /// `wasi:http/types@2.0`
     #[allow(missing_docs)]
     Interface(InterfaceName<'a>),
@@ -300,6 +309,7 @@ pub enum ComponentNameKind<'a> {
 const CONSTRUCTOR: &str = "[constructor]";
 const METHOD: &str = "[method]";
 const STATIC: &str = "[static]";
+const IMPLEMENTS_PREFIX: &str = "[implements=<";
 
 impl ComponentName {
     /// Attempts to parse `name` as a valid component name, returning `Err` if
@@ -338,6 +348,7 @@ impl ComponentName {
             PK::Constructor => Constructor(KebabStr::new_unchecked(&self.raw[CONSTRUCTOR.len()..])),
             PK::Method => Method(ResourceFunc(&self.raw[METHOD.len()..])),
             PK::Static => Static(ResourceFunc(&self.raw[STATIC.len()..])),
+            PK::Implements => Implements(ImplementsName(&self.raw[IMPLEMENTS_PREFIX.len()..])),
             PK::Interface => Interface(InterfaceName(&self.raw)),
             PK::Dependency => Dependency(DependencyName(&self.raw)),
             PK::Url => Url(UrlName(&self.raw)),
@@ -379,7 +390,7 @@ impl Ord for ComponentName {
 
 impl PartialOrd for ComponentName {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.kind.partial_cmp(&other.kind)
+        Some(self.kind().cmp(&other.kind()))
     }
 }
 
@@ -397,9 +408,13 @@ impl fmt::Debug for ComponentName {
 
 impl ComponentNameKind<'_> {
     /// Returns the [`ParsedComponentNameKind`] of the [`ComponentNameKind`].
+    ///
+    /// Note that `Implements` maps to `Label` because they share the same
+    /// uniqueness namespace (an `[implements=<I>]L` name conflicts with a
+    /// bare label `L`).
     fn kind(&self) -> ParsedComponentNameKind {
         match self {
-            Self::Label(_) => ParsedComponentNameKind::Label,
+            Self::Label(_) | Self::Implements(_) => ParsedComponentNameKind::Label,
             Self::Constructor(_) => ParsedComponentNameKind::Constructor,
             Self::Method(_) => ParsedComponentNameKind::Method,
             Self::Static(_) => ParsedComponentNameKind::Static,
@@ -428,12 +443,29 @@ impl Ord for ComponentNameKind<'_> {
                 Ordering::Equal
             }
 
+            // `[implements=<I>]L` compares by label only, and is equivalent
+            // to a bare label `L`.
+            (Implements(lhs), Implements(rhs)) => lhs.label().cmp(rhs.label()),
+            (Label(lhs), Implements(rhs)) => (*lhs).cmp(rhs.label()),
+            (Implements(lhs), Label(rhs)) => lhs.label().cmp(*rhs),
+
+            // `[implements=<I>]l` is equivalent to `[method]l.l` / `[static]l.l`
+            // when resource == method (the `l.l` edge case that also equals
+            // bare label `l`).
+            (Implements(imp), Method(method) | Static(method))
+            | (Method(method) | Static(method), Implements(imp))
+                if imp.label() == method.resource() && imp.label() == method.method() =>
+            {
+                Ordering::Equal
+            }
+
             (Interface(lhs), Interface(rhs)) => lhs.cmp(rhs),
             (Dependency(lhs), Dependency(rhs)) => lhs.cmp(rhs),
             (Url(lhs), Url(rhs)) => lhs.cmp(rhs),
             (Hash(lhs), Hash(rhs)) => lhs.cmp(rhs),
 
             (Label(_), _)
+            | (Implements(_), _)
             | (Constructor(_), _)
             | (Method(_), _)
             | (Static(_), _)
@@ -455,7 +487,11 @@ impl Hash for ComponentNameKind<'_> {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         use ComponentNameKind::*;
         match self {
+            // `[implements=<I>]L` hashes the same as bare label `L` since
+            // they conflict on the same label.
             Label(name) => (0u8, name).hash(hasher),
+            Implements(name) => (0u8, name.label()).hash(hasher),
+
             Constructor(name) => (1u8, name).hash(hasher),
 
             Method(name) | Static(name) => {
@@ -505,6 +541,37 @@ impl<'a> ResourceFunc<'a> {
     pub fn method(&self) -> &'a KebabStr {
         let dot = self.0.find('.').unwrap();
         KebabStr::new_unchecked(&self.0[dot + 1..])
+    }
+}
+
+/// An implements name, representing `[implements=<I>]L`.
+///
+/// The internal string starts after `[implements=<` and contains
+/// `interface_name>]label`.
+#[derive(Debug, Clone)]
+pub struct ImplementsName<'a>(&'a str);
+
+impl<'a> ImplementsName<'a> {
+    /// Returns the full raw string of the implements name (everything after
+    /// the `[implements=<` prefix).
+    pub fn as_str(&self) -> &'a str {
+        self.0
+    }
+
+    /// Returns the index of `>]` in the internal string, which separates the
+    /// interface name from the label.
+    fn split_point(&self) -> usize {
+        self.0.find(">]").unwrap()
+    }
+
+    /// Returns the interface name (the `I` in `[implements=<I>]L`).
+    pub fn interface(&self) -> &'a str {
+        &self.0[..self.split_point()]
+    }
+
+    /// Returns the label (the `L` in `[implements=<I>]L`).
+    pub fn label(&self) -> &'a KebabStr {
+        KebabStr::new_unchecked(&self.0[self.split_point() + 2..])
     }
 }
 
@@ -614,6 +681,29 @@ impl<'a> ComponentNameParser<'a> {
             self.kebab(resource)?;
             self.expect_kebab()?;
             return Ok(ParsedComponentNameKind::Static);
+        }
+
+        // '[implements=<' <interfacename> '>]' <label>
+        if self.eat_str(IMPLEMENTS_PREFIX) {
+            let iface_str = self.take_up_to('>')?;
+            // Validate the interface name by parsing it as a package name
+            // with a required projection (e.g. `ns:pkg/iface`).
+            let mut iface_parser = ComponentNameParser {
+                next: iface_str,
+                offset: self.offset,
+                features: self.features,
+            };
+            iface_parser.pkg_name(true)?;
+            if !iface_parser.next.is_empty() {
+                bail!(
+                    self.offset,
+                    "trailing content after interface name in implements annotation"
+                );
+            }
+            self.expect_str(">")?;
+            self.expect_str("]")?;
+            self.expect_kebab()?;
+            return Ok(ParsedComponentNameKind::Implements);
         }
 
         // 'unlocked-dep=<' <pkgnamequery> '>'
@@ -962,6 +1052,19 @@ mod tests {
         assert!(parse_kebab_name("[method]a.b.c").is_none());
         assert!(parse_kebab_name("[static]a.b").is_some());
         assert!(parse_kebab_name("[static]a").is_none());
+
+        // implements names
+        assert!(parse_kebab_name("[implements=<a:b/c>]name").is_some());
+        assert!(parse_kebab_name("[implements=<a:b/c@1.0.0>]name").is_some());
+        assert!(parse_kebab_name("[implements=<ns:pkg/iface>]my-label").is_some());
+        // invalid: not a valid interface name (no colon/slash)
+        assert!(parse_kebab_name("[implements=<not-valid>]name").is_none());
+        // invalid: empty interface name
+        assert!(parse_kebab_name("[implements=<>]name").is_none());
+        // invalid: missing label
+        assert!(parse_kebab_name("[implements=<a:b/c>]").is_none());
+        // invalid: label not kebab
+        assert!(parse_kebab_name("[implements=<a:b/c>]NOT_KEBAB").is_none());
     }
 
     #[test]
@@ -1013,5 +1116,106 @@ mod tests {
         assert!(s.insert(parse_kebab_name("[method]a.b")));
         assert!(!s.insert(parse_kebab_name("[static]a.b")));
         assert!(s.insert(parse_kebab_name("[static]b.b")));
+    }
+
+    #[test]
+    fn implements_name_parts() {
+        let name = parse_kebab_name("[implements=<a:b/c>]my-label").unwrap();
+        match name.kind() {
+            ComponentNameKind::Implements(imp) => {
+                assert_eq!(imp.interface(), "a:b/c");
+                assert_eq!(imp.label().as_str(), "my-label");
+            }
+            other => panic!("expected Implements, got {other:?}"),
+        }
+
+        let name = parse_kebab_name("[implements=<ns:pkg/iface@1.2.3>]the-name").unwrap();
+        match name.kind() {
+            ComponentNameKind::Implements(imp) => {
+                assert_eq!(imp.interface(), "ns:pkg/iface@1.2.3");
+                assert_eq!(imp.label().as_str(), "the-name");
+            }
+            other => panic!("expected Implements, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn implements_name_equality() {
+        // Same label conflicts, even with different interfaces
+        assert_eq!(
+            parse_kebab_name("[implements=<a:b/c>]name"),
+            parse_kebab_name("[implements=<x:y/z>]name"),
+        );
+
+        // Implements conflicts with bare label
+        assert_eq!(
+            parse_kebab_name("[implements=<a:b/c>]name"),
+            parse_kebab_name("name"),
+        );
+
+        // Different labels are strongly unique
+        assert_ne!(
+            parse_kebab_name("[implements=<a:b/c>]one"),
+            parse_kebab_name("[implements=<a:b/c>]two"),
+        );
+
+        // Implements is strongly unique from interface names
+        assert_ne!(
+            parse_kebab_name("[implements=<a:b/c>]name"),
+            parse_kebab_name("a:b/c"),
+        );
+
+        // HashSet uniqueness
+        let mut s = HashSet::new();
+        assert!(s.insert(parse_kebab_name("[implements=<a:b/c>]one")));
+        assert!(s.insert(parse_kebab_name("[implements=<a:b/c>]two")));
+        // same label conflicts
+        assert!(!s.insert(parse_kebab_name("[implements=<x:y/z>]one")));
+        // bare label conflicts with implements label
+        assert!(!s.insert(parse_kebab_name("one")));
+        // interface name is a different kind, no conflict
+        assert!(s.insert(parse_kebab_name("a:b/c")));
+    }
+
+    #[test]
+    fn implements_cross_kind_uniqueness() {
+        // Implements is strongly unique from constructor
+        assert_ne!(
+            parse_kebab_name("[implements=<a:b/c>]name"),
+            parse_kebab_name("[constructor]name"),
+        );
+
+        // Implements is strongly unique from method (different resource.method)
+        assert_ne!(
+            parse_kebab_name("[implements=<a:b/c>]name"),
+            parse_kebab_name("[method]name.other"),
+        );
+
+        // Implements is strongly unique from static (different resource.method)
+        assert_ne!(
+            parse_kebab_name("[implements=<a:b/c>]name"),
+            parse_kebab_name("[static]name.other"),
+        );
+
+        // The l.l edge case: [method]name.name equals bare "name",
+        // and [implements=<I>]name also equals bare "name",
+        // so they must be equal to each other.
+        assert_eq!(
+            parse_kebab_name("[implements=<a:b/c>]name"),
+            parse_kebab_name("[method]name.name"),
+        );
+        assert_eq!(
+            parse_kebab_name("[implements=<a:b/c>]name"),
+            parse_kebab_name("[static]name.name"),
+        );
+
+        // HashSet: implements, constructor, and method with different
+        // resource.method should all coexist
+        let mut s = HashSet::new();
+        assert!(s.insert(parse_kebab_name("[implements=<a:b/c>]name")));
+        assert!(s.insert(parse_kebab_name("[constructor]name")));
+        assert!(s.insert(parse_kebab_name("[method]name.other")));
+        // But [method]name.name conflicts (l.l edge case)
+        assert!(!s.insert(parse_kebab_name("[method]name.name")));
     }
 }
