@@ -344,29 +344,41 @@
   (component
     (core func (canon context.set i32 100)))
   "immediate must be zero: 100")
-(assert_malformed
-  (component quote
-    "(core func (canon context.get i64 100))")
-  "expected keyword `i32`")
-(assert_malformed
-  (component quote
-    "(core func (canon context.set i64 100))")
-  "expected keyword `i32`")
+;; `i64` is accepted syntactically but requires the component model 64-bit
+;; feature (`cm64`), which is not enabled by this test.
+(assert_invalid
+  (component
+    (core func (canon context.get i64 0)))
+  "64-bit `context.get` requires the component model 64-bit feature")
+(assert_invalid
+  (component
+    (core func (canon context.set i64 0)))
+  "64-bit `context.set` requires the component model 64-bit feature")
 
-(assert_malformed
+(assert_invalid
   (component binary
     "\00asm" "\0d\00\01\00" ;; component header
     "\08\04"                ;; canonicals section, 4 bytes
     "\01"                   ;; 1 count
     "\0a\7e\00")            ;; context.get i64 0
-  "invalid leading byte (0x7e) for context.get")
-(assert_malformed
+  "64-bit `context.get` requires the component model 64-bit feature")
+(assert_invalid
   (component binary
     "\00asm" "\0d\00\01\00" ;; component header
     "\08\04"                ;; canonicals section, 4 bytes
     "\01"                   ;; 1 count
     "\0b\7e\00")            ;; context.set i64 0
-  "invalid leading byte (0x7e) for context.set")
+  "64-bit `context.set` requires the component model 64-bit feature")
+
+;; Other value types (e.g. `f32`) are rejected regardless of the `cm64` feature.
+(assert_invalid
+  (component
+    (core func (canon context.get f32 0)))
+  "`context.get` only supports `i32` or `i64`")
+(assert_invalid
+  (component
+    (core func (canon context.set f32 0)))
+  "`context.set` only supports `i32` or `i64`")
 
 ;; different forms of canonical intrinsics
 

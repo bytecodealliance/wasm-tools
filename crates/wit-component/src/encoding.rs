@@ -116,6 +116,18 @@ fn to_val_type(ty: &WasmType) -> ValType {
     }
 }
 
+/// Translates the `context.get`/`context.set` slot type recorded by the
+/// validator into the `wasm_encoder::ValType` consumed by the component
+/// builder. Only `i32` and `i64` make it past the validator today; anything
+/// else is a bug.
+fn context_val_type(ty: wasmparser::ValType) -> ValType {
+    match ty {
+        wasmparser::ValType::I32 => ValType::I32,
+        wasmparser::ValType::I64 => ValType::I64,
+        _ => unreachable!("context.get/set slot type should have been rejected by the validator"),
+    }
+}
+
 fn import_func_name(f: &Function) -> String {
     match f.kind {
         FunctionKind::Freestanding | FunctionKind::AsyncFreestanding => {
@@ -1977,12 +1989,12 @@ impl<'a> EncodingState<'a> {
                 let index = self.component.waitable_join();
                 Ok((ExportKind::Func, index))
             }
-            Import::ContextGet(n) => {
-                let index = self.component.context_get(*n);
+            Import::ContextGet { ty, slot } => {
+                let index = self.component.context_get(context_val_type(*ty), *slot);
                 Ok((ExportKind::Func, index))
             }
-            Import::ContextSet(n) => {
-                let index = self.component.context_set(*n);
+            Import::ContextSet { ty, slot } => {
+                let index = self.component.context_set(context_val_type(*ty), *slot);
                 Ok((ExportKind::Func, index))
             }
             Import::ExportedTaskCancel => {
@@ -2630,8 +2642,8 @@ impl<'a> Shims<'a> {
                 | Import::WaitableSetNew
                 | Import::WaitableSetDrop
                 | Import::WaitableJoin
-                | Import::ContextGet(_)
-                | Import::ContextSet(_)
+                | Import::ContextGet { .. }
+                | Import::ContextSet { .. }
                 | Import::ThreadIndex
                 | Import::ThreadSuspendToSuspended { .. }
                 | Import::ThreadSuspend { .. }

@@ -1203,8 +1203,12 @@ impl ComponentState {
                 self.task_return(&result, &options, types, offset)
             }
             CanonicalFunction::TaskCancel => self.task_cancel(types, offset),
-            CanonicalFunction::ContextGet(i) => self.context_get(i, types, offset),
-            CanonicalFunction::ContextSet(i) => self.context_set(i, types, offset),
+            CanonicalFunction::ContextGet { ty, slot } => {
+                self.context_get(ty, slot, types, offset)
+            }
+            CanonicalFunction::ContextSet { ty, slot } => {
+                self.context_set(ty, slot, types, offset)
+            }
             CanonicalFunction::ThreadYield { cancellable: _ } => self.thread_yield(types, offset),
             CanonicalFunction::SubtaskDrop => self.subtask_drop(types, offset),
             CanonicalFunction::SubtaskCancel { async_ } => {
@@ -1517,32 +1521,62 @@ impl ComponentState {
         Ok(())
     }
 
-    fn context_get(&mut self, i: u32, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+    fn context_get(
+        &mut self,
+        ty: ValType,
+        i: u32,
+        types: &mut TypeAlloc,
+        offset: usize,
+    ) -> Result<()> {
         if !self.features.cm_async() {
             bail!(
                 offset,
                 "`context.get` requires the component model async feature"
             )
         }
+        self.validate_context_type(ty, "context.get", offset)?;
         self.validate_context_immediate(i, "context.get", offset)?;
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([], [ValType::I32]), offset));
+            .push(types.intern_func_type(FuncType::new([], [ty]), offset));
         Ok(())
     }
 
-    fn context_set(&mut self, i: u32, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+    fn context_set(
+        &mut self,
+        ty: ValType,
+        i: u32,
+        types: &mut TypeAlloc,
+        offset: usize,
+    ) -> Result<()> {
         if !self.features.cm_async() {
             bail!(
                 offset,
                 "`context.set` requires the component model async feature"
             )
         }
+        self.validate_context_type(ty, "context.set", offset)?;
         self.validate_context_immediate(i, "context.set", offset)?;
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset));
+            .push(types.intern_func_type(FuncType::new([ty], []), offset));
         Ok(())
+    }
+
+    fn validate_context_type(&self, ty: ValType, intrinsic: &str, offset: usize) -> Result<()> {
+        match ty {
+            ValType::I32 => Ok(()),
+            ValType::I64 => {
+                if !self.features.cm64() {
+                    bail!(
+                        offset,
+                        "64-bit `{intrinsic}` requires the component model 64-bit feature"
+                    )
+                }
+                Ok(())
+            }
+            _ => bail!(offset, "`{intrinsic}` only supports `i32` or `i64`"),
+        }
     }
 
     fn thread_yield(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
