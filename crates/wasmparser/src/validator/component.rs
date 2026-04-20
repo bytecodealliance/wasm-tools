@@ -588,11 +588,17 @@ impl ComponentState {
                 }
 
                 // Current MVP restriction of the component model.
-                if rep != ValType::I32 && rep != ValType::I64 {
-                    bail!(
-                        offset,
-                        "resources can only be represented by `i32` or `i64`"
-                    );
+                if !component.features.cm64() {
+                    if rep != ValType::I32 {
+                        bail!(offset, "resources can only be represented by `i32`");
+                    }
+                } else {
+                    if rep != ValType::I32 && rep != ValType::I64 {
+                        bail!(
+                            offset,
+                            "resources can only be represented by `i32` or `i64`"
+                        );
+                    }
                 }
 
                 // If specified validate that the destructor is both a valid
@@ -4358,39 +4364,31 @@ impl ComponentState {
     /// memory. Notably this disallows shared memory.
     fn cabi_memory_at(&self, idx: u32, offset: usize) -> Result<()> {
         let ty = self.memory_at(idx, offset)?;
-
-        SubtypeCx::memory_type(
-            ty,
-            &MemoryType {
-                initial: 0,
-                maximum: None,
-                memory64: false,
-                shared: false,
-                page_size_log2: None,
-            },
-            offset,
-        )
-        .or_else(|e| {
-            if e.message()
-                .contains("mismatch in index type used for memories")
-            {
-                SubtypeCx::memory_type(
-                    ty,
-                    &MemoryType {
-                        initial: 0,
-                        maximum: None,
-                        memory64: true,
-                        shared: false,
-                        page_size_log2: None,
-                    },
+        let valid_memory_type = MemoryType {
+            initial: 0,
+            maximum: None,
+            memory64: ty.memory64,
+            shared: false,
+            page_size_log2: None,
+        };
+        let mut msg = "";
+        if !ty.memory64 {
+            SubtypeCx::memory_type(ty, &valid_memory_type, offset)
+        } else {
+            if !self.features.cm64() {
+                bail!(
                     offset,
-                )
+                    "64-bit memories require the component model 64-bit feature"
+                );
             } else {
-                Err(e)
+                msg = "or 64-bit ";
+                SubtypeCx::memory_type(ty, &valid_memory_type, offset)
             }
-        })
+        }
         .map_err(|mut e| {
-            e.add_context("canonical ABI memory is not a 32-bit or 64-bit linear memory".into());
+            e.add_context(format!(
+                "canonical ABI memory is not a 32-bit {msg}linear memory"
+            ));
             e
         })
     }
