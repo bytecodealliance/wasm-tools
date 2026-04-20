@@ -27,10 +27,8 @@ jobs:
         with:
           node-version: 20
       - uses: ./.github/actions/install-rust
-      - uses: cargo-bins/cargo-binstall@v1.6.9
-      - run: cargo binstall cargo-component@0.20.0 -y
       - run: rustup component add rustfmt # needed for cargo-component, apparently?
-      - run: rustup target add wasm32-wasip1
+      - run: rustup target add wasm32-wasip2
       - run: npm ci
         working-directory: playground
       - run: npm run build

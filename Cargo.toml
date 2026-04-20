@@ -85,7 +85,7 @@ unnecessary_cast = 'warn'
 # allow_attributes_without_reason = 'warn'
 
 [workspace.package]
-edition = '2021'
+edition = '2024'
 license = "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"
 version = "0.247.0"
 # Current thinking for wasm-tools is that the minimum supported Rust version
