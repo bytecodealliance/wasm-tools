@@ -51,4 +51,4 @@
     (alias core export $A "m" (core memory $m))
     (core func (canon lower (func $x) (memory $m)))
   )
-  "canonical ABI memory is not a 32-bit linear memory")
+  "64-bit memories require the `cm64` feature to be enabled")

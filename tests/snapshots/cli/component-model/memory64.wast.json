@@ -32,7 +32,7 @@
       "line": 46,
       "filename": "memory64.4.wasm",
       "module_type": "binary",
-      "text": "canonical ABI memory is not a 32-bit linear memory"
+      "text": "64-bit memories require the `cm64` feature to be enabled"
     }
   ]
 }

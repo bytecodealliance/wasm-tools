@@ -312,6 +312,12 @@ define_wasm_features! {
         /// Corresponds to the 🗺️ character in
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
         pub cm_map: CM_MAP(1 << 38) = false;
+
+        /// Support for 64-bit contexts in the component model proposal.
+        ///
+        /// Corresponds to the 🐘 character in
+        /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
+        pub cm64: CM64(1 << 39) = false;
     }
 }
 

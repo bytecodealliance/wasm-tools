@@ -52,7 +52,7 @@
   (component
     (type $x (resource (rep i64)))
   )
-  "resources can only be represented by `i32`")
+  "resources with `i64` require the `cm64` feature to be enabled")
 
 (assert_invalid
   (component

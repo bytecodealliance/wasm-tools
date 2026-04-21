@@ -588,8 +588,17 @@ impl ComponentState {
                 }
 
                 // Current MVP restriction of the component model.
-                if rep != ValType::I32 {
-                    bail!(offset, "resources can only be represented by `i32`");
+                if rep == ValType::I64 && !component.features.cm64() {
+                    bail!(
+                        offset,
+                        "resources with `i64` require the `cm64` feature to be enabled"
+                    )
+                }
+                if rep != ValType::I32 && rep != ValType::I64 {
+                    bail!(
+                        offset,
+                        "resources can only be represented by `i32` or `i64`"
+                    );
                 }
 
                 // If specified validate that the destructor is both a valid
@@ -4351,25 +4360,24 @@ impl ComponentState {
     /// Validates that the linear memory at `idx` is valid to use as a canonical
     /// ABI memory.
     ///
-    /// At this time this requires that the memory is a plain 32-bit linear
-    /// memory. Notably this disallows shared memory and 64-bit linear memories.
+    /// At this time this requires that the memory is a plain 32-bit or 64-bit linear
+    /// memory. Notably this disallows shared memory.
     fn cabi_memory_at(&self, idx: u32, offset: usize) -> Result<()> {
         let ty = self.memory_at(idx, offset)?;
-        SubtypeCx::memory_type(
-            ty,
-            &MemoryType {
-                initial: 0,
-                maximum: None,
-                memory64: false,
-                shared: false,
-                page_size_log2: None,
-            },
-            offset,
-        )
-        .map_err(|mut e| {
-            e.add_context("canonical ABI memory is not a 32-bit linear memory".into());
-            e
-        })
+        let valid_memory_type = MemoryType {
+            initial: 0,
+            maximum: None,
+            memory64: ty.memory64,
+            shared: false,
+            page_size_log2: None,
+        };
+        if ty.memory64 && !self.features.cm64() {
+            bail!(
+                offset,
+                "64-bit memories require the `cm64` feature to be enabled"
+            );
+        }
+        SubtypeCx::memory_type(ty, &valid_memory_type, offset)
     }
 
     /// Completes the translation of this component, performing final
