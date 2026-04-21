@@ -1,4 +1,4 @@
-;; RUN: wast --assert default --snapshot tests/snapshots %
+;; RUN: wast --assert default --snapshot tests/snapshots -f cm64 %
 
 (assert_invalid
   (component
