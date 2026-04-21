@@ -588,17 +588,17 @@ impl ComponentState {
                 }
 
                 // Current MVP restriction of the component model.
-                if !component.features.cm64() {
-                    if rep != ValType::I32 {
-                        bail!(offset, "resources can only be represented by `i32`");
-                    }
-                } else {
-                    if rep != ValType::I32 && rep != ValType::I64 {
-                        bail!(
-                            offset,
-                            "resources can only be represented by `i32` or `i64`"
-                        );
-                    }
+                if rep == ValType::I64 && !component.features.cm64() {
+                    bail!(
+                        offset,
+                        "resources with `i64` require the `cm64` feature to be enabled"
+                    )
+                }
+                if rep != ValType::I32 && rep != ValType::I64 {
+                    bail!(
+                        offset,
+                        "resources can only be represented by `i32` or `i64`"
+                    );
                 }
 
                 // If specified validate that the destructor is both a valid
@@ -4371,26 +4371,13 @@ impl ComponentState {
             shared: false,
             page_size_log2: None,
         };
-        let mut msg = "";
-        if !ty.memory64 {
-            SubtypeCx::memory_type(ty, &valid_memory_type, offset)
-        } else {
-            if !self.features.cm64() {
-                bail!(
-                    offset,
-                    "64-bit memories require the component model 64-bit feature"
-                );
-            } else {
-                msg = "or 64-bit ";
-                SubtypeCx::memory_type(ty, &valid_memory_type, offset)
-            }
+        if ty.memory64 && !self.features.cm64() {
+            bail!(
+                offset,
+                "64-bit memories require the `cm64` feature to be enabled"
+            );
         }
-        .map_err(|mut e| {
-            e.add_context(format!(
-                "canonical ABI memory is not a 32-bit {msg}linear memory"
-            ));
-            e
-        })
+        SubtypeCx::memory_type(ty, &valid_memory_type, offset)
     }
 
     /// Completes the translation of this component, performing final

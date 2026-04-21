@@ -28,10 +28,11 @@
       "module_type": "binary"
     },
     {
-      "type": "module",
-      "line": 45,
+      "type": "assert_invalid",
+      "line": 46,
       "filename": "memory64.4.wasm",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "64-bit memories require the `cm64` feature to be enabled"
     }
   ]
 }

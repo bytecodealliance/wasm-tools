@@ -38,6 +38,13 @@
       "filename": "resources.5.wasm",
       "module_type": "binary",
       "text": "wrong signature for a destructor"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 68,
+      "filename": "resources.6.wasm",
+      "module_type": "binary",
+      "text": "resources can only be represented by `i32` or `i64`"
     }
   ]
 }

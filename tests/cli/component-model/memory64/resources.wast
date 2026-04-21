@@ -63,3 +63,9 @@
   (core func (canon resource.new $x))
 )
   "wrong signature for a destructor")
+
+  (assert_invalid
+  (component
+    (type $x (resource (rep v128)))
+  )
+  "resources can only be represented by `i32` or `i64`")

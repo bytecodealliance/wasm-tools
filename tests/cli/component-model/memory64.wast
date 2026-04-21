@@ -1,4 +1,4 @@
-;; RUN: wast --assert default --snapshot tests/snapshots -f cm64 %
+;; RUN: wast --assert default --snapshot tests/snapshots %
 
 (assert_invalid
   (component
@@ -42,6 +42,7 @@
   (core instance (instantiate $B (with "" (instance (export "" (table $m))))))
 )
 
+(assert_invalid
   (component
     (import "x" (func $x (param "x" string)))
     (core module $A
@@ -50,3 +51,4 @@
     (alias core export $A "m" (core memory $m))
     (core func (canon lower (func $x) (memory $m)))
   )
+  "64-bit memories require the `cm64` feature to be enabled")

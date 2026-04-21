@@ -36,7 +36,7 @@
       "line": 52,
       "filename": "resources.5.wasm",
       "module_type": "binary",
-      "text": "resources can only be represented by `i32`"
+      "text": "resources with `i64` require the `cm64` feature to be enabled"
     },
     {
       "type": "assert_invalid",
