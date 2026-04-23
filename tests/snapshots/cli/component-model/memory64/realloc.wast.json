@@ -20,20 +20,6 @@
       "filename": "realloc.2.wasm",
       "module_type": "binary",
       "text": "canonical option `realloc` uses a core function with an incorrect signature"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 53,
-      "filename": "realloc.3.wasm",
-      "module_type": "binary",
-      "text": "lowered parameter types `[]` do not match parameter types `[I32]`"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 61,
-      "filename": "realloc.4.wasm",
-      "module_type": "binary",
-      "text": "lowered result types `[]` do not match result types `[I32]`"
     }
   ]
 }
