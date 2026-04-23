@@ -2635,11 +2635,18 @@ impl ComponentState {
                 CanonicalOption::Realloc(idx) => {
                     realloc = match realloc {
                         None => {
+                            let memory_idx = memory.ok_or(BinaryReaderError::new(
+                                "canonical option `realloc` requires the `memory` option",
+                                offset,
+                            ))?;
+                            let addr_type = match self.memory_at(memory_idx, offset)?.memory64 {
+                                true => ValType::I64,
+                                false => ValType::I32,
+                            };
                             let ty_id = self.core_function_at(*idx, offset)?;
                             let func_ty = types[ty_id].unwrap_func();
-                            if func_ty.params()
-                                != [ValType::I32, ValType::I32, ValType::I32, ValType::I32]
-                                || func_ty.results() != [ValType::I32]
+                            if func_ty.params() != [addr_type, addr_type, addr_type, addr_type]
+                                || func_ty.results() != [addr_type]
                             {
                                 return Err(BinaryReaderError::new(
                                     "canonical option `realloc` uses a core function with an incorrect signature",
