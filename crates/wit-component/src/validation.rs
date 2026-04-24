@@ -277,14 +277,14 @@ pub enum Import {
 
     /// The `context.get` intrinsic for the nth slot of storage.
     ContextGet {
-        /// The value type of the slot (`i32` or `i64`).
+        /// The type of the slot (`i32` or `i64`).
         ty: ValType,
         /// The index of the storage slot.
         slot: u32,
     },
     /// The `context.set` intrinsic for the nth slot of storage.
     ContextSet {
-        /// The value type of the slot (`i32` or `i64`).
+        /// The type of the slot (`i32` or `i64`).
         ty: ValType,
         /// The index of the storage slot.
         slot: u32,
@@ -2712,8 +2712,7 @@ fn prefixed_intrinsic<'a>(name: &'a str, prefix: &str) -> Option<(&'a str, &'a s
 /// carrying a type width infix: `[context-get-i64-<N>]`.
 ///
 /// Returns the value type together with the numeric slot. Additional type
-/// widths can be added here by extending the match below without touching any
-/// other layer of the pipeline.
+/// widths can be added here by extending the match below.
 fn parse_context_name(name: &str, prefix: &str) -> Option<(ValType, u32)> {
     let (suffix, rest) = prefixed_intrinsic(name, prefix)?;
     if !rest.is_empty() {
@@ -2721,7 +2720,8 @@ fn parse_context_name(name: &str, prefix: &str) -> Option<(ValType, u32)> {
     }
     let (ty, slot) = match suffix.split_once('-') {
         Some(("i64", slot)) => (ValType::I64, slot),
-        _ => (ValType::I32, suffix),
+        Some(("i32", slot)) => (ValType::I32, slot),
+        _ => (ValType::I32, "unreachable"),
     };
     let slot = slot.parse().ok()?;
     Some((ty, slot))

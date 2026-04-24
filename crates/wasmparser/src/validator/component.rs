@@ -1203,12 +1203,8 @@ impl ComponentState {
                 self.task_return(&result, &options, types, offset)
             }
             CanonicalFunction::TaskCancel => self.task_cancel(types, offset),
-            CanonicalFunction::ContextGet { ty, slot } => {
-                self.context_get(ty, slot, types, offset)
-            }
-            CanonicalFunction::ContextSet { ty, slot } => {
-                self.context_set(ty, slot, types, offset)
-            }
+            CanonicalFunction::ContextGet { ty, slot } => self.context_get(ty, slot, types, offset),
+            CanonicalFunction::ContextSet { ty, slot } => self.context_set(ty, slot, types, offset),
             CanonicalFunction::ThreadYield { cancellable: _ } => self.thread_yield(types, offset),
             CanonicalFunction::SubtaskDrop => self.subtask_drop(types, offset),
             CanonicalFunction::SubtaskCancel { async_ } => {

@@ -109,7 +109,7 @@ pub enum CanonicalFunction {
     TaskCancel,
     /// A `context.get` intrinsic for the `i`th slot of task-local storage.
     ContextGet {
-        /// The value type of the slot. Currently only `ValType::I32` and
+        /// The type of the slot. Currently only `ValType::I32` and
         /// `ValType::I64` are accepted by the validator (with `I64` gated on
         /// the component-model 64-bit feature).
         ty: ValType,
@@ -118,7 +118,7 @@ pub enum CanonicalFunction {
     },
     /// A `context.set` intrinsic for the `i`th slot of task-local storage.
     ContextSet {
-        /// The value type of the slot. Currently only `ValType::I32` and
+        /// The type of the slot. Currently only `ValType::I32` and
         /// `ValType::I64` are accepted by the validator (with `I64` gated on
         /// the component-model 64-bit feature).
         ty: ValType,
