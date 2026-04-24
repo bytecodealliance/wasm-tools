@@ -26,14 +26,6 @@
   (core func (canon context.set i64 0))
 )
 
-;; Different canon forms also accept i64.
-(component
-  (core func (canon context.get i64 0))
-  (canon context.get i64 0 (core func))
-  (core func (canon context.set i64 0))
-  (canon context.set i64 0 (core func))
-)
-
 ;; Signature must match the declared slot width.
 (assert_invalid
   (component
@@ -50,6 +42,22 @@
     (core instance (instantiate $m (with "" (instance (export "" (func $f))))))
   )
   "found:    (func (param i64))")
+
+(assert_invalid
+  (component
+    (core module $m (import "" "" (func (result i64))))
+    (core func $f (canon context.get i32 0))
+    (core instance (instantiate $m (with "" (instance (export "" (func $f))))))
+  )
+  "found:    (func (result i32))")
+
+(assert_invalid
+  (component
+    (core module $m (import "" "" (func (param i64))))
+    (core func $f (canon context.set i32 0))
+    (core instance (instantiate $m (with "" (instance (export "" (func $f))))))
+  )
+  "found:    (func (param i32))")
 
 ;; Binary form: `0x7e` type byte is i64.
 (component binary
