@@ -79,11 +79,10 @@
 (assert_invalid
   (component
     (core module $m
-      (memory (export "m") i32 1)
       (func (export "r") (param i32 i32 i32 i32) (result i32) unreachable)
     )
     (core instance $m (instantiate $m))
-    (core func $task-return (canon task.return (result u32) (memory $m "m") (realloc (func $m "r"))))
+    (core func $task-return (canon task.return (result u32) (realloc (func $m "r"))))
   )
   "cannot specify `realloc` option on `task.return`")
 

@@ -2635,24 +2635,7 @@ impl ComponentState {
                 CanonicalOption::Realloc(idx) => {
                     realloc = match realloc {
                         None => {
-                            let memory_idx = memory.ok_or(BinaryReaderError::new(
-                                "canonical option `realloc` requires the `memory` option",
-                                offset,
-                            ))?;
-                            let addr_type = match self.memory_at(memory_idx, offset)?.memory64 {
-                                true => ValType::I64,
-                                false => ValType::I32,
-                            };
-                            let ty_id = self.core_function_at(*idx, offset)?;
-                            let func_ty = types[ty_id].unwrap_func();
-                            if func_ty.params() != [addr_type, addr_type, addr_type, addr_type]
-                                || func_ty.results() != [addr_type]
-                            {
-                                return Err(BinaryReaderError::new(
-                                    "canonical option `realloc` uses a core function with an incorrect signature",
-                                    offset,
-                                ));
-                            }
+                            // Validation deferred because it may depend on the memory option.
                             Some(*idx)
                         }
                         Some(_) => {
@@ -2776,6 +2759,29 @@ impl ComponentState {
 
         if !gc && core_type.is_some() {
             bail!(offset, "cannot specify `core-type` without `gc`")
+        }
+
+        // Validate `realloc`
+        if let Some(realloc_idx) = realloc {
+            let addr_type = match memory {
+                // If a memory was specified, `realloc` must match its address type.
+                Some(memory_idx) => match self.memory_at(memory_idx, offset)?.memory64 {
+                    true => ValType::I64,
+                    false => ValType::I32,
+                },
+                // Backwards compatibility: Assume `i32` memory if none was specified.
+                None => ValType::I32,
+            };
+            let ty_id = self.core_function_at(realloc_idx, offset)?;
+            let func_ty = types[ty_id].unwrap_func();
+            if func_ty.params() != [addr_type, addr_type, addr_type, addr_type]
+                || func_ty.results() != [addr_type]
+            {
+                return Err(BinaryReaderError::new(
+                    "canonical option `realloc` uses a core function with an incorrect signature",
+                    offset,
+                ));
+            }
         }
 
         Ok(CanonicalOptions {
