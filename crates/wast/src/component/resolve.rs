@@ -408,8 +408,24 @@ impl<'a> Resolver<'a> {
                     }
                     self.canon_opts(&mut info.opts)?;
                 }
-                CoreFuncKind::ContextGet(..) => {}
-                CoreFuncKind::ContextSet(..) => {}
+                CoreFuncKind::ContextGet(ty, _) => match ty {
+                    ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => {}
+                    ValType::Ref(r) => match &mut r.heap {
+                        core::HeapType::Abstract { .. } => {}
+                        core::HeapType::Concrete(id) | core::HeapType::Exact(id) => {
+                            self.resolve_ns(id, Ns::Type)?;
+                        }
+                    },
+                },
+                CoreFuncKind::ContextSet(ty, _) => match ty {
+                    ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => {}
+                    ValType::Ref(r) => match &mut r.heap {
+                        core::HeapType::Abstract { .. } => {}
+                        core::HeapType::Concrete(id) | core::HeapType::Exact(id) => {
+                            self.resolve_ns(id, Ns::Type)?;
+                        }
+                    },
+                },
                 CoreFuncKind::StreamNew(info) => {
                     self.resolve_ns(&mut info.ty, Ns::Type)?;
                 }
