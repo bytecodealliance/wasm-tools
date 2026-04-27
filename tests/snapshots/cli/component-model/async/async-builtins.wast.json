@@ -58,6 +58,12 @@
       "filename": "async-builtins.8.wasm",
       "module_type": "binary",
       "text": "type mismatch for export `future.cancel-write` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 106,
+      "filename": "async-builtins.9.wasm",
+      "module_type": "binary"
     }
   ]
 }

@@ -1234,7 +1234,7 @@ impl ComponentState {
                 self.future_read(ty, &options, types, offset)
             }
             CanonicalFunction::FutureWrite { ty, options } => {
-                self.future_write(ty, options.into_vec(), types, offset)
+                self.future_write(ty, &options, types, offset)
             }
             CanonicalFunction::FutureCancelRead { ty, async_ } => {
                 self.future_cancel_read(ty, async_, types, offset)
@@ -1386,10 +1386,10 @@ impl ComponentState {
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
-        if !self.features.cm_async_builtins() {
+        if !self.features.cm_more_async_builtins() {
             bail!(
                 offset,
-                "`resource.drop` as `async` requires the component model async builtins feature"
+                "`resource.drop` as `async` requires the component model more async builtins feature"
             )
         }
         self.resource_at(resource, types, offset)?;
@@ -1608,10 +1608,10 @@ impl ComponentState {
                 "`subtask.cancel` requires the component model async feature"
             )
         }
-        if async_ && !self.features.cm_async_builtins() {
+        if async_ && !self.features.cm_more_async_builtins() {
             bail!(
                 offset,
-                "async `subtask.cancel` requires the component model async builtins feature"
+                "async `subtask.cancel` requires the component model more async builtins feature"
             )
         }
 
@@ -1657,8 +1657,14 @@ impl ComponentState {
             bail!(offset, "`stream.read` requires a stream type")
         };
 
-        let ty_id = self
-            .check_options(types, options, offset)?
+        let options = self.check_options(types, options, offset)?;
+        if options.concurrency.is_sync() && !self.features.cm_more_async_builtins() {
+            bail!(
+                offset,
+                "synchronous `stream.read` requires the component model more async builtins feature"
+            );
+        }
+        let ty_id = options
             .require_memory_if(offset, || elem_ty.is_some())?
             .require_realloc_if(offset, || elem_ty.is_some_and(|ty| ty.contains_ptr(types)))?
             .check_lower(offset)?
@@ -1691,8 +1697,14 @@ impl ComponentState {
             bail!(offset, "`stream.write` requires a stream type")
         };
 
-        let ty_id = self
-            .check_options(types, options, offset)?
+        let options = self.check_options(types, options, offset)?;
+        if options.concurrency.is_sync() && !self.features.cm_more_async_builtins() {
+            bail!(
+                offset,
+                "synchronous `stream.write` requires the component model more async builtins feature"
+            );
+        }
+        let ty_id = options
             .require_memory_if(offset, || elem_ty.is_some())?
             .check_lower(offset)?
             .check_core_type(
@@ -1718,10 +1730,10 @@ impl ComponentState {
                 "`stream.cancel-read` requires the component model async feature"
             )
         }
-        if cancellable && !self.features.cm_async_builtins() {
+        if cancellable && !self.features.cm_more_async_builtins() {
             bail!(
                 offset,
-                "async `stream.cancel-read` requires the component model async builtins feature"
+                "async `stream.cancel-read` requires the component model more async builtins feature"
             )
         }
 
@@ -1748,10 +1760,10 @@ impl ComponentState {
                 "`stream.cancel-write` requires the component model async feature"
             )
         }
-        if cancellable && !self.features.cm_async_builtins() {
+        if cancellable && !self.features.cm_more_async_builtins() {
             bail!(
                 offset,
-                "async `stream.cancel-write` requires the component model async builtins feature"
+                "async `stream.cancel-write` requires the component model more async builtins feature"
             )
         }
 
@@ -1848,8 +1860,14 @@ impl ComponentState {
             bail!(offset, "`future.read` requires a future type")
         };
 
-        let ty_id = self
-            .check_options(types, options, offset)?
+        let options = self.check_options(types, options, offset)?;
+        if options.concurrency.is_sync() && !self.features.cm_more_async_builtins() {
+            bail!(
+                offset,
+                "synchronous `future.read` requires the component model more async builtins feature"
+            );
+        }
+        let ty_id = options
             .require_memory_if(offset, || elem_ty.is_some())?
             .require_realloc_if(offset, || elem_ty.is_some_and(|ty| ty.contains_ptr(types)))?
             .check_lower(offset)?
@@ -1866,7 +1884,7 @@ impl ComponentState {
     fn future_write(
         &mut self,
         ty: u32,
-        options: Vec<CanonicalOption>,
+        options: &[CanonicalOption],
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
@@ -1882,8 +1900,14 @@ impl ComponentState {
             bail!(offset, "`future.write` requires a future type")
         };
 
-        let ty_id = self
-            .check_options(types, &options, offset)?
+        let options = self.check_options(types, &options, offset)?;
+        if options.concurrency.is_sync() && !self.features.cm_more_async_builtins() {
+            bail!(
+                offset,
+                "synchronous `future.write` requires the component model more async builtins feature"
+            );
+        }
+        let ty_id = options
             .require_memory_if(offset, || elem_ty.is_some())?
             .check_core_type(
                 types,
@@ -1908,10 +1932,10 @@ impl ComponentState {
                 "`future.cancel-read` requires the component model async feature"
             )
         }
-        if cancellable && !self.features.cm_async_builtins() {
+        if cancellable && !self.features.cm_more_async_builtins() {
             bail!(
                 offset,
-                "async `future.cancel-read` requires the component model async builtins feature"
+                "async `future.cancel-read` requires the component model more async builtins feature"
             )
         }
 
@@ -1938,10 +1962,10 @@ impl ComponentState {
                 "`future.cancel-write` requires the component model async feature"
             )
         }
-        if cancellable && !self.features.cm_async_builtins() {
+        if cancellable && !self.features.cm_more_async_builtins() {
             bail!(
                 offset,
-                "async `future.cancel-write` requires the component model async builtins feature"
+                "async `future.cancel-write` requires the component model more async builtins feature"
             )
         }
 

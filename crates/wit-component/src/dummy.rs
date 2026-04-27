@@ -208,8 +208,6 @@ fn push_imported_future_and_stream_intrinsics(
                 wat.push_str(&format!(
                     r#"
 (import {module:?} {new:?} (func (result i64)))
-(import {module:?} {read:?} (func (param i32 i32) (result i32)))
-(import {module:?} {write:?} (func (param i32 i32) (result i32)))
 (import {module:?} {cancel_read:?} (func (param i32) (result i32)))
 (import {module:?} {cancel_write:?} (func (param i32) (result i32)))
 (import {module:?} {drop_readable:?} (func (param i32)))
@@ -218,6 +216,8 @@ fn push_imported_future_and_stream_intrinsics(
 (import {module:?} {async_write:?} (func (param i32 i32) (result i32)))
 
 ;; deferred behind 🚝
+;;(import {module:?} {read:?} (func (param i32 i32) (result i32)))
+;;(import {module:?} {write:?} (func (param i32 i32) (result i32)))
 ;;(import {module:?} {async_cancel_read:?} (func (param i32) (result i32)))
 ;;(import {module:?} {async_cancel_write:?} (func (param i32) (result i32)))
 "#
@@ -261,8 +261,6 @@ fn push_imported_future_and_stream_intrinsics(
                 wat.push_str(&format!(
                     r#"
 (import {module:?} {new:?} (func (result i64)))
-(import {module:?} {read:?} (func (param i32 i32 i32) (result i32)))
-(import {module:?} {write:?} (func (param i32 i32 i32) (result i32)))
 (import {module:?} {cancel_read:?} (func (param i32) (result i32)))
 (import {module:?} {cancel_write:?} (func (param i32) (result i32)))
 (import {module:?} {drop_readable:?} (func (param i32)))
@@ -271,6 +269,8 @@ fn push_imported_future_and_stream_intrinsics(
 (import {module:?} {async_write:?} (func (param i32 i32 i32) (result i32)))
 
 ;; deferred behind 🚝
+;;(import {module:?} {read:?} (func (param i32 i32 i32) (result i32)))
+;;(import {module:?} {write:?} (func (param i32 i32 i32) (result i32)))
 ;;(import {module:?} {async_cancel_read:?} (func (param i32) (result i32)))
 ;;(import {module:?} {async_cancel_write:?} (func (param i32) (result i32)))
 "#

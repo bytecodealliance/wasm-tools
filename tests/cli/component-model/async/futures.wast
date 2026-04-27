@@ -161,7 +161,7 @@
     (core func $future-cancel-read (canon future.cancel-read $future-type async))
     (core instance $i (instantiate $m (with "" (instance (export "future.cancel-read" (func $future-cancel-read))))))
   )
-  "requires the component model async builtins feature")
+  "requires the component model more async builtins feature")
 
 ;; future.cancel-read; incorrect type
 (assert_invalid
@@ -195,7 +195,7 @@
     (core func $future-cancel-write (canon future.cancel-write $future-type async))
     (core instance $i (instantiate $m (with "" (instance (export "future.cancel-write" (func $future-cancel-write))))))
   )
-  "requires the component model async builtins feature"
+  "requires the component model more async builtins feature"
 )
 
 ;; future.cancel-write; incorrect type

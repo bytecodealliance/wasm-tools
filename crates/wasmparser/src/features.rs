@@ -259,12 +259,12 @@ define_wasm_features! {
         /// Corresponds to the 🚟 character in
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
         pub cm_async_stackful: CM_ASYNC_STACKFUL(1 << 28) = false;
-        /// Gates some intrinsics being marked with `async` in the component
+        /// Gates some intrinsics and options on intrinsics in the component
         /// model async proposal.
         ///
         /// Corresponds to the 🚝 character in
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
-        pub cm_async_builtins: CM_ASYNC_BUILTINS(1 << 29) = false;
+        pub cm_more_async_builtins: CM_MORE_ASYNC_BUILTINS(1 << 29) = false;
         /// Support for threading in the component model proposal.
         ///
         /// Corresponds to the 🧵 character in
