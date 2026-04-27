@@ -2721,7 +2721,7 @@ fn parse_context_name(name: &str, prefix: &str) -> Option<(ValType, u32)> {
     let (ty, slot) = match suffix.split_once('-') {
         Some(("i64", slot)) => (ValType::I64, slot),
         Some(("i32", slot)) => (ValType::I32, slot),
-        _ => (ValType::I32, "unreachable"),
+        _ => (ValType::I32, suffix),
     };
     let slot = slot.parse().ok()?;
     Some((ty, slot))
