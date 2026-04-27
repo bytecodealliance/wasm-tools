@@ -77,7 +77,7 @@
       "line": 147,
       "filename": "streams.11.wasm",
       "module_type": "binary",
-      "text": "requires the component model async builtins feature"
+      "text": "requires the component model more async builtins feature"
     },
     {
       "type": "module",
@@ -97,7 +97,7 @@
       "line": 182,
       "filename": "streams.14.wasm",
       "module_type": "binary",
-      "text": "requires the component model async builtins feature"
+      "text": "requires the component model more async builtins feature"
     },
     {
       "type": "module",

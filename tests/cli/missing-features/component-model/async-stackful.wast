@@ -1,5 +1,5 @@
 ;; RUN: wast % --assert default --snapshot tests/snapshots \
-;;        -f=cm-async,-cm-async-builtins
+;;        -f=cm-async,-cm-more-async-builtins
 
 (assert_invalid
   (component
