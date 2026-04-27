@@ -1977,12 +1977,12 @@ impl<'a> EncodingState<'a> {
                 let index = self.component.waitable_join();
                 Ok((ExportKind::Func, index))
             }
-            Import::ContextGet(n) => {
-                let index = self.component.context_get(*n);
+            Import::ContextGet { ty, slot } => {
+                let index = self.component.context_get((*ty).try_into()?, *slot);
                 Ok((ExportKind::Func, index))
             }
-            Import::ContextSet(n) => {
-                let index = self.component.context_set(*n);
+            Import::ContextSet { ty, slot } => {
+                let index = self.component.context_set((*ty).try_into()?, *slot);
                 Ok((ExportKind::Func, index))
             }
             Import::ExportedTaskCancel => {
@@ -2630,8 +2630,8 @@ impl<'a> Shims<'a> {
                 | Import::WaitableSetNew
                 | Import::WaitableSetDrop
                 | Import::WaitableJoin
-                | Import::ContextGet(_)
-                | Import::ContextSet(_)
+                | Import::ContextGet { .. }
+                | Import::ContextSet { .. }
                 | Import::ThreadIndex
                 | Import::ThreadSuspendToSuspended { .. }
                 | Import::ThreadSuspend { .. }

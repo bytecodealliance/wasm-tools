@@ -251,43 +251,57 @@
       "text": "immediate must be zero: 100"
     },
     {
-      "type": "assert_malformed",
-      "line": 348,
-      "filename": "task-builtins.38.wat",
-      "module_type": "text",
-      "text": "expected keyword `i32`"
+      "type": "assert_invalid",
+      "line": 350,
+      "filename": "task-builtins.38.wasm",
+      "module_type": "binary",
+      "text": "64-bit `context.get` requires the component model 64-bit feature"
     },
     {
-      "type": "assert_malformed",
-      "line": 352,
-      "filename": "task-builtins.39.wat",
-      "module_type": "text",
-      "text": "expected keyword `i32`"
+      "type": "assert_invalid",
+      "line": 354,
+      "filename": "task-builtins.39.wasm",
+      "module_type": "binary",
+      "text": "64-bit `context.set` requires the component model 64-bit feature"
     },
     {
-      "type": "assert_malformed",
-      "line": 357,
+      "type": "assert_invalid",
+      "line": 359,
       "filename": "task-builtins.40.wasm",
       "module_type": "binary",
-      "text": "invalid leading byte (0x7e) for context.get"
+      "text": "64-bit `context.get` requires the component model 64-bit feature"
     },
     {
-      "type": "assert_malformed",
-      "line": 364,
+      "type": "assert_invalid",
+      "line": 366,
       "filename": "task-builtins.41.wasm",
       "module_type": "binary",
-      "text": "invalid leading byte (0x7e) for context.set"
+      "text": "64-bit `context.set` requires the component model 64-bit feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 375,
+      "filename": "task-builtins.42.wasm",
+      "module_type": "binary",
+      "text": "`context.get` only supports `i32` or `i64`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 379,
+      "filename": "task-builtins.43.wasm",
+      "module_type": "binary",
+      "text": "`context.set` only supports `i32` or `i64`"
     },
     {
       "type": "module",
-      "line": 373,
-      "filename": "task-builtins.42.wasm",
+      "line": 385,
+      "filename": "task-builtins.44.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 433,
-      "filename": "task-builtins.43.wasm",
+      "line": 445,
+      "filename": "task-builtins.45.wasm",
       "module_type": "binary"
     }
   ]

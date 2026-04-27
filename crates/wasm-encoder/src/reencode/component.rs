@@ -996,11 +996,11 @@ pub mod component_utils {
             wasmparser::CanonicalFunction::TaskCancel => {
                 section.task_cancel();
             }
-            wasmparser::CanonicalFunction::ContextGet(i) => {
-                section.context_get(i);
+            wasmparser::CanonicalFunction::ContextGet { ty, slot } => {
+                section.context_get(reencoder.val_type(ty)?, slot);
             }
-            wasmparser::CanonicalFunction::ContextSet(i) => {
-                section.context_set(i);
+            wasmparser::CanonicalFunction::ContextSet { ty, slot } => {
+                section.context_set(reencoder.val_type(ty)?, slot);
             }
             wasmparser::CanonicalFunction::ThreadYield { cancellable } => {
                 section.thread_yield(cancellable);

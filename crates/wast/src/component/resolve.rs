@@ -408,7 +408,8 @@ impl<'a> Resolver<'a> {
                     }
                     self.canon_opts(&mut info.opts)?;
                 }
-                CoreFuncKind::ContextGet(_) | CoreFuncKind::ContextSet(_) => {}
+                CoreFuncKind::ContextGet(ty, _) => self.ref_type(ty)?,
+                CoreFuncKind::ContextSet(ty, _) => self.ref_type(ty)?,
                 CoreFuncKind::StreamNew(info) => {
                     self.resolve_ns(&mut info.ty, Ns::Type)?;
                 }
@@ -484,6 +485,18 @@ impl<'a> Resolver<'a> {
         }
 
         Ok(())
+    }
+
+    fn ref_type(&mut self, ty: &mut ValType<'a>) -> Result<(), Error> {
+        Ok(match ty {
+            ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => {}
+            ValType::Ref(r) => match &mut r.heap {
+                core::HeapType::Abstract { .. } => {}
+                core::HeapType::Concrete(id) | core::HeapType::Exact(id) => {
+                    self.resolve_ns(id, Ns::Type)?;
+                }
+            },
+        })
     }
 
     fn canon_opts(&mut self, opts: &mut [CanonOpt<'a>]) -> Result<(), Error> {
@@ -658,15 +671,7 @@ impl<'a> Resolver<'a> {
                 self.stack.pop();
             }
             TypeDef::Resource(r) => {
-                match &mut r.rep {
-                    ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => {}
-                    ValType::Ref(r) => match &mut r.heap {
-                        core::HeapType::Abstract { .. } => {}
-                        core::HeapType::Concrete(id) | core::HeapType::Exact(id) => {
-                            self.resolve_ns(id, Ns::Type)?;
-                        }
-                    },
-                }
+                self.ref_type(&mut r.rep)?;
                 if let Some(dtor) = &mut r.dtor {
                     self.core_item_ref(dtor)?;
                 }

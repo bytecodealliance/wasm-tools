@@ -58,8 +58,8 @@ pub enum CoreFuncKind<'a> {
     BackpressureDec,
     TaskReturn(CanonTaskReturn<'a>),
     TaskCancel,
-    ContextGet(u32),
-    ContextSet(u32),
+    ContextGet(crate::core::ValType<'a>, u32),
+    ContextSet(crate::core::ValType<'a>, u32),
     ThreadYield(CanonThreadYield),
     SubtaskDrop,
     SubtaskCancel(CanonSubtaskCancel),
@@ -139,12 +139,12 @@ impl<'a> CoreFuncKind<'a> {
             Ok(CoreFuncKind::TaskCancel)
         } else if l.peek::<kw::context_get>()? {
             parser.parse::<kw::context_get>()?;
-            parser.parse::<kw::i32>()?;
-            Ok(CoreFuncKind::ContextGet(parser.parse()?))
+            let ty = parser.parse()?;
+            Ok(CoreFuncKind::ContextGet(ty, parser.parse()?))
         } else if l.peek::<kw::context_set>()? {
             parser.parse::<kw::context_set>()?;
-            parser.parse::<kw::i32>()?;
-            Ok(CoreFuncKind::ContextSet(parser.parse()?))
+            let ty = parser.parse()?;
+            Ok(CoreFuncKind::ContextSet(ty, parser.parse()?))
         } else if l.peek::<kw::thread_yield>()? {
             Ok(CoreFuncKind::ThreadYield(parser.parse()?))
         } else if l.peek::<kw::subtask_drop>()? {
