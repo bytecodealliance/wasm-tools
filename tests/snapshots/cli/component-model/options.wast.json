@@ -1,0 +1,46 @@
+{
+  "source_filename": "tests/cli/component-model/options.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "options.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 20,
+      "filename": "options.1.wasm",
+      "module_type": "binary",
+      "text": "canonical option `realloc` requires `memory` to also be specified"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 32,
+      "filename": "options.2.wasm",
+      "module_type": "binary",
+      "text": "canonical option `realloc` uses a core function with an incorrect signature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 45,
+      "filename": "options.3.wasm",
+      "module_type": "binary",
+      "text": "mismatch in page size for memories"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 55,
+      "filename": "options.4.wasm",
+      "module_type": "binary",
+      "text": "mismatch in the shared flag for memories"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 65,
+      "filename": "options.5.wasm",
+      "module_type": "binary",
+      "text": "64-bit memories require the `cm64` feature to be enabled"
+    }
+  ]
+}
