@@ -2793,16 +2793,18 @@ impl ComponentState {
 
         // Validate `realloc`
         if let Some(realloc_idx) = realloc {
-            let addr_type = match memory {
-                // If a memory was specified, `realloc` must match its address type.
-                Some(memory_idx) => match self.memory_at(memory_idx, offset)?.memory64 {
-                    true => ValType::I64,
-                    false => ValType::I32,
-                },
-                // Backwards compatibility: Assume `i32` memory if none was specified.
-                // FIXME(#2503): The spec requires `memory` if `realloc` is specified, but this
-                // may break existing code.
-                None => ValType::I32,
+            let mty = match memory {
+                Some(i) => self.memory_at(i, offset)?,
+                None => {
+                    return Err(BinaryReaderError::new(
+                        "canonical option `realloc` requires `memory` to also be specified",
+                        offset,
+                    ));
+                }
+            };
+            let addr_type = match mty.memory64 {
+                true => ValType::I64,
+                false => ValType::I32,
             };
             let ty_id = self.core_function_at(realloc_idx, offset)?;
             let func_ty = types[ty_id].unwrap_func();

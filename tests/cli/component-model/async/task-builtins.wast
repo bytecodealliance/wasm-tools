@@ -80,9 +80,10 @@
   (component
     (core module $m
       (func (export "r") (param i32 i32 i32 i32) (result i32) unreachable)
+      (memory (export "m") 0)
     )
     (core instance $m (instantiate $m))
-    (core func $task-return (canon task.return (result u32) (realloc (func $m "r"))))
+    (core func $task-return (canon task.return (result u32) (realloc (func $m "r")) (memory $m "m")))
   )
   "cannot specify `realloc` option on `task.return`")
 
