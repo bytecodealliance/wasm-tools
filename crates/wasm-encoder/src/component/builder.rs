@@ -509,15 +509,13 @@ impl ComponentBuilder {
     /// Declares a new `context.get` intrinsic.
     pub fn context_get(&mut self, ty: ValType, i: u32) -> u32 {
         self.canonical_functions().context_get(ty, i);
-        self.core_funcs
-            .add(Some(&format!("context.get {} {i}", type_name(ty))))
+        self.core_funcs.add(Some(&format!("context.get {i}")))
     }
 
     /// Declares a new `context.set` intrinsic.
     pub fn context_set(&mut self, ty: ValType, i: u32) -> u32 {
         self.canonical_functions().context_set(ty, i);
-        self.core_funcs
-            .add(Some(&format!("context.set {} {i}", type_name(ty))))
+        self.core_funcs.add(Some(&format!("context.set {i}")))
     }
 
     /// Declares a new `thread.yield` intrinsic.
@@ -832,13 +830,5 @@ impl Namespace {
             self.names.append(ret, name);
         }
         ret
-    }
-}
-
-fn type_name(ty: ValType) -> &'static str {
-    match ty {
-        ValType::I32 => "i32",
-        ValType::I64 => "i64",
-        _ => "<invalid>",
     }
 }

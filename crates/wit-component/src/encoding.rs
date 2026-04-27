@@ -116,20 +116,6 @@ fn to_val_type(ty: &WasmType) -> ValType {
     }
 }
 
-/// Translates the `context.get`/`context.set` slot type recorded by the
-/// validator into the `wasm_encoder::ValType` consumed by the component
-/// builder. Only `i32` and `i64` currently make it past the validator; anything
-/// else is a bug.
-fn context_val_type(ty: wasmparser::ValType) -> ValType {
-    match ty {
-        wasmparser::ValType::I32 => ValType::I32,
-        wasmparser::ValType::I64 => ValType::I64,
-        _ => unreachable!(
-            "context.get/set slot type `{ty}` should have been rejected by the validator"
-        ),
-    }
-}
-
 fn import_func_name(f: &Function) -> String {
     match f.kind {
         FunctionKind::Freestanding | FunctionKind::AsyncFreestanding => {
@@ -1992,11 +1978,11 @@ impl<'a> EncodingState<'a> {
                 Ok((ExportKind::Func, index))
             }
             Import::ContextGet { ty, slot } => {
-                let index = self.component.context_get(context_val_type(*ty), *slot);
+                let index = self.component.context_get((*ty).try_into()?, *slot);
                 Ok((ExportKind::Func, index))
             }
             Import::ContextSet { ty, slot } => {
-                let index = self.component.context_set(context_val_type(*ty), *slot);
+                let index = self.component.context_set((*ty).try_into()?, *slot);
                 Ok((ExportKind::Func, index))
             }
             Import::ExportedTaskCancel => {
