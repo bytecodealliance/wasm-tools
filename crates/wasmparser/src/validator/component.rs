@@ -2770,8 +2770,8 @@ impl ComponentState {
                     false => ValType::I32,
                 },
                 // Backwards compatibility: Assume `i32` memory if none was specified.
-                // FIXME(#2503): The spec requires `memory` if `realloc` is specified, but this 
-                // may break existing code. 
+                // FIXME(#2503): The spec requires `memory` if `realloc` is specified, but this
+                // may break existing code.
                 None => ValType::I32,
             };
             let ty_id = self.core_function_at(realloc_idx, offset)?;
