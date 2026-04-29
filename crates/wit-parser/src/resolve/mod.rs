@@ -3989,10 +3989,11 @@ impl Remap {
 
                 let prev = get_items(cloner.resolve).insert(key, new_item);
                 if prev.is_some() {
-                    return Err(ResolveError::new_semantic(
+                    return Err(ResolveError::from(ResolveErrorKind::ItemShadowing {
                         span,
-                        format!("{item_type} of `{n}` shadows previously {item_type}ed items"),
-                    ));
+                        item_type: item_type.to_owned(),
+                        name: n,
+                    }));
                 }
             }
             key @ WorldKey::Interface(_) => {
@@ -4463,10 +4464,11 @@ fn update_stability(from: &Stability, into: &mut Stability, span: Span) -> Resol
 
     // Failing all that this means that the two attributes are different so
     // generate an error.
-    Err(ResolveError::new_semantic(
+    Err(ResolveError::from(ResolveErrorKind::StabilityMismatch {
         span,
-        format!("mismatch in stability from '{from:?}' to '{into:?}'"),
-    ))
+        from: from.clone(),
+        into: into.clone(),
+    }))
 }
 
 fn merge_include_stability(

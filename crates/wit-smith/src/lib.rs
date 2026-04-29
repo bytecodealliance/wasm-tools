@@ -26,20 +26,19 @@ pub fn smith(config: &Config, u: &mut Unstructured<'_>) -> Result<Vec<u8>> {
         let group = pkg.sources.parse().unwrap();
         let id = match resolve.push_group(group) {
             Ok(id) => id,
-            Err(e) => {
-                if matches!(
-                    e.kind(),
-                    ResolveErrorKind::InvalidTransitiveDependency { .. }
-                ) {
+            Err(e) => match e.kind() {
+                ResolveErrorKind::InvalidTransitiveDependency { .. } => {
                     return Err(arbitrary::Error::IncorrectFormat);
                 }
-                let err = e.to_string();
-                if err.contains("shadows previously") || err.contains("mismatch in stability") {
+                ResolveErrorKind::ItemShadowing { .. }
+                | ResolveErrorKind::StabilityMismatch { .. } => {
                     log::error!("{e}");
                     return Err(arbitrary::Error::IncorrectFormat);
                 }
-                panic!("bad wit parse: {e:?}")
-            }
+                _ => {
+                    panic!("bad wit parse: {e:?}")
+                }
+            },
         };
         last = Some(id);
     }

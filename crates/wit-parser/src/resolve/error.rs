@@ -4,9 +4,9 @@ use alloc::boxed::Box;
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
-use core::fmt;
+use core::fmt::{self};
 
-use crate::{PackageName, SourceMap, Span};
+use crate::{PackageName, SourceMap, Span, Stability};
 
 /// Convenience alias for a `Result` whose error type is [`ResolveError`].
 pub type ResolveResult<T, E = ResolveError> = Result<T, E>;
@@ -32,6 +32,18 @@ pub enum ResolveErrorKind {
     },
     /// Packages form a dependency cycle.
     PackageCycle { package: PackageName, span: Span },
+    /// A world item shadows a previously-included item of the same kind
+    ItemShadowing {
+        span: Span,
+        item_type: String,
+        name: String,
+    },
+    /// Two stability annotations conflict during merge
+    StabilityMismatch {
+        span: Span,
+        from: Stability,
+        into: Stability,
+    },
     /// A semantic error during resolution (type mismatch, invalid use, etc.)
     Semantic { span: Span, message: String },
 }
@@ -43,6 +55,8 @@ impl ResolveErrorKind {
             ResolveErrorKind::PackageNotFound { span, .. }
             | ResolveErrorKind::InvalidTransitiveDependency { span, .. }
             | ResolveErrorKind::PackageCycle { span, .. }
+            | ResolveErrorKind::ItemShadowing { span, .. }
+            | ResolveErrorKind::StabilityMismatch { span, .. }
             | ResolveErrorKind::Semantic { span, .. } => *span,
             ResolveErrorKind::DuplicatePackage { span1, .. } => *span1,
         }
@@ -74,6 +88,17 @@ impl fmt::Display for ResolveErrorKind {
             }
             ResolveErrorKind::PackageCycle { package, .. } => {
                 write!(f, "package `{package}` creates a dependency cycle")
+            }
+            ResolveErrorKind::ItemShadowing {
+                item_type, name, ..
+            } => {
+                write!(
+                    f,
+                    "{item_type} of `{name}` shadows previously {item_type}ed items"
+                )
+            }
+            ResolveErrorKind::StabilityMismatch { from, into, .. } => {
+                write!(f, "mismatch in stability from '{from:?}' to '{into:?}'")
             }
             ResolveErrorKind::Semantic { message, .. } => message.fmt(f),
         }
