@@ -415,11 +415,14 @@ impl Resolve {
     pub fn push_source(&mut self, path: &str, contents: &str) -> anyhow::Result<PackageId> {
         let mut map = SourceMap::default();
         map.push_str(path, contents);
-        self.push_group(
-            map.parse()
-                .map_err(|(map, e)| anyhow::anyhow!("{}", e.highlight(&map)))?,
-        )
-        .map_err(|e| anyhow::anyhow!("{}", e.highlight(&self.source_map)))
+        // Parse error: the local `SourceMap` is not exposed through this API,
+        // so we eagerly render with the snippet here. A future improvement
+        // would return `(SourceMap, ParseError)` from `SourceMap::parse` callers
+        // so the typed error can be propagated.
+        let group = map
+            .parse()
+            .map_err(|(map, e)| anyhow::anyhow!("{}", e.highlight(&map)))?;
+        Ok(self.push_group(group)?)
     }
 
     /// Renders a span as a human-readable location string (e.g., "file.wit:10:5").

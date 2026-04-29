@@ -87,7 +87,7 @@ impl Runner {
                             "some generic platform-agnostic error message",
                         );
                     }
-                    format!("{e:#}")
+                    render_anyhow_error(&e, &resolve.source_map)
                 }
             }
         } else {

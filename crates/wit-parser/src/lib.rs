@@ -69,6 +69,33 @@ pub fn validate_id(s: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Renders an [`anyhow::Error`] chain produced by this crate, substituting
+/// snippet-bearing output for any [`ResolveError`] or [`ParseError`] layers.
+///
+/// For each layer in the chain, this calls [`ResolveError::highlight`] or
+/// [`ParseError::highlight`] to format typed errors with file/line/column and
+/// a source snippet. Other layers are formatted via their [`fmt::Display`]
+/// impl. Layers are joined with `": "`, matching `format!("{err:#}")`.
+///
+/// `source_map` must be the [`SourceMap`] in which every typed error's spans
+/// are valid; combining typed errors from different source maps in one chain
+/// is unsupported.
+#[cfg(feature = "std")]
+pub fn render_anyhow_error(err: &anyhow::Error, source_map: &SourceMap) -> String {
+    err.chain()
+        .map(|layer| {
+            if let Some(re) = layer.downcast_ref::<ResolveError>() {
+                re.highlight(source_map)
+            } else if let Some(pe) = layer.downcast_ref::<ParseError>() {
+                pe.highlight(source_map)
+            } else {
+                layer.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(": ")
+}
+
 pub type WorldId = Id<World>;
 pub type InterfaceId = Id<Interface>;
 pub type TypeId = Id<TypeDef>;
