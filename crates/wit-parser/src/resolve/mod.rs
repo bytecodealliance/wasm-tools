@@ -3585,7 +3585,7 @@ impl Remap {
             Resource => {}
             Record(r) => {
                 for field in r.fields.iter_mut() {
-                    self.update_ty(resolve, &mut field.ty, span)?
+                    self.update_ty(resolve, &mut field.ty, field.span)?
                 }
             }
             Tuple(t) => {
