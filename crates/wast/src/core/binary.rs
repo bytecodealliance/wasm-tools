@@ -188,10 +188,10 @@ pub(crate) fn encode(
 
     e.typed_section(&data);
 
+    e.custom_sections(AfterLast);
     if !names.is_empty() {
         e.wasm.section(&names.to_name_section());
     }
-    e.custom_sections(AfterLast);
     if let Some(dwarf) = &mut dwarf {
         dwarf.emit(&mut e);
     }

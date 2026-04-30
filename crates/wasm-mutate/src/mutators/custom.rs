@@ -1,9 +1,8 @@
 //! Mutate custom sections.
 
-use std::borrow::Cow;
-
 use super::Mutator;
-use rand::{Rng, prelude::*};
+use rand::prelude::*;
+use std::borrow::Cow;
 
 #[derive(Clone, Copy)]
 pub struct CustomSectionMutator;

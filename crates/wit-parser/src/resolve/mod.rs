@@ -561,13 +561,47 @@ impl Resolve {
         let mut moved_interfaces = Vec::new();
         for (id, mut iface) in interfaces {
             let new_id = match interface_map.get(&id).copied() {
-                Some(id) => {
+                Some(into_id) => {
                     update_stability(
                         &iface.stability,
-                        &mut self.interfaces[id].stability,
+                        &mut self.interfaces[into_id].stability,
                         iface.span,
                     )?;
-                    id
+
+                    // Add any extra types from `from`'s interface that
+                    // don't exist in `into`'s interface. These types were
+                    // already moved as new types above (since they weren't
+                    // in `type_map`), but they still need to be registered
+                    // in the target interface's `types` map.
+                    for (name, from_type_id) in iface.types.iter() {
+                        if self.interfaces[into_id].types.contains_key(name) {
+                            continue;
+                        }
+                        let new_type_id = remap.map_type(*from_type_id, Default::default())?;
+                        self.interfaces[into_id]
+                            .types
+                            .insert(name.clone(), new_type_id);
+                    }
+
+                    // Add any extra functions from `from`'s interface that
+                    // don't exist in `into`'s interface. These need their
+                    // type references remapped and spans adjusted.
+                    let extra_funcs: Vec<_> = iface
+                        .functions
+                        .into_iter()
+                        .filter(|(name, _)| {
+                            !self.interfaces[into_id]
+                                .functions
+                                .contains_key(name.as_str())
+                        })
+                        .collect();
+                    for (name, mut func) in extra_funcs {
+                        remap.update_function(self, &mut func, Default::default())?;
+                        func.adjust_spans(span_offset);
+                        self.interfaces[into_id].functions.insert(name, func);
+                    }
+
+                    into_id
                 }
                 None => {
                     log::debug!("moving interface {:?}", iface.name);
@@ -708,6 +742,15 @@ impl Resolve {
         }
 
         log::trace!("now have {} packages", self.packages.len());
+
+        // Re-elaborate all worlds after the merge. Merging may have added
+        // extra types to existing interfaces that introduce new interface
+        // dependencies not yet present in the world's imports.
+        let world_ids: Vec<_> = self.worlds.iter().map(|(id, _)| id).collect();
+        for world_id in world_ids {
+            let world_span = self.worlds[world_id].span;
+            self.elaborate_world(world_id, world_span)?;
+        }
 
         #[cfg(debug_assertions)]
         self.assert_valid();
@@ -1751,14 +1794,7 @@ impl Resolve {
             let my_package_pos = positions.get_index_of(&my_package).unwrap();
             let other_package_pos = positions.get_index_of(&other_package).unwrap();
 
-            if my_package_pos == other_package_pos {
-                let interfaces = &positions[&my_package];
-                let my_interface_pos = interfaces.get_index_of(&my_interface).unwrap();
-                let other_interface_pos = interfaces.get_index_of(&other_interface).unwrap();
-                assert!(other_interface_pos <= my_interface_pos);
-            } else {
-                assert!(other_package_pos < my_package_pos);
-            }
+            assert!(other_package_pos <= my_package_pos);
         }
     }
 
@@ -4221,24 +4257,20 @@ impl<'a> MergeMap<'a> {
         let from_interface = &self.from.interfaces[from_id];
         let into_interface = &self.into.interfaces[into_id];
 
-        // Unlike documents/interfaces above if an interface in `from`
-        // differs from the interface in `into` then that's considered an
-        // error. Changing interfaces can reflect changes in imports/exports
-        // which may not be expected so it's currently required that all
-        // interfaces, when merged, exactly match.
-        //
-        // One case to consider here, for example, is that if a world in
-        // `into` exports the interface `into_id` then if `from_id` were to
-        // add more items into `into` then it would unexpectedly require more
-        // items to be exported which may not work. In an import context this
-        // might work since it's "just more items available for import", but
-        // for now a conservative route of "interfaces must match" is taken.
+        // When merging interfaces, types and functions that exist in both
+        // `from` and `into` must match structurally. Either side is allowed
+        // to have extra types or functions not present in the other, which
+        // enables commutative merging of partial views of the same
+        // interface. The only requirement is that the intersection of the
+        // two interfaces is compatible.
 
         for (name, from_type_id) in from_interface.types.iter() {
-            let into_type_id = *into_interface
-                .types
-                .get(name)
-                .ok_or_else(|| anyhow!("expected type `{name}` to be present"))?;
+            let into_type_id = match into_interface.types.get(name) {
+                Some(id) => *id,
+                // Extra type in `from` not present in `into`; it will be
+                // moved as a new type and added to the interface later.
+                None => continue,
+            };
             let prev = self.type_map.insert(*from_type_id, into_type_id);
             assert!(prev.is_none());
 
@@ -4249,7 +4281,9 @@ impl<'a> MergeMap<'a> {
         for (name, from_func) in from_interface.functions.iter() {
             let into_func = match into_interface.functions.get(name) {
                 Some(func) => func,
-                None => bail!("expected function `{name}` to be present"),
+                // Extra function in `from` not present in `into`; it will
+                // be added to the interface during the merge phase.
+                None => continue,
             };
             self.build_function(from_func, into_func)
                 .with_context(|| format!("mismatch in function `{name}`"))?;

@@ -415,8 +415,8 @@ impl<'a> ComponentWorld<'a> {
                 | Import::MainModuleMemory
                 | Import::MainModuleExport { .. }
                 | Import::Item(_)
-                | Import::ContextGet(_)
-                | Import::ContextSet(_)
+                | Import::ContextGet { .. }
+                | Import::ContextSet { .. }
                 | Import::BackpressureInc
                 | Import::BackpressureDec
                 | Import::WaitableSetNew

@@ -1,0 +1,123 @@
+{
+  "source_filename": "tests/testsuite/custom/custom_annot.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "custom_annot.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 19,
+      "filename": "custom_annot.1.wat",
+      "module_type": "text",
+      "binary_filename": "custom_annot.1.wasm"
+    },
+    {
+      "type": "module",
+      "line": 20,
+      "filename": "custom_annot.2.wat",
+      "module_type": "text",
+      "binary_filename": "custom_annot.2.wasm"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 26,
+      "filename": "custom_annot.3.wat",
+      "module_type": "text",
+      "text": "@custom annotation: missing section name"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 31,
+      "filename": "custom_annot.4.wat",
+      "module_type": "text",
+      "text": "@custom annotation: missing section name"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 36,
+      "filename": "custom_annot.5.wat",
+      "module_type": "text",
+      "text": "@custom annotation: missing section name"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 41,
+      "filename": "custom_annot.6.wat",
+      "module_type": "text",
+      "text": "@custom annotation: malformed UTF-8 encoding"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 49,
+      "filename": "custom_annot.7.wat",
+      "module_type": "text",
+      "text": "@custom annotation: unexpected token"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 54,
+      "filename": "custom_annot.8.wat",
+      "module_type": "text",
+      "text": "@custom annotation: unexpected token"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 59,
+      "filename": "custom_annot.9.wat",
+      "module_type": "text",
+      "text": "@custom annotation: malformed section kind"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 64,
+      "filename": "custom_annot.10.wat",
+      "module_type": "text",
+      "text": "@custom annotation: malformed placement"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 69,
+      "filename": "custom_annot.11.wat",
+      "module_type": "text",
+      "text": "@custom annotation: malformed placement"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 74,
+      "filename": "custom_annot.12.wat",
+      "module_type": "text",
+      "text": "@custom annotation: malformed section kind"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 82,
+      "filename": "custom_annot.13.wat",
+      "module_type": "text",
+      "text": "misplaced @custom annotation"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 87,
+      "filename": "custom_annot.14.wat",
+      "module_type": "text",
+      "text": "misplaced @custom annotation"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 92,
+      "filename": "custom_annot.15.wat",
+      "module_type": "text",
+      "text": "misplaced @custom annotation"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 97,
+      "filename": "custom_annot.16.wat",
+      "module_type": "text",
+      "text": "misplaced @custom annotation"
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 use crate::{Result, WasmMutate};
 
-use rand::Rng;
+use rand::RngExt;
 use wasm_encoder::{CodeSection, Function, Module};
 use wasmparser::CodeSectionReader;
 

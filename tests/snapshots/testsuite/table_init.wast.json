@@ -11113,6 +11113,27 @@
       "line": 2128,
       "filename": "table_init.101.wasm",
       "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 2152,
+      "filename": "table_init.102.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 2166,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
     }
   ]
 }

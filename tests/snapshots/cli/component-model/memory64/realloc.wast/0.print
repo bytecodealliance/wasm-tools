@@ -1,0 +1,22 @@
+(component
+  (core module $m (;0;)
+    (type (;0;) (func (result i32)))
+    (type (;1;) (func (param i64 i64 i64 i64) (result i64)))
+    (memory (;0;) i64 1)
+    (export "m" (memory 0))
+    (export "f" (func 0))
+    (export "realloc" (func 1))
+    (func (;0;) (type 0) (result i32)
+      unreachable
+    )
+    (func (;1;) (type 1) (param i64 i64 i64 i64) (result i64)
+      unreachable
+    )
+  )
+  (core instance $i (;0;) (instantiate $m))
+  (type (;0;) (func (result string)))
+  (alias core export $i "f" (core func (;0;)))
+  (alias core export $i "m" (core memory (;0;)))
+  (alias core export $i "realloc" (core func (;1;)))
+  (func (;0;) (type 0) (canon lift (core func 0) (memory 0) (realloc 1)))
+)

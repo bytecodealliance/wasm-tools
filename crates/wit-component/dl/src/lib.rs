@@ -51,21 +51,23 @@ static mut ERROR: *const c_char = ptr::null();
 static mut LIBRARIES: *const Libraries = ptr::null();
 
 unsafe fn invalid_handle(library: *const c_void) -> bool {
-    if LIBRARIES.is_null() {
-        panic!(
-            "`__wasm_set_libraries` should have been called during \
+    unsafe {
+        if LIBRARIES.is_null() {
+            panic!(
+                "`__wasm_set_libraries` should have been called during \
              instantiation with a non-NULL value"
-        );
-    }
+            );
+        }
 
-    let library = library as *const Library;
-    if (0..(*LIBRARIES).count)
-        .any(|index| (*LIBRARIES).libraries.add(usize::try_from(index).unwrap()) == library)
-    {
-        false
-    } else {
-        ERROR = c"invalid library handle".as_ptr();
-        true
+        let library = library as *const Library;
+        if (0..(*LIBRARIES).count)
+            .any(|index| (*LIBRARIES).libraries.add(usize::try_from(index).unwrap()) == library)
+        {
+            false
+        } else {
+            ERROR = c"invalid library handle".as_ptr();
+            true
+        }
     }
 }
 
@@ -73,12 +75,12 @@ unsafe fn invalid_handle(library: *const c_void) -> bool {
 ///
 /// `library` must be a valid, not-yet-closed library pointer returned by
 /// `dlopen`.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn dlclose(library: *mut c_void) -> c_int {
-    if invalid_handle(library) { -1 } else { 0 }
+    unsafe { if invalid_handle(library) { -1 } else { 0 } }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn dlerror() -> *const c_char {
     unsafe {
         let value = ERROR;
@@ -90,38 +92,40 @@ pub extern "C" fn dlerror() -> *const c_char {
 /// # Safety
 ///
 /// `name` must be a valid pointer to a null-terminated string.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn dlopen(name: *const c_char, flags: c_int) -> *const c_void {
-    if LIBRARIES.is_null() {
-        panic!(
-            "`__wasm_set_libraries` should have been called during \
+    unsafe {
+        if LIBRARIES.is_null() {
+            panic!(
+                "`__wasm_set_libraries` should have been called during \
              instantiation with a non-NULL value"
+            );
+        }
+
+        if (flags & !(RTLD_LAZY | RTLD_NOW | RTLD_GLOBAL)) != 0 {
+            // TODO
+            ERROR = c"dlopen flags not yet supported".as_ptr();
+            return ptr::null();
+        }
+
+        let name = CStr::from_ptr(name);
+        let name = name.to_bytes();
+        let libraries = slice::from_raw_parts(
+            (*LIBRARIES).libraries,
+            usize::try_from((*LIBRARIES).count).unwrap(),
         );
-    }
-
-    if (flags & !(RTLD_LAZY | RTLD_NOW | RTLD_GLOBAL)) != 0 {
-        // TODO
-        ERROR = c"dlopen flags not yet supported".as_ptr();
-        return ptr::null();
-    }
-
-    let name = CStr::from_ptr(name);
-    let name = name.to_bytes();
-    let libraries = slice::from_raw_parts(
-        (*LIBRARIES).libraries,
-        usize::try_from((*LIBRARIES).count).unwrap(),
-    );
-    if let Ok(index) = libraries.binary_search_by(|library| {
-        slice::from_raw_parts(
-            library.name.data,
-            usize::try_from(library.name.length).unwrap(),
-        )
-        .cmp(name)
-    }) {
-        &libraries[index] as *const _ as _
-    } else {
-        ERROR = c"library not found".as_ptr();
-        ptr::null()
+        if let Ok(index) = libraries.binary_search_by(|library| {
+            slice::from_raw_parts(
+                library.name.data,
+                usize::try_from(library.name.length).unwrap(),
+            )
+            .cmp(name)
+        }) {
+            &libraries[index] as *const _ as _
+        } else {
+            ERROR = c"library not found".as_ptr();
+            ptr::null()
+        }
     }
 }
 
@@ -129,36 +133,36 @@ pub unsafe extern "C" fn dlopen(name: *const c_char, flags: c_int) -> *const c_v
 ///
 /// `library` must be a valid, not-yet-closed library pointer returned by
 /// `dlopen`, and `name` must be a valid pointer to a null-terminated string.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn dlsym(library: *const c_void, name: *const c_char) -> *const c_void {
-    if library as isize == RTLD_NEXT || library as isize == RTLD_DEFAULT {
-        // TODO
-        ERROR = c"dlsym RTLD_NEXT and RTLD_DEFAULT not yet supported".as_ptr();
-        return ptr::null();
-    }
-
-    if invalid_handle(library) {
-        return ptr::null();
-    }
-
-    let library = library as *const Library;
-    let name = CStr::from_ptr(name);
-    let name = name.to_bytes();
-    let symbols = slice::from_raw_parts(
-        (*library).symbols.symbols,
-        usize::try_from((*library).symbols.count).unwrap(),
-    );
-    if let Ok(index) = symbols.binary_search_by(|symbol| {
-        slice::from_raw_parts(
-            symbol.name.data,
-            usize::try_from(symbol.name.length).unwrap(),
-        )
-        .cmp(name)
-    }) {
-        symbols[index].address
-    } else {
-        ERROR = c"symbol not found".as_ptr();
-        ptr::null()
+    unsafe {
+        if library as isize == RTLD_NEXT || library as isize == RTLD_DEFAULT {
+            // TODO
+            ERROR = c"dlsym RTLD_NEXT and RTLD_DEFAULT not yet supported".as_ptr();
+            return ptr::null();
+        }
+        if invalid_handle(library) {
+            return ptr::null();
+        }
+        let library = library as *const Library;
+        let name = CStr::from_ptr(name);
+        let name = name.to_bytes();
+        let symbols = slice::from_raw_parts(
+            (*library).symbols.symbols,
+            usize::try_from((*library).symbols.count).unwrap(),
+        );
+        if let Ok(index) = symbols.binary_search_by(|symbol| {
+            slice::from_raw_parts(
+                symbol.name.data,
+                usize::try_from(symbol.name.length).unwrap(),
+            )
+            .cmp(name)
+        }) {
+            symbols[index].address
+        } else {
+            ERROR = c"symbol not found".as_ptr();
+            ptr::null()
+        }
     }
 }
 
@@ -166,9 +170,11 @@ pub unsafe extern "C" fn dlsym(library: *const c_void, name: *const c_char) -> *
 ///
 /// `libraries` must be a valid pointer to a `Libraries` object, and this
 /// pointer must remain valid for the lifetime of the process.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn __wasm_set_libraries(libraries: *const Libraries) {
-    LIBRARIES = libraries;
+    unsafe {
+        LIBRARIES = libraries;
+    }
 }
 
 #[cfg(target_arch = "wasm32")]

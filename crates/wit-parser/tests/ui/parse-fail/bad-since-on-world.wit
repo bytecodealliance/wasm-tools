@@ -1,0 +1,4 @@
+package test:invalid@0.1.0;
+
+@since(version = 0.2.0)
+world w {}

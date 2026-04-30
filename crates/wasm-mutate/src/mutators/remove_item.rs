@@ -10,7 +10,7 @@
 use crate::mutators::{Item, Mutator};
 use crate::{Error, ReencodeResult};
 use crate::{ModuleInfo, Result, WasmMutate};
-use rand::Rng;
+use rand::RngExt;
 use std::collections::HashSet;
 use wasm_encoder::reencode::Reencode;
 use wasm_encoder::*;

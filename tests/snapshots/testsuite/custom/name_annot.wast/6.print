@@ -1,0 +1,5 @@
+(module
+  (type $t (;0;) (func))
+  (tag $"\u{3b8}" (;0;) (type $t))
+  (tag $"#tag1 \u{3b8}" (@name "\u{3b8}") (;1;) (type $t))
+)

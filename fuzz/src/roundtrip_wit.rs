@@ -79,8 +79,11 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
 
         // Decode what was just created and record it later for testing merging
         // worlds together.
-        let (_, decoded) = wit_component::metadata::decode(&dummy).unwrap();
-        decoded_bindgens.push((decoded, dummy, world.name.clone()));
+        let (dresolve, dworldid) = match wit_component::decode(&wasm).unwrap() {
+            wit_component::DecodedWasm::Component(r, w) => (r, w),
+            _ => unreachable!(),
+        };
+        decoded_bindgens.push((dresolve, dworldid, dummy, world.name.clone()));
 
         log::debug!("... decoding the component itself");
         wit_component::decode(&wasm).unwrap();
@@ -102,27 +105,47 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     }
 
     let i = u.choose_index(decoded_bindgens.len())?;
-    let (mut b1, wasm1, world1) = decoded_bindgens.swap_remove(i);
+    let (mut b1, worldid1, wasm1, world1) = decoded_bindgens.swap_remove(i);
 
     if u.arbitrary()? {
         let i = u.choose_index(decoded_bindgens.len())?;
-        let (b2, wasm2, world2) = decoded_bindgens.swap_remove(i);
+        let (mut b2, worldid2, wasm2, world2) = decoded_bindgens.swap_remove(i);
 
         log::debug!("merging bindgens world {world1} <- world {world2}");
 
         write_file("bindgen1.wasm", &wasm1);
         write_file("bindgen2.wasm", &wasm2);
 
+        let pkg2 = b2.worlds[worldid2].package.unwrap();
+        let mut name = b2.packages[pkg2].name.clone();
+        b2.package_names.swap_remove(&name).unwrap();
+        name.name.push_str("2");
+        let prev = b2.package_names.insert(name.clone(), pkg2);
+        assert!(prev.is_none());
+        b2.packages[pkg2].name = name;
+
+        let only_interfaces = b1.worlds[worldid1]
+            .imports
+            .iter()
+            .chain(b1.worlds[worldid1].exports.iter())
+            .chain(b2.worlds[worldid2].imports.iter())
+            .chain(b2.worlds[worldid2].exports.iter())
+            .all(|(id, _)| matches!(id, wit_parser::WorldKey::Interface(_)));
+
         // Merging worlds may fail but if successful then a `Resolve` is asserted
         // to be valid which is what we're interested in here. Note that failure
         // here can be due to the structure of worlds which aren't reasonable to
         // control in this generator, so it's just done to see what happens and try
         // to trigger panics in `Resolve::assert_valid`.
-        let _ = b1.merge(b2);
+        let merge_result = b1.merge(b2);
+
+        if only_interfaces {
+            merge_result.unwrap();
+        }
     } else {
         log::debug!("merging world imports based on semver {world1}");
         write_file("bindgen1.wasm", &wasm1);
-        let _ = b1.resolve.merge_world_imports_based_on_semver(b1.world);
+        let _ = b1.merge_world_imports_based_on_semver(worldid1);
     }
     Ok(())
 }

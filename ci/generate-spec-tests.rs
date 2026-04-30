@@ -40,6 +40,11 @@ fn copy_test(src: &Path, dst: &Path) {
         return;
     }
 
+    // FIXME(WebAssembly/custom-page-sizes#58)
+    if src.ends_with("proposals/custom-page-sizes/custom-page-sizes-invalid.wast") {
+        return;
+    }
+
     let directive = match dst.file_name().and_then(|s| s.to_str()) {
         // Disable tests by doing something like:
         // Some("exact-func-import.wast") => "FAIL",

@@ -83,7 +83,7 @@
       "line": 156,
       "filename": "futures.12.wasm",
       "module_type": "binary",
-      "text": "requires the component model async builtins feature"
+      "text": "requires the component model more async builtins feature"
     },
     {
       "type": "assert_invalid",
@@ -103,7 +103,7 @@
       "line": 190,
       "filename": "futures.15.wasm",
       "module_type": "binary",
-      "text": "requires the component model async builtins feature"
+      "text": "requires the component model more async builtins feature"
     },
     {
       "type": "assert_invalid",

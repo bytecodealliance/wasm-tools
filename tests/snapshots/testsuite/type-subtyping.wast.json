@@ -107,14 +107,98 @@
       "text": "type mismatch"
     },
     {
-      "type": "module",
-      "line": 229,
+      "type": "assert_invalid",
+      "line": 230,
       "filename": "type-subtyping.17.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 234,
+      "filename": "type-subtyping.18.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 238,
+      "filename": "type-subtyping.19.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 242,
+      "filename": "type-subtyping.20.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 247,
+      "filename": "type-subtyping.21.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 251,
+      "filename": "type-subtyping.22.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 255,
+      "filename": "type-subtyping.23.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 259,
+      "filename": "type-subtyping.24.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 264,
+      "filename": "type-subtyping.25.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 268,
+      "filename": "type-subtyping.26.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 272,
+      "filename": "type-subtyping.27.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 276,
+      "filename": "type-subtyping.28.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "module",
+      "line": 283,
+      "filename": "type-subtyping.29.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_return",
-      "line": 282,
+      "line": 336,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -124,7 +208,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 283,
+      "line": 337,
       "action": {
         "type": "invoke",
         "field": "fail1",
@@ -134,7 +218,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 284,
+      "line": 338,
       "action": {
         "type": "invoke",
         "field": "fail2",
@@ -144,7 +228,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 285,
+      "line": 339,
       "action": {
         "type": "invoke",
         "field": "fail3",
@@ -154,7 +238,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 286,
+      "line": 340,
       "action": {
         "type": "invoke",
         "field": "fail4",
@@ -164,7 +248,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 287,
+      "line": 341,
       "action": {
         "type": "invoke",
         "field": "fail5",
@@ -174,7 +258,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 288,
+      "line": 342,
       "action": {
         "type": "invoke",
         "field": "fail6",
@@ -184,13 +268,13 @@
     },
     {
       "type": "module",
-      "line": 290,
-      "filename": "type-subtyping.18.wasm",
+      "line": 344,
+      "filename": "type-subtyping.30.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_trap",
-      "line": 314,
+      "line": 368,
       "action": {
         "type": "invoke",
         "field": "fail1",
@@ -200,7 +284,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 315,
+      "line": 369,
       "action": {
         "type": "invoke",
         "field": "fail2",
@@ -210,7 +294,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 316,
+      "line": 370,
       "action": {
         "type": "invoke",
         "field": "fail3",
@@ -220,7 +304,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 317,
+      "line": 371,
       "action": {
         "type": "invoke",
         "field": "fail4",
@@ -230,13 +314,13 @@
     },
     {
       "type": "module",
-      "line": 319,
-      "filename": "type-subtyping.19.wasm",
+      "line": 373,
+      "filename": "type-subtyping.31.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_return",
-      "line": 344,
+      "line": 398,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -246,7 +330,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 345,
+      "line": 399,
       "action": {
         "type": "invoke",
         "field": "fail1",
@@ -256,7 +340,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 346,
+      "line": 400,
       "action": {
         "type": "invoke",
         "field": "fail2",
@@ -266,612 +350,612 @@
     },
     {
       "type": "module",
-      "line": 348,
-      "filename": "type-subtyping.20.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_return",
-      "line": 358,
-      "action": {
-        "type": "invoke",
-        "field": "run",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "1"
-        }
-      ]
-    },
-    {
-      "type": "module",
-      "line": 360,
-      "filename": "type-subtyping.21.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_return",
-      "line": 376,
-      "action": {
-        "type": "invoke",
-        "field": "run",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "1"
-        }
-      ]
-    },
-    {
-      "type": "module",
-      "line": 378,
-      "filename": "type-subtyping.22.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_return",
-      "line": 388,
-      "action": {
-        "type": "invoke",
-        "field": "run",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "0"
-        }
-      ]
-    },
-    {
-      "type": "module",
-      "line": 390,
-      "filename": "type-subtyping.23.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_return",
-      "line": 399,
-      "action": {
-        "type": "invoke",
-        "field": "run",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "1"
-        }
-      ]
-    },
-    {
-      "type": "module",
-      "line": 401,
-      "filename": "type-subtyping.24.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_return",
-      "line": 419,
-      "action": {
-        "type": "invoke",
-        "field": "run",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "1"
-        },
-        {
-          "type": "i32",
-          "value": "1"
-        }
-      ]
-    },
-    {
-      "type": "module",
-      "line": 422,
-      "filename": "type-subtyping.25.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_return",
-      "line": 434,
-      "action": {
-        "type": "invoke",
-        "field": "run",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "1"
-        },
-        {
-          "type": "i32",
-          "value": "1"
-        },
-        {
-          "type": "i32",
-          "value": "1"
-        },
-        {
-          "type": "i32",
-          "value": "1"
-        }
-      ]
-    },
-    {
-      "type": "module",
-      "line": 438,
-      "filename": "type-subtyping.26.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_return",
-      "line": 456,
-      "action": {
-        "type": "invoke",
-        "field": "run",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "1"
-        },
-        {
-          "type": "i32",
-          "value": "1"
-        },
-        {
-          "type": "i32",
-          "value": "1"
-        },
-        {
-          "type": "i32",
-          "value": "1"
-        },
-        {
-          "type": "i32",
-          "value": "1"
-        },
-        {
-          "type": "i32",
-          "value": "1"
-        },
-        {
-          "type": "i32",
-          "value": "1"
-        },
-        {
-          "type": "i32",
-          "value": "1"
-        }
-      ]
-    },
-    {
-      "type": "module",
-      "line": 461,
-      "filename": "type-subtyping.27.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_return",
-      "line": 469,
-      "action": {
-        "type": "invoke",
-        "field": "run",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "0"
-        }
-      ]
-    },
-    {
-      "type": "module",
-      "line": 471,
-      "filename": "type-subtyping.28.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_return",
-      "line": 480,
-      "action": {
-        "type": "invoke",
-        "field": "run",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "0"
-        }
-      ]
-    },
-    {
-      "type": "module",
-      "line": 486,
-      "filename": "type-subtyping.29.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "register",
-      "line": 495,
-      "as": "M"
-    },
-    {
-      "type": "module",
-      "line": 497,
-      "filename": "type-subtyping.30.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_unlinkable",
-      "line": 511,
-      "filename": "type-subtyping.31.wasm",
-      "module_type": "binary",
-      "text": "incompatible import type"
-    },
-    {
-      "type": "assert_unlinkable",
-      "line": 521,
+      "line": 402,
       "filename": "type-subtyping.32.wasm",
-      "module_type": "binary",
-      "text": "incompatible import type"
+      "module_type": "binary"
     },
     {
-      "type": "assert_unlinkable",
-      "line": 531,
-      "filename": "type-subtyping.33.wasm",
-      "module_type": "binary",
-      "text": "incompatible import type"
+      "type": "assert_return",
+      "line": 412,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
     },
     {
       "type": "module",
-      "line": 540,
+      "line": 414,
+      "filename": "type-subtyping.33.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 430,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 432,
       "filename": "type-subtyping.34.wasm",
       "module_type": "binary"
     },
     {
-      "type": "register",
-      "line": 546,
-      "as": "M2"
-    },
-    {
-      "type": "assert_unlinkable",
-      "line": 549,
-      "filename": "type-subtyping.35.wasm",
-      "module_type": "binary",
-      "text": "incompatible import type"
-    },
-    {
-      "type": "assert_unlinkable",
-      "line": 557,
-      "filename": "type-subtyping.36.wasm",
-      "module_type": "binary",
-      "text": "incompatible import type"
+      "type": "assert_return",
+      "line": 442,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
     },
     {
       "type": "module",
-      "line": 566,
+      "line": 444,
+      "filename": "type-subtyping.35.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 453,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 455,
+      "filename": "type-subtyping.36.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 473,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        },
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 476,
       "filename": "type-subtyping.37.wasm",
       "module_type": "binary"
     },
     {
-      "type": "register",
-      "line": 571,
-      "as": "M3"
+      "type": "assert_return",
+      "line": 488,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        },
+        {
+          "type": "i32",
+          "value": "1"
+        },
+        {
+          "type": "i32",
+          "value": "1"
+        },
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
     },
     {
       "type": "module",
-      "line": 572,
+      "line": 492,
       "filename": "type-subtyping.38.wasm",
       "module_type": "binary"
     },
     {
+      "type": "assert_return",
+      "line": 510,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        },
+        {
+          "type": "i32",
+          "value": "1"
+        },
+        {
+          "type": "i32",
+          "value": "1"
+        },
+        {
+          "type": "i32",
+          "value": "1"
+        },
+        {
+          "type": "i32",
+          "value": "1"
+        },
+        {
+          "type": "i32",
+          "value": "1"
+        },
+        {
+          "type": "i32",
+          "value": "1"
+        },
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
       "type": "module",
-      "line": 578,
+      "line": 515,
       "filename": "type-subtyping.39.wasm",
       "module_type": "binary"
     },
     {
-      "type": "register",
-      "line": 587,
-      "as": "M4"
+      "type": "assert_return",
+      "line": 523,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
     },
     {
       "type": "module",
-      "line": 588,
+      "line": 525,
       "filename": "type-subtyping.40.wasm",
       "module_type": "binary"
     },
     {
+      "type": "assert_return",
+      "line": 534,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
       "type": "module",
-      "line": 598,
+      "line": 540,
       "filename": "type-subtyping.41.wasm",
       "module_type": "binary"
     },
     {
       "type": "register",
-      "line": 604,
-      "as": "M5"
+      "line": 549,
+      "as": "M"
+    },
+    {
+      "type": "module",
+      "line": 551,
+      "filename": "type-subtyping.42.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_unlinkable",
-      "line": 606,
-      "filename": "type-subtyping.42.wasm",
+      "line": 565,
+      "filename": "type-subtyping.43.wasm",
+      "module_type": "binary",
+      "text": "incompatible import type"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 575,
+      "filename": "type-subtyping.44.wasm",
+      "module_type": "binary",
+      "text": "incompatible import type"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 585,
+      "filename": "type-subtyping.45.wasm",
       "module_type": "binary",
       "text": "incompatible import type"
     },
     {
       "type": "module",
-      "line": 614,
-      "filename": "type-subtyping.43.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "register",
-      "line": 620,
-      "as": "M6"
-    },
-    {
-      "type": "module",
-      "line": 621,
-      "filename": "type-subtyping.44.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "module",
-      "line": 628,
-      "filename": "type-subtyping.45.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "register",
-      "line": 638,
-      "as": "M7"
-    },
-    {
-      "type": "module",
-      "line": 639,
+      "line": 594,
       "filename": "type-subtyping.46.wasm",
       "module_type": "binary"
     },
     {
-      "type": "module",
-      "line": 652,
-      "filename": "type-subtyping.47.wasm",
-      "module_type": "binary"
-    },
-    {
       "type": "register",
-      "line": 658,
-      "as": "M8"
+      "line": 600,
+      "as": "M2"
     },
     {
-      "type": "module",
-      "line": 659,
+      "type": "assert_unlinkable",
+      "line": 603,
+      "filename": "type-subtyping.47.wasm",
+      "module_type": "binary",
+      "text": "incompatible import type"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 611,
       "filename": "type-subtyping.48.wasm",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "module",
-      "line": 668,
+      "line": 620,
       "filename": "type-subtyping.49.wasm",
       "module_type": "binary"
     },
     {
       "type": "register",
-      "line": 676,
-      "as": "M9"
+      "line": 625,
+      "as": "M3"
     },
     {
       "type": "module",
-      "line": 677,
+      "line": 626,
       "filename": "type-subtyping.50.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 692,
+      "line": 632,
       "filename": "type-subtyping.51.wasm",
       "module_type": "binary"
     },
     {
       "type": "register",
-      "line": 697,
-      "as": "M10"
-    },
-    {
-      "type": "assert_unlinkable",
-      "line": 699,
-      "filename": "type-subtyping.52.wasm",
-      "module_type": "binary",
-      "text": "incompatible import type"
+      "line": 641,
+      "as": "M4"
     },
     {
       "type": "module",
-      "line": 706,
+      "line": 642,
+      "filename": "type-subtyping.52.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 652,
       "filename": "type-subtyping.53.wasm",
       "module_type": "binary"
     },
     {
       "type": "register",
-      "line": 712,
-      "as": "M11"
+      "line": 658,
+      "as": "M5"
     },
     {
       "type": "assert_unlinkable",
-      "line": 714,
+      "line": 660,
       "filename": "type-subtyping.54.wasm",
       "module_type": "binary",
       "text": "incompatible import type"
     },
     {
-      "type": "assert_invalid",
-      "line": 727,
+      "type": "module",
+      "line": 668,
       "filename": "type-subtyping.55.wasm",
-      "module_type": "binary",
-      "text": "sub type"
+      "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
-      "line": 735,
+      "type": "register",
+      "line": 674,
+      "as": "M6"
+    },
+    {
+      "type": "module",
+      "line": 675,
       "filename": "type-subtyping.56.wasm",
-      "module_type": "binary",
-      "text": "sub type"
+      "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
-      "line": 743,
+      "type": "module",
+      "line": 682,
       "filename": "type-subtyping.57.wasm",
-      "module_type": "binary",
-      "text": "sub type"
+      "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
-      "line": 751,
+      "type": "register",
+      "line": 692,
+      "as": "M7"
+    },
+    {
+      "type": "module",
+      "line": 693,
       "filename": "type-subtyping.58.wasm",
-      "module_type": "binary",
-      "text": "sub type"
+      "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
-      "line": 764,
+      "type": "module",
+      "line": 706,
       "filename": "type-subtyping.59.wasm",
-      "module_type": "binary",
-      "text": "sub type"
+      "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
-      "line": 772,
+      "type": "register",
+      "line": 712,
+      "as": "M8"
+    },
+    {
+      "type": "module",
+      "line": 713,
       "filename": "type-subtyping.60.wasm",
-      "module_type": "binary",
-      "text": "sub type"
+      "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
-      "line": 780,
+      "type": "module",
+      "line": 722,
       "filename": "type-subtyping.61.wasm",
-      "module_type": "binary",
-      "text": "sub type"
+      "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
-      "line": 788,
+      "type": "register",
+      "line": 730,
+      "as": "M9"
+    },
+    {
+      "type": "module",
+      "line": 731,
       "filename": "type-subtyping.62.wasm",
-      "module_type": "binary",
-      "text": "sub type"
+      "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
-      "line": 796,
+      "type": "module",
+      "line": 746,
       "filename": "type-subtyping.63.wasm",
-      "module_type": "binary",
-      "text": "sub type"
+      "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
-      "line": 804,
+      "type": "register",
+      "line": 751,
+      "as": "M10"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 753,
       "filename": "type-subtyping.64.wasm",
       "module_type": "binary",
-      "text": "sub type"
+      "text": "incompatible import type"
     },
     {
-      "type": "assert_invalid",
-      "line": 812,
+      "type": "module",
+      "line": 760,
       "filename": "type-subtyping.65.wasm",
-      "module_type": "binary",
-      "text": "sub type"
+      "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
-      "line": 820,
+      "type": "register",
+      "line": 766,
+      "as": "M11"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 768,
       "filename": "type-subtyping.66.wasm",
       "module_type": "binary",
-      "text": "sub type"
+      "text": "incompatible import type"
     },
     {
       "type": "assert_invalid",
-      "line": 828,
+      "line": 781,
       "filename": "type-subtyping.67.wasm",
       "module_type": "binary",
       "text": "sub type"
     },
     {
       "type": "assert_invalid",
-      "line": 836,
+      "line": 789,
       "filename": "type-subtyping.68.wasm",
       "module_type": "binary",
       "text": "sub type"
     },
     {
       "type": "assert_invalid",
-      "line": 844,
+      "line": 797,
       "filename": "type-subtyping.69.wasm",
       "module_type": "binary",
       "text": "sub type"
     },
     {
       "type": "assert_invalid",
-      "line": 852,
+      "line": 805,
       "filename": "type-subtyping.70.wasm",
       "module_type": "binary",
       "text": "sub type"
     },
     {
       "type": "assert_invalid",
-      "line": 860,
+      "line": 817,
       "filename": "type-subtyping.71.wasm",
       "module_type": "binary",
       "text": "sub type"
     },
     {
       "type": "assert_invalid",
-      "line": 868,
+      "line": 825,
       "filename": "type-subtyping.72.wasm",
       "module_type": "binary",
       "text": "sub type"
     },
     {
       "type": "assert_invalid",
-      "line": 876,
+      "line": 833,
       "filename": "type-subtyping.73.wasm",
       "module_type": "binary",
       "text": "sub type"
     },
     {
       "type": "assert_invalid",
-      "line": 884,
+      "line": 841,
       "filename": "type-subtyping.74.wasm",
       "module_type": "binary",
       "text": "sub type"
     },
     {
       "type": "assert_invalid",
-      "line": 892,
+      "line": 849,
       "filename": "type-subtyping.75.wasm",
       "module_type": "binary",
       "text": "sub type"
     },
     {
-      "type": "module",
-      "line": 901,
+      "type": "assert_invalid",
+      "line": 857,
       "filename": "type-subtyping.76.wasm",
+      "module_type": "binary",
+      "text": "sub type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 865,
+      "filename": "type-subtyping.77.wasm",
+      "module_type": "binary",
+      "text": "sub type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 873,
+      "filename": "type-subtyping.78.wasm",
+      "module_type": "binary",
+      "text": "sub type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 881,
+      "filename": "type-subtyping.79.wasm",
+      "module_type": "binary",
+      "text": "sub type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 889,
+      "filename": "type-subtyping.80.wasm",
+      "module_type": "binary",
+      "text": "sub type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 897,
+      "filename": "type-subtyping.81.wasm",
+      "module_type": "binary",
+      "text": "sub type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 905,
+      "filename": "type-subtyping.82.wasm",
+      "module_type": "binary",
+      "text": "sub type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 913,
+      "filename": "type-subtyping.83.wasm",
+      "module_type": "binary",
+      "text": "sub type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 921,
+      "filename": "type-subtyping.84.wasm",
+      "module_type": "binary",
+      "text": "sub type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 929,
+      "filename": "type-subtyping.85.wasm",
+      "module_type": "binary",
+      "text": "sub type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 937,
+      "filename": "type-subtyping.86.wasm",
+      "module_type": "binary",
+      "text": "sub type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 945,
+      "filename": "type-subtyping.87.wasm",
+      "module_type": "binary",
+      "text": "sub type"
+    },
+    {
+      "type": "module",
+      "line": 954,
+      "filename": "type-subtyping.88.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_return",
-      "line": 918,
+      "line": 971,
       "action": {
         "type": "invoke",
         "field": "f1",
@@ -886,7 +970,7 @@
     },
     {
       "type": "assert_return",
-      "line": 919,
+      "line": 972,
       "action": {
         "type": "invoke",
         "field": "f2",
@@ -901,7 +985,7 @@
     },
     {
       "type": "assert_return",
-      "line": 920,
+      "line": 973,
       "action": {
         "type": "invoke",
         "field": "f3",
@@ -916,7 +1000,7 @@
     },
     {
       "type": "assert_return",
-      "line": 921,
+      "line": 974,
       "action": {
         "type": "invoke",
         "field": "f4",
@@ -931,7 +1015,7 @@
     },
     {
       "type": "assert_return",
-      "line": 922,
+      "line": 975,
       "action": {
         "type": "invoke",
         "field": "f5",
@@ -946,7 +1030,7 @@
     },
     {
       "type": "assert_return",
-      "line": 923,
+      "line": 976,
       "action": {
         "type": "invoke",
         "field": "f6",

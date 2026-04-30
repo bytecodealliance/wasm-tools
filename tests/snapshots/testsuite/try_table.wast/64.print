@@ -1,0 +1,26 @@
+(module
+  (type (;0;) (func (result i32)))
+  (export "as-br-target" (func 0))
+  (export "as-value-provider" (func 1))
+  (func (;0;) (type 0) (result i32)
+    block ;; label = @1
+      try_table ;; label = @2
+        br 0 (;@2;)
+        unreachable
+      end
+      i32.const 111
+      return
+    end
+    i32.const 222
+  )
+  (func (;1;) (type 0) (result i32)
+    block ;; label = @1
+      try_table (result i32) ;; label = @2
+        i32.const 333
+        br 0 (;@2;)
+      end
+      return
+    end
+    unreachable
+  )
+)

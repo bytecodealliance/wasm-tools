@@ -34,6 +34,9 @@ fn merging() -> Result<()> {
         from.assert_valid();
         into.assert_valid();
 
+        let from_clone = from.clone();
+        let into_clone = into.clone();
+
         match into.merge(from) {
             Ok(_) => {
                 assert!(
@@ -51,6 +54,13 @@ fn merging() -> Result<()> {
                     let output = printer.output.to_string();
                     assert_output(&expected, &output)?;
                 }
+
+                // Also assert merging in the reverse direction succeeds.
+                let mut reverse = from_clone;
+                reverse
+                    .merge(into_clone)
+                    .context("merge succeeded in one direction but failed in reverse")?;
+                reverse.assert_valid();
             }
             Err(e) => {
                 assert!(test_case.starts_with("bad-"), "failed to merge with {e:?}");
