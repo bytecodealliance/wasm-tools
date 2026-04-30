@@ -3839,8 +3839,12 @@ impl Remap {
             if !resolve
                 .include_stability(&include.stability, pkg_id, include.span)
                 .with_context(|| {
+                    let world_name = match self.worlds[include.id.index()] {
+                        Some(resolved_id) => resolve.worlds[resolved_id].name.as_str(),
+                        None => "<unknown>",
+                    };
                     format!(
-                        "failed to process feature gate for an included world in package [{}]",
+                        "failed to process feature gate for included world [{world_name}] in package [{}]",
                         resolve.packages[*pkg_id].name
                     )
                 })?
