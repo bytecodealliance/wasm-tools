@@ -3840,8 +3840,7 @@ impl Remap {
                 .include_stability(&include.stability, pkg_id, include.span)
                 .with_context(|| {
                     format!(
-                        "failed to process feature gate for included world [{}] in package [{}]",
-                        resolve.worlds[include.id].name.as_str(),
+                        "failed to process feature gate for an included world in package [{}]",
                         resolve.packages[*pkg_id].name
                     )
                 })?

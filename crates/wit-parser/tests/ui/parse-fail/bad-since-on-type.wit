@@ -1,0 +1,6 @@
+package test:invalid@0.1.0;
+
+interface foo {
+  @since(version = 0.2.0)
+  type t = u32;
+}

@@ -1,0 +1,12 @@
+package a:b;
+
+interface foo {
+  @unstable(feature = inactive)
+  type gated = u32;
+
+  record r {
+    field-a: u32,
+    field-b: gated,
+    field-c: string,
+  }
+}
