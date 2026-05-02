@@ -3771,7 +3771,10 @@ impl Remap {
             if self.type_has_borrow(resolve, ty) {
                 return Err(ResolveError::new_semantic(
                     span,
-                    "function returns a type which contains a `borrow<T>` which is not supported",
+                    format!(
+                        "function `{}` returns a type which contains a `borrow<T>` which is not supported",
+                        func.name,
+                    ),
                 ));
             }
         }
