@@ -1,11 +1,5 @@
 //! Verifies that `ResolveError` is downcastable from the `anyhow::Error`
 //! returned by `Resolve`'s public `push_*` methods.
-//!
-//! This is the contract behind the structured-errors refactor: consumers
-//! (LSPs, build tools, custom embedders) can introspect error kinds
-//! programmatically instead of pattern-matching rendered strings. Each test
-//! pins one of the call sites in `fs.rs` / `mod.rs` that previously stringified
-//! errors at the boundary; if any of them regresses, exactly one test fails.
 
 use wit_parser::{Resolve, ResolveError, ResolveErrorKind};
 
