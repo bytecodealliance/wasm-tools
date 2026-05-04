@@ -968,7 +968,10 @@ impl WitOpts {
                 let mut resolve =
                     WitResolve::resolve_with_features(&self.features, self.all_features);
                 let (pkg_id, _) = resolve.push_dir(&input).map_err(|e| {
-                    anyhow::anyhow!("{}", wit_parser::render_anyhow_error(&e, &resolve.source_map))
+                    anyhow::anyhow!(
+                        "{}",
+                        wit_parser::render_anyhow_error(&e, &resolve.source_map)
+                    )
                 })?;
                 return Ok(DecodedWasm::WitPackage(resolve, pkg_id));
             }
@@ -1027,7 +1030,10 @@ impl WitOpts {
                 let mut resolve =
                     WitResolve::resolve_with_features(&self.features, self.all_features);
                 let id = resolve.push_str(path, input).map_err(|e| {
-                    anyhow::anyhow!("{}", wit_parser::render_anyhow_error(&e, &resolve.source_map))
+                    anyhow::anyhow!(
+                        "{}",
+                        wit_parser::render_anyhow_error(&e, &resolve.source_map)
+                    )
                 })?;
                 Ok(DecodedWasm::WitPackage(resolve, id))
             }
