@@ -1,0 +1,19 @@
+{
+  "source_filename": "tests/cli/component-model/async/threading-and-memory64.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "threading-and-memory64.0.wasm",
+      "module_type": "binary",
+      "text": "type must match previous context type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 11,
+      "filename": "threading-and-memory64.1.wasm",
+      "module_type": "binary",
+      "text": "type must match previous context type"
+    }
+  ]
+}
