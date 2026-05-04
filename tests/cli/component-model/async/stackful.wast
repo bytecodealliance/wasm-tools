@@ -73,61 +73,61 @@
 
 ;; async lift, stackful abi
 (component
-  ;; func()
+  ;; async func()
   (core module $m1
     (func (export "f") unreachable))
   (core instance $m1 (instantiate $m1))
-  (func
+  (func async
     (canon lift (core func $m1 "f") async))
 
-  ;; func(x: u32)
+  ;; async func(x: u32)
   (core module $m2
     (func (export "f") (param i32) unreachable))
   (core instance $m2 (instantiate $m2))
-  (func (param "x" u32)
+  (func async (param "x" u32)
     (canon lift (core func $m2 "f") async))
 
-  ;; func() -> u32
+  ;; async func() -> u32
   (core module $m3
     (func (export "f") unreachable))
   (core instance $m3 (instantiate $m3))
-  (func (result u32)
+  (func async (result u32)
     (canon lift (core func $m3 "f") async))
 
-  ;; func(x: f32)
+  ;; async func(x: f32)
   (core module $m4
     (func (export "f") (param f32) unreachable))
   (core instance $m4 (instantiate $m4))
-  (func (param "x" f32)
+  (func async (param "x" f32)
     (canon lift (core func $m4 "f") async))
 
-  ;; func(x: f32, y: string)
+  ;; async func(x: f32, y: string)
   (core module $m5
     (memory (export "memory") 1)
     (func (export "realloc") (param i32 i32 i32 i32) (result i32) unreachable)
     (func (export "f") (param f32 i32 i32) unreachable))
   (core instance $m5 (instantiate $m5))
-  (func (param "x" f32) (param "y" string)
+  (func async (param "x" f32) (param "y" string)
     (canon lift (core func $m5 "f") async
       (memory $m5 "memory") (realloc (func $m5 "realloc"))))
 
-  ;; func(x: list<string; 4>)
+  ;; async func(x: list<string; 4>)
   (core module $m6
     (memory (export "memory") 1)
     (func (export "realloc") (param i32 i32 i32 i32) (result i32) unreachable)
     (func (export "f") (param i32 i32 i32 i32 i32 i32 i32 i32) unreachable))
   (core instance $m6 (instantiate $m6))
-  (func (param "x" (list string 4))
+  (func async (param "x" (list string 4))
     (canon lift (core func $m6 "f") async
       (memory $m6 "memory") (realloc (func $m6 "realloc"))))
 
-  ;; func(x: list<string; 10>)
+  ;; async func(x: list<string; 10>)
   (core module $m7
     (memory (export "memory") 1)
     (func (export "realloc") (param i32 i32 i32 i32) (result i32) unreachable)
     (func (export "f") (param i32) unreachable))
   (core instance $m7 (instantiate $m7))
-  (func (param "x" (list string 10))
+  (func async (param "x" (list string 10))
     (canon lift (core func $m7 "f") async
       (memory $m7 "memory") (realloc (func $m7 "realloc"))))
 )
@@ -139,7 +139,7 @@
   )
   (core instance $i (instantiate $m))
 
-  (func (export "foo") (param "p1" u32) (result u32)
+  (func (export "foo") async (param "p1" u32) (result u32)
     (canon lift (core func $i "foo") async)
   )
 )

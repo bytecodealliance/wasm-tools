@@ -399,6 +399,18 @@ impl CanonicalOptions {
         Ok(self)
     }
 
+    fn check_asyncness(&self, ty: &ComponentFuncType, offset: usize) -> Result<()> {
+        // The `async` canonical ABI option is only allowed with `async`-typed
+        // functions.
+        if self.concurrency.is_async() && !ty.async_ {
+            bail!(
+                offset,
+                "the `async` canonical option requires an async function type",
+            );
+        }
+        Ok(())
+    }
+
     pub(crate) fn check_core_type(
         &self,
         types: &mut TypeAlloc,
@@ -1308,6 +1320,7 @@ impl ComponentState {
         // export signature
         let mut options = self.check_options(types, options, offset)?;
         options.check_lift(types, self, core_ty_id, offset)?;
+        options.check_asyncness(ty, offset)?;
         let func_ty = ty.lower(types, &options, Abi::Lift, offset)?;
         let lowered_core_ty_id = func_ty.intern(types, offset);
 
@@ -1364,6 +1377,8 @@ impl ComponentState {
         // the expected canonical ABI import signature.
         let options = self.check_options(types, options, offset)?;
         options.check_lower(offset)?;
+        options.check_asyncness(ty, offset)?;
+
         let func_ty = ty.lower(types, &options, Abi::Lower, offset)?;
         let ty_id = func_ty.intern(types, offset);
 

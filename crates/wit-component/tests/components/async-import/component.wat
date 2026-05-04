@@ -1,12 +1,12 @@
 (component
   (type $ty-foo:foo/bar (;0;)
     (instance
-      (type (;0;) (func (param "s" string) (result string)))
+      (type (;0;) (func async (param "s" string) (result string)))
       (export (;0;) "foo" (func (type 0)))
     )
   )
   (import "foo:foo/bar" (instance $foo:foo/bar (;0;) (type $ty-foo:foo/bar)))
-  (type (;1;) (func (param "s" string) (result string)))
+  (type (;1;) (func async (param "s" string) (result string)))
   (import "foo" (func $foo (;0;) (type 1)))
   (core module $main (;0;)
     (type (;0;) (func (param i32 i32 i32) (result i32)))

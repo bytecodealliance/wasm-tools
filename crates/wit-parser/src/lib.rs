@@ -1221,6 +1221,24 @@ impl ManglingAndAbi {
             Self::Legacy(_) => Mangling::Legacy,
         }
     }
+
+    /// Returns a suitable [`ManglingAndAbi`], based on `self`, to use for
+    /// `func`.
+    ///
+    /// This handles the case where `func` is a synchronous function which means
+    /// that it's forced to use the sync ABI no matter what.
+    pub fn for_func(&self, func: &Function) -> Self {
+        match self {
+            Self::Standard32 => *self,
+            Self::Legacy(abi) => {
+                if !func.kind.is_async() {
+                    Self::Legacy(LiftLowerAbi::Sync)
+                } else {
+                    Self::Legacy(*abi)
+                }
+            }
+        }
+    }
 }
 
 impl Function {
