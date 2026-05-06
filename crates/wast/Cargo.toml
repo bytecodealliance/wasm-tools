@@ -20,7 +20,7 @@ all-features = true
 workspace = true
 
 [dependencies]
-bumpalo = "3.14.0"
+bumpalo = "3.20"
 gimli = { workspace = true, optional = true }
 leb128fmt = { workspace = true }
 memchr = "2.4.1"
