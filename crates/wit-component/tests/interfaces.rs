@@ -108,6 +108,9 @@ fn assert_output(expected: &Path, actual: &str) -> Result<()> {
         "\"$CARGO_PKG_VERSION\"",
     );
     if std::env::var_os("BLESS").is_some() {
+        if let Ok(prev) = fs::read_to_string(&expected) && prev == actual {
+            return Ok(());
+        }
         fs::write(expected, actual).with_context(|| format!("failed to write {expected:?}"))?;
     } else {
         assert_eq!(
