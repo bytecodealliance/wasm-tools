@@ -193,29 +193,29 @@ pub(crate) trait InternRecGroup {
             }
         }
 
-        let map_cannonical = |idx: PackedIndex| -> Result<CoreTypeId> {
+        let map_canonical = |idx: PackedIndex| -> Result<CoreTypeId> {
             self.at_packed_index(types, rec_group, idx, offset)
         };
 
         let descriptor_idx = if let Some(i) = ty.descriptor_idx {
-            Some(map_cannonical(i)?)
+            Some(map_canonical(i)?)
         } else {
             None
         };
         let describes_idx = if let Some(i) = ty.describes_idx {
-            Some(map_cannonical(i)?)
+            Some(map_canonical(i)?)
         } else {
             None
         };
 
         if let Some(supertype_index) = types[id].supertype_idx {
             debug_assert!(supertype_index.is_canonical());
-            let sup_id = map_cannonical(supertype_index)?;
+            let sup_id = map_canonical(supertype_index)?;
             if let Some(descriptor_idx) = descriptor_idx {
                 if types[sup_id].composite_type.descriptor_idx.is_some()
                     && (types[descriptor_idx].supertype_idx.is_none()
-                        || (map_cannonical(types[descriptor_idx].supertype_idx.unwrap())?
-                            != map_cannonical(
+                        || (map_canonical(types[descriptor_idx].supertype_idx.unwrap())?
+                            != map_canonical(
                                 types[sup_id].composite_type.descriptor_idx.unwrap(),
                             )?))
                 {
@@ -237,8 +237,7 @@ pub(crate) trait InternRecGroup {
                 (Some(a), Some(b)) => {
                     let a_id = self.at_packed_index(types, rec_group, a, offset)?;
                     if types[a_id].supertype_idx.is_none()
-                        || (map_cannonical(types[a_id].supertype_idx.unwrap())?
-                            != map_cannonical(b)?)
+                        || (map_canonical(types[a_id].supertype_idx.unwrap())? != map_canonical(b)?)
                     {
                         bail!(offset, "supertype of descriptor does not match");
                     }
@@ -258,7 +257,7 @@ pub(crate) trait InternRecGroup {
         if let Some(descriptor_idx) = descriptor_idx {
             let describes_idx = if let Some(i) = types[descriptor_idx].composite_type.describes_idx
             {
-                Some(map_cannonical(i)?)
+                Some(map_canonical(i)?)
             } else {
                 None
             };
@@ -269,7 +268,7 @@ pub(crate) trait InternRecGroup {
         if let Some(describes_idx) = describes_idx {
             let descriptor_idx = if let Some(i) = types[describes_idx].composite_type.descriptor_idx
             {
-                Some(map_cannonical(i)?)
+                Some(map_canonical(i)?)
             } else {
                 None
             };

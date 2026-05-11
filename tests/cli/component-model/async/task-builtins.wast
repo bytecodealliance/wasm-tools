@@ -80,9 +80,10 @@
   (component
     (core module $m
       (func (export "r") (param i32 i32 i32 i32) (result i32) unreachable)
+      (memory (export "m") 0)
     )
     (core instance $m (instantiate $m))
-    (core func $task-return (canon task.return (result u32) (realloc (func $m "r"))))
+    (core func $task-return (canon task.return (result u32) (realloc (func $m "r")) (memory $m "m")))
   )
   "cannot specify `realloc` option on `task.return`")
 
@@ -344,29 +345,41 @@
   (component
     (core func (canon context.set i32 100)))
   "immediate must be zero: 100")
-(assert_malformed
-  (component quote
-    "(core func (canon context.get i64 100))")
-  "expected keyword `i32`")
-(assert_malformed
-  (component quote
-    "(core func (canon context.set i64 100))")
-  "expected keyword `i32`")
+;; `i64` is accepted syntactically but requires the component model 64-bit
+;; feature (`cm64`), which is not enabled by this test.
+(assert_invalid
+  (component
+    (core func (canon context.get i64 0)))
+  "64-bit `context.get` requires the component model 64-bit feature")
+(assert_invalid
+  (component
+    (core func (canon context.set i64 0)))
+  "64-bit `context.set` requires the component model 64-bit feature")
 
-(assert_malformed
+(assert_invalid
   (component binary
     "\00asm" "\0d\00\01\00" ;; component header
     "\08\04"                ;; canonicals section, 4 bytes
     "\01"                   ;; 1 count
     "\0a\7e\00")            ;; context.get i64 0
-  "invalid leading byte (0x7e) for context.get")
-(assert_malformed
+  "64-bit `context.get` requires the component model 64-bit feature")
+(assert_invalid
   (component binary
     "\00asm" "\0d\00\01\00" ;; component header
     "\08\04"                ;; canonicals section, 4 bytes
     "\01"                   ;; 1 count
     "\0b\7e\00")            ;; context.set i64 0
-  "invalid leading byte (0x7e) for context.set")
+  "64-bit `context.set` requires the component model 64-bit feature")
+
+;; Other value types (e.g. `f32`) are rejected regardless of the `cm64` feature.
+(assert_invalid
+  (component
+    (core func (canon context.get f32 0)))
+  "`context.get` only supports `i32` or `i64`")
+(assert_invalid
+  (component
+    (core func (canon context.set f32 0)))
+  "`context.set` only supports `i32` or `i64`")
 
 ;; different forms of canonical intrinsics
 
@@ -412,14 +425,14 @@
   (canon stream.drop-readable $s (core func))
   (core func (canon stream.drop-writable $s))
   (canon stream.drop-writable $s (core func))
-  (core func (canon future.read $f (memory $m)))
-  (canon future.read $f (memory $m) (core func))
-  (core func (canon future.write $f (memory $m)))
-  (canon future.write $f (memory $m) (core func))
-  (core func (canon stream.read $s (memory $m)))
-  (canon stream.read $s (memory $m) (core func))
-  (core func (canon stream.write $s (memory $m)))
-  (canon stream.write $s (memory $m) (core func))
+  (core func (canon future.read $f (memory $m) async))
+  (canon future.read $f (memory $m) async (core func))
+  (core func (canon future.write $f (memory $m) async))
+  (canon future.write $f (memory $m) async (core func))
+  (core func (canon stream.read $s (memory $m) async))
+  (canon stream.read $s (memory $m) async (core func))
+  (core func (canon stream.write $s (memory $m) async))
+  (canon stream.write $s (memory $m) async (core func))
 
   (core func (canon context.get i32 0))
   (canon context.get i32 0 (core func))

@@ -396,7 +396,9 @@ pub mod kw {
     custom_keyword!(assert_exception);
     custom_keyword!(assert_exhaustion);
     custom_keyword!(assert_invalid);
+    custom_keyword!(assert_invalid_custom);
     custom_keyword!(assert_malformed);
+    custom_keyword!(assert_malformed_custom);
     custom_keyword!(assert_return);
     custom_keyword!(assert_trap);
     custom_keyword!(assert_unlinkable);

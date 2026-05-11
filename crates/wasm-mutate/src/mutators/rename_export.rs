@@ -1,7 +1,7 @@
 //! Mutator that generates a random renaming of a preexisting export
 use super::Mutator;
 use crate::{Result, WasmMutate};
-use rand::Rng;
+use rand::RngExt;
 use wasm_encoder::{ExportKind, ExportSection, Module};
 use wasmparser::ExportSectionReader;
 

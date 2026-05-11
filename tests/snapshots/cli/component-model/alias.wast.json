@@ -183,6 +183,13 @@
       "line": 293,
       "filename": "alias.27.wasm",
       "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 304,
+      "filename": "alias.28.wasm",
+      "module_type": "binary",
+      "text": "aliases in a component or instance type may only refer to types or instances"
     }
   ]
 }

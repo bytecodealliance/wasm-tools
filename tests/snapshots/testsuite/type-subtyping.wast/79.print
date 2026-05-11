@@ -1,14 +1,15 @@
 (module
   (rec
-    (type $f11 (;0;) (sub (func (result (ref func)))))
-    (type $f12 (;1;) (sub $f11 (func (result (ref $f11)))))
+    (type $f1 (;0;) (sub (func)))
+    (type $s1 (;1;) (sub (struct (field (ref $f1)))))
   )
   (rec
-    (type $f21 (;2;) (sub (func (result (ref func)))))
-    (type $f22 (;3;) (sub $f21 (func (result (ref $f21)))))
+    (type $f2 (;2;) (sub (func)))
+    (type $s2 (;3;) (sub (struct (field (ref $f2)))))
   )
-  (import "M8" "f11" (func (;0;) (type $f11)))
-  (import "M8" "f11" (func (;1;) (type $f21)))
-  (import "M8" "f12" (func (;2;) (type $f12)))
-  (import "M8" "f12" (func (;3;) (type $f22)))
+  (rec
+    (type $g1 (;4;) (sub $f1 (func)))
+    (type (;5;) (sub $s1 (struct (field (ref $f1)) (field (ref $f1)) (field (ref $f2)) (field (ref $f2)) (field (ref $g1)))))
+  )
+  (import "M4" "g" (func (;0;) (type $g1)))
 )

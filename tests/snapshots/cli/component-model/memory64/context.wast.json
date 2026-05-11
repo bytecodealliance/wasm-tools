@@ -1,0 +1,51 @@
+{
+  "source_filename": "tests/cli/component-model/memory64/context.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 5,
+      "filename": "context.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 22,
+      "filename": "context.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 31,
+      "filename": "context.2.wasm",
+      "module_type": "binary",
+      "text": "found:    (func (result i64))"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 39,
+      "filename": "context.3.wasm",
+      "module_type": "binary",
+      "text": "found:    (func (param i64))"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 47,
+      "filename": "context.4.wasm",
+      "module_type": "binary",
+      "text": "found:    (func (result i32))"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 55,
+      "filename": "context.5.wasm",
+      "module_type": "binary",
+      "text": "found:    (func (param i32))"
+    },
+    {
+      "type": "module",
+      "line": 63,
+      "filename": "context.6.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

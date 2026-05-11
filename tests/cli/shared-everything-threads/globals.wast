@@ -380,6 +380,78 @@
   )
   "invalid type: `global.atomic.rmw.*` only allows `i32` and `i64`")
 
+;; Check global.atomic.rmw.* on immutable globals.
+(assert_invalid
+  (module
+    (global $g (shared i32) (i32.const 0))
+    (func (result i32)
+      i32.const 1
+      global.atomic.rmw.add seq_cst $g
+    )
+  )
+  "global is immutable")
+
+(assert_invalid
+  (module
+    (global $g (shared i32) (i32.const 0))
+    (func (result i32)
+      i32.const 1
+      global.atomic.rmw.sub seq_cst $g
+    )
+  )
+  "global is immutable")
+
+(assert_invalid
+  (module
+    (global $g (shared i32) (i32.const 0))
+    (func (result i32)
+      i32.const 1
+      global.atomic.rmw.and seq_cst $g
+    )
+  )
+  "global is immutable")
+
+(assert_invalid
+  (module
+    (global $g (shared i32) (i32.const 0))
+    (func (result i32)
+      i32.const 1
+      global.atomic.rmw.or seq_cst $g
+    )
+  )
+  "global is immutable")
+
+(assert_invalid
+  (module
+    (global $g (shared i32) (i32.const 0))
+    (func (result i32)
+      i32.const 1
+      global.atomic.rmw.xor seq_cst $g
+    )
+  )
+  "global is immutable")
+
+(assert_invalid
+  (module
+    (global $g (shared i32) (i32.const 0))
+    (func (result i32)
+      i32.const 1
+      global.atomic.rmw.xchg seq_cst $g
+    )
+  )
+  "global is immutable")
+
+(assert_invalid
+  (module
+    (global $g (shared i32) (i32.const 0))
+    (func (result i32)
+      i32.const 1
+      i32.const 2
+      global.atomic.rmw.cmpxchg seq_cst $g
+    )
+  )
+  "global is immutable")
+
 (assert_invalid
   (module
     (func

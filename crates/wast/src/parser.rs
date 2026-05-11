@@ -315,7 +315,7 @@ pub struct ParseBuffer<'a> {
 ///
 /// Note that "significant" here does not mean that `token` is the next token
 /// to be lexed at `offset`. Instead it's the next non-whitespace,
-/// non-annotation, non-coment token. This simple cache-of-sorts avoids
+/// non-annotation, non-comment token. This simple cache-of-sorts avoids
 /// re-parsing tokens the majority of the time, or at least that's the
 /// intention.
 ///

@@ -69,6 +69,7 @@
   (export "for" (func 53))
   (export "nesting" (func 54))
   (export "type-use" (func 55))
+  (export "br-implicit-drop" (func 56))
   (elem (;0;) (table 0) (i32.const 0) func $func)
   (func $dummy (;0;) (type $block-sig-1))
   (func (;1;) (type $block-sig-1)
@@ -885,5 +886,21 @@
     drop
     drop
     drop
+  )
+  (func (;56;) (type $block-sig-2) (result i32)
+    (local $i i32)
+    i32.const 1
+    loop $loop
+      local.get $i
+      i32.const 1
+      i32.add
+      local.set $i
+      i32.const 2
+      local.get $i
+      i32.const 10
+      i32.lt_s
+      br_if $loop
+      drop
+    end
   )
 )

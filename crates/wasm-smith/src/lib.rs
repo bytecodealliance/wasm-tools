@@ -68,15 +68,9 @@ use arbitrary::{Result, Unstructured};
 pub use component::Component;
 pub use config::{Config, MemoryOffsetChoices};
 use std::{collections::HashSet, fmt::Write, str};
-use wasm_encoder::MemoryType;
 
 #[doc(hidden)]
 pub use config::InternalOptionalConfig;
-
-pub(crate) fn page_size(mem: &MemoryType) -> u32 {
-    const DEFAULT_WASM_PAGE_SIZE_LOG2: u32 = 16;
-    1 << mem.page_size_log2.unwrap_or(DEFAULT_WASM_PAGE_SIZE_LOG2)
-}
 
 /// Do something an arbitrary number of times.
 ///

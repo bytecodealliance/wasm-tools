@@ -15,7 +15,7 @@ use wit_parser::{
 
 mod async_;
 mod bindgen;
-mod metadata;
+pub mod metadata;
 pub use crate::async_::AsyncFilterSet;
 pub use crate::metadata::Metadata;
 
@@ -1402,5 +1402,64 @@ fn dealias(resolve: &Resolve, mut id: TypeId) -> TypeId {
             TypeDefKind::Type(Type::Id(other)) => id = other,
             _ => break id,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use wasmparser::{Operator, Parser, Payload};
+    use wit_parser::Resolve;
+
+    #[derive(Copy, Clone)]
+    enum Which {
+        S8,
+        S16,
+    }
+
+    #[test]
+    fn s8_uses_signed_load() {
+        assert!(find_signed_load(Which::S8));
+    }
+
+    #[test]
+    fn s16_uses_signed_load() {
+        assert!(find_signed_load(Which::S16));
+    }
+
+    fn find_signed_load(which: Which) -> bool {
+        let mut resolve = Resolve::default();
+        let ty = match which {
+            Which::S8 => "s8",
+            Which::S16 => "s16",
+        };
+        let package = resolve
+            .push_str(
+                "wit",
+                &format!(
+                    "package test:test;
+world w {{
+  export foo: func(v: list<{ty}>);
+}}
+"
+                ),
+            )
+            .unwrap();
+        let world = resolve.select_world(&[package], None).unwrap();
+        let adapter = super::create(&resolve, world, None);
+        for payload in Parser::new(0).parse_all(&adapter) {
+            match payload.unwrap() {
+                Payload::CodeSectionEntry(body) => {
+                    for operator in body.get_operators_reader().unwrap() {
+                        match (operator.unwrap(), which) {
+                            (Operator::I32Load16S { .. }, Which::S16)
+                            | (Operator::I32Load8S { .. }, Which::S8) => return true,
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        false
     }
 }

@@ -1,0 +1,14 @@
+// FAIL: component wit %
+
+package test:invalid@0.1.0;
+
+interface foo {
+  a: func(s: string) -> string;
+
+  @since(version = 0.1.1)
+  b: func(s: string) -> string;
+}
+
+world test {
+  import foo;
+}

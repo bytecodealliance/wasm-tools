@@ -181,35 +181,84 @@
     },
     {
       "type": "assert_invalid",
-      "line": 384,
+      "line": 385,
       "filename": "globals.26.wasm",
+      "module_type": "binary",
+      "text": "global is immutable"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 395,
+      "filename": "globals.27.wasm",
+      "module_type": "binary",
+      "text": "global is immutable"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 405,
+      "filename": "globals.28.wasm",
+      "module_type": "binary",
+      "text": "global is immutable"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 415,
+      "filename": "globals.29.wasm",
+      "module_type": "binary",
+      "text": "global is immutable"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 425,
+      "filename": "globals.30.wasm",
+      "module_type": "binary",
+      "text": "global is immutable"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 435,
+      "filename": "globals.31.wasm",
+      "module_type": "binary",
+      "text": "global is immutable"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 445,
+      "filename": "globals.32.wasm",
+      "module_type": "binary",
+      "text": "global is immutable"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 456,
+      "filename": "globals.33.wasm",
       "module_type": "binary",
       "text": "global index out of bounds"
     },
     {
       "type": "assert_invalid",
-      "line": 392,
-      "filename": "globals.27.wasm",
+      "line": 464,
+      "filename": "globals.34.wasm",
       "module_type": "binary",
       "text": "invalid type: `global.atomic.rmw.xchg` only allows `i32`, `i64` and subtypes of `anyref`"
     },
     {
       "type": "module",
-      "line": 402,
-      "filename": "globals.28.wasm",
+      "line": 474,
+      "filename": "globals.35.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 412,
-      "filename": "globals.29.wasm",
+      "line": 484,
+      "filename": "globals.36.wasm",
       "module_type": "binary",
       "text": "invalid type: `global.atomic.rmw.cmpxchg` only allows `i32`, `i64` and subtypes of `eqref`"
     },
     {
       "type": "module",
-      "line": 423,
-      "filename": "globals.30.wasm",
+      "line": 495,
+      "filename": "globals.37.wasm",
       "module_type": "binary"
     }
   ]

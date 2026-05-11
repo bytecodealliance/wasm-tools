@@ -52,7 +52,7 @@ fn component_composing() -> Result<()> {
         let r = composer.compose();
         let (output, baseline_path) = if error_path.is_file() {
             match r {
-                Ok(_) => bail!("composition should fail for test case `{}`", test_case),
+                Ok(_) => bail!("composition should fail for test case `{test_case}`"),
                 Err(e) => {
                     let mut err = format!("{e}");
                     let causes = e.chain();

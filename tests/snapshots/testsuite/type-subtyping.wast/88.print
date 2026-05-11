@@ -1,11 +1,20 @@
 (module
   (rec
-    (type $f01 (;0;) (sub (func)))
-    (type $f02 (;1;) (sub $f01 (func)))
+    (type $f1 (;0;) (sub (func)))
+    (type $s1 (;1;) (sub (struct (field (ref $f1)))))
   )
   (rec
-    (type $f11 (;2;) (sub (func)))
-    (type $f12 (;3;) (sub $f01 (func)))
+    (type $f2 (;2;) (sub (func)))
+    (type $s2 (;3;) (sub (struct (field (ref $f2)))))
   )
-  (import "M11" "f" (func (;0;) (type $f11)))
+  (rec
+    (type $g1 (;4;) (sub $f1 (func)))
+    (type (;5;) (sub $s1 (struct (field (ref $f1)) (field (ref $f1)) (field (ref $f2)) (field (ref $f2)) (field (ref $g1)))))
+  )
+  (rec
+    (type $h (;6;) (sub $g1 (func)))
+    (type (;7;) (struct))
+  )
+  (import "M7" "h" (func (;0;) (type $f1)))
+  (import "M7" "h" (func (;1;) (type $g1)))
 )

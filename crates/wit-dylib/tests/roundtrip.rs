@@ -1,5 +1,5 @@
 //! A test that exercises sending arbitrary WIT values across an import/export
-//! boundary and ensuring that they are transmitted succesfully.
+//! boundary and ensuring that they are transmitted successfully.
 //!
 //! This test will use the `roundtrip_caller.rs` file to invoke functions in
 //! `roundtrip_callee.rs`. These precompiled components, provided through the
@@ -67,7 +67,6 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
     config.streams = false; // TODO
     config.async_ = false;
     let wasm = wit_smith::smith(&config, u)?;
-    std::fs::write("./hello.wasm", &wasm).unwrap();
     let (mut resolve, _pkg) = match wit_parser::decoding::decode(&wasm).unwrap() {
         DecodedWasm::WitPackage(resolve, pkg) => (resolve, pkg),
         DecodedWasm::Component(..) => unreachable!(),

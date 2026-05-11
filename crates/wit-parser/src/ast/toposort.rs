@@ -1,12 +1,10 @@
-use crate::IndexMap;
-use crate::ast::{Id, Span};
+use super::error::ParseError;
+use crate::ast::Id;
+use crate::{IndexMap, ParseErrorKind, ParseResult};
 use alloc::collections::BinaryHeap;
-use alloc::format;
-use alloc::string::{String, ToString};
+use alloc::string::ToString;
 use alloc::vec;
 use alloc::vec::Vec;
-use anyhow::Result;
-use core::fmt;
 use core::mem;
 
 #[derive(Default, Clone)]
@@ -46,21 +44,21 @@ struct State {
 pub fn toposort<'a>(
     kind: &str,
     deps: &IndexMap<&'a str, Vec<Id<'a>>>,
-) -> Result<Vec<&'a str>, Error> {
+) -> ParseResult<Vec<&'a str>> {
     // Initialize a `State` per-node with the number of outbound edges and
     // additionally filling out the `reverse_deps` array.
     let mut states = vec![State::default(); deps.len()];
     for (i, (_, edges)) in deps.iter().enumerate() {
         states[i].outbound_remaining = edges.len();
         for edge in edges {
-            let (j, _, _) = deps
-                .get_full(edge.name)
-                .ok_or_else(|| Error::NonexistentDep {
+            let (j, _, _) = deps.get_full(edge.name).ok_or_else(|| {
+                ParseError::from(ParseErrorKind::ItemNotFound {
                     span: edge.span,
                     name: edge.name.to_string(),
                     kind: kind.to_string(),
-                    highlighted: None,
-                })?;
+                    hint: None,
+                })
+            })?;
             states[j].reverse_deps.push(i);
         }
     }
@@ -116,77 +114,17 @@ pub fn toposort<'a>(
             if states[j].outbound_remaining == 0 {
                 continue;
             }
-            return Err(Error::Cycle {
+            return Err(ParseErrorKind::TypeCycle {
                 span: dep.span,
                 name: dep.name.to_string(),
                 kind: kind.to_string(),
-                highlighted: None,
-            });
+            }
+            .into());
         }
     }
 
     unreachable!()
 }
-
-#[derive(Debug)]
-pub enum Error {
-    NonexistentDep {
-        span: Span,
-        name: String,
-        kind: String,
-        highlighted: Option<String>,
-    },
-    Cycle {
-        span: Span,
-        name: String,
-        kind: String,
-        highlighted: Option<String>,
-    },
-}
-
-impl Error {
-    pub(crate) fn highlighted(&self) -> Option<&str> {
-        match self {
-            Error::NonexistentDep { highlighted, .. } | Error::Cycle { highlighted, .. } => {
-                highlighted.as_deref()
-            }
-        }
-    }
-
-    /// Highlights this error using the given source map, if the span is known.
-    pub(crate) fn highlight(&mut self, source_map: &crate::ast::SourceMap) {
-        if self.highlighted().is_some() {
-            return;
-        }
-        let span = match self {
-            Error::NonexistentDep { span, .. } | Error::Cycle { span, .. } => *span,
-        };
-        let msg = source_map.highlight_span(span, &format!("{self}"));
-        match self {
-            Error::NonexistentDep { highlighted, .. } | Error::Cycle { highlighted, .. } => {
-                *highlighted = msg;
-            }
-        }
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let Some(s) = self.highlighted() {
-            return f.write_str(s);
-        }
-        match self {
-            Error::NonexistentDep { kind, name, .. } => {
-                write!(f, "{kind} `{name}` does not exist")
-            }
-            Error::Cycle { kind, name, .. } => {
-                write!(f, "{kind} `{name}` depends on itself")
-            }
-        }
-    }
-}
-
-impl core::error::Error for Error {}
 
 #[cfg(test)]
 mod tests {
@@ -207,8 +145,8 @@ mod tests {
         let mut nonexistent = IndexMap::default();
         nonexistent.insert("a", vec![id("b")]);
         assert!(matches!(
-            toposort("", &nonexistent),
-            Err(Error::NonexistentDep { .. })
+            toposort("", &nonexistent).unwrap_err().kind(),
+            ParseErrorKind::ItemNotFound { .. }
         ));
 
         let mut one = IndexMap::default();
@@ -230,13 +168,19 @@ mod tests {
     fn cycles() {
         let mut cycle = IndexMap::default();
         cycle.insert("a", vec![id("a")]);
-        assert!(matches!(toposort("", &cycle), Err(Error::Cycle { .. })));
+        assert!(matches!(
+            toposort("", &cycle).unwrap_err().kind(),
+            ParseErrorKind::TypeCycle { .. }
+        ));
 
         let mut cycle = IndexMap::default();
         cycle.insert("a", vec![id("b")]);
         cycle.insert("b", vec![id("c")]);
         cycle.insert("c", vec![id("a")]);
-        assert!(matches!(toposort("", &cycle), Err(Error::Cycle { .. })));
+        assert!(matches!(
+            toposort("", &cycle).unwrap_err().kind(),
+            ParseErrorKind::TypeCycle { .. }
+        ));
     }
 
     #[test]

@@ -501,7 +501,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
 macro_rules! define_visit {
     // General structure of all the operator printer methods:
     //
-    // * Print the name of the insruction as defined in this macro
+    // * Print the name of the instruction as defined in this macro
     // * Print any payload, as necessary
     ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*) )*) => ($(
         fn $visit(&mut self $( , $($arg: $argty),* )?) -> Self::Output {

@@ -203,7 +203,7 @@ impl RequiredOptions {
         }
         if let AbiVariant::GuestExportAsync | AbiVariant::GuestExportAsyncStackful = abi {
             ret |= RequiredOptions::ASYNC;
-            ret |= task_return_options_and_type(resolve, func.result).0;
+            ret |= task_return_options_and_type(resolve, func).0;
         }
         ret
     }
@@ -1813,8 +1813,9 @@ impl<'a> EncodingState<'a> {
                     AbiVariant::GuestImport,
                 )
             }
-            Import::ExportedTaskReturn(key, interface, func, result) => {
-                let (options, _sig) = task_return_options_and_type(resolve, *result);
+            Import::ExportedTaskReturn(key, interface, func) => {
+                let (options, _sig) = task_return_options_and_type(resolve, func);
+                let result_ty = func.result;
                 if options.is_empty() {
                     // Note that an "import type encoder" is used here despite
                     // this being for an exported function if the `interface`
@@ -1827,7 +1828,7 @@ impl<'a> EncodingState<'a> {
                         self.root_export_type_encoder(*interface)
                     };
 
-                    let result = match result {
+                    let result = match result_ty.as_ref() {
                         Some(ty) => Some(encoder.encode_valtype(resolve, ty)?),
                         None => None,
                     };
@@ -1835,14 +1836,17 @@ impl<'a> EncodingState<'a> {
                     Ok((ExportKind::Func, index))
                 } else {
                     let metadata = &self.info.module_metadata_for(for_module);
-                    let encoding = metadata.export_encodings.get(resolve, key, func).unwrap();
+                    let encoding = metadata
+                        .export_encodings
+                        .get(resolve, key, &func.name)
+                        .unwrap();
                     Ok(self.materialize_shim_import(
                         shims,
                         &ShimKind::TaskReturn {
                             for_module,
                             interface: *interface,
-                            func,
-                            result: *result,
+                            func: &func.name,
+                            result: result_ty,
                             encoding,
                         },
                     ))
@@ -1995,12 +1999,12 @@ impl<'a> EncodingState<'a> {
                 let index = self.component.waitable_join();
                 Ok((ExportKind::Func, index))
             }
-            Import::ContextGet(n) => {
-                let index = self.component.context_get(*n);
+            Import::ContextGet { ty, slot } => {
+                let index = self.component.context_get((*ty).try_into()?, *slot);
                 Ok((ExportKind::Func, index))
             }
-            Import::ContextSet(n) => {
-                let index = self.component.context_set(*n);
+            Import::ContextSet { ty, slot } => {
+                let index = self.component.context_set((*ty).try_into()?, *slot);
                 Ok((ExportKind::Func, index))
             }
             Import::ExportedTaskCancel => {
@@ -2648,8 +2652,8 @@ impl<'a> Shims<'a> {
                 | Import::WaitableSetNew
                 | Import::WaitableSetDrop
                 | Import::WaitableJoin
-                | Import::ContextGet(_)
-                | Import::ContextSet(_)
+                | Import::ContextGet { .. }
+                | Import::ContextSet { .. }
                 | Import::ThreadIndex
                 | Import::ThreadSuspendToSuspended { .. }
                 | Import::ThreadSuspend { .. }
@@ -2660,8 +2664,8 @@ impl<'a> Shims<'a> {
                 // If `task.return` needs to be indirect then generate a shim
                 // for it, otherwise skip the shim and let it get materialized
                 // naturally later.
-                Import::ExportedTaskReturn(key, interface, func, ty) => {
-                    let (options, sig) = task_return_options_and_type(resolve, *ty);
+                Import::ExportedTaskReturn(key, interface, func) => {
+                    let (options, sig) = task_return_options_and_type(resolve, func);
                     if options.is_empty() {
                         continue;
                     }
@@ -2669,7 +2673,7 @@ impl<'a> Shims<'a> {
                     let encoding = world
                         .module_metadata_for(for_module)
                         .export_encodings
-                        .get(resolve, key, func)
+                        .get(resolve, key, &func.name)
                         .ok_or_else(|| {
                             anyhow::anyhow!(
                                 "missing component metadata for export of \
@@ -2678,12 +2682,12 @@ impl<'a> Shims<'a> {
                         })?;
                     self.push(Shim {
                         name,
-                        debug_name: format!("task-return-{func}"),
+                        debug_name: format!("task-return-{}", func.name),
                         options,
                         kind: ShimKind::TaskReturn {
                             interface: *interface,
-                            func,
-                            result: *ty,
+                            func: &func.name,
+                            result: func.result,
                             for_module,
                             encoding,
                         },
@@ -3050,15 +3054,15 @@ impl<'a> Shims<'a> {
 
 fn task_return_options_and_type(
     resolve: &Resolve,
-    ty: Option<Type>,
+    func: &Function,
 ) -> (RequiredOptions, WasmSignature) {
     let func_tmp = Function {
         name: String::new(),
         kind: FunctionKind::Freestanding,
-        params: match ty {
+        params: match &func.result {
             Some(ty) => vec![Param {
                 name: "a".to_string(),
-                ty,
+                ty: *ty,
                 span: Default::default(),
             }],
             None => Vec::new(),
@@ -3069,7 +3073,9 @@ fn task_return_options_and_type(
         span: Default::default(),
     };
     let abi = AbiVariant::GuestImport;
-    let options = RequiredOptions::for_import(resolve, &func_tmp, abi);
+    let mut options = RequiredOptions::for_import(resolve, func, abi);
+    // `task.return` does not support a `realloc` canonical option.
+    options.remove(RequiredOptions::REALLOC);
     let sig = resolve.wasm_signature(abi, &func_tmp);
     (options, sig)
 }

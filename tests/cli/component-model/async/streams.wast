@@ -152,7 +152,7 @@
     (core func $stream-cancel-read (canon stream.cancel-read $stream-type async))
     (core instance $i (instantiate $m (with "" (instance (export "stream.cancel-read" (func $stream-cancel-read))))))
   )
-  "requires the component model async builtins feature")
+  "requires the component model more async builtins feature")
 
 ;; stream.drop-readable
 (component
@@ -187,7 +187,7 @@
     (core func $stream-cancel-write (canon stream.cancel-write $stream-type async))
     (core instance $i (instantiate $m (with "" (instance (export "stream.cancel-write" (func $stream-cancel-write))))))
   )
-  "requires the component model async builtins feature")
+  "requires the component model more async builtins feature")
 
 ;; stream.drop-writable
 (component

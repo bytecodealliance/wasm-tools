@@ -66,7 +66,7 @@ impl FromStr for StringEncoding {
             "utf8" => Ok(StringEncoding::UTF8),
             "utf16" => Ok(StringEncoding::UTF16),
             "compact-utf16" => Ok(StringEncoding::CompactUTF16),
-            _ => bail!("unknown string encoding `{}`", s),
+            _ => bail!("unknown string encoding `{s}`"),
         }
     }
 }

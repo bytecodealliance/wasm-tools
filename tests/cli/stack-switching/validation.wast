@@ -1,5 +1,4 @@
 ;; RUN: wast --assert default --snapshot tests/snapshots % -f stack-switching
-
 ;; This file tests validation only, without GC types and subtyping.
 
 
@@ -314,26 +313,6 @@
       (i64.const 123)
       (local.get $p_ct2)
       (cont.bind $ct2 $ct1_alt)
-      (drop)
-    )
-  )
-  "type mismatch"
-)
-
-(assert_invalid
-
-  (module
-    (type $ft0 (func (result i32)))
-    (type $ct0 (cont $ft0))
-
-    (type $ft1 (func (result i32 i32)))
-    (type $ct1 (cont $ft1))
-
-    (func $error
-      (param $p (ref $ct0))
-      ;; error: two continuation types not agreeing on return types
-      (local.get $p)
-      (cont.bind $ct0 $ct1)
       (drop)
     )
   )
@@ -764,55 +743,6 @@
   "type mismatch"
 )
 
-(assert_invalid
-  (module
-    (type $ft0 (func))
-    (type $ct0 (cont $ft0))
-
-    (type $ft1 (func (result i32)))
-    (type $ct1 (cont $ft1))
-
-    (tag $t (param i32))
-
-    (func $error
-      (param $p (ref $ct0))
-      (block $handler (result i32 (ref $ct1))
-        ;; error: type mismatch in continuation types; result types don't agree.
-        (local.get $p)
-        (resume $ct0 (on $t $handler))
-        (return)
-      )
-      (unreachable)
-    )
-  )
-  "type mismatch"
-)
-
-(assert_invalid
-  (module
-    (type $ft0 (func (result i32)))
-    (type $ct0 (cont $ft0))
-
-    (type $ft1 (func (result i64)))
-    (type $ct1 (cont $ft1))
-
-    (tag $t (param i32))
-
-    (func $error
-      (param $p (ref $ct0))
-      (result i32)
-      (block $handler (result i32 (ref $ct1))
-        ;; error: type mismatch in continuation types; result types don't agree.
-        (local.get $p)
-        (resume $ct0 (on $t $handler))
-        (return)
-      )
-      (unreachable)
-    )
-  )
-  "type mismatch"
-)
-
 ;;;;
 ;;;; suspend instructions
 ;;;;
@@ -868,115 +798,107 @@
   "unknown tag"
 )
 
-;; Switch
+
+;; Illegal casts
 
 (assert_invalid
-
   (module
-    (type $ft0 (func (result i32)))
-    (type $ct0 (cont $ft0))
-
-    (type $ft1 (func (param (ref null $ct0)) (result i32)))
-    (type $ct1 (cont $ft1))
-
-    (tag $swap (result i32 i32))
-
-    (func $error
-      (param $p (ref null $ct1))
-      ;; error: $ft1 results don't agree with $swap results.
-      (local.get $p)
-      (switch $ct1 $swap)
-      (drop)
-    )
+    (func (drop (ref.test contref (unreachable))))
   )
-   "type mismatch"
+  "invalid cast"
+)
+(assert_invalid
+  (module
+    (func (drop (ref.test nullcontref (unreachable))))
+  )
+  "invalid cast"
+)
+(assert_invalid
+  (module
+    (type $f (func))
+    (type $c (cont $f))
+    (func (drop (ref.test (ref $c) (unreachable))))
+  )
+  "invalid cast"
 )
 
 (assert_invalid
-
   (module
-    (type $ft0 (func (result i32)))
-    (type $ct0 (cont $ft0))
-
-    (type $ft1 (func (param (ref null $ct0)) (result i32 i32)))
-    (type $ct1 (cont $ft1))
-
-    (tag $swap (result i32 i32))
-
-    (func $error
-      (param $p (ref null $ct1))
-      ;; error: $ft0 results don't agree with $swap results.
-      (local.get $p)
-      (switch $ct1 $swap)
-      (drop)
-    )
+    (func (drop (ref.cast contref (unreachable))))
   )
-   "type mismatch"
+  "invalid cast"
+)
+(assert_invalid
+  (module
+    (func (drop (ref.cast nullcontref (unreachable))))
+  )
+  "invalid cast"
+)
+(assert_invalid
+  (module
+    (type $f (func))
+    (type $c (cont $f))
+    (func (drop (ref.cast (ref $c) (unreachable))))
+  )
+  "invalid cast"
 )
 
 (assert_invalid
-
   (module
-    (type $ft0 (func (result i32)))
-    (type $ct0 (cont $ft0))
-
-    (type $ft1 (func (param (ref null $ct0)) (result i64)))
-    (type $ct1 (cont $ft1))
-
-    (tag $swap (result i32))
-
-    (func $error
-      (param $p (ref null $ct1))
-      ;; error: $ft1 results don't agree with $swap results.
-      (local.get $p)
-      (switch $ct1 $swap)
+    (func
+      (block (result contref) (br_on_cast 0 contref contref (unreachable)))
       (drop)
     )
   )
-   "type mismatch"
+  "invalid cast"
 )
-
-
 (assert_invalid
-
   (module
-    (type $ft0 (func (result f32)))
-    (type $ct0 (cont $ft0))
-
-    (type $ft1 (func (param (ref null $ct0)) (result i32)))
-    (type $ct1 (cont $ft1))
-
-    (tag $swap (result i32))
-
-    (func $error
-      (param $p (ref null $ct1))
-      ;; error: $ft0 results don't agree with $swap results.
-      (local.get $p)
-      (switch $ct1 $swap)
+    (func
+      (block (result contref) (br_on_cast 0 nullcontref nullcontref (unreachable)))
       (drop)
     )
   )
-   "type mismatch"
+  "invalid cast"
+)
+(assert_invalid
+  (module
+    (type $f (func))
+    (type $c (cont $f))
+    (func
+      (block (result contref) (br_on_cast 0 (ref $c) (ref $c) (unreachable)))
+      (drop)
+    )
+  )
+  "invalid cast"
 )
 
 (assert_invalid
-
   (module
-    (type $ft0 (func (result i32)))
-    (type $ct0 (cont $ft0))
-
-    (type $ft1 (func (param (ref null $ct0)) (result i64)))
-    (type $ct1 (cont $ft1))
-
-    (tag $swap (result i64))
-
-    (func $error
-      (param $p (ref null $ct1))
-      ;; error: $ft0 results don't agree with $swap results.
-      (local.get $p)
-      (switch $ct1 $swap)
+    (func
+      (block (result contref) (br_on_cast_fail 0 contref contref (unreachable)))
       (drop)
     )
   )
-   "type mismatch"
+  "invalid cast"
+)
+(assert_invalid
+  (module
+    (func
+      (block (result contref) (br_on_cast_fail 0 nullcontref nullcontref (unreachable)))
+      (drop)
+    )
+  )
+  "invalid cast"
+)
+(assert_invalid
+  (module
+    (type $f (func))
+    (type $c (cont $f))
+    (func
+      (block (result contref) (br_on_cast_fail 0 (ref $c) (ref $c) (unreachable)))
+      (drop)
+    )
+  )
+  "invalid cast"
 )

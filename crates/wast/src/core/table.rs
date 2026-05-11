@@ -192,7 +192,7 @@ impl<'a> Parse<'a> for Elem<'a> {
             || (parser.peek::<LParen>()? && !parser.peek::<RefType>()?)
         {
             let table = if parser.peek::<u32>()? {
-                // FIXME: this is only here to accomodate
+                // FIXME: this is only here to accommodate
                 // proposals/threads/imports.wast at this current moment in
                 // time, this probably should get removed when the threads
                 // proposal is rebased on the current spec.
@@ -257,11 +257,11 @@ impl<'a> ElemPayload<'a> {
 
             // If the requested type is a `funcref` type then a list of indices
             // can be parsed. This is because the list-of-indices encoding in
-            // the binary format can only accomodate the `funcref` type.
+            // the binary format can only accommodate the `funcref` type.
             Some(ty) if ty == RefType::func() => ElemPayload::Indices(Vec::new()),
 
             // Otherwise silently translate this list-of-indices into a
-            // list-of-expressions because that's the only way to accomodate a
+            // list-of-expressions because that's the only way to accommodate a
             // non-funcref type.
             Some(ty) => ElemPayload::Exprs {
                 ty,

@@ -37,10 +37,7 @@ pub(crate) fn load<'a>(
             // []
             insts.push(Instruction::MemorySize(memarg.memory_index));
             // [mem_size_in_pages:address_type]
-            insts.push(int_const_inst(
-                address_type,
-                crate::page_size(memory).into(),
-            ));
+            insts.push(int_const_inst(address_type, memory.page_size().into()));
             // [mem_size_in_pages:address_type wasm_page_size:address_type]
             insts.push(int_mul_inst(address_type));
             // [mem_size_in_bytes:address_type]
@@ -119,10 +116,7 @@ pub(crate) fn store<'a>(
     // []
     insts.push(Instruction::MemorySize(memarg.memory_index));
     // [mem_size_in_pages:address_type]
-    insts.push(int_const_inst(
-        address_type,
-        crate::page_size(memory).into(),
-    ));
+    insts.push(int_const_inst(address_type, memory.page_size().into()));
     // [mem_size_in_pages:address_type wasm_page_size:address_type]
     insts.push(int_mul_inst(address_type));
     // [mem_size_in_bytes:address_type]

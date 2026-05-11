@@ -1,4 +1,4 @@
-;; RUN: wast --assert default --snapshot tests/snapshots % -f cm-async,cm-async-builtins
+;; RUN: wast --assert default --snapshot tests/snapshots % -f cm-async,cm-more-async-builtins
 
 ;; stream.cancel-read
 (component
@@ -100,4 +100,14 @@
     (core instance $i (instantiate $m (with "" (instance (export "future.cancel-write" (func $future-cancel-write))))))
   )
   "type mismatch for export `future.cancel-write` of module instantiation argument ``"
+)
+
+;; synchronous future/stream read/write
+(component
+  (type $f (future))
+  (type $s (stream))
+  (core func (canon future.read $f))
+  (core func (canon future.write $f))
+  (core func (canon stream.read $s))
+  (core func (canon stream.write $s))
 )

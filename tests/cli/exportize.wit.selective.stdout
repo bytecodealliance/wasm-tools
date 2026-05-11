@@ -1,0 +1,42 @@
+/// RUN[simple]: component wit --exportize-world simple %
+/// RUN[simple-rename]: component wit --exportize-world simple-rename --exportize-out-world-name test-rename %
+/// RUN[with-deps]: component wit --exportize-world with-deps %
+/// RUN[simple-toplevel]: component wit --exportize-world simple-toplevel %
+/// RUN[selective]: component wit --exportize-world selective --exportize-import a %
+package exportize:exportize;
+
+interface i {
+  f: func();
+}
+
+interface a {
+  x: func();
+}
+
+interface b {
+  y: func();
+}
+
+world simple {
+  import i;
+
+  export e: func();
+}
+world simple-rename {
+  import f: func();
+}
+world with-deps {
+  import a;
+  import b;
+}
+world simple-toplevel {
+  import bar: interface {
+    baz: func();
+  }
+  import foo: func();
+}
+world selective-exportized {
+  import b;
+
+  export a;
+}

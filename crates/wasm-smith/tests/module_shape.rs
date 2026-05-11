@@ -1,7 +1,7 @@
 #![cfg(feature = "wasmparser")]
 
 use arbitrary::Unstructured;
-use rand::{RngCore, SeedableRng, rngs::SmallRng};
+use rand::{Rng, SeedableRng, rngs::SmallRng};
 use wasm_smith::{Config, Module};
 use wasmparser::{Parser, Validator, WasmFeatures, types::EntityType};
 

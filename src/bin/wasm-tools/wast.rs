@@ -138,7 +138,7 @@ impl Opts {
             s.push_str("\n\n--------------------------------\n\n");
             s.push_str(&format!("{error:?}"));
         }
-        bail!("{}", s)
+        bail!("{s}")
     }
 
     fn read_wast(&self) -> Result<(&Path, String)> {
@@ -267,6 +267,20 @@ impl Opts {
                 bail!("encoded and parsed successfully but should have failed with: {message:?}",)
             }
 
+            WastDirective::AssertMalformedCustom {
+                span: _,
+                mut module,
+                message,
+            } => match module.encode() {
+                Ok(_) => {
+                    bail!(
+                        "expected module to have a malformed custom section but parsed successfully"
+                    )
+                }
+                Err(e) => {
+                    self.assert_error_matches(test, &e.to_string(), message)?;
+                }
+            },
             WastDirective::AssertInvalid {
                 mut module,
                 message,
@@ -291,11 +305,25 @@ impl Opts {
                 // now, ensure that module is invalid
                 match self.test_wasm_valid(test, &binary_wasm) {
                     Ok(_) => bail!(
-                        "encoded and validated successfully but should have failed with: {}",
-                        message,
+                        "encoded and validated successfully but should have failed with: {message}",
                     ),
                     Err(e) => self.assert_error_matches(test, &format!("{e:?}"), message)?,
                 }
+            }
+
+            WastDirective::AssertInvalidCustom {
+                mut module,
+                message: _,
+                span: _,
+            } => {
+                let binary_wasm = module.encode()?;
+                let mut test_path = test.to_path_buf();
+                test_path.push(idx.to_string());
+                self.test_wasm(&test_path, &binary_wasm, true)?;
+
+                // NB: validity of custom sections is deferred to runtimes for
+                // now so this doesn't actually test anything about the custom
+                // section.
             }
 
             WastDirective::Thread(thread) => {
@@ -579,7 +607,7 @@ impl Opts {
             msg.push_str("\nfailed to dump actual");
         }
 
-        bail!("{}", msg);
+        bail!("{msg}");
     }
 
     /// Run `wasm-tools dump` over the `bytes` provided.

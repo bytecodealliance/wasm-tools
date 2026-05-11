@@ -216,7 +216,7 @@ impl Section for NameSection {
 /// A map used to name items in a wasm module, organized by naming each
 /// individual index.
 ///
-/// This is used in conjunction with [`NameSection::functions`] and simlar
+/// This is used in conjunction with [`NameSection::functions`] and similar
 /// methods.
 #[derive(Clone, Debug, Default)]
 pub struct NameMap {

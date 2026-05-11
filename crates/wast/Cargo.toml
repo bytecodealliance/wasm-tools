@@ -1,6 +1,6 @@
 [package]
 name = "wast"
-version = "245.0.1"
+version = "248.0.0"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 edition.workspace = true
 license.workspace = true
@@ -20,7 +20,7 @@ all-features = true
 workspace = true
 
 [dependencies]
-bumpalo = "3.14.0"
+bumpalo = "3.20"
 gimli = { workspace = true, optional = true }
 leb128fmt = { workspace = true }
 memchr = "2.4.1"

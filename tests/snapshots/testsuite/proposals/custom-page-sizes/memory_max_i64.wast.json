@@ -17,26 +17,40 @@
       "line": 19,
       "filename": "memory_max_i64.1.wasm",
       "module_type": "binary",
-      "text": "unknown import"
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 26,
       "filename": "memory_max_i64.2.wasm",
       "module_type": "binary",
-      "text": "unknown import"
+      "text": "incompatible import type"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 32,
+      "filename": "memory_max_i64.3.wasm",
+      "module_type": "binary",
+      "text": "incompatible import type"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 39,
+      "filename": "memory_max_i64.4.wasm",
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_malformed",
-      "line": 38,
-      "filename": "memory_max_i64.3.wat",
+      "line": 50,
+      "filename": "memory_max_i64.5.wat",
       "module_type": "text",
-      "text": "constant out of range"
+      "text": "i64 constant out of range"
     },
     {
       "type": "assert_invalid",
-      "line": 43,
-      "filename": "memory_max_i64.4.wasm",
+      "line": 55,
+      "filename": "memory_max_i64.6.wasm",
       "module_type": "binary",
       "text": "memory size must be at most"
     }

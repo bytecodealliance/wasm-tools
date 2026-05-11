@@ -33,6 +33,8 @@ pub enum FuncKind<'a> {
     /// ```text
     /// (func (type 3) (import "foo" "bar"))
     /// ```
+    ///
+    /// The second element (`bool`) of the tuple means whether the function is _exact_. This concept is part of the custom descriptors proposal.
     Import(InlineImport<'a>, bool),
 
     /// Almost all functions, those defined inline in a wasm module.

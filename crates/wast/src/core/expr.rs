@@ -383,10 +383,16 @@ impl<'a> ExpressionParser<'a> {
             _ => return Err(parser.error("invalid value for branch hint")),
         };
 
-        self.branch_hints.push(BranchHint {
-            instr_index: self.raw_instrs.len(),
-            value,
-        });
+        let instr_index = self.raw_instrs.len();
+        if let Some(prev) = self.branch_hints.last() {
+            if prev.instr_index == instr_index {
+                return Err(
+                    parser.error("@metadata.code.branch_hint annotation: duplicate annotation")
+                );
+            }
+        }
+
+        self.branch_hints.push(BranchHint { instr_index, value });
         Ok(())
     }
 

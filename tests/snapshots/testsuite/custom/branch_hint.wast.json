@@ -1,0 +1,32 @@
+{
+  "source_filename": "tests/testsuite/custom/branch_hint.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "branch_hint.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 51,
+      "filename": "branch_hint.1.wat",
+      "module_type": "text",
+      "text": "@metadata.code.branch_hint annotation: duplicate annotation"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 68,
+      "filename": "branch_hint.2.wat",
+      "module_type": "text",
+      "text": "@metadata.code.branch_hint annotation: not in a function"
+    },
+    {
+      "type": "assert_invalid_custom",
+      "line": 86,
+      "filename": "branch_hint.3.wasm",
+      "module_type": "binary",
+      "text": "@metadata.code.branch_hint annotation: invalid target"
+    }
+  ]
+}

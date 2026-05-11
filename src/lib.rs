@@ -391,7 +391,7 @@ pub fn parse_binary_wasm(parser: wasmparser::Parser, bytes: &[u8]) -> Result<()>
             wasmparser::Payload::ComponentExportSection(s) => parse_section(s)?,
 
             wasmparser::Payload::UnknownSection { id, .. } => {
-                bail!("malformed section id: {}", id)
+                bail!("malformed section id: {id}")
             }
 
             _ => (),

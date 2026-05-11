@@ -62,7 +62,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
             },
         };
 
-        // Increase ony once for the same input Wasm.
+        // Increase only once for the same input Wasm.
         if i == 0 {
             NUM_SUCCESSFUL_MUTATIONS.fetch_add(1, Ordering::Relaxed);
         }

@@ -268,7 +268,7 @@ pub enum Import {
     /// As of this writing, only async-lifted exports use `task.return`, but the
     /// plan is to also support it for sync-lifted exports in the future as
     /// well.
-    ExportedTaskReturn(WorldKey, Option<InterfaceId>, String, Option<Type>),
+    ExportedTaskReturn(WorldKey, Option<InterfaceId>, Function),
 
     /// A `canon task.cancel` intrinsic for an exported function.
     ///
@@ -276,9 +276,19 @@ pub enum Import {
     ExportedTaskCancel,
 
     /// The `context.get` intrinsic for the nth slot of storage.
-    ContextGet(u32),
+    ContextGet {
+        /// The type of the slot (`i32` or `i64`).
+        ty: ValType,
+        /// The index of the storage slot.
+        slot: u32,
+    },
     /// The `context.set` intrinsic for the nth slot of storage.
-    ContextSet(u32),
+    ContextSet {
+        /// The type of the slot (`i32` or `i64`).
+        ty: ValType,
+        /// The index of the storage slot.
+        slot: u32,
+    },
 
     /// A `canon backpressure.inc` intrinsic.
     BackpressureInc,
@@ -685,15 +695,15 @@ impl ImportMap {
                 return Ok(Import::ErrorContextDebugMessage { encoding });
             }
 
-            if let Some(i) = names.context_get(name) {
-                let expected = FuncType::new([], [ValType::I32]);
+            if let Some((slot_ty, slot)) = names.context_get(name) {
+                let expected = FuncType::new([], [slot_ty]);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::ContextGet(i));
+                return Ok(Import::ContextGet { ty: slot_ty, slot });
             }
-            if let Some(i) = names.context_set(name) {
-                let expected = FuncType::new([ValType::I32], []);
+            if let Some((slot_ty, slot)) = names.context_set(name) {
+                let expected = FuncType::new([slot_ty], []);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::ContextSet(i));
+                return Ok(Import::ContextSet { ty: slot_ty, slot });
             }
             if names.thread_index(name) {
                 let expected = FuncType::new([], [ValType::I32]);
@@ -901,12 +911,7 @@ impl ImportMap {
                 let key = key.unwrap_or_else(|| WorldKey::Name(name.to_string()));
                 // TODO: should call `validate_func_sig` but would require
                 // calculating the expected signature based of `func.result`.
-                return Ok(Some(Import::ExportedTaskReturn(
-                    key,
-                    id,
-                    func.name.clone(),
-                    func.result,
-                )));
+                return Ok(Some(Import::ExportedTaskReturn(key, id, func.clone())));
             }
             if names.task_cancel(name) {
                 let expected = FuncType::new([], []);
@@ -1588,8 +1593,8 @@ trait NameMangling {
     fn error_context_new(&self, name: &str) -> Option<StringEncoding>;
     fn error_context_debug_message(&self, name: &str) -> Option<StringEncoding>;
     fn error_context_drop(&self, name: &str) -> bool;
-    fn context_get(&self, name: &str) -> Option<u32>;
-    fn context_set(&self, name: &str) -> Option<u32>;
+    fn context_get(&self, name: &str) -> Option<(ValType, u32)>;
+    fn context_set(&self, name: &str) -> Option<(ValType, u32)>;
     fn future_new(&self, lookup_context: &PayloadLookupContext, name: &str) -> Option<PayloadInfo>;
     fn future_write(
         &self,
@@ -1781,10 +1786,10 @@ impl NameMangling for Standard {
     fn error_context_drop(&self, _name: &str) -> bool {
         false
     }
-    fn context_get(&self, _name: &str) -> Option<u32> {
+    fn context_get(&self, _name: &str) -> Option<(ValType, u32)> {
         None
     }
-    fn context_set(&self, _name: &str) -> Option<u32> {
+    fn context_set(&self, _name: &str) -> Option<(ValType, u32)> {
         None
     }
     fn thread_index(&self, _name: &str) -> bool {
@@ -2240,13 +2245,11 @@ impl NameMangling for Legacy {
     fn error_context_drop(&self, name: &str) -> bool {
         name == "[error-context-drop]"
     }
-    fn context_get(&self, name: &str) -> Option<u32> {
-        let (n, rest) = prefixed_integer(name, "[context-get-")?;
-        if rest.is_empty() { Some(n) } else { None }
+    fn context_get(&self, name: &str) -> Option<(ValType, u32)> {
+        parse_context_name(name, "[context-get-")
     }
-    fn context_set(&self, name: &str) -> Option<u32> {
-        let (n, rest) = prefixed_integer(name, "[context-set-")?;
-        if rest.is_empty() { Some(n) } else { None }
+    fn context_set(&self, name: &str) -> Option<(ValType, u32)> {
+        parse_context_name(name, "[context-set-")
     }
     fn thread_index(&self, name: &str) -> bool {
         name == "[thread-index]"
@@ -2705,11 +2708,23 @@ fn prefixed_intrinsic<'a>(name: &'a str, prefix: &str) -> Option<(&'a str, &'a s
     Some((&suffix[..index], rest))
 }
 
-/// Matches `name` as `[${prefix}N]...`, and if found returns `(N, "...")`
-fn prefixed_integer<'a>(name: &'a str, prefix: &str) -> Option<(u32, &'a str)> {
+/// Parses a `[context-get-<N>]` / `[context-set-<N>]` style name, optionally
+/// carrying a type width infix: `[context-get-i64-<N>]`.
+///
+/// Returns the value type together with the numeric slot. Additional type
+/// widths can be added here by extending the match below.
+fn parse_context_name(name: &str, prefix: &str) -> Option<(ValType, u32)> {
     let (suffix, rest) = prefixed_intrinsic(name, prefix)?;
-    let n = suffix.parse().ok()?;
-    Some((n, rest))
+    if !rest.is_empty() {
+        return None;
+    }
+    let (ty, slot) = match suffix.split_once('-') {
+        Some(("i64", slot)) => (ValType::I64, slot),
+        Some(("i32", slot)) => (ValType::I32, slot),
+        _ => (ValType::I32, suffix),
+    };
+    let slot = slot.parse().ok()?;
+    Some((ty, slot))
 }
 
 fn get_function<'a>(

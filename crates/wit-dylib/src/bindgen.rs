@@ -1344,24 +1344,24 @@ impl<'a> FunctionCompiler<'a> {
     fn lift(&mut self, src: &AbiLoc<'_>, ty: Type) {
         let i = self.adapter.intrinsics();
         match ty {
-            Type::Bool => self.push_scalar(src, ValType::I32, i.push_bool, 0),
-            Type::Char => self.push_scalar(src, ValType::I32, i.push_char, 2),
-            Type::U8 => self.push_scalar(src, ValType::I32, i.push_u8, 0),
-            Type::S8 => self.push_scalar(src, ValType::I32, i.push_s8, 0),
-            Type::U16 => self.push_scalar(src, ValType::I32, i.push_u16, 1),
-            Type::S16 => self.push_scalar(src, ValType::I32, i.push_s16, 1),
-            Type::U32 => self.push_scalar(src, ValType::I32, i.push_u32, 2),
-            Type::S32 => self.push_scalar(src, ValType::I32, i.push_s32, 2),
-            Type::U64 => self.push_scalar(src, ValType::I64, i.push_u64, 3),
-            Type::S64 => self.push_scalar(src, ValType::I64, i.push_s64, 3),
-            Type::F32 => self.push_scalar(src, ValType::F32, i.push_f32, 2),
-            Type::F64 => self.push_scalar(src, ValType::F64, i.push_f64, 3),
+            Type::Bool => self.push_scalar(src, ValType::I32, i.push_bool, 0, false),
+            Type::Char => self.push_scalar(src, ValType::I32, i.push_char, 2, false),
+            Type::U8 => self.push_scalar(src, ValType::I32, i.push_u8, 0, false),
+            Type::S8 => self.push_scalar(src, ValType::I32, i.push_s8, 0, true),
+            Type::U16 => self.push_scalar(src, ValType::I32, i.push_u16, 1, false),
+            Type::S16 => self.push_scalar(src, ValType::I32, i.push_s16, 1, true),
+            Type::U32 => self.push_scalar(src, ValType::I32, i.push_u32, 2, false),
+            Type::S32 => self.push_scalar(src, ValType::I32, i.push_s32, 2, true),
+            Type::U64 => self.push_scalar(src, ValType::I64, i.push_u64, 3, false),
+            Type::S64 => self.push_scalar(src, ValType::I64, i.push_s64, 3, true),
+            Type::F32 => self.push_scalar(src, ValType::F32, i.push_f32, 2, false),
+            Type::F64 => self.push_scalar(src, ValType::F64, i.push_f64, 3, false),
             Type::String => {
                 let push_string = i.push_string;
                 let (src_ptr, src_len) = src.split_ptr_len();
                 self.local_get_ctx();
-                self.load_abi_loc(&src_ptr, ValType::I32, 2);
-                self.load_abi_loc(&src_len, ValType::I32, 2);
+                self.load_abi_loc(&src_ptr, ValType::I32, 2, false);
+                self.load_abi_loc(&src_len, ValType::I32, 2, false);
                 self.ins().call(push_string);
             }
             Type::ErrorContext => todo!("error-context"),
@@ -1502,9 +1502,9 @@ impl<'a> FunctionCompiler<'a> {
                 // ownership of the allocation.
                 self.local_get_ctx();
                 self.ins().i32_const(list_index);
-                self.load_abi_loc(&src_ptr, ValType::I32, 2);
+                self.load_abi_loc(&src_ptr, ValType::I32, 2, false);
                 let l_ptr = self.local_tee_new_tmp(ValType::I32);
-                self.load_abi_loc(&src_len, ValType::I32, 2);
+                self.load_abi_loc(&src_len, ValType::I32, 2, false);
                 let l_len = self.local_tee_new_tmp(ValType::I32);
                 self.ins().call(push_list);
 
@@ -1643,7 +1643,7 @@ impl<'a> FunctionCompiler<'a> {
                 let payload0 = iter.next().unwrap();
                 let payload1 = iter.next().unwrap();
 
-                self.load_abi_loc(&discr_src, ValType::I32, tag_size_log2);
+                self.load_abi_loc(&discr_src, ValType::I32, tag_size_log2, false);
                 self.ins().if_(BlockType::Empty);
                 {
                     lift_payload(self, payload1);
@@ -1676,7 +1676,7 @@ impl<'a> FunctionCompiler<'a> {
 
                 // Block to jump out of
                 self.ins().block(BlockType::Empty);
-                self.load_abi_loc(&discr_src, ValType::I32, tag_size_log2);
+                self.load_abi_loc(&discr_src, ValType::I32, tag_size_log2, false);
                 self.ins().br_table(1..(n + 1) as u32, 0);
                 self.ins().end();
 
@@ -1711,17 +1711,24 @@ impl<'a> FunctionCompiler<'a> {
     ) {
         self.local_get_ctx();
         self.ins().i32_const(type_index.try_into().unwrap());
-        self.load_abi_loc(src, ValType::I32, size_log2);
+        self.load_abi_loc(src, ValType::I32, size_log2, false);
         self.ins().call(push_intrinsic);
     }
 
-    fn push_scalar(&mut self, src: &AbiLoc<'_>, ty: ValType, push_intrinsic: u32, size_log2: u32) {
+    fn push_scalar(
+        &mut self,
+        src: &AbiLoc<'_>,
+        ty: ValType,
+        push_intrinsic: u32,
+        size_log2: u32,
+        signed: bool,
+    ) {
         self.local_get_ctx();
-        self.load_abi_loc(src, ty, size_log2);
+        self.load_abi_loc(src, ty, size_log2, signed);
         self.ins().call(push_intrinsic);
     }
 
-    fn load_abi_loc(&mut self, src: &AbiLoc<'_>, ty: ValType, size_log2: u32) {
+    fn load_abi_loc(&mut self, src: &AbiLoc<'_>, ty: ValType, size_log2: u32, signed: bool) {
         match src {
             AbiLoc::Stack([local]) => {
                 self.ins().local_get(local.idx);
@@ -1770,7 +1777,9 @@ impl<'a> FunctionCompiler<'a> {
                 self.ins().local_get(mem.addr.idx);
                 let memarg = mem.memarg(size_log2);
                 match (ty, size_log2) {
+                    (ValType::I32, 0) if signed => self.ins().i32_load8_s(memarg),
                     (ValType::I32, 0) => self.ins().i32_load8_u(memarg),
+                    (ValType::I32, 1) if signed => self.ins().i32_load16_s(memarg),
                     (ValType::I32, 1) => self.ins().i32_load16_u(memarg),
                     (ValType::I32, 2) => self.ins().i32_load(memarg),
                     (ValType::I64, 3) => self.ins().i64_load(memarg),

@@ -179,61 +179,61 @@ pub trait WasmValue: Clone + Sized {
         unimplemented!()
     }
 
-    /// Returns the underlying value of the WasmValue, panicing if it's the wrong type.
+    /// Returns the underlying value of the WasmValue, panicking if it's the wrong type.
     /// # Panics
     /// Panics if `self` is not of the right type.
     fn unwrap_bool(&self) -> bool {
         unimplemented!()
     }
-    /// Returns the underlying value of the WasmValue, panicing if it's the wrong type.
+    /// Returns the underlying value of the WasmValue, panicking if it's the wrong type.
     /// # Panics
     /// Panics if `self` is not of the right type.
     fn unwrap_s8(&self) -> i8 {
         unimplemented!()
     }
-    /// Returns the underlying value of the WasmValue, panicing if it's the wrong type.
+    /// Returns the underlying value of the WasmValue, panicking if it's the wrong type.
     /// # Panics
     /// Panics if `self` is not of the right type.
     fn unwrap_s16(&self) -> i16 {
         unimplemented!()
     }
-    /// Returns the underlying value of the WasmValue, panicing if it's the wrong type.
+    /// Returns the underlying value of the WasmValue, panicking if it's the wrong type.
     /// # Panics
     /// Panics if `self` is not of the right type.
     fn unwrap_s32(&self) -> i32 {
         unimplemented!()
     }
-    /// Returns the underlying value of the WasmValue, panicing if it's the wrong type.
+    /// Returns the underlying value of the WasmValue, panicking if it's the wrong type.
     /// # Panics
     /// Panics if `self` is not of the right type.
     fn unwrap_s64(&self) -> i64 {
         unimplemented!()
     }
-    /// Returns the underlying value of the WasmValue, panicing if it's the wrong type.
+    /// Returns the underlying value of the WasmValue, panicking if it's the wrong type.
     /// # Panics
     /// Panics if `self` is not of the right type.
     fn unwrap_u8(&self) -> u8 {
         unimplemented!()
     }
-    /// Returns the underlying value of the WasmValue, panicing if it's the wrong type.
+    /// Returns the underlying value of the WasmValue, panicking if it's the wrong type.
     /// # Panics
     /// Panics if `self` is not of the right type.
     fn unwrap_u16(&self) -> u16 {
         unimplemented!()
     }
-    /// Returns the underlying value of the WasmValue, panicing if it's the wrong type.
+    /// Returns the underlying value of the WasmValue, panicking if it's the wrong type.
     /// # Panics
     /// Panics if `self` is not of the right type.
     fn unwrap_u32(&self) -> u32 {
         unimplemented!()
     }
-    /// Returns the underlying value of the WasmValue, panicing if it's the wrong type.
+    /// Returns the underlying value of the WasmValue, panicking if it's the wrong type.
     /// # Panics
     /// Panics if `self` is not of the right type.
     fn unwrap_u64(&self) -> u64 {
         unimplemented!()
     }
-    /// Returns the underlying value of the WasmValue, panicing if it's the wrong type.
+    /// Returns the underlying value of the WasmValue, panicking if it's the wrong type.
     ///
     /// The Rust `f32` type has many distinct NaN bitpatterns, however the
     /// component-model `f64` type only has a single NaN value, so this
@@ -244,7 +244,7 @@ pub trait WasmValue: Clone + Sized {
     fn unwrap_f32(&self) -> f32 {
         unimplemented!()
     }
-    /// Returns the underlying value of the WasmValue, panicing if it's the wrong type.
+    /// Returns the underlying value of the WasmValue, panicking if it's the wrong type.
     ///
     /// The Rust `f64` type has many distinct NaN bitpatterns, however the
     /// component-model `f64` type only has a single NaN value, so this
@@ -255,13 +255,13 @@ pub trait WasmValue: Clone + Sized {
     fn unwrap_f64(&self) -> f64 {
         unimplemented!()
     }
-    /// Returns the underlying value of the WasmValue, panicing if it's the wrong type.
+    /// Returns the underlying value of the WasmValue, panicking if it's the wrong type.
     /// # Panics
     /// Panics if `self` is not of the right type.
     fn unwrap_char(&self) -> char {
         unimplemented!()
     }
-    /// Returns the underlying value of the WasmValue, panicing if it's the wrong type.
+    /// Returns the underlying value of the WasmValue, panicking if it's the wrong type.
     /// # Panics
     /// Panics if `self` is not of the right type.
     fn unwrap_string(&self) -> Cow<'_, str> {

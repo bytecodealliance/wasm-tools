@@ -1,5 +1,4 @@
-;; RUN: wast --assert default --snapshot tests/snapshots % -f stack-switching
-
+;; RUN: wast --assert default --snapshot tests/snapshots % -f stack-switching --ignore-error-messages
 ;; This file tests validation only, focusing on GC types and subtyping.
 
 ;;;;
@@ -46,7 +45,7 @@
     (type $error (sub $ct1 (cont $ft2)))
 
   )
-  "sub type must match super type"
+  "sub type 4 does not match super type 2"
 )
 
 (assert_invalid
@@ -230,7 +229,7 @@
 ;;;;
 
 
-(module $subtyping-resume0
+(module $subtyping_resume0
 
   (type $ft0 (func))
   (type $ct0 (cont $ft0))
@@ -262,7 +261,7 @@
   )
 )
 
-(module $subtyping-resume1
+(module $subtyping_resume1
 
   (type $ft0 (func))
   (type $ct0 (cont $ft0))

@@ -2427,7 +2427,7 @@ pub(crate) struct ComponentTypeAlloc {
     // It's used in one entry for all `ResourceId`s contained within.
     globally_unique_id: usize,
 
-    // This is a counter that's incremeneted each time `alloc_resource_id` is
+    // This is a counter that's incremented each time `alloc_resource_id` is
     // called.
     next_resource_id: u32,
 }
@@ -3669,6 +3669,9 @@ impl<'a> SubtypeCx<'a> {
         }
         if a.memory64 != b.memory64 {
             bail!(offset, "mismatch in index type used for memories")
+        }
+        if a.page_size_log2() != b.page_size_log2() {
+            bail!(offset, "mismatch in page size for memories")
         }
         if limits_match!(a, b) {
             Ok(())

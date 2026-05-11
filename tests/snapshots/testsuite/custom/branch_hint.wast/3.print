@@ -1,0 +1,12 @@
+(module
+  (type (;0;) (func (param i32)))
+  (memory (;0;) 1 1)
+  (func $test (;0;) (type 0) (param i32)
+    (local i32)
+    local.get 1
+    local.get 0
+    (@metadata.code.branch_hint "\01")
+    i32.eq
+    return
+  )
+)

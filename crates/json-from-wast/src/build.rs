@@ -103,6 +103,19 @@ impl<'a> JsonBuilder<'a, '_> {
                     file,
                 }
             }
+            WastDirective::AssertMalformedCustom {
+                span: _,
+                module,
+                message,
+            } => {
+                let line = self.lineno(module.span());
+                let (_name, file) = self.emit_file(module, true)?;
+                crate::Command::AssertMalformedCustom {
+                    line,
+                    text: message.into(),
+                    file,
+                }
+            }
             WastDirective::AssertInvalid {
                 span: _,
                 module,
@@ -111,6 +124,19 @@ impl<'a> JsonBuilder<'a, '_> {
                 let line = self.lineno(module.span());
                 let (_name, file) = self.emit_file(module, false)?;
                 crate::Command::AssertInvalid {
+                    line,
+                    text: message.into(),
+                    file,
+                }
+            }
+            WastDirective::AssertInvalidCustom {
+                span: _,
+                module,
+                message,
+            } => {
+                let line = self.lineno(module.span());
+                let (_name, file) = self.emit_file(module, false)?;
+                crate::Command::AssertInvalidCustom {
                     line,
                     text: message.into(),
                     file,

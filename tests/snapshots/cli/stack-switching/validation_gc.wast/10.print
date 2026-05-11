@@ -1,4 +1,4 @@
-(module $subtyping-resume1
+(module $subtyping_resume1
   (type $ft0 (;0;) (func))
   (type $ct0 (;1;) (cont $ft0))
   (type (;2;) (func (param (ref $ft0))))

@@ -41,9 +41,23 @@
       "text": "invalid value for branch hint"
     },
     {
-      "type": "module",
+      "type": "assert_malformed",
       "line": 74,
-      "filename": "branch-hinting-simple.6.wasm",
+      "filename": "branch-hinting-simple.6.wat",
+      "module_type": "text",
+      "text": "duplicate annotation"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 82,
+      "filename": "branch-hinting-simple.7.wat",
+      "module_type": "text",
+      "text": "duplicate annotation"
+    },
+    {
+      "type": "module",
+      "line": 91,
+      "filename": "branch-hinting-simple.8.wasm",
       "module_type": "binary"
     }
   ]

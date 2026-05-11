@@ -406,9 +406,9 @@ impl<'a> ComponentWorld<'a> {
 
                 // The `task.return` intrinsic needs to be able to refer to the
                 // type that is being returned.
-                Import::ExportedTaskReturn(.., ty) => {
-                    if let Some(ty) = ty {
-                        live.add_type(resolve, ty);
+                Import::ExportedTaskReturn(.., func) => {
+                    if let Some(ty) = func.result {
+                        live.add_type(resolve, &ty);
                     }
                 }
 
@@ -418,8 +418,8 @@ impl<'a> ComponentWorld<'a> {
                 | Import::MainModuleMemory
                 | Import::MainModuleExport { .. }
                 | Import::Item(_)
-                | Import::ContextGet(_)
-                | Import::ContextSet(_)
+                | Import::ContextGet { .. }
+                | Import::ContextSet { .. }
                 | Import::BackpressureInc
                 | Import::BackpressureDec
                 | Import::WaitableSetNew

@@ -78,7 +78,7 @@ Options:
 
       --importize-out-world-name <IMPORTIZE_OUT_WORLD_NAME>
           The name of the world to generate when using `--importize` or
-          `importize-world`
+          `--importize-world`
 
       --importize-world <WORLD>
           Generates a WIT world to import a component which corresponds to the
@@ -91,6 +91,37 @@ Options:
           exports to imports.
           
           This is similar to `--importize`, but is used with WIT packages.
+
+      --exportize
+          Generates WIT to export the component specified to this command.
+          
+          This flag requires that the input is a binary component, not a
+          wasm-encoded WIT package. This will then generate a WIT world and
+          output that. The returned world will have exports corresponding to the
+          imports of the component which is input.
+          
+          This is similar to `--exportize-world`, but is used with components.
+
+      --exportize-out-world-name <EXPORTIZE_OUT_WORLD_NAME>
+          The name of the world to generate when using `--exportize` or
+          `--exportize-world`
+
+      --exportize-import <IMPORT>
+          When used with `--exportize` or `--exportize-world`, only move the
+          specified imports to exports. Can be specified multiple times. If not
+          provided, all imports are moved
+
+      --exportize-world <WORLD>
+          Generates a WIT world to export a component which corresponds to the
+          selected world.
+          
+          This flag is used to indicate that the input is a WIT package and the
+          world passed here is the name of a WIT `world` within the package. The
+          output of the command will be the same WIT world but one that's
+          exporting the selected world. This effectively moves the world's
+          imports to exports.
+          
+          This is similar to `--exportize`, but is used with WIT packages.
 
       --merge-world-imports-based-on-semver <WORLD>
           Updates the world specified to deduplicate all of its imports based on

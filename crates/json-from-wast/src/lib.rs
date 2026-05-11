@@ -97,7 +97,21 @@ pub enum Command<'a> {
         #[serde(borrow)]
         text: Cow<'a, str>,
     },
+    AssertMalformedCustom {
+        line: u32,
+        #[serde(borrow, flatten)]
+        file: WasmFile<'a>,
+        #[serde(borrow)]
+        text: Cow<'a, str>,
+    },
     AssertInvalid {
+        line: u32,
+        #[serde(borrow, flatten)]
+        file: WasmFile<'a>,
+        #[serde(borrow)]
+        text: Cow<'a, str>,
+    },
+    AssertInvalidCustom {
         line: u32,
         #[serde(borrow, flatten)]
         file: WasmFile<'a>,
@@ -197,7 +211,9 @@ impl Command<'_> {
             | ModuleDefinition { line, .. }
             | ModuleInstance { line, .. }
             | AssertMalformed { line, .. }
+            | AssertMalformedCustom { line, .. }
             | AssertInvalid { line, .. }
+            | AssertInvalidCustom { line, .. }
             | Register { line, .. }
             | AssertUnlinkable { line, .. }
             | AssertUninstantiable { line, .. }

@@ -7,6 +7,13 @@
       "filename": "threads.0.wasm",
       "module_type": "binary",
       "text": "must always specify maximum alignment"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 14,
+      "filename": "threads.1.wasm",
+      "module_type": "binary",
+      "text": "offset out of range"
     }
   ]
 }

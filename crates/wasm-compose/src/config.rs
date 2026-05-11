@@ -1,17 +1,16 @@
 //! Module for composition configuration.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use indexmap::IndexMap;
-use serde_derive::Deserialize;
-use std::{
-    fs,
-    path::{Path, PathBuf},
-    str::FromStr,
-};
+use std::{path::PathBuf, str::FromStr};
 
 /// An explicit transitive dependency of a composed component.
-#[derive(Debug, Clone, Deserialize, Default)]
-#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(serde_derive::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    serde(rename_all = "kebab-case", deny_unknown_fields)
+)]
 pub struct Dependency {
     /// The path to the dependency's component file.
     pub path: PathBuf,
@@ -26,8 +25,12 @@ impl FromStr for Dependency {
 }
 
 /// An argument of an instantiation.
-#[derive(Debug, Clone, Deserialize, Default)]
-#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(serde_derive::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    serde(rename_all = "kebab-case", deny_unknown_fields)
+)]
 pub struct InstantiationArg {
     /// The name of the instance passed as the argument.
     pub instance: String,
@@ -35,7 +38,7 @@ pub struct InstantiationArg {
     /// The name of the instance export to use as the argument.
     ///
     /// If `None`, the instance itself will be used as the argument.
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     pub export: Option<String>,
 }
 
@@ -51,8 +54,12 @@ impl FromStr for InstantiationArg {
 }
 
 /// An instantiation of a component.
-#[derive(Debug, Clone, Deserialize, Default)]
-#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(serde_derive::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    serde(rename_all = "kebab-case", deny_unknown_fields)
+)]
 pub struct Instantiation {
     /// The name of the dependency being instantiated.
     ///
@@ -63,68 +70,76 @@ pub struct Instantiation {
     ///
     /// Maps the argument name to the name of the instance to pass as
     /// the argument.
-    #[serde(default, deserialize_with = "de::index_map")]
+    #[cfg_attr(feature = "serde", serde(default, deserialize_with = "de::index_map"))]
     pub arguments: IndexMap<String, InstantiationArg>,
 }
 
 /// The configuration for composing a WebAssembly component.
-#[derive(Default, Debug, Clone, Deserialize)]
-#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+#[derive(Default, Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde_derive::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    serde(rename_all = "kebab-case", deny_unknown_fields)
+)]
 pub struct Config {
     /// The path of the configuration file's directory.
     ///
     /// All paths are relative to this directory.
-    #[serde(skip)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub dir: PathBuf,
 
     /// Components whose exports define import dependencies to fulfill from.
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     pub definitions: Vec<PathBuf>,
 
     /// The paths to search when automatically resolving dependencies.
     ///
     /// The config directory is always searched first.
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     pub search_paths: Vec<PathBuf>,
 
     /// Whether or not to skip validation of the output component.
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     pub skip_validation: bool,
 
     /// Whether or not to import components in the composed component.
     ///
     /// By default, components are defined rather than imported in
     /// the composed component.
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     pub import_components: bool,
 
     /// Whether or not to disallow instance imports in the output component.
     ///
     /// Enabling this option will cause an error if a dependency cannot be
     /// located.
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     pub disallow_imports: bool,
 
     /// The explicit, transitive dependencies of the root component.
-    #[serde(default, deserialize_with = "de::index_map")]
+    #[cfg_attr(feature = "serde", serde(default, deserialize_with = "de::index_map"))]
     pub dependencies: IndexMap<String, Dependency>,
 
     /// The explicit instantiations of the composed component.
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     pub instantiations: IndexMap<String, Instantiation>,
 }
 
 impl Config {
     /// Reads a composition configuration from the given path.
+    #[cfg(feature = "yaml")]
     pub fn from_file(path: impl Into<PathBuf>) -> Result<Self> {
+        use anyhow::Context;
+        use std::path::Path;
+
         let path = path.into();
 
         log::info!("reading configuration file `{}`", path.display());
 
-        let config = fs::read_to_string(&path)
+        let config = std::fs::read_to_string(&path)
             .with_context(|| format!("failed to read configuration file `{}`", path.display()))?;
 
-        let mut config: Config = serde_yaml::from_str(&config)
+        let mut config: Config = serde_yaml2::from_str(&config)
             .with_context(|| format!("failed to parse configuration file `{}`", path.display()))?;
 
         config.dir = path.parent().map(Path::to_path_buf).unwrap_or_default();
@@ -141,6 +156,7 @@ impl Config {
     }
 }
 
+#[cfg(feature = "serde")]
 mod de {
     use indexmap::IndexMap;
     use serde::{

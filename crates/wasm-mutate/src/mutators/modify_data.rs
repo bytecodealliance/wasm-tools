@@ -1,6 +1,6 @@
 use super::Mutator;
 use crate::{Result, WasmMutate};
-use rand::Rng;
+use rand::RngExt;
 use wasm_encoder::reencode::{Reencode, RoundtripReencoder};
 use wasm_encoder::{DataSection, Module};
 use wasmparser::{DataKind, DataSectionReader};

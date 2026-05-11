@@ -49,7 +49,7 @@ pub struct StackEntry {
     pub operator_idx: usize,
 }
 
-/// DFG structre for a piece of Wasm's function
+/// DFG structure for a piece of Wasm's function
 #[derive(Clone, Default)]
 pub struct MiniDFG {
     /// Some of the operators have no stack entry
@@ -68,7 +68,7 @@ pub struct MiniDFG {
 
 impl MiniDFG {
     /// Return true if the coloring of the children subtrees is the same as the root
-    /// Notice that this value can be calcuated when the tree is built
+    /// Notice that this value can be calculated when the tree is built
     pub fn is_subtree_consistent(&self, current: usize) -> bool {
         let entry = &self.entries[current];
         let mut colors = vec![];
@@ -91,7 +91,7 @@ impl MiniDFG {
     }
 
     /// Return true if the coloring of the children subtrees is the same as the root
-    /// Notice that this value can be calcuated when the tree is built
+    /// Notice that this value can be calculated when the tree is built
     pub fn is_subtree_consistent_from_root(&self) -> bool {
         let current = self.entries.len() - 1;
         self.is_subtree_consistent(current)
@@ -131,13 +131,13 @@ impl MiniDFG {
         fn write_child(
             minidfg: &MiniDFG,
             entryidx: usize,
-            preffix: &str,
+            prefix: &str,
             entryformatter: &dyn Fn(&StackEntry) -> String,
             childrenpreffix: &str,
             builder: &mut String,
         ) {
             let entry = &minidfg.entries[entryidx];
-            builder.push_str(preffix);
+            builder.push_str(prefix);
             let color = get_ansi_term_color(entry.color);
             builder.push_str(
                 format!(
@@ -153,23 +153,23 @@ impl MiniDFG {
             for (idx, op) in entry.operator.children().iter().enumerate() {
                 if idx < entry.operator.children().len() - 1 {
                     // Has no next child
-                    let preffix = format!("{}{}", childrenpreffix, "├──");
+                    let prefix = format!("{}{}", childrenpreffix, "├──");
                     let childrenpreffix = format!("{}{}", childrenpreffix, "│   ");
                     write_child(
                         minidfg,
                         usize::from(*op),
-                        &preffix,
+                        &prefix,
                         entryformatter,
                         &childrenpreffix,
                         builder,
                     );
                 } else {
-                    let preffix = format!("{}{}", childrenpreffix, "└──");
+                    let prefix = format!("{}{}", childrenpreffix, "└──");
                     let childrenpreffix = format!("{}{}", childrenpreffix, "    ");
                     write_child(
                         minidfg,
                         usize::from(*op),
-                        &preffix,
+                        &prefix,
                         entryformatter,
                         &childrenpreffix,
                         builder,
@@ -244,7 +244,7 @@ impl<'a> DFGBuilder {
                 | Operator::BrTable { .. } => {
                     if !found {
                         // If the insertion point is a jump
-                        // Break inmediatly
+                        // Break immediately
                         return None;
                     }
                     range.start += 1; // Do not include the last jmp

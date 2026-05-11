@@ -30,7 +30,7 @@ interface %interface {
     static-method: static func(arg: tuple<u32, u32>) -> list<u32>;
   }
   record some-record {
-    optinal: option<string>,
+    optional: option<string>,
     %own: %resource,
     %borrow: borrow<%resource>,
     result-a: result,
@@ -53,7 +53,7 @@ interface %interface {
     empty-case,
     valued-case(u32),
   }
-  statndalone-func: func(a: u32, b: s32) -> f32;
+  standalone-func: func(a: u32, b: s32) -> f32;
 }
 
 world my-world {

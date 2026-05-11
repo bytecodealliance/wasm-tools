@@ -12,7 +12,7 @@ use wasmparser::CustomSectionReader;
 pub struct Revision(CustomSection<'static>);
 
 impl Revision {
-    /// Create a new instance of `Desrciption`.
+    /// Create a new instance of `Description`.
     pub fn new<S: Into<Cow<'static, str>>>(s: S) -> Self {
         Self(CustomSection {
             name: "revision".into(),

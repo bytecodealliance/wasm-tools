@@ -1,7 +1,7 @@
 use anyhow::Context;
 use clap::Parser;
 use core::sync::atomic::Ordering::{Relaxed, SeqCst};
-use rand::Rng;
+use rand::RngExt;
 use rand::{SeedableRng, rngs::SmallRng};
 use std::collections::hash_map::DefaultHasher;
 use std::ffi::OsStr;
@@ -453,18 +453,24 @@ impl State {
             let mut counter = 0;
 
             while !finish_writing_wrap_clone.load(Relaxed) {
-                // pop from worklist
-                if let Some(wasm) = to_write_clone.lock().unwrap().pop() {
+                // Pop from the worklist while holding the mutex for as short a window
+                // as possible — the previous form `if let Some(_) = to_write_clone.lock()
+                // .unwrap().pop()` keeps the temporary MutexGuard alive for the entire
+                // body of the `if let`, blocking the producers (and shutdown) on every
+                // file write.
+                let wasm = to_write_clone.lock().unwrap().pop();
+                if let Some(wasm) = wasm {
                     let filename = artifact_folder_cp.join(format!("mutated.{counter}.wasm"));
                     std::fs::write(filename, &wasm).context("Failed to write mutated wasm")?;
                     counter += 1;
                 }
             }
             eprintln!("Writing down pending mutated binaries!");
-            // Then write pending wasms
-            while let Some(wasm) = to_write_clone.lock().unwrap().pop() {
+            // Then write pending wasms — same lock-narrowing as above.
+            loop {
+                let wasm = to_write_clone.lock().unwrap().pop();
+                let Some(wasm) = wasm else { break };
                 let filename = artifact_folder_cp.join(format!("mutated.{counter}.wasm"));
-
                 std::fs::write(filename, &wasm).context("Failed to write mutated wasm")?;
                 counter += 1;
             }
@@ -516,8 +522,7 @@ impl State {
                         let h1 = self.hash(&wasm);
                         self.save_crash(&wasm, None, seed, artifact_folder)?;
                         anyhow::bail!(format!(
-                            "Mutation invalid for entry {} seed {}.\n Crashing wasm is saved at crashes folder with name '<seed>.original.wasm'",
-                            h1, seed
+                            "Mutation invalid for entry {h1} seed {seed}.\n Crashing wasm is saved at crashes folder with name '<seed>.original.wasm'"
                         ))
                     }
                 },
@@ -542,8 +547,7 @@ impl State {
                                 let h2 = self.hash(&mutated);
                                 self.save_crash(&wasm, Some(&mutated), seed, artifact_folder)?;
                                 anyhow::bail!(format!(
-                                    "All generated Wasm should be valid {} -> {}, seed {}",
-                                    h1, h2, seed
+                                    "All generated Wasm should be valid {h1} -> {h2}, seed {seed}"
                                 ));
                             }
                         }
@@ -552,7 +556,7 @@ impl State {
                         // Stop writing worker
                         finish_writing_wrap.store(true, SeqCst);
                         self.save_crash(&wasm, None, seed, artifact_folder)?;
-                        anyhow::bail!(format!("Error during module writing {:?}", e));
+                        anyhow::bail!(format!("Error during module writing {e:?}"));
                     }
                 }
             }

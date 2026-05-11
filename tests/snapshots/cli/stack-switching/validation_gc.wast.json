@@ -3,83 +3,83 @@
   "commands": [
     {
       "type": "module",
-      "line": 10,
+      "line": 9,
       "filename": "validation_gc.0.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 37,
+      "line": 36,
       "filename": "validation_gc.1.wasm",
       "module_type": "binary",
-      "text": "sub type must match super type"
+      "text": "sub type 4 does not match super type 2"
     },
     {
       "type": "assert_invalid",
-      "line": 53,
+      "line": 52,
       "filename": "validation_gc.2.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 78,
+      "line": 77,
       "filename": "validation_gc.3.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 104,
+      "line": 103,
       "filename": "validation_gc.4.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "module",
-      "line": 122,
+      "line": 121,
       "name": "non_final",
       "filename": "validation_gc.5.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 140,
+      "line": 139,
       "name": "subtyping0",
       "filename": "validation_gc.6.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 166,
+      "line": 165,
       "name": "recursive",
       "filename": "validation_gc.7.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 195,
+      "line": 194,
       "name": "recursive_subtyping",
       "filename": "validation_gc.8.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 233,
-      "name": "subtyping-resume0",
+      "line": 232,
+      "name": "subtyping_resume0",
       "filename": "validation_gc.9.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 265,
-      "name": "subtyping-resume1",
+      "line": 264,
+      "name": "subtyping_resume1",
       "filename": "validation_gc.10.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 288,
+      "line": 287,
       "filename": "validation_gc.11.wasm",
       "module_type": "binary",
       "text": "type mismatch"

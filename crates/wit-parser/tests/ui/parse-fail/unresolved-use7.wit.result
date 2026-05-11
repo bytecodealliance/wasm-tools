@@ -1,4 +1,4 @@
-name `x` is not defined
+name `x` does not exist
      --> tests/ui/parse-fail/unresolved-use7.wit:6:12
       |
     6 |   use bar.{x};
