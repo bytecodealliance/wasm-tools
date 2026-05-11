@@ -12,7 +12,7 @@ use wasmparser::{
     WasmFeatures,
     component_types::{
         ComponentAnyTypeId, ComponentDefinedType, ComponentEntityType, ComponentFuncType,
-        ComponentInstanceType, ComponentType, ComponentValType,
+        ComponentInstanceType, ComponentItem, ComponentType, ComponentValType,
     },
     names::{ComponentName, ComponentNameKind},
     types,
@@ -98,8 +98,8 @@ impl ComponentInfo {
                     for import in s {
                         let import = import?;
                         externs.push((
-                            import.name.0.to_string(),
-                            Extern::Import(import.name.0.to_string()),
+                            import.name.name.to_string(),
+                            Extern::Import(import.name.name.to_string()),
                         ));
                     }
                 }
@@ -107,9 +107,9 @@ impl ComponentInfo {
                     for export in s {
                         let export = export?;
                         externs.push((
-                            export.name.0.to_string(),
+                            export.name.name.to_string(),
                             Extern::Export(DecodingExport {
-                                name: export.name.0.to_string(),
+                                name: export.name.name.to_string(),
                                 kind: export.kind,
                                 index: export.index,
                             }),
@@ -249,7 +249,7 @@ impl ComponentInfo {
 
             let name = component.exports.keys().nth(0).unwrap();
 
-            let name = match component.exports[name] {
+            let name = match component.exports[name].ty {
                 ComponentEntityType::Component(ty) => {
                     let package_name =
                         decoder.decode_world(name.as_str(), &self.types[ty], &mut fields)?;
@@ -334,8 +334,8 @@ impl ComponentInfo {
 
         for (_name, item) in self.externs.iter() {
             match item {
-                Extern::Import(import) => {
-                    decoder.decode_component_import(import, world, &mut fields)?
+                Extern::Import(name) => {
+                    decoder.decode_component_import(name, world, &mut fields)?
                 }
                 Extern::Export(export) => {
                     decoder.decode_component_export(export, world, &mut fields)?
@@ -477,7 +477,7 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
     assert_eq!(ty.imports.len(), 0);
     assert_eq!(ty.exports.len(), 1);
     let name = ty.exports.keys().nth(0).unwrap();
-    let ty = match ty.exports[0] {
+    let ty = match ty.exports[0].ty {
         ComponentEntityType::Component(ty) => ty,
         _ => unreachable!(),
     };
@@ -543,8 +543,8 @@ impl WitPackageDecoder<'_> {
         // Process all imports for this package first, where imports are
         // importing from remote packages.
         for (name, ty) in ty.imports.iter() {
-            let ty = match ty {
-                ComponentEntityType::Instance(idx) => &self.types[*idx],
+            let ty = match ty.ty {
+                ComponentEntityType::Instance(idx) => &self.types[idx],
                 _ => bail!("import `{name}` is not an instance"),
             };
             self.register_import(name, ty)
@@ -572,14 +572,14 @@ impl WitPackageDecoder<'_> {
         };
 
         for (name, ty) in ty.exports.iter() {
-            match ty {
+            match ty.ty {
                 ComponentEntityType::Instance(idx) => {
-                    let ty = &self.types[*idx];
+                    let ty = &self.types[idx];
                     self.register_interface(name.as_str(), ty, &mut fields)
                         .with_context(|| format!("failed to process export `{name}`"))?;
                 }
                 ComponentEntityType::Component(idx) => {
-                    let ty = &self.types[*idx];
+                    let ty = &self.types[idx];
                     self.register_world(name.as_str(), ty, &mut fields)
                         .with_context(|| format!("failed to process export `{name}`"))?;
                 }
@@ -592,7 +592,7 @@ impl WitPackageDecoder<'_> {
     fn decode_interface<'a>(
         &mut self,
         name: &str,
-        imports: &wasmparser::collections::IndexMap<String, ComponentEntityType>,
+        imports: &wasmparser::collections::IndexMap<String, ComponentItem>,
         ty: &ComponentInstanceType,
         fields: &mut PackageFields<'a>,
     ) -> Result<PackageName> {
@@ -606,8 +606,8 @@ impl WitPackageDecoder<'_> {
         };
 
         for (name, ty) in imports.iter() {
-            let ty = match ty {
-                ComponentEntityType::Instance(idx) => &self.types[*idx],
+            let ty = match ty.ty {
+                ComponentEntityType::Instance(idx) => &self.types[idx],
                 _ => bail!("import `{name}` is not an instance"),
             };
             self.register_import(name, ty)
@@ -646,16 +646,12 @@ impl WitPackageDecoder<'_> {
         package: &mut PackageFields<'a>,
     ) -> Result<()> {
         log::debug!("decoding component import `{name}`");
-        let ty = self
-            .types
-            .as_ref()
-            .component_entity_type_of_import(name)
-            .unwrap();
+        let item = self.types.as_ref().component_item_for_import(name).unwrap();
         let owner = TypeOwner::World(world);
-        let (name, item) = match ty {
+        let (name, item) = match item.ty {
             ComponentEntityType::Instance(i) => {
                 let ty = &self.types[i];
-                self.decode_world_instance(name, ty, package)
+                self.decode_world_instance(name, item.implements.as_deref(), ty, package)
                     .with_context(|| format!("failed to decode WIT from import `{name}`"))?
             }
             ComponentEntityType::Func(i) => {
@@ -696,8 +692,8 @@ impl WitPackageDecoder<'_> {
         let name = &export.name;
         log::debug!("decoding component export `{name}`");
         let types = self.types.as_ref();
-        let ty = types.component_entity_type_of_export(name).unwrap();
-        let (name, item) = match ty {
+        let item = types.component_item_for_export(name).unwrap();
+        let (name, item) = match item.ty {
             ComponentEntityType::Func(i) => {
                 let ty = &types[i];
                 let func = self
@@ -708,7 +704,7 @@ impl WitPackageDecoder<'_> {
             }
             ComponentEntityType::Instance(i) => {
                 let ty = &types[i];
-                self.decode_world_instance(name, ty, package)
+                self.decode_world_instance(name, item.implements.as_deref(), ty, package)
                     .with_context(|| format!("failed to decode WIT from export `{name}`"))?
             }
             _ => {
@@ -723,25 +719,27 @@ impl WitPackageDecoder<'_> {
     /// `(WorldKey, WorldItem)` pair.
     ///
     /// Handles three name forms:
-    /// - `[implements=<I>]label` — named import/export implementing interface I
     /// - `ns:pkg/iface` — qualified interface name, keyed by `InterfaceId`
     /// - `plain-name` — unqualified name for an inline or local interface
     fn decode_world_instance<'a>(
         &mut self,
         name: &str,
+        implements: Option<&str>,
         ty: &ComponentInstanceType,
         package: &mut PackageFields<'a>,
     ) -> Result<(WorldKey, WorldItem)> {
-        let (key, id) = match self.parse_component_name(name)?.kind() {
-            ComponentNameKind::Implements(i) => {
-                let id = self.register_import(i.interface(), ty)?;
-                (WorldKey::Implements(i.label().to_string(), id), id)
+        let (key, id) = match implements {
+            Some(i) => {
+                let id = self.register_import(i, ty)?;
+                (WorldKey::Name(name.to_string()), id)
             }
-            ComponentNameKind::Interface(i) => {
-                let id = self.register_import(i.as_str(), ty)?;
-                (WorldKey::Interface(id), id)
-            }
-            _ => self.register_interface(name, ty, package)?,
+            None => match self.parse_component_name(name)?.kind() {
+                ComponentNameKind::Interface(i) => {
+                    let id = self.register_import(i.as_str(), ty)?;
+                    (WorldKey::Interface(id), id)
+                }
+                _ => self.register_interface(name, ty, package)?,
+            },
         };
         Ok((
             key,
@@ -770,7 +768,7 @@ impl WitPackageDecoder<'_> {
         let owner = TypeOwner::Interface(interface);
         for (name, ty) in ty.exports.iter() {
             log::debug!("decoding import instance export `{name}`");
-            match *ty {
+            match ty.ty {
                 ComponentEntityType::Type {
                     referenced,
                     created,
@@ -983,7 +981,7 @@ impl WitPackageDecoder<'_> {
 
         let owner = TypeOwner::Interface(self.resolve.interfaces.next_id());
         for (name, ty) in ty.exports.iter() {
-            match *ty {
+            match ty.ty {
                 ComponentEntityType::Type {
                     referenced,
                     created,
@@ -1117,17 +1115,17 @@ impl WitPackageDecoder<'_> {
 
         let owner = TypeOwner::World(self.resolve.worlds.next_id());
         for (name, ty) in ty.imports.iter() {
-            let (name, item) = match ty {
+            let (name, item) = match ty.ty {
                 ComponentEntityType::Instance(idx) => {
-                    let ty = &self.types[*idx];
-                    self.decode_world_instance(name, ty, package)?
+                    let t = &self.types[idx];
+                    self.decode_world_instance(name, ty.implements.as_deref(), t, package)?
                 }
                 ComponentEntityType::Type {
                     created,
                     referenced,
                 } => {
                     let ty =
-                        self.register_type_export(name.as_str(), owner, *referenced, *created)?;
+                        self.register_type_export(name.as_str(), owner, referenced, created)?;
                     (
                         WorldKey::Name(name.to_string()),
                         WorldItem::Type {
@@ -1137,7 +1135,7 @@ impl WitPackageDecoder<'_> {
                     )
                 }
                 ComponentEntityType::Func(idx) => {
-                    let ty = &self.types[*idx];
+                    let ty = &self.types[idx];
                     let func = self.convert_function(name.as_str(), ty, owner)?;
                     (WorldKey::Name(name.to_string()), WorldItem::Function(func))
                 }
@@ -1146,15 +1144,15 @@ impl WitPackageDecoder<'_> {
             world.imports.insert(name, item);
         }
 
-        for (name, ty) in ty.exports.iter() {
-            let (name, item) = match ty {
+        for (name, item) in ty.exports.iter() {
+            let (name, item) = match item.ty {
                 ComponentEntityType::Instance(idx) => {
-                    let ty = &self.types[*idx];
-                    self.decode_world_instance(name, ty, package)?
+                    let ty = &self.types[idx];
+                    self.decode_world_instance(name, item.implements.as_deref(), ty, package)?
                 }
 
                 ComponentEntityType::Func(idx) => {
-                    let ty = &self.types[*idx];
+                    let ty = &self.types[idx];
                     let func = self.convert_function(name.as_str(), ty, owner)?;
                     (WorldKey::Name(name.to_string()), WorldItem::Function(func))
                 }
@@ -1224,9 +1222,8 @@ impl WitPackageDecoder<'_> {
                     }
                 }
 
-                // Functions shouldn't have ID-based or implements names.
+                // Functions shouldn't have ID-based names.
                 ComponentNameKind::Interface(_)
-                | ComponentNameKind::Implements(_)
                 | ComponentNameKind::Url(_)
                 | ComponentNameKind::Hash(_)
                 | ComponentNameKind::Dependency(_) => unreachable!(),
@@ -1544,7 +1541,10 @@ impl WitPackageDecoder<'_> {
             for (name, item) in world.imports.iter().chain(world.exports.iter()) {
                 if let WorldKey::Name(_) = name {
                     if let WorldItem::Interface { id, .. } = item {
-                        self.resolve.interfaces[*id].package = Some(pkg);
+                        let iface = &mut self.resolve.interfaces[*id];
+                        if iface.name.is_none() {
+                            iface.package = Some(pkg);
+                        }
                     }
                 }
             }

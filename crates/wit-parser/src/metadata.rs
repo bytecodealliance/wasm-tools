@@ -329,7 +329,7 @@ impl WorldMetadata {
 
                 // For interface imports/exports extract the stability and
                 // record it if necessary.
-                WorldKey::Interface(_) | WorldKey::Implements(..) => {
+                WorldKey::Interface(_) => {
                     let stability = match item {
                         WorldItem::Interface { stability, .. } => stability,
                         _ => continue,

@@ -87,7 +87,7 @@ impl<'a> Cloner<'a> {
     pub fn world_item(&mut self, key: &WorldKey, item: &mut WorldItem) {
         match key {
             WorldKey::Name(_) => {}
-            WorldKey::Interface(_) | WorldKey::Implements(..) => return,
+            WorldKey::Interface(_) => return,
         }
 
         match item {
@@ -98,6 +98,11 @@ impl<'a> Cloner<'a> {
                 self.function(f);
             }
             WorldItem::Interface { id, .. } => {
+                // Only clone anonymous interfaces, for named interfaces they're
+                // left as-is for worlds.
+                if self.resolve.interfaces[*id].name.is_some() {
+                    return;
+                }
                 self.interface(id);
             }
         }

@@ -1,0 +1,12 @@
+// RUN: component embed % --dummy-names legacy | \
+//        component new | \
+//        validate
+
+package a:b;
+
+world w {
+  flags my-flags {
+    a,
+  }
+  import f: func();
+}

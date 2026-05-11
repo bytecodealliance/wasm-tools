@@ -57,6 +57,5 @@ pub fn smith(config: &Config, u: &mut Unstructured<'_>) -> Result<Vec<u8>> {
             return Err(arbitrary::Error::IncorrectFormat);
         }
     }
-
     Ok(wasm)
 }

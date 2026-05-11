@@ -185,7 +185,7 @@ impl EncodingMap {
         format!(
             "{}/{func}",
             match key {
-                WorldKey::Name(name) | WorldKey::Implements(name, _) => name.to_string(),
+                WorldKey::Name(name) => name.to_string(),
                 WorldKey::Interface(id) => {
                     let iface = &resolve.interfaces[*id];
                     let pkg = &resolve.packages[iface.package.unwrap()];
@@ -280,7 +280,9 @@ pub fn encode(
     let mut outer_ty = ComponentType::new();
     outer_ty.ty().component(&ty);
     outer_ty.export(
-        &resolve.id_of_name(world.package.unwrap(), &world.name),
+        &resolve
+            .id_of_name(world.package.unwrap(), &world.name)
+            .into(),
         ComponentTypeRef::Component(0),
     );
 
@@ -293,7 +295,12 @@ pub fn encode(
     });
 
     let ty = builder.type_component(None, &outer_ty);
-    builder.export(&world.name, ComponentExportKind::Type, ty, None);
+    builder.export(
+        &world.name.clone().into(),
+        ComponentExportKind::Type,
+        ty,
+        None,
+    );
 
     let mut producers = crate::base_producers();
     if let Some(p) = extra_producers {

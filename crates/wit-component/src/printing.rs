@@ -404,7 +404,7 @@ impl<O: Output> WitPrinter<O> {
             match import {
                 WorldItem::Type { id, .. } => match name {
                     WorldKey::Name(s) => types.push((s.as_str(), *id)),
-                    WorldKey::Interface(_) | WorldKey::Implements(..) => unreachable!(),
+                    WorldKey::Interface(_) => unreachable!(),
                 },
                 _ => {
                     if let WorldItem::Function(f) = import {
@@ -471,11 +471,17 @@ impl<O: Output> WitPrinter<O> {
                     WorldItem::Interface { id, .. } => {
                         self.print_name_type(name, TypeKind::Other);
                         self.output.str(": ");
-                        assert!(resolve.interfaces[*id].name.is_none());
-                        self.output.keyword("interface");
-                        self.output.indent_start();
-                        self.print_interface(resolve, *id)?;
-                        self.output.indent_end();
+                        if resolve.interfaces[*id].name.is_none() {
+                            // `import label: interface { .. }` syntax
+                            self.output.keyword("interface");
+                            self.output.indent_start();
+                            self.print_interface(resolve, *id)?;
+                            self.output.indent_end();
+                        } else {
+                            // `import label: use-path;` syntax
+                            self.print_path_to_interface(resolve, *id, cur_pkg)?;
+                            self.output.semicolon();
+                        }
                     }
                     WorldItem::Function(f) => {
                         self.print_name_type(&f.name, TypeKind::Other);
@@ -492,13 +498,6 @@ impl<O: Output> WitPrinter<O> {
                     WorldItem::Interface { id: id2, .. } => assert_eq!(id, id2),
                     _ => unreachable!(),
                 }
-                self.print_path_to_interface(resolve, *id, cur_pkg)?;
-                self.output.semicolon();
-            }
-            WorldKey::Implements(name, id) => {
-                // `import label: use-path;` syntax
-                self.print_name_type(name, TypeKind::Other);
-                self.output.str(": ");
                 self.print_path_to_interface(resolve, *id, cur_pkg)?;
                 self.output.semicolon();
             }

@@ -454,18 +454,7 @@ impl<'a> EncodingState<'a> {
         }
     }
 
-    fn world_import_name(&self, key: &WorldKey) -> String {
-        self.info.encoder.metadata.resolve.name_world_key(key)
-    }
-
-    fn world_export_name(&self, key: &WorldKey) -> String {
-        self.info.encoder.metadata.resolve.name_world_key(key)
-    }
-
-    fn root_import_type_encoder(
-        &mut self,
-        interface: Option<InterfaceId>,
-    ) -> RootTypeEncoder<'_, 'a> {
+    fn root_import_type_encoder(&mut self, interface: Option<WorldKey>) -> RootTypeEncoder<'_, 'a> {
         RootTypeEncoder {
             state: self,
             interface,
@@ -473,10 +462,7 @@ impl<'a> EncodingState<'a> {
         }
     }
 
-    fn root_export_type_encoder(
-        &mut self,
-        interface: Option<InterfaceId>,
-    ) -> RootTypeEncoder<'_, 'a> {
+    fn root_export_type_encoder(&mut self, interface: Option<WorldKey>) -> RootTypeEncoder<'_, 'a> {
         RootTypeEncoder {
             state: self,
             interface,
@@ -498,8 +484,7 @@ impl<'a> EncodingState<'a> {
         for (name, info) in self.info.import_map.iter() {
             match name {
                 Some(name) => {
-                    let import_name = name_map.get(name).unwrap_or(name);
-                    self.encode_interface_import(import_name, name, info)?
+                    self.encode_interface_import(name_map.get(name).unwrap_or(name), info)?
                 }
                 None => has_funcs = true,
             }
@@ -524,12 +509,7 @@ impl<'a> EncodingState<'a> {
         Ok(())
     }
 
-    fn encode_interface_import(
-        &mut self,
-        name: &str,
-        import_key: &str,
-        info: &ImportedInterface,
-    ) -> Result<()> {
+    fn encode_interface_import(&mut self, name: &str, info: &ImportedInterface) -> Result<()> {
         let resolve = &self.info.encoder.metadata.resolve;
         let interface_id = info.interface.as_ref().unwrap();
         let interface_id = *interface_id;
@@ -563,7 +543,9 @@ impl<'a> EncodingState<'a> {
             log::trace!("encoding function type for `{}`", func.name);
             let idx = encoder.encode_func_type(resolve, func)?;
 
-            encoder.ty.export(&func.name, ComponentTypeRef::Func(idx));
+            encoder
+                .ty
+                .export(&func.name.clone().into(), ComponentTypeRef::Func(idx));
         }
 
         let ty = encoder.ty;
@@ -575,9 +557,13 @@ impl<'a> EncodingState<'a> {
         let instance_type_idx = self
             .component
             .type_instance(Some(&format!("ty-{name}")), &ty);
-        let instance_idx = self
-            .component
-            .import(name, ComponentTypeRef::Instance(instance_type_idx));
+        let instance_idx = self.component.import(
+            &wasm_encoder::ComponentExternName {
+                name: name.into(),
+                implements: info.implements.as_deref().map(|s| s.into()),
+            },
+            ComponentTypeRef::Instance(instance_type_idx),
+        );
         let prev = self.instances.insert(interface_id, instance_idx);
         assert!(prev.is_none());
         Ok(())
@@ -605,7 +591,9 @@ impl<'a> EncodingState<'a> {
             let idx = self
                 .root_import_type_encoder(None)
                 .encode_func_type(resolve, func)?;
-            let func_idx = self.component.import(&name, ComponentTypeRef::Func(idx));
+            let func_idx = self
+                .component
+                .import(&name.clone().into(), ComponentTypeRef::Func(idx));
             let prev = self.imported_funcs.insert(name, func_idx);
             assert!(prev.is_none());
         }
@@ -708,7 +696,7 @@ impl<'a> EncodingState<'a> {
                     let prev = world_func_core_names.insert(name, core_name);
                     assert!(prev.is_none());
                 }
-                Export::InterfaceFunc(key, _id, name, _) => {
+                Export::InterfaceFunc(key, _, name, _) => {
                     let prev = interface_func_core_names
                         .entry(key)
                         .or_insert(IndexMap::new())
@@ -735,7 +723,7 @@ impl<'a> EncodingState<'a> {
         let world = &resolve.worlds[self.info.encoder.metadata.world];
 
         for export_name in exports {
-            let export_string = self.world_export_name(export_name);
+            let export_string = resolve.name_world_key(export_name);
             match &world.exports[export_name] {
                 WorldItem::Function(func) => {
                     let ty = self
@@ -743,15 +731,20 @@ impl<'a> EncodingState<'a> {
                         .encode_func_type(resolve, func)?;
                     let core_name = world_func_core_names[&func.name];
                     let idx = self.encode_lift(module, &core_name, export_name, func, ty)?;
-                    self.component
-                        .export(&export_string, ComponentExportKind::Func, idx, None);
+                    self.component.export(
+                        &export_string.clone().into(),
+                        ComponentExportKind::Func,
+                        idx,
+                        None,
+                    );
                 }
-                WorldItem::Interface { id, .. } => {
+                item @ WorldItem::Interface { id, .. } => {
                     let core_names = interface_func_core_names.get(export_name);
                     self.encode_interface_export(
                         &export_string,
                         module,
                         export_name,
+                        item,
                         *id,
                         core_names,
                     )?;
@@ -768,6 +761,7 @@ impl<'a> EncodingState<'a> {
         export_name: &str,
         module: CustomModule<'_>,
         key: &WorldKey,
+        item: &WorldItem,
         export: InterfaceId,
         interface_func_core_names: Option<&IndexMap<&str, &str>>,
     ) -> Result<()> {
@@ -781,7 +775,7 @@ impl<'a> EncodingState<'a> {
         // function is saved off into an `imports` array to get imported into
         // the nested component synthesized below.
         let mut imports = Vec::new();
-        let mut root = self.root_export_type_encoder(Some(export));
+        let mut root = self.root_export_type_encoder(Some(key.clone()));
         for (_, func) in &resolve.interfaces[export].functions {
             let core_name = interface_func_core_names.unwrap()[func.name.as_str()];
             let ty = root.encode_func_type(resolve, func)?;
@@ -816,7 +810,7 @@ impl<'a> EncodingState<'a> {
         // all the type information to the outer context.
         let mut types_to_import = LiveTypes::default();
         types_to_import.add_interface(resolve, export);
-        let exports_used = &nested.state.info.exports_used[&export];
+        let exports_used = &nested.state.info.exports_used[key];
         for ty in types_to_import.iter() {
             if let TypeOwner::Interface(owner) = resolve.types[ty].owner {
                 if owner == export {
@@ -828,9 +822,9 @@ impl<'a> EncodingState<'a> {
                 // Ensure that `self` has encoded this type before. If so this
                 // is a noop but otherwise it generates the type here.
                 let mut encoder = if exports_used.contains(&owner) {
-                    nested.state.root_export_type_encoder(Some(export))
+                    nested.state.root_export_type_encoder(Some(key.clone()))
                 } else {
-                    nested.state.root_import_type_encoder(Some(export))
+                    nested.state.root_import_type_encoder(Some(key.clone()))
                 };
                 encoder.encode_valtype(resolve, &Type::Id(ty))?;
 
@@ -872,7 +866,7 @@ impl<'a> EncodingState<'a> {
             let ty = nested.encode_func_type(resolve, func)?;
             nested
                 .component
-                .import(&import_func_name(func), ComponentTypeRef::Func(ty));
+                .import(&import_func_name(func).into(), ComponentTypeRef::Func(ty));
         }
 
         // Swap the `nested.type_map` which was previously from `TypeId` to
@@ -919,7 +913,7 @@ impl<'a> EncodingState<'a> {
             match ty.kind {
                 TypeDefKind::Resource => {
                     let idx = nested.component.export(
-                        ty.name.as_ref().expect("resources must be named"),
+                        &ty.name.as_deref().expect("resources must be named").into(),
                         ComponentExportKind::Type,
                         resources[id],
                         None,
@@ -935,7 +929,7 @@ impl<'a> EncodingState<'a> {
         for (i, (_, func)) in resolve.interfaces[export].functions.iter().enumerate() {
             let ty = nested.encode_func_type(resolve, func)?;
             nested.component.export(
-                &func.name,
+                &func.name.as_str().into(),
                 ComponentExportKind::Func,
                 i as u32,
                 Some(ComponentTypeRef::Func(ty)),
@@ -955,7 +949,10 @@ impl<'a> EncodingState<'a> {
             imports,
         );
         let idx = self.component.export(
-            export_name,
+            &wasm_encoder::ComponentExternName {
+                name: export_name.into(),
+                implements: resolve.implements_value(key, item).map(|s| s.into()),
+            },
             ComponentExportKind::Instance,
             instance_index,
             None,
@@ -999,13 +996,14 @@ impl<'a> EncodingState<'a> {
                 if self.export_types {
                     Some(
                         self.component
-                            .export(name, ComponentExportKind::Type, idx, None),
+                            .export(&name.into(), ComponentExportKind::Type, idx, None),
                     )
                 } else {
                     let name = self.unique_import_name(name);
-                    let ret = self
-                        .component
-                        .import(&name, ComponentTypeRef::Type(TypeBounds::Eq(idx)));
+                    let ret = self.component.import(
+                        &name.clone().into(),
+                        ComponentTypeRef::Type(TypeBounds::Eq(idx)),
+                    );
                     self.imports.insert(name, ret);
                     Some(ret)
                 }
@@ -1015,9 +1013,10 @@ impl<'a> EncodingState<'a> {
                     panic!("resources should already be exported")
                 } else {
                     let name = self.unique_import_name(name);
-                    let ret = self
-                        .component
-                        .import(&name, ComponentTypeRef::Type(TypeBounds::SubResource));
+                    let ret = self.component.import(
+                        &name.clone().into(),
+                        ComponentTypeRef::Type(TypeBounds::SubResource),
+                    );
                     self.imports.insert(name, ret);
                     ret
                 }
@@ -1303,7 +1302,7 @@ impl<'a> EncodingState<'a> {
                     let realloc = self
                         .info
                         .exports_for(*realloc)
-                        .import_realloc_for(import.interface, name)
+                        .import_realloc_for(interface.interface, name)
                         .map(|name| {
                             let instance = self.instance_for(*realloc);
                             self.core_alias_export(
@@ -1425,18 +1424,24 @@ impl<'a> EncodingState<'a> {
                         )?)
                 }
                 ShimKind::TaskReturn {
-                    interface,
+                    key,
                     func,
                     result,
                     encoding,
                     for_module,
                 } => {
+                    let world = self.info.encoder.metadata.world;
+                    let interface = match &resolve.worlds[world].exports[key] {
+                        WorldItem::Interface { id, .. } => Some(*id),
+                        WorldItem::Function(_) => None,
+                        WorldItem::Type { .. } => unreachable!(),
+                    };
                     // See `Import::ExportedTaskReturn` handling for why this
                     // encoder is treated specially.
                     let mut encoder = if interface.is_none() {
-                        self.root_import_type_encoder(*interface)
+                        self.root_import_type_encoder(None)
                     } else {
-                        self.root_export_type_encoder(*interface)
+                        self.root_export_type_encoder(Some(key.clone()))
                     };
                     let result = match result {
                         Some(ty) => Some(encoder.encode_valtype(resolve, ty)?),
@@ -1444,7 +1449,7 @@ impl<'a> EncodingState<'a> {
                     };
 
                     let exports = self.info.exports_for(*for_module);
-                    let realloc = exports.import_realloc_for(*interface, func);
+                    let realloc = exports.import_realloc_for(interface, func);
 
                     let instance_index = self.instance_for(*for_module);
                     let realloc_index = realloc.map(|r| {
@@ -1525,7 +1530,7 @@ impl<'a> EncodingState<'a> {
         let mut encoder = if info.imported || info.interface.is_none() {
             self.root_import_type_encoder(None)
         } else {
-            self.root_export_type_encoder(info.interface)
+            self.root_export_type_encoder(Some(info.key.clone()))
         };
         match info.ty {
             PayloadType::Type { id, .. } => match encoder.encode_valtype(resolve, &Type::Id(id))? {
@@ -1602,7 +1607,7 @@ impl<'a> EncodingState<'a> {
                         assert!(prev.is_none());
                     }
                     _other => {
-                        self.root_export_type_encoder(Some(id))
+                        self.root_export_type_encoder(Some(key.clone()))
                             .encode_valtype(resolve, &Type::Id(*ty))?;
                     }
                 }
@@ -1779,7 +1784,7 @@ impl<'a> EncodingState<'a> {
                 self.materialize_wit_import(
                     shims,
                     for_module,
-                    iface.map(|_| self.world_import_name(key)),
+                    iface.map(|_| resolve.name_world_key(key)),
                     &format!("{name}_drop"),
                     key,
                     AbiVariant::GuestImport,
@@ -1795,9 +1800,9 @@ impl<'a> EncodingState<'a> {
                     // function. In that situation all types that can be
                     // referred to are imported, not exported.
                     let mut encoder = if interface.is_none() {
-                        self.root_import_type_encoder(*interface)
+                        self.root_import_type_encoder(None)
                     } else {
-                        self.root_export_type_encoder(*interface)
+                        self.root_export_type_encoder(Some(key.clone()))
                     };
 
                     let result = match result_ty.as_ref() {
@@ -1815,8 +1820,8 @@ impl<'a> EncodingState<'a> {
                     Ok(self.materialize_shim_import(
                         shims,
                         &ShimKind::TaskReturn {
+                            key: key.clone(),
                             for_module,
-                            interface: *interface,
                             func: &func.name,
                             result: result_ty,
                             encoding,
@@ -1953,7 +1958,7 @@ impl<'a> EncodingState<'a> {
             Import::InterfaceFunc(key, _, name, abi) => self.materialize_wit_import(
                 shims,
                 for_module,
-                Some(self.world_import_name(key)),
+                Some(resolve.name_world_key(key)),
                 name,
                 key,
                 *abi,
@@ -2512,11 +2517,10 @@ enum ShimKind<'a> {
     WaitableSetPoll { cancellable: bool },
     /// Shim for `task.return` to handle a reference to a `memory` which may
     TaskReturn {
-        /// The interface (optional) that owns `func` below. If `None` then it's
-        /// a world export.
-        interface: Option<InterfaceId>,
-        /// The function that this `task.return` is returning for, owned
-        /// within `interface` above.
+        /// The world key for the export this `task.return` is associated with.
+        key: WorldKey,
+        /// The function that this `task.return` is returning for, owned by
+        /// the world item identified by `key`.
         func: &'a str,
         /// The WIT type that `func` returns.
         result: Option<Type>,
@@ -2636,7 +2640,7 @@ impl<'a> Shims<'a> {
                 // If `task.return` needs to be indirect then generate a shim
                 // for it, otherwise skip the shim and let it get materialized
                 // naturally later.
-                Import::ExportedTaskReturn(key, interface, func) => {
+                Import::ExportedTaskReturn(key, _interface, func) => {
                     let (options, sig) = task_return_options_and_type(resolve, func);
                     if options.is_empty() {
                         continue;
@@ -2657,7 +2661,7 @@ impl<'a> Shims<'a> {
                         debug_name: format!("task-return-{}", func.name),
                         options,
                         kind: ShimKind::TaskReturn {
-                            interface: *interface,
+                            key: key.clone(),
                             func: &func.name,
                             result: func.result,
                             for_module,

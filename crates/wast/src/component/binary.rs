@@ -279,7 +279,7 @@ impl<'a> Encoder<'a> {
             InstanceKind::BundleOfExports(exports) => {
                 self.instances.export_items(exports.iter().map(|e| {
                     let (kind, index) = (&e.kind).into();
-                    (e.name.0, kind, index)
+                    (e.name.into(), kind, index)
                 }));
             }
         }
@@ -547,7 +547,7 @@ impl<'a> Encoder<'a> {
         let name = get_name(&import.item.id, &import.item.name);
         self.names_for_item_kind(&import.item.kind).push(name);
         self.imports
-            .import(import.name.0, (&import.item.kind).into());
+            .import(&import.name.into(), (&import.item.kind).into());
         self.flush(Some(self.imports.id()));
     }
 
@@ -555,7 +555,7 @@ impl<'a> Encoder<'a> {
         let name = get_name(&export.id, &export.debug_name);
         let (kind, index) = (&export.kind).into();
         self.exports.export(
-            export.name.0,
+            &export.name.into(),
             kind,
             index,
             export.ty.as_ref().map(|ty| (&ty.0.kind).into()),
@@ -863,10 +863,10 @@ impl From<&ComponentType<'_>> for wasm_encoder::ComponentType {
                     encoded.alias((&a.target).into());
                 }
                 ComponentTypeDecl::Import(i) => {
-                    encoded.import(i.name.0, (&i.item.kind).into());
+                    encoded.import(&i.name.into(), (&i.item.kind).into());
                 }
                 ComponentTypeDecl::Export(e) => {
-                    encoded.export(e.name.0, (&e.item.kind).into());
+                    encoded.export(&e.name.into(), (&e.item.kind).into());
                 }
             }
         }
@@ -891,7 +891,7 @@ impl From<&InstanceType<'_>> for wasm_encoder::InstanceType {
                     encoded.alias((&a.target).into());
                 }
                 InstanceTypeDecl::Export(e) => {
-                    encoded.export(e.name.0, (&e.item.kind).into());
+                    encoded.export(&e.name.into(), (&e.item.kind).into());
                 }
             }
         }
@@ -1044,6 +1044,15 @@ impl<'a> From<&AliasTarget<'a>> for wasm_encoder::Alias<'a> {
                 kind: (*kind).into(),
                 index: (*index).into(),
             },
+        }
+    }
+}
+
+impl<'a> From<ComponentExternName<'a>> for wasm_encoder::ComponentExternName<'a> {
+    fn from(name: ComponentExternName<'a>) -> Self {
+        wasm_encoder::ComponentExternName {
+            name: name.name.into(),
+            implements: name.implements.map(|i| i.into()),
         }
     }
 }

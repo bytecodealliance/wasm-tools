@@ -327,14 +327,14 @@ impl ComponentBuilder {
     }
 
     /// Imports a new item into this component with the `name` and `ty` specified.
-    pub fn import(&mut self, name: &str, ty: ComponentTypeRef) -> u32 {
+    pub fn import(&mut self, name: &ComponentExternName, ty: ComponentTypeRef) -> u32 {
         let ret = match &ty {
-            ComponentTypeRef::Instance(_) => self.instances.add(Some(name)),
-            ComponentTypeRef::Func(_) => self.funcs.add(Some(name)),
-            ComponentTypeRef::Type(..) => self.types.add(Some(name)),
-            ComponentTypeRef::Component(_) => self.components.add(Some(name)),
-            ComponentTypeRef::Module(_) => self.core_modules.add(Some(name)),
-            ComponentTypeRef::Value(_) => self.values.add(Some(name)),
+            ComponentTypeRef::Instance(_) => self.instances.add(Some(&name.name)),
+            ComponentTypeRef::Func(_) => self.funcs.add(Some(&name.name)),
+            ComponentTypeRef::Type(..) => self.types.add(Some(&name.name)),
+            ComponentTypeRef::Component(_) => self.components.add(Some(&name.name)),
+            ComponentTypeRef::Module(_) => self.core_modules.add(Some(&name.name)),
+            ComponentTypeRef::Value(_) => self.values.add(Some(&name.name)),
         };
         self.imports().import(name, ty);
         ret
@@ -347,13 +347,13 @@ impl ComponentBuilder {
     /// ascribe to the export.
     pub fn export(
         &mut self,
-        name: &str,
+        name: &ComponentExternName,
         kind: ComponentExportKind,
         idx: u32,
         ty: Option<ComponentTypeRef>,
     ) -> u32 {
         self.exports().export(name, kind, idx, ty);
-        self.inc_kind(Some(name), kind)
+        self.inc_kind(Some(&name.name), kind)
     }
 
     /// Creates a new encoder for the next core type in this component.

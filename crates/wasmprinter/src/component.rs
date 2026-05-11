@@ -377,7 +377,7 @@ impl Printer<'_, '_> {
                     self.start_group("export ")?;
                     self.print_component_kind_name(states.last_mut().unwrap(), ty.kind())?;
                     self.result.write_str(" ")?;
-                    self.print_str(name.0)?;
+                    self.print_component_extern_name(&name)?;
                     self.result.write_str(" ")?;
                     self.print_component_import_ty(states.last_mut().unwrap(), &ty, false)?;
                     self.end_group()?;
@@ -389,6 +389,17 @@ impl Printer<'_, '_> {
         }
         self.end_group()?;
         states.pop().unwrap();
+        Ok(())
+    }
+
+    fn print_component_extern_name(&mut self, name: &ComponentExternName<'_>) -> Result<()> {
+        self.print_str(name.name)?;
+        if let Some(implements) = name.implements {
+            self.result.write_str(" ")?;
+            self.start_group("implements ")?;
+            self.print_str(implements)?;
+            self.end_group()?;
+        }
         Ok(())
     }
 
@@ -412,7 +423,7 @@ impl Printer<'_, '_> {
                     self.start_group("export ")?;
                     self.print_component_kind_name(states.last_mut().unwrap(), ty.kind())?;
                     self.result.write_str(" ")?;
-                    self.print_str(name.0)?;
+                    self.print_component_extern_name(&name)?;
                     self.result.write_str(" ")?;
                     self.print_component_import_ty(states.last_mut().unwrap(), &ty, false)?;
                     self.end_group()?;
@@ -589,7 +600,7 @@ impl Printer<'_, '_> {
         index: bool,
     ) -> Result<()> {
         self.start_group("import ")?;
-        self.print_str(import.name.0)?;
+        self.print_component_extern_name(&import.name)?;
         self.result.write_str(" ")?;
         self.print_component_import_ty(state, &import.ty, index)?;
         self.end_group()?;
@@ -705,7 +716,7 @@ impl Printer<'_, '_> {
             self.print_component_kind_name(state, export.kind)?;
             self.result.write_str(" ")?;
         }
-        self.print_str(export.name.0)?;
+        self.print_component_extern_name(&export.name)?;
         self.result.write_str(" ")?;
         self.print_component_external_kind(state, export.kind, export.index)?;
         if let Some(ty) = &export.ty {

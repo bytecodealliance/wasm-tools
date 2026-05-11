@@ -9,59 +9,87 @@
     },
     {
       "type": "assert_invalid",
-      "line": 15,
+      "line": 37,
       "filename": "implements.1.wasm",
       "module_type": "binary",
-      "text": "not a valid extern name"
+      "text": "must be an interface"
     },
     {
       "type": "assert_invalid",
-      "line": 18,
+      "line": 40,
       "filename": "implements.2.wasm",
       "module_type": "binary",
-      "text": "not a valid extern name"
+      "text": "not a valid name"
     },
     {
       "type": "assert_invalid",
-      "line": 21,
+      "line": 44,
       "filename": "implements.3.wasm",
       "module_type": "binary",
-      "text": "not a valid extern name"
+      "text": "conflicts with previous name"
     },
     {
       "type": "assert_invalid",
-      "line": 24,
+      "line": 51,
       "filename": "implements.4.wasm",
       "module_type": "binary",
-      "text": "not a valid extern name"
+      "text": "conflicts with previous name"
     },
     {
       "type": "assert_invalid",
-      "line": 28,
+      "line": 58,
       "filename": "implements.5.wasm",
       "module_type": "binary",
       "text": "conflicts with previous name"
     },
     {
       "type": "assert_invalid",
-      "line": 35,
+      "line": 65,
       "filename": "implements.6.wasm",
       "module_type": "binary",
       "text": "conflicts with previous name"
     },
     {
       "type": "assert_invalid",
-      "line": 42,
+      "line": 72,
       "filename": "implements.7.wasm",
       "module_type": "binary",
-      "text": "conflicts with previous name"
+      "text": "only instance names can have an `implements`"
     },
     {
       "type": "assert_invalid",
-      "line": 49,
+      "line": 78,
       "filename": "implements.8.wasm",
       "module_type": "binary",
-      "text": "conflicts with previous name"
+      "text": "name `a1:b/c` is not valid with `implements`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 86,
+      "filename": "implements.9.wasm",
+      "module_type": "binary",
+      "text": "must be an interface"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 89,
+      "filename": "implements.10.wasm",
+      "module_type": "binary",
+      "text": "not a valid name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 92,
+      "filename": "implements.11.wasm",
+      "module_type": "binary",
+      "text": "only instance names"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 95,
+      "filename": "implements.12.wasm",
+      "module_type": "binary",
+      "text": "must be an interface"
     }
   ]
 }

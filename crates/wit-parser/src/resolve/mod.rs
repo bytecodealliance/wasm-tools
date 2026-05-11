@@ -770,7 +770,7 @@ impl Resolve {
                 // No stability info to update here, only updating import/include stability
                 Ok(())
             }
-            key @ (WorldKey::Interface(_) | WorldKey::Implements(..)) => {
+            key @ WorldKey::Interface(_) => {
                 let new_key = MergeMap::map_name(key, interface_map);
                 if let Some(into) = into_items.get_mut(&new_key) {
                     match (from_item.1, into) {
@@ -1172,7 +1172,7 @@ impl Resolve {
                 (_, None) => {}
 
                 // cannot overwrite an import with an export
-                (WorldKey::Name(name) | WorldKey::Implements(name, _), Some(_)) => {
+                (WorldKey::Name(name), Some(_)) => {
                     bail!("world export `{name}` conflicts with import of same name");
                 }
 
@@ -1517,10 +1517,6 @@ impl Resolve {
         match key {
             WorldKey::Name(s) => s.to_string(),
             WorldKey::Interface(i) => self.id_of(*i).expect("unexpected anonymous interface"),
-            WorldKey::Implements(label, i) => {
-                let iface_name = self.id_of(*i).expect("unexpected anonymous interface");
-                format!("[implements=<{iface_name}>]{label}")
-            }
         }
     }
 
@@ -1532,13 +1528,22 @@ impl Resolve {
             WorldKey::Interface(i) => self
                 .canonicalized_id_of(*i)
                 .expect("unexpected anonymous interface"),
-            WorldKey::Implements(label, i) => {
-                let iface_name = self
-                    .canonicalized_id_of(*i)
-                    .expect("unexpected anonymous interface");
-                format!("[implements=<{iface_name}>]{label}")
+        }
+    }
+
+    /// Returns the component model `implements` value for the world import of
+    /// `key` and `item`.
+    ///
+    /// See the component model explainer and 🏷️ for more information on this feature.
+    pub fn implements_value(&self, key: &WorldKey, item: &WorldItem) -> Option<String> {
+        if let WorldKey::Name(_) = key {
+            if let WorldItem::Interface { id, .. } = item {
+                if self.interfaces[*id].name.is_some() {
+                    return Some(self.id_of(*id).unwrap().into());
+                }
             }
         }
+        None
     }
 
     /// Returns the interface that `id` uses a type from, if it uses a type from
@@ -1709,11 +1714,14 @@ impl Resolve {
                 log::debug!("validating world item: {}", self.name_world_key(name));
                 match item {
                     WorldItem::Interface { id, .. } => {
+                        // Anonymous interfaces must belong to the same package,
+                        // but interfaces through `implements` can be in any
+                        // package.
                         if matches!(name, WorldKey::Name(_)) {
-                            // Implements items use `WorldKey::Name` but can
-                            // reference interfaces from other packages.
-                            // Verify the target interface exists.
-                            assert!(self.interfaces.get(*id).is_some());
+                            let iface = &self.interfaces[*id];
+                            if iface.name.is_none() {
+                                assert_eq!(iface.package, world.package);
+                            }
                         }
                     }
                     WorldItem::Function(f) => {
@@ -1886,14 +1894,7 @@ impl Resolve {
         if let TypeDefKind::Type(Type::Id(other)) = ty.kind {
             if let TypeOwner::Interface(id) = self.types[other].owner {
                 let key = WorldKey::Interface(id);
-                // The interface may be imported directly, or via an
-                // `implements` item under a different label (where the
-                // WorldItem's `id` is a clone of the implemented interface).
-                let imported = world.imports.contains_key(&key)
-                    || world.imports.values().any(
-                        |item| matches!(item, WorldItem::Interface { id: iid, .. } if *iid == id),
-                    );
-                assert!(imported);
+                assert!(world.imports.contains_key(&key));
                 return;
             }
         }
@@ -2116,13 +2117,12 @@ impl Resolve {
         // the new exports list during this loop but interfaces are all deferred
         // to be handled in the `elaborate_world_exports` function.
         let mut new_exports = IndexMap::default();
-        let mut export_interfaces = Vec::new();
-        let mut export_interface_ids = HashSet::new();
+        let mut export_interfaces = IndexMap::default();
         for (name, item) in world.exports.iter() {
             match item {
-                WorldItem::Interface { id, stability, .. } => {
-                    export_interfaces.push((*id, name.clone(), stability));
-                    export_interface_ids.insert(*id);
+                WorldItem::Interface { .. } => {
+                    let prev = export_interfaces.insert(name.clone(), item.clone());
+                    assert!(prev.is_none());
                 }
                 WorldItem::Function(_) => {
                     let prev = new_exports.insert(name.clone(), item.clone());
@@ -2132,13 +2132,7 @@ impl Resolve {
             }
         }
 
-        self.elaborate_world_exports(
-            &export_interfaces,
-            &export_interface_ids,
-            &mut new_imports,
-            &mut new_exports,
-            span,
-        )?;
+        self.elaborate_world_exports(&export_interfaces, &mut new_imports, &mut new_exports, span)?;
 
         // In addition to sorting at the start of elaboration also sort here at
         // the end of elaboration to handle types being interspersed with
@@ -2228,25 +2222,23 @@ impl Resolve {
     /// operation fails.
     fn elaborate_world_exports(
         &self,
-        export_interfaces: &[(InterfaceId, WorldKey, &Stability)],
-        export_interface_ids: &HashSet<InterfaceId>,
+        export_interfaces: &IndexMap<WorldKey, WorldItem>,
         imports: &mut IndexMap<WorldKey, WorldItem>,
         exports: &mut IndexMap<WorldKey, WorldItem>,
         span: Span,
     ) -> ResolveResult<()> {
         let mut required_imports = HashSet::new();
-        for (id, key, stability) in export_interfaces.iter() {
+        for (key, item) in export_interfaces.iter() {
             let name = self.name_world_key(&key);
             let ok = add_world_export(
                 self,
                 imports,
                 exports,
-                export_interface_ids,
+                &export_interfaces,
                 &mut required_imports,
-                *id,
-                key,
+                key.clone(),
+                item.clone(),
                 true,
-                stability,
             );
             if !ok {
                 // FIXME: this is not a great error message and basically no
@@ -2277,48 +2269,50 @@ impl Resolve {
             resolve: &Resolve,
             imports: &mut IndexMap<WorldKey, WorldItem>,
             exports: &mut IndexMap<WorldKey, WorldItem>,
-            export_interface_ids: &HashSet<InterfaceId>,
+            export_interfaces: &IndexMap<WorldKey, WorldItem>,
             required_imports: &mut HashSet<InterfaceId>,
-            id: InterfaceId,
-            key: &WorldKey,
+            key: WorldKey,
+            item: WorldItem,
             add_export: bool,
-            stability: &Stability,
         ) -> bool {
-            if exports.contains_key(key) {
+            if exports.contains_key(&key) {
                 if add_export {
                     return true;
                 } else {
                     return false;
                 }
             }
+            let (id, stability) = match &item {
+                WorldItem::Interface { id, stability, .. } => (*id, stability),
+                _ => unreachable!(),
+            };
             // If this is an import and it's already in the `required_imports`
             // set then we can skip it as we've already visited this interface.
             if !add_export && required_imports.contains(&id) {
                 return true;
             }
             let ok = resolve.interface_direct_deps(id).all(|dep| {
+                let item = WorldItem::Interface {
+                    id: dep,
+                    stability: stability.clone(),
+                    span: Default::default(),
+                };
                 let key = WorldKey::Interface(dep);
-                let add_export = add_export && export_interface_ids.contains(&dep);
+                let add_export = add_export && export_interfaces.contains_key(&key);
                 add_world_export(
                     resolve,
                     imports,
                     exports,
-                    export_interface_ids,
+                    export_interfaces,
                     required_imports,
-                    dep,
-                    &key,
+                    key,
+                    item,
                     add_export,
-                    stability,
                 )
             });
             if !ok {
                 return false;
             }
-            let item = WorldItem::Interface {
-                id,
-                stability: stability.clone(),
-                span: Default::default(),
-            };
             if add_export {
                 if required_imports.contains(&id) {
                     return false;
@@ -2359,7 +2353,7 @@ impl Resolve {
         for (key, _) in world.imports.iter() {
             let iface_id = match key {
                 WorldKey::Interface(id) => *id,
-                WorldKey::Name(_) | WorldKey::Implements(..) => continue,
+                WorldKey::Name(_) => continue,
             };
             let (track, version) = match self.semver_track(iface_id) {
                 Some(track) => track,
@@ -2942,13 +2936,6 @@ impl Resolve {
                 WorldKey::Interface(_) => {
                     exports
                         .replace_index(i, WorldKey::Interface(new_id))
-                        .unwrap();
-                }
-
-                WorldKey::Implements(name, _) => {
-                    let name = name.clone();
-                    exports
-                        .replace_index(i, WorldKey::Implements(name, new_id))
                         .unwrap();
                 }
 
@@ -3951,7 +3938,7 @@ impl Remap {
     fn update_world_key(&self, key: &mut WorldKey, span: Span) -> ResolveResult<()> {
         match key {
             WorldKey::Name(_) => {}
-            WorldKey::Interface(id) | WorldKey::Implements(_, id) => {
+            WorldKey::Interface(id) => {
                 *id = self.map_interface(*id, span)?;
             }
         }
@@ -4071,7 +4058,7 @@ impl Remap {
                     }));
                 }
             }
-            key @ (WorldKey::Interface(_) | WorldKey::Implements(..)) => {
+            key @ WorldKey::Interface(_) => {
                 let prev = get_items(cloner.resolve)
                     .entry(key.clone())
                     .or_insert(item.1.clone());
@@ -4468,9 +4455,6 @@ impl<'a> MergeMap<'a> {
             WorldKey::Name(s) => WorldKey::Name(s.clone()),
             WorldKey::Interface(id) => {
                 WorldKey::Interface(interface_map.get(id).copied().unwrap_or(*id))
-            }
-            WorldKey::Implements(s, id) => {
-                WorldKey::Implements(s.clone(), interface_map.get(id).copied().unwrap_or(*id))
             }
         }
     }

@@ -705,13 +705,7 @@ impl<'a> Resolver<'a> {
                 }
 
                 // Named paths use the label as the key.
-                ast::ExternKind::NamedPath(name, _) => {
-                    let id = match world_item {
-                        WorldItem::Interface { id, .. } => id,
-                        _ => unreachable!(),
-                    };
-                    WorldKey::Implements(name.name.to_string(), id)
-                }
+                ast::ExternKind::NamedPath(name, _) => WorldKey::Name(name.name.to_string()),
             };
             if let WorldKey::Interface(id) = key {
                 if !interfaces.insert(id) {
@@ -734,7 +728,7 @@ impl<'a> Resolver<'a> {
                     WorldItem::Type { .. } => "type",
                 };
                 let name = match key {
-                    WorldKey::Name(name) | WorldKey::Implements(name, ..) => name,
+                    WorldKey::Name(name) => name,
                     WorldKey::Interface(..) => unreachable!(),
                 };
                 return Err(ParseError::new_syntax(

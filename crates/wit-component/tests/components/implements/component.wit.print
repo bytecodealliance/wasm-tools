@@ -1,0 +1,15 @@
+package root:component;
+
+world root {
+  import a: interface {
+    f: func();
+  }
+  import b: a:b/i;
+  import c: a:b/i;
+
+  export a: interface {
+    f: func();
+  }
+  export b: a:b/i;
+  export c: a:b/i;
+}

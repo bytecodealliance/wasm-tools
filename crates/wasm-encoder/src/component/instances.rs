@@ -1,6 +1,7 @@
 use super::CORE_INSTANCE_SORT;
 use crate::{
-    ComponentExportKind, ComponentSection, ComponentSectionId, Encode, ExportKind, encode_section,
+    ComponentExportKind, ComponentExternName, ComponentSection, ComponentSectionId, Encode,
+    ExportKind, encode_section,
 };
 use alloc::vec::Vec;
 
@@ -118,7 +119,7 @@ impl ComponentSection for InstanceSection {
 /// use wasm_encoder::{Component, ComponentInstanceSection, ComponentExportKind};
 ///
 /// let mut instances = ComponentInstanceSection::new();
-/// instances.export_items([("foo", ComponentExportKind::Func, 0)]);
+/// instances.export_items([("foo".into(), ComponentExportKind::Func, 0)]);
 /// instances.instantiate(1, [("foo", ComponentExportKind::Instance, 0)]);
 ///
 /// let mut component = Component::new();
@@ -171,14 +172,14 @@ impl ComponentInstanceSection {
     /// Define an instance by exporting items.
     pub fn export_items<'a, E>(&mut self, exports: E) -> &mut Self
     where
-        E: IntoIterator<Item = (&'a str, ComponentExportKind, u32)>,
+        E: IntoIterator<Item = (ComponentExternName<'a>, ComponentExportKind, u32)>,
         E::IntoIter: ExactSizeIterator,
     {
         let exports = exports.into_iter();
         self.bytes.push(0x01);
         exports.len().encode(&mut self.bytes);
         for (name, kind, index) in exports {
-            crate::encode_component_export_name(&mut self.bytes, name);
+            name.encode(&mut self.bytes);
             kind.encode(&mut self.bytes);
             index.encode(&mut self.bytes);
         }

@@ -1,0 +1,11 @@
+// RUN: component embed % --dummy-names legacy | \
+//        component new | \
+//        validate
+
+package a:b;
+
+world w {
+  import xaxxx: interface {
+    resource r;
+  }
+}

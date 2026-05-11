@@ -2,11 +2,18 @@
   "source_filename": "tests/cli/missing-features/component-model/implements.wast",
   "commands": [
     {
-      "type": "assert_invalid",
-      "line": 4,
+      "type": "assert_malformed",
+      "line": 5,
       "filename": "implements.0.wasm",
       "module_type": "binary",
-      "text": "not a valid extern name"
+      "text": "the `cm-implements` feature is not active"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 12,
+      "filename": "implements.1.wasm",
+      "module_type": "binary",
+      "text": "the `cm-implements` feature is not active"
     }
   ]
 }
