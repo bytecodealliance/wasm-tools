@@ -169,6 +169,10 @@ pub(crate) struct ComponentState {
 
     /// Same as `toplevel_exported_resources`, but for imports.
     toplevel_imported_resources: ComponentNameContext,
+
+    /// The type that's been assigned to slots of `context.{get,set}` by this
+    /// component. This is `None` until the first intrinsic is seen.
+    context_type: Option<ValType>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -462,6 +466,7 @@ impl ComponentState {
             imported_types: Default::default(),
             toplevel_exported_resources: Default::default(),
             toplevel_imported_resources: Default::default(),
+            context_type: None,
         }
     }
 
@@ -1559,9 +1564,9 @@ impl ComponentState {
         Ok(())
     }
 
-    fn validate_context_type(&self, ty: ValType, intrinsic: &str, offset: usize) -> Result<()> {
+    fn validate_context_type(&mut self, ty: ValType, intrinsic: &str, offset: usize) -> Result<()> {
         match ty {
-            ValType::I32 => Ok(()),
+            ValType::I32 => {}
             ValType::I64 => {
                 if !self.features.cm64() {
                     bail!(
@@ -1569,10 +1574,23 @@ impl ComponentState {
                         "64-bit `{intrinsic}` requires the component model 64-bit feature"
                     )
                 }
-                Ok(())
+                {}
             }
             _ => bail!(offset, "`{intrinsic}` only supports `i32` or `i64`"),
         }
+
+        match self.context_type {
+            None => self.context_type = Some(ty),
+            Some(other) => {
+                if other != ty {
+                    bail!(
+                        offset,
+                        "`{intrinsic}` type must match previous context type"
+                    )
+                }
+            }
+        }
+        Ok(())
     }
 
     fn thread_yield(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {

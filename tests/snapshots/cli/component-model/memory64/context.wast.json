@@ -8,43 +8,57 @@
       "module_type": "binary"
     },
     {
-      "type": "module",
-      "line": 22,
+      "type": "assert_invalid",
+      "line": 23,
       "filename": "context.1.wasm",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type must match previous context type"
     },
     {
       "type": "assert_invalid",
-      "line": 31,
+      "line": 29,
       "filename": "context.2.wasm",
       "module_type": "binary",
-      "text": "found:    (func (result i64))"
+      "text": "type must match previous context type"
     },
     {
-      "type": "assert_invalid",
-      "line": 39,
+      "type": "module",
+      "line": 36,
       "filename": "context.3.wasm",
-      "module_type": "binary",
-      "text": "found:    (func (param i64))"
+      "module_type": "binary"
     },
     {
       "type": "assert_invalid",
       "line": 47,
       "filename": "context.4.wasm",
       "module_type": "binary",
-      "text": "found:    (func (result i32))"
+      "text": "found:    (func (result i64))"
     },
     {
       "type": "assert_invalid",
       "line": 55,
       "filename": "context.5.wasm",
       "module_type": "binary",
+      "text": "found:    (func (param i64))"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 63,
+      "filename": "context.6.wasm",
+      "module_type": "binary",
+      "text": "found:    (func (result i32))"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 71,
+      "filename": "context.7.wasm",
+      "module_type": "binary",
       "text": "found:    (func (param i32))"
     },
     {
       "type": "module",
-      "line": 63,
-      "filename": "context.6.wasm",
+      "line": 79,
+      "filename": "context.8.wasm",
       "module_type": "binary"
     }
   ]
