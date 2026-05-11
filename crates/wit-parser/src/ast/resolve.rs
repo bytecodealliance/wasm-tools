@@ -705,16 +705,15 @@ impl<'a> Resolver<'a> {
                 }
 
                 // Named paths use the label as the key.
-                ast::ExternKind::NamedPath(name, _) => WorldKey::Name(name.name.to_string()),
+                ast::ExternKind::NamedPath(name, _) => {
+                    let id = match world_item {
+                        WorldItem::Interface { id, .. } => id,
+                        _ => unreachable!(),
+                    };
+                    WorldKey::Implements(name.name.to_string(), id)
+                }
             };
-            if let WorldItem::Interface {
-                id,
-                implements: None,
-                ..
-            } = world_item
-            {
-                // Only enforce the single-import restriction for bare
-                // `ExternKind::Path` imports (not named/implements imports).
+            if let WorldKey::Interface(id) = key {
                 if !interfaces.insert(id) {
                     return Err(ParseError::new_syntax(
                         kind.span(),
@@ -735,7 +734,7 @@ impl<'a> Resolver<'a> {
                     WorldItem::Type { .. } => "type",
                 };
                 let name = match key {
-                    WorldKey::Name(name) => name,
+                    WorldKey::Name(name) | WorldKey::Implements(name, ..) => name,
                     WorldKey::Interface(..) => unreachable!(),
                 };
                 return Err(ParseError::new_syntax(
@@ -765,7 +764,6 @@ impl<'a> Resolver<'a> {
                 Ok(WorldItem::Interface {
                     id,
                     stability,
-                    implements: None,
                     span: name.span,
                 })
             }
@@ -776,7 +774,6 @@ impl<'a> Resolver<'a> {
                 Ok(WorldItem::Interface {
                     id,
                     stability,
-                    implements: None,
                     span: item_span,
                 })
             }
@@ -787,7 +784,6 @@ impl<'a> Resolver<'a> {
                 Ok(WorldItem::Interface {
                     id,
                     stability,
-                    implements: Some(id),
                     span: name.span,
                 })
             }

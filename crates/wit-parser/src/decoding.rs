@@ -745,40 +745,23 @@ impl WitPackageDecoder<'_> {
         ty: &ComponentInstanceType,
         package: &mut PackageFields<'a>,
     ) -> Result<(WorldKey, WorldItem)> {
-        if let Some((iface_name, label)) = parse_implements_name(name) {
+        let (key, id) = if let Some((iface_name, label)) = parse_implements_name(name) {
             let id = self.register_import(iface_name, ty)?;
-            Ok((
-                WorldKey::Name(label.to_string()),
-                WorldItem::Interface {
-                    id,
-                    stability: Default::default(),
-                    implements: Some(id),
-                    span: Default::default(),
-                },
-            ))
+            (WorldKey::Implements(label.to_string(), id), id)
         } else if name.contains('/') {
             let id = self.register_import(name, ty)?;
-            Ok((
-                WorldKey::Interface(id),
-                WorldItem::Interface {
-                    id,
-                    stability: Default::default(),
-                    implements: None,
-                    span: Default::default(),
-                },
-            ))
+            (WorldKey::Interface(id), id)
         } else {
-            let (key, id) = self.register_interface(name, ty, package)?;
-            Ok((
-                key,
-                WorldItem::Interface {
-                    id,
-                    stability: Default::default(),
-                    implements: None,
-                    span: Default::default(),
-                },
-            ))
-        }
+            self.register_interface(name, ty, package)?
+        };
+        Ok((
+            key,
+            WorldItem::Interface {
+                id,
+                stability: Default::default(),
+                span: Default::default(),
+            },
+        ))
     }
 
     /// Registers that the `name` provided is either imported interface from a
@@ -1571,14 +1554,8 @@ impl WitPackageDecoder<'_> {
             world.package = Some(pkg);
             for (name, item) in world.imports.iter().chain(world.exports.iter()) {
                 if let WorldKey::Name(_) = name {
-                    if let WorldItem::Interface { id, implements, .. } = item {
-                        // Only reassign the package for anonymous (inline)
-                        // interfaces. Implements items use `WorldKey::Name`
-                        // but reference interfaces from other packages that
-                        // must keep their original package assignment.
-                        if implements.is_none() {
-                            self.resolve.interfaces[*id].package = Some(pkg);
-                        }
+                    if let WorldItem::Interface { id, .. } = item {
+                        self.resolve.interfaces[*id].package = Some(pkg);
                     }
                 }
             }

@@ -455,15 +455,11 @@ impl<'a> EncodingState<'a> {
     }
 
     fn world_import_name(&self, key: &WorldKey) -> String {
-        let resolve = &self.info.encoder.metadata.resolve;
-        let world = &resolve.worlds[self.info.encoder.metadata.world];
-        resolve.name_world_key_with_item(key, &world.imports[key])
+        self.info.encoder.metadata.resolve.name_world_key(key)
     }
 
     fn world_export_name(&self, key: &WorldKey) -> String {
-        let resolve = &self.info.encoder.metadata.resolve;
-        let world = &resolve.worlds[self.info.encoder.metadata.world];
-        resolve.name_world_key_with_item(key, &world.exports[key])
+        self.info.encoder.metadata.resolve.name_world_key(key)
     }
 
     fn root_import_type_encoder(
@@ -2851,7 +2847,6 @@ impl<'a> Shims<'a> {
                 // metadata out of this `match` to the loop below to figure that
                 // out.
                 Import::InterfaceFunc(key, _, name, abi) => {
-                    let wit_world = &resolve.worlds[world.encoder.metadata.world];
                     self.append_indirect_wit_func(
                         world,
                         for_module,
@@ -2859,7 +2854,7 @@ impl<'a> Shims<'a> {
                         field,
                         key,
                         name,
-                        Some(resolve.name_world_key_with_item(key, &wit_world.imports[key])),
+                        Some(resolve.name_world_key(key)),
                         *abi,
                     )?;
                 }

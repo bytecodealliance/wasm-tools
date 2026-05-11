@@ -651,11 +651,8 @@ impl Resolve {
                                     WorldItem::Function(f) => {
                                         remap.update_function(self, f, Default::default())?
                                     }
-                                    WorldItem::Interface { id, implements, .. } => {
+                                    WorldItem::Interface { id, .. } => {
                                         *id = remap.map_interface(*id, Default::default())?;
-                                        if let Some(imp) = implements {
-                                            *imp = remap.map_interface(*imp, Default::default())?;
-                                        }
                                     }
                                     WorldItem::Type { id, .. } => {
                                         *id = remap.map_type(*id, Default::default())?
@@ -773,7 +770,7 @@ impl Resolve {
                 // No stability info to update here, only updating import/include stability
                 Ok(())
             }
-            key @ WorldKey::Interface(_) => {
+            key @ (WorldKey::Interface(_) | WorldKey::Implements(..)) => {
                 let new_key = MergeMap::map_name(key, interface_map);
                 if let Some(into) = into_items.get_mut(&new_key) {
                     match (from_item.1, into) {
@@ -781,13 +778,11 @@ impl Resolve {
                             WorldItem::Interface {
                                 id: aid,
                                 stability: astability,
-                                implements: _,
                                 span: aspan,
                             },
                             WorldItem::Interface {
                                 id: bid,
                                 stability: bstability,
-                                implements: _,
                                 ..
                             },
                         ) => {
@@ -1177,7 +1172,7 @@ impl Resolve {
                 (_, None) => {}
 
                 // cannot overwrite an import with an export
-                (WorldKey::Name(name), Some(_)) => {
+                (WorldKey::Name(name) | WorldKey::Implements(name, _), Some(_)) => {
                     bail!("world export `{name}` conflicts with import of same name");
                 }
 
@@ -1522,28 +1517,10 @@ impl Resolve {
         match key {
             WorldKey::Name(s) => s.to_string(),
             WorldKey::Interface(i) => self.id_of(*i).expect("unexpected anonymous interface"),
-        }
-    }
-
-    /// Produces the binary extern name for a world key + item pair.
-    ///
-    /// For items with `implements`, produces `[implements=<I>]label`.
-    /// Otherwise delegates to [`Resolve::name_world_key`].
-    pub fn name_world_key_with_item(&self, key: &WorldKey, item: &WorldItem) -> String {
-        if let (
-            WorldKey::Name(label),
-            WorldItem::Interface {
-                implements: Some(iface_id),
-                ..
-            },
-        ) = (key, item)
-        {
-            let iface_name = self
-                .id_of(*iface_id)
-                .expect("unexpected anonymous interface");
-            format!("[implements=<{iface_name}>]{label}")
-        } else {
-            self.name_world_key(key)
+            WorldKey::Implements(label, i) => {
+                let iface_name = self.id_of(*i).expect("unexpected anonymous interface");
+                format!("[implements=<{iface_name}>]{label}")
+            }
         }
     }
 
@@ -1555,6 +1532,12 @@ impl Resolve {
             WorldKey::Interface(i) => self
                 .canonicalized_id_of(*i)
                 .expect("unexpected anonymous interface"),
+            WorldKey::Implements(label, i) => {
+                let iface_name = self
+                    .canonicalized_id_of(*i)
+                    .expect("unexpected anonymous interface");
+                format!("[implements=<{iface_name}>]{label}")
+            }
         }
     }
 
@@ -1725,18 +1708,12 @@ impl Resolve {
             for (name, item) in world.imports.iter().chain(world.exports.iter()) {
                 log::debug!("validating world item: {}", self.name_world_key(name));
                 match item {
-                    WorldItem::Interface { id, implements, .. } => {
+                    WorldItem::Interface { id, .. } => {
                         if matches!(name, WorldKey::Name(_)) {
-                            if implements.is_none() {
-                                // Anonymous interfaces must belong to the same
-                                // package as the world's package.
-                                assert_eq!(self.interfaces[*id].package, world.package);
-                            } else {
-                                // Implements items use `WorldKey::Name` but can
-                                // reference interfaces from other packages.
-                                // Verify the target interface exists.
-                                assert!(self.interfaces.get(*id).is_some());
-                            }
+                            // Implements items use `WorldKey::Name` but can
+                            // reference interfaces from other packages.
+                            // Verify the target interface exists.
+                            assert!(self.interfaces.get(*id).is_some());
                         }
                     }
                     WorldItem::Function(f) => {
@@ -2104,19 +2081,8 @@ impl Resolve {
             match item {
                 // Interfaces get their dependencies added first followed by the
                 // interface itself.
-                WorldItem::Interface {
-                    id,
-                    stability,
-                    implements,
-                    ..
-                } => {
-                    self.elaborate_world_import(
-                        &mut new_imports,
-                        name.clone(),
-                        *id,
-                        &stability,
-                        *implements,
-                    );
+                WorldItem::Interface { id, stability, .. } => {
+                    self.elaborate_world_import(&mut new_imports, name.clone(), *id, &stability);
                 }
 
                 // Functions are added as-is since their dependence on types in
@@ -2136,7 +2102,6 @@ impl Resolve {
                             WorldKey::Interface(dep),
                             dep,
                             &self.types[*id].stability,
-                            None,
                         );
                     }
                     let prev = new_imports.insert(name.clone(), item.clone());
@@ -2155,13 +2120,8 @@ impl Resolve {
         let mut export_interface_ids = HashSet::new();
         for (name, item) in world.exports.iter() {
             match item {
-                WorldItem::Interface {
-                    id,
-                    stability,
-                    implements,
-                    ..
-                } => {
-                    export_interfaces.push((*id, name.clone(), stability, *implements));
+                WorldItem::Interface { id, stability, .. } => {
+                    export_interfaces.push((*id, name.clone(), stability));
                     export_interface_ids.insert(*id);
                 }
                 WorldItem::Function(_) => {
@@ -2202,20 +2162,18 @@ impl Resolve {
         key: WorldKey,
         id: InterfaceId,
         stability: &Stability,
-        implements: Option<InterfaceId>,
     ) {
         if imports.contains_key(&key) {
             return;
         }
         for dep in self.interface_direct_deps(id) {
-            self.elaborate_world_import(imports, WorldKey::Interface(dep), dep, stability, None);
+            self.elaborate_world_import(imports, WorldKey::Interface(dep), dep, stability);
         }
         let prev = imports.insert(
             key,
             WorldItem::Interface {
                 id,
                 stability: stability.clone(),
-                implements,
                 span: Default::default(),
             },
         );
@@ -2270,14 +2228,14 @@ impl Resolve {
     /// operation fails.
     fn elaborate_world_exports(
         &self,
-        export_interfaces: &[(InterfaceId, WorldKey, &Stability, Option<InterfaceId>)],
+        export_interfaces: &[(InterfaceId, WorldKey, &Stability)],
         export_interface_ids: &HashSet<InterfaceId>,
         imports: &mut IndexMap<WorldKey, WorldItem>,
         exports: &mut IndexMap<WorldKey, WorldItem>,
         span: Span,
     ) -> ResolveResult<()> {
         let mut required_imports = HashSet::new();
-        for (id, key, stability, implements) in export_interfaces.iter() {
+        for (id, key, stability) in export_interfaces.iter() {
             let name = self.name_world_key(&key);
             let ok = add_world_export(
                 self,
@@ -2289,7 +2247,6 @@ impl Resolve {
                 key,
                 true,
                 stability,
-                *implements,
             );
             if !ok {
                 // FIXME: this is not a great error message and basically no
@@ -2326,7 +2283,6 @@ impl Resolve {
             key: &WorldKey,
             add_export: bool,
             stability: &Stability,
-            implements: Option<InterfaceId>,
         ) -> bool {
             if exports.contains_key(key) {
                 if add_export {
@@ -2353,7 +2309,6 @@ impl Resolve {
                     &key,
                     add_export,
                     stability,
-                    None,
                 )
             });
             if !ok {
@@ -2362,7 +2317,6 @@ impl Resolve {
             let item = WorldItem::Interface {
                 id,
                 stability: stability.clone(),
-                implements,
                 span: Default::default(),
             };
             if add_export {
@@ -2405,7 +2359,7 @@ impl Resolve {
         for (key, _) in world.imports.iter() {
             let iface_id = match key {
                 WorldKey::Interface(id) => *id,
-                WorldKey::Name(_) => continue,
+                WorldKey::Name(_) | WorldKey::Implements(..) => continue,
             };
             let (track, version) = match self.semver_track(iface_id) {
                 Some(track) => track,
@@ -2456,13 +2410,11 @@ impl Resolve {
                 &WorldItem::Interface {
                     id: *to_replace,
                     stability: Default::default(),
-                    implements: None,
                     span: Default::default(),
                 },
                 &WorldItem::Interface {
                     id: *replace_with,
                     stability: Default::default(),
-                    implements: None,
                     span: Default::default(),
                 },
             )
@@ -2990,6 +2942,13 @@ impl Resolve {
                 WorldKey::Interface(_) => {
                     exports
                         .replace_index(i, WorldKey::Interface(new_id))
+                        .unwrap();
+                }
+
+                WorldKey::Implements(name, _) => {
+                    let name = name.clone();
+                    exports
+                        .replace_index(i, WorldKey::Implements(name, new_id))
                         .unwrap();
                 }
 
@@ -3885,11 +3844,8 @@ impl Remap {
             }
             self.update_world_key(&mut name, span)?;
             match &mut item {
-                WorldItem::Interface { id, implements, .. } => {
+                WorldItem::Interface { id, .. } => {
                     *id = self.map_interface(*id, span)?;
-                    if let Some(imp) = implements {
-                        *imp = self.map_interface(*imp, span)?;
-                    }
                 }
                 WorldItem::Function(f) => {
                     self.update_function(resolve, f, span)?;
@@ -3995,7 +3951,7 @@ impl Remap {
     fn update_world_key(&self, key: &mut WorldKey, span: Span) -> ResolveResult<()> {
         match key {
             WorldKey::Name(_) => {}
-            WorldKey::Interface(id) => {
+            WorldKey::Interface(id) | WorldKey::Implements(_, id) => {
                 *id = self.map_interface(*id, span)?;
             }
         }
@@ -4115,7 +4071,7 @@ impl Remap {
                     }));
                 }
             }
-            key @ WorldKey::Interface(_) => {
+            key @ (WorldKey::Interface(_) | WorldKey::Implements(..)) => {
                 let prev = get_items(cloner.resolve)
                     .entry(key.clone())
                     .or_insert(item.1.clone());
@@ -4124,13 +4080,11 @@ impl Remap {
                         WorldItem::Interface {
                             id: aid,
                             stability: astability,
-                            implements: _,
                             span: aspan,
                         },
                         WorldItem::Interface {
                             id: bid,
                             stability: bstability,
-                            implements: _,
                             ..
                         },
                     ) => {
@@ -4514,6 +4468,9 @@ impl<'a> MergeMap<'a> {
             WorldKey::Name(s) => WorldKey::Name(s.clone()),
             WorldKey::Interface(id) => {
                 WorldKey::Interface(interface_map.get(id).copied().unwrap_or(*id))
+            }
+            WorldKey::Implements(s, id) => {
+                WorldKey::Implements(s.clone(), interface_map.get(id).copied().unwrap_or(*id))
             }
         }
     }

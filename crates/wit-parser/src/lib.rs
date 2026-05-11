@@ -461,12 +461,14 @@ pub enum WorldKey {
     Name(String),
     /// An interface which is assigned no kebab-name.
     Interface(InterfaceId),
+    /// A named interface implementation.
+    Implements(String, InterfaceId),
 }
 
 impl Hash for WorldKey {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         match self {
-            WorldKey::Name(s) => {
+            WorldKey::Name(s) | WorldKey::Implements(s, _) => {
                 0u8.hash(hasher);
                 s.as_str().hash(hasher);
             }
@@ -481,8 +483,11 @@ impl Hash for WorldKey {
 impl PartialEq for WorldKey {
     fn eq(&self, other: &WorldKey) -> bool {
         match (self, other) {
-            (WorldKey::Name(a), WorldKey::Name(b)) => a.as_str() == b.as_str(),
-            (WorldKey::Name(_), _) => false,
+            (
+                WorldKey::Name(a) | WorldKey::Implements(a, _),
+                WorldKey::Name(b) | WorldKey::Implements(b, _),
+            ) => a.as_str() == b.as_str(),
+            (WorldKey::Name(_) | WorldKey::Implements(..), _) => false,
             (WorldKey::Interface(a), WorldKey::Interface(b)) => a == b,
             (WorldKey::Interface(_), _) => false,
         }
@@ -492,7 +497,7 @@ impl PartialEq for WorldKey {
 impl From<WorldKey> for String {
     fn from(key: WorldKey) -> String {
         match key {
-            WorldKey::Name(name) => name,
+            WorldKey::Name(name) | WorldKey::Implements(name, _) => name,
             WorldKey::Interface(id) => format!("interface-{}", id.index()),
         }
     }
@@ -505,6 +510,7 @@ impl WorldKey {
         match self {
             WorldKey::Name(name) => name,
             WorldKey::Interface(_) => panic!("expected a name, found interface"),
+            WorldKey::Implements(..) => panic!("expected a name, found implements"),
         }
     }
 }
@@ -523,18 +529,6 @@ pub enum WorldItem {
             serde(skip_serializing_if = "Stability::is_unknown")
         )]
         stability: Stability,
-        /// When `Some`, the interface is imported/exported under a plain name
-        /// using the `[implements=<I>]label` encoding. The `InterfaceId` here
-        /// identifies the named interface `I` that this import/export
-        /// implements.
-        #[cfg_attr(
-            feature = "serde",
-            serde(
-                skip_serializing_if = "Option::is_none",
-                serialize_with = "serialize_optional_id"
-            )
-        )]
-        implements: Option<InterfaceId>,
         #[cfg_attr(feature = "serde", serde(skip))]
         span: Span,
     },

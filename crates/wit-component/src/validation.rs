@@ -1920,7 +1920,7 @@ impl NameMangling for Standard {
         for (key, item) in items.iter() {
             let id = match key {
                 // Bare keys are matched exactly against `interface`
-                WorldKey::Name(name) => match item {
+                WorldKey::Name(name) | WorldKey::Implements(name, _) => match item {
                     WorldItem::Interface { id, .. } if name == interface => *id,
                     _ => continue,
                 },
@@ -2002,7 +2002,9 @@ impl Standard {
                 WorldItem::Type { .. } => unreachable!(),
             };
             let remaining = match export {
-                WorldKey::Name(name) => export_name.strip_prefix(name),
+                WorldKey::Name(name) | WorldKey::Implements(name, _) => {
+                    export_name.strip_prefix(name)
+                }
                 WorldKey::Interface(_) => {
                     let prefix = resolve.canonicalized_id_of(id).unwrap();
                     export_name.strip_prefix(&prefix)
@@ -2428,7 +2430,7 @@ impl NameMangling for Legacy {
         for (key, _) in items {
             let id = match key {
                 WorldKey::Interface(id) => *id,
-                WorldKey::Name(_) => continue,
+                WorldKey::Name(_) | WorldKey::Implements(..) => continue,
             };
             // Make sure the interface names match
             let interface = &resolve.interfaces[id];

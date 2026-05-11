@@ -87,7 +87,7 @@ impl<'a> Cloner<'a> {
     pub fn world_item(&mut self, key: &WorldKey, item: &mut WorldItem) {
         match key {
             WorldKey::Name(_) => {}
-            WorldKey::Interface(_) => return,
+            WorldKey::Interface(_) | WorldKey::Implements(..) => return,
         }
 
         match item {

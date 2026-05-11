@@ -248,7 +248,7 @@ impl<'a> ComponentWorld<'a> {
             item: &WorldItem,
             required: &Required<'_>,
         ) -> Result<()> {
-            let name = resolve.name_world_key_with_item(name, item);
+            let name = resolve.name_world_key(name);
             log::trace!("register import `{name}`");
             let import_map_key = match item {
                 WorldItem::Function(_) | WorldItem::Type { .. } => None,
@@ -314,10 +314,7 @@ impl<'a> ComponentWorld<'a> {
         // set. This means that only types not defined by referenced exports
         // will get added here.
         for (name, item) in resolve.worlds[world].exports.iter() {
-            log::trace!(
-                "add live world export `{}`",
-                resolve.name_world_key_with_item(name, item)
-            );
+            log::trace!("add live world export `{}`", resolve.name_world_key(name));
             let id = match item {
                 WorldItem::Interface { id, .. } => id,
                 WorldItem::Function(_) | WorldItem::Type { .. } => {

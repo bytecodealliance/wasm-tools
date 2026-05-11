@@ -1100,7 +1100,7 @@ impl WitOpts {
                 .imports
                 .keys()
                 .filter(|key| match key {
-                    WorldKey::Name(n) => names.iter().any(|f| f == n),
+                    WorldKey::Name(n) | WorldKey::Implements(n, _) => names.iter().any(|f| f == n),
                     WorldKey::Interface(id) => {
                         let iface = &resolve.interfaces[*id];
                         match &iface.name {

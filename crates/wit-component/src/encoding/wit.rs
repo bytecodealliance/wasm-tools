@@ -73,7 +73,7 @@ pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentTyp
 
     // Encode the imports
     for (name, import) in world.imports.iter() {
-        let name = resolve.name_world_key_with_item(name, import);
+        let name = resolve.name_world_key(name);
         log::trace!("encoding import {name}");
         let ty = match import {
             WorldItem::Interface { id, .. } => {
@@ -98,7 +98,7 @@ pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentTyp
     }
     // Encode the exports
     for (name, export) in world.exports.iter() {
-        let name = resolve.name_world_key_with_item(name, export);
+        let name = resolve.name_world_key(name);
         log::trace!("encoding export {name}");
         let ty = match export {
             WorldItem::Interface { id, .. } => {

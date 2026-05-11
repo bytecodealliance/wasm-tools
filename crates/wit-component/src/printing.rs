@@ -404,7 +404,7 @@ impl<O: Output> WitPrinter<O> {
             match import {
                 WorldItem::Type { id, .. } => match name {
                     WorldKey::Name(s) => types.push((s.as_str(), *id)),
-                    WorldKey::Interface(_) => unreachable!(),
+                    WorldKey::Interface(_) | WorldKey::Implements(..) => unreachable!(),
                 },
                 _ => {
                     if let WorldItem::Function(f) = import {
@@ -468,17 +468,6 @@ impl<O: Output> WitPrinter<O> {
         match name {
             WorldKey::Name(name) => {
                 match item {
-                    WorldItem::Interface {
-                        id,
-                        implements: Some(_),
-                        ..
-                    } => {
-                        // `import label: use-path;` syntax
-                        self.print_name_type(name, TypeKind::Other);
-                        self.output.str(": ");
-                        self.print_path_to_interface(resolve, *id, cur_pkg)?;
-                        self.output.semicolon();
-                    }
                     WorldItem::Interface { id, .. } => {
                         self.print_name_type(name, TypeKind::Other);
                         self.output.str(": ");
@@ -503,6 +492,13 @@ impl<O: Output> WitPrinter<O> {
                     WorldItem::Interface { id: id2, .. } => assert_eq!(id, id2),
                     _ => unreachable!(),
                 }
+                self.print_path_to_interface(resolve, *id, cur_pkg)?;
+                self.output.semicolon();
+            }
+            WorldKey::Implements(name, id) => {
+                // `import label: use-path;` syntax
+                self.print_name_type(name, TypeKind::Other);
+                self.output.str(": ");
                 self.print_path_to_interface(resolve, *id, cur_pkg)?;
                 self.output.semicolon();
             }

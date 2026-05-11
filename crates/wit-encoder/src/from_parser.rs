@@ -545,7 +545,7 @@ impl<'a> Converter<'a> {
             None => match world_key {
                 Some(world_key) => match world_key {
                     wit_parser::WorldKey::Name(name) => Ident::new(name.clone()),
-                    wit_parser::WorldKey::Interface(_) => {
+                    wit_parser::WorldKey::Interface(_) | wit_parser::WorldKey::Implements(..) => {
                         unreachable!("inlined interface must have a world key name")
                     }
                 },

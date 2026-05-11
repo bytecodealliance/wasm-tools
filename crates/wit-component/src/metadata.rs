@@ -185,7 +185,7 @@ impl EncodingMap {
         format!(
             "{}/{func}",
             match key {
-                WorldKey::Name(name) => name.to_string(),
+                WorldKey::Name(name) | WorldKey::Implements(name, _) => name.to_string(),
                 WorldKey::Interface(id) => {
                     let iface = &resolve.interfaces[*id];
                     let pkg = &resolve.packages[iface.package.unwrap()];
