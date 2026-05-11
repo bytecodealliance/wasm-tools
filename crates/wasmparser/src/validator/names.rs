@@ -684,7 +684,7 @@ impl<'a> ComponentNameParser<'a> {
         }
 
         // '[implements=<' <interfacename> '>]' <label>
-        if self.eat_str(IMPLEMENTS_PREFIX) {
+        if self.features.cm_implements() && self.eat_str(IMPLEMENTS_PREFIX) {
             let iface_str = self.take_up_to('>')?;
             // Validate the interface name by parsing it as a package name
             // with a required projection (e.g. `ns:pkg/iface`).
@@ -1020,7 +1020,7 @@ mod tests {
     use std::collections::HashSet;
 
     fn parse_kebab_name(s: &str) -> Option<ComponentName> {
-        ComponentName::new(s, 0).ok()
+        ComponentName::new_with_features(s, 0, WasmFeatures::all()).ok()
     }
 
     #[test]

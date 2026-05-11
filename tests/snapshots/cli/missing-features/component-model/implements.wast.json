@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/cli/missing-features/component-model/implements.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "implements.0.wasm",
+      "module_type": "binary",
+      "text": "not a valid extern name"
+    }
+  ]
+}
