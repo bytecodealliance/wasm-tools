@@ -19,19 +19,6 @@ use wasmparser::{
     types::Types,
 };
 
-/// Parses an `[implements=<interface_name>]label` name, returning
-/// the interface name and label if the name matches this pattern.
-fn parse_implements_name(name: &str) -> Option<(&str, &str)> {
-    let rest = name.strip_prefix("[implements=<")?;
-    let end = rest.find(">]")?;
-    let interface = &rest[..end];
-    let label = &rest[end + 2..];
-    if interface.is_empty() || label.is_empty() {
-        return None;
-    }
-    Some((interface, label))
-}
-
 /// Represents information about a decoded WebAssembly component.
 struct ComponentInfo {
     /// Wasmparser-defined type information learned after a component is fully
@@ -745,14 +732,16 @@ impl WitPackageDecoder<'_> {
         ty: &ComponentInstanceType,
         package: &mut PackageFields<'a>,
     ) -> Result<(WorldKey, WorldItem)> {
-        let (key, id) = if let Some((iface_name, label)) = parse_implements_name(name) {
-            let id = self.register_import(iface_name, ty)?;
-            (WorldKey::Implements(label.to_string(), id), id)
-        } else if name.contains('/') {
-            let id = self.register_import(name, ty)?;
-            (WorldKey::Interface(id), id)
-        } else {
-            self.register_interface(name, ty, package)?
+        let (key, id) = match self.parse_component_name(name)?.kind() {
+            ComponentNameKind::Implements(i) => {
+                let id = self.register_import(i.interface(), ty)?;
+                (WorldKey::Implements(i.label().to_string(), id), id)
+            }
+            ComponentNameKind::Interface(i) => {
+                let id = self.register_import(i.as_str(), ty)?;
+                (WorldKey::Interface(id), id)
+            }
+            _ => self.register_interface(name, ty, package)?,
         };
         Ok((
             key,
@@ -1038,7 +1027,7 @@ impl WitPackageDecoder<'_> {
     }
 
     fn parse_component_name(&self, name: &str) -> Result<ComponentName> {
-        ComponentName::new(name, 0)
+        ComponentName::new_with_features(name, 0, WasmFeatures::all())
             .with_context(|| format!("cannot extract item name from: {name}"))
     }
 
