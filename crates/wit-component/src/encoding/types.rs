@@ -474,22 +474,10 @@ impl<'a> ValtypeEncoder<'a> for RootTypeEncoder<'_, 'a> {
             .import(name, ComponentTypeRef::Type(TypeBounds::SubResource))
     }
     fn import_type(&mut self, interface: InterfaceId, id: TypeId) -> u32 {
-        if !self.import_types {
-            if let Some(cur) = self.interface {
-                let set = &self.state.info.exports_used[&cur];
-                if set.contains(&interface) {
-                    return self.state.alias_exported_type(interface, id);
-                }
-            }
-        }
-        self.state.alias_imported_type(interface, id)
+        self.state.alias_instance_type_export(interface, id)
     }
     fn type_encoding_maps(&mut self) -> &mut TypeEncodingMaps<'a> {
-        if self.import_types {
-            &mut self.state.import_type_encoding_maps
-        } else {
-            &mut self.state.export_type_encoding_maps
-        }
+        &mut self.state.type_encoding_maps
     }
 }
 
@@ -528,7 +516,7 @@ impl<'a> ValtypeEncoder<'a> for InstanceTypeEncoder<'_, 'a> {
     fn import_type(&mut self, interface: InterfaceId, id: TypeId) -> u32 {
         self.ty.alias(Alias::Outer {
             count: 1,
-            index: self.state.alias_imported_type(interface, id),
+            index: self.state.alias_instance_type_export(interface, id),
             kind: ComponentOuterAliasKind::Type,
         });
         self.ty.type_count() - 1

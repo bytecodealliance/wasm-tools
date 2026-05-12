@@ -22,7 +22,6 @@
   (type (;2;) (func (result $foo)))
   (alias core export $main "bar#foo" (core func $bar#foo (;0;)))
   (func $foo (;0;) (type 2) (canon lift (core func $bar#foo)))
-  (alias export $foo:foo/foo "foo" (type $"#type3 foo" (@name "foo") (;3;)))
   (component $bar-shim-component (;0;)
     (type (;0;) (record (field "f" u8)))
     (import "import-type-foo" (type (;1;) (eq 0)))
@@ -35,7 +34,7 @@
   )
   (instance $bar-shim-instance (;1;) (instantiate $bar-shim-component
       (with "import-func-foo" (func $foo))
-      (with "import-type-foo" (type $"#type3 foo"))
+      (with "import-type-foo" (type $foo))
       (with "import-type-bar" (type $foo))
     )
   )

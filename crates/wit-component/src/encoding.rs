@@ -399,17 +399,15 @@ pub struct EncodingState<'a> {
     /// A map of adapter module instances and the index of their instance.
     adapter_instances: IndexMap<&'a str, u32>,
 
-    /// Imported instances and what index they were imported as.
-    imported_instances: IndexMap<InterfaceId, u32>,
+    /// Imported/exported instances and what index they were imported as.
+    instances: IndexMap<InterfaceId, u32>,
     imported_funcs: IndexMap<String, u32>,
-    exported_instances: IndexMap<InterfaceId, u32>,
 
     /// Maps used when translating types to the component model binary format.
     /// Note that imports and exports are stored in separate maps since they
     /// need fresh hierarchies of types in case the same interface is both
     /// imported and exported.
-    import_type_encoding_maps: TypeEncodingMaps<'a>,
-    export_type_encoding_maps: TypeEncodingMaps<'a>,
+    type_encoding_maps: TypeEncodingMaps<'a>,
 
     /// Cache of items that have been aliased from core instances.
     ///
@@ -566,7 +564,7 @@ impl<'a> EncodingState<'a> {
         let instance_idx = self
             .component
             .import(name, ComponentTypeRef::Instance(instance_type_idx));
-        let prev = self.imported_instances.insert(interface_id, instance_idx);
+        let prev = self.instances.insert(interface_id, instance_idx);
         assert!(prev.is_none());
         Ok(())
     }
@@ -600,18 +598,10 @@ impl<'a> EncodingState<'a> {
         Ok(())
     }
 
-    fn alias_imported_type(&mut self, interface: InterfaceId, id: TypeId) -> u32 {
+    fn alias_instance_type_export(&mut self, interface: InterfaceId, id: TypeId) -> u32 {
         let ty = &self.info.encoder.metadata.resolve.types[id];
         let name = ty.name.as_ref().expect("type must have a name");
-        let instance = self.imported_instances[&interface];
-        self.component
-            .alias_export(instance, name, ComponentExportKind::Type)
-    }
-
-    fn alias_exported_type(&mut self, interface: InterfaceId, id: TypeId) -> u32 {
-        let ty = &self.info.encoder.metadata.resolve.types[id];
-        let name = ty.name.as_ref().expect("type must have a name");
-        let instance = self.exported_instances[&interface];
+        let instance = self.instances[&interface];
         self.component
             .alias_export(instance, name, ComponentExportKind::Type)
     }
@@ -674,9 +664,9 @@ impl<'a> EncodingState<'a> {
             // If this resource is owned by a world then it's a top-level
             // resource which means it must have already been translated so
             // it's available for lookup in `import_type_map`.
-            TypeOwner::World(_) => self.import_type_encoding_maps.id_to_index[&id],
+            TypeOwner::World(_) => self.type_encoding_maps.id_to_index[&id],
             TypeOwner::Interface(i) => {
-                let instance = self.imported_instances[&i];
+                let instance = self.instances[&i];
                 let name = ty.name.as_ref().expect("resources must be named");
                 self.component
                     .alias_export(instance, name, ComponentExportKind::Type)
@@ -886,17 +876,7 @@ impl<'a> EncodingState<'a> {
         nested.type_encoding_maps.def_to_index.clear();
         for (name, idx) in nested.imports.drain(..) {
             let id = reverse_map[&idx];
-            let owner = match resolve.types[id].owner {
-                TypeOwner::Interface(id) => id,
-                _ => unreachable!(),
-            };
-            let idx = if owner == export || exports_used.contains(&owner) {
-                log::trace!("consulting exports for {id:?}");
-                nested.state.export_type_encoding_maps.id_to_index[&id]
-            } else {
-                log::trace!("consulting imports for {id:?}");
-                nested.state.import_type_encoding_maps.id_to_index[&id]
-            };
+            let idx = nested.state.type_encoding_maps.id_to_index[&id];
             imports.push((name, ComponentExportKind::Type, idx))
         }
 
@@ -966,7 +946,7 @@ impl<'a> EncodingState<'a> {
             instance_index,
             None,
         );
-        let prev = self.exported_instances.insert(export, idx);
+        let prev = self.instances.insert(export, idx);
         assert!(prev.is_none());
 
         // After everything is all said and done remove all the type information
@@ -977,8 +957,8 @@ impl<'a> EncodingState<'a> {
         // necessary via aliases from the exported instance which is the new
         // source of truth for all these types.
         for (_name, id) in resolve.interfaces[export].types.iter() {
-            self.export_type_encoding_maps.id_to_index.remove(id);
-            self.export_type_encoding_maps
+            self.type_encoding_maps.id_to_index.remove(id);
+            self.type_encoding_maps
                 .def_to_index
                 .remove(&resolve.types[*id].kind);
         }
@@ -1296,7 +1276,7 @@ impl<'a> EncodingState<'a> {
                     let ((name, _), _) = interface.lowerings.get_index(*index).unwrap();
                     let func_index = match &interface.interface {
                         Some(interface_id) => {
-                            let instance_index = self.imported_instances[interface_id];
+                            let instance_index = self.instances[interface_id];
                             self.component.alias_export(
                                 instance_index,
                                 name,
@@ -1602,7 +1582,7 @@ impl<'a> EncodingState<'a> {
                             dtor,
                         );
                         let prev = self
-                            .export_type_encoding_maps
+                            .type_encoding_maps
                             .id_to_index
                             .insert(*ty, resource_idx);
                         assert!(prev.is_none());
@@ -1759,19 +1739,19 @@ impl<'a> EncodingState<'a> {
             Import::ExportedResourceDrop(_key, id) => {
                 let index = self
                     .component
-                    .resource_drop(self.export_type_encoding_maps.id_to_index[id]);
+                    .resource_drop(self.type_encoding_maps.id_to_index[id]);
                 Ok((ExportKind::Func, index))
             }
             Import::ExportedResourceRep(_key, id) => {
                 let index = self
                     .component
-                    .resource_rep(self.export_type_encoding_maps.id_to_index[id]);
+                    .resource_rep(self.type_encoding_maps.id_to_index[id]);
                 Ok((ExportKind::Func, index))
             }
             Import::ExportedResourceNew(_key, id) => {
                 let index = self
                     .component
-                    .resource_new(self.export_type_encoding_maps.id_to_index[id]);
+                    .resource_new(self.type_encoding_maps.id_to_index[id]);
                 Ok((ExportKind::Func, index))
             }
 
@@ -2078,7 +2058,7 @@ impl<'a> EncodingState<'a> {
             Lowering::Direct => {
                 let func_index = match &import.interface {
                     Some(interface) => {
-                        let instance_index = self.imported_instances[interface];
+                        let instance_index = self.instances[interface];
                         self.component
                             .alias_export(instance_index, name, ComponentExportKind::Func)
                     }
@@ -3336,6 +3316,8 @@ impl ComponentEncoder {
                 .merge_world_imports_based_on_semver(self.metadata.world)?;
         }
 
+        self.finalize_resolve_with_nominal_ids();
+
         let world = ComponentWorld::new(self).context("failed to decode world from module")?;
         let mut state = EncodingState {
             component: ComponentBuilder::default(),
@@ -3346,11 +3328,9 @@ impl ComponentEncoder {
             fixups_module_index: None,
             adapter_modules: IndexMap::new(),
             adapter_instances: IndexMap::new(),
-            import_type_encoding_maps: Default::default(),
-            export_type_encoding_maps: Default::default(),
-            imported_instances: Default::default(),
+            type_encoding_maps: Default::default(),
+            instances: Default::default(),
             imported_funcs: Default::default(),
-            exported_instances: Default::default(),
             aliased_core_items: Default::default(),
             info: &world,
             export_task_initialization_wrappers: HashMap::new(),
@@ -3375,6 +3355,63 @@ impl ComponentEncoder {
         }
 
         Ok(bytes)
+    }
+
+    /// Call the `generate_nominal_type_ids` method on the `Resolve` that we're
+    /// using, adjusting any preexisting keys/pointers as necessary.
+    ///
+    /// This is the final step after merging all known `Resolve`s together
+    /// before a component is actually created. By creating a unique
+    /// `InterfaceId` for all interfaces it makes the generation process easier
+    /// since there's no need to fret about whether an `InterfaceId` is an
+    /// import or an export for example.
+    fn finalize_resolve_with_nominal_ids(&mut self) {
+        // Before calling `generate_nominal_type_ids` we need to handle the fact
+        // that the exports of the world are going to be rewritten. The only
+        // pointers we have into those are the exports of the main module and
+        // adapters. To handle this, before we generate nominal ids, indices of
+        // exports are saved here on the stack to get restored later on.
+        // Effectively we're clearing out the exports and rebuilding them later.
+        let world = &self.metadata.resolve.worlds[self.metadata.world];
+        let main_module_exports = self
+            .main_module_exports
+            .iter()
+            .map(|i| world.exports.get_index_of(i).unwrap())
+            .collect::<Vec<_>>();
+        let adapter_exports = self
+            .adapters
+            .values()
+            .map(|adapter| {
+                adapter
+                    .required_exports
+                    .iter()
+                    .map(|i| world.exports.get_index_of(i).unwrap())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+
+        // With everything saved this will modify `Resolve` to ensure there's a
+        // nominal identifier for all interfaces (e.g. not both simultaneously
+        // imported and exported).
+        self.metadata
+            .resolve
+            .generate_nominal_type_ids(self.metadata.world);
+
+        // Rebuild the sets of exports now that the world's exports have been
+        // clobbered.
+        self.main_module_exports.clear();
+        let world = &self.metadata.resolve.worlds[self.metadata.world];
+        for index in main_module_exports {
+            let (key, _) = world.exports.get_index(index).unwrap();
+            self.main_module_exports.insert(key.clone());
+        }
+        for (exports, adapter) in adapter_exports.into_iter().zip(self.adapters.values_mut()) {
+            adapter.required_exports.clear();
+            for index in exports {
+                let (key, _) = world.exports.get_index(index).unwrap();
+                adapter.required_exports.insert(key.clone());
+            }
+        }
     }
 }
 
