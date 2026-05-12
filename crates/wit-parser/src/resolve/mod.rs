@@ -2286,8 +2286,9 @@ impl Resolve {
                 WorldItem::Interface { id, stability, .. } => (*id, stability),
                 _ => unreachable!(),
             };
-            // If this is an import and it's already in the `required_imports`
-            // set then we can skip it as we've already visited this interface.
+            // If this is an import and it's already in the `imports` set then
+            // we can skip it as we've already visited this interface.
+            // if !add_export && imports.contains_key(&key) {
             if !add_export && required_imports.contains(&id) {
                 return true;
             }
@@ -2317,10 +2318,13 @@ impl Resolve {
                 if required_imports.contains(&id) {
                     return false;
                 }
-                exports.insert(key.clone(), item);
+                let prev = exports.insert(key.clone(), item);
+                assert!(prev.is_none());
             } else {
                 required_imports.insert(id);
-                imports.insert(key.clone(), item);
+                if !imports.contains_key(&key) {
+                    imports.insert(key.clone(), item);
+                }
             }
             true
         }
@@ -2877,6 +2881,7 @@ impl Resolve {
         // Notably visit `imports` first as they always get priority in the
         // order of having things imported from them. After `imports` are
         // visited then process all `exports`.
+        log::trace!("nominalizing world imports");
         self.nominalize_world_items(
             &mut maps,
             world_id,
@@ -2884,6 +2889,7 @@ impl Resolve {
             &mut seen,
             &mut interface_keys_rewritten,
         );
+        log::trace!("nominalizing world exports");
         self.nominalize_world_items(
             &mut maps,
             world_id,
@@ -2933,6 +2939,17 @@ impl Resolve {
         seen: &mut HashSet<InterfaceId>,
         interface_keys_rewritten: &mut HashSet<InterfaceId>,
     ) {
+        // The loop below fundamentally requires that `WorldKey::Interface` is
+        // visited before any `WorldKey::Name` which may refer to the same
+        // interface. To ensure this property is upheld `WorldKey::Name`
+        // interfaces are sorted to the back of the list of items. At this time
+        // `WorldKey::Name`'d interfaces cannot depend on each other, meaning
+        // that this should always preserve topological sorting as well.
+        items.sort_by_key(|key, item| match (key, item) {
+            (WorldKey::Name(_), WorldItem::Interface { .. }) => 1,
+            _ => 0,
+        });
+
         let mut to_rewrite = Vec::new();
         for (i, (key, item)) in items.iter().enumerate() {
             let id = match item {
@@ -2953,8 +2970,10 @@ impl Resolve {
                 .interface_direct_deps(id)
                 .any(|dep| interface_keys_rewritten.contains(&dep));
             if !(duplicated || any_dep_rewritten) {
+                log::trace!("{} already nominal", self.name_world_key(key));
                 continue;
             }
+            log::trace!("{} getting rewritten nominal", self.name_world_key(key));
 
             // If this is `WorldKey::Interface` then register this in the
             // `interface_keys_rewritten` map, and also plumb this through to

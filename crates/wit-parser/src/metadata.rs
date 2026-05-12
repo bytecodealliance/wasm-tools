@@ -275,6 +275,24 @@ impl WorldMetadata {
         let mut interface_import_stability = StringMap::default();
         let mut interface_export_stability = StringMap::default();
 
+        let mut record_interface_stability = |key: &WorldKey, item: &WorldItem, import: bool| {
+            let stability = match item {
+                WorldItem::Interface { stability, .. } => stability,
+                _ => return,
+            };
+            if stability.is_unknown() {
+                return;
+            }
+
+            let map = if import {
+                &mut interface_import_stability
+            } else {
+                &mut interface_export_stability
+            };
+            let name = resolve.name_world_key(key);
+            map.insert(name, stability.clone());
+        };
+
         for ((key, item), import) in world
             .imports
             .iter()
@@ -286,6 +304,10 @@ impl WorldMetadata {
                 // docs/stability and insert it into one of our maps.
                 WorldKey::Name(name) => match item {
                     WorldItem::Interface { id, .. } => {
+                        if resolve.interfaces[*id].name.is_some() {
+                            record_interface_stability(key, item, import);
+                            continue;
+                        }
                         let data = InterfaceMetadata::extract(resolve, *id);
                         if data.is_empty() {
                             continue;
@@ -330,21 +352,7 @@ impl WorldMetadata {
                 // For interface imports/exports extract the stability and
                 // record it if necessary.
                 WorldKey::Interface(_) => {
-                    let stability = match item {
-                        WorldItem::Interface { stability, .. } => stability,
-                        _ => continue,
-                    };
-                    if stability.is_unknown() {
-                        continue;
-                    }
-
-                    let map = if import {
-                        &mut interface_import_stability
-                    } else {
-                        &mut interface_export_stability
-                    };
-                    let name = resolve.name_world_key(key);
-                    map.insert(name, stability.clone());
+                    record_interface_stability(key, item, import);
                 }
             }
         }

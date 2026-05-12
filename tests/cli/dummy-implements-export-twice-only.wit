@@ -1,0 +1,19 @@
+// RUN: component embed % --dummy-names legacy | \
+//        component new | \
+//        validate -f cm-implements
+
+package x:name;
+
+interface name {
+  resource r {
+    m: func() -> bool;
+  }
+}
+
+world w {
+  import a: name;
+  import name;
+
+  export a: name;
+  export b: name;
+}
