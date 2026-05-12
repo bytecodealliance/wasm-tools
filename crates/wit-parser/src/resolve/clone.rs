@@ -21,7 +21,7 @@ use crate::*;
 
 /// Represents the results of cloning types and/or interfaces as part of a
 /// `Resolve::merge_worlds` operation.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct CloneMaps {
     pub(super) types: HashMap<TypeId, TypeId>,
     pub(super) interfaces: HashMap<InterfaceId, InterfaceId>,
