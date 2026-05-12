@@ -271,7 +271,9 @@ fn assert_output(contents: &str, path: &Path) -> Result<()> {
         "\"$CARGO_PKG_VERSION\"",
     );
     if std::env::var_os("BLESS").is_some() {
-        if let Ok(prev) = fs::read_to_string(path) && prev == contents {
+        if let Ok(prev) = fs::read_to_string(path)
+            && prev == contents
+        {
             return Ok(());
         }
         fs::write(path, contents)?;
