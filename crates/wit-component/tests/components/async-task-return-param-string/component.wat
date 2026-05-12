@@ -70,7 +70,7 @@
       (with "" (instance $fixup-args))
     )
   )
-  (type (;0;) (func (param "s" string)))
+  (type (;0;) (func async (param "s" string)))
   (alias core export $main "[async-lift]foo" (core func $"[async-lift]foo" (;4;)))
   (alias core export $main "[callback][async-lift]foo" (core func $"[callback][async-lift]foo" (;5;)))
   (func $foo (;0;) (type 0) (canon lift (core func $"[async-lift]foo") (memory $memory) (realloc $realloc) string-encoding=utf8 async (callback $"[callback][async-lift]foo")))

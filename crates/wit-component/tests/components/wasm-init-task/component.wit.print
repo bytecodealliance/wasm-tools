@@ -1,10 +1,10 @@
 package root:component;
 
 world root {
-  export async-stackful: func();
-  export async-callback: func();
+  export async-stackful: async func();
+  export async-callback: async func();
   export sync: func();
-  export async-stackful-argret: func(s: string) -> string;
-  export async-callback-argret: func(s: string) -> string;
+  export async-stackful-argret: async func(s: string) -> string;
+  export async-callback-argret: async func(s: string) -> string;
   export sync-argret: func(s: string) -> string;
 }
