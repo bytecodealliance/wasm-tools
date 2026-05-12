@@ -3336,6 +3336,8 @@ impl ComponentEncoder {
                 .merge_world_imports_based_on_semver(self.metadata.world)?;
         }
 
+        self.finalize_resolve_with_nominal_ids();
+
         let world = ComponentWorld::new(self).context("failed to decode world from module")?;
         let mut state = EncodingState {
             component: ComponentBuilder::default(),
@@ -3375,6 +3377,63 @@ impl ComponentEncoder {
         }
 
         Ok(bytes)
+    }
+
+    /// Call the `generate_nominal_type_ids` method on the `Resolve` that we're
+    /// using, adjusting any preexisting keys/pointers as necessary.
+    ///
+    /// This is the final step after merging all known `Resolve`s together
+    /// before a component is actually created. By creating a unique
+    /// `InterfaceId` for all interfaces it makes the generation process easier
+    /// since there's no need to fret about whether an `InterfaceId` is an
+    /// import or an export for example.
+    fn finalize_resolve_with_nominal_ids(&mut self) {
+        // Before calling `generate_nominal_type_ids` we need to handle the fact
+        // that the exports of the world are going to be rewritten. The only
+        // pointers we have into those are the exports of the main module and
+        // adapters. To handle this, before we generate nominal ids, indices of
+        // exports are saved here on the stack to get restored later on.
+        // Effectively we're clearing out the exports and rebuilding them later.
+        let world = &self.metadata.resolve.worlds[self.metadata.world];
+        let main_module_exports = self
+            .main_module_exports
+            .iter()
+            .map(|i| world.exports.get_index_of(i).unwrap())
+            .collect::<Vec<_>>();
+        let adapter_exports = self
+            .adapters
+            .values()
+            .map(|adapter| {
+                adapter
+                    .required_exports
+                    .iter()
+                    .map(|i| world.exports.get_index_of(i).unwrap())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+
+        // With everything saved this will modify `Resolve` to ensure there's a
+        // nominal identifier for all interfaces (e.g. not both simultaneously
+        // imported and exported).
+        self.metadata
+            .resolve
+            .generate_nominal_type_ids(self.metadata.world);
+
+        // Rebuild the sets of exports now that the world's exports have been
+        // clobbered.
+        self.main_module_exports.clear();
+        let world = &self.metadata.resolve.worlds[self.metadata.world];
+        for index in main_module_exports {
+            let (key, _) = world.exports.get_index(index).unwrap();
+            self.main_module_exports.insert(key.clone());
+        }
+        for (exports, adapter) in adapter_exports.into_iter().zip(self.adapters.values_mut()) {
+            adapter.required_exports.clear();
+            for index in exports {
+                let (key, _) = world.exports.get_index(index).unwrap();
+                adapter.required_exports.insert(key.clone());
+            }
+        }
     }
 }
 
