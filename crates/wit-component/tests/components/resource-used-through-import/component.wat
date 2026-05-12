@@ -32,7 +32,6 @@
   (type (;4;) (func (result 3)))
   (alias core export $main "b#foo" (core func $b#foo (;1;)))
   (func $foo (;0;) (type 4) (canon lift (core func $b#foo)))
-  (alias export $foo:bar/a "r" (type $"#type5 r" (@name "r") (;5;)))
   (component $b-shim-component (;0;)
     (import "import-type-r" (type (;0;) (sub resource)))
     (import "import-type-r0" (type (;1;) (eq 0)))
@@ -46,7 +45,7 @@
   )
   (instance $b-shim-instance (;1;) (instantiate $b-shim-component
       (with "import-func-foo" (func $foo))
-      (with "import-type-r" (type $"#type5 r"))
+      (with "import-type-r" (type $r))
       (with "import-type-r0" (type $r))
     )
   )
