@@ -2950,7 +2950,7 @@ impl Resolve {
             _ => 0,
         });
 
-        let mut to_rewrite = IndexMap::new();
+        let mut to_rewrite = IndexMap::default();
         for (i, (key, item)) in items.iter().enumerate() {
             let id = match item {
                 WorldItem::Interface { id, .. } => *id,
