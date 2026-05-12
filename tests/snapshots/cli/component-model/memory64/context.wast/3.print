@@ -1,0 +1,8 @@
+(component
+  (component (;0;)
+    (core func (;0;) (canon context.set i64 0))
+  )
+  (component (;1;)
+    (core func (;0;) (canon context.get i32 0))
+  )
+)

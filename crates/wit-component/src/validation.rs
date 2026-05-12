@@ -2397,9 +2397,26 @@ impl NameMangling for Legacy {
                 .interfaces
                 .get(name.interface().as_str())
             {
+                // If the interface from the package is directly in `items` then
+                // return that.
                 let key = WorldKey::Interface(*id);
                 if items.contains_key(&key) {
                     return Ok((key, *id));
+                }
+
+                // .. otherwise see if any interface in `items` is a clone of
+                // the package's interface. This means it's created by
+                // `generate_nominal_type_ids` and is used to match up exports
+                // to their nominal clone since the original is no longer
+                // exported.
+                for k in items.keys() {
+                    let i = match *k {
+                        WorldKey::Interface(id) => id,
+                        WorldKey::Name(_) => continue,
+                    };
+                    if resolve.interfaces[i].clone_of == Some(*id) {
+                        return Ok((WorldKey::Interface(i), i));
+                    }
                 }
             }
         }

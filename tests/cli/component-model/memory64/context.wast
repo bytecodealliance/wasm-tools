@@ -18,12 +18,28 @@
   ))
 )
 
-;; Mixed i32 and i64 slots round-trip independently.
+;; can't mix i32/i64
+(assert_invalid
+  (component
+    (core func (canon context.get i32 0))
+    (core func (canon context.set i64 0))
+  )
+  "type must match previous context type")
+(assert_invalid
+  (component
+    (core func (canon context.set i64 0))
+    (core func (canon context.get i32 0))
+  )
+  "type must match previous context type")
+
+;; can mix across components
 (component
-  (core func (canon context.get i32 0))
-  (core func (canon context.set i32 0))
-  (core func (canon context.get i64 0))
-  (core func (canon context.set i64 0))
+  (component
+    (core func (canon context.set i64 0))
+  )
+  (component
+    (core func (canon context.get i32 0))
+  )
 )
 
 ;; Signature must match the declared slot width.
