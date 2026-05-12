@@ -1,0 +1,64 @@
+{
+  "worlds": [
+    {
+      "name": "w",
+      "imports": {
+        "interface-0": {
+          "interface": {
+            "id": 0
+          }
+        }
+      },
+      "exports": {
+        "interface-2": {
+          "interface": {
+            "id": 2
+          }
+        },
+        "n": {
+          "interface": {
+            "id": 1
+          }
+        }
+      },
+      "package": 0
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "i",
+      "types": {},
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": "i",
+      "types": {},
+      "functions": {},
+      "package": 0,
+      "clone_of": 0
+    },
+    {
+      "name": "i",
+      "types": {},
+      "functions": {},
+      "package": 0,
+      "clone_of": 0
+    }
+  ],
+  "types": [],
+  "packages": [
+    {
+      "name": "a:b",
+      "docs": {
+        "contents": "RUN: component wit --generate-nominal-type-ids w % --json"
+      },
+      "interfaces": {
+        "i": 0
+      },
+      "worlds": {
+        "w": 0
+      }
+    }
+  ]
+}

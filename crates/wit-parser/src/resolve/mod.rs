@@ -2950,7 +2950,7 @@ impl Resolve {
             _ => 0,
         });
 
-        let mut to_rewrite = Vec::new();
+        let mut to_rewrite = IndexMap::new();
         for (i, (key, item)) in items.iter().enumerate() {
             let id = match item {
                 WorldItem::Interface { id, .. } => *id,
@@ -2984,52 +2984,81 @@ impl Resolve {
                 assert!(interface_keys_rewritten.insert(id));
             }
 
-            to_rewrite.push((i, id, is_name));
+            to_rewrite
+                .entry(id)
+                .or_insert(Vec::new())
+                .push((i, is_name));
         }
 
-        // Now that we know what to rewrite, rewrite everything. Notably here
-        // though we make a conscious decision of what to do about `maps`.
-        // Notably any mutations during cloning to `maps` are discarded for
-        // `WorldKey::Name` keys. These interfaces can't actually be depended on
-        // by anything else (e.g. have types pulled from them), so their
-        // modifications are discarded.
+        // Now that we know what to rewrite, rewrite everything.
         //
-        // Note that this is a WIT-level restriction right now of sorts. There's
-        // no current way to model a `import a: i;` where `i`'s dependencies are
-        // pulled from `import b: dep`, for example. Right now if `i` depends on
-        // `dep` then that just always results in `import dep`.
-        for (i, id, is_name) in to_rewrite {
-            let prev_maps = if is_name { Some(maps.clone()) } else { None };
+        // The trickiest part here is deciding what to do with `maps`. As
+        // interfaces are cloned they'll record all remappings of
+        // types/interfaces/etc within `maps`. We don't want to persist
+        // everything because if an interface is cloned twice then everything
+        // will get overwritten/corrupted within the map. In theory what we want
+        // is for `maps` to track, for any one interface, just the transitive
+        // set of dependencies for that interface and how they've been cloned.
+        // What's implemented here is an approximation of this that should work
+        // for now.
+        //
+        // Notably `to_rewrite` is an ordered list keyed by `InterfaceId`. This
+        // means taht if we walk `to_rewrite` in order we're walking this in
+        // topological order. Second we then additionally sort the `list` for
+        // each `to_rewrite` entry to ensure that all `WorldKey::Name` items are
+        // visited first. In doing so we also discard all mutations to `maps`
+        // after visiting is done. In effect what this does is it discards all
+        // modifications due to `WorldKey::Name`, because nothing can depend on
+        // those interfaces, and then it preserves modifications for
+        // `WorldKey::Interface`, which other interfaces can indeed depend on.
+        // In the end this basically does a very careful walk over a very
+        // careful organization of `to_rewrite`.
+        //
+        // This'll need massive refactoring if WIT gets the ability to express
+        // arbitrary edges between interfaces. It's WIT-level restriction right
+        // now of sorts. There's no current way to model a `import a: i;` where
+        // `i`'s dependencies are pulled from `import b: dep`, for example.
+        // Right now if `i` depends on `dep` then that just always results in
+        // `import dep`.
+        for (id, mut list) in to_rewrite {
+            list.sort_by_key(|(_, is_name)| if *is_name { 0 } else { 1 });
+            for (i, is_name) in list {
+                let prev_maps = if is_name { Some(maps.clone()) } else { None };
 
-            let mut cloner =
-                clone::Cloner::new(self, maps, TypeOwner::World(world), TypeOwner::World(world));
+                let mut cloner = clone::Cloner::new(
+                    self,
+                    maps,
+                    TypeOwner::World(world),
+                    TypeOwner::World(world),
+                );
 
-            let mut new_id = id;
-            cloner.new_package = cloner.resolve.interfaces[id].package;
-            cloner.interface(&mut new_id);
-            let (key, prev) = items.get_index_mut(i).unwrap();
-            match prev {
-                WorldItem::Interface { id, .. } => *id = new_id,
-                _ => unreachable!(),
-            }
-
-            match key {
-                // If the key for this is an `Interface` then that means we
-                // need to update the key as well. Here that's replaced by-index
-                // in the `IndexMap` to preserve the same ordering as before,
-                // and this operation should always succeed since `new_id` is
-                // fresh, hence the `unwrap()`.
-                WorldKey::Interface(_) => {
-                    items.replace_index(i, WorldKey::Interface(new_id)).unwrap();
+                let mut new_id = id;
+                cloner.new_package = cloner.resolve.interfaces[id].package;
+                cloner.interface(&mut new_id);
+                let (key, prev) = items.get_index_mut(i).unwrap();
+                match prev {
+                    WorldItem::Interface { id, .. } => *id = new_id,
+                    _ => unreachable!(),
                 }
 
-                // Name-based keys don't need updating as they only contain a
-                // string, no ids.
-                WorldKey::Name(_) => {}
-            }
+                match key {
+                    // If the key for this is an `Interface` then that means we
+                    // need to update the key as well. Here that's replaced by-index
+                    // in the `IndexMap` to preserve the same ordering as before,
+                    // and this operation should always succeed since `new_id` is
+                    // fresh, hence the `unwrap()`.
+                    WorldKey::Interface(_) => {
+                        items.replace_index(i, WorldKey::Interface(new_id)).unwrap();
+                    }
 
-            if let Some(prev) = prev_maps {
-                *maps = prev;
+                    // Name-based keys don't need updating as they only contain a
+                    // string, no ids.
+                    WorldKey::Name(_) => {}
+                }
+
+                if let Some(prev) = prev_maps {
+                    *maps = prev;
+                }
             }
         }
     }
