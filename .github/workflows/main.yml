@@ -233,7 +233,7 @@ jobs:
     # Note that this doesn't use `cargo fmt` because that doesn't format
     # modules-defined-in-macros which is in use in `wast` for example. This is
     # the best alternative I can come up with at this time
-    - run: find . -name '*.rs' | xargs rustfmt --check --edition 2021
+    - run: find . -name '*.rs' | xargs rustfmt --check --edition 2024
 
   fuzz:
     name: Fuzz
