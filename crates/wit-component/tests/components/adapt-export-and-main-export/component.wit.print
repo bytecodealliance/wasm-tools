@@ -1,0 +1,8 @@
+package root:component;
+
+world root {
+  export x: interface {
+    y: func();
+  }
+  export foo:foo/new;
+}

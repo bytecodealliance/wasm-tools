@@ -318,6 +318,12 @@ define_wasm_features! {
         /// Corresponds to the 🐘 character in
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
         pub cm64: CM64(1 << 39) = false;
+
+        /// Support for the `(implements "...")` directive in the component model
+        ///
+        /// Corresponds to the 🏷️ character in
+        /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
+        pub cm_implements: CM_IMPLEMENTS(1 << 40) = false;
     }
 }
 

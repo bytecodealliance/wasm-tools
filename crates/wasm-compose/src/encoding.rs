@@ -455,7 +455,7 @@ impl<'a> TypeEncoder<'a> {
         id: ComponentInstanceTypeId,
     ) -> u32 {
         let ty = &self.0.types[id];
-        let instance = self.instance(state, ty.exports.iter().map(|(n, t)| (n.as_str(), *t)));
+        let instance = self.instance(state, ty.exports.iter().map(|(n, t)| (n.as_str(), t.ty)));
         let index = state.cur.encodable.type_count();
         state.cur.encodable.ty().instance(&instance);
         index
@@ -466,8 +466,8 @@ impl<'a> TypeEncoder<'a> {
 
         let component = self.component(
             state,
-            ty.imports.iter().map(|(n, t)| (n.as_str(), *t)),
-            ty.exports.iter().map(|(n, t)| (n.as_str(), *t)),
+            ty.imports.iter().map(|(n, t)| (n.as_str(), t.ty)),
+            ty.exports.iter().map(|(n, t)| (n.as_str(), t.ty)),
         );
 
         let index = state.cur.encodable.type_count();
@@ -884,7 +884,7 @@ impl ArgumentImport<'_> {
 
             let mut map = IndexMap::with_capacity(exports.len());
             for (name, ty) in exports {
-                map.insert(name.as_str(), vec![(*component, *ty)]);
+                map.insert(name.as_str(), vec![(*component, ty.ty)]);
             }
 
             self.kind = ArgumentImportKind::Instance(map);
@@ -907,7 +907,7 @@ impl ArgumentImport<'_> {
                             existing_component,
                             *existing_type,
                             new_component,
-                            *new_type,
+                            new_type.ty,
                             remapping,
                         ) {
                             continue;
@@ -923,7 +923,7 @@ impl ArgumentImport<'_> {
                             ecname = existing_component.name,
                         )
                     }
-                    dst.push((new_component, *new_type));
+                    dst.push((new_component, new_type.ty));
                 }
             }
             // Otherwise, an attempt to merge an instance with a non-instance is an error
@@ -1244,14 +1244,14 @@ impl DependencyRegistrar<'_, '_> {
 
     fn component(&mut self, ty: ComponentTypeId) {
         let ty = &self.types[ty];
-        for (_, ty) in ty.imports.iter().chain(&ty.exports) {
-            self.entity(*ty);
+        for ty in ty.imports.values().chain(ty.exports.values()) {
+            self.entity(ty.ty);
         }
     }
 
     fn instance(&mut self, ty: ComponentInstanceTypeId) {
         for (_, ty) in self.types[ty].exports.iter() {
-            self.entity(*ty);
+            self.entity(ty.ty);
         }
     }
 

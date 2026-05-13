@@ -561,9 +561,13 @@ impl<'a> EncodingState<'a> {
         let instance_type_idx = self
             .component
             .type_instance(Some(&format!("ty-{name}")), &ty);
-        let instance_idx = self
-            .component
-            .import(name, ComponentTypeRef::Instance(instance_type_idx));
+        let instance_idx = self.component.import(
+            wasm_encoder::ComponentExternName {
+                name: name.into(),
+                implements: info.implements.as_deref().map(|s| s.into()),
+            },
+            ComponentTypeRef::Instance(instance_type_idx),
+        );
         let prev = self.instances.insert(interface_id, instance_idx);
         assert!(prev.is_none());
         Ok(())
@@ -694,9 +698,9 @@ impl<'a> EncodingState<'a> {
                     let prev = world_func_core_names.insert(name, core_name);
                     assert!(prev.is_none());
                 }
-                Export::InterfaceFunc(_, id, name, _) => {
+                Export::InterfaceFunc(key, _, name, _) => {
                     let prev = interface_func_core_names
-                        .entry(id)
+                        .entry(key)
                         .or_insert(IndexMap::new())
                         .insert(name.as_str(), core_name);
                     assert!(prev.is_none());
@@ -730,14 +734,15 @@ impl<'a> EncodingState<'a> {
                     let core_name = world_func_core_names[&func.name];
                     let idx = self.encode_lift(module, &core_name, export_name, func, ty)?;
                     self.component
-                        .export(&export_string, ComponentExportKind::Func, idx, None);
+                        .export(export_string, ComponentExportKind::Func, idx, None);
                 }
-                WorldItem::Interface { id, .. } => {
-                    let core_names = interface_func_core_names.get(id);
+                item @ WorldItem::Interface { id, .. } => {
+                    let core_names = interface_func_core_names.get(export_name);
                     self.encode_interface_export(
                         &export_string,
                         module,
                         export_name,
+                        item,
                         *id,
                         core_names,
                     )?;
@@ -754,6 +759,7 @@ impl<'a> EncodingState<'a> {
         export_name: &str,
         module: CustomModule<'_>,
         key: &WorldKey,
+        item: &WorldItem,
         export: InterfaceId,
         interface_func_core_names: Option<&IndexMap<&str, &str>>,
     ) -> Result<()> {
@@ -941,7 +947,10 @@ impl<'a> EncodingState<'a> {
             imports,
         );
         let idx = self.component.export(
-            export_name,
+            wasm_encoder::ComponentExternName {
+                name: export_name.into(),
+                implements: resolve.implements_value(key, item).map(|s| s.into()),
+            },
             ComponentExportKind::Instance,
             instance_index,
             None,

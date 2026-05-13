@@ -23,9 +23,14 @@ impl<'a> Parse<'a> for ComponentImport<'a> {
     }
 }
 
-/// The different ways an import can be named.
+/// Identifiers, and metadata, for component imports and exports.
 #[derive(Debug, Copy, Clone)]
-pub struct ComponentExternName<'a>(pub &'a str);
+pub struct ComponentExternName<'a> {
+    /// The string name this is referring to.
+    pub name: &'a str,
+    /// For imports, an optional `(implements "...")` directive.
+    pub implements: Option<&'a str>,
+}
 
 impl<'a> Parse<'a> for ComponentExternName<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
@@ -43,7 +48,15 @@ impl<'a> Parse<'a> for ComponentExternName<'a> {
         } else {
             parser.parse()?
         };
-        Ok(ComponentExternName(name))
+        let implements = if parser.peek2::<kw::implements>()? {
+            Some(parser.parens(|p| {
+                p.parse::<kw::implements>()?;
+                p.parse()
+            })?)
+        } else {
+            None
+        };
+        Ok(ComponentExternName { name, implements })
     }
 }
 

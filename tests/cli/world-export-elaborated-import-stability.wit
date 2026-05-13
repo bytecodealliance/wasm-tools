@@ -1,0 +1,22 @@
+// RUN[round-trip]: component wit % --wasm | component wit
+
+package a:b@9.0.0;
+
+interface name {
+  enum xxx {
+    a,
+  }
+}
+
+interface x {
+  use name.{xxx};
+}
+
+world w {
+  @since(version = 2.0.0)
+  @deprecated(version = 5.0.0)
+  import name;
+  import x;
+
+  export y: x;
+}

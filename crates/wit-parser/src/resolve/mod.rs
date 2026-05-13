@@ -652,7 +652,7 @@ impl Resolve {
                                         remap.update_function(self, f, Default::default())?
                                     }
                                     WorldItem::Interface { id, .. } => {
-                                        *id = remap.map_interface(*id, Default::default())?
+                                        *id = remap.map_interface(*id, Default::default())?;
                                     }
                                     WorldItem::Type { id, .. } => {
                                         *id = remap.map_type(*id, Default::default())?
@@ -713,6 +713,9 @@ impl Resolve {
             let id = remap.map_interface(id, Default::default())?;
             if let Some(pkg) = self.interfaces[id].package.as_mut() {
                 *pkg = remap.packages[pkg.index()];
+            }
+            if let Some(clone_of) = self.interfaces[id].clone_of.as_mut() {
+                *clone_of = remap.map_interface(*clone_of, Default::default())?;
             }
         }
         for id in moved_types {
@@ -1528,6 +1531,21 @@ impl Resolve {
         }
     }
 
+    /// Returns the component model `implements` value for the world import of
+    /// `key` and `item`.
+    ///
+    /// See the component model explainer and 🏷️ for more information on this feature.
+    pub fn implements_value(&self, key: &WorldKey, item: &WorldItem) -> Option<String> {
+        if let WorldKey::Name(_) = key {
+            if let WorldItem::Interface { id, .. } = item {
+                if self.interfaces[*id].name.is_some() {
+                    return Some(self.id_of(*id).unwrap().into());
+                }
+            }
+        }
+        None
+    }
+
     /// Returns the interface that `id` uses a type from, if it uses a type from
     /// a different interface than `id` is defined within.
     ///
@@ -1696,10 +1714,14 @@ impl Resolve {
                 log::debug!("validating world item: {}", self.name_world_key(name));
                 match item {
                     WorldItem::Interface { id, .. } => {
-                        // anonymous interfaces must belong to the same package
-                        // as the world's package.
+                        // Anonymous interfaces must belong to the same package,
+                        // but interfaces through `implements` can be in any
+                        // package.
                         if matches!(name, WorldKey::Name(_)) {
-                            assert_eq!(self.interfaces[*id].package, world.package);
+                            let iface = &self.interfaces[*id];
+                            if iface.name.is_none() {
+                                assert_eq!(iface.package, world.package);
+                            }
                         }
                     }
                     WorldItem::Function(f) => {
@@ -2098,8 +2120,8 @@ impl Resolve {
         let mut export_interfaces = IndexMap::default();
         for (name, item) in world.exports.iter() {
             match item {
-                WorldItem::Interface { id, stability, .. } => {
-                    let prev = export_interfaces.insert(*id, (name.clone(), stability));
+                WorldItem::Interface { .. } => {
+                    let prev = export_interfaces.insert(name.clone(), item.clone());
                     assert!(prev.is_none());
                 }
                 WorldItem::Function(_) => {
@@ -2200,24 +2222,23 @@ impl Resolve {
     /// operation fails.
     fn elaborate_world_exports(
         &self,
-        export_interfaces: &IndexMap<InterfaceId, (WorldKey, &Stability)>,
+        export_interfaces: &IndexMap<WorldKey, WorldItem>,
         imports: &mut IndexMap<WorldKey, WorldItem>,
         exports: &mut IndexMap<WorldKey, WorldItem>,
         span: Span,
     ) -> ResolveResult<()> {
         let mut required_imports = HashSet::new();
-        for (id, (key, stability)) in export_interfaces.iter() {
+        for (key, item) in export_interfaces.iter() {
             let name = self.name_world_key(&key);
             let ok = add_world_export(
                 self,
                 imports,
                 exports,
-                export_interfaces,
+                &export_interfaces,
                 &mut required_imports,
-                *id,
-                key,
+                key.clone(),
+                item.clone(),
                 true,
-                stability,
             );
             if !ok {
                 // FIXME: this is not a great error message and basically no
@@ -2248,56 +2269,61 @@ impl Resolve {
             resolve: &Resolve,
             imports: &mut IndexMap<WorldKey, WorldItem>,
             exports: &mut IndexMap<WorldKey, WorldItem>,
-            export_interfaces: &IndexMap<InterfaceId, (WorldKey, &Stability)>,
+            export_interfaces: &IndexMap<WorldKey, WorldItem>,
             required_imports: &mut HashSet<InterfaceId>,
-            id: InterfaceId,
-            key: &WorldKey,
+            key: WorldKey,
+            item: WorldItem,
             add_export: bool,
-            stability: &Stability,
         ) -> bool {
-            if exports.contains_key(key) {
+            if exports.contains_key(&key) {
                 if add_export {
                     return true;
                 } else {
                     return false;
                 }
             }
-            // If this is an import and it's already in the `required_imports`
-            // set then we can skip it as we've already visited this interface.
+            let (id, stability) = match &item {
+                WorldItem::Interface { id, stability, .. } => (*id, stability),
+                _ => unreachable!(),
+            };
+            // If this is an import and it's already in the `imports` set then
+            // we can skip it as we've already visited this interface.
             if !add_export && required_imports.contains(&id) {
                 return true;
             }
             let ok = resolve.interface_direct_deps(id).all(|dep| {
+                let item = WorldItem::Interface {
+                    id: dep,
+                    stability: stability.clone(),
+                    span: Default::default(),
+                };
                 let key = WorldKey::Interface(dep);
-                let add_export = add_export && export_interfaces.contains_key(&dep);
+                let add_export = add_export && export_interfaces.contains_key(&key);
                 add_world_export(
                     resolve,
                     imports,
                     exports,
                     export_interfaces,
                     required_imports,
-                    dep,
-                    &key,
+                    key,
+                    item,
                     add_export,
-                    stability,
                 )
             });
             if !ok {
                 return false;
             }
-            let item = WorldItem::Interface {
-                id,
-                stability: stability.clone(),
-                span: Default::default(),
-            };
             if add_export {
                 if required_imports.contains(&id) {
                     return false;
                 }
-                exports.insert(key.clone(), item);
+                let prev = exports.insert(key.clone(), item);
+                assert!(prev.is_none());
             } else {
                 required_imports.insert(id);
-                imports.insert(key.clone(), item);
+                if !imports.contains_key(&key) {
+                    imports.insert(key.clone(), item);
+                }
             }
             true
         }
@@ -2838,92 +2864,293 @@ impl Resolve {
     /// jobs much easier because now Id-uniqueness matches the semantic meaning
     /// of the world as well.
     ///
-    /// This function will rewrite exported interfaces, as appropriate, to all
-    /// have unique ids if they would otherwise overlap with the imports.
-    pub fn generate_nominal_type_ids(&mut self, world: WorldId) {
-        let mut imports = HashSet::new();
-
-        // Build up a list of all imported interfaces, they're not changing and
-        // this is used to test for overlap between imports/exports.
-        for import in self.worlds[world].imports.values() {
-            if let WorldItem::Interface { id, .. } = import {
-                imports.insert(*id);
-            }
-        }
-
-        let mut to_clone = IndexMap::default();
-        for (i, export) in self.worlds[world].exports.values().enumerate() {
-            let id = match export {
-                WorldItem::Interface { id, .. } => *id,
-
-                // Functions can only refer to imported types so there's no need
-                // to rewrite anything as imports always stay as-is.
-                WorldItem::Function(_) => continue,
-
-                WorldItem::Type { .. } => unreachable!(),
-            };
-
-            // If this interface itself is both imported and exported, or if any
-            // dependency of this interface is rewritten, then the interface
-            // itself needs to be rewritten. Otherwise continue onwards.
-            let imported_and_exported = imports.contains(&id);
-            let any_dep_rewritten = self
-                .interface_direct_deps(id)
-                .any(|dep| to_clone.contains_key(&dep));
-            if !(imported_and_exported || any_dep_rewritten) {
-                continue;
-            }
-
-            to_clone.insert(id, i);
-        }
-
+    /// This function will rewrite imported/exported interfaces, as appropriate,
+    /// to all have unique ids if they would otherwise overlap with the imports.
+    pub fn generate_nominal_type_ids(&mut self, world_id: WorldId) {
+        let mut seen = HashSet::new();
+        let mut interface_keys_rewritten = HashSet::new();
         let mut maps = CloneMaps::default();
-        let mut cloner = clone::Cloner::new(
-            self,
+
+        // Pull out the imports/exports from `self` to have simultaneous
+        // borrows.
+        let world = &mut self.worlds[world_id];
+        let mut imports = mem::take(&mut world.imports);
+        let mut exports = mem::take(&mut world.exports);
+
+        // Notably visit `imports` first as they always get priority in the
+        // order of having things imported from them. After `imports` are
+        // visited then process all `exports`.
+        log::trace!("nominalizing world imports");
+        self.nominalize_world_items(
             &mut maps,
-            TypeOwner::World(world),
-            TypeOwner::World(world),
+            world_id,
+            &mut imports,
+            &mut seen,
+            &mut interface_keys_rewritten,
         );
-        for (id, i) in to_clone {
-            // First, clone the interface. This'll make a `new_id`, and then we
-            // need to update the world to point to this new id. Note that the
-            // clones happen topologically here (due to iterating in-order
-            // above) and the `CloneMaps` are shared amongst interfaces. This
-            // means that future clones will use the types produced here too.
-            let mut new_id = id;
-            cloner.new_package = cloner.resolve.interfaces[new_id].package;
-            cloner.interface(&mut new_id);
+        log::trace!("nominalizing world exports");
+        self.nominalize_world_items(
+            &mut maps,
+            world_id,
+            &mut exports,
+            &mut seen,
+            &mut interface_keys_rewritten,
+        );
 
-            // Load up the previous `key` and go ahead and mutate the
-            // `WorldItem` in place which is guaranteed to be an `Interface`
-            // because of the loop above.
-            let exports = &mut cloner.resolve.worlds[world].exports;
-            let (key, prev) = exports.get_index_mut(i).unwrap();
-            match prev {
-                WorldItem::Interface { id, .. } => *id = new_id,
-                _ => unreachable!(),
-            }
-
-            match key {
-                // If the key for this is an `Interface` then that means we
-                // need to update the key as well. Here that's replaced by-index
-                // in the `IndexMap` to preserve the same ordering as before,
-                // and this operation should always succeed since `new_id` is
-                // fresh, hence the `unwrap()`.
-                WorldKey::Interface(_) => {
-                    exports
-                        .replace_index(i, WorldKey::Interface(new_id))
-                        .unwrap();
-                }
-
-                // Name-based keys don't need updating as they only contain a
-                // string, no ids.
-                WorldKey::Name(_) => {}
-            }
-        }
+        // Put that thing back where it came from, or so help me!
+        let world = &mut self.worlds[world_id];
+        assert!(world.imports.is_empty());
+        assert!(world.exports.is_empty());
+        world.imports = imports;
+        world.exports = exports;
 
         #[cfg(debug_assertions)]
         self.assert_valid();
+    }
+
+    /// Implementation of `generate_nominal_type_ids` which processes either a
+    /// world's imports or exports as specified in `items`.
+    ///
+    /// The parameters here are:
+    ///
+    /// * `maps` - the set of types that have previously been cloned by the
+    ///   previous stage, if any. This is used to update any dependencies of an
+    ///   interface that is cloned.
+    ///
+    /// * `world` - the world that's being nominalized.
+    ///
+    /// * `items` - either `imports` or `exports` for the `world`. This is
+    ///   mutated in-place to have keys/items rewritten as-needed.
+    ///
+    /// * `seen` - the set of interfaces that have been seen previously when
+    ///   iterating over this world. All interfaces processed are added to this
+    ///   set.
+    ///
+    /// * `interface_keys_rewritten` - a distinct set from `seen` which only
+    ///   tracks rewritten interfaces which have `WorldKey::Interface`. This is
+    ///   the set of interfaces which dependencies can pull types from, which
+    ///   needs to be tracked separately to know when to rewrite.
+    fn nominalize_world_items(
+        &mut self,
+        maps: &mut CloneMaps,
+        world: WorldId,
+        items: &mut IndexMap<WorldKey, WorldItem>,
+        seen: &mut HashSet<InterfaceId>,
+        interface_keys_rewritten: &mut HashSet<InterfaceId>,
+    ) {
+        // Overall the problem that this function is trying to solve is not an
+        // easy one. The input is an AST-like structure and the goal of this
+        // function is to effectively perform a name resolution pass. The end
+        // result is that if a thing points to another thing (e.g. type-use or
+        // interface id) then that represents the actual name resolution of what
+        // it points to.
+        //
+        // Currently, though, this isn't really a full-blown name resolution
+        // pass. This is a pretty simple "do things in the right order" and name
+        // resolution pops out. The conventions of WIT and how it translates to
+        // components is what falls out of this loop below.
+        //
+        // The first rule of WIT is that interfaces can only use types from
+        // other interface imports/exports. This notably excludes named imports.
+        // For example:
+        //
+        //      interface a {
+        //          type t = u32;
+        //      }
+        //
+        //      interface b {
+        //          use a.{t};
+        //      }
+        //
+        //      world w {
+        //          import a;
+        //          import b; // uses `import a`
+        //          import c: b; // also uses `import a`
+        //          import d: interface {
+        //              use a.{t}; // uses `import a`
+        //          }
+        //      }
+        //
+        // The next rule is that exported interfaces will use types from
+        // imports, unless the interface is also exported. For example:
+        //
+        //      interface a {
+        //          type t = u32;
+        //      }
+        //
+        //      interface b {
+        //          use a.{t};
+        //      }
+        //
+        //      world w1 {
+        //          import a;
+        //
+        //          export b; // uses `import a`
+        //          export c: b; // uses `import a`
+        //          export d: interface {
+        //              use a.{t}; // uses `import a`
+        //          }
+        //      }
+        //
+        //      world w2 {
+        //          export a;
+        //          export b; // uses `export a`
+        //          export c: b; // uses `export a`
+        //          export d: interface {
+        //              use a.{t}; // uses `export a`
+        //          }
+        //      }
+        //
+        // Finally, named imports, such as `import a: b` and `import a:
+        // interface { ... }` cannot be used by anything. They can only
+        // reference types in other interface imports/exports.
+        //
+        // Overall this is a pretty simplistic system. It's "good enough" for
+        // now but will almost certainly be expanded over time. The hope is that
+        // expanding this involves making this function more complicated but
+        // ideally nowhere else.
+
+        // Given all that intro, the first thing we need to prioritize is that
+        // `WorldKey::Name`'d interfaces are visited after `WorldKey::Interface`
+        // interfaces. This is a bit of a weird result of how this function is
+        // implemented right now. This visit order is a bit of a hack and
+        // probably won't live beyond making WIT more powerful.
+        //
+        // Anyway, the reason for this has to do with the `CloneMaps` down
+        // below. Basically what we're doing here is cloning interfaces, but
+        // when doing so we need to be able to rewrite references to
+        // previously-cloned interfaces if need be. `CloneMaps` represents the
+        // aggregate results of all previous clones. Due to named interfaces
+        // never being importable-from it means that mutations to `CloneMaps`
+        // are discarded when named interfaces are cloned. The trick here
+        // happens where this unconditionally preserves all modifications to
+        // `CloneMaps` for `WorldKey::Interface` clones. Behaivor then "falls
+        // out" where references to cloned interfaces are naturally rewritten.
+        //
+        // This all falls down, however, if an import is cloned and recorded.
+        // Interfaces can be both exported and imported, which would mean that
+        // the import and export are both cloned, and both need to be preserved
+        // in `CloneMaps`. Right now `CloneMaps` requires uniqueness when
+        // cloning (e.g. can't clone the same thing twice).
+        //
+        // Long story short: it's a hack that sort order here is the way it is.
+        // Sorry. Be prepared to delete this should WIT get more powerful.
+        let mut order = items.iter().enumerate().collect::<Vec<_>>();
+        order.sort_by_key(|(_, (key, item))| match (key, item) {
+            (WorldKey::Name(_), WorldItem::Interface { .. }) => 1,
+            _ => 0,
+        });
+        let mut to_rewrite = IndexMap::default();
+        for (i, (key, item)) in order {
+            let id = match item {
+                WorldItem::Interface { id, .. } => *id,
+
+                // Functions/types aren't rewritten, they're all nominal at the
+                // world-level anyway.
+                WorldItem::Function(_) | WorldItem::Type { .. } => continue,
+            };
+
+            // If this interface itself is being visited for the second time
+            // (e.g. imported & exported, imported twice, exported twice, etc),
+            // or if any dependency of this interface is rewritten, then the
+            // interface itself needs to be rewritten. Otherwise continue
+            // onwards.
+            let duplicated = !seen.insert(id);
+            let any_dep_rewritten = self
+                .interface_direct_deps(id)
+                .any(|dep| interface_keys_rewritten.contains(&dep));
+            if !(duplicated || any_dep_rewritten) {
+                log::trace!("{} already nominal", self.name_world_key(key));
+                continue;
+            }
+            log::trace!("{} getting rewritten nominal", self.name_world_key(key));
+
+            // If this is `WorldKey::Interface` then register this in the
+            // `interface_keys_rewritten` map, and also plumb this through to
+            // the rewriting stage to know whether `maps` needs to be reset or
+            // not.
+            let is_name = matches!(key, WorldKey::Name(_));
+            if !is_name {
+                assert!(interface_keys_rewritten.insert(id));
+            }
+
+            to_rewrite
+                .entry(id)
+                .or_insert(Vec::new())
+                .push((i, is_name));
+        }
+
+        // Now that we know what to rewrite, rewrite everything.
+        //
+        // The trickiest part here is deciding what to do with `maps`. As
+        // interfaces are cloned they'll record all remappings of
+        // types/interfaces/etc within `maps`. We don't want to persist
+        // everything because if an interface is cloned twice then everything
+        // will get overwritten/corrupted within the map. In theory what we want
+        // is for `maps` to track, for any one interface, just the transitive
+        // set of dependencies for that interface and how they've been cloned.
+        // What's implemented here is an approximation of this that should work
+        // for now.
+        //
+        // Notably `to_rewrite` is an ordered list keyed by `InterfaceId`. This
+        // means that if we walk `to_rewrite` in order we're walking this in
+        // topological order. Second we then additionally sort the `list` for
+        // each `to_rewrite` entry to ensure that all `WorldKey::Name` items are
+        // visited first. In doing so we also discard all mutations to `maps`
+        // after visiting is done. In effect what this does is it discards all
+        // modifications due to `WorldKey::Name`, because nothing can depend on
+        // those interfaces, and then it preserves modifications for
+        // `WorldKey::Interface`, which other interfaces can indeed depend on.
+        // In the end this basically does a very careful walk over a very
+        // careful organization of `to_rewrite`.
+        //
+        // This'll need massive refactoring if WIT gets the ability to express
+        // arbitrary edges between interfaces. It's WIT-level restriction right
+        // now of sorts. There's no current way to model a `import a: i;` where
+        // `i`'s dependencies are pulled from `import b: dep`, for example.
+        // Right now if `i` depends on `dep` then that just always results in
+        // `import dep`.
+        for (id, mut list) in to_rewrite {
+            list.sort_by_key(|(_, is_name)| if *is_name { 0 } else { 1 });
+            for (i, is_name) in list {
+                let prev_maps = if is_name { Some(maps.clone()) } else { None };
+
+                let mut cloner = clone::Cloner::new(
+                    self,
+                    maps,
+                    TypeOwner::World(world),
+                    TypeOwner::World(world),
+                );
+
+                let mut new_id = id;
+                cloner.new_package = cloner.resolve.interfaces[id].package;
+                cloner.interface(&mut new_id);
+                let (key, prev) = items.get_index_mut(i).unwrap();
+                match prev {
+                    WorldItem::Interface { id, .. } => *id = new_id,
+                    _ => unreachable!(),
+                }
+
+                match key {
+                    // If the key for this is an `Interface` then that means we
+                    // need to update the key as well. Here that's replaced by-index
+                    // in the `IndexMap` to preserve the same ordering as before,
+                    // and this operation should always succeed since `new_id` is
+                    // fresh, hence the `unwrap()`.
+                    WorldKey::Interface(_) => {
+                        items.replace_index(i, WorldKey::Interface(new_id)).unwrap();
+                    }
+
+                    // Name-based keys don't need updating as they only contain a
+                    // string, no ids.
+                    WorldKey::Name(_) => {}
+                }
+
+                if let Some(prev) = prev_maps {
+                    *maps = prev;
+                }
+            }
+        }
     }
 }
 

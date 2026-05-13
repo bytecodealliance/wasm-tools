@@ -72,9 +72,8 @@ pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentTyp
     log::trace!("encoding world {}", world.name);
 
     // Encode the imports
-    for (name, import) in world.imports.iter() {
-        let name = resolve.name_world_key(name);
-        log::trace!("encoding import {name}");
+    for (key, import) in world.imports.iter() {
+        log::trace!("encoding import {}", resolve.name_world_key(key));
         let ty = match import {
             WorldItem::Interface { id, .. } => {
                 component.interface = Some(*id);
@@ -94,12 +93,13 @@ pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentTyp
                 continue;
             }
         };
-        component.outer.import(&name, ty);
+        component
+            .outer
+            .import(component_extern_name(resolve, key, import), ty);
     }
     // Encode the exports
-    for (name, export) in world.exports.iter() {
-        let name = resolve.name_world_key(name);
-        log::trace!("encoding export {name}");
+    for (key, export) in world.exports.iter() {
+        log::trace!("encoding export {}", resolve.name_world_key(key));
         let ty = match export {
             WorldItem::Interface { id, .. } => {
                 component.interface = Some(*id);
@@ -113,10 +113,23 @@ pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentTyp
             }
             WorldItem::Type { .. } => unreachable!(),
         };
-        component.outer.export(&name, ty);
+        component
+            .outer
+            .export(component_extern_name(resolve, key, export), ty);
     }
 
     Ok(component.outer)
+}
+
+fn component_extern_name(
+    resolve: &Resolve,
+    key: &WorldKey,
+    item: &WorldItem,
+) -> wasm_encoder::ComponentExternName<'static> {
+    ComponentExternName {
+        name: resolve.name_world_key(key).into(),
+        implements: resolve.implements_value(key, item).map(|s| s.into()),
+    }
 }
 
 struct Encoder<'a> {
@@ -132,7 +145,7 @@ impl Encoder<'_> {
             let component_ty = self.encode_interface(id)?;
             let ty = self.component.type_component(Some(name), &component_ty);
             self.component
-                .export(name.as_ref(), ComponentExportKind::Type, ty, None);
+                .export(name, ComponentExportKind::Type, ty, None);
         }
 
         // For each `world` encode it directly as a component and then create a
@@ -144,11 +157,11 @@ impl Encoder<'_> {
             let mut wrapper = ComponentType::new();
             wrapper.ty().component(&component_ty);
             let pkg = &self.resolve.packages[world.package.unwrap()];
-            wrapper.export(&pkg.name.interface_id(name), ComponentTypeRef::Component(0));
+            wrapper.export(pkg.name.interface_id(name), ComponentTypeRef::Component(0));
 
             let ty = self.component.type_component(Some(name), &wrapper);
             self.component
-                .export(name.as_ref(), ComponentExportKind::Type, ty, None);
+                .export(name, ComponentExportKind::Type, ty, None);
         }
 
         Ok(())
@@ -186,7 +199,7 @@ impl Encoder<'_> {
             if interface == id {
                 let idx = encoder.encode_instance(interface)?;
                 log::trace!("exporting self as {idx}");
-                encoder.outer.export(&name, ComponentTypeRef::Instance(idx));
+                encoder.outer.export(name, ComponentTypeRef::Instance(idx));
             } else {
                 encoder.push_instance();
                 for (_, id) in iface.types.iter() {
@@ -197,7 +210,7 @@ impl Encoder<'_> {
                 encoder.outer.ty().instance(&instance);
                 encoder.import_map.insert(interface, encoder.instances);
                 encoder.instances += 1;
-                encoder.outer.import(&name, ComponentTypeRef::Instance(idx));
+                encoder.outer.import(name, ComponentTypeRef::Instance(idx));
             }
         }
 

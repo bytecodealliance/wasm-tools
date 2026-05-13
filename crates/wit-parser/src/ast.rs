@@ -209,7 +209,7 @@ impl<'a> DeclList<'a> {
                                 }
                                 Ok(())
                             }
-                            ExternKind::Path(path) => {
+                            ExternKind::Path(path) | ExternKind::NamedPath(_, path) => {
                                 f(None, attrs, path, None, WorldOrInterface::Interface)
                             }
                             ExternKind::Func(..) => Ok(()),
@@ -484,6 +484,8 @@ enum ExternKind<'a> {
     Interface(Id<'a>, Vec<InterfaceItem<'a>>),
     Path(UsePath<'a>),
     Func(Id<'a>, Func<'a>),
+    /// `label: use-path` — a named import/export that implements an interface.
+    NamedPath(Id<'a>, UsePath<'a>),
 }
 
 impl<'a> ExternKind<'a> {
@@ -512,6 +514,26 @@ impl<'a> ExternKind<'a> {
                 *tokens = clone;
                 return Ok(ExternKind::Interface(id, Interface::parse_items(tokens)?));
             }
+
+            // import label: use-path
+            // At this point we consumed `id:` on the clone but the next token
+            // is not `func`, `async`, or `interface`. This could be either:
+            //   import label: local-iface;          (NamedPath)
+            //   import label: pkg:name/iface;       (NamedPath with package path)
+            //   import ns:pkg/iface;                (regular fully-qualified Path)
+            //
+            // Disambiguate: if the next tokens are `id /`, then the colon was
+            // part of a fully-qualified `namespace:package/interface` name, not
+            // a label separator. Fall through to the Path parser in that case.
+            let mut peek = clone.clone();
+            let is_qualified_path =
+                parse_id(&mut peek).is_ok() && peek.clone().eat(Token::Slash).unwrap_or(false);
+            if !is_qualified_path {
+                *tokens = clone;
+                let path = UsePath::parse(tokens)?;
+                tokens.expect_semicolon()?;
+                return Ok(ExternKind::NamedPath(id, path));
+            }
         }
 
         // import foo
@@ -528,6 +550,7 @@ impl<'a> ExternKind<'a> {
             ExternKind::Path(UsePath::Id(id)) => id.span,
             ExternKind::Path(UsePath::Package { name, .. }) => name.span,
             ExternKind::Func(id, _) => id.span,
+            ExternKind::NamedPath(id, _) => id.span,
         }
     }
 }

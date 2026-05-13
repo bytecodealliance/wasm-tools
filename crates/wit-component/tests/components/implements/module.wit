@@ -1,0 +1,19 @@
+package a:b;
+
+world module {
+  import a: interface {
+    f: func();
+  }
+  import b: i;
+  import c: i;
+
+  export a: interface {
+    f: func();
+  }
+  export b: i;
+  export c: i;
+}
+
+interface i {
+  f: func();
+}

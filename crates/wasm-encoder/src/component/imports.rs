@@ -2,6 +2,8 @@ use crate::{
     ComponentExportKind, ComponentSection, ComponentSectionId, ComponentValType, Encode,
     encode_section,
 };
+use alloc::borrow::Cow;
+use alloc::string::String;
 use alloc::vec::Vec;
 
 /// Represents the possible type bounds for type references.
@@ -131,8 +133,12 @@ impl ComponentImportSection {
     }
 
     /// Define an import in the component import section.
-    pub fn import(&mut self, name: &str, ty: ComponentTypeRef) -> &mut Self {
-        encode_component_import_name(&mut self.bytes, name);
+    pub fn import<'a>(
+        &mut self,
+        name: impl Into<ComponentExternName<'a>>,
+        ty: ComponentTypeRef,
+    ) -> &mut Self {
+        name.into().encode(&mut self.bytes);
         ty.encode(&mut self.bytes);
         self.num_added += 1;
         self
@@ -151,20 +157,91 @@ impl ComponentSection for ComponentImportSection {
     }
 }
 
-/// Prior to WebAssembly/component-model#263 import and export names were
-/// discriminated with a leading byte indicating what kind of import they are.
-/// After that PR though names are always prefixed with a 0x00 byte.
-///
-/// On 2023-10-28 in bytecodealliance/wasm-tools#1262 was landed to start
-/// transitioning to "always lead with 0x00". That updated the validator/parser
-/// to accept either 0x00 or 0x01 but the encoder wasn't updated at the time.
-///
-/// On 2024-09-03 in bytecodealliance/wasm-tools#TODO this encoder was updated
-/// to always emit 0x00 as a leading byte.
-///
-/// This function corresponds with the `importname'` production in the
-/// specification.
-pub(crate) fn encode_component_import_name(bytes: &mut Vec<u8>, name: &str) {
-    bytes.push(0x00);
-    name.encode(bytes);
+/// Full options for encoding a component name.
+#[derive(Debug, Clone)]
+pub struct ComponentExternName<'a> {
+    /// The name to encode.
+    pub name: Cow<'a, str>,
+    /// An optional `(implements ...)` directive (See 🏷️ in the component model
+    /// explainer).
+    pub implements: Option<Cow<'a, str>>,
+}
+
+impl Encode for ComponentExternName<'_> {
+    fn encode(&self, bytes: &mut Vec<u8>) {
+        let mut options = Vec::new();
+
+        if let Some(s) = &self.implements {
+            options.push((0x00, s.as_bytes()));
+        }
+
+        if options.is_empty() {
+            // Prior to WebAssembly/component-model#263 import and export names
+            // were discriminated with a leading byte indicating what kind of
+            // import they are.  After that PR though names are always prefixed
+            // with a 0x00 byte.
+            //
+            // On 2023-10-28 in bytecodealliance/wasm-tools#1262 was landed to
+            // start transitioning to "always lead with 0x00". That updated the
+            // validator/parser to accept either 0x00 or 0x01 but the encoder
+            // wasn't updated at the time.
+            //
+            // On 2024-09-03 in bytecodealliance/wasm-tools#TODO this encoder
+            // was updated to always emit 0x00 as a leading byte.
+            //
+            // This corresponds with the `importname'` production in the
+            // specification.
+            bytes.push(0x00);
+        } else {
+            bytes.push(0x02);
+        }
+
+        self.name.encode(bytes);
+
+        if !options.is_empty() {
+            options.len().encode(bytes);
+            for (kind, val) in options {
+                bytes.push(kind);
+                val.encode(bytes);
+            }
+        }
+    }
+}
+
+impl<'a> From<&'a str> for ComponentExternName<'a> {
+    fn from(name: &'a str) -> Self {
+        ComponentExternName {
+            name: Cow::Borrowed(name),
+            implements: None,
+        }
+    }
+}
+
+impl<'a> From<&'a String> for ComponentExternName<'a> {
+    fn from(name: &'a String) -> Self {
+        ComponentExternName {
+            name: Cow::Borrowed(name),
+            implements: None,
+        }
+    }
+}
+
+impl<'a> From<String> for ComponentExternName<'a> {
+    fn from(name: String) -> Self {
+        ComponentExternName {
+            name: Cow::Owned(name),
+            implements: None,
+        }
+    }
+}
+
+#[cfg(feature = "wasmparser")]
+impl<'a> From<wasmparser::ComponentExternName<'a>> for ComponentExternName<'a> {
+    fn from(name: wasmparser::ComponentExternName<'a>) -> Self {
+        let wasmparser::ComponentExternName { name, implements } = name;
+        ComponentExternName {
+            name: name.into(),
+            implements: implements.map(|s| s.into()),
+        }
+    }
 }

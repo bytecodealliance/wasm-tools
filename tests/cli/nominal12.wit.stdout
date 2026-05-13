@@ -1,0 +1,167 @@
+{
+  "worlds": [
+    {
+      "name": "foo",
+      "imports": {
+        "interface-0": {
+          "interface": {
+            "id": 0
+          }
+        },
+        "a": {
+          "interface": {
+            "id": 1
+          }
+        },
+        "b": {
+          "interface": {
+            "id": 2
+          }
+        }
+      },
+      "exports": {
+        "interface-3": {
+          "interface": {
+            "id": 3
+          }
+        },
+        "a": {
+          "interface": {
+            "id": 4
+          }
+        },
+        "b": {
+          "interface": {
+            "id": 5
+          }
+        }
+      },
+      "package": 0
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "dep",
+      "types": {
+        "t": 0
+      },
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": "i",
+      "types": {
+        "t": 1
+      },
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": "i",
+      "types": {
+        "t": 2
+      },
+      "functions": {},
+      "package": 0,
+      "clone_of": 1
+    },
+    {
+      "name": "dep",
+      "types": {
+        "t": 3
+      },
+      "functions": {},
+      "package": 0,
+      "clone_of": 0
+    },
+    {
+      "name": "i",
+      "types": {
+        "t": 4
+      },
+      "functions": {},
+      "package": 0,
+      "clone_of": 1
+    },
+    {
+      "name": "i",
+      "types": {
+        "t": 5
+      },
+      "functions": {},
+      "package": 0,
+      "clone_of": 1
+    }
+  ],
+  "types": [
+    {
+      "name": "t",
+      "kind": {
+        "type": "u32"
+      },
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "name": "t",
+      "kind": {
+        "type": 0
+      },
+      "owner": {
+        "interface": 1
+      }
+    },
+    {
+      "name": "t",
+      "kind": {
+        "type": 0
+      },
+      "owner": {
+        "interface": 2
+      }
+    },
+    {
+      "name": "t",
+      "kind": {
+        "type": "u32"
+      },
+      "owner": {
+        "interface": 3
+      }
+    },
+    {
+      "name": "t",
+      "kind": {
+        "type": 3
+      },
+      "owner": {
+        "interface": 4
+      }
+    },
+    {
+      "name": "t",
+      "kind": {
+        "type": 3
+      },
+      "owner": {
+        "interface": 5
+      }
+    }
+  ],
+  "packages": [
+    {
+      "name": "a:b",
+      "docs": {
+        "contents": "RUN: component wit --generate-nominal-type-ids foo % --json"
+      },
+      "interfaces": {
+        "dep": 0,
+        "i": 1
+      },
+      "worlds": {
+        "foo": 0
+      }
+    }
+  ]
+}

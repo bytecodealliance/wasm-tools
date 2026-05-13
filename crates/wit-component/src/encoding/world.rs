@@ -49,6 +49,7 @@ pub struct ComponentWorld<'a> {
 pub struct ImportedInterface {
     pub lowerings: IndexMap<(String, AbiVariant), Lowering>,
     pub interface: Option<InterfaceId>,
+    pub implements: Option<String>,
 }
 
 #[derive(Debug)]
@@ -244,11 +245,11 @@ impl<'a> ComponentWorld<'a> {
         fn add_item(
             import_map: &mut IndexMap<Option<String>, ImportedInterface>,
             resolve: &Resolve,
-            name: &WorldKey,
+            key: &WorldKey,
             item: &WorldItem,
             required: &Required<'_>,
         ) -> Result<()> {
-            let name = resolve.name_world_key(name);
+            let name = resolve.name_world_key(key);
             log::trace!("register import `{name}`");
             let import_map_key = match item {
                 WorldItem::Function(_) | WorldItem::Type { .. } => None,
@@ -258,13 +259,16 @@ impl<'a> ComponentWorld<'a> {
                 WorldItem::Function(_) | WorldItem::Type { .. } => None,
                 WorldItem::Interface { id, .. } => Some(*id),
             };
+            let implements = resolve.implements_value(key, item);
             let interface = import_map
                 .entry(import_map_key)
                 .or_insert_with(|| ImportedInterface {
                     interface: interface_id,
                     lowerings: Default::default(),
+                    implements: implements.clone(),
                 });
             assert_eq!(interface.interface, interface_id);
+            assert_eq!(interface.implements, implements);
             match item {
                 WorldItem::Function(func) => {
                     interface.add_func(required, resolve, func);
@@ -447,7 +451,7 @@ impl<'a> ComponentWorld<'a> {
         let world = self.encoder.metadata.world;
 
         let exports = &resolve.worlds[world].exports;
-        for (_name, item) in exports.iter() {
+        for (_key, item) in exports.iter() {
             let id = match item {
                 WorldItem::Function(_) => continue,
                 WorldItem::Interface { id, .. } => *id,
@@ -456,9 +460,10 @@ impl<'a> ComponentWorld<'a> {
             let mut set = HashSet::new();
 
             for other in resolve.interface_direct_deps(id) {
+                let key = WorldKey::Interface(other);
                 // If this dependency is not exported, then it'll show up
                 // through an import, so we're not interested in it.
-                if !exports.contains_key(&WorldKey::Interface(other)) {
+                if !exports.contains_key(&key) {
                     continue;
                 }
 

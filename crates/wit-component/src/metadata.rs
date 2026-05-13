@@ -280,7 +280,7 @@ pub fn encode(
     let mut outer_ty = ComponentType::new();
     outer_ty.ty().component(&ty);
     outer_ty.export(
-        &resolve.id_of_name(world.package.unwrap(), &world.name),
+        resolve.id_of_name(world.package.unwrap(), &world.name),
         ComponentTypeRef::Component(0),
     );
 

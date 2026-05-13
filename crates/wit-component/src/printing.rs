@@ -471,11 +471,17 @@ impl<O: Output> WitPrinter<O> {
                     WorldItem::Interface { id, .. } => {
                         self.print_name_type(name, TypeKind::Other);
                         self.output.str(": ");
-                        assert!(resolve.interfaces[*id].name.is_none());
-                        self.output.keyword("interface");
-                        self.output.indent_start();
-                        self.print_interface(resolve, *id)?;
-                        self.output.indent_end();
+                        if resolve.interfaces[*id].name.is_none() {
+                            // `import label: interface { .. }` syntax
+                            self.output.keyword("interface");
+                            self.output.indent_start();
+                            self.print_interface(resolve, *id)?;
+                            self.output.indent_end();
+                        } else {
+                            // `import label: use-path;` syntax
+                            self.print_path_to_interface(resolve, *id, cur_pkg)?;
+                            self.output.semicolon();
+                        }
                     }
                     WorldItem::Function(f) => {
                         self.print_name_type(&f.name, TypeKind::Other);

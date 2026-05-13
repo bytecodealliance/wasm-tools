@@ -21,7 +21,7 @@ use crate::*;
 
 /// Represents the results of cloning types and/or interfaces as part of a
 /// `Resolve::merge_worlds` operation.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct CloneMaps {
     pub(super) types: HashMap<TypeId, TypeId>,
     pub(super) interfaces: HashMap<InterfaceId, InterfaceId>,
@@ -98,6 +98,11 @@ impl<'a> Cloner<'a> {
                 self.function(f);
             }
             WorldItem::Interface { id, .. } => {
+                // Only clone anonymous interfaces, for named interfaces they're
+                // left as-is for worlds.
+                if self.resolve.interfaces[*id].name.is_some() {
+                    return;
+                }
                 self.interface(id);
             }
         }
