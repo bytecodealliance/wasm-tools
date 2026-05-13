@@ -864,7 +864,7 @@ impl<'a> EncodingState<'a> {
             let ty = nested.encode_func_type(resolve, func)?;
             nested
                 .component
-                .import(import_func_name(func), ComponentTypeRef::Func(ty));
+                .import(&import_func_name(func), ComponentTypeRef::Func(ty));
         }
 
         // Swap the `nested.type_map` which was previously from `TypeId` to
@@ -911,7 +911,7 @@ impl<'a> EncodingState<'a> {
             match ty.kind {
                 TypeDefKind::Resource => {
                     let idx = nested.component.export(
-                        ty.name.as_deref().expect("resources must be named"),
+                        ty.name.as_ref().expect("resources must be named"),
                         ComponentExportKind::Type,
                         resources[id],
                         None,
@@ -1810,8 +1810,8 @@ impl<'a> EncodingState<'a> {
                     Ok(self.materialize_shim_import(
                         shims,
                         &ShimKind::TaskReturn {
-                            interface: *interface,
                             for_module,
+                            interface: *interface,
                             func: &func.name,
                             result: result_ty,
                             encoding,
