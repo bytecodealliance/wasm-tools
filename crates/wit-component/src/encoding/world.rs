@@ -42,7 +42,7 @@ pub struct ComponentWorld<'a> {
     ///
     /// This set is used to determine when types are imported/used whether they
     /// come from imports or exports.
-    pub exports_used: HashMap<WorldKey, HashSet<InterfaceId>>,
+    pub exports_used: HashMap<InterfaceId, HashSet<InterfaceId>>,
 }
 
 #[derive(Debug)]
@@ -327,7 +327,7 @@ impl<'a> ComponentWorld<'a> {
                 }
             };
 
-            let exports_used = &self.exports_used[name];
+            let exports_used = &self.exports_used[id];
             let mut live_from_export = LiveTypes::default();
             live_from_export.add_world_item(resolve, item);
             for ty in live_from_export.iter() {
@@ -451,7 +451,7 @@ impl<'a> ComponentWorld<'a> {
         let world = self.encoder.metadata.world;
 
         let exports = &resolve.worlds[world].exports;
-        for (key, item) in exports.iter() {
+        for (_key, item) in exports.iter() {
             let id = match item {
                 WorldItem::Function(_) => continue,
                 WorldItem::Interface { id, .. } => *id,
@@ -471,10 +471,10 @@ impl<'a> ComponentWorld<'a> {
                 // additionally this interface inherits all the transitive
                 // dependencies too.
                 if set.insert(other) {
-                    set.extend(self.exports_used[&key].iter().copied());
+                    set.extend(self.exports_used[&other].iter().copied());
                 }
             }
-            let prev = self.exports_used.insert(key.clone(), set);
+            let prev = self.exports_used.insert(id, set);
             assert!(prev.is_none());
         }
     }

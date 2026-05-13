@@ -808,7 +808,7 @@ impl<'a> EncodingState<'a> {
         // all the type information to the outer context.
         let mut types_to_import = LiveTypes::default();
         types_to_import.add_interface(resolve, export);
-        let exports_used = &nested.state.info.exports_used[key];
+        let exports_used = &nested.state.info.exports_used[&export];
         for ty in types_to_import.iter() {
             if let TypeOwner::Interface(owner) = resolve.types[ty].owner {
                 if owner == export {
