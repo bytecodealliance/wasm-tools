@@ -2939,19 +2939,110 @@ impl Resolve {
         seen: &mut HashSet<InterfaceId>,
         interface_keys_rewritten: &mut HashSet<InterfaceId>,
     ) {
-        // The loop below fundamentally requires that `WorldKey::Interface` is
-        // visited before any `WorldKey::Name` which may refer to the same
-        // interface. To ensure this property is upheld `WorldKey::Name`
-        // interfaces are sorted to the back of the list of items. At this time
-        // `WorldKey::Name`'d interfaces cannot depend on each other, meaning
-        // that this should always preserve topological sorting as well.
-        items.sort_by_key(|key, item| match (key, item) {
+        // Overall the problem that this function is trying to solve is not an
+        // easy one. The input is an AST-like structure and the goal of this
+        // function is to effectively perform a name resolution pass. The end
+        // result is that if a thing points to another thing (e.g. type-use or
+        // interface id) then that represents the actual name resolution of what
+        // it points to.
+        //
+        // Currently, though, this isn't really a full-blown name resolution
+        // pass. This is a pretty simple "do things in the right order" and name
+        // resolution pops out. The conventions of WIT and how it translates to
+        // components is what falls out of this loop below.
+        //
+        // The first rule of WIT is that interfaces can only use types from
+        // other interface imports/exports. This notably excludes named imports.
+        // For example:
+        //
+        //      interface a {
+        //          type t = u32;
+        //      }
+        //
+        //      interface b {
+        //          use a.{t};
+        //      }
+        //
+        //      world w {
+        //          import a;
+        //          import b; // uses `import a`
+        //          import c: b; // also uses `import a`
+        //          import d: interface {
+        //              use a.{t}; // uses `import a`
+        //          }
+        //      }
+        //
+        // The next rule is that exported interfaces will use types from
+        // imports, unless the interface is also exported. For example:
+        //
+        //      interface a {
+        //          type t = u32;
+        //      }
+        //
+        //      interface b {
+        //          use a.{t};
+        //      }
+        //
+        //      world w1 {
+        //          import a;
+        //
+        //          export b; // uses `import a`
+        //          export c: b; // uses `import a`
+        //          export d: interface {
+        //              use a.{t}; // uses `import a`
+        //          }
+        //      }
+        //
+        //      world w2 {
+        //          export a;
+        //          export b; // uses `export a`
+        //          export c: b; // uses `export a`
+        //          export d: interface {
+        //              use a.{t}; // uses `export a`
+        //          }
+        //      }
+        //
+        // Finally, named imports, such as `import a: b` and `import a:
+        // interface { ... }` cannot be used by anything. They can only
+        // reference types in other interface imports/exports.
+        //
+        // Overall this is a pretty simplistic system. It's "good enough" for
+        // now but will almost certainly be expanded over time. The hope is that
+        // expanding this involves making this function more complicated but
+        // ideally nowhere else.
+
+        // Given all that intro, the first thing we need to prioritize is that
+        // `WorldKey::Name`'d interfaces are visited after `WorldKey::Interface`
+        // interfaces. This is a bit of a weird result of how this function is
+        // implemented right now. This visit order is a bit of a hack and
+        // probably won't live beyond making WIT more powerful.
+        //
+        // Anyway, the reason for this has to do with the `CloneMaps` down
+        // below. Basically what we're doing here is cloning interfaces, but
+        // when doing so we need to be able to rewrite references to
+        // previously-cloned interfaces if need be. `CloneMaps` represents the
+        // aggregate results of all previous clones. Due to named interfaces
+        // never being importable-from it means that mutations to `CloneMaps`
+        // are discarded when named interfaces are cloned. The trick here
+        // happens where this unconditionally preserves all modifications to
+        // `CloneMaps` for `WorldKey::Interface` clones. Behaivor then "falls
+        // out" where references to cloned interfaces are naturally rewritten.
+        //
+        // This all falls down, however, if an import is cloned and recorded.
+        // Interfaces can be both exported and imported, which would mean that
+        // the import and export are both cloned, and both need to be preserved
+        // in `CloneMaps`. Right now `CloneMaps` requires uniqueness when
+        // cloning (e.g. can't clone the same thing twice).
+        //
+        // Long story short: it's a hack that sort order here is the way it is.
+        // Sorry. Be prepared to delete this should WIT get more powerful.
+        let mut order = items.iter().enumerate().collect::<Vec<_>>();
+        order.sort_by_key(|(_, (key, item))| match (key, item) {
             (WorldKey::Name(_), WorldItem::Interface { .. }) => 1,
             _ => 0,
         });
-
         let mut to_rewrite = IndexMap::default();
-        for (i, (key, item)) in items.iter().enumerate() {
+        for (i, (key, item)) in order {
             let id = match item {
                 WorldItem::Interface { id, .. } => *id,
 

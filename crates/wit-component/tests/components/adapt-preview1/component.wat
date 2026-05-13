@@ -1,18 +1,18 @@
 (component
-  (type $ty-foo:foo/my-wasi (;0;)
-    (instance
-      (type (;0;) (func (param "code" u32)))
-      (export (;0;) "proc-exit" (func (type 0)))
-    )
-  )
-  (import "foo:foo/my-wasi" (instance $foo:foo/my-wasi (;0;) (type $ty-foo:foo/my-wasi)))
-  (type $ty-foo (;1;)
+  (type $ty-foo (;0;)
     (instance
       (type (;0;) (func))
       (export (;0;) "foo" (func (type 0)))
     )
   )
-  (import "foo" (instance $foo (;1;) (type $ty-foo)))
+  (import "foo" (instance $foo (;0;) (type $ty-foo)))
+  (type $ty-foo:foo/my-wasi (;1;)
+    (instance
+      (type (;0;) (func (param "code" u32)))
+      (export (;0;) "proc-exit" (func (type 0)))
+    )
+  )
+  (import "foo:foo/my-wasi" (instance $foo:foo/my-wasi (;1;) (type $ty-foo:foo/my-wasi)))
   (core module $main (;0;)
     (type (;0;) (func))
     (type (;1;) (func (param i32)))
