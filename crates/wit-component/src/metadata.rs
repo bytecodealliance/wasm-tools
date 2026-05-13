@@ -280,9 +280,7 @@ pub fn encode(
     let mut outer_ty = ComponentType::new();
     outer_ty.ty().component(&ty);
     outer_ty.export(
-        &resolve
-            .id_of_name(world.package.unwrap(), &world.name)
-            .into(),
+        resolve.id_of_name(world.package.unwrap(), &world.name),
         ComponentTypeRef::Component(0),
     );
 
@@ -295,12 +293,7 @@ pub fn encode(
     });
 
     let ty = builder.type_component(None, &outer_ty);
-    builder.export(
-        &world.name.clone().into(),
-        ComponentExportKind::Type,
-        ty,
-        None,
-    );
+    builder.export(&world.name, ComponentExportKind::Type, ty, None);
 
     let mut producers = crate::base_producers();
     if let Some(p) = extra_producers {

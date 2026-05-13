@@ -119,7 +119,7 @@ impl ComponentSection for InstanceSection {
 /// use wasm_encoder::{Component, ComponentInstanceSection, ComponentExportKind};
 ///
 /// let mut instances = ComponentInstanceSection::new();
-/// instances.export_items([("foo".into(), ComponentExportKind::Func, 0)]);
+/// instances.export_items([("foo", ComponentExportKind::Func, 0)]);
 /// instances.instantiate(1, [("foo", ComponentExportKind::Instance, 0)]);
 ///
 /// let mut component = Component::new();
@@ -170,16 +170,17 @@ impl ComponentInstanceSection {
     }
 
     /// Define an instance by exporting items.
-    pub fn export_items<'a, E>(&mut self, exports: E) -> &mut Self
+    pub fn export_items<'a, N, E>(&mut self, exports: E) -> &mut Self
     where
-        E: IntoIterator<Item = (ComponentExternName<'a>, ComponentExportKind, u32)>,
+        E: IntoIterator<Item = (N, ComponentExportKind, u32)>,
         E::IntoIter: ExactSizeIterator,
+        N: Into<ComponentExternName<'a>>,
     {
         let exports = exports.into_iter();
         self.bytes.push(0x01);
         exports.len().encode(&mut self.bytes);
         for (name, kind, index) in exports {
-            name.encode(&mut self.bytes);
+            name.into().encode(&mut self.bytes);
             kind.encode(&mut self.bytes);
             index.encode(&mut self.bytes);
         }

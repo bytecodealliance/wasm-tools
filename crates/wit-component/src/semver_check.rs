@@ -83,7 +83,7 @@ pub fn semver_check(mut resolve: Resolve, prev: WorldId, new: WorldId) -> Result
         let mut component = ComponentBuilder::default();
         let component_ty_idx = component.type_component(None, &component_ty);
         component.import(
-            &resolve.worlds[new].name.clone().into(),
+            &resolve.worlds[new].name,
             ComponentTypeRef::Component(component_ty_idx),
         );
         root_component.component(None, component)

@@ -95,7 +95,7 @@ pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentTyp
         };
         component
             .outer
-            .import(&component_extern_name(resolve, key, import), ty);
+            .import(component_extern_name(resolve, key, import), ty);
     }
     // Encode the exports
     for (key, export) in world.exports.iter() {
@@ -115,7 +115,7 @@ pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentTyp
         };
         component
             .outer
-            .export(&component_extern_name(resolve, key, export), ty);
+            .export(component_extern_name(resolve, key, export), ty);
     }
 
     Ok(component.outer)
@@ -145,7 +145,7 @@ impl Encoder<'_> {
             let component_ty = self.encode_interface(id)?;
             let ty = self.component.type_component(Some(name), &component_ty);
             self.component
-                .export(&name.as_str().into(), ComponentExportKind::Type, ty, None);
+                .export(name, ComponentExportKind::Type, ty, None);
         }
 
         // For each `world` encode it directly as a component and then create a
@@ -157,14 +157,11 @@ impl Encoder<'_> {
             let mut wrapper = ComponentType::new();
             wrapper.ty().component(&component_ty);
             let pkg = &self.resolve.packages[world.package.unwrap()];
-            wrapper.export(
-                &pkg.name.interface_id(name).into(),
-                ComponentTypeRef::Component(0),
-            );
+            wrapper.export(pkg.name.interface_id(name), ComponentTypeRef::Component(0));
 
             let ty = self.component.type_component(Some(name), &wrapper);
             self.component
-                .export(&name.as_str().into(), ComponentExportKind::Type, ty, None);
+                .export(name, ComponentExportKind::Type, ty, None);
         }
 
         Ok(())
@@ -202,9 +199,7 @@ impl Encoder<'_> {
             if interface == id {
                 let idx = encoder.encode_instance(interface)?;
                 log::trace!("exporting self as {idx}");
-                encoder
-                    .outer
-                    .export(&name.into(), ComponentTypeRef::Instance(idx));
+                encoder.outer.export(name, ComponentTypeRef::Instance(idx));
             } else {
                 encoder.push_instance();
                 for (_, id) in iface.types.iter() {
@@ -215,9 +210,7 @@ impl Encoder<'_> {
                 encoder.outer.ty().instance(&instance);
                 encoder.import_map.insert(interface, encoder.instances);
                 encoder.instances += 1;
-                encoder
-                    .outer
-                    .import(&name.into(), ComponentTypeRef::Instance(idx));
+                encoder.outer.import(name, ComponentTypeRef::Instance(idx));
             }
         }
 
@@ -303,7 +296,7 @@ impl InterfaceEncoder<'_> {
             self.ty
                 .as_mut()
                 .unwrap()
-                .export(&name.clone().into(), ComponentTypeRef::Func(ty));
+                .export(name, ComponentTypeRef::Func(ty));
         }
         let instance = self.pop_instance();
         let idx = self.outer.type_count();
@@ -345,17 +338,17 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
             Some(ty) => {
                 assert!(!self.import_types);
                 let ret = ty.type_count();
-                ty.export(&name.into(), ComponentTypeRef::Type(TypeBounds::Eq(index)));
+                ty.export(name, ComponentTypeRef::Type(TypeBounds::Eq(index)));
                 Some(ret)
             }
             None => {
                 let ret = self.outer.type_count();
                 if self.import_types {
                     self.outer
-                        .import(&name.into(), ComponentTypeRef::Type(TypeBounds::Eq(index)));
+                        .import(name, ComponentTypeRef::Type(TypeBounds::Eq(index)));
                 } else {
                     self.outer
-                        .export(&name.into(), ComponentTypeRef::Type(TypeBounds::Eq(index)));
+                        .export(name, ComponentTypeRef::Type(TypeBounds::Eq(index)));
                 }
                 Some(ret)
             }
@@ -366,14 +359,14 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
         match &mut self.ty {
             Some(ty) => {
                 assert!(!self.import_types);
-                ty.export(&name.into(), type_ref);
+                ty.export(name, type_ref);
                 ty.type_count() - 1
             }
             None => {
                 if self.import_types {
-                    self.outer.import(&name.into(), type_ref);
+                    self.outer.import(name, type_ref);
                 } else {
-                    self.outer.export(&name.into(), type_ref);
+                    self.outer.export(name, type_ref);
                 }
                 self.outer.type_count() - 1
             }

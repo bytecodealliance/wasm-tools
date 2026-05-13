@@ -549,9 +549,7 @@ impl<'a> EncodingState<'a> {
             log::trace!("encoding function type for `{}`", func.name);
             let idx = encoder.encode_func_type(resolve, func)?;
 
-            encoder
-                .ty
-                .export(&func.name.clone().into(), ComponentTypeRef::Func(idx));
+            encoder.ty.export(&func.name, ComponentTypeRef::Func(idx));
         }
 
         let ty = encoder.ty;
@@ -564,7 +562,7 @@ impl<'a> EncodingState<'a> {
             .component
             .type_instance(Some(&format!("ty-{name}")), &ty);
         let instance_idx = self.component.import(
-            &wasm_encoder::ComponentExternName {
+            wasm_encoder::ComponentExternName {
                 name: name.into(),
                 implements: info.implements.as_deref().map(|s| s.into()),
             },
@@ -597,9 +595,7 @@ impl<'a> EncodingState<'a> {
             let idx = self
                 .root_import_type_encoder(None)
                 .encode_func_type(resolve, func)?;
-            let func_idx = self
-                .component
-                .import(&name.clone().into(), ComponentTypeRef::Func(idx));
+            let func_idx = self.component.import(&name, ComponentTypeRef::Func(idx));
             let prev = self.imported_funcs.insert(name, func_idx);
             assert!(prev.is_none());
         }
@@ -737,12 +733,8 @@ impl<'a> EncodingState<'a> {
                         .encode_func_type(resolve, func)?;
                     let core_name = world_func_core_names[&func.name];
                     let idx = self.encode_lift(module, &core_name, export_name, func, ty)?;
-                    self.component.export(
-                        &export_string.clone().into(),
-                        ComponentExportKind::Func,
-                        idx,
-                        None,
-                    );
+                    self.component
+                        .export(export_string, ComponentExportKind::Func, idx, None);
                 }
                 item @ WorldItem::Interface { id, .. } => {
                     let core_names = interface_func_core_names.get(export_name);
@@ -872,7 +864,7 @@ impl<'a> EncodingState<'a> {
             let ty = nested.encode_func_type(resolve, func)?;
             nested
                 .component
-                .import(&import_func_name(func).into(), ComponentTypeRef::Func(ty));
+                .import(import_func_name(func), ComponentTypeRef::Func(ty));
         }
 
         // Swap the `nested.type_map` which was previously from `TypeId` to
@@ -919,7 +911,7 @@ impl<'a> EncodingState<'a> {
             match ty.kind {
                 TypeDefKind::Resource => {
                     let idx = nested.component.export(
-                        &ty.name.as_deref().expect("resources must be named").into(),
+                        ty.name.as_deref().expect("resources must be named"),
                         ComponentExportKind::Type,
                         resources[id],
                         None,
@@ -935,7 +927,7 @@ impl<'a> EncodingState<'a> {
         for (i, (_, func)) in resolve.interfaces[export].functions.iter().enumerate() {
             let ty = nested.encode_func_type(resolve, func)?;
             nested.component.export(
-                &func.name.as_str().into(),
+                &func.name,
                 ComponentExportKind::Func,
                 i as u32,
                 Some(ComponentTypeRef::Func(ty)),
@@ -955,7 +947,7 @@ impl<'a> EncodingState<'a> {
             imports,
         );
         let idx = self.component.export(
-            &wasm_encoder::ComponentExternName {
+            wasm_encoder::ComponentExternName {
                 name: export_name.into(),
                 implements: resolve.implements_value(key, item).map(|s| s.into()),
             },
@@ -1002,14 +994,13 @@ impl<'a> EncodingState<'a> {
                 if self.export_types {
                     Some(
                         self.component
-                            .export(&name.into(), ComponentExportKind::Type, idx, None),
+                            .export(name, ComponentExportKind::Type, idx, None),
                     )
                 } else {
                     let name = self.unique_import_name(name);
-                    let ret = self.component.import(
-                        &name.clone().into(),
-                        ComponentTypeRef::Type(TypeBounds::Eq(idx)),
-                    );
+                    let ret = self
+                        .component
+                        .import(&name, ComponentTypeRef::Type(TypeBounds::Eq(idx)));
                     self.imports.insert(name, ret);
                     Some(ret)
                 }
@@ -1019,10 +1010,9 @@ impl<'a> EncodingState<'a> {
                     panic!("resources should already be exported")
                 } else {
                     let name = self.unique_import_name(name);
-                    let ret = self.component.import(
-                        &name.clone().into(),
-                        ComponentTypeRef::Type(TypeBounds::SubResource),
-                    );
+                    let ret = self
+                        .component
+                        .import(&name, ComponentTypeRef::Type(TypeBounds::SubResource));
                     self.imports.insert(name, ret);
                     ret
                 }

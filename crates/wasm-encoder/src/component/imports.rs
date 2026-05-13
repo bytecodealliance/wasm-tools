@@ -102,7 +102,7 @@ impl Encode for ComponentTypeRef {
 ///
 /// // This imports a function named `f` with the type defined above
 /// let mut imports = ComponentImportSection::new();
-/// imports.import(&"f".into(), ComponentTypeRef::Func(0));
+/// imports.import("f", ComponentTypeRef::Func(0));
 ///
 /// let mut component = Component::new();
 /// component.section(&types);
@@ -133,8 +133,12 @@ impl ComponentImportSection {
     }
 
     /// Define an import in the component import section.
-    pub fn import(&mut self, name: &ComponentExternName, ty: ComponentTypeRef) -> &mut Self {
-        name.encode(&mut self.bytes);
+    pub fn import<'a>(
+        &mut self,
+        name: impl Into<ComponentExternName<'a>>,
+        ty: ComponentTypeRef,
+    ) -> &mut Self {
+        name.into().encode(&mut self.bytes);
         ty.encode(&mut self.bytes);
         self.num_added += 1;
         self
@@ -206,6 +210,15 @@ impl Encode for ComponentExternName<'_> {
 
 impl<'a> From<&'a str> for ComponentExternName<'a> {
     fn from(name: &'a str) -> Self {
+        ComponentExternName {
+            name: Cow::Borrowed(name),
+            implements: None,
+        }
+    }
+}
+
+impl<'a> From<&'a String> for ComponentExternName<'a> {
+    fn from(name: &'a String) -> Self {
         ComponentExternName {
             name: Cow::Borrowed(name),
             implements: None,

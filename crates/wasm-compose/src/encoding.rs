@@ -282,7 +282,7 @@ impl<'a> TypeEncoder<'a> {
                 Encodable::Component(c) => c,
                 _ => unreachable!(),
             };
-            c.import(&name.into(), ty);
+            c.import(name, ty);
         }
 
         for (name, ty) in exports {
@@ -291,7 +291,7 @@ impl<'a> TypeEncoder<'a> {
                 Encodable::Component(c) => c,
                 _ => unreachable!(),
             };
-            c.export(&name.into(), export);
+            c.export(name, export);
         }
 
         match state.pop() {
@@ -312,7 +312,7 @@ impl<'a> TypeEncoder<'a> {
                 Encodable::Instance(c) => c,
                 _ => unreachable!(),
             };
-            c.export(&name.into(), export);
+            c.export(name, export);
         }
 
         match state.pop() {
@@ -1476,7 +1476,7 @@ impl<'a> CompositionGraphEncoder<'a> {
                 Encodable::Instance(c) => c,
                 _ => unreachable!(),
             };
-            t.export(&name.into(), export);
+            t.export(name, export);
 
             for (component, ty) in types.iter().skip(1) {
                 if let ComponentEntityType::Type { created, .. } = ty {
@@ -1552,7 +1552,7 @@ impl<'a> CompositionGraphEncoder<'a> {
                 }
             };
 
-            encoded.export(&export_name.into(), kind, index, None);
+            encoded.export(export_name, kind, index, None);
         }
 
         Ok(())
@@ -1685,7 +1685,7 @@ impl<'a> CompositionGraphEncoder<'a> {
 
     fn import(&mut self, encoded: &mut ComponentBuilder, name: &str, ty: ComponentTypeRef) -> u32 {
         log::debug!("importing {ty:?} with `{name}` in composed component");
-        encoded.import(&name.into(), ty)
+        encoded.import(name, ty)
     }
 
     fn alias(

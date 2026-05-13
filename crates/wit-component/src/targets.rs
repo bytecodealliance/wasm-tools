@@ -20,7 +20,7 @@ pub fn targets(resolve: &Resolve, world: WorldId, component_to_test: &[u8]) -> R
         let mut component = ComponentBuilder::default();
         let component_ty_idx = component.type_component(None, &component_ty);
         component.import(
-            &resolve.worlds[world].name.clone().into(),
+            &resolve.worlds[world].name,
             ComponentTypeRef::Component(component_ty_idx),
         );
         root_component.component(None, component)

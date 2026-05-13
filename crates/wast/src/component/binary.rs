@@ -279,7 +279,7 @@ impl<'a> Encoder<'a> {
             InstanceKind::BundleOfExports(exports) => {
                 self.instances.export_items(exports.iter().map(|e| {
                     let (kind, index) = (&e.kind).into();
-                    (e.name.into(), kind, index)
+                    (e.name, kind, index)
                 }));
             }
         }
@@ -546,8 +546,7 @@ impl<'a> Encoder<'a> {
     fn encode_import(&mut self, import: &ComponentImport<'a>) {
         let name = get_name(&import.item.id, &import.item.name);
         self.names_for_item_kind(&import.item.kind).push(name);
-        self.imports
-            .import(&import.name.into(), (&import.item.kind).into());
+        self.imports.import(import.name, (&import.item.kind).into());
         self.flush(Some(self.imports.id()));
     }
 
@@ -555,7 +554,7 @@ impl<'a> Encoder<'a> {
         let name = get_name(&export.id, &export.debug_name);
         let (kind, index) = (&export.kind).into();
         self.exports.export(
-            &export.name.into(),
+            export.name,
             kind,
             index,
             export.ty.as_ref().map(|ty| (&ty.0.kind).into()),
@@ -863,10 +862,10 @@ impl From<&ComponentType<'_>> for wasm_encoder::ComponentType {
                     encoded.alias((&a.target).into());
                 }
                 ComponentTypeDecl::Import(i) => {
-                    encoded.import(&i.name.into(), (&i.item.kind).into());
+                    encoded.import(i.name, (&i.item.kind).into());
                 }
                 ComponentTypeDecl::Export(e) => {
-                    encoded.export(&e.name.into(), (&e.item.kind).into());
+                    encoded.export(e.name, (&e.item.kind).into());
                 }
             }
         }
@@ -891,7 +890,7 @@ impl From<&InstanceType<'_>> for wasm_encoder::InstanceType {
                     encoded.alias((&a.target).into());
                 }
                 InstanceTypeDecl::Export(e) => {
-                    encoded.export(&e.name.into(), (&e.item.kind).into());
+                    encoded.export(e.name, (&e.item.kind).into());
                 }
             }
         }

@@ -661,7 +661,7 @@ pub mod component_utils {
             }
             wasmparser::InstanceTypeDeclaration::Export { name, ty } => {
                 let ty = reencoder.component_type_ref(ty)?;
-                instance.export(&name.into(), ty);
+                instance.export(name, ty);
                 Ok(())
             }
         }
@@ -715,12 +715,12 @@ pub mod component_utils {
             }
             wasmparser::ComponentTypeDeclaration::Export { name, ty } => {
                 let ty = reencoder.component_type_ref(ty)?;
-                component.export(&name.into(), ty);
+                component.export(name, ty);
                 Ok(())
             }
             wasmparser::ComponentTypeDeclaration::Import(import) => {
                 let ty = reencoder.component_type_ref(import.ty)?;
-                component.import(&import.name.into(), ty);
+                component.import(import.name, ty);
                 Ok(())
             }
         }
@@ -903,10 +903,7 @@ pub mod component_utils {
     ) -> Result<(), Error<T::Error>> {
         for import in section {
             let import = import?;
-            imports.import(
-                &import.name.into(),
-                reencoder.component_type_ref(import.ty)?,
-            );
+            imports.import(import.name, reencoder.component_type_ref(import.ty)?);
         }
         Ok(())
     }
@@ -1186,7 +1183,7 @@ pub mod component_utils {
             wasmparser::ComponentInstance::FromExports(exports) => {
                 instances.export_items(exports.iter().map(|export| {
                     (
-                        export.name.into(),
+                        export.name,
                         export.kind.into(),
                         reencoder.component_external_index(export.kind, export.index),
                     )
@@ -1269,7 +1266,7 @@ pub mod component_utils {
         export: wasmparser::ComponentExport<'_>,
     ) -> Result<(), Error<T::Error>> {
         exports.export(
-            &export.name.into(),
+            export.name,
             export.kind.into(),
             reencoder.component_external_index(export.kind, export.index),
             export

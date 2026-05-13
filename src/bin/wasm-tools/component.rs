@@ -1425,7 +1425,7 @@ impl UnbundleOpts {
             module_ty.component.section.ty().module(&module_ty.module);
             let name = format!("unbundled-module{}", imports.len());
             imports.import(
-                &name.clone().into(),
+                &name,
                 wasm_encoder::ComponentTypeRef::Module(module_type_idx),
             );
 

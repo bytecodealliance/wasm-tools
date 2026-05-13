@@ -327,7 +327,12 @@ impl ComponentBuilder {
     }
 
     /// Imports a new item into this component with the `name` and `ty` specified.
-    pub fn import(&mut self, name: &ComponentExternName, ty: ComponentTypeRef) -> u32 {
+    pub fn import<'a>(
+        &mut self,
+        name: impl Into<ComponentExternName<'a>>,
+        ty: ComponentTypeRef,
+    ) -> u32 {
+        let name = name.into();
         let ret = match &ty {
             ComponentTypeRef::Instance(_) => self.instances.add(Some(&name.name)),
             ComponentTypeRef::Func(_) => self.funcs.add(Some(&name.name)),
@@ -345,14 +350,15 @@ impl ComponentBuilder {
     ///
     /// The `idx` is the item to export and the `ty` is an optional type to
     /// ascribe to the export.
-    pub fn export(
+    pub fn export<'a>(
         &mut self,
-        name: &ComponentExternName,
+        name: impl Into<ComponentExternName<'a>>,
         kind: ComponentExportKind,
         idx: u32,
         ty: Option<ComponentTypeRef>,
     ) -> u32 {
-        self.exports().export(name, kind, idx, ty);
+        let name = name.into();
+        self.exports().export(name.clone(), kind, idx, ty);
         self.inc_kind(Some(&name.name), kind)
     }
 

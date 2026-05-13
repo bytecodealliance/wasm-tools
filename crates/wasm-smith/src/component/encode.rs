@@ -74,7 +74,7 @@ impl ImportSection {
     fn encode(&self, component: &mut wasm_encoder::Component) {
         let mut sec = wasm_encoder::ComponentImportSection::new();
         for imp in &self.imports {
-            sec.import(&imp.name.clone().into(), imp.ty);
+            sec.import(&imp.name, imp.ty);
         }
         component.section(&sec);
     }
@@ -179,7 +179,7 @@ impl Type {
                 for def in &comp_ty.defs {
                     match def {
                         ComponentTypeDef::Import(imp) => {
-                            enc_comp_ty.import(&imp.name.clone().into(), imp.ty);
+                            enc_comp_ty.import(&imp.name, imp.ty);
                         }
                         ComponentTypeDef::CoreType(ty) => {
                             ty.encode(enc_comp_ty.core_type());
@@ -188,7 +188,7 @@ impl Type {
                             ty.encode(enc_comp_ty.ty());
                         }
                         ComponentTypeDef::Export { name, url: _, ty } => {
-                            enc_comp_ty.export(&name.clone().into(), *ty);
+                            enc_comp_ty.export(name, *ty);
                         }
                         ComponentTypeDef::Alias(a) => {
                             enc_comp_ty.alias(translate_alias(a));
@@ -208,7 +208,7 @@ impl Type {
                             ty.encode(enc_inst_ty.ty());
                         }
                         InstanceTypeDecl::Export { name, url: _, ty } => {
-                            enc_inst_ty.export(&name.clone().into(), *ty);
+                            enc_inst_ty.export(name, *ty);
                         }
                         InstanceTypeDecl::Alias(a) => {
                             enc_inst_ty.alias(translate_alias(a));
