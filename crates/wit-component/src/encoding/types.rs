@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use wasm_encoder::*;
 use wit_parser::{
     Enum, Flags, Function, Handle, InterfaceId, Param, Record, Resolve, Result_, Tuple, Type,
-    TypeDefKind, TypeId, TypeOwner, Variant, WorldItem, WorldKey,
+    TypeDefKind, TypeId, TypeOwner, Variant,
 };
 
 /// A view of `&[Param]` that compares and hashes by name and type only,
@@ -431,7 +431,7 @@ pub trait ValtypeEncoder<'a> {
 
 pub struct RootTypeEncoder<'state, 'a> {
     pub state: &'state mut EncodingState<'a>,
-    pub interface: Option<WorldKey>,
+    pub interface: Option<InterfaceId>,
     pub import_types: bool,
 }
 
@@ -443,13 +443,7 @@ impl<'a> ValtypeEncoder<'a> for RootTypeEncoder<'_, 'a> {
         self.state.component.type_function(None)
     }
     fn interface(&self) -> Option<InterfaceId> {
-        let key = self.interface.as_ref()?;
-        let resolve = &self.state.info.encoder.metadata.resolve;
-        let world = self.state.info.encoder.metadata.world;
-        match &resolve.worlds[world].exports[key] {
-            WorldItem::Interface { id, .. } => Some(*id),
-            WorldItem::Function(_) | WorldItem::Type { .. } => unreachable!(),
-        }
+        self.interface
     }
     fn export_type(&mut self, idx: u32, name: &'a str) -> Option<u32> {
         // When encoding types for the root the root component will export

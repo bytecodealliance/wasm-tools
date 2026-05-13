@@ -379,7 +379,7 @@ impl Ord for ComponentName {
 
 impl PartialOrd for ComponentName {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.kind().partial_cmp(&other.kind())
+        self.kind.partial_cmp(&other.kind)
     }
 }
 

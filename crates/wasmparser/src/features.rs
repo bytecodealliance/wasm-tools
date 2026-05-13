@@ -319,7 +319,7 @@ define_wasm_features! {
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
         pub cm64: CM64(1 << 39) = false;
 
-        /// Support for the `[implements=...]` name in the component model
+        /// Support for the `(implements "...")` directive in the component model
         ///
         /// Corresponds to the 🏷️ character in
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.

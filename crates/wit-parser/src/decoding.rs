@@ -721,6 +721,8 @@ impl WitPackageDecoder<'_> {
     /// Handles three name forms:
     /// - `ns:pkg/iface` — qualified interface name, keyed by `InterfaceId`
     /// - `plain-name` — unqualified name for an inline or local interface
+    /// - `plain-name (implements "...")` - reference to a preexisting interface
+    ///   elsewhere
     fn decode_world_instance<'a>(
         &mut self,
         name: &str,
@@ -1025,7 +1027,7 @@ impl WitPackageDecoder<'_> {
     }
 
     fn parse_component_name(&self, name: &str) -> Result<ComponentName> {
-        ComponentName::new_with_features(name, 0, WasmFeatures::all())
+        ComponentName::new(name, 0)
             .with_context(|| format!("cannot extract item name from: {name}"))
     }
 
@@ -1222,7 +1224,7 @@ impl WitPackageDecoder<'_> {
                     }
                 }
 
-                // Functions shouldn't have ID-based names.
+                // Functions shouldn't have ID-based names at this time.
                 ComponentNameKind::Interface(_)
                 | ComponentNameKind::Url(_)
                 | ComponentNameKind::Hash(_)

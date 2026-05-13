@@ -3606,10 +3606,11 @@ impl<'a> SubtypeCx<'a> {
             // If an error happens then attach the name of the entity to the
             // error message using the `i` iteration counter.
             let component_type = &self.b[b];
-            let name = match kind {
-                ExternKind::Import => component_type.imports.get_index(i).unwrap().0,
-                ExternKind::Export => component_type.exports.get_index(i).unwrap().0,
+            let entities = match kind {
+                ExternKind::Import => &component_type.imports,
+                ExternKind::Export => &component_type.exports,
             };
+            let (name, _) = entities.get_index(i).unwrap();
             return Err(err.with_context(|| format!("type mismatch for {} `{name}`", kind.desc())));
         }
         mapping.types = type_map;

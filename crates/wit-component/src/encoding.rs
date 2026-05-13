@@ -454,7 +454,10 @@ impl<'a> EncodingState<'a> {
         }
     }
 
-    fn root_import_type_encoder(&mut self, interface: Option<WorldKey>) -> RootTypeEncoder<'_, 'a> {
+    fn root_import_type_encoder(
+        &mut self,
+        interface: Option<InterfaceId>,
+    ) -> RootTypeEncoder<'_, 'a> {
         RootTypeEncoder {
             state: self,
             interface,
@@ -462,7 +465,10 @@ impl<'a> EncodingState<'a> {
         }
     }
 
-    fn root_export_type_encoder(&mut self, interface: Option<WorldKey>) -> RootTypeEncoder<'_, 'a> {
+    fn root_export_type_encoder(
+        &mut self,
+        interface: Option<InterfaceId>,
+    ) -> RootTypeEncoder<'_, 'a> {
         RootTypeEncoder {
             state: self,
             interface,
@@ -775,7 +781,7 @@ impl<'a> EncodingState<'a> {
         // function is saved off into an `imports` array to get imported into
         // the nested component synthesized below.
         let mut imports = Vec::new();
-        let mut root = self.root_export_type_encoder(Some(key.clone()));
+        let mut root = self.root_export_type_encoder(Some(export));
         for (_, func) in &resolve.interfaces[export].functions {
             let core_name = interface_func_core_names.unwrap()[func.name.as_str()];
             let ty = root.encode_func_type(resolve, func)?;
@@ -822,9 +828,9 @@ impl<'a> EncodingState<'a> {
                 // Ensure that `self` has encoded this type before. If so this
                 // is a noop but otherwise it generates the type here.
                 let mut encoder = if exports_used.contains(&owner) {
-                    nested.state.root_export_type_encoder(Some(key.clone()))
+                    nested.state.root_export_type_encoder(Some(export))
                 } else {
-                    nested.state.root_import_type_encoder(Some(key.clone()))
+                    nested.state.root_import_type_encoder(Some(export))
                 };
                 encoder.encode_valtype(resolve, &Type::Id(ty))?;
 
@@ -1424,24 +1430,18 @@ impl<'a> EncodingState<'a> {
                         )?)
                 }
                 ShimKind::TaskReturn {
-                    key,
+                    interface,
                     func,
                     result,
                     encoding,
                     for_module,
                 } => {
-                    let world = self.info.encoder.metadata.world;
-                    let interface = match &resolve.worlds[world].exports[key] {
-                        WorldItem::Interface { id, .. } => Some(*id),
-                        WorldItem::Function(_) => None,
-                        WorldItem::Type { .. } => unreachable!(),
-                    };
                     // See `Import::ExportedTaskReturn` handling for why this
                     // encoder is treated specially.
                     let mut encoder = if interface.is_none() {
-                        self.root_import_type_encoder(None)
+                        self.root_import_type_encoder(*interface)
                     } else {
-                        self.root_export_type_encoder(Some(key.clone()))
+                        self.root_export_type_encoder(*interface)
                     };
                     let result = match result {
                         Some(ty) => Some(encoder.encode_valtype(resolve, ty)?),
@@ -1449,7 +1449,7 @@ impl<'a> EncodingState<'a> {
                     };
 
                     let exports = self.info.exports_for(*for_module);
-                    let realloc = exports.import_realloc_for(interface, func);
+                    let realloc = exports.import_realloc_for(*interface, func);
 
                     let instance_index = self.instance_for(*for_module);
                     let realloc_index = realloc.map(|r| {
@@ -1530,7 +1530,7 @@ impl<'a> EncodingState<'a> {
         let mut encoder = if info.imported || info.interface.is_none() {
             self.root_import_type_encoder(None)
         } else {
-            self.root_export_type_encoder(Some(info.key.clone()))
+            self.root_export_type_encoder(info.interface)
         };
         match info.ty {
             PayloadType::Type { id, .. } => match encoder.encode_valtype(resolve, &Type::Id(id))? {
@@ -1607,7 +1607,7 @@ impl<'a> EncodingState<'a> {
                         assert!(prev.is_none());
                     }
                     _other => {
-                        self.root_export_type_encoder(Some(key.clone()))
+                        self.root_export_type_encoder(Some(id))
                             .encode_valtype(resolve, &Type::Id(*ty))?;
                     }
                 }
@@ -1800,9 +1800,9 @@ impl<'a> EncodingState<'a> {
                     // function. In that situation all types that can be
                     // referred to are imported, not exported.
                     let mut encoder = if interface.is_none() {
-                        self.root_import_type_encoder(None)
+                        self.root_import_type_encoder(*interface)
                     } else {
-                        self.root_export_type_encoder(Some(key.clone()))
+                        self.root_export_type_encoder(*interface)
                     };
 
                     let result = match result_ty.as_ref() {
@@ -1820,7 +1820,7 @@ impl<'a> EncodingState<'a> {
                     Ok(self.materialize_shim_import(
                         shims,
                         &ShimKind::TaskReturn {
-                            key: key.clone(),
+                            interface: *interface,
                             for_module,
                             func: &func.name,
                             result: result_ty,
@@ -2517,10 +2517,11 @@ enum ShimKind<'a> {
     WaitableSetPoll { cancellable: bool },
     /// Shim for `task.return` to handle a reference to a `memory` which may
     TaskReturn {
-        /// The world key for the export this `task.return` is associated with.
-        key: WorldKey,
-        /// The function that this `task.return` is returning for, owned by
-        /// the world item identified by `key`.
+        /// The interface (optional) that owns `func` below. If `None` then it's
+        /// a world export.
+        interface: Option<InterfaceId>,
+        /// The function that this `task.return` is returning for, owned
+        /// within `interface` above.
         func: &'a str,
         /// The WIT type that `func` returns.
         result: Option<Type>,
@@ -2640,7 +2641,7 @@ impl<'a> Shims<'a> {
                 // If `task.return` needs to be indirect then generate a shim
                 // for it, otherwise skip the shim and let it get materialized
                 // naturally later.
-                Import::ExportedTaskReturn(key, _interface, func) => {
+                Import::ExportedTaskReturn(key, interface, func) => {
                     let (options, sig) = task_return_options_and_type(resolve, func);
                     if options.is_empty() {
                         continue;
@@ -2661,7 +2662,7 @@ impl<'a> Shims<'a> {
                         debug_name: format!("task-return-{}", func.name),
                         options,
                         kind: ShimKind::TaskReturn {
-                            key: key.clone(),
+                            interface: *interface,
                             func: &func.name,
                             result: func.result,
                             for_module,
