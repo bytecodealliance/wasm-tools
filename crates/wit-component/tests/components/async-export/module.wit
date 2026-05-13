@@ -19,12 +19,12 @@ interface bar {
     a3: u8,
     a4: u8,
   }
-  foo: func(s: string) -> string;
-  get-string: func() -> string;
-  get-big: func() -> big;
+  foo: async func(s: string) -> string;
+  get-string: async func() -> string;
+  get-big: async func() -> big;
 }
 
 world module {
   export bar;
-  export foo: func(s: string) -> string;
+  export foo: async func(s: string) -> string;
 }

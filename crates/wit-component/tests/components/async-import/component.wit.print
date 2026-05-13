@@ -2,5 +2,5 @@ package root:component;
 
 world root {
   import foo:foo/bar;
-  import foo: func(s: string) -> string;
+  import foo: async func(s: string) -> string;
 }
