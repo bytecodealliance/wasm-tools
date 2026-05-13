@@ -2288,7 +2288,6 @@ impl Resolve {
             };
             // If this is an import and it's already in the `imports` set then
             // we can skip it as we've already visited this interface.
-            // if !add_export && imports.contains_key(&key) {
             if !add_export && required_imports.contains(&id) {
                 return true;
             }
@@ -3094,7 +3093,7 @@ impl Resolve {
         // for now.
         //
         // Notably `to_rewrite` is an ordered list keyed by `InterfaceId`. This
-        // means taht if we walk `to_rewrite` in order we're walking this in
+        // means that if we walk `to_rewrite` in order we're walking this in
         // topological order. Second we then additionally sort the `list` for
         // each `to_rewrite` entry to ensure that all `WorldKey::Name` items are
         // visited first. In doing so we also discard all mutations to `maps`
