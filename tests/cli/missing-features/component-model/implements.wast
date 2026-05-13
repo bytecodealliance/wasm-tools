@@ -14,7 +14,7 @@
     "\0d\00\01\00"  ;; version
     "\0a\05"        ;; import section, 14 bytes
     "\01"           ;; 1 import
-    "\03"           ;; "import with flags"
+    "\02"           ;; "import with flags"
     "\01a"          ;; name = "a"
     "\00"           ;; 0 options
   )

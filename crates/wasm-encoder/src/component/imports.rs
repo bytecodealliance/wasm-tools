@@ -193,7 +193,7 @@ impl Encode for ComponentExternName<'_> {
             // specification.
             bytes.push(0x00);
         } else {
-            bytes.push(0x03);
+            bytes.push(0x02);
         }
 
         self.name.encode(bytes);

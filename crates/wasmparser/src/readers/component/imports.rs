@@ -141,7 +141,7 @@ impl<'a> FromReader<'a> for ComponentExternName<'a> {
             // flag first to ensure there's an opt-in way of fixing things.
             0x01 => false,
 
-            0x03 => {
+            0x02 => {
                 if reader.cm_implements() {
                     true
                 } else {
