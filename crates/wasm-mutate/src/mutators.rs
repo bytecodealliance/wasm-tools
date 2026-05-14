@@ -50,7 +50,7 @@ use wasmparser::Operator;
 /// A mutation that can be applied to a Wasm module to produce a new, mutated
 /// Wasm module.
 pub trait Mutator {
-    /// Can this `Mutator` *probably* be applied to the the given Wasm and
+    /// Can this `Mutator` *probably* be applied to the given Wasm and
     /// configuration?
     ///
     /// When checking Wasm applicability, these checks should be implemented as

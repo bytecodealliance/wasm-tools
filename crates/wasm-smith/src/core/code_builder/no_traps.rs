@@ -457,7 +457,7 @@ fn min_input_const_for_trunc<'a>(inst: &Instruction) -> Instruction<'a> {
     let min_f64 = -9_223_372_036_854_775_000f64;
     let min_f32 = -9_223_372_000_000_000_000f32;
 
-    // This is the minimum float value that is representable as as i32
+    // This is the minimum float value that is representable as i32
     let min_f32_as_i32 = -2_147_483_500f32;
     match inst {
         Instruction::I32TruncF32S => Instruction::F32Const(min_f32_as_i32.into()),
