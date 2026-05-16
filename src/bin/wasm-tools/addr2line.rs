@@ -61,8 +61,8 @@ line numbers.
     # Print filename and line number information for two addresses (specified as decimals),
     # interpreting the addresses relative to the beginning of the code section.
     $ target/debug/wasm-tools addr2line --generate-dwarf lines --code-section-relative foo.wasm 255 512
-0xff: main foo.c:21:9
-0x200: main foo.c:25:9
+255: main foo.c:21:9
+512: main foo.c:25:9
 
 The output shows how the addresses correspond to different source locations
 if interpreted relative to the beginning of the code section.
@@ -118,13 +118,13 @@ impl Opts {
     ) -> Result<()> {
         // Support either `0x` or `@` prefixes for hex addresses since 0x is
         // standard and @ is used by wasmprinter (and web browsers I think?)
-        let addr = if let Some(hex) = addr.strip_prefix("0x").or_else(|| addr.strip_prefix("@")) {
+        let parsed = if let Some(hex) = addr.strip_prefix("0x").or_else(|| addr.strip_prefix("@")) {
             u64::from_str_radix(hex, 16)?
         } else {
             addr.parse()?
         };
 
-        let (cx, text_relative_addr) = match modules.context(addr, self.code_section_relative)? {
+        let (cx, text_relative_addr) = match modules.context(parsed, self.code_section_relative)? {
             Some(pair) => pair,
             None => bail!("no module found which contains this address"),
         };
@@ -139,7 +139,7 @@ impl Opts {
         let mut first = true;
         while let Some(frame) = frames.next()? {
             if first {
-                write!(out, "{addr:#x}: ")?;
+                write!(out, "{addr}: ")?;
             } else {
                 write!(out, "\t")?;
             }
@@ -165,7 +165,7 @@ impl Opts {
             writeln!(out, "")?;
         }
         if first {
-            writeln!(out, "{addr:#x}: no dwarf frames found for this address")?;
+            writeln!(out, "{addr}: no dwarf frames found for this address")?;
         }
         Ok(())
     }

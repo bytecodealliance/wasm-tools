@@ -1,0 +1,4 @@
+24: dwarf(name) tests/cli/dwarf-into-addr2line-decimal.wat:5:10
+26: dwarf(name) tests/cli/dwarf-into-addr2line-decimal.wat:6:10
+30: another-function tests/cli/dwarf-into-addr2line-decimal.wat:10:10
+32: another-function tests/cli/dwarf-into-addr2line-decimal.wat:11:10

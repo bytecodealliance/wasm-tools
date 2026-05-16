@@ -118,8 +118,8 @@ line numbers.
     # interpreting the addresses relative to the beginning of the code section.
     $ target/debug/wasm-tools addr2line --generate-dwarf lines
     --code-section-relative foo.wasm 255 512
-0xff: main foo.c:21:9
-0x200: main foo.c:25:9
+255: main foo.c:21:9
+512: main foo.c:25:9
 
 The output shows how the addresses correspond to different source locations
 if interpreted relative to the beginning of the code section.
