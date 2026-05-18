@@ -2155,9 +2155,11 @@ impl ComponentState {
         }
 
         self.cabi_memory_at(memory, offset)?;
-
-        self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32; 2], [ValType::I32]), offset));
+        let memory64 = self.memory_at(memory, offset)?.memory64;
+        let ty = if memory64 { ValType::I64 } else { ValType::I32 };
+        self.core_funcs.push(
+            types.intern_func_type(FuncType::new([ValType::I32, ty], [ValType::I32]), offset),
+        );
         Ok(())
     }
 
@@ -2175,9 +2177,11 @@ impl ComponentState {
         }
 
         self.cabi_memory_at(memory, offset)?;
-
-        self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32; 2], [ValType::I32]), offset));
+        let memory64 = self.memory_at(memory, offset)?.memory64;
+        let ty = if memory64 { ValType::I64 } else { ValType::I32 };
+        self.core_funcs.push(
+            types.intern_func_type(FuncType::new([ValType::I32, ty], [ValType::I32]), offset),
+        );
         Ok(())
     }
 
