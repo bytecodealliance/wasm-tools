@@ -643,6 +643,20 @@ impl Error {
             Error::Wanted { at, .. } => *at,
         }
     }
+
+    pub(crate) fn adjust_position(&mut self, offset: u32) {
+        match self {
+            Error::ControlCodepoint(at, _)
+            | Error::DeprecatedCodepoint(at, _)
+            | Error::ForbiddenCodepoint(at, _)
+            | Error::InvalidCharInId(at, _)
+            | Error::IdPartEmpty(at)
+            | Error::InvalidEscape(at, _)
+            | Error::Unexpected(at, _)
+            | Error::UnterminatedComment(at) => *at += offset,
+            Error::Wanted { at, .. } => *at += offset,
+        }
+    }
 }
 
 impl fmt::Display for Error {

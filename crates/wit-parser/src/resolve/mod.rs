@@ -415,14 +415,25 @@ impl Resolve {
     pub fn push_source(&mut self, path: &str, contents: &str) -> anyhow::Result<PackageId> {
         let mut map = SourceMap::default();
         map.push_str(path, contents);
-        // Parse error: the local `SourceMap` is not exposed through this API,
-        // so we eagerly render with the snippet here. A future improvement
-        // would return `(SourceMap, ParseError)` from `SourceMap::parse` callers
-        // so the typed error can be propagated.
-        let group = map
-            .parse()
-            .map_err(|(map, e)| anyhow::anyhow!("{}", e.highlight(&map)))?;
+        let group = self.parse_source_map(map)?;
         Ok(self.push_group(group)?)
+    }
+
+    /// Parses `map` into an [`UnresolvedPackageGroup`].
+    ///
+    /// On parse failure the local [`SourceMap`] is merged into
+    /// [`Resolve::source_map`] (with the typed [`crate::ParseError`]'s spans
+    /// adjusted) so the downcasted error remains renderable against
+    /// `self.source_map`.
+    pub(crate) fn parse_source_map(
+        &mut self,
+        map: SourceMap,
+    ) -> anyhow::Result<UnresolvedPackageGroup> {
+        map.parse().map_err(|(map, mut e)| {
+            let offset = self.source_map.append(map);
+            e.adjust_spans(offset);
+            e.into()
+        })
     }
 
     /// Renders a span as a human-readable location string (e.g., "file.wit:10:5").

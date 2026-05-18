@@ -97,6 +97,15 @@ impl ParseError {
             .highlight_span(e.span(), e)
             .unwrap_or_else(|| e.to_string())
     }
+
+    pub(crate) fn adjust_spans(&mut self, offset: u32) {
+        match self.kind_mut() {
+            ParseErrorKind::Lex(e) => e.adjust_position(offset),
+            ParseErrorKind::Syntax { span, .. }
+            | ParseErrorKind::ItemNotFound { span, .. }
+            | ParseErrorKind::TypeCycle { span, .. } => span.adjust(offset),
+        }
+    }
 }
 
 impl fmt::Display for ParseError {

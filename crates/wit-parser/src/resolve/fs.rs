@@ -7,7 +7,7 @@ use std::vec::Vec;
 use anyhow::{Context, Result, bail};
 
 use super::{PackageSources, Resolve};
-use crate::UnresolvedPackageGroup;
+use crate::{SourceMap, UnresolvedPackageGroup};
 
 /// All the sources used during resolving a directory or path.
 #[derive(Clone, Debug)]
@@ -86,16 +86,16 @@ impl Resolve {
     /// Parses the filesystem directory at `path` as a WIT package and returns
     /// a fully resolved [`super::PackageId`] list as a result.
     ///
-    /// The directory itself is parsed with [`UnresolvedPackageGroup::parse_dir`]
-    /// and then all packages found are inserted into this `Resolve`. The `path`
-    /// specified may have a `deps` subdirectory which is probed automatically
-    /// for any other WIT dependencies.
+    /// All `*.wit` files in `path` are parsed as a single package and then
+    /// inserted into this `Resolve`. The `path` specified may have a `deps`
+    /// subdirectory which is probed automatically for any other WIT
+    /// dependencies.
     ///
     /// The `deps` folder may contain:
     ///
     /// * `$path/deps/my-package/*.wit` - a directory that may contain multiple
-    ///   WIT files. This is parsed with [`UnresolvedPackageGroup::parse_dir`]
-    ///   and then inserted into this [`Resolve`]. Note that cannot recursively
+    ///   WIT files. The directory is parsed as a single package and then
+    ///   inserted into this [`Resolve`]. Note that it cannot recursively
     ///   contain a `deps` directory.
     /// * `$path/deps/my-package.wit` - a single-file WIT package. This is
     ///   parsed with [`Resolve::push_file`] and then added to `self` for
@@ -124,7 +124,8 @@ impl Resolve {
     }
 
     fn _push_dir(&mut self, path: &Path) -> Result<(super::PackageId, PackageSourceMap)> {
-        let top_pkg = UnresolvedPackageGroup::parse_dir(path)
+        let top_pkg = self
+            .parse_dir(path)
             .with_context(|| format!("failed to parse package: {}", path.display()))?;
         let deps = path.join("deps");
         let deps = self
@@ -133,6 +134,36 @@ impl Resolve {
 
         let (pkg_id, inner) = self.sort_unresolved_packages(top_pkg, deps)?;
         Ok((pkg_id, PackageSourceMap::from_inner(inner)))
+    }
+
+    /// Reads `*.wit` files from `path` into a [`SourceMap`] and parses them as
+    /// an [`UnresolvedPackageGroup`]. See [`Resolve::parse_source_map`] for the
+    /// failure-path semantics.
+    fn parse_dir(&mut self, path: &Path) -> Result<UnresolvedPackageGroup> {
+        let mut map = SourceMap::default();
+        let cx = || format!("failed to read directory {path:?}");
+        for entry in path.read_dir().with_context(&cx)? {
+            let entry = entry.with_context(&cx)?;
+            let entry_path = entry.path();
+            let ty = entry.file_type().with_context(&cx)?;
+            if ty.is_dir() {
+                continue;
+            }
+            if ty.is_symlink() {
+                if entry_path.is_dir() {
+                    continue;
+                }
+            }
+            let filename = match entry_path.file_name().and_then(|s| s.to_str()) {
+                Some(name) => name,
+                None => continue,
+            };
+            if !filename.ends_with(".wit") {
+                continue;
+            }
+            map.push_file(&entry_path)?;
+        }
+        self.parse_source_map(map)
     }
 
     fn parse_deps_dir(&mut self, path: &Path) -> Result<Vec<UnresolvedPackageGroup>> {
@@ -152,7 +183,7 @@ impl Resolve {
                 // directory then always parse it as an `UnresolvedPackage`
                 // since it's intentional to not support recursive `deps`
                 // directories.
-                UnresolvedPackageGroup::parse_dir(&path)
+                self.parse_dir(&path)
                     .with_context(|| format!("failed to parse package: {}", path.display()))?
             } else {
                 // If this entry is a file then we may want to ignore it but
@@ -238,12 +269,12 @@ impl Resolve {
             Ok(s) => s,
             Err(_) => bail!("input file is not valid utf-8 [{}]", path.display()),
         };
-        let pkgs = UnresolvedPackageGroup::parse(path, text)?;
-        Ok(ParsedFile::Unresolved(pkgs))
+        let mut map = SourceMap::default();
+        map.push(path, text);
+        Ok(ParsedFile::Unresolved(self.parse_source_map(map)?))
     }
 
-    /// Convenience method for combining [`UnresolvedPackageGroup::parse`] and
-    /// [`Resolve::push_group`].
+    /// Parses `contents` as a WIT package and pushes it into this `Resolve`.
     ///
     /// The `path` provided is used for error messages but otherwise is not
     /// read. This method does not touch the filesystem. The `contents` provided

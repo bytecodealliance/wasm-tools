@@ -178,6 +178,7 @@ fn run_test(path: &Path) -> Result<()> {
     assert_output(&wit, &component_wit_path)?;
 
     UnresolvedPackageGroup::parse(&component_wit_path, &wit)
+        .map_err(|(map, e)| anyhow::anyhow!("{}", e.highlight(&map)))
         .context("failed to parse printed WIT")?;
 
     // Check that the producer data got piped through properly
