@@ -3688,6 +3688,7 @@ impl FromStr for InstructionKind {
             "memory_non_float" => Ok(InstructionKind::MemoryInt),
             "memory" => Ok(InstructionKind::Memory),
             "control" => Ok(InstructionKind::Control),
+            "aggregate" => Ok(InstructionKind::Aggregate),
             _ => Err(format!("unknown instruction kind: {s}")),
         }
     }
