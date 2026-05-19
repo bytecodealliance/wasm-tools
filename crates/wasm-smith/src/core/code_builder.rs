@@ -5627,9 +5627,7 @@ fn ref_cast(
 
 #[inline]
 fn ref_is_null_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.reference_types_enabled
-        && (builder.type_on_stack(module, ValType::EXTERNREF)
-            || builder.type_on_stack(module, ValType::FUNCREF))
+    module.config.reference_types_enabled && builder.ref_type_on_stack().is_some()
 }
 
 fn ref_is_null(
