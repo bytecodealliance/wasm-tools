@@ -4481,7 +4481,7 @@ impl ComponentState {
             maximum: None,
             memory64: ty.memory64,
             shared: false,
-            page_size_log2: None,
+            page_size_log2: ty.page_size_log2,
         };
         if ty.memory64 && !self.features.cm64() {
             bail!(
