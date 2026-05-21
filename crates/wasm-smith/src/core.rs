@@ -15,8 +15,8 @@ use std::ops::Range;
 use std::rc::Rc;
 use std::str::{self, FromStr};
 use wasm_encoder::{
-    AbstractHeapType, ArrayType, BlockType, ConstExpr, ExportKind, FieldType, HeapType, RefType,
-    StorageType, StructType, ValType,
+    AbstractHeapType, ArrayType, BlockType, ConstExpr, Encode, ExportKind, FieldType, HeapType,
+    RefType, StorageType, StructType, ValType,
 };
 pub(crate) use wasm_encoder::{GlobalType, MemoryType, TableType};
 
@@ -144,10 +144,6 @@ pub struct Module {
     /// Names currently exported from this module.
     export_names: HashSet<String>,
 
-    /// Reusable buffer in `self.arbitrary_const_expr` to amortize the cost of
-    /// allocation.
-    const_expr_choices: Vec<Box<dyn Fn(&mut Unstructured, ValType) -> Result<ConstExpr>>>,
-
     /// What the maximum type index that can be referenced is.
     max_type_limit: MaxTypeLimit,
 
@@ -246,7 +242,6 @@ impl Module {
             data: Vec::new(),
             type_size: 0,
             export_names: HashSet::new(),
-            const_expr_choices: Vec::new(),
             max_type_limit: MaxTypeLimit::ModuleTypes,
             interesting_values32: Vec::new(),
             interesting_values64: Vec::new(),
@@ -2049,92 +2044,36 @@ impl Module {
         u: &mut Unstructured,
         allow_defined_globals: bool,
     ) -> Result<ConstExpr> {
-        let mut choices = mem::take(&mut self.const_expr_choices);
-        choices.clear();
+        const MAX_CONST_EXPR_RECURSION_DEPTH: usize = 8;
 
-        // MVP wasm can `global.get` any immutable imported global in a
-        // constant expression, and the GC proposal enables this for all
-        // globals, so make all matching globals a candidate.
-        for i in self.globals_for_const_expr(ty, allow_defined_globals) {
-            choices.push(Box::new(move |_, _| Ok(ConstExpr::global_get(i))));
+        #[derive(Clone, Copy)]
+        enum Choice {
+            GlobalGet(u32),
+            I32Const,
+            I64Const,
+            F32Const,
+            F64Const,
+            V128Const,
+            ExtendedConst,
+            RefNull(HeapType),
+            RefFunc(u32),
+            StructNew(u32),
+            StructNewDefault(u32),
+            ArrayNew(u32),
+            ArrayNewDefault(u32),
+            ArrayNewFixed(u32),
+            RefI31 { shared: bool },
+            AnyConvertExtern { nullable: bool, shared: bool },
+            ExternConvertAny { nullable: bool, shared: bool },
         }
 
-        // Another option for all types is to have an actual value of each type.
-        // Change `ty` to any valid subtype of `ty` and then generate a matching
-        // type of that value.
-        let ty = self.arbitrary_matching_val_type(u, ty)?;
-        match ty {
-            ValType::I32 => {
-                choices.push(Box::new(|u, _| Ok(ConstExpr::i32_const(u.arbitrary()?))));
-                if self.config.extended_const_enabled {
-                    choices.push(Box::new(arbitrary_extended_const));
-                }
+        fn encode_instrs(instrs: impl IntoIterator<Item = Instruction>) -> Vec<u8> {
+            let mut bytes = Vec::new();
+            for instr in instrs {
+                instr.encode(&mut bytes);
             }
-            ValType::I64 => {
-                choices.push(Box::new(|u, _| Ok(ConstExpr::i64_const(u.arbitrary()?))));
-                if self.config.extended_const_enabled {
-                    choices.push(Box::new(arbitrary_extended_const));
-                }
-            }
-            ValType::F32 => choices.push(Box::new(|u, _| {
-                Ok(ConstExpr::f32_const(u.arbitrary::<f32>()?.into()))
-            })),
-            ValType::F64 => choices.push(Box::new(|u, _| {
-                Ok(ConstExpr::f64_const(u.arbitrary::<f64>()?.into()))
-            })),
-            ValType::V128 => {
-                choices.push(Box::new(|u, _| Ok(ConstExpr::v128_const(u.arbitrary()?))))
-            }
-
-            ValType::Ref(ty) => {
-                if ty.nullable {
-                    choices.push(Box::new(move |_, _| Ok(ConstExpr::ref_null(ty.heap_type))));
-                }
-
-                match ty.heap_type {
-                    HeapType::Abstract {
-                        ty: AbstractHeapType::Func,
-                        shared,
-                    } => {
-                        let num_funcs = self
-                            .funcs
-                            .iter()
-                            .filter(|(t, _)| shared == self.is_shared_type(*t))
-                            .count();
-                        if num_funcs > 0 {
-                            let pick = u.int_in_range(0..=num_funcs - 1)?;
-                            let (i, _) = self
-                                .funcs
-                                .iter()
-                                .map(|(t, _)| *t)
-                                .enumerate()
-                                .filter(|(_, t)| shared == self.is_shared_type(*t))
-                                .nth(pick)
-                                .unwrap();
-                            choices.push(Box::new(move |_, _| Ok(ConstExpr::ref_func(i as u32))));
-                        }
-                    }
-
-                    HeapType::Concrete(ty) => {
-                        for (i, fty) in self.funcs.iter().map(|(t, _)| *t).enumerate() {
-                            if ty != fty {
-                                continue;
-                            }
-                            choices.push(Box::new(move |_, _| Ok(ConstExpr::ref_func(i as u32))));
-                        }
-                    }
-
-                    // TODO: fill out more GC types e.g `array.new` and
-                    // `struct.new`
-                    _ => {}
-                }
-            }
+            bytes
         }
-
-        let f = u.choose(&choices)?;
-        let ret = f(u, ty);
-        self.const_expr_choices = choices;
-        return ret;
 
         /// Implementation of generation of expressions from the
         /// `extended-const` proposal to WebAssembly. This proposal enabled
@@ -2143,7 +2082,7 @@ impl Module {
         /// time this doesn't use the full expression generator in
         /// `code_builder.rs` but instead inlines just what's necessary for
         /// constant expressions here.
-        fn arbitrary_extended_const(u: &mut Unstructured<'_>, ty: ValType) -> Result<ConstExpr> {
+        fn arbitrary_extended_const(u: &mut Unstructured<'_>, ty: ValType) -> Result<Vec<u8>> {
             use wasm_encoder::Instruction::*;
 
             // This only works for i32/i64, would need refactoring for different
@@ -2152,12 +2091,11 @@ impl Module {
             let add = if ty == ValType::I32 { I32Add } else { I64Add };
             let sub = if ty == ValType::I32 { I32Sub } else { I64Sub };
             let mul = if ty == ValType::I32 { I32Mul } else { I64Mul };
-            let const_: fn(&mut Unstructured<'_>) -> Result<wasm_encoder::Instruction<'static>> =
-                if ty == ValType::I32 {
-                    |u| u.arbitrary().map(I32Const)
-                } else {
-                    |u| u.arbitrary().map(I64Const)
-                };
+            let const_: fn(&mut Unstructured<'_>) -> Result<Instruction> = if ty == ValType::I32 {
+                |u| u.arbitrary().map(I32Const)
+            } else {
+                |u| u.arbitrary().map(I64Const)
+            };
 
             // Here `instrs` is the list of instructions, in reverse order, that
             // are going to be emitted. The `needed` value keeps track of how
@@ -2194,8 +2132,289 @@ impl Module {
                     _ => unreachable!(),
                 }
             }
-            Ok(ConstExpr::extended(instrs.into_iter().rev()))
+            Ok(encode_instrs(instrs.into_iter().rev()))
         }
+
+        fn abstract_ref(nullable: bool, shared: bool, ty: AbstractHeapType) -> RefType {
+            RefType::new_abstract(ty, nullable, shared)
+        }
+
+        fn concrete_ref(nullable: bool, ty: u32) -> RefType {
+            RefType {
+                nullable,
+                heap_type: HeapType::Concrete(ty),
+            }
+        }
+
+        fn type_is_defaultable(field: StorageType) -> bool {
+            field.unpack().is_defaultable()
+        }
+
+        fn can_use_struct_new(ty: &SubType) -> bool {
+            ty.composite_type.descriptor.is_none()
+        }
+
+        fn can_use_struct_new_default(ty: &SubType) -> bool {
+            can_use_struct_new(ty)
+                && ty
+                    .unwrap_struct()
+                    .fields
+                    .iter()
+                    .all(|f| type_is_defaultable(f.element_type))
+        }
+
+        fn const_expr_bytes(
+            module: &mut Module,
+            ty: ValType,
+            u: &mut Unstructured<'_>,
+            allow_defined_globals: bool,
+            fuel: usize,
+        ) -> Result<Vec<u8>> {
+            let mut choices = Vec::new();
+
+            for i in module.globals_for_const_expr(ty, allow_defined_globals) {
+                choices.push(Choice::GlobalGet(i));
+            }
+
+            let ty = match ty {
+                ValType::Ref(_) => ty,
+                _ => module.arbitrary_matching_val_type(u, ty)?,
+            };
+            match ty {
+                ValType::I32 => {
+                    choices.push(Choice::I32Const);
+                    if module.config.extended_const_enabled {
+                        choices.push(Choice::ExtendedConst);
+                    }
+                }
+                ValType::I64 => {
+                    choices.push(Choice::I64Const);
+                    if module.config.extended_const_enabled {
+                        choices.push(Choice::ExtendedConst);
+                    }
+                }
+                ValType::F32 => choices.push(Choice::F32Const),
+                ValType::F64 => choices.push(Choice::F64Const),
+                ValType::V128 => choices.push(Choice::V128Const),
+                ValType::Ref(ref_ty) => {
+                    if ref_ty.nullable {
+                        choices.push(Choice::RefNull(ref_ty.heap_type));
+                    }
+
+                    for (func_idx, (type_idx, _)) in module.funcs.iter().enumerate() {
+                        let produced = concrete_ref(false, *type_idx);
+                        if module.ref_type_is_sub_type(produced, ref_ty) {
+                            choices.push(Choice::RefFunc(func_idx as u32));
+                        }
+                    }
+
+                    if module.config.gc_enabled {
+                        for &type_idx in &module.struct_types {
+                            let produced = concrete_ref(false, type_idx);
+                            if !module.ref_type_is_sub_type(produced, ref_ty) {
+                                continue;
+                            }
+                            if can_use_struct_new(module.ty(type_idx))
+                                && (fuel > 0
+                                    || module.ty(type_idx).unwrap_struct().fields.is_empty())
+                            {
+                                choices.push(Choice::StructNew(type_idx));
+                            }
+                            if can_use_struct_new_default(module.ty(type_idx)) {
+                                choices.push(Choice::StructNewDefault(type_idx));
+                            }
+                        }
+
+                        for &type_idx in &module.array_types {
+                            let produced = concrete_ref(false, type_idx);
+                            if !module.ref_type_is_sub_type(produced, ref_ty) {
+                                continue;
+                            }
+                            if fuel > 0 {
+                                choices.push(Choice::ArrayNew(type_idx));
+                                choices.push(Choice::ArrayNewFixed(type_idx));
+                                if type_is_defaultable(
+                                    module.ty(type_idx).unwrap_array().0.element_type,
+                                ) {
+                                    choices.push(Choice::ArrayNewDefault(type_idx));
+                                }
+                            }
+                        }
+
+                        let produced_i31 = abstract_ref(false, false, AbstractHeapType::I31);
+                        if fuel > 0 && module.ref_type_is_sub_type(produced_i31, ref_ty) {
+                            choices.push(Choice::RefI31 { shared: false });
+                        }
+
+                        if module.config.shared_everything_threads_enabled {
+                            let produced_i31 = abstract_ref(false, true, AbstractHeapType::I31);
+                            if fuel > 0 && module.ref_type_is_sub_type(produced_i31, ref_ty) {
+                                choices.push(Choice::RefI31 { shared: true });
+                            }
+                        }
+
+                        match ref_ty.heap_type {
+                            HeapType::Abstract {
+                                shared,
+                                ty: AbstractHeapType::Any,
+                            } if fuel > 0 => {
+                                choices.push(Choice::AnyConvertExtern {
+                                    nullable: ref_ty.nullable,
+                                    shared,
+                                });
+                            }
+                            HeapType::Abstract {
+                                shared,
+                                ty: AbstractHeapType::Extern,
+                            } if fuel > 0 => {
+                                choices.push(Choice::ExternConvertAny {
+                                    nullable: ref_ty.nullable,
+                                    shared,
+                                });
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+
+            let choice = *u.choose(&choices)?;
+            Ok(match choice {
+                Choice::GlobalGet(i) => encode_instrs([Instruction::GlobalGet(i)]),
+                Choice::I32Const => encode_instrs([Instruction::I32Const(u.arbitrary()?)]),
+                Choice::I64Const => encode_instrs([Instruction::I64Const(u.arbitrary()?)]),
+                Choice::F32Const => {
+                    encode_instrs([Instruction::F32Const(u.arbitrary::<f32>()?.into())])
+                }
+                Choice::F64Const => {
+                    encode_instrs([Instruction::F64Const(u.arbitrary::<f64>()?.into())])
+                }
+                Choice::V128Const => encode_instrs([Instruction::V128Const(u.arbitrary()?)]),
+                Choice::ExtendedConst => arbitrary_extended_const(u, ty)?,
+                Choice::RefNull(heap_type) => encode_instrs([Instruction::RefNull(heap_type)]),
+                Choice::RefFunc(i) => encode_instrs([Instruction::RefFunc(i)]),
+                Choice::StructNew(type_idx) => {
+                    let mut bytes = Vec::new();
+                    let field_types: Vec<_> = module
+                        .ty(type_idx)
+                        .unwrap_struct()
+                        .fields
+                        .iter()
+                        .map(|field| field.element_type.unpack())
+                        .collect();
+                    for field_ty in field_types {
+                        bytes.extend(const_expr_bytes(
+                            module,
+                            field_ty,
+                            u,
+                            allow_defined_globals,
+                            fuel.saturating_sub(1),
+                        )?);
+                    }
+                    bytes.extend(encode_instrs([Instruction::StructNew(type_idx)]));
+                    bytes
+                }
+                Choice::StructNewDefault(type_idx) => {
+                    encode_instrs([Instruction::StructNewDefault(type_idx)])
+                }
+                Choice::ArrayNew(type_idx) => {
+                    let mut bytes = Vec::new();
+                    let elem_ty = module.ty(type_idx).unwrap_array().0.element_type.unpack();
+                    bytes.extend(const_expr_bytes(
+                        module,
+                        elem_ty,
+                        u,
+                        allow_defined_globals,
+                        fuel.saturating_sub(1),
+                    )?);
+                    bytes.extend(const_expr_bytes(
+                        module,
+                        ValType::I32,
+                        u,
+                        allow_defined_globals,
+                        fuel.saturating_sub(1),
+                    )?);
+                    bytes.extend(encode_instrs([Instruction::ArrayNew(type_idx)]));
+                    bytes
+                }
+                Choice::ArrayNewDefault(type_idx) => {
+                    let mut bytes = const_expr_bytes(
+                        module,
+                        ValType::I32,
+                        u,
+                        allow_defined_globals,
+                        fuel.saturating_sub(1),
+                    )?;
+                    bytes.extend(encode_instrs([Instruction::ArrayNewDefault(type_idx)]));
+                    bytes
+                }
+                Choice::ArrayNewFixed(type_idx) => {
+                    let array_size = u.int_in_range(0..=3)?;
+                    let array_size = u32::try_from(array_size).unwrap();
+                    let elem_ty = module.ty(type_idx).unwrap_array().0.element_type.unpack();
+                    let mut bytes = Vec::new();
+                    for _ in 0..array_size {
+                        bytes.extend(const_expr_bytes(
+                            module,
+                            elem_ty,
+                            u,
+                            allow_defined_globals,
+                            fuel.saturating_sub(1),
+                        )?);
+                    }
+                    bytes.extend(encode_instrs([Instruction::ArrayNewFixed {
+                        array_type_index: type_idx,
+                        array_size,
+                    }]));
+                    bytes
+                }
+                Choice::RefI31 { shared } => {
+                    let mut bytes = const_expr_bytes(
+                        module,
+                        ValType::I32,
+                        u,
+                        allow_defined_globals,
+                        fuel.saturating_sub(1),
+                    )?;
+                    bytes.extend(encode_instrs([if shared {
+                        Instruction::RefI31Shared
+                    } else {
+                        Instruction::RefI31
+                    }]));
+                    bytes
+                }
+                Choice::AnyConvertExtern { nullable, shared } => {
+                    let mut bytes = const_expr_bytes(
+                        module,
+                        ValType::Ref(abstract_ref(nullable, shared, AbstractHeapType::Extern)),
+                        u,
+                        allow_defined_globals,
+                        fuel.saturating_sub(1),
+                    )?;
+                    bytes.extend(encode_instrs([Instruction::AnyConvertExtern]));
+                    bytes
+                }
+                Choice::ExternConvertAny { nullable, shared } => {
+                    let mut bytes = const_expr_bytes(
+                        module,
+                        ValType::Ref(abstract_ref(nullable, shared, AbstractHeapType::Any)),
+                        u,
+                        allow_defined_globals,
+                        fuel.saturating_sub(1),
+                    )?;
+                    bytes.extend(encode_instrs([Instruction::ExternConvertAny]));
+                    bytes
+                }
+            })
+        }
+
+        Ok(ConstExpr::raw(const_expr_bytes(
+            self,
+            ty,
+            u,
+            allow_defined_globals,
+            MAX_CONST_EXPR_RECURSION_DEPTH,
+        )?))
     }
 
     fn arbitrary_globals(&mut self, u: &mut Unstructured) -> Result<()> {
@@ -3469,6 +3688,7 @@ impl FromStr for InstructionKind {
             "memory_non_float" => Ok(InstructionKind::MemoryInt),
             "memory" => Ok(InstructionKind::Memory),
             "control" => Ok(InstructionKind::Control),
+            "aggregate" => Ok(InstructionKind::Aggregate),
             _ => Err(format!("unknown instruction kind: {s}")),
         }
     }
