@@ -1,0 +1,4 @@
+error: failed to decode WIT from export `wasi:http/handler@0.3.0`
+
+Caused by:
+    0: cannot represent this component in WIT: the type `request` appears more than once (for example, when an imported instance is re-exported under a new name)
