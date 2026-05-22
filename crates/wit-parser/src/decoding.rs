@@ -1090,8 +1090,17 @@ impl WitPackageDecoder<'_> {
             assert!(prev.is_none());
         }
 
+        // A duplicate mapping here comes from a valid component that WIT cannot
+        // represent (for example an imported resource re-exported under a new
+        // name), not an internal invariant, so report it instead of asserting.
         let prev = self.type_map.insert(created, ty);
-        assert!(prev.is_none());
+        if prev.is_some() {
+            bail!(
+                "cannot represent this component in WIT: the type `{name}` appears \
+                 more than once (for example, when an imported instance is \
+                 re-exported under a new name)"
+            );
+        }
         Ok(ty)
     }
 

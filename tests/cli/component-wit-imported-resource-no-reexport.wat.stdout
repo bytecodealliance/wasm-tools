@@ -1,0 +1,10 @@
+package root:component;
+
+world root {
+  import impl:test/handler;
+}
+package impl:test {
+  interface handler {
+    resource request;
+  }
+}
