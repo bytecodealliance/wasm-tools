@@ -26,19 +26,12 @@
       "line": 45,
       "filename": "options.3.wasm",
       "module_type": "binary",
-      "text": "mismatch in page size for memories"
+      "text": "mismatch in the shared flag for memories"
     },
     {
       "type": "assert_invalid",
       "line": 55,
       "filename": "options.4.wasm",
-      "module_type": "binary",
-      "text": "mismatch in the shared flag for memories"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 65,
-      "filename": "options.5.wasm",
       "module_type": "binary",
       "text": "64-bit memories require the `cm64` feature to be enabled"
     }

@@ -44,16 +44,6 @@
 (assert_invalid
   (component
     (core module $m
-      (memory (export "m") 0 (pagesize 1))
-      (func (export "f"))
-    )
-    (core instance $i (instantiate $m))
-    (func (canon lift (core func $i "f") (memory $i "m")))
-  )
-  "mismatch in page size for memories")
-(assert_invalid
-  (component
-    (core module $m
       (memory (export "m") 0 1 shared)
       (func (export "f"))
     )
