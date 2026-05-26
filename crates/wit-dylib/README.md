@@ -9,7 +9,7 @@ WebAssembly [shared-everything dynamic library][dylib] from a [WIT
 world][world] which interacts and is implemented with a C header file
 [`wit_dylib.h`]. Crucially this translates any possible WIT interface through a
 single [`wit_dylib.h`] interface. This enables creating a component that is
-suitable for implementing and using an WIT interface.
+suitable for implementing and using a WIT interface.
 
 The primary use case in mind for this crate is turning interpreted languages
 into a WebAssembly component. This crate enables decoupling the interpreter and
