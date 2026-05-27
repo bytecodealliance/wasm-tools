@@ -1,0 +1,11 @@
+// Reject wrong type
+string();
+nullary("");
+ui.nullary("");
+// Reject wrong interface
+wrong.nullary();
+// Reject wrong package
+ui:another/ui.nullary();
+other:tests/ui.nullary();
+// Reject wrong version
+ui:tests/ui.string@0.0.0("");

@@ -1,0 +1,5 @@
+nullary();
+string("");
+ui.string("");
+ui:tests/ui.nullary();
+ui:tests/ui.string@0.1.0("");

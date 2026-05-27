@@ -1,0 +1,5 @@
+nullary()
+string(val: "")
+ui.string(val: "")
+ui:tests/ui.nullary()
+ui:tests/ui.string@0.1.0(val: "")

@@ -136,3 +136,22 @@ impl Display for Keyword {
         })
     }
 }
+
+/// A lexer for function names. Different token type from WAVE values, because
+/// this is not part of the same context-free grammar.
+pub type FuncNameLexer<'source> = logos::Lexer<'source, FuncNameToken>;
+/// A function name token
+#[derive(Clone, Copy, Debug, PartialEq, Eq, logos::Logos)]
+#[logos(error = Option<logos::Span>)]
+#[logos(subpattern first_label_word = r"[a-z][a-z0-9]*|[A-Z][A-Z0-9]*")]
+#[logos(subpattern label_word = r"[a-z0-9]+|[A-Z0-9]+")]
+#[logos(subpattern label = r"(?&first_label_word)(\-(?&label_word))*")]
+#[logos(subpattern package_label = r"(?&label)\:(?&label)")]
+#[logos(subpattern semver = r"(0|([1-9][0-9]*))\.(0|([1-9][0-9]*))\.(0|([1-9][0-9]*))")]
+pub enum FuncNameToken {
+    /// A function inside an optional interface, with an optional package qualifier and
+    /// package version suffix
+    #[regex(r"((?&package_label)\/)?(?&label)(\.(?&label))?(\@(?&semver))?")]
+    FunctionName,
+}
+

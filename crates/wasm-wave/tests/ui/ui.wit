@@ -1,4 +1,4 @@
-package ui:tests;
+package ui:tests@0.1.0;
 
 interface ui {
     nullary: func();
