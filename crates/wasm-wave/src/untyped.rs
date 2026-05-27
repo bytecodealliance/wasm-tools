@@ -134,7 +134,7 @@ impl<'source> UntypedFuncCall<'source> {
                 if num_params > 0 {
                     return Err(ParserError::with_detail(
                         ParserErrorKind::InvalidParams,
-                        self.name.span(),
+                        self.name.clone(),
                         alloc::format!("no params provided, but {num_params} required"),
                     ));
                 }
