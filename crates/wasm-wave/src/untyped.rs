@@ -2,7 +2,12 @@
 
 use alloc::{borrow::Cow, vec::Vec};
 
-use crate::{Parser, WasmValue, ast::Node, lex::Keyword, parser::ParserError};
+use crate::{
+    Parser, WasmValue,
+    ast::Node,
+    lex::Keyword,
+    parser::{ParserError, ParserErrorKind},
+};
 
 /// An UntypedValue is a parsed but not type-checked WAVE value.
 #[derive(Clone, Debug)]
@@ -121,11 +126,21 @@ impl<'source> UntypedFuncCall<'source> {
     /// be returned as `none` values.
     pub fn to_wasm_params<'types, V: WasmValue + 'static>(
         &self,
-        types: impl IntoIterator<Item = &'types V::Type>,
+        types: impl IntoIterator<Item = &'types V::Type, IntoIter: ExactSizeIterator>,
     ) -> Result<Vec<V>, ParserError> {
         match &self.params {
             Some(params) => params.to_wasm_params(types, self.source()),
-            None => Ok(Vec::new()),
+            None => {
+                let num_params = types.into_iter().len();
+                if num_params > 0 {
+                    return Err(ParserError::with_detail(
+                        ParserErrorKind::InvalidParams,
+                        self.name.span(),
+                        alloc::format!("no params provided, but {num_params} required"),
+                    ));
+                }
+                Ok(Vec::new())
+            }
         }
     }
 }

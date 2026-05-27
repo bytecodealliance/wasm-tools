@@ -30,3 +30,5 @@ unexpected token: LabelOrKeyword at 25..30
 // Multiline invalid escapes
 invalid character escape at 30..31
 invalid character escape at 27..28
+// Missing argument
+invalid params: no params provided, but 1 required at 0..6

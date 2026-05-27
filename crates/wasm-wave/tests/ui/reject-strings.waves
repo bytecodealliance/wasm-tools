@@ -44,3 +44,5 @@ Invalid surrogate: \u{d800}
 string("""
 Invalid escape: \j
 """);
+// Missing argument
+string();
