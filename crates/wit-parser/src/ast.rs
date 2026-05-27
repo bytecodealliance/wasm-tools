@@ -1988,7 +1988,10 @@ pub fn parse_use_path(s: &str) -> anyhow::Result<ParsedUsePath> {
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-#[cfg_attr(feature = "serde", derive(serde_derive::Serialize, serde_derive::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde_derive::Serialize, serde_derive::Deserialize)
+)]
 #[cfg_attr(feature = "serde", serde(into = "String", try_from = "String"))]
 pub struct ItemName {
     pub package: Option<crate::PackageName>,
@@ -2055,14 +2058,21 @@ impl core::convert::TryFrom<String> for ItemName {
 }
 impl fmt::Display for ItemName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(crate::PackageName { namespace, name, .. }) = &self.package {
+        if let Some(crate::PackageName {
+            namespace, name, ..
+        }) = &self.package
+        {
             write!(f, "{namespace}:{name}/")?;
         }
         if let Some(int) = &self.interface {
             write!(f, "{int}.")?;
         }
         write!(f, "{}", self.name)?;
-        if let Some(crate::PackageName { version: Some(version), .. }) = &self.package {
+        if let Some(crate::PackageName {
+            version: Some(version),
+            ..
+        }) = &self.package
+        {
             write!(f, "@{version}")?;
         }
         Ok(())
@@ -2098,9 +2108,7 @@ mod item_name_test {
         );
         assert_round_trip("bare-kebab-name");
         // Invalid to have a version without a package name
-        assert!(
-            "bare-kebab-name@0.1.0".parse::<ItemName>().is_err()
-        );
+        assert!("bare-kebab-name@0.1.0".parse::<ItemName>().is_err());
     }
     #[test]
     fn in_interface() {
@@ -2114,9 +2122,7 @@ mod item_name_test {
         );
         assert_round_trip("foo.bar");
         // Invalid to have a version without a package name
-        assert!(
-            "foo.bar@0.1.0".parse::<ItemName>().is_err()
-        );
+        assert!("foo.bar@0.1.0".parse::<ItemName>().is_err());
     }
     #[test]
     fn in_package() {
