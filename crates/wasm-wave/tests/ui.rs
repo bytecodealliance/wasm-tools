@@ -32,9 +32,8 @@ fn test(path: &Path) -> Result<String> {
         ) -> Result<(String, &'static FuncType, Vec<Value>), anyhow::Error> {
             let untyped_call = UntypedFuncCall::parse(input)?;
             let func_name = untyped_call.name().to_string();
-            let func_type = get_func_type(&func_name).ok_or_else(|| {
-                anyhow::anyhow!("unknown test func {func_name:?}")
-            })?;
+            let func_type = get_func_type(&func_name)
+                .ok_or_else(|| anyhow::anyhow!("unknown test func {func_name:?}"))?;
             let param_types = func_type.params().collect::<Vec<_>>();
             let values = untyped_call.to_wasm_params::<Value>(&param_types)?;
             Ok((func_name, func_type, values))
@@ -84,19 +83,22 @@ fn get_func_type(func_name: &str) -> Option<&'static FuncType> {
                     let func_type = resolve_wit_func_type(&resolve, func).unwrap();
                     let mut entries = vec![(func_name.clone(), func_type.clone())];
                     if let Some(interface_name) = &interface.name {
-                        entries.push((
-                            format!("{interface_name}.{func_name}"),
-                            func_type.clone(),
-                        ));
+                        entries.push((format!("{interface_name}.{func_name}"), func_type.clone()));
                         if let Some(package_id) = &interface.package {
                             let package_name = &resolve.packages[*package_id].name;
                             entries.push((
-                                format!("{}:{}/{interface_name}.{func_name}", package_name.namespace, package_name.name),
+                                format!(
+                                    "{}:{}/{interface_name}.{func_name}",
+                                    package_name.namespace, package_name.name
+                                ),
                                 func_type.clone(),
                             ));
                             if let Some(version) = &package_name.version {
                                 entries.push((
-                                    format!("{}:{}/{interface_name}.{func_name}@{version}", package_name.namespace, package_name.name),
+                                    format!(
+                                        "{}:{}/{interface_name}.{func_name}@{version}",
+                                        package_name.namespace, package_name.name
+                                    ),
                                     func_type.clone(),
                                 ));
                             }

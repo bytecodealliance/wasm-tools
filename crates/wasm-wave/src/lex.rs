@@ -154,4 +154,3 @@ pub enum FuncNameToken {
     #[regex(r"((?&package_label)\/)?(?&label)(\.(?&label))?(\@(?&semver))?")]
     FunctionName,
 }
-
