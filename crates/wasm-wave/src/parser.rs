@@ -13,7 +13,7 @@ use alloc::{
 use crate::{
     WasmValue,
     ast::{Node, NodeType},
-    lex::{Keyword, Lexer, Span, Token},
+    lex::{FuncNameLexer, FuncNameToken, Keyword, Lexer, Span, Token},
     untyped::{UntypedFuncCall, UntypedValue},
 };
 
@@ -48,23 +48,6 @@ impl<'source> Parser<'source> {
     pub fn parse_raw_value(&mut self) -> Result<UntypedValue<'source>, ParserError> {
         let node = self.parse_node()?;
         Ok(UntypedValue::new(self.lex.source(), node))
-    }
-
-    /// Parses a function name followed by a WAVE-encoded, parenthesized,
-    /// comma-separated sequence of values into an [`UntypedFuncCall`].
-    pub fn parse_raw_func_call(&mut self) -> Result<UntypedFuncCall<'source>, ParserError> {
-        self.advance()?;
-        let name = self.parse_label()?;
-        self.advance()?;
-        self.expect_token(Token::ParenOpen)?;
-
-        let params = if self.next_is(Token::ParenClose) {
-            self.advance()?;
-            None
-        } else {
-            Some(self.parse_tuple()?)
-        };
-        Ok(UntypedFuncCall::new(self.lex.source(), name, params))
     }
 
     /// Returns an error if any significant input remains unparsed.
@@ -415,6 +398,55 @@ impl Error for ParserError {
     }
 }
 
+/// Parses a function name followed by a WAVE-encoded, parenthesized,
+/// comma-separated sequence of values into an [`UntypedFuncCall`].
+pub fn parse_raw_func_call<'source>(
+    source: &'source str,
+) -> Result<UntypedFuncCall<'source>, ParserError> {
+    let mut name_parser = FuncNameParser::with_lexer(FuncNameLexer::new(source));
+    let _func_name = name_parser.advance()?;
+    let name = name_parser.lex.span();
+
+    let mut params_parser = Parser::with_lexer(name_parser.lex.morph());
+    params_parser.advance()?;
+    params_parser.expect_token(Token::ParenOpen)?;
+
+    let params = if params_parser.next_is(Token::ParenClose) {
+        params_parser.advance()?;
+        None
+    } else {
+        Some(params_parser.parse_tuple()?)
+    };
+    params_parser.finish()?;
+    Ok(UntypedFuncCall::new(source, name, params))
+}
+
+struct FuncNameParser<'source> {
+    lex: FuncNameLexer<'source>,
+    curr: Option<FuncNameToken>,
+}
+impl<'source> FuncNameParser<'source> {
+    fn with_lexer(lex: FuncNameLexer<'source>) -> Self {
+        Self { lex, curr: None }
+    }
+    fn advance(&mut self) -> Result<FuncNameToken, ParserError> {
+        let token = match self.lex.next() {
+            Some(Ok(token)) => token,
+            Some(Err(span)) => {
+                let span = span.unwrap_or_else(|| self.lex.span());
+                return Err(ParserError::new(ParserErrorKind::InvalidToken, span));
+            }
+            None => {
+                return Err(ParserError::new(
+                    ParserErrorKind::UnexpectedEnd,
+                    self.lex.span(),
+                ));
+            }
+        };
+        self.curr = Some(token);
+        Ok(token)
+    }
+}
 /// The kind of a WAVE parsing error.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[non_exhaustive]
