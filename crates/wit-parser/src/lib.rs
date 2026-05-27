@@ -44,9 +44,9 @@ pub use metadata::PackageMetadata;
 
 pub mod abi;
 mod ast;
-pub use ast::SourceMap;
 pub use ast::error::*;
 pub use ast::lex::Span;
+pub use ast::{ItemName, SourceMap};
 pub use ast::{ParsedUsePath, parse_use_path};
 mod sizealign;
 pub use sizealign::*;
