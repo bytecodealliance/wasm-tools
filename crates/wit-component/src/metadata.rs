@@ -50,7 +50,9 @@ use wasm_encoder::{
 };
 use wasm_metadata::Producers;
 use wasmparser::{BinaryReader, Encoding, Parser, Payload};
-use wit_parser::{CloneMaps, Package, PackageName, Resolve, World, WorldId, WorldItem, WorldKey};
+use wit_parser::{
+    CloneMaps, Package, PackageMetadata, PackageName, Resolve, World, WorldId, WorldItem, WorldKey,
+};
 
 const CURRENT_VERSION: u8 = 0x04;
 const CUSTOM_SECTION_NAME: &str = "wit-component-encoding";
@@ -290,6 +292,12 @@ pub fn encode(
     builder.custom_section(&CustomSection {
         name: CUSTOM_SECTION_NAME.into(),
         data: Cow::Borrowed(&[CURRENT_VERSION, string_encoding]),
+    });
+
+    let package_docs = PackageMetadata::extract(resolve, world.package.unwrap());
+    builder.custom_section(&CustomSection {
+        name: PackageMetadata::SECTION_NAME.into(),
+        data: package_docs.encode()?.into(),
     });
 
     let ty = builder.type_component(None, &outer_ty);

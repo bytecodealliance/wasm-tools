@@ -3,6 +3,7 @@ package root:root;
 world root {
   import foo:foo/my-interface;
 }
+/// RUN: component embed --dummy % | component wit
 package foo:foo {
   interface my-interface {
     foo: func();

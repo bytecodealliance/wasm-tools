@@ -19,6 +19,7 @@ package test:foo2 {
 }
 
 
+/// RUN: component embed --dummy --wat % | component wit
 package foo:root {
   world hello {
     import test:foo1/bar;

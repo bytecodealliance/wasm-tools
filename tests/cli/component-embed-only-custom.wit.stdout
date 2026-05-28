@@ -1,5 +1,6 @@
 (component
   (@custom "wit-component-encoding" "/04/00")
+  (@custom "package-docs" "/01{/22docs/22:/22RUN: component embed --only-custom -w foo % | print/22}")
   (type (;0;)
     (component
       (type (;0;)

@@ -429,6 +429,8 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
     let mut exports = Vec::new();
     let mut depth = 1;
     let mut types = None;
+    #[cfg(feature = "serde")]
+    let mut package_metadata: Option<PackageMetadata> = None;
 
     for payload in Parser::new(0).parse_all(wasm) {
         let payload = payload?;
@@ -450,6 +452,15 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
                 for export in s {
                     exports.push(export?);
                 }
+            }
+            #[cfg(feature = "serde")]
+            Payload::CustomSection(s)
+                if depth == 1 && s.name() == PackageMetadata::SECTION_NAME =>
+            {
+                if package_metadata.is_some() {
+                    bail!("multiple {:?} sections", PackageMetadata::SECTION_NAME);
+                }
+                package_metadata = Some(PackageMetadata::decode(s.data())?);
             }
             _ => {}
         }
@@ -489,12 +500,16 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
             worlds: &mut worlds,
         },
     )?;
-    let (resolve, pkg) = decoder.finish(Package {
+    let (mut resolve, pkg) = decoder.finish(Package {
         name,
         interfaces,
         worlds,
         docs: Default::default(),
     });
+    #[cfg(feature = "serde")]
+    if let Some(metadata) = package_metadata {
+        metadata.inject(&mut resolve, pkg)?;
+    }
     // The package decoded here should only have a single world so extract that
     // here to return.
     let world = *resolve.packages[pkg].worlds.iter().next().unwrap().1;

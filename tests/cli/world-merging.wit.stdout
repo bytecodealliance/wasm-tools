@@ -10,6 +10,9 @@ world root {
   export x: interface {
   }
 }
+/// RUN: component embed --dummy --world foo % | component embed --world foo % | component wit
+/// This test embeds this world twice and then ensures that merging the two
+/// worlds together works (it's the same definition anyway).
 package a:b {
   interface x {
     type t = u32;

@@ -5,6 +5,7 @@ world root {
 
   export y: func();
 }
+/// RUN: component embed --dummy % | component wit
 package a:b {
   world foo {
     import x: func();
