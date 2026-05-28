@@ -1993,10 +1993,136 @@ pub fn parse_use_path(s: &str) -> anyhow::Result<ParsedUsePath> {
     derive(serde_derive::Serialize, serde_derive::Deserialize)
 )]
 #[cfg_attr(feature = "serde", serde(into = "String", try_from = "String"))]
+/// The fully-qualified name of a Component Model item (function,
+/// type, or resource) as can be defined by wit. An item is optionally in a
+/// package, the package optionally has a version, and the item is optionally
+/// inside a namespace.
+///
+/// The syntax for an ItemName always uses the package version as a suffix, if
+/// it is given. The following tests show examples of the syntax for ItemName:
+/// ```rust
+/// # use wit_parser::{ItemName, PackageName};
+/// assert_eq!(
+///     "foo".parse::<ItemName>().unwrap(),
+///     ItemName {
+///         package: None,
+///         interface: None,
+///         name: "foo".to_owned()
+///     }
+/// );
+/// assert_eq!(
+///     "foo.bar".parse::<ItemName>().unwrap(),
+///     ItemName {
+///         package: None,
+///         interface: Some("foo".to_owned()),
+///         name: "bar".to_owned()
+///     }
+/// );
+/// assert_eq!(
+///     "foo:bar/baz".parse::<ItemName>().unwrap(),
+///     ItemName {
+///         package: Some(PackageName {
+///             namespace: "foo".to_owned(),
+///             name: "bar".to_owned(),
+///             version: None
+///         }),
+///         interface: None,
+///         name: "baz".to_owned()
+///     }
+/// );
+/// assert_eq!(
+///     "foo:bar/baz@0.1.0".parse::<ItemName>().unwrap(),
+///     ItemName {
+///         package: Some(PackageName {
+///             namespace: "foo".to_owned(),
+///             name: "bar".to_owned(),
+///             version: Some("0.1.0".parse().unwrap())
+///         }),
+///         interface: None,
+///         name: "baz".to_owned()
+///     }
+/// );
+/// assert_eq!(
+///     "foo:bar/baz.bat".parse::<ItemName>().unwrap(),
+///     ItemName {
+///         package: Some(PackageName {
+///             namespace: "foo".to_owned(),
+///             name: "bar".to_owned(),
+///             version: None
+///         }),
+///         interface: Some("baz".to_owned()),
+///         name: "bat".to_owned()
+///     }
+/// );
+/// assert_eq!(
+///     "foo:bar/baz.bat@0.1.0".parse::<ItemName>().unwrap(),
+///     ItemName {
+///         package: Some(PackageName {
+///             namespace: "foo".to_owned(),
+///             name: "bar".to_owned(),
+///             version: Some("0.1.0".parse().unwrap()),
+///         }),
+///         interface: Some("baz".to_owned()),
+///         name: "bat".to_owned()
+///     }
+/// );
+/// assert!("foo@0.1.0".parse::<ItemName>().is_err());
+/// assert!("foo:bar@0.1.0".parse::<ItemName>().is_err());
+/// assert!("foo:bar/baz@0.1.0.bat".parse::<ItemName>().is_err());
+/// assert!("foo.bar@0.1.0".parse::<ItemName>().is_err());
+/// assert!("foo@0.1.0.bar".parse::<ItemName>().is_err());
+/// ```
+///
+/// Parse this from a string using its [`FromStr`](core::str::FromStr) or
+/// [`TryFrom<String>`](core::convert::TryFrom) impls.
+/// [`Display`](core::fmt::Display) to render to the same string syntax.
 pub struct ItemName {
     pub package: Option<crate::PackageName>,
     pub interface: Option<String>,
     pub name: String,
+}
+impl ItemName {
+    /// Get the name of the component instance containing this item, if any.
+    /// The instance name will be formed like:
+    /// "namespace.packagename/interfacename@0.1.0"
+    /// ```rust
+    /// # use wit_parser::ItemName;
+    /// assert_eq!(
+    ///     "foo".parse::<ItemName>().unwrap().instance_name(),
+    ///     None,
+    /// );
+    /// assert_eq!(
+    ///     "foo.bar".parse::<ItemName>().unwrap().instance_name(),
+    ///     Some("foo".to_owned())
+    /// );
+    /// assert_eq!(
+    ///     "foo:bar/baz.bat@0.1.0".parse::<ItemName>().unwrap().instance_name(),
+    ///     Some("foo:bar/baz@0.1.0".to_owned())
+    /// );
+    /// ```
+    pub fn instance_name(&self) -> Option<String> {
+        if self.package.is_none() && self.interface.is_none() {
+            return None;
+        }
+        let mut s = String::new();
+        if let Some(crate::PackageName {
+            namespace, name, ..
+        }) = &self.package
+        {
+            s.push_str(&format!("{namespace}:{name}/"));
+        }
+        if let Some(name) = &self.interface {
+            s.push_str(&format!("{name}"));
+        }
+        if let Some(crate::PackageName {
+            version: Some(version),
+            ..
+        }) = &self.package
+        {
+            s.push_str(&format!("@{version}"));
+        }
+        Some(s)
+    }
 }
 impl core::str::FromStr for ItemName {
     type Err = anyhow::Error;
