@@ -453,14 +453,15 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
                     exports.push(export?);
                 }
             }
+            // Best-effort: a bad section just drops docs, not the world.
+            // Guard takes the first top-level package-docs section; duplicates are ignored.
             #[cfg(feature = "serde")]
             Payload::CustomSection(s)
-                if depth == 1 && s.name() == PackageMetadata::SECTION_NAME =>
+                if depth == 1
+                    && s.name() == PackageMetadata::SECTION_NAME
+                    && package_metadata.is_none() =>
             {
-                if package_metadata.is_some() {
-                    bail!("multiple {:?} sections", PackageMetadata::SECTION_NAME);
-                }
-                package_metadata = Some(PackageMetadata::decode(s.data())?);
+                package_metadata = PackageMetadata::decode(s.data()).ok();
             }
             _ => {}
         }
@@ -508,7 +509,8 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
     });
     #[cfg(feature = "serde")]
     if let Some(metadata) = package_metadata {
-        metadata.inject(&mut resolve, pkg)?;
+        // Best-effort: a failure here just drops some docs.
+        let _ = metadata.inject(&mut resolve, pkg);
     }
     // The package decoded here should only have a single world so extract that
     // here to return.
