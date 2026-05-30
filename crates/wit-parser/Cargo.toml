@@ -26,7 +26,7 @@ semver = { workspace = true }
 serde = { workspace = true, optional = true }
 serde_derive = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
-unicode-xid = "0.2.2"
+unicode-ident = "1.0.24"
 wasmparser = { workspace = true, optional = true, features = ['std', 'validate', 'component-model', 'features'] }
 wat = { workspace = true, optional = true, features = ['component-model'] }
 
