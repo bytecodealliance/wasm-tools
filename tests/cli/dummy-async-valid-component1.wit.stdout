@@ -1,3 +1,6 @@
+/// RUN: component embed % --dummy-names legacy --async-callback | /
+///        component new | /
+///        component wit
 package root:component;
 
 world root {

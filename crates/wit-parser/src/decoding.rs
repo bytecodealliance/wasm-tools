@@ -507,6 +507,7 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
             worlds: &mut worlds,
         },
     )?;
+    #[cfg_attr(not(feature = "serde"), allow(unused_mut))]
     let (mut resolve, pkg) = decoder.finish(Package {
         name,
         interfaces,
