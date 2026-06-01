@@ -2170,7 +2170,7 @@ impl Module {
             if module.config.limit_arrays_in_const_exprs {
                 let size = u.int_in_range(0..=*fuel)?;
                 *fuel -= size;
-                return Ok(encode_instrs([Instruction::I32Const(size.cast_signed())]));
+                return Ok(encode_instrs([Instruction::I32Const(size as i32)]));
             }
 
             const_expr_bytes(module, ValType::I32, u, allow_defined_globals, fuel)
