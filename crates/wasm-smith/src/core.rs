@@ -2044,8 +2044,6 @@ impl Module {
         u: &mut Unstructured,
         allow_defined_globals: bool,
     ) -> Result<ConstExpr> {
-        const MAX_CONST_EXPR_RECURSION_DEPTH: usize = 8;
-
         #[derive(Clone, Copy)]
         enum Choice {
             GlobalGet(u32),
@@ -2163,12 +2161,27 @@ impl Module {
                     .all(|f| type_is_defaultable(f.element_type))
         }
 
+        fn const_expr_bytes_for_array_length(
+            module: &mut Module,
+            u: &mut Unstructured<'_>,
+            allow_defined_globals: bool,
+            fuel: &mut u32,
+        ) -> Result<Vec<u8>> {
+            if module.config.limit_arrays_in_const_exprs {
+                let size = u.int_in_range(0..=*fuel)?;
+                *fuel -= size;
+                return Ok(encode_instrs([Instruction::I32Const(size.cast_signed())]));
+            }
+
+            const_expr_bytes(module, ValType::I32, u, allow_defined_globals, fuel)
+        }
+
         fn const_expr_bytes(
             module: &mut Module,
             ty: ValType,
             u: &mut Unstructured<'_>,
             allow_defined_globals: bool,
-            fuel: usize,
+            fuel: &mut u32,
         ) -> Result<Vec<u8>> {
             let mut choices = Vec::new();
 
@@ -2215,7 +2228,7 @@ impl Module {
                                 continue;
                             }
                             if can_use_struct_new(module.ty(type_idx))
-                                && (fuel > 0
+                                && (*fuel > 0
                                     || module.ty(type_idx).unwrap_struct().fields.is_empty())
                             {
                                 choices.push(Choice::StructNew(type_idx));
@@ -2230,7 +2243,7 @@ impl Module {
                             if !module.ref_type_is_sub_type(produced, ref_ty) {
                                 continue;
                             }
-                            if fuel > 0 {
+                            if *fuel > 0 {
                                 choices.push(Choice::ArrayNew(type_idx));
                                 choices.push(Choice::ArrayNewFixed(type_idx));
                                 if type_is_defaultable(
@@ -2242,13 +2255,13 @@ impl Module {
                         }
 
                         let produced_i31 = abstract_ref(false, false, AbstractHeapType::I31);
-                        if fuel > 0 && module.ref_type_is_sub_type(produced_i31, ref_ty) {
+                        if *fuel > 0 && module.ref_type_is_sub_type(produced_i31, ref_ty) {
                             choices.push(Choice::RefI31 { shared: false });
                         }
 
                         if module.config.shared_everything_threads_enabled {
                             let produced_i31 = abstract_ref(false, true, AbstractHeapType::I31);
-                            if fuel > 0 && module.ref_type_is_sub_type(produced_i31, ref_ty) {
+                            if *fuel > 0 && module.ref_type_is_sub_type(produced_i31, ref_ty) {
                                 choices.push(Choice::RefI31 { shared: true });
                             }
                         }
@@ -2257,7 +2270,7 @@ impl Module {
                             HeapType::Abstract {
                                 shared,
                                 ty: AbstractHeapType::Any,
-                            } if fuel > 0 => {
+                            } if *fuel > 0 => {
                                 choices.push(Choice::AnyConvertExtern {
                                     nullable: ref_ty.nullable,
                                     shared,
@@ -2266,7 +2279,7 @@ impl Module {
                             HeapType::Abstract {
                                 shared,
                                 ty: AbstractHeapType::Extern,
-                            } if fuel > 0 => {
+                            } if *fuel > 0 => {
                                 choices.push(Choice::ExternConvertAny {
                                     nullable: ref_ty.nullable,
                                     shared,
@@ -2279,6 +2292,7 @@ impl Module {
             }
 
             let choice = *u.choose(&choices)?;
+            *fuel = fuel.saturating_sub(1);
             Ok(match choice {
                 Choice::GlobalGet(i) => encode_instrs([Instruction::GlobalGet(i)]),
                 Choice::I32Const => encode_instrs([Instruction::I32Const(u.arbitrary()?)]),
@@ -2308,7 +2322,7 @@ impl Module {
                             field_ty,
                             u,
                             allow_defined_globals,
-                            fuel.saturating_sub(1),
+                            fuel,
                         )?);
                     }
                     bytes.extend(encode_instrs([Instruction::StructNew(type_idx)]));
@@ -2325,26 +2339,20 @@ impl Module {
                         elem_ty,
                         u,
                         allow_defined_globals,
-                        fuel.saturating_sub(1),
+                        fuel,
                     )?);
-                    bytes.extend(const_expr_bytes(
+                    bytes.extend(const_expr_bytes_for_array_length(
                         module,
-                        ValType::I32,
                         u,
                         allow_defined_globals,
-                        fuel.saturating_sub(1),
+                        fuel,
                     )?);
                     bytes.extend(encode_instrs([Instruction::ArrayNew(type_idx)]));
                     bytes
                 }
                 Choice::ArrayNewDefault(type_idx) => {
-                    let mut bytes = const_expr_bytes(
-                        module,
-                        ValType::I32,
-                        u,
-                        allow_defined_globals,
-                        fuel.saturating_sub(1),
-                    )?;
+                    let mut bytes =
+                        const_expr_bytes_for_array_length(module, u, allow_defined_globals, fuel)?;
                     bytes.extend(encode_instrs([Instruction::ArrayNewDefault(type_idx)]));
                     bytes
                 }
@@ -2359,7 +2367,7 @@ impl Module {
                             elem_ty,
                             u,
                             allow_defined_globals,
-                            fuel.saturating_sub(1),
+                            fuel,
                         )?);
                     }
                     bytes.extend(encode_instrs([Instruction::ArrayNewFixed {
@@ -2369,13 +2377,8 @@ impl Module {
                     bytes
                 }
                 Choice::RefI31 { shared } => {
-                    let mut bytes = const_expr_bytes(
-                        module,
-                        ValType::I32,
-                        u,
-                        allow_defined_globals,
-                        fuel.saturating_sub(1),
-                    )?;
+                    let mut bytes =
+                        const_expr_bytes(module, ValType::I32, u, allow_defined_globals, fuel)?;
                     bytes.extend(encode_instrs([if shared {
                         Instruction::RefI31Shared
                     } else {
@@ -2389,7 +2392,7 @@ impl Module {
                         ValType::Ref(abstract_ref(nullable, shared, AbstractHeapType::Extern)),
                         u,
                         allow_defined_globals,
-                        fuel.saturating_sub(1),
+                        fuel,
                     )?;
                     bytes.extend(encode_instrs([Instruction::AnyConvertExtern]));
                     bytes
@@ -2400,7 +2403,7 @@ impl Module {
                         ValType::Ref(abstract_ref(nullable, shared, AbstractHeapType::Any)),
                         u,
                         allow_defined_globals,
-                        fuel.saturating_sub(1),
+                        fuel,
                     )?;
                     bytes.extend(encode_instrs([Instruction::ExternConvertAny]));
                     bytes
@@ -2408,12 +2411,13 @@ impl Module {
             })
         }
 
+        let mut fuel = self.config.const_expr_fuel;
         Ok(ConstExpr::raw(const_expr_bytes(
             self,
             ty,
             u,
             allow_defined_globals,
-            MAX_CONST_EXPR_RECURSION_DEPTH,
+            &mut fuel,
         )?))
     }
 
