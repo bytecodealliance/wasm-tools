@@ -43,7 +43,7 @@
     )
   )
   (export (;5;) "actually-empty-world" (type 4))
-  (@custom "package-docs" "\01{}")
+  (@custom "package-docs" "\01{\22package\22:\22foo:empty\22}")
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

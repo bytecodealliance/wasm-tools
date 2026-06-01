@@ -123,7 +123,7 @@
     )
   )
   (export (;9;) "mixed" (type 8))
-  (@custom "package-docs" "\01{\22worlds\22:{\22multi-import\22:{\22docs\22:\22A world that imports the same interface multiple times under different\5cnplain names using the `implements` syntax.\22},\22multi-export\22:{\22docs\22:\22A world that exports the same interface multiple times.\22},\22mixed\22:{\22docs\22:\22A world with both implements imports and a normal interface import,\5cntesting that elaboration adds the dependency correctly.\22}}}")
+  (@custom "package-docs" "\01{\22package\22:\22foo:foo\22,\22worlds\22:{\22multi-import\22:{\22docs\22:\22A world that imports the same interface multiple times under different\5cnplain names using the `implements` syntax.\22},\22multi-export\22:{\22docs\22:\22A world that exports the same interface multiple times.\22},\22mixed\22:{\22docs\22:\22A world with both implements imports and a normal interface import,\5cntesting that elaboration adds the dependency correctly.\22}}}")
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

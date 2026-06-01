@@ -40,7 +40,7 @@
     )
   )
   (export (;3;) "floats-world" (type 2))
-  (@custom "package-docs" "\01{}")
+  (@custom "package-docs" "\01{\22package\22:\22foo:floats\22}")
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

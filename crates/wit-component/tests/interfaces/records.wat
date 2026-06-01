@@ -134,7 +134,7 @@
     )
   )
   (export (;3;) "records-world" (type 2))
-  (@custom "package-docs" "\01{}")
+  (@custom "package-docs" "\01{\22package\22:\22foo:records\22}")
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

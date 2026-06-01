@@ -146,4 +146,7 @@
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
+  (@custom "package-docs" "\01{\22package\22:\22root:root\22,\22worlds\22:{\22root\22:{\22interfaces\22:{\22foo\22:{\22types\22:{\22unused-record\22:{\22docs\22:\22doesn't show up in the wit output despite being exported here since it's\5cnnot actually used by anything\22}}}}}}}")
+  (@custom "package-docs" "\01{\22package\22:\22root:root\22,\22worlds\22:{\22root\22:{\22interfaces\22:{\22foo\22:{\22types\22:{\22unused-record\22:{\22docs\22:\22doesn't show up in the wit output despite being exported here since it's\5cnnot actually used by anything\22}}}}}}}")
+  (@custom "package-docs" "\01{\22package\22:\22foo:foo\22,\22worlds\22:{\22module\22:{\22interfaces\22:{\22foo\22:{\22types\22:{\22unused-record\22:{\22docs\22:\22doesn't show up in the wit output despite being exported here since it's\5cnnot actually used by anything\22}}}}}}}")
 )

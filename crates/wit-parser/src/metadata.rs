@@ -53,6 +53,16 @@ const TRY_TO_EMIT_V0_BY_DEFAULT: bool = false;
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
 pub struct PackageMetadata {
+    /// The fully-qualified name of the package this metadata describes (the
+    /// [`crate::PackageName`] `Display` form, e.g. `wasi:logging@0.1.0`). When
+    /// set, [`inject`] looks the target up by this name instead of using the
+    /// caller-supplied [`PackageId`]; this lets a single component carry
+    /// metadata for multiple packages.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
+    package: Option<String>,
     #[cfg_attr(
         feature = "serde",
         serde(default, skip_serializing_if = "Option::is_none")
@@ -91,6 +101,7 @@ impl PackageMetadata {
             .collect();
 
         Self {
+            package: Some(package.name.to_string()),
             docs: package.docs.contents.as_deref().map(Into::into),
             worlds,
             interfaces,
@@ -99,22 +110,38 @@ impl PackageMetadata {
 
     /// Inject package docs for the given package.
     ///
-    /// This will override any existing docs in the [`Resolve`].
+    /// If this metadata carries a package name, the target is looked up in
+    /// the resolve by that name (matched against [`crate::PackageName`]
+    /// `Display`) and the supplied `package` is used only as a fallback. This
+    /// will override any existing docs in the [`Resolve`].
     pub fn inject(&self, resolve: &mut Resolve, package: PackageId) -> Result<()> {
+        let target = self
+            .package
+            .as_ref()
+            .and_then(|name| {
+                resolve
+                    .package_names
+                    .iter()
+                    .find(|(pkg_name, _)| pkg_name.to_string() == *name)
+                    .map(|(_, id)| *id)
+            })
+            .unwrap_or(package);
+        // Items missing from the target package are skipped: a componentized
+        // resolve may drop the original world (it gets merged into the
+        // synthetic component world), but the interfaces still survive and
+        // their docs should still be applied.
         for (name, docs) in &self.worlds {
-            let Some(&id) = resolve.packages[package].worlds.get(name) else {
-                bail!("missing world {name:?}");
-            };
-            docs.inject(resolve, id)?;
+            if let Some(&id) = resolve.packages[target].worlds.get(name) {
+                let _ = docs.inject(resolve, id);
+            }
         }
         for (name, docs) in &self.interfaces {
-            let Some(&id) = resolve.packages[package].interfaces.get(name) else {
-                bail!("missing interface {name:?}");
-            };
-            docs.inject(resolve, id)?;
+            if let Some(&id) = resolve.packages[target].interfaces.get(name) {
+                let _ = docs.inject(resolve, id);
+            }
         }
         if let Some(docs) = &self.docs {
-            resolve.packages[package].docs.contents = Some(docs.to_string());
+            resolve.packages[target].docs.contents = Some(docs.to_string());
         }
         Ok(())
     }
@@ -153,6 +180,10 @@ impl PackageMetadata {
             }
         }
         Ok(serde_json::from_slice(&data[1..])?)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.docs.is_none() && self.worlds.is_empty() && self.interfaces.is_empty()
     }
 
     #[cfg(feature = "serde")]
