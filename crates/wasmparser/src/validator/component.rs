@@ -4069,6 +4069,13 @@ impl ComponentState {
                         "Fixed-length lists must have more than zero elements"
                     )
                 }
+                check_max(
+                    0,
+                    elements,
+                    MAX_WASM_FIXED_LENGTH_LIST_ELEMENTS,
+                    "fixed-length list element",
+                    offset,
+                )?;
                 Ok(ComponentDefinedType::FixedLengthList(
                     self.create_component_val_type(ty, offset)?,
                     elements,
