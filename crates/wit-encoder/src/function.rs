@@ -74,6 +74,8 @@ pub struct StandaloneFunc {
     pub(crate) params: Params,
     pub(crate) result: Option<Type>,
     pub(crate) docs: Option<Docs>,
+    #[serde(default)]
+    #[serde(rename = "async")]
     pub(crate) async_: bool,
 }
 

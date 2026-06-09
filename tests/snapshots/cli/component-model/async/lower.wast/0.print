@@ -1,5 +1,5 @@
 (component
-  (type (;0;) (func (param "p1" u32) (result u32)))
+  (type (;0;) (func async (param "p1" u32) (result u32)))
   (import "foo" (func $foo (;0;) (type 0)))
   (core module $libc (;0;)
     (memory (;0;) 1)

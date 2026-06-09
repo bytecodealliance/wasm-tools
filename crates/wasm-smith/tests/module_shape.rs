@@ -46,6 +46,22 @@ fn smoke_test_module_shape_with_gc_types() {
 }
 
 #[test]
+fn smoke_test_module_shape_with_non_null_gc_const_exprs() {
+    let test = r#"
+        (module
+            (type $s (struct (field i32)))
+            (type $a (array i64))
+            (table (export "ti31") 1 1 i31ref i32.const 0 ref.i31)
+            (table (export "ts") 1 1 (ref $s) struct.new_default $s)
+            (table (export "ta") 1 1 (ref $a) i32.const 0 array.new_default $a)
+        )
+        "#;
+    smoke_test_imports_exports_with(test, 44, |config, _| {
+        config.max_element_segments = 0;
+    });
+}
+
+#[test]
 fn smoke_test_module_shape_without_gc_types() {
     let test = r#"
         (module
@@ -102,6 +118,14 @@ fn get_imports_exports(
 }
 
 fn smoke_test_imports_exports(module_shape_test_case: &str, seed: u64) {
+    smoke_test_imports_exports_with(module_shape_test_case, seed, |_, _| {});
+}
+
+fn smoke_test_imports_exports_with(
+    module_shape_test_case: &str,
+    seed: u64,
+    configure: impl Fn(&mut Config, &mut Unstructured<'_>),
+) {
     let mut rng = SmallRng::seed_from_u64(seed);
     let mut buf = vec![0; 512];
     let wasm = wat::parse_str(module_shape_test_case).unwrap();
@@ -115,6 +139,7 @@ fn smoke_test_imports_exports(module_shape_test_case: &str, seed: u64) {
         let mut config = Config::default();
         config.max_memories = u.int_in_range(2..=5).unwrap();
         config.module_shape = Some(wasm.clone());
+        configure(&mut config, &mut u);
 
         let features = config.features();
         let module = Module::new(config, &mut u).unwrap();

@@ -12,7 +12,7 @@
     )
   )
   (core instance $i (;0;) (instantiate $m))
-  (type (;0;) (func (param "p1" u32) (result u32)))
+  (type (;0;) (func async (param "p1" u32) (result u32)))
   (alias core export $i "foo" (core func (;0;)))
   (alias core export $i "callback" (core func (;1;)))
   (func (;0;) (type 0) (canon lift (core func 0) async (callback 1)))

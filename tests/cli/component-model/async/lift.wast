@@ -24,7 +24,7 @@
   )
   (core instance $i (instantiate $m))
 
-  (func (export "foo") (param "p1" u32) (result u32)
+  (func (export "foo") async (param "p1" u32) (result u32)
     (canon lift (core func $i "foo") async (callback (func $i "callback")))
   )
 )
@@ -71,7 +71,7 @@
     )
     (core instance $i (instantiate $m))
 
-    (func (export "foo") (param "p1" u32) (result u32)
+    (func (export "foo") async (param "p1" u32) (result u32)
       (canon lift (core func $i "foo") async (callback (func $i "callback")))
     )
   )
@@ -118,7 +118,7 @@
     )
     (core instance $i (instantiate $m))
 
-    (func (export "foo") (result string)
+    (func (export "foo") async (result string)
       (canon lift (core func $i "foo") async (callback (func $i "callback")))
     )
   )
@@ -134,9 +134,23 @@
     )
     (core instance $i (instantiate $m))
 
-    (func (export "foo") (result (tuple u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32))
+    (func (export "foo") async (result (tuple u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32))
       (canon lift (core func $i "foo") async (callback (func $i "callback")))
     )
   )
   "canonical option `memory` is required"
+)
+
+;; `async` option requires as `async` function type
+(assert_invalid
+  (component
+    (core module $m
+      (func (export "callback") (param i32 i32 i32) (result i32) unreachable)
+      (func (export "foo") (result i32) unreachable)
+    )
+    (core instance $i (instantiate $m))
+
+    (func (canon lift (core func $i "foo") async (callback (func $i "callback"))))
+  )
+  "the `async` canonical option requires an async function type"
 )

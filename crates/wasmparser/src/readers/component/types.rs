@@ -1,7 +1,7 @@
 use crate::limits::*;
 use crate::prelude::*;
 use crate::{
-    BinaryReader, ComponentAlias, ComponentExportName, ComponentImport, ComponentTypeRef,
+    BinaryReader, ComponentAlias, ComponentExternName, ComponentImport, ComponentTypeRef,
     FromReader, Import, RecGroup, Result, SectionLimited, TypeRef, ValType,
 };
 use core::fmt;
@@ -326,7 +326,7 @@ pub enum ComponentTypeDeclaration<'a> {
     /// The component type declaration is for an export.
     Export {
         /// The name of the export.
-        name: ComponentExportName<'a>,
+        name: ComponentExternName<'a>,
         /// The type reference for the export.
         ty: ComponentTypeRef,
     },
@@ -367,7 +367,7 @@ pub enum InstanceTypeDeclaration<'a> {
     /// The instance type declaration is for an export.
     Export {
         /// The name of the export.
-        name: ComponentExportName<'a>,
+        name: ComponentExternName<'a>,
         /// The type reference for the export.
         ty: ComponentTypeRef,
     },

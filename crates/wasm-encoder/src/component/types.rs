@@ -1,7 +1,8 @@
 use super::CORE_TYPE_SORT;
 use crate::{
-    Alias, ComponentExportKind, ComponentOuterAliasKind, ComponentSection, ComponentSectionId,
-    ComponentTypeRef, CoreTypeEncoder, Encode, EntityType, ValType, encode_section,
+    Alias, ComponentExportKind, ComponentExternName, ComponentOuterAliasKind, ComponentSection,
+    ComponentSectionId, ComponentTypeRef, CoreTypeEncoder, Encode, EntityType, ValType,
+    encode_section,
 };
 use alloc::vec::Vec;
 
@@ -225,9 +226,13 @@ impl ComponentType {
     }
 
     /// Defines an import in this component type.
-    pub fn import(&mut self, name: &str, ty: ComponentTypeRef) -> &mut Self {
+    pub fn import<'a>(
+        &mut self,
+        name: impl Into<ComponentExternName<'a>>,
+        ty: ComponentTypeRef,
+    ) -> &mut Self {
         self.bytes.push(0x03);
-        crate::encode_component_import_name(&mut self.bytes, name);
+        name.into().encode(&mut self.bytes);
         ty.encode(&mut self.bytes);
         self.num_added += 1;
         match ty {
@@ -239,9 +244,13 @@ impl ComponentType {
     }
 
     /// Defines an export in this component type.
-    pub fn export(&mut self, name: &str, ty: ComponentTypeRef) -> &mut Self {
+    pub fn export<'a>(
+        &mut self,
+        name: impl Into<ComponentExternName<'a>>,
+        ty: ComponentTypeRef,
+    ) -> &mut Self {
         self.bytes.push(0x04);
-        crate::encode_component_export_name(&mut self.bytes, name);
+        name.into().encode(&mut self.bytes);
         ty.encode(&mut self.bytes);
         self.num_added += 1;
         match ty {
@@ -310,7 +319,11 @@ impl InstanceType {
     }
 
     /// Defines an export in this instance type.
-    pub fn export(&mut self, name: &str, ty: ComponentTypeRef) -> &mut Self {
+    pub fn export<'a>(
+        &mut self,
+        name: impl Into<ComponentExternName<'a>>,
+        ty: ComponentTypeRef,
+    ) -> &mut Self {
         self.0.export(name, ty);
         self
     }

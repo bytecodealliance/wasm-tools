@@ -90,6 +90,7 @@ fn push_imported_func(
     func: &Function,
     mangling: ManglingAndAbi,
 ) {
+    let mangling = mangling.for_func(func);
     let sig = resolve.wasm_signature(mangling.import_variant(), func);
 
     let (module, name) = resolve.wasm_import_name(mangling, WasmImport::Func { interface, func });
@@ -352,6 +353,7 @@ fn push_func_export(
     func: &Function,
     mangling: ManglingAndAbi,
 ) {
+    let mangling = mangling.for_func(func);
     let sig = resolve.wasm_signature(mangling.export_variant(), func);
     let name = resolve.wasm_export_name(
         mangling,

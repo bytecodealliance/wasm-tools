@@ -737,6 +737,17 @@ define_config! {
         ///
         /// Defaults to `true`.
         pub extended_const_enabled: bool = true,
+
+        /// Fuel limiting factor used when generating constant expressions.
+        ///
+        /// Defaults to `50`.
+        pub const_expr_fuel: u32 = 50,
+
+        /// Whether or not to limit the size of arrays generated in constant
+        /// expressions.
+        ///
+        /// Defaults to `false`.
+        pub limit_arrays_in_const_exprs: bool = false,
     }
 }
 
@@ -847,6 +858,8 @@ impl<'a> Arbitrary<'a> for Config {
             disallow_traps: u.arbitrary()?,
             allow_floats: u.arbitrary()?,
             extended_const_enabled: u.arbitrary()?,
+            const_expr_fuel: u.int_in_range(0..=100)?,
+            limit_arrays_in_const_exprs: u.arbitrary()?,
 
             // These fields, unlike the ones above, are less useful to set.
             // They either make weird inputs or are for features not widely

@@ -1,0 +1,11 @@
+// Reject wrong type
+invalid params: no params provided, but 1 required at 0..6
+invalid params: more param(s) than expected at 8..10
+invalid params: more param(s) than expected at 11..13
+// Reject wrong interface
+unknown test func "wrong.nullary"
+// Reject wrong package
+unknown test func "ui:another/ui.nullary"
+unknown test func "other:tests/ui.nullary"
+// Reject wrong version
+unknown test func "ui:tests/ui.string@0.0.0"

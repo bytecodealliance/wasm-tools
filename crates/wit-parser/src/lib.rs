@@ -42,9 +42,9 @@ pub use metadata::PackageMetadata;
 
 pub mod abi;
 mod ast;
-pub use ast::SourceMap;
 pub use ast::error::*;
 pub use ast::lex::Span;
+pub use ast::{ItemName, SourceMap};
 pub use ast::{ParsedUsePath, parse_use_path};
 mod sizealign;
 pub use sizealign::*;
@@ -1183,6 +1183,24 @@ impl ManglingAndAbi {
         match self {
             Self::Standard32 => Mangling::Standard32,
             Self::Legacy(_) => Mangling::Legacy,
+        }
+    }
+
+    /// Returns a suitable [`ManglingAndAbi`], based on `self`, to use for
+    /// `func`.
+    ///
+    /// This handles the case where `func` is a synchronous function which means
+    /// that it's forced to use the sync ABI no matter what.
+    pub fn for_func(&self, func: &Function) -> Self {
+        match self {
+            Self::Standard32 => *self,
+            Self::Legacy(abi) => {
+                if !func.kind.is_async() {
+                    Self::Legacy(LiftLowerAbi::Sync)
+                } else {
+                    Self::Legacy(*abi)
+                }
+            }
         }
     }
 }

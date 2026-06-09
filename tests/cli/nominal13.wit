@@ -1,0 +1,11 @@
+// RUN: component wit --generate-nominal-type-ids w % --json
+
+package a:b;
+
+interface i {}
+
+world w {
+  import i;
+  export i;
+  export n: i;
+}

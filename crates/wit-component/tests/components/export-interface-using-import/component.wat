@@ -17,7 +17,6 @@
   (alias export $foo:foo/foo "r" (type $r (;1;)))
   (core instance $main (;0;) (instantiate $main))
   (alias export $foo:foo/foo "f" (type $f (;2;)))
-  (alias export $foo:foo/foo "r" (type $"#type3 r" (@name "r") (;3;)))
   (component $x-shim-component (;0;)
     (type (;0;) (record (field "f" u32)))
     (import "import-type-f" (type (;1;) (eq 0)))
@@ -27,7 +26,7 @@
   )
   (instance $x-shim-instance (;1;) (instantiate $x-shim-component
       (with "import-type-f" (type $f))
-      (with "import-type-r" (type $"#type3 r"))
+      (with "import-type-r" (type $r))
     )
   )
   (export $x (;2;) "x" (instance $x-shim-instance))

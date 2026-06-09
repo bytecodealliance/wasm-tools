@@ -633,16 +633,16 @@ impl ImportMap {
                 return Ok(Import::WaitableSetNew);
             }
 
-            if let Some(info) = names.waitable_set_wait(name) {
-                let expected = FuncType::new([ValType::I32; 2], [ValType::I32]);
+            if let Some((info, result_ty)) = names.waitable_set_wait(name) {
+                let expected = FuncType::new([ValType::I32, result_ty], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::WaitableSetWait {
                     cancellable: info.cancellable,
                 });
             }
 
-            if let Some(info) = names.waitable_set_poll(name) {
-                let expected = FuncType::new([ValType::I32; 2], [ValType::I32]);
+            if let Some((info, result_ty)) = names.waitable_set_poll(name) {
+                let expected = FuncType::new([ValType::I32, result_ty], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::WaitableSetPoll {
                     cancellable: info.cancellable,
@@ -1580,8 +1580,8 @@ trait NameMangling {
     fn backpressure_inc(&self, name: &str) -> bool;
     fn backpressure_dec(&self, name: &str) -> bool;
     fn waitable_set_new(&self, name: &str) -> bool;
-    fn waitable_set_wait(&self, name: &str) -> Option<MaybeCancellable<()>>;
-    fn waitable_set_poll(&self, name: &str) -> Option<MaybeCancellable<()>>;
+    fn waitable_set_wait(&self, name: &str) -> Option<(MaybeCancellable<()>, ValType)>;
+    fn waitable_set_poll(&self, name: &str) -> Option<(MaybeCancellable<()>, ValType)>;
     fn waitable_set_drop(&self, name: &str) -> bool;
     fn waitable_join(&self, name: &str) -> bool;
     fn thread_yield(&self, name: &str) -> Option<MaybeCancellable<()>>;
@@ -1747,10 +1747,10 @@ impl NameMangling for Standard {
     fn waitable_set_new(&self, _name: &str) -> bool {
         false
     }
-    fn waitable_set_wait(&self, _name: &str) -> Option<MaybeCancellable<()>> {
+    fn waitable_set_wait(&self, _name: &str) -> Option<(MaybeCancellable<()>, ValType)> {
         None
     }
-    fn waitable_set_poll(&self, _name: &str) -> Option<MaybeCancellable<()>> {
+    fn waitable_set_poll(&self, _name: &str) -> Option<(MaybeCancellable<()>, ValType)> {
         None
     }
     fn waitable_set_drop(&self, _name: &str) -> bool {
@@ -2142,6 +2142,23 @@ impl Legacy {
             None
         }
     }
+
+    /// Matches a name with the given prefix and either no suffix (for backwards compat) or
+    /// "-i32" or "-i64".
+    /// Returns a `ValType` based on the suffix and defaults to `I32`.
+    fn match_with_optional_type_suffix(name: &str, match_prefix: &str) -> Option<ValType> {
+        let tail = name.strip_prefix(match_prefix)?.strip_suffix(']')?;
+        if tail.is_empty() {
+            Some(ValType::I32)
+        } else {
+            match tail.strip_prefix('-')? {
+                "i32" => Some(ValType::I32),
+                "i64" => Some(ValType::I64),
+                // Other suffixes
+                _ => None,
+            }
+        }
+    }
 }
 
 impl NameMangling for Legacy {
@@ -2196,11 +2213,23 @@ impl NameMangling for Legacy {
     fn waitable_set_new(&self, name: &str) -> bool {
         name == "[waitable-set-new]"
     }
-    fn waitable_set_wait(&self, name: &str) -> Option<MaybeCancellable<()>> {
-        self.match_with_cancellable_prefix(name, "[waitable-set-wait]")
+    fn waitable_set_wait(&self, name: &str) -> Option<(MaybeCancellable<()>, ValType)> {
+        let (cancellable, clean_name) = self.strip_cancellable_prefix(name);
+        let mb_cancellable = MaybeCancellable {
+            inner: (),
+            cancellable,
+        };
+        let result_ty = Legacy::match_with_optional_type_suffix(clean_name, "[waitable-set-wait")?;
+        Some((mb_cancellable, result_ty))
     }
-    fn waitable_set_poll(&self, name: &str) -> Option<MaybeCancellable<()>> {
-        self.match_with_cancellable_prefix(name, "[waitable-set-poll]")
+    fn waitable_set_poll(&self, name: &str) -> Option<(MaybeCancellable<()>, ValType)> {
+        let (cancellable, clean_name) = self.strip_cancellable_prefix(name);
+        let mb_cancellable = MaybeCancellable {
+            inner: (),
+            cancellable,
+        };
+        let result_ty = Legacy::match_with_optional_type_suffix(clean_name, "[waitable-set-poll")?;
+        Some((mb_cancellable, result_ty))
     }
     fn waitable_set_drop(&self, name: &str) -> bool {
         name == "[waitable-set-drop]"
@@ -2397,9 +2426,26 @@ impl NameMangling for Legacy {
                 .interfaces
                 .get(name.interface().as_str())
             {
+                // If the interface from the package is directly in `items` then
+                // return that.
                 let key = WorldKey::Interface(*id);
                 if items.contains_key(&key) {
                     return Ok((key, *id));
+                }
+
+                // .. otherwise see if any interface in `items` is a clone of
+                // the package's interface. This means it's created by
+                // `generate_nominal_type_ids` and is used to match up exports
+                // to their nominal clone since the original is no longer
+                // exported.
+                for k in items.keys() {
+                    let i = match *k {
+                        WorldKey::Interface(id) => id,
+                        WorldKey::Name(_) => continue,
+                    };
+                    if resolve.interfaces[i].clone_of == Some(*id) {
+                        return Ok((WorldKey::Interface(i), i));
+                    }
                 }
             }
         }

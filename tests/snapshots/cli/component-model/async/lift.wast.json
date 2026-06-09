@@ -62,6 +62,13 @@
       "filename": "lift.8.wasm",
       "module_type": "binary",
       "text": "canonical option `memory` is required"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 146,
+      "filename": "lift.9.wasm",
+      "module_type": "binary",
+      "text": "the `async` canonical option requires an async function type"
     }
   ]
 }

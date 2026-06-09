@@ -969,13 +969,13 @@ pub struct ComponentType {
     ///
     /// Each import has its own kebab-name and an optional URL listed. Note that
     /// the set of import names is disjoint with the set of export names.
-    pub imports: IndexMap<String, ComponentEntityType>,
+    pub imports: IndexMap<String, ComponentItem>,
 
     /// The exports of the component type.
     ///
     /// Each export has its own kebab-name and an optional URL listed. Note that
     /// the set of export names is disjoint with the set of import names.
-    pub exports: IndexMap<String, ComponentEntityType>,
+    pub exports: IndexMap<String, ComponentItem>,
 
     /// Universally quantified resources required to be provided when
     /// instantiating this component type.
@@ -1015,6 +1015,16 @@ pub struct ComponentType {
     pub explicit_resources: IndexMap<ResourceId, Vec<usize>>,
 }
 
+/// Either an import or an export within [`ComponentType`] or
+/// [`ComponentInstanceType`].
+#[derive(Debug, Clone)]
+pub struct ComponentItem {
+    /// The type of this item.
+    pub ty: ComponentEntityType,
+    /// The optional `(implements "...")` metadata, if specified.
+    pub implements: Option<String>,
+}
+
 impl TypeData for ComponentType {
     type Id = ComponentTypeId;
     const IS_CORE_SUB_TYPE: bool = false;
@@ -1032,7 +1042,7 @@ pub struct ComponentInstanceType {
     /// The list of exports, keyed by name, that this instance has.
     ///
     /// An optional URL and type of each export is provided as well.
-    pub exports: IndexMap<String, ComponentEntityType>,
+    pub exports: IndexMap<String, ComponentItem>,
 
     /// The list of "defined resources" or those which are closed over in
     /// this instance type.
@@ -2023,18 +2033,18 @@ impl<'a> TypesRef<'a> {
     }
 
     /// Gets the component entity type for the given component import.
-    pub fn component_entity_type_of_import(&self, name: &str) -> Option<ComponentEntityType> {
+    pub fn component_item_for_import(&self, name: &str) -> Option<&'a ComponentItem> {
         match &self.kind {
             TypesRefKind::Module(_) => None,
-            TypesRefKind::Component(component) => Some(*component.imports.get(name)?),
+            TypesRefKind::Component(component) => Some(component.imports.get(name)?),
         }
     }
 
     /// Gets the component entity type for the given component export.
-    pub fn component_entity_type_of_export(&self, name: &str) -> Option<ComponentEntityType> {
+    pub fn component_item_for_export(&self, name: &str) -> Option<&'a ComponentItem> {
         match &self.kind {
             TypesRefKind::Module(_) => None,
-            TypesRefKind::Component(component) => Some(*component.exports.get(name)?),
+            TypesRefKind::Component(component) => Some(component.exports.get(name)?),
         }
     }
 
@@ -2187,13 +2197,13 @@ impl Types {
     }
 
     /// Gets the component entity type for the given component import name.
-    pub fn component_entity_type_of_import(&self, name: &str) -> Option<ComponentEntityType> {
-        self.as_ref().component_entity_type_of_import(name)
+    pub fn component_item_for_import(&self, name: &str) -> Option<&ComponentItem> {
+        self.as_ref().component_item_for_import(name)
     }
 
     /// Gets the component entity type for the given component export name.
-    pub fn component_entity_type_of_export(&self, name: &str) -> Option<ComponentEntityType> {
-        self.as_ref().component_entity_type_of_export(name)
+    pub fn component_item_for_export(&self, name: &str) -> Option<&ComponentItem> {
+        self.as_ref().component_item_for_export(name)
     }
 
     /// Attempts to lookup the type id that `ty` is an alias of.
@@ -2571,7 +2581,7 @@ impl TypeAlloc {
         // defined resources, so doing this all in one go should be
         // equivalent.
         for ty in i.imports.values().chain(i.exports.values()) {
-            self.free_variables_component_entity(ty, set);
+            self.free_variables_component_entity(&ty.ty, set);
         }
         for (id, _path) in i.imported_resources.iter().chain(&i.defined_resources) {
             set.swap_remove(id);
@@ -2588,7 +2598,7 @@ impl TypeAlloc {
         // types but then remove those defined by this component instance
         // itself.
         for ty in i.exports.values() {
-            self.free_variables_component_entity(ty, set);
+            self.free_variables_component_entity(&ty.ty, set);
         }
         for id in i.defined_resources.iter() {
             set.swap_remove(id);
@@ -2811,7 +2821,7 @@ where
         let mut any_changed = false;
         let mut ty = self[*id].clone();
         for ty in ty.imports.values_mut().chain(ty.exports.values_mut()) {
-            any_changed |= self.remap_component_entity(ty, map);
+            any_changed |= self.remap_component_entity(&mut ty.ty, map);
         }
         for (id, _) in ty
             .imported_resources
@@ -2906,7 +2916,7 @@ where
         let mut any_changed = false;
         let mut tmp = self[*id].clone();
         for ty in tmp.exports.values_mut() {
-            any_changed |= self.remap_component_entity(ty, map);
+            any_changed |= self.remap_component_entity(&mut ty.ty, map);
         }
         for id in tmp.defined_resources.iter_mut() {
             if let Some(new) = map.resources.get(id) {
@@ -3208,7 +3218,7 @@ impl<'a> SubtypeCx<'a> {
         let b_imports = self.b[b]
             .imports
             .iter()
-            .map(|(name, ty)| (name.clone(), *ty))
+            .map(|(name, ty)| (name.clone(), ty.ty))
             .collect();
         self.swap();
         let mut import_mapping =
@@ -3218,7 +3228,7 @@ impl<'a> SubtypeCx<'a> {
             let mut a_exports = this.a[a]
                 .exports
                 .iter()
-                .map(|(name, ty)| (name.clone(), *ty))
+                .map(|(name, ty)| (name.clone(), ty.ty))
                 .collect::<IndexMap<_, _>>();
             for ty in a_exports.values_mut() {
                 this.a.remap_component_entity(ty, &mut import_mapping);
@@ -3247,7 +3257,7 @@ impl<'a> SubtypeCx<'a> {
         let mut exports = Vec::with_capacity(b.exports.len());
         for (k, b) in b.exports.iter() {
             match a.exports.get(k) {
-                Some(a) => exports.push((*a, *b)),
+                Some(a) => exports.push((a.ty, b.ty)),
                 None => bail!(offset, "missing expected export `{k}`"),
             }
         }
@@ -3510,7 +3520,7 @@ impl<'a> SubtypeCx<'a> {
             // Lookup the first path item in `imports` and the corresponding
             // entry in `args` by name.
             let (name, ty) = entities.get_index(path[0]).unwrap();
-            let mut ty = *ty;
+            let mut ty = ty.ty;
             let mut arg = a.get(name);
 
             // Lookup all the subsequent `path` entries, if any, by index in
@@ -3522,9 +3532,11 @@ impl<'a> SubtypeCx<'a> {
                     _ => unreachable!(),
                 };
                 let (name, next_ty) = self.b[id].exports.get_index(i).unwrap();
-                ty = *next_ty;
+                ty = next_ty.ty;
                 arg = match arg {
-                    Some(ComponentEntityType::Instance(id)) => self.a[*id].exports.get(name),
+                    Some(ComponentEntityType::Instance(id)) => {
+                        self.a[*id].exports.get(name).map(|t| &t.ty)
+                    }
                     _ => continue 'outer,
                 };
             }
@@ -3566,7 +3578,7 @@ impl<'a> SubtypeCx<'a> {
         let mut to_typecheck = Vec::new();
         for (name, expected) in entities.iter() {
             match a.get(name) {
-                Some(arg) => to_typecheck.push((*arg, *expected)),
+                Some(arg) => to_typecheck.push((*arg, expected.ty)),
                 None => bail!(offset, "missing {} named `{name}`", kind.desc()),
             }
         }
@@ -3920,8 +3932,8 @@ impl<'a> SubtypeCx<'a> {
             (ComponentEntityType::Instance(expected), ComponentEntityType::Instance(actual)) => {
                 let actual = &self.a[actual];
                 for (name, expected) in self.b[expected].exports.iter() {
-                    let actual = actual.exports[name];
-                    self.register_type_renamings(actual, *expected, type_map);
+                    let actual = actual.exports[name].ty;
+                    self.register_type_renamings(actual, expected.ty, type_map);
                 }
             }
             _ => {}

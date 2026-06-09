@@ -1,0 +1,11 @@
+// parse-fail
+package foo:foo;
+
+interface store {
+  get: func() -> option<string>;
+}
+
+world test {
+  import primary: func();
+  import primary: store;
+}

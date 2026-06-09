@@ -1,0 +1,30 @@
+package foo:foo;
+
+interface store {
+  get: func(key: string) -> option<string>;
+
+  set: func(key: string, value: string);
+}
+
+interface logger {
+  log: func(msg: string);
+}
+
+/// A world that imports the same interface multiple times under different
+/// plain names using the `implements` syntax.
+world multi-import {
+  import primary: store;
+  import backup: store;
+  import logger;
+}
+/// A world that exports the same interface multiple times.
+world multi-export {
+  export primary: store;
+  export backup: store;
+}
+/// A world with both implements imports and a normal interface import,
+/// testing that elaboration adds the dependency correctly.
+world mixed {
+  import store;
+  import cache: store;
+}

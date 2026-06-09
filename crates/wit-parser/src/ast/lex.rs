@@ -4,7 +4,6 @@ use core::char;
 use core::fmt;
 use core::result::Result;
 use core::str;
-use unicode_xid::UnicodeXID;
 
 use self::Token::*;
 
@@ -504,12 +503,12 @@ fn detect_invalid_input(input: &str) -> Result<(), Error> {
 fn is_keylike_start(ch: char) -> bool {
     // Lex any XID start, `_`, or '-'. These aren't all valid identifier chars,
     // but we'll diagnose that after we've lexed the full string.
-    UnicodeXID::is_xid_start(ch) || ch == '_' || ch == '-'
+    unicode_ident::is_xid_start(ch) || ch == '_' || ch == '-'
 }
 
 fn is_keylike_continue(ch: char) -> bool {
     // Lex any XID continue (which includes `_`) or '-'.
-    UnicodeXID::is_xid_continue(ch) || ch == '-'
+    unicode_ident::is_xid_continue(ch) || ch == '-'
 }
 
 pub fn validate_id(start: u32, id: &str) -> Result<(), Error> {

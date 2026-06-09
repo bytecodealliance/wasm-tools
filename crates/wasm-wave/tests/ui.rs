@@ -4,7 +4,6 @@ use anyhow::{Context, Result};
 use std::{collections::HashMap, fmt::Write, fs, path::Path, sync::OnceLock};
 
 use wasm_wave::{
-    parser::ParserError,
     untyped::UntypedFuncCall,
     value::{FuncType, Value, resolve_wit_func_type},
     wasm::{DisplayValue, WasmFunc},
@@ -30,12 +29,11 @@ fn test(path: &Path) -> Result<String> {
 
         fn parse_func_call(
             input: &str,
-        ) -> Result<(String, &'static FuncType, Vec<Value>), ParserError> {
+        ) -> Result<(String, &'static FuncType, Vec<Value>), anyhow::Error> {
             let untyped_call = UntypedFuncCall::parse(input)?;
             let func_name = untyped_call.name().to_string();
-            let func_type = get_func_type(&func_name).unwrap_or_else(|| {
-                panic!("unknown test func {func_name:?}");
-            });
+            let func_type = get_func_type(&func_name)
+                .ok_or_else(|| anyhow::anyhow!("unknown test func {func_name:?}"))?;
             let param_types = func_type.params().collect::<Vec<_>>();
             let values = untyped_call.to_wasm_params::<Value>(&param_types)?;
             Ok((func_name, func_type, values))
@@ -45,7 +43,7 @@ fn test(path: &Path) -> Result<String> {
             Ok((func_name, func_type, values)) => {
                 assert!(
                     !filename.starts_with("reject-"),
-                    "accepted input {input:?} in {filename}"
+                    "accepted input {input:?} in {filename}: {func_name} {func_type} {values:?}"
                 );
                 write!(out, "{func_name}(")?;
                 let mut first = true;
@@ -80,8 +78,35 @@ fn get_func_type(func_name: &str) -> Option<&'static FuncType> {
             resolve
                 .interfaces
                 .iter()
-                .flat_map(|(_, i)| &i.functions)
-                .map(|(name, func)| (name.clone(), resolve_wit_func_type(&resolve, func).unwrap()))
+                .flat_map(|(_, i)| i.functions.iter().map(move |(name, func)| (i, name, func)))
+                .flat_map(|(interface, func_name, func)| {
+                    let func_type = resolve_wit_func_type(&resolve, func).unwrap();
+                    let mut entries = vec![(func_name.clone(), func_type.clone())];
+                    if let Some(interface_name) = &interface.name {
+                        entries.push((format!("{interface_name}.{func_name}"), func_type.clone()));
+                        if let Some(package_id) = &interface.package {
+                            let package_name = &resolve.packages[*package_id].name;
+                            entries.push((
+                                format!(
+                                    "{}:{}/{interface_name}.{func_name}",
+                                    package_name.namespace, package_name.name
+                                ),
+                                func_type.clone(),
+                            ));
+                            if let Some(version) = &package_name.version {
+                                entries.push((
+                                    format!(
+                                        "{}:{}/{interface_name}.{func_name}@{version}",
+                                        package_name.namespace, package_name.name
+                                    ),
+                                    func_type.clone(),
+                                ));
+                            }
+                        }
+                    }
+
+                    entries
+                })
                 .collect::<HashMap<_, _>>()
         })
         .get(func_name)

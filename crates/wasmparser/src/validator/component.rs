@@ -6,9 +6,9 @@ use super::{
         Abi, AliasableResourceId, ComponentAnyTypeId, ComponentCoreInstanceTypeId,
         ComponentCoreModuleTypeId, ComponentCoreTypeId, ComponentDefinedType,
         ComponentDefinedTypeId, ComponentEntityType, ComponentFuncType, ComponentFuncTypeId,
-        ComponentInstanceType, ComponentInstanceTypeId, ComponentType, ComponentTypeId,
-        ComponentValType, Context, CoreInstanceTypeKind, InstanceType, ModuleType, RecordType,
-        Remap, Remapping, ResourceId, SubtypeCx, TupleType, VariantCase, VariantType,
+        ComponentInstanceType, ComponentInstanceTypeId, ComponentItem, ComponentType,
+        ComponentTypeId, ComponentValType, Context, CoreInstanceTypeKind, InstanceType, ModuleType,
+        RecordType, Remap, Remapping, ResourceId, SubtypeCx, TupleType, VariantCase, VariantType,
     },
     core::{InternRecGroup, Module},
     types::{CoreTypeId, EntityType, TypeAlloc, TypeInfo, TypeList},
@@ -18,7 +18,7 @@ use crate::limits::*;
 use crate::prelude::*;
 use crate::validator::names::{ComponentName, ComponentNameKind, KebabStr, KebabString};
 use crate::{
-    BinaryReaderError, CanonicalFunction, CanonicalOption, ComponentExportName,
+    BinaryReaderError, CanonicalFunction, CanonicalOption, ComponentExternName,
     ComponentExternalKind, ComponentOuterAliasKind, ComponentTypeRef, CompositeInnerType,
     ExternalKind, FuncType, GlobalType, InstantiationArgKind, MemoryType, PackedIndex, RefType,
     Result, SubType, TableType, TypeBounds, ValType, WasmFeatures,
@@ -61,9 +61,9 @@ pub(crate) struct ComponentState {
     pub instances: Vec<ComponentInstanceTypeId>,
     pub components: Vec<ComponentTypeId>,
 
-    pub imports: IndexMap<String, ComponentEntityType>,
+    pub imports: IndexMap<String, ComponentItem>,
     pub import_names: IndexSet<ComponentName>,
-    pub exports: IndexMap<String, ComponentEntityType>,
+    pub exports: IndexMap<String, ComponentItem>,
     pub export_names: IndexSet<ComponentName>,
 
     has_start: bool,
@@ -169,6 +169,10 @@ pub(crate) struct ComponentState {
 
     /// Same as `toplevel_exported_resources`, but for imports.
     toplevel_imported_resources: ComponentNameContext,
+
+    /// The type that's been assigned to slots of `context.{get,set}` by this
+    /// component. This is `None` until the first intrinsic is seen.
+    context_type: Option<ValType>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -395,6 +399,18 @@ impl CanonicalOptions {
         Ok(self)
     }
 
+    fn check_asyncness(&self, ty: &ComponentFuncType, offset: usize) -> Result<()> {
+        // The `async` canonical ABI option is only allowed with `async`-typed
+        // functions.
+        if self.concurrency.is_async() && !ty.async_ {
+            bail!(
+                offset,
+                "the `async` canonical option requires an async function type",
+            );
+        }
+        Ok(())
+    }
+
     pub(crate) fn check_core_type(
         &self,
         types: &mut TypeAlloc,
@@ -462,6 +478,7 @@ impl ComponentState {
             imported_types: Default::default(),
             toplevel_exported_resources: Default::default(),
             toplevel_imported_resources: Default::default(),
+            context_type: None,
         }
     }
 
@@ -636,19 +653,19 @@ impl ComponentState {
 
     pub fn add_import(
         &mut self,
-        import: crate::ComponentImport,
+        import: crate::ComponentImport<'_>,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
         let mut entity = self.check_type_ref(&import.ty, types, offset)?;
         self.add_entity(
             &mut entity,
-            Some((import.name.0, ExternKind::Import)),
+            Some((import.name.name, ExternKind::Import)),
             types,
             offset,
         )?;
         self.toplevel_imported_resources.validate_extern(
-            import.name.0,
+            &import.name,
             ExternKind::Import,
             &entity,
             types,
@@ -855,10 +872,9 @@ impl ComponentState {
             // itself are valid to import/export, recursive instances are
             // captured, and everything is appropriately added to the right
             // imported/exported set.
-            ComponentEntityType::Instance(i) => types[*i]
-                .exports
-                .iter()
-                .all(|(_name, ty)| self.validate_and_register_named_types(None, kind, ty, types)),
+            ComponentEntityType::Instance(i) => types[*i].exports.iter().all(|(_name, ty)| {
+                self.validate_and_register_named_types(None, kind, &ty.ty, types)
+            }),
 
             // All types referred to by a function must be named.
             ComponentEntityType::Func(id) => self.all_valtypes_named_in_func(types, *id, set),
@@ -904,17 +920,17 @@ impl ComponentState {
     ) -> bool {
         // Instances must recursively have all referenced types named.
         let ty = &types[id];
-        ty.exports.values().all(|ty| match ty {
+        ty.exports.values().all(|ty| match ty.ty {
             ComponentEntityType::Module(_) => true,
-            ComponentEntityType::Func(id) => self.all_valtypes_named_in_func(types, *id, set),
+            ComponentEntityType::Func(id) => self.all_valtypes_named_in_func(types, id, set),
             ComponentEntityType::Type { created: id, .. } => {
-                self.all_valtypes_named(types, *id, set)
+                self.all_valtypes_named(types, id, set)
             }
             ComponentEntityType::Value(ComponentValType::Type(id)) => {
-                self.all_valtypes_named_in_defined(types, *id, set)
+                self.all_valtypes_named_in_defined(types, id, set)
             }
             ComponentEntityType::Instance(id) => {
-                self.all_valtypes_named_in_instance(types, *id, set)
+                self.all_valtypes_named_in_instance(types, id, set)
             }
             ComponentEntityType::Component(_)
             | ComponentEntityType::Value(ComponentValType::Primitive(_)) => return true,
@@ -1056,7 +1072,7 @@ impl ComponentState {
         // Using the old-to-new resource mapping perform a substitution on
         // the `exports` and `explicit_resources` fields of `new_ty`
         for ty in new_ty.exports.values_mut() {
-            types.remap_component_entity(ty, &mut mapping);
+            types.remap_component_entity(&mut ty.ty, &mut mapping);
         }
         for (id, path) in mem::take(&mut new_ty.explicit_resources) {
             let id = *mapping.resources.get(&id).unwrap_or(&id);
@@ -1110,7 +1126,7 @@ impl ComponentState {
                 self.defined_resources.insert(new.resource(), None);
             }
             for ty in new_ty.exports.values_mut() {
-                types.remap_component_entity(ty, &mut mapping);
+                types.remap_component_entity(&mut ty.ty, &mut mapping);
             }
             for (id, path) in mem::take(&mut new_ty.explicit_resources) {
                 let id = mapping.resources.get(&id).copied().unwrap_or(id);
@@ -1135,7 +1151,7 @@ impl ComponentState {
 
     pub fn add_export(
         &mut self,
-        name: ComponentExportName<'_>,
+        name: ComponentExternName<'_>,
         mut ty: ComponentEntityType,
         types: &mut TypeAlloc,
         offset: usize,
@@ -1144,9 +1160,14 @@ impl ComponentState {
         if check_limit {
             check_max(self.exports.len(), 1, MAX_WASM_EXPORTS, "exports", offset)?;
         }
-        self.add_entity(&mut ty, Some((name.0, ExternKind::Export)), types, offset)?;
+        self.add_entity(
+            &mut ty,
+            Some((name.name, ExternKind::Export)),
+            types,
+            offset,
+        )?;
         self.toplevel_exported_resources.validate_extern(
-            name.0,
+            &name,
             ExternKind::Export,
             &ty,
             types,
@@ -1303,6 +1324,7 @@ impl ComponentState {
         // export signature
         let mut options = self.check_options(types, options, offset)?;
         options.check_lift(types, self, core_ty_id, offset)?;
+        options.check_asyncness(ty, offset)?;
         let func_ty = ty.lower(types, &options, Abi::Lift, offset)?;
         let lowered_core_ty_id = func_ty.intern(types, offset);
 
@@ -1359,6 +1381,8 @@ impl ComponentState {
         // the expected canonical ABI import signature.
         let options = self.check_options(types, options, offset)?;
         options.check_lower(offset)?;
+        options.check_asyncness(ty, offset)?;
+
         let func_ty = ty.lower(types, &options, Abi::Lower, offset)?;
         let ty_id = func_ty.intern(types, offset);
 
@@ -1559,9 +1583,9 @@ impl ComponentState {
         Ok(())
     }
 
-    fn validate_context_type(&self, ty: ValType, intrinsic: &str, offset: usize) -> Result<()> {
+    fn validate_context_type(&mut self, ty: ValType, intrinsic: &str, offset: usize) -> Result<()> {
         match ty {
-            ValType::I32 => Ok(()),
+            ValType::I32 => {}
             ValType::I64 => {
                 if !self.features.cm64() {
                     bail!(
@@ -1569,10 +1593,23 @@ impl ComponentState {
                         "64-bit `{intrinsic}` requires the component model 64-bit feature"
                     )
                 }
-                Ok(())
+                {}
             }
             _ => bail!(offset, "`{intrinsic}` only supports `i32` or `i64`"),
         }
+
+        match self.context_type {
+            None => self.context_type = Some(ty),
+            Some(other) => {
+                if other != ty {
+                    bail!(
+                        offset,
+                        "`{intrinsic}` type must match previous context type"
+                    )
+                }
+            }
+        }
+        Ok(())
     }
 
     fn thread_yield(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
@@ -2118,9 +2155,11 @@ impl ComponentState {
         }
 
         self.cabi_memory_at(memory, offset)?;
-
-        self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32; 2], [ValType::I32]), offset));
+        let memory64 = self.memory_at(memory, offset)?.memory64;
+        let ty = if memory64 { ValType::I64 } else { ValType::I32 };
+        self.core_funcs.push(
+            types.intern_func_type(FuncType::new([ValType::I32, ty], [ValType::I32]), offset),
+        );
         Ok(())
     }
 
@@ -2138,9 +2177,11 @@ impl ComponentState {
         }
 
         self.cabi_memory_at(memory, offset)?;
-
-        self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32; 2], [ValType::I32]), offset));
+        let memory64 = self.memory_at(memory, offset)?.memory64;
+        let ty = if memory64 { ValType::I64 } else { ValType::I32 };
+        self.core_funcs.push(
+            types.intern_func_type(FuncType::new([ValType::I32, ty], [ValType::I32]), offset),
+        );
         Ok(())
     }
 
@@ -3394,7 +3435,7 @@ impl ComponentState {
         let mut exports = component_type.exports.clone();
         let mut info = TypeInfo::new();
         for (_, ty) in component_type.exports.iter() {
-            info.combine(ty.info(types), offset)?;
+            info.combine(ty.ty.info(types), offset)?;
         }
 
         // Perform the subtype check that `args` matches the imports of
@@ -3456,7 +3497,7 @@ impl ComponentState {
         // references to the component's defined resources are rebound to the
         // fresh ones introduced just above.
         for entity in exports.values_mut() {
-            types.remap_component_entity(entity, &mut mapping);
+            types.remap_component_entity(&mut entity.ty, &mut mapping);
         }
         let component_type = &types[component_type_id];
         let explicit_resources = component_type
@@ -3492,7 +3533,7 @@ impl ComponentState {
         if cfg!(debug_assertions) {
             let mut free = IndexSet::default();
             for ty in exports.values() {
-                types.free_variables_component_entity(ty, &mut free);
+                types.free_variables_component_entity(&ty.ty, &mut free);
             }
             assert!(fresh_defined_resources.is_subset(&free));
             for resource in fresh_defined_resources.iter() {
@@ -3597,7 +3638,7 @@ impl ComponentState {
             };
 
             names.validate_extern(
-                export.name.0,
+                &export.name,
                 ExternKind::Export,
                 &ty,
                 types,
@@ -3833,14 +3874,14 @@ impl ComponentState {
             .exports
             .get(name)
         {
-            Some(ty) => *ty,
+            Some(ty) => ty.ty,
             None => bail!(
                 offset,
                 "instance {instance_index} has no export named `{name}`"
             ),
         };
 
-        let ok = match (&ty, kind) {
+        let ok = match (ty, kind) {
             (ComponentEntityType::Module(_), ComponentExternalKind::Module) => true,
             (ComponentEntityType::Module(_), _) => false,
             (ComponentEntityType::Component(_), ComponentExternalKind::Component) => true,
@@ -4440,7 +4481,7 @@ impl ComponentState {
             maximum: None,
             memory64: ty.memory64,
             shared: false,
-            page_size_log2: None,
+            page_size_log2: ty.page_size_log2,
         };
         if ty.memory64 && !self.features.cm64() {
             bail!(
@@ -4484,7 +4525,7 @@ impl ComponentState {
         // of `self.defined_resources` which show up.
         let mut free = IndexSet::default();
         for ty in ty.imports.values() {
-            types.free_variables_component_entity(ty, &mut free);
+            types.free_variables_component_entity(&ty.ty, &mut free);
         }
         for (resource, _path) in self.defined_resources.iter() {
             // FIXME: this error message is quite opaque and doesn't indicate
@@ -4523,7 +4564,7 @@ impl ComponentState {
         // abundance of caution.
         free.clear();
         for ty in ty.exports.values() {
-            types.free_variables_component_entity(ty, &mut free);
+            types.free_variables_component_entity(&ty.ty, &mut free);
         }
         for (id, _rep) in mem::take(&mut self.defined_resources) {
             if !free.contains(&id) {
@@ -4609,20 +4650,26 @@ impl ComponentNameContext {
 
     fn validate_extern(
         &self,
-        name: &str,
+        name: &ComponentExternName<'_>,
         kind: ExternKind,
         ty: &ComponentEntityType,
         types: &TypeAlloc,
         offset: usize,
         kind_names: &mut IndexSet<ComponentName>,
-        items: &mut IndexMap<String, ComponentEntityType>,
+        items: &mut IndexMap<String, ComponentItem>,
         info: &mut TypeInfo,
         features: &WasmFeatures,
     ) -> Result<()> {
         // First validate that `name` is even a valid kebab name, meaning it's
         // in kebab-case, is an ID, etc.
-        let kebab = ComponentName::new_with_features(name, offset, *features)
-            .with_context(|| format!("{} name `{name}` is not a valid extern name", kind.desc()))?;
+        let kebab =
+            ComponentName::new_with_features(name.name, offset, *features).with_context(|| {
+                format!(
+                    "{} name `{}` is not a valid extern name",
+                    kind.desc(),
+                    name.name
+                )
+            })?;
 
         if let ExternKind::Export = kind {
             match kebab.kind() {
@@ -4635,8 +4682,34 @@ impl ComponentNameContext {
                 ComponentNameKind::Hash(_)
                 | ComponentNameKind::Url(_)
                 | ComponentNameKind::Dependency(_) => {
-                    bail!(offset, "name `{name}` is not a valid export name")
+                    bail!(offset, "name `{}` is not a valid export name", name.name)
                 }
+            }
+        }
+
+        if let Some(implements) = name.implements {
+            if !features.cm_implements() {
+                bail!(offset, "the `cm-implements` feature is not active");
+            }
+            match kebab.kind() {
+                ComponentNameKind::Label(_) => {}
+                _ => bail!(
+                    offset,
+                    "name `{}` is not valid with `implements`",
+                    name.name
+                ),
+            }
+
+            match ty {
+                ComponentEntityType::Instance(_) => {}
+                _ => bail!(offset, "only instance names can have an `implements`"),
+            }
+
+            let implements = ComponentName::new_with_features(implements, offset, *features)
+                .with_context(|| format!("`{implements}` is not a valid name"))?;
+            match implements.kind() {
+                ComponentNameKind::Interface(_) => {}
+                _ => bail!(offset, "name `{implements}` must be an interface"),
             }
         }
 
@@ -4659,17 +4732,21 @@ impl ComponentNameContext {
         // Otherwise all strings must be unique, regardless of their name, so
         // consult the `items` set to ensure that we're not for example
         // importing the same interface ID twice.
-        match items.entry(name.to_string()) {
+        match items.entry(name.name.to_string()) {
             Entry::Occupied(e) => {
                 bail!(
                     offset,
                     "{kind} name `{name}` conflicts with previous name `{prev}`",
+                    name = name.name,
                     kind = kind.desc(),
                     prev = e.key(),
                 );
             }
             Entry::Vacant(e) => {
-                e.insert(*ty);
+                e.insert(ComponentItem {
+                    ty: *ty,
+                    implements: name.implements.map(|s| s.to_string()),
+                });
                 info.combine(ty.info(types), offset)?;
             }
         }

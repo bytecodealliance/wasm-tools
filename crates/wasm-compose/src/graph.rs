@@ -144,14 +144,14 @@ impl<'a> Component<'a> {
                                 Payload::ComponentImportSection(s) => {
                                     for import in s {
                                         let import = import?;
-                                        let name = import.name.0.to_string();
+                                        let name = import.name.name.to_string();
                                         imports.insert(name, import.ty);
                                     }
                                 }
                                 Payload::ComponentExportSection(s) => {
                                     for export in s {
                                         let export = export?;
-                                        let name = export.name.0.to_string();
+                                        let name = export.name.name.to_string();
                                         exports.insert(name, (export.kind, export.index));
                                     }
                                 }
@@ -277,7 +277,7 @@ impl<'a> Component<'a> {
         let (name, _kind, _index) = self.export(index)?;
         Some((
             name,
-            self.types.as_ref().component_entity_type_of_export(name)?,
+            self.types.as_ref().component_item_for_export(name)?.ty,
         ))
     }
 
@@ -288,7 +288,7 @@ impl<'a> Component<'a> {
         let (name, _ty) = self.import(index)?;
         Some((
             name,
-            self.types.as_ref().component_entity_type_of_import(name)?,
+            self.types.as_ref().component_item_for_import(name)?.ty,
         ))
     }
 
@@ -333,7 +333,7 @@ impl<'a> Component<'a> {
             match self.exports.get_full(k.as_str()) {
                 Some((ai, _, _)) => {
                     let (_, a) = self.export_entity_type(ExportIndex(ai)).unwrap();
-                    if !ComponentEntityType::is_subtype_of(&a, self.types(), b, types) {
+                    if !ComponentEntityType::is_subtype_of(&a, self.types(), &b.ty, types) {
                         return false;
                     }
                 }
@@ -497,7 +497,7 @@ impl ResourceMapping {
                 if let ComponentEntityType::Type {
                     referenced: ComponentAnyTypeId::Resource(resource_id),
                     ..
-                } = ty
+                } = ty.ty
                 {
                     exports.insert(export_name, (export_component, resource_id.resource()));
                 }
@@ -508,7 +508,7 @@ impl ResourceMapping {
                 if let ComponentEntityType::Type {
                     referenced: ComponentAnyTypeId::Resource(resource_id),
                     ..
-                } = ty
+                } = ty.ty
                 {
                     let import_resource = resource_id.resource();
                     if let Some((export_component, export_resource)) =
@@ -591,8 +591,9 @@ impl<'a> CompositionGraph<'a> {
                 let ty = component
                     .types
                     .as_ref()
-                    .component_entity_type_of_import(import_name)
-                    .unwrap();
+                    .component_item_for_import(import_name)
+                    .unwrap()
+                    .ty;
 
                 if let ComponentEntityType::Instance(instance_id) = ty {
                     for (export_name, ty) in &component.types[instance_id].exports {
@@ -600,7 +601,7 @@ impl<'a> CompositionGraph<'a> {
                         if let ComponentEntityType::Type {
                             referenced: ComponentAnyTypeId::Resource(resource_id),
                             ..
-                        } = ty
+                        } = ty.ty
                         {
                             let set = resource_imports
                                 .entry(vec![import_name.to_string(), export_name.to_string()])

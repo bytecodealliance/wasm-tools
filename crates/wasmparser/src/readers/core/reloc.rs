@@ -302,3 +302,21 @@ impl<'a> FromReader<'a> for RelocationEntry {
         })
     }
 }
+
+// Assert that `relocation_range` does not wrap when `offset + extent` exceeds `usize::MAX`.
+#[test]
+fn relocation_range_does_not_overflow() {
+    let entry = RelocationEntry {
+        ty: RelocationType::FunctionIndexLeb,
+        offset: 0xFFFF_FFFC,
+        index: 0,
+        addend: 0,
+    };
+    if cfg!(target_pointer_width = "32") {
+        assert!(entry.relocation_range().is_err());
+    } else {
+        let range = entry.relocation_range().unwrap();
+        assert_eq!(range.start, 0xFFFF_FFFC);
+        assert_eq!(range.end, 0xFFFF_FFFC + 5);
+    }
+}

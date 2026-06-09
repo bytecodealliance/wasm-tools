@@ -28,8 +28,33 @@ impl Module {
         self.defined_globals
             .push((fuel_global, ConstExpr::i32_const(default_fuel as i32)));
 
-        for code in &mut self.code {
-            let check_fuel = |insts: &mut Vec<Instruction>| {
+        let defined_funcs = &self.funcs[self.funcs.len() - self.code.len()..];
+        for ((_, ty), code) in defined_funcs.iter().zip(self.code.iter_mut()) {
+            let params = ty.params.len();
+
+            let mut temp_i32_local = None;
+            let mut temp_i32_local = |locals: &mut Vec<_>| {
+                if let Some(l) = temp_i32_local {
+                    return l;
+                }
+                let l = u32::try_from(locals.len() + params).unwrap();
+                locals.push(ValType::I32);
+                temp_i32_local = Some(l);
+                l
+            };
+
+            let mut temp_i64_local = None;
+            let mut temp_i64_local = |locals: &mut Vec<_>| {
+                if let Some(l) = temp_i64_local {
+                    return l;
+                }
+                let l = u32::try_from(locals.len() + params).unwrap();
+                locals.push(ValType::I64);
+                temp_i64_local = Some(l);
+                l
+            };
+
+            let check_fuel_1 = |insts: &mut Vec<Instruction>| {
                 // if fuel == 0 { trap }
                 insts.push(Instruction::GlobalGet(fuel_global));
                 insts.push(Instruction::I32Eqz);
@@ -42,6 +67,44 @@ impl Module {
                 insts.push(Instruction::I32Const(1));
                 insts.push(Instruction::I32Sub);
                 insts.push(Instruction::GlobalSet(fuel_global));
+            };
+
+            let check_fuel_n = |insts: &mut Vec<Instruction>, local: u32| {
+                // if local >= fuel { trap }
+                insts.push(Instruction::LocalGet(local));
+                insts.push(Instruction::GlobalGet(fuel_global));
+                insts.push(Instruction::I32GeU);
+                insts.push(Instruction::If(BlockType::Empty));
+                insts.push(Instruction::Unreachable);
+                insts.push(Instruction::End);
+                // fuel -= local
+                insts.push(Instruction::GlobalGet(fuel_global));
+                insts.push(Instruction::LocalGet(local));
+                insts.push(Instruction::I32Sub);
+                insts.push(Instruction::GlobalSet(fuel_global));
+            };
+
+            let check_fuel_32_or_64 = |locals: &mut Vec<ValType>,
+                                       temp_i32_local: &mut dyn FnMut(&mut Vec<ValType>) -> u32,
+                                       temp_i64_local: &mut dyn FnMut(&mut Vec<ValType>) -> u32,
+                                       new_insts: &mut Vec<Instruction>,
+                                       inst: Instruction,
+                                       is_64: bool| {
+                if is_64 {
+                    let local64 = temp_i64_local(locals);
+                    let local32 = temp_i32_local(locals);
+                    new_insts.push(Instruction::LocalTee(local64));
+                    new_insts.push(Instruction::I32WrapI64);
+                    new_insts.push(Instruction::LocalSet(local32));
+                    check_fuel_n(new_insts, local32);
+                    new_insts.push(Instruction::LocalGet(local64));
+                    new_insts.push(inst);
+                } else {
+                    let local = temp_i32_local(locals);
+                    new_insts.push(Instruction::LocalTee(local));
+                    check_fuel_n(new_insts, local);
+                    new_insts.push(inst);
+                }
             };
 
             let instrs = match &mut code.instructions {
@@ -57,15 +120,116 @@ impl Module {
 
             // Check fuel at the start of functions to deal with infinite
             // recursion.
-            check_fuel(&mut new_insts);
+            check_fuel_1(&mut new_insts);
 
             for inst in mem::replace(instrs, vec![]) {
-                let is_loop = matches!(&inst, Instruction::Loop(_));
-                new_insts.push(inst);
+                match &inst {
+                    // Check fuel at loop heads to deal with infinite loops.
+                    Instruction::Loop(_) => {
+                        new_insts.push(inst);
+                        check_fuel_1(&mut new_insts);
+                    }
 
-                // Check fuel at loop heads to deal with infinite loops.
-                if is_loop {
-                    check_fuel(&mut new_insts);
+                    // Check fuel on instructions that imply loops and decrement
+                    // fuel accordingly and always have `len: i32` on top of the
+                    // stack.
+                    Instruction::ArrayCopy { .. }
+                    | Instruction::ArrayFill(_)
+                    | Instruction::ArrayInitData { .. }
+                    | Instruction::ArrayInitElem { .. }
+                    | Instruction::ArrayNew(_)
+                    | Instruction::ArrayNewDefault(_)
+                    | Instruction::ArrayNewData { .. }
+                    | Instruction::ArrayNewElem { .. } => {
+                        let local = temp_i32_local(&mut code.locals);
+                        new_insts.push(Instruction::LocalTee(local));
+                        check_fuel_n(&mut new_insts, local);
+                        new_insts.push(inst);
+                    }
+
+                    // Check fuel on `table.init`, whose `len` operand is always
+                    // `i32`, even for `table64`.
+                    Instruction::TableInit { .. } => {
+                        let local = temp_i32_local(&mut code.locals);
+                        new_insts.push(Instruction::LocalTee(local));
+                        check_fuel_n(&mut new_insts, local);
+                        new_insts.push(inst);
+                    }
+
+                    // Check fuel on `table.fill`, whose `len` operand has the
+                    // table's index type.
+                    Instruction::TableFill(table) => {
+                        let table = usize::try_from(*table).unwrap();
+                        let is_64 = self.tables[table].table64;
+                        check_fuel_32_or_64(
+                            &mut code.locals,
+                            &mut temp_i32_local,
+                            &mut temp_i64_local,
+                            &mut new_insts,
+                            inst,
+                            is_64,
+                        );
+                    }
+
+                    // Check fuel on `table.copy`, whose `len` operand has the
+                    // smaller of the source and destination tables' index types.
+                    Instruction::TableCopy {
+                        dst_table,
+                        src_table,
+                    } => {
+                        let dst_table = usize::try_from(*dst_table).unwrap();
+                        let src_table = usize::try_from(*src_table).unwrap();
+                        check_fuel_32_or_64(
+                            &mut code.locals,
+                            &mut temp_i32_local,
+                            &mut temp_i64_local,
+                            &mut new_insts,
+                            inst,
+                            self.tables[dst_table].table64 && self.tables[src_table].table64,
+                        );
+                    }
+
+                    // Check fuel on `memory.init`, whose `len` operand is
+                    // always `i32`, even for `memory64`.
+                    Instruction::MemoryInit { .. } => {
+                        let local = temp_i32_local(&mut code.locals);
+                        new_insts.push(Instruction::LocalTee(local));
+                        check_fuel_n(&mut new_insts, local);
+                        new_insts.push(inst);
+                    }
+
+                    // Check fuel on `memory.fill`, whose `len` operand has the
+                    // memory's index type.
+                    Instruction::MemoryFill(mem) => {
+                        let mem = usize::try_from(*mem).unwrap();
+                        check_fuel_32_or_64(
+                            &mut code.locals,
+                            &mut temp_i32_local,
+                            &mut temp_i64_local,
+                            &mut new_insts,
+                            inst,
+                            self.memories[mem].memory64,
+                        );
+                    }
+
+                    // Check fuel on `memory.copy`, whose `len` operand has the
+                    // smaller of the source and destination memories' index
+                    // types.
+                    Instruction::MemoryCopy { dst_mem, src_mem } => {
+                        let dst_mem = usize::try_from(*dst_mem).unwrap();
+                        let src_mem = usize::try_from(*src_mem).unwrap();
+                        check_fuel_32_or_64(
+                            &mut code.locals,
+                            &mut temp_i32_local,
+                            &mut temp_i64_local,
+                            &mut new_insts,
+                            inst,
+                            self.memories[dst_mem].memory64 && self.memories[src_mem].memory64,
+                        );
+                    }
+
+                    // Otherwise, just keep the instruction.
+                    _ => new_insts.push(inst),
                 }
             }
 

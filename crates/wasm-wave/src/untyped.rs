@@ -2,7 +2,12 @@
 
 use alloc::{borrow::Cow, vec::Vec};
 
-use crate::{Parser, WasmValue, ast::Node, lex::Keyword, parser::ParserError};
+use crate::{
+    Parser, WasmValue,
+    ast::Node,
+    lex::Keyword,
+    parser::{ParserError, ParserErrorKind},
+};
 
 /// An UntypedValue is a parsed but not type-checked WAVE value.
 #[derive(Clone, Debug)]
@@ -59,14 +64,14 @@ impl core::fmt::Display for UntypedValue<'_> {
 /// WAVE function calls have the form `<name>(<params...>)`.
 pub struct UntypedFuncCall<'source> {
     source: Cow<'source, str>,
-    name: Node,
+    name: logos::Span,
     params: Option<Node>,
 }
 
 impl<'source> UntypedFuncCall<'source> {
     pub(crate) fn new(
         source: impl Into<Cow<'source, str>>,
-        name: Node,
+        name: logos::Span,
         params: Option<Node>,
     ) -> Self {
         Self {
@@ -78,10 +83,7 @@ impl<'source> UntypedFuncCall<'source> {
 
     /// Parses an untyped function call from WAVE.
     pub fn parse(source: &'source str) -> Result<Self, ParserError> {
-        let mut parser = Parser::new(source);
-        let call = parser.parse_raw_func_call()?;
-        parser.finish()?;
-        Ok(call)
+        crate::parser::parse_raw_func_call(source)
     }
 
     /// Creates an owned function call, copying the entire source string if necessary.
@@ -98,11 +100,6 @@ impl<'source> UntypedFuncCall<'source> {
         &self.source
     }
 
-    /// Returns the function name node.
-    pub fn name_node(&self) -> &Node {
-        &self.name
-    }
-
     /// Returns the function parameters node.
     ///
     /// Returns `None` if the function call has no parameters.
@@ -112,7 +109,14 @@ impl<'source> UntypedFuncCall<'source> {
 
     /// Returns the function name.
     pub fn name(&self) -> &str {
-        self.name.slice(&self.source)
+        &self.source[self.name.clone()]
+    }
+
+    /// Returns the function name, as parsed by wit-parser.
+    #[cfg(feature = "wit")]
+    pub fn item_name(&self) -> Result<wit_parser::ItemName, anyhow::Error> {
+        use core::str::FromStr;
+        wit_parser::ItemName::from_str(self.name())
     }
 
     /// Converts the untyped parameters into the given types.
@@ -121,18 +125,28 @@ impl<'source> UntypedFuncCall<'source> {
     /// be returned as `none` values.
     pub fn to_wasm_params<'types, V: WasmValue + 'static>(
         &self,
-        types: impl IntoIterator<Item = &'types V::Type>,
+        types: impl IntoIterator<Item = &'types V::Type, IntoIter: ExactSizeIterator>,
     ) -> Result<Vec<V>, ParserError> {
         match &self.params {
             Some(params) => params.to_wasm_params(types, self.source()),
-            None => Ok(Vec::new()),
+            None => {
+                let num_params = types.into_iter().len();
+                if num_params > 0 {
+                    return Err(ParserError::with_detail(
+                        ParserErrorKind::InvalidParams,
+                        self.name.clone(),
+                        alloc::format!("no params provided, but {num_params} required"),
+                    ));
+                }
+                Ok(Vec::new())
+            }
         }
     }
 }
 
 impl core::fmt::Display for UntypedFuncCall<'_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.write_str(self.name.slice(&self.source))?;
+        f.write_str(&self.source[self.name.clone()])?;
         match &self.params {
             Some(params) => fmt_node(f, params, &self.source),
             None => f.write_str("()"),

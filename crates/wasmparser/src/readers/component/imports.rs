@@ -79,7 +79,7 @@ impl<'a> FromReader<'a> for ComponentTypeRef {
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct ComponentImport<'a> {
     /// The name of the imported item.
-    pub name: ComponentImportName<'a>,
+    pub name: ComponentExternName<'a>,
     /// The type reference for the import.
     pub ty: ComponentTypeRef,
 }
@@ -112,13 +112,16 @@ pub type ComponentImportSectionReader<'a> = SectionLimited<'a, ComponentImport<'
 /// Represents the name of a component import.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[allow(missing_docs)]
-pub struct ComponentImportName<'a>(pub &'a str);
+pub struct ComponentExternName<'a> {
+    pub name: &'a str,
+    pub implements: Option<&'a str>,
+}
 
-impl<'a> FromReader<'a> for ComponentImportName<'a> {
+impl<'a> FromReader<'a> for ComponentExternName<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        match reader.read_u8()? {
+        let has_options = match reader.read_u8()? {
             // This is the spec-required byte as of this time.
-            0x00 => {}
+            0x00 => false,
 
             // Prior to WebAssembly/component-model#263 export names used a
             // discriminator byte of 0x01 to indicate an "interface" of the
@@ -136,10 +139,51 @@ impl<'a> FromReader<'a> for ComponentImportName<'a> {
             // time has passed this case may be able to be removed. When
             // removing this it's probably best to do it with a `WasmFeatures`
             // flag first to ensure there's an opt-in way of fixing things.
-            0x01 => {}
+            0x01 => false,
 
-            x => return reader.invalid_leading_byte(x, "import name"),
+            0x02 => {
+                if reader.cm_implements() {
+                    true
+                } else {
+                    bail!(
+                        reader.original_position() - 1,
+                        "the `cm-implements` feature is not active"
+                    )
+                }
+            }
+
+            x => return reader.invalid_leading_byte(x, "component name"),
+        };
+        let mut ret = ComponentExternName {
+            name: reader.read_string()?,
+            implements: None,
+        };
+        if has_options {
+            for _ in 0..reader.read_var_u32()? {
+                let pos = reader.original_position();
+                match reader.read()? {
+                    ComponentNameOpt::Implements(name) => {
+                        if ret.implements.is_some() {
+                            bail!(pos, "duplicate 'implements' option in name");
+                        }
+                        ret.implements = Some(name);
+                    }
+                }
+            }
         }
-        Ok(ComponentImportName(reader.read_string()?))
+        Ok(ret)
+    }
+}
+
+enum ComponentNameOpt<'a> {
+    Implements(&'a str),
+}
+
+impl<'a> FromReader<'a> for ComponentNameOpt<'a> {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        match reader.read_u8()? {
+            0x00 => Ok(ComponentNameOpt::Implements(reader.read()?)),
+            x => return reader.invalid_leading_byte(x, "name option"),
+        }
     }
 }
