@@ -253,7 +253,7 @@ define_wasm_features! {
         ///
         /// Corresponds to the 🔀 character in
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
-        pub cm_async: CM_ASYNC(1 << 27) = false;
+        pub cm_async: CM_ASYNC(1 << 27) = true;
         /// Gates the "stackful ABI" in the component model async proposal.
         ///
         /// Corresponds to the 🚟 character in
