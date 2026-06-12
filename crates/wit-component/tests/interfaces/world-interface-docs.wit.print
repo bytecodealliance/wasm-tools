@@ -1,0 +1,23 @@
+/// doc comments on by-reference interface imports/exports
+/// inside a world (attached to the `import`/`export` statement itself, as
+/// opposed to the interface's own definition) must survive the binary WIT
+/// package round-trip via the `package-docs` custom section.
+package foo:foo;
+
+/// the imported interface's own definition docs
+interface imported {
+  f: func();
+}
+
+/// the exported interface's own definition docs
+interface exported {
+  g: func();
+}
+
+world the-world {
+  /// docs on the by-reference interface import statement
+  import imported;
+
+  /// docs on the by-reference interface export statement
+  export exported;
+}

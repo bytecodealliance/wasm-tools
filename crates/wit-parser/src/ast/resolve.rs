@@ -758,26 +758,31 @@ impl<'a> Resolver<'a> {
                 Ok(WorldItem::Interface {
                     id,
                     stability,
+                    docs: Default::default(),
                     span: name.span,
                 })
             }
             ast::ExternKind::Path(path) => {
                 let stability = self.stability(attrs)?;
+                let docs = self.docs(docs);
                 let (item, name, item_span) = self.resolve_ast_item_path(path)?;
                 let id = self.extract_iface_from_item(&item, &name, item_span)?;
                 Ok(WorldItem::Interface {
                     id,
                     stability,
+                    docs,
                     span: item_span,
                 })
             }
             ast::ExternKind::NamedPath(name, path) => {
                 let stability = self.stability(attrs)?;
+                let docs = self.docs(docs);
                 let (item, iface_name, item_span) = self.resolve_ast_item_path(path)?;
                 let id = self.extract_iface_from_item(&item, &iface_name, item_span)?;
                 Ok(WorldItem::Interface {
                     id,
                     stability,
+                    docs,
                     span: name.span,
                 })
             }

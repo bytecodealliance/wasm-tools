@@ -523,6 +523,12 @@ pub enum WorldItem {
             serde(skip_serializing_if = "Stability::is_unknown")
         )]
         stability: Stability,
+        /// Documentation attached to the `import`/`export` statement.
+        #[cfg_attr(
+            feature = "serde",
+            serde(default, skip_serializing_if = "Docs::is_empty")
+        )]
+        docs: Docs,
         #[cfg_attr(feature = "serde", serde(skip))]
         span: Span,
     },

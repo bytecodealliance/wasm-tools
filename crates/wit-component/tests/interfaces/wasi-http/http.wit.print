@@ -559,13 +559,25 @@ world proxy {
   import wasi:io/error@0.2.0-rc-2023-11-10;
   import wasi:io/poll@0.2.0-rc-2023-11-10;
   import wasi:io/streams@0.2.0-rc-2023-11-10;
+  /// Proxies have standard output and error streams which are expected to
+  /// terminate in a developer-facing console provided by the host.
   import wasi:cli/stdout@0.2.0-rc-2023-12-05;
   import wasi:cli/stderr@0.2.0-rc-2023-12-05;
+  /// TODO: this is a temporary workaround until component tooling is able to
+  /// gracefully handle the absence of stdin. Hosts must return an eof stream
+  /// for this import, which is what wasi-libc + tooling will do automatically
+  /// when this import is properly removed.
   import wasi:cli/stdin@0.2.0-rc-2023-12-05;
   import wasi:clocks/monotonic-clock@0.2.0-rc-2023-11-10;
   import types;
+  /// This is the default handler to use when user code simply wants to make an
+  /// HTTP request (e.g., via `fetch()`).
   import outgoing-handler;
   import wasi:clocks/wall-clock@0.2.0-rc-2023-11-10;
 
+  /// The host delivers incoming HTTP requests to a component by calling the
+  /// `handle` function of this exported interface. A host may arbitrarily reuse
+  /// or not reuse component instance when delivering incoming HTTP requests and
+  /// thus a component must be able to handle 0..N calls to `handle`.
   export incoming-handler;
 }
