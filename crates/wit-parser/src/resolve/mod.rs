@@ -779,6 +779,7 @@ impl Resolve {
                                 id: aid,
                                 stability: astability,
                                 span: aspan,
+                                ..
                             },
                             WorldItem::Interface {
                                 id: bid,
@@ -2082,8 +2083,19 @@ impl Resolve {
             match item {
                 // Interfaces get their dependencies added first followed by the
                 // interface itself.
-                WorldItem::Interface { id, stability, .. } => {
-                    self.elaborate_world_import(&mut new_imports, name.clone(), *id, &stability);
+                WorldItem::Interface {
+                    id,
+                    stability,
+                    docs,
+                    ..
+                } => {
+                    self.elaborate_world_import(
+                        &mut new_imports,
+                        name.clone(),
+                        *id,
+                        &stability,
+                        docs,
+                    );
                 }
 
                 // Functions are added as-is since their dependence on types in
@@ -2103,6 +2115,7 @@ impl Resolve {
                             WorldKey::Interface(dep),
                             dep,
                             &self.types[*id].stability,
+                            &Docs::default(),
                         );
                     }
                     let prev = new_imports.insert(name.clone(), item.clone());
@@ -2156,18 +2169,28 @@ impl Resolve {
         key: WorldKey,
         id: InterfaceId,
         stability: &Stability,
+        docs: &Docs,
     ) {
         if imports.contains_key(&key) {
             return;
         }
+        // Synthesized dependency imports carry no statement-level docs of their
+        // own.
         for dep in self.interface_direct_deps(id) {
-            self.elaborate_world_import(imports, WorldKey::Interface(dep), dep, stability);
+            self.elaborate_world_import(
+                imports,
+                WorldKey::Interface(dep),
+                dep,
+                stability,
+                &Docs::default(),
+            );
         }
         let prev = imports.insert(
             key,
             WorldItem::Interface {
                 id,
                 stability: stability.clone(),
+                docs: docs.clone(),
                 span: Default::default(),
             },
         );
@@ -2295,6 +2318,7 @@ impl Resolve {
                 let item = WorldItem::Interface {
                     id: dep,
                     stability: stability.clone(),
+                    docs: Default::default(),
                     span: Default::default(),
                 };
                 let key = WorldKey::Interface(dep);
@@ -2407,11 +2431,13 @@ impl Resolve {
                 &WorldItem::Interface {
                     id: *to_replace,
                     stability: Default::default(),
+                    docs: Default::default(),
                     span: Default::default(),
                 },
                 &WorldItem::Interface {
                     id: *replace_with,
                     stability: Default::default(),
+                    docs: Default::default(),
                     span: Default::default(),
                 },
             )
@@ -4272,6 +4298,7 @@ impl Remap {
                             id: aid,
                             stability: astability,
                             span: aspan,
+                            ..
                         },
                         WorldItem::Interface {
                             id: bid,

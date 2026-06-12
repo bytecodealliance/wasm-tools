@@ -748,6 +748,7 @@ impl WitPackageDecoder<'_> {
             WorldItem::Interface {
                 id,
                 stability: Default::default(),
+                docs: Default::default(),
                 span: Default::default(),
             },
         ))

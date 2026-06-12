@@ -261,6 +261,28 @@ struct WorldMetadata {
         serde(default, skip_serializing_if = "StringMap::is_empty")
     )]
     interface_export_stability: StringMap<Stability>,
+
+    /// Docs attached to interface imports that aren't inline, mirroring
+    /// `interface_import_stability`, for example:
+    ///
+    /// ```wit
+    /// world foo {
+    ///     /// These docs.
+    ///     import an-interface;
+    /// }
+    /// ```
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "StringMap::is_empty")
+    )]
+    interface_import_docs: StringMap<String>,
+
+    /// Same as `interface_import_docs`, but for exports.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "StringMap::is_empty")
+    )]
+    interface_export_docs: StringMap<String>,
 }
 
 impl WorldMetadata {
@@ -274,23 +296,37 @@ impl WorldMetadata {
         let mut func_exports = StringMap::default();
         let mut interface_import_stability = StringMap::default();
         let mut interface_export_stability = StringMap::default();
+        let mut interface_import_docs = StringMap::default();
+        let mut interface_export_docs = StringMap::default();
 
-        let mut record_interface_stability = |key: &WorldKey, item: &WorldItem, import: bool| {
-            let stability = match item {
-                WorldItem::Interface { stability, .. } => stability,
+        // Records the stability and docs of a non-inline (by-reference)
+        // interface import/export, keyed by its world-key name, so that they
+        // can be restored by `inject`. Docs and stability are recorded
+        // independently since either may be present without the other.
+        let mut record_interface_metadata = |key: &WorldKey, item: &WorldItem, import: bool| {
+            let (stability, docs) = match item {
+                WorldItem::Interface {
+                    stability, docs, ..
+                } => (stability, docs),
                 _ => return,
             };
-            if stability.is_unknown() {
-                return;
-            }
-
-            let map = if import {
-                &mut interface_import_stability
-            } else {
-                &mut interface_export_stability
-            };
             let name = resolve.name_world_key(key);
-            map.insert(name, stability.clone());
+            if !stability.is_unknown() {
+                let map = if import {
+                    &mut interface_import_stability
+                } else {
+                    &mut interface_export_stability
+                };
+                map.insert(name.clone(), stability.clone());
+            }
+            if let Some(contents) = &docs.contents {
+                let map = if import {
+                    &mut interface_import_docs
+                } else {
+                    &mut interface_export_docs
+                };
+                map.insert(name, contents.clone());
+            }
         };
 
         for ((key, item), import) in world
@@ -305,7 +341,7 @@ impl WorldMetadata {
                 WorldKey::Name(name) => match item {
                     WorldItem::Interface { id, .. } => {
                         if resolve.interfaces[*id].name.is_some() {
-                            record_interface_stability(key, item, import);
+                            record_interface_metadata(key, item, import);
                             continue;
                         }
                         let data = InterfaceMetadata::extract(resolve, *id);
@@ -349,10 +385,10 @@ impl WorldMetadata {
                     }
                 },
 
-                // For interface imports/exports extract the stability and
-                // record it if necessary.
+                // For interface imports/exports extract the stability/docs and
+                // record them if necessary.
                 WorldKey::Interface(_) => {
-                    record_interface_stability(key, item, import);
+                    record_interface_metadata(key, item, import);
                 }
             }
         }
@@ -367,6 +403,8 @@ impl WorldMetadata {
             func_exports,
             interface_import_stability,
             interface_export_stability,
+            interface_import_docs,
+            interface_export_docs,
         }
     }
 
@@ -448,6 +486,31 @@ impl WorldMetadata {
             }
         }
 
+        // Update the docs of interface imports/exports that aren't kebab-named,
+        // reusing the same `stabilities` key map built above.
+        for ((name, docs), import) in self
+            .interface_import_docs
+            .iter()
+            .map(|p| (p, true))
+            .chain(self.interface_export_docs.iter().map(|p| (p, false)))
+        {
+            let key = match stabilities.get(&(name.clone(), import)) {
+                Some(key) => key.clone(),
+                None => bail!("missing interface `{name}`"),
+            };
+            let item = if import {
+                world.imports.get_mut(&key)
+            } else {
+                world.exports.get_mut(&key)
+            };
+            match item {
+                Some(WorldItem::Interface { docs: d, .. }) => {
+                    d.contents = Some(docs.clone());
+                }
+                _ => bail!("item `{name}` wasn't an interface"),
+            }
+        }
+
         // Update the docs/stability of all functions imported/exported from
         // this world.
         for ((name, data), only_export) in self
@@ -487,6 +550,8 @@ impl WorldMetadata {
             && self.func_exports.is_empty()
             && self.interface_import_stability.is_empty()
             && self.interface_export_stability.is_empty()
+            && self.interface_import_docs.is_empty()
+            && self.interface_export_docs.is_empty()
     }
 
     #[cfg(feature = "serde")]
@@ -507,6 +572,8 @@ impl WorldMetadata {
             && self.func_exports.is_empty()
             && self.interface_import_stability.is_empty()
             && self.interface_export_stability.is_empty()
+            && self.interface_import_docs.is_empty()
+            && self.interface_export_docs.is_empty()
     }
 }
 
