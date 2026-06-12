@@ -40,7 +40,7 @@
     )
   )
   (export (;5;) "c" (type 4))
-  (@custom "package-docs" "\01{}")
+  (@custom "package-docs" "\01{\22package\22:\22foo:foo\22}")
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

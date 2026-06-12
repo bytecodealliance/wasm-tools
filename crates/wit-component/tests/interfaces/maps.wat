@@ -179,7 +179,7 @@
     )
   )
   (export (;3;) "maps-test-world" (type 2))
-  (@custom "package-docs" "\01{\22interfaces\22:{\22maps-interface\22:{\22funcs\22:{\22map-param\22:{\22docs\22:\22Functions\22}},\22types\22:{\22bool-map\22:{\22docs\22:\22Test all primitive key types\22},\22string-to-bool\22:{\22docs\22:\22Test all value types\22},\22map-of-maps\22:{\22docs\22:\22Nested structures\22}}}}}")
+  (@custom "package-docs" "\01{\22package\22:\22foo:maps-test\22,\22interfaces\22:{\22maps-interface\22:{\22funcs\22:{\22map-param\22:{\22docs\22:\22Functions\22}},\22types\22:{\22bool-map\22:{\22docs\22:\22Test all primitive key types\22},\22string-to-bool\22:{\22docs\22:\22Test all value types\22},\22map-of-maps\22:{\22docs\22:\22Nested structures\22}}}}}")
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

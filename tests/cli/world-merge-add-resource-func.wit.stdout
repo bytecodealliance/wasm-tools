@@ -5,6 +5,9 @@ world root {
     constructor();
   }
 }
+/// RUN: component embed --dummy --world a % | /
+///      component embed         --world b % | /
+///      component wit
 package a:b {
   world a {
     resource a;

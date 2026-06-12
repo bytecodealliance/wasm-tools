@@ -11,6 +11,11 @@ world root {
   export b: interface {
   }
 }
+/// RUN: component embed --dummy --world w1 % | /
+///      component embed         --world w2 % | /
+///      component embed         --world w3 % | /
+///      component embed         --world w4 % | /
+///      component wit
 package a:b {
   world w1 {
   }

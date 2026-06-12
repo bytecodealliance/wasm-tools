@@ -116,4 +116,5 @@
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
+  (@custom "package-docs" "\01{\22package\22:\22foo:foo\22,\22interfaces\22:{\22my-wasi\22:{\22docs\22:\22This is the interface imported by the `adapt-*.wat` file which is used\5cnto implement the `wasi_snapshot_preview1` interface.\22}}}")
 )

@@ -26,8 +26,10 @@ struct ComponentInfo {
     types: types::Types,
     /// List of all imports and exports from this component.
     externs: Vec<(String, Extern)>,
-    /// Decoded package metadata
-    package_metadata: Option<PackageMetadata>,
+    /// Decoded package metadata. A single component can carry one section per
+    /// package (each tagged with its [`PackageName`]) when produced by
+    /// `ComponentEncoder::encode`.
+    package_metadata: Vec<PackageMetadata>,
 }
 
 struct DecodingExport {
@@ -54,7 +56,7 @@ impl ComponentInfo {
         let mut externs = Vec::new();
         let mut depth = 1;
         let mut types = None;
-        let mut _package_metadata = None;
+        let mut _package_metadata: Vec<PackageMetadata> = Vec::new();
         let mut cur = Parser::new(0);
         let mut eof = false;
         let mut stack = Vec::new();
@@ -116,12 +118,13 @@ impl ComponentInfo {
                         ));
                     }
                 }
+                // Best-effort: a bad section just drops docs for one package.
+                // Multiple sections are allowed (one per package).
                 #[cfg(feature = "serde")]
                 Payload::CustomSection(s) if s.name() == PackageMetadata::SECTION_NAME => {
-                    if _package_metadata.is_some() {
-                        bail!("multiple {:?} sections", PackageMetadata::SECTION_NAME);
+                    if let Ok(meta) = PackageMetadata::decode(s.data()) {
+                        _package_metadata.push(meta);
                     }
-                    _package_metadata = Some(PackageMetadata::decode(s.data())?);
                 }
                 Payload::ModuleSection { parser, .. }
                 | Payload::ComponentSection { parser, .. } => {
@@ -210,8 +213,9 @@ impl ComponentInfo {
 
         let pkg = pkg.ok_or_else(|| anyhow!("no exported component type found"))?;
         let (mut resolve, package) = decoder.finish(pkg);
-        if let Some(package_metadata) = &self.package_metadata {
-            package_metadata.inject(&mut resolve, package)?;
+        for metadata in &self.package_metadata {
+            // Best-effort: a failure here just drops some docs.
+            let _ = metadata.inject(&mut resolve, package);
         }
         Ok((resolve, package))
     }
@@ -290,8 +294,9 @@ impl ComponentInfo {
         };
 
         let (mut resolve, package) = decoder.finish(pkg);
-        if let Some(package_metadata) = &self.package_metadata {
-            package_metadata.inject(&mut resolve, package)?;
+        for metadata in &self.package_metadata {
+            // Best-effort: a failure here just drops some docs.
+            let _ = metadata.inject(&mut resolve, package);
         }
         Ok((resolve, package))
     }
@@ -344,8 +349,9 @@ impl ComponentInfo {
         }
 
         let (mut resolve, pkg) = decoder.finish(package);
-        if let Some(package_metadata) = &self.package_metadata {
-            package_metadata.inject(&mut resolve, pkg)?;
+        for metadata in &self.package_metadata {
+            // Best-effort: a failure here just drops some docs.
+            let _ = metadata.inject(&mut resolve, pkg);
         }
         Ok((resolve, world))
     }
@@ -429,6 +435,8 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
     let mut exports = Vec::new();
     let mut depth = 1;
     let mut types = None;
+    #[cfg(feature = "serde")]
+    let mut package_metadata: Option<PackageMetadata> = None;
 
     for payload in Parser::new(0).parse_all(wasm) {
         let payload = payload?;
@@ -450,6 +458,16 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
                 for export in s {
                     exports.push(export?);
                 }
+            }
+            // Best-effort: a bad section just drops docs, not the world.
+            // Guard takes the first top-level package-docs section; duplicates are ignored.
+            #[cfg(feature = "serde")]
+            Payload::CustomSection(s)
+                if depth == 1
+                    && s.name() == PackageMetadata::SECTION_NAME
+                    && package_metadata.is_none() =>
+            {
+                package_metadata = PackageMetadata::decode(s.data()).ok();
             }
             _ => {}
         }
@@ -489,12 +507,18 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
             worlds: &mut worlds,
         },
     )?;
-    let (resolve, pkg) = decoder.finish(Package {
+    #[cfg_attr(not(feature = "serde"), allow(unused_mut))]
+    let (mut resolve, pkg) = decoder.finish(Package {
         name,
         interfaces,
         worlds,
         docs: Default::default(),
     });
+    #[cfg(feature = "serde")]
+    if let Some(metadata) = package_metadata {
+        // Best-effort: a failure here just drops some docs.
+        let _ = metadata.inject(&mut resolve, pkg);
+    }
     // The package decoded here should only have a single world so extract that
     // here to return.
     let world = *resolve.packages[pkg].worlds.iter().next().unwrap().1;

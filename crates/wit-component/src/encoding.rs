@@ -85,8 +85,8 @@ use std::mem;
 use wasm_encoder::*;
 use wasmparser::{Validator, WasmFeatures};
 use wit_parser::{
-    Function, FunctionKind, InterfaceId, LiveTypes, Param, Resolve, Stability, Type, TypeDefKind,
-    TypeId, TypeOwner, WorldItem, WorldKey,
+    Function, FunctionKind, InterfaceId, LiveTypes, PackageMetadata, Param, Resolve, Stability,
+    Type, TypeDefKind, TypeId, TypeOwner, WorldItem, WorldKey,
     abi::{AbiVariant, WasmSignature, WasmType},
 };
 
@@ -3355,6 +3355,16 @@ impl ComponentEncoder {
         state
             .component
             .raw_custom_section(&crate::base_producers().raw_custom_section());
+        for (pkg_id, _) in self.metadata.resolve.packages.iter() {
+            let package_docs = PackageMetadata::extract(&self.metadata.resolve, pkg_id);
+            if package_docs.is_empty() {
+                continue;
+            }
+            state.component.custom_section(&CustomSection {
+                name: PackageMetadata::SECTION_NAME.into(),
+                data: package_docs.encode()?.into(),
+            });
+        }
         let bytes = state.component.finish();
 
         if self.validate {
