@@ -21,23 +21,30 @@
       "text": "Fixed-length lists must have more than zero elements (at offset 0x54)"
     },
     {
-      "type": "assert_malformed",
+      "type": "assert_invalid",
       "line": 42,
-      "filename": "fixed-length-lists.3.wat",
+      "filename": "fixed-length-lists.3.wasm",
+      "module_type": "binary",
+      "text": "fixed-length list element count exceeds limit of 1073741824 (at offset 0x54)"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 57,
+      "filename": "fixed-length-lists.4.wat",
       "module_type": "text",
       "text": "invalid u32 number: constant out of range"
     },
     {
       "type": "assert_invalid",
-      "line": 57,
-      "filename": "fixed-length-lists.4.wasm",
+      "line": 72,
+      "filename": "fixed-length-lists.5.wasm",
       "module_type": "binary",
       "text": "type mismatch for import `x`"
     },
     {
       "type": "assert_invalid",
-      "line": 70,
-      "filename": "fixed-length-lists.5.wasm",
+      "line": 85,
+      "filename": "fixed-length-lists.6.wasm",
       "module_type": "binary",
       "text": "type mismatch for import `x`"
     }

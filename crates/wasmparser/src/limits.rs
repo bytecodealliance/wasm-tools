@@ -72,6 +72,9 @@ mod component_limits {
     pub const MAX_WASM_RECORD_FIELDS: usize = 10_000;
     pub const MAX_WASM_VARIANT_CASES: usize = 10_000;
     pub const MAX_WASM_TUPLE_TYPES: usize = 10_000;
+    /// Fixed-length lists don't contribute their length to the component
+    /// type-size budget, so the element count gets a separate limit of 1 Gi.
+    pub const MAX_WASM_FIXED_LENGTH_LIST_ELEMENTS: usize = 1_073_741_824;
     pub const MAX_WASM_FLAG_NAMES: usize = 1_000;
     pub const MAX_WASM_ENUM_CASES: usize = 10_000;
     pub const MAX_WASM_INSTANTIATION_EXPORTS: usize = 100_000;
