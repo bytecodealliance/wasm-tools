@@ -25,8 +25,8 @@ use crate::{
 };
 use core::mem;
 
-fn to_kebab_str<'a>(s: &'a str, desc: &str, offset: usize) -> Result<&'a KebabStr> {
-    match KebabStr::new(s) {
+fn to_kebab_string<'a>(s: &'a str, desc: &str, offset: usize) -> Result<KebabString> {
+    match KebabString::new(s) {
         Some(s) => Ok(s),
         None => {
             if s.is_empty() {
@@ -3196,8 +3196,8 @@ impl ComponentState {
             .params
             .iter()
             .map(|(name, ty)| {
-                let name: &KebabStr = to_kebab_str(name, "function parameter", offset)?;
-                if !set.insert(name) {
+                let name = to_kebab_string(name, "function parameter", offset)?;
+                if !set.insert(name.clone()) {
                     bail!(
                         offset,
                         "function parameter name `{name}` conflicts with previous parameter name `{prev}`",
@@ -3207,7 +3207,7 @@ impl ComponentState {
 
                 let ty = self.create_component_val_type(*ty, offset)?;
                 info.combine(ty.info(types), offset)?;
-                Ok((name.to_owned(), ty))
+                Ok((name, ty))
             })
             .collect::<Result<_>>()?;
 
@@ -4175,10 +4175,10 @@ impl ComponentState {
         }
 
         for (name, ty) in fields {
-            let name = to_kebab_str(name, "record field", offset)?;
+            let kebab = to_kebab_string(name, "record field", offset)?;
             let ty = self.create_component_val_type(*ty, offset)?;
 
-            match field_map.entry(name.to_owned()) {
+            match field_map.entry(kebab) {
                 Entry::Occupied(e) => bail!(
                     offset,
                     "record field name `{name}` conflicts with previous field name `{prev}`",
@@ -4219,14 +4219,14 @@ impl ComponentState {
         }
 
         for case in cases {
-            let name = to_kebab_str(case.name, "variant case", offset)?;
+            let name = to_kebab_string(case.name, "variant case", offset)?;
 
             let ty = case
                 .ty
                 .map(|ty| self.create_component_val_type(ty, offset))
                 .transpose()?;
 
-            match case_map.entry(name.to_owned()) {
+            match case_map.entry(name) {
                 Entry::Occupied(e) => bail!(
                     offset,
                     "variant case name `{name}` conflicts with previous case name `{prev}`",
@@ -4283,12 +4283,11 @@ impl ComponentState {
         }
 
         for name in names {
-            let name = to_kebab_str(name, "flag", offset)?;
-            if !names_set.insert(name.to_owned()) {
+            let kebab = to_kebab_string(name, "flag", offset)?;
+            if let Some(prev) = names_set.replace(kebab) {
                 bail!(
                     offset,
                     "flag name `{name}` conflicts with previous flag name `{prev}`",
-                    prev = names_set.get(name).unwrap()
                 );
             }
         }
@@ -4312,12 +4311,11 @@ impl ComponentState {
         tags.reserve(cases.len());
 
         for tag in cases {
-            let tag = to_kebab_str(tag, "enum tag", offset)?;
-            if !tags.insert(tag.to_owned()) {
+            let kebab = to_kebab_string(tag, "enum tag", offset)?;
+            if let Some(prev) = tags.replace(kebab) {
                 bail!(
                     offset,
                     "enum tag name `{tag}` conflicts with previous tag name `{prev}`",
-                    prev = tags.get(tag).unwrap()
                 );
             }
         }
@@ -4885,7 +4883,7 @@ impl ComponentNameContext {
     fn validate_resource_name(
         &self,
         id: AliasableResourceId,
-        name: &KebabStr,
+        name: KebabStr<'_>,
         offset: usize,
     ) -> Result<()> {
         let expected_name_idx = match self.resource_name_map.get(&id) {
@@ -4901,8 +4899,7 @@ impl ComponentNameContext {
         if name.as_str() != expected_name {
             bail!(
                 offset,
-                "function does not match expected \
-                         resource name `{expected_name}`"
+                "function does not match expected resource name `{expected_name}`"
             );
         }
         Ok(())
