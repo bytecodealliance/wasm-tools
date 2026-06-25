@@ -274,8 +274,18 @@ impl<'a> JsonBuilder<'a, '_> {
                 QuoteWatTest::Binary(s) => (s, WasmFileType::Binary, "wasm"),
             },
         };
-        let filename: &str = &self.ret.source_filename;
-        let stem = Path::new(filename).file_stem().unwrap().to_str().unwrap();
+        let stem = match &self.opts.module_filename {
+            Some(name) => name.clone(),
+            None => {
+                let filename: &str = &self.ret.source_filename;
+                Path::new(filename)
+                    .file_stem()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string()
+            }
+        };
         let fileno = self.files;
         self.files += 1;
         let filename = format!("{stem}.{fileno}.{ext}");
