@@ -13,10 +13,10 @@ pub struct Error {
 
 #[derive(Debug, Clone)]
 pub(crate) struct ErrorInner {
-    pub(crate) message: String,
-    pub(crate) kind: ErrorKind,
-    pub(crate) offset: usize,
-    pub(crate) needed_hint: Option<usize>,
+    message: String,
+    kind: ErrorKind,
+    offset: usize,
+    needed_hint: Option<usize>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -96,5 +96,14 @@ impl Error {
 
     pub(crate) fn set_message(&mut self, message: &str) {
         self.inner.message = message.to_string();
+    }
+
+    pub(crate) fn needed_hint(&self) -> Option<usize> {
+        self.inner.needed_hint
+    }
+
+    pub(crate) fn without_needed_hint(mut self) -> Self {
+        self.inner.needed_hint = None;
+        self
     }
 }

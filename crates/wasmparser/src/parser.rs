@@ -656,7 +656,7 @@ impl Parser {
                 // If our error doesn't look like it can be resolved with more
                 // data being pulled down, then propagate it, otherwise switch
                 // the error to "feed me please"
-                match e.inner.needed_hint {
+                match e.needed_hint() {
                     Some(hint) => Ok(Chunk::NeedMoreData(usize_to_u64(hint))),
                     None => Err(e),
                 }
@@ -1238,7 +1238,7 @@ fn section<'a, T>(
     // clear the hint for "need this many more bytes" here because we already
     // read all the bytes, so it's not possible to read more bytes if this
     // fails.
-    let reader = ctor(reader).map_err(clear_hint)?;
+    let reader = ctor(reader).map_err(Error::without_needed_hint)?;
     Ok(variant(reader))
 }
 
@@ -1259,7 +1259,7 @@ where
     // We can't recover from "unexpected eof" here because our entire section is
     // already resident in memory, so clear the hint for how many more bytes are
     // expected.
-    let ret = content.read().map_err(clear_hint)?;
+    let ret = content.read().map_err(Error::without_needed_hint)?;
     if !content.eof() {
         bail!(
             content.original_position(),
@@ -1480,11 +1480,6 @@ impl fmt::Debug for Payload<'_> {
             End(offset) => f.debug_tuple("End").field(offset).finish(),
         }
     }
-}
-
-fn clear_hint(mut err: Error) -> Error {
-    err.inner.needed_hint = None;
-    err
 }
 
 #[cfg(test)]
