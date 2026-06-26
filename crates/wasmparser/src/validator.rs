@@ -15,9 +15,8 @@
 
 use crate::prelude::*;
 use crate::{
-    AbstractHeapType, Error, Encoding, FromReader, FunctionBody, HeapType, Parser,
-    Payload, RefType, Result, SectionLimited, ValType, WASM_MODULE_VERSION, WasmFeatures,
-    limits::*,
+    AbstractHeapType, Encoding, Error, FromReader, FunctionBody, HeapType, Parser, Payload,
+    RefType, Result, SectionLimited, ValType, WASM_MODULE_VERSION, WasmFeatures, limits::*,
 };
 use ::core::mem;
 use ::core::ops::Range;
@@ -676,10 +675,7 @@ impl Validator {
                 }
             }
             _ => {
-                return Err(Error::new(
-                    "wasm version header out of order",
-                    range.start,
-                ));
+                return Err(Error::new("wasm version header out of order", range.start));
             }
         }
 
@@ -931,10 +927,7 @@ impl Validator {
 
         let ty = state.module.get_func_type(func, &self.types, offset)?;
         if !ty.params().is_empty() || !ty.results().is_empty() {
-            return Err(Error::new(
-                "invalid start function type",
-                offset,
-            ));
+            return Err(Error::new("invalid start function type", offset));
         }
 
         Ok(())

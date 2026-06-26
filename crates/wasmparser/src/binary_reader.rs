@@ -190,10 +190,7 @@ impl<'a> BinaryReader<'a> {
     pub(crate) fn read_u7(&mut self) -> Result<u8> {
         let b = self.read_u8()?;
         if (b & 0x80) != 0 {
-            return Err(Error::new(
-                "invalid u7",
-                self.original_position() - 1,
-            ));
+            return Err(Error::new("invalid u7", self.original_position() - 1));
         }
         Ok(b)
     }
@@ -580,9 +577,8 @@ impl<'a> BinaryReader<'a> {
     /// (internal) Reads a fixed-size WebAssembly string from the module.
     fn internal_read_string(&mut self, len: usize) -> Result<&'a str> {
         let bytes = self.read_bytes(len)?;
-        str::from_utf8(bytes).map_err(|_| {
-            Error::new("malformed UTF-8 encoding", self.original_position() - 1)
-        })
+        str::from_utf8(bytes)
+            .map_err(|_| Error::new("malformed UTF-8 encoding", self.original_position() - 1))
     }
 
     /// Reads a WebAssembly string from the module.
@@ -622,11 +618,7 @@ impl<'a> BinaryReader<'a> {
         ))
     }
 
-    pub(crate) fn invalid_leading_byte_error(
-        byte: u8,
-        desc: &str,
-        offset: usize,
-    ) -> Error {
+    pub(crate) fn invalid_leading_byte_error(byte: u8, desc: &str, offset: usize) -> Error {
         format_err!(offset, "invalid leading byte (0x{byte:x}) for {desc}")
     }
 

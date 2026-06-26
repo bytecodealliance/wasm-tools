@@ -13,9 +13,7 @@
  * limitations under the License.
  */
 
-use crate::{
-    BinaryReader, Error, FromReader, Result, SectionLimited, Subsection, Subsections,
-};
+use crate::{BinaryReader, Error, FromReader, Result, SectionLimited, Subsection, Subsections};
 use core::ops::Range;
 
 /// Represents a name map from the names custom section.

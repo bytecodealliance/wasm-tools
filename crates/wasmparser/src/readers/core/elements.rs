@@ -14,7 +14,7 @@
  */
 
 use crate::{
-    BinaryReader, Error, ConstExpr, ExternalKind, FromReader, OperatorsReader,
+    BinaryReader, ConstExpr, Error, ExternalKind, FromReader, OperatorsReader,
     OperatorsReaderAllocations, RefType, Result, SectionLimited,
 };
 use core::ops::Range;

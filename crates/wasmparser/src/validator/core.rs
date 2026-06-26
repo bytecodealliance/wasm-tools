@@ -12,13 +12,13 @@ use super::{
 };
 #[cfg(feature = "simd")]
 use crate::VisitSimdOperator;
-use crate::{
-    Error, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind, FrameKind,
-    FrameStack, FuncType, Global, GlobalType, HeapType, MemoryType, RecGroup, RefType, Result,
-    SubType, Table, TableInit, TableType, TagType, TypeRef, UnpackedIndex, ValType, VisitOperator,
-    WasmFeatures, WasmModuleResources, limits::*,
-};
 use crate::{CompositeInnerType, prelude::*};
+use crate::{
+    ConstExpr, Data, DataKind, Element, ElementKind, Error, ExternalKind, FrameKind, FrameStack,
+    FuncType, Global, GlobalType, HeapType, MemoryType, RecGroup, RefType, Result, SubType, Table,
+    TableInit, TableType, TagType, TypeRef, UnpackedIndex, ValType, VisitOperator, WasmFeatures,
+    WasmModuleResources, limits::*,
+};
 use alloc::sync::Arc;
 use core::mem;
 
@@ -158,20 +158,14 @@ impl ModuleState {
             }
             ElementKind::Passive | ElementKind::Declared => {
                 if !self.module.features.bulk_memory() {
-                    return Err(Error::new(
-                        "bulk memory must be enabled",
-                        offset,
-                    ));
+                    return Err(Error::new("bulk memory must be enabled", offset));
                 }
             }
         }
 
         let validate_count = |count: u32| -> Result<(), Error> {
             if count > MAX_WASM_TABLE_ENTRIES as u32 {
-                Err(Error::new(
-                    "number of elements is out of bounds",
-                    offset,
-                ))
+                Err(Error::new("number of elements is out of bounds", offset))
             } else {
                 Ok(())
             }
@@ -586,10 +580,7 @@ impl Module {
             }
             TypeRef::Global(ty) => {
                 if !self.features.mutable_global() && ty.mutable {
-                    return Err(Error::new(
-                        "mutable global support is not enabled",
-                        offset,
-                    ));
+                    return Err(Error::new("mutable global support is not enabled", offset));
                 }
                 self.globals.push(ty);
                 self.num_imported_globals += 1;
@@ -620,10 +611,7 @@ impl Module {
         if !self.features.mutable_global() {
             if let EntityType::Global(global_type) = ty {
                 if global_type.mutable {
-                    return Err(Error::new(
-                        "mutable global support is not enabled",
-                        offset,
-                    ));
+                    return Err(Error::new("mutable global support is not enabled", offset));
                 }
             }
         }
@@ -803,10 +791,7 @@ impl Module {
             }
         }
         if ty.shared && ty.maximum.is_none() {
-            return Err(Error::new(
-                "shared memory must have maximum size",
-                offset,
-            ));
+            return Err(Error::new("shared memory must have maximum size", offset));
         }
         Ok(())
     }

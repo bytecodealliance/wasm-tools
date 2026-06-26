@@ -3,7 +3,7 @@ use crate::WasmFeatures;
 use crate::binary_reader::WASM_MAGIC_NUMBER;
 use crate::prelude::*;
 use crate::{
-    BinaryReader, Error, CustomSectionReader, DataSectionReader, ElementSectionReader,
+    BinaryReader, CustomSectionReader, DataSectionReader, ElementSectionReader, Error,
     ExportSectionReader, FromReader, FunctionBody, FunctionSectionReader, GlobalSectionReader,
     ImportSectionReader, MemorySectionReader, Result, TableSectionReader, TagSectionReader,
     TypeSectionReader,
@@ -963,10 +963,7 @@ impl Parser {
             State::FunctionBody { remaining: 0, len } => {
                 debug_assert!(len > 0);
                 let offset = reader.original_position();
-                Err(Error::new(
-                    "trailing bytes at end of section",
-                    offset,
-                ))
+                Err(Error::new("trailing bytes at end of section", offset))
             }
 
             // Functions are relatively easy to parse when we know there's at

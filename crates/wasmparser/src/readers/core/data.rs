@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-use crate::{BinaryReader, Error, ConstExpr, FromReader, Result, SectionLimited};
+use crate::{BinaryReader, ConstExpr, Error, FromReader, Result, SectionLimited};
 use core::ops::Range;
 
 /// Represents a data segment in a core WebAssembly module.

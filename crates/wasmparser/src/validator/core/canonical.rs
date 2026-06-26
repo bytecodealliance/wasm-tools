@@ -69,8 +69,8 @@
 
 use super::{RecGroupId, TypeAlloc, TypeList};
 use crate::{
-    Error, CompositeInnerType, CompositeType, PackedIndex, RecGroup, Result,
-    StorageType, UnpackedIndex, ValType, WasmFeatures,
+    CompositeInnerType, CompositeType, Error, PackedIndex, RecGroup, Result, StorageType,
+    UnpackedIndex, ValType, WasmFeatures,
     types::{CoreTypeId, TypeIdentifier},
 };
 

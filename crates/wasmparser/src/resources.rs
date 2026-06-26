@@ -14,8 +14,8 @@
  */
 
 use crate::{
-    Error, FuncType, GlobalType, HeapType, MemoryType, RefType, SubType, TableType,
-    ValType, WasmFeatures, types::CoreTypeId,
+    Error, FuncType, GlobalType, HeapType, MemoryType, RefType, SubType, TableType, ValType,
+    WasmFeatures, types::CoreTypeId,
 };
 
 /// Types that qualify as Wasm validation database.
@@ -95,11 +95,7 @@ pub trait WasmModuleResources {
     }
 
     /// Check and canonicalize a reference type.
-    fn check_ref_type(
-        &self,
-        ref_type: &mut RefType,
-        offset: usize,
-    ) -> Result<(), Error> {
+    fn check_ref_type(&self, ref_type: &mut RefType, offset: usize) -> Result<(), Error> {
         let is_nullable = ref_type.is_nullable();
         let mut heap_ty = ref_type.heap_type();
         self.check_heap_type(&mut heap_ty, offset)?;
@@ -111,11 +107,7 @@ pub trait WasmModuleResources {
     /// canonical form.
     ///
     /// Similar to `check_value_type` but for heap types.
-    fn check_heap_type(
-        &self,
-        heap_type: &mut HeapType,
-        offset: usize,
-    ) -> Result<(), Error>;
+    fn check_heap_type(&self, heap_type: &mut HeapType, offset: usize) -> Result<(), Error>;
 
     /// Get the top type for the given heap type.
     fn top_type(&self, heap_type: &HeapType) -> HeapType;

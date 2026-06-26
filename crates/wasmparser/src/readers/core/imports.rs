@@ -16,8 +16,8 @@
 use core::mem;
 
 use crate::{
-    BinaryReader, Error, ExternalKind, FromReader, GlobalType, MemoryType, Result,
-    SectionLimited, SectionLimitedIntoIterWithOffsets, TableType, TagType,
+    BinaryReader, Error, ExternalKind, FromReader, GlobalType, MemoryType, Result, SectionLimited,
+    SectionLimitedIntoIterWithOffsets, TableType, TagType,
 };
 
 /// Represents a reference to a type definition in a WebAssembly module.

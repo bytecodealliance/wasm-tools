@@ -18,10 +18,10 @@ use crate::limits::*;
 use crate::prelude::*;
 use crate::validator::names::{ComponentName, ComponentNameKind, KebabStr, KebabString};
 use crate::{
-    Error, CanonicalFunction, CanonicalOption, ComponentExternName,
-    ComponentExternalKind, ComponentOuterAliasKind, ComponentTypeRef, CompositeInnerType,
-    ExternalKind, FuncType, GlobalType, InstantiationArgKind, MemoryType, PackedIndex, RefType,
-    Result, SubType, TableType, TypeBounds, ValType, WasmFeatures,
+    CanonicalFunction, CanonicalOption, ComponentExternName, ComponentExternalKind,
+    ComponentOuterAliasKind, ComponentTypeRef, CompositeInnerType, Error, ExternalKind, FuncType,
+    GlobalType, InstantiationArgKind, MemoryType, PackedIndex, RefType, Result, SubType, TableType,
+    TypeBounds, ValType, WasmFeatures,
 };
 use core::mem;
 
