@@ -21,8 +21,8 @@ pub(crate) struct ErrorInner {
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum ErrorKind {
-    Custom,
-    Invalid,
+    Uncategorized,
+    InvalidHeapType,
 }
 
 /// The result for `BinaryReader` operations.
@@ -55,12 +55,12 @@ impl Error {
 
     #[cold]
     pub(crate) fn new(message: impl Into<String>, offset: usize) -> Self {
-        Self::_new(ErrorKind::Custom, message.into(), offset)
+        Self::_new(ErrorKind::Uncategorized, message.into(), offset)
     }
 
     #[cold]
-    pub(crate) fn invalid(msg: &'static str, offset: usize) -> Self {
-        Self::_new(ErrorKind::Invalid, msg.into(), offset)
+    pub(crate) fn invalid_heap_type(msg: &'static str, offset: usize) -> Self {
+        Self::_new(ErrorKind::InvalidHeapType, msg.into(), offset)
     }
 
     #[cold]
