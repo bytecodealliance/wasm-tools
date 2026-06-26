@@ -1,4 +1,4 @@
-use crate::{BinaryReader, BinaryReaderError, NameMap, Result, Subsection, Subsections};
+use crate::{BinaryReader, Error, NameMap, Result, Subsection, Subsections};
 use core::ops::Range;
 
 /// Type used to iterate and parse the contents of the `component-name` custom
@@ -47,7 +47,7 @@ impl<'a> Subsection<'a> for ComponentName<'a> {
             0 => {
                 let name = reader.read_unlimited_string()?;
                 if !reader.eof() {
-                    return Err(BinaryReaderError::new(
+                    return Err(Error::new(
                         "trailing data at the end of a name",
                         reader.original_position(),
                     ));

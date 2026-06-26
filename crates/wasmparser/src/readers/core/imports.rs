@@ -16,7 +16,7 @@
 use core::mem;
 
 use crate::{
-    BinaryReader, BinaryReaderError, ExternalKind, FromReader, GlobalType, MemoryType, Result,
+    BinaryReader, Error, ExternalKind, FromReader, GlobalType, MemoryType, Result,
     SectionLimited, SectionLimitedIntoIterWithOffsets, TableType, TagType,
 };
 
@@ -243,7 +243,7 @@ pub struct ImportsIter<'a> {
 
 enum ImportsIterState<'a> {
     Done,
-    Error(BinaryReaderError),
+    Error(Error),
     Single(usize, Import<'a>),
     Compact1 {
         module: &'a str,

@@ -15,109 +15,11 @@
 
 use crate::prelude::*;
 use crate::{limits::*, *};
-use core::fmt;
 use core::marker;
 use core::ops::Range;
 use core::str;
 
 pub(crate) const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
-
-/// A binary reader for WebAssembly modules.
-#[derive(Debug, Clone)]
-pub struct BinaryReaderError {
-    // Wrap the actual error data in a `Box` so that the error is just one
-    // word. This means that we can continue returning small `Result`s in
-    // registers.
-    pub(crate) inner: Box<BinaryReaderErrorInner>,
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct BinaryReaderErrorInner {
-    pub(crate) message: String,
-    pub(crate) kind: BinaryReaderErrorKind,
-    pub(crate) offset: usize,
-    pub(crate) needed_hint: Option<usize>,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum BinaryReaderErrorKind {
-    Custom,
-    Invalid,
-}
-
-/// The result for `BinaryReader` operations.
-pub type Result<T, E = BinaryReaderError> = core::result::Result<T, E>;
-
-impl core::error::Error for BinaryReaderError {}
-
-impl fmt::Display for BinaryReaderError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{} (at offset 0x{:x})",
-            self.inner.message, self.inner.offset
-        )
-    }
-}
-
-impl BinaryReaderError {
-    #[cold]
-    pub(crate) fn _new(kind: BinaryReaderErrorKind, message: String, offset: usize) -> Self {
-        BinaryReaderError {
-            inner: Box::new(BinaryReaderErrorInner {
-                kind,
-                message,
-                offset,
-                needed_hint: None,
-            }),
-        }
-    }
-
-    #[cold]
-    pub(crate) fn new(message: impl Into<String>, offset: usize) -> Self {
-        Self::_new(BinaryReaderErrorKind::Custom, message.into(), offset)
-    }
-
-    #[cold]
-    pub(crate) fn invalid(msg: &'static str, offset: usize) -> Self {
-        Self::_new(BinaryReaderErrorKind::Invalid, msg.into(), offset)
-    }
-
-    #[cold]
-    pub(crate) fn fmt(args: fmt::Arguments<'_>, offset: usize) -> Self {
-        BinaryReaderError::new(args.to_string(), offset)
-    }
-
-    #[cold]
-    pub(crate) fn eof(offset: usize, needed_hint: usize) -> Self {
-        let mut err = BinaryReaderError::new("unexpected end-of-file", offset);
-        err.inner.needed_hint = Some(needed_hint);
-        err
-    }
-
-    pub(crate) fn kind(&mut self) -> BinaryReaderErrorKind {
-        self.inner.kind
-    }
-
-    /// Get this error's message.
-    pub fn message(&self) -> &str {
-        &self.inner.message
-    }
-
-    /// Get the offset within the Wasm binary where the error occurred.
-    pub fn offset(&self) -> usize {
-        self.inner.offset
-    }
-
-    #[cfg(all(feature = "validate", feature = "component-model"))]
-    pub(crate) fn add_context(&mut self, context: String) {
-        self.inner.message = format!("{context}\n{}", self.inner.message);
-    }
-
-    pub(crate) fn set_message(&mut self, message: &str) {
-        self.inner.message = message.to_string();
-    }
-}
 
 /// A binary reader of the WebAssembly structures and types.
 #[derive(Clone, Debug, Hash)]
@@ -262,7 +164,7 @@ impl<'a> BinaryReader<'a> {
         if self.position < self.buffer.len() {
             Ok(())
         } else {
-            Err(BinaryReaderError::eof(self.original_position(), 1))
+            Err(Error::eof(self.original_position(), 1))
         }
     }
 
@@ -271,7 +173,7 @@ impl<'a> BinaryReader<'a> {
             Ok(())
         } else {
             let hint = self.position + len - self.buffer.len();
-            Err(BinaryReaderError::eof(self.original_position(), hint))
+            Err(Error::eof(self.original_position(), hint))
         }
     }
 
@@ -288,7 +190,7 @@ impl<'a> BinaryReader<'a> {
     pub(crate) fn read_u7(&mut self) -> Result<u8> {
         let b = self.read_u8()?;
         if (b & 0x80) != 0 {
-            return Err(BinaryReaderError::new(
+            return Err(Error::new(
                 "invalid u7",
                 self.original_position() - 1,
             ));
@@ -426,8 +328,8 @@ impl<'a> BinaryReader<'a> {
     }
 
     #[cold]
-    fn eof_err(&self) -> BinaryReaderError {
-        BinaryReaderError::eof(self.original_position(), 1)
+    fn eof_err(&self) -> Error {
+        Error::eof(self.original_position(), 1)
     }
 
     /// Advances the `BinaryReader` up to four bytes to parse a variable
@@ -461,7 +363,7 @@ impl<'a> BinaryReader<'a> {
                     "invalid var_u32: integer too large"
                 };
                 // The continuation bit or unused bits are set.
-                return Err(BinaryReaderError::new(msg, self.original_position() - 1));
+                return Err(Error::new(msg, self.original_position() - 1));
             }
             shift += 7;
             if (byte & 0x80) == 0 {
@@ -502,7 +404,7 @@ impl<'a> BinaryReader<'a> {
                     "invalid var_u64: integer too large"
                 };
                 // The continuation bit or unused bits are set.
-                return Err(BinaryReaderError::new(msg, self.original_position() - 1));
+                return Err(Error::new(msg, self.original_position() - 1));
             }
             shift += 7;
             if (byte & 0x80) == 0 {
@@ -533,7 +435,7 @@ impl<'a> BinaryReader<'a> {
     pub fn skip_string(&mut self) -> Result<()> {
         let len = self.read_var_u32()? as usize;
         if len > MAX_WASM_STRING_SIZE {
-            return Err(BinaryReaderError::new(
+            return Err(Error::new(
                 "string size out of bounds",
                 self.original_position() - 1,
             ));
@@ -574,7 +476,7 @@ impl<'a> BinaryReader<'a> {
                     } else {
                         "invalid var_i32: integer too large"
                     };
-                    return Err(BinaryReaderError::new(msg, self.original_position() - 1));
+                    return Err(Error::new(msg, self.original_position() - 1));
                 }
                 return Ok(result);
             }
@@ -608,7 +510,7 @@ impl<'a> BinaryReader<'a> {
                 let continuation_bit = (byte & 0x80) != 0;
                 let sign_and_unused_bit = (byte << 1) as i8 >> (33 - shift);
                 if continuation_bit || (sign_and_unused_bit != 0 && sign_and_unused_bit != -1) {
-                    return Err(BinaryReaderError::new(
+                    return Err(Error::new(
                         "invalid var_s33: integer representation too long",
                         self.original_position() - 1,
                     ));
@@ -644,7 +546,7 @@ impl<'a> BinaryReader<'a> {
                     } else {
                         "invalid var_i64: integer too large"
                     };
-                    return Err(BinaryReaderError::new(msg, self.original_position() - 1));
+                    return Err(Error::new(msg, self.original_position() - 1));
                 }
                 return Ok(result);
             }
@@ -679,7 +581,7 @@ impl<'a> BinaryReader<'a> {
     fn internal_read_string(&mut self, len: usize) -> Result<&'a str> {
         let bytes = self.read_bytes(len)?;
         str::from_utf8(bytes).map_err(|_| {
-            BinaryReaderError::new("malformed UTF-8 encoding", self.original_position() - 1)
+            Error::new("malformed UTF-8 encoding", self.original_position() - 1)
         })
     }
 
@@ -693,7 +595,7 @@ impl<'a> BinaryReader<'a> {
     pub fn read_string(&mut self) -> Result<&'a str> {
         let len = self.read_var_u32()? as usize;
         if len > MAX_WASM_STRING_SIZE {
-            return Err(BinaryReaderError::new(
+            return Err(Error::new(
                 "string size out of bounds",
                 self.original_position() - 1,
             ));
@@ -724,7 +626,7 @@ impl<'a> BinaryReader<'a> {
         byte: u8,
         desc: &str,
         offset: usize,
-    ) -> BinaryReaderError {
+    ) -> Error {
         format_err!(offset, "invalid leading byte (0x{byte:x}) for {desc}")
     }
 
@@ -770,7 +672,7 @@ impl<'a> BinaryReader<'a> {
         match u32::try_from(idx) {
             Ok(idx) => Ok(BlockType::FuncType(idx)),
             Err(_) => {
-                return Err(BinaryReaderError::new(
+                return Err(Error::new(
                     "invalid function type",
                     self.original_position(),
                 ));
@@ -787,7 +689,7 @@ impl<'a> BinaryReader<'a> {
     pub(crate) fn read_header_version(&mut self) -> Result<u32> {
         let magic_number = self.read_bytes(4)?;
         if magic_number != WASM_MAGIC_NUMBER {
-            return Err(BinaryReaderError::new(
+            return Err(Error::new(
                 format!(
                     "magic header not detected: bad magic number - expected={WASM_MAGIC_NUMBER:#x?} actual={magic_number:#x?}"
                 ),
@@ -2020,7 +1922,7 @@ impl<'a> BinaryReader<'a> {
         };
         let max_flag_bits = if self.multi_memory() { 6 } else { 5 };
         if flags >= (1 << max_flag_bits) {
-            return Err(BinaryReaderError::new(
+            return Err(Error::new(
                 "malformed memop alignment: alignment too large",
                 flags_pos,
             ));
@@ -2044,7 +1946,7 @@ impl<'a> BinaryReader<'a> {
         match byte {
             0 => Ok(Ordering::SeqCst),
             1 => Ok(Ordering::AcqRel),
-            x => Err(BinaryReaderError::new(
+            x => Err(Error::new(
                 &format!("invalid atomic consistency ordering {x}"),
                 self.original_position() - 1,
             )),

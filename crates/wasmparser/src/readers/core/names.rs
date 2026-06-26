@@ -14,7 +14,7 @@
  */
 
 use crate::{
-    BinaryReader, BinaryReaderError, FromReader, Result, SectionLimited, Subsection, Subsections,
+    BinaryReader, Error, FromReader, Result, SectionLimited, Subsection, Subsections,
 };
 use core::ops::Range;
 
@@ -131,7 +131,7 @@ impl<'a> Subsection<'a> for Name<'a> {
             0 => {
                 let name = reader.read_string()?;
                 if !reader.eof() {
-                    return Err(BinaryReaderError::new(
+                    return Err(Error::new(
                         "trailing data at the end of a name",
                         reader.original_position(),
                     ));

@@ -9,9 +9,7 @@ use crate::validator::types::{
     Types, TypesKind, TypesRef, TypesRefKind,
 };
 use crate::{AbstractHeapType, CompositeInnerType, HeapType, RefType, StorageType, prelude::*};
-use crate::{
-    BinaryReaderError, FuncType, MemoryType, PrimitiveValType, Result, TableType, ValType,
-};
+use crate::{Error, FuncType, MemoryType, PrimitiveValType, Result, TableType, ValType};
 use core::fmt;
 use core::ops::Index;
 use core::sync::atomic::{AtomicUsize, Ordering};
@@ -1773,7 +1771,7 @@ fn lower_gc_product_type<'a, I>(
     offset: usize,
     core: ArgOrField,
     kind: &str,
-) -> core::result::Result<(), BinaryReaderError>
+) -> core::result::Result<(), Error>
 where
     I: IntoIterator<Item = &'a ComponentValType>,
     I::IntoIter: ExactSizeIterator,
@@ -4038,7 +4036,7 @@ impl<T> Context for Result<T> {
     }
 }
 
-impl Context for BinaryReaderError {
+impl Context for Error {
     fn with_context<S>(mut self, context: impl FnOnce() -> S) -> Self
     where
         S: Into<String>,

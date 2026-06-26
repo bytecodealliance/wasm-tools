@@ -1,6 +1,6 @@
 use crate::prelude::*;
 use crate::{
-    BinaryReader, BinaryReaderError, FromReader, Result, SectionLimited, Subsection, Subsections,
+    BinaryReader, Error, FromReader, Result, SectionLimited, Subsection, Subsections,
 };
 use core::ops::Range;
 
@@ -409,7 +409,7 @@ impl<'a> LinkingSectionReader<'a> {
 
         let version = reader.read_var_u32()?;
         if version != 2 {
-            return Err(BinaryReaderError::new(
+            return Err(Error::new(
                 format!("unsupported linking section version: {version}"),
                 offset,
             ));

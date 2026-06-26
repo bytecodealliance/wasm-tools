@@ -69,7 +69,7 @@
 
 use super::{RecGroupId, TypeAlloc, TypeList};
 use crate::{
-    BinaryReaderError, CompositeInnerType, CompositeType, PackedIndex, RecGroup, Result,
+    Error, CompositeInnerType, CompositeType, PackedIndex, RecGroup, Result,
     StorageType, UnpackedIndex, ValType, WasmFeatures,
     types::{CoreTypeId, TypeIdentifier},
 };
@@ -173,7 +173,7 @@ pub(crate) trait InternRecGroup {
         let ty = &types[id].composite_type;
         if ty.descriptor_idx.is_some() || ty.describes_idx.is_some() {
             if !self.features().custom_descriptors() {
-                return Err(BinaryReaderError::new(
+                return Err(Error::new(
                     "custom descriptors proposal must be enabled to use descriptor and describes",
                     offset,
                 ));
@@ -181,7 +181,7 @@ pub(crate) trait InternRecGroup {
             match &ty.inner {
                 CompositeInnerType::Struct(_) => (),
                 _ => {
-                    return Err(BinaryReaderError::new(
+                    return Err(Error::new(
                         if ty.descriptor_idx.is_some() {
                             "descriptor clause on non-struct type"
                         } else {
@@ -289,9 +289,9 @@ pub(crate) trait InternRecGroup {
         let check = |ty: &ValType, shared: bool| {
             features
                 .check_value_type(*ty)
-                .map_err(|e| BinaryReaderError::new(e, offset))?;
+                .map_err(|e| Error::new(e, offset))?;
             if shared && !types.valtype_is_shared(*ty) {
-                return Err(BinaryReaderError::new(
+                return Err(Error::new(
                     "shared composite type must contain shared types",
                     offset,
                 ));
@@ -304,7 +304,7 @@ pub(crate) trait InternRecGroup {
             Ok(())
         };
         if !features.shared_everything_threads() && ty.shared {
-            return Err(BinaryReaderError::new(
+            return Err(Error::new(
                 "shared composite types require the shared-everything-threads proposal",
                 offset,
             ));
@@ -315,7 +315,7 @@ pub(crate) trait InternRecGroup {
                     check(vt, ty.shared)?;
                 }
                 if t.results().len() > 1 && !features.multi_value() {
-                    return Err(BinaryReaderError::new(
+                    return Err(Error::new(
                         "func type returns multiple values but the multi-value feature is not enabled",
                         offset,
                     ));
