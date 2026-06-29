@@ -3,6 +3,7 @@
 use super::component::ExternKind;
 use super::{CanonicalOptions, Concurrency};
 use crate::validator::StringEncoding;
+use crate::validator::component::PtrSize;
 use crate::validator::names::KebabString;
 use crate::validator::types::{
     CoreTypeId, EntityType, SnapshotList, TypeAlloc, TypeData, TypeIdentifier, TypeInfo, TypeList,
@@ -300,7 +301,11 @@ impl PrimitiveValType {
     }
 }
 
-fn push_primitive_wasm_types(ty: &PrimitiveValType, lowered_types: &mut LoweredTypes) -> bool {
+fn push_primitive_wasm_types(
+    ptr_size: PtrSize,
+    ty: &PrimitiveValType,
+    lowered_types: &mut LoweredTypes,
+) -> bool {
     match ty {
         PrimitiveValType::Bool
         | PrimitiveValType::S8
@@ -315,7 +320,8 @@ fn push_primitive_wasm_types(ty: &PrimitiveValType, lowered_types: &mut LoweredT
         PrimitiveValType::F32 => lowered_types.try_push(ValType::F32),
         PrimitiveValType::F64 => lowered_types.try_push(ValType::F64),
         PrimitiveValType::String => {
-            lowered_types.try_push(ValType::I32) && lowered_types.try_push(ValType::I32)
+            lowered_types.try_push(ptr_size.core_type())
+                && lowered_types.try_push(ptr_size.core_type())
         }
     }
 }
@@ -729,10 +735,15 @@ impl ComponentValType {
         }
     }
 
-    fn push_wasm_types(&self, types: &TypeList, lowered_types: &mut LoweredTypes) -> bool {
+    fn push_wasm_types(
+        &self,
+        ptr_size: PtrSize,
+        types: &TypeList,
+        lowered_types: &mut LoweredTypes,
+    ) -> bool {
         match self {
-            Self::Primitive(ty) => push_primitive_wasm_types(ty, lowered_types),
-            Self::Type(id) => types[*id].push_wasm_types(types, lowered_types),
+            Self::Primitive(ty) => push_primitive_wasm_types(ptr_size, ty, lowered_types),
+            Self::Type(id) => types[*id].push_wasm_types(ptr_size, types, lowered_types),
         }
     }
 
@@ -1209,6 +1220,11 @@ impl ComponentFuncType {
             return self.lower_gc(types, abi, options, offset);
         }
 
+        let ptr_size = match options.memory {
+            None => PtrSize::Ptr32,
+            Some((_, ptr_size)) => ptr_size,
+        };
+
         if abi == Abi::Lower && options.concurrency.is_async() {
             sig.params.max = MAX_FLAT_ASYNC_PARAMS;
         }
@@ -1229,7 +1245,7 @@ impl ComponentFuncType {
                 }
             }
 
-            if !ty.push_wasm_types(types, &mut sig.params) {
+            if !ty.push_wasm_types(ptr_size, types, &mut sig.params) {
                 // Too many parameters to pass directly
                 // Function will have a single pointer parameter to pass the arguments
                 // via linear memory
@@ -1256,7 +1272,7 @@ impl ComponentFuncType {
                         abi == Abi::Lower && ty.contains_ptr(types)
                     })?;
 
-                    if !ty.push_wasm_types(types, &mut sig.results) {
+                    if !ty.push_wasm_types(ptr_size, types, &mut sig.results) {
                         // Too many results to return directly, either a retptr
                         // parameter will be used (import) or a single pointer
                         // will be returned (export).
@@ -1293,8 +1309,11 @@ impl ComponentFuncType {
                     // Note that the return type itself has no effect on the
                     // expected core signature of the lifted function.
 
-                    let overflow =
-                        !ty.push_wasm_types(types, &mut LoweredTypes::new(MAX_FLAT_FUNC_PARAMS));
+                    let overflow = !ty.push_wasm_types(
+                        ptr_size,
+                        types,
+                        &mut LoweredTypes::new(MAX_FLAT_FUNC_PARAMS),
+                    );
 
                     options.require_memory_if(offset, || overflow || ty.contains_ptr(types))?;
                 }
@@ -1560,28 +1579,35 @@ impl ComponentDefinedType {
         }
     }
 
-    fn push_wasm_types(&self, types: &TypeList, lowered_types: &mut LoweredTypes) -> bool {
+    fn push_wasm_types(
+        &self,
+        ptr_size: PtrSize,
+        types: &TypeList,
+        lowered_types: &mut LoweredTypes,
+    ) -> bool {
         match self {
-            Self::Primitive(ty) => push_primitive_wasm_types(ty, lowered_types),
+            Self::Primitive(ty) => push_primitive_wasm_types(ptr_size, ty, lowered_types),
             Self::Record(r) => r
                 .fields
                 .iter()
-                .all(|(_, ty)| ty.push_wasm_types(types, lowered_types)),
+                .all(|(_, ty)| ty.push_wasm_types(ptr_size, types, lowered_types)),
             Self::Variant(v) => Self::push_variant_wasm_types(
                 v.cases.iter().filter_map(|(_, case)| case.ty.as_ref()),
+                ptr_size,
                 types,
                 lowered_types,
             ),
             Self::List(_) | Self::Map(_, _) => {
-                lowered_types.try_push(ValType::I32) && lowered_types.try_push(ValType::I32)
+                lowered_types.try_push(ptr_size.core_type())
+                    && lowered_types.try_push(ptr_size.core_type())
             }
             Self::FixedLengthList(ty, length) => {
-                (0..*length).all(|_n| ty.push_wasm_types(types, lowered_types))
+                (0..*length).all(|_n| ty.push_wasm_types(ptr_size, types, lowered_types))
             }
             Self::Tuple(t) => t
                 .types
                 .iter()
-                .all(|ty| ty.push_wasm_types(types, lowered_types)),
+                .all(|ty| ty.push_wasm_types(ptr_size, types, lowered_types)),
             Self::Flags(names) => {
                 (0..(names.len() + 31) / 32).all(|_| lowered_types.try_push(ValType::I32))
             }
@@ -1589,16 +1615,20 @@ impl ComponentDefinedType {
                 lowered_types.try_push(ValType::I32)
             }
             Self::Option(ty) => {
-                Self::push_variant_wasm_types([ty].into_iter(), types, lowered_types)
+                Self::push_variant_wasm_types([ty].into_iter(), ptr_size, types, lowered_types)
             }
-            Self::Result { ok, err } => {
-                Self::push_variant_wasm_types(ok.iter().chain(err.iter()), types, lowered_types)
-            }
+            Self::Result { ok, err } => Self::push_variant_wasm_types(
+                ok.iter().chain(err.iter()),
+                ptr_size,
+                types,
+                lowered_types,
+            ),
         }
     }
 
     fn push_variant_wasm_types<'a>(
         cases: impl Iterator<Item = &'a ComponentValType>,
+        ptr_size: PtrSize,
         types: &TypeList,
         lowered_types: &mut LoweredTypes,
     ) -> bool {
@@ -1612,7 +1642,7 @@ impl ComponentDefinedType {
         for ty in cases {
             let mut temp = LoweredTypes::new(lowered_types.max);
 
-            if !ty.push_wasm_types(types, &mut temp) {
+            if !ty.push_wasm_types(ptr_size, types, &mut temp) {
                 return false;
             }
 

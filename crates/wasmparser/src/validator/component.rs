@@ -256,9 +256,24 @@ impl Concurrency {
 }
 
 #[derive(Clone, Copy)]
+pub(crate) enum PtrSize {
+    Ptr32,
+    Ptr64,
+}
+
+impl PtrSize {
+    pub(crate) fn core_type(&self) -> ValType {
+        match self {
+            PtrSize::Ptr32 => ValType::I32,
+            PtrSize::Ptr64 => ValType::I64,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
 pub(crate) struct CanonicalOptions {
     pub(crate) string_encoding: StringEncoding,
-    pub(crate) memory: Option<u32>,
+    pub(crate) memory: Option<(u32, PtrSize)>,
     pub(crate) realloc: Option<u32>,
     pub(crate) post_return: Option<u32>,
     pub(crate) concurrency: Concurrency,
@@ -2716,8 +2731,8 @@ impl ComponentState {
                 CanonicalOption::Memory(idx) => {
                     memory = match memory {
                         None => {
-                            self.cabi_memory_at(*idx, offset)?;
-                            Some(*idx)
+                            let ptr_size = self.cabi_memory_at(*idx, offset)?;
+                            Some((*idx, ptr_size))
                         }
                         Some(_) => {
                             return Err(Error::new(
@@ -2858,18 +2873,14 @@ impl ComponentState {
 
         // Validate `realloc`
         if let Some(realloc_idx) = realloc {
-            let mty = match memory {
-                Some(i) => self.memory_at(i, offset)?,
+            let addr_type = match memory {
+                Some((_, ptr_size)) => ptr_size.core_type(),
                 None => {
                     return Err(Error::new(
                         "canonical option `realloc` requires `memory` to also be specified",
                         offset,
                     ));
                 }
-            };
-            let addr_type = match mty.memory64 {
-                true => ValType::I64,
-                false => ValType::I32,
             };
             let ty_id = self.core_function_at(realloc_idx, offset)?;
             let func_ty = types[ty_id].unwrap_func();
@@ -4481,7 +4492,7 @@ impl ComponentState {
     ///
     /// At this time this requires that the memory is a plain 32-bit or 64-bit linear
     /// memory. Notably this disallows shared memory.
-    fn cabi_memory_at(&self, idx: u32, offset: usize) -> Result<()> {
+    fn cabi_memory_at(&self, idx: u32, offset: usize) -> Result<PtrSize> {
         let ty = self.memory_at(idx, offset)?;
         let valid_memory_type = MemoryType {
             initial: 0,
@@ -4496,7 +4507,12 @@ impl ComponentState {
                 "64-bit memories require the `cm64` feature to be enabled"
             );
         }
-        SubtypeCx::memory_type(ty, &valid_memory_type, offset)
+        SubtypeCx::memory_type(ty, &valid_memory_type, offset)?;
+        Ok(if ty.memory64 {
+            PtrSize::Ptr64
+        } else {
+            PtrSize::Ptr32
+        })
     }
 
     /// Completes the translation of this component, performing final
