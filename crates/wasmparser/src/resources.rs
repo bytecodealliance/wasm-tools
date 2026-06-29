@@ -14,8 +14,8 @@
  */
 
 use crate::{
-    BinaryReaderError, FuncType, GlobalType, HeapType, MemoryType, RefType, SubType, TableType,
-    ValType, WasmFeatures, types::CoreTypeId,
+    Error, FuncType, GlobalType, HeapType, MemoryType, RefType, SubType, TableType, ValType,
+    WasmFeatures, types::CoreTypeId,
 };
 
 /// Types that qualify as Wasm validation database.
@@ -84,10 +84,10 @@ pub trait WasmModuleResources {
         t: &mut ValType,
         features: &WasmFeatures,
         offset: usize,
-    ) -> Result<(), BinaryReaderError> {
+    ) -> Result<(), Error> {
         features
             .check_value_type(*t)
-            .map_err(|s| BinaryReaderError::new(s, offset))?;
+            .map_err(|s| Error::new(s, offset))?;
         match t {
             ValType::Ref(r) => self.check_ref_type(r, offset),
             ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => Ok(()),
@@ -95,11 +95,7 @@ pub trait WasmModuleResources {
     }
 
     /// Check and canonicalize a reference type.
-    fn check_ref_type(
-        &self,
-        ref_type: &mut RefType,
-        offset: usize,
-    ) -> Result<(), BinaryReaderError> {
+    fn check_ref_type(&self, ref_type: &mut RefType, offset: usize) -> Result<(), Error> {
         let is_nullable = ref_type.is_nullable();
         let mut heap_ty = ref_type.heap_type();
         self.check_heap_type(&mut heap_ty, offset)?;
@@ -111,11 +107,7 @@ pub trait WasmModuleResources {
     /// canonical form.
     ///
     /// Similar to `check_value_type` but for heap types.
-    fn check_heap_type(
-        &self,
-        heap_type: &mut HeapType,
-        offset: usize,
-    ) -> Result<(), BinaryReaderError>;
+    fn check_heap_type(&self, heap_type: &mut HeapType, offset: usize) -> Result<(), Error>;
 
     /// Get the top type for the given heap type.
     fn top_type(&self, heap_type: &HeapType) -> HeapType;
@@ -162,7 +154,7 @@ where
     fn type_index_of_function(&self, func_idx: u32) -> Option<u32> {
         T::type_index_of_function(self, func_idx)
     }
-    fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<(), BinaryReaderError> {
+    fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<(), Error> {
         T::check_heap_type(self, t, offset)
     }
     fn top_type(&self, heap_type: &HeapType) -> HeapType {
@@ -227,7 +219,7 @@ where
         T::type_index_of_function(self, func_idx)
     }
 
-    fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<(), BinaryReaderError> {
+    fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<(), Error> {
         T::check_heap_type(self, t, offset)
     }
 

@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-use crate::binary_reader::BinaryReaderErrorKind;
+use crate::error::ErrorKind;
 use crate::limits::{
     MAX_WASM_FUNCTION_PARAMS, MAX_WASM_FUNCTION_RETURNS, MAX_WASM_STRUCT_FIELDS,
     MAX_WASM_SUPERTYPES, MAX_WASM_TYPES,
@@ -21,7 +21,7 @@ use crate::limits::{
 use crate::prelude::*;
 #[cfg(feature = "validate")]
 use crate::types::CoreTypeId;
-use crate::{BinaryReader, BinaryReaderError, FromReader, Result, SectionLimited};
+use crate::{BinaryReader, Error, FromReader, Result, SectionLimited};
 use core::cmp::Ordering;
 use core::fmt::{self, Debug};
 use core::hash::{Hash, Hasher};
@@ -1798,7 +1798,7 @@ impl<'a> FromReader<'a> for ValType {
                 // that's the "root" of what was being parsed rather than
                 // reference types.
                 let refty = reader.read().map_err(|mut e| {
-                    if let BinaryReaderErrorKind::Invalid = e.kind() {
+                    if let ErrorKind::Invalid = e.kind() {
                         e.set_message("invalid value type");
                     }
                     e
@@ -1818,21 +1818,21 @@ impl<'a> FromReader<'a> for RefType {
             0x63 | 0x64 => {
                 let nullable = reader.read_u8()? == 0x63;
                 RefType::new(nullable, reader.read()?)
-                    .ok_or_else(|| crate::BinaryReaderError::new("type index too large", pos))
+                    .ok_or_else(|| crate::Error::new("type index too large", pos))
             }
-            0x62 => Err(crate::BinaryReaderError::new("unexpected exact type", pos)),
+            0x62 => Err(crate::Error::new("unexpected exact type", pos)),
             _ => {
                 // Reclassify errors as invalid reference types here because
                 // that's the "root" of what was being parsed rather than
                 // heap types.
                 let hty = reader.read().map_err(|mut e| {
-                    if let BinaryReaderErrorKind::Invalid = e.kind() {
+                    if let ErrorKind::Invalid = e.kind() {
                         e.set_message("malformed reference type");
                     }
                     e
                 })?;
                 RefType::new(true, hty)
-                    .ok_or_else(|| crate::BinaryReaderError::new("type index too large", pos))
+                    .ok_or_else(|| crate::Error::new("type index too large", pos))
             }
         }
     }
@@ -1854,7 +1854,7 @@ impl<'a> FromReader<'a> for HeapType {
                 // read.
                 *reader = clone;
                 let idx = PackedIndex::from_module_index(idx).ok_or_else(|| {
-                    BinaryReaderError::new(
+                    Error::new(
                         "type index greater than implementation limits",
                         reader.original_position(),
                     )
@@ -1877,7 +1877,7 @@ impl<'a> FromReader<'a> for HeapType {
                     // that's the "root" of what was being parsed rather than
                     // abstract heap types.
                     let ty = reader.read().map_err(|mut e| {
-                        if let BinaryReaderErrorKind::Invalid = e.kind() {
+                        if let ErrorKind::Invalid = e.kind() {
                             e.set_message("invalid heap type");
                         }
                         e
@@ -1908,7 +1908,7 @@ impl<'a> FromReader<'a> for AbstractHeapType {
             0x68 => Ok(Cont),
             0x75 => Ok(NoCont),
             _ => {
-                return Err(BinaryReaderError::invalid(
+                return Err(Error::invalid(
                     "invalid abstract heap type",
                     reader.original_position() - 1,
                 ));
@@ -2083,10 +2083,7 @@ impl<'a> FromReader<'a> for CompositeType {
     }
 }
 
-fn read_composite_type(
-    opcode: u8,
-    reader: &mut BinaryReader,
-) -> Result<CompositeType, BinaryReaderError> {
+fn read_composite_type(opcode: u8, reader: &mut BinaryReader) -> Result<CompositeType, Error> {
     // NB: See `FromReader<'a> for ValType` for a table of how this
     // interacts with other value encodings.
     let (shared, opcode) = if opcode == 0x65 {
@@ -2096,7 +2093,7 @@ fn read_composite_type(
     };
     let (describes_idx, opcode) = if opcode == 0x4c {
         let idx = PackedIndex::from_module_index(reader.read_var_u32()?).ok_or_else(|| {
-            BinaryReaderError::new(
+            Error::new(
                 "type index greater than implementation limits",
                 reader.original_position(),
             )
@@ -2107,7 +2104,7 @@ fn read_composite_type(
     };
     let (descriptor_idx, opcode) = if opcode == 0x4d {
         let idx = PackedIndex::from_module_index(reader.read_var_u32()?).ok_or_else(|| {
-            BinaryReaderError::new(
+            Error::new(
                 "type index greater than implementation limits",
                 reader.original_position(),
             )
@@ -2165,17 +2162,14 @@ impl<'a> FromReader<'a> for SubType {
                 let idx_iter = reader.read_iter(MAX_WASM_SUPERTYPES, "supertype idxs")?;
                 let idxs = idx_iter.collect::<Result<Vec<u32>>>()?;
                 if idxs.len() > 1 {
-                    return Err(BinaryReaderError::new(
-                        "multiple supertypes not supported",
-                        pos,
-                    ));
+                    return Err(Error::new("multiple supertypes not supported", pos));
                 }
                 let supertype_idx = idxs
                     .first()
                     .copied()
                     .map(|idx| {
                         PackedIndex::from_module_index(idx).ok_or_else(|| {
-                            BinaryReaderError::new(
+                            Error::new(
                                 "type index greater than implementation limits",
                                 reader.original_position(),
                             )
@@ -2254,7 +2248,7 @@ impl<'a> FromReader<'a> for ContType {
             }
         };
         let idx = PackedIndex::from_module_index(idx).ok_or_else(|| {
-            BinaryReaderError::new(
+            Error::new(
                 "type index greater than implementation limits",
                 reader.original_position(),
             )

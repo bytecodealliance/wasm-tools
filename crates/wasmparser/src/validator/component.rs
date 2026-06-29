@@ -18,10 +18,10 @@ use crate::limits::*;
 use crate::prelude::*;
 use crate::validator::names::{ComponentName, ComponentNameKind, KebabStr, KebabString};
 use crate::{
-    BinaryReaderError, CanonicalFunction, CanonicalOption, ComponentExternName,
-    ComponentExternalKind, ComponentOuterAliasKind, ComponentTypeRef, CompositeInnerType,
-    ExternalKind, FuncType, GlobalType, InstantiationArgKind, MemoryType, PackedIndex, RefType,
-    Result, SubType, TableType, TypeBounds, ValType, WasmFeatures,
+    CanonicalFunction, CanonicalOption, ComponentExternName, ComponentExternalKind,
+    ComponentOuterAliasKind, ComponentTypeRef, CompositeInnerType, Error, ExternalKind, FuncType,
+    GlobalType, InstantiationArgKind, MemoryType, PackedIndex, RefType, Result, SubType, TableType,
+    TypeBounds, ValType, WasmFeatures,
 };
 use core::mem;
 
@@ -380,7 +380,7 @@ impl CanonicalOptions {
             } => {
                 let func_ty = types[state.core_function_at(idx, offset)?].unwrap_func();
                 if func_ty.params() != [ValType::I32; 3] && func_ty.params() != [ValType::I32] {
-                    return Err(BinaryReaderError::new(
+                    return Err(Error::new(
                         "canonical option `callback` uses a core function with an incorrect signature",
                         offset,
                     ));
@@ -2618,7 +2618,7 @@ impl ComponentState {
             );
         }
         if self.has_start {
-            return Err(BinaryReaderError::new(
+            return Err(Error::new(
                 "component cannot have more than one start function",
                 offset,
             ));
@@ -2720,7 +2720,7 @@ impl ComponentState {
                             Some(*idx)
                         }
                         Some(_) => {
-                            return Err(BinaryReaderError::new(
+                            return Err(Error::new(
                                 "canonical option `memory` is specified more than once",
                                 offset,
                             ));
@@ -2734,7 +2734,7 @@ impl ComponentState {
                             Some(*idx)
                         }
                         Some(_) => {
-                            return Err(BinaryReaderError::new(
+                            return Err(Error::new(
                                 "canonical option `realloc` is specified more than once",
                                 offset,
                             ));
@@ -2745,7 +2745,7 @@ impl ComponentState {
                     post_return = match post_return {
                         None => Some(*idx),
                         Some(_) => {
-                            return Err(BinaryReaderError::new(
+                            return Err(Error::new(
                                 "canonical option `post-return` is specified more than once",
                                 offset,
                             ));
@@ -2754,7 +2754,7 @@ impl ComponentState {
                 }
                 CanonicalOption::Async => {
                     if is_async {
-                        return Err(BinaryReaderError::new(
+                        return Err(Error::new(
                             "canonical option `async` is specified more than once",
                             offset,
                         ));
@@ -2773,7 +2773,7 @@ impl ComponentState {
                     callback = match callback {
                         None => Some(*idx),
                         Some(_) => {
-                            return Err(BinaryReaderError::new(
+                            return Err(Error::new(
                                 "canonical option `callback` is specified more than once",
                                 offset,
                             ));
@@ -2792,7 +2792,7 @@ impl ComponentState {
                             let ty = match self.core_type_at(*idx, offset)? {
                                 ComponentCoreTypeId::Sub(ty) => ty,
                                 ComponentCoreTypeId::Module(_) => {
-                                    return Err(BinaryReaderError::new(
+                                    return Err(Error::new(
                                         "canonical option `core type` must reference a core function \
                                      type",
                                         offset,
@@ -2804,7 +2804,7 @@ impl ComponentState {
                                 CompositeInnerType::Array(_)
                                 | CompositeInnerType::Struct(_)
                                 | CompositeInnerType::Cont(_) => {
-                                    return Err(BinaryReaderError::new(
+                                    return Err(Error::new(
                                         "canonical option `core type` must reference a core function \
                                      type",
                                         offset,
@@ -2814,7 +2814,7 @@ impl ComponentState {
                             Some(ty)
                         }
                         Some(_) => {
-                            return Err(BinaryReaderError::new(
+                            return Err(Error::new(
                                 "canonical option `core type` is specified more than once",
                                 offset,
                             ));
@@ -2823,13 +2823,13 @@ impl ComponentState {
                 }
                 CanonicalOption::Gc => {
                     if gc {
-                        return Err(BinaryReaderError::new(
+                        return Err(Error::new(
                             "canonical option `gc` is specified more than once",
                             offset,
                         ));
                     }
                     if !self.features.cm_gc() {
-                        return Err(BinaryReaderError::new(
+                        return Err(Error::new(
                             "canonical option `gc` requires the `cm-gc` feature",
                             offset,
                         ));
@@ -2861,7 +2861,7 @@ impl ComponentState {
             let mty = match memory {
                 Some(i) => self.memory_at(i, offset)?,
                 None => {
-                    return Err(BinaryReaderError::new(
+                    return Err(Error::new(
                         "canonical option `realloc` requires `memory` to also be specified",
                         offset,
                     ));
@@ -2876,7 +2876,7 @@ impl ComponentState {
             if func_ty.params() != [addr_type, addr_type, addr_type, addr_type]
                 || func_ty.results() != [addr_type]
             {
-                return Err(BinaryReaderError::new(
+                return Err(Error::new(
                     "canonical option `realloc` uses a core function with an incorrect signature",
                     offset,
                 ));
@@ -4201,7 +4201,7 @@ impl ComponentState {
         }
 
         if cases.len() > u32::MAX as usize {
-            return Err(BinaryReaderError::new(
+            return Err(Error::new(
                 "variant type cannot be represented with a 32-bit discriminant value",
                 offset,
             ));
@@ -4287,7 +4287,7 @@ impl ComponentState {
 
     fn create_enum_type(&self, cases: &[&str], offset: usize) -> Result<ComponentDefinedType> {
         if cases.len() > u32::MAX as usize {
-            return Err(BinaryReaderError::new(
+            return Err(Error::new(
                 "enumeration type cannot be represented with a 32-bit discriminant value",
                 offset,
             ));

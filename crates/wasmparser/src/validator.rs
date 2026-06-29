@@ -15,9 +15,8 @@
 
 use crate::prelude::*;
 use crate::{
-    AbstractHeapType, BinaryReaderError, Encoding, FromReader, FunctionBody, HeapType, Parser,
-    Payload, RefType, Result, SectionLimited, ValType, WASM_MODULE_VERSION, WasmFeatures,
-    limits::*,
+    AbstractHeapType, Encoding, Error, FromReader, FunctionBody, HeapType, Parser, Payload,
+    RefType, Result, SectionLimited, ValType, WASM_MODULE_VERSION, WasmFeatures, limits::*,
 };
 use ::core::mem;
 use ::core::ops::Range;
@@ -184,11 +183,11 @@ impl State {
             Self::Module => Ok(()),
             #[cfg(feature = "component-model")]
             Self::Component => Ok(()),
-            Self::Unparsed(_) => Err(BinaryReaderError::new(
+            Self::Unparsed(_) => Err(Error::new(
                 "unexpected section before header was parsed",
                 offset,
             )),
-            Self::End => Err(BinaryReaderError::new(
+            Self::End => Err(Error::new(
                 "unexpected section after parsing has completed",
                 offset,
             )),
@@ -676,10 +675,7 @@ impl Validator {
                 }
             }
             _ => {
-                return Err(BinaryReaderError::new(
-                    "wasm version header out of order",
-                    range.start,
-                ));
+                return Err(Error::new("wasm version header out of order", range.start));
             }
         }
 
@@ -850,7 +846,7 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn tag_section(&mut self, section: &crate::TagSectionReader<'_>) -> Result<()> {
         if !self.features.exceptions() {
-            return Err(BinaryReaderError::new(
+            return Err(Error::new(
                 "exceptions proposal not enabled",
                 section.range().start,
             ));
@@ -931,10 +927,7 @@ impl Validator {
 
         let ty = state.module.get_func_type(func, &self.types, offset)?;
         if !ty.params().is_empty() || !ty.results().is_empty() {
-            return Err(BinaryReaderError::new(
-                "invalid start function type",
-                offset,
-            ));
+            return Err(Error::new("invalid start function type", offset));
         }
 
         Ok(())
@@ -976,7 +969,7 @@ impl Validator {
         let state = self.module.as_mut().unwrap();
 
         if count > MAX_WASM_DATA_SEGMENTS as u32 {
-            return Err(BinaryReaderError::new(
+            return Err(Error::new(
                 "data count section specifies too many data segments",
                 offset,
             ));
@@ -1197,7 +1190,7 @@ impl Validator {
             section,
             "alias",
             |_, _, _, _| Ok(()), // maximums checked via `add_alias`
-            |components, types, _features, alias, offset| -> Result<(), BinaryReaderError> {
+            |components, types, _features, alias, offset| -> Result<(), Error> {
                 ComponentState::add_alias(components, alias, types, offset)
             },
         )
@@ -1348,11 +1341,11 @@ impl Validator {
     /// Returns the types known to the validator for the module or component.
     pub fn end(&mut self, offset: usize) -> Result<Types> {
         match mem::replace(&mut self.state, State::End) {
-            State::Unparsed(_) => Err(BinaryReaderError::new(
+            State::Unparsed(_) => Err(Error::new(
                 "cannot call `end` before a header has been parsed",
                 offset,
             )),
-            State::End => Err(BinaryReaderError::new(
+            State::End => Err(Error::new(
                 "cannot call `end` after parsing has completed",
                 offset,
             )),

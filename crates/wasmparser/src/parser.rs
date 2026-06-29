@@ -3,7 +3,7 @@ use crate::WasmFeatures;
 use crate::binary_reader::WASM_MAGIC_NUMBER;
 use crate::prelude::*;
 use crate::{
-    BinaryReader, BinaryReaderError, CustomSectionReader, DataSectionReader, ElementSectionReader,
+    BinaryReader, CustomSectionReader, DataSectionReader, ElementSectionReader, Error,
     ExportSectionReader, FromReader, FunctionBody, FunctionSectionReader, GlobalSectionReader,
     ImportSectionReader, MemorySectionReader, Result, TableSectionReader, TagSectionReader,
     TypeSectionReader,
@@ -722,7 +722,7 @@ impl Parser {
                 // than section. Report a better error instead:
                 match reader.peek_bytes(4) {
                     Ok(peek) if peek == WASM_MAGIC_NUMBER => {
-                        return Err(BinaryReaderError::new(
+                        return Err(Error::new(
                             "expected section, got wasm magic number",
                             reader.original_position(),
                         ));
@@ -733,7 +733,7 @@ impl Parser {
                 let id_pos = reader.original_position();
                 let id = reader.read_u8()?;
                 if id & 0x80 != 0 {
-                    return Err(BinaryReaderError::new("malformed section id", id_pos));
+                    return Err(Error::new("malformed section id", id_pos));
                 }
                 let len_pos = reader.original_position();
                 let mut len = reader.read_var_u32()?;
@@ -750,7 +750,7 @@ impl Parser {
                     .and_then(|s| s.checked_sub(len.into()))
                     .is_none();
                 if section_overflow {
-                    return Err(BinaryReaderError::new("section too large", len_pos));
+                    return Err(Error::new("section too large", len_pos));
                 }
 
                 match (self.encoding, id) {
@@ -963,10 +963,7 @@ impl Parser {
             State::FunctionBody { remaining: 0, len } => {
                 debug_assert!(len > 0);
                 let offset = reader.original_position();
-                Err(BinaryReaderError::new(
-                    "trailing bytes at end of section",
-                    offset,
-                ))
+                Err(Error::new("trailing bytes at end of section", offset))
             }
 
             // Functions are relatively easy to parse when we know there's at
@@ -1290,7 +1287,7 @@ fn delimited<'a, T>(
         .and_then(|i| len.checked_sub(i))
     {
         Some(i) => i,
-        None => return Err(BinaryReaderError::new("unexpected end-of-file", start)),
+        None => return Err(Error::new("unexpected end-of-file", start)),
     };
     Ok(ret)
 }
@@ -1485,7 +1482,7 @@ impl fmt::Debug for Payload<'_> {
     }
 }
 
-fn clear_hint(mut err: BinaryReaderError) -> BinaryReaderError {
+fn clear_hint(mut err: Error) -> Error {
     err.inner.needed_hint = None;
     err
 }

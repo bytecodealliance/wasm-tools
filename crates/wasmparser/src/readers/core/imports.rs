@@ -16,8 +16,8 @@
 use core::mem;
 
 use crate::{
-    BinaryReader, BinaryReaderError, ExternalKind, FromReader, GlobalType, MemoryType, Result,
-    SectionLimited, SectionLimitedIntoIterWithOffsets, TableType, TagType,
+    BinaryReader, Error, ExternalKind, FromReader, GlobalType, MemoryType, Result, SectionLimited,
+    SectionLimitedIntoIterWithOffsets, TableType, TagType,
 };
 
 /// Represents a reference to a type definition in a WebAssembly module.
@@ -243,7 +243,7 @@ pub struct ImportsIter<'a> {
 
 enum ImportsIterState<'a> {
     Done,
-    Error(BinaryReaderError),
+    Error(Error),
     Single(usize, Import<'a>),
     Compact1 {
         module: &'a str,

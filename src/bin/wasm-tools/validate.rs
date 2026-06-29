@@ -6,9 +6,7 @@ use std::fmt::Write;
 use std::mem;
 use std::time::Instant;
 use wasm_tools::addr2line::Addr2lineModules;
-use wasmparser::{
-    BinaryReaderError, FuncValidatorAllocations, Parser, ValidPayload, Validator, WasmFeatures,
-};
+use wasmparser::{FuncValidatorAllocations, Parser, ValidPayload, Validator, WasmFeatures};
 
 /// Validate a WebAssembly binary
 ///
@@ -106,7 +104,7 @@ impl Opts {
             Ok(()) => return Ok(()),
             Err(e) => e,
         };
-        let offset = match error.downcast_ref::<BinaryReaderError>() {
+        let offset = match error.downcast_ref::<wasmparser::Error>() {
             Some(err) => err.offset(),
             None => return Err(error.into()),
         };

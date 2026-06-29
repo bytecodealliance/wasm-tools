@@ -12,7 +12,7 @@ impl Error {
     }
 
     /// Construct a new parse error.
-    pub fn parse(err: wasmparser::BinaryReaderError) -> Self {
+    pub fn parse(err: wasmparser::Error) -> Self {
         err.into()
     }
 
@@ -50,8 +50,8 @@ impl From<ErrorKind> for Error {
     }
 }
 
-impl From<wasmparser::BinaryReaderError> for Error {
-    fn from(e: wasmparser::BinaryReaderError) -> Self {
+impl From<wasmparser::Error> for Error {
+    fn from(e: wasmparser::Error) -> Self {
         ErrorKind::Parse(e).into()
     }
 }
@@ -80,7 +80,7 @@ impl From<std::convert::Infallible> for Error {
 pub enum ErrorKind {
     /// Failed to parse the input Wasm module.
     #[error("Failed to parse the input Wasm module.")]
-    Parse(#[from] wasmparser::BinaryReaderError),
+    Parse(#[from] wasmparser::Error),
 
     /// None of the available mutators are applicable to the input Wasm module
     #[error("There are not applicable mutations for the input Wasm module.")]

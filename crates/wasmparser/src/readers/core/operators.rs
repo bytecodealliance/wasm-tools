@@ -15,7 +15,7 @@
 
 use crate::limits::{MAX_WASM_CATCHES, MAX_WASM_HANDLERS};
 use crate::prelude::*;
-use crate::{BinaryReader, BinaryReaderError, FromReader, Result, ValType};
+use crate::{BinaryReader, Error, FromReader, Result, ValType};
 use core::{fmt, mem};
 
 /// Represents a block type.
@@ -182,7 +182,7 @@ impl<'a> Iterator for BrTableTargets<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.remaining == 0 {
             if !self.reader.eof() {
-                return Some(Err(BinaryReaderError::new(
+                return Some(Err(Error::new(
                     "trailing data in br_table",
                     self.reader.original_position(),
                 )));

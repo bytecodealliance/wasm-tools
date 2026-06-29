@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-use crate::{BinaryReader, BinaryReaderError, Result};
+use crate::{BinaryReader, Error, Result};
 use ::core::fmt;
 use ::core::marker;
 use ::core::ops::Range;
@@ -42,7 +42,7 @@ impl<'a> FromReader<'a> for bool {
         match reader.read_u8()? {
             0 => Ok(false),
             1 => Ok(true),
-            _ => Err(BinaryReaderError::new(
+            _ => Err(Error::new(
                 "invalid boolean value",
                 reader.original_position() - 1,
             )),
@@ -202,7 +202,7 @@ where
             if self.section.reader.eof() {
                 return None;
             }
-            return Some(Err(BinaryReaderError::new(
+            return Some(Err(Error::new(
                 "section size mismatch: unexpected data at the end of the section",
                 self.section.reader.original_position(),
             )));
