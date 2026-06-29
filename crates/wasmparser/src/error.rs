@@ -1,5 +1,6 @@
 use core::fmt;
 
+use crate::WasmFeatures;
 use crate::prelude::*;
 
 /// A binary reader for WebAssembly modules.
@@ -23,6 +24,7 @@ pub(crate) struct ErrorInner {
 pub(crate) enum ErrorKind {
     Uncategorized,
     InvalidHeapType,
+    WasmFeature(WasmFeatures),
 }
 
 /// The result for `BinaryReader` operations.
@@ -64,6 +66,15 @@ impl Error {
     }
 
     #[cold]
+    pub(crate) fn wasm_feature(
+        feature: crate::WasmFeatures,
+        msg: impl fmt::Display,
+        offset: usize,
+    ) -> Self {
+        Self::_new(ErrorKind::WasmFeature(feature), msg.to_string(), offset)
+    }
+
+    #[cold]
     pub(crate) fn fmt(args: fmt::Arguments<'_>, offset: usize) -> Self {
         Error::new(args.to_string(), offset)
     }
@@ -75,7 +86,7 @@ impl Error {
         err
     }
 
-    pub(crate) fn kind(&mut self) -> ErrorKind {
+    pub(crate) fn kind(&self) -> ErrorKind {
         self.inner.kind
     }
 
@@ -89,13 +100,27 @@ impl Error {
         self.inner.offset
     }
 
+    /// Returns `Some` if this error is due to a disabled Wasm feature.
+    ///
+    /// If the `features` crate feature is enabled, a returned [`WasmFeatures`]
+    /// will contain a feature that could be enabled to prevent this error.
+    ///
+    /// **Note:** This is not comprehensive; `None` may be returned in some
+    /// cases where enabling a feature could avoid the error.
+    pub fn missing_wasm_feature(&self) -> Option<WasmFeatures> {
+        match self.inner.kind {
+            ErrorKind::WasmFeature(features) => Some(features),
+            _ => None,
+        }
+    }
+
     #[cfg(all(feature = "validate", feature = "component-model"))]
     pub(crate) fn add_context(&mut self, context: String) {
         self.inner.message = format!("{context}\n{}", self.inner.message);
     }
 
-    pub(crate) fn set_message(&mut self, message: &str) {
-        self.inner.message = message.to_string();
+    pub(crate) fn set_message(&mut self, message: impl Into<String>) {
+        self.inner.message = message.into();
     }
 
     pub(crate) fn needed_hint(&self) -> Option<usize> {

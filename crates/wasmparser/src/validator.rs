@@ -17,6 +17,7 @@ use crate::prelude::*;
 use crate::{
     AbstractHeapType, Encoding, Error, FromReader, FunctionBody, HeapType, Parser, Payload,
     RefType, Result, SectionLimited, ValType, WASM_MODULE_VERSION, WasmFeatures, limits::*,
+    require_feature,
 };
 use ::core::mem;
 use ::core::ops::Range;
@@ -235,31 +236,19 @@ impl WasmFeatures {
     ///
     /// To check that reference types are valid, we need access to the module
     /// types. Use module.check_value_type.
-    pub(crate) fn check_value_type(&self, ty: ValType) -> Result<(), &'static str> {
+    pub(crate) fn check_value_type(&self, ty: ValType, offset: usize) -> Result<()> {
         match ty {
             ValType::I32 | ValType::I64 => Ok(()),
             ValType::F32 | ValType::F64 => {
-                if self.floats() {
-                    Ok(())
-                } else {
-                    Err("floating-point support is disabled")
-                }
+                require_feature::floats(*self, "floating-point support is disabled", offset)
             }
-            ValType::Ref(r) => self.check_ref_type(r),
-            ValType::V128 => {
-                if self.simd() {
-                    Ok(())
-                } else {
-                    Err("SIMD support is not enabled")
-                }
-            }
+            ValType::Ref(r) => self.check_ref_type(r, offset),
+            ValType::V128 => require_feature::simd(*self, "SIMD support is not enabled", offset),
         }
     }
 
-    pub(crate) fn check_ref_type(&self, r: RefType) -> Result<(), &'static str> {
-        if !self.reference_types() {
-            return Err("reference types support is not enabled");
-        }
+    pub(crate) fn check_ref_type(&self, r: RefType, offset: usize) -> Result<()> {
+        require_feature::reference_types(*self, "reference types support is not enabled", offset)?;
         match r.heap_type() {
             HeapType::Concrete(_) => {
                 // Note that `self.gc_types()` is not checked here because
@@ -270,33 +259,43 @@ impl WasmFeatures {
 
                 // Indexed types require either the function-references or gc
                 // proposal as gc implies function references here.
-                if self.function_references() || self.gc() {
+                if self.gc() {
                     Ok(())
                 } else {
-                    Err("function references required for index reference types")
+                    require_feature::function_references(
+                        *self,
+                        "function references required for index reference types",
+                        offset,
+                    )
                 }
             }
             HeapType::Exact(_) => {
                 // Exact types were introduced with the custom descriptors
                 // proposal.
-                if self.custom_descriptors() {
-                    Ok(())
-                } else {
-                    Err("custom descriptors required for exact reference types")
-                }
+                require_feature::custom_descriptors(
+                    *self,
+                    "custom descriptors required for exact reference types",
+                    offset,
+                )
             }
             HeapType::Abstract { shared, ty } => {
                 use AbstractHeapType::*;
-                if shared && !self.shared_everything_threads() {
-                    return Err(
+                if shared {
+                    require_feature::shared_everything_threads(
+                        *self,
                         "shared reference types require the shared-everything-threads proposal",
-                    );
+                        offset,
+                    )?;
                 }
 
                 // Apply the "gc-types" feature which disallows all heap types
                 // except exnref/funcref.
-                if !self.gc_types() && ty != Func && ty != Exn {
-                    return Err("gc types are disallowed but found type which requires gc");
+                if ty != Func && ty != Exn {
+                    require_feature::gc_types(
+                        *self,
+                        "gc types are disallowed but found type which requires gc",
+                        offset,
+                    )?;
                 }
 
                 match (ty, r.is_nullable()) {
@@ -305,44 +304,34 @@ impl WasmFeatures {
 
                     // Non-nullable func/extern references requires the
                     // `function-references` proposal.
-                    (Func | Extern, false) => {
-                        if self.function_references() {
-                            Ok(())
-                        } else {
-                            Err("function references required for non-nullable types")
-                        }
-                    }
+                    (Func | Extern, false) => require_feature::function_references(
+                        *self,
+                        "function references required for non-nullable types",
+                        offset,
+                    ),
 
                     // These types were added in the gc proposal.
                     (Any | None | Eq | Struct | Array | I31 | NoExtern | NoFunc, _) => {
-                        if self.gc() {
-                            Ok(())
-                        } else {
-                            Err("heap types not supported without the gc feature")
-                        }
+                        require_feature::gc(
+                            *self,
+                            "heap types not supported without the gc feature",
+                            offset,
+                        )
                     }
 
                     // These types were added in the exception-handling proposal.
-                    (Exn | NoExn, _) => {
-                        if self.exceptions() {
-                            Ok(())
-                        } else {
-                            Err(
-                                "exception refs not supported without the exception handling feature",
-                            )
-                        }
-                    }
+                    (Exn | NoExn, _) => require_feature::exceptions(
+                        *self,
+                        "exception refs not supported without the exception handling feature",
+                        offset,
+                    ),
 
                     // These types were added in the stack switching proposal.
-                    (Cont | NoCont, _) => {
-                        if self.stack_switching() {
-                            Ok(())
-                        } else {
-                            Err(
-                                "continuation refs not supported without the stack switching feature",
-                            )
-                        }
-                    }
+                    (Cont | NoCont, _) => require_feature::stack_switching(
+                        *self,
+                        "continuation refs not supported without the stack switching feature",
+                        offset,
+                    ),
                 }
             }
         }
@@ -690,14 +679,15 @@ impl Validator {
                 }
             }
             Encoding::Component => {
-                if !self.features.component_model() {
-                    bail!(
-                        range.start,
+                require_feature::component_model(
+                    self.features,
+                    format_args!(
                         "unknown binary version and encoding combination: {num:#x} and 0x1, \
                         note: encoded as a component but the WebAssembly component model feature \
                         is not enabled - enable the feature to allow component validation",
-                    );
-                }
+                    ),
+                    range.start,
+                )?;
                 #[cfg(feature = "component-model")]
                 if num == crate::WASM_COMPONENT_VERSION {
                     self.components
@@ -845,12 +835,11 @@ impl Validator {
     ///
     /// This method should only be called when parsing a module.
     pub fn tag_section(&mut self, section: &crate::TagSectionReader<'_>) -> Result<()> {
-        if !self.features.exceptions() {
-            return Err(Error::new(
-                "exceptions proposal not enabled",
-                section.range().start,
-            ));
-        }
+        require_feature::exceptions(
+            self.features,
+            "exceptions proposal not enabled",
+            section.range().start,
+        )?;
         self.process_module_section(
             section,
             "tag",
@@ -1634,5 +1623,25 @@ mod tests {
     #[test]
     fn reset_fresh_validator() {
         Validator::new().reset();
+    }
+
+    #[cfg(feature = "features")]
+    #[test]
+    fn test_validate_missing_wasm_feature_exceptions_disabled() {
+        let bytes = wat::parse_str(
+            r#"
+            (module
+                (func (throw 0))
+            )
+        "#,
+        )
+        .unwrap();
+
+        let mut validator =
+            Validator::new_with_features(WasmFeatures::default() & !WasmFeatures::EXCEPTIONS);
+        let Err(err) = validator.validate_all(&bytes) else {
+            panic!("should fail validation");
+        };
+        assert_eq!(err.missing_wasm_feature(), Some(WasmFeatures::EXCEPTIONS));
     }
 }
