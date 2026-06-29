@@ -72,7 +72,16 @@ impl Opts {
         let buf = ParseBuffer::new_with_lexer(lexer).map_err(&adjust_error)?;
         let wast = parser::parse::<Wast>(&buf).map_err(&adjust_error)?;
 
-        let ret = json_from_wast::Wast::from_ast(&self.wast, &contents, wast)?;
+        let mut opts = json_from_wast::Opts::default();
+        if let Some(stem) = self
+            .output
+            .output_path()
+            .and_then(|p| p.file_stem())
+            .and_then(|s| s.to_str())
+        {
+            opts.module_filename(stem);
+        }
+        let ret = opts.convert(&self.wast, &contents, wast)?;
 
         for (name, wasm) in ret.wasms.iter() {
             let dst = match &self.wasm_dir {

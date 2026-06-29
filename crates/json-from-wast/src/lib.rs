@@ -45,6 +45,7 @@ impl<'a> Wast<'a> {
 #[derive(Default)]
 pub struct Opts {
     dwarf: bool,
+    module_filename: Option<String>,
 }
 
 impl Opts {
@@ -52,6 +53,15 @@ impl Opts {
     /// modules.
     pub fn dwarf(&mut self, enable: bool) -> &mut Self {
         self.dwarf = enable;
+        self
+    }
+
+    /// Sets the stem used to name the emitted `*.wasm` and `*.wat` files. The
+    /// value is used verbatim and keeps any extension.
+    ///
+    /// Defaults to the stem of the source `*.wast` filename.
+    pub fn module_filename(&mut self, name: impl Into<String>) -> &mut Self {
+        self.module_filename = Some(name.into());
         self
     }
 

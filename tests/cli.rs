@@ -121,7 +121,10 @@ fn run_test_directive(
             stdin = Some(output.stdout);
             cmd = Command::new(exe);
         } else if arg == "%" {
-            cmd.arg(test);
+            // Pass the test path with forward slashes so a command that echoes
+            // it back (such as `json-from-wast`'s `source_filename`) produces
+            // the same output on windows and unix.
+            cmd.arg(test.to_str().unwrap().replace("\\", "/"));
         } else {
             cmd.arg(arg);
         }
