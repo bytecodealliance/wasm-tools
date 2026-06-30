@@ -24,6 +24,7 @@
 
 #[cfg(feature = "simd")]
 use crate::VisitSimdOperator;
+use crate::features::require_feature;
 use crate::{
     AbstractHeapType, BlockType, BrTable, Catch, ContType, Error, FieldType, FrameKind, FrameStack,
     FuncType, GlobalType, Handle, HeapType, Ieee32, Ieee64, MemArg, ModuleArity, RefType, Result,
@@ -1141,9 +1142,11 @@ where
     }
 
     fn check_floats_enabled(&self) -> Result<()> {
-        if !self.features.floats() {
-            bail!(self.offset, "floating-point instruction disallowed");
-        }
+        require_feature::floats(
+            self.features,
+            "floating-point instruction disallowed",
+            self.offset,
+        )?;
         Ok(())
     }
 
@@ -1165,13 +1168,12 @@ where
                 .resources
                 .check_value_type(t, &self.features, self.offset),
             BlockType::FuncType(idx) => {
-                if !self.features.multi_value() {
-                    bail!(
-                        self.offset,
-                        "blocks, loops, and ifs may only produce a resulttype \
-                         when multi-value is not enabled",
-                    );
-                }
+                require_feature::multi_value(
+                    self.features,
+                    "blocks, loops, and ifs may only produce a resulttype \
+                     when multi-value is not enabled",
+                    self.offset,
+                )?;
                 self.func_type_at(*idx)?;
                 Ok(())
             }
@@ -1961,13 +1963,6 @@ where
         self.push_operand(ValType::I64)?;
         Ok(())
     }
-
-    fn check_enabled(&self, flag: bool, desc: &str) -> Result<()> {
-        if flag {
-            return Ok(());
-        }
-        bail!(self.offset, "{desc} support is not enabled");
-    }
 }
 
 pub fn ty_to_str(ty: ValType) -> &'static str {
@@ -2013,7 +2008,11 @@ macro_rules! validate_proposal {
     (validate self $proposal:ident / MemoryCopy) => {};
 
     (validate $self:ident $proposal:ident / $op:ident) => {
-        $self.0.check_enabled($self.0.features.$proposal(), validate_proposal!(desc $proposal))?
+        require_feature::$proposal(
+            $self.0.features,
+            concat!(validate_proposal!(desc $proposal), " support is not enabled"),
+            $self.0.offset,
+        )?
     };
 
     (desc simd) => ("SIMD");
@@ -3299,9 +3298,7 @@ where
     }
     fn visit_ref_null(&mut self, mut heap_type: HeapType) -> Self::Output {
         if let Some(ty) = RefType::new(true, heap_type) {
-            self.features
-                .check_ref_type(ty)
-                .map_err(|e| Error::new(e, self.offset))?;
+            self.features.check_ref_type(ty, self.offset)?;
         }
         self.resources
             .check_heap_type(&mut heap_type, self.offset)?;
@@ -3411,7 +3408,11 @@ where
         Ok(())
     }
     fn visit_memory_copy(&mut self, dst: u32, src: u32) -> Self::Output {
-        self.check_enabled(self.features.bulk_memory_opt(), "bulk memory")?;
+        require_feature::bulk_memory_opt(
+            self.features,
+            "bulk memory support is not enabled",
+            self.offset,
+        )?;
         let dst_ty = self.check_memory_index(dst)?;
         let src_ty = self.check_memory_index(src)?;
 
@@ -3429,7 +3430,11 @@ where
         Ok(())
     }
     fn visit_memory_fill(&mut self, mem: u32) -> Self::Output {
-        self.check_enabled(self.features.bulk_memory_opt(), "bulk memory")?;
+        require_feature::bulk_memory_opt(
+            self.features,
+            "bulk memory support is not enabled",
+            self.offset,
+        )?;
         let ty = self.check_memory_index(mem)?;
         self.pop_operand(Some(ty))?;
         self.pop_operand(Some(ValType::I32))?;

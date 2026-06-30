@@ -17,7 +17,7 @@ use crate::{
     ConstExpr, Data, DataKind, Element, ElementKind, Error, ExternalKind, FrameKind, FrameStack,
     FuncType, Global, GlobalType, HeapType, MemoryType, RecGroup, RefType, Result, SubType, Table,
     TableInit, TableType, TagType, TypeRef, UnpackedIndex, ValType, VisitOperator, WasmFeatures,
-    WasmModuleResources, limits::*,
+    WasmModuleResources, limits::*, require_feature,
 };
 use alloc::sync::Arc;
 use core::mem;
@@ -86,13 +86,12 @@ impl ModuleState {
                 }
             }
             TableInit::Expr(expr) => {
-                if !self.module.features.function_references() {
-                    bail!(
-                        offset,
-                        "tables with expression initializers require \
-                         the function-references proposal"
-                    );
-                }
+                require_feature::function_references(
+                    self.module.features,
+                    "tables with expression initializers require \
+                     the function-references proposal",
+                    offset,
+                )?;
                 self.check_const_expr(expr, table.ty.element_type.into(), types)?;
             }
         }
@@ -103,12 +102,11 @@ impl ModuleState {
     pub fn add_data_segment(&mut self, data: Data, types: &TypeList, offset: usize) -> Result<()> {
         match data.kind {
             DataKind::Passive => {
-                if !self.module.features.bulk_memory() {
-                    bail!(
-                        offset,
-                        "passive data segments require the bulk-memory proposal"
-                    );
-                }
+                require_feature::bulk_memory(
+                    self.module.features,
+                    "passive data segments require the bulk-memory proposal",
+                    offset,
+                )?;
                 Ok(())
             }
             DataKind::Active {
@@ -157,9 +155,11 @@ impl ModuleState {
                 self.check_const_expr(&offset_expr, table.index_type(), types)?;
             }
             ElementKind::Passive | ElementKind::Declared => {
-                if !self.module.features.bulk_memory() {
-                    return Err(Error::new("bulk memory must be enabled", offset));
-                }
+                require_feature::bulk_memory(
+                    self.module.features,
+                    "bulk memory must be enabled",
+                    offset,
+                )?;
             }
         }
 
@@ -237,47 +237,39 @@ impl ModuleState {
             }
 
             fn validate_extended_const(&mut self, op: &str) -> Result<()> {
-                if self.ops.features.extended_const() {
-                    Ok(())
-                } else {
-                    Err(Error::new(
-                        format!("constant expression required: non-constant operator: {op}"),
-                        self.offset,
-                    ))
-                }
+                require_feature::extended_const(
+                    self.ops.features,
+                    format_args!("constant expression required: non-constant operator: {op}"),
+                    self.offset,
+                )
             }
 
             fn validate_gc(&mut self, op: &str) -> Result<()> {
-                if self.ops.features.gc() {
-                    Ok(())
-                } else {
-                    Err(Error::new(
-                        format!("constant expression required: non-constant operator: {op}"),
-                        self.offset,
-                    ))
-                }
+                require_feature::gc(
+                    self.ops.features,
+                    format_args!("constant expression required: non-constant operator: {op}"),
+                    self.offset,
+                )
             }
 
             fn validate_shared_everything_threads(&mut self, op: &str) -> Result<()> {
-                if self.ops.features.shared_everything_threads() {
-                    Ok(())
-                } else {
-                    Err(Error::new(
-                        format!("constant expression required: non-constant operator: {op}"),
-                        self.offset,
-                    ))
-                }
+                require_feature::shared_everything_threads(
+                    self.ops.features,
+                    format_args!("constant expression required: non-constant operator: {op}"),
+                    self.offset,
+                )
             }
 
             fn validate_global(&mut self, index: u32) -> Result<()> {
                 let module = &self.resources.module;
                 let global = module.global_at(index, self.offset)?;
 
-                if index >= module.num_imported_globals && !self.ops.features.gc() {
-                    return Err(Error::new(
+                if index >= module.num_imported_globals {
+                    require_feature::gc(
+                        self.ops.features,
                         "constant expression required: global.get of locally defined global",
                         self.offset,
-                    ));
+                    )?;
                 }
                 if global.mutable {
                     return Err(Error::new(
@@ -579,8 +571,12 @@ impl Module {
                 (self.tags.len(), MAX_WASM_TAGS, "tags")
             }
             TypeRef::Global(ty) => {
-                if !self.features.mutable_global() && ty.mutable {
-                    return Err(Error::new("mutable global support is not enabled", offset));
+                if ty.mutable {
+                    require_feature::mutable_global(
+                        self.features,
+                        "mutable global support is not enabled",
+                        offset,
+                    )?;
                 }
                 self.globals.push(ty);
                 self.num_imported_globals += 1;
@@ -608,11 +604,13 @@ impl Module {
         check_limit: bool,
         types: &TypeList,
     ) -> Result<()> {
-        if !self.features.mutable_global() {
-            if let EntityType::Global(global_type) = ty {
-                if global_type.mutable {
-                    return Err(Error::new("mutable global support is not enabled", offset));
-                }
+        if let EntityType::Global(global_type) = ty {
+            if global_type.mutable {
+                require_feature::mutable_global(
+                    self.features,
+                    "mutable global support is not enabled",
+                    offset,
+                )?;
             }
         }
 
@@ -712,14 +710,19 @@ impl Module {
         }
 
         self.check_limits(ty.initial, ty.maximum, offset)?;
-        if ty.table64 && !self.features().memory64() {
-            bail!(offset, "memory64 must be enabled for 64-bit tables");
-        }
-        if ty.shared && !self.features().shared_everything_threads() {
-            bail!(
+        if ty.table64 {
+            require_feature::memory64(
+                *self.features(),
+                "memory64 must be enabled for 64-bit tables",
                 offset,
-                "shared tables require the shared-everything-threads proposal"
-            );
+            )?;
+        }
+        if ty.shared {
+            require_feature::shared_everything_threads(
+                *self.features(),
+                "shared tables require the shared-everything-threads proposal",
+                offset,
+            )?;
         }
 
         let true_maximum = if ty.table64 {
@@ -748,20 +751,27 @@ impl Module {
     fn check_memory_type(&self, ty: &MemoryType, offset: usize) -> Result<()> {
         self.check_limits(ty.initial, ty.maximum, offset)?;
 
-        if ty.memory64 && !self.features().memory64() {
-            bail!(offset, "memory64 must be enabled for 64-bit memories");
+        if ty.memory64 {
+            require_feature::memory64(
+                *self.features(),
+                "memory64 must be enabled for 64-bit memories",
+                offset,
+            )?;
         }
-        if ty.shared && !self.features().threads() {
-            bail!(offset, "threads must be enabled for shared memories");
+        if ty.shared {
+            require_feature::threads(
+                *self.features(),
+                "threads must be enabled for shared memories",
+                offset,
+            )?;
         }
 
         let page_size = if let Some(page_size_log2) = ty.page_size_log2 {
-            if !self.features().custom_page_sizes() {
-                return Err(Error::new(
-                    "the custom page sizes proposal must be enabled to customize a memory's page size",
-                    offset,
-                ));
-            }
+            require_feature::custom_page_sizes(
+                *self.features(),
+                "the custom page sizes proposal must be enabled to customize a memory's page size",
+                offset,
+            )?;
             // Currently 2**0 and 2**16 are the only valid page sizes, but this
             // may be relaxed to allow any power of two in the future.
             if page_size_log2 != 0 && page_size_log2 != 16 {
@@ -823,17 +833,12 @@ impl Module {
         // We must check it if it's a reference.
         match ty {
             ValType::Ref(rt) => self.check_ref_type(rt, offset),
-            _ => self
-                .features
-                .check_value_type(*ty)
-                .map_err(|e| Error::new(e, offset)),
+            _ => self.features.check_value_type(*ty, offset),
         }
     }
 
     fn check_ref_type(&self, ty: &mut RefType, offset: usize) -> Result<()> {
-        self.features
-            .check_ref_type(*ty)
-            .map_err(|e| Error::new(e, offset))?;
+        self.features.check_ref_type(*ty, offset)?;
         let mut hty = ty.heap_type();
         self.check_heap_type(&mut hty, offset)?;
         *ty = RefType::new(ty.is_nullable(), hty).unwrap();
@@ -860,15 +865,14 @@ impl Module {
     }
 
     fn check_tag_type(&self, ty: &TagType, types: &TypeList, offset: usize) -> Result<()> {
-        if !self.features().exceptions() {
-            bail!(offset, "exceptions proposal not enabled");
-        }
+        require_feature::exceptions(self.features, "exceptions proposal not enabled", offset)?;
         let ty = self.func_type_at(ty.func_type_idx, types, offset)?;
-        if !ty.results().is_empty() && !self.features.stack_switching() {
-            return Err(Error::new(
+        if !ty.results().is_empty() {
+            require_feature::stack_switching(
+                self.features,
                 "invalid exception type: non-empty tag result type",
                 offset,
-            ));
+            )?;
         }
         Ok(())
     }
@@ -880,11 +884,12 @@ impl Module {
         offset: usize,
     ) -> Result<()> {
         self.check_value_type(&mut ty.content_type, offset)?;
-        if ty.shared && !self.features.shared_everything_threads() {
-            bail!(
+        if ty.shared {
+            require_feature::shared_everything_threads(
+                self.features,
+                "shared globals require the shared-everything-threads proposal",
                 offset,
-                "shared globals require the shared-everything-threads proposal"
-            );
+            )?;
         }
         if ty.shared && !types.valtype_is_shared(ty.content_type) {
             return Err(Error::new(

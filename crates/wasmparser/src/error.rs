@@ -1,5 +1,6 @@
 use core::fmt;
 
+use crate::WasmFeatures;
 use crate::prelude::*;
 
 /// A binary reader for WebAssembly modules.
@@ -13,16 +14,17 @@ pub struct Error {
 
 #[derive(Debug, Clone)]
 pub(crate) struct ErrorInner {
-    pub(crate) message: String,
-    pub(crate) kind: ErrorKind,
-    pub(crate) offset: usize,
-    pub(crate) needed_hint: Option<usize>,
+    message: String,
+    kind: ErrorKind,
+    offset: usize,
+    needed_hint: Option<usize>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum ErrorKind {
-    Custom,
-    Invalid,
+    Uncategorized,
+    InvalidHeapType,
+    WasmFeature(WasmFeatures),
 }
 
 /// The result for `BinaryReader` operations.
@@ -55,12 +57,21 @@ impl Error {
 
     #[cold]
     pub(crate) fn new(message: impl Into<String>, offset: usize) -> Self {
-        Self::_new(ErrorKind::Custom, message.into(), offset)
+        Self::_new(ErrorKind::Uncategorized, message.into(), offset)
     }
 
     #[cold]
-    pub(crate) fn invalid(msg: &'static str, offset: usize) -> Self {
-        Self::_new(ErrorKind::Invalid, msg.into(), offset)
+    pub(crate) fn invalid_heap_type(msg: &'static str, offset: usize) -> Self {
+        Self::_new(ErrorKind::InvalidHeapType, msg.into(), offset)
+    }
+
+    #[cold]
+    pub(crate) fn wasm_feature(
+        feature: crate::WasmFeatures,
+        msg: impl fmt::Display,
+        offset: usize,
+    ) -> Self {
+        Self::_new(ErrorKind::WasmFeature(feature), msg.to_string(), offset)
     }
 
     #[cold]
@@ -75,7 +86,7 @@ impl Error {
         err
     }
 
-    pub(crate) fn kind(&mut self) -> ErrorKind {
+    pub(crate) fn kind(&self) -> ErrorKind {
         self.inner.kind
     }
 
@@ -89,12 +100,35 @@ impl Error {
         self.inner.offset
     }
 
+    /// Returns `Some` if this error is due to a disabled Wasm feature.
+    ///
+    /// If the `features` crate feature is enabled, a returned [`WasmFeatures`]
+    /// will contain a feature that could be enabled to prevent this error.
+    ///
+    /// **Note:** This is not comprehensive; `None` may be returned in some
+    /// cases where enabling a feature could avoid the error.
+    pub fn missing_wasm_feature(&self) -> Option<WasmFeatures> {
+        match self.inner.kind {
+            ErrorKind::WasmFeature(features) => Some(features),
+            _ => None,
+        }
+    }
+
     #[cfg(all(feature = "validate", feature = "component-model"))]
     pub(crate) fn add_context(&mut self, context: String) {
         self.inner.message = format!("{context}\n{}", self.inner.message);
     }
 
-    pub(crate) fn set_message(&mut self, message: &str) {
-        self.inner.message = message.to_string();
+    pub(crate) fn set_message(&mut self, message: impl Into<String>) {
+        self.inner.message = message.into();
+    }
+
+    pub(crate) fn needed_hint(&self) -> Option<usize> {
+        self.inner.needed_hint
+    }
+
+    pub(crate) fn without_needed_hint(mut self) -> Self {
+        self.inner.needed_hint = None;
+        self
     }
 }

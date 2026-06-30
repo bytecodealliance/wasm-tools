@@ -818,21 +818,21 @@ impl<'a> BinaryReader<'a> {
                 visitor.visit_else()
             }
             0x06 => {
-                if !self.legacy_exceptions() {
-                    bail!(
-                        pos,
-                        "legacy_exceptions feature required for try instruction"
-                    );
-                }
+                #[cfg(feature = "features")]
+                require_feature::legacy_exceptions(
+                    self.features,
+                    "legacy_exceptions feature required for try instruction",
+                    pos,
+                )?;
                 visitor.visit_try(self.read_block_type()?)
             }
             0x07 => {
-                if !self.legacy_exceptions() {
-                    bail!(
-                        pos,
-                        "legacy_exceptions feature required for catch instruction"
-                    );
-                }
+                #[cfg(feature = "features")]
+                require_feature::legacy_exceptions(
+                    self.features,
+                    "legacy_exceptions feature required for catch instruction",
+                    pos,
+                )?;
                 match self.expect_frame(visitor, FrameKind::LegacyCatch, "catch") {
                     Ok(()) => (),
                     Err(_) => self.expect_frame(visitor, FrameKind::LegacyTry, "catch")?,
@@ -862,12 +862,12 @@ impl<'a> BinaryReader<'a> {
                 visitor.visit_delegate(self.read_var_u32()?)
             }
             0x19 => {
-                if !self.legacy_exceptions() {
-                    bail!(
-                        pos,
-                        "legacy_exceptions feature required for catch_all instruction"
-                    );
-                }
+                #[cfg(feature = "features")]
+                require_feature::legacy_exceptions(
+                    self.features,
+                    "legacy_exceptions feature required for catch_all instruction",
+                    pos,
+                )?;
                 match self.expect_frame(visitor, FrameKind::LegacyCatch, "catch_all") {
                     Ok(()) => (),
                     Err(_) => self.expect_frame(visitor, FrameKind::LegacyTry, "catch_all")?,
@@ -1939,7 +1939,7 @@ impl<'a> BinaryReader<'a> {
             0 => Ok(Ordering::SeqCst),
             1 => Ok(Ordering::AcqRel),
             x => Err(Error::new(
-                &format!("invalid atomic consistency ordering {x}"),
+                format!("invalid atomic consistency ordering {x}"),
                 self.original_position() - 1,
             )),
         }

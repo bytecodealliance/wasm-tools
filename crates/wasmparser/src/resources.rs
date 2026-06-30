@@ -85,9 +85,7 @@ pub trait WasmModuleResources {
         features: &WasmFeatures,
         offset: usize,
     ) -> Result<(), Error> {
-        features
-            .check_value_type(*t)
-            .map_err(|s| Error::new(s, offset))?;
+        features.check_value_type(*t, offset)?;
         match t {
             ValType::Ref(r) => self.check_ref_type(r, offset),
             ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => Ok(()),

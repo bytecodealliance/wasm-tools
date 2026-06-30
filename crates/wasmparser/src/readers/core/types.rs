@@ -1798,7 +1798,7 @@ impl<'a> FromReader<'a> for ValType {
                 // that's the "root" of what was being parsed rather than
                 // reference types.
                 let refty = reader.read().map_err(|mut e| {
-                    if let ErrorKind::Invalid = e.kind() {
+                    if let ErrorKind::InvalidHeapType = e.kind() {
                         e.set_message("invalid value type");
                     }
                     e
@@ -1826,7 +1826,7 @@ impl<'a> FromReader<'a> for RefType {
                 // that's the "root" of what was being parsed rather than
                 // heap types.
                 let hty = reader.read().map_err(|mut e| {
-                    if let ErrorKind::Invalid = e.kind() {
+                    if let ErrorKind::InvalidHeapType = e.kind() {
                         e.set_message("malformed reference type");
                     }
                     e
@@ -1877,7 +1877,7 @@ impl<'a> FromReader<'a> for HeapType {
                     // that's the "root" of what was being parsed rather than
                     // abstract heap types.
                     let ty = reader.read().map_err(|mut e| {
-                        if let ErrorKind::Invalid = e.kind() {
+                        if let ErrorKind::InvalidHeapType = e.kind() {
                             e.set_message("invalid heap type");
                         }
                         e
@@ -1908,7 +1908,7 @@ impl<'a> FromReader<'a> for AbstractHeapType {
             0x68 => Ok(Cont),
             0x75 => Ok(NoCont),
             _ => {
-                return Err(Error::invalid(
+                return Err(Error::invalid_heap_type(
                     "invalid abstract heap type",
                     reader.original_position() - 1,
                 ));

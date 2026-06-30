@@ -95,13 +95,13 @@ impl<'a> FromReader<'a> for Imports<'a> {
         let discriminator = reader.peek_bytes(1)?[0];
         match (single_item_name, discriminator) {
             ("", 0x7F) => {
-                if !reader.compact_imports() {
-                    bail!(
-                        reader.original_position(),
-                        "invalid leading byte 0x7F with compact imports \
-                         proposal disabled"
-                    );
-                }
+                #[cfg(feature = "features")]
+                crate::require_feature::compact_imports(
+                    reader.features(),
+                    "invalid leading byte 0x7F with compact imports \
+                     proposal disabled",
+                    reader.original_position(),
+                )?;
                 // Compact encoding 1: one module name, many item names / types
                 reader.read_bytes(1)?;
                 // FIXME(#188) shouldn't need to skip here
@@ -119,13 +119,13 @@ impl<'a> FromReader<'a> for Imports<'a> {
                 })
             }
             ("", 0x7E) => {
-                if !reader.compact_imports() {
-                    bail!(
-                        reader.original_position(),
-                        "invalid leading byte 0x7E with compact imports \
-                         proposal disabled"
-                    );
-                }
+                #[cfg(feature = "features")]
+                crate::require_feature::compact_imports(
+                    reader.features(),
+                    "invalid leading byte 0x7E with compact imports \
+                     proposal disabled",
+                    reader.original_position(),
+                )?;
                 // Compact encoding 2: one module name / type, many item names
                 reader.read_bytes(1)?;
                 let ty: TypeRef = reader.read()?;
