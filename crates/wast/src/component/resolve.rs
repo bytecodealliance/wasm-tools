@@ -398,7 +398,6 @@ impl<'a> Resolver<'a> {
                 | CoreFuncKind::BackpressureInc
                 | CoreFuncKind::BackpressureDec
                 | CoreFuncKind::TaskCancel
-                | CoreFuncKind::ThreadYield(_)
                 | CoreFuncKind::SubtaskDrop
                 | CoreFuncKind::SubtaskCancel(_)
                 | CoreFuncKind::ErrorContextDrop => {}
@@ -476,11 +475,13 @@ impl<'a> Resolver<'a> {
                     self.resolve_ns(&mut info.ty, Ns::CoreType)?;
                     self.core_item_ref(&mut info.table)?;
                 }
-                CoreFuncKind::ThreadSuspendToSuspended(_) => {}
+                CoreFuncKind::ThreadResumeLater => {}
                 CoreFuncKind::ThreadSuspend(_) => {}
-                CoreFuncKind::ThreadSuspendTo(_) => {}
-                CoreFuncKind::ThreadUnsuspend => {}
-                CoreFuncKind::ThreadYieldToSuspended(_) => {}
+                CoreFuncKind::ThreadYield(_) => {}
+                CoreFuncKind::ThreadSuspendThenResume(_) => {}
+                CoreFuncKind::ThreadYieldThenResume(_) => {}
+                CoreFuncKind::ThreadSuspendThenPromote(_) => {}
+                CoreFuncKind::ThreadYieldThenPromote(_) => {}
             },
         }
 
