@@ -6,5 +6,6 @@ interface i {
 }
 
 world w {
+  @external-id("hi /t")
   import i;
 }
