@@ -161,54 +161,54 @@ impl<'a> Parse<'a> for ComponentField<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         if parser.peek::<kw::core>()? {
             if parser.peek2::<kw::module>()? {
-                return Ok(Self::CoreModule(parser.parse()?));
+                return parser.parse().map(Self::CoreModule);
             }
             if parser.peek2::<kw::instance>()? {
-                return Ok(Self::CoreInstance(parser.parse()?));
+                return parser.parse().map(Self::CoreInstance);
             }
             if parser.peek2::<kw::r#type>()? {
-                return Ok(Self::CoreType(parser.parse()?));
+                return parser.parse().map(Self::CoreType);
             }
             if parser.peek2::<kw::func>()? {
-                return Ok(Self::CoreFunc(parser.parse()?));
+                return parser.parse().map(Self::CoreFunc);
             }
             if parser.peek2::<kw::rec>()? {
                 parser.parse::<kw::core>()?;
-                return Ok(Self::CoreRec(parser.parse()?));
+                return parser.parse().map(Self::CoreRec);
             }
         } else {
             if parser.peek::<kw::component>()? {
-                return Ok(Self::Component(parser.parse()?));
+                return parser.parse().map(Self::Component);
             }
             if parser.peek::<kw::instance>()? {
-                return Ok(Self::Instance(parser.parse()?));
+                return parser.parse().map(Self::Instance);
             }
             if parser.peek::<kw::alias>()? {
-                return Ok(Self::Alias(parser.parse()?));
+                return parser.parse().map(Self::Alias);
             }
             if parser.peek::<kw::r#type>()? {
-                return Ok(Self::Type(Type::parse_maybe_with_inline_exports(parser)?));
+                return Type::parse_maybe_with_inline_exports(parser).map(Self::Type);
             }
             if parser.peek::<kw::import>()? {
-                return Ok(Self::Import(parser.parse()?));
+                return parser.parse().map(Self::Import);
             }
             if parser.peek::<kw::func>()? {
-                return Ok(Self::Func(parser.parse()?));
+                return parser.parse().map(Self::Func);
             }
             if parser.peek::<kw::export>()? {
-                return Ok(Self::Export(parser.parse()?));
+                return parser.parse().map(Self::Export);
             }
             if parser.peek::<kw::start>()? {
-                return Ok(Self::Start(parser.parse()?));
+                return parser.parse().map(Self::Start);
             }
             if parser.peek::<kw::canon>()? {
-                return Ok(Self::CanonicalFunc(parser.parse()?));
+                return parser.parse().map(Self::CanonicalFunc);
             }
             if parser.peek::<annotation::custom>()? {
-                return Ok(Self::Custom(parser.parse()?));
+                return parser.parse().map(Self::Custom);
             }
             if parser.peek::<annotation::producers>()? {
-                return Ok(Self::Producers(parser.parse()?));
+                return parser.parse().map(Self::Producers);
             }
         }
         Err(parser.error("expected valid component field"))
