@@ -1,0 +1,12 @@
+// RUN: component wit %
+
+package x:name;
+
+interface i {
+  x: func();
+}
+
+world w {
+  @external-id("hi \t")
+  import i;
+}

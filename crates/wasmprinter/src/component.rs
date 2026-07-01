@@ -393,11 +393,29 @@ impl Printer<'_, '_> {
     }
 
     fn print_component_extern_name(&mut self, name: &ComponentExternName<'_>) -> Result<()> {
-        self.print_str(name.name)?;
-        if let Some(implements) = name.implements {
+        let ComponentExternName {
+            name,
+            implements,
+            version_suffix,
+            external_id,
+        } = name;
+        self.print_str(name)?;
+        if let Some(implements) = implements {
             self.result.write_str(" ")?;
             self.start_group("implements ")?;
             self.print_str(implements)?;
+            self.end_group()?;
+        }
+        if let Some(version_suffix) = version_suffix {
+            self.result.write_str(" ")?;
+            self.start_group("versionsuffix ")?;
+            self.print_str(version_suffix)?;
+            self.end_group()?;
+        }
+        if let Some(external_id) = external_id {
+            self.result.write_str(" ")?;
+            self.start_group("external-id ")?;
+            self.print_str(external_id)?;
             self.end_group()?;
         }
         Ok(())

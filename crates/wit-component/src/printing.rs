@@ -457,7 +457,15 @@ impl<O: Output> WitPrinter<O> {
         // `docs`); for an inline `import x: interface { .. }` with no statement
         // docs fall back to the interface definition's docs.
         let docs = match item {
-            WorldItem::Interface { id, docs, .. } => {
+            WorldItem::Interface {
+                id,
+                docs,
+                external_id,
+                ..
+            } => {
+                if let Some(id) = external_id {
+                    self.print_external_id(id);
+                }
                 if docs.contents.is_some() {
                     Some(docs)
                 } else if matches!(name, WorldKey::Name(_)) {
@@ -1175,6 +1183,37 @@ impl<O: Output> WitPrinter<O> {
                 }
             }
         }
+    }
+
+    fn print_external_id(&mut self, id: &str) {
+        self.output.keyword("@external-id");
+        self.output.str("(\"");
+        let mut buf = [0; 4];
+        for c in id.chars() {
+            if c.is_ascii_alphanumeric()
+                || c == '-'
+                || c == '_'
+                || c == '.'
+                || c == '/'
+                || c == ':'
+                || c == ' '
+            {
+                self.output.push_str(c.encode_utf8(&mut buf));
+                continue;
+            }
+            match c {
+                '\\' => self.output.push_str("\\\\"),
+                '"' => self.output.push_str("\\\""),
+                '\n' => self.output.push_str("\\n"),
+                '\r' => self.output.push_str("\\r"),
+                '\t' => self.output.push_str("\\t"),
+                _ => {
+                    self.output.push_str(&format!("\\u{{{:x}}}", c as u32));
+                }
+            }
+        }
+        self.output.str("\")");
+        self.output.newline();
     }
 }
 

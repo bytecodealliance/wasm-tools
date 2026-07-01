@@ -72,7 +72,7 @@
   (component
     (import "a" (implements "a:b/c") (func))
   )
-  "only instance names can have an `implements`")
+  "only instances can have an `implements`")
 
 (assert_invalid
   (component
@@ -90,10 +90,63 @@
   "not a valid name")
 (assert_invalid
   (component (type (instance (export "a" (implements "a:b/c") (func)))))
-  "only instance names")
+  "only instances")
 (assert_invalid
   (component
     (instance)
     (instance (export "x" (implements "a") (instance 0)))
   )
   "must be an interface")
+
+;; ---------------------------------- external-id ----------------------------
+
+;; goes on various things
+(component
+  (component
+    (import "a" (external-id "") (instance))
+    (import "b" (external-id "") (instance))
+    (import "c" (external-id "") (instance))
+    (import "a:b/c" (external-id "") (instance))
+
+    (instance $a)
+
+    (export "a" (external-id "") (instance $a))
+    (export "b" (external-id "") (instance $a))
+    (export "c" (external-id "") (instance $a))
+    (export "a:b/c" (external-id "") (instance $a))
+  )
+
+  (type (instance
+    (export "a" (external-id "") (instance))
+  ))
+  (type (component
+    (import "a" (external-id "") (instance))
+    (export "a" (external-id "") (instance))
+  ))
+
+  (instance $a)
+  (instance
+    (export "a" (external-id "") (instance $a))
+  )
+)
+
+;; totally unstructured
+(component
+  (component
+    (import "a" (external-id "") (instance))
+    (import "b" (external-id "hello, general kenobi") (instance))
+    (import "c" (external-id "https://this.is.a/url") (instance))
+    (import "d" (external-id "look\tma\nwhitespace\r\n") (instance))
+    (import "e" (external-id "\00") (instance))
+  )
+)
+
+;; must be utf-8
+(assert_malformed
+  (component quote "(import \"a\" (external-id \"\\ff\") (instance))")
+  "malformed UTF-8 encoding")
+
+;; only on instances
+(assert_invalid
+  (component (import "a" (external-id "") (func)))
+  "only instances")

@@ -691,6 +691,17 @@ impl<'a> InterfaceGenerator<'a> {
                 part.push_str("\n");
             }
 
+            match kind {
+                ItemKind::AnonInterface(_)
+                | ItemKind::Interface(_)
+                | ItemKind::ImplementsInterface(_) => {
+                    if u.arbitrary()? {
+                        part.push_str("@external-id(\"hi\")\n");
+                    }
+                }
+                ItemKind::Func(_) | ItemKind::Type | ItemKind::Use | ItemKind::Include => {}
+            }
+
             if let Some(dir) = direction {
                 part.push_str(match dir {
                     Direction::Import => "import ",

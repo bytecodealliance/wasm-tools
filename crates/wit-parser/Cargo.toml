@@ -34,7 +34,7 @@ wat = { workspace = true, optional = true, features = ['component-model'] }
 default = ['std', 'serde', 'decoding']
 
 # Enables use of std::path::Path and filesystem-related APIs.
-std = []
+std = ['semver/std']
 
 # Enables support for `derive(Serialize, Deserialize)` on many structures, such
 # as `Resolve`, which can assist when encoding `Resolve` as JSON for example.
