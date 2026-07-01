@@ -1172,13 +1172,8 @@ impl Printer<'_, '_> {
                         me.end_group()
                     })?;
                 }
-                CanonicalFunction::ThreadSuspendToSuspended { cancellable } => {
-                    self.print_intrinsic(state, "canon thread.suspend-to-suspended", &|me, _| {
-                        if cancellable {
-                            me.result.write_str(" cancellable")?;
-                        }
-                        Ok(())
-                    })?;
+                CanonicalFunction::ThreadResumeLater => {
+                    self.print_intrinsic(state, "canon thread.resume-later", &|_, _| Ok(()))?;
                 }
                 CanonicalFunction::ThreadSuspend { cancellable } => {
                     self.print_intrinsic(state, "canon thread.suspend", &|me, _| {
@@ -1188,19 +1183,32 @@ impl Printer<'_, '_> {
                         Ok(())
                     })?;
                 }
-                CanonicalFunction::ThreadSuspendTo { cancellable } => {
-                    self.print_intrinsic(state, "canon thread.suspend-to", &|me, _| {
+                CanonicalFunction::ThreadSuspendThenResume { cancellable } => {
+                    self.print_intrinsic(state, "canon thread.suspend-then-resume", &|me, _| {
                         if cancellable {
                             me.result.write_str(" cancellable")?;
                         }
                         Ok(())
                     })?;
                 }
-                CanonicalFunction::ThreadUnsuspend => {
-                    self.print_intrinsic(state, "canon thread.unsuspend", &|_, _| Ok(()))?;
+                CanonicalFunction::ThreadYieldThenResume { cancellable } => {
+                    self.print_intrinsic(state, "canon thread.yield-then-resume", &|me, _| {
+                        if cancellable {
+                            me.result.write_str(" cancellable")?;
+                        }
+                        Ok(())
+                    })?;
                 }
-                CanonicalFunction::ThreadYieldToSuspended { cancellable } => {
-                    self.print_intrinsic(state, "canon thread.yield-to-suspended", &|me, _| {
+                CanonicalFunction::ThreadSuspendThenPromote { cancellable } => {
+                    self.print_intrinsic(state, "canon thread.suspend-then-promote", &|me, _| {
+                        if cancellable {
+                            me.result.write_str(" cancellable")?;
+                        }
+                        Ok(())
+                    })?;
+                }
+                CanonicalFunction::ThreadYieldThenPromote { cancellable } => {
+                    self.print_intrinsic(state, "canon thread.yield-then-promote", &|me, _| {
                         if cancellable {
                             me.result.write_str(" cancellable")?;
                         }

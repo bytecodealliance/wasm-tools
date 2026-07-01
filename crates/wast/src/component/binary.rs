@@ -396,10 +396,6 @@ impl<'a> Encoder<'a> {
                     self.core_func_names.push(name);
                     self.funcs.context_set((*ty).into(), *i);
                 }
-                CoreFuncKind::ThreadYield(info) => {
-                    self.core_func_names.push(name);
-                    self.funcs.thread_yield(info.cancellable);
-                }
                 CoreFuncKind::SubtaskDrop => {
                     self.core_func_names.push(name);
                     self.funcs.subtask_drop();
@@ -513,25 +509,33 @@ impl<'a> Encoder<'a> {
                     self.funcs
                         .thread_new_indirect(info.ty.into(), info.table.idx.into());
                 }
-                CoreFuncKind::ThreadSuspendToSuspended(info) => {
+                CoreFuncKind::ThreadResumeLater => {
                     self.core_func_names.push(name);
-                    self.funcs.thread_suspend_to_suspended(info.cancellable);
+                    self.funcs.thread_resume_later();
                 }
                 CoreFuncKind::ThreadSuspend(info) => {
                     self.core_func_names.push(name);
                     self.funcs.thread_suspend(info.cancellable);
                 }
-                CoreFuncKind::ThreadSuspendTo(info) => {
+                CoreFuncKind::ThreadYield(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.thread_suspend_to(info.cancellable);
+                    self.funcs.thread_yield(info.cancellable);
                 }
-                CoreFuncKind::ThreadUnsuspend => {
+                CoreFuncKind::ThreadSuspendThenResume(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.thread_unsuspend();
+                    self.funcs.thread_suspend_then_resume(info.cancellable);
                 }
-                CoreFuncKind::ThreadYieldToSuspended(info) => {
+                CoreFuncKind::ThreadYieldThenResume(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.thread_yield_to_suspended(info.cancellable);
+                    self.funcs.thread_yield_then_resume(info.cancellable);
+                }
+                CoreFuncKind::ThreadSuspendThenPromote(info) => {
+                    self.core_func_names.push(name);
+                    self.funcs.thread_suspend_then_promote(info.cancellable);
+                }
+                CoreFuncKind::ThreadYieldThenPromote(info) => {
+                    self.core_func_names.push(name);
+                    self.funcs.thread_yield_then_promote(info.cancellable);
                 }
             },
         }

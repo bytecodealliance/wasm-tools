@@ -1,11 +1,11 @@
 (component
   (core module $m (;0;)
-    (type (;0;) (func (param i32) (result i32)))
-    (import "" "thread.suspend-to-suspended" (func $thread.suspend-to-suspended (;0;) (type 0)))
+    (type (;0;) (func (param i32)))
+    (import "" "thread.resume-later" (func $thread.resume-later (;0;) (type 0)))
   )
-  (core func $thread.suspend-to-suspended (;0;) (canon thread.suspend-to-suspended cancellable))
+  (core func $thread.resume-later (;0;) (canon thread.resume-later))
   (core instance (;0;)
-    (export "thread.suspend-to-suspended" (func $thread.suspend-to-suspended))
+    (export "thread.resume-later" (func $thread.resume-later))
   )
   (core instance $i (;1;) (instantiate $m
       (with "" (instance 0))

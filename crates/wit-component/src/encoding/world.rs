@@ -428,7 +428,6 @@ impl<'a> ComponentWorld<'a> {
                 | Import::WaitableSetPoll { .. }
                 | Import::WaitableSetDrop
                 | Import::WaitableJoin
-                | Import::ThreadYield { .. }
                 | Import::SubtaskDrop
                 | Import::SubtaskCancel { .. }
                 | Import::ErrorContextNew { .. }
@@ -437,11 +436,13 @@ impl<'a> ComponentWorld<'a> {
                 | Import::ExportedTaskCancel
                 | Import::ThreadIndex
                 | Import::ThreadNewIndirect { .. }
-                | Import::ThreadSuspendToSuspended { .. }
+                | Import::ThreadResumeLater
                 | Import::ThreadSuspend { .. }
-                | Import::ThreadSuspendTo { .. }
-                | Import::ThreadUnsuspend
-                | Import::ThreadYieldToSuspended { .. } => {}
+                | Import::ThreadYield { .. }
+                | Import::ThreadSuspendThenResume { .. }
+                | Import::ThreadYieldThenResume { .. }
+                | Import::ThreadSuspendThenPromote { .. }
+                | Import::ThreadYieldThenPromote { .. } => {}
             }
         }
     }
