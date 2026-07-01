@@ -3,7 +3,7 @@
 (component
   (core module $m
     (memory (export "m") i64 1)
-    (func (export "f") (result i32) unreachable)
+    (func (export "f") (result i64) unreachable)
     (func (export "realloc") (param i64 i64 i64 i64) (result i64) unreachable)
   )
   (core instance $i (instantiate $m))

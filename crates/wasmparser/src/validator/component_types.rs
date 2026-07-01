@@ -1250,7 +1250,7 @@ impl ComponentFuncType {
                 // Function will have a single pointer parameter to pass the arguments
                 // via linear memory
                 sig.params.clear();
-                assert!(sig.params.try_push(ValType::I32));
+                assert!(sig.params.try_push(ptr_size.core_type()));
                 options.require_memory(offset)?;
 
                 // We need realloc as well when lifting a function
@@ -1281,10 +1281,10 @@ impl ComponentFuncType {
                         match abi {
                             Abi::Lower => {
                                 sig.params.max = MAX_LOWERED_TYPES;
-                                assert!(sig.params.try_push(ValType::I32));
+                                assert!(sig.params.try_push(ptr_size.core_type()));
                             }
                             Abi::Lift => {
-                                assert!(sig.results.try_push(ValType::I32));
+                                assert!(sig.results.try_push(ptr_size.core_type()));
                             }
                         }
                     }
