@@ -476,8 +476,6 @@ impl<'a> Parse<'a> for CanonResourceNew<'a> {
 pub struct CanonResourceDrop<'a> {
     /// The resource type that this intrinsic is dropping.
     pub ty: Index<'a>,
-    /// Whether or not this function is async
-    pub async_: bool,
 }
 
 impl<'a> Parse<'a> for CanonResourceDrop<'a> {
@@ -486,7 +484,6 @@ impl<'a> Parse<'a> for CanonResourceDrop<'a> {
 
         Ok(Self {
             ty: parser.parse()?,
-            async_: parser.parse::<Option<kw::r#async>>()?.is_some(),
         })
     }
 }

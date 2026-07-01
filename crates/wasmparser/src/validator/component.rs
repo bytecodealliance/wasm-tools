@@ -1218,9 +1218,6 @@ impl ComponentState {
             CanonicalFunction::ResourceDrop { resource } => {
                 self.resource_drop(resource, types, offset)
             }
-            CanonicalFunction::ResourceDropAsync { resource } => {
-                self.resource_drop_async(resource, types, offset)
-            }
             CanonicalFunction::ResourceRep { resource } => {
                 self.resource_rep(resource, types, offset)
             }
@@ -1414,23 +1411,6 @@ impl ComponentState {
     }
 
     fn resource_drop(&mut self, resource: u32, types: &mut TypeAlloc, offset: usize) -> Result<()> {
-        self.resource_at(resource, types, offset)?;
-        let id = types.intern_func_type(FuncType::new([ValType::I32], []), offset);
-        self.core_funcs.push(id);
-        Ok(())
-    }
-
-    fn resource_drop_async(
-        &mut self,
-        resource: u32,
-        types: &mut TypeAlloc,
-        offset: usize,
-    ) -> Result<()> {
-        require_feature::cm_more_async_builtins(
-            self.features,
-            "`resource.drop` as `async` requires the component model more async builtins feature",
-            offset,
-        )?;
         self.resource_at(resource, types, offset)?;
         let id = types.intern_func_type(FuncType::new([ValType::I32], []), offset);
         self.core_funcs.push(id);

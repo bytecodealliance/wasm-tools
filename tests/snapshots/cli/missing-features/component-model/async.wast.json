@@ -206,15 +206,8 @@
     },
     {
       "type": "assert_invalid",
-      "line": 351,
+      "line": 353,
       "filename": "async.29.wasm",
-      "module_type": "binary",
-      "text": "requires the component model more async builtins feature"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 360,
-      "filename": "async.30.wasm",
       "module_type": "binary",
       "text": "async component functions require the component model async feature"
     }

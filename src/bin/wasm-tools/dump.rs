@@ -461,7 +461,6 @@ impl<'a> Dump<'a> {
                             CanonicalFunction::Lower { .. }
                             | CanonicalFunction::ResourceNew { .. }
                             | CanonicalFunction::ResourceDrop { .. }
-                            | CanonicalFunction::ResourceDropAsync { .. }
                             | CanonicalFunction::ResourceRep { .. }
                             | CanonicalFunction::ThreadSpawnRef { .. }
                             | CanonicalFunction::ThreadSpawnIndirect { .. }

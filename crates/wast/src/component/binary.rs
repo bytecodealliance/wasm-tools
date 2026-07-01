@@ -348,11 +348,7 @@ impl<'a> Encoder<'a> {
                 }
                 CoreFuncKind::ResourceDrop(info) => {
                     self.core_func_names.push(name);
-                    if info.async_ {
-                        self.funcs.resource_drop_async(info.ty.into());
-                    } else {
-                        self.funcs.resource_drop(info.ty.into());
-                    }
+                    self.funcs.resource_drop(info.ty.into());
                 }
                 CoreFuncKind::ResourceRep(info) => {
                     self.core_func_names.push(name);

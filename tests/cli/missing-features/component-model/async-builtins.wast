@@ -32,16 +32,6 @@
   (core func (canon stream.cancel-write $s))
 )
 
-;; async resource.drop
-(assert_invalid
-  (component
-    (type $t (resource (rep i32)))
-    (core func (canon resource.drop $t async)))
-  "requires the component model more async builtins feature")
-(component
-  (type $t (resource (rep i32)))
-  (core func (canon resource.drop $t)))
-
 (assert_invalid
   (component
     (type $t (stream))
