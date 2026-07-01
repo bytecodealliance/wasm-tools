@@ -934,12 +934,6 @@ impl Printer<'_, '_> {
                         me.print_idx(&state.component.type_names, resource)
                     })?;
                 }
-                CanonicalFunction::ResourceDropAsync { resource } => {
-                    self.print_intrinsic(state, "canon resource.drop ", &|me, state| {
-                        me.print_idx(&state.component.type_names, resource)?;
-                        me.print_type_keyword(" async")
-                    })?;
-                }
                 CanonicalFunction::ResourceRep { resource } => {
                     self.print_intrinsic(state, "canon resource.rep ", &|me, state| {
                         me.print_idx(&state.component.type_names, resource)

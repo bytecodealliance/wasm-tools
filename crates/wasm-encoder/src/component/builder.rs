@@ -454,12 +454,6 @@ impl ComponentBuilder {
         self.core_funcs.add(Some("resource.drop"))
     }
 
-    /// Declares a new `resource.drop` intrinsic.
-    pub fn resource_drop_async(&mut self, ty: u32) -> u32 {
-        self.canonical_functions().resource_drop_async(ty);
-        self.core_funcs.add(Some("resource.drop async"))
-    }
-
     /// Declares a new `resource.new` intrinsic.
     pub fn resource_new(&mut self, ty: u32) -> u32 {
         self.canonical_functions().resource_new(ty);

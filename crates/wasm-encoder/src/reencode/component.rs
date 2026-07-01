@@ -957,10 +957,6 @@ pub mod component_utils {
                 let resource = reencoder.component_type_index(resource);
                 section.resource_drop(resource);
             }
-            wasmparser::CanonicalFunction::ResourceDropAsync { resource } => {
-                let resource = reencoder.component_type_index(resource);
-                section.resource_drop_async(resource);
-            }
             wasmparser::CanonicalFunction::ResourceRep { resource } => {
                 let resource = reencoder.component_type_index(resource);
                 section.resource_rep(resource);

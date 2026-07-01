@@ -64,11 +64,6 @@ pub enum CanonicalFunction {
         /// The type index of the resource that's being dropped.
         resource: u32,
     },
-    /// Same as `ResourceDrop`, but implements the `async` ABI.
-    ResourceDropAsync {
-        /// The type index of the resource that's being dropped.
-        resource: u32,
-    },
     /// A function which returns the underlying i32-based representation of the
     /// specified resource.
     ResourceRep {
@@ -338,9 +333,6 @@ impl<'a> FromReader<'a> for CanonicalFunction {
                 resource: reader.read()?,
             },
             0x03 => CanonicalFunction::ResourceDrop {
-                resource: reader.read()?,
-            },
-            0x07 => CanonicalFunction::ResourceDropAsync {
                 resource: reader.read()?,
             },
             0x04 => CanonicalFunction::ResourceRep {

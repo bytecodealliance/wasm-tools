@@ -35,33 +35,33 @@
     },
     {
       "type": "module",
-      "line": 60,
+      "line": 55,
       "filename": "async-builtins.5.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 71,
+      "line": 66,
       "filename": "async-builtins.6.wasm",
       "module_type": "binary",
       "text": "type mismatch for export `future.cancel-read` of module instantiation argument ``"
     },
     {
       "type": "module",
-      "line": 83,
+      "line": 78,
       "filename": "async-builtins.7.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 94,
+      "line": 89,
       "filename": "async-builtins.8.wasm",
       "module_type": "binary",
       "text": "type mismatch for export `future.cancel-write` of module instantiation argument ``"
     },
     {
       "type": "module",
-      "line": 106,
+      "line": 101,
       "filename": "async-builtins.9.wasm",
       "module_type": "binary"
     }
