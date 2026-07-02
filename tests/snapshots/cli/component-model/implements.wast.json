@@ -54,7 +54,7 @@
       "line": 72,
       "filename": "implements.7.wasm",
       "module_type": "binary",
-      "text": "only instance names can have an `implements`"
+      "text": "only instances can have an `implements`"
     },
     {
       "type": "assert_invalid",
@@ -82,7 +82,7 @@
       "line": 92,
       "filename": "implements.11.wasm",
       "module_type": "binary",
-      "text": "only instance names"
+      "text": "only instances"
     },
     {
       "type": "assert_invalid",
@@ -90,6 +90,32 @@
       "filename": "implements.12.wasm",
       "module_type": "binary",
       "text": "must be an interface"
+    },
+    {
+      "type": "module",
+      "line": 104,
+      "filename": "implements.13.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 134,
+      "filename": "implements.14.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 146,
+      "filename": "implements.15.wat",
+      "module_type": "text",
+      "text": "malformed UTF-8 encoding"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 151,
+      "filename": "implements.16.wasm",
+      "module_type": "binary",
+      "text": "only instances"
     }
   ]
 }

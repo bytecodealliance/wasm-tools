@@ -4654,15 +4654,17 @@ impl ComponentNameContext {
         info: &mut TypeInfo,
         features: &WasmFeatures,
     ) -> Result<()> {
+        let ComponentExternName {
+            name,
+            implements,
+            external_id,
+            version_suffix,
+        } = *name;
         // First validate that `name` is even a valid kebab name, meaning it's
         // in kebab-case, is an ID, etc.
         let kebab =
-            ComponentName::new_with_features(name.name, offset, *features).with_context(|| {
-                format!(
-                    "{} name `{}` is not a valid extern name",
-                    kind.desc(),
-                    name.name
-                )
+            ComponentName::new_with_features(name, offset, *features).with_context(|| {
+                format!("{} name `{name}` is not a valid extern name", kind.desc(),)
             })?;
 
         if let ExternKind::Export = kind {
@@ -4676,12 +4678,12 @@ impl ComponentNameContext {
                 ComponentNameKind::Hash(_)
                 | ComponentNameKind::Url(_)
                 | ComponentNameKind::Dependency(_) => {
-                    bail!(offset, "name `{}` is not a valid export name", name.name)
+                    bail!(offset, "name `{name}` is not a valid export name")
                 }
             }
         }
 
-        if let Some(implements) = name.implements {
+        if let Some(implements) = implements {
             require_feature::cm_implements(
                 *features,
                 "the `cm-implements` feature is not active",
@@ -4689,16 +4691,12 @@ impl ComponentNameContext {
             )?;
             match kebab.kind() {
                 ComponentNameKind::Label(_) => {}
-                _ => bail!(
-                    offset,
-                    "name `{}` is not valid with `implements`",
-                    name.name
-                ),
+                _ => bail!(offset, "name `{name}` is not valid with `implements`",),
             }
 
             match ty {
                 ComponentEntityType::Instance(_) => {}
-                _ => bail!(offset, "only instance names can have an `implements`"),
+                _ => bail!(offset, "only instances can have an `implements`"),
             }
 
             let implements = ComponentName::new_with_features(implements, offset, *features)
@@ -4709,9 +4707,33 @@ impl ComponentNameContext {
             }
         }
 
+        if let Some(_) = version_suffix {
+            require_feature::cm_canon_names(
+                *features,
+                "the `cm-canon-names` feature is not active",
+                offset,
+            )?;
+            match ty {
+                ComponentEntityType::Instance(_) => {}
+                _ => bail!(offset, "only instances can have an `versionsuffix`"),
+            }
+        }
+
+        if let Some(_) = external_id {
+            require_feature::cm_implements(
+                *features,
+                "the `cm-implements` feature is not active",
+                offset,
+            )?;
+            match ty {
+                ComponentEntityType::Instance(_) => {}
+                _ => bail!(offset, "only instances can have an `external-id`"),
+            }
+        }
+
         // Validate that the kebab name, if it has structure such as
         // `[method]a.b`, is indeed valid with respect to known resources.
-        self.validate(&kebab, ty, types, offset)
+        self.validate(&kebab, version_suffix, ty, types, offset)
             .with_context(|| format!("{} name `{kebab}` is not valid", kind.desc()))?;
 
         // Top-level kebab-names must all be unique, even between both imports
@@ -4728,12 +4750,11 @@ impl ComponentNameContext {
         // Otherwise all strings must be unique, regardless of their name, so
         // consult the `items` set to ensure that we're not for example
         // importing the same interface ID twice.
-        match items.entry(name.name.to_string()) {
+        match items.entry(name.to_string()) {
             Entry::Occupied(e) => {
                 bail!(
                     offset,
                     "{kind} name `{name}` conflicts with previous name `{prev}`",
-                    name = name.name,
                     kind = kind.desc(),
                     prev = e.key(),
                 );
@@ -4741,7 +4762,9 @@ impl ComponentNameContext {
             Entry::Vacant(e) => {
                 e.insert(ComponentItem {
                     ty: *ty,
-                    implements: name.implements.map(|s| s.to_string()),
+                    implements: implements.map(|s| s.to_string()),
+                    version_suffix: version_suffix.map(|s| s.to_string()),
+                    external_id: external_id.map(|s| s.to_string()),
                 });
                 info.combine(ty.info(types), offset)?;
             }
@@ -4753,6 +4776,7 @@ impl ComponentNameContext {
     fn validate(
         &self,
         name: &ComponentName,
+        version_suffix: Option<&str>,
         ty: &ComponentEntityType,
         types: &TypeAlloc,
         offset: usize,
@@ -4768,10 +4792,17 @@ impl ComponentNameContext {
         match name.kind() {
             // No validation necessary for these styles of names
             ComponentNameKind::Label(_)
-            | ComponentNameKind::Interface(_)
             | ComponentNameKind::Url(_)
-            | ComponentNameKind::Dependency(_)
-            | ComponentNameKind::Hash(_) => {}
+            | ComponentNameKind::Hash(_)
+            | ComponentNameKind::Dependency(_) => {}
+
+            // Validate the `version_suffix` field in the context of interface
+            // names.
+            ComponentNameKind::Interface(name) => {
+                if let Err(e) = name.version(version_suffix) {
+                    bail!(offset, "invalid interface version: {e}");
+                }
+            }
 
             // Constructors must return `(own $resource)` or
             // `(result (own $Tresource))` and the `$resource` must be named

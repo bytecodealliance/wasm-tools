@@ -523,6 +523,8 @@ pub enum WorldItem {
             serde(skip_serializing_if = "Stability::is_unknown")
         )]
         stability: Stability,
+        #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+        external_id: Option<String>,
         /// Documentation attached to the `import`/`export` statement.
         #[cfg_attr(
             feature = "serde",

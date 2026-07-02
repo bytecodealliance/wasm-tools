@@ -565,6 +565,8 @@ impl<'a> EncodingState<'a> {
             wasm_encoder::ComponentExternName {
                 name: name.into(),
                 implements: info.implements.as_deref().map(|s| s.into()),
+                external_id: info.external_id.as_deref().map(|s| s.into()),
+                version_suffix: None,
             },
             ComponentTypeRef::Instance(instance_type_idx),
         );
@@ -950,6 +952,8 @@ impl<'a> EncodingState<'a> {
             wasm_encoder::ComponentExternName {
                 name: export_name.into(),
                 implements: resolve.implements_value(key, item).map(|s| s.into()),
+                external_id: resolve.external_id_value(key, item).map(|s| s.into()),
+                version_suffix: None,
             },
             ComponentExportKind::Instance,
             instance_index,

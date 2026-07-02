@@ -2417,11 +2417,16 @@ impl NameMangling for Legacy {
             _ => bail!("module requires an import interface named `{module}`"),
         };
 
+        // FIXME: this prevents core wasm from importing from `@1` or
+        // `@0.1`, for example. More refactoring will be necessary to enable
+        // that.
+        let version = name.version(None)?;
+
         // Prioritize an exact match based on versions, so try that first.
         let pkgname = PackageName {
             namespace: name.namespace().to_string(),
             name: name.package().to_string(),
-            version: name.version(),
+            version: version.clone(),
         };
         if let Some(pkg) = resolve.package_names.get(&pkgname) {
             if let Some(id) = resolve.packages[*pkg]
@@ -2473,7 +2478,7 @@ impl NameMangling for Legacy {
                 continue;
             }
 
-            let module_version = match name.version() {
+            let module_version = match &version {
                 Some(version) => version,
                 None => continue,
             };

@@ -524,9 +524,19 @@ impl<'a> InterfaceName<'a> {
     }
 
     /// Returns the `1.2.3` in `a:b:c/d/e@1.2.3`
-    pub fn version(&self) -> Option<Version> {
-        let at = self.0.find('@')?;
-        Some(Version::parse(&self.0[at + 1..]).unwrap())
+    pub fn version(&self, suffix: Option<&str>) -> Result<Option<Version>, semver::Error> {
+        let Some(at) = self.0.find('@') else {
+            return Ok(None);
+        };
+        let prefix = &self.0[at + 1..];
+        match suffix {
+            // FIXME: this should perform full validation of the version
+            // suffix/prefix, notably that "prefix" is indeed the "semver track"
+            // that is expected. For example "1.2.3" means that prefix must be
+            // "1", nothing else. This validation is deferred to a future PR.
+            Some(suffix) => Ok(Some(Version::parse(&format!("{prefix}{suffix}"))?)),
+            None => Ok(Some(Version::parse(prefix)?)),
+        }
     }
 }
 
@@ -659,8 +669,8 @@ impl<'a> ComponentNameParser<'a> {
     }
 
     // pkgname ::= <pkgpath> <version>?
-    fn pkg_name(&mut self, require_projection: bool) -> Result<()> {
-        self.pkg_path(require_projection)?;
+    fn pkg_name(&mut self, is_interface_name: bool) -> Result<()> {
+        self.pkg_path(is_interface_name)?;
 
         if self.eat_str("@") {
             let version = match self.eat_up_to('>') {
@@ -668,7 +678,11 @@ impl<'a> ComponentNameParser<'a> {
                 None => self.take_rest(),
             };
 
-            self.semver(version)?;
+            // Validation of the semver of interface names is deferred to full
+            // component validation with access to the `version_suffix` field.
+            if !is_interface_name {
+                self.semver(version)?;
+            }
         }
 
         Ok(())

@@ -123,6 +123,11 @@ impl Runner {
         };
         if env::var_os("BLESS").is_some() {
             let normalized = normalize(&result, extension);
+            if let Ok(prev) = fs::read(&result_file) {
+                if normalized.as_bytes() == prev {
+                    return Ok(());
+                }
+            }
             fs::write(&result_file, normalized)?;
         } else {
             let expected = fs::read_to_string(&result_file).context(format!(

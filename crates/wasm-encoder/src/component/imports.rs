@@ -165,14 +165,33 @@ pub struct ComponentExternName<'a> {
     /// An optional `(implements ...)` directive (See 🏷️ in the component model
     /// explainer).
     pub implements: Option<Cow<'a, str>>,
+    /// An optional `(versionsuffix ...)` directive (See 🔗 in the component
+    /// model explainer).
+    pub version_suffix: Option<Cow<'a, str>>,
+    /// An optional `(external-id ...)` directive (See 🏷️ in the component model
+    /// explainer).
+    pub external_id: Option<Cow<'a, str>>,
 }
 
 impl Encode for ComponentExternName<'_> {
     fn encode(&self, bytes: &mut Vec<u8>) {
         let mut options = Vec::new();
 
-        if let Some(s) = &self.implements {
+        let ComponentExternName {
+            name: _,
+            implements,
+            version_suffix,
+            external_id,
+        } = self;
+
+        if let Some(s) = implements {
             options.push((0x00, s.as_bytes()));
+        }
+        if let Some(s) = version_suffix {
+            options.push((0x01, s.as_bytes()));
+        }
+        if let Some(s) = external_id {
+            options.push((0x02, s.as_bytes()));
         }
 
         if options.is_empty() {
@@ -213,16 +232,15 @@ impl<'a> From<&'a str> for ComponentExternName<'a> {
         ComponentExternName {
             name: Cow::Borrowed(name),
             implements: None,
+            external_id: None,
+            version_suffix: None,
         }
     }
 }
 
 impl<'a> From<&'a String> for ComponentExternName<'a> {
     fn from(name: &'a String) -> Self {
-        ComponentExternName {
-            name: Cow::Borrowed(name),
-            implements: None,
-        }
+        ComponentExternName::from(name.as_str())
     }
 }
 
@@ -231,6 +249,8 @@ impl<'a> From<String> for ComponentExternName<'a> {
         ComponentExternName {
             name: Cow::Owned(name),
             implements: None,
+            external_id: None,
+            version_suffix: None,
         }
     }
 }
@@ -238,10 +258,17 @@ impl<'a> From<String> for ComponentExternName<'a> {
 #[cfg(feature = "wasmparser")]
 impl<'a> From<wasmparser::ComponentExternName<'a>> for ComponentExternName<'a> {
     fn from(name: wasmparser::ComponentExternName<'a>) -> Self {
-        let wasmparser::ComponentExternName { name, implements } = name;
+        let wasmparser::ComponentExternName {
+            name,
+            implements,
+            external_id,
+            version_suffix,
+        } = name;
         ComponentExternName {
             name: name.into(),
             implements: implements.map(|s| s.into()),
+            external_id: external_id.map(|s| s.into()),
+            version_suffix: version_suffix.map(|s| s.into()),
         }
     }
 }
