@@ -775,6 +775,28 @@ impl Error {
             | Error::Wanted { at, .. } => *at,
         }
     }
+
+    pub(crate) fn adjust_position(&mut self, offset: u32) {
+        match self {
+            Error::ControlCodepoint(at, _)
+            | Error::DeprecatedCodepoint(at, _)
+            | Error::ForbiddenCodepoint(at, _)
+            | Error::InvalidCharInId(at, _)
+            | Error::IdPartEmpty(at)
+            | Error::Unexpected(at, _)
+            | Error::UnterminatedComment(at)
+            | Error::InvalidUnicodeValue(at, _)
+            | Error::InvalidStringElement(at, _)
+            | Error::InvalidStringEscape(at, _)
+            | Error::WantedChar(at, _)
+            | Error::UnexpectedEof(at)
+            | Error::InvalidUtf8(at, _)
+            | Error::NumberTooBig(at)
+            | Error::LoneUnderscore(at)
+            | Error::InvalidHexDigit(at, _)
+            | Error::Wanted { at, .. } => *at += offset,
+        }
+    }
 }
 
 impl fmt::Display for Error {

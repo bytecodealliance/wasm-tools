@@ -9,8 +9,6 @@ use crate::abi::AbiVariant;
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
-#[cfg(feature = "std")]
-use anyhow::Context as _;
 use id_arena::{Arena, Id};
 use semver::Version;
 
@@ -125,7 +123,7 @@ pub type TypeId = Id<TypeDef>;
 /// will connect the `foreign_deps` field of this structure to packages
 /// previously inserted within the [`Resolve`]. Embedders are responsible for
 /// performing this resolution themselves.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct UnresolvedPackage {
     /// The namespace, name, and version information for this package.
     pub name: PackageName,
@@ -203,7 +201,7 @@ impl UnresolvedPackage {
 }
 
 /// Tracks a set of packages, all pulled from the same group of WIT source files.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct UnresolvedPackageGroup {
     /// The "main" package in this package group which was found at the root of
     /// the WIT files.
@@ -327,16 +325,18 @@ impl UnresolvedPackageGroup {
     /// The `path` argument is used for error reporting. The `contents` provided
     /// are considered to be the contents of `path`. This function does not read
     /// the filesystem.
+    ///
+    /// On failure the constructed [`SourceMap`] is returned alongside the
+    /// typed [`ParseError`] so the caller can render a snippet via
+    /// [`ParseError::highlight`] or merge the source map elsewhere.
     #[cfg(feature = "std")]
-    pub fn parse(path: impl AsRef<Path>, contents: &str) -> anyhow::Result<UnresolvedPackageGroup> {
-        let path = path
-            .as_ref()
-            .to_str()
-            .ok_or_else(|| anyhow::anyhow!("path is not valid utf-8: {:?}", path.as_ref()))?;
+    pub fn parse(
+        path: impl AsRef<Path>,
+        contents: &str,
+    ) -> Result<UnresolvedPackageGroup, (SourceMap, ParseError)> {
         let mut map = SourceMap::default();
-        map.push_str(path, contents);
+        map.push(path.as_ref(), contents);
         map.parse()
-            .map_err(|(map, e)| anyhow::anyhow!("{}", e.highlight(&map)))
     }
 
     /// Parses a WIT package from the directory provided.
@@ -347,32 +347,12 @@ impl UnresolvedPackageGroup {
     /// files.
     #[cfg(feature = "std")]
     pub fn parse_dir(path: impl AsRef<Path>) -> anyhow::Result<UnresolvedPackageGroup> {
-        let path = path.as_ref();
         let mut map = SourceMap::default();
-        let cx = || format!("failed to read directory {path:?}");
-        for entry in path.read_dir().with_context(&cx)? {
-            let entry = entry.with_context(&cx)?;
-            let path = entry.path();
-            let ty = entry.file_type().with_context(&cx)?;
-            if ty.is_dir() {
-                continue;
-            }
-            if ty.is_symlink() {
-                if path.is_dir() {
-                    continue;
-                }
-            }
-            let filename = match path.file_name().and_then(|s| s.to_str()) {
-                Some(name) => name,
-                None => continue,
-            };
-            if !filename.ends_with(".wit") {
-                continue;
-            }
-            map.push_file(&path)?;
-        }
-        map.parse()
-            .map_err(|(map, e)| anyhow::anyhow!("{}", e.highlight(&map)))
+        map.push_dir(path.as_ref())?;
+        map.parse().map_err(|(map, e)| {
+            let rendered = e.highlight(&map);
+            anyhow::Error::from(e).context(rendered)
+        })
     }
 }
 
