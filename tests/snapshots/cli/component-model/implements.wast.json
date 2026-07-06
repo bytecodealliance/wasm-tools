@@ -99,23 +99,16 @@
     },
     {
       "type": "module",
-      "line": 134,
+      "line": 149,
       "filename": "implements.14.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_malformed",
-      "line": 146,
+      "line": 161,
       "filename": "implements.15.wat",
       "module_type": "text",
       "text": "malformed UTF-8 encoding"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 151,
-      "filename": "implements.16.wasm",
-      "module_type": "binary",
-      "text": "only instances"
     }
   ]
 }

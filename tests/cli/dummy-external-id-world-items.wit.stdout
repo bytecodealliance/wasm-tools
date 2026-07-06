@@ -1,0 +1,11 @@
+package root:component;
+
+world root {
+  @external-id("hi")
+  import name: func() -> s64;
+  import name2: func();
+
+  @external-id("bye")
+  export name3: func();
+  export name4: func();
+}

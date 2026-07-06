@@ -1564,10 +1564,11 @@ impl Resolve {
     /// See the component model explainer and 🏷️ for more information on this feature.
     pub fn external_id_value(&self, key: &WorldKey, item: &WorldItem) -> Option<String> {
         let _ = key;
-        if let WorldItem::Interface { external_id, .. } = item {
-            return external_id.clone();
+        match item {
+            WorldItem::Interface { external_id, .. } => external_id.clone(),
+            WorldItem::Function(f) => f.external_id.clone(),
+            WorldItem::Type { id, .. } => self.types[*id].external_id.clone(),
         }
-        None
     }
 
     /// Returns the interface that `id` uses a type from, if it uses a type from
@@ -3521,6 +3522,7 @@ impl Remap {
                     docs: _,
                     stability: _,
                     span: _,
+                    external_id: _,
                 } => *self.own_handles.entry(id).or_insert(new_id),
 
                 // Everything not-related to `own<T>` doesn't get its ID
@@ -3989,6 +3991,7 @@ impl Remap {
                     docs: Default::default(),
                     stability: Default::default(),
                     span: Default::default(),
+                    external_id: None,
                 })
             });
         }

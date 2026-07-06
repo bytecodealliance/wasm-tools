@@ -136,6 +136,7 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
                     stability: Default::default(),
                     docs: Default::default(),
                     span: Default::default(),
+                    external_id: Default::default(),
                 },
             );
             funcs.insert(
@@ -152,6 +153,7 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
                     stability: Default::default(),
                     docs: Default::default(),
                     span: Default::default(),
+                    external_id: Default::default(),
                 },
             );
             funcs.insert(
@@ -164,6 +166,7 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
                     stability: Default::default(),
                     docs: Default::default(),
                     span: Default::default(),
+                    external_id: Default::default(),
                 },
             );
             funcs
@@ -240,6 +243,7 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
             stability: Default::default(),
             docs: Default::default(),
             span: Default::default(),
+            external_id: Default::default(),
         }),
     );
 
@@ -343,6 +347,7 @@ fn update_resources(resolve: &mut Resolve) {
             docs: Default::default(),
             stability: Default::default(),
             span: Default::default(),
+            external_id: Default::default(),
         });
         let borrow = resolve.types.alloc(TypeDef {
             name: None,
@@ -351,6 +356,7 @@ fn update_resources(resolve: &mut Resolve) {
             docs: Default::default(),
             stability: Default::default(),
             span: Default::default(),
+            external_id: Default::default(),
         });
         let iface = &mut resolve.interfaces[interface_id];
         let ctor = format!("[constructor]{resource_name}");
@@ -372,6 +378,7 @@ fn update_resources(resolve: &mut Resolve) {
                 stability: Default::default(),
                 docs: Default::default(),
                 span: Default::default(),
+                external_id: Default::default(),
             },
         );
         iface.functions.insert(
@@ -388,6 +395,7 @@ fn update_resources(resolve: &mut Resolve) {
                 stability: Default::default(),
                 docs: Default::default(),
                 span: Default::default(),
+                external_id: Default::default(),
             },
         );
     }

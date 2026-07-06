@@ -128,6 +128,21 @@
   (instance
     (export "a" (external-id "") (instance $a))
   )
+
+  ;; works on all types of items, not just instances.
+  (import "i1" (external-id "") (func))
+  (import "i2" (external-id "") (component))
+  (import "i3" (external-id "") (type (sub resource)))
+  (import "i4" (external-id "") (core module))
+
+  ;; works within instances too
+  (import "i5" (instance
+    (export "i1" (external-id "") (func))
+    (export "i2" (external-id "") (component))
+    (export "i3" (external-id "") (type (sub resource)))
+    (export "i4" (external-id "") (core module))
+    (export "i5" (external-id "") (instance))
+  ))
 )
 
 ;; totally unstructured
@@ -145,8 +160,3 @@
 (assert_malformed
   (component quote "(import \"a\" (external-id \"\\ff\") (instance))")
   "malformed UTF-8 encoding")
-
-;; only on instances
-(assert_invalid
-  (component (import "a" (external-id "") (func)))
-  "only instances")

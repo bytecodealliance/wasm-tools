@@ -1,0 +1,27 @@
+// RUN: component embed % --dummy-names legacy | \
+//        component new | \
+//        component wit
+
+package x:name;
+
+interface i {
+  @external-id("nested type")
+  type t = u32;
+
+  @external-id("nested resource")
+  resource res {
+    @external-id("nested constructor")
+    constructor();
+
+    @external-id("nested method")
+    m: func();
+  }
+
+  @external-id("nested func")
+  f: func() -> t;
+}
+
+world w {
+  import i;
+  export i;
+}
