@@ -126,20 +126,13 @@ fn push_file_parse_error_is_downcastable() {
 
 #[test]
 fn parse_dir_parse_error_is_downcastable() {
-    let dir = std::env::temp_dir().join("wit-parser-downcast-parse-dir");
-    std::fs::create_dir_all(&dir).unwrap();
-    std::fs::write(
-        dir.join("bad.wit"),
-        "package foo:foo;\nworld w { not-a-keyword }",
-    )
-    .unwrap();
-    let err = UnresolvedPackageGroup::parse_dir(&dir).expect_err("expected parse to fail");
-    let _ = std::fs::remove_dir_all(&dir);
+    let err = UnresolvedPackageGroup::parse_dir("tests/ui/parse-fail/multi-file-missing-delimiter")
+        .expect_err("expected parse to fail");
     parse_error_in_chain(&err);
     // The source map is discarded on failure, but the rendered location must
     // be preserved in the error's message.
     assert!(
-        format!("{err}").contains("bad.wit:2:"),
+        format!("{err}").contains("observe.wit:6:"),
         "expected rendered location in Display, got:\n{err}"
     );
 }
