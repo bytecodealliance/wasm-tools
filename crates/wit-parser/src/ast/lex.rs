@@ -783,10 +783,18 @@ impl Error {
             | Error::ForbiddenCodepoint(at, _)
             | Error::InvalidCharInId(at, _)
             | Error::IdPartEmpty(at)
-            | Error::InvalidEscape(at, _)
             | Error::Unexpected(at, _)
-            | Error::UnterminatedComment(at) => *at += offset,
-            Error::Wanted { at, .. } => *at += offset,
+            | Error::UnterminatedComment(at)
+            | Error::InvalidUnicodeValue(at, _)
+            | Error::InvalidStringElement(at, _)
+            | Error::InvalidStringEscape(at, _)
+            | Error::WantedChar(at, _)
+            | Error::UnexpectedEof(at)
+            | Error::InvalidUtf8(at, _)
+            | Error::NumberTooBig(at)
+            | Error::LoneUnderscore(at)
+            | Error::InvalidHexDigit(at, _)
+            | Error::Wanted { at, .. } => *at += offset,
         }
     }
 }
