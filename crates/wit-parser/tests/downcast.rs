@@ -88,10 +88,16 @@ fn push_str_parse_error_is_downcastable() {
 fn parse_error_spans_are_adjusted_after_earlier_pushes() {
     let mut resolve = Resolve::new();
     resolve
-        .push_str("first.wit", "package foo:first;\n\ninterface i {\n    f: func();\n}\n")
+        .push_str(
+            "first.wit",
+            "package foo:first;\n\ninterface i {\n    f: func();\n}\n",
+        )
         .expect("first package should parse");
     let err = resolve
-        .push_str("second.wit", "package foo:second;\nworld w { not-a-keyword }")
+        .push_str(
+            "second.wit",
+            "package foo:second;\nworld w { not-a-keyword }",
+        )
         .expect_err("expected parse to fail");
     let pe = parse_error_in_chain(&err);
     // The failing package's sources land at a nonzero offset in
