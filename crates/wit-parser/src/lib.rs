@@ -345,14 +345,6 @@ impl UnresolvedPackageGroup {
     /// `*.wit` files are parsed and assumed to be part of the same package
     /// grouping. This is useful when a WIT package is split across multiple
     /// files.
-    ///
-    /// This is a convenience method which mixes I/O and parse errors into an
-    /// [`anyhow::Error`]. On parse failure the chain still contains a
-    /// downcastable [`ParseError`] and the error's message preserves the
-    /// rendered file/line/column snippet, but the [`SourceMap`] used for
-    /// parsing is discarded, so the error's spans cannot be resolved by the
-    /// caller. To keep the source map on failure, use [`SourceMap::push_dir`]
-    /// followed by [`SourceMap::parse`].
     #[cfg(feature = "std")]
     pub fn parse_dir(path: impl AsRef<Path>) -> anyhow::Result<UnresolvedPackageGroup> {
         let mut map = SourceMap::default();
