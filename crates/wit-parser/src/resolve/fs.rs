@@ -141,28 +141,7 @@ impl Resolve {
     /// failure-path semantics.
     fn parse_dir(&mut self, path: &Path) -> Result<UnresolvedPackageGroup> {
         let mut map = SourceMap::default();
-        let cx = || format!("failed to read directory {path:?}");
-        for entry in path.read_dir().with_context(&cx)? {
-            let entry = entry.with_context(&cx)?;
-            let entry_path = entry.path();
-            let ty = entry.file_type().with_context(&cx)?;
-            if ty.is_dir() {
-                continue;
-            }
-            if ty.is_symlink() {
-                if entry_path.is_dir() {
-                    continue;
-                }
-            }
-            let filename = match entry_path.file_name().and_then(|s| s.to_str()) {
-                Some(name) => name,
-                None => continue,
-            };
-            if !filename.ends_with(".wit") {
-                continue;
-            }
-            map.push_file(&entry_path)?;
-        }
+        map.push_dir(path)?;
         self.parse_source_map(map)
     }
 

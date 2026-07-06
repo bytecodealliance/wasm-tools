@@ -1,7 +1,10 @@
 //! Verifies that `ResolveError` and `ParseError` are downcastable from the
-//! `anyhow::Error` returned by `Resolve`'s public `push_*` methods.
+//! `anyhow::Error` returned by `Resolve`'s public `push_*` methods and
+//! `UnresolvedPackageGroup::parse_dir`.
 
-use wit_parser::{ParseError, ParseErrorKind, Resolve, ResolveError, ResolveErrorKind};
+use wit_parser::{
+    ParseError, ParseErrorKind, Resolve, ResolveError, ResolveErrorKind, UnresolvedPackageGroup,
+};
 
 fn outer_resolve_error(err: &anyhow::Error) -> &ResolveError {
     err.downcast_ref::<ResolveError>()
@@ -88,4 +91,24 @@ fn push_file_parse_error_is_downcastable() {
         .push_file("tests/ui/parse-fail/bad-function.wit")
         .expect_err("expected parse to fail");
     parse_error_in_chain(&err);
+}
+
+#[test]
+fn parse_dir_parse_error_is_downcastable() {
+    let dir = std::env::temp_dir().join("wit-parser-downcast-parse-dir");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("bad.wit"),
+        "package foo:foo;\nworld w { not-a-keyword }",
+    )
+    .unwrap();
+    let err = UnresolvedPackageGroup::parse_dir(&dir).expect_err("expected parse to fail");
+    let _ = std::fs::remove_dir_all(&dir);
+    parse_error_in_chain(&err);
+    // The source map is discarded on failure, but the rendered location must
+    // be preserved in the error's message.
+    assert!(
+        format!("{err}").contains("bad.wit:2:"),
+        "expected rendered location in Display, got:\n{err}"
+    );
 }

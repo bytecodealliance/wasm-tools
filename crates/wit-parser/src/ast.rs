@@ -1759,6 +1759,39 @@ impl SourceMap {
         Ok(())
     }
 
+    /// Reads all `*.wit` files in the directory `path` (non-recursively) and
+    /// appends their contents to this [`SourceMap`].
+    ///
+    /// Subdirectories, non-`*.wit` files, and symlinks to directories are
+    /// ignored. Note that a `deps` subdirectory is not probed here; that is
+    /// handled by [`crate::Resolve::push_dir`].
+    #[cfg(feature = "std")]
+    pub fn push_dir(&mut self, path: &Path) -> anyhow::Result<()> {
+        let cx = || format!("failed to read directory {path:?}");
+        for entry in path.read_dir().with_context(&cx)? {
+            let entry = entry.with_context(&cx)?;
+            let entry_path = entry.path();
+            let ty = entry.file_type().with_context(&cx)?;
+            if ty.is_dir() {
+                continue;
+            }
+            if ty.is_symlink() {
+                if entry_path.is_dir() {
+                    continue;
+                }
+            }
+            let filename = match entry_path.file_name().and_then(|s| s.to_str()) {
+                Some(name) => name,
+                None => continue,
+            };
+            if !filename.ends_with(".wit") {
+                continue;
+            }
+            self.push_file(&entry_path)?;
+        }
+        Ok(())
+    }
+
     /// Appends the given contents with the given path into this source map.
     ///
     /// The `path` provided is not read from the filesystem and is instead only

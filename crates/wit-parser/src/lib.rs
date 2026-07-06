@@ -123,7 +123,7 @@ pub type TypeId = Id<TypeDef>;
 /// will connect the `foreign_deps` field of this structure to packages
 /// previously inserted within the [`Resolve`]. Embedders are responsible for
 /// performing this resolution themselves.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct UnresolvedPackage {
     /// The namespace, name, and version information for this package.
     pub name: PackageName,
@@ -201,7 +201,7 @@ impl UnresolvedPackage {
 }
 
 /// Tracks a set of packages, all pulled from the same group of WIT source files.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct UnresolvedPackageGroup {
     /// The "main" package in this package group which was found at the root of
     /// the WIT files.
@@ -337,6 +337,30 @@ impl UnresolvedPackageGroup {
         let mut map = SourceMap::default();
         map.push(path.as_ref(), contents);
         map.parse()
+    }
+
+    /// Parses a WIT package from the directory provided.
+    ///
+    /// This method will look at all files under the `path` specified. All
+    /// `*.wit` files are parsed and assumed to be part of the same package
+    /// grouping. This is useful when a WIT package is split across multiple
+    /// files.
+    ///
+    /// This is a convenience method which mixes I/O and parse errors into an
+    /// [`anyhow::Error`]. On parse failure the chain still contains a
+    /// downcastable [`ParseError`] and the error's message preserves the
+    /// rendered file/line/column snippet, but the [`SourceMap`] used for
+    /// parsing is discarded, so the error's spans cannot be resolved by the
+    /// caller. To keep the source map on failure, use [`SourceMap::push_dir`]
+    /// followed by [`SourceMap::parse`].
+    #[cfg(feature = "std")]
+    pub fn parse_dir(path: impl AsRef<Path>) -> anyhow::Result<UnresolvedPackageGroup> {
+        let mut map = SourceMap::default();
+        map.push_dir(path.as_ref())?;
+        map.parse().map_err(|(map, e)| {
+            let rendered = e.highlight(&map);
+            anyhow::Error::from(e).context(rendered)
+        })
     }
 }
 
