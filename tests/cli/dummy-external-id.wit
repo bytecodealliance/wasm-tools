@@ -1,0 +1,14 @@
+// RUN: component embed % --dummy-names legacy | \
+//        component new | \
+//        validate -f cm-implements
+
+package x:name;
+
+interface i {
+  x: func();
+}
+
+world w {
+  @external-id("hi")
+  import i;
+}

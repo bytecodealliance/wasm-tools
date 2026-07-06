@@ -87,7 +87,9 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
                 WorldItem::Interface {
                     id: *id,
                     stability: Default::default(),
+                    docs: Default::default(),
                     span: Default::default(),
+                    external_id: Default::default(),
                 },
             )
         })
@@ -200,7 +202,9 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
         WorldItem::Interface {
             id: alloc,
             stability: Default::default(),
+            docs: Default::default(),
             span: Default::default(),
+            external_id: Default::default(),
         },
     );
     resolve.worlds[caller].imports.insert(
@@ -208,7 +212,9 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
         WorldItem::Interface {
             id: alloc,
             stability: Default::default(),
+            docs: Default::default(),
             span: Default::default(),
+            external_id: Default::default(),
         },
     );
 

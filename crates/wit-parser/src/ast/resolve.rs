@@ -755,29 +755,40 @@ impl<'a> Resolver<'a> {
                 self.resolve_interface(id, items, docs, attrs)?;
                 self.type_lookup = prev;
                 let stability = self.interfaces[id].stability.clone();
+                let external_id = self.external_id(attrs)?;
                 Ok(WorldItem::Interface {
                     id,
                     stability,
+                    docs: Default::default(),
                     span: name.span,
+                    external_id,
                 })
             }
             ast::ExternKind::Path(path) => {
                 let stability = self.stability(attrs)?;
+                let external_id = self.external_id(attrs)?;
+                let docs = self.docs(docs);
                 let (item, name, item_span) = self.resolve_ast_item_path(path)?;
                 let id = self.extract_iface_from_item(&item, &name, item_span)?;
                 Ok(WorldItem::Interface {
                     id,
                     stability,
+                    external_id,
+                    docs,
                     span: item_span,
                 })
             }
             ast::ExternKind::NamedPath(name, path) => {
                 let stability = self.stability(attrs)?;
+                let external_id = self.external_id(attrs)?;
+                let docs = self.docs(docs);
                 let (item, iface_name, item_span) = self.resolve_ast_item_path(path)?;
                 let id = self.extract_iface_from_item(&item, &iface_name, item_span)?;
                 Ok(WorldItem::Interface {
                     id,
                     stability,
+                    external_id,
+                    docs,
                     span: name.span,
                 })
             }
@@ -1587,61 +1598,84 @@ impl<'a> Resolver<'a> {
     }
 
     fn stability(&mut self, attrs: &[ast::Attribute<'_>]) -> ParseResult<Stability> {
-        match attrs {
-            [] => Ok(Stability::Unknown),
-
-            [ast::Attribute::Since { version, .. }] => Ok(Stability::Stable {
-                since: version.clone(),
-                deprecated: None,
-            }),
-
-            [
-                ast::Attribute::Since { version, .. },
-                ast::Attribute::Deprecated {
-                    version: deprecated,
-                    ..
-                },
-            ]
-            | [
-                ast::Attribute::Deprecated {
-                    version: deprecated,
-                    ..
-                },
-                ast::Attribute::Since { version, .. },
-            ] => Ok(Stability::Stable {
-                since: version.clone(),
-                deprecated: Some(deprecated.clone()),
-            }),
-
-            [ast::Attribute::Unstable { feature, .. }] => Ok(Stability::Unstable {
-                feature: feature.name.to_string(),
-                deprecated: None,
-            }),
-
-            [
-                ast::Attribute::Unstable { feature, .. },
-                ast::Attribute::Deprecated { version, .. },
-            ]
-            | [
-                ast::Attribute::Deprecated { version, .. },
-                ast::Attribute::Unstable { feature, .. },
-            ] => Ok(Stability::Unstable {
-                feature: feature.name.to_string(),
-                deprecated: Some(version.clone()),
-            }),
-            [ast::Attribute::Deprecated { span, .. }] => {
-                return Err(ParseError::new_syntax(
-                    *span,
-                    "must pair @deprecated with either @since or @unstable".to_owned(),
-                ));
-            }
-            [_, b, ..] => {
-                return Err(ParseError::new_syntax(
-                    b.span(),
-                    "unsupported combination of attributes".to_owned(),
-                ));
+        let mut since = None;
+        let mut since_span = Span::default();
+        let mut deprecated = None;
+        let mut deprecated_span = Span::default();
+        let mut unstable = None;
+        for attr in attrs {
+            match attr {
+                ast::Attribute::Since { version, span } => {
+                    if since.is_some() {
+                        return Err(ParseError::new_syntax(
+                            *span,
+                            "cannot specify @since twice".to_owned(),
+                        ));
+                    }
+                    since = Some(version.clone());
+                    since_span = *span;
+                }
+                ast::Attribute::Deprecated { version, span } => {
+                    if deprecated.is_some() {
+                        return Err(ParseError::new_syntax(
+                            *span,
+                            "cannot specify @deprecated twice".to_owned(),
+                        ));
+                    }
+                    deprecated = Some(version.clone());
+                    deprecated_span = *span;
+                }
+                ast::Attribute::Unstable { feature, span } => {
+                    if unstable.is_some() {
+                        return Err(ParseError::new_syntax(
+                            *span,
+                            "cannot specify @unstable twice".to_owned(),
+                        ));
+                    }
+                    unstable = Some(feature.name.to_string());
+                }
+                _ => {}
             }
         }
+        match (since, deprecated, unstable) {
+            (Some(since), deprecated, None) => Ok(Stability::Stable { since, deprecated }),
+            (None, deprecated, Some(feature)) => Ok(Stability::Unstable {
+                feature,
+                deprecated,
+            }),
+            (Some(_), _deprecated, Some(_)) => {
+                return Err(ParseError::new_syntax(
+                    since_span,
+                    "cannot specify both @since and @unstable".to_owned(),
+                ));
+            }
+            (None, Some(_), None) => {
+                return Err(ParseError::new_syntax(
+                    deprecated_span,
+                    "cannot specify both @deprecated without @since or @unstable".to_owned(),
+                ));
+            }
+            (None, None, None) => Ok(Stability::Unknown),
+        }
+    }
+
+    fn external_id(&mut self, attrs: &[ast::Attribute<'_>]) -> ParseResult<Option<String>> {
+        let mut external_id = None;
+        for attr in attrs {
+            match attr {
+                ast::Attribute::ExternalId { span, id } => {
+                    if external_id.is_some() {
+                        return Err(ParseError::new_syntax(
+                            *span,
+                            "cannot specify @external-id twice".to_owned(),
+                        ));
+                    }
+                    external_id = Some(id.clone())
+                }
+                _ => {}
+            }
+        }
+        Ok(external_id)
     }
 
     fn resolve_params(

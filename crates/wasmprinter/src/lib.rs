@@ -564,7 +564,7 @@ impl Printer<'_, '_> {
                                     self.print_known_custom_section(c.clone())?;
                                 }
                                 Ok(false) => self.print_raw_custom_section(state, c.clone())?,
-                                Err(e) if !e.is::<BinaryReaderError>() => return Err(e),
+                                Err(e) if !e.is::<wasmparser::Error>() => return Err(e),
                                 Err(e) => {
                                     let msg = format!(
                                         "failed to parse custom section `{}`: {e}",

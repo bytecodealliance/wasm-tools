@@ -10,8 +10,15 @@
     },
     {
       "type": "assert_malformed",
-      "line": 12,
+      "line": 11,
       "filename": "implements.1.wasm",
+      "module_type": "binary",
+      "text": "the `cm-implements` feature is not active"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 18,
+      "filename": "implements.2.wasm",
       "module_type": "binary",
       "text": "the `cm-implements` feature is not active"
     }

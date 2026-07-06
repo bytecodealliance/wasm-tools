@@ -570,7 +570,6 @@ pub mod kw {
     custom_keyword!(backpressure_dec = "backpressure.dec");
     custom_keyword!(task_return = "task.return");
     custom_keyword!(task_cancel = "task.cancel");
-    custom_keyword!(thread_yield = "thread.yield");
     custom_keyword!(subtask_drop = "subtask.drop");
     custom_keyword!(subtask_cancel = "subtask.cancel");
     custom_keyword!(stream_new = "stream.new");
@@ -606,12 +605,16 @@ pub mod kw {
     custom_keyword!(context_set = "context.set");
     custom_keyword!(thread_index = "thread.index");
     custom_keyword!(thread_new_indirect = "thread.new-indirect");
-    custom_keyword!(thread_suspend_to_suspended = "thread.suspend-to-suspended");
+    custom_keyword!(thread_resume_later = "thread.resume-later");
     custom_keyword!(thread_suspend = "thread.suspend");
-    custom_keyword!(thread_suspend_to = "thread.suspend-to");
-    custom_keyword!(thread_unsuspend = "thread.unsuspend");
-    custom_keyword!(thread_yield_to_suspended = "thread.yield-to-suspended");
+    custom_keyword!(thread_yield = "thread.yield");
+    custom_keyword!(thread_suspend_then_resume = "thread.suspend-then-resume");
+    custom_keyword!(thread_yield_then_resume = "thread.yield-then-resume");
+    custom_keyword!(thread_suspend_then_promote = "thread.suspend-then-promote");
+    custom_keyword!(thread_yield_then_promote = "thread.yield-then-promote");
     custom_keyword!(cancellable);
+    custom_keyword!(versionsuffix);
+    custom_keyword!(external_id = "external-id");
 }
 
 /// Common annotations used to parse WebAssembly text files.

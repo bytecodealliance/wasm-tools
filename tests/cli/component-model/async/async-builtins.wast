@@ -49,11 +49,6 @@
 (component
   (core func (canon subtask.cancel async))
   (canon subtask.cancel async (core func))
-
-  (type $r (resource (rep i32)))
-  (core func (canon resource.drop $r async))
-  (canon resource.drop $r async (core func))
-
 )
 
 ;; future.cancel-read

@@ -452,14 +452,34 @@ impl<O: Output> WitPrinter<O> {
         cur_pkg: PackageId,
         import_or_export_keyword: &str,
     ) -> Result<()> {
-        // Print inline item docs
-        if matches!(name, WorldKey::Name(_)) {
-            self.print_docs(match item {
-                WorldItem::Interface { id, .. } => &resolve.interfaces[*id].docs,
-                WorldItem::Function(f) => &f.docs,
-                // Types are handled separately
-                WorldItem::Type { .. } => unreachable!(),
-            });
+        // Print docs for this import/export statement. For interfaces, prefer
+        // the docs attached to the statement itself (`WorldItem::Interface`'s
+        // `docs`); for an inline `import x: interface { .. }` with no statement
+        // docs fall back to the interface definition's docs.
+        let docs = match item {
+            WorldItem::Interface {
+                id,
+                docs,
+                external_id,
+                ..
+            } => {
+                if let Some(id) = external_id {
+                    self.print_external_id(id);
+                }
+                if docs.contents.is_some() {
+                    Some(docs)
+                } else if matches!(name, WorldKey::Name(_)) {
+                    Some(&resolve.interfaces[*id].docs)
+                } else {
+                    None
+                }
+            }
+            WorldItem::Function(f) => Some(&f.docs),
+            // Types are handled separately
+            WorldItem::Type { .. } => unreachable!(),
+        };
+        if let Some(docs) = docs {
+            self.print_docs(docs);
         }
 
         self.print_stability(item.stability(resolve));
@@ -1163,6 +1183,37 @@ impl<O: Output> WitPrinter<O> {
                 }
             }
         }
+    }
+
+    fn print_external_id(&mut self, id: &str) {
+        self.output.keyword("@external-id");
+        self.output.str("(\"");
+        let mut buf = [0; 4];
+        for c in id.chars() {
+            if c.is_ascii_alphanumeric()
+                || c == '-'
+                || c == '_'
+                || c == '.'
+                || c == '/'
+                || c == ':'
+                || c == ' '
+            {
+                self.output.push_str(c.encode_utf8(&mut buf));
+                continue;
+            }
+            match c {
+                '\\' => self.output.push_str("\\\\"),
+                '"' => self.output.push_str("\\\""),
+                '\n' => self.output.push_str("\\n"),
+                '\r' => self.output.push_str("\\r"),
+                '\t' => self.output.push_str("\\t"),
+                _ => {
+                    self.output.push_str(&format!("\\u{{{:x}}}", c as u32));
+                }
+            }
+        }
+        self.output.str("\")");
+        self.output.newline();
     }
 }
 

@@ -1,5 +1,7 @@
+use alloc::string::String;
 #[cfg(test)]
-use alloc::{vec, vec::Vec};
+use alloc::vec;
+use alloc::vec::Vec;
 use core::char;
 use core::fmt;
 use core::result::Result;
@@ -109,6 +111,7 @@ pub enum Token {
     Slash,
     Plus,
     Minus,
+    StringLiteral,
 
     Use,
     Type,
@@ -170,7 +173,6 @@ pub enum Error {
     ForbiddenCodepoint(u32, char),
     InvalidCharInId(u32, char),
     IdPartEmpty(u32),
-    InvalidEscape(u32, char),
     Unexpected(u32, char),
     UnterminatedComment(u32),
     Wanted {
@@ -178,6 +180,15 @@ pub enum Error {
         expected: &'static str,
         found: &'static str,
     },
+    InvalidUnicodeValue(u32, u32),
+    InvalidStringElement(u32, char),
+    InvalidStringEscape(u32, char),
+    WantedChar(u32, char),
+    UnexpectedEof(u32),
+    InvalidUtf8(u32, core::str::Utf8Error),
+    NumberTooBig(u32),
+    LoneUnderscore(u32),
+    InvalidHexDigit(u32, char),
 }
 
 impl<'a> Tokenizer<'a> {
@@ -308,6 +319,10 @@ impl<'a> Tokenizer<'a> {
                 }
                 ExplicitId
             }
+            '"' => {
+                self.expect_string_literal(start)?;
+                StringLiteral
+            }
             ch if is_keylike_start(ch) => {
                 let remaining = self.chars.chars.as_str().len();
                 let mut iter = self.chars.clone();
@@ -435,9 +450,118 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
+    fn expect_any_char(&mut self) -> Result<(u32, char), Error> {
+        let end = self.eof_span().end;
+        let (pos, c) = self.chars.next().ok_or(Error::UnexpectedEof(end))?;
+        let pos = u32::try_from(pos).unwrap();
+        Ok((pos, c))
+    }
+
+    fn expect_char(&mut self, expected: char) -> Result<(), Error> {
+        let (pos, actual) = self.expect_any_char()?;
+        if actual == expected {
+            Ok(())
+        } else {
+            Err(Error::WantedChar(pos, expected))
+        }
+    }
+
+    pub fn string_literal(&mut self, span: Span) -> Result<String, Error> {
+        let input = self.get_span(span);
+        let input = &input[1..];
+        Tokenizer::new(input, span.start + 1)?.expect_string_literal(span.start + 1)
+    }
+
+    fn expect_string_literal(&mut self, start: u32) -> Result<String, Error> {
+        let mut buf = Vec::new();
+        loop {
+            let (pos, c) = self.expect_any_char()?;
+            match c {
+                '"' => break,
+                '\\' => {
+                    let (pos, c) = self.expect_any_char()?;
+                    match c {
+                        '"' => buf.push(b'"'),
+                        '\'' => buf.push(b'\''),
+                        't' => buf.push(b'\t'),
+                        'n' => buf.push(b'\n'),
+                        'r' => buf.push(b'\r'),
+                        '\\' => buf.push(b'\\'),
+                        'u' => {
+                            self.expect_char('{')?;
+                            let n = self.eat_hexnum()?;
+                            let c = char::from_u32(n).ok_or(Error::InvalidUnicodeValue(pos, n))?;
+                            buf.extend(c.encode_utf8(&mut [0; 4]).as_bytes());
+                            self.expect_char('}')?;
+                        }
+                        c1 if c1.is_ascii_hexdigit() => {
+                            let (_, c2) = self.eat_hexdigit()?;
+                            buf.push(to_hex(c1) * 16 + c2);
+                        }
+                        c => return Err(Error::InvalidStringEscape(pos, c)),
+                    }
+                }
+                c if (c as u32) < 0x20 || c as u32 == 0x7f => {
+                    return Err(Error::InvalidStringElement(pos, c));
+                }
+                c => buf.extend(c.encode_utf8(&mut [0; 4]).as_bytes()),
+            }
+        }
+        match String::from_utf8(buf) {
+            Ok(s) => Ok(s),
+            Err(e) => Err(Error::InvalidUtf8(start, e.utf8_error())),
+        }
+    }
+
     pub fn eof_span(&self) -> Span {
         let end = self.span_offset + u32::try_from(self.input.len()).unwrap();
         Span::new(end, end)
+    }
+
+    fn eat_hexnum(&mut self) -> Result<u32, Error> {
+        let (pos, n) = self.eat_hexdigit()?;
+        let mut last_underscore = false;
+        let mut n = n as u32;
+        loop {
+            if self.eatc('_') {
+                last_underscore = true;
+                continue;
+            }
+            let (pos, c) = self.clone().expect_any_char()?;
+            if !c.is_ascii_hexdigit() {
+                break;
+            }
+            last_underscore = false;
+            self.chars.next();
+            n = n
+                .checked_mul(16)
+                .and_then(|n| n.checked_add(to_hex(c) as u32))
+                .ok_or(Error::NumberTooBig(pos))?;
+        }
+        if last_underscore {
+            return Err(Error::LoneUnderscore(pos));
+        }
+        Ok(n)
+    }
+
+    /// Reads a hexadecimal digit from the input stream, returning where it's
+    /// defined and the hex value. Returns an error on EOF or an invalid hex
+    /// digit.
+    fn eat_hexdigit(&mut self) -> Result<(u32, u8), Error> {
+        let (pos, ch) = self.expect_any_char()?;
+        if ch.is_ascii_hexdigit() {
+            Ok((pos, to_hex(ch)))
+        } else {
+            Err(Error::InvalidHexDigit(pos, ch))
+        }
+    }
+}
+
+fn to_hex(c: char) -> u8 {
+    match c {
+        'a'..='f' => c as u8 - b'a' + 10,
+        'A'..='F' => c as u8 - b'A' + 10,
+        _ => c as u8 - b'0',
     }
 }
 
@@ -621,6 +745,7 @@ impl Token {
             Include => "keyword `include`",
             With => "keyword `with`",
             Async => "keyword `async`",
+            StringLiteral => "a string literal",
         }
     }
 }
@@ -636,10 +761,18 @@ impl Error {
             | Error::ForbiddenCodepoint(at, _)
             | Error::InvalidCharInId(at, _)
             | Error::IdPartEmpty(at)
-            | Error::InvalidEscape(at, _)
             | Error::Unexpected(at, _)
-            | Error::UnterminatedComment(at) => *at,
-            Error::Wanted { at, .. } => *at,
+            | Error::UnterminatedComment(at)
+            | Error::InvalidUnicodeValue(at, _)
+            | Error::InvalidStringElement(at, _)
+            | Error::InvalidStringEscape(at, _)
+            | Error::WantedChar(at, _)
+            | Error::UnexpectedEof(at)
+            | Error::InvalidUtf8(at, _)
+            | Error::NumberTooBig(at)
+            | Error::LoneUnderscore(at)
+            | Error::InvalidHexDigit(at, _)
+            | Error::Wanted { at, .. } => *at,
         }
     }
 
@@ -683,7 +816,15 @@ impl fmt::Display for Error {
             } => write!(f, "expected {expected}, found {found}"),
             Error::InvalidCharInId(_, ch) => write!(f, "invalid character in identifier {ch:?}"),
             Error::IdPartEmpty(_) => write!(f, "identifiers must have characters between '-'s"),
-            Error::InvalidEscape(_, ch) => write!(f, "invalid escape in string {ch:?}"),
+            Error::InvalidUnicodeValue(_, val) => write!(f, "invalid unicode value {val:#x}"),
+            Error::InvalidStringElement(_, c) => write!(f, "invalid string character {c:?}"),
+            Error::InvalidStringEscape(_, c) => write!(f, "invalid string escape {c:?}"),
+            Error::WantedChar(_, c) => write!(f, "expected character {c:?}"),
+            Error::UnexpectedEof(_) => write!(f, "unexpected end of file"),
+            Error::InvalidUtf8(_, err) => write!(f, "invalid UTF-8: {err}"),
+            Error::NumberTooBig(_) => write!(f, "number is too big to fit in a u32"),
+            Error::LoneUnderscore(_) => write!(f, "trailing underscore in number"),
+            Error::InvalidHexDigit(_, c) => write!(f, "invalid hex digit {c:?}"),
         }
     }
 }
@@ -831,4 +972,73 @@ fn test_tokenizer() {
     assert!(collect("\u{b}").is_err(), "control code");
     assert!(collect("\u{c}").is_err(), "control code");
     assert!(collect("\u{85}").is_err(), "control code");
+}
+
+#[test]
+fn test_strings() {
+    #[track_caller]
+    fn test(s: &str, expected: Result<&str, Error>) {
+        let actual = (|| {
+            let mut t = Tokenizer::new(s, 0)?;
+            let next = t.next()?;
+            assert!(
+                matches!(next, Some((_, Token::StringLiteral))),
+                "{s:?} didn't tokenize as a string"
+            );
+            assert!(t.next()?.is_none(), "extra tokens after string: {s:?}");
+            let (span, _) = next.unwrap();
+            t.string_literal(span)
+        })();
+        match (&actual, &expected) {
+            (Ok(actual), Ok(expected)) => assert_eq!(actual, expected),
+            (Err(actual), Err(expected)) => assert_eq!(actual, expected),
+            (Ok(_) | Err(_), _) => panic!("expected error {expected:?}, but got Ok({actual:?})"),
+        }
+    }
+
+    // smoke test
+    test("\"\"", Ok(""));
+    test("\"a\"", Ok("a"));
+    test("\"a b c\"", Ok("a b c"));
+
+    // single-char-escapes
+    test("\"\\\"\"", Ok("\""));
+    test("\"\\t\"", Ok("\t"));
+    test("\"\\n\"", Ok("\n"));
+    test("\"\\r\"", Ok("\r"));
+    test("\"\\\\\"", Ok("\\"));
+    test("\"\\h\"", Err(Error::InvalidStringEscape(2, 'h')));
+
+    // double-hex-digit
+    test("\"\\00\"", Ok("\0"));
+    test("\"\\01\"", Ok("\x01"));
+    test("\"\\0f\"", Ok("\x0f"));
+    test("\"\\0_1\"", Err(Error::InvalidHexDigit(3, '_')));
+    test("\"\\0g\"", Err(Error::InvalidHexDigit(3, 'g')));
+    #[allow(invalid_from_utf8)]
+    test(
+        "\"\\ff\"",
+        Err(Error::InvalidUtf8(
+            0,
+            core::str::from_utf8(&[0xff]).unwrap_err(),
+        )),
+    );
+
+    // unicode escape
+    test("\"\\u{0}\"", Ok("\0"));
+    test("\"\\u{1}\"", Ok("\x01"));
+    test("\"\\u{1_2_3_f}\"", Ok("\u{123f}"));
+    test("\"\\u0000\"", Err(Error::WantedChar(3, '{')));
+    test("\"\\u{0h\"", Err(Error::WantedChar(5, '}')));
+    test("\"\\u{1_}\"", Err(Error::LoneUnderscore(4)));
+    test(
+        "\"\\u{fffffffffffffffffffff}\"",
+        Err(Error::NumberTooBig(12)),
+    );
+    test(
+        "\"\\u{ffff_ffff}\"",
+        Err(Error::InvalidUnicodeValue(2, u32::MAX)),
+    );
+
+    test("\"\t\"", Err(Error::InvalidStringElement(1, '\t')));
 }

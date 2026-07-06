@@ -347,13 +347,6 @@
   (component (type (stream)))
   "requires the component model async feature"
 )
-(assert_invalid
-  (component
-    (type $t (resource (rep i32)))
-    (core func $f (canon resource.drop $t async))
-  )
-  "requires the component model more async builtins feature"
-)
 
 ;; async function types
 (assert_invalid

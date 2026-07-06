@@ -129,6 +129,8 @@ fn component_extern_name(
     ComponentExternName {
         name: resolve.name_world_key(key).into(),
         implements: resolve.implements_value(key, item).map(|s| s.into()),
+        external_id: resolve.external_id_value(key, item).map(|s| s.into()),
+        version_suffix: None,
     }
 }
 

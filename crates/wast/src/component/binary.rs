@@ -348,11 +348,7 @@ impl<'a> Encoder<'a> {
                 }
                 CoreFuncKind::ResourceDrop(info) => {
                     self.core_func_names.push(name);
-                    if info.async_ {
-                        self.funcs.resource_drop_async(info.ty.into());
-                    } else {
-                        self.funcs.resource_drop(info.ty.into());
-                    }
+                    self.funcs.resource_drop(info.ty.into());
                 }
                 CoreFuncKind::ResourceRep(info) => {
                     self.core_func_names.push(name);
@@ -399,10 +395,6 @@ impl<'a> Encoder<'a> {
                 CoreFuncKind::ContextSet(ty, i) => {
                     self.core_func_names.push(name);
                     self.funcs.context_set((*ty).into(), *i);
-                }
-                CoreFuncKind::ThreadYield(info) => {
-                    self.core_func_names.push(name);
-                    self.funcs.thread_yield(info.cancellable);
                 }
                 CoreFuncKind::SubtaskDrop => {
                     self.core_func_names.push(name);
@@ -517,25 +509,33 @@ impl<'a> Encoder<'a> {
                     self.funcs
                         .thread_new_indirect(info.ty.into(), info.table.idx.into());
                 }
-                CoreFuncKind::ThreadSuspendToSuspended(info) => {
+                CoreFuncKind::ThreadResumeLater => {
                     self.core_func_names.push(name);
-                    self.funcs.thread_suspend_to_suspended(info.cancellable);
+                    self.funcs.thread_resume_later();
                 }
                 CoreFuncKind::ThreadSuspend(info) => {
                     self.core_func_names.push(name);
                     self.funcs.thread_suspend(info.cancellable);
                 }
-                CoreFuncKind::ThreadSuspendTo(info) => {
+                CoreFuncKind::ThreadYield(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.thread_suspend_to(info.cancellable);
+                    self.funcs.thread_yield(info.cancellable);
                 }
-                CoreFuncKind::ThreadUnsuspend => {
+                CoreFuncKind::ThreadSuspendThenResume(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.thread_unsuspend();
+                    self.funcs.thread_suspend_then_resume(info.cancellable);
                 }
-                CoreFuncKind::ThreadYieldToSuspended(info) => {
+                CoreFuncKind::ThreadYieldThenResume(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.thread_yield_to_suspended(info.cancellable);
+                    self.funcs.thread_yield_then_resume(info.cancellable);
+                }
+                CoreFuncKind::ThreadSuspendThenPromote(info) => {
+                    self.core_func_names.push(name);
+                    self.funcs.thread_suspend_then_promote(info.cancellable);
+                }
+                CoreFuncKind::ThreadYieldThenPromote(info) => {
+                    self.core_func_names.push(name);
+                    self.funcs.thread_yield_then_promote(info.cancellable);
                 }
             },
         }
@@ -1052,6 +1052,8 @@ impl<'a> From<ComponentExternName<'a>> for wasm_encoder::ComponentExternName<'a>
         wasm_encoder::ComponentExternName {
             name: name.name.into(),
             implements: name.implements.map(|i| i.into()),
+            version_suffix: name.version_suffix.map(|i| i.into()),
+            external_id: name.external_id.map(|i| i.into()),
         }
     }
 }

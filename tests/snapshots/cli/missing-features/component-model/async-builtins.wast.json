@@ -37,42 +37,29 @@
     },
     {
       "type": "assert_invalid",
-      "line": 37,
+      "line": 36,
       "filename": "async-builtins.5.wasm",
       "module_type": "binary",
       "text": "requires the component model more async builtins feature"
     },
     {
-      "type": "module",
-      "line": 41,
+      "type": "assert_invalid",
+      "line": 42,
       "filename": "async-builtins.6.wasm",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "requires the component model more async builtins feature"
     },
     {
       "type": "assert_invalid",
-      "line": 46,
+      "line": 48,
       "filename": "async-builtins.7.wasm",
       "module_type": "binary",
       "text": "requires the component model more async builtins feature"
     },
     {
       "type": "assert_invalid",
-      "line": 52,
+      "line": 54,
       "filename": "async-builtins.8.wasm",
-      "module_type": "binary",
-      "text": "requires the component model more async builtins feature"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 58,
-      "filename": "async-builtins.9.wasm",
-      "module_type": "binary",
-      "text": "requires the component model more async builtins feature"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 64,
-      "filename": "async-builtins.10.wasm",
       "module_type": "binary",
       "text": "requires the component model more async builtins feature"
     }

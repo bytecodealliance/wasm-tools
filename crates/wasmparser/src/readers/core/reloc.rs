@@ -246,7 +246,7 @@ impl RelocationEntry {
         let start = self.offset as usize;
         let end = start
             .checked_add(self.ty.extent())
-            .ok_or_else(|| crate::BinaryReaderError::new("relocation range end overflow", start))?;
+            .ok_or_else(|| crate::Error::new("relocation range end overflow", start))?;
         Ok(start..end)
     }
 }

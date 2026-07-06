@@ -790,6 +790,7 @@ impl Resolve {
                                 id: aid,
                                 stability: astability,
                                 span: aspan,
+                                ..
                             },
                             WorldItem::Interface {
                                 id: bid,
@@ -1557,6 +1558,18 @@ impl Resolve {
         None
     }
 
+    /// Returns the component model `external-id` value for the world import of
+    /// `key` and `item`.
+    ///
+    /// See the component model explainer and 🏷️ for more information on this feature.
+    pub fn external_id_value(&self, key: &WorldKey, item: &WorldItem) -> Option<String> {
+        let _ = key;
+        if let WorldItem::Interface { external_id, .. } = item {
+            return external_id.clone();
+        }
+        None
+    }
+
     /// Returns the interface that `id` uses a type from, if it uses a type from
     /// a different interface than `id` is defined within.
     ///
@@ -2093,8 +2106,21 @@ impl Resolve {
             match item {
                 // Interfaces get their dependencies added first followed by the
                 // interface itself.
-                WorldItem::Interface { id, stability, .. } => {
-                    self.elaborate_world_import(&mut new_imports, name.clone(), *id, &stability);
+                WorldItem::Interface {
+                    id,
+                    stability,
+                    docs,
+                    external_id,
+                    ..
+                } => {
+                    self.elaborate_world_import(
+                        &mut new_imports,
+                        name.clone(),
+                        *id,
+                        &stability,
+                        docs,
+                        external_id.as_deref(),
+                    );
                 }
 
                 // Functions are added as-is since their dependence on types in
@@ -2114,6 +2140,8 @@ impl Resolve {
                             WorldKey::Interface(dep),
                             dep,
                             &self.types[*id].stability,
+                            &Docs::default(),
+                            None,
                         );
                     }
                     let prev = new_imports.insert(name.clone(), item.clone());
@@ -2167,19 +2195,32 @@ impl Resolve {
         key: WorldKey,
         id: InterfaceId,
         stability: &Stability,
+        docs: &Docs,
+        external_id: Option<&str>,
     ) {
         if imports.contains_key(&key) {
             return;
         }
+        // Synthesized dependency imports carry no statement-level docs of their
+        // own.
         for dep in self.interface_direct_deps(id) {
-            self.elaborate_world_import(imports, WorldKey::Interface(dep), dep, stability);
+            self.elaborate_world_import(
+                imports,
+                WorldKey::Interface(dep),
+                dep,
+                stability,
+                &Docs::default(),
+                None,
+            );
         }
         let prev = imports.insert(
             key,
             WorldItem::Interface {
                 id,
                 stability: stability.clone(),
+                docs: docs.clone(),
                 span: Default::default(),
+                external_id: external_id.map(|s| s.to_string()),
             },
         );
         assert!(prev.is_none());
@@ -2293,8 +2334,13 @@ impl Resolve {
                     return false;
                 }
             }
-            let (id, stability) = match &item {
-                WorldItem::Interface { id, stability, .. } => (*id, stability),
+            let (id, stability, external_id) = match &item {
+                WorldItem::Interface {
+                    id,
+                    stability,
+                    external_id,
+                    ..
+                } => (*id, stability, external_id),
                 _ => unreachable!(),
             };
             // If this is an import and it's already in the `imports` set then
@@ -2306,7 +2352,9 @@ impl Resolve {
                 let item = WorldItem::Interface {
                     id: dep,
                     stability: stability.clone(),
+                    docs: Default::default(),
                     span: Default::default(),
+                    external_id: external_id.clone(),
                 };
                 let key = WorldKey::Interface(dep);
                 let add_export = add_export && export_interfaces.contains_key(&key);
@@ -2418,12 +2466,16 @@ impl Resolve {
                 &WorldItem::Interface {
                     id: *to_replace,
                     stability: Default::default(),
+                    docs: Default::default(),
                     span: Default::default(),
+                    external_id: Default::default(),
                 },
                 &WorldItem::Interface {
                     id: *replace_with,
                     stability: Default::default(),
+                    docs: Default::default(),
                     span: Default::default(),
+                    external_id: Default::default(),
                 },
             )
             .with_context(|| {
@@ -4283,6 +4335,7 @@ impl Remap {
                             id: aid,
                             stability: astability,
                             span: aspan,
+                            ..
                         },
                         WorldItem::Interface {
                             id: bid,

@@ -42,7 +42,6 @@ extern crate std;
 /// like `String`. This custom prelude helps bring those types into scope to
 /// avoid having to import each of them manually.
 mod prelude {
-    pub use alloc::borrow::ToOwned;
     pub use alloc::boxed::Box;
     pub use alloc::format;
     pub use alloc::string::{String, ToString};
@@ -1298,7 +1297,7 @@ pub use _for_each_visit_simd_operator_impl as for_each_visit_simd_operator;
 
 macro_rules! format_err {
     ($offset:expr, $($arg:tt)*) => {
-        crate::BinaryReaderError::fmt(format_args!($($arg)*), $offset)
+        crate::Error::fmt(format_args!($($arg)*), $offset)
     }
 }
 
@@ -1316,13 +1315,18 @@ macro_rules! ensure {
 }
 
 pub use crate::arity::*;
-pub use crate::binary_reader::{BinaryReader, BinaryReaderError, Result};
+pub use crate::binary_reader::BinaryReader;
+pub use crate::error::{Error, Result};
 pub use crate::features::*;
 pub use crate::parser::*;
 pub use crate::readers::*;
 
+/// Aliases [`Error`] for backward compatibility.
+pub type BinaryReaderError = Error;
+
 mod arity;
 mod binary_reader;
+mod error;
 mod features;
 mod limits;
 mod parser;

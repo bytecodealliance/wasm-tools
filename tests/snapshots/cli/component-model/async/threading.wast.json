@@ -99,7 +99,7 @@
       "line": 130,
       "filename": "threading.14.wasm",
       "module_type": "binary",
-      "text": "type mismatch for export `thread.suspend-to-suspended` of module instantiation argument ``"
+      "text": "type mismatch for export `thread.resume-later` of module instantiation argument ``"
     },
     {
       "type": "module",
@@ -112,18 +112,70 @@
       "line": 151,
       "filename": "threading.16.wasm",
       "module_type": "binary",
-      "text": "type mismatch for export `thread.suspend-to` of module instantiation argument ``"
+      "text": "type mismatch for export `thread.suspend` of module instantiation argument ``"
     },
     {
       "type": "module",
-      "line": 163,
+      "line": 162,
       "filename": "threading.17.wasm",
       "module_type": "binary"
     },
     {
-      "type": "module",
-      "line": 198,
+      "type": "assert_invalid",
+      "line": 170,
       "filename": "threading.18.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 179,
+      "filename": "threading.19.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 187,
+      "filename": "threading.20.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 196,
+      "filename": "threading.21.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 204,
+      "filename": "threading.22.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 213,
+      "filename": "threading.23.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 221,
+      "filename": "threading.24.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 231,
+      "filename": "threading.25.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 276,
+      "filename": "threading.26.wasm",
       "module_type": "binary"
     }
   ]

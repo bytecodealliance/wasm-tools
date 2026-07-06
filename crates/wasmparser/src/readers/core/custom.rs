@@ -98,6 +98,11 @@ impl<'a> CustomSectionReader<'a> {
             _ => KnownCustom::Unknown,
         }
     }
+
+    /// Get a binary reader over the data in the custom section
+    pub fn data_reader(&self) -> BinaryReader<'a> {
+        self.reader.shrink()
+    }
 }
 
 /// Return value of [`CustomSectionReader::as_known`].

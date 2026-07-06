@@ -1,0 +1,14 @@
+(component
+  (core module $m (;0;)
+    (type (;0;) (func (param i32) (result i32)))
+    (import "" "" (func (;0;) (type 0)))
+  )
+  (core func $f (;0;) (canon thread.suspend-then-promote))
+  (core instance (;0;)
+    (export "" (func $f))
+  )
+  (core instance (;1;) (instantiate $m
+      (with "" (instance 0))
+    )
+  )
+)

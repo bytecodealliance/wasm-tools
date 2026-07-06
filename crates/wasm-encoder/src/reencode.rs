@@ -592,13 +592,13 @@ pub enum Error<E = Infallible> {
     /// A core type definition was found in a component that's not supported.
     UnsupportedCoreTypeInComponent,
     /// There was an error when parsing.
-    ParseError(wasmparser::BinaryReaderError),
+    ParseError(wasmparser::Error),
     /// There was a user-defined error when re-encoding.
     UserError(E),
 }
 
-impl<E> From<wasmparser::BinaryReaderError> for Error<E> {
-    fn from(err: wasmparser::BinaryReaderError) -> Self {
+impl<E> From<wasmparser::Error> for Error<E> {
+    fn from(err: wasmparser::Error) -> Self {
         Self::ParseError(err)
     }
 }
@@ -1726,7 +1726,7 @@ pub mod utils {
             (map $arg:ident targets) => ((
                 $arg
                     .targets()
-                    .collect::<Result<Vec<_>, wasmparser::BinaryReaderError>>()?
+                    .collect::<Result<Vec<_>, wasmparser::Error>>()?
                     .into(),
                 $arg.default(),
             ));

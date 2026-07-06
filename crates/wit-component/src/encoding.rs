@@ -565,6 +565,8 @@ impl<'a> EncodingState<'a> {
             wasm_encoder::ComponentExternName {
                 name: name.into(),
                 implements: info.implements.as_deref().map(|s| s.into()),
+                external_id: info.external_id.as_deref().map(|s| s.into()),
+                version_suffix: None,
             },
             ComponentTypeRef::Instance(instance_type_idx),
         );
@@ -950,6 +952,8 @@ impl<'a> EncodingState<'a> {
             wasm_encoder::ComponentExternName {
                 name: export_name.into(),
                 implements: resolve.implements_value(key, item).map(|s| s.into()),
+                external_id: resolve.external_id_value(key, item).map(|s| s.into()),
+                version_suffix: None,
             },
             ComponentExportKind::Instance,
             instance_index,
@@ -1839,10 +1843,6 @@ impl<'a> EncodingState<'a> {
                     cancellable: *cancellable,
                 },
             )),
-            Import::ThreadYield { cancellable } => {
-                let index = self.component.thread_yield(*cancellable);
-                Ok((ExportKind::Func, index))
-            }
             Import::SubtaskDrop => {
                 let index = self.component.subtask_drop();
                 Ok((ExportKind::Func, index))
@@ -1990,24 +1990,32 @@ impl<'a> EncodingState<'a> {
                     func_ty: FuncType::new([ValType::I32], []),
                 },
             )),
-            Import::ThreadSuspendToSuspended { cancellable } => {
-                let index = self.component.thread_suspend_to_suspended(*cancellable);
+            Import::ThreadResumeLater => {
+                let index = self.component.thread_resume_later();
                 Ok((ExportKind::Func, index))
             }
             Import::ThreadSuspend { cancellable } => {
                 let index = self.component.thread_suspend(*cancellable);
                 Ok((ExportKind::Func, index))
             }
-            Import::ThreadSuspendTo { cancellable } => {
-                let index = self.component.thread_suspend_to(*cancellable);
+            Import::ThreadYield { cancellable } => {
+                let index = self.component.thread_yield(*cancellable);
                 Ok((ExportKind::Func, index))
             }
-            Import::ThreadUnsuspend => {
-                let index = self.component.thread_unsuspend();
+            Import::ThreadSuspendThenResume { cancellable } => {
+                let index = self.component.thread_suspend_then_resume(*cancellable);
                 Ok((ExportKind::Func, index))
             }
-            Import::ThreadYieldToSuspended { cancellable } => {
-                let index = self.component.thread_yield_to_suspended(*cancellable);
+            Import::ThreadYieldThenResume { cancellable } => {
+                let index = self.component.thread_yield_then_resume(*cancellable);
+                Ok((ExportKind::Func, index))
+            }
+            Import::ThreadSuspendThenPromote { cancellable } => {
+                let index = self.component.thread_suspend_then_promote(*cancellable);
+                Ok((ExportKind::Func, index))
+            }
+            Import::ThreadYieldThenPromote { cancellable } => {
+                let index = self.component.thread_yield_then_promote(*cancellable);
                 Ok((ExportKind::Func, index))
             }
         }
@@ -2603,7 +2611,6 @@ impl<'a> Shims<'a> {
                 | Import::ErrorContextDrop
                 | Import::BackpressureInc
                 | Import::BackpressureDec
-                | Import::ThreadYield { .. }
                 | Import::SubtaskDrop
                 | Import::SubtaskCancel { .. }
                 | Import::FutureNew(..)
@@ -2622,11 +2629,13 @@ impl<'a> Shims<'a> {
                 | Import::ContextGet { .. }
                 | Import::ContextSet { .. }
                 | Import::ThreadIndex
-                | Import::ThreadSuspendToSuspended { .. }
+                | Import::ThreadResumeLater
                 | Import::ThreadSuspend { .. }
-                | Import::ThreadSuspendTo { .. }
-                | Import::ThreadUnsuspend
-                | Import::ThreadYieldToSuspended { .. } => {}
+                | Import::ThreadYield { .. }
+                | Import::ThreadSuspendThenResume { .. }
+                | Import::ThreadYieldThenResume { .. }
+                | Import::ThreadSuspendThenPromote { .. }
+                | Import::ThreadYieldThenPromote { .. } => {}
 
                 // If `task.return` needs to be indirect then generate a shim
                 // for it, otherwise skip the shim and let it get materialized

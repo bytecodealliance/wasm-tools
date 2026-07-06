@@ -24,12 +24,12 @@
 
 #[cfg(feature = "simd")]
 use crate::VisitSimdOperator;
+use crate::features::require_feature;
 use crate::{
-    AbstractHeapType, BinaryReaderError, BlockType, BrTable, Catch, ContType, FieldType, FrameKind,
-    FrameStack, FuncType, GlobalType, Handle, HeapType, Ieee32, Ieee64, MemArg, ModuleArity,
-    RefType, Result, ResumeTable, StorageType, StructType, SubType, TableType, TryTable,
-    UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources,
-    limits::MAX_WASM_FUNCTION_LOCALS,
+    AbstractHeapType, BlockType, BrTable, Catch, ContType, Error, FieldType, FrameKind, FrameStack,
+    FuncType, GlobalType, Handle, HeapType, Ieee32, Ieee64, MemArg, ModuleArity, RefType, Result,
+    ResumeTable, StorageType, StructType, SubType, TableType, TryTable, UnpackedIndex, ValType,
+    VisitOperator, WasmFeatures, WasmModuleResources, limits::MAX_WASM_FUNCTION_LOCALS,
 };
 use crate::{CompositeInnerType, Ordering, prelude::*};
 use core::ops::{Deref, DerefMut};
@@ -460,10 +460,7 @@ impl OperatorValidator {
             return Ok(());
         }
         if !self.locals.define(count, ty) {
-            return Err(BinaryReaderError::new(
-                "too many locals: locals exceed maximum",
-                offset,
-            ));
+            return Err(Error::new("too many locals: locals exceed maximum", offset));
         }
         self.local_inits.define_locals(count, ty);
         Ok(())
@@ -918,11 +915,7 @@ where
     }
 
     /// Match expected vs. actual operand.
-    fn match_operand(
-        &mut self,
-        actual: ValType,
-        expected: ValType,
-    ) -> Result<(), BinaryReaderError> {
+    fn match_operand(&mut self, actual: ValType, expected: ValType) -> Result<(), Error> {
         self.push_operand(actual)?;
         self.pop_operand(Some(expected))?;
         Ok(())
@@ -1149,9 +1142,11 @@ where
     }
 
     fn check_floats_enabled(&self) -> Result<()> {
-        if !self.features.floats() {
-            bail!(self.offset, "floating-point instruction disallowed");
-        }
+        require_feature::floats(
+            self.features,
+            "floating-point instruction disallowed",
+            self.offset,
+        )?;
         Ok(())
     }
 
@@ -1173,13 +1168,12 @@ where
                 .resources
                 .check_value_type(t, &self.features, self.offset),
             BlockType::FuncType(idx) => {
-                if !self.features.multi_value() {
-                    bail!(
-                        self.offset,
-                        "blocks, loops, and ifs may only produce a resulttype \
-                         when multi-value is not enabled",
-                    );
-                }
+                require_feature::multi_value(
+                    self.features,
+                    "blocks, loops, and ifs may only produce a resulttype \
+                     when multi-value is not enabled",
+                    self.offset,
+                )?;
                 self.func_type_at(*idx)?;
                 Ok(())
             }
@@ -1418,9 +1412,8 @@ where
         self.resources
             .check_heap_type(&mut heap_type, self.offset)?;
 
-        let sub_ty = RefType::new(nullable, heap_type).ok_or_else(|| {
-            BinaryReaderError::new("implementation limit: type index too large", self.offset)
-        })?;
+        let sub_ty = RefType::new(nullable, heap_type)
+            .ok_or_else(|| Error::new("implementation limit: type index too large", self.offset))?;
         let top = self.resources.top_type(&heap_type);
         self.check_cast_to_allowed(top)?;
         let sup_ty = RefType::new(true, top).expect("can't panic with non-concrete heap types");
@@ -1559,10 +1552,7 @@ where
             match heap_type {
                 HeapType::Concrete(index) | HeapType::Exact(index) => {
                     index.pack().ok_or_else(|| {
-                        BinaryReaderError::new(
-                            "implementation limit: type index too large",
-                            self.offset,
-                        )
+                        Error::new("implementation limit: type index too large", self.offset)
                     })?
                 }
                 _ => panic!(),
@@ -1676,16 +1666,13 @@ where
     }
 
     fn struct_field_at(&self, struct_type_index: u32, field_index: u32) -> Result<FieldType> {
-        let field_index = usize::try_from(field_index).map_err(|_| {
-            BinaryReaderError::new("unknown field: field index out of bounds", self.offset)
-        })?;
+        let field_index = usize::try_from(field_index)
+            .map_err(|_| Error::new("unknown field: field index out of bounds", self.offset))?;
         self.struct_type_at(struct_type_index)?
             .fields
             .get(field_index)
             .copied()
-            .ok_or_else(|| {
-                BinaryReaderError::new("unknown field: field index out of bounds", self.offset)
-            })
+            .ok_or_else(|| Error::new("unknown field: field index out of bounds", self.offset))
     }
 
     fn mutable_struct_field_at(
@@ -1976,13 +1963,6 @@ where
         self.push_operand(ValType::I64)?;
         Ok(())
     }
-
-    fn check_enabled(&self, flag: bool, desc: &str) -> Result<()> {
-        if flag {
-            return Ok(());
-        }
-        bail!(self.offset, "{desc} support is not enabled");
-    }
 }
 
 pub fn ty_to_str(ty: ValType) -> &'static str {
@@ -2028,7 +2008,11 @@ macro_rules! validate_proposal {
     (validate self $proposal:ident / MemoryCopy) => {};
 
     (validate $self:ident $proposal:ident / $op:ident) => {
-        $self.0.check_enabled($self.0.features.$proposal(), validate_proposal!(desc $proposal))?
+        require_feature::$proposal(
+            $self.0.features,
+            concat!(validate_proposal!(desc $proposal), " support is not enabled"),
+            $self.0.offset,
+        )?
     };
 
     (desc simd) => ("SIMD");
@@ -3314,9 +3298,7 @@ where
     }
     fn visit_ref_null(&mut self, mut heap_type: HeapType) -> Self::Output {
         if let Some(ty) = RefType::new(true, heap_type) {
-            self.features
-                .check_ref_type(ty)
-                .map_err(|e| BinaryReaderError::new(e, self.offset))?;
+            self.features.check_ref_type(ty, self.offset)?;
         }
         self.resources
             .check_heap_type(&mut heap_type, self.offset)?;
@@ -3387,7 +3369,7 @@ where
             HeapType::Concrete(index)
         };
         let ty = ValType::Ref(RefType::new(false, hty).ok_or_else(|| {
-            BinaryReaderError::new("implementation limit: type index too large", self.offset)
+            Error::new("implementation limit: type index too large", self.offset)
         })?);
         self.push_operand(ty)?;
         Ok(())
@@ -3426,7 +3408,11 @@ where
         Ok(())
     }
     fn visit_memory_copy(&mut self, dst: u32, src: u32) -> Self::Output {
-        self.check_enabled(self.features.bulk_memory_opt(), "bulk memory")?;
+        require_feature::bulk_memory_opt(
+            self.features,
+            "bulk memory support is not enabled",
+            self.offset,
+        )?;
         let dst_ty = self.check_memory_index(dst)?;
         let src_ty = self.check_memory_index(src)?;
 
@@ -3444,7 +3430,11 @@ where
         Ok(())
     }
     fn visit_memory_fill(&mut self, mem: u32) -> Self::Output {
-        self.check_enabled(self.features.bulk_memory_opt(), "bulk memory")?;
+        require_feature::bulk_memory_opt(
+            self.features,
+            "bulk memory support is not enabled",
+            self.offset,
+        )?;
         let ty = self.check_memory_index(mem)?;
         self.pop_operand(Some(ty))?;
         self.pop_operand(Some(ValType::I32))?;

@@ -105,6 +105,34 @@ macro_rules! define_wasm_features {
             }
         }
         pub(crate) use foreach_wasm_feature;
+
+        #[allow(dead_code)]
+        pub(crate) mod require_feature {
+            use crate::Error;
+            use super::WasmFeatures;
+
+            $(
+                #[inline]
+                #[doc = "Returns an error if [`WasmFeatures::"]
+                #[doc = stringify!($const)]
+                #[doc = "`] is not enabled in `features`."]
+                pub fn $field(
+                    features: WasmFeatures,
+                    msg: impl core::fmt::Display,
+                    offset: usize,
+                ) -> Result<(), Error> {
+                    if features.$field() {
+                        Ok(())
+                    } else {
+                        #[cfg(feature = "features")]
+                        let feature = WasmFeatures::$const;
+                        #[cfg(not(feature = "features"))]
+                        let feature = WasmFeatures::default();
+                        Err(Error::wasm_feature(feature, msg, offset))
+                    }
+                }
+            )*
+        }
     };
 }
 
@@ -253,7 +281,7 @@ define_wasm_features! {
         ///
         /// Corresponds to the 🔀 character in
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
-        pub cm_async: CM_ASYNC(1 << 27) = false;
+        pub cm_async: CM_ASYNC(1 << 27) = true;
         /// Gates the "stackful ABI" in the component model async proposal.
         ///
         /// Corresponds to the 🚟 character in
@@ -324,6 +352,12 @@ define_wasm_features! {
         /// Corresponds to the 🏷️ character in
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
         pub cm_implements: CM_IMPLEMENTS(1 << 40) = false;
+
+        /// Support for the `(versionsuffix "...")` directive in the component model
+        ///
+        /// Corresponds to the 🔗 character in
+        /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
+        pub cm_canon_names: CM_CANON_NAMES(1 << 41) = false;
     }
 }
 

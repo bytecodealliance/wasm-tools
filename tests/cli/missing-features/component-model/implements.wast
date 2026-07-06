@@ -7,6 +7,12 @@
   )
   "the `cm-implements` feature is not active")
 
+(assert_malformed
+  (component
+    (import "a" (external-id "") (instance))
+  )
+  "the `cm-implements` feature is not active")
+
 ;; binary usage, even if it's not used, is disallowed without the feature
 (assert_malformed
   (component binary

@@ -957,10 +957,6 @@ pub mod component_utils {
                 let resource = reencoder.component_type_index(resource);
                 section.resource_drop(resource);
             }
-            wasmparser::CanonicalFunction::ResourceDropAsync { resource } => {
-                let resource = reencoder.component_type_index(resource);
-                section.resource_drop_async(resource);
-            }
             wasmparser::CanonicalFunction::ResourceRep { resource } => {
                 let resource = reencoder.component_type_index(resource);
                 section.resource_rep(resource);
@@ -1001,9 +997,6 @@ pub mod component_utils {
             }
             wasmparser::CanonicalFunction::ContextSet { ty, slot } => {
                 section.context_set(reencoder.val_type(ty)?, slot);
-            }
-            wasmparser::CanonicalFunction::ThreadYield { cancellable } => {
-                section.thread_yield(cancellable);
             }
             wasmparser::CanonicalFunction::SubtaskDrop => {
                 section.subtask_drop();
@@ -1118,20 +1111,26 @@ pub mod component_utils {
                 let table_index = reencoder.table_index(table_index)?;
                 section.thread_new_indirect(func_ty, table_index);
             }
-            wasmparser::CanonicalFunction::ThreadSuspendToSuspended { cancellable } => {
-                section.thread_suspend_to_suspended(cancellable);
+            wasmparser::CanonicalFunction::ThreadResumeLater => {
+                section.thread_resume_later();
             }
             wasmparser::CanonicalFunction::ThreadSuspend { cancellable } => {
                 section.thread_suspend(cancellable);
             }
-            wasmparser::CanonicalFunction::ThreadSuspendTo { cancellable } => {
-                section.thread_suspend_to(cancellable);
+            wasmparser::CanonicalFunction::ThreadYield { cancellable } => {
+                section.thread_yield(cancellable);
             }
-            wasmparser::CanonicalFunction::ThreadUnsuspend => {
-                section.thread_unsuspend();
+            wasmparser::CanonicalFunction::ThreadSuspendThenResume { cancellable } => {
+                section.thread_suspend_then_resume(cancellable);
             }
-            wasmparser::CanonicalFunction::ThreadYieldToSuspended { cancellable } => {
-                section.thread_yield_to_suspended(cancellable);
+            wasmparser::CanonicalFunction::ThreadYieldThenResume { cancellable } => {
+                section.thread_yield_then_resume(cancellable);
+            }
+            wasmparser::CanonicalFunction::ThreadSuspendThenPromote { cancellable } => {
+                section.thread_suspend_then_promote(cancellable);
+            }
+            wasmparser::CanonicalFunction::ThreadYieldThenPromote { cancellable } => {
+                section.thread_yield_then_promote(cancellable);
             }
         }
         Ok(())

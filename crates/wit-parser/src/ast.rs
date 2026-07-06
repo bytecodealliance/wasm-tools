@@ -1651,6 +1651,7 @@ enum Attribute<'a> {
     Since { span: Span, version: Version },
     Unstable { span: Span, feature: Id<'a> },
     Deprecated { span: Span, version: Version },
+    ExternalId { span: Span, id: String },
 }
 
 impl<'a> Attribute<'a> {
@@ -1692,6 +1693,15 @@ impl<'a> Attribute<'a> {
                         version,
                     }
                 }
+                "external-id" => {
+                    tokens.expect(Token::LeftParen)?;
+                    let span = tokens.expect(Token::StringLiteral)?;
+                    tokens.expect(Token::RightParen)?;
+                    Attribute::ExternalId {
+                        span: id.span,
+                        id: tokens.string_literal(span)?,
+                    }
+                }
                 other => {
                     return Err(ParseError::new_syntax(
                         id.span,
@@ -1702,14 +1712,6 @@ impl<'a> Attribute<'a> {
             ret.push(attr);
         }
         Ok(ret)
-    }
-
-    fn span(&self) -> Span {
-        match self {
-            Attribute::Since { span, .. }
-            | Attribute::Unstable { span, .. }
-            | Attribute::Deprecated { span, .. } => *span,
-        }
     }
 }
 

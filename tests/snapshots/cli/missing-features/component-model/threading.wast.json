@@ -7,6 +7,61 @@
       "filename": "threading.0.wasm",
       "module_type": "binary",
       "text": "requires the component model threading feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 10,
+      "filename": "threading.1.wasm",
+      "module_type": "binary",
+      "text": "requires the component model threading feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 14,
+      "filename": "threading.2.wasm",
+      "module_type": "binary",
+      "text": "requires the component model threading feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 18,
+      "filename": "threading.3.wasm",
+      "module_type": "binary",
+      "text": "requires the component model threading feature"
+    },
+    {
+      "type": "module",
+      "line": 22,
+      "filename": "threading.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 25,
+      "filename": "threading.5.wasm",
+      "module_type": "binary",
+      "text": "requires the component model threading feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 29,
+      "filename": "threading.6.wasm",
+      "module_type": "binary",
+      "text": "requires the component model threading feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 33,
+      "filename": "threading.7.wasm",
+      "module_type": "binary",
+      "text": "requires the component model threading feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 37,
+      "filename": "threading.8.wasm",
+      "module_type": "binary",
+      "text": "requires the component model threading feature"
     }
   ]
 }

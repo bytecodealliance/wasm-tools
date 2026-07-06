@@ -393,11 +393,29 @@ impl Printer<'_, '_> {
     }
 
     fn print_component_extern_name(&mut self, name: &ComponentExternName<'_>) -> Result<()> {
-        self.print_str(name.name)?;
-        if let Some(implements) = name.implements {
+        let ComponentExternName {
+            name,
+            implements,
+            version_suffix,
+            external_id,
+        } = name;
+        self.print_str(name)?;
+        if let Some(implements) = implements {
             self.result.write_str(" ")?;
             self.start_group("implements ")?;
             self.print_str(implements)?;
+            self.end_group()?;
+        }
+        if let Some(version_suffix) = version_suffix {
+            self.result.write_str(" ")?;
+            self.start_group("versionsuffix ")?;
+            self.print_str(version_suffix)?;
+            self.end_group()?;
+        }
+        if let Some(external_id) = external_id {
+            self.result.write_str(" ")?;
+            self.start_group("external-id ")?;
+            self.print_str(external_id)?;
             self.end_group()?;
         }
         Ok(())
@@ -934,12 +952,6 @@ impl Printer<'_, '_> {
                         me.print_idx(&state.component.type_names, resource)
                     })?;
                 }
-                CanonicalFunction::ResourceDropAsync { resource } => {
-                    self.print_intrinsic(state, "canon resource.drop ", &|me, state| {
-                        me.print_idx(&state.component.type_names, resource)?;
-                        me.print_type_keyword(" async")
-                    })?;
-                }
                 CanonicalFunction::ResourceRep { resource } => {
                     self.print_intrinsic(state, "canon resource.rep ", &|me, state| {
                         me.print_idx(&state.component.type_names, resource)
@@ -1178,13 +1190,8 @@ impl Printer<'_, '_> {
                         me.end_group()
                     })?;
                 }
-                CanonicalFunction::ThreadSuspendToSuspended { cancellable } => {
-                    self.print_intrinsic(state, "canon thread.suspend-to-suspended", &|me, _| {
-                        if cancellable {
-                            me.result.write_str(" cancellable")?;
-                        }
-                        Ok(())
-                    })?;
+                CanonicalFunction::ThreadResumeLater => {
+                    self.print_intrinsic(state, "canon thread.resume-later", &|_, _| Ok(()))?;
                 }
                 CanonicalFunction::ThreadSuspend { cancellable } => {
                     self.print_intrinsic(state, "canon thread.suspend", &|me, _| {
@@ -1194,19 +1201,32 @@ impl Printer<'_, '_> {
                         Ok(())
                     })?;
                 }
-                CanonicalFunction::ThreadSuspendTo { cancellable } => {
-                    self.print_intrinsic(state, "canon thread.suspend-to", &|me, _| {
+                CanonicalFunction::ThreadSuspendThenResume { cancellable } => {
+                    self.print_intrinsic(state, "canon thread.suspend-then-resume", &|me, _| {
                         if cancellable {
                             me.result.write_str(" cancellable")?;
                         }
                         Ok(())
                     })?;
                 }
-                CanonicalFunction::ThreadUnsuspend => {
-                    self.print_intrinsic(state, "canon thread.unsuspend", &|_, _| Ok(()))?;
+                CanonicalFunction::ThreadYieldThenResume { cancellable } => {
+                    self.print_intrinsic(state, "canon thread.yield-then-resume", &|me, _| {
+                        if cancellable {
+                            me.result.write_str(" cancellable")?;
+                        }
+                        Ok(())
+                    })?;
                 }
-                CanonicalFunction::ThreadYieldToSuspended { cancellable } => {
-                    self.print_intrinsic(state, "canon thread.yield-to-suspended", &|me, _| {
+                CanonicalFunction::ThreadSuspendThenPromote { cancellable } => {
+                    self.print_intrinsic(state, "canon thread.suspend-then-promote", &|me, _| {
+                        if cancellable {
+                            me.result.write_str(" cancellable")?;
+                        }
+                        Ok(())
+                    })?;
+                }
+                CanonicalFunction::ThreadYieldThenPromote { cancellable } => {
+                    self.print_intrinsic(state, "canon thread.yield-then-promote", &|me, _| {
                         if cancellable {
                             me.result.write_str(" cancellable")?;
                         }
