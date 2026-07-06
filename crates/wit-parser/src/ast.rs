@@ -1946,6 +1946,32 @@ impl SourceMap {
         return msg;
     }
 
+    /// Resolves a global `span` to a location within a single source file.
+    ///
+    /// Returns the path the source was registered with and the span's byte
+    /// range (UTF-8) relative to that file's contents. Returns `None` if
+    /// `span` is unknown or does not fall within any source in this map.
+    ///
+    /// Spans pointing at the end of a file resolve to an empty range at the
+    /// file's length.
+    pub fn resolve_span(&self, span: Span) -> Option<SpanLocation<'_>> {
+        if !span.is_known() || span.start() >= self.offset {
+            return None;
+        }
+        let src = self.source_for_offset(span.start());
+        // Exclude the synthetic `\n` appended by `push_str` so that spans
+        // pointing at eof resolve to an empty range at the end of the file.
+        let len = src.contents.len() - 1;
+        let start = src.to_relative_offset(span.start()).min(len);
+        let end = usize::try_from(span.end().saturating_sub(src.offset))
+            .unwrap()
+            .clamp(start, len);
+        Some(SpanLocation {
+            path: &src.path,
+            range: start..end,
+        })
+    }
+
     /// Renders a span as a human-readable location string (e.g., "file.wit:10:5").
     pub fn render_location(&self, span: Span) -> String {
         if !span.is_known() {
@@ -1981,6 +2007,19 @@ impl SourceMap {
     pub fn source_names(&self) -> impl Iterator<Item = &str> {
         self.sources.iter().map(|src| src.path.as_str())
     }
+}
+
+/// A [`Span`] resolved to a location within a single source file.
+///
+/// Returned by [`SourceMap::resolve_span`]. Byte offsets are the natural
+/// primitive for tooling (e.g. an LSP's own line index converts them to
+/// whatever position encoding the client negotiated).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SpanLocation<'a> {
+    /// The path of the source, as it was registered with the [`SourceMap`].
+    pub path: &'a str,
+    /// The byte range (UTF-8) within the file's contents.
+    pub range: core::ops::Range<usize>,
 }
 
 impl Source {
