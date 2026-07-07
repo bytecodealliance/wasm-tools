@@ -99,7 +99,7 @@ fn assert_print(resolve: &Resolve, pkg_id: PackageId, path: &Path, is_dir: bool)
     assert_output(&expected, &output)?;
 
     UnresolvedPackageGroup::parse("foo.wit", &output)
-        .map_err(|(map, e)| anyhow::anyhow!("{}", e.highlight(&map)))
+        .map_err(|(map, e)| anyhow::anyhow!("{}", e.render(&map)))
         .context("failed to parse printed output")?;
     Ok(())
 }

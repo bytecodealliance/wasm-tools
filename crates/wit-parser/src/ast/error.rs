@@ -90,8 +90,15 @@ impl ParseError {
         &mut self.0
     }
 
-    /// Format this error with source context (file:line:col + snippet)
-    pub fn highlight(&self, source_map: &SourceMap) -> String {
+    /// Renders this error with source context (file:line:col + snippet).
+    ///
+    /// `source_map` must be the map this error's spans are valid in: for
+    /// errors returned by [`Resolve`](crate::Resolve) methods that is
+    /// [`Resolve::source_map`](crate::Resolve::source_map) (or use
+    /// [`Resolve::render_error`](crate::Resolve::render_error) directly), and
+    /// for errors from [`SourceMap::parse`] it is the map returned alongside
+    /// the error.
+    pub fn render(&self, source_map: &SourceMap) -> String {
         let e = self.kind();
         source_map
             .highlight_span(e.span(), e)

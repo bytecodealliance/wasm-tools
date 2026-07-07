@@ -42,12 +42,9 @@ impl WitResolve {
 
     pub fn load(&self) -> Result<(Resolve, PackageId)> {
         let mut resolve = Self::resolve_with_features(&self.features, self.all_features);
-        let (pkg_id, _) = resolve.push_path(&self.wit).map_err(|e| {
-            anyhow::anyhow!(
-                "{}",
-                wit_parser::render_anyhow_error(&e, &resolve.source_map)
-            )
-        })?;
+        let (pkg_id, _) = resolve
+            .push_path(&self.wit)
+            .map_err(|e| anyhow::anyhow!("{}", resolve.render_error(&e)))?;
         Ok((resolve, pkg_id))
     }
 }

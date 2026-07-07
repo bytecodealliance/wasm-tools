@@ -70,12 +70,12 @@ fn push_str_parse_error_is_downcastable() {
         .expect_err("expected parse to fail");
     let pe = parse_error_in_chain(&err);
     // Spans must be valid against `resolve.source_map` after the failure-path
-    // merge, so highlighting against it should not panic and should include
+    // merge, so rendering against it should not panic and should include
     // the file and line.
-    let rendered = pe.highlight(&resolve.source_map);
+    let rendered = pe.render(&resolve.source_map);
     assert!(
         rendered.contains("test.wit:2:"),
-        "expected highlighted error to reference test.wit:2:..., got:\n{rendered}"
+        "expected rendered error to reference test.wit:2:..., got:\n{rendered}"
     );
     assert!(
         matches!(pe.kind(), ParseErrorKind::Syntax { .. }),
@@ -104,10 +104,10 @@ fn parse_error_spans_are_adjusted_after_earlier_pushes() {
     // `resolve.source_map` because `first.wit` was merged before it, so this
     // only points at the right file and line if the error's spans were
     // adjusted during the failure-path merge.
-    let rendered = pe.highlight(&resolve.source_map);
+    let rendered = pe.render(&resolve.source_map);
     assert!(
         rendered.contains("second.wit:2:"),
-        "expected highlighted error to reference second.wit:2:..., got:\n{rendered}"
+        "expected rendered error to reference second.wit:2:..., got:\n{rendered}"
     );
     assert!(
         rendered.contains("not-a-keyword"),
