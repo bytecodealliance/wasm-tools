@@ -1951,9 +1951,6 @@ impl SourceMap {
     /// Returns the path the source was registered with and the span's byte
     /// range (UTF-8) relative to that file's contents. Returns `None` if
     /// `span` is unknown or does not fall within any source in this map.
-    ///
-    /// Spans pointing at the end of a file resolve to an empty range at the
-    /// file's length.
     pub fn resolve_span(&self, span: Span) -> Option<SpanLocation<'_>> {
         if !span.is_known() || span.start() >= self.offset {
             return None;
