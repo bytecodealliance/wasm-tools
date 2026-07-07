@@ -441,6 +441,13 @@ impl Resolve {
         self.source_map.render_location(span)
     }
 
+    /// Renders an error returned by this [`Resolve`]'s `push_*` methods with
+    /// source context (file:line:col + snippet).
+    #[cfg(feature = "std")]
+    pub fn render_error(&self, err: &anyhow::Error) -> String {
+        crate::render_anyhow_error(err, &self.source_map)
+    }
+
     pub fn all_bits_valid(&self, ty: &Type) -> bool {
         match ty {
             Type::U8
@@ -5928,7 +5935,7 @@ interface iface {
         };
         let mut resolve = Resolve::default();
         let err = resolve.push_groups(a, Vec::from([b])).unwrap_err();
-        let msg = err.highlight(&resolve.source_map);
+        let msg = err.render(&resolve.source_map);
         assert!(
             msg.contains("file:///"),
             "cycle error should contain a file URI, got: {msg}"

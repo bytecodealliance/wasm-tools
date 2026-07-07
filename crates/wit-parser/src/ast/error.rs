@@ -90,8 +90,10 @@ impl ParseError {
         &mut self.0
     }
 
-    /// Format this error with source context (file:line:col + snippet)
-    pub fn highlight(&self, source_map: &SourceMap) -> String {
+    /// Renders this error with source context (file:line:col + snippet).
+    ///
+    /// `source_map` must be the map this error's spans are valid in.
+    pub fn render(&self, source_map: &SourceMap) -> String {
         let e = self.kind();
         source_map
             .highlight_span(e.span(), e)

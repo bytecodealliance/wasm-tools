@@ -70,22 +70,23 @@ pub fn validate_id(s: &str) -> anyhow::Result<()> {
 /// Renders an [`anyhow::Error`] chain produced by this crate, substituting
 /// snippet-bearing output for any [`ResolveError`] or [`ParseError`] layers.
 ///
-/// For each layer in the chain, this calls [`ResolveError::highlight`] or
-/// [`ParseError::highlight`] to format typed errors with file/line/column and
+/// For each layer in the chain, this calls [`ResolveError::render`] or
+/// [`ParseError::render`] to format typed errors with file/line/column and
 /// a source snippet. Other layers are formatted via their [`fmt::Display`]
 /// impl. Layers are joined with `": "`, matching `format!("{err:#}")`.
 ///
 /// `source_map` must be the [`SourceMap`] in which every typed error's spans
 /// are valid; combining typed errors from different source maps in one chain
-/// is unsupported.
+/// is unsupported. For errors from [`Resolve`] methods, prefer
+/// [`Resolve::render_error`].
 #[cfg(feature = "std")]
 pub fn render_anyhow_error(err: &anyhow::Error, source_map: &SourceMap) -> String {
     err.chain()
         .map(|layer| {
             if let Some(re) = layer.downcast_ref::<ResolveError>() {
-                re.highlight(source_map)
+                re.render(source_map)
             } else if let Some(pe) = layer.downcast_ref::<ParseError>() {
-                pe.highlight(source_map)
+                pe.render(source_map)
             } else {
                 layer.to_string()
             }
@@ -328,7 +329,7 @@ impl UnresolvedPackageGroup {
     ///
     /// On failure the constructed [`SourceMap`] is returned alongside the
     /// typed [`ParseError`] so the caller can render a snippet via
-    /// [`ParseError::highlight`] or merge the source map elsewhere.
+    /// [`ParseError::render`] or merge the source map elsewhere.
     #[cfg(feature = "std")]
     pub fn parse(
         path: impl AsRef<Path>,
@@ -350,7 +351,7 @@ impl UnresolvedPackageGroup {
         let mut map = SourceMap::default();
         map.push_dir(path.as_ref())?;
         map.parse().map_err(|(map, e)| {
-            let rendered = e.highlight(&map);
+            let rendered = e.render(&map);
             anyhow::Error::from(e).context(rendered)
         })
     }
