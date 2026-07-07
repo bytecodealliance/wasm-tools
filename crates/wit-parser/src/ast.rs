@@ -2010,10 +2010,6 @@ impl SourceMap {
 }
 
 /// A [`Span`] resolved to a location within a single source file.
-///
-/// Returned by [`SourceMap::resolve_span`]. Byte offsets are the natural
-/// primitive for tooling (e.g. an LSP's own line index converts them to
-/// whatever position encoding the client negotiated).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SpanLocation<'a> {
     /// The path of the source, as it was registered with the [`SourceMap`].
