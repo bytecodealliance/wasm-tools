@@ -6,8 +6,8 @@ use wit_parser::{ParseError, Resolve, SourceMap, UnresolvedPackageGroup};
 #[test]
 fn resolve_span_in_single_file() {
     let contents = "package foo:foo;\nworld w { not-a-keyword }";
-    let (map, err) = UnresolvedPackageGroup::parse("test.wit", contents)
-        .expect_err("expected parse to fail");
+    let (map, err) =
+        UnresolvedPackageGroup::parse("test.wit", contents).expect_err("expected parse to fail");
     let loc = map
         .resolve_span(err.kind().span())
         .expect("span should resolve");
@@ -32,8 +32,8 @@ fn resolve_span_in_second_file() {
 #[test]
 fn resolve_span_at_eof() {
     let contents = "package foo:foo;\nworld w {";
-    let (map, err) = UnresolvedPackageGroup::parse("test.wit", contents)
-        .expect_err("expected parse to fail");
+    let (map, err) =
+        UnresolvedPackageGroup::parse("test.wit", contents).expect_err("expected parse to fail");
     let loc = map
         .resolve_span(err.kind().span())
         .expect("span should resolve");
@@ -46,8 +46,8 @@ fn resolve_span_at_eof() {
 #[test]
 fn resolve_span_not_in_map() {
     let contents = "package foo:foo;\nworld w { not-a-keyword }";
-    let (_, err) = UnresolvedPackageGroup::parse("test.wit", contents)
-        .expect_err("expected parse to fail");
+    let (_, err) =
+        UnresolvedPackageGroup::parse("test.wit", contents).expect_err("expected parse to fail");
     let other = SourceMap::default();
     assert!(other.resolve_span(err.kind().span()).is_none());
 }
