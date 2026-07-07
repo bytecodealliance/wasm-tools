@@ -60,9 +60,8 @@ fn resolve_span_against_resolve_source_map() {
         .push_str("test.wit", contents)
         .expect_err("expected parse to fail");
     let pe = err
-        .chain()
-        .find_map(|layer| layer.downcast_ref::<ParseError>())
-        .expect("expected a ParseError in the chain");
+        .downcast_ref::<ParseError>()
+        .expect("expected error to downcast to ParseError");
     // The failure-path merge keeps spans valid against `resolve.source_map`,
     // so resolution against it must find the right file and range.
     let loc = resolve
