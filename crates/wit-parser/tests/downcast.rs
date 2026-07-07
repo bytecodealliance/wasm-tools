@@ -6,15 +6,14 @@ use wit_parser::{
     ParseError, ParseErrorKind, Resolve, ResolveError, ResolveErrorKind, UnresolvedPackageGroup,
 };
 
-fn outer_resolve_error(err: &anyhow::Error) -> &ResolveError {
+fn resolve_error(err: &anyhow::Error) -> &ResolveError {
     err.downcast_ref::<ResolveError>()
-        .expect("expected the outermost error to be a ResolveError")
+        .expect("expected error to downcast to ResolveError")
 }
 
-fn parse_error_in_chain(err: &anyhow::Error) -> &ParseError {
-    err.chain()
-        .find_map(|layer| layer.downcast_ref::<ParseError>())
-        .expect("expected a ParseError somewhere in the error chain")
+fn parse_error(err: &anyhow::Error) -> &ParseError {
+    err.downcast_ref::<ParseError>()
+        .expect("expected error to downcast to ParseError")
 }
 
 #[test]
@@ -26,7 +25,7 @@ fn push_str_returns_downcastable_error() {
             "package foo:foo;\nworld w { import some:dependency/iface; }",
         )
         .expect_err("expected resolve to fail");
-    let re = outer_resolve_error(&err);
+    let re = resolve_error(&err);
     assert!(
         matches!(re.kind(), ResolveErrorKind::PackageNotFound { .. }),
         "expected PackageNotFound, got: {:?}",
@@ -40,7 +39,7 @@ fn push_file_returns_downcastable_error() {
     let err = resolve
         .push_file("tests/ui/parse-fail/unresolved-interface4.wit")
         .expect_err("expected resolve to fail");
-    let re = outer_resolve_error(&err);
+    let re = resolve_error(&err);
     assert!(
         matches!(re.kind(), ResolveErrorKind::PackageNotFound { .. }),
         "expected PackageNotFound, got: {:?}",
@@ -54,7 +53,7 @@ fn push_dir_returns_downcastable_error() {
     let err = resolve
         .push_dir("tests/ui/parse-fail/bad-pkg6")
         .expect_err("expected resolve to fail");
-    let re = outer_resolve_error(&err);
+    let re = resolve_error(&err);
     assert!(
         matches!(re.kind(), ResolveErrorKind::PackageNotFound { .. }),
         "expected PackageNotFound, got: {:?}",
@@ -68,7 +67,7 @@ fn push_str_parse_error_is_downcastable() {
     let err = resolve
         .push_str("test.wit", "package foo:foo;\nworld w { not-a-keyword }")
         .expect_err("expected parse to fail");
-    let pe = parse_error_in_chain(&err);
+    let pe = parse_error(&err);
     // Spans must be valid against `resolve.source_map` after the failure-path
     // merge, so highlighting against it should not panic and should include
     // the file and line.
@@ -99,7 +98,7 @@ fn parse_error_spans_are_adjusted_after_earlier_pushes() {
             "package foo:second;\nworld w { not-a-keyword }",
         )
         .expect_err("expected parse to fail");
-    let pe = parse_error_in_chain(&err);
+    let pe = parse_error(&err);
     // The failing package's sources land at a nonzero offset in
     // `resolve.source_map` because `first.wit` was merged before it, so this
     // only points at the right file and line if the error's spans were
@@ -121,14 +120,14 @@ fn push_file_parse_error_is_downcastable() {
     let err = resolve
         .push_file("tests/ui/parse-fail/bad-function.wit")
         .expect_err("expected parse to fail");
-    parse_error_in_chain(&err);
+    parse_error(&err);
 }
 
 #[test]
 fn parse_dir_parse_error_is_downcastable() {
     let err = UnresolvedPackageGroup::parse_dir("tests/ui/parse-fail/multi-file-missing-delimiter")
         .expect_err("expected parse to fail");
-    parse_error_in_chain(&err);
+    parse_error(&err);
     // The source map is discarded on failure, but the rendered location must
     // be preserved in the error's message.
     assert!(
