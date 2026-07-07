@@ -560,6 +560,7 @@ impl<'a> Resolver<'a> {
                     None => return Ok(()),
                 };
                 let stability = self.stability(attrs)?;
+                let external_id = self.external_id(attrs)?;
                 let (item, name, span) = self.resolve_ast_item_path(path)?;
                 let iface = self.extract_iface_from_item(&item, &name, span)?;
                 if !self.foreign_interfaces.contains(&iface) {
@@ -581,6 +582,7 @@ impl<'a> Resolver<'a> {
                         name: Some(name.name.name.to_string()),
                         owner: TypeOwner::Interface(iface),
                         span: name.name.span,
+                        external_id: external_id.clone(),
                     });
                     self.unknown_type_spans.push(name.name.span);
                     lookup.insert(name.name.name, (TypeOrItem::Type(id), name.name.span));
@@ -945,6 +947,7 @@ impl<'a> Resolver<'a> {
             };
             let docs = self.docs(&def.docs);
             let stability = self.stability(&def.attributes)?;
+            let external_id = self.external_id(&def.attributes)?;
             let kind = self.resolve_type_def(&def.ty, &stability)?;
             let id = self.types.alloc(TypeDef {
                 docs,
@@ -953,6 +956,7 @@ impl<'a> Resolver<'a> {
                 name: Some(def.name.name.to_string()),
                 owner,
                 span: def.name.span,
+                external_id,
             });
             self.define_interface_name(&def.name, TypeOrItem::Type(id))?;
         }
@@ -980,6 +984,7 @@ impl<'a> Resolver<'a> {
         let (item, name, span) = self.resolve_ast_item_path(&u.from)?;
         let use_from = self.extract_iface_from_item(&item, &name, span)?;
         let stability = self.stability(&u.attributes)?;
+        let external_id = self.external_id(&u.attributes)?;
 
         for name in u.names.iter() {
             let lookup = &self.interface_types[use_from.index()];
@@ -1009,6 +1014,7 @@ impl<'a> Resolver<'a> {
                 name: Some(name.name.to_string()),
                 owner,
                 span,
+                external_id: external_id.clone(),
             });
             self.define_interface_name(name, TypeOrItem::Type(id))?;
         }
@@ -1092,6 +1098,7 @@ impl<'a> Resolver<'a> {
     ) -> ParseResult<Function> {
         let docs = self.docs(docs);
         let stability = self.stability(attrs)?;
+        let external_id = self.external_id(attrs)?;
         let params = self.resolve_params(&func.params, &kind, func.span)?;
         let result = self.resolve_result(&func.result, &kind, func.span)?;
         Ok(Function {
@@ -1102,6 +1109,7 @@ impl<'a> Resolver<'a> {
             params,
             result,
             span: name_span,
+            external_id,
         })
     }
 
@@ -1484,6 +1492,7 @@ impl<'a> Resolver<'a> {
             stability,
             owner: TypeOwner::None,
             span: ty.span(),
+            external_id: None,
         }))
     }
 
@@ -1706,6 +1715,7 @@ impl<'a> Resolver<'a> {
                     name: None,
                     owner: TypeOwner::None,
                     span,
+                    external_id: None,
                 });
                 ret.push(Param {
                     name: "self".to_string(),

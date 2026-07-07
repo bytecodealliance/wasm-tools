@@ -629,6 +629,8 @@ pub struct TypeDef {
     /// Source span for this type.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub span: Span,
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub external_id: Option<String>,
 }
 
 impl TypeDef {
@@ -950,6 +952,8 @@ pub struct Function {
     /// Source span for this function.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub span: Span,
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub external_id: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1521,6 +1525,7 @@ mod test {
             docs: Docs::default(),
             stability: Stability::Unknown,
             span: Default::default(),
+            external_id: Default::default(),
         });
         let t1 = resolve.types.alloc(TypeDef {
             name: None,
@@ -1529,6 +1534,7 @@ mod test {
             docs: Docs::default(),
             stability: Stability::Unknown,
             span: Default::default(),
+            external_id: Default::default(),
         });
         let t2 = resolve.types.alloc(TypeDef {
             name: None,
@@ -1537,6 +1543,7 @@ mod test {
             docs: Docs::default(),
             stability: Stability::Unknown,
             span: Default::default(),
+            external_id: Default::default(),
         });
         let found = Function {
             name: "foo".into(),
@@ -1557,6 +1564,7 @@ mod test {
             docs: Docs::default(),
             stability: Stability::Unknown,
             span: Default::default(),
+            external_id: Default::default(),
         }
         .find_futures_and_streams(&resolve);
         assert_eq!(3, found.len());

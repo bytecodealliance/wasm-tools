@@ -171,6 +171,7 @@ impl<O: Output> WitPrinter<O> {
             self.new_item();
             self.print_docs(&func.docs);
             self.print_stability(&func.stability);
+            self.print_external_id(func.external_id.as_deref());
             self.print_name_type(func.item_name(), TypeKind::FunctionFreestanding);
             self.output.str(": ");
             self.print_function(resolve, func)?;
@@ -193,29 +194,40 @@ impl<O: Output> WitPrinter<O> {
         // Partition types defined in this interface into either those imported
         // from foreign interfaces or those defined locally.
         let mut types_to_declare = Vec::new();
-        let mut types_to_import: Vec<(_, &_, Vec<_>)> = Vec::new();
+        let mut types_to_import: Vec<(_, &TypeDef, Vec<_>)> = Vec::new();
         for (name, ty_id) in types {
             let ty = &resolve.types[ty_id];
+
+            // If `ty` points to another type, `other`, then this might actually
+            // be a `use`.
             if let TypeDefKind::Type(Type::Id(other)) = ty.kind {
                 let other = &resolve.types[other];
                 match other.owner {
                     TypeOwner::None => {}
+
+                    // `use` is only applicable when the owner of the current
+                    // set of types is different than the owner of `other`. Once
+                    // this is detected `types_to_import` is going to get
+                    // modified.
                     other_owner if owner != other_owner => {
                         let other_name = other
                             .name
                             .as_ref()
                             .ok_or_else(|| anyhow!("cannot import unnamed type"))?;
-                        if let Some((owner, stability, list)) = types_to_import.last_mut() {
-                            if *owner == other_owner && ty.stability == **stability {
+
+                        // As a convenience push onto the last set of types to
+                        // import if it's to the same interface and with
+                        // matching attributes.
+                        if let Some((prev_owner, prev_ty, list)) = types_to_import.last_mut() {
+                            if *prev_owner == other_owner
+                                && ty.stability == prev_ty.stability
+                                && ty.external_id == prev_ty.external_id
+                            {
                                 list.push((name, other_name));
                                 continue;
                             }
                         }
-                        types_to_import.push((
-                            other_owner,
-                            &ty.stability,
-                            vec![(name, other_name)],
-                        ));
+                        types_to_import.push((other_owner, ty, vec![(name, other_name)]));
                         continue;
                     }
                     _ => {}
@@ -231,9 +243,10 @@ impl<O: Output> WitPrinter<O> {
             TypeOwner::World(id) => resolve.worlds[id].package.unwrap(),
             TypeOwner::None => unreachable!(),
         };
-        for (owner, stability, tys) in types_to_import {
+        for (owner, ty, tys) in types_to_import {
             self.any_items = true;
-            self.print_stability(stability);
+            self.print_stability(&ty.stability);
+            self.print_external_id(ty.external_id.as_deref());
             self.output.keyword("use");
             self.output.str(" ");
             let id = match owner {
@@ -266,6 +279,7 @@ impl<O: Output> WitPrinter<O> {
             self.new_item();
             self.print_docs(&resolve.types[id].docs);
             self.print_stability(&resolve.types[id].stability);
+            self.print_external_id(resolve.types[id].external_id.as_deref());
             match resolve.types[id].kind {
                 TypeDefKind::Resource => self.print_resource(
                     resolve,
@@ -295,6 +309,7 @@ impl<O: Output> WitPrinter<O> {
         for func in funcs {
             self.print_docs(&func.docs);
             self.print_stability(&func.stability);
+            self.print_external_id(func.external_id.as_deref());
 
             match &func.kind {
                 FunctionKind::Constructor(_) => {}
@@ -457,15 +472,7 @@ impl<O: Output> WitPrinter<O> {
         // `docs`); for an inline `import x: interface { .. }` with no statement
         // docs fall back to the interface definition's docs.
         let docs = match item {
-            WorldItem::Interface {
-                id,
-                docs,
-                external_id,
-                ..
-            } => {
-                if let Some(id) = external_id {
-                    self.print_external_id(id);
-                }
+            WorldItem::Interface { id, docs, .. } => {
                 if docs.contents.is_some() {
                     Some(docs)
                 } else if matches!(name, WorldKey::Name(_)) {
@@ -483,6 +490,7 @@ impl<O: Output> WitPrinter<O> {
         }
 
         self.print_stability(item.stability(resolve));
+        self.print_external_id(resolve.external_id_value(name, item).as_deref());
         self.output.keyword(import_or_export_keyword);
         self.output.str(" ");
         match name {
@@ -1185,7 +1193,10 @@ impl<O: Output> WitPrinter<O> {
         }
     }
 
-    fn print_external_id(&mut self, id: &str) {
+    fn print_external_id(&mut self, id: Option<&str>) {
+        let Some(id) = id else {
+            return;
+        };
         self.output.keyword("@external-id");
         self.output.str("(\"");
         let mut buf = [0; 4];

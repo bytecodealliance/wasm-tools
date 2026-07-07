@@ -107,11 +107,11 @@ pub trait ValtypeEncoder<'a> {
     fn define_function_type(&mut self) -> (u32, ComponentFuncTypeEncoder<'_>);
 
     /// Creates an export item for the specified type index.
-    fn export_type(&mut self, index: u32, name: &'a str) -> Option<u32>;
+    fn export_type(&mut self, index: u32, name: ComponentExternName<'a>) -> Option<u32>;
 
     /// Creates a new `(type (sub resource))` export with the given name,
     /// returning the type index that refers to the fresh type created.
-    fn export_resource(&mut self, name: &'a str) -> u32;
+    fn export_resource(&mut self, name: ComponentExternName<'a>) -> u32;
 
     /// Returns the encoding maps used to encoding types such as id-to-index
     /// maps.
@@ -235,7 +235,8 @@ pub trait ValtypeEncoder<'a> {
                     TypeDefKind::Unknown => unreachable!(),
                     TypeDefKind::Resource => {
                         let name = ty.name.as_ref().expect("resources must be named");
-                        let index = self.export_resource(name);
+                        let index =
+                            self.export_resource(extern_name(name, ty.external_id.as_deref()));
                         self.type_encoding_maps().id_to_index.insert(id, index);
                         return Ok(ComponentValType::Type(index));
                     }
@@ -270,7 +271,9 @@ pub trait ValtypeEncoder<'a> {
                             index
                         }
                     };
-                    let index = self.export_type(index, name).unwrap_or(index);
+                    let index = self
+                        .export_type(index, extern_name(name, ty.external_id.as_deref()))
+                        .unwrap_or(index);
 
                     encoded = ComponentValType::Type(index);
                 }
@@ -429,6 +432,17 @@ pub trait ValtypeEncoder<'a> {
     }
 }
 
+/// Helper to create a `ComponentExternName` from its component parts found
+/// within a WIT AST node.
+pub fn extern_name<'a>(name: &'a str, external_id: Option<&'a str>) -> ComponentExternName<'a> {
+    ComponentExternName {
+        name: name.into(),
+        implements: None,
+        external_id: external_id.map(|s| s.into()),
+        version_suffix: None,
+    }
+}
+
 pub struct RootTypeEncoder<'state, 'a> {
     pub state: &'state mut EncodingState<'a>,
     pub interface: Option<InterfaceId>,
@@ -445,7 +459,7 @@ impl<'a> ValtypeEncoder<'a> for RootTypeEncoder<'_, 'a> {
     fn interface(&self) -> Option<InterfaceId> {
         self.interface
     }
-    fn export_type(&mut self, idx: u32, name: &'a str) -> Option<u32> {
+    fn export_type(&mut self, idx: u32, name: ComponentExternName<'a>) -> Option<u32> {
         // When encoding types for the root the root component will export
         // this type, but when encoding types for a targeted interface then we
         // can't export types just yet. Interfaces will be created as an
@@ -466,7 +480,7 @@ impl<'a> ValtypeEncoder<'a> for RootTypeEncoder<'_, 'a> {
             None
         }
     }
-    fn export_resource(&mut self, name: &'a str) -> u32 {
+    fn export_resource(&mut self, name: ComponentExternName<'a>) -> u32 {
         assert!(self.interface.is_none());
         assert!(self.import_types);
         self.state
@@ -495,13 +509,13 @@ impl<'a> ValtypeEncoder<'a> for InstanceTypeEncoder<'_, 'a> {
     fn define_function_type(&mut self) -> (u32, ComponentFuncTypeEncoder<'_>) {
         (self.ty.type_count(), self.ty.ty().function())
     }
-    fn export_type(&mut self, idx: u32, name: &str) -> Option<u32> {
+    fn export_type(&mut self, idx: u32, name: ComponentExternName<'a>) -> Option<u32> {
         let ret = self.ty.type_count();
         self.ty
             .export(name, ComponentTypeRef::Type(TypeBounds::Eq(idx)));
         Some(ret)
     }
-    fn export_resource(&mut self, name: &str) -> u32 {
+    fn export_resource(&mut self, name: ComponentExternName<'a>) -> u32 {
         let ret = self.ty.type_count();
         self.ty
             .export(name, ComponentTypeRef::Type(TypeBounds::SubResource));

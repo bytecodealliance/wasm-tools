@@ -1,0 +1,15 @@
+// RUN: component embed % --dummy-names legacy | \
+//        component new | \
+//        component wit
+
+package x:name;
+
+world w {
+  @external-id("hi")
+  import name: func() -> s64;
+  import name2: func();
+
+  @external-id("bye")
+  export name3: func();
+  export name4: func();
+}

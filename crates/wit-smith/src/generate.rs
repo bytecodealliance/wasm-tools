@@ -592,6 +592,10 @@ impl<'a> InterfaceGenerator<'a> {
                 part.push_str("\n");
             }
 
+            if u.arbitrary()? {
+                part.push_str("@external-id(\"hi\")\n");
+            }
+
             match u.arbitrary()? {
                 Generate::Use => {
                     if !self.gen_use(u, &mut part, world_name)? {
@@ -691,15 +695,8 @@ impl<'a> InterfaceGenerator<'a> {
                 part.push_str("\n");
             }
 
-            match kind {
-                ItemKind::AnonInterface(_)
-                | ItemKind::Interface(_)
-                | ItemKind::ImplementsInterface(_) => {
-                    if u.arbitrary()? {
-                        part.push_str("@external-id(\"hi\")\n");
-                    }
-                }
-                ItemKind::Func(_) | ItemKind::Type | ItemKind::Use | ItemKind::Include => {}
+            if u.arbitrary()? {
+                part.push_str("@external-id(\"hi\")\n");
             }
 
             if let Some(dir) = direction {

@@ -4725,10 +4725,6 @@ impl ComponentNameContext {
                 "the `cm-implements` feature is not active",
                 offset,
             )?;
-            match ty {
-                ComponentEntityType::Instance(_) => {}
-                _ => bail!(offset, "only instances can have an `external-id`"),
-            }
         }
 
         // Validate that the kebab name, if it has structure such as

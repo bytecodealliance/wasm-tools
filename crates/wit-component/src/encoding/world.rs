@@ -261,7 +261,14 @@ impl<'a> ComponentWorld<'a> {
                 WorldItem::Interface { id, .. } => Some(*id),
             };
             let implements = resolve.implements_value(key, item);
-            let external_id = resolve.external_id_value(key, item);
+            // Note that `external_id` is only tracked for interface imports
+            // here. World-level functions and types all share the `None` entry
+            // in `import_map` but each item can have its own `external-id`
+            // which is emitted on a per-item basis instead.
+            let external_id = match item {
+                WorldItem::Function(_) | WorldItem::Type { .. } => None,
+                WorldItem::Interface { .. } => resolve.external_id_value(key, item),
+            };
             let interface = import_map
                 .entry(import_map_key)
                 .or_insert_with(|| ImportedInterface {

@@ -549,7 +549,10 @@ impl<'a> EncodingState<'a> {
             log::trace!("encoding function type for `{}`", func.name);
             let idx = encoder.encode_func_type(resolve, func)?;
 
-            encoder.ty.export(&func.name, ComponentTypeRef::Func(idx));
+            encoder.ty.export(
+                crate::encoding::types::extern_name(&func.name, func.external_id.as_deref()),
+                ComponentTypeRef::Func(idx),
+            );
         }
 
         let ty = encoder.ty;
@@ -597,7 +600,10 @@ impl<'a> EncodingState<'a> {
             let idx = self
                 .root_import_type_encoder(None)
                 .encode_func_type(resolve, func)?;
-            let func_idx = self.component.import(&name, ComponentTypeRef::Func(idx));
+            let func_idx = self.component.import(
+                crate::encoding::types::extern_name(name.as_str(), func.external_id.as_deref()),
+                ComponentTypeRef::Func(idx),
+            );
             let prev = self.imported_funcs.insert(name, func_idx);
             assert!(prev.is_none());
         }
@@ -735,8 +741,15 @@ impl<'a> EncodingState<'a> {
                         .encode_func_type(resolve, func)?;
                     let core_name = world_func_core_names[&func.name];
                     let idx = self.encode_lift(module, &core_name, export_name, func, ty)?;
-                    self.component
-                        .export(export_string, ComponentExportKind::Func, idx, None);
+                    self.component.export(
+                        crate::encoding::types::extern_name(
+                            &export_string,
+                            func.external_id.as_deref(),
+                        ),
+                        ComponentExportKind::Func,
+                        idx,
+                        None,
+                    );
                 }
                 item @ WorldItem::Interface { id, .. } => {
                     let core_names = interface_func_core_names.get(export_name);
@@ -913,7 +926,10 @@ impl<'a> EncodingState<'a> {
             match ty.kind {
                 TypeDefKind::Resource => {
                     let idx = nested.component.export(
-                        ty.name.as_ref().expect("resources must be named"),
+                        crate::encoding::types::extern_name(
+                            ty.name.as_ref().expect("resources must be named"),
+                            ty.external_id.as_deref(),
+                        ),
                         ComponentExportKind::Type,
                         resources[id],
                         None,
@@ -929,7 +945,7 @@ impl<'a> EncodingState<'a> {
         for (i, (_, func)) in resolve.interfaces[export].functions.iter().enumerate() {
             let ty = nested.encode_func_type(resolve, func)?;
             nested.component.export(
-                &func.name,
+                crate::encoding::types::extern_name(&func.name, func.external_id.as_deref()),
                 ComponentExportKind::Func,
                 i as u32,
                 Some(ComponentTypeRef::Func(ty)),
@@ -994,14 +1010,18 @@ impl<'a> EncodingState<'a> {
             fn define_function_type(&mut self) -> (u32, ComponentFuncTypeEncoder<'_>) {
                 self.component.type_function(None)
             }
-            fn export_type(&mut self, idx: u32, name: &'a str) -> Option<u32> {
+            fn export_type(
+                &mut self,
+                idx: u32,
+                name: wasm_encoder::ComponentExternName<'a>,
+            ) -> Option<u32> {
                 if self.export_types {
                     Some(
                         self.component
                             .export(name, ComponentExportKind::Type, idx, None),
                     )
                 } else {
-                    let name = self.unique_import_name(name);
+                    let name = self.unique_import_name(&name.name);
                     let ret = self
                         .component
                         .import(&name, ComponentTypeRef::Type(TypeBounds::Eq(idx)));
@@ -1009,11 +1029,11 @@ impl<'a> EncodingState<'a> {
                     Some(ret)
                 }
             }
-            fn export_resource(&mut self, name: &'a str) -> u32 {
+            fn export_resource(&mut self, name: wasm_encoder::ComponentExternName<'a>) -> u32 {
                 if self.export_types {
                     panic!("resources should already be exported")
                 } else {
-                    let name = self.unique_import_name(name);
+                    let name = self.unique_import_name(&name.name);
                     let ret = self
                         .component
                         .import(&name, ComponentTypeRef::Type(TypeBounds::SubResource));
@@ -2944,6 +2964,7 @@ impl<'a> Shims<'a> {
                         docs: Default::default(),
                         stability: Stability::Unknown,
                         span: Default::default(),
+                        external_id: None,
                     },
                     if async_ {
                         AbiVariant::GuestImportAsync
@@ -3046,6 +3067,7 @@ fn task_return_options_and_type(
         docs: Default::default(),
         stability: Stability::Unknown,
         span: Default::default(),
+        external_id: None,
     };
     let abi = AbiVariant::GuestImport;
     let mut options = RequiredOptions::for_import(resolve, func, abi);

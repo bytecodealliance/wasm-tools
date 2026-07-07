@@ -1,4 +1,4 @@
-use crate::encoding::types::{TypeEncodingMaps, ValtypeEncoder};
+use crate::encoding::types::{TypeEncodingMaps, ValtypeEncoder, extern_name};
 use anyhow::Result;
 use indexmap::IndexSet;
 use std::collections::HashMap;
@@ -295,10 +295,10 @@ impl InterfaceEncoder<'_> {
 
         for (name, func) in funcs {
             let ty = self.encode_func_type(self.resolve, func)?;
-            self.ty
-                .as_mut()
-                .unwrap()
-                .export(name, ComponentTypeRef::Func(ty));
+            self.ty.as_mut().unwrap().export(
+                extern_name(name, func.external_id.as_deref()),
+                ComponentTypeRef::Func(ty),
+            );
         }
         let instance = self.pop_instance();
         let idx = self.outer.type_count();
@@ -335,7 +335,7 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
             None => (self.outer.type_count(), self.outer.ty().function()),
         }
     }
-    fn export_type(&mut self, index: u32, name: &'a str) -> Option<u32> {
+    fn export_type(&mut self, index: u32, name: ComponentExternName<'a>) -> Option<u32> {
         match &mut self.ty {
             Some(ty) => {
                 assert!(!self.import_types);
@@ -356,7 +356,7 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
             }
         }
     }
-    fn export_resource(&mut self, name: &'a str) -> u32 {
+    fn export_resource(&mut self, name: ComponentExternName<'a>) -> u32 {
         let type_ref = ComponentTypeRef::Type(TypeBounds::SubResource);
         match &mut self.ty {
             Some(ty) => {

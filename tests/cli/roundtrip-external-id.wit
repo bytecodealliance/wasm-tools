@@ -1,0 +1,42 @@
+// RUN: component wit %
+
+package x:name;
+
+interface i {
+  @external-id("i")
+  type some-type = u32;
+
+  @external-id("i")
+  x: func();
+
+  @external-id("i")
+  resource r {
+    @external-id("i")
+    constructor();
+
+    @external-id("i")
+    x: func();
+  }
+}
+
+world w {
+  @external-id("hi \t")
+  import i;
+
+  @external-id("hi")
+  export i;
+
+  @external-id("hi")
+  resource r;
+
+  @external-id("hi")
+  type t = u32;
+
+  @external-id("hi")
+  export x: func();
+  @external-id("hi")
+  import x: func();
+
+  @external-id("hi")
+  use i.{some-type};
+}

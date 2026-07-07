@@ -1,0 +1,40 @@
+/// RUN: component wit % --wasm | component wit
+package a:b;
+
+interface foo {
+  @external-id("nested type")
+  type t = u32;
+
+  @external-id("nested record")
+  record r {
+    x: u32,
+  }
+
+  @external-id("nested resource")
+  resource res {
+    @external-id("nested constructor")
+    constructor();
+    @external-id("nested method")
+    m: func();
+    @external-id("nested static")
+    s: static func();
+  }
+
+  @external-id("nested func")
+  f: func() -> t;
+}
+
+world w {
+  @external-id("world interface")
+  import foo;
+  @external-id("world use")
+  use foo.{t};
+
+  @external-id("world type")
+  type t2 = u32;
+
+  @external-id("world resource")
+  resource r2;
+  @external-id("world func")
+  import f2: func() -> t2;
+}
