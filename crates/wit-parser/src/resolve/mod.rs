@@ -441,14 +441,8 @@ impl Resolve {
         self.source_map.render_location(span)
     }
 
-    /// Renders an error chain returned by this [`Resolve`]'s `push_*` methods,
-    /// substituting file/line/column snippets for any typed
-    /// [`ParseError`](crate::ParseError) or [`ResolveError`] layers.
-    ///
-    /// Spans in errors returned by [`Resolve`] methods are always valid
-    /// against [`Resolve::source_map`], including when the `push_*` call
-    /// failed, so this is the one-stop way for embedders to display those
-    /// errors.
+    /// Renders an error returned by this [`Resolve`]'s `push_*` methods with
+    /// source context (file:line:col + snippet).
     #[cfg(feature = "std")]
     pub fn render_error(&self, err: &anyhow::Error) -> String {
         crate::render_anyhow_error(err, &self.source_map)

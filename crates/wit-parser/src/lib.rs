@@ -77,8 +77,8 @@ pub fn validate_id(s: &str) -> anyhow::Result<()> {
 ///
 /// `source_map` must be the [`SourceMap`] in which every typed error's spans
 /// are valid; combining typed errors from different source maps in one chain
-/// is unsupported. For errors returned by [`Resolve`] methods, prefer
-/// [`Resolve::render_error`] which supplies the right map automatically.
+/// is unsupported. For errors from [`Resolve`] methods, prefer
+/// [`Resolve::render_error`].
 #[cfg(feature = "std")]
 pub fn render_anyhow_error(err: &anyhow::Error, source_map: &SourceMap) -> String {
     err.chain()
