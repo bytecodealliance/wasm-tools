@@ -190,6 +190,9 @@ pub struct Metadata<'a> {
     /// Whether this module exports `__wasm_set_libraries`
     pub has_set_libraries: bool,
 
+    /// Whether this module exports `__wasm_init_task`
+    pub has_init_task: bool,
+
     /// Whether this module includes any `component-type*` custom sections which include exports
     pub has_component_exports: bool,
 
@@ -243,6 +246,7 @@ impl<'a> Metadata<'a> {
             has_initialize: false,
             has_wasi_start: false,
             has_set_libraries: false,
+            has_init_task: false,
             has_component_exports,
             is_asyncified: false,
             env_imports: BTreeSet::new(),
@@ -334,7 +338,13 @@ impl<'a> Metadata<'a> {
                                     return type_error();
                                 }
                             }
-                            ("env", "__memory_base" | "__table_base" | "__stack_pointer") => {
+                            (
+                                "env",
+                                "__memory_base"
+                                | "__table_base"
+                                | "__stack_pointer"
+                                | "__init_stack_pointer",
+                            ) => {
                                 if !matches!(
                                     import.ty,
                                     TypeRef::Global(wasmparser::GlobalType {
@@ -482,6 +492,9 @@ impl<'a> Metadata<'a> {
                             "_start" => result.has_wasi_start = true,
                             "__wasm_set_libraries" => result.has_set_libraries = true,
                             _ => {
+                                if export.name == "__wasm_init_task" {
+                                    result.has_init_task = true;
+                                }
                                 let ty = match export.kind {
                                     ExternalKind::Func => Type::Function(FunctionType::try_from(
                                         &types[function_types

@@ -50,6 +50,13 @@ pub const DEFAULT_STACK_SIZE_BYTES: u32 = 16 * PAGE_SIZE_BYTES;
 const HEAP_ALIGNMENT_BYTES: u32 = 16;
 const STUB_LIBRARY_NAME: &str = "wit-component:stubs";
 
+static EMPTY_FUNCTION_TYPE: FunctionType = FunctionType {
+    parameters: Vec::new(),
+    results: Vec::new(),
+};
+
+static ENV_REEXPORTS: &[&str] = &["__wasm_init_task", "__wasm_init_async_task"];
+
 enum Address<'a> {
     Function(u32),
     Global(&'a str),
@@ -362,6 +369,7 @@ fn make_env_module<'a>(
         };
 
         add_global_export("__stack_pointer", stack_size_bytes, true);
+        add_global_export("__init_stack_pointer", stack_size_bytes, false);
 
         // Binaryen's Asyncify transform for shared everything linking requires these globals
         // to be provided from env module
@@ -663,6 +671,18 @@ fn make_init_module(
                  expected at most one of the two",
                 metadata.name
             );
+        }
+
+        // Before calling either `__wasm_call_ctors` or `_initialize`, we need
+        // to call `__wasm_init_task` if present to set up the shadow stack when
+        // using the cooperative multithreading ABI.
+        if (metadata.has_ctors || metadata.has_initialize) && metadata.has_init_task {
+            ctor_calls.push(Ins::Call(add_function_import(
+                &mut imports,
+                metadata.name,
+                "__wasm_init_task",
+                thunk_ty,
+            )));
         }
 
         if metadata.has_ctors {
@@ -995,6 +1015,32 @@ fn resolve_symbols<'a>(
         }
     }
 
+    // Even if no library imports these symbols, we re-export them from the
+    // `env` module so that
+    // `EncodingState::create_export_task_initialization_wrappers` can find
+    // and use them:
+    for &name in ENV_REEXPORTS {
+        let export = Export {
+            key: ExportKey {
+                name,
+                ty: Type::Function(EMPTY_FUNCTION_TYPE.clone()),
+            },
+            flags: SymbolFlags::empty(),
+        };
+
+        if let Some((key, value)) = exporters.get_key_value(&export.key) {
+            // Note that we do not use `insert_unique` here since multiple
+            // libraries may import the same symbol, in which case we may
+            // redundantly insert the same value.
+            match value.as_slice() {
+                [] => unreachable!(),
+                [exporter] | [exporter, ..] => {
+                    resolved.insert(*key, *exporter);
+                }
+            }
+        }
+    }
+
     (resolved, missing, duplicates)
 }
 
@@ -1182,6 +1228,26 @@ fn env_exports<'a>(
         }
 
         seen.insert(index);
+    }
+
+    // Even if no library imports these symbols, we re-export them from the
+    // `env` module so that
+    // `EncodingState::create_export_task_initialization_wrappers` can find
+    // and use them:
+    for &name in ENV_REEXPORTS {
+        if !exported.contains(name) {
+            if let Some(exporter) = exporters.get(&ExportKey {
+                name,
+                ty: Type::Function(EMPTY_FUNCTION_TYPE.clone()),
+            }) {
+                result.push(EnvExport {
+                    name,
+                    ty: &EMPTY_FUNCTION_TYPE,
+                    exporter: indexes[exporter.0],
+                });
+                exported.insert(name);
+            }
+        }
     }
 
     let reexport_cabi_realloc = exported.contains("cabi_realloc");
@@ -1540,6 +1606,12 @@ impl Linker {
                 kind: ExportKind::Global,
                 which: MainOrAdapter::Main,
                 name: "__stack_pointer".into(),
+            },
+            Item {
+                alias: "__init_stack_pointer".into(),
+                kind: ExportKind::Global,
+                which: MainOrAdapter::Main,
+                name: "__init_stack_pointer".into(),
             },
         ];
 

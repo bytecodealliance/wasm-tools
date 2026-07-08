@@ -632,10 +632,6 @@ impl<'a> EncodingState<'a> {
         // at the end.
         self.instantiate_main_module(&shims)?;
 
-        // Create any wrappers needed for initializing tasks if task initialization
-        // exports are present in the main module.
-        self.create_export_task_initialization_wrappers()?;
-
         // Separate the adapters according which should be instantiated before
         // and after indirect lowerings are encoded.
         let (before, after) = self
@@ -665,6 +661,10 @@ impl<'a> EncodingState<'a> {
         }
 
         self.encode_initialize_with_start()?;
+
+        // Create any wrappers needed for initializing tasks if task initialization
+        // exports are present in the main module.
+        self.create_export_task_initialization_wrappers()?;
 
         Ok(())
     }
@@ -2295,14 +2295,23 @@ impl<'a> EncodingState<'a> {
         // that we'll need to build the wrappers.
         let funcs_to_wrap: Vec<_> = exports
             .iter()
-            .flat_map(|(core_name, export)| match export {
+            .map(|v| (instance_index, v))
+            .chain(self.info.adapters.iter().flat_map(|(name, adapter)| {
+                let instance_index = self.adapter_instances[name];
+                adapter
+                    .info
+                    .exports
+                    .iter()
+                    .map(move |v| (instance_index, v))
+            }))
+            .flat_map(|(index, (core_name, export))| match export {
                 Export::WorldFunc(key, _, abi) => match &world.exports[key] {
-                    WorldItem::Function(f) => Some((core_name, f, abi)),
+                    WorldItem::Function(f) => Some((index, core_name, f, abi)),
                     _ => None,
                 },
                 Export::InterfaceFunc(_, id, func_name, abi) => {
                     let func = &resolve.interfaces[*id].functions[func_name.as_str()];
-                    Some((core_name, func, abi))
+                    Some((index, core_name, func, abi))
                 }
                 _ => None,
             })
@@ -2351,7 +2360,7 @@ impl<'a> EncodingState<'a> {
             n_params: usize,
         }
         let mut func_info = Vec::new();
-        for &(name, func, abi) in funcs_to_wrap.iter() {
+        for &(_, name, func, abi) in funcs_to_wrap.iter() {
             let sig = resolve.wasm_signature(*abi, func);
             let type_idx = *type_indices.entry(sig.clone()).or_insert_with(|| {
                 let idx = next_type_idx;
@@ -2431,9 +2440,9 @@ impl<'a> EncodingState<'a> {
         ));
 
         // Import all original exports to be wrapped
-        for (name, func, _) in &funcs_to_wrap {
+        for (instance_index, name, func, _) in &funcs_to_wrap {
             let orig_idx =
-                self.core_alias_export(Some(name), instance_index, name, ExportKind::Func);
+                self.core_alias_export(Some(name), *instance_index, name, ExportKind::Func);
             wrapper_imports.push((import_func_name(func), ExportKind::Func, orig_idx));
         }
 
@@ -2449,7 +2458,7 @@ impl<'a> EncodingState<'a> {
         );
 
         // Map original names to wrapper indices
-        for (name, _, _) in funcs_to_wrap {
+        for (_, name, _, _) in funcs_to_wrap {
             let wrapper_idx =
                 self.core_alias_export(Some(&name), wrapper_instance, &name, ExportKind::Func);
             self.export_task_initialization_wrappers
