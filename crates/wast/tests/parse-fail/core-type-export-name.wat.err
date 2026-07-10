@@ -1,0 +1,5 @@
+core instances cannot export this kind of item, so an export name cannot be used to resolve this reference
+     --> tests/parse-fail/core-type-export-name.wat:7:59
+      |
+    7 |   (core func (canon lower (func $f) (core-type (core type $i "t"))))
+      |                                                           ^

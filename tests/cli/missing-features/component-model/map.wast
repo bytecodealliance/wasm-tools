@@ -9,7 +9,7 @@
     (core instance $i (instantiate $m))
 
     (func (export "ret-map") (result (map string u32))
-      (canon lift (core func $i "ret-map") (memory $i "memory"))
+      (canon lift (core func $i "ret-map") (memory (core memory $i "memory")))
     )
   )
   "Maps require the component model map feature (at offset 0x54)"

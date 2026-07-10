@@ -68,6 +68,11 @@
 ;;                 validate
 ;;
 ;; here the `\` character is deleted and the next line is concatenated.
+;;
+;; Like in a POSIX shell, `KEY=VALUE` arguments before a subcommand name set
+;; environment variables for that command:
+;;
+;; RUN[env]: FOO=bar validate %
 
 
 ;; this is the contents of the test, mostly empty in this case.

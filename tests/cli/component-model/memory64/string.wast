@@ -8,6 +8,6 @@
   )
   (core instance $m (instantiate $m))
   (func (export "a") (param "a" string) (result string)
-    (canon lift (core func $m "f") (realloc (func $m "realloc")) (memory $m "memory"))
+    (canon lift (core func $m "f") (realloc (core func $m "realloc")) (memory (core memory $m "memory")))
   )
 )

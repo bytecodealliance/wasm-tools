@@ -23,7 +23,7 @@
     (func (export "dtor") (param i32))
   )
   (core instance $m (instantiate $m))
-  (type $x (resource (rep i32) (dtor (func $m "dtor"))))
+  (type $x (resource (rep i32) (dtor (core func $m "dtor"))))
   (core func (canon resource.new $x))
 )
 
@@ -127,14 +127,14 @@
       (func (export "dtor"))
     )
     (core instance $m (instantiate $m))
-    (type $x (resource (rep i32) (dtor (func $m "dtor"))))
+    (type $x (resource (rep i32) (dtor (core func $m "dtor"))))
     (core func (canon resource.new $x))
   )
   "wrong signature for a destructor")
 
 (assert_invalid
   (component
-    (type (resource (rep i32) (dtor (func 100))))
+    (type (resource (rep i32) (dtor (core func 100))))
   )
   "function index out of bounds")
 

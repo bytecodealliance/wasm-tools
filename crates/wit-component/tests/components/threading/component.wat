@@ -134,7 +134,7 @@
   (core func $"#core-func15 task.return" (@name "task.return") (;15;) (canon task.return (result string) (memory $memory) string-encoding=utf8))
   (core type $thread-start (;0;) (func (param i32)))
   (alias core export $main "__indirect_function_table" (core table $indirect-function-table (;1;)))
-  (core func $"#core-func16 thread.new-indirect" (@name "thread.new-indirect") (;16;) (canon thread.new-indirect $thread-start (table $indirect-function-table)))
+  (core func $"#core-func16 thread.new-indirect" (@name "thread.new-indirect") (;16;) (canon thread.new-indirect $thread-start $indirect-function-table))
   (core instance $fixup-args (;5;)
     (export "$imports" (table $"shim table"))
     (export "0" (func $task.return))

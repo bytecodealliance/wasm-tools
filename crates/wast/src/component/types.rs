@@ -967,7 +967,7 @@ impl<'a> Parse<'a> for ResourceType<'a> {
         } else {
             Some(parser.parens(|p| {
                 p.parse::<kw::dtor>()?;
-                p.parens(|p| p.parse())
+                Ok(p.parse::<CorePrefixedRef<'_, _, true>>()?.0)
             })?)
         };
         Ok(Self { rep, dtor })

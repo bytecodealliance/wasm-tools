@@ -12,7 +12,7 @@
   (component
     ;; Refer to a non-existent function and table types (i.e., 0); validation
     ;; for `thread.spawn-indirect` happens first.
-    (core func $spawn-indirect (canon thread.spawn-indirect 0 (table 0)))
+    (core func $spawn-indirect (canon thread.spawn-indirect 0 (core table 0)))
   )
   "`thread.spawn-indirect` requires the shared-everything-threads proposal")
 

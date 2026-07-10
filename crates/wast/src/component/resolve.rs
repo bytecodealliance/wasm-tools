@@ -379,19 +379,19 @@ impl<'a> Resolver<'a> {
                     self.canon_opts(&mut info.opts)?;
                 }
                 CoreFuncKind::ResourceNew(info) => {
-                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                    self.component_item_ref(&mut info.ty)?;
                 }
                 CoreFuncKind::ResourceRep(info) => {
-                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                    self.component_item_ref(&mut info.ty)?;
                 }
                 CoreFuncKind::ResourceDrop(info) => {
-                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                    self.component_item_ref(&mut info.ty)?;
                 }
                 CoreFuncKind::ThreadSpawnRef(info) => {
-                    self.resolve_ns(&mut info.ty, Ns::CoreType)?;
+                    self.core_item_ref(&mut info.ty)?;
                 }
                 CoreFuncKind::ThreadSpawnIndirect(info) => {
-                    self.resolve_ns(&mut info.ty, Ns::CoreType)?;
+                    self.core_item_ref(&mut info.ty)?;
                     self.core_item_ref(&mut info.table)?;
                 }
                 CoreFuncKind::ThreadAvailableParallelism(_)
@@ -410,50 +410,50 @@ impl<'a> Resolver<'a> {
                 CoreFuncKind::ContextGet(ty, _) => self.ref_type(ty)?,
                 CoreFuncKind::ContextSet(ty, _) => self.ref_type(ty)?,
                 CoreFuncKind::StreamNew(info) => {
-                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                    self.component_item_ref(&mut info.ty)?;
                 }
                 CoreFuncKind::StreamRead(info) => {
-                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                    self.component_item_ref(&mut info.ty)?;
                     self.canon_opts(&mut info.opts)?;
                 }
                 CoreFuncKind::StreamWrite(info) => {
-                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                    self.component_item_ref(&mut info.ty)?;
                     self.canon_opts(&mut info.opts)?;
                 }
                 CoreFuncKind::StreamCancelRead(info) => {
-                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                    self.component_item_ref(&mut info.ty)?;
                 }
                 CoreFuncKind::StreamCancelWrite(info) => {
-                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                    self.component_item_ref(&mut info.ty)?;
                 }
                 CoreFuncKind::StreamDropReadable(info) => {
-                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                    self.component_item_ref(&mut info.ty)?;
                 }
                 CoreFuncKind::StreamDropWritable(info) => {
-                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                    self.component_item_ref(&mut info.ty)?;
                 }
                 CoreFuncKind::FutureNew(info) => {
-                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                    self.component_item_ref(&mut info.ty)?;
                 }
                 CoreFuncKind::FutureRead(info) => {
-                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                    self.component_item_ref(&mut info.ty)?;
                     self.canon_opts(&mut info.opts)?;
                 }
                 CoreFuncKind::FutureWrite(info) => {
-                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                    self.component_item_ref(&mut info.ty)?;
                     self.canon_opts(&mut info.opts)?;
                 }
                 CoreFuncKind::FutureCancelRead(info) => {
-                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                    self.component_item_ref(&mut info.ty)?;
                 }
                 CoreFuncKind::FutureCancelWrite(info) => {
-                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                    self.component_item_ref(&mut info.ty)?;
                 }
                 CoreFuncKind::FutureDropReadable(info) => {
-                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                    self.component_item_ref(&mut info.ty)?;
                 }
                 CoreFuncKind::FutureDropWritable(info) => {
-                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                    self.component_item_ref(&mut info.ty)?;
                 }
                 CoreFuncKind::ErrorContextNew(info) => {
                     self.canon_opts(&mut info.opts)?;
@@ -472,7 +472,7 @@ impl<'a> Resolver<'a> {
                 CoreFuncKind::WaitableJoin => {}
                 CoreFuncKind::ThreadIndex => {}
                 CoreFuncKind::ThreadNewIndirect(info) => {
-                    self.resolve_ns(&mut info.ty, Ns::CoreType)?;
+                    self.core_item_ref(&mut info.ty)?;
                     self.core_item_ref(&mut info.table)?;
                 }
                 CoreFuncKind::ThreadResumeLater => {}
@@ -753,12 +753,33 @@ impl<'a> Resolver<'a> {
             return Ok(());
         }
 
+        let span = item.idx.span();
+        let kind = match item.kind.ns() {
+            ns @ (Ns::CoreFunc | Ns::CoreTable | Ns::CoreGlobal | Ns::CoreMemory | Ns::CoreTag) => {
+                ns.into()
+            }
+            Ns::CoreType
+            | Ns::CoreInstance
+            | Ns::CoreModule
+            | Ns::Func
+            | Ns::Type
+            | Ns::Instance
+            | Ns::Component
+            | Ns::Value => {
+                return Err(Error::new(
+                    span,
+                    "core instances cannot export this kind of item, so an \
+                     export name cannot be used to resolve this reference"
+                        .to_string(),
+                ));
+            }
+        };
+
         // This is a reference to a core instance export
         let mut index = item.idx;
         self.resolve_ns(&mut index, Ns::CoreInstance)?;
 
         // Record an alias to reference the export
-        let span = item.idx.span();
         let alias = Alias {
             span,
             id: None,
@@ -766,7 +787,7 @@ impl<'a> Resolver<'a> {
             target: AliasTarget::CoreExport {
                 instance: index,
                 name: item.export_name.unwrap(),
-                kind: item.kind.ns().into(),
+                kind,
             },
         };
 

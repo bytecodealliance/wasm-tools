@@ -10,9 +10,9 @@
   (core instance $i (instantiate $m))
 
   (func (canon lift (core func $i "f")))
-  (func (canon lift (core func $i "f") (memory $i "m")))
-  (func (canon lift (core func $i "f") (memory $i "m") (realloc (func $i "r"))))
-  (func (canon lift (core func $i "f") (realloc (func $i "r")) (memory $i "m")))
+  (func (canon lift (core func $i "f") (memory (core memory $i "m"))))
+  (func (canon lift (core func $i "f") (memory (core memory $i "m")) (realloc (core func $i "r"))))
+  (func (canon lift (core func $i "f") (realloc (core func $i "r")) (memory (core memory $i "m"))))
 )
 
 ;; `realloc` requires `memory`
@@ -23,7 +23,7 @@
       (func (export "f"))
     )
     (core instance $i (instantiate $m))
-    (func (canon lift (core func $i "f") (realloc (func $i "r"))))
+    (func (canon lift (core func $i "f") (realloc (core func $i "r"))))
   )
   "canonical option `realloc` requires `memory` to also be specified")
 
@@ -36,7 +36,7 @@
       (func (export "f"))
     )
     (core instance $i (instantiate $m))
-    (func (canon lift (core func $i "f") (realloc (func $i "r")) (memory $i "m")))
+    (func (canon lift (core func $i "f") (realloc (core func $i "r")) (memory (core memory $i "m"))))
   )
   "canonical option `realloc` uses a core function with an incorrect signature")
 
@@ -48,7 +48,7 @@
       (func (export "f"))
     )
     (core instance $i (instantiate $m))
-    (func (canon lift (core func $i "f") (memory $i "m")))
+    (func (canon lift (core func $i "f") (memory (core memory $i "m"))))
   )
   "mismatch in the shared flag for memories")
 (assert_invalid
@@ -58,6 +58,6 @@
       (func (export "f"))
     )
     (core instance $i (instantiate $m))
-    (func (canon lift (core func $i "f") (memory $i "m")))
+    (func (canon lift (core func $i "f") (memory (core memory $i "m"))))
   )
   "64-bit memories require the `cm64` feature to be enabled")

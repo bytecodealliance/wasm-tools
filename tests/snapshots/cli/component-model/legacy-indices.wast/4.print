@@ -1,0 +1,13 @@
+(component
+  (core type $start (;0;) (func (param i32)))
+  (core module $libc (;0;)
+    (table (;0;) 1 funcref)
+    (export "start-table" (table 0))
+  )
+  (core instance $libc (;0;) (instantiate $libc))
+  (alias core export $libc "start-table" (core table $tbl (;0;)))
+  (alias core export $libc "start-table" (core table (;1;)))
+  (core func (;0;) (canon thread.new-indirect $start 1))
+  (core func (;1;) (canon thread.new-indirect $start $tbl))
+  (core func (;2;) (canon thread.new-indirect $start $tbl))
+)

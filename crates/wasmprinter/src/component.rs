@@ -568,9 +568,7 @@ impl Printer<'_, '_> {
                 if let Some(dtor) = dtor {
                     self.result.write_str(" ")?;
                     self.start_group("dtor ")?;
-                    self.start_group("func ")?;
                     self.print_idx(&states.last().unwrap().core.func_names, dtor)?;
-                    self.end_group()?;
                     self.end_group()?;
                 }
                 self.end_group()?;
@@ -969,9 +967,7 @@ impl Printer<'_, '_> {
                     self.print_intrinsic(state, "canon thread.spawn-indirect ", &|me, state| {
                         me.print_idx(&state.core.type_names, func_ty_index)?;
                         me.result.write_str(" ")?;
-                        me.start_group("table ")?;
-                        me.print_idx(&state.core.table_names, table_index)?;
-                        me.end_group()
+                        me.print_idx(&state.core.table_names, table_index)
                     })?;
                 }
                 CanonicalFunction::ThreadAvailableParallelism => {
@@ -1185,9 +1181,7 @@ impl Printer<'_, '_> {
                     self.print_intrinsic(state, "canon thread.new-indirect ", &|me, state| {
                         me.print_idx(&state.core.type_names, func_ty_index)?;
                         me.result.write_str(" ")?;
-                        me.start_group("table ")?;
-                        me.print_idx(&state.core.table_names, table_index)?;
-                        me.end_group()
+                        me.print_idx(&state.core.table_names, table_index)
                     })?;
                 }
                 CanonicalFunction::ThreadResumeLater => {

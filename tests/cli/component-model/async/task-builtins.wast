@@ -83,7 +83,7 @@
       (memory (export "m") 0)
     )
     (core instance $m (instantiate $m))
-    (core func $task-return (canon task.return (result u32) (realloc (func $m "r")) (memory $m "m")))
+    (core func $task-return (canon task.return (result u32) (realloc (core func $m "r")) (memory (core memory $m "m"))))
   )
   "cannot specify `realloc` option on `task.return`")
 
@@ -95,7 +95,7 @@
   (core func (canon task.return (result u32) string-encoding=utf8))
   (core func (canon task.return (result u32) string-encoding=utf16))
   (core func (canon task.return (result u32) string-encoding=latin1+utf16))
-  (core func (canon task.return (result u32) (memory $i "m")))
+  (core func (canon task.return (result u32) (memory (core memory $i "m"))))
 )
 
 ;; task.cancel
@@ -131,7 +131,7 @@
   (core module $m
     (import "" "waitable-set.wait" (func $waitable-set-wait (param i32 i32) (result i32)))
   )
-  (core func $waitable-set-wait (canon waitable-set.wait (memory $libc "memory")))
+  (core func $waitable-set-wait (canon waitable-set.wait (memory (core memory $libc "memory"))))
   (core instance $i (instantiate $m (with "" (instance (export "waitable-set.wait" (func $waitable-set-wait))))))
 )
 
@@ -143,7 +143,7 @@
     (core module $m
       (import "" "waitable-set.wait" (func $waitable-set-wait (param i32) (result i32)))
     )
-    (core func $waitable-set-wait (canon waitable-set.wait (memory $libc "memory")))
+    (core func $waitable-set-wait (canon waitable-set.wait (memory (core memory $libc "memory"))))
     (core instance $i (instantiate $m (with "" (instance (export "waitable-set.wait" (func $waitable-set-wait))))))
   )
   "type mismatch for export `waitable-set.wait` of module instantiation argument ``"
@@ -155,7 +155,7 @@
   (core module $m
     (import "" "waitable-set.wait" (func $waitable-set-wait (param i32 i32) (result i32)))
   )
-  (core func $waitable-set-wait (canon waitable-set.wait cancellable (memory $libc "memory")))
+  (core func $waitable-set-wait (canon waitable-set.wait cancellable (memory (core memory $libc "memory"))))
   (core instance $i (instantiate $m (with "" (instance (export "waitable-set.wait" (func $waitable-set-wait))))))
 )
 
@@ -166,7 +166,7 @@
   (core module $m
     (import "" "waitable-set.poll" (func $waitable-set-poll (param i32 i32) (result i32)))
   )
-  (core func $waitable-set-poll (canon waitable-set.poll (memory $libc "memory")))
+  (core func $waitable-set-poll (canon waitable-set.poll (memory (core memory $libc "memory"))))
   (core instance $i (instantiate $m (with "" (instance (export "waitable-set.poll" (func $waitable-set-poll))))))
 )
 (component
@@ -175,7 +175,7 @@
   (core module $m
     (import "" "waitable-set.poll" (func $waitable-set-poll (param i32 i32) (result i32)))
   )
-  (core func $waitable-set-poll (canon waitable-set.poll cancellable (memory $libc "memory")))
+  (core func $waitable-set-poll (canon waitable-set.poll cancellable (memory (core memory $libc "memory"))))
   (core instance $i (instantiate $m (with "" (instance (export "waitable-set.poll" (func $waitable-set-poll))))))
 )
 
@@ -187,7 +187,7 @@
     (core module $m
       (import "" "waitable-set.poll" (func $waitable-set-poll (param i32) (result i32)))
     )
-    (core func $waitable-set-poll (canon waitable-set.poll (memory $libc "memory")))
+    (core func $waitable-set-poll (canon waitable-set.poll (memory (core memory $libc "memory"))))
     (core instance $i (instantiate $m (with "" (instance (export "waitable-set.poll" (func $waitable-set-poll))))))
   )
   "type mismatch for export `waitable-set.poll` of module instantiation argument ``"

@@ -54,14 +54,14 @@
   (core type $start (func (param $context i32)))
   (core module $libc (table (export "start-table") 1 (ref null func)))
   (core instance $libc (instantiate $libc))
-  (core func $new-indirect (canon thread.new-indirect $start (table $libc "start-table")))
+  (core func $new-indirect (canon thread.new-indirect $start (core table $libc "start-table")))
 )
 
 (component
   (core type $start (func (param $context i32)))
   (core module $libc (table (export "start-table") 1 (ref null func)))
   (core instance $libc (instantiate $libc))
-  (core func $new-indirect (canon thread.new-indirect $start (table $libc "start-table")))
+  (core func $new-indirect (canon thread.new-indirect $start (core table $libc "start-table")))
 
   (core module $m
     (type $new-indirect-ty (func (param i32) (param i32) (result i32)))
@@ -80,7 +80,7 @@
     (core type $start (func (param i32)))
     ;; Refer to a non-existent table type (i.e., 0); validation
     ;; for `thread.new-indirect` happens first.
-    (core func $new-indirect (canon thread.new-indirect $start (table 0)))
+    (core func $new-indirect (canon thread.new-indirect $start (core table 0)))
   )
   "unknown table 0: table index out of bounds"
 )
@@ -90,7 +90,7 @@
     (core type $start (func))
     (core module $libc (table (export "start-table") 1 (ref null func)))
     (core instance $libc (instantiate $libc))
-    (core func $new-indirect (canon thread.new-indirect $start (table $libc "start-table")))
+    (core func $new-indirect (canon thread.new-indirect $start (core table $libc "start-table")))
   )
   "start function must take a single `i32` argument"
 )
@@ -241,8 +241,8 @@
   (canon context.set i32 1 (core func))
 
   (core type $start (func (param i32)))
-  (core func (canon thread.new-indirect $start (table $start-table)))
-  (canon thread.new-indirect $start (table $start-table) (core func))
+  (core func (canon thread.new-indirect $start (core table $start-table)))
+  (canon thread.new-indirect $start (core table $start-table) (core func))
 
   (core func (canon thread.resume-later))
   (canon thread.resume-later (core func))

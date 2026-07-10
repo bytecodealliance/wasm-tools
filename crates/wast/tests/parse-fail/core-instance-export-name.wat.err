@@ -1,0 +1,5 @@
+core instances cannot export this kind of item, so an export name cannot be used to resolve this reference
+     --> tests/parse-fail/core-instance-export-name.wat:9:53
+      |
+    9 |   (core instance (instantiate $m (with "" (instance $i "x"))))
+      |                                                     ^

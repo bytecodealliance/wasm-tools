@@ -1,0 +1,53 @@
+{
+  "source_filename": "tests/cli/component-model/legacy-indices.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 5,
+      "filename": "legacy-indices.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 25,
+      "filename": "legacy-indices.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 40,
+      "filename": "legacy-indices.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 50,
+      "filename": "legacy-indices.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 60,
+      "filename": "legacy-indices.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 71,
+      "filename": "legacy-indices.5.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 79,
+      "filename": "legacy-indices.6.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 87,
+      "filename": "legacy-indices.7.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

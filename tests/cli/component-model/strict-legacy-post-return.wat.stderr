@@ -1,0 +1,5 @@
+error: the `core` keyword is required in this reference: `(func ...)` should be written `(core func ...)` (or set WAST_STRICT_COMPONENT_INDICES=0 to accept the legacy syntax)
+     --> tests/cli/component-model/strict-legacy-post-return.wat:17:21
+      |
+   17 |       (post-return (func $m "post"))))
+      |                     ^

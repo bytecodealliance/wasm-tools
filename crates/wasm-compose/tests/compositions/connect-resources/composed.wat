@@ -89,7 +89,7 @@
       (export "get-logger" (func $import-get-logger-lowered))
     )
     (alias core export $module-indirect-instance "[dtor]logger" (core func $logger-dtor (;3;)))
-    (type $logger-resource (;2;) (resource (rep i32) (dtor (func $logger-dtor))))
+    (type $logger-resource (;2;) (resource (rep i32) (dtor $logger-dtor)))
     (core func $logger-new (;4;) (canon resource.new $logger-resource))
     (core instance $logger-new-instance (;2;)
       (export "[resource-new]logger" (func $logger-new))

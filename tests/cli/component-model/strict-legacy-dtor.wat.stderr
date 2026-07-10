@@ -1,0 +1,5 @@
+error: the `core` keyword is required in this reference: `(func ...)` should be written `(core func ...)` (or set WAST_STRICT_COMPONENT_INDICES=0 to accept the legacy syntax)
+     --> tests/cli/component-model/strict-legacy-dtor.wat:10:39
+      |
+   10 |   (type $R (resource (rep i32) (dtor (func $dtor))))
+      |                                       ^

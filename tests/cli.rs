@@ -112,21 +112,35 @@ fn run_test_directive(
     exe: &Path,
     tempdir: &TempDir,
 ) -> Result<()> {
-    let mut cmd = Command::new(exe);
+    let mut cmd = new_command(exe);
     let mut stdin = None;
+    let mut saw_subcommand = false;
     for arg in line.split_whitespace() {
         let arg = arg.replace("%tmpdir", tempdir.path().to_str().unwrap());
         if arg == "|" {
             let output = execute(&mut cmd, stdin.as_deref(), false)?;
             stdin = Some(output.stdout);
-            cmd = Command::new(exe);
+            cmd = new_command(exe);
+            saw_subcommand = false;
+        } else if !saw_subcommand
+            && arg
+                .split_once('=')
+                .is_some_and(|(key, _)| !key.is_empty() && key.chars().all(is_env_var_char))
+        {
+            // Like a POSIX shell, `KEY=VALUE` arguments before the
+            // subcommand name set environment variables for this command
+            // only, e.g. `RUN: WAST_STRICT_COMPONENT_INDICES=0 wast %`.
+            let (key, value) = arg.split_once('=').unwrap();
+            cmd.env(key, value);
         } else if arg == "%" {
             // Pass the test path with forward slashes so a command that echoes
             // it back (such as `json-from-wast`'s `source_filename`) produces
             // the same output on windows and unix.
             cmd.arg(test.to_str().unwrap().replace("\\", "/"));
+            saw_subcommand = true;
         } else {
             cmd.arg(arg);
+            saw_subcommand = true;
         }
     }
 
@@ -152,6 +166,23 @@ fn run_test_directive(
     )
     .context("failed to check stderr expectation (auto-update with BLESS=1)")?;
     Ok(())
+}
+
+fn new_command(exe: &Path) -> Command {
+    let mut cmd = Command::new(exe);
+    // This test suite runs in strict component-model index syntax mode by
+    // default to ensure that all tests are ready for when strictness becomes
+    // the default. Tests exercising the legacy syntax opt out with an
+    // explicit `WAST_STRICT_COMPONENT_INDICES=0` prefix in their directive.
+    // Note that this is unconditionally set, rather than inherited, so test
+    // results don't depend on the environment variables of the shell that
+    // spawned the test suite.
+    cmd.env("WAST_STRICT_COMPONENT_INDICES", "1");
+    cmd
+}
+
+fn is_env_var_char(c: char) -> bool {
+    c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_'
 }
 
 fn execute(cmd: &mut Command, stdin: Option<&[u8]>, should_fail: bool) -> Result<Output> {

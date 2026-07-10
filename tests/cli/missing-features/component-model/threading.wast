@@ -7,7 +7,7 @@
   "requires the component model threading feature")
 
 (assert_invalid
-  (component (core func (canon thread.new-indirect 0 (table 0))))
+  (component (core func (canon thread.new-indirect 0 (core table 0))))
   "requires the component model threading feature")
 
 (assert_invalid

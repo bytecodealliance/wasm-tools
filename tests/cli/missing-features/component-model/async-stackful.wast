@@ -16,26 +16,26 @@
 (component
   (core module $libc (memory (export "memory") 1))
   (core instance $libc (instantiate $libc))
-  (core func (canon waitable-set.wait cancellable (memory $libc "memory")))
+  (core func (canon waitable-set.wait cancellable (memory (core memory $libc "memory"))))
 )
 
 (component
   (core module $libc (memory (export "memory") 1))
   (core instance $libc (instantiate $libc))
-  (core func (canon waitable-set.wait (memory $libc "memory")))
+  (core func (canon waitable-set.wait (memory (core memory $libc "memory"))))
 )
 
 ;; waitable-set.poll cancellable
 (component
   (core module $libc (memory (export "memory") 1))
   (core instance $libc (instantiate $libc))
-  (core func (canon waitable-set.poll cancellable (memory $libc "memory")))
+  (core func (canon waitable-set.poll cancellable (memory (core memory $libc "memory"))))
 )
 
 (component
   (core module $libc (memory (export "memory") 1))
   (core instance $libc (instantiate $libc))
-  (core func (canon waitable-set.poll (memory $libc "memory")))
+  (core func (canon waitable-set.poll (memory (core memory $libc "memory"))))
 )
 
 ;; thread.yield

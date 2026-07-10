@@ -1,0 +1,5 @@
+error: the `core` keyword is required in this reference: `(type ...)` should be written `(core type ...)` (or set WAST_STRICT_COMPONENT_INDICES=0 to accept the legacy syntax)
+     --> tests/cli/component-model/strict-legacy-core-type.wat:11:77
+      |
+   11 |   (core func (canon lower (func $i "f") gc string-encoding=utf8 (core-type (type $ty))))
+      |                                                                             ^
