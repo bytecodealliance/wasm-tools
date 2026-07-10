@@ -420,11 +420,13 @@ impl<'a> Encoder<'a> {
                 }
                 CoreFuncKind::StreamCancelRead(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.stream_cancel_read((&info.ty).into(), info.async_);
+                    self.funcs
+                        .stream_cancel_read((&info.ty).into(), info.async_);
                 }
                 CoreFuncKind::StreamCancelWrite(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.stream_cancel_write((&info.ty).into(), info.async_);
+                    self.funcs
+                        .stream_cancel_write((&info.ty).into(), info.async_);
                 }
                 CoreFuncKind::StreamDropReadable(info) => {
                     self.core_func_names.push(name);
@@ -450,11 +452,13 @@ impl<'a> Encoder<'a> {
                 }
                 CoreFuncKind::FutureCancelRead(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.future_cancel_read((&info.ty).into(), info.async_);
+                    self.funcs
+                        .future_cancel_read((&info.ty).into(), info.async_);
                 }
                 CoreFuncKind::FutureCancelWrite(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.future_cancel_write((&info.ty).into(), info.async_);
+                    self.funcs
+                        .future_cancel_write((&info.ty).into(), info.async_);
                 }
                 CoreFuncKind::FutureDropReadable(info) => {
                     self.core_func_names.push(name);
