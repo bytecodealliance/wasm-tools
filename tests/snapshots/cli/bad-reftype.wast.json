@@ -1,0 +1,32 @@
+{
+  "source_filename": "tests/cli/bad-reftype.wast",
+  "commands": [
+    {
+      "type": "assert_malformed",
+      "line": 11,
+      "filename": "bad-reftype.0.wasm",
+      "module_type": "binary",
+      "text": "invalid value type"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 26,
+      "filename": "bad-reftype.1.wasm",
+      "module_type": "binary",
+      "text": "invalid value type"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 40,
+      "filename": "bad-reftype.2.wasm",
+      "module_type": "binary",
+      "text": "malformed reference type"
+    },
+    {
+      "type": "module",
+      "line": 52,
+      "filename": "bad-reftype.3.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

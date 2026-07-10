@@ -1822,17 +1822,25 @@ impl<'a> FromReader<'a> for RefType {
             }
             0x62 => Err(crate::Error::new("unexpected exact type", pos)),
             _ => {
-                // Reclassify errors as invalid reference types here because
-                // that's the "root" of what was being parsed rather than
-                // heap types.
-                let hty = reader.read().map_err(|mut e| {
+                // The short form of a reference type (without a `0x63`/`0x64`
+                // prefix byte) is only an abbreviation for `ref null <ht>` where
+                // `<ht>` is an *abstract* heap type; a bare (non-negative) type
+                // index is not a value type. Parse an abstract heap type
+                // directly, handling the `0x65` prefix for `shared` variants,
+                // rather than parsing a full heap type and then rejecting the
+                // concrete/exact cases that a heap type additionally allows.
+                let shared = reader.peek()? == 0x65;
+                if shared {
+                    reader.read_u8()?;
+                }
+                let ty = reader.read().map_err(|mut e| {
                     if let ErrorKind::InvalidHeapType = e.kind() {
                         e.set_message("malformed reference type");
                     }
                     e
                 })?;
-                RefType::new(true, hty)
-                    .ok_or_else(|| crate::Error::new("type index too large", pos))
+                // `RefType::new` is infallible for abstract heap types.
+                Ok(RefType::new(true, HeapType::Abstract { shared, ty }).unwrap())
             }
         }
     }
