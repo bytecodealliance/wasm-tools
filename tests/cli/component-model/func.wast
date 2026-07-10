@@ -42,7 +42,7 @@
     (memory (export "memory") 1)
   )
   (core instance $libc (instantiate $libc))
-  (core func (canon lower (func $log) (memory $libc "memory")))
+  (core func (canon lower (func $log) (memory (core memory $libc "memory"))))
 )
 
 (component
@@ -53,7 +53,7 @@
   (core instance $i (instantiate $m))
 
   (func (export "ret-list") (result (list u8))
-    (canon lift (core func $i "ret-list") (memory $i "memory"))
+    (canon lift (core func $i "ret-list") (memory (core memory $i "memory")))
   )
 )
 
@@ -69,7 +69,7 @@
     (import "big" (func $big (type $big)))
     (core module $libc (memory (export "memory") 1))
     (core instance $libc (instantiate $libc))
-    (core func $big (canon lower (func $big) (memory $libc "memory")))
+    (core func $big (canon lower (func $big) (memory (core memory $libc "memory"))))
   )
 )
 
@@ -89,7 +89,7 @@
     ))
 
     (func $roundtrip (type $roundtrip)
-      (canon lift (core func $m "roundtrip") (memory $m "memory"))
+      (canon lift (core func $m "roundtrip") (memory (core memory $m "memory")))
     )
     (export "roundtrip" (func $roundtrip))
   )
@@ -103,7 +103,7 @@
       (memory (export "memory") 1)
     )
     (core instance $libc (instantiate $libc))
-    (core func (canon lower (func $log) (memory $libc "memory")))
+    (core func (canon lower (func $log) (memory (core memory $libc "memory"))))
   )
   "canonical option `realloc` is required"
 )
@@ -117,7 +117,7 @@
     (core instance $i (instantiate $m))
 
     (func (export "param-list") (param "bytes" (list u8))
-      (canon lift (core func $i "param-list") (memory $i "memory"))
+      (canon lift (core func $i "param-list") (memory (core memory $i "memory")))
     )
   )
   "canonical option `realloc` is required"

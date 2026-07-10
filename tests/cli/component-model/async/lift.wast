@@ -10,7 +10,7 @@
     (core instance $i (instantiate $m))
 
     (func (export "foo") (param "p1" u32) (result u32)
-      (canon lift (core func $i "foo") async (post-return (func $i "post-return-foo")))
+      (canon lift (core func $i "foo") async (post-return (core func $i "post-return-foo")))
     )
   )
   "cannot specify post-return function in async"
@@ -25,7 +25,7 @@
   (core instance $i (instantiate $m))
 
   (func (export "foo") async (param "p1" u32) (result u32)
-    (canon lift (core func $i "foo") async (callback (func $i "callback")))
+    (canon lift (core func $i "foo") async (callback (core func $i "callback")))
   )
 )
 
@@ -39,7 +39,7 @@
     (core instance $i (instantiate $m))
 
     (func (export "foo") (param "p1" u32) (result u32)
-      (canon lift (core func $i "foo") async (callback (func $i "callback")))
+      (canon lift (core func $i "foo") async (callback (core func $i "callback")))
     )
   )
   "canonical option `callback` uses a core function with an incorrect signature"
@@ -56,7 +56,7 @@
     (core instance $i (instantiate $m))
 
     (func (export "foo") (param "p1" u32) (result u32)
-      (canon lift (core func $i "foo") async (callback (func $i "callback")) (post-return (func $i "post-return-foo")))
+      (canon lift (core func $i "foo") async (callback (core func $i "callback")) (post-return (core func $i "post-return-foo")))
     )
   )
   "cannot specify post-return function in async"
@@ -72,7 +72,7 @@
     (core instance $i (instantiate $m))
 
     (func (export "foo") async (param "p1" u32) (result u32)
-      (canon lift (core func $i "foo") async (callback (func $i "callback")))
+      (canon lift (core func $i "foo") async (callback (core func $i "callback")))
     )
   )
   "lowered parameter types `[I32]` do not match parameter types `[I32, I32]` of core function 0"
@@ -87,7 +87,7 @@
     (core instance $i (instantiate $m))
 
     (func (export "foo") (param "p1" u32) (result u32)
-      (canon lift (core func $i "foo") async (callback (func $i "callback")))
+      (canon lift (core func $i "foo") async (callback (core func $i "callback")))
     )
   )
   "core instance 0 has no export named `callback`"
@@ -103,7 +103,7 @@
     (core instance $i (instantiate $m))
 
     (func (export "foo") (param "p1" u32) (result u32)
-      (canon lift (core func $i "foo") (callback (func $i "callback")))
+      (canon lift (core func $i "foo") (callback (core func $i "callback")))
     )
   )
   "cannot specify callback without async"
@@ -119,7 +119,7 @@
     (core instance $i (instantiate $m))
 
     (func (export "foo") async (result string)
-      (canon lift (core func $i "foo") async (callback (func $i "callback")))
+      (canon lift (core func $i "foo") async (callback (core func $i "callback")))
     )
   )
   "canonical option `memory` is required"
@@ -135,7 +135,7 @@
     (core instance $i (instantiate $m))
 
     (func (export "foo") async (result (tuple u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32))
-      (canon lift (core func $i "foo") async (callback (func $i "callback")))
+      (canon lift (core func $i "foo") async (callback (core func $i "callback")))
     )
   )
   "canonical option `memory` is required"
@@ -150,7 +150,7 @@
     )
     (core instance $i (instantiate $m))
 
-    (func (canon lift (core func $i "foo") async (callback (func $i "callback"))))
+    (func (canon lift (core func $i "foo") async (callback (core func $i "callback"))))
   )
   "the `async` canonical option requires an async function type"
 )

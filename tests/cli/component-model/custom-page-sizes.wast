@@ -7,7 +7,7 @@
     (memory (export "m") 1 (pagesize 65536))
   )
   (core instance $i (instantiate $m))
-  (core func (canon lower (func $f) (memory $i "m")))
+  (core func (canon lower (func $f) (memory (core memory $i "m"))))
 )
 
 ;; compat with custom page sizes.
@@ -17,7 +17,7 @@
       (memory (export "m") 1 (pagesize 1))
     )
     (core instance $i (instantiate $m))
-    (core func (canon lower (func $f) (memory $i "m")))
+    (core func (canon lower (func $f) (memory (core memory $i "m"))))
 )
 
 ;; subtyping works with explict page sizes

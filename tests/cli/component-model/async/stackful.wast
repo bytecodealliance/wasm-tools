@@ -7,7 +7,7 @@
   (core module $m
     (import "" "waitable-set.wait" (func $waitable-set-wait (param i32 i32) (result i32)))
   )
-  (core func $waitable-set-wait (canon waitable-set.wait cancellable (memory $libc "memory")))
+  (core func $waitable-set-wait (canon waitable-set.wait cancellable (memory (core memory $libc "memory"))))
   (core instance $i (instantiate $m (with "" (instance (export "waitable-set.wait" (func $waitable-set-wait))))))
 )
 
@@ -19,7 +19,7 @@
     (core module $m
       (import "" "waitable-set.wait" (func $waitable-set-wait (param i32) (result i32)))
     )
-    (core func $waitable-set-wait (canon waitable-set.wait cancellable (memory $libc "memory")))
+    (core func $waitable-set-wait (canon waitable-set.wait cancellable (memory (core memory $libc "memory"))))
     (core instance $i (instantiate $m (with "" (instance (export "waitable-set.wait" (func $waitable-set-wait))))))
   )
   "type mismatch for export `waitable-set.wait` of module instantiation argument ``"
@@ -32,7 +32,7 @@
   (core module $m
     (import "" "waitable-set.poll" (func $waitable-set-poll (param i32 i32) (result i32)))
   )
-  (core func $waitable-set-poll (canon waitable-set.poll cancellable (memory $libc "memory")))
+  (core func $waitable-set-poll (canon waitable-set.poll cancellable (memory (core memory $libc "memory"))))
   (core instance $i (instantiate $m (with "" (instance (export "waitable-set.poll" (func $waitable-set-poll))))))
 )
 
@@ -44,7 +44,7 @@
     (core module $m
       (import "" "waitable-set.poll" (func $waitable-set-poll (param i32) (result i32)))
     )
-    (core func $waitable-set-poll (canon waitable-set.poll cancellable (memory $libc "memory")))
+    (core func $waitable-set-poll (canon waitable-set.poll cancellable (memory (core memory $libc "memory"))))
     (core instance $i (instantiate $m (with "" (instance (export "waitable-set.poll" (func $waitable-set-poll))))))
   )
   "type mismatch for export `waitable-set.poll` of module instantiation argument ``"
@@ -109,7 +109,7 @@
   (core instance $m5 (instantiate $m5))
   (func async (param "x" f32) (param "y" string)
     (canon lift (core func $m5 "f") async
-      (memory $m5 "memory") (realloc (func $m5 "realloc"))))
+      (memory (core memory $m5 "memory")) (realloc (core func $m5 "realloc"))))
 
   ;; async func(x: list<string; 4>)
   (core module $m6
@@ -119,7 +119,7 @@
   (core instance $m6 (instantiate $m6))
   (func async (param "x" (list string 4))
     (canon lift (core func $m6 "f") async
-      (memory $m6 "memory") (realloc (func $m6 "realloc"))))
+      (memory (core memory $m6 "memory")) (realloc (core func $m6 "realloc"))))
 
   ;; async func(x: list<string; 10>)
   (core module $m7
@@ -129,7 +129,7 @@
   (core instance $m7 (instantiate $m7))
   (func async (param "x" (list string 10))
     (canon lift (core func $m7 "f") async
-      (memory $m7 "memory") (realloc (func $m7 "realloc"))))
+      (memory (core memory $m7 "memory")) (realloc (core func $m7 "realloc"))))
 )
 
 ;; async lift; no callback

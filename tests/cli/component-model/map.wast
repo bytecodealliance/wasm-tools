@@ -8,7 +8,7 @@
   (core instance $i (instantiate $m))
 
   (func (export "ret-map") (result (map string u32))
-    (canon lift (core func $i "ret-map") (memory $i "memory"))
+    (canon lift (core func $i "ret-map") (memory (core memory $i "memory")))
   )
 )
 
@@ -21,7 +21,7 @@
   (core instance $i (instantiate $m))
 
   (func (export "param-map") (param "m" (map string u32))
-    (canon lift (core func $i "param-map") (memory $i "memory") (realloc (func $i "realloc")))
+    (canon lift (core func $i "param-map") (memory (core memory $i "memory")) (realloc (core func $i "realloc")))
   )
 )
 

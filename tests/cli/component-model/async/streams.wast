@@ -31,7 +31,7 @@
     (import "" "stream.read" (func $stream-read (param i32 i32 i32) (result i32)))
   )
   (type $stream-type (stream u8))
-  (core func $stream-read (canon stream.read $stream-type async (memory $libc "memory")))
+  (core func $stream-read (canon stream.read $stream-type async (memory (core memory $libc "memory"))))
   (core instance $i (instantiate $m (with "" (instance (export "stream.read" (func $stream-read))))))
 )
 
@@ -56,7 +56,7 @@
     (import "" "stream.read" (func $stream-read (param i32 i32 i32) (result i32)))
   )
   (type $stream-type (stream string))
-  (core func $stream-read (canon stream.read $stream-type async (memory $libc "memory") (realloc (func $libc "realloc"))))
+  (core func $stream-read (canon stream.read $stream-type async (memory (core memory $libc "memory")) (realloc (core func $libc "realloc"))))
   (core instance $i (instantiate $m (with "" (instance (export "stream.read" (func $stream-read))))))
 )
 
@@ -69,7 +69,7 @@
       (import "" "stream.read" (func $stream-read (param i32) (result i32)))
     )
     (type $stream-type (stream u8))
-    (core func $stream-read (canon stream.read $stream-type async (memory $libc "memory")))
+    (core func $stream-read (canon stream.read $stream-type async (memory (core memory $libc "memory"))))
     (core instance $i (instantiate $m (with "" (instance (export "stream.read" (func $stream-read))))))
   )
   "type mismatch for export `stream.read` of module instantiation argument ``"
@@ -84,7 +84,7 @@
       (import "" "stream.read" (func $stream-read (param i32 i32 i32) (result i32)))
     )
     (type $string-type string)
-    (core func $stream-read (canon stream.read $string-type async (memory $libc "memory")))
+    (core func $stream-read (canon stream.read $string-type async (memory (core memory $libc "memory"))))
     (core instance $i (instantiate $m (with "" (instance (export "stream.read" (func $stream-read))))))
   )
   "`stream.read` requires a stream type"
@@ -99,7 +99,7 @@
       (import "" "stream.read" (func $stream-read (param i32 i32 i32) (result i32)))
     )
     (type $stream-type (stream string))
-    (core func $stream-read (canon stream.read $stream-type async (memory $libc "memory")))
+    (core func $stream-read (canon stream.read $stream-type async (memory (core memory $libc "memory"))))
     (core instance $i (instantiate $m (with "" (instance (export "stream.read" (func $stream-read))))))
   )
   "canonical option `realloc` is required"
@@ -113,7 +113,7 @@
     (import "" "stream.write" (func $stream-write (param i32 i32 i32) (result i32)))
   )
   (type $stream-type (stream u8))
-  (core func $stream-write (canon stream.write $stream-type async (memory $libc "memory")))
+  (core func $stream-write (canon stream.write $stream-type async (memory (core memory $libc "memory"))))
   (core instance $i (instantiate $m (with "" (instance (export "stream.write" (func $stream-write))))))
 )
 
@@ -136,7 +136,7 @@
       (import "" "stream.write" (func $stream-write (param i32) (result i32)))
     )
     (type $stream-type (stream u8))
-    (core func $stream-write (canon stream.write $stream-type async (memory $libc "memory")))
+    (core func $stream-write (canon stream.write $stream-type async (memory (core memory $libc "memory"))))
     (core instance $i (instantiate $m (with "" (instance (export "stream.write" (func $stream-write))))))
   )
   "type mismatch for export `stream.write` of module instantiation argument ``"

@@ -8,7 +8,7 @@
 
   (core module $libc (table (export "start-table") shared 1 (ref null (shared func))))
   (core instance $libc (instantiate $libc))
-  (core func $spawn-indirect (canon thread.spawn-indirect $start (table $libc "start-table")))
+  (core func $spawn-indirect (canon thread.spawn-indirect $start (core table $libc "start-table")))
 
   (core func $parallelism (canon thread.available_parallelism))
 )
@@ -19,7 +19,7 @@
 
   (core module $libc (table (export "start-table") shared 1 (ref null (shared func))))
   (core instance $libc (instantiate $libc))
-  (core func $spawn-indirect (canon thread.spawn-indirect $start (table $libc "start-table")))
+  (core func $spawn-indirect (canon thread.spawn-indirect $start (core table $libc "start-table")))
 
   (core func $parallelism (canon thread.available_parallelism))
 
@@ -55,7 +55,7 @@
     (core type $start (shared (func (param i32))))
     ;; Refer to a non-existent table type (i.e., 0); validation
     ;; for `thread.spawn-indirect` happens first.
-    (core func $spawn-indirect (canon thread.spawn-indirect $start (table 0)))
+    (core func $spawn-indirect (canon thread.spawn-indirect $start (core table 0)))
   )
   "unknown table 0: table index out of bounds"
 )
@@ -73,7 +73,7 @@
     (core type $start (shared (func)))
     (core module $libc (table (export "start-table") shared 1 (ref null (shared func))))
     (core instance $libc (instantiate $libc))
-    (core func $spawn-indirect (canon thread.spawn-indirect $start (table $libc "start-table")))
+    (core func $spawn-indirect (canon thread.spawn-indirect $start (core table $libc "start-table")))
   )
   "spawn function must take a single `i32` argument (currently)"
 )
@@ -83,7 +83,7 @@
     (core type $start (shared (func (param i32))))
     (core module $libc (table (export "start-table") 1 (ref null (shared func))))
     (core instance $libc (instantiate $libc))
-    (core func $spawn-indirect (canon thread.spawn-indirect $start (table $libc "start-table")))
+    (core func $spawn-indirect (canon thread.spawn-indirect $start (core table $libc "start-table")))
   )
   "mismatch in the shared flag for tables"
 )

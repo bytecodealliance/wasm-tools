@@ -9,7 +9,7 @@
     (core instance $i (instantiate $m))
 
     (func (export "ret-list") (result (list u32 4))
-      (canon lift (core func $i "ret-list") (memory $i "memory"))
+      (canon lift (core func $i "ret-list") (memory (core memory $i "memory")))
     )
   )
   "Fixed-length lists require the component model fixed-length lists feature (at offset 0x54)"

@@ -1,0 +1,19 @@
+(component
+  (core module $m (;0;)
+    (type (;0;) (func (param i32 i32 i32) (result i32)))
+    (type (;1;) (func (result i32)))
+    (export "cb" (func 0))
+    (export "f" (func 1))
+    (func (;0;) (type 0) (param i32 i32 i32) (result i32)
+      unreachable
+    )
+    (func (;1;) (type 1) (result i32)
+      unreachable
+    )
+  )
+  (core instance $m (;0;) (instantiate $m))
+  (type (;0;) (func async))
+  (alias core export $m "f" (core func (;0;)))
+  (alias core export $m "cb" (core func (;1;)))
+  (func (;0;) (type 0) (canon lift (core func 0) async (callback 1)))
+)

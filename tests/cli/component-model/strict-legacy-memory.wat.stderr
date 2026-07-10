@@ -1,0 +1,5 @@
+error: an export name must be written inside a nested reference: `(memory $i "name")` should be written `(memory (core memory $i "name"))` (or set WAST_STRICT_COMPONENT_INDICES=0 to accept the legacy syntax)
+     --> tests/cli/component-model/strict-legacy-memory.wat:13:19
+      |
+   13 |     (memory $libc "mem")
+      |                   ^

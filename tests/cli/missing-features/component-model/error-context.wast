@@ -16,7 +16,7 @@
     (core module $m
       (import "" "error-context.new" (func $error-context-new (param i32 i32) (result i32)))
     )
-    (core func $error-context-new (canon error-context.new (memory $libc "memory")))
+    (core func $error-context-new (canon error-context.new (memory (core memory $libc "memory"))))
     (core instance $i (instantiate $m (with "" (instance (export "error-context.new" (func $error-context-new))))))
   )
   "`error-context.new` requires the component model error-context feature"
@@ -33,7 +33,7 @@
     (core module $m
       (import "" "error-context.debug-message" (func $error-context-debug-message (param i32 i32)))
     )
-    (core func $error-context-debug-message (canon error-context.debug-message (memory $libc "memory") (realloc (func $libc "realloc"))))
+    (core func $error-context-debug-message (canon error-context.debug-message (memory (core memory $libc "memory")) (realloc (core func $libc "realloc"))))
     (core instance $i (instantiate $m (with "" (instance (export "error-context.debug-message" (func $error-context-debug-message))))))
   )
   "`error-context.debug-message` requires the component model error-context feature"

@@ -48,7 +48,7 @@
   )
   (core instance $wit-component-shim-instance (;0;) (instantiate $wit-component-shim-module))
   (alias core export $wit-component-shim-instance "0" (core func $dtor-a (;0;)))
-  (type $a (;0;) (resource (rep i32) (dtor (func $dtor-a))))
+  (type $a (;0;) (resource (rep i32) (dtor $dtor-a)))
   (core func $resource.new (;1;) (canon resource.new $a))
   (core func $resource.rep (;2;) (canon resource.rep $a))
   (core func $resource.drop (;3;) (canon resource.drop $a))

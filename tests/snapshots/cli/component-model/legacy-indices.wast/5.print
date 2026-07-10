@@ -1,0 +1,10 @@
+(component
+  (core type $start (;0;) (shared (func (param i32))))
+  (core module $libc (;0;)
+    (table (;0;) shared 1 (ref null (shared func)))
+    (export "start-table" (table 0))
+  )
+  (core instance $libc (;0;) (instantiate $libc))
+  (alias core export $libc "start-table" (core table (;0;)))
+  (core func (;0;) (canon thread.spawn-indirect $start 0))
+)

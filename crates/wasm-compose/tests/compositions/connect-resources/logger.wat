@@ -54,7 +54,7 @@
   )
 
   (alias core export $module-indirect-instance "[dtor]logger" (core func $logger-dtor))
-  (type $logger-resource (resource (rep i32) (dtor (func $logger-dtor))))
+  (type $logger-resource (resource (rep i32) (dtor (core func $logger-dtor))))
   (core func $logger-new (canon resource.new $logger-resource))
   (core instance $logger-new-instance
     (export "[resource-new]logger" (func $logger-new))

@@ -11,7 +11,7 @@
   (core instance $libc (instantiate $Libc))
   (core func $log (canon lower
     (func $logging "log")
-    (memory $libc "memory") (realloc (func $libc "realloc"))
+    (memory (core memory $libc "memory")) (realloc (core func $libc "realloc"))
   ))
   (core module $Main
     (import "libc" "memory" (memory 1))
@@ -30,7 +30,7 @@
   ))
   (func $run (param "in" string) (result string) (canon lift
     (core func $main "run")
-    (memory $libc "memory") (realloc (func $libc "realloc"))
+    (memory (core memory $libc "memory")) (realloc (core func $libc "realloc"))
   ))
   (export "run" (func $run))
 )

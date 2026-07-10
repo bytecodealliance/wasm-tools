@@ -31,7 +31,7 @@
     (import "" "future.read" (func $future-read (param i32 i32) (result i32)))
   )
   (type $future-type (future u8))
-  (core func $future-read (canon future.read $future-type async (memory $libc "memory")))
+  (core func $future-read (canon future.read $future-type async (memory (core memory $libc "memory"))))
   (core instance $i (instantiate $m (with "" (instance (export "future.read" (func $future-read))))))
 )
 
@@ -56,7 +56,7 @@
     (import "" "future.read" (func $future-read (param i32 i32) (result i32)))
   )
   (type $future-type (future string))
-  (core func $future-read (canon future.read $future-type async (memory $libc "memory") (realloc (func $libc "realloc"))))
+  (core func $future-read (canon future.read $future-type async (memory (core memory $libc "memory")) (realloc (core func $libc "realloc"))))
   (core instance $i (instantiate $m (with "" (instance (export "future.read" (func $future-read))))))
 )
 
@@ -69,7 +69,7 @@
       (import "" "future.read" (func $future-read (param i32) (result i32)))
     )
     (type $future-type (future u8))
-    (core func $future-read (canon future.read $future-type async (memory $libc "memory")))
+    (core func $future-read (canon future.read $future-type async (memory (core memory $libc "memory"))))
     (core instance $i (instantiate $m (with "" (instance (export "future.read" (func $future-read))))))
   )
   "type mismatch for export `future.read` of module instantiation argument ``"
@@ -84,7 +84,7 @@
       (import "" "future.read" (func $future-read (param i32 i32) (result i32)))
     )
     (type $string-type string)
-    (core func $future-read (canon future.read $string-type async (memory $libc "memory")))
+    (core func $future-read (canon future.read $string-type async (memory (core memory $libc "memory"))))
     (core instance $i (instantiate $m (with "" (instance (export "future.read" (func $future-read))))))
   )
   "`future.read` requires a future type"
@@ -99,7 +99,7 @@
       (import "" "future.read" (func $future-read (param i32 i32) (result i32)))
     )
     (type $future-type (future string))
-    (core func $future-read (canon future.read $future-type async (memory $libc "memory")))
+    (core func $future-read (canon future.read $future-type async (memory (core memory $libc "memory"))))
     (core instance $i (instantiate $m (with "" (instance (export "future.read" (func $future-read))))))
   )
   "canonical option `realloc` is required"
@@ -113,7 +113,7 @@
     (import "" "future.write" (func $future-write (param i32 i32) (result i32)))
   )
   (type $future-type (future u8))
-  (core func $future-write (canon future.write $future-type async (memory $libc "memory")))
+  (core func $future-write (canon future.write $future-type async (memory (core memory $libc "memory"))))
   (core instance $i (instantiate $m (with "" (instance (export "future.write" (func $future-write))))))
 )
 
@@ -136,7 +136,7 @@
       (import "" "future.write" (func $future-write (param i32) (result i32)))
     )
     (type $future-type (future u8))
-    (core func $future-write (canon future.write $future-type async (memory $libc "memory")))
+    (core func $future-write (canon future.write $future-type async (memory (core memory $libc "memory"))))
     (core instance $i (instantiate $m (with "" (instance (export "future.write" (func $future-write))))))
   )
   "type mismatch for export `future.write` of module instantiation argument ``"

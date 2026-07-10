@@ -21,7 +21,7 @@
     (import "foo" (func $foo (param "p1" u32) (result u32)))
     (core module $libc (memory (export "memory") 1))
     (core instance $libc (instantiate $libc))
-    (core func $foo (canon lower (func $foo) async (memory $libc "memory")))
+    (core func $foo (canon lower (func $foo) async (memory (core memory $libc "memory"))))
     (core module $m
       (func (import "" "foo") (param i32 i32) (result i32))
     )
@@ -92,7 +92,7 @@
     (core module $m
       (import "" "waitable-set.wait" (func $waitable-set-wait (param i32) (result i32)))
     )
-    (core func $waitable-set-wait (canon waitable-set.wait (memory $libc "memory")))
+    (core func $waitable-set-wait (canon waitable-set.wait (memory (core memory $libc "memory"))))
     (core instance $i (instantiate $m (with "" (instance (export "waitable-set.wait" (func $waitable-set-wait))))))
   )
   "`waitable-set.wait` requires the component model async feature"
@@ -106,7 +106,7 @@
     (core module $m
       (import "" "waitable-set.poll" (func $waitable-set-poll (param i32) (result i32)))
     )
-    (core func $waitable-set-poll (canon waitable-set.poll (memory $libc "memory")))
+    (core func $waitable-set-poll (canon waitable-set.poll (memory (core memory $libc "memory"))))
     (core instance $i (instantiate $m (with "" (instance (export "waitable-set.poll" (func $waitable-set-poll))))))
   )
   "`waitable-set.poll` requires the component model async feature"
@@ -170,7 +170,7 @@
       (import "" "stream.read" (func $stream-read (param i32 i32 i32) (result i32)))
     )
     (type $stream-type (stream u8))
-    (core func $stream-read (canon stream.read $stream-type async (memory $libc "memory")))
+    (core func $stream-read (canon stream.read $stream-type async (memory (core memory $libc "memory"))))
     (core instance $i (instantiate $m (with "" (instance (export "stream.read" (func $stream-read))))))
   )
   "requires the component model async feature"
@@ -185,7 +185,7 @@
       (import "" "stream.write" (func $stream-write (param i32 i32 i32) (result i32)))
     )
     (type $stream-type (stream u8))
-    (core func $stream-write (canon stream.write $stream-type async (memory $libc "memory")))
+    (core func $stream-write (canon stream.write $stream-type async (memory (core memory $libc "memory"))))
     (core instance $i (instantiate $m (with "" (instance (export "stream.write" (func $stream-write))))))
   )
   "requires the component model async feature"
@@ -265,7 +265,7 @@
       (import "" "future.read" (func $future-read (param i32 i32) (result i32)))
     )
     (type $future-type (future u8))
-    (core func $future-read (canon future.read $future-type async (memory $libc "memory")))
+    (core func $future-read (canon future.read $future-type async (memory (core memory $libc "memory"))))
     (core instance $i (instantiate $m (with "" (instance (export "future.read" (func $future-read))))))
   )
   "requires the component model async feature"
@@ -280,7 +280,7 @@
       (import "" "future.write" (func $future-write (param i32 i32) (result i32)))
     )
     (type $future-type (future u8))
-    (core func $future-write (canon future.write $future-type async (memory $libc "memory")))
+    (core func $future-write (canon future.write $future-type async (memory (core memory $libc "memory"))))
     (core instance $i (instantiate $m (with "" (instance (export "future.write" (func $future-write))))))
   )
   "requires the component model async feature"

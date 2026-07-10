@@ -344,24 +344,24 @@ impl<'a> Encoder<'a> {
                 }
                 CoreFuncKind::ResourceNew(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.resource_new(info.ty.into());
+                    self.funcs.resource_new((&info.ty).into());
                 }
                 CoreFuncKind::ResourceDrop(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.resource_drop(info.ty.into());
+                    self.funcs.resource_drop((&info.ty).into());
                 }
                 CoreFuncKind::ResourceRep(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.resource_rep(info.ty.into());
+                    self.funcs.resource_rep((&info.ty).into());
                 }
                 CoreFuncKind::ThreadSpawnRef(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.thread_spawn_ref(info.ty.into());
+                    self.funcs.thread_spawn_ref(info.ty.idx.into());
                 }
                 CoreFuncKind::ThreadSpawnIndirect(info) => {
                     self.core_func_names.push(name);
                     self.funcs
-                        .thread_spawn_indirect(info.ty.into(), info.table.idx.into());
+                        .thread_spawn_indirect(info.ty.idx.into(), info.table.idx.into());
                 }
                 CoreFuncKind::ThreadAvailableParallelism(_info) => {
                     self.core_func_names.push(name);
@@ -406,63 +406,67 @@ impl<'a> Encoder<'a> {
                 }
                 CoreFuncKind::StreamNew(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.stream_new(info.ty.into());
+                    self.funcs.stream_new((&info.ty).into());
                 }
                 CoreFuncKind::StreamRead(info) => {
                     self.core_func_names.push(name);
                     self.funcs
-                        .stream_read(info.ty.into(), info.opts.iter().map(Into::into));
+                        .stream_read((&info.ty).into(), info.opts.iter().map(Into::into));
                 }
                 CoreFuncKind::StreamWrite(info) => {
                     self.core_func_names.push(name);
                     self.funcs
-                        .stream_write(info.ty.into(), info.opts.iter().map(Into::into));
+                        .stream_write((&info.ty).into(), info.opts.iter().map(Into::into));
                 }
                 CoreFuncKind::StreamCancelRead(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.stream_cancel_read(info.ty.into(), info.async_);
+                    self.funcs
+                        .stream_cancel_read((&info.ty).into(), info.async_);
                 }
                 CoreFuncKind::StreamCancelWrite(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.stream_cancel_write(info.ty.into(), info.async_);
+                    self.funcs
+                        .stream_cancel_write((&info.ty).into(), info.async_);
                 }
                 CoreFuncKind::StreamDropReadable(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.stream_drop_readable(info.ty.into());
+                    self.funcs.stream_drop_readable((&info.ty).into());
                 }
                 CoreFuncKind::StreamDropWritable(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.stream_drop_writable(info.ty.into());
+                    self.funcs.stream_drop_writable((&info.ty).into());
                 }
                 CoreFuncKind::FutureNew(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.future_new(info.ty.into());
+                    self.funcs.future_new((&info.ty).into());
                 }
                 CoreFuncKind::FutureRead(info) => {
                     self.core_func_names.push(name);
                     self.funcs
-                        .future_read(info.ty.into(), info.opts.iter().map(Into::into));
+                        .future_read((&info.ty).into(), info.opts.iter().map(Into::into));
                 }
                 CoreFuncKind::FutureWrite(info) => {
                     self.core_func_names.push(name);
                     self.funcs
-                        .future_write(info.ty.into(), info.opts.iter().map(Into::into));
+                        .future_write((&info.ty).into(), info.opts.iter().map(Into::into));
                 }
                 CoreFuncKind::FutureCancelRead(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.future_cancel_read(info.ty.into(), info.async_);
+                    self.funcs
+                        .future_cancel_read((&info.ty).into(), info.async_);
                 }
                 CoreFuncKind::FutureCancelWrite(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.future_cancel_write(info.ty.into(), info.async_);
+                    self.funcs
+                        .future_cancel_write((&info.ty).into(), info.async_);
                 }
                 CoreFuncKind::FutureDropReadable(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.future_drop_readable(info.ty.into());
+                    self.funcs.future_drop_readable((&info.ty).into());
                 }
                 CoreFuncKind::FutureDropWritable(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.future_drop_writable(info.ty.into());
+                    self.funcs.future_drop_writable((&info.ty).into());
                 }
                 CoreFuncKind::ErrorContextNew(info) => {
                     self.core_func_names.push(name);
@@ -507,7 +511,7 @@ impl<'a> Encoder<'a> {
                 CoreFuncKind::ThreadNewIndirect(info) => {
                     self.core_func_names.push(name);
                     self.funcs
-                        .thread_new_indirect(info.ty.into(), info.table.idx.into());
+                        .thread_new_indirect(info.ty.idx.into(), info.table.idx.into());
                 }
                 CoreFuncKind::ThreadResumeLater => {
                     self.core_func_names.push(name);

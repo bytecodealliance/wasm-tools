@@ -1,0 +1,53 @@
+{
+  "source_filename": "tests/cli/component-model/indices.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 5,
+      "filename": "indices.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 60,
+      "filename": "indices.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 73,
+      "filename": "indices.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 140,
+      "filename": "indices.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 198,
+      "filename": "indices.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 211,
+      "filename": "indices.5.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 226,
+      "filename": "indices.6.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 242,
+      "filename": "indices.7.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

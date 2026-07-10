@@ -1,0 +1,5 @@
+core instances cannot export this kind of item, so an export name cannot be used to resolve this reference
+     --> tests/parse-fail/core-type-export-name2.wat:6:49
+      |
+    6 |   (core func (canon thread.spawn-ref (core type $i "t")))
+      |                                                 ^

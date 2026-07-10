@@ -1,0 +1,5 @@
+error: the `core` keyword is required in this reference: `(table ...)` should be written `(core table ...)` (or set WAST_STRICT_COMPONENT_INDICES=0 to accept the legacy syntax)
+     --> tests/cli/component-model/strict-legacy-table.wat:11:49
+      |
+   11 |   (core func (canon thread.new-indirect $start (table $libc "start-table")))
+      |                                                 ^
