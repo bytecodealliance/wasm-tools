@@ -465,15 +465,17 @@ macro_rules! float {
                         Some(val) => $int::from_str_radix(val,16).ok()?,
                         None => 1 << (signif_bits - 1),
                     };
-                    // If the significand is zero then this is actually infinity
-                    // so we fail to parse it.
-                    if signif & signif_mask == 0 {
+                    // The payload `n` must satisfy `1 <= n < 2^signif_bits`. A
+                    // payload of zero would actually be infinity, and a payload
+                    // with any bits set outside the significand is out of range
+                    // rather than something to silently mask away.
+                    if signif == 0 || signif & !signif_mask != 0 {
                         return None;
                     }
                     return Some(
                         (neg_bit << neg_offset) |
                         (exp_bits << exp_offset) |
-                        (signif & signif_mask)
+                        signif
                     );
                 }
 
@@ -765,5 +767,38 @@ mod tests {
             super::strtof(&f!("1" . "00000100000000000" p "-50")),
             Some(0x26800000)
         );
+    }
+
+    #[test]
+    fn nan_payload_range() {
+        fn nan(val: &'static str) -> crate::lexer::Float<'static> {
+            crate::lexer::Float::Nan {
+                val: Some(val.into()),
+                negative: false,
+            }
+        }
+
+        // f32 has a 23-bit significand, so `0x7fffff` is the maximum valid NaN
+        // payload; `0x800000` and beyond are out of range and must not be
+        // silently masked. A zero payload would be infinity, not a NaN.
+        assert_eq!(super::strtof(&nan("1")), Some(0x7f800001));
+        assert_eq!(super::strtof(&nan("7fffff")), Some(0x7fffffff));
+        assert_eq!(super::strtof(&nan("800000")), None);
+        assert_eq!(super::strtof(&nan("ffffff")), None);
+        assert_eq!(super::strtof(&nan("0")), None);
+
+        // f64 has a 52-bit significand, so `0xf_ffff_ffff_ffff` is the maximum
+        // valid NaN payload; a 14-hex-digit (56-bit) payload is out of range.
+        assert_eq!(super::strtod(&nan("1")), Some(0x7ff0000000000001));
+        assert_eq!(
+            super::strtod(&nan("8000000000000")),
+            Some(0x7ff8000000000000)
+        );
+        assert_eq!(
+            super::strtod(&nan("fffffffffffff")),
+            Some(0x7fffffffffffffff)
+        );
+        assert_eq!(super::strtod(&nan("ffffffffffffff")), None);
+        assert_eq!(super::strtod(&nan("0")), None);
     }
 }
