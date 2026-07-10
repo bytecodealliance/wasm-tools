@@ -36,9 +36,16 @@
       "text": "type mismatch: switch tag does not match continuation"
     },
     {
-      "type": "module",
-      "line": 86,
+      "type": "assert_invalid",
+      "line": 90,
       "filename": "validate-switch-label.5.wasm",
+      "module_type": "binary",
+      "text": "type mismatch: switch tag does not match continuation"
+    },
+    {
+      "type": "module",
+      "line": 107,
+      "filename": "validate-switch-label.6.wasm",
       "module_type": "binary"
     }
   ]
