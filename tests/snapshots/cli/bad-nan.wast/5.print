@@ -1,0 +1,6 @@
+(module
+  (type (;0;) (func (result f32)))
+  (func (;0;) (type 0) (result f32)
+    f32.const nan:0x7fffff (;=NaN;)
+  )
+)
