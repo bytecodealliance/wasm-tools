@@ -1,9 +1,9 @@
 (module
   (type $ft (;0;) (func (result funcref)))
   (type $ct (;1;) (cont $ft))
-  (type $tag_ft (;2;) (func (result nullfuncref)))
+  (type $tag_ft (;2;) (func (result funcref)))
   (type (;3;) (func))
-  (tag $t (;0;) (type $tag_ft) (result nullfuncref))
+  (tag $t (;0;) (type $tag_ft) (result funcref))
   (func (;0;) (type 3)
     block $label
       ref.null $ct

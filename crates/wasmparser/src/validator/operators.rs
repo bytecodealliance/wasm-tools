@@ -1911,10 +1911,21 @@ where
                 }
                 Handle::OnSwitch { tag } => {
                     let tag_ty = self.tag_at(tag)?;
-                    if !self.is_func_subtype(
+                    // The tag's type must be *equivalent* to (not merely a
+                    // subtype of) `[] -> [old results]`: the handler judgment
+                    // has no subsumption rule, so `(on tu switch) : t*` together
+                    // with the required `hdl : t2*` forces `t* = t2*`. Checking
+                    // subtyping in both directions gives equivalence, and also
+                    // pins the tag to zero parameters (via the param-length
+                    // check inside `is_func_subtype`).
+                    let tag_matches = self.is_func_subtype(
                         (tag_ty.params(), tag_ty.results()),
                         (&[], old_func_ty.results()),
-                    ) {
+                    ) && self.is_func_subtype(
+                        (&[], old_func_ty.results()),
+                        (tag_ty.params(), tag_ty.results()),
+                    );
+                    if !tag_matches {
                         bail!(
                             self.offset,
                             "type mismatch: switch tag does not match continuation"
