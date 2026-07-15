@@ -1,0 +1,5 @@
+package nesting too deep
+     --> tests/ui/parse-fail/package-nesting-too-deep.wit:103:1
+      |
+  103 | package a:b100 {
+      | ^------
