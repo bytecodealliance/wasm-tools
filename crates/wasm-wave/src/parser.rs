@@ -17,10 +17,13 @@ use crate::{
     untyped::{UntypedFuncCall, UntypedValue},
 };
 
+const MAX_DEPTH: usize = 100;
+
 /// A Web Assembly Value Encoding parser.
 pub struct Parser<'source> {
     lex: Lexer<'source>,
     curr: Option<Token>,
+    depth: usize,
 }
 
 impl<'source> Parser<'source> {
@@ -34,6 +37,7 @@ impl<'source> Parser<'source> {
         Self {
             lex: lexer,
             curr: None,
+            depth: 0,
         }
     }
 
@@ -62,6 +66,19 @@ impl<'source> Parser<'source> {
     }
 
     fn parse_node(&mut self) -> Result<Node, ParserError> {
+        if self.depth >= MAX_DEPTH {
+            return Err(ParserError::new(
+                ParserErrorKind::NestingTooDeep,
+                self.lex.span(),
+            ));
+        }
+        self.depth += 1;
+        let result = self.parse_node_inner();
+        self.depth -= 1;
+        result
+    }
+
+    fn parse_node_inner(&mut self) -> Result<Node, ParserError> {
         Ok(match self.advance()? {
             Token::Number => self.leaf_node(NodeType::Number),
             Token::Char => self.leaf_node(NodeType::Char),
@@ -466,6 +483,7 @@ pub enum ParserErrorKind {
     DuplicateField,
     DuplicateFlag,
     WasmValueError,
+    NestingTooDeep,
 }
 
 impl Display for ParserErrorKind {
@@ -485,6 +503,7 @@ impl Display for ParserErrorKind {
             ParserErrorKind::DuplicateField => "duplicate field",
             ParserErrorKind::DuplicateFlag => "duplicate flag",
             ParserErrorKind::WasmValueError => "error converting Wasm value",
+            ParserErrorKind::NestingTooDeep => "value nesting too deep",
         };
         write!(f, "{msg}")
     }
@@ -713,6 +732,48 @@ mod tests {
             .parse_value::<Value>(&ty)
             .unwrap_err();
         assert_eq!(err.kind(), ParserErrorKind::InvalidType);
+    }
+
+    #[test]
+    fn reject_deeply_nested_values() {
+        let deep = MAX_DEPTH + 1;
+        let cases = [
+            ("[".repeat(deep) + &"]".repeat(deep), "nested lists"),
+            ("(".repeat(deep) + "0" + &")".repeat(deep), "nested tuples"),
+            (
+                "some(".repeat(deep) + "0" + &")".repeat(deep),
+                "nested some()",
+            ),
+            ("ok(".repeat(deep) + "0" + &")".repeat(deep), "nested ok()"),
+            (
+                "{a:".repeat(deep) + "0" + &"}".repeat(deep),
+                "nested records",
+            ),
+            (
+                "v(".repeat(deep) + "0" + &")".repeat(deep),
+                "nested variant payloads",
+            ),
+        ];
+        for (input, desc) in cases {
+            let err = UntypedValue::parse(&input)
+                .expect_err(&alloc::format!("{desc} should be rejected"));
+            assert_eq!(
+                err.kind(),
+                ParserErrorKind::NestingTooDeep,
+                "wrong error kind for {desc}"
+            );
+        }
+    }
+
+    #[test]
+    fn reject_deeply_nested_func_call_params() {
+        let deep = MAX_DEPTH + 1;
+        let input = alloc::format!("f({}0{})", "some(".repeat(deep), ")".repeat(deep));
+        let err = match UntypedFuncCall::parse(&input) {
+            Ok(_) => panic!("deeply nested func call params should be rejected"),
+            Err(err) => err,
+        };
+        assert_eq!(err.kind(), ParserErrorKind::NestingTooDeep);
     }
 
     fn parse_value(input: &str, ty: &Type) -> Value {
