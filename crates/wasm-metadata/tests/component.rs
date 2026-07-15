@@ -28,7 +28,7 @@ fn add_to_empty_component() {
     let json_str = r#"{"packages":[{"name":"adler","version":"0.2.3","source":"registry"}]}"#;
     let info = VersionInfo::from_str(json_str).unwrap();
     let mut component = Component::new();
-    component.section(&Dependencies::new(info.clone()));
+    component.section(&Dependencies::new(info.clone()).unwrap());
     let component = component.finish();
     let component = add.to_wasm(&component).unwrap();
 
@@ -115,7 +115,7 @@ fn add_to_nested_component() {
     let json_str = r#"{"packages":[{"name":"adler","version":"0.2.3","source":"registry"}]}"#;
     let info = VersionInfo::from_str(json_str).unwrap();
     let mut component = Module::new();
-    component.section(&Dependencies::new(info.clone()));
+    component.section(&Dependencies::new(info.clone()).unwrap());
     let module = component.finish();
     let module = add.to_wasm(&module).unwrap();
 
@@ -239,7 +239,7 @@ fn add_then_clear_fields() {
     let json_str = r#"{"packages":[{"name":"adler","version":"0.2.3","source":"registry"}]}"#;
     let info = VersionInfo::from_str(json_str).unwrap();
     let mut component1 = Component::new();
-    component1.section(&Dependencies::new(info.clone()));
+    component1.section(&Dependencies::new(info.clone()).unwrap());
     let component1 = component1.finish();
     let component1 = add1.to_wasm(&component1).unwrap();
 

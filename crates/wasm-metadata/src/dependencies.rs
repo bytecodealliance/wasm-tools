@@ -1,5 +1,5 @@
 use std::fmt::{self, Display};
-use std::io::{Read, read_to_string};
+use std::io::Read;
 use std::str::FromStr;
 
 use anyhow::{Result, ensure};
@@ -9,6 +9,10 @@ use flate2::read::{ZlibDecoder, ZlibEncoder};
 use serde::Serialize;
 use wasm_encoder::{ComponentSection, CustomSection, Encode, Section};
 use wasmparser::CustomSectionReader;
+
+/// This section is currently zlib-compressed so have a hard limit to avoid
+/// decompressing undue amounts of data from a wasm module.
+const MAX_DECOMPRESSED_SIZE: u64 = 2 * 1024 * 1024;
 
 /// Human-readable description of the binary
 #[derive(Debug, Clone, PartialEq)]
@@ -24,7 +28,15 @@ impl Dependencies {
             reader.name() == ".dep-v0",
             "The `dependencies` custom section should have a name of '.dep-v0'"
         );
-        let decompressed_data = read_to_string(ZlibDecoder::new(reader.data()))?;
+        let mut decompressed_data = Vec::new();
+        ZlibDecoder::new(reader.data())
+            .take(MAX_DECOMPRESSED_SIZE + 1)
+            .read_to_end(&mut decompressed_data)?;
+        ensure!(
+            decompressed_data.len() as u64 <= MAX_DECOMPRESSED_SIZE,
+            "`.dep-v0` custom section decompresses to more than the {MAX_DECOMPRESSED_SIZE} byte limit"
+        );
+        let decompressed_data = String::from_utf8(decompressed_data)?;
         let dependency_tree = auditable_serde::VersionInfo::from_str(&decompressed_data)?;
 
         Ok(Self {
@@ -37,20 +49,24 @@ impl Dependencies {
     }
 
     /// Create a new instance of `Dependencies`.
-    pub fn new(dependency_tree: auditable_serde::VersionInfo) -> Self {
-        let data = serde_json::to_string(&dependency_tree).unwrap();
+    pub fn new(dependency_tree: auditable_serde::VersionInfo) -> Result<Self> {
+        let data = serde_json::to_string(&dependency_tree)?;
+        ensure!(
+            data.len() as u64 <= MAX_DECOMPRESSED_SIZE,
+            "`.dep-v0` custom section would decompress to more than the {MAX_DECOMPRESSED_SIZE} byte limit"
+        );
 
         let mut ret_vec = Vec::new();
         let mut encoder = ZlibEncoder::new(data.as_bytes(), Compression::fast());
-        encoder.read_to_end(&mut ret_vec).unwrap();
+        encoder.read_to_end(&mut ret_vec)?;
 
-        Self {
+        Ok(Self {
             version_info: dependency_tree,
             custom_section: CustomSection {
                 name: ".dep-v0".into(),
                 data: ret_vec.into(),
             },
-        }
+        })
     }
 
     /// Provides access to the version information stored in the object
@@ -110,7 +126,7 @@ mod test {
         let info = VersionInfo::from_str(json_str).unwrap();
         assert_eq!(&info.packages[0].name, "adler");
         let mut component = Component::new();
-        component.section(&Dependencies::new(info));
+        component.section(&Dependencies::new(info).unwrap());
         let component = component.finish();
 
         let mut parsed = false;
@@ -125,10 +141,43 @@ mod test {
     }
 
     #[test]
+    fn rejects_decompression_too_big() {
+        let plain = vec![b' '; (MAX_DECOMPRESSED_SIZE * 2) as usize];
+        let mut compressed = Vec::new();
+        ZlibEncoder::new(&plain[..], Compression::best())
+            .read_to_end(&mut compressed)
+            .unwrap();
+        assert!(
+            compressed.len() < plain.len(),
+            "the section body should be much smaller than its decompressed form"
+        );
+
+        let mut component = Component::new();
+        component.section(&wasm_encoder::CustomSection {
+            name: ".dep-v0".into(),
+            data: compressed.into(),
+        });
+        let component = component.finish();
+
+        let mut saw_section = false;
+        for section in wasmparser::Parser::new(0).parse_all(&component) {
+            if let Payload::CustomSection(reader) = section.unwrap() {
+                saw_section = true;
+                let err = Dependencies::parse_custom_section(&reader).unwrap_err();
+                assert!(
+                    err.to_string().contains("byte limit"),
+                    "unexpected error: {err}"
+                );
+            }
+        }
+        assert!(saw_section);
+    }
+
+    #[test]
     fn serialize() {
         let json_str = r#"{"packages":[{"name":"adler","version":"0.2.3","source":"registry"}]}"#;
         let info = VersionInfo::from_str(json_str).unwrap();
-        let dependencies = Dependencies::new(info);
+        let dependencies = Dependencies::new(info).unwrap();
         assert_eq!(dependencies.version_info().packages[0].name, "adler");
         assert_eq!(
             dependencies.version_info().packages[0].version.to_string(),
