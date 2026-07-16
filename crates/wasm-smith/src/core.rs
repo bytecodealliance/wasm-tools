@@ -3331,7 +3331,11 @@ pub(crate) fn arbitrary_table_type(
     // keep the "inbounds" limit here a bit smaller.
     let max_inbounds = 10_000;
     let min_elements = if config.disallow_traps { Some(1) } else { None };
-    let max_elements = min_elements.unwrap_or(0).max(config.max_table_elements);
+    let mut max_elements = min_elements.unwrap_or(0).max(config.max_table_elements);
+    // Further limit by the table's type if necessary.
+    if !table64 {
+        max_elements = max_elements.min(u64::from(u32::MAX));
+    }
     let (minimum, maximum) = arbitrary_limits64(
         u,
         min_elements,
