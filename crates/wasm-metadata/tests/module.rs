@@ -28,7 +28,7 @@ fn add_to_empty_module() {
     let json_str = r#"{"packages":[{"name":"adler","version":"0.2.3","source":"registry"}]}"#;
     let info = VersionInfo::from_str(json_str).unwrap();
     let mut component = Module::new();
-    component.section(&Dependencies::new(info.clone()));
+    component.section(&Dependencies::new(info.clone()).unwrap());
     let module = component.finish();
     let module = add.to_wasm(&module).unwrap();
 
