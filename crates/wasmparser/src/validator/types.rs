@@ -169,14 +169,20 @@ impl TypeData for Range<CoreTypeId> {
 
 /// Metadata about a type and its transitive structure.
 ///
-/// Currently contains two properties:
+/// Currently contains three properties:
 ///
 /// * The "size" of a type - a proxy to the recursive size of a type if
 ///   everything in the type were unique (e.g. no shared references). Not an
 ///   approximation of runtime size, but instead of type-complexity size if
 ///   someone were to visit each element of the type individually. For example
 ///   `u32` has size 1 and `(list u32)` has size 2 (roughly). Used to prevent
-///   massive trees of types.
+///   massive trees of types and model the complexity time that would be needed
+///   to visit each "node" in the tree of this type.
+///
+/// * The "depth" of a type - used to model if a visit/walk was performed
+///   over this type how many recursive calls would be necessary. This is capped
+///   for example to prevent stack overflow. All types start with depth 1, and
+///   for example `(list u32)` would have depth 2.
 ///
 /// * Whether or not a type contains a "borrow" transitively inside of it. For
 ///   example `(borrow $t)` and `(list (borrow $t))` both contain borrows, but
@@ -184,67 +190,95 @@ impl TypeData for Range<CoreTypeId> {
 ///   not contain borrows.
 ///
 /// Currently this is represented as a compact 32-bit integer to ensure that
-/// `TypeId`, which this is stored in, remains relatively small. The maximum
-/// type size allowed in wasmparser is 1M at this time which is 20 bits of
-/// information, and then one more bit is used for whether or not a borrow is
-/// used. Currently this uses the low 24 bits for the type size and the MSB for
-/// the borrow bit.
+/// `TypeId`, which this is stored in, remains relatively small.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 // Only public because it shows up in a public trait's `doc(hidden)` method.
 #[doc(hidden)]
 pub struct TypeInfo(u32);
 
 impl TypeInfo {
+    /// Current maximum is 1M, so 24 bits should be enough to represent this.
+    const SIZE_BITS: u32 = 24;
+    /// Current maximum is 100, fitting in 7 bits.
+    const DEPTH_BITS: u32 = 7;
+
+    const SIZE_OFFSET: u32 = 0;
+    const DEPTH_OFFSET: u32 = Self::SIZE_OFFSET + Self::SIZE_BITS;
+    const CONTAINS_BORROW_OFFSET: u32 = Self::DEPTH_OFFSET + Self::DEPTH_BITS;
+
+    const SIZE_MASK: u32 = ((1 << Self::SIZE_BITS) - 1) << Self::SIZE_OFFSET;
+    const DEPTH_MASK: u32 = ((1 << Self::DEPTH_BITS) - 1) << Self::DEPTH_OFFSET;
+    const CONTAINS_BORROW_MASK: u32 = 1 << Self::CONTAINS_BORROW_OFFSET;
+
+    const MAX_SIZE: u32 = (1 << Self::SIZE_BITS) - 1;
+    const MAX_DEPTH: u32 = (1 << Self::DEPTH_BITS) - 1;
+    const _ASSERT: () = {
+        assert!(Self::CONTAINS_BORROW_OFFSET < 32);
+        assert!(Self::MAX_DEPTH > crate::limits::MAX_WASM_COMPONENT_TYPE_DEPTH);
+        assert!(Self::MAX_SIZE > crate::limits::MAX_WASM_TYPE_SIZE);
+    };
+
     /// Creates a new blank set of type information.
     ///
     /// Defaults to size 1 to ensure that this consumes space in the final type
     /// structure.
     pub(crate) fn new() -> TypeInfo {
-        TypeInfo::_new(1, false)
+        TypeInfo::_new(1, 1, false)
     }
 
     /// Creates a new blank set of information about a leaf "borrow" type which
     /// has size 1.
     #[cfg(feature = "component-model")]
     pub(crate) fn borrow() -> TypeInfo {
-        TypeInfo::_new(1, true)
+        TypeInfo::_new(1, 1, true)
     }
 
     /// Creates type information corresponding to a core type of the `size`
     /// specified, meaning no borrows are contained within.
     pub(crate) fn core(size: u32) -> TypeInfo {
-        TypeInfo::_new(size, false)
+        TypeInfo::_new(size, 1, false)
     }
 
-    fn _new(size: u32, contains_borrow: bool) -> TypeInfo {
-        assert!(size < (1 << 24));
-        TypeInfo(size | ((contains_borrow as u32) << 31))
+    fn _new(size: u32, depth: u32, contains_borrow: bool) -> TypeInfo {
+        assert!(size <= Self::MAX_SIZE);
+        assert!(depth <= Self::MAX_DEPTH);
+        TypeInfo(
+            (size << Self::SIZE_OFFSET)
+                | (depth << Self::DEPTH_OFFSET)
+                | ((contains_borrow as u32) << Self::CONTAINS_BORROW_OFFSET),
+        )
     }
 
     /// Combines another set of type information into this one, for example if
     /// this is a record which has `other` as a field.
     ///
-    /// Updates the size of `self` and whether or not this type contains a
-    /// borrow based on whether `other` contains a borrow.
+    /// Updates the this info's various fields (size, depth, etc) based on this
+    /// being an aggregate containing `other`.
     ///
     /// Returns an error if the type size would exceed this crate's static limit
     /// of a type size.
     #[cfg(feature = "component-model")]
     pub(crate) fn combine(&mut self, other: TypeInfo, offset: usize) -> Result<()> {
-        *self = TypeInfo::_new(
-            super::combine_type_sizes(self.size(), other.size(), offset)?,
-            self.contains_borrow() || other.contains_borrow(),
-        );
+        let depth = self.depth().max(other.depth().saturating_add(1));
+        let size = super::combine_type_sizes(self.size(), other.size(), offset)?;
+        let contains_borrow = self.contains_borrow() || other.contains_borrow();
+        *self = TypeInfo::_new(size, depth, contains_borrow);
         Ok(())
     }
 
     pub(crate) fn size(&self) -> u32 {
-        self.0 & 0xffffff
+        (self.0 & Self::SIZE_MASK) >> Self::SIZE_OFFSET
+    }
+
+    /// The structural nesting depth of the type (see `MAX_WASM_COMPONENT_TYPE_DEPTH`).
+    #[cfg(feature = "component-model")]
+    pub(crate) fn depth(&self) -> u32 {
+        (self.0 & Self::DEPTH_MASK) >> Self::DEPTH_OFFSET
     }
 
     #[cfg(feature = "component-model")]
     pub(crate) fn contains_borrow(&self) -> bool {
-        (self.0 >> 31) != 0
+        (self.0 & Self::CONTAINS_BORROW_MASK) != 0
     }
 }
 

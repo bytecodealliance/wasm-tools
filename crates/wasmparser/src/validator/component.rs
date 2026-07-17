@@ -11,7 +11,7 @@ use super::{
         RecordType, Remap, Remapping, ResourceId, SubtypeCx, TupleType, VariantCase, VariantType,
     },
     core::{InternRecGroup, Module},
-    types::{CoreTypeId, EntityType, TypeAlloc, TypeInfo, TypeList},
+    types::{CoreTypeId, EntityType, TypeAlloc, TypeData, TypeInfo, TypeList},
 };
 use crate::collections::index_map::Entry;
 use crate::limits::*;
@@ -593,6 +593,10 @@ impl ComponentState {
         let id = match ty {
             crate::ComponentType::Defined(ty) => {
                 let ty = current(components).create_defined_type(ty, types, offset)?;
+                let depth = ty.type_info(types).depth();
+                if depth > MAX_WASM_COMPONENT_TYPE_DEPTH {
+                    bail!(offset, "type nesting is too deep");
+                }
                 types.push(ty).into()
             }
             crate::ComponentType::Func(ty) => {
@@ -980,7 +984,7 @@ impl ComponentState {
                 .values()
                 .filter_map(|t| t.ty.as_ref())
                 .all(|t| types.type_named_valtype(t, set)),
-            ComponentDefinedType::Result { ok, err } => {
+            ComponentDefinedType::Result { ok, err, .. } => {
                 ok.as_ref()
                     .map(|t| types.type_named_valtype(t, set))
                     .unwrap_or(true)
@@ -989,11 +993,11 @@ impl ComponentState {
                         .map(|t| types.type_named_valtype(t, set))
                         .unwrap_or(true)
             }
-            ComponentDefinedType::List(ty)
-            | ComponentDefinedType::FixedLengthList(ty, _)
-            | ComponentDefinedType::Option(ty) => types.type_named_valtype(ty, set),
-            ComponentDefinedType::Map(k, v) => {
-                types.type_named_valtype(k, set) && types.type_named_valtype(v, set)
+            ComponentDefinedType::List { element: ty, .. }
+            | ComponentDefinedType::FixedLengthList { element: ty, .. }
+            | ComponentDefinedType::Option { ty, .. } => types.type_named_valtype(ty, set),
+            ComponentDefinedType::Map { key, value, .. } => {
+                types.type_named_valtype(key, set) && types.type_named_valtype(value, set)
             }
 
             // The resource referred to by own/borrow must be named.
@@ -1001,11 +1005,7 @@ impl ComponentState {
                 set.contains(&ComponentAnyTypeId::from(*id))
             }
 
-            ComponentDefinedType::Future(ty) => ty
-                .as_ref()
-                .map(|ty| types.type_named_valtype(ty, set))
-                .unwrap_or(true),
-            ComponentDefinedType::Stream(ty) => ty
+            ComponentDefinedType::Future { ty, .. } | ComponentDefinedType::Stream { ty, .. } => ty
                 .as_ref()
                 .map(|ty| types.type_named_valtype(ty, set))
                 .unwrap_or(true),
@@ -1648,7 +1648,7 @@ impl ComponentState {
         )?;
 
         let ty = self.defined_type_at(ty, offset)?;
-        let ComponentDefinedType::Stream(_) = &types[ty] else {
+        let ComponentDefinedType::Stream { .. } = &types[ty] else {
             bail!(offset, "`stream.new` requires a stream type")
         };
 
@@ -1671,7 +1671,7 @@ impl ComponentState {
         )?;
 
         let ty = self.defined_type_at(ty, offset)?;
-        let ComponentDefinedType::Stream(elem_ty) = &types[ty] else {
+        let ComponentDefinedType::Stream { ty: elem_ty, .. } = &types[ty] else {
             bail!(offset, "`stream.read` requires a stream type")
         };
 
@@ -1711,7 +1711,7 @@ impl ComponentState {
         )?;
 
         let ty = self.defined_type_at(ty, offset)?;
-        let ComponentDefinedType::Stream(elem_ty) = &types[ty] else {
+        let ComponentDefinedType::Stream { ty: elem_ty, .. } = &types[ty] else {
             bail!(offset, "`stream.write` requires a stream type")
         };
 
@@ -1757,7 +1757,7 @@ impl ComponentState {
         }
 
         let ty = self.defined_type_at(ty, offset)?;
-        let ComponentDefinedType::Stream(_) = &types[ty] else {
+        let ComponentDefinedType::Stream { .. } = &types[ty] else {
             bail!(offset, "`stream.cancel-read` requires a stream type")
         };
 
@@ -1787,7 +1787,7 @@ impl ComponentState {
         }
 
         let ty = self.defined_type_at(ty, offset)?;
-        let ComponentDefinedType::Stream(_) = &types[ty] else {
+        let ComponentDefinedType::Stream { .. } = &types[ty] else {
             bail!(offset, "`stream.cancel-write` requires a stream type")
         };
 
@@ -1809,7 +1809,7 @@ impl ComponentState {
         )?;
 
         let ty = self.defined_type_at(ty, offset)?;
-        let ComponentDefinedType::Stream(_) = &types[ty] else {
+        let ComponentDefinedType::Stream { .. } = &types[ty] else {
             bail!(offset, "`stream.drop-readable` requires a stream type")
         };
 
@@ -1831,7 +1831,7 @@ impl ComponentState {
         )?;
 
         let ty = self.defined_type_at(ty, offset)?;
-        let ComponentDefinedType::Stream(_) = &types[ty] else {
+        let ComponentDefinedType::Stream { .. } = &types[ty] else {
             bail!(offset, "`stream.drop-writable` requires a stream type")
         };
 
@@ -1848,7 +1848,7 @@ impl ComponentState {
         )?;
 
         let ty = self.defined_type_at(ty, offset)?;
-        let ComponentDefinedType::Future(_) = &types[ty] else {
+        let ComponentDefinedType::Future { .. } = &types[ty] else {
             bail!(offset, "`future.new` requires a future type")
         };
 
@@ -1871,7 +1871,7 @@ impl ComponentState {
         )?;
 
         let ty = self.defined_type_at(ty, offset)?;
-        let ComponentDefinedType::Future(elem_ty) = &types[ty] else {
+        let ComponentDefinedType::Future { ty: elem_ty, .. } = &types[ty] else {
             bail!(offset, "`future.read` requires a future type")
         };
 
@@ -1911,7 +1911,7 @@ impl ComponentState {
         )?;
 
         let ty = self.defined_type_at(ty, offset)?;
-        let ComponentDefinedType::Future(elem_ty) = &types[ty] else {
+        let ComponentDefinedType::Future { ty: elem_ty, .. } = &types[ty] else {
             bail!(offset, "`future.write` requires a future type")
         };
 
@@ -1956,7 +1956,7 @@ impl ComponentState {
         }
 
         let ty = self.defined_type_at(ty, offset)?;
-        let ComponentDefinedType::Future(_) = &types[ty] else {
+        let ComponentDefinedType::Future { .. } = &types[ty] else {
             bail!(offset, "`future.cancel-read` requires a future type")
         };
 
@@ -1986,7 +1986,7 @@ impl ComponentState {
         }
 
         let ty = self.defined_type_at(ty, offset)?;
-        let ComponentDefinedType::Future(_) = &types[ty] else {
+        let ComponentDefinedType::Future { .. } = &types[ty] else {
             bail!(offset, "`future.cancel-write` requires a future type")
         };
 
@@ -2008,7 +2008,7 @@ impl ComponentState {
         )?;
 
         let ty = self.defined_type_at(ty, offset)?;
-        let ComponentDefinedType::Future(_) = &types[ty] else {
+        let ComponentDefinedType::Future { .. } = &types[ty] else {
             bail!(offset, "`future.drop-readable` requires a future type")
         };
 
@@ -2030,7 +2030,7 @@ impl ComponentState {
         )?;
 
         let ty = self.defined_type_at(ty, offset)?;
-        let ComponentDefinedType::Future(_) = &types[ty] else {
+        let ComponentDefinedType::Future { .. } = &types[ty] else {
             bail!(offset, "`future.drop-writable` requires a future type")
         };
 
@@ -4028,19 +4028,24 @@ impl ComponentState {
             crate::ComponentDefinedType::Variant(cases) => {
                 self.create_variant_type(cases.as_ref(), types, offset)
             }
-            crate::ComponentDefinedType::List(ty) => Ok(ComponentDefinedType::List(
-                self.create_component_val_type(ty, offset)?,
-            )),
+            crate::ComponentDefinedType::List(ty) => {
+                let element = self.create_component_val_type(ty, offset)?;
+                let mut info = TypeInfo::new();
+                info.combine(element.info(types), offset)?;
+                Ok(ComponentDefinedType::List { element, info })
+            }
             crate::ComponentDefinedType::Map(key, value) => {
                 require_feature::cm_map(
                     self.features,
                     "Maps require the component model map feature",
                     offset,
                 )?;
-                Ok(ComponentDefinedType::Map(
-                    self.create_component_val_type(key, offset)?,
-                    self.create_component_val_type(value, offset)?,
-                ))
+                let key = self.create_component_val_type(key, offset)?;
+                let value = self.create_component_val_type(value, offset)?;
+                let mut info = TypeInfo::new();
+                info.combine(key.info(types), offset)?;
+                info.combine(value.info(types), offset)?;
+                Ok(ComponentDefinedType::Map { key, value, info })
             }
             crate::ComponentDefinedType::FixedLengthList(ty, elements) => {
                 require_feature::cm_fixed_length_lists(
@@ -4061,10 +4066,14 @@ impl ComponentState {
                     "fixed-length list element",
                     offset,
                 )?;
-                Ok(ComponentDefinedType::FixedLengthList(
-                    self.create_component_val_type(ty, offset)?,
-                    elements,
-                ))
+                let element = self.create_component_val_type(ty, offset)?;
+                let mut info = TypeInfo::new();
+                info.combine(element.info(types), offset)?;
+                Ok(ComponentDefinedType::FixedLengthList {
+                    element,
+                    length: elements,
+                    info,
+                })
             }
             crate::ComponentDefinedType::Tuple(tys) => {
                 self.create_tuple_type(tys.as_ref(), types, offset)
@@ -4075,17 +4084,28 @@ impl ComponentState {
             crate::ComponentDefinedType::Enum(cases) => {
                 self.create_enum_type(cases.as_ref(), offset)
             }
-            crate::ComponentDefinedType::Option(ty) => Ok(ComponentDefinedType::Option(
-                self.create_component_val_type(ty, offset)?,
-            )),
-            crate::ComponentDefinedType::Result { ok, err } => Ok(ComponentDefinedType::Result {
-                ok: ok
+            crate::ComponentDefinedType::Option(ty) => {
+                let ty = self.create_component_val_type(ty, offset)?;
+                let mut info = TypeInfo::new();
+                info.combine(ty.info(types), offset)?;
+                Ok(ComponentDefinedType::Option { ty, info })
+            }
+            crate::ComponentDefinedType::Result { ok, err } => {
+                let ok = ok
                     .map(|ty| self.create_component_val_type(ty, offset))
-                    .transpose()?,
-                err: err
+                    .transpose()?;
+                let err = err
                     .map(|ty| self.create_component_val_type(ty, offset))
-                    .transpose()?,
-            }),
+                    .transpose()?;
+                let mut info = TypeInfo::new();
+                if let Some(ty) = &ok {
+                    info.combine(ty.info(types), offset)?;
+                }
+                if let Some(ty) = &err {
+                    info.combine(ty.info(types), offset)?;
+                }
+                Ok(ComponentDefinedType::Result { ok, err, info })
+            }
             crate::ComponentDefinedType::Own(idx) => Ok(ComponentDefinedType::Own(
                 self.resource_at(idx, types, offset)?,
             )),
@@ -4098,10 +4118,14 @@ impl ComponentState {
                     "`future` requires the component model async feature",
                     offset,
                 )?;
-                Ok(ComponentDefinedType::Future(
-                    ty.map(|ty| self.create_component_val_type(ty, offset))
-                        .transpose()?,
-                ))
+                let ty = ty
+                    .map(|ty| self.create_component_val_type(ty, offset))
+                    .transpose()?;
+                let mut info = TypeInfo::new();
+                if let Some(ty) = &ty {
+                    info.combine(ty.info(types), offset)?;
+                }
+                Ok(ComponentDefinedType::Future { ty, info })
             }
             crate::ComponentDefinedType::Stream(ty) => {
                 require_feature::cm_async(
@@ -4127,7 +4151,11 @@ impl ComponentState {
                          with a defined by encoding instead for now"
                     )
                 }
-                Ok(ComponentDefinedType::Stream(ty))
+                let mut info = TypeInfo::new();
+                if let Some(ty) = &ty {
+                    info.combine(ty.info(types), offset)?;
+                }
+                Ok(ComponentDefinedType::Stream { ty, info })
             }
         }
     }
