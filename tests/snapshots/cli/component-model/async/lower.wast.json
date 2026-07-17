@@ -27,6 +27,20 @@
       "filename": "lower.3.wasm",
       "module_type": "binary",
       "text": "the `async` canonical option requires an async function type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 54,
+      "filename": "lower.4.wasm",
+      "module_type": "binary",
+      "text": "canonical option `memory` is required"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 61,
+      "filename": "lower.5.wasm",
+      "module_type": "binary",
+      "text": "canonical option `realloc` is required"
     }
   ]
 }
