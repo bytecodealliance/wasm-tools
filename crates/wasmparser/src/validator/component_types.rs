@@ -1265,17 +1265,17 @@ impl ComponentFuncType {
             }
         }
 
+        // Results of lowered functions that contains pointers must be allocated
+        // by the callee meaning that realloc is required. Results of lifted
+        // function are allocated by the guest which means that no realloc
+        // option is necessary.
+        if let Some(ty) = &self.result {
+            options.require_realloc_if(offset, || abi == Abi::Lower && ty.contains_ptr(types))?;
+        }
+
         match (abi, options.concurrency) {
             (Abi::Lower | Abi::Lift, Concurrency::Sync) => {
                 if let Some(ty) = &self.result {
-                    // Results of lowered functions that contains pointers must be
-                    // allocated by the callee meaning that realloc is required.
-                    // Results of lifted function are allocated by the guest which
-                    // means that no realloc option is necessary.
-                    options.require_realloc_if(offset, || {
-                        abi == Abi::Lower && ty.contains_ptr(types)
-                    })?;
-
                     if !ty.push_wasm_types(ptr_size, types, &mut sig.results) {
                         // Too many results to return directly, either a retptr
                         // parameter will be used (import) or a single pointer

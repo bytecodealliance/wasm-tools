@@ -48,3 +48,21 @@
   )
   "the `async` canonical option requires an async function type"
 )
+
+;; `async` option requires as `async` function type
+(assert_invalid
+  (component
+    (import "foo" (func $foo async (result string)))
+    (core func $foo (canon lower (func $foo) async))
+  )
+  "canonical option `memory` is required"
+)
+(assert_invalid
+  (component
+    (import "foo" (func $foo async (result string)))
+    (core module $libc (memory (export "memory") 1))
+    (core instance $libc (instantiate $libc))
+    (core func $foo (canon lower (func $foo) async (memory (core memory $libc "memory"))))
+  )
+  "canonical option `realloc` is required"
+)
