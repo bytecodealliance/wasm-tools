@@ -207,13 +207,16 @@ impl TypeInfo {
     const CONTAINS_BORROW_OFFSET: u32 = Self::DEPTH_OFFSET + Self::DEPTH_BITS;
 
     const SIZE_MASK: u32 = ((1 << Self::SIZE_BITS) - 1) << Self::SIZE_OFFSET;
+    #[cfg(feature = "component-model")]
     const DEPTH_MASK: u32 = ((1 << Self::DEPTH_BITS) - 1) << Self::DEPTH_OFFSET;
+    #[cfg(feature = "component-model")]
     const CONTAINS_BORROW_MASK: u32 = 1 << Self::CONTAINS_BORROW_OFFSET;
 
     const MAX_SIZE: u32 = (1 << Self::SIZE_BITS) - 1;
     const MAX_DEPTH: u32 = (1 << Self::DEPTH_BITS) - 1;
     const _ASSERT: () = {
         assert!(Self::CONTAINS_BORROW_OFFSET < 32);
+        #[cfg(feature = "component-model")]
         assert!(Self::MAX_DEPTH > crate::limits::MAX_WASM_COMPONENT_TYPE_DEPTH);
         assert!(Self::MAX_SIZE > crate::limits::MAX_WASM_TYPE_SIZE);
     };
