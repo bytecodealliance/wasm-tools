@@ -655,16 +655,16 @@ impl<'a> TypeEncoder<'a> {
             }
             ComponentDefinedType::Record(r) => self.record(state, r),
             ComponentDefinedType::Variant(v) => self.variant(state, v),
-            ComponentDefinedType::List(ty) => self.list(state, *ty),
-            ComponentDefinedType::Map(key, value) => self.map(state, *key, *value),
-            ComponentDefinedType::FixedLengthList(ty, elements) => {
-                self.fixed_length_list(state, *ty, *elements)
-            }
+            ComponentDefinedType::List { element, .. } => self.list(state, *element),
+            ComponentDefinedType::Map { key, value, .. } => self.map(state, *key, *value),
+            ComponentDefinedType::FixedLengthList {
+                element, length, ..
+            } => self.fixed_length_list(state, *element, *length),
             ComponentDefinedType::Tuple(t) => self.tuple(state, t),
             ComponentDefinedType::Flags(names) => Self::flags(&mut state.cur.encodable, names),
             ComponentDefinedType::Enum(cases) => Self::enum_type(&mut state.cur.encodable, cases),
-            ComponentDefinedType::Option(ty) => self.option(state, *ty),
-            ComponentDefinedType::Result { ok, err } => self.result(state, *ok, *err),
+            ComponentDefinedType::Option { ty, .. } => self.option(state, *ty),
+            ComponentDefinedType::Result { ok, err, .. } => self.result(state, *ok, *err),
             ComponentDefinedType::Own(r) => {
                 let ty = self.ty(state, (*r).into());
                 let index = state.cur.encodable.type_count();
@@ -677,8 +677,8 @@ impl<'a> TypeEncoder<'a> {
                 state.cur.encodable.ty().defined_type().borrow(ty);
                 index
             }
-            ComponentDefinedType::Future(ty) => self.future(state, *ty),
-            ComponentDefinedType::Stream(ty) => self.stream(state, *ty),
+            ComponentDefinedType::Future { ty, .. } => self.future(state, *ty),
+            ComponentDefinedType::Stream { ty, .. } => self.stream(state, *ty),
         }
     }
 
@@ -1267,12 +1267,12 @@ impl DependencyRegistrar<'_, '_> {
             ComponentDefinedType::Primitive(_)
             | ComponentDefinedType::Enum(_)
             | ComponentDefinedType::Flags(_) => {}
-            ComponentDefinedType::List(t)
-            | ComponentDefinedType::FixedLengthList(t, _)
-            | ComponentDefinedType::Option(t) => self.val_type(*t),
-            ComponentDefinedType::Map(k, v) => {
-                self.val_type(*k);
-                self.val_type(*v);
+            ComponentDefinedType::List { element: t, .. }
+            | ComponentDefinedType::FixedLengthList { element: t, .. }
+            | ComponentDefinedType::Option { ty: t, .. } => self.val_type(*t),
+            ComponentDefinedType::Map { key, value, .. } => {
+                self.val_type(*key);
+                self.val_type(*value);
             }
             ComponentDefinedType::Own(r) | ComponentDefinedType::Borrow(r) => {
                 self.ty(ComponentAnyTypeId::Resource(*r))
@@ -1294,7 +1294,7 @@ impl DependencyRegistrar<'_, '_> {
                     }
                 }
             }
-            ComponentDefinedType::Result { ok, err } => {
+            ComponentDefinedType::Result { ok, err, .. } => {
                 if let Some(ok) = ok {
                     self.val_type(*ok);
                 }
@@ -1302,12 +1302,7 @@ impl DependencyRegistrar<'_, '_> {
                     self.val_type(*err);
                 }
             }
-            ComponentDefinedType::Future(ty) => {
-                if let Some(ty) = ty {
-                    self.val_type(*ty);
-                }
-            }
-            ComponentDefinedType::Stream(ty) => {
+            ComponentDefinedType::Future { ty, .. } | ComponentDefinedType::Stream { ty, .. } => {
                 if let Some(ty) = ty {
                     self.val_type(*ty);
                 }

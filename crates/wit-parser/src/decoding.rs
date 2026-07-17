@@ -1301,20 +1301,22 @@ impl WitPackageDecoder<'_> {
         match ty {
             ComponentDefinedType::Primitive(t) => Ok(TypeDefKind::Type(self.convert_primitive(*t))),
 
-            ComponentDefinedType::List(t) => {
-                let t = self.convert_valtype(t)?;
+            ComponentDefinedType::List { element, .. } => {
+                let t = self.convert_valtype(element)?;
                 Ok(TypeDefKind::List(t))
             }
 
-            ComponentDefinedType::Map(k, v) => {
-                let k = self.convert_valtype(k)?;
-                let v = self.convert_valtype(v)?;
+            ComponentDefinedType::Map { key, value, .. } => {
+                let k = self.convert_valtype(key)?;
+                let v = self.convert_valtype(value)?;
                 Ok(TypeDefKind::Map(k, v))
             }
 
-            ComponentDefinedType::FixedLengthList(t, size) => {
-                let t = self.convert_valtype(t)?;
-                Ok(TypeDefKind::FixedLengthList(t, *size))
+            ComponentDefinedType::FixedLengthList {
+                element, length, ..
+            } => {
+                let t = self.convert_valtype(element)?;
+                Ok(TypeDefKind::FixedLengthList(t, *length))
             }
 
             ComponentDefinedType::Tuple(t) => {
@@ -1326,12 +1328,12 @@ impl WitPackageDecoder<'_> {
                 Ok(TypeDefKind::Tuple(Tuple { types }))
             }
 
-            ComponentDefinedType::Option(t) => {
-                let t = self.convert_valtype(t)?;
+            ComponentDefinedType::Option { ty, .. } => {
+                let t = self.convert_valtype(ty)?;
                 Ok(TypeDefKind::Option(t))
             }
 
-            ComponentDefinedType::Result { ok, err } => {
+            ComponentDefinedType::Result { ok, err, .. } => {
                 let ok = match ok {
                     Some(t) => Some(self.convert_valtype(t)?),
                     None => None,
@@ -1417,11 +1419,11 @@ impl WitPackageDecoder<'_> {
                 Ok(TypeDefKind::Handle(Handle::Borrow(id)))
             }
 
-            ComponentDefinedType::Future(ty) => Ok(TypeDefKind::Future(
+            ComponentDefinedType::Future { ty, .. } => Ok(TypeDefKind::Future(
                 ty.as_ref().map(|ty| self.convert_valtype(ty)).transpose()?,
             )),
 
-            ComponentDefinedType::Stream(ty) => Ok(TypeDefKind::Stream(
+            ComponentDefinedType::Stream { ty, .. } => Ok(TypeDefKind::Stream(
                 ty.as_ref().map(|ty| self.convert_valtype(ty)).transpose()?,
             )),
         }
@@ -1600,7 +1602,7 @@ impl Registrar<'_> {
         match def {
             ComponentDefinedType::Primitive(_) => Ok(()),
 
-            ComponentDefinedType::List(t) => {
+            ComponentDefinedType::List { element, .. } => {
                 let ty = match &self.resolve.types[id].kind {
                     TypeDefKind::List(r) => r,
                     // Note that all cases below have this match and the general
@@ -1613,26 +1615,28 @@ impl Registrar<'_> {
                     TypeDefKind::Type(Type::Id(_)) => return Ok(()),
                     _ => bail!("expected a list"),
                 };
-                self.valtype(t, ty)
+                self.valtype(element, ty)
             }
 
-            ComponentDefinedType::Map(k, v) => {
+            ComponentDefinedType::Map { key, value, .. } => {
                 let (key_ty, value_ty) = match &self.resolve.types[id].kind {
                     TypeDefKind::Map(k, v) => (k, v),
                     TypeDefKind::Type(Type::Id(_)) => return Ok(()),
                     _ => bail!("expected a map"),
                 };
-                self.valtype(k, key_ty)?;
-                self.valtype(v, value_ty)
+                self.valtype(key, key_ty)?;
+                self.valtype(value, value_ty)
             }
 
-            ComponentDefinedType::FixedLengthList(t, elements) => {
+            ComponentDefinedType::FixedLengthList {
+                element, length, ..
+            } => {
                 let ty = match &self.resolve.types[id].kind {
-                    TypeDefKind::FixedLengthList(r, elements2) if elements2 == elements => r,
+                    TypeDefKind::FixedLengthList(r, elements2) if elements2 == length => r,
                     TypeDefKind::Type(Type::Id(_)) => return Ok(()),
-                    _ => bail!("expected a fixed-length {elements} list"),
+                    _ => bail!("expected a fixed-length {length} list"),
                 };
-                self.valtype(t, ty)
+                self.valtype(element, ty)
             }
 
             ComponentDefinedType::Tuple(t) => {
@@ -1650,7 +1654,7 @@ impl Registrar<'_> {
                 Ok(())
             }
 
-            ComponentDefinedType::Option(t) => {
+            ComponentDefinedType::Option { ty: t, .. } => {
                 let ty = match &self.resolve.types[id].kind {
                     TypeDefKind::Option(r) => r,
                     TypeDefKind::Type(Type::Id(_)) => return Ok(()),
@@ -1659,7 +1663,7 @@ impl Registrar<'_> {
                 self.valtype(t, ty)
             }
 
-            ComponentDefinedType::Result { ok, err } => {
+            ComponentDefinedType::Result { ok, err, .. } => {
                 let ty = match &self.resolve.types[id].kind {
                     TypeDefKind::Result(r) => r,
                     TypeDefKind::Type(Type::Id(_)) => return Ok(()),
@@ -1718,7 +1722,7 @@ impl Registrar<'_> {
                 Ok(())
             }
 
-            ComponentDefinedType::Future(payload) => {
+            ComponentDefinedType::Future { ty: payload, .. } => {
                 let ty = match &self.resolve.types[id].kind {
                     TypeDefKind::Future(p) => p,
                     TypeDefKind::Type(Type::Id(_)) => return Ok(()),
@@ -1731,7 +1735,7 @@ impl Registrar<'_> {
                 }
             }
 
-            ComponentDefinedType::Stream(payload) => {
+            ComponentDefinedType::Stream { ty: payload, .. } => {
                 let ty = match &self.resolve.types[id].kind {
                     TypeDefKind::Stream(p) => p,
                     TypeDefKind::Type(Type::Id(_)) => return Ok(()),
