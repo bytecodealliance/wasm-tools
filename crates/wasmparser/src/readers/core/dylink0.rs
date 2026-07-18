@@ -1,3 +1,4 @@
+use crate::offsets::LogicalOffset;
 use crate::prelude::*;
 use crate::{BinaryReader, Result, Subsection, Subsections, SymbolFlags};
 use core::ops::Range;
@@ -61,14 +62,12 @@ pub enum Dylink0Subsection<'a> {
     Unknown {
         ty: u8,
         data: &'a [u8],
-        range: Range<usize>,
+        range: Range<LogicalOffset>,
     },
 }
 
 impl<'a> Subsection<'a> for Dylink0Subsection<'a> {
     fn from_reader(id: u8, mut reader: BinaryReader<'a>) -> Result<Self> {
-        let data = reader.remaining_buffer();
-        let offset = reader.original_position();
         Ok(match id {
             WASM_DYLINK_MEM_INFO => Self::MemInfo(MemInfo {
                 memory_size: reader.read_var_u32()?,
@@ -109,8 +108,8 @@ impl<'a> Subsection<'a> for Dylink0Subsection<'a> {
             ),
             ty => Self::Unknown {
                 ty,
-                data,
-                range: offset..offset + data.len(),
+                data: reader.remaining_buffer(),
+                range: reader.remaining_range(),
             },
         })
     }

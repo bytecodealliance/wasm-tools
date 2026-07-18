@@ -1,6 +1,7 @@
 use core::fmt;
 
 use crate::WasmFeatures;
+use crate::offsets::LogicalOffset;
 use crate::prelude::*;
 
 /// A binary reader for WebAssembly modules.
@@ -16,7 +17,7 @@ pub struct Error {
 pub(crate) struct ErrorInner {
     message: String,
     kind: ErrorKind,
-    offset: usize,
+    offset: LogicalOffset,
     needed_hint: Option<usize>,
 }
 
@@ -44,7 +45,7 @@ impl fmt::Display for Error {
 
 impl Error {
     #[cold]
-    pub(crate) fn _new(kind: ErrorKind, message: String, offset: usize) -> Self {
+    pub(crate) fn _new(kind: ErrorKind, message: String, offset: LogicalOffset) -> Self {
         Error {
             inner: Box::new(ErrorInner {
                 kind,
@@ -56,12 +57,12 @@ impl Error {
     }
 
     #[cold]
-    pub(crate) fn new(message: impl Into<String>, offset: usize) -> Self {
+    pub(crate) fn new(message: impl Into<String>, offset: LogicalOffset) -> Self {
         Self::_new(ErrorKind::Uncategorized, message.into(), offset)
     }
 
     #[cold]
-    pub(crate) fn invalid_heap_type(msg: &'static str, offset: usize) -> Self {
+    pub(crate) fn invalid_heap_type(msg: &'static str, offset: LogicalOffset) -> Self {
         Self::_new(ErrorKind::InvalidHeapType, msg.into(), offset)
     }
 
@@ -69,18 +70,18 @@ impl Error {
     pub(crate) fn wasm_feature(
         feature: crate::WasmFeatures,
         msg: impl fmt::Display,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Self {
         Self::_new(ErrorKind::WasmFeature(feature), msg.to_string(), offset)
     }
 
     #[cold]
-    pub(crate) fn fmt(args: fmt::Arguments<'_>, offset: usize) -> Self {
+    pub(crate) fn fmt(args: fmt::Arguments<'_>, offset: LogicalOffset) -> Self {
         Error::new(args.to_string(), offset)
     }
 
     #[cold]
-    pub(crate) fn eof(offset: usize, needed_hint: usize) -> Self {
+    pub(crate) fn eof(offset: LogicalOffset, needed_hint: usize) -> Self {
         let mut err = Error::new("unexpected end-of-file", offset);
         err.inner.needed_hint = Some(needed_hint);
         err
@@ -96,7 +97,7 @@ impl Error {
     }
 
     /// Get the offset within the Wasm binary where the error occurred.
-    pub fn offset(&self) -> usize {
+    pub fn offset(&self) -> LogicalOffset {
         self.inner.offset
     }
 

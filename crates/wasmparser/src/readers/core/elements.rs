@@ -15,7 +15,7 @@
 
 use crate::{
     BinaryReader, ConstExpr, Error, ExternalKind, FromReader, OperatorsReader,
-    OperatorsReaderAllocations, RefType, Result, SectionLimited,
+    OperatorsReaderAllocations, RefType, Result, SectionLimited, offsets::LogicalOffset,
 };
 use core::ops::Range;
 
@@ -27,7 +27,7 @@ pub struct Element<'a> {
     /// The initial elements of the element segment.
     pub items: ElementItems<'a>,
     /// The range of the the element segment.
-    pub range: Range<usize>,
+    pub range: Range<LogicalOffset>,
 }
 
 /// The kind of element segment.

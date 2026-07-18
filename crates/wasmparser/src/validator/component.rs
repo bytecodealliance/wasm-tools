@@ -13,7 +13,6 @@ use super::{
     core::{InternRecGroup, Module},
     types::{CoreTypeId, EntityType, TypeAlloc, TypeData, TypeInfo, TypeList},
 };
-use crate::collections::index_map::Entry;
 use crate::limits::*;
 use crate::prelude::*;
 use crate::validator::names::{ComponentName, ComponentNameKind, KebabStr, KebabString};
@@ -23,9 +22,10 @@ use crate::{
     GlobalType, InstantiationArgKind, MemoryType, PackedIndex, RefType, Result, SubType, TableType,
     TypeBounds, ValType, WasmFeatures, require_feature,
 };
+use crate::{collections::index_map::Entry, offsets::LogicalOffset};
 use core::mem;
 
-fn to_kebab_string<'a>(s: &'a str, desc: &str, offset: usize) -> Result<KebabString> {
+fn to_kebab_string<'a>(s: &'a str, desc: &str, offset: LogicalOffset) -> Result<KebabString> {
     match KebabString::new(s) {
         Some(s) => Ok(s),
         None => {
@@ -282,21 +282,21 @@ pub(crate) struct CanonicalOptions {
 }
 
 impl CanonicalOptions {
-    pub(crate) fn require_sync(&self, offset: usize, where_: &str) -> Result<&Self> {
+    pub(crate) fn require_sync(&self, offset: LogicalOffset, where_: &str) -> Result<&Self> {
         if !self.concurrency.is_sync() {
             bail!(offset, "cannot specify `async` option on `{where_}`")
         }
         Ok(self)
     }
 
-    pub(crate) fn require_memory(&self, offset: usize) -> Result<&Self> {
+    pub(crate) fn require_memory(&self, offset: LogicalOffset) -> Result<&Self> {
         if self.memory.is_none() {
             bail!(offset, "canonical option `memory` is required");
         }
         Ok(self)
     }
 
-    pub(crate) fn require_realloc(&self, offset: usize) -> Result<&Self> {
+    pub(crate) fn require_realloc(&self, offset: LogicalOffset) -> Result<&Self> {
         // Memory is always required when `realloc` is required.
         self.require_memory(offset)?;
 
@@ -309,7 +309,7 @@ impl CanonicalOptions {
 
     pub(crate) fn require_memory_if(
         &self,
-        offset: usize,
+        offset: LogicalOffset,
         when: impl Fn() -> bool,
     ) -> Result<&Self> {
         if self.memory.is_none() && when() {
@@ -320,7 +320,7 @@ impl CanonicalOptions {
 
     pub(crate) fn require_realloc_if(
         &self,
-        offset: usize,
+        offset: LogicalOffset,
         when: impl Fn() -> bool,
     ) -> Result<&Self> {
         if self.realloc.is_none() && when() {
@@ -329,7 +329,7 @@ impl CanonicalOptions {
         Ok(self)
     }
 
-    pub(crate) fn check_lower(&self, offset: usize) -> Result<&Self> {
+    pub(crate) fn check_lower(&self, offset: LogicalOffset) -> Result<&Self> {
         if self.post_return.is_some() {
             bail!(
                 offset,
@@ -359,7 +359,7 @@ impl CanonicalOptions {
         types: &TypeList,
         state: &ComponentState,
         core_ty_id: CoreTypeId,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<&Self> {
         debug_assert!(matches!(
             types[core_ty_id].composite_type.inner,
@@ -414,7 +414,7 @@ impl CanonicalOptions {
         Ok(self)
     }
 
-    fn check_asyncness(&self, ty: &ComponentFuncType, offset: usize) -> Result<()> {
+    fn check_asyncness(&self, ty: &ComponentFuncType, offset: LogicalOffset) -> Result<()> {
         // The `async` canonical ABI option is only allowed with `async`-typed
         // functions.
         if self.concurrency.is_async() && !ty.async_ {
@@ -430,7 +430,7 @@ impl CanonicalOptions {
         &self,
         types: &mut TypeAlloc,
         actual: FuncType,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<CoreTypeId> {
         if let Some(declared_id) = self.core_type {
             let declared = types[declared_id].unwrap_func();
@@ -513,7 +513,7 @@ impl ComponentState {
         components: &mut [Self],
         ty: crate::CoreType,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
         check_limit: bool,
     ) -> Result<()> {
         let current = components.last_mut().unwrap();
@@ -538,7 +538,7 @@ impl ComponentState {
         &mut self,
         module: &Module,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         let imports = module.imports_for_module_type(offset)?;
 
@@ -561,7 +561,7 @@ impl ComponentState {
         &mut self,
         instance: crate::Instance,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         let instance = match instance {
             crate::Instance::Instantiate { module_index, args } => {
@@ -581,7 +581,7 @@ impl ComponentState {
         components: &mut Vec<Self>,
         ty: crate::ComponentType,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
         check_limit: bool,
     ) -> Result<()> {
         assert!(!components.is_empty());
@@ -675,7 +675,7 @@ impl ComponentState {
         &mut self,
         import: crate::ComponentImport<'_>,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         let mut entity = self.check_type_ref(&import.ty, types, offset)?;
         self.add_entity(
@@ -703,7 +703,7 @@ impl ComponentState {
         ty: &mut ComponentEntityType,
         name_and_kind: Option<(&str, ExternKind)>,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         let kind = name_and_kind.map(|(_, k)| k);
         let (len, max, desc) = match ty {
@@ -1170,7 +1170,7 @@ impl ComponentState {
         name: ComponentExternName<'_>,
         mut ty: ComponentEntityType,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
         check_limit: bool,
     ) -> Result<()> {
         if check_limit {
@@ -1200,7 +1200,7 @@ impl ComponentState {
         &mut self,
         func: CanonicalFunction,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         match func {
             CanonicalFunction::Lift {
@@ -1330,7 +1330,7 @@ impl ComponentState {
         type_index: u32,
         options: &[CanonicalOption],
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         let ty = self.function_type_at(type_index, types, offset)?;
         let core_ty_id = self.core_function_at(core_func_index, offset)?;
@@ -1388,7 +1388,7 @@ impl ComponentState {
         func_index: u32,
         options: &[CanonicalOption],
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         let ty = &types[self.function_at(func_index, offset)?];
 
@@ -1405,28 +1405,43 @@ impl ComponentState {
         Ok(())
     }
 
-    fn resource_new(&mut self, resource: u32, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+    fn resource_new(
+        &mut self,
+        resource: u32,
+        types: &mut TypeAlloc,
+        offset: LogicalOffset,
+    ) -> Result<()> {
         let rep = self.check_local_resource(resource, types, offset)?;
         let id = types.intern_func_type(FuncType::new([rep], [ValType::I32]), offset);
         self.core_funcs.push(id);
         Ok(())
     }
 
-    fn resource_drop(&mut self, resource: u32, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+    fn resource_drop(
+        &mut self,
+        resource: u32,
+        types: &mut TypeAlloc,
+        offset: LogicalOffset,
+    ) -> Result<()> {
         self.resource_at(resource, types, offset)?;
         let id = types.intern_func_type(FuncType::new([ValType::I32], []), offset);
         self.core_funcs.push(id);
         Ok(())
     }
 
-    fn resource_rep(&mut self, resource: u32, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+    fn resource_rep(
+        &mut self,
+        resource: u32,
+        types: &mut TypeAlloc,
+        offset: LogicalOffset,
+    ) -> Result<()> {
         let rep = self.check_local_resource(resource, types, offset)?;
         let id = types.intern_func_type(FuncType::new([ValType::I32], [rep]), offset);
         self.core_funcs.push(id);
         Ok(())
     }
 
-    fn backpressure_inc(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+    fn backpressure_inc(&mut self, types: &mut TypeAlloc, offset: LogicalOffset) -> Result<()> {
         require_feature::cm_async(
             self.features,
             "`backpressure.inc` requires the component model async feature",
@@ -1438,7 +1453,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn backpressure_dec(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+    fn backpressure_dec(&mut self, types: &mut TypeAlloc, offset: LogicalOffset) -> Result<()> {
         require_feature::cm_async(
             self.features,
             "`backpressure.dec` requires the component model async feature",
@@ -1455,7 +1470,7 @@ impl ComponentState {
         result: &Option<crate::ComponentValType>,
         options: &[CanonicalOption],
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_async(
             self.features,
@@ -1505,7 +1520,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn task_cancel(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+    fn task_cancel(&mut self, types: &mut TypeAlloc, offset: LogicalOffset) -> Result<()> {
         require_feature::cm_async(
             self.features,
             "`task.cancel` requires the component model async feature",
@@ -1521,7 +1536,7 @@ impl ComponentState {
         &self,
         immediate: u32,
         operation: &str,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         if immediate > 0 {
             require_feature::cm_threading(
@@ -1544,7 +1559,7 @@ impl ComponentState {
         ty: ValType,
         i: u32,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_async(
             self.features,
@@ -1564,7 +1579,7 @@ impl ComponentState {
         ty: ValType,
         i: u32,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_async(
             self.features,
@@ -1579,7 +1594,12 @@ impl ComponentState {
         Ok(())
     }
 
-    fn validate_context_type(&mut self, ty: ValType, intrinsic: &str, offset: usize) -> Result<()> {
+    fn validate_context_type(
+        &mut self,
+        ty: ValType,
+        intrinsic: &str,
+        offset: LogicalOffset,
+    ) -> Result<()> {
         match ty {
             ValType::I32 => {}
             ValType::I64 => {
@@ -1609,7 +1629,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn subtask_drop(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+    fn subtask_drop(&mut self, types: &mut TypeAlloc, offset: LogicalOffset) -> Result<()> {
         require_feature::cm_async(
             self.features,
             "`subtask.drop` requires the component model async feature",
@@ -1621,7 +1641,12 @@ impl ComponentState {
         Ok(())
     }
 
-    fn subtask_cancel(&mut self, async_: bool, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+    fn subtask_cancel(
+        &mut self,
+        async_: bool,
+        types: &mut TypeAlloc,
+        offset: LogicalOffset,
+    ) -> Result<()> {
         require_feature::cm_async(
             self.features,
             "`subtask.cancel` requires the component model async feature",
@@ -1640,7 +1665,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn stream_new(&mut self, ty: u32, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+    fn stream_new(&mut self, ty: u32, types: &mut TypeAlloc, offset: LogicalOffset) -> Result<()> {
         require_feature::cm_async(
             self.features,
             "`stream.new` requires the component model async feature",
@@ -1662,7 +1687,7 @@ impl ComponentState {
         ty: u32,
         options: &[CanonicalOption],
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_async(
             self.features,
@@ -1702,7 +1727,7 @@ impl ComponentState {
         ty: u32,
         options: &[CanonicalOption],
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_async(
             self.features,
@@ -1741,7 +1766,7 @@ impl ComponentState {
         ty: u32,
         cancellable: bool,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_async(
             self.features,
@@ -1771,7 +1796,7 @@ impl ComponentState {
         ty: u32,
         cancellable: bool,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_async(
             self.features,
@@ -1800,7 +1825,7 @@ impl ComponentState {
         &mut self,
         ty: u32,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_async(
             self.features,
@@ -1822,7 +1847,7 @@ impl ComponentState {
         &mut self,
         ty: u32,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_async(
             self.features,
@@ -1840,7 +1865,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn future_new(&mut self, ty: u32, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+    fn future_new(&mut self, ty: u32, types: &mut TypeAlloc, offset: LogicalOffset) -> Result<()> {
         require_feature::cm_async(
             self.features,
             "`future.new` requires the component model async feature",
@@ -1862,7 +1887,7 @@ impl ComponentState {
         ty: u32,
         options: &[CanonicalOption],
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_async(
             self.features,
@@ -1902,7 +1927,7 @@ impl ComponentState {
         ty: u32,
         options: &[CanonicalOption],
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_async(
             self.features,
@@ -1940,7 +1965,7 @@ impl ComponentState {
         ty: u32,
         cancellable: bool,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_async(
             self.features,
@@ -1970,7 +1995,7 @@ impl ComponentState {
         ty: u32,
         cancellable: bool,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_async(
             self.features,
@@ -1999,7 +2024,7 @@ impl ComponentState {
         &mut self,
         ty: u32,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_async(
             self.features,
@@ -2021,7 +2046,7 @@ impl ComponentState {
         &mut self,
         ty: u32,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_async(
             self.features,
@@ -2043,7 +2068,7 @@ impl ComponentState {
         &mut self,
         options: Vec<CanonicalOption>,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_error_context(
             self.features,
@@ -2070,7 +2095,7 @@ impl ComponentState {
         &mut self,
         options: Vec<CanonicalOption>,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_error_context(
             self.features,
@@ -2090,7 +2115,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn error_context_drop(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+    fn error_context_drop(&mut self, types: &mut TypeAlloc, offset: LogicalOffset) -> Result<()> {
         require_feature::cm_error_context(
             self.features,
             "`error-context.drop` requires the component model error-context feature",
@@ -2102,7 +2127,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn waitable_set_new(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+    fn waitable_set_new(&mut self, types: &mut TypeAlloc, offset: LogicalOffset) -> Result<()> {
         require_feature::cm_async(
             self.features,
             "`waitable-set.new` requires the component model async feature",
@@ -2118,7 +2143,7 @@ impl ComponentState {
         &mut self,
         memory: u32,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_async(
             self.features,
@@ -2139,7 +2164,7 @@ impl ComponentState {
         &mut self,
         memory: u32,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_async(
             self.features,
@@ -2156,7 +2181,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn waitable_set_drop(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+    fn waitable_set_drop(&mut self, types: &mut TypeAlloc, offset: LogicalOffset) -> Result<()> {
         require_feature::cm_async(
             self.features,
             "`waitable-set.drop` requires the component model async feature",
@@ -2168,7 +2193,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn waitable_join(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+    fn waitable_join(&mut self, types: &mut TypeAlloc, offset: LogicalOffset) -> Result<()> {
         require_feature::cm_async(
             self.features,
             "`waitable.join` requires the component model async feature",
@@ -2180,7 +2205,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn thread_index(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+    fn thread_index(&mut self, types: &mut TypeAlloc, offset: LogicalOffset) -> Result<()> {
         require_feature::cm_threading(
             self.features,
             "`thread.index` requires the component model threading feature",
@@ -2197,7 +2222,7 @@ impl ComponentState {
         func_ty_index: u32,
         table_index: u32,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_threading(
             self.features,
@@ -2250,7 +2275,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn thread_resume_later(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+    fn thread_resume_later(&mut self, types: &mut TypeAlloc, offset: LogicalOffset) -> Result<()> {
         require_feature::cm_threading(
             self.features,
             "`thread.resume-later` requires the component model threading feature",
@@ -2265,7 +2290,7 @@ impl ComponentState {
         &mut self,
         _cancellable: bool,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_threading(
             self.features,
@@ -2277,7 +2302,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn thread_yield(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+    fn thread_yield(&mut self, types: &mut TypeAlloc, offset: LogicalOffset) -> Result<()> {
         require_feature::cm_async(
             self.features,
             "`thread.yield` requires the component model async feature",
@@ -2293,7 +2318,7 @@ impl ComponentState {
         &mut self,
         _cancellable: bool,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_threading(
             self.features,
@@ -2310,7 +2335,7 @@ impl ComponentState {
         &mut self,
         _cancellable: bool,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_threading(
             self.features,
@@ -2326,7 +2351,7 @@ impl ComponentState {
         &mut self,
         _cancellable: bool,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_threading(
             self.features,
@@ -2342,7 +2367,7 @@ impl ComponentState {
         &mut self,
         _cancellable: bool,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_threading(
             self.features,
@@ -2354,7 +2379,12 @@ impl ComponentState {
         Ok(())
     }
 
-    fn check_local_resource(&self, idx: u32, types: &TypeList, offset: usize) -> Result<ValType> {
+    fn check_local_resource(
+        &self,
+        idx: u32,
+        types: &TypeList,
+        offset: LogicalOffset,
+    ) -> Result<ValType> {
         let resource = self.resource_at(idx, types, offset)?;
         match self
             .defined_resources
@@ -2370,7 +2400,7 @@ impl ComponentState {
         &self,
         idx: u32,
         _types: &'a TypeList,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<AliasableResourceId> {
         if let ComponentAnyTypeId::Resource(id) = self.component_type_at(idx, offset)? {
             return Ok(id);
@@ -2382,7 +2412,7 @@ impl ComponentState {
         &mut self,
         func_ty_index: u32,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::shared_everything_threads(
             self.features,
@@ -2409,7 +2439,7 @@ impl ComponentState {
         func_ty_index: u32,
         table_index: u32,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::shared_everything_threads(
             self.features,
@@ -2462,7 +2492,7 @@ impl ComponentState {
         &self,
         func_ty_index: u32,
         types: &TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<CoreTypeId> {
         let core_type_id = match self.core_type_at(func_ty_index, offset)? {
             ComponentCoreTypeId::Sub(c) => c,
@@ -2489,7 +2519,11 @@ impl ComponentState {
         Ok(core_type_id)
     }
 
-    fn thread_available_parallelism(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+    fn thread_available_parallelism(
+        &mut self,
+        types: &mut TypeAlloc,
+        offset: LogicalOffset,
+    ) -> Result<()> {
         require_feature::shared_everything_threads(
             self.features,
             "`thread.available_parallelism` requires the shared-everything-threads proposal",
@@ -2514,7 +2548,7 @@ impl ComponentState {
         &mut self,
         instance: crate::ComponentInstance,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         let instance = match instance {
             crate::ComponentInstance::Instantiate {
@@ -2535,7 +2569,7 @@ impl ComponentState {
         components: &mut [Self],
         alias: crate::ComponentAlias,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         let component = components.last_mut().unwrap();
 
@@ -2596,7 +2630,7 @@ impl ComponentState {
         args: &[u32],
         results: u32,
         types: &mut TypeList,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         require_feature::cm_values(
             self.features,
@@ -2652,7 +2686,7 @@ impl ComponentState {
         &self,
         types: &TypeList,
         options: &[CanonicalOption],
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<CanonicalOptions> {
         fn display(option: CanonicalOption) -> &'static str {
             match option {
@@ -2877,7 +2911,7 @@ impl ComponentState {
         &mut self,
         ty: &ComponentTypeRef,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<ComponentEntityType> {
         Ok(match ty {
             ComponentTypeRef::Module(index) => {
@@ -2942,7 +2976,7 @@ impl ComponentState {
         &mut self,
         export: &crate::ComponentExport,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<ComponentEntityType> {
         let actual = match export.kind {
             ComponentExternalKind::Module => {
@@ -2987,7 +3021,7 @@ impl ComponentState {
         components: &[Self],
         decls: Vec<crate::ModuleTypeDeclaration>,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<ModuleType> {
         let mut state = Module::new(components[0].features);
 
@@ -3046,7 +3080,7 @@ impl ComponentState {
         components: &mut Vec<Self>,
         decls: Vec<crate::ComponentTypeDeclaration>,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<ComponentType> {
         let features = components[0].features;
         components.push(ComponentState::new(ComponentKind::ComponentType, features));
@@ -3083,7 +3117,7 @@ impl ComponentState {
         components: &mut Vec<Self>,
         decls: Vec<crate::InstanceTypeDeclaration>,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<ComponentInstanceType> {
         let features = components[0].features;
         components.push(ComponentState::new(ComponentKind::InstanceType, features));
@@ -3143,7 +3177,7 @@ impl ComponentState {
         &self,
         ty: crate::ComponentFuncType,
         types: &TypeList,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<ComponentFuncType> {
         let mut info = TypeInfo::new();
 
@@ -3208,13 +3242,13 @@ impl ComponentState {
         module_index: u32,
         module_args: Vec<crate::InstantiationArg>,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<ComponentCoreInstanceTypeId> {
         fn insert_arg<'a>(
             name: &'a str,
             arg: &'a InstanceType,
             args: &mut IndexMap<&'a str, &'a InstanceType>,
-            offset: usize,
+            offset: LogicalOffset,
         ) -> Result<()> {
             if args.insert(name, arg).is_some() {
                 bail!(
@@ -3285,7 +3319,7 @@ impl ComponentState {
         component_index: u32,
         component_args: Vec<crate::ComponentInstantiationArg>,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<ComponentInstanceTypeId> {
         let component_type_id = self.component_at(component_index, offset)?;
         let mut args = IndexMap::default();
@@ -3552,7 +3586,7 @@ impl ComponentState {
         &mut self,
         exports: Vec<crate::ComponentExport>,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<ComponentInstanceTypeId> {
         let mut info = TypeInfo::new();
         let mut inst_exports = IndexMap::default();
@@ -3671,7 +3705,7 @@ impl ComponentState {
         &mut self,
         exports: Vec<crate::Export>,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<ComponentCoreInstanceTypeId> {
         fn insert_export(
             types: &TypeList,
@@ -3679,7 +3713,7 @@ impl ComponentState {
             export: EntityType,
             exports: &mut IndexMap<String, EntityType>,
             info: &mut TypeInfo,
-            offset: usize,
+            offset: LogicalOffset,
         ) -> Result<()> {
             info.combine(export.info(types), offset)?;
 
@@ -3763,7 +3797,7 @@ impl ComponentState {
         kind: ExternalKind,
         name: &str,
         types: &TypeList,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         macro_rules! push_module_export {
             ($expected:path, $collection:ident, $ty:literal) => {{
@@ -3849,7 +3883,7 @@ impl ComponentState {
         kind: ComponentExternalKind,
         name: &str,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         if let ComponentExternalKind::Value = kind {
             self.check_value_support(offset)?;
@@ -3891,7 +3925,12 @@ impl ComponentState {
         Ok(())
     }
 
-    fn alias_module(components: &mut [Self], count: u32, index: u32, offset: usize) -> Result<()> {
+    fn alias_module(
+        components: &mut [Self],
+        count: u32,
+        index: u32,
+        offset: LogicalOffset,
+    ) -> Result<()> {
         let component = Self::check_alias_count(components, count, offset)?;
         let ty = component.module_at(index, offset)?;
 
@@ -3912,7 +3951,7 @@ impl ComponentState {
         components: &mut [Self],
         count: u32,
         index: u32,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         let component = Self::check_alias_count(components, count, offset)?;
         let ty = component.component_at(index, offset)?;
@@ -3934,7 +3973,7 @@ impl ComponentState {
         components: &mut [Self],
         count: u32,
         index: u32,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         let component = Self::check_alias_count(components, count, offset)?;
         let ty = component.core_type_at(index, offset)?;
@@ -3952,7 +3991,7 @@ impl ComponentState {
         count: u32,
         index: u32,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         let component = Self::check_alias_count(components, count, offset)?;
         let ty = component.component_type_at(index, offset)?;
@@ -4002,7 +4041,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn check_alias_count(components: &[Self], count: u32, offset: usize) -> Result<&Self> {
+    fn check_alias_count(components: &[Self], count: u32, offset: LogicalOffset) -> Result<&Self> {
         let count = count as usize;
         if count >= components.len() {
             bail!(offset, "invalid outer alias count of {count}");
@@ -4015,7 +4054,7 @@ impl ComponentState {
         &self,
         ty: crate::ComponentDefinedType,
         types: &TypeList,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<ComponentDefinedType> {
         match ty {
             crate::ComponentDefinedType::Primitive(ty) => {
@@ -4164,7 +4203,7 @@ impl ComponentState {
         &self,
         fields: &[(&str, crate::ComponentValType)],
         types: &TypeList,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<ComponentDefinedType> {
         let mut info = TypeInfo::new();
         let mut field_map = IndexMap::default();
@@ -4201,7 +4240,7 @@ impl ComponentState {
         &self,
         cases: &[crate::VariantCase],
         types: &TypeList,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<ComponentDefinedType> {
         let mut info = TypeInfo::new();
         let mut case_map: IndexMap<KebabString, VariantCase> = IndexMap::default();
@@ -4252,7 +4291,7 @@ impl ComponentState {
         &self,
         tys: &[crate::ComponentValType],
         types: &TypeList,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<ComponentDefinedType> {
         let mut info = TypeInfo::new();
         if tys.is_empty() {
@@ -4270,7 +4309,11 @@ impl ComponentState {
         Ok(ComponentDefinedType::Tuple(TupleType { info, types }))
     }
 
-    fn create_flags_type(&self, names: &[&str], offset: usize) -> Result<ComponentDefinedType> {
+    fn create_flags_type(
+        &self,
+        names: &[&str],
+        offset: LogicalOffset,
+    ) -> Result<ComponentDefinedType> {
         let mut names_set = IndexSet::default();
         names_set.reserve(names.len());
 
@@ -4295,7 +4338,11 @@ impl ComponentState {
         Ok(ComponentDefinedType::Flags(names_set))
     }
 
-    fn create_enum_type(&self, cases: &[&str], offset: usize) -> Result<ComponentDefinedType> {
+    fn create_enum_type(
+        &self,
+        cases: &[&str],
+        offset: LogicalOffset,
+    ) -> Result<ComponentDefinedType> {
         if cases.len() > u32::MAX as usize {
             return Err(Error::new(
                 "enumeration type cannot be represented with a 32-bit discriminant value",
@@ -4326,7 +4373,7 @@ impl ComponentState {
     fn create_component_val_type(
         &self,
         ty: crate::ComponentValType,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<ComponentValType> {
         Ok(match ty {
             crate::ComponentValType::Primitive(pt) => {
@@ -4339,14 +4386,14 @@ impl ComponentState {
         })
     }
 
-    pub fn core_type_at(&self, idx: u32, offset: usize) -> Result<ComponentCoreTypeId> {
+    pub fn core_type_at(&self, idx: u32, offset: LogicalOffset) -> Result<ComponentCoreTypeId> {
         self.core_types
             .get(idx as usize)
             .copied()
             .ok_or_else(|| format_err!(offset, "unknown type {idx}: type index out of bounds"))
     }
 
-    pub fn component_type_at(&self, idx: u32, offset: usize) -> Result<ComponentAnyTypeId> {
+    pub fn component_type_at(&self, idx: u32, offset: LogicalOffset) -> Result<ComponentAnyTypeId> {
         self.types
             .get(idx as usize)
             .copied()
@@ -4357,7 +4404,7 @@ impl ComponentState {
         &self,
         idx: u32,
         types: &'a TypeList,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<&'a ComponentFuncType> {
         let id = self.component_type_at(idx, offset)?;
         match id {
@@ -4366,7 +4413,7 @@ impl ComponentState {
         }
     }
 
-    fn function_at(&self, idx: u32, offset: usize) -> Result<ComponentFuncTypeId> {
+    fn function_at(&self, idx: u32, offset: LogicalOffset) -> Result<ComponentFuncTypeId> {
         self.funcs.get(idx as usize).copied().ok_or_else(|| {
             format_err!(
                 offset,
@@ -4375,7 +4422,7 @@ impl ComponentState {
         })
     }
 
-    fn component_at(&self, idx: u32, offset: usize) -> Result<ComponentTypeId> {
+    fn component_at(&self, idx: u32, offset: LogicalOffset) -> Result<ComponentTypeId> {
         self.components.get(idx as usize).copied().ok_or_else(|| {
             format_err!(
                 offset,
@@ -4384,7 +4431,7 @@ impl ComponentState {
         })
     }
 
-    fn instance_at(&self, idx: u32, offset: usize) -> Result<ComponentInstanceTypeId> {
+    fn instance_at(&self, idx: u32, offset: LogicalOffset) -> Result<ComponentInstanceTypeId> {
         self.instances.get(idx as usize).copied().ok_or_else(|| {
             format_err!(
                 offset,
@@ -4393,7 +4440,7 @@ impl ComponentState {
         })
     }
 
-    fn value_at(&mut self, idx: u32, offset: usize) -> Result<&ComponentValType> {
+    fn value_at(&mut self, idx: u32, offset: LogicalOffset) -> Result<&ComponentValType> {
         match self.values.get_mut(idx as usize) {
             Some((ty, used)) if !*used => {
                 *used = true;
@@ -4404,14 +4451,14 @@ impl ComponentState {
         }
     }
 
-    fn defined_type_at(&self, idx: u32, offset: usize) -> Result<ComponentDefinedTypeId> {
+    fn defined_type_at(&self, idx: u32, offset: LogicalOffset) -> Result<ComponentDefinedTypeId> {
         match self.component_type_at(idx, offset)? {
             ComponentAnyTypeId::Defined(id) => Ok(id),
             _ => bail!(offset, "type index {idx} is not a defined type"),
         }
     }
 
-    fn core_function_at(&self, idx: u32, offset: usize) -> Result<CoreTypeId> {
+    fn core_function_at(&self, idx: u32, offset: LogicalOffset) -> Result<CoreTypeId> {
         match self.core_funcs.get(idx as usize) {
             Some(id) => Ok(*id),
             None => bail!(
@@ -4421,14 +4468,18 @@ impl ComponentState {
         }
     }
 
-    fn module_at(&self, idx: u32, offset: usize) -> Result<ComponentCoreModuleTypeId> {
+    fn module_at(&self, idx: u32, offset: LogicalOffset) -> Result<ComponentCoreModuleTypeId> {
         match self.core_modules.get(idx as usize) {
             Some(id) => Ok(*id),
             None => bail!(offset, "unknown module {idx}: module index out of bounds"),
         }
     }
 
-    fn core_instance_at(&self, idx: u32, offset: usize) -> Result<ComponentCoreInstanceTypeId> {
+    fn core_instance_at(
+        &self,
+        idx: u32,
+        offset: LogicalOffset,
+    ) -> Result<ComponentCoreInstanceTypeId> {
         match self.core_instances.get(idx as usize) {
             Some(id) => Ok(*id),
             None => bail!(
@@ -4443,7 +4494,7 @@ impl ComponentState {
         instance_index: u32,
         name: &str,
         types: &'a TypeList,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<&'a EntityType> {
         match types[self.core_instance_at(instance_index, offset)?]
             .internal_exports(types)
@@ -4457,28 +4508,28 @@ impl ComponentState {
         }
     }
 
-    fn global_at(&self, idx: u32, offset: usize) -> Result<&GlobalType> {
+    fn global_at(&self, idx: u32, offset: LogicalOffset) -> Result<&GlobalType> {
         match self.core_globals.get(idx as usize) {
             Some(t) => Ok(t),
             None => bail!(offset, "unknown global {idx}: global index out of bounds"),
         }
     }
 
-    fn table_at(&self, idx: u32, offset: usize) -> Result<&TableType> {
+    fn table_at(&self, idx: u32, offset: LogicalOffset) -> Result<&TableType> {
         match self.core_tables.get(idx as usize) {
             Some(t) => Ok(t),
             None => bail!(offset, "unknown table {idx}: table index out of bounds"),
         }
     }
 
-    fn memory_at(&self, idx: u32, offset: usize) -> Result<&MemoryType> {
+    fn memory_at(&self, idx: u32, offset: LogicalOffset) -> Result<&MemoryType> {
         match self.core_memories.get(idx as usize) {
             Some(t) => Ok(t),
             None => bail!(offset, "unknown memory {idx}: memory index out of bounds"),
         }
     }
 
-    fn tag_at(&self, idx: u32, offset: usize) -> Result<CoreTypeId> {
+    fn tag_at(&self, idx: u32, offset: LogicalOffset) -> Result<CoreTypeId> {
         match self.core_tags.get(idx as usize) {
             Some(t) => Ok(*t),
             None => bail!(offset, "unknown tag {idx}: tag index out of bounds"),
@@ -4490,7 +4541,7 @@ impl ComponentState {
     ///
     /// At this time this requires that the memory is a plain 32-bit or 64-bit linear
     /// memory. Notably this disallows shared memory.
-    fn cabi_memory_at(&self, idx: u32, offset: usize) -> Result<PtrSize> {
+    fn cabi_memory_at(&self, idx: u32, offset: LogicalOffset) -> Result<PtrSize> {
         let ty = self.memory_at(idx, offset)?;
         let valid_memory_type = MemoryType {
             initial: 0,
@@ -4521,7 +4572,7 @@ impl ComponentState {
     /// Internally this will convert local data structures into a
     /// `ComponentType` which is suitable to use to describe the type of this
     /// component.
-    pub fn finish(&mut self, types: &TypeAlloc, offset: usize) -> Result<ComponentType> {
+    pub fn finish(&mut self, types: &TypeAlloc, offset: LogicalOffset) -> Result<ComponentType> {
         let mut ty = ComponentType {
             // Inherit some fields based on translation of the component.
             info: self.type_info,
@@ -4614,7 +4665,7 @@ impl ComponentState {
         Ok(ty)
     }
 
-    fn check_value_support(&self, offset: usize) -> Result<()> {
+    fn check_value_support(&self, offset: LogicalOffset) -> Result<()> {
         require_feature::cm_values(
             self.features,
             "support for component model `value`s is not enabled",
@@ -4623,7 +4674,11 @@ impl ComponentState {
         Ok(())
     }
 
-    fn check_primitive_type(&self, ty: crate::PrimitiveValType, offset: usize) -> Result<()> {
+    fn check_primitive_type(
+        &self,
+        ty: crate::PrimitiveValType,
+        offset: LogicalOffset,
+    ) -> Result<()> {
         if ty == crate::PrimitiveValType::ErrorContext {
             require_feature::cm_error_context(
                 self.features,
@@ -4644,7 +4699,7 @@ impl InternRecGroup for ComponentState {
         self.core_types.push(ComponentCoreTypeId::Sub(id));
     }
 
-    fn type_id_at(&self, idx: u32, offset: usize) -> Result<CoreTypeId> {
+    fn type_id_at(&self, idx: u32, offset: LogicalOffset) -> Result<CoreTypeId> {
         match self.core_type_at(idx, offset)? {
             ComponentCoreTypeId::Sub(id) => Ok(id),
             ComponentCoreTypeId::Module(_) => {
@@ -4676,7 +4731,7 @@ impl ComponentNameContext {
         kind: ExternKind,
         ty: &ComponentEntityType,
         types: &TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
         kind_names: &mut IndexSet<ComponentName>,
         items: &mut IndexMap<String, ComponentItem>,
         info: &mut TypeInfo,
@@ -4803,7 +4858,7 @@ impl ComponentNameContext {
         version_suffix: Option<&str>,
         ty: &ComponentEntityType,
         types: &TypeAlloc,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         let func = || {
             let id = match ty {
@@ -4914,7 +4969,7 @@ impl ComponentNameContext {
         &self,
         id: AliasableResourceId,
         name: KebabStr<'_>,
-        offset: usize,
+        offset: LogicalOffset,
     ) -> Result<()> {
         let expected_name_idx = match self.resource_name_map.get(&id) {
             Some(idx) => *idx,

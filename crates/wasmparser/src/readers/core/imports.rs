@@ -17,7 +17,7 @@ use core::mem;
 
 use crate::{
     BinaryReader, Error, ExternalKind, FromReader, GlobalType, MemoryType, Result, SectionLimited,
-    SectionLimitedIntoIterWithOffsets, TableType, TagType,
+    SectionLimitedIntoIterWithOffsets, TableType, TagType, offsets::LogicalOffset,
 };
 
 /// Represents a reference to a type definition in a WebAssembly module.
@@ -45,7 +45,7 @@ pub enum TypeRef {
 #[derive(Debug, Clone)]
 pub enum Imports<'a> {
     /// The group contains a single import.
-    Single(usize, Import<'a>),
+    Single(LogicalOffset, Import<'a>),
     /// The group contains many imports that share the same module name, but have different types.
     Compact1 {
         /// The module being imported from.
@@ -200,7 +200,9 @@ impl<'a> SectionLimited<'a, Imports<'a>> {
 
     /// Converts the section into an iterator over individual [`Import`]s and their offsets,
     /// flattening any groups of compact imports.
-    pub fn into_imports_with_offsets(self) -> impl Iterator<Item = Result<(usize, Import<'a>)>> {
+    pub fn into_imports_with_offsets(
+        self,
+    ) -> impl Iterator<Item = Result<(LogicalOffset, Import<'a>)>> {
         self.into_iter().flat_map(|res| match res {
             Ok(imports) => imports.into_iter(),
             Err(e) => ImportsIter {
@@ -211,7 +213,7 @@ impl<'a> SectionLimited<'a, Imports<'a>> {
 }
 
 impl<'a> IntoIterator for Imports<'a> {
-    type Item = Result<(usize, Import<'a>)>;
+    type Item = Result<(LogicalOffset, Import<'a>)>;
     type IntoIter = ImportsIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -244,7 +246,7 @@ pub struct ImportsIter<'a> {
 enum ImportsIterState<'a> {
     Done,
     Error(Error),
-    Single(usize, Import<'a>),
+    Single(LogicalOffset, Import<'a>),
     Compact1 {
         module: &'a str,
         iter: SectionLimitedIntoIterWithOffsets<'a, ImportItemCompact<'a>>,
@@ -257,7 +259,7 @@ enum ImportsIterState<'a> {
 }
 
 impl<'a> Iterator for ImportsIter<'a> {
-    type Item = Result<(usize, Import<'a>)>;
+    type Item = Result<(LogicalOffset, Import<'a>)>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match &mut self.state {
