@@ -1144,8 +1144,11 @@ impl<'a> InterfaceGenerator<'a> {
         }
 
         // Bail out with a leaf type if a nested type here would nest too
-        // deeply.
-        if depth + 1 >= 50 {
+        // deeply. Note that this is intentionally smaller than wasmparser's
+        // current limit of 100 to give some wiggle room to the generator here
+        // to be off-by-one.
+        const MAX_DEPTH: usize = 50;
+        if depth + 1 >= MAX_DEPTH {
             dst.push_str("bool");
             return Ok(());
         }
