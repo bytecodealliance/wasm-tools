@@ -20,7 +20,7 @@
 //! The structures in this file bridge the gap. Given a logical offset,
 //! we can compute a maximally allowed length of data at that offset.
 
-use core::ops::{Add, AddAssign};
+use core::ops::{Add, AddAssign, Bound, Deref, Index, Range, RangeBounds};
 
 // An (not necessarily exhaustive) list of properties we use of `u64` in relation
 // to usize:
@@ -137,3 +137,99 @@ impl AddAssign<usize> for MemOffset {
         *self = *self + rhs
     }
 }
+
+/// Useful datastructure when your input wasm is fully in memory.
+///
+/// Use this to index into it with the offsets and ranges from the parser.
+#[derive(Clone, Copy, Debug)]
+pub struct InMemData<'a> {
+    /// The contained data
+    pub data: &'a [u8],
+}
+
+impl<'a> InMemData<'a> {
+    /// Convenience new creation
+    pub fn new(data: &'a [u8]) -> Self {
+        Self { data }
+    }
+    /// Translate a single offset from the parser into a memory offset into an input slice.
+    pub fn translate_offset(offset: u64) -> usize {
+        if u64::BITS > usize::BITS && offset > (usize::MAX as u64) {
+            // since data is fully in memory, such an offset should never be produced by the parser
+            panic!("unexpectedly large offset {offset}")
+        }
+        offset as usize
+    }
+    /// Get the length of a range
+    pub fn range_len(range: &Range<u64>) -> usize {
+        (Self::translate_offset(range.start)..Self::translate_offset(range.end)).len()
+    }
+    /// Get a slice of the data, or None if out of bounds.
+    pub fn get(&self, index: impl RangeBounds<u64>) -> Option<&'a [u8]> {
+        match (index.start_bound(), index.end_bound()) {
+            (Bound::Included(&start), Bound::Included(&end)) => self
+                .data
+                .get(Self::translate_offset(start)..=Self::translate_offset(end)),
+            (Bound::Included(&start), Bound::Excluded(&end)) => self
+                .data
+                .get(Self::translate_offset(start)..Self::translate_offset(end)),
+            (Bound::Included(&start), Bound::Unbounded) => {
+                self.data.get(Self::translate_offset(start)..)
+            }
+            (Bound::Unbounded, Bound::Included(&end)) => {
+                self.data.get(..=Self::translate_offset(end))
+            }
+            (Bound::Unbounded, Bound::Excluded(&end)) => {
+                self.data.get(..Self::translate_offset(end))
+            }
+            (Bound::Unbounded, Bound::Unbounded) => self.data.get(..),
+            (Bound::Excluded(_), _) => unreachable!("unsupported excluded start bound"),
+        }
+    }
+    /// Index into the data slice.
+    ///
+    /// These methods are also exposed as [Index] impls, but the lifetimes of the returned references differs.
+    pub fn index(&self, index: impl RangeBounds<u64>) -> &'a [u8] {
+        match (index.start_bound(), index.end_bound()) {
+            (Bound::Included(&start), Bound::Included(&end)) => {
+                &self.data[Self::translate_offset(start)..=Self::translate_offset(end)]
+            }
+            (Bound::Included(&start), Bound::Excluded(&end)) => {
+                &self.data[Self::translate_offset(start)..Self::translate_offset(end)]
+            }
+            (Bound::Included(&start), Bound::Unbounded) => {
+                &self.data[Self::translate_offset(start)..]
+            }
+            (Bound::Unbounded, Bound::Included(&end)) => &self.data[..=Self::translate_offset(end)],
+            (Bound::Unbounded, Bound::Excluded(&end)) => &self.data[..Self::translate_offset(end)],
+            (Bound::Unbounded, Bound::Unbounded) => &self.data[..],
+            (Bound::Excluded(_), _) => unreachable!("unsupported excluded start bound"),
+        }
+    }
+}
+
+impl Deref for InMemData<'_> {
+    type Target = [u8];
+    fn deref(&self) -> &Self::Target {
+        self.data
+    }
+}
+
+macro_rules! impl_index {
+    ($range:ty) => {
+        impl<'a> Index<$range> for InMemData<'a> {
+            type Output = [u8];
+
+            fn index(&self, index: $range) -> &Self::Output {
+                self.index(index)
+            }
+        }
+    };
+}
+
+impl_index!(std::ops::RangeInclusive<u64>);
+impl_index!(std::ops::Range<u64>);
+impl_index!(std::ops::RangeFrom<u64>);
+impl_index!(std::ops::RangeTo<u64>);
+impl_index!(std::ops::RangeToInclusive<u64>);
+impl_index!(std::ops::RangeFull);

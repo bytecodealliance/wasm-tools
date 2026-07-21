@@ -2021,4 +2021,10 @@ mod tests {
             "unexpected end-of-file"
         );
     }
+
+    #[test]
+    fn can_parse_on_large_offset() {
+        let mut rdr = BinaryReader::new(&[10], u32::MAX as u64 + 1);
+        assert_matches!(rdr.read_u8(), Ok(10));
+    }
 }

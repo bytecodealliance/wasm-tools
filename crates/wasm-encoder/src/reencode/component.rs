@@ -390,6 +390,7 @@ pub mod component_utils {
     use crate::reencode::Error;
     use alloc::boxed::Box;
     use alloc::vec::Vec;
+    use wasmparser::InMemData;
 
     pub fn parse_component<T: ?Sized + ReencodeComponent>(
         reencoder: &mut T,
@@ -414,7 +415,8 @@ pub mod component_utils {
                 | wasmparser::Payload::ModuleSection {
                     unchecked_range, ..
                 } => {
-                    remaining = &remaining[unchecked_range.len()..];
+                    let skipped_len = InMemData::range_len(unchecked_range);
+                    remaining = &remaining[skipped_len..];
                 }
                 _ => {}
             }
@@ -430,6 +432,7 @@ pub mod component_utils {
         payload: wasmparser::Payload<'_>,
         whole_component: &[u8],
     ) -> Result<(), Error<T::Error>> {
+        let whole_component = InMemData::new(whole_component);
         match payload {
             wasmparser::Payload::Version {
                 encoding: wasmparser::Encoding::Component,
@@ -515,7 +518,7 @@ pub mod component_utils {
                     component,
                     parser,
                     &whole_component[unchecked_range],
-                    whole_component,
+                    whole_component.data,
                 )?;
             }
             wasmparser::Payload::ComponentStartSection { start, range: _ } => {

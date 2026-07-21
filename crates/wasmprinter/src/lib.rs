@@ -87,7 +87,7 @@ struct Printer<'cfg, 'env> {
     nesting: u32,
     line: usize,
     group_lines: Vec<usize>,
-    code_section_hints: Vec<(u32, Vec<(usize, BranchHint)>)>,
+    code_section_hints: Vec<(u32, Vec<(u64, BranchHint)>)>,
 }
 
 #[derive(Default)]
@@ -305,11 +305,11 @@ impl Config {
         &self,
         wasm: &[u8],
         storage: &'a mut String,
-    ) -> Result<impl Iterator<Item = (Option<usize>, &'a str)> + 'a> {
+    ) -> Result<impl Iterator<Item = (Option<u64>, &'a str)> + 'a> {
         struct TrackingPrint<'a> {
             dst: &'a mut String,
             lines: Vec<usize>,
-            line_offsets: Vec<Option<usize>>,
+            line_offsets: Vec<Option<u64>>,
         }
 
         impl Print for TrackingPrint<'_> {
@@ -317,7 +317,7 @@ impl Config {
                 self.dst.push_str(s);
                 Ok(())
             }
-            fn start_line(&mut self, offset: Option<usize>) {
+            fn start_line(&mut self, offset: Option<u64>) {
                 self.lines.push(self.dst.len());
                 self.line_offsets.push(offset);
             }
@@ -383,7 +383,7 @@ impl Printer<'_, '_> {
                     unchecked_range: range,
                     ..
                 } => {
-                    let offset = range.end - range.start;
+                    let offset = InMemData::range_len(&range);
                     if offset > bytes.len() {
                         bail!("invalid module or component section range");
                     }
@@ -811,7 +811,7 @@ impl Printer<'_, '_> {
         Ok(())
     }
 
-    fn end_group_at_pos(&mut self, offset: usize) -> Result<()> {
+    fn end_group_at_pos(&mut self, offset: u64) -> Result<()> {
         self.nesting -= 1;
         let start_group_line = self.group_lines.pop();
         if self.config.print_offsets {
@@ -876,7 +876,7 @@ impl Printer<'_, '_> {
     fn print_rec(
         &mut self,
         state: &mut State,
-        offset: Option<usize>,
+        offset: Option<u64>,
         rec: RecGroup,
         is_component: bool,
     ) -> Result<()> {
@@ -1505,9 +1505,9 @@ impl Printer<'_, '_> {
         func_idx: u32,
         params: u32,
         body: &FunctionBody<'_>,
-        branch_hints: &[(usize, BranchHint)],
+        branch_hints: &[(u64, BranchHint)],
         mut validator: Option<operand_stack::FuncValidator>,
-    ) -> Result<usize> {
+    ) -> Result<u64> {
         let mut first = true;
         let mut local_idx = 0;
         let mut locals = NamedLocalPrinter::new("local");
@@ -1586,11 +1586,11 @@ impl Printer<'_, '_> {
 
     fn print_operators<'a, O: OpPrinter>(
         body: &mut BinaryReader<'a>,
-        mut branch_hints: &[(usize, BranchHint)],
-        func_start: usize,
+        mut branch_hints: &[(u64, BranchHint)],
+        func_start: u64,
         op_printer: &mut O,
         mut validator: Option<operand_stack::FuncValidator>,
-    ) -> Result<usize> {
+    ) -> Result<u64> {
         let mut ops = OperatorsReader::new(body.clone());
         while !ops.eof() {
             if ops.is_end_then_eof() {
@@ -1640,7 +1640,7 @@ impl Printer<'_, '_> {
         bail!("unexpected end of operators");
     }
 
-    fn newline(&mut self, offset: usize) -> Result<()> {
+    fn newline(&mut self, offset: u64) -> Result<()> {
         self.print_newline(Some(offset))
     }
 
@@ -1648,7 +1648,7 @@ impl Printer<'_, '_> {
         self.print_newline(None)
     }
 
-    fn print_newline(&mut self, offset: Option<usize>) -> Result<()> {
+    fn print_newline(&mut self, offset: Option<u64>) -> Result<()> {
         self.result.newline()?;
         self.result.start_line(offset);
 

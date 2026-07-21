@@ -32,7 +32,7 @@ pub trait Print {
     /// Not all new lines have a binary offset associated with them but this
     /// method should be called for new lines in the output. This enables
     /// correlating binary offsets to lines in the output.
-    fn start_line(&mut self, binary_offset: Option<usize>) {
+    fn start_line(&mut self, binary_offset: Option<u64>) {
         let _ = binary_offset;
     }
 
@@ -74,7 +74,7 @@ pub trait Print {
     fn print_custom_section(
         &mut self,
         name: &str,
-        binary_offset: usize,
+        binary_offset: u64,
         data: &[u8],
     ) -> io::Result<bool> {
         let _ = (name, binary_offset, data);

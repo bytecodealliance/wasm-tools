@@ -661,6 +661,7 @@ pub mod utils {
     use crate::{CoreTypeEncoder, Encode, Imports};
     use alloc::vec::Vec;
     use core::ops::Range;
+    use wasmparser::InMemData;
 
     pub fn parse_core_module<T: ?Sized + Reencode>(
         reencoder: &mut T,
@@ -685,9 +686,10 @@ pub mod utils {
         // give us here) and recurse with that. This means that
         // users overriding `parse_code_section` always get that
         // function called.
-        let orig_offset = parser.offset() as usize;
-        let get_original_section = |range: Range<usize>| {
-            data.get(range.start - orig_offset..range.end - orig_offset)
+        let orig_offset = parser.offset();
+        let get_original_section = |range: Range<u64>| {
+            InMemData::new(data)
+                .get(range.start - orig_offset..range.end - orig_offset)
                 .ok_or(Error::InvalidCodeSectionSize)
         };
         let mut last_section = None;
