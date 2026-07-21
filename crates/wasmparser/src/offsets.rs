@@ -35,7 +35,7 @@ use core::{
 /// Compute the maximum allowable memory offset under both contraints
 fn max_memory_offset(mut max_logical: u64, max: usize) -> usize {
     if u64::BITS > usize::BITS {
-        max_logical = max_logical.max(usize::MAX as u64)
+        max_logical = max_logical.min(usize::MAX as u64)
     }
     // we now know that max_logical fits into a usize
     let max_logical = max_logical as usize;
@@ -239,9 +239,9 @@ macro_rules! impl_index {
     };
 }
 
-impl_index!(std::ops::RangeInclusive<u64>);
-impl_index!(std::ops::Range<u64>);
-impl_index!(std::ops::RangeFrom<u64>);
-impl_index!(std::ops::RangeTo<u64>);
-impl_index!(std::ops::RangeToInclusive<u64>);
-impl_index!(std::ops::RangeFull);
+impl_index!(core::ops::RangeInclusive<u64>);
+impl_index!(core::ops::Range<u64>);
+impl_index!(core::ops::RangeFrom<u64>);
+impl_index!(core::ops::RangeTo<u64>);
+impl_index!(core::ops::RangeToInclusive<u64>);
+impl_index!(core::ops::RangeFull);

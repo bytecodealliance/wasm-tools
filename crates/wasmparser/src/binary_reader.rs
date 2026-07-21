@@ -2013,6 +2013,15 @@ impl<'a> BinaryReader<'a> {
 mod tests {
     use super::*;
 
+    macro_rules! assert_matches {
+        ($a:expr, $b:pat $(,)?) => {
+            match $a {
+                $b => {}
+                a => panic!("`{:?}` doesn't match `{}`", a, stringify!($b)),
+            }
+        };
+    }
+
     #[test]
     fn eof_on_large_offsets() {
         let mut rdr = BinaryReader::new(&[10], u64::MAX);

@@ -622,6 +622,7 @@ impl Parser {
     /// # parse(&b"\0asm\x01\0\0\0"[..]).unwrap();
     /// ```
     pub fn parse<'a>(&mut self, data: &'a [u8], eof: bool) -> Result<Chunk<'a>> {
+        debug_assert!(self.offset <= self.max_offset, "inverted offset range");
         let max_len = MemOffset::max(self.max_offset - self.offset, data.len()).into_usize();
         let (data, eof) = if max_len < data.len() {
             (&data[..max_len], true)
@@ -743,12 +744,14 @@ impl Parser {
                 // but it is required for nested modules/components to correctly ensure
                 // that all sections live entirely within their section of the
                 // file.
-                let Some(section_end) = MemOffset::logical_try_add_u32(
-                    reader.original_position(),
-                    len,
-                    self.max_offset,
-                ) else {
-                    return Err(Error::new("section too large", len_pos));
+                let section_start = reader.original_position();
+                let Some(section_end) =
+                    MemOffset::logical_try_add_u32(section_start, len, self.max_offset)
+                else {
+                    return Err(Error::new(
+                        &format!("section too large, {len} goes past 0x{:x}", self.max_offset),
+                        len_pos,
+                    ));
                 };
 
                 match (self.encoding, id) {
@@ -757,15 +760,15 @@ impl Parser {
 
                     // Module sections
                     (Encoding::Module, TYPE_SECTION) => {
-                        self.update_order(Order::Type, reader.original_position())?;
+                        self.update_order(Order::Type, section_start)?;
                         section(reader, len, TypeSectionReader::new, TypeSection)
                     }
                     (Encoding::Module, IMPORT_SECTION) => {
-                        self.update_order(Order::Import, reader.original_position())?;
+                        self.update_order(Order::Import, section_start)?;
                         section(reader, len, ImportSectionReader::new, ImportSection)
                     }
                     (Encoding::Module, FUNCTION_SECTION) => {
-                        self.update_order(Order::Function, reader.original_position())?;
+                        self.update_order(Order::Function, section_start)?;
                         let s = section(reader, len, FunctionSectionReader::new, FunctionSection)?;
                         match &s {
                             FunctionSection(f) => self.counts.function_entries = Some(f.count()),
@@ -774,37 +777,36 @@ impl Parser {
                         Ok(s)
                     }
                     (Encoding::Module, TABLE_SECTION) => {
-                        self.update_order(Order::Table, reader.original_position())?;
+                        self.update_order(Order::Table, section_start)?;
                         section(reader, len, TableSectionReader::new, TableSection)
                     }
                     (Encoding::Module, MEMORY_SECTION) => {
-                        self.update_order(Order::Memory, reader.original_position())?;
+                        self.update_order(Order::Memory, section_start)?;
                         section(reader, len, MemorySectionReader::new, MemorySection)
                     }
                     (Encoding::Module, GLOBAL_SECTION) => {
-                        self.update_order(Order::Global, reader.original_position())?;
+                        self.update_order(Order::Global, section_start)?;
                         section(reader, len, GlobalSectionReader::new, GlobalSection)
                     }
                     (Encoding::Module, EXPORT_SECTION) => {
-                        self.update_order(Order::Export, reader.original_position())?;
+                        self.update_order(Order::Export, section_start)?;
                         section(reader, len, ExportSectionReader::new, ExportSection)
                     }
                     (Encoding::Module, START_SECTION) => {
-                        self.update_order(Order::Start, reader.original_position())?;
+                        self.update_order(Order::Start, section_start)?;
                         let (func, range) = single_item(reader, section_end, "start")?;
                         Ok(StartSection { func, range })
                     }
                     (Encoding::Module, ELEMENT_SECTION) => {
-                        self.update_order(Order::Element, reader.original_position())?;
+                        self.update_order(Order::Element, section_start)?;
                         section(reader, len, ElementSectionReader::new, ElementSection)
                     }
                     (Encoding::Module, CODE_SECTION) => {
-                        self.update_order(Order::Code, reader.original_position())?;
-                        let start = reader.original_position();
+                        self.update_order(Order::Code, section_start)?;
                         let count = delimited(reader, &mut len, |r| r.read_var_u32())?;
                         self.counts.code_entries = Some(count);
-                        self.check_function_code_counts(start)?;
-                        let range = start..section_end;
+                        self.check_function_code_counts(section_start)?;
+                        let range = section_start..section_end;
                         self.state = State::FunctionBody {
                             remaining: count,
                             len,
@@ -816,7 +818,7 @@ impl Parser {
                         })
                     }
                     (Encoding::Module, DATA_SECTION) => {
-                        self.update_order(Order::Data, reader.original_position())?;
+                        self.update_order(Order::Data, section_start)?;
                         let s = section(reader, len, DataSectionReader::new, DataSection)?;
                         match &s {
                             DataSection(d) => self.counts.data_entries = Some(d.count()),
@@ -826,13 +828,13 @@ impl Parser {
                         Ok(s)
                     }
                     (Encoding::Module, DATA_COUNT_SECTION) => {
-                        self.update_order(Order::DataCount, reader.original_position())?;
+                        self.update_order(Order::DataCount, section_start)?;
                         let (count, range) = single_item(reader, section_end, "data count")?;
                         self.counts.data_count = Some(count);
                         Ok(DataCountSection { count, range })
                     }
                     (Encoding::Module, TAG_SECTION) => {
-                        self.update_order(Order::Tag, reader.original_position())?;
+                        self.update_order(Order::Tag, section_start)?;
                         section(reader, len, TagSectionReader::new, TagSection)
                     }
 
@@ -844,13 +846,20 @@ impl Parser {
                             bail!(
                                 len_pos,
                                 "{} section is too large",
-                                if id == 1 { "module" } else { "component" }
+                                if id == COMPONENT_MODULE_SECTION {
+                                    "module"
+                                } else {
+                                    "component"
+                                }
                             );
                         }
 
-                        let range = reader.original_position()..section_end;
+                        let range = section_start..section_end;
+                        // Do no consume these bytes from the reader. The parse function will
+                        // additionally bump this by the consumed amount, which will land us
+                        // at section_end.
                         self.offset += u64::from(len);
-                        let mut parser = Parser::new(reader.original_position());
+                        let mut parser = Parser::new(section_start);
                         #[cfg(feature = "features")]
                         {
                             parser.features = self.features;
@@ -858,11 +867,11 @@ impl Parser {
                         parser.max_offset = section_end;
 
                         Ok(match id {
-                            1 => ModuleSection {
+                            COMPONENT_MODULE_SECTION => ModuleSection {
                                 parser,
                                 unchecked_range: range,
                             },
-                            4 => ComponentSection {
+                            COMPONENT_SECTION => ComponentSection {
                                 parser,
                                 unchecked_range: range,
                             },
