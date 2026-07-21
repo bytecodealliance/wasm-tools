@@ -175,7 +175,7 @@ impl Opts {
     fn annotate_error_with_file_and_line(
         &self,
         wasm: &[u8],
-        offset: usize,
+        offset: u64,
     ) -> Result<Option<String>> {
         let mut modules = Addr2lineModules::parse(wasm)?;
         let code_section_relative = false;

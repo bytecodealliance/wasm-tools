@@ -163,7 +163,8 @@ impl<'a> BinaryReader<'a> {
         &self.buffer[self.position.into_usize()..]
     }
 
-    pub(crate) fn remaining_range(&self) -> Range<u64> {
+    /// Returns a range from the current position to the end of the buffer.
+    pub fn remaining_range(&self) -> Range<u64> {
         self.original_position()..(self.original_offset + self.max_offset())
     }
 

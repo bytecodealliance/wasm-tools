@@ -100,11 +100,9 @@ impl Opts {
                 ComponentImportSection(s) => printer.section(s, "component imports")?,
                 ComponentExportSection(s) => printer.section(s, "component exports")?,
 
-                CustomSection(c) => printer.section_raw(
-                    c.data_offset()..c.data_offset() + c.data().len(),
-                    1,
-                    &format!("custom {:?}", c.name()),
-                )?,
+                CustomSection(c) => {
+                    printer.section_raw(c.data_range(), 1, &format!("custom {:?}", c.name()))?
+                }
 
                 End(_) => printer.end()?,
 
@@ -200,7 +198,7 @@ impl Printer {
         self.section_raw(section.range(), section.count(), name)
     }
 
-    fn section_raw(&mut self, range: Range<usize>, count: u32, name: &str) -> Result<()> {
+    fn section_raw(&mut self, range: Range<u64>, count: u32, name: &str) -> Result<()> {
         writeln!(
             self.output,
             "{:40} | {:#10x} - {:#10x} | {:9} bytes | {} count",

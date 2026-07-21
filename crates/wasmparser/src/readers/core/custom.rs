@@ -32,6 +32,11 @@ impl<'a> CustomSectionReader<'a> {
         self.reader.remaining_buffer()
     }
 
+    /// The range of bytes that specify the data contents of the custom section.
+    pub fn data_range(&self) -> Range<u64> {
+        self.reader.remaining_range()
+    }
+
     /// The range of bytes that specify this whole custom section (including
     /// both the name of this custom section and its data) specified in
     /// offsets relative to the start of the byte stream.
