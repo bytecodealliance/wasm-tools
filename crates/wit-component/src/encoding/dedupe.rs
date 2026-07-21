@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use std::fmt::Write;
 use wasm_encoder::reencode::{Reencode, RoundtripReencoder};
 use wasm_encoder::{ImportSection, RawSection};
-use wasmparser::{Parser, Payload::*};
+use wasmparser::{InMemData, Parser, Payload::*};
 
 /// A map of current names (possibly new) to original names, if any.
 #[derive(Default)]
@@ -55,7 +55,8 @@ impl ModuleImportMap {
         let mut ret = ModuleImportMap::default();
         let mut found_duplicate_imports = false;
 
-        for payload in Parser::new(0).parse_all(&wasm) {
+        let data = InMemData::new(&wasm);
+        for payload in Parser::new(0).parse_all(&data) {
             let payload = payload?;
             match &payload {
                 Version { encoding, .. } if *encoding == wasmparser::Encoding::Component => {
@@ -86,7 +87,7 @@ impl ModuleImportMap {
                     if let Some((id, range)) = payload.as_section() {
                         module.section(&RawSection {
                             id,
-                            data: &wasm[range],
+                            data: &data[range],
                         });
                     }
                 }

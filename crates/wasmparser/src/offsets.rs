@@ -86,7 +86,8 @@ impl MemOffset {
         self.into()
     }
     pub fn try_add(self, additional: usize, max: MemOffset) -> Result<MemOffset, usize> {
-        let remaining = max.into_usize().strict_sub(self.into_usize());
+        // MSRV: This could be a strict sub
+        let remaining = max.into_usize() - self.into_usize();
         if remaining < additional {
             Err(additional - remaining)
         } else {
@@ -115,7 +116,8 @@ impl Add<MemOffset> for u64 {
             rhs <= MemOffset::max(u64::MAX - self, usize::MAX),
             "offset too large",
         );
-        self.strict_add(rhs.rep as u64)
+        // MSRV: This could be a strict add
+        self + (rhs.rep as u64)
     }
 }
 
@@ -130,7 +132,8 @@ impl Add<usize> for MemOffset {
     fn add(self, rhs: usize) -> Self::Output {
         debug_assert!(rhs <= (usize::MAX - self.rep), "offset too large",);
         Self {
-            rep: self.rep.strict_add(rhs),
+            // MSRV: This could be a strict add
+            rep: self.rep + rhs,
         }
     }
 }
