@@ -4,6 +4,7 @@
 //! in the stack is written. The "negation" is encoded with a `i32.eqz` operator.
 use rand::prelude::*;
 use wasm_encoder::{Function, ValType};
+use wasmparser::InMemData;
 
 use crate::{
     WasmMutate,
@@ -38,7 +39,7 @@ impl IfComplementWriter {
         alternative: &Option<Vec<usize>>,
         newfunc: &mut wasm_encoder::Function,
         operators: &Vec<crate::mutators::OperatorAndByteOffset>,
-        input_wasm: &'a [u8],
+        input_wasm: InMemData<'a>,
         ty: &wasmparser::BlockType,
     ) -> crate::Result<()> {
         // negate the value on the stack
@@ -74,7 +75,7 @@ impl AstWriter for IfComplementWriter {
         alternative: &Option<Vec<usize>>,
         newfunc: &mut wasm_encoder::Function,
         operators: &Vec<crate::mutators::OperatorAndByteOffset>,
-        input_wasm: &'a [u8],
+        input_wasm: InMemData<'a>,
         ty: &wasmparser::BlockType,
     ) -> crate::Result<()> {
         if self.if_to_mutate == nodeidx {
@@ -115,7 +116,7 @@ impl AstMutator for IfComplementMutator {
         ast: &Ast,
         locals: &[(u32, ValType)],
         operators: &Vec<OperatorAndByteOffset>,
-        input_wasm: &'a [u8],
+        input_wasm: InMemData<'a>,
     ) -> crate::Result<Function> {
         // Select the if index
         let mut newfunc = Function::new(locals.to_vec());

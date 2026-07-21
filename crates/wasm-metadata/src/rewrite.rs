@@ -4,12 +4,12 @@ use anyhow::Result;
 use std::mem;
 use wasm_encoder::ComponentSection as _;
 use wasm_encoder::{ComponentSectionId, Encode, Section};
-use wasmparser::{KnownCustom, Parser, Payload::*};
+use wasmparser::{InMemData, KnownCustom, Parser, Payload::*};
 
 pub(crate) fn rewrite_wasm(
     metadata: &AddMetadata,
     add_producers: &Producers,
-    input: &[u8],
+    input: InMemData,
 ) -> Result<Vec<u8>> {
     let mut producers_found = false;
     let mut names_found = false;

@@ -20,7 +20,10 @@
 //! The structures in this file bridge the gap. Given a logical offset,
 //! we can compute a maximally allowed length of data at that offset.
 
-use core::ops::{Add, AddAssign, Bound, Deref, Index, Range, RangeBounds};
+use core::{
+    ops::{Add, AddAssign, Bound, Deref, Index, Range, RangeBounds},
+    u64,
+};
 
 // An (not necessarily exhaustive) list of properties we use of `u64` in relation
 // to usize:
@@ -141,7 +144,7 @@ impl AddAssign<usize> for MemOffset {
 /// Useful datastructure when your input wasm is fully in memory.
 ///
 /// Use this to index into it with the offsets and ranges from the parser.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct InMemData<'a> {
     /// The contained data
     pub data: &'a [u8],
@@ -205,6 +208,12 @@ impl<'a> InMemData<'a> {
             (Bound::Unbounded, Bound::Unbounded) => &self.data[..],
             (Bound::Excluded(_), _) => unreachable!("unsupported excluded start bound"),
         }
+    }
+    /// Get a range representing the data range.
+    pub fn range(&self) -> Range<u64> {
+        let start = 0;
+        let end = start + MemOffset::max(u64::MAX, self.data.len());
+        start..end
     }
 }
 

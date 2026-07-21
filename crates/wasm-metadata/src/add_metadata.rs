@@ -1,6 +1,7 @@
 use crate::{Producers, rewrite_wasm};
 use anyhow::Result;
 use std::fmt::Debug;
+use wasmparser::InMemData;
 
 /// Add metadata (module name, producers) to a WebAssembly file.
 ///
@@ -57,7 +58,7 @@ impl AddMetadata {
     /// section created.
     pub fn to_wasm(&self, input: &[u8]) -> Result<Vec<u8>> {
         let add_producers = Producers::from_meta(self);
-        rewrite_wasm(self, &add_producers, input)
+        rewrite_wasm(self, &add_producers, InMemData::new(input))
     }
 }
 
