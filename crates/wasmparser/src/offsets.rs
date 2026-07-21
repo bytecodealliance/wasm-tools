@@ -20,97 +20,82 @@
 //! The structures in this file bridge the gap. Given a logical offset,
 //! we can compute a maximally allowed length of data at that offset.
 
-use core::{
-    num::TryFromIntError,
-    ops::{Add, AddAssign},
-};
+use core::ops::{Add, AddAssign};
+
+// An (not necessarily exhaustive) list of properties we use of `u64` in relation
+// to usize:
+// - u64::MAX as an upper bound and sometimes invalid offset
+// - 0u64 as the starting offset
+// - we can add and subtract small offsets to recalculate the original position
+//   in some error paths, where saving the position directly would clutter registers.
+
+/// Compute the maximum allowable memory offset under both contraints
+fn max_memory_offset(mut max_logical: u64, max: usize) -> usize {
+    if u64::BITS > usize::BITS {
+        max_logical = max_logical.max(usize::MAX as u64)
+    }
+    // we now know that max_logical fits into a usize
+    let max_logical = max_logical as usize;
+
+    // the more "natural" `max_logical.min(max)` generates a cmov which this avoids
+    if max <= max_logical {
+        max
+    } else {
+        // unlikely
+        #[cold]
+        fn smaller(constrained: usize) -> usize {
+            constrained
+        }
+        smaller(max_logical)
+    }
+}
 
 // TODO: on platforms where usize::BITS > u64::BITS (currently almost no-where),
 // this could wrap a u64 instead of a usize to be a bit smaller.
-#[derive(Clone, Copy, Debug, Hash)]
+/// An offset into some chunk of memory at some specified logical offset in
+/// the file.
+///
+/// The represented offset can always be converted into a `usize`, and can
+/// always be added to the logical offset without overflow.
+///
+/// The other function of this newtype is to allow `u64: Add<MemOffset>` and
+/// `MemOffset: Add<usize>` without confusing the two notions of offsets.
+///
+/// We explicitly do not have `MemOffset: From<usize>` as not all offsets are
+/// valid at all offsets.
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
 pub struct MemOffset {
     rep: usize,
-    #[cfg(debug_assertions)]
-    max: usize,
-}
-
-impl PartialEq for MemOffset {
-    fn eq(&self, other: &Self) -> bool {
-        self.rep == other.rep
-    }
-}
-
-impl PartialOrd for MemOffset {
-    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Eq for MemOffset {}
-impl Ord for MemOffset {
-    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
-        self.rep.cmp(&other.rep)
-    }
 }
 
 impl MemOffset {
     pub fn max(max_logical: u64, max: usize) -> Self {
-        let max_len_logical = max_logical;
-        let max_len = if u64::BITS > usize::BITS {
-            let max_len_usize = usize::MAX as u64;
-            // this now fits into a usize
-            max_len_logical.max(max_len_usize) as usize
-        } else {
-            // since usize seems to have more or equal bits, this fits always.
-            max_len_logical as usize
-        };
-        let max_len = max_len.min(max);
         Self {
-            rep: max_len,
-            #[cfg(debug_assertions)]
-            max: max_len,
+            rep: max_memory_offset(max_logical, max),
         }
     }
-    pub fn zero_at(logical: u64, max: usize) -> Self {
-        Self::try_from(logical, 0, max).unwrap()
-    }
-    pub fn try_from(logical: u64, mem: usize, max: usize) -> Result<Self, TryFromIntError> {
-        let max = Self::max(u64::MAX - logical, max).into_usize();
-        if mem <= max {
-            Ok(Self {
-                rep: mem,
-                #[cfg(debug_assertions)]
-                max,
-            })
-        } else {
-            Err(u32::try_from(u64::MAX).unwrap_err())
-        }
+    pub fn zero() -> Self {
+        // 0 is always a valid offset
+        Self { rep: 0 }
     }
     pub fn into_usize(self) -> usize {
         self.into()
     }
     pub fn try_add(self, additional: usize, max: MemOffset) -> Result<MemOffset, usize> {
-        #[cfg(debug_assertions)]
-        {
-            assert!(
-                self.max == max.max,
-                "self and max should be form the same memory extent"
-            );
-        }
         let remaining = max.into_usize().strict_sub(self.into_usize());
         if remaining < additional {
             Err(additional - remaining)
         } else {
             Ok(Self {
                 rep: self.rep + additional,
-                #[cfg(debug_assertions)]
-                max: self.max,
             })
         }
     }
     // convinience method we should put on u64, but can't since inherent impls are not allowed there
-    pub fn logical_try_add(logical: u64, additional: u32) -> Option<u64> {
-        logical.checked_add(additional as u64)
+    pub fn logical_try_add_u32(logical: u64, additional: u32, max_logical: u64) -> Option<u64> {
+        let summed = logical.checked_add(additional as u64)?;
+        (summed <= max_logical).then_some(summed)
     }
 }
 
@@ -125,7 +110,7 @@ impl Add<MemOffset> for u64 {
     fn add(self, rhs: MemOffset) -> Self::Output {
         debug_assert!(
             rhs <= MemOffset::max(u64::MAX - self, usize::MAX),
-            "offset too large"
+            "offset too large",
         );
         self.strict_add(rhs.rep as u64)
     }
@@ -140,21 +125,9 @@ impl AddAssign<MemOffset> for u64 {
 impl Add<usize> for MemOffset {
     type Output = MemOffset;
     fn add(self, rhs: usize) -> Self::Output {
-        let sum = if cfg!(debug_assertions) {
-            self.rep.checked_add(rhs).expect("shouldn't overflow")
-        } else {
-            self.rep.strict_add(rhs)
-        };
-        #[cfg(debug_assertions)]
-        {
-            if sum > self.max {
-                panic!("unexpectedly large offset");
-            }
-        }
+        debug_assert!(rhs <= (usize::MAX - self.rep), "offset too large",);
         Self {
-            rep: sum,
-            #[cfg(debug_assertions)]
-            max: self.max,
+            rep: self.rep.strict_add(rhs),
         }
     }
 }

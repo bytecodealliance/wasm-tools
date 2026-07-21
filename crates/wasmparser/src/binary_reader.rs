@@ -58,7 +58,7 @@ impl<'a> BinaryReader<'a> {
     pub fn new(data: &[u8], original_offset: u64) -> BinaryReader<'_> {
         BinaryReader {
             buffer: data,
-            position: MemOffset::zero_at(original_offset, data.len()),
+            position: MemOffset::zero(),
             original_offset,
             #[cfg(feature = "features")]
             features: WasmFeatures::all(),
@@ -103,7 +103,7 @@ impl<'a> BinaryReader<'a> {
     ) -> BinaryReader<'_> {
         BinaryReader {
             buffer: data,
-            position: MemOffset::zero_at(original_offset, data.len()),
+            position: MemOffset::zero(),
             original_offset,
             features,
         }
@@ -124,7 +124,7 @@ impl<'a> BinaryReader<'a> {
         let original_offset = self.original_offset + self.position;
         BinaryReader {
             buffer,
-            position: MemOffset::zero_at(original_offset, buffer.len()),
+            position: MemOffset::zero(),
             original_offset,
             #[cfg(feature = "features")]
             features: self.features,
@@ -179,6 +179,7 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
+    /// Returns the MemOffset past `len` bytes on success
     pub(crate) fn ensure_has_bytes(&self, len: usize) -> Result<MemOffset> {
         match self.position.try_add(len, self.max_offset()) {
             Ok(end) => Ok(end),
@@ -422,7 +423,7 @@ impl<'a> BinaryReader<'a> {
         let original_offset = self.original_offset + start;
         ret.buffer = buffer;
         ret.original_offset = original_offset;
-        ret.position = MemOffset::zero_at(original_offset, buffer.len());
+        ret.position = MemOffset::zero();
         Ok(ret)
     }
 
@@ -2004,5 +2005,20 @@ impl<'a> BinaryReader<'a> {
             0 => Ok(0),
             _ => bail!(self.original_position() - 1, "zero byte expected"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn eof_on_large_offsets() {
+        let mut rdr = BinaryReader::new(&[10], u64::MAX);
+        assert_eq!(rdr.bytes_remaining(), 0);
+        assert_eq!(
+            rdr.read_u8().unwrap_err().message(),
+            "unexpected end-of-file"
+        );
     }
 }

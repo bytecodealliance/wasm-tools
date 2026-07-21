@@ -743,10 +743,12 @@ impl Parser {
                 // but it is required for nested modules/components to correctly ensure
                 // that all sections live entirely within their section of the
                 // file.
-                let section_end = match MemOffset::logical_try_add(reader.original_position(), len)
-                {
-                    Some(section_end) if section_end <= self.max_offset => section_end,
-                    _ => return Err(Error::new("section too large", len_pos)),
+                let Some(section_end) = MemOffset::logical_try_add_u32(
+                    reader.original_position(),
+                    len,
+                    self.max_offset,
+                ) else {
+                    return Err(Error::new("section too large", len_pos));
                 };
 
                 match (self.encoding, id) {
