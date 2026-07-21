@@ -110,7 +110,6 @@ macro_rules! define_wasm_features {
         pub(crate) mod require_feature {
             use crate::Error;
             use super::WasmFeatures;
-            use crate::offsets::LogicalOffset;
 
             $(
                 #[inline]
@@ -120,7 +119,7 @@ macro_rules! define_wasm_features {
                 pub fn $field(
                     features: WasmFeatures,
                     msg: impl core::fmt::Display,
-                    offset: LogicalOffset,
+                    offset: u64,
                 ) -> Result<(), Error> {
                     if features.$field() {
                         Ok(())

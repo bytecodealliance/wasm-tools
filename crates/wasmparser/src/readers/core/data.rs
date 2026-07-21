@@ -13,9 +13,7 @@
  * limitations under the License.
  */
 
-use crate::{
-    BinaryReader, ConstExpr, Error, FromReader, Result, SectionLimited, offsets::LogicalOffset,
-};
+use crate::{BinaryReader, ConstExpr, Error, FromReader, Result, SectionLimited};
 use core::ops::Range;
 
 /// Represents a data segment in a core WebAssembly module.
@@ -26,7 +24,7 @@ pub struct Data<'a> {
     /// The data of the data segment.
     pub data: &'a [u8],
     /// The range of the data segment.
-    pub range: Range<LogicalOffset>,
+    pub range: Range<u64>,
 }
 
 /// The kind of data segment.

@@ -13,7 +13,6 @@
  * limitations under the License.
  */
 
-use crate::offsets::LogicalOffset;
 use crate::prelude::*;
 use crate::{
     AbstractHeapType, Encoding, Error, FromReader, FunctionBody, HeapType, Parser, Payload,
@@ -68,13 +67,7 @@ use self::types::{TypeAlloc, Types, TypesRef};
 pub use func::{FuncToValidate, FuncValidator, FuncValidatorAllocations};
 pub use operators::Frame;
 
-fn check_max(
-    cur_len: usize,
-    amt_added: u32,
-    max: usize,
-    desc: &str,
-    offset: LogicalOffset,
-) -> Result<()> {
+fn check_max(cur_len: usize, amt_added: u32, max: usize, desc: &str, offset: u64) -> Result<()> {
     if max
         .checked_sub(cur_len)
         .and_then(|amt| amt.checked_sub(amt_added as usize))
@@ -90,7 +83,7 @@ fn check_max(
     Ok(())
 }
 
-fn combine_type_sizes(a: u32, b: u32, offset: LogicalOffset) -> Result<u32> {
+fn combine_type_sizes(a: u32, b: u32, offset: u64) -> Result<u32> {
     match a.checked_add(b) {
         Some(sum) if sum < MAX_WASM_TYPE_SIZE => Ok(sum),
         _ => Err(format_err!(
@@ -186,7 +179,7 @@ enum State {
 }
 
 impl State {
-    fn ensure_parsable(&self, offset: LogicalOffset) -> Result<()> {
+    fn ensure_parsable(&self, offset: u64) -> Result<()> {
         match self {
             Self::Module => Ok(()),
             #[cfg(feature = "component-model")]
@@ -202,7 +195,7 @@ impl State {
         }
     }
 
-    fn ensure_module(&self, section: &str, offset: LogicalOffset) -> Result<()> {
+    fn ensure_module(&self, section: &str, offset: u64) -> Result<()> {
         self.ensure_parsable(offset)?;
         let _ = section;
 
@@ -218,7 +211,7 @@ impl State {
     }
 
     #[cfg(feature = "component-model")]
-    fn ensure_component(&self, section: &str, offset: LogicalOffset) -> Result<()> {
+    fn ensure_component(&self, section: &str, offset: u64) -> Result<()> {
         self.ensure_parsable(offset)?;
 
         match self {
@@ -243,7 +236,7 @@ impl WasmFeatures {
     ///
     /// To check that reference types are valid, we need access to the module
     /// types. Use module.check_value_type.
-    pub(crate) fn check_value_type(&self, ty: ValType, offset: LogicalOffset) -> Result<()> {
+    pub(crate) fn check_value_type(&self, ty: ValType, offset: u64) -> Result<()> {
         match ty {
             ValType::I32 | ValType::I64 => Ok(()),
             ValType::F32 | ValType::F64 => {
@@ -254,7 +247,7 @@ impl WasmFeatures {
         }
     }
 
-    pub(crate) fn check_ref_type(&self, r: RefType, offset: LogicalOffset) -> Result<()> {
+    pub(crate) fn check_ref_type(&self, r: RefType, offset: u64) -> Result<()> {
         require_feature::reference_types(*self, "reference types support is not enabled", offset)?;
         match r.heap_type() {
             HeapType::Concrete(_) => {
@@ -654,12 +647,7 @@ impl Validator {
     }
 
     /// Validates [`Payload::Version`](crate::Payload).
-    pub fn version(
-        &mut self,
-        num: u16,
-        encoding: Encoding,
-        range: &Range<LogicalOffset>,
-    ) -> Result<()> {
+    pub fn version(&mut self, num: u16, encoding: Encoding, range: &Range<u64>) -> Result<()> {
         match &self.state {
             State::Unparsed(expected) => {
                 if let Some(expected) = expected {
@@ -921,7 +909,7 @@ impl Validator {
     /// Validates [`Payload::StartSection`](crate::Payload).
     ///
     /// This method should only be called when parsing a module.
-    pub fn start_section(&mut self, func: u32, range: &Range<LogicalOffset>) -> Result<()> {
+    pub fn start_section(&mut self, func: u32, range: &Range<u64>) -> Result<()> {
         let offset = range.start;
         self.state.ensure_module("start", offset)?;
         let state = self.module.as_mut().unwrap();
@@ -963,7 +951,7 @@ impl Validator {
     /// Validates [`Payload::DataCountSection`](crate::Payload).
     ///
     /// This method should only be called when parsing a module.
-    pub fn data_count_section(&mut self, count: u32, range: &Range<LogicalOffset>) -> Result<()> {
+    pub fn data_count_section(&mut self, count: u32, range: &Range<u64>) -> Result<()> {
         let offset = range.start;
         self.state.ensure_module("data count", offset)?;
 
@@ -983,7 +971,7 @@ impl Validator {
     /// Validates [`Payload::CodeSectionStart`](crate::Payload).
     ///
     /// This method should only be called when parsing a module.
-    pub fn code_section_start(&mut self, range: &Range<LogicalOffset>) -> Result<()> {
+    pub fn code_section_start(&mut self, range: &Range<u64>) -> Result<()> {
         let offset = range.start;
         self.state.ensure_module("code", offset)?;
 
@@ -1052,7 +1040,7 @@ impl Validator {
     ///
     /// This method should only be called when parsing a component.
     #[cfg(feature = "component-model")]
-    pub fn module_section(&mut self, range: &Range<LogicalOffset>) -> Result<()> {
+    pub fn module_section(&mut self, range: &Range<u64>) -> Result<()> {
         self.state.ensure_component("module", range.start)?;
 
         let current = self.components.last_mut().unwrap();
@@ -1127,7 +1115,7 @@ impl Validator {
     ///
     /// This method should only be called when parsing a component.
     #[cfg(feature = "component-model")]
-    pub fn component_section(&mut self, range: &Range<LogicalOffset>) -> Result<()> {
+    pub fn component_section(&mut self, range: &Range<u64>) -> Result<()> {
         self.state.ensure_component("component", range.start)?;
 
         let current = self.components.last_mut().unwrap();
@@ -1259,7 +1247,7 @@ impl Validator {
     pub fn component_start_section(
         &mut self,
         f: &crate::ComponentStartFunction,
-        range: &Range<LogicalOffset>,
+        range: &Range<u64>,
     ) -> Result<()> {
         self.state.ensure_component("start", range.start)?;
 
@@ -1333,14 +1321,14 @@ impl Validator {
     /// Validates [`Payload::UnknownSection`](crate::Payload).
     ///
     /// Currently always returns an error.
-    pub fn unknown_section(&mut self, id: u8, range: &Range<LogicalOffset>) -> Result<()> {
+    pub fn unknown_section(&mut self, id: u8, range: &Range<u64>) -> Result<()> {
         Err(format_err!(range.start, "malformed section id: {id}"))
     }
 
     /// Validates [`Payload::End`](crate::Payload).
     ///
     /// Returns the types known to the validator for the module or component.
-    pub fn end(&mut self, offset: LogicalOffset) -> Result<Types> {
+    pub fn end(&mut self, offset: u64) -> Result<Types> {
         match mem::replace(&mut self.state, State::End) {
             State::Unparsed(_) => Err(Error::new(
                 "cannot call `end` before a header has been parsed",
@@ -1401,13 +1389,8 @@ impl Validator {
         &mut self,
         section: &SectionLimited<'a, T>,
         name: &str,
-        validate_section: impl FnOnce(
-            &mut ModuleState,
-            &mut TypeAlloc,
-            u32,
-            LogicalOffset,
-        ) -> Result<()>,
-        mut validate_item: impl FnMut(&mut ModuleState, &mut TypeAlloc, T, LogicalOffset) -> Result<()>,
+        validate_section: impl FnOnce(&mut ModuleState, &mut TypeAlloc, u32, u64) -> Result<()>,
+        mut validate_item: impl FnMut(&mut ModuleState, &mut TypeAlloc, T, u64) -> Result<()>,
     ) -> Result<()>
     where
         T: FromReader<'a>,
@@ -1432,18 +1415,13 @@ impl Validator {
         &mut self,
         section: &SectionLimited<'a, T>,
         name: &str,
-        validate_section: impl FnOnce(
-            &mut Vec<ComponentState>,
-            &mut TypeAlloc,
-            u32,
-            LogicalOffset,
-        ) -> Result<()>,
+        validate_section: impl FnOnce(&mut Vec<ComponentState>, &mut TypeAlloc, u32, u64) -> Result<()>,
         mut validate_item: impl FnMut(
             &mut Vec<ComponentState>,
             &mut TypeAlloc,
             &WasmFeatures,
             T,
-            LogicalOffset,
+            u64,
         ) -> Result<()>,
     ) -> Result<()>
     where

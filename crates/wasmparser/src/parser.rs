@@ -1,7 +1,7 @@
 #[cfg(feature = "features")]
 use crate::WasmFeatures;
 use crate::binary_reader::WASM_MAGIC_NUMBER;
-use crate::offsets::{LogicalOffset, MemOffset};
+use crate::offsets::MemOffset;
 use crate::prelude::*;
 use crate::{
     BinaryReader, CustomSectionReader, DataSectionReader, ElementSectionReader, Error,
@@ -88,13 +88,13 @@ pub(crate) enum Order {
 #[derive(Debug, Clone)]
 pub struct Parser {
     state: State,
-    offset: LogicalOffset,
-    max_offset: LogicalOffset,
+    offset: u64,
+    max_offset: u64,
     encoding: Encoding,
     #[cfg(feature = "features")]
     features: WasmFeatures,
     counts: ParserCounts,
-    order: (Order, LogicalOffset),
+    order: (Order, u64),
 }
 
 #[derive(Debug, Clone)]
@@ -157,7 +157,7 @@ pub enum Payload<'a> {
         /// The range of bytes that were parsed to consume the header of the
         /// module or component. Note that this range is relative to the start
         /// of the byte stream.
-        range: Range<LogicalOffset>,
+        range: Range<u64>,
     },
 
     /// A module type section was received and the provided reader can be
@@ -190,7 +190,7 @@ pub enum Payload<'a> {
         func: u32,
         /// The range of bytes that specify the `func` field, specified in
         /// offsets relative to the start of the byte stream.
-        range: Range<LogicalOffset>,
+        range: Range<u64>,
     },
     /// A module element section was received and the provided reader can be
     /// used to parse the contents of the element section.
@@ -201,7 +201,7 @@ pub enum Payload<'a> {
         count: u32,
         /// The range of bytes that specify the `count` field, specified in
         /// offsets relative to the start of the byte stream.
-        range: Range<LogicalOffset>,
+        range: Range<u64>,
     },
     /// A module data section was received and the provided reader can be
     /// used to parse the contents of the data section.
@@ -222,7 +222,7 @@ pub enum Payload<'a> {
         count: u32,
         /// The range of bytes that represent this section, specified in
         /// offsets relative to the start of the byte stream.
-        range: Range<LogicalOffset>,
+        range: Range<u64>,
         /// The size, in bytes, of the remaining contents of this section.
         ///
         /// This can be used in combination with [`Parser::skip_section`]
@@ -261,7 +261,7 @@ pub enum Payload<'a> {
         ///
         /// Note that, to better support streaming parsing and validation, the
         /// validator does *not* check that this range is in bounds.
-        unchecked_range: Range<LogicalOffset>,
+        unchecked_range: Range<u64>,
     },
     /// A core instance section was received and the provided parser can be
     /// used to parse the contents of the core instance section.
@@ -296,7 +296,7 @@ pub enum Payload<'a> {
         ///
         /// Note that, to better support streaming parsing and validation, the
         /// validator does *not* check that this range is in bounds.
-        unchecked_range: Range<LogicalOffset>,
+        unchecked_range: Range<u64>,
     },
     /// A component instance section was received and the provided reader can be
     /// used to parse the contents of the component instance section.
@@ -320,7 +320,7 @@ pub enum Payload<'a> {
         /// The start function description.
         start: ComponentStartFunction,
         /// The range of bytes that specify the `start` field.
-        range: Range<LogicalOffset>,
+        range: Range<u64>,
     },
     /// A component import section was received and the provided reader can be
     /// used to parse the contents of the component import section.
@@ -347,14 +347,14 @@ pub enum Payload<'a> {
         contents: &'a [u8],
         /// The range of bytes, relative to the start of the original data
         /// stream, that the contents of this section reside in.
-        range: Range<LogicalOffset>,
+        range: Range<u64>,
     },
 
     /// The end of the WebAssembly module or component was reached.
     ///
     /// The value is the offset in the input byte stream where the end
     /// was reached.
-    End(LogicalOffset),
+    End(u64),
 }
 
 const CUSTOM_SECTION: u8 = 0;
@@ -665,7 +665,7 @@ impl Parser {
         }
     }
 
-    fn update_order(&mut self, order: Order, pos: LogicalOffset) -> Result<()> {
+    fn update_order(&mut self, order: Order, pos: u64) -> Result<()> {
         if self.encoding == Encoding::Module {
             match self.order {
                 (last_order, last_pos) if last_order >= order && last_pos < pos => {
@@ -743,7 +743,8 @@ impl Parser {
                 // but it is required for nested modules/components to correctly ensure
                 // that all sections live entirely within their section of the
                 // file.
-                let section_end = match MemOffset::logical_try_add(reader.original_position(), len) {
+                let section_end = match MemOffset::logical_try_add(reader.original_position(), len)
+                {
                     Some(section_end) if section_end <= self.max_offset => section_end,
                     _ => return Err(Error::new("section too large", len_pos)),
                 };
@@ -1179,7 +1180,7 @@ impl Parser {
         self.state = State::SectionStart;
     }
 
-    fn check_function_code_counts(&self, pos: LogicalOffset) -> Result<()> {
+    fn check_function_code_counts(&self, pos: u64) -> Result<()> {
         match (self.counts.function_entries, self.counts.code_entries) {
             (Some(n), Some(m)) if n != m => {
                 bail!(pos, "function and code section have inconsistent lengths")
@@ -1196,7 +1197,7 @@ impl Parser {
         }
     }
 
-    fn check_data_count(&self, pos: LogicalOffset) -> Result<()> {
+    fn check_data_count(&self, pos: u64) -> Result<()> {
         match (self.counts.data_count, self.counts.data_entries) {
             (Some(n), Some(m)) if n != m => {
                 bail!(pos, "data count and data section have inconsistent lengths")
@@ -1233,9 +1234,9 @@ fn section<'a, T>(
 /// Reads a section that is represented by a single uleb-encoded `u32`.
 fn single_item<'a, T>(
     reader: &mut BinaryReader<'a>,
-    section_end: LogicalOffset,
+    section_end: u64,
     desc: &str,
-) -> Result<(T, Range<LogicalOffset>)>
+) -> Result<(T, Range<u64>)>
 where
     T: FromReader<'a>,
 {
@@ -1302,7 +1303,7 @@ impl Payload<'_> {
     /// The purpose of this method is to enable tools to easily iterate over
     /// entire sections if necessary and handle sections uniformly, for example
     /// dropping custom sections while preserving all other sections.
-    pub fn as_section(&self) -> Option<(u8, Range<LogicalOffset>)> {
+    pub fn as_section(&self) -> Option<(u8, Range<u64>)> {
         use Payload::*;
 
         match self {
@@ -1663,9 +1664,9 @@ mod tests {
         chunk: Chunk<'_>,
         expected_consumed: usize,
         expected_name: &str,
-        expected_data_offset: LogicalOffset,
+        expected_data_offset: u64,
         expected_data: &[u8],
-        expected_range: Range<LogicalOffset>,
+        expected_range: Range<u64>,
     ) {
         let (consumed, s) = match chunk {
             Chunk::Parsed {

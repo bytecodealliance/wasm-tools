@@ -13,10 +13,7 @@
  * limitations under the License.
  */
 
-use crate::{
-    BinaryReader, Error, FromReader, Result, SectionLimited, Subsection, Subsections,
-    offsets::LogicalOffset,
-};
+use crate::{BinaryReader, Error, FromReader, Result, SectionLimited, Subsection, Subsections};
 use core::ops::Range;
 
 /// Represents a name map from the names custom section.
@@ -85,7 +82,7 @@ pub enum Name<'a> {
         /// The specified name.
         name: &'a str,
         /// The byte range that `name` occupies in the original binary.
-        name_range: Range<LogicalOffset>,
+        name_range: Range<u64>,
     },
     /// The name is for the functions.
     Function(NameMap<'a>),
@@ -117,7 +114,7 @@ pub enum Name<'a> {
         data: &'a [u8],
         /// The range of bytes, relative to the start of the original data
         /// stream, that the contents of this subsection reside in.
-        range: Range<LogicalOffset>,
+        range: Range<u64>,
     },
 }
 

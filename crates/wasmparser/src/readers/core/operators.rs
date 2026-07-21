@@ -14,7 +14,6 @@
  */
 
 use crate::limits::{MAX_WASM_CATCHES, MAX_WASM_HANDLERS};
-use crate::offsets::LogicalOffset;
 use crate::prelude::*;
 use crate::{BinaryReader, Error, FromReader, Result, ValType};
 use core::{fmt, mem};
@@ -476,7 +475,7 @@ impl<'a> OperatorsReader<'a> {
     }
 
     /// Gets the original position of the reader.
-    pub fn original_position(&self) -> LogicalOffset {
+    pub fn original_position(&self) -> u64 {
         self.reader.original_position()
     }
 
@@ -563,7 +562,7 @@ impl<'a> OperatorsReader<'a> {
     }
 
     /// Reads an operator with its offset.
-    pub fn read_with_offset(&mut self) -> Result<(Operator<'a>, LogicalOffset)> {
+    pub fn read_with_offset(&mut self) -> Result<(Operator<'a>, u64)> {
         let pos = self.reader.original_position();
         Ok((self.read()?, pos))
     }
@@ -681,7 +680,7 @@ impl<'a> OperatorsIteratorWithOffsets<'a> {
 }
 
 impl<'a> Iterator for OperatorsIteratorWithOffsets<'a> {
-    type Item = Result<(Operator<'a>, LogicalOffset)>;
+    type Item = Result<(Operator<'a>, u64)>;
 
     /// Reads content of the code section with offsets.
     ///

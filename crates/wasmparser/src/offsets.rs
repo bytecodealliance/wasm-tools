@@ -14,19 +14,16 @@
  */
 
 //! Logical offsets into the input wasm file are strictly limited to fit into
-//! an integer of type [LogicalOffset]. Data in each chunk is addressed
-//! through an offset into an `[u8]` slice, which uses `usize`-addressing.
+//! an integer of type [u64]. Data in each chunk is addressed through an offset
+//! into an `[u8]` slice, which uses `usize`-addressing.
 //!
 //! The structures in this file bridge the gap. Given a logical offset,
 //! we can compute a maximally allowed length of data at that offset.
-//!
 
 use core::{
     num::TryFromIntError,
     ops::{Add, AddAssign},
 };
-
-pub type LogicalOffset = u64;
 
 // TODO: on platforms where usize::BITS > u64::BITS (currently almost no-where),
 // this could wrap a u64 instead of a usize to be a bit smaller.
@@ -57,10 +54,10 @@ impl Ord for MemOffset {
 }
 
 impl MemOffset {
-    pub fn max(max_logical: LogicalOffset, max: usize) -> Self {
+    pub fn max(max_logical: u64, max: usize) -> Self {
         let max_len_logical = max_logical;
-        let max_len = if LogicalOffset::BITS > usize::BITS {
-            let max_len_usize = usize::MAX as LogicalOffset;
+        let max_len = if u64::BITS > usize::BITS {
+            let max_len_usize = usize::MAX as u64;
             // this now fits into a usize
             max_len_logical.max(max_len_usize) as usize
         } else {
@@ -74,15 +71,11 @@ impl MemOffset {
             max: max_len,
         }
     }
-    pub fn zero_at(logical: LogicalOffset, max: usize) -> Self {
+    pub fn zero_at(logical: u64, max: usize) -> Self {
         Self::try_from(logical, 0, max).unwrap()
     }
-    pub fn try_from(
-        logical: LogicalOffset,
-        mem: usize,
-        max: usize,
-    ) -> Result<Self, TryFromIntError> {
-        let max = Self::max(LogicalOffset::MAX - logical, max).into_usize();
+    pub fn try_from(logical: u64, mem: usize, max: usize) -> Result<Self, TryFromIntError> {
+        let max = Self::max(u64::MAX - logical, max).into_usize();
         if mem <= max {
             Ok(Self {
                 rep: mem,
@@ -115,9 +108,9 @@ impl MemOffset {
             })
         }
     }
-    // convinience method we should put on LogicalOffset, but can't since inherent impls are not allowed there
-    pub fn logical_try_add(logical: LogicalOffset, additional: u32) -> Option<LogicalOffset> {
-        logical.checked_add(additional as LogicalOffset)
+    // convinience method we should put on u64, but can't since inherent impls are not allowed there
+    pub fn logical_try_add(logical: u64, additional: u32) -> Option<u64> {
+        logical.checked_add(additional as u64)
     }
 }
 
@@ -127,18 +120,18 @@ impl From<MemOffset> for usize {
     }
 }
 
-impl Add<MemOffset> for LogicalOffset {
-    type Output = LogicalOffset;
+impl Add<MemOffset> for u64 {
+    type Output = u64;
     fn add(self, rhs: MemOffset) -> Self::Output {
         debug_assert!(
-            rhs <= MemOffset::max(LogicalOffset::MAX - self, usize::MAX),
+            rhs <= MemOffset::max(u64::MAX - self, usize::MAX),
             "offset too large"
         );
         self.strict_add(rhs.rep as u64)
     }
 }
 
-impl AddAssign<MemOffset> for LogicalOffset {
+impl AddAssign<MemOffset> for u64 {
     fn add_assign(&mut self, rhs: MemOffset) {
         *self = *self + rhs
     }

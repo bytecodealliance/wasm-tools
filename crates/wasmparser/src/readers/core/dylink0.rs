@@ -1,4 +1,3 @@
-use crate::offsets::LogicalOffset;
 use crate::prelude::*;
 use crate::{BinaryReader, Result, Subsection, Subsections, SymbolFlags};
 use core::ops::Range;
@@ -62,7 +61,7 @@ pub enum Dylink0Subsection<'a> {
     Unknown {
         ty: u8,
         data: &'a [u8],
-        range: Range<LogicalOffset>,
+        range: Range<u64>,
     },
 }
 

@@ -1,7 +1,6 @@
 //! Definitions of name-related helpers and newtypes, primarily for the
 //! component model.
 
-use crate::offsets::LogicalOffset;
 use crate::prelude::*;
 use crate::{Result, WasmFeatures};
 use core::cmp::Ordering;
@@ -283,7 +282,7 @@ const STATIC: &str = "[static]";
 impl ComponentName {
     /// Attempts to parse `name` as a valid component name, returning `Err` if
     /// it's not valid.
-    pub fn new(name: &str, offset: LogicalOffset) -> Result<ComponentName> {
+    pub fn new(name: &str, offset: u64) -> Result<ComponentName> {
         Self::new_with_features(name, offset, WasmFeatures::default())
     }
 
@@ -292,11 +291,7 @@ impl ComponentName {
     ///
     /// `features` can be used to enable or disable validation of certain forms
     /// of supported import names.
-    pub fn new_with_features(
-        name: &str,
-        offset: LogicalOffset,
-        features: WasmFeatures,
-    ) -> Result<Self> {
+    pub fn new_with_features(name: &str, offset: u64, features: WasmFeatures) -> Result<Self> {
         let mut parser = ComponentNameParser {
             next: name,
             offset,
@@ -586,7 +581,7 @@ impl<'a> HashName<'a> {
 // for error messages.
 struct ComponentNameParser<'a> {
     next: &'a str,
-    offset: LogicalOffset,
+    offset: u64,
     features: WasmFeatures,
 }
 

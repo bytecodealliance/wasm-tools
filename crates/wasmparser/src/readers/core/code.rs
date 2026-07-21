@@ -13,10 +13,7 @@
  * limitations under the License.
  */
 
-use crate::{
-    BinaryReader, FromReader, OperatorsReader, Result, SectionLimited, ValType,
-    offsets::LogicalOffset,
-};
+use crate::{BinaryReader, FromReader, OperatorsReader, Result, SectionLimited, ValType};
 use core::ops::Range;
 
 /// A reader for the code section of a WebAssembly module.
@@ -75,7 +72,7 @@ impl<'a> FunctionBody<'a> {
     }
 
     /// Gets the range of the function body.
-    pub fn range(&self) -> Range<LogicalOffset> {
+    pub fn range(&self) -> Range<u64> {
         self.reader.range()
     }
 
@@ -108,7 +105,7 @@ impl<'a> LocalsReader<'a> {
     }
 
     /// Gets the original position of the reader.
-    pub fn original_position(&self) -> LogicalOffset {
+    pub fn original_position(&self) -> u64 {
         self.reader.original_position()
     }
 

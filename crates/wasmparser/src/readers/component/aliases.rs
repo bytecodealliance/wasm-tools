@@ -1,6 +1,4 @@
-use crate::{
-    BinaryReader, ComponentExternalKind, ExternalKind, FromReader, Result, offsets::LogicalOffset,
-};
+use crate::{BinaryReader, ComponentExternalKind, ExternalKind, FromReader, Result};
 
 /// Represents the kind of an outer alias in a WebAssembly component.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -94,7 +92,7 @@ impl<'a> FromReader<'a> for ComponentAlias<'a> {
 fn component_outer_alias_kind_from_bytes(
     byte1: u8,
     byte2: Option<u8>,
-    offset: LogicalOffset,
+    offset: u64,
 ) -> Result<ComponentOuterAliasKind> {
     Ok(match byte1 {
         0x00 => match byte2.unwrap() {

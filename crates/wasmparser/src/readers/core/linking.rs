@@ -1,4 +1,3 @@
-use crate::offsets::LogicalOffset;
 use crate::prelude::*;
 use crate::{BinaryReader, Error, FromReader, Result, SectionLimited, Subsection, Subsections};
 use core::ops::Range;
@@ -73,7 +72,7 @@ pub struct LinkingSectionReader<'a> {
     /// The subsections in this section.
     subsections: Subsections<'a, Linking<'a>>,
     /// The range of the entire section, including the version.
-    range: Range<LogicalOffset>,
+    range: Range<u64>,
 }
 
 /// Represents a reader for segments from the linking custom section.
@@ -377,7 +376,7 @@ pub enum Linking<'a> {
         data: &'a [u8],
         /// The range of bytes, relative to the start of the original data
         /// stream, that the contents of this subsection reside in.
-        range: Range<LogicalOffset>,
+        range: Range<u64>,
     },
 }
 
@@ -426,13 +425,13 @@ impl<'a> LinkingSectionReader<'a> {
     }
 
     /// Returns the original byte offset of this section.
-    pub fn original_position(&self) -> LogicalOffset {
+    pub fn original_position(&self) -> u64 {
         self.subsections.original_position()
     }
 
     /// Returns the range, as byte offsets, of this section within the original
     /// wasm binary.
-    pub fn range(&self) -> Range<LogicalOffset> {
+    pub fn range(&self) -> Range<u64> {
         self.range.clone()
     }
 

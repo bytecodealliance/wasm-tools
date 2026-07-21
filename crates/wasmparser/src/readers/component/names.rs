@@ -1,6 +1,4 @@
-use crate::{
-    BinaryReader, Error, NameMap, Result, Subsection, Subsections, offsets::LogicalOffset,
-};
+use crate::{BinaryReader, Error, NameMap, Result, Subsection, Subsections};
 use core::ops::Range;
 
 /// Type used to iterate and parse the contents of the `component-name` custom
@@ -13,7 +11,7 @@ pub type ComponentNameSectionReader<'a> = Subsections<'a, ComponentName<'a>>;
 pub enum ComponentName<'a> {
     Component {
         name: &'a str,
-        name_range: Range<LogicalOffset>,
+        name_range: Range<u64>,
     },
     CoreFuncs(NameMap<'a>),
     CoreGlobals(NameMap<'a>),
@@ -37,7 +35,7 @@ pub enum ComponentName<'a> {
         data: &'a [u8],
         /// The range of bytes, relative to the start of the original data
         /// stream, that the contents of this subsection reside in.
-        range: Range<LogicalOffset>,
+        range: Range<u64>,
     },
 }
 

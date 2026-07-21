@@ -1,4 +1,3 @@
-use crate::offsets::LogicalOffset;
 use crate::{BinaryReader, Result};
 use core::fmt;
 use core::ops::Range;
@@ -24,7 +23,7 @@ impl<'a> CustomSectionReader<'a> {
 
     /// The offset, relative to the start of the original module or component,
     /// that the `data` payload for this custom section starts at.
-    pub fn data_offset(&self) -> LogicalOffset {
+    pub fn data_offset(&self) -> u64 {
         self.reader.original_position()
     }
 
@@ -36,7 +35,7 @@ impl<'a> CustomSectionReader<'a> {
     /// The range of bytes that specify this whole custom section (including
     /// both the name of this custom section and its data) specified in
     /// offsets relative to the start of the byte stream.
-    pub fn range(&self) -> Range<LogicalOffset> {
+    pub fn range(&self) -> Range<u64> {
         self.reader.range()
     }
 

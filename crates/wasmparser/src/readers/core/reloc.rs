@@ -1,4 +1,4 @@
-use crate::{BinaryReader, FromReader, Result, SectionLimited, offsets::LogicalOffset};
+use crate::{BinaryReader, FromReader, Result, SectionLimited};
 use core::ops::Range;
 
 /// Reader for relocation entries within a `reloc.*` section.
@@ -9,7 +9,7 @@ pub type RelocationEntryReader<'a> = SectionLimited<'a, RelocationEntry>;
 #[derive(Debug, Clone)]
 pub struct RelocSectionReader<'a> {
     section: u32,
-    range: Range<LogicalOffset>,
+    range: Range<u64>,
     entries: SectionLimited<'a, RelocationEntry>,
 }
 
@@ -32,7 +32,7 @@ impl<'a> RelocSectionReader<'a> {
     }
 
     /// The byte range of the entire section.
-    pub fn range(&self) -> Range<LogicalOffset> {
+    pub fn range(&self) -> Range<u64> {
         self.range.clone()
     }
 
@@ -249,10 +249,7 @@ impl RelocationEntry {
             // TODO: this error reporting looks wrong! Note that it uses an offset relative
             // to a section as total offset into the input file.
             .ok_or_else(|| {
-                crate::Error::new(
-                    "relocation range end overflow",
-                    self.offset as LogicalOffset,
-                )
+                crate::Error::new("relocation range end overflow", self.offset as u64)
             })?;
         Ok(start..end)
     }

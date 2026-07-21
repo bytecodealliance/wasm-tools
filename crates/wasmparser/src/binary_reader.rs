@@ -27,7 +27,7 @@ pub(crate) const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
 pub struct BinaryReader<'a> {
     buffer: &'a [u8],
     position: MemOffset,
-    original_offset: LogicalOffset,
+    original_offset: u64,
 
     // When the `features` feature is disabled then the `WasmFeatures` type
     // still exists but this field is still omitted. When `features` is
@@ -55,7 +55,7 @@ impl<'a> BinaryReader<'a> {
     /// The returned binary reader will have all features known to this crate
     /// enabled. To reject binaries that aren't valid unless a certain feature
     /// is enabled use the [`BinaryReader::new_features`] constructor instead.
-    pub fn new(data: &[u8], original_offset: LogicalOffset) -> BinaryReader<'_> {
+    pub fn new(data: &[u8], original_offset: u64) -> BinaryReader<'_> {
         BinaryReader {
             buffer: data,
             position: MemOffset::zero_at(original_offset, data.len()),
@@ -98,7 +98,7 @@ impl<'a> BinaryReader<'a> {
     #[cfg(feature = "features")]
     pub fn new_features(
         data: &[u8],
-        original_offset: LogicalOffset,
+        original_offset: u64,
         features: WasmFeatures,
     ) -> BinaryReader<'_> {
         BinaryReader {
@@ -133,7 +133,7 @@ impl<'a> BinaryReader<'a> {
 
     /// Gets the original position of the binary reader.
     #[inline]
-    pub fn original_position(&self) -> LogicalOffset {
+    pub fn original_position(&self) -> u64 {
         self.original_offset + self.position
     }
 
@@ -155,7 +155,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     /// Returns a range from the starting offset to the end of the buffer.
-    pub fn range(&self) -> Range<LogicalOffset> {
+    pub fn range(&self) -> Range<u64> {
         self.original_offset..(self.original_offset + self.max_offset())
     }
 
@@ -163,12 +163,12 @@ impl<'a> BinaryReader<'a> {
         &self.buffer[self.position.into_usize()..]
     }
 
-    pub(crate) fn remaining_range(&self) -> Range<LogicalOffset> {
+    pub(crate) fn remaining_range(&self) -> Range<u64> {
         self.original_position()..(self.original_offset + self.max_offset())
     }
 
     fn max_offset(&self) -> MemOffset {
-        MemOffset::max(LogicalOffset::MAX - self.original_offset, self.buffer.len())
+        MemOffset::max(u64::MAX - self.original_offset, self.buffer.len())
     }
 
     fn ensure_has_byte(&self) -> Result<()> {
@@ -204,7 +204,7 @@ impl<'a> BinaryReader<'a> {
         Ok(b)
     }
 
-    pub(crate) fn external_kind_from_byte(byte: u8, offset: LogicalOffset) -> Result<ExternalKind> {
+    pub(crate) fn external_kind_from_byte(byte: u8, offset: u64) -> Result<ExternalKind> {
         match byte {
             0x00 => Ok(ExternalKind::Func),
             0x01 => Ok(ExternalKind::Table),
@@ -621,7 +621,7 @@ impl<'a> BinaryReader<'a> {
         ))
     }
 
-    pub(crate) fn invalid_leading_byte_error(byte: u8, desc: &str, offset: LogicalOffset) -> Error {
+    pub(crate) fn invalid_leading_byte_error(byte: u8, desc: &str, offset: u64) -> Error {
         format_err!(offset, "invalid leading byte (0x{byte:x}) for {desc}")
     }
 
@@ -1105,7 +1105,7 @@ impl<'a> BinaryReader<'a> {
 
     fn visit_0xfb_operator<T>(
         &mut self,
-        pos: LogicalOffset,
+        pos: u64,
         visitor: &mut T,
     ) -> Result<<T as VisitOperator<'a>>::Output>
     where
@@ -1322,7 +1322,7 @@ impl<'a> BinaryReader<'a> {
 
     fn visit_0xfc_operator<T>(
         &mut self,
-        pos: LogicalOffset,
+        pos: u64,
         visitor: &mut T,
     ) -> Result<<T as VisitOperator<'a>>::Output>
     where
@@ -1403,7 +1403,7 @@ impl<'a> BinaryReader<'a> {
     #[cfg(feature = "simd")]
     pub(super) fn visit_0xfd_operator<T>(
         &mut self,
-        pos: LogicalOffset,
+        pos: u64,
         visitor: &mut T,
     ) -> Result<<T as VisitOperator<'a>>::Output>
     where
@@ -1719,7 +1719,7 @@ impl<'a> BinaryReader<'a> {
 
     fn visit_0xfe_operator<T>(
         &mut self,
-        pos: LogicalOffset,
+        pos: u64,
         visitor: &mut T,
     ) -> Result<<T as VisitOperator<'a>>::Output>
     where
