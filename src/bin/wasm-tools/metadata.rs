@@ -346,7 +346,7 @@ fn write_summary_table_inner(
             name
         }
     };
-    let size = ByteSize::b((range.end - range.start) as u64)
+    let size = ByteSize::b(range.end - range.start)
         .display()
         .si_short()
         .to_string();

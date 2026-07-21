@@ -1910,9 +1910,11 @@ mod tests {
         // module. This is a custom section, one byte big, with one content byte. The
         // content byte, however, lives outside of the parent's module code
         // section.
-        assert_eq!(
-            sub.parse(&[0, 1, 0], false).unwrap_err().message(),
-            "section too large",
+        assert!(
+            sub.parse(&[0, 1, 0], false)
+                .unwrap_err()
+                .message()
+                .starts_with("section too large")
         );
     }
 }

@@ -629,7 +629,7 @@ impl<'a> Dump<'a> {
                             write!(self.dst, "---")?;
                         }
                         let len = InMemData::range_len(&range);
-                        writeln!(self.dst, "-| ... {} bytes of data", len)?;
+                        writeln!(self.dst, "-| ... {len} bytes of data")?;
                         self.cur = range.end;
                     }
                     None => {

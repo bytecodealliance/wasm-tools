@@ -179,7 +179,7 @@ impl Opts {
     ) -> Result<Option<String>> {
         let mut modules = Addr2lineModules::parse(wasm)?;
         let code_section_relative = false;
-        let (context, text_rel) = match modules.context(offset as u64, code_section_relative)? {
+        let (context, text_rel) = match modules.context(offset, code_section_relative)? {
             Some(pair) => pair,
             None => return Ok(None),
         };
