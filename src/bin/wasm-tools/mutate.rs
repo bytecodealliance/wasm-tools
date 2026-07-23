@@ -63,6 +63,15 @@ impl Opts {
         // anyway.
         let input_wasm = Box::leak(input_wasm.into_boxed_slice());
 
+        // Mutators assume that their input is valid, so reject invalid
+        // modules here rather than panicking somewhere in a mutation.
+        let features = wasmparser::WasmFeatures::all();
+        if let Err(e) = wasmparser::Validator::new_with_features(features).validate_all(input_wasm)
+        {
+            eprintln!("failed to validate input module: {e}");
+            std::process::exit(2);
+        }
+
         let mut output_wasms =
             unwrap_wasm_mutate_result(self.wasm_mutate.run(input_wasm)).take(100);
         let wasm = loop {
