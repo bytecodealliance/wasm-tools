@@ -233,7 +233,7 @@ pub struct Frame {
 }
 
 struct OperatorValidatorTemp<'validator, 'resources, T> {
-    offset: usize,
+    offset: u64,
     inner: &'validator mut OperatorValidator,
     resources: &'resources T,
 }
@@ -385,7 +385,7 @@ impl OperatorValidator {
     /// `ty`.
     pub fn new_func<T>(
         ty: u32,
-        offset: usize,
+        offset: u64,
         features: &WasmFeatures,
         resources: &T,
         allocs: OperatorValidatorAllocations,
@@ -450,7 +450,7 @@ impl OperatorValidator {
 
     pub fn define_locals(
         &mut self,
-        offset: usize,
+        offset: u64,
         count: u32,
         mut ty: ValType,
         resources: &impl WasmModuleResources,
@@ -512,7 +512,7 @@ impl OperatorValidator {
     pub fn with_resources<'a, 'validator, 'resources, T>(
         &'validator mut self,
         resources: &'resources T,
-        offset: usize,
+        offset: u64,
     ) -> impl VisitOperator<'a, Output = Result<()>> + ModuleArity + FrameStack + 'validator
     where
         T: WasmModuleResources,
@@ -531,7 +531,7 @@ impl OperatorValidator {
     pub fn with_resources_simd<'a, 'validator, 'resources, T>(
         &'validator mut self,
         resources: &'resources T,
-        offset: usize,
+        offset: u64,
     ) -> impl VisitSimdOperator<'a, Output = Result<()>> + ModuleArity + 'validator
     where
         T: WasmModuleResources,

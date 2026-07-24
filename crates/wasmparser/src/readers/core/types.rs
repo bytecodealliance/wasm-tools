@@ -323,13 +323,13 @@ pub struct RecGroup {
 
 #[derive(Debug, Clone)]
 enum RecGroupInner {
-    Implicit((usize, SubType)),
-    Explicit(Vec<(usize, SubType)>),
+    Implicit((u64, SubType)),
+    Explicit(Vec<(u64, SubType)>),
 }
 
 impl RecGroup {
     /// Create an explicit `RecGroup` for the given types.
-    pub(crate) fn explicit(types: Vec<(usize, SubType)>) -> Self {
+    pub(crate) fn explicit(types: Vec<(u64, SubType)>) -> Self {
         RecGroup {
             inner: RecGroupInner::Explicit(types),
         }
@@ -337,7 +337,7 @@ impl RecGroup {
 
     /// Create an implicit `RecGroup` for a type that was not contained
     /// in a `(rec ...)`.
-    pub(crate) fn implicit(offset: usize, ty: SubType) -> Self {
+    pub(crate) fn implicit(offset: u64, ty: SubType) -> Self {
         RecGroup {
             inner: RecGroupInner::Implicit((offset, ty)),
         }
@@ -376,21 +376,21 @@ impl RecGroup {
 
     /// Returns an owning iterator of all subtypes in this recursion
     /// group, along with their offset.
-    pub fn into_types_and_offsets(self) -> impl ExactSizeIterator<Item = (usize, SubType)> {
+    pub fn into_types_and_offsets(self) -> impl ExactSizeIterator<Item = (u64, SubType)> {
         return match self.inner {
             RecGroupInner::Implicit(tup) => Iter::Implicit(Some(tup)),
             RecGroupInner::Explicit(types) => Iter::Explicit(types.into_iter()),
         };
 
         enum Iter {
-            Implicit(Option<(usize, SubType)>),
-            Explicit(alloc::vec::IntoIter<(usize, SubType)>),
+            Implicit(Option<(u64, SubType)>),
+            Explicit(alloc::vec::IntoIter<(u64, SubType)>),
         }
 
         impl Iterator for Iter {
-            type Item = (usize, SubType);
+            type Item = (u64, SubType);
 
-            fn next(&mut self) -> Option<(usize, SubType)> {
+            fn next(&mut self) -> Option<(u64, SubType)> {
                 match self {
                     Self::Implicit(ty) => ty.take(),
                     Self::Explicit(types) => types.next(),

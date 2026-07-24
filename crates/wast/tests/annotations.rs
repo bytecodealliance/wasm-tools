@@ -192,7 +192,7 @@ fn custom_section_order() -> anyhow::Result<()> {
     );
 
     match &wasm[17] {
-        Payload::End(x) if *x == bytes.len() => {}
+        Payload::End(x) if InMemData::translate_offset(*x) == bytes.len() => {}
         p => panic!("`{:?}` doesn't match expected length of {}", p, bytes.len()),
     }
 

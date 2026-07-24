@@ -137,7 +137,7 @@ impl PrimitiveValType {
         types: &TypeList,
         _abi: Abi,
         options: &CanonicalOptions,
-        offset: usize,
+        offset: u64,
         core: ArgOrField,
     ) -> Result<()> {
         match (self, core) {
@@ -759,7 +759,7 @@ impl ComponentValType {
         types: &TypeList,
         abi: Abi,
         options: &CanonicalOptions,
-        offset: usize,
+        offset: u64,
         core: ArgOrField,
     ) -> Result<()> {
         match self {
@@ -1200,7 +1200,7 @@ pub(crate) enum LoweredFuncType {
 }
 
 impl LoweredFuncType {
-    pub(crate) fn intern(self, types: &mut TypeAlloc, offset: usize) -> CoreTypeId {
+    pub(crate) fn intern(self, types: &mut TypeAlloc, offset: u64) -> CoreTypeId {
         match self {
             LoweredFuncType::New(ty) => types.intern_func_type(ty, offset),
             LoweredFuncType::Existing(id) => id,
@@ -1216,7 +1216,7 @@ impl ComponentFuncType {
         types: &TypeList,
         options: &CanonicalOptions,
         abi: Abi,
-        offset: usize,
+        offset: u64,
     ) -> Result<LoweredFuncType> {
         let mut sig = LoweredSignature::default();
 
@@ -1335,7 +1335,7 @@ impl ComponentFuncType {
         types: &TypeList,
         abi: Abi,
         options: &CanonicalOptions,
-        offset: usize,
+        offset: u64,
     ) -> Result<LoweredFuncType> {
         let core_type_id = options.core_type.unwrap();
         let core_func_ty = types[core_type_id].unwrap_func();
@@ -1394,7 +1394,7 @@ impl RecordType {
         types: &TypeList,
         abi: Abi,
         options: &CanonicalOptions,
-        offset: usize,
+        offset: u64,
         core: ArgOrField,
     ) -> Result<()> {
         lower_gc_product_type(
@@ -1424,7 +1424,7 @@ impl VariantType {
         types: &TypeList,
         abi: Abi,
         options: &CanonicalOptions,
-        offset: usize,
+        offset: u64,
         core: ArgOrField,
     ) -> Result<()> {
         lower_gc_sum_type(types, abi, options, offset, core, "variant")
@@ -1437,7 +1437,7 @@ fn lower_gc_sum_type(
     types: &TypeList,
     _abi: Abi,
     _options: &CanonicalOptions,
-    offset: usize,
+    offset: u64,
     core: ArgOrField,
     kind: &str,
 ) -> Result<()> {
@@ -1471,7 +1471,7 @@ impl TupleType {
         types: &TypeList,
         abi: Abi,
         options: &CanonicalOptions,
-        offset: usize,
+        offset: u64,
         core: ArgOrField,
     ) -> Result<()> {
         lower_gc_product_type(
@@ -1732,7 +1732,7 @@ impl ComponentDefinedType {
         types: &TypeList,
         abi: Abi,
         options: &CanonicalOptions,
-        offset: usize,
+        offset: u64,
         core: ArgOrField,
     ) -> Result<()> {
         match self {
@@ -1834,7 +1834,7 @@ fn lower_gc_product_type<'a, I>(
     types: &TypeList,
     abi: Abi,
     options: &CanonicalOptions,
-    offset: usize,
+    offset: u64,
     core: ArgOrField,
     kind: &str,
 ) -> core::result::Result<(), Error>
@@ -3180,7 +3180,7 @@ impl<'a> SubtypeCx<'a> {
         &mut self,
         a: &ComponentEntityType,
         b: &ComponentEntityType,
-        offset: usize,
+        offset: u64,
     ) -> Result<()> {
         use ComponentEntityType::*;
 
@@ -3214,7 +3214,7 @@ impl<'a> SubtypeCx<'a> {
         &mut self,
         a: ComponentTypeId,
         b: ComponentTypeId,
-        offset: usize,
+        offset: u64,
     ) -> Result<()> {
         // Components are ... tricky. They follow the same basic
         // structure as core wasm modules, but they also have extra
@@ -3299,7 +3299,7 @@ impl<'a> SubtypeCx<'a> {
         &mut self,
         a_id: ComponentInstanceTypeId,
         b_id: ComponentInstanceTypeId,
-        offset: usize,
+        offset: u64,
     ) -> Result<()> {
         // For instance type subtyping, all exports in the other
         // instance type must be present in this instance type's
@@ -3335,7 +3335,7 @@ impl<'a> SubtypeCx<'a> {
         &mut self,
         a: ComponentFuncTypeId,
         b: ComponentFuncTypeId,
-        offset: usize,
+        offset: u64,
     ) -> Result<()> {
         let a = &self.a[a];
         let b = &self.b[b];
@@ -3414,7 +3414,7 @@ impl<'a> SubtypeCx<'a> {
         &mut self,
         a: ComponentCoreModuleTypeId,
         b: ComponentCoreModuleTypeId,
-        offset: usize,
+        offset: u64,
     ) -> Result<()> {
         // For module type subtyping, all exports in the other module
         // type must be present in this module type's exports (i.e. it
@@ -3453,7 +3453,7 @@ impl<'a> SubtypeCx<'a> {
         &mut self,
         a: ComponentAnyTypeId,
         b: ComponentAnyTypeId,
-        offset: usize,
+        offset: u64,
     ) -> Result<()> {
         match (a, b) {
             (ComponentAnyTypeId::Resource(a), ComponentAnyTypeId::Resource(b)) => {
@@ -3529,7 +3529,7 @@ impl<'a> SubtypeCx<'a> {
         a: &IndexMap<String, ComponentEntityType>,
         b: ComponentTypeId,
         kind: ExternKind,
-        offset: usize,
+        offset: u64,
     ) -> Result<Remapping> {
         // First, determine the mapping from resources in `b` to those supplied
         // by arguments in `a`.
@@ -3671,7 +3671,7 @@ impl<'a> SubtypeCx<'a> {
         Ok(mapping)
     }
 
-    pub(crate) fn entity_type(&self, a: &EntityType, b: &EntityType, offset: usize) -> Result<()> {
+    pub(crate) fn entity_type(&self, a: &EntityType, b: &EntityType, offset: u64) -> Result<()> {
         match (a, b) {
             (EntityType::Func(a), EntityType::Func(b))
             | (EntityType::FuncExact(a), EntityType::Func(b)) => {
@@ -3710,7 +3710,7 @@ impl<'a> SubtypeCx<'a> {
         }
     }
 
-    pub(crate) fn table_type(a: &TableType, b: &TableType, offset: usize) -> Result<()> {
+    pub(crate) fn table_type(a: &TableType, b: &TableType, offset: u64) -> Result<()> {
         if a.element_type != b.element_type {
             bail!(
                 offset,
@@ -3729,7 +3729,7 @@ impl<'a> SubtypeCx<'a> {
         }
     }
 
-    pub(crate) fn memory_type(a: &MemoryType, b: &MemoryType, offset: usize) -> Result<()> {
+    pub(crate) fn memory_type(a: &MemoryType, b: &MemoryType, offset: u64) -> Result<()> {
         if a.shared != b.shared {
             bail!(offset, "mismatch in the shared flag for memories")
         }
@@ -3746,7 +3746,7 @@ impl<'a> SubtypeCx<'a> {
         }
     }
 
-    fn core_func_type(&self, a: CoreTypeId, b: CoreTypeId, offset: usize) -> Result<()> {
+    fn core_func_type(&self, a: CoreTypeId, b: CoreTypeId, offset: u64) -> Result<()> {
         debug_assert!(self.a.get(a).is_some());
         debug_assert!(self.b.get(b).is_some());
         if self.a.id_is_subtype(a, b) {
@@ -3768,7 +3768,7 @@ impl<'a> SubtypeCx<'a> {
         &self,
         a: &ComponentValType,
         b: &ComponentValType,
-        offset: usize,
+        offset: u64,
     ) -> Result<()> {
         match (a, b) {
             (ComponentValType::Primitive(a), ComponentValType::Primitive(b)) => {
@@ -3792,7 +3792,7 @@ impl<'a> SubtypeCx<'a> {
         &self,
         a: ComponentDefinedTypeId,
         b: ComponentDefinedTypeId,
-        offset: usize,
+        offset: u64,
     ) -> Result<()> {
         use ComponentDefinedType::*;
 
@@ -3976,7 +3976,7 @@ impl<'a> SubtypeCx<'a> {
         &self,
         a: PrimitiveValType,
         b: PrimitiveValType,
-        offset: usize,
+        offset: u64,
     ) -> Result<()> {
         // Note that this intentionally diverges from the upstream specification
         // at this time and only considers exact equality for subtyping

@@ -119,7 +119,7 @@ macro_rules! define_wasm_features {
                 pub fn $field(
                     features: WasmFeatures,
                     msg: impl core::fmt::Display,
-                    offset: usize,
+                    offset: u64,
                 ) -> Result<(), Error> {
                     if features.$field() {
                         Ok(())

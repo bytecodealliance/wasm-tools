@@ -24,7 +24,7 @@ pub struct Data<'a> {
     /// The data of the data segment.
     pub data: &'a [u8],
     /// The range of the data segment.
-    pub range: Range<usize>,
+    pub range: Range<u64>,
 }
 
 /// The kind of data segment.

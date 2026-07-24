@@ -76,7 +76,7 @@ use crate::{
 
 pub(crate) trait InternRecGroup {
     fn add_type_id(&mut self, id: CoreTypeId);
-    fn type_id_at(&self, idx: u32, offset: usize) -> Result<CoreTypeId>;
+    fn type_id_at(&self, idx: u32, offset: u64) -> Result<CoreTypeId>;
     fn types_len(&self) -> u32;
     fn features(&self) -> &WasmFeatures;
 
@@ -87,7 +87,7 @@ pub(crate) trait InternRecGroup {
         &mut self,
         types: &mut TypeAlloc,
         mut rec_group: RecGroup,
-        offset: usize,
+        offset: u64,
     ) -> Result<()>
     where
         Self: Sized,
@@ -128,7 +128,7 @@ pub(crate) trait InternRecGroup {
         rec_group: RecGroupId,
         id: CoreTypeId,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: u64,
     ) -> Result<()> {
         let ty = &types[id];
         if !ty.is_final || ty.supertype_idx.is_some() {
@@ -173,7 +173,7 @@ pub(crate) trait InternRecGroup {
         rec_group: RecGroupId,
         id: CoreTypeId,
         types: &TypeList,
-        offset: usize,
+        offset: u64,
     ) -> Result<()> {
         let ty = &types[id].composite_type;
         if ty.descriptor_idx.is_some() || ty.describes_idx.is_some() {
@@ -287,7 +287,7 @@ pub(crate) trait InternRecGroup {
         &mut self,
         ty: &CompositeType,
         types: &TypeList,
-        offset: usize,
+        offset: u64,
     ) -> Result<()> {
         let features = *self.features();
         let check = |ty: &ValType, shared: bool| {
@@ -390,7 +390,7 @@ pub(crate) trait InternRecGroup {
         types: &TypeList,
         rec_group: RecGroupId,
         index: PackedIndex,
-        offset: usize,
+        offset: u64,
     ) -> Result<CoreTypeId> {
         match index.unpack() {
             UnpackedIndex::Id(id) => Ok(id),
@@ -419,13 +419,13 @@ pub(crate) struct TypeCanonicalizer<'a> {
     module: &'a dyn InternRecGroup,
     rec_group_start: u32,
     rec_group_len: u32,
-    offset: usize,
+    offset: u64,
     mode: CanonicalizationMode,
     within_rec_group: Option<core::ops::Range<CoreTypeId>>,
 }
 
 impl<'a> TypeCanonicalizer<'a> {
-    pub fn new(module: &'a dyn InternRecGroup, offset: usize) -> Self {
+    pub fn new(module: &'a dyn InternRecGroup, offset: u64) -> Self {
         // These defaults will work for when we are canonicalizing types from
         // outside of a rec group definition, forcing all `PackedIndex`es to be
         // canonicalized to `CoreTypeId`s.

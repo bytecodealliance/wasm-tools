@@ -1,0 +1,160 @@
+/* Copyright 2026 Mozilla Foundation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+//! Logical offsets into the input wasm file are strictly limited to fit into
+//! an integer of type [u64]. Data in each chunk is addressed through an offset
+//! into an `[u8]` slice, which uses `usize`-addressing.
+//!
+//! The structures in this file bridge the gap. Given a logical offset,
+//! we can compute a maximally allowed length of data at that offset.
+
+use core::{
+    ops::{Bound, Deref, Index, Range, RangeBounds},
+    u64,
+};
+
+// An (not necessarily exhaustive) list of properties we use of `u64` in relation
+// to usize:
+// - u64::MAX as an upper bound and sometimes invalid offset
+// - 0u64 as the starting offset
+// - we can add and subtract small offsets to recalculate the original position
+//   in some error paths, where saving the position directly would clutter registers.
+
+/// An offset into some chunk of memory occurs at some specified logical offset in
+/// the file. We currently use `usize` to represent these offsets.
+///
+/// This offset can always be added onto the logical offset without overflow.
+/// Compute the maximum allowable memory offset under both contraints
+// TODO: on platforms where usize::BITS > u64::BITS (currently almost no-where),
+// we could use u64 directly instead of usize to represent offsets.
+pub fn max_memory_offset(mut max_logical: u64, max: usize) -> usize {
+    if u64::BITS > usize::BITS {
+        max_logical = max_logical.min(usize::MAX as u64)
+    }
+    // we now know that max_logical fits into a usize
+    let max_logical = max_logical as usize;
+
+    // the more "natural" `max_logical.min(max)` generates a cmov which this avoids
+    if max <= max_logical {
+        max
+    } else {
+        // unlikely
+        #[cold]
+        fn smaller(constrained: usize) -> usize {
+            constrained
+        }
+        smaller(max_logical)
+    }
+}
+
+/// Useful datastructure when your input wasm is fully in memory.
+///
+/// Use this to index into it with the offsets and ranges from the parser.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct InMemData<'a> {
+    /// The contained data
+    pub data: &'a [u8],
+}
+
+impl<'a> InMemData<'a> {
+    /// Convenience new creation
+    pub fn new(data: &'a [u8]) -> Self {
+        Self { data }
+    }
+    /// Translate a single offset from the parser into a memory offset into an input slice.
+    pub fn translate_offset(offset: u64) -> usize {
+        if u64::BITS > usize::BITS && offset > (usize::MAX as u64) {
+            // since data is fully in memory, such an offset should never be produced by the parser
+            panic!("unexpectedly large offset {offset}")
+        }
+        offset as usize
+    }
+    /// Get the length of a range
+    pub fn range_len(range: &Range<u64>) -> usize {
+        (Self::translate_offset(range.start)..Self::translate_offset(range.end)).len()
+    }
+    /// Get a slice of the data, or None if out of bounds.
+    pub fn get(&self, index: impl RangeBounds<u64>) -> Option<&'a [u8]> {
+        match (index.start_bound(), index.end_bound()) {
+            (Bound::Included(&start), Bound::Included(&end)) => self
+                .data
+                .get(Self::translate_offset(start)..=Self::translate_offset(end)),
+            (Bound::Included(&start), Bound::Excluded(&end)) => self
+                .data
+                .get(Self::translate_offset(start)..Self::translate_offset(end)),
+            (Bound::Included(&start), Bound::Unbounded) => {
+                self.data.get(Self::translate_offset(start)..)
+            }
+            (Bound::Unbounded, Bound::Included(&end)) => {
+                self.data.get(..=Self::translate_offset(end))
+            }
+            (Bound::Unbounded, Bound::Excluded(&end)) => {
+                self.data.get(..Self::translate_offset(end))
+            }
+            (Bound::Unbounded, Bound::Unbounded) => self.data.get(..),
+            (Bound::Excluded(_), _) => unreachable!("unsupported excluded start bound"),
+        }
+    }
+    /// Index into the data slice.
+    ///
+    /// These methods are also exposed as [Index] impls, but the lifetimes of the returned references differs.
+    pub fn index(&self, index: impl RangeBounds<u64>) -> &'a [u8] {
+        match (index.start_bound(), index.end_bound()) {
+            (Bound::Included(&start), Bound::Included(&end)) => {
+                &self.data[Self::translate_offset(start)..=Self::translate_offset(end)]
+            }
+            (Bound::Included(&start), Bound::Excluded(&end)) => {
+                &self.data[Self::translate_offset(start)..Self::translate_offset(end)]
+            }
+            (Bound::Included(&start), Bound::Unbounded) => {
+                &self.data[Self::translate_offset(start)..]
+            }
+            (Bound::Unbounded, Bound::Included(&end)) => &self.data[..=Self::translate_offset(end)],
+            (Bound::Unbounded, Bound::Excluded(&end)) => &self.data[..Self::translate_offset(end)],
+            (Bound::Unbounded, Bound::Unbounded) => &self.data[..],
+            (Bound::Excluded(_), _) => unreachable!("unsupported excluded start bound"),
+        }
+    }
+    /// Get a range representing the data range.
+    pub fn range(&self) -> Range<u64> {
+        0..max_memory_offset(u64::MAX, self.data.len()) as u64
+    }
+}
+
+impl Deref for InMemData<'_> {
+    type Target = [u8];
+    fn deref(&self) -> &Self::Target {
+        self.data
+    }
+}
+
+macro_rules! impl_index {
+    ($range:ty) => {
+        impl<'a> Index<$range> for InMemData<'a> {
+            type Output = [u8];
+
+            fn index(&self, index: $range) -> &Self::Output {
+                self.index(index)
+            }
+        }
+    };
+}
+
+impl_index!(core::ops::RangeInclusive<u64>);
+impl_index!(core::ops::Range<u64>);
+impl_index!(core::ops::RangeFrom<u64>);
+impl_index!(core::ops::RangeTo<u64>);
+impl_index!(core::ops::RangeToInclusive<u64>);
+impl_index!(core::ops::RangeFull);

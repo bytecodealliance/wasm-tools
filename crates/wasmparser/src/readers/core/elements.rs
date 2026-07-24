@@ -27,7 +27,7 @@ pub struct Element<'a> {
     /// The initial elements of the element segment.
     pub items: ElementItems<'a>,
     /// The range of the the element segment.
-    pub range: Range<usize>,
+    pub range: Range<u64>,
 }
 
 /// The kind of element segment.

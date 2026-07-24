@@ -33,7 +33,7 @@ use crate::{
 };
 use rand::{RngExt, prelude::*};
 use wasm_encoder::{CodeSection, Function, Module, ValType};
-use wasmparser::{CodeSectionReader, FunctionBody};
+use wasmparser::{CodeSectionReader, FunctionBody, InMemData};
 
 /// Code motion meta mutator, it groups all code motion mutators and select a
 /// valid random one when an input Wasm binary is passed to it.
@@ -62,8 +62,10 @@ impl CodemotionMutator {
         config: &mut WasmMutate,
         mutators: &[Box<dyn AstMutator>],
     ) -> crate::Result<(Function, u32)> {
-        let original_code_section = config.info().code.unwrap();
-        let reader = config.info().get_binary_reader(original_code_section);
+        let info = config.info();
+        let original_code_section = info.code.unwrap();
+        let reader = info.get_binary_reader(original_code_section);
+        let input_code_section = InMemData::new(info.get_code_section().data);
         let sectionreader = CodeSectionReader::new(reader)?;
         let function_count = sectionreader.count();
         let function_to_mutate = config.rng().random_range(0..function_count);
@@ -100,7 +102,7 @@ impl CodemotionMutator {
                         &ast,
                         &self.copy_locals(reader)?,
                         &operators,
-                        config.info().raw_sections[original_code_section].data,
+                        input_code_section,
                     )?;
                     return Ok((newfunc, fidx));
                 }
@@ -120,7 +122,7 @@ pub trait AstMutator {
         ast: &Ast,
         locals: &[(u32, ValType)],
         operators: &Vec<OperatorAndByteOffset>,
-        input_wasm: &'a [u8],
+        input_code_section: InMemData<'a>,
     ) -> Result<Function>;
 
     /// Checks if this mutator can be applied to the passed `ast`

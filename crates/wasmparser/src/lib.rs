@@ -1318,6 +1318,7 @@ pub use crate::arity::*;
 pub use crate::binary_reader::BinaryReader;
 pub use crate::error::{Error, Result};
 pub use crate::features::*;
+pub use crate::offsets::InMemData;
 pub use crate::parser::*;
 pub use crate::readers::*;
 
@@ -1329,6 +1330,7 @@ mod binary_reader;
 mod error;
 mod features;
 mod limits;
+mod offsets;
 mod parser;
 mod readers;
 

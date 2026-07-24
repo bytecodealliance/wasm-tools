@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+use crate::offsets::*;
 use crate::prelude::*;
 use crate::{limits::*, *};
 use core::marker;
@@ -26,7 +27,7 @@ pub(crate) const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
 pub struct BinaryReader<'a> {
     buffer: &'a [u8],
     position: usize,
-    original_offset: usize,
+    original_offset: u64,
 
     // When the `features` feature is disabled then the `WasmFeatures` type
     // still exists but this field is still omitted. When `features` is
@@ -54,9 +55,10 @@ impl<'a> BinaryReader<'a> {
     /// The returned binary reader will have all features known to this crate
     /// enabled. To reject binaries that aren't valid unless a certain feature
     /// is enabled use the [`BinaryReader::new_features`] constructor instead.
-    pub fn new(data: &[u8], original_offset: usize) -> BinaryReader<'_> {
+    pub fn new(data: &[u8], original_offset: u64) -> BinaryReader<'_> {
+        let max_len = max_memory_offset(u64::MAX - original_offset, data.len());
         BinaryReader {
-            buffer: data,
+            buffer: &data[..max_len],
             position: 0,
             original_offset,
             #[cfg(feature = "features")]
@@ -97,11 +99,12 @@ impl<'a> BinaryReader<'a> {
     #[cfg(feature = "features")]
     pub fn new_features(
         data: &[u8],
-        original_offset: usize,
+        original_offset: u64,
         features: WasmFeatures,
     ) -> BinaryReader<'_> {
+        let max_len = max_memory_offset(u64::MAX - original_offset, data.len());
         BinaryReader {
-            buffer: data,
+            buffer: &data[..max_len],
             position: 0,
             original_offset,
             features,
@@ -119,10 +122,12 @@ impl<'a> BinaryReader<'a> {
     /// Otherwise parsing values from either `self` or the return value should
     /// return the same thing.
     pub(crate) fn shrink(&self) -> BinaryReader<'a> {
+        let buffer = &self.buffer[self.position..];
+        let original_offset = self.original_position();
         BinaryReader {
-            buffer: &self.buffer[self.position..],
+            buffer,
             position: 0,
-            original_offset: self.original_offset + self.position,
+            original_offset,
             #[cfg(feature = "features")]
             features: self.features,
         }
@@ -130,8 +135,8 @@ impl<'a> BinaryReader<'a> {
 
     /// Gets the original position of the binary reader.
     #[inline]
-    pub fn original_position(&self) -> usize {
-        self.original_offset + self.position
+    pub fn original_position(&self) -> u64 {
+        self.original_offset + self.position as u64
     }
 
     /// Returns the currently active set of wasm features that this reader is
@@ -152,28 +157,39 @@ impl<'a> BinaryReader<'a> {
     }
 
     /// Returns a range from the starting offset to the end of the buffer.
-    pub fn range(&self) -> Range<usize> {
-        self.original_offset..self.original_offset + self.buffer.len()
+    pub fn range(&self) -> Range<u64> {
+        self.original_offset..(self.original_offset + self.max_offset() as u64)
     }
 
     pub(crate) fn remaining_buffer(&self) -> &'a [u8] {
         &self.buffer[self.position..]
     }
 
+    /// Returns a range from the current position to the end of the buffer.
+    pub fn remaining_range(&self) -> Range<u64> {
+        self.original_position()..(self.original_offset + self.max_offset() as u64)
+    }
+
+    fn max_offset(&self) -> usize {
+        // constructor enforces:
+        // self.buffer.len() <= max_memory_offset(u64::MAX - self.original_offset, self.buffer.len())
+        self.buffer.len()
+    }
+
     fn ensure_has_byte(&self) -> Result<()> {
-        if self.position < self.buffer.len() {
+        if self.position < self.max_offset() {
             Ok(())
         } else {
-            Err(Error::eof(self.original_position(), 1))
+            Err(self.eof_err(1))
         }
     }
 
-    pub(crate) fn ensure_has_bytes(&self, len: usize) -> Result<()> {
-        if self.position + len <= self.buffer.len() {
-            Ok(())
-        } else {
-            let hint = self.position + len - self.buffer.len();
-            Err(Error::eof(self.original_position(), hint))
+    /// Returns the offset past `len` bytes on success
+    pub(crate) fn ensure_has_bytes(&self, len: usize) -> Result<usize> {
+        let remaining = self.bytes_remaining();
+        match len <= remaining {
+            true => Ok(self.position + len),
+            false => Err(self.eof_err(len - remaining)),
         }
     }
 
@@ -195,7 +211,7 @@ impl<'a> BinaryReader<'a> {
         Ok(b)
     }
 
-    pub(crate) fn external_kind_from_byte(byte: u8, offset: usize) -> Result<ExternalKind> {
+    pub(crate) fn external_kind_from_byte(byte: u8, offset: u64) -> Result<ExternalKind> {
         match byte {
             0x00 => Ok(ExternalKind::Func),
             0x01 => Ok(ExternalKind::Table),
@@ -244,7 +260,7 @@ impl<'a> BinaryReader<'a> {
     /// Returns whether the `BinaryReader` has reached the end of the file.
     #[inline]
     pub fn eof(&self) -> bool {
-        self.position >= self.buffer.len()
+        self.position >= self.max_offset()
     }
 
     /// Returns the `BinaryReader`'s current position.
@@ -256,7 +272,7 @@ impl<'a> BinaryReader<'a> {
     /// Returns the number of bytes remaining in the `BinaryReader`.
     #[inline]
     pub fn bytes_remaining(&self) -> usize {
-        self.buffer.len() - self.position
+        self.max_offset() - self.position
     }
 
     /// Advances the `BinaryReader` `size` bytes, and returns a slice from the
@@ -265,10 +281,10 @@ impl<'a> BinaryReader<'a> {
     /// # Errors
     /// If `size` exceeds the remaining length in `BinaryReader`.
     pub fn read_bytes(&mut self, size: usize) -> Result<&'a [u8]> {
-        self.ensure_has_bytes(size)?;
         let start = self.position;
-        self.position += size;
-        Ok(&self.buffer[start..self.position])
+        let end = self.ensure_has_bytes(size)?;
+        self.position = end;
+        Ok(&self.buffer[start..end])
     }
 
     /// Reads a length-prefixed list of bytes from this reader and returns a
@@ -285,13 +301,8 @@ impl<'a> BinaryReader<'a> {
     /// # Errors
     /// If `BinaryReader` has less than four bytes remaining.
     pub fn read_u32(&mut self) -> Result<u32> {
-        self.ensure_has_bytes(4)?;
-        let word = u32::from_le_bytes(
-            self.buffer[self.position..self.position + 4]
-                .try_into()
-                .unwrap(),
-        );
-        self.position += 4;
+        let chunk = self.read_bytes(4)?;
+        let word = u32::from_le_bytes(chunk.try_into().unwrap());
         Ok(word)
     }
 
@@ -299,13 +310,8 @@ impl<'a> BinaryReader<'a> {
     /// # Errors
     /// If `BinaryReader` has less than eight bytes remaining.
     pub fn read_u64(&mut self) -> Result<u64> {
-        self.ensure_has_bytes(8)?;
-        let word = u64::from_le_bytes(
-            self.buffer[self.position..self.position + 8]
-                .try_into()
-                .unwrap(),
-        );
-        self.position += 8;
+        let chunk = self.read_bytes(8)?;
+        let word = u64::from_le_bytes(chunk.try_into().unwrap());
         Ok(word)
     }
 
@@ -316,17 +322,13 @@ impl<'a> BinaryReader<'a> {
     /// If `BinaryReader` has no bytes remaining.
     #[inline]
     pub fn read_u8(&mut self) -> Result<u8> {
-        let b = match self.buffer.get(self.position) {
-            Some(b) => *b,
-            None => return Err(self.eof_err()),
-        };
-        self.position += 1;
+        let [b] = self.read_bytes(1)?.try_into().unwrap();
         Ok(b)
     }
 
     #[cold]
-    fn eof_err(&self) -> Error {
-        Error::eof(self.original_position(), 1)
+    fn eof_err(&self, hint: usize) -> Error {
+        Error::eof(self.original_position(), hint)
     }
 
     /// Advances the `BinaryReader` up to four bytes to parse a variable
@@ -414,12 +416,13 @@ impl<'a> BinaryReader<'a> {
     /// Executes `f` to skip some data in this binary reader and then returns a
     /// reader which will read the skipped data.
     pub fn skip(&mut self, f: impl FnOnce(&mut Self) -> Result<()>) -> Result<Self> {
+        let start_offset = self.original_position();
         let start = self.position;
         f(self)?;
         let mut ret = self.clone();
         ret.buffer = &self.buffer[start..self.position];
+        ret.original_offset = start_offset;
         ret.position = 0;
-        ret.original_offset = self.original_offset + start;
         Ok(ret)
     }
 
@@ -618,7 +621,7 @@ impl<'a> BinaryReader<'a> {
         ))
     }
 
-    pub(crate) fn invalid_leading_byte_error(byte: u8, desc: &str, offset: usize) -> Error {
+    pub(crate) fn invalid_leading_byte_error(byte: u8, desc: &str, offset: u64) -> Error {
         format_err!(offset, "invalid leading byte (0x{byte:x}) for {desc}")
     }
 
@@ -628,8 +631,9 @@ impl<'a> BinaryReader<'a> {
     }
 
     pub(crate) fn peek_bytes(&self, len: usize) -> Result<&[u8]> {
-        self.ensure_has_bytes(len)?;
-        Ok(&self.buffer[self.position..(self.position + len)])
+        let start = self.position;
+        let end = self.ensure_has_bytes(len)?;
+        Ok(&self.buffer[start..end])
     }
 
     pub(crate) fn read_block_type(&mut self) -> Result<BlockType> {
@@ -1101,7 +1105,7 @@ impl<'a> BinaryReader<'a> {
 
     fn visit_0xfb_operator<T>(
         &mut self,
-        pos: usize,
+        pos: u64,
         visitor: &mut T,
     ) -> Result<<T as VisitOperator<'a>>::Output>
     where
@@ -1318,7 +1322,7 @@ impl<'a> BinaryReader<'a> {
 
     fn visit_0xfc_operator<T>(
         &mut self,
-        pos: usize,
+        pos: u64,
         visitor: &mut T,
     ) -> Result<<T as VisitOperator<'a>>::Output>
     where
@@ -1399,7 +1403,7 @@ impl<'a> BinaryReader<'a> {
     #[cfg(feature = "simd")]
     pub(super) fn visit_0xfd_operator<T>(
         &mut self,
-        pos: usize,
+        pos: u64,
         visitor: &mut T,
     ) -> Result<<T as VisitOperator<'a>>::Output>
     where
@@ -1715,7 +1719,7 @@ impl<'a> BinaryReader<'a> {
 
     fn visit_0xfe_operator<T>(
         &mut self,
-        pos: usize,
+        pos: u64,
         visitor: &mut T,
     ) -> Result<<T as VisitOperator<'a>>::Output>
     where
@@ -2000,5 +2004,35 @@ impl<'a> BinaryReader<'a> {
             0 => Ok(0),
             _ => bail!(self.original_position() - 1, "zero byte expected"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    macro_rules! assert_matches {
+        ($a:expr, $b:pat $(,)?) => {
+            match $a {
+                $b => {}
+                a => panic!("`{:?}` doesn't match `{}`", a, stringify!($b)),
+            }
+        };
+    }
+
+    #[test]
+    fn eof_on_large_offsets() {
+        let mut rdr = BinaryReader::new(&[10], u64::MAX);
+        assert_eq!(rdr.bytes_remaining(), 0);
+        assert_eq!(
+            rdr.read_u8().unwrap_err().message(),
+            "unexpected end-of-file"
+        );
+    }
+
+    #[test]
+    fn can_parse_on_large_offset() {
+        let mut rdr = BinaryReader::new(&[10], u64::from(u32::MAX) + 1);
+        assert_matches!(rdr.read_u8(), Ok(10));
     }
 }

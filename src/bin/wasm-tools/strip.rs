@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::mem;
 use wasm_encoder::{ComponentSectionId, Encode, RawSection, Section};
-use wasmparser::{Parser, Payload::*};
+use wasmparser::{InMemData, Parser, Payload::*};
 
 /// Removes custom sections from an input WebAssembly file.
 ///
@@ -80,6 +80,7 @@ impl Opts {
 
     pub fn run(&self) -> Result<()> {
         let input = self.io.get_input_wasm(None)?;
+        let input = InMemData::new(&input);
         let to_delete = regex::RegexSet::new(self.delete.iter())?;
 
         let strip_custom_section = |name: &str| {

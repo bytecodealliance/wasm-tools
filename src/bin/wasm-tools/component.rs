@@ -11,7 +11,7 @@ use wasm_encoder::reencode::{Error, Reencode, ReencodeComponent, RoundtripReenco
 use wasm_tools::Output;
 use wasm_tools::wit::WitResolve;
 use wasmparser::types::{CoreTypeId, EntityType, Types};
-use wasmparser::{Payload, ValidPayload, WasmFeatures};
+use wasmparser::{InMemData, Payload, ValidPayload, WasmFeatures};
 use wat::Detect;
 use wit_component::{
     ComponentEncoder, DecodedWasm, Linker, StringEncoding, WitPrinter, embed_component_metadata,
@@ -1358,6 +1358,7 @@ impl UnbundleOpts {
 
     fn run(self) -> Result<()> {
         let input = self.io.get_input_wasm(Some(&self.generate_dwarf))?;
+        let input = InMemData::new(&input);
         if !wasmparser::Parser::is_component(&input) {
             return self.io.output_wasm(&input, self.wat);
         }
@@ -1373,7 +1374,7 @@ impl UnbundleOpts {
                 } => unchecked_range,
                 _ => continue,
             };
-            modules_to_extract.push(if range.len() > self.threshold {
+            modules_to_extract.push(if InMemData::range_len(&range) > self.threshold {
                 Some(&input[range])
             } else {
                 None

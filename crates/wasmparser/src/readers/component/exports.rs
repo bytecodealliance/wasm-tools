@@ -23,7 +23,7 @@ impl ComponentExternalKind {
     pub(crate) fn from_bytes(
         byte1: u8,
         byte2: Option<u8>,
-        offset: usize,
+        offset: u64,
     ) -> Result<ComponentExternalKind> {
         Ok(match byte1 {
             0x00 => match byte2.unwrap() {

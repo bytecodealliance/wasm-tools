@@ -1,5 +1,5 @@
 use arbitrary::{Result, Unstructured};
-use wasmparser::{Parser, Validator, WasmFeatures};
+use wasmparser::{InMemData, Parser, Validator, WasmFeatures};
 
 pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     // Either use `wasm-smith` to generate a module with possibly invalid
@@ -33,6 +33,7 @@ pub fn validate_raw_bytes(u: &mut Unstructured<'_>) -> Result<()> {
 }
 
 fn validate_all(u: &mut Unstructured<'_>, mut validator: Validator, wasm: &[u8]) -> Result<()> {
+    let wasm = InMemData::new(wasm);
     // First try printing this module. Generate a random configuration for
     // printing and then see what happens. Mostly making sure nothing panics
     // here.
@@ -43,12 +44,12 @@ fn validate_all(u: &mut Unstructured<'_>, mut validator: Validator, wasm: &[u8])
     cfg.name_unnamed(u.arbitrary()?);
     log::debug!("print config {cfg:?}");
     let mut wat = String::new();
-    let _ = cfg.print(wasm, &mut wasmprinter::PrintFmtWrite(&mut wat));
+    let _ = cfg.print(&wasm, &mut wasmprinter::PrintFmtWrite(&mut wat));
 
     // After printing then try to parse and validate the module. See how far we
     // get as invalid modules are explicitly allowed here. Generally looking for
     // panics and excessive resource usage here.
-    for payload in Parser::new(0).parse_all(wasm) {
+    for payload in Parser::new(0).parse_all(&wasm) {
         let payload = match payload {
             Ok(p) => p,
             Err(_) => return Ok(()),

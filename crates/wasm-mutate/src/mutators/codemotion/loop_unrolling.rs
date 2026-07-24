@@ -4,7 +4,7 @@ use std::{collections::HashMap, slice::Iter};
 
 use rand::prelude::*;
 use wasm_encoder::{Function, Instruction, ValType};
-use wasmparser::{BlockType, Operator};
+use wasmparser::{BlockType, InMemData, Operator};
 
 use crate::{
     Error, WasmMutate,
@@ -36,7 +36,7 @@ impl LoopUnrollWriter {
         chunk: Iter<OperatorAndByteOffset>,
         to_fix: &HashMap<usize, Instruction>,
         newfunc: &mut Function,
-        input_wasm: &'a [u8],
+        input_code_section: InMemData<'a>,
     ) -> crate::Result<()> {
         for (idx, ((_, curr_offset), (_, next_offset))) in
             chunk.clone().zip(chunk.skip(1)).enumerate()
@@ -44,7 +44,7 @@ impl LoopUnrollWriter {
             if to_fix.contains_key(&idx) {
                 newfunc.instruction(&to_fix[&idx]);
             } else {
-                let piece = &input_wasm[*curr_offset..*next_offset];
+                let piece = &input_code_section[*curr_offset..*next_offset];
                 newfunc.raw(piece.to_vec());
             }
         }
@@ -57,7 +57,7 @@ impl LoopUnrollWriter {
         nodeidx: usize,
         newfunc: &mut Function,
         operators: &Vec<OperatorAndByteOffset>,
-        input_wasm: &'a [u8],
+        input_code_section: InMemData<'a>,
     ) -> crate::Result<()> {
         let nodes = ast.get_nodes();
 
@@ -128,7 +128,12 @@ impl LoopUnrollWriter {
                 let including_chunk =
                     operators[range.start + 1 /* skip the loop instruction */..range.end + 1]
                         .iter();
-                self.write_and_fix_loop_body(including_chunk, &to_fix, newfunc, input_wasm)?;
+                self.write_and_fix_loop_body(
+                    including_chunk,
+                    &to_fix,
+                    newfunc,
+                    input_code_section,
+                )?;
 
                 // Write A' br B'
                 newfunc.instructions().br(1);
@@ -140,7 +145,12 @@ impl LoopUnrollWriter {
                 let including_chunk =
                     operators[range.start + 1 /* skip the loop instruction */..range.end + 1]
                         .iter();
-                self.write_and_fix_loop_body(including_chunk, &to_fix, newfunc, input_wasm)?;
+                self.write_and_fix_loop_body(
+                    including_chunk,
+                    &to_fix,
+                    newfunc,
+                    input_code_section,
+                )?;
 
                 // Closing loop
                 newfunc.instructions().end();
@@ -162,13 +172,21 @@ impl AstWriter for LoopUnrollWriter {
         body: &[usize],
         newfunc: &mut Function,
         operators: &Vec<OperatorAndByteOffset>,
-        input_wasm: &'a [u8],
+        input_code_section: InMemData<'a>,
         ty: &wasmparser::BlockType,
     ) -> crate::Result<()> {
         if self.loop_to_mutate == nodeidx {
-            self.unroll_loop(ast, nodeidx, newfunc, operators, input_wasm)?;
+            self.unroll_loop(ast, nodeidx, newfunc, operators, input_code_section)?;
         } else {
-            self.write_loop_default(ast, nodeidx, body, newfunc, operators, input_wasm, ty)?;
+            self.write_loop_default(
+                ast,
+                nodeidx,
+                body,
+                newfunc,
+                operators,
+                input_code_section,
+                ty,
+            )?;
         }
         Ok(())
     }
@@ -210,7 +228,7 @@ impl AstMutator for LoopUnrollMutator {
         ast: &Ast,
         locals: &[(u32, ValType)],
         operators: &Vec<OperatorAndByteOffset>,
-        input_wasm: &'a [u8],
+        input_code_section: InMemData<'a>,
     ) -> crate::Result<Function> {
         // Select the if index
         let mut newfunc = Function::new(locals.to_vec());
@@ -221,7 +239,13 @@ impl AstMutator for LoopUnrollMutator {
         let writer = LoopUnrollWriter {
             loop_to_mutate: *loop_index,
         };
-        writer.write(ast, ast.get_root(), &mut newfunc, operators, input_wasm)?;
+        writer.write(
+            ast,
+            ast.get_root(),
+            &mut newfunc,
+            operators,
+            input_code_section,
+        )?;
         Ok(newfunc)
     }
 }

@@ -1,6 +1,7 @@
 #[cfg(feature = "features")]
 use crate::WasmFeatures;
 use crate::binary_reader::WASM_MAGIC_NUMBER;
+use crate::offsets;
 use crate::prelude::*;
 use crate::{
     BinaryReader, CustomSectionReader, DataSectionReader, ElementSectionReader, Error,
@@ -88,7 +89,7 @@ pub(crate) enum Order {
 pub struct Parser {
     state: State,
     offset: u64,
-    max_size: u64,
+    max_offset: u64,
     encoding: Encoding,
     #[cfg(feature = "features")]
     features: WasmFeatures,
@@ -112,9 +113,9 @@ enum State {
 pub enum Chunk<'a> {
     /// This can be returned at any time and indicates that more data is needed
     /// to proceed with parsing. Zero bytes were consumed from the input to
-    /// [`Parser::parse`]. The `u64` value here is a hint as to how many more
+    /// [`Parser::parse`]. The `usize` value here is a hint as to how many more
     /// bytes are needed to continue parsing.
-    NeedMoreData(u64),
+    NeedMoreData(usize),
 
     /// A chunk was successfully parsed.
     Parsed {
@@ -156,7 +157,7 @@ pub enum Payload<'a> {
         /// The range of bytes that were parsed to consume the header of the
         /// module or component. Note that this range is relative to the start
         /// of the byte stream.
-        range: Range<usize>,
+        range: Range<u64>,
     },
 
     /// A module type section was received and the provided reader can be
@@ -189,7 +190,7 @@ pub enum Payload<'a> {
         func: u32,
         /// The range of bytes that specify the `func` field, specified in
         /// offsets relative to the start of the byte stream.
-        range: Range<usize>,
+        range: Range<u64>,
     },
     /// A module element section was received and the provided reader can be
     /// used to parse the contents of the element section.
@@ -200,7 +201,7 @@ pub enum Payload<'a> {
         count: u32,
         /// The range of bytes that specify the `count` field, specified in
         /// offsets relative to the start of the byte stream.
-        range: Range<usize>,
+        range: Range<u64>,
     },
     /// A module data section was received and the provided reader can be
     /// used to parse the contents of the data section.
@@ -221,7 +222,7 @@ pub enum Payload<'a> {
         count: u32,
         /// The range of bytes that represent this section, specified in
         /// offsets relative to the start of the byte stream.
-        range: Range<usize>,
+        range: Range<u64>,
         /// The size, in bytes, of the remaining contents of this section.
         ///
         /// This can be used in combination with [`Parser::skip_section`]
@@ -260,7 +261,7 @@ pub enum Payload<'a> {
         ///
         /// Note that, to better support streaming parsing and validation, the
         /// validator does *not* check that this range is in bounds.
-        unchecked_range: Range<usize>,
+        unchecked_range: Range<u64>,
     },
     /// A core instance section was received and the provided parser can be
     /// used to parse the contents of the core instance section.
@@ -295,7 +296,7 @@ pub enum Payload<'a> {
         ///
         /// Note that, to better support streaming parsing and validation, the
         /// validator does *not* check that this range is in bounds.
-        unchecked_range: Range<usize>,
+        unchecked_range: Range<u64>,
     },
     /// A component instance section was received and the provided reader can be
     /// used to parse the contents of the component instance section.
@@ -319,7 +320,7 @@ pub enum Payload<'a> {
         /// The start function description.
         start: ComponentStartFunction,
         /// The range of bytes that specify the `start` field.
-        range: Range<usize>,
+        range: Range<u64>,
     },
     /// A component import section was received and the provided reader can be
     /// used to parse the contents of the component import section.
@@ -346,14 +347,14 @@ pub enum Payload<'a> {
         contents: &'a [u8],
         /// The range of bytes, relative to the start of the original data
         /// stream, that the contents of this section reside in.
-        range: Range<usize>,
+        range: Range<u64>,
     },
 
     /// The end of the WebAssembly module or component was reached.
     ///
     /// The value is the offset in the input byte stream where the end
     /// was reached.
-    End(usize),
+    End(u64),
 }
 
 const CUSTOM_SECTION: u8 = 0;
@@ -403,7 +404,7 @@ impl Parser {
         Parser {
             state: State::Header,
             offset,
-            max_size: u64::MAX,
+            max_offset: u64::MAX,
             // Assume the encoding is a module until we know otherwise
             encoding: Encoding::Module,
             #[cfg(feature = "features")]
@@ -621,14 +622,14 @@ impl Parser {
     /// # parse(&b"\0asm\x01\0\0\0"[..]).unwrap();
     /// ```
     pub fn parse<'a>(&mut self, data: &'a [u8], eof: bool) -> Result<Chunk<'a>> {
-        let (data, eof) = if usize_to_u64(data.len()) > self.max_size {
-            (&data[..(self.max_size as usize)], true)
+        debug_assert!(self.offset <= self.max_offset, "inverted offset range");
+        let max_len = offsets::max_memory_offset(self.max_offset - self.offset, data.len());
+        let (data, eof) = if max_len < data.len() {
+            (&data[..max_len], true)
         } else {
             (data, eof)
         };
-        // TODO: thread through `offset: u64` to `BinaryReader`, remove
-        // the cast here.
-        let starting_offset = self.offset as usize;
+        let starting_offset = self.offset;
         let mut reader = BinaryReader::new(data, starting_offset);
         #[cfg(feature = "features")]
         {
@@ -636,12 +637,12 @@ impl Parser {
         }
         match self.parse_reader(&mut reader, eof) {
             Ok(payload) => {
-                // Be sure to update our offset with how far we got in the
-                // reader
-                let consumed = reader.original_position() - starting_offset;
-                self.offset += usize_to_u64(consumed);
-                self.max_size -= usize_to_u64(consumed);
+                // Be sure to update our offset with how far we got in the reader
+                let consumed = reader.current_position();
+                self.offset += consumed as u64;
                 Ok(Chunk::Parsed {
+                    // We can be sure that the difference fits into a usize, as both positions
+                    // are inside the data chunk.
                     consumed: consumed,
                     payload,
                 })
@@ -657,25 +658,24 @@ impl Parser {
                 // data being pulled down, then propagate it, otherwise switch
                 // the error to "feed me please"
                 match e.needed_hint() {
-                    Some(hint) => Ok(Chunk::NeedMoreData(usize_to_u64(hint))),
+                    Some(hint) => Ok(Chunk::NeedMoreData(hint)),
                     None => Err(e),
                 }
             }
         }
     }
 
-    fn update_order(&mut self, order: Order, pos: usize) -> Result<()> {
-        let pos_u64 = usize_to_u64(pos);
+    fn update_order(&mut self, order: Order, pos: u64) -> Result<()> {
         if self.encoding == Encoding::Module {
             match self.order {
-                (last_order, last_pos) if last_order >= order && last_pos < pos_u64 => {
+                (last_order, last_pos) if last_order >= order && last_pos < pos => {
                     bail!(pos, "section out of order")
                 }
                 _ => (),
             }
         }
 
-        self.order = (order, pos_u64);
+        self.order = (order, pos);
 
         Ok(())
     }
@@ -743,15 +743,19 @@ impl Parser {
                 // but it is required for nested modules/components to correctly ensure
                 // that all sections live entirely within their section of the
                 // file.
-                let consumed = reader.original_position() - id_pos;
-                let section_overflow = self
-                    .max_size
-                    .checked_sub(usize_to_u64(consumed))
-                    .and_then(|s| s.checked_sub(len.into()))
-                    .is_none();
-                if section_overflow {
-                    return Err(Error::new("section too large", len_pos));
-                }
+                let section_start = reader.original_position();
+                let Some(section_end) =
+                    section_start
+                        .checked_add(u64::from(len))
+                        .and_then(|section_end| {
+                            (section_end <= self.max_offset).then_some(section_end)
+                        })
+                else {
+                    return Err(Error::new(
+                        &format!("section too large, {len} goes past 0x{:x}", self.max_offset),
+                        len_pos,
+                    ));
+                };
 
                 match (self.encoding, id) {
                     // Custom sections for both modules and components.
@@ -759,15 +763,15 @@ impl Parser {
 
                     // Module sections
                     (Encoding::Module, TYPE_SECTION) => {
-                        self.update_order(Order::Type, reader.original_position())?;
+                        self.update_order(Order::Type, section_start)?;
                         section(reader, len, TypeSectionReader::new, TypeSection)
                     }
                     (Encoding::Module, IMPORT_SECTION) => {
-                        self.update_order(Order::Import, reader.original_position())?;
+                        self.update_order(Order::Import, section_start)?;
                         section(reader, len, ImportSectionReader::new, ImportSection)
                     }
                     (Encoding::Module, FUNCTION_SECTION) => {
-                        self.update_order(Order::Function, reader.original_position())?;
+                        self.update_order(Order::Function, section_start)?;
                         let s = section(reader, len, FunctionSectionReader::new, FunctionSection)?;
                         match &s {
                             FunctionSection(f) => self.counts.function_entries = Some(f.count()),
@@ -776,37 +780,36 @@ impl Parser {
                         Ok(s)
                     }
                     (Encoding::Module, TABLE_SECTION) => {
-                        self.update_order(Order::Table, reader.original_position())?;
+                        self.update_order(Order::Table, section_start)?;
                         section(reader, len, TableSectionReader::new, TableSection)
                     }
                     (Encoding::Module, MEMORY_SECTION) => {
-                        self.update_order(Order::Memory, reader.original_position())?;
+                        self.update_order(Order::Memory, section_start)?;
                         section(reader, len, MemorySectionReader::new, MemorySection)
                     }
                     (Encoding::Module, GLOBAL_SECTION) => {
-                        self.update_order(Order::Global, reader.original_position())?;
+                        self.update_order(Order::Global, section_start)?;
                         section(reader, len, GlobalSectionReader::new, GlobalSection)
                     }
                     (Encoding::Module, EXPORT_SECTION) => {
-                        self.update_order(Order::Export, reader.original_position())?;
+                        self.update_order(Order::Export, section_start)?;
                         section(reader, len, ExportSectionReader::new, ExportSection)
                     }
                     (Encoding::Module, START_SECTION) => {
-                        self.update_order(Order::Start, reader.original_position())?;
-                        let (func, range) = single_item(reader, len, "start")?;
+                        self.update_order(Order::Start, section_start)?;
+                        let (func, range) = single_item(reader, section_end, "start")?;
                         Ok(StartSection { func, range })
                     }
                     (Encoding::Module, ELEMENT_SECTION) => {
-                        self.update_order(Order::Element, reader.original_position())?;
+                        self.update_order(Order::Element, section_start)?;
                         section(reader, len, ElementSectionReader::new, ElementSection)
                     }
                     (Encoding::Module, CODE_SECTION) => {
-                        self.update_order(Order::Code, reader.original_position())?;
-                        let start = reader.original_position();
+                        self.update_order(Order::Code, section_start)?;
                         let count = delimited(reader, &mut len, |r| r.read_var_u32())?;
                         self.counts.code_entries = Some(count);
-                        self.check_function_code_counts(start)?;
-                        let range = start..reader.original_position() + len as usize;
+                        self.check_function_code_counts(section_start)?;
+                        let range = section_start..section_end;
                         self.state = State::FunctionBody {
                             remaining: count,
                             len,
@@ -818,7 +821,7 @@ impl Parser {
                         })
                     }
                     (Encoding::Module, DATA_SECTION) => {
-                        self.update_order(Order::Data, reader.original_position())?;
+                        self.update_order(Order::Data, section_start)?;
                         let s = section(reader, len, DataSectionReader::new, DataSection)?;
                         match &s {
                             DataSection(d) => self.counts.data_entries = Some(d.count()),
@@ -828,13 +831,13 @@ impl Parser {
                         Ok(s)
                     }
                     (Encoding::Module, DATA_COUNT_SECTION) => {
-                        self.update_order(Order::DataCount, reader.original_position())?;
-                        let (count, range) = single_item(reader, len, "data count")?;
+                        self.update_order(Order::DataCount, section_start)?;
+                        let (count, range) = single_item(reader, section_end, "data count")?;
                         self.counts.data_count = Some(count);
                         Ok(DataCountSection { count, range })
                     }
                     (Encoding::Module, TAG_SECTION) => {
-                        self.update_order(Order::Tag, reader.original_position())?;
+                        self.update_order(Order::Tag, section_start)?;
                         section(reader, len, TagSectionReader::new, TagSection)
                     }
 
@@ -842,31 +845,36 @@ impl Parser {
                     #[cfg(feature = "component-model")]
                     (Encoding::Component, COMPONENT_MODULE_SECTION)
                     | (Encoding::Component, COMPONENT_SECTION) => {
-                        if len as usize > MAX_WASM_MODULE_SIZE {
+                        if len > MAX_WASM_MODULE_SIZE {
                             bail!(
                                 len_pos,
                                 "{} section is too large",
-                                if id == 1 { "module" } else { "component " }
+                                if id == COMPONENT_MODULE_SECTION {
+                                    "module"
+                                } else {
+                                    "component"
+                                }
                             );
                         }
 
-                        let range = reader.original_position()
-                            ..reader.original_position() + usize::try_from(len).unwrap();
-                        self.max_size -= u64::from(len);
+                        let range = section_start..section_end;
+                        // Do no consume these bytes from the reader. The parse function will
+                        // additionally bump this by the consumed amount, which will land us
+                        // at section_end.
                         self.offset += u64::from(len);
-                        let mut parser = Parser::new(usize_to_u64(reader.original_position()));
+                        let mut parser = Parser::new(section_start);
                         #[cfg(feature = "features")]
                         {
                             parser.features = self.features;
                         }
-                        parser.max_size = u64::from(len);
+                        parser.max_offset = section_end;
 
                         Ok(match id {
-                            1 => ModuleSection {
+                            COMPONENT_MODULE_SECTION => ModuleSection {
                                 parser,
                                 unchecked_range: range,
                             },
-                            4 => ComponentSection {
+                            COMPONENT_SECTION => ComponentSection {
                                 parser,
                                 unchecked_range: range,
                             },
@@ -917,7 +925,7 @@ impl Parser {
                                 )
                             }
                         }
-                        let (start, range) = single_item(reader, len, "component start")?;
+                        let (start, range) = single_item(reader, section_end, "component start")?;
                         Ok(ComponentStartSection { start, range })
                     }
                     #[cfg(feature = "component-model")]
@@ -937,7 +945,7 @@ impl Parser {
                     (_, id) => {
                         let offset = reader.original_position();
                         let contents = reader.read_bytes(len as usize)?;
-                        let range = offset..offset + len as usize;
+                        let range = offset..section_end;
                         Ok(UnknownSection {
                             id,
                             contents,
@@ -1173,7 +1181,7 @@ impl Parser {
     ///     Ok(())
     /// }
     ///
-    /// fn print_range(section: &str, range: &Range<usize>) {
+    /// fn print_range(section: &str, range: &Range<u64>) {
     ///     println!("{:>40}: {:#010x} - {:#010x}", section, range.start, range.end);
     /// }
     /// ```
@@ -1183,11 +1191,10 @@ impl Parser {
             _ => panic!("wrong state to call `skip_section`"),
         };
         self.offset += u64::from(skip);
-        self.max_size -= u64::from(skip);
         self.state = State::SectionStart;
     }
 
-    fn check_function_code_counts(&self, pos: usize) -> Result<()> {
+    fn check_function_code_counts(&self, pos: u64) -> Result<()> {
         match (self.counts.function_entries, self.counts.code_entries) {
             (Some(n), Some(m)) if n != m => {
                 bail!(pos, "function and code section have inconsistent lengths")
@@ -1204,7 +1211,7 @@ impl Parser {
         }
     }
 
-    fn check_data_count(&self, pos: usize) -> Result<()> {
+    fn check_data_count(&self, pos: u64) -> Result<()> {
         match (self.counts.data_count, self.counts.data_entries) {
             (Some(n), Some(m)) if n != m => {
                 bail!(pos, "data count and data section have inconsistent lengths")
@@ -1215,10 +1222,6 @@ impl Parser {
             _ => Ok(()),
         }
     }
-}
-
-fn usize_to_u64(a: usize) -> u64 {
-    a.try_into().unwrap()
 }
 
 /// Parses an entire section resident in memory into a `Payload`.
@@ -1245,15 +1248,16 @@ fn section<'a, T>(
 /// Reads a section that is represented by a single uleb-encoded `u32`.
 fn single_item<'a, T>(
     reader: &mut BinaryReader<'a>,
-    len: u32,
+    section_end: u64,
     desc: &str,
-) -> Result<(T, Range<usize>)>
+) -> Result<(T, Range<u64>)>
 where
     T: FromReader<'a>,
 {
-    let range = reader.original_position()..reader.original_position() + len as usize;
+    let range = reader.original_position()..section_end;
     let mut content = reader.skip(|r| {
-        r.read_bytes(len as usize)?;
+        // length is guaranteed to fit into a u32
+        r.read_bytes((range.end - range.start) as usize)?;
         Ok(())
     })?;
     // We can't recover from "unexpected eof" here because our entire section is
@@ -1313,7 +1317,7 @@ impl Payload<'_> {
     /// The purpose of this method is to enable tools to easily iterate over
     /// entire sections if necessary and handle sections uniformly, for example
     /// dropping custom sections while preserving all other sections.
-    pub fn as_section(&self) -> Option<(u8, Range<usize>)> {
+    pub fn as_section(&self) -> Option<(u8, Range<u64>)> {
         use Payload::*;
 
         match self {
@@ -1674,9 +1678,9 @@ mod tests {
         chunk: Chunk<'_>,
         expected_consumed: usize,
         expected_name: &str,
-        expected_data_offset: usize,
+        expected_data_offset: u64,
         expected_data: &[u8],
-        expected_range: Range<usize>,
+        expected_range: Range<u64>,
     ) {
         let (consumed, s) = match chunk {
             Chunk::Parsed {
@@ -1909,9 +1913,11 @@ mod tests {
         // module. This is a custom section, one byte big, with one content byte. The
         // content byte, however, lives outside of the parent's module code
         // section.
-        assert_eq!(
-            sub.parse(&[0, 1, 0], false).unwrap_err().message(),
-            "section too large",
+        assert!(
+            sub.parse(&[0, 1, 0], false)
+                .unwrap_err()
+                .message()
+                .starts_with("section too large")
         );
     }
 }

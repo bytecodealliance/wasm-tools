@@ -261,7 +261,7 @@ impl TypeInfo {
     /// Returns an error if the type size would exceed this crate's static limit
     /// of a type size.
     #[cfg(feature = "component-model")]
-    pub(crate) fn combine(&mut self, other: TypeInfo, offset: usize) -> Result<()> {
+    pub(crate) fn combine(&mut self, other: TypeInfo, offset: u64) -> Result<()> {
         let depth = self.depth().max(other.depth().saturating_add(1));
         let size = super::combine_type_sizes(self.size(), other.size(), offset)?;
         let contains_borrow = self.contains_borrow() || other.contains_borrow();
@@ -994,7 +994,7 @@ impl TypeList {
 
     /// Helper for interning a sub type as a rec group; see
     /// [`Self::intern_canonical_rec_group`].
-    pub fn intern_sub_type(&mut self, sub_ty: SubType, offset: usize) -> CoreTypeId {
+    pub fn intern_sub_type(&mut self, sub_ty: SubType, offset: u64) -> CoreTypeId {
         let (_is_new, group_id) =
             self.intern_canonical_rec_group(true, RecGroup::implicit(offset, sub_ty));
         self[group_id].start
@@ -1002,7 +1002,7 @@ impl TypeList {
 
     /// Helper for interning a function type as a rec group; see
     /// [`Self::intern_sub_type`].
-    pub fn intern_func_type(&mut self, ty: FuncType, offset: usize) -> CoreTypeId {
+    pub fn intern_func_type(&mut self, ty: FuncType, offset: u64) -> CoreTypeId {
         self.intern_sub_type(SubType::func(ty, false), offset)
     }
 
@@ -1011,7 +1011,7 @@ impl TypeList {
         &self,
         rec_group: RecGroupId,
         index: u32,
-        offset: usize,
+        offset: u64,
     ) -> Result<CoreTypeId> {
         let elems = &self[rec_group];
         let len = elems.end.index() - elems.start.index();
@@ -1068,7 +1068,7 @@ impl TypeList {
         &self,
         rec_group: RecGroupId,
         index: PackedIndex,
-        offset: usize,
+        offset: u64,
     ) -> Result<CoreTypeId> {
         self.at_canonicalized_unpacked_index(rec_group, index.unpack(), offset)
     }
@@ -1080,7 +1080,7 @@ impl TypeList {
         &self,
         rec_group: RecGroupId,
         index: UnpackedIndex,
-        offset: usize,
+        offset: u64,
     ) -> Result<CoreTypeId> {
         match index {
             UnpackedIndex::Module(_) => panic!("not canonicalized"),
@@ -1151,7 +1151,7 @@ impl TypeList {
             if let Some(id) = index.as_core_type_id() {
                 id
             } else {
-                self.at_canonicalized_unpacked_index(group.unwrap(), index, usize::MAX)
+                self.at_canonicalized_unpacked_index(group.unwrap(), index, u64::MAX)
                     .expect("type references are checked during canonicalization")
             }
         };

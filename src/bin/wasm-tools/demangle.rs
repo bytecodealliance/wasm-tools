@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 use wasm_encoder::{IndirectNameMap, NameMap, NameSection, RawSection};
-use wasmparser::{KnownCustom, Name, NameSectionReader, Parser, Payload::*};
+use wasmparser::{InMemData, KnownCustom, Name, NameSectionReader, Parser, Payload::*};
 
 /// Demangle Rust and C++ symbol names in the `name` section.
 ///
@@ -56,6 +56,7 @@ impl Opts {
 
     pub fn run(&self) -> Result<()> {
         let input = self.io.get_input_wasm(None)?;
+        let input = InMemData::new(&input);
         let mut module = wasm_encoder::Module::new();
 
         for payload in Parser::new(0).parse_all(&input) {
