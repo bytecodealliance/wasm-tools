@@ -39,6 +39,10 @@ struct FoldedInstruction {
     folded: Vec<FoldedInstruction>,
     results: u32,
     offset: usize,
+    /// A branch hint annotation (e.g. `@metadata.code.branch_hint "\00"`) that
+    /// applies to this instruction. It's printed on its own line immediately
+    /// before the instruction, since that's the instruction it annotates.
+    hint: Option<String>,
 }
 
 struct Block {
@@ -49,6 +53,9 @@ struct Block {
     predicate: Option<Vec<FoldedInstruction>>,
     consequent: Option<(Vec<FoldedInstruction>, usize)>,
     offset: usize,
+    /// A branch hint annotation applying to the `if` instruction that opened
+    /// this block, carried until the block is turned into a `FoldedInstruction`.
+    hint: Option<String>,
 }
 
 pub struct PrintOperatorFolded<'printer, 'state, 'a, 'b> {
@@ -56,7 +63,7 @@ pub struct PrintOperatorFolded<'printer, 'state, 'a, 'b> {
     state: &'state mut State,
     operator_state: &'printer mut OperatorState,
     control: Vec<Block>,
-    branch_hint: Option<FoldedInstruction>,
+    branch_hint: Option<String>,
     original_separator: OperatorSeparator,
 }
 
@@ -1486,16 +1493,11 @@ impl OpPrinter for PrintOperator<'_, '_, '_, '_> {
 }
 
 impl OpPrinter for PrintOperatorFolded<'_, '_, '_, '_> {
-    fn branch_hint(&mut self, offset: usize, taken: bool) -> Result<()> {
+    fn branch_hint(&mut self, _offset: usize, taken: bool) -> Result<()> {
         let mut hint = String::new();
         hint.push_str("@metadata.code.branch_hint ");
         hint.push_str(if taken { "\"\\01\"" } else { "\"\\00\"" });
-        self.branch_hint = Some(FoldedInstruction {
-            plain: hint,
-            folded: Vec::new(),
-            results: 0,
-            offset,
-        });
+        self.branch_hint = Some(hint);
         Ok(())
     }
 
@@ -1673,6 +1675,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperatorFolded<'printer, 'state, 'a, 'b> {
                 predicate: None,
                 consequent: None,
                 offset: self.operator_state.op_offset,
+                hint: None,
             }),
             _ => bail!("invalid func_idx"),
         }
@@ -1690,6 +1693,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperatorFolded<'printer, 'state, 'a, 'b> {
             predicate: None,
             consequent: None,
             offset: 0,
+            hint: None,
         });
     }
 
@@ -1720,17 +1724,29 @@ impl<'printer, 'state, 'a, 'b> PrintOperatorFolded<'printer, 'state, 'a, 'b> {
             }
         }
 
-        let mut inst = FoldedInstruction {
+        let inst = FoldedInstruction {
             plain,
             folded: stack.folded.drain(first_param..).collect(),
             results,
             offset: self.operator_state.op_offset,
+            hint: self.branch_hint.take(),
         };
-        if let Some(hint) = self.branch_hint.take() {
-            inst.folded.push(hint);
-        }
         stack.folded.push(inst);
 
+        Ok(())
+    }
+
+    fn print_separator(
+        printer: &mut Printer,
+        sep: &mut OperatorSeparator,
+        offset: usize,
+    ) -> Result<()> {
+        match sep {
+            OperatorSeparator::Newline => printer.newline(offset)?,
+            OperatorSeparator::None => (),
+            OperatorSeparator::NoneThenSpace => *sep = OperatorSeparator::Space,
+            OperatorSeparator::Space => printer.result.write_str(" ")?,
+        }
         Ok(())
     }
 
@@ -1742,12 +1758,16 @@ impl<'printer, 'state, 'a, 'b> PrintOperatorFolded<'printer, 'state, 'a, 'b> {
         sep: &mut OperatorSeparator,
         inst: &FoldedInstruction,
     ) -> Result<()> {
-        match sep {
-            OperatorSeparator::Newline => printer.newline(inst.offset)?,
-            OperatorSeparator::None => (),
-            OperatorSeparator::NoneThenSpace => *sep = OperatorSeparator::Space,
-            OperatorSeparator::Space => printer.result.write_str(" ")?,
+        // A branch hint annotation is printed on its own line immediately
+        // before the instruction it applies to.
+        if let Some(hint) = &inst.hint {
+            Self::print_separator(printer, sep, inst.offset)?;
+            printer.result.write_str("(")?;
+            printer.result.write_str(hint)?;
+            printer.result.write_str(")")?;
         }
+
+        Self::print_separator(printer, sep, inst.offset)?;
 
         printer.result.write_str("(")?;
         printer.result.write_str(&inst.plain)?;
@@ -1782,6 +1802,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperatorFolded<'printer, 'state, 'a, 'b> {
             predicate: None,
             consequent: None,
             offset: self.operator_state.op_offset,
+            hint: None,
         });
         Ok(())
     }
@@ -1797,9 +1818,6 @@ impl<'printer, 'state, 'a, 'b> PrintOperatorFolded<'printer, 'state, 'a, 'b> {
         {
             predicate.push(phrase)
         }
-        if let Some(hint) = self.branch_hint.take() {
-            predicate.push(hint);
-        }
         self.control.push(Block {
             ty,
             kind: FrameKind::If,
@@ -1808,6 +1826,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperatorFolded<'printer, 'state, 'a, 'b> {
             predicate: Some(predicate),
             consequent: None,
             offset: self.operator_state.op_offset,
+            hint: self.branch_hint.take(),
         });
         Ok(())
     }
@@ -1822,6 +1841,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperatorFolded<'printer, 'state, 'a, 'b> {
                 predicate,
                 folded,
                 offset,
+                hint,
                 ..
             }) => self.control.push(Block {
                 ty,
@@ -1831,6 +1851,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperatorFolded<'printer, 'state, 'a, 'b> {
                 predicate,
                 consequent: Some((folded, offset)),
                 offset: self.operator_state.op_offset,
+                hint,
             }),
             _ => bail!("no enclosing if block"),
         }
@@ -1857,6 +1878,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperatorFolded<'printer, 'state, 'a, 'b> {
                 folded,
                 results,
                 offset,
+                hint: None,
             },
             Some(Block {
                 kind: FrameKind::If,
@@ -1864,6 +1886,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperatorFolded<'printer, 'state, 'a, 'b> {
                 folded,
                 predicate: Some(predicate),
                 offset,
+                hint,
                 ..
             }) => {
                 let then_clause = FoldedInstruction {
@@ -1871,6 +1894,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperatorFolded<'printer, 'state, 'a, 'b> {
                     folded,
                     results,
                     offset,
+                    hint: None,
                 };
                 let mut folded = predicate;
                 folded.push(then_clause);
@@ -1879,6 +1903,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperatorFolded<'printer, 'state, 'a, 'b> {
                     folded,
                     results,
                     offset,
+                    hint,
                 }
             }
             Some(Block {
@@ -1888,6 +1913,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperatorFolded<'printer, 'state, 'a, 'b> {
                 predicate: Some(predicate),
                 consequent: Some((consequent, if_offset)),
                 offset,
+                hint,
                 ..
             }) => {
                 let then_clause = FoldedInstruction {
@@ -1895,12 +1921,14 @@ impl<'printer, 'state, 'a, 'b> PrintOperatorFolded<'printer, 'state, 'a, 'b> {
                     folded: consequent,
                     results,
                     offset: if_offset,
+                    hint: None,
                 };
                 let else_clause = FoldedInstruction {
                     plain: String::from("else"),
                     folded,
                     results,
                     offset,
+                    hint: None,
                 };
                 let mut folded = predicate;
                 folded.push(then_clause);
@@ -1910,6 +1938,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperatorFolded<'printer, 'state, 'a, 'b> {
                     folded,
                     results,
                     offset: if_offset,
+                    hint,
                 }
             }
             _ => bail!("unhandled frame kind"),

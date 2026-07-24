@@ -6,22 +6,22 @@
       (local.tee 2
         (i32.const 0)))
     (loop ;; label = @1
+      (@metadata.code.branch_hint "\00")
       (if ;; label = @2
         (i32.eq
           (local.get 2)
           (i32.const 50000))
-        (@metadata.code.branch_hint "\00")
         (then
           (local.set 3
             (i32.const 1))))
+      (@metadata.code.branch_hint "\01")
       (br_if 0 (;@1;)
         (i32.ne
           (local.tee 2
             (i32.add
               (local.get 2)
               (i32.const 1)))
-          (i32.const 100000))
-        (@metadata.code.branch_hint "\01")))
+          (i32.const 100000))))
     (local.get 3)
   )
 )
