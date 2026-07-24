@@ -1,7 +1,7 @@
 #[cfg(feature = "features")]
 use crate::WasmFeatures;
 use crate::binary_reader::WASM_MAGIC_NUMBER;
-use crate::offsets::MemOffset;
+use crate::offsets;
 use crate::prelude::*;
 use crate::{
     BinaryReader, CustomSectionReader, DataSectionReader, ElementSectionReader, Error,
@@ -623,7 +623,7 @@ impl Parser {
     /// ```
     pub fn parse<'a>(&mut self, data: &'a [u8], eof: bool) -> Result<Chunk<'a>> {
         debug_assert!(self.offset <= self.max_offset, "inverted offset range");
-        let max_len = MemOffset::max(self.max_offset - self.offset, data.len()).into_usize();
+        let max_len = offsets::max_memory_offset(self.max_offset - self.offset, data.len());
         let (data, eof) = if max_len < data.len() {
             (&data[..max_len], true)
         } else {
@@ -637,14 +637,13 @@ impl Parser {
         }
         match self.parse_reader(&mut reader, eof) {
             Ok(payload) => {
-                // Be sure to update our offset with how far we got in the
-                // reader
-                let consumed = reader.current_mem_offset();
-                self.offset += consumed;
+                // Be sure to update our offset with how far we got in the reader
+                let consumed = reader.current_position();
+                self.offset += consumed as u64;
                 Ok(Chunk::Parsed {
                     // We can be sure that the difference fits into a usize, as both positions
                     // are inside the data chunk.
-                    consumed: consumed.into_usize(),
+                    consumed: consumed,
                     payload,
                 })
             }
@@ -746,7 +745,11 @@ impl Parser {
                 // file.
                 let section_start = reader.original_position();
                 let Some(section_end) =
-                    MemOffset::logical_try_add_u32(section_start, len, self.max_offset)
+                    section_start
+                        .checked_add(u64::from(len))
+                        .and_then(|section_end| {
+                            (section_end <= self.max_offset).then_some(section_end)
+                        })
                 else {
                     return Err(Error::new(
                         &format!("section too large, {len} goes past 0x{:x}", self.max_offset),

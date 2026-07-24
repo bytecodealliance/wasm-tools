@@ -21,7 +21,7 @@
 //! we can compute a maximally allowed length of data at that offset.
 
 use core::{
-    ops::{Add, AddAssign, Bound, Deref, Index, Range, RangeBounds},
+    ops::{Bound, Deref, Index, Range, RangeBounds},
     u64,
 };
 
@@ -32,8 +32,14 @@ use core::{
 // - we can add and subtract small offsets to recalculate the original position
 //   in some error paths, where saving the position directly would clutter registers.
 
+/// An offset into some chunk of memory occurs at some specified logical offset in
+/// the file. We currently use `usize` to represent these offsets.
+///
+/// This offset can always be added onto the logical offset without overflow.
 /// Compute the maximum allowable memory offset under both contraints
-fn max_memory_offset(mut max_logical: u64, max: usize) -> usize {
+// TODO: on platforms where usize::BITS > u64::BITS (currently almost no-where),
+// we could use u64 directly instead of usize to represent offsets.
+pub fn max_memory_offset(mut max_logical: u64, max: usize) -> usize {
     if u64::BITS > usize::BITS {
         max_logical = max_logical.min(usize::MAX as u64)
     }
@@ -50,97 +56,6 @@ fn max_memory_offset(mut max_logical: u64, max: usize) -> usize {
             constrained
         }
         smaller(max_logical)
-    }
-}
-
-// TODO: on platforms where usize::BITS > u64::BITS (currently almost no-where),
-// this could wrap a u64 instead of a usize to be a bit smaller.
-/// An offset into some chunk of memory at some specified logical offset in
-/// the file.
-///
-/// The represented offset can always be converted into a `usize`, and can
-/// always be added to the logical offset without overflow.
-///
-/// The other function of this newtype is to allow `u64: Add<MemOffset>` and
-/// `MemOffset: Add<usize>` without confusing the two notions of offsets.
-///
-/// We explicitly do not have `MemOffset: From<usize>` as not all offsets are
-/// valid at all offsets.
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-#[repr(transparent)]
-pub struct MemOffset {
-    rep: usize,
-}
-
-impl MemOffset {
-    pub fn max(max_logical: u64, max: usize) -> Self {
-        Self {
-            rep: max_memory_offset(max_logical, max),
-        }
-    }
-    pub fn zero() -> Self {
-        // 0 is always a valid offset
-        Self { rep: 0 }
-    }
-    pub fn into_usize(self) -> usize {
-        self.into()
-    }
-    pub fn try_add(self, additional: usize, max: MemOffset) -> Result<MemOffset, usize> {
-        // MSRV: This could be a strict sub
-        let remaining = max.into_usize() - self.into_usize();
-        if remaining < additional {
-            Err(additional - remaining)
-        } else {
-            Ok(Self {
-                rep: self.rep + additional,
-            })
-        }
-    }
-    // convinience method we should put on u64, but can't since inherent impls are not allowed there
-    pub fn logical_try_add_u32(logical: u64, additional: u32, max_logical: u64) -> Option<u64> {
-        let summed = logical.checked_add(additional as u64)?;
-        (summed <= max_logical).then_some(summed)
-    }
-}
-
-impl From<MemOffset> for usize {
-    fn from(value: MemOffset) -> Self {
-        value.rep
-    }
-}
-
-impl Add<MemOffset> for u64 {
-    type Output = u64;
-    fn add(self, rhs: MemOffset) -> Self::Output {
-        debug_assert!(
-            rhs <= MemOffset::max(u64::MAX - self, usize::MAX),
-            "offset too large",
-        );
-        // MSRV: This could be a strict add
-        self + (rhs.rep as u64)
-    }
-}
-
-impl AddAssign<MemOffset> for u64 {
-    fn add_assign(&mut self, rhs: MemOffset) {
-        *self = *self + rhs
-    }
-}
-
-impl Add<usize> for MemOffset {
-    type Output = MemOffset;
-    fn add(self, rhs: usize) -> Self::Output {
-        debug_assert!(rhs <= (usize::MAX - self.rep), "offset too large",);
-        Self {
-            // MSRV: This could be a strict add
-            rep: self.rep + rhs,
-        }
-    }
-}
-
-impl AddAssign<usize> for MemOffset {
-    fn add_assign(&mut self, rhs: usize) {
-        *self = *self + rhs
     }
 }
 
@@ -214,9 +129,7 @@ impl<'a> InMemData<'a> {
     }
     /// Get a range representing the data range.
     pub fn range(&self) -> Range<u64> {
-        let start = 0;
-        let end = start + MemOffset::max(u64::MAX, self.data.len());
-        start..end
+        0..max_memory_offset(u64::MAX, self.data.len()) as u64
     }
 }
 
