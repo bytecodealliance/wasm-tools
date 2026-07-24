@@ -55,10 +55,11 @@
       "text": "duplicate annotation"
     },
     {
-      "type": "module",
-      "line": 91,
-      "filename": "branch-hinting-simple.8.wasm",
-      "module_type": "binary"
+      "type": "assert_malformed",
+      "line": 94,
+      "filename": "branch-hinting-simple.8.wat",
+      "module_type": "text",
+      "text": "must precede an instruction"
     }
   ]
 }

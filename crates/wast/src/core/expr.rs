@@ -285,34 +285,38 @@ impl<'a> ExpressionParser<'a> {
                 // If we registered a `)` token as being seen, then we're
                 // guaranteed there's an item in the `stack` stack for us to
                 // pop. We peel that off and take a look at what it says to do.
-                Paren::Right(span) => match self.stack.pop().unwrap() {
-                    Level::EndWith(i, s, stashed) => {
-                        // The hint binds to this instruction whether the
-                        // annotation preceded the folded form (`stashed`), e.g.
-                        // `(@...) (br_if ...)`, or appears at its end after the
-                        // operands (`self.pending_hint`), e.g.
-                        // `(br_if ... (@...))`. Both placements are accepted, but
-                        // using both at once targets the same instruction twice.
-                        let inline = self.pending_hint.take();
-                        let hint = Self::merge_hint(parser, stashed, inline)?;
-                        self.push_instr_with_hint(i, s.unwrap_or(span), hint)
+                Paren::Right(span) => {
+                    let level = self.stack.pop().unwrap();
+                    // A pending hint at a closing `)` had no instruction after
+                    // it (e.g. `(br_if ... (@...))` or a dangling annotation), so
+                    // it's misplaced — except for the `)` closing the annotation.
+                    if !matches!(level, Level::BranchHint) {
+                        self.check_hint_consumed(parser)?;
                     }
-                    Level::IfArm => {}
-                    Level::BranchHint => {}
+                    match level {
+                        Level::EndWith(i, s, hint) => {
+                            self.push_instr_with_hint(i, s.unwrap_or(span), hint)
+                        }
+                        Level::IfArm => {}
+                        Level::BranchHint => {}
 
-                    // If an `if` statement hasn't parsed the clause or `then`
-                    // block, then that's an error because there weren't enough
-                    // items in the `if` statement. Otherwise we're just careful
-                    // to terminate with an `end` instruction.
-                    Level::If(If::Clause(..), _) => {
-                        return Err(parser.error("previous `if` had no `then`"));
+                        // If an `if` statement hasn't parsed the clause or `then`
+                        // block, then that's an error because there weren't enough
+                        // items in the `if` statement. Otherwise we're just careful
+                        // to terminate with an `end` instruction.
+                        Level::If(If::Clause(..), _) => {
+                            return Err(parser.error("previous `if` had no `then`"));
+                        }
+                        Level::If(_, _) => {
+                            self.push_instr(Instruction::End(None), span);
+                        }
                     }
-                    Level::If(_, _) => {
-                        self.push_instr(Instruction::End(None), span);
-                    }
-                },
+                }
             }
         }
+        // A trailing annotation with no following instruction is likewise
+        // misplaced.
+        self.check_hint_consumed(parser)?;
         Ok(())
     }
 
@@ -387,20 +391,16 @@ impl<'a> ExpressionParser<'a> {
                 if !parser.peek::<kw::then>()? {
                     return Ok(false);
                 }
+                // A pending hint here isn't followed by an instruction (the
+                // next token is `(then`), so it's misplaced.
+                if self.pending_hint.is_some() {
+                    return Err(Self::hint_placement_error(parser));
+                }
                 parser.parse::<kw::then>()?;
                 let instr = mem::replace(if_instr, Instruction::End(None));
                 let span = *if_instr_span;
-                // Now that the operands of the folded `if` have been parsed the
-                // `if` instruction itself is pushed, which is where any branch
-                // hint binds. The annotation may have preceded the folded `(if`
-                // (`stashed`), e.g. `(@...) (if ...)`, or appear between the
-                // condition and `(then` (`self.pending_hint`), e.g.
-                // `(if (cond) (@...) (then ...))`. Both placements are accepted,
-                // but using both at once targets the same instruction twice.
-                let stashed = pending.take();
+                let hint = pending.take();
                 *i = If::Then;
-                let inline = self.pending_hint.take();
-                let hint = Self::merge_hint(parser, stashed, inline)?;
                 self.push_instr_with_hint(instr, span, hint);
                 self.stack.push(Level::IfArm);
                 Ok(true)
@@ -436,7 +436,10 @@ impl<'a> ExpressionParser<'a> {
         // A pending hint that hasn't yet been attached to an instruction means
         // two annotations are targeting the same instruction, which is a
         // duplicate.
-        self.pending_hint = Self::merge_hint(parser, self.pending_hint, Some(value))?;
+        if self.pending_hint.is_some() {
+            return Err(parser.error("@metadata.code.branch_hint annotation: duplicate annotation"));
+        }
+        self.pending_hint = Some(value);
         Ok(())
     }
 
@@ -447,20 +450,19 @@ impl<'a> ExpressionParser<'a> {
         }
     }
 
-    /// Combines two candidate branch hints for a single instruction, where at
-    /// most one may be present. Supplying both means two annotations target the
-    /// same instruction, which is a duplicate error. This covers two adjacent
-    /// annotations as well as a preceding and a trailing annotation on one
-    /// folded instruction.
-    fn merge_hint(
-        parser: Parser<'a>,
-        before: Option<u32>,
-        after: Option<u32>,
-    ) -> Result<Option<u32>> {
-        if before.is_some() && after.is_some() {
-            return Err(parser.error("@metadata.code.branch_hint annotation: duplicate annotation"));
+    /// Errors if a branch hint annotation has been parsed but not attached to an
+    /// instruction. A branch hint must immediately precede the instruction it
+    /// applies to, so an unconsumed hint means the annotation was misplaced
+    /// (inside a folded form or with no following instruction).
+    fn check_hint_consumed(&self, parser: Parser<'a>) -> Result<()> {
+        if self.pending_hint.is_some() {
+            return Err(Self::hint_placement_error(parser));
         }
-        Ok(before.or(after))
+        Ok(())
+    }
+
+    fn hint_placement_error(parser: Parser<'a>) -> crate::Error {
+        parser.error("@metadata.code.branch_hint annotation: must precede an instruction")
     }
 
     /// Pushes an instruction, recording a branch hint for it if `hint` is a
