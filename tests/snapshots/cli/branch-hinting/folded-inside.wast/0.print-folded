@@ -1,0 +1,19 @@
+(module
+  (type (;0;) (func (param i32) (result i32)))
+  (type (;1;) (func (param i32)))
+  (func (;0;) (type 0) (param i32) (result i32)
+    (@metadata.code.branch_hint "\01")
+    (if (result i32) ;; label = @1
+      (local.get 0)
+      (then
+        (i32.const 1))
+      (else
+        (i32.const 0)))
+  )
+  (func (;1;) (type 1) (param i32)
+    (block ;; label = @1
+      (@metadata.code.branch_hint "\00")
+      (br_if 0 (;@1;)
+        (local.get 0)))
+  )
+)
