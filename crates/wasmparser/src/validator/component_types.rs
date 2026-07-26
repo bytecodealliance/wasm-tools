@@ -1888,11 +1888,7 @@ impl ComponentDefinedType {
                 lowered_types.try_push(ptr_size.core_type())
                     && lowered_types.try_push(ptr_size.core_type())
             }
-            Self::FixedLengthList {
-                element: ty,
-                length,
-                ..
-            } => (0..*length).all(|_n| ty.push_wasm_types(ptr_size, types, lowered_types)),
+            Self::FixedLengthList { .. } => lowered_types.try_push(ptr_size.core_type()),
             Self::Tuple(t) => t
                 .types
                 .iter()
