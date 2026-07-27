@@ -37,7 +37,7 @@ use {
         CodeSection, ConstExpr, DataSection, ElementSection, Elements, EntityType, ExportKind,
         ExportSection, Function, FunctionSection, GlobalSection, ImportSection, Instruction as Ins,
         MemArg, MemorySection, MemoryType, Module, RawCustomSection, RefType, StartSection,
-        TableSection, TableType, TagKind, TagSection, TagType, TypeSection, ValType,
+        TableSection, TableType, TypeSection, ValType,
     },
     wasmparser::SymbolFlags,
 };
@@ -403,12 +403,8 @@ fn make_env_module<'a>(
         {
             let offsets = env_exports
                 .iter()
-                .filter_map(|export| match export {
-                    EnvExport::Func { name, exporter, .. } => Some((name, exporter)),
-                    EnvExport::Tag { .. } => None,
-                })
                 .enumerate()
-                .map(|(offset, (name, exporter))| {
+                .map(|(offset, EnvExport { name, exporter, .. })| {
                     (
                         *name,
                         (
@@ -449,18 +445,14 @@ fn make_env_module<'a>(
     let mut functions = FunctionSection::new();
     let mut code = CodeSection::new();
     for export in env_exports {
-        let (name, ty) = match export {
-            EnvExport::Func { name, ty, .. } => (name, ty),
-            _ => continue,
-        };
         let index = get_and_increment(&mut function_count);
         types.ty().function(
-            ty.parameters.iter().copied().map(ValType::from),
-            ty.results.iter().copied().map(ValType::from),
+            export.ty.parameters.iter().copied().map(ValType::from),
+            export.ty.results.iter().copied().map(ValType::from),
         );
         functions.function(u32::try_from(index).unwrap());
         let mut function = Function::new([]);
-        for local in 0..ty.parameters.len() {
+        for local in 0..export.ty.parameters.len() {
             function.instruction(&Ins::LocalGet(u32::try_from(local).unwrap()));
         }
         function.instruction(&Ins::I32Const(i32::try_from(table_offset).unwrap()));
@@ -470,7 +462,7 @@ fn make_env_module<'a>(
         });
         function.instruction(&Ins::End);
         code.function(&function);
-        exports.export(name, ExportKind::Func, index);
+        exports.export(export.name, ExportKind::Func, index);
 
         table_offset += 1;
     }
@@ -485,29 +477,6 @@ fn make_env_module<'a>(
     if let Some(index) = wasi_start {
         exports.export("_start", ExportKind::Func, index);
     }
-
-    let tags = {
-        let mut tags = TagSection::new();
-        for export in env_exports.iter() {
-            let (name, ty) = match export {
-                EnvExport::Tag { name, ty } => (name, ty),
-                _ => continue,
-            };
-
-            let func_type_idx = types.len();
-            types.ty().function(
-                ty.parameters.iter().copied().map(ValType::from),
-                ty.results.iter().copied().map(ValType::from),
-            );
-            let tag_idx = tags.len();
-            tags.tag(TagType {
-                kind: TagKind::Exception,
-                func_type_idx,
-            });
-            exports.export(name, ExportKind::Tag, tag_idx);
-        }
-        tags
-    };
 
     let mut module = Module::new();
 
@@ -541,9 +510,6 @@ fn make_env_module<'a>(
         module.section(&memories);
     }
 
-    if !tags.is_empty() {
-        module.section(&tags);
-    }
     module.section(&globals);
     module.section(&exports);
     module.section(&code);
@@ -591,13 +557,9 @@ fn make_init_module(
         }
     }
     for export in env_exports {
-        let ty = match export {
-            EnvExport::Func { ty, .. } => ty,
-            _ => continue,
-        };
         types.ty().function(
-            ty.parameters.iter().copied().map(ValType::from),
-            ty.results.iter().copied().map(ValType::from),
+            export.ty.parameters.iter().copied().map(ValType::from),
+            export.ty.results.iter().copied().map(ValType::from),
         );
     }
     module.section(&types);
@@ -776,14 +738,10 @@ fn make_init_module(
 
     let indirections = env_exports
         .iter()
-        .filter_map(|export| match export {
-            EnvExport::Func { name, exporter, .. } => Some((name, exporter)),
-            _ => None,
-        })
-        .map(|(name, index)| {
+        .map(|EnvExport { name, exporter, .. }| {
             add_function_import(
                 &mut imports,
-                names[index],
+                names[exporter],
                 name,
                 get_and_increment(&mut type_offset),
             )
@@ -875,6 +833,23 @@ fn find_function_exporter<'a>(
     let export = ExportKey {
         name,
         ty: Type::Function(ty.clone()),
+    };
+
+    exporters
+        .get(&export)
+        .copied()
+        .ok_or_else(|| anyhow!("unable to find {export:?} in any library"))
+}
+
+/// Find the library which exports the specified tag.
+fn find_tag_exporter<'a>(
+    name: &str,
+    ty: &FunctionType,
+    exporters: &IndexMap<&ExportKey, (&'a str, &'a Export<'a>)>,
+) -> Result<(&'a str, &'a Export<'a>)> {
+    let export = ExportKey {
+        name,
+        ty: Type::Tag(ty.clone()),
     };
 
     exporters
@@ -1131,16 +1106,10 @@ struct EnvExports<'a> {
     reexport_cabi_realloc: bool,
 }
 
-enum EnvExport<'a> {
-    Func {
-        name: &'a str,
-        ty: &'a FunctionType,
-        exporter: usize,
-    },
-    Tag {
-        name: &'a str,
-        ty: &'a FunctionType,
-    },
+struct EnvExport<'a> {
+    name: &'a str,
+    ty: &'a FunctionType,
+    exporter: usize,
 }
 
 /// Analyze the specified metadata and generate what needs to be exported from
@@ -1187,7 +1156,7 @@ fn env_exports<'a>(
                     .get(name)
                     .ok_or_else(|| anyhow!("unable to find {name:?} in any library"))?;
 
-                result.push(EnvExport::Func {
+                result.push(EnvExport {
                     name: *name,
                     ty: *ty,
                     exporter: indexes[exporter],
@@ -1202,22 +1171,13 @@ fn env_exports<'a>(
                     .unwrap()
                     .0];
                 if !seen.contains(&exporter) {
-                    result.push(EnvExport::Func {
+                    result.push(EnvExport {
                         name: *import_name,
                         ty,
                         exporter,
                     });
                     exported.insert(*import_name);
                 }
-            }
-        }
-
-        for (import_name, ty) in &metadata.tag_imports {
-            if exported.insert(import_name) {
-                result.push(EnvExport::Tag {
-                    name: *import_name,
-                    ty,
-                });
             }
         }
 
@@ -1619,12 +1579,40 @@ impl Linker {
                         name: (*name).into(),
                     }
                 }))
-                .chain(metadata.tag_imports.iter().map(|(name, _ty)| Item {
-                    alias: (*name).into(),
-                    kind: ExportKind::Tag,
-                    which: MainOrAdapter::Main,
-                    name: (*name).into(),
-                }))
+                .chain(
+                    metadata
+                        .tag_imports
+                        .iter()
+                        .map(|(name, ty)| {
+                            let (exporter, _) = find_tag_exporter(name, ty, &exporters).unwrap();
+
+                            Ok(Item {
+                                alias: (*name).into(),
+                                kind: ExportKind::Tag,
+                                which: if seen.contains(exporter) {
+                                    MainOrAdapter::Adapter(exporter.to_owned())
+                                } else {
+                                    // As of this writing, LLVM-produced shared
+                                    // libraries which use C++ exceptions import
+                                    // a `cpp_exception` tag which is defined in
+                                    // `libunwind.so`.  Presumably
+                                    // `libunwind.so` will not import anything
+                                    // circularly from such shared libraries, so
+                                    // this case shouldn't be hit in practice
+                                    // unless we're dealing with some other,
+                                    // non-LLVM toolchain that does weird
+                                    // circular things with imports and
+                                    // exception tags.
+                                    bail!(
+                                        "circular dependency prevents direct tag import from `{}`",
+                                        exporter.to_owned()
+                                    )
+                                },
+                                name: (*name).into(),
+                            })
+                        })
+                        .collect::<Result<Vec<_>>>()?,
+                )
                 .chain(if metadata.is_asyncified {
                     vec![
                         Item {
