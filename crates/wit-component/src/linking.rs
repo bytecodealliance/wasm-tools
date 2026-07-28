@@ -653,6 +653,13 @@ fn make_init_module(
         }));
     }
 
+    let init_task_exporter = exporters
+        .get(&ExportKey {
+            name: "__wasm_init_task",
+            ty: Type::Function(EMPTY_FUNCTION_TYPE.clone()),
+        })
+        .map(|(name, _)| name);
+
     for (index, metadata) in metadata.iter().enumerate() {
         names.insert_unique(index, metadata.name);
 
@@ -676,10 +683,12 @@ fn make_init_module(
         // Before calling either `__wasm_call_ctors` or `_initialize`, we need
         // to call `__wasm_init_task` if present to set up the shadow stack when
         // using the cooperative multithreading ABI.
-        if (metadata.has_ctors || metadata.has_initialize) && metadata.has_init_task {
+        if (metadata.has_ctors || metadata.has_initialize)
+            && let Some(init_task_exporter) = init_task_exporter
+        {
             ctor_calls.push(Ins::Call(add_function_import(
                 &mut imports,
-                metadata.name,
+                init_task_exporter,
                 "__wasm_init_task",
                 thunk_ty,
             )));

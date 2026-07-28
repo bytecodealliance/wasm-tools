@@ -187,20 +187,20 @@
     (import "env" "memory" (memory (;0;) 0))
     (import "env" "__indirect_function_table" (table (;0;) 0 funcref))
     (import "bar" "__wasm_apply_data_relocs" (func (;0;) (type 0)))
-    (import "bar" "__wasm_call_ctors" (func (;1;) (type 0)))
+    (import "c" "__wasm_init_task" (func (;1;) (type 0)))
+    (import "bar" "__wasm_call_ctors" (func (;2;) (type 0)))
     (import "env" "foo:memory_base" (global (;0;) i32))
     (import "foo" "well" (global (;1;) i32))
     (import "env" "bar:well" (global (;2;) (mut i32)))
-    (import "foo" "__wasm_apply_data_relocs" (func (;2;) (type 0)))
-    (import "foo" "__wasm_call_ctors" (func (;3;) (type 0)))
+    (import "foo" "__wasm_apply_data_relocs" (func (;3;) (type 0)))
+    (import "foo" "__wasm_call_ctors" (func (;4;) (type 0)))
     (import "env" "bar:memory_base" (global (;3;) i32))
     (import "bar" "um" (global (;4;) i32))
     (import "env" "foo:um" (global (;5;) (mut i32)))
-    (import "c" "__wasm_init_task" (func (;4;) (type 2)))
     (import "c" "__wasm_init_async_task" (func (;5;) (type 3)))
     (start 6)
     (elem (;0;) (i32.const 1) func)
-    (elem (;1;) (i32.const 1) func 4 5)
+    (elem (;1;) (i32.const 1) func 1 5)
     (func (;6;) (type 0)
       global.get 0
       global.get 1
@@ -211,9 +211,11 @@
       i32.add
       global.set 5
       call 0
+      call 3
+      call 1
       call 2
       call 1
-      call 3
+      call 4
     )
     (data (;0;) (i32.const 1048576) "\00\00\00\00\00\00\10\00")
     (@producers
@@ -286,8 +288,8 @@
   (core instance $__init (;10;) (instantiate $__init
       (with "env" (instance $main))
       (with "bar" (instance $bar))
-      (with "foo" (instance $foo))
       (with "c" (instance $c))
+      (with "foo" (instance $foo))
     )
   )
   (core module $init-task-wrappers (;5;)
