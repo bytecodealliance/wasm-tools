@@ -206,7 +206,6 @@
       call 3
       call 1
       call 2
-      call 1
       call 4
     )
     (data (;0;) (i32.const 1048576) "\00\00\00\00\00\00\10\00")
