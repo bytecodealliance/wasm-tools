@@ -702,9 +702,10 @@ fn make_init_module(
         // Before calling either `__wasm_call_ctors` or `_initialize`, we need
         // to call `__wasm_init_task` if present to set up the shadow stack when
         // using the cooperative multithreading ABI.
-        if (metadata.has_ctors || metadata.has_initialize)
-            && let Some(init_task_exporter) = init_task_exporter
-        {
+        if let (Some(init_task_exporter), true) = (
+            init_task_exporter,
+            metadata.has_ctors || metadata.has_initialize,
+        ) {
             ctor_calls.push(Ins::Call(add_function_import(
                 &mut imports,
                 init_task_exporter,
