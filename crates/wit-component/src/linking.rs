@@ -49,13 +49,18 @@ const PAGE_SIZE_BYTES: u32 = 65536;
 pub const DEFAULT_STACK_SIZE_BYTES: u32 = 16 * PAGE_SIZE_BYTES;
 const HEAP_ALIGNMENT_BYTES: u32 = 16;
 const STUB_LIBRARY_NAME: &str = "wit-component:stubs";
+const CABI_REALLOC: &str = "cabi_realloc";
 
 static EMPTY_FUNCTION_TYPE: FunctionType = FunctionType {
     parameters: Vec::new(),
     results: Vec::new(),
 };
 
-static ENV_REEXPORTS: &[&str] = &["__wasm_init_task", "__wasm_init_async_task"];
+/// Symbols to re-export from the `env` module regardless of whether any
+/// libraries import them, since
+/// `EncodingState::create_export_task_initialization_wrappers` needs to be able
+/// to call them.
+static ENV_REEXPORTS: &[&str] = &[metadata::INIT_TASK, metadata::INIT_ASYNC_TASK];
 
 enum Address<'a> {
     Function(u32),
@@ -322,12 +327,12 @@ fn make_env_module<'a>(
 
         if metadata.has_wasi_start {
             if wasi_start.is_some() {
-                panic!("multiple libraries export _start");
+                panic!("multiple libraries export {}", metadata::START);
             }
             let index = get_and_increment(&mut function_count);
 
             types.ty().function(vec![], vec![]);
-            imports.import(metadata.name, "_start", EntityType::Function(index));
+            imports.import(metadata.name, metadata::START, EntityType::Function(index));
 
             wasi_start = Some(index);
         }
@@ -345,8 +350,8 @@ fn make_env_module<'a>(
     if let Some(exporter) = cabi_realloc_exporter {
         let index = get_and_increment(&mut function_count);
         types.ty().function([ValType::I32; 4], [ValType::I32]);
-        imports.import(exporter, "cabi_realloc", EntityType::Function(index));
-        exports.export("cabi_realloc", ExportKind::Func, index);
+        imports.import(exporter, CABI_REALLOC, EntityType::Function(index));
+        exports.export(CABI_REALLOC, ExportKind::Func, index);
     }
 
     let dl_openables = DlOpenables::new(table_offset, memory_offset, metadata);
@@ -369,26 +374,26 @@ fn make_env_module<'a>(
         };
 
         if metadata.iter().any(|m| m.needs_stack_pointer) {
-            add_global_export("__stack_pointer", stack_size_bytes, true);
+            add_global_export(metadata::STACK_POINTER, stack_size_bytes, true);
         }
         if metadata.iter().any(|m| m.needs_init_stack_pointer) {
-            add_global_export("__init_stack_pointer", stack_size_bytes, false);
+            add_global_export(metadata::INIT_STACK_POINTER, stack_size_bytes, false);
         }
 
         // Binaryen's Asyncify transform for shared everything linking requires these globals
         // to be provided from env module
         let has_asyncified_module = metadata.iter().any(|m| m.is_asyncified);
         if has_asyncified_module {
-            add_global_export("__asyncify_state", 0, true);
-            add_global_export("__asyncify_data", 0, true);
+            add_global_export(metadata::ASYNCIFY_STATE, 0, true);
+            add_global_export(metadata::ASYNCIFY_DATA, 0, true);
         }
 
         // The libc.so in WASI-SDK 28+ requires these:
         if metadata.iter().any(|m| m.needs_stack_high) {
-            add_global_export("__stack_high", stack_size_bytes, true);
+            add_global_export(metadata::STACK_HIGH, stack_size_bytes, true);
         }
         if metadata.iter().any(|m| m.needs_stack_low) {
-            add_global_export("__stack_low", 0, true);
+            add_global_export(metadata::STACK_LOW, 0, true);
         }
 
         for metadata in metadata {
@@ -450,12 +455,12 @@ fn make_env_module<'a>(
 
         memory_offset = align(memory_offset, HEAP_ALIGNMENT_BYTES);
         if metadata.iter().any(|m| m.needs_heap_base) {
-            add_global_export("__heap_base", memory_offset, true);
+            add_global_export(metadata::HEAP_BASE, memory_offset, true);
         }
 
         let heap_end = align(memory_offset, PAGE_SIZE_BYTES);
         if metadata.iter().any(|m| m.needs_heap_end) {
-            add_global_export("__heap_end", heap_end, true);
+            add_global_export(metadata::HEAP_END, heap_end, true);
         }
         heap_end / PAGE_SIZE_BYTES
     };
@@ -495,7 +500,7 @@ fn make_env_module<'a>(
         );
     }
     if let Some(index) = wasi_start {
-        exports.export("_start", ExportKind::Func, index);
+        exports.export(metadata::START, ExportKind::Func, index);
     }
 
     let mut module = Module::new();
@@ -513,7 +518,7 @@ fn make_env_module<'a>(
             table64: false,
             shared: false,
         });
-        exports.export("__indirect_function_table", ExportKind::Table, 0);
+        exports.export(metadata::INDIRECT_FUNCTION_TABLE, ExportKind::Table, 0);
         module.section(&tables);
     }
 
@@ -526,7 +531,7 @@ fn make_env_module<'a>(
             shared: false,
             page_size_log2: None,
         });
-        exports.export("memory", ExportKind::Memory, 0);
+        exports.export(metadata::MEMORY, ExportKind::Memory, 0);
         module.section(&memories);
     }
 
@@ -586,8 +591,8 @@ fn make_init_module(
 
     let mut imports = ImportSection::new();
     imports.import(
-        "env",
-        "memory",
+        metadata::ENV,
+        metadata::MEMORY,
         MemoryType {
             minimum: 0,
             maximum: None,
@@ -597,8 +602,8 @@ fn make_init_module(
         },
     );
     imports.import(
-        "env",
-        "__indirect_function_table",
+        metadata::ENV,
+        metadata::INDIRECT_FUNCTION_TABLE,
         TableType {
             element_type: RefType::FUNCREF,
             minimum: 0,
@@ -647,7 +652,7 @@ fn make_init_module(
         memory_address_inits.push(Ins::I32Const(i32::try_from(*address).unwrap()));
         memory_address_inits.push(Ins::GlobalGet(add_global_import(
             &mut imports,
-            "env",
+            metadata::ENV,
             &format!("{exporter}:memory_base"),
             false,
         )));
@@ -667,7 +672,7 @@ fn make_init_module(
 
     let init_task_exporter = exporters
         .get(&ExportKey {
-            name: "__wasm_init_task",
+            name: metadata::INIT_TASK,
             ty: Type::Function(EMPTY_FUNCTION_TYPE.clone()),
         })
         .map(|(name, _)| name);
@@ -679,16 +684,18 @@ fn make_init_module(
             reloc_calls.push(Ins::Call(add_function_import(
                 &mut imports,
                 metadata.name,
-                "__wasm_apply_data_relocs",
+                metadata::APPLY_DATA_RELOCS,
                 thunk_ty,
             )));
         }
 
         if metadata.has_ctors && metadata.has_initialize {
             bail!(
-                "library {} exports both `__wasm_call_ctors` and `_initialize`; \
+                "library {} exports both `{}` and `{}`; \
                  expected at most one of the two",
-                metadata.name
+                metadata.name,
+                metadata::CALL_CTORS,
+                metadata::INITIALIZE
             );
         }
 
@@ -701,7 +708,7 @@ fn make_init_module(
             ctor_calls.push(Ins::Call(add_function_import(
                 &mut imports,
                 init_task_exporter,
-                "__wasm_init_task",
+                metadata::INIT_TASK,
                 thunk_ty,
             )));
         }
@@ -710,7 +717,7 @@ fn make_init_module(
             ctor_calls.push(Ins::Call(add_function_import(
                 &mut imports,
                 metadata.name,
-                "__wasm_call_ctors",
+                metadata::CALL_CTORS,
                 thunk_ty,
             )));
         }
@@ -719,7 +726,7 @@ fn make_init_module(
             ctor_calls.push(Ins::Call(add_function_import(
                 &mut imports,
                 metadata.name,
-                "_initialize",
+                metadata::INITIALIZE,
                 thunk_ty,
             )));
         }
@@ -731,7 +738,7 @@ fn make_init_module(
             ctor_calls.push(Ins::Call(add_function_import(
                 &mut imports,
                 metadata.name,
-                "__wasm_set_libraries",
+                metadata::SET_LIBRARIES,
                 one_i32_param_ty,
             )));
         }
@@ -741,7 +748,7 @@ fn make_init_module(
 
             memory_address_inits.push(Ins::GlobalGet(add_global_import(
                 &mut imports,
-                "env",
+                metadata::ENV,
                 &format!("{exporter}:memory_base"),
                 false,
             )));
@@ -754,7 +761,7 @@ fn make_init_module(
             memory_address_inits.push(Ins::I32Add);
             memory_address_inits.push(Ins::GlobalSet(add_global_import(
                 &mut imports,
-                "env",
+                metadata::ENV,
                 &format!("{}:{import}", metadata.name),
                 true,
             )));
@@ -1271,7 +1278,7 @@ fn env_exports<'a>(
         }
     }
 
-    let reexport_cabi_realloc = exported.contains("cabi_realloc");
+    let reexport_cabi_realloc = exported.contains(CABI_REALLOC);
 
     Ok(EnvExports {
         exports: result,
@@ -1611,28 +1618,28 @@ impl Linker {
 
         let default_env_items = [
             Item {
-                alias: "memory".into(),
+                alias: metadata::MEMORY.into(),
                 kind: ExportKind::Memory,
                 which: MainOrAdapter::Main,
-                name: "memory".into(),
+                name: metadata::MEMORY.into(),
             },
             Item {
-                alias: "__indirect_function_table".into(),
+                alias: metadata::INDIRECT_FUNCTION_TABLE.into(),
                 kind: ExportKind::Table,
                 which: MainOrAdapter::Main,
-                name: "__indirect_function_table".into(),
+                name: metadata::INDIRECT_FUNCTION_TABLE.into(),
             },
             Item {
-                alias: "__stack_pointer".into(),
+                alias: metadata::STACK_POINTER.into(),
                 kind: ExportKind::Global,
                 which: MainOrAdapter::Main,
-                name: "__stack_pointer".into(),
+                name: metadata::STACK_POINTER.into(),
             },
             Item {
-                alias: "__init_stack_pointer".into(),
+                alias: metadata::INIT_STACK_POINTER.into(),
                 kind: ExportKind::Global,
                 which: MainOrAdapter::Main,
-                name: "__init_stack_pointer".into(),
+                name: metadata::INIT_STACK_POINTER.into(),
             },
         ];
 
@@ -1646,13 +1653,13 @@ impl Linker {
                 .cloned()
                 .chain([
                     Item {
-                        alias: "__memory_base".into(),
+                        alias: metadata::MEMORY_BASE.into(),
                         kind: ExportKind::Global,
                         which: MainOrAdapter::Main,
                         name: format!("{name}:memory_base"),
                     },
                     Item {
-                        alias: "__table_base".into(),
+                        alias: metadata::TABLE_BASE.into(),
                         kind: ExportKind::Global,
                         which: MainOrAdapter::Main,
                         name: format!("{name}:table_base"),
@@ -1709,16 +1716,16 @@ impl Linker {
                 .chain(if metadata.is_asyncified {
                     vec![
                         Item {
-                            alias: "__asyncify_state".into(),
+                            alias: metadata::ASYNCIFY_STATE.into(),
                             kind: ExportKind::Global,
                             which: MainOrAdapter::Main,
-                            name: "__asyncify_state".into(),
+                            name: metadata::ASYNCIFY_STATE.into(),
                         },
                         Item {
-                            alias: "__asyncify_data".into(),
+                            alias: metadata::ASYNCIFY_DATA.into(),
                             kind: ExportKind::Global,
                             which: MainOrAdapter::Main,
-                            name: "__asyncify_data".into(),
+                            name: metadata::ASYNCIFY_DATA.into(),
                         },
                     ]
                 } else {
@@ -1739,14 +1746,19 @@ impl Linker {
                 .copied()
                 .map(global_item)
                 .chain(
-                    ["__heap_base", "__heap_end", "__stack_high", "__stack_low"]
-                        .into_iter()
-                        .map(|name| Item {
-                            alias: name.into(),
-                            kind: ExportKind::Global,
-                            which: MainOrAdapter::Main,
-                            name: name.into(),
-                        }),
+                    [
+                        metadata::HEAP_BASE,
+                        metadata::HEAP_END,
+                        metadata::STACK_HIGH,
+                        metadata::STACK_LOW,
+                    ]
+                    .into_iter()
+                    .map(|name| Item {
+                        alias: name.into(),
+                        kind: ExportKind::Global,
+                        which: MainOrAdapter::Main,
+                        name: name.into(),
+                    }),
                 )
                 .collect();
 
@@ -1773,9 +1785,9 @@ impl Linker {
                 LibraryInfo {
                     instantiate_after_shims: false,
                     arguments: [
-                        ("GOT.mem".into(), Instance::Items(mem_items)),
-                        ("GOT.func".into(), Instance::Items(func_items)),
-                        ("env".into(), Instance::Items(env_items)),
+                        (metadata::GOT_MEM.into(), Instance::Items(mem_items)),
+                        (metadata::GOT_FUNC.into(), Instance::Items(func_items)),
+                        (metadata::ENV.into(), Instance::Items(env_items)),
                     ]
                     .into_iter()
                     .chain(
@@ -1803,7 +1815,7 @@ impl Linker {
                 LibraryInfo {
                     instantiate_after_shims: true,
                     arguments: iter::once((
-                        "env".into(),
+                        metadata::ENV.into(),
                         Instance::MainOrAdapter(MainOrAdapter::Main),
                     ))
                     .chain(self.libraries.iter().map(|(name, ..)| {
