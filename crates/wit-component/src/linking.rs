@@ -368,8 +368,12 @@ fn make_env_module<'a>(
             exports.export(name, ExportKind::Global, index);
         };
 
-        add_global_export("__stack_pointer", stack_size_bytes, true);
-        add_global_export("__init_stack_pointer", stack_size_bytes, false);
+        if metadata.iter().any(|m| m.needs_stack_pointer) {
+            add_global_export("__stack_pointer", stack_size_bytes, true);
+        }
+        if metadata.iter().any(|m| m.needs_init_stack_pointer) {
+            add_global_export("__init_stack_pointer", stack_size_bytes, false);
+        }
 
         // Binaryen's Asyncify transform for shared everything linking requires these globals
         // to be provided from env module
@@ -380,8 +384,12 @@ fn make_env_module<'a>(
         }
 
         // The libc.so in WASI-SDK 28+ requires these:
-        add_global_export("__stack_high", stack_size_bytes, true);
-        add_global_export("__stack_low", 0, true);
+        if metadata.iter().any(|m| m.needs_stack_high) {
+            add_global_export("__stack_high", stack_size_bytes, true);
+        }
+        if metadata.iter().any(|m| m.needs_stack_low) {
+            add_global_export("__stack_low", 0, true);
+        }
 
         for metadata in metadata {
             memory_offset = align(memory_offset, 1 << metadata.mem_info.memory_alignment);
@@ -441,10 +449,14 @@ fn make_env_module<'a>(
         }
 
         memory_offset = align(memory_offset, HEAP_ALIGNMENT_BYTES);
-        add_global_export("__heap_base", memory_offset, true);
+        if metadata.iter().any(|m| m.needs_heap_base) {
+            add_global_export("__heap_base", memory_offset, true);
+        }
 
         let heap_end = align(memory_offset, PAGE_SIZE_BYTES);
-        add_global_export("__heap_end", heap_end, true);
+        if metadata.iter().any(|m| m.needs_heap_end) {
+            add_global_export("__heap_end", heap_end, true);
+        }
         heap_end / PAGE_SIZE_BYTES
     };
 

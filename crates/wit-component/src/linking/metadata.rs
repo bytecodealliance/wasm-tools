@@ -200,6 +200,24 @@ pub struct Metadata<'a> {
     /// asyncified with `--pass-arg=asyncify-relocatable` option.
     pub is_asyncified: bool,
 
+    /// Whether this module imports `__stack_pointer`
+    pub needs_stack_pointer: bool,
+
+    /// Whether this module imports `__init_stack_pointer`
+    pub needs_init_stack_pointer: bool,
+
+    /// Whether this module imports `__heap_base`
+    pub needs_heap_base: bool,
+
+    /// Whether this module imports `__heap_end`
+    pub needs_heap_end: bool,
+
+    /// Whether this module imports `__stack_high`
+    pub needs_stack_high: bool,
+
+    /// Whether this module imports `__stack_low`
+    pub needs_stack_low: bool,
+
     /// The functions imported from the `env` module, if any
     pub env_imports: BTreeSet<(&'a str, (FunctionType, SymbolFlags))>,
 
@@ -249,6 +267,12 @@ impl<'a> Metadata<'a> {
             has_init_task: false,
             has_component_exports,
             is_asyncified: false,
+            needs_stack_pointer: false,
+            needs_init_stack_pointer: false,
+            needs_heap_base: false,
+            needs_heap_end: false,
+            needs_stack_high: false,
+            needs_stack_low: false,
             env_imports: BTreeSet::new(),
             memory_address_imports: BTreeSet::new(),
             table_address_imports: BTreeSet::new(),
@@ -345,13 +369,21 @@ impl<'a> Metadata<'a> {
                                 | "__stack_pointer"
                                 | "__init_stack_pointer",
                             ) => {
-                                if !matches!(
+                                if matches!(
                                     import.ty,
                                     TypeRef::Global(wasmparser::GlobalType {
                                         content_type: ValType::I32,
                                         ..
                                     })
                                 ) {
+                                    match import.name {
+                                        "__stack_pointer" => result.needs_stack_pointer = true,
+                                        "__init_stack_pointer" => {
+                                            result.needs_init_stack_pointer = true
+                                        }
+                                        _ => {}
+                                    }
+                                } else {
                                     return type_error();
                                 }
                             }
@@ -404,8 +436,10 @@ impl<'a> Metadata<'a> {
                                 }) = import.ty
                                 {
                                     match name {
-                                        "__heap_base" | "__heap_end" | "__stack_high"
-                                        | "__stack_low" => (),
+                                        "__heap_base" => result.needs_heap_base = true,
+                                        "__heap_end" => result.needs_heap_end = true,
+                                        "__stack_high" => result.needs_stack_high = true,
+                                        "__stack_low" => result.needs_stack_low = true,
                                         _ => {
                                             result.memory_address_imports.insert(name);
                                         }
