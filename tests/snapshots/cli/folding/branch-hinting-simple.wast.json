@@ -41,10 +41,11 @@
       "text": "invalid value for branch hint"
     },
     {
-      "type": "module",
-      "line": 74,
-      "filename": "branch-hinting-simple.6.wasm",
-      "module_type": "binary"
+      "type": "assert_malformed",
+      "line": 76,
+      "filename": "branch-hinting-simple.6.wat",
+      "module_type": "text",
+      "text": "must precede an instruction"
     }
   ]
 }

@@ -1,0 +1,26 @@
+{
+  "source_filename": "tests/cli/branch-hinting/folded-inside.wast",
+  "commands": [
+    {
+      "type": "assert_malformed",
+      "line": 9,
+      "filename": "folded-inside.0.wat",
+      "module_type": "text",
+      "text": "must precede an instruction"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 19,
+      "filename": "folded-inside.1.wat",
+      "module_type": "text",
+      "text": "must precede an instruction"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 29,
+      "filename": "folded-inside.2.wat",
+      "module_type": "text",
+      "text": "must precede an instruction"
+    }
+  ]
+}
