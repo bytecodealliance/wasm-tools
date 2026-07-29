@@ -763,6 +763,12 @@ impl ImportMap {
             }
         }
 
+        if module == "env" {
+            if let Some(import) = names.env_import(name, ty) {
+                return Ok(import);
+            }
+        }
+
         // Check for `[export]$root::[task-return]foo` or similar
         if matches!(
             module.strip_prefix(names.import_exported_intrinsic_prefix()),
@@ -1683,6 +1689,7 @@ trait NameMangling {
     ) -> Option<TypeId>;
     fn world_key_name_and_abi<'a>(&self, name: &'a str) -> (&'a str, AbiVariant);
     fn interface_function_name_and_abi<'a>(&self, name: &'a str) -> (&'a str, AbiVariant);
+    fn env_import(&self, name: &str, ty: &FuncType) -> Option<Import>;
 }
 
 /// Definition of the "standard" naming scheme which currently starts with
@@ -1980,6 +1987,9 @@ impl NameMangling for Standard {
     }
     fn interface_function_name_and_abi<'a>(&self, name: &'a str) -> (&'a str, AbiVariant) {
         (name, AbiVariant::GuestImport)
+    }
+    fn env_import(&self, _name: &str, _ty: &FuncType) -> Option<Import> {
+        None
     }
 }
 
@@ -2587,6 +2597,27 @@ impl NameMangling for Legacy {
                 AbiVariant::GuestImport
             },
         )
+    }
+    fn env_import(&self, name: &str, ty: &FuncType) -> Option<Import> {
+        match name {
+            "__wasm_get_stack_pointer" => {
+                let ty = *ty.results().get(0)?;
+                Some(Import::ContextGet { ty, slot: 0 })
+            }
+            "__wasm_set_stack_pointer" => {
+                let ty = *ty.params().get(0)?;
+                Some(Import::ContextSet { ty, slot: 0 })
+            }
+            "__wasm_get_tls_base" => {
+                let ty = *ty.results().get(0)?;
+                Some(Import::ContextGet { ty, slot: 1 })
+            }
+            "__wasm_set_tls_base" => {
+                let ty = *ty.params().get(0)?;
+                Some(Import::ContextSet { ty, slot: 1 })
+            }
+            _ => None,
+        }
     }
 }
 
