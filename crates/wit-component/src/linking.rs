@@ -1408,7 +1408,7 @@ pub struct Linker {
 impl Linker {
     /// Add a dynamic library module to this linker.
     ///
-    /// If `dl_openable` is true, all of the libraries exports will be added to the `dlopen`/`dlsym` lookup table
+    /// If `dl_openable` is true, all of the library's exports will be added to the `dlopen`/`dlsym` lookup table
     /// for runtime resolution.
     pub fn library(mut self, name: &str, module: &[u8], dl_openable: bool) -> Result<Self> {
         self.libraries
