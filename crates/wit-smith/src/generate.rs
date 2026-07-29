@@ -1046,7 +1046,7 @@ impl<'a> InterfaceGenerator<'a> {
                     ret.push_str("  %");
                     ret.push_str(&self.gen_unique_name(u)?);
                     ret.push_str(": ");
-                    self.gen_type(u, &mut fuel, ret)?;
+                    self.gen_type(u, &mut fuel, 0, ret)?;
                     ret.push_str(",\n");
                 }
                 ret.push_str("}");
@@ -1060,7 +1060,7 @@ impl<'a> InterfaceGenerator<'a> {
                     ret.push_str(&self.gen_unique_name(u)?);
                     if u.arbitrary()? {
                         ret.push_str("(");
-                        self.gen_type(u, &mut fuel, ret)?;
+                        self.gen_type(u, &mut fuel, 0, ret)?;
                         ret.push_str(")");
                     }
                     ret.push_str(",\n");
@@ -1093,7 +1093,7 @@ impl<'a> InterfaceGenerator<'a> {
                 ret.push_str("type %");
                 ret.push_str(name);
                 ret.push_str(" = ");
-                self.gen_type(u, &mut fuel, ret)?;
+                self.gen_type(u, &mut fuel, 0, ret)?;
                 ret.push_str(";");
             }
             Kind::Resource => {
@@ -1114,6 +1114,7 @@ impl<'a> InterfaceGenerator<'a> {
         &mut self,
         u: &mut Unstructured<'_>,
         fuel: &mut usize,
+        depth: usize,
         dst: &mut String,
     ) -> Result<()> {
         #[derive(Arbitrary)]
@@ -1140,6 +1141,16 @@ impl<'a> InterfaceGenerator<'a> {
             Stream,
             Future,
             ErrorContext,
+        }
+
+        // Bail out with a leaf type if a nested type here would nest too
+        // deeply. Note that this is intentionally smaller than wasmparser's
+        // current limit of 100 to give some wiggle room to the generator here
+        // to be off-by-one.
+        const MAX_DEPTH: usize = 50;
+        if depth + 1 >= MAX_DEPTH {
+            dst.push_str("bool");
+            return Ok(());
         }
 
         *fuel = match fuel.checked_sub(1) {
@@ -1196,7 +1207,7 @@ impl<'a> InterfaceGenerator<'a> {
                         if i > 0 {
                             dst.push_str(", ");
                         }
-                        self.gen_type(u, fuel, dst)?;
+                        self.gen_type(u, fuel, depth + 1, dst)?;
                     }
                     dst.push_str(">");
                 }
@@ -1206,7 +1217,7 @@ impl<'a> InterfaceGenerator<'a> {
                         None => continue,
                     };
                     dst.push_str("option<");
-                    self.gen_type(u, fuel, dst)?;
+                    self.gen_type(u, fuel, depth + 1, dst)?;
                     dst.push_str(">");
                 }
                 Kind::List => {
@@ -1215,7 +1226,7 @@ impl<'a> InterfaceGenerator<'a> {
                         None => continue,
                     };
                     dst.push_str("list<");
-                    self.gen_type(u, fuel, dst)?;
+                    self.gen_type(u, fuel, depth + 1, dst)?;
                     dst.push_str(">");
                 }
                 Kind::FixedLengthList => {
@@ -1229,7 +1240,7 @@ impl<'a> InterfaceGenerator<'a> {
                     let elements =
                         u.int_in_range(1..=self.generator.config.max_type_parts as u32)?;
                     dst.push_str("list<");
-                    self.gen_type(u, fuel, dst)?;
+                    self.gen_type(u, fuel, depth + 1, dst)?;
                     dst.push_str(&format!(", {elements}>"));
                 }
                 Kind::Result => {
@@ -1243,19 +1254,19 @@ impl<'a> InterfaceGenerator<'a> {
                     match (ok, err) {
                         (true, true) => {
                             dst.push_str("<");
-                            self.gen_type(u, fuel, dst)?;
+                            self.gen_type(u, fuel, depth + 1, dst)?;
                             dst.push_str(", ");
-                            self.gen_type(u, fuel, dst)?;
+                            self.gen_type(u, fuel, depth + 1, dst)?;
                             dst.push_str(">");
                         }
                         (true, false) => {
                             dst.push_str("<");
-                            self.gen_type(u, fuel, dst)?;
+                            self.gen_type(u, fuel, depth + 1, dst)?;
                             dst.push_str(">");
                         }
                         (false, true) => {
                             dst.push_str("<_, ");
-                            self.gen_type(u, fuel, dst)?;
+                            self.gen_type(u, fuel, depth + 1, dst)?;
                             dst.push_str(">");
                         }
                         (false, false) => {}
@@ -1270,7 +1281,7 @@ impl<'a> InterfaceGenerator<'a> {
                         None => continue,
                     };
                     dst.push_str("stream<");
-                    self.gen_type(u, fuel, dst)?;
+                    self.gen_type(u, fuel, depth + 1, dst)?;
                     dst.push_str(">");
                 }
                 Kind::Future => {
@@ -1283,7 +1294,7 @@ impl<'a> InterfaceGenerator<'a> {
                     };
                     if u.arbitrary()? {
                         dst.push_str("future<");
-                        self.gen_type(u, fuel, dst)?;
+                        self.gen_type(u, fuel, depth + 1, dst)?;
                         dst.push_str(">");
                     } else {
                         dst.push_str("future");
@@ -1323,7 +1334,7 @@ impl<'a> InterfaceGenerator<'a> {
         if u.arbitrary()? {
             dst.push_str(" -> ");
             let mut fuel = self.generator.config.max_type_size;
-            self.gen_type(u, &mut fuel, dst)?;
+            self.gen_type(u, &mut fuel, 0, dst)?;
         }
         dst.push_str(";");
         Ok(())
@@ -1348,7 +1359,7 @@ impl<'a> InterfaceGenerator<'a> {
             dst.push_str("%");
             dst.push_str(&gen_unique_name(u, &mut names)?);
             dst.push_str(": ");
-            self.gen_type(u, &mut fuel, dst)?;
+            self.gen_type(u, &mut fuel, 0, dst)?;
         }
         dst.push_str(")");
         Ok(())

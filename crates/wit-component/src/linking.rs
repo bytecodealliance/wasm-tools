@@ -37,7 +37,7 @@ use {
         CodeSection, ConstExpr, DataSection, ElementSection, Elements, EntityType, ExportKind,
         ExportSection, Function, FunctionSection, GlobalSection, ImportSection, Instruction as Ins,
         MemArg, MemorySection, MemoryType, Module, RawCustomSection, RefType, StartSection,
-        TableSection, TableType, TagKind, TagSection, TagType, TypeSection, ValType,
+        TableSection, TableType, TypeSection, ValType,
     },
     wasmparser::SymbolFlags,
 };
@@ -49,6 +49,18 @@ const PAGE_SIZE_BYTES: u32 = 65536;
 pub const DEFAULT_STACK_SIZE_BYTES: u32 = 16 * PAGE_SIZE_BYTES;
 const HEAP_ALIGNMENT_BYTES: u32 = 16;
 const STUB_LIBRARY_NAME: &str = "wit-component:stubs";
+const CABI_REALLOC: &str = "cabi_realloc";
+
+static EMPTY_FUNCTION_TYPE: FunctionType = FunctionType {
+    parameters: Vec::new(),
+    results: Vec::new(),
+};
+
+/// Symbols to re-export from the `env` module regardless of whether any
+/// libraries import them, since
+/// `EncodingState::create_export_task_initialization_wrappers` needs to be able
+/// to call them.
+static ENV_REEXPORTS: &[&str] = &[metadata::INIT_TASK, metadata::INIT_ASYNC_TASK];
 
 enum Address<'a> {
     Function(u32),
@@ -315,12 +327,12 @@ fn make_env_module<'a>(
 
         if metadata.has_wasi_start {
             if wasi_start.is_some() {
-                panic!("multiple libraries export _start");
+                panic!("multiple libraries export {}", metadata::START);
             }
             let index = get_and_increment(&mut function_count);
 
             types.ty().function(vec![], vec![]);
-            imports.import(metadata.name, "_start", EntityType::Function(index));
+            imports.import(metadata.name, metadata::START, EntityType::Function(index));
 
             wasi_start = Some(index);
         }
@@ -338,8 +350,8 @@ fn make_env_module<'a>(
     if let Some(exporter) = cabi_realloc_exporter {
         let index = get_and_increment(&mut function_count);
         types.ty().function([ValType::I32; 4], [ValType::I32]);
-        imports.import(exporter, "cabi_realloc", EntityType::Function(index));
-        exports.export("cabi_realloc", ExportKind::Func, index);
+        imports.import(exporter, CABI_REALLOC, EntityType::Function(index));
+        exports.export(CABI_REALLOC, ExportKind::Func, index);
     }
 
     let dl_openables = DlOpenables::new(table_offset, memory_offset, metadata);
@@ -361,19 +373,28 @@ fn make_env_module<'a>(
             exports.export(name, ExportKind::Global, index);
         };
 
-        add_global_export("__stack_pointer", stack_size_bytes, true);
+        if metadata.iter().any(|m| m.needs_stack_pointer) {
+            add_global_export(metadata::STACK_POINTER, stack_size_bytes, true);
+        }
+        if metadata.iter().any(|m| m.needs_init_stack_pointer) {
+            add_global_export(metadata::INIT_STACK_POINTER, stack_size_bytes, false);
+        }
 
         // Binaryen's Asyncify transform for shared everything linking requires these globals
         // to be provided from env module
         let has_asyncified_module = metadata.iter().any(|m| m.is_asyncified);
         if has_asyncified_module {
-            add_global_export("__asyncify_state", 0, true);
-            add_global_export("__asyncify_data", 0, true);
+            add_global_export(metadata::ASYNCIFY_STATE, 0, true);
+            add_global_export(metadata::ASYNCIFY_DATA, 0, true);
         }
 
         // The libc.so in WASI-SDK 28+ requires these:
-        add_global_export("__stack_high", stack_size_bytes, true);
-        add_global_export("__stack_low", 0, true);
+        if metadata.iter().any(|m| m.needs_stack_high) {
+            add_global_export(metadata::STACK_HIGH, stack_size_bytes, true);
+        }
+        if metadata.iter().any(|m| m.needs_stack_low) {
+            add_global_export(metadata::STACK_LOW, 0, true);
+        }
 
         for metadata in metadata {
             memory_offset = align(memory_offset, 1 << metadata.mem_info.memory_alignment);
@@ -403,12 +424,8 @@ fn make_env_module<'a>(
         {
             let offsets = env_exports
                 .iter()
-                .filter_map(|export| match export {
-                    EnvExport::Func { name, exporter, .. } => Some((name, exporter)),
-                    EnvExport::Tag { .. } => None,
-                })
                 .enumerate()
-                .map(|(offset, (name, exporter))| {
+                .map(|(offset, EnvExport { name, exporter, .. })| {
                     (
                         *name,
                         (
@@ -437,10 +454,14 @@ fn make_env_module<'a>(
         }
 
         memory_offset = align(memory_offset, HEAP_ALIGNMENT_BYTES);
-        add_global_export("__heap_base", memory_offset, true);
+        if metadata.iter().any(|m| m.needs_heap_base) {
+            add_global_export(metadata::HEAP_BASE, memory_offset, true);
+        }
 
         let heap_end = align(memory_offset, PAGE_SIZE_BYTES);
-        add_global_export("__heap_end", heap_end, true);
+        if metadata.iter().any(|m| m.needs_heap_end) {
+            add_global_export(metadata::HEAP_END, heap_end, true);
+        }
         heap_end / PAGE_SIZE_BYTES
     };
 
@@ -449,18 +470,14 @@ fn make_env_module<'a>(
     let mut functions = FunctionSection::new();
     let mut code = CodeSection::new();
     for export in env_exports {
-        let (name, ty) = match export {
-            EnvExport::Func { name, ty, .. } => (name, ty),
-            _ => continue,
-        };
         let index = get_and_increment(&mut function_count);
         types.ty().function(
-            ty.parameters.iter().copied().map(ValType::from),
-            ty.results.iter().copied().map(ValType::from),
+            export.ty.parameters.iter().copied().map(ValType::from),
+            export.ty.results.iter().copied().map(ValType::from),
         );
         functions.function(u32::try_from(index).unwrap());
         let mut function = Function::new([]);
-        for local in 0..ty.parameters.len() {
+        for local in 0..export.ty.parameters.len() {
             function.instruction(&Ins::LocalGet(u32::try_from(local).unwrap()));
         }
         function.instruction(&Ins::I32Const(i32::try_from(table_offset).unwrap()));
@@ -470,7 +487,7 @@ fn make_env_module<'a>(
         });
         function.instruction(&Ins::End);
         code.function(&function);
-        exports.export(name, ExportKind::Func, index);
+        exports.export(export.name, ExportKind::Func, index);
 
         table_offset += 1;
     }
@@ -483,31 +500,8 @@ fn make_env_module<'a>(
         );
     }
     if let Some(index) = wasi_start {
-        exports.export("_start", ExportKind::Func, index);
+        exports.export(metadata::START, ExportKind::Func, index);
     }
-
-    let tags = {
-        let mut tags = TagSection::new();
-        for export in env_exports.iter() {
-            let (name, ty) = match export {
-                EnvExport::Tag { name, ty } => (name, ty),
-                _ => continue,
-            };
-
-            let func_type_idx = types.len();
-            types.ty().function(
-                ty.parameters.iter().copied().map(ValType::from),
-                ty.results.iter().copied().map(ValType::from),
-            );
-            let tag_idx = tags.len();
-            tags.tag(TagType {
-                kind: TagKind::Exception,
-                func_type_idx,
-            });
-            exports.export(name, ExportKind::Tag, tag_idx);
-        }
-        tags
-    };
 
     let mut module = Module::new();
 
@@ -524,7 +518,7 @@ fn make_env_module<'a>(
             table64: false,
             shared: false,
         });
-        exports.export("__indirect_function_table", ExportKind::Table, 0);
+        exports.export(metadata::INDIRECT_FUNCTION_TABLE, ExportKind::Table, 0);
         module.section(&tables);
     }
 
@@ -537,13 +531,10 @@ fn make_env_module<'a>(
             shared: false,
             page_size_log2: None,
         });
-        exports.export("memory", ExportKind::Memory, 0);
+        exports.export(metadata::MEMORY, ExportKind::Memory, 0);
         module.section(&memories);
     }
 
-    if !tags.is_empty() {
-        module.section(&tags);
-    }
     module.section(&globals);
     module.section(&exports);
     module.section(&code);
@@ -591,21 +582,17 @@ fn make_init_module(
         }
     }
     for export in env_exports {
-        let ty = match export {
-            EnvExport::Func { ty, .. } => ty,
-            _ => continue,
-        };
         types.ty().function(
-            ty.parameters.iter().copied().map(ValType::from),
-            ty.results.iter().copied().map(ValType::from),
+            export.ty.parameters.iter().copied().map(ValType::from),
+            export.ty.results.iter().copied().map(ValType::from),
         );
     }
     module.section(&types);
 
     let mut imports = ImportSection::new();
     imports.import(
-        "env",
-        "memory",
+        metadata::ENV,
+        metadata::MEMORY,
         MemoryType {
             minimum: 0,
             maximum: None,
@@ -615,8 +602,8 @@ fn make_init_module(
         },
     );
     imports.import(
-        "env",
-        "__indirect_function_table",
+        metadata::ENV,
+        metadata::INDIRECT_FUNCTION_TABLE,
         TableType {
             element_type: RefType::FUNCREF,
             minimum: 0,
@@ -665,7 +652,7 @@ fn make_init_module(
         memory_address_inits.push(Ins::I32Const(i32::try_from(*address).unwrap()));
         memory_address_inits.push(Ins::GlobalGet(add_global_import(
             &mut imports,
-            "env",
+            metadata::ENV,
             &format!("{exporter}:memory_base"),
             false,
         )));
@@ -683,6 +670,13 @@ fn make_init_module(
         }));
     }
 
+    let mut init_task_exporter = exporters
+        .get(&ExportKey {
+            name: metadata::INIT_TASK,
+            ty: Type::Function(EMPTY_FUNCTION_TYPE.clone()),
+        })
+        .map(|(name, _)| name);
+
     for (index, metadata) in metadata.iter().enumerate() {
         names.insert_unique(index, metadata.name);
 
@@ -690,24 +684,45 @@ fn make_init_module(
             reloc_calls.push(Ins::Call(add_function_import(
                 &mut imports,
                 metadata.name,
-                "__wasm_apply_data_relocs",
+                metadata::APPLY_DATA_RELOCS,
                 thunk_ty,
             )));
         }
 
         if metadata.has_ctors && metadata.has_initialize {
             bail!(
-                "library {} exports both `__wasm_call_ctors` and `_initialize`; \
+                "library {} exports both `{}` and `{}`; \
                  expected at most one of the two",
-                metadata.name
+                metadata.name,
+                metadata::CALL_CTORS,
+                metadata::INITIALIZE
             );
+        }
+
+        // Before calling either `__wasm_call_ctors` or `_initialize`, we need
+        // to call `__wasm_init_task` if present to set up the shadow stack when
+        // using the cooperative multithreading ABI.
+        if let (Some(exporter), true) = (
+            init_task_exporter,
+            metadata.has_ctors || metadata.has_initialize,
+        ) {
+            // We only need to call it at most once, so we set
+            // `init_task_exporter` to `None` to avoid calling it again:
+            init_task_exporter = None;
+
+            ctor_calls.push(Ins::Call(add_function_import(
+                &mut imports,
+                exporter,
+                metadata::INIT_TASK,
+                thunk_ty,
+            )));
         }
 
         if metadata.has_ctors {
             ctor_calls.push(Ins::Call(add_function_import(
                 &mut imports,
                 metadata.name,
-                "__wasm_call_ctors",
+                metadata::CALL_CTORS,
                 thunk_ty,
             )));
         }
@@ -716,7 +731,7 @@ fn make_init_module(
             ctor_calls.push(Ins::Call(add_function_import(
                 &mut imports,
                 metadata.name,
-                "_initialize",
+                metadata::INITIALIZE,
                 thunk_ty,
             )));
         }
@@ -728,7 +743,7 @@ fn make_init_module(
             ctor_calls.push(Ins::Call(add_function_import(
                 &mut imports,
                 metadata.name,
-                "__wasm_set_libraries",
+                metadata::SET_LIBRARIES,
                 one_i32_param_ty,
             )));
         }
@@ -738,7 +753,7 @@ fn make_init_module(
 
             memory_address_inits.push(Ins::GlobalGet(add_global_import(
                 &mut imports,
-                "env",
+                metadata::ENV,
                 &format!("{exporter}:memory_base"),
                 false,
             )));
@@ -751,7 +766,7 @@ fn make_init_module(
             memory_address_inits.push(Ins::I32Add);
             memory_address_inits.push(Ins::GlobalSet(add_global_import(
                 &mut imports,
-                "env",
+                metadata::ENV,
                 &format!("{}:{import}", metadata.name),
                 true,
             )));
@@ -776,14 +791,10 @@ fn make_init_module(
 
     let indirections = env_exports
         .iter()
-        .filter_map(|export| match export {
-            EnvExport::Func { name, exporter, .. } => Some((name, exporter)),
-            _ => None,
-        })
-        .map(|(name, index)| {
+        .map(|EnvExport { name, exporter, .. }| {
             add_function_import(
                 &mut imports,
-                names[index],
+                names[exporter],
                 name,
                 get_and_increment(&mut type_offset),
             )
@@ -875,6 +886,23 @@ fn find_function_exporter<'a>(
     let export = ExportKey {
         name,
         ty: Type::Function(ty.clone()),
+    };
+
+    exporters
+        .get(&export)
+        .copied()
+        .ok_or_else(|| anyhow!("unable to find {export:?} in any library"))
+}
+
+/// Find the library which exports the specified tag.
+fn find_tag_exporter<'a>(
+    name: &str,
+    ty: &FunctionType,
+    exporters: &IndexMap<&ExportKey, (&'a str, &'a Export<'a>)>,
+) -> Result<(&'a str, &'a Export<'a>)> {
+    let export = ExportKey {
+        name,
+        ty: Type::Tag(ty.clone()),
     };
 
     exporters
@@ -1020,6 +1048,32 @@ fn resolve_symbols<'a>(
         }
     }
 
+    // Even if no library imports these symbols, we re-export them from the
+    // `env` module so that
+    // `EncodingState::create_export_task_initialization_wrappers` can find
+    // and use them:
+    for &name in ENV_REEXPORTS {
+        let export = Export {
+            key: ExportKey {
+                name,
+                ty: Type::Function(EMPTY_FUNCTION_TYPE.clone()),
+            },
+            flags: SymbolFlags::empty(),
+        };
+
+        if let Some((key, value)) = exporters.get_key_value(&export.key) {
+            // Note that we do not use `insert_unique` here since multiple
+            // libraries may import the same symbol, in which case we may
+            // redundantly insert the same value.
+            match value.as_slice() {
+                [] => unreachable!(),
+                [exporter] | [exporter, ..] => {
+                    resolved.insert(*key, *exporter);
+                }
+            }
+        }
+    }
+
     (resolved, missing, duplicates)
 }
 
@@ -1131,16 +1185,10 @@ struct EnvExports<'a> {
     reexport_cabi_realloc: bool,
 }
 
-enum EnvExport<'a> {
-    Func {
-        name: &'a str,
-        ty: &'a FunctionType,
-        exporter: usize,
-    },
-    Tag {
-        name: &'a str,
-        ty: &'a FunctionType,
-    },
+struct EnvExport<'a> {
+    name: &'a str,
+    ty: &'a FunctionType,
+    exporter: usize,
 }
 
 /// Analyze the specified metadata and generate what needs to be exported from
@@ -1187,7 +1235,7 @@ fn env_exports<'a>(
                     .get(name)
                     .ok_or_else(|| anyhow!("unable to find {name:?} in any library"))?;
 
-                result.push(EnvExport::Func {
+                result.push(EnvExport {
                     name: *name,
                     ty: *ty,
                     exporter: indexes[exporter],
@@ -1202,7 +1250,7 @@ fn env_exports<'a>(
                     .unwrap()
                     .0];
                 if !seen.contains(&exporter) {
-                    result.push(EnvExport::Func {
+                    result.push(EnvExport {
                         name: *import_name,
                         ty,
                         exporter,
@@ -1212,19 +1260,30 @@ fn env_exports<'a>(
             }
         }
 
-        for (import_name, ty) in &metadata.tag_imports {
-            if exported.insert(import_name) {
-                result.push(EnvExport::Tag {
-                    name: *import_name,
-                    ty,
-                });
-            }
-        }
-
         seen.insert(index);
     }
 
-    let reexport_cabi_realloc = exported.contains("cabi_realloc");
+    // Even if no library imports these symbols, we re-export them from the
+    // `env` module so that
+    // `EncodingState::create_export_task_initialization_wrappers` can find
+    // and use them:
+    for &name in ENV_REEXPORTS {
+        if !exported.contains(name) {
+            if let Some(exporter) = exporters.get(&ExportKey {
+                name,
+                ty: Type::Function(EMPTY_FUNCTION_TYPE.clone()),
+            }) {
+                result.push(EnvExport {
+                    name,
+                    ty: &EMPTY_FUNCTION_TYPE,
+                    exporter: indexes[exporter.0],
+                });
+                exported.insert(name);
+            }
+        }
+    }
+
+    let reexport_cabi_realloc = exported.contains(CABI_REALLOC);
 
     Ok(EnvExports {
         exports: result,
@@ -1564,22 +1623,28 @@ impl Linker {
 
         let default_env_items = [
             Item {
-                alias: "memory".into(),
+                alias: metadata::MEMORY.into(),
                 kind: ExportKind::Memory,
                 which: MainOrAdapter::Main,
-                name: "memory".into(),
+                name: metadata::MEMORY.into(),
             },
             Item {
-                alias: "__indirect_function_table".into(),
+                alias: metadata::INDIRECT_FUNCTION_TABLE.into(),
                 kind: ExportKind::Table,
                 which: MainOrAdapter::Main,
-                name: "__indirect_function_table".into(),
+                name: metadata::INDIRECT_FUNCTION_TABLE.into(),
             },
             Item {
-                alias: "__stack_pointer".into(),
+                alias: metadata::STACK_POINTER.into(),
                 kind: ExportKind::Global,
                 which: MainOrAdapter::Main,
-                name: "__stack_pointer".into(),
+                name: metadata::STACK_POINTER.into(),
+            },
+            Item {
+                alias: metadata::INIT_STACK_POINTER.into(),
+                kind: ExportKind::Global,
+                which: MainOrAdapter::Main,
+                name: metadata::INIT_STACK_POINTER.into(),
             },
         ];
 
@@ -1593,13 +1658,13 @@ impl Linker {
                 .cloned()
                 .chain([
                     Item {
-                        alias: "__memory_base".into(),
+                        alias: metadata::MEMORY_BASE.into(),
                         kind: ExportKind::Global,
                         which: MainOrAdapter::Main,
                         name: format!("{name}:memory_base"),
                     },
                     Item {
-                        alias: "__table_base".into(),
+                        alias: metadata::TABLE_BASE.into(),
                         kind: ExportKind::Global,
                         which: MainOrAdapter::Main,
                         name: format!("{name}:table_base"),
@@ -1619,25 +1684,53 @@ impl Linker {
                         name: (*name).into(),
                     }
                 }))
-                .chain(metadata.tag_imports.iter().map(|(name, _ty)| Item {
-                    alias: (*name).into(),
-                    kind: ExportKind::Tag,
-                    which: MainOrAdapter::Main,
-                    name: (*name).into(),
-                }))
+                .chain(
+                    metadata
+                        .tag_imports
+                        .iter()
+                        .map(|(name, ty)| {
+                            let (exporter, _) = find_tag_exporter(name, ty, &exporters).unwrap();
+
+                            Ok(Item {
+                                alias: (*name).into(),
+                                kind: ExportKind::Tag,
+                                which: if seen.contains(exporter) {
+                                    MainOrAdapter::Adapter(exporter.to_owned())
+                                } else {
+                                    // As of this writing, LLVM-produced shared
+                                    // libraries which use C++ exceptions import
+                                    // a `cpp_exception` tag which is defined in
+                                    // `libunwind.so`.  Presumably
+                                    // `libunwind.so` will not import anything
+                                    // circularly from such shared libraries, so
+                                    // this case shouldn't be hit in practice
+                                    // unless we're dealing with some other,
+                                    // non-LLVM toolchain that does weird
+                                    // circular things with imports and
+                                    // exception tags.
+                                    bail!(
+                                        "circular dependency prevents direct tag import from `{}`",
+                                        exporter.to_owned()
+                                    )
+                                },
+                                name: (*name).into(),
+                            })
+                        })
+                        .collect::<Result<Vec<_>>>()?,
+                )
                 .chain(if metadata.is_asyncified {
                     vec![
                         Item {
-                            alias: "__asyncify_state".into(),
+                            alias: metadata::ASYNCIFY_STATE.into(),
                             kind: ExportKind::Global,
                             which: MainOrAdapter::Main,
-                            name: "__asyncify_state".into(),
+                            name: metadata::ASYNCIFY_STATE.into(),
                         },
                         Item {
-                            alias: "__asyncify_data".into(),
+                            alias: metadata::ASYNCIFY_DATA.into(),
                             kind: ExportKind::Global,
                             which: MainOrAdapter::Main,
-                            name: "__asyncify_data".into(),
+                            name: metadata::ASYNCIFY_DATA.into(),
                         },
                     ]
                 } else {
@@ -1658,14 +1751,19 @@ impl Linker {
                 .copied()
                 .map(global_item)
                 .chain(
-                    ["__heap_base", "__heap_end", "__stack_high", "__stack_low"]
-                        .into_iter()
-                        .map(|name| Item {
-                            alias: name.into(),
-                            kind: ExportKind::Global,
-                            which: MainOrAdapter::Main,
-                            name: name.into(),
-                        }),
+                    [
+                        metadata::HEAP_BASE,
+                        metadata::HEAP_END,
+                        metadata::STACK_HIGH,
+                        metadata::STACK_LOW,
+                    ]
+                    .into_iter()
+                    .map(|name| Item {
+                        alias: name.into(),
+                        kind: ExportKind::Global,
+                        which: MainOrAdapter::Main,
+                        name: name.into(),
+                    }),
                 )
                 .collect();
 
@@ -1692,9 +1790,9 @@ impl Linker {
                 LibraryInfo {
                     instantiate_after_shims: false,
                     arguments: [
-                        ("GOT.mem".into(), Instance::Items(mem_items)),
-                        ("GOT.func".into(), Instance::Items(func_items)),
-                        ("env".into(), Instance::Items(env_items)),
+                        (metadata::GOT_MEM.into(), Instance::Items(mem_items)),
+                        (metadata::GOT_FUNC.into(), Instance::Items(func_items)),
+                        (metadata::ENV.into(), Instance::Items(env_items)),
                     ]
                     .into_iter()
                     .chain(
@@ -1722,7 +1820,7 @@ impl Linker {
                 LibraryInfo {
                     instantiate_after_shims: true,
                     arguments: iter::once((
-                        "env".into(),
+                        metadata::ENV.into(),
                         Instance::MainOrAdapter(MainOrAdapter::Main),
                     ))
                     .chain(self.libraries.iter().map(|(name, ..)| {

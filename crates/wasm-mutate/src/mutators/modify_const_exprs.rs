@@ -96,7 +96,18 @@ impl<'cfg, 'wasm> Reencode for InitTranslator<'cfg, 'wasm> {
             O::RefNull {
                 hty: wasmparser::HeapType::EXTERN,
             } => T::ExternRef,
-            O::GlobalGet { global_index } => self.config.info().global_types[global_index as usize],
+            O::GlobalGet { global_index } => {
+                match self.config.info().global_types.get(global_index as usize) {
+                    Some(ty) => *ty,
+                    None => {
+                        // The input module isn't guaranteed to be valid, so a
+                        // `global.get` may reference an out-of-bounds global.
+                        // Bail out of this mutation rather than panicking.
+                        log::info!("global.get references out-of-bounds global {global_index}");
+                        return Err(reencode::Error::UserError(Error::no_mutations_applicable()));
+                    }
+                }
+            }
             other => {
                 log::info!("unsupported opcode in init expr {other:?}");
                 return Err(reencode::Error::UserError(Error::no_mutations_applicable()));
@@ -325,5 +336,25 @@ mod tests {
                 (func $f)
                 (elem (offset (i32.const 0)) $f))"#,
         );
+    }
+
+    #[test]
+    fn global_get_with_out_of_bounds_index_does_not_panic() {
+        // Regression test: mutating an invalid module whose global
+        // initializer references a global index that doesn't exist used to
+        // panic on an out-of-bounds slice index instead of erroring out.
+        let wasm = wat::parse_str("(module (global i32 (global.get 5)))").unwrap();
+
+        let mut config = crate::WasmMutate::default();
+        config.reduce = true;
+        config.setup(&wasm).unwrap();
+
+        let mutator = super::ConstExpressionMutator::Global;
+        assert!(crate::Mutator::can_mutate(&mutator, &config));
+
+        match crate::Mutator::mutate(&mutator, &mut config) {
+            Err(e) => assert!(matches!(e.kind(), crate::ErrorKind::NoMutationsApplicable)),
+            Ok(_) => panic!("expected an out-of-bounds global index to be rejected"),
+        }
     }
 }

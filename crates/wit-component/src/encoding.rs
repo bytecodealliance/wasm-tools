@@ -632,10 +632,6 @@ impl<'a> EncodingState<'a> {
         // at the end.
         self.instantiate_main_module(&shims)?;
 
-        // Create any wrappers needed for initializing tasks if task initialization
-        // exports are present in the main module.
-        self.create_export_task_initialization_wrappers()?;
-
         // Separate the adapters according which should be instantiated before
         // and after indirect lowerings are encoded.
         let (before, after) = self
@@ -665,6 +661,10 @@ impl<'a> EncodingState<'a> {
         }
 
         self.encode_initialize_with_start()?;
+
+        // Create any wrappers needed for initializing tasks if task initialization
+        // exports are present in the main module.
+        self.create_export_task_initialization_wrappers()?;
 
         Ok(())
     }
@@ -2163,30 +2163,65 @@ impl<'a> EncodingState<'a> {
             // there's nothing to do here.
             None => return Ok(()),
         };
+        let init_task = self.info.info.exports.wasm_init_task();
         let initialize_index = self.core_alias_export(
             Some("start"),
             self.instance_index.unwrap(),
             initialize,
             ExportKind::Func,
         );
+        let init_task_index = init_task.map(|name| {
+            self.core_alias_export(
+                Some("init-task-for-start"),
+                self.instance_index.unwrap(),
+                name,
+                ExportKind::Func,
+            )
+        });
         let mut shim = Module::default();
         let mut section = TypeSection::new();
         section.ty().function([], []);
         shim.section(&section);
+
         let mut section = ImportSection::new();
         section.import("", "", EntityType::Function(0));
+        if init_task.is_some() {
+            section.import("", "init", EntityType::Function(0));
+        }
         shim.section(&section);
-        shim.section(&StartSection { function_index: 0 });
+
+        if init_task.is_some() {
+            let mut functions = FunctionSection::new();
+            functions.function(0);
+            shim.section(&functions);
+        }
+
+        shim.section(&StartSection {
+            function_index: if init_task.is_some() { 2 } else { 0 },
+        });
+
+        if init_task.is_some() {
+            let mut code = CodeSection::new();
+            let mut func = wasm_encoder::Function::new([]);
+            func.instructions().call(1);
+            func.instructions().call(0);
+            func.instructions().end();
+            code.function(&func);
+            shim.section(&code);
+        }
 
         // Declare the core module within the component, create a dummy core
         // instance with one export of our `_initialize` function, and then use
         // that to instantiate the module we emit to run the `start` function in
         // core wasm to run `_initialize`.
         let shim_module_index = self.component.core_module(Some("start-shim-module"), &shim);
-        let shim_args_instance_index = self.component.core_instantiate_exports(
-            Some("start-shim-args"),
-            [("", ExportKind::Func, initialize_index)],
-        );
+        let mut shim_args = vec![("", ExportKind::Func, initialize_index)];
+        if let Some(i) = init_task_index {
+            shim_args.push(("init", ExportKind::Func, i));
+        }
+        let shim_args_instance_index = self
+            .component
+            .core_instantiate_exports(Some("start-shim-args"), shim_args);
         self.component.core_instantiate(
             Some("start-shim-instance"),
             shim_module_index,
@@ -2260,14 +2295,23 @@ impl<'a> EncodingState<'a> {
         // that we'll need to build the wrappers.
         let funcs_to_wrap: Vec<_> = exports
             .iter()
-            .flat_map(|(core_name, export)| match export {
+            .map(|v| (instance_index, v))
+            .chain(self.info.adapters.iter().flat_map(|(name, adapter)| {
+                let instance_index = self.adapter_instances[name];
+                adapter
+                    .info
+                    .exports
+                    .iter()
+                    .map(move |v| (instance_index, v))
+            }))
+            .flat_map(|(index, (core_name, export))| match export {
                 Export::WorldFunc(key, _, abi) => match &world.exports[key] {
-                    WorldItem::Function(f) => Some((core_name, f, abi)),
+                    WorldItem::Function(f) => Some((index, core_name, f, abi)),
                     _ => None,
                 },
                 Export::InterfaceFunc(_, id, func_name, abi) => {
                     let func = &resolve.interfaces[*id].functions[func_name.as_str()];
-                    Some((core_name, func, abi))
+                    Some((index, core_name, func, abi))
                 }
                 _ => None,
             })
@@ -2316,7 +2360,7 @@ impl<'a> EncodingState<'a> {
             n_params: usize,
         }
         let mut func_info = Vec::new();
-        for &(name, func, abi) in funcs_to_wrap.iter() {
+        for &(_, name, func, abi) in funcs_to_wrap.iter() {
             let sig = resolve.wasm_signature(*abi, func);
             let type_idx = *type_indices.entry(sig.clone()).or_insert_with(|| {
                 let idx = next_type_idx;
@@ -2396,9 +2440,9 @@ impl<'a> EncodingState<'a> {
         ));
 
         // Import all original exports to be wrapped
-        for (name, func, _) in &funcs_to_wrap {
+        for (instance_index, name, func, _) in &funcs_to_wrap {
             let orig_idx =
-                self.core_alias_export(Some(name), instance_index, name, ExportKind::Func);
+                self.core_alias_export(Some(name), *instance_index, name, ExportKind::Func);
             wrapper_imports.push((import_func_name(func), ExportKind::Func, orig_idx));
         }
 
@@ -2414,7 +2458,7 @@ impl<'a> EncodingState<'a> {
         );
 
         // Map original names to wrapper indices
-        for (name, _, _) in funcs_to_wrap {
+        for (_, name, _, _) in funcs_to_wrap {
             let wrapper_idx =
                 self.core_alias_export(Some(&name), wrapper_instance, &name, ExportKind::Func);
             self.export_task_initialization_wrappers

@@ -88,18 +88,8 @@
   )
   "duplicate annotation")
 
-(module
-  (func (@metadata.code.branch_hint "\00"))
-  (func
-    (@metadata.code.branch_hint "\01")
-  )
-  (func
-    (@metadata.code.branch_hint "\00")
-    i32.const 0
-    (@metadata.code.branch_hint "\00")
-    if
-    (@metadata.code.branch_hint "\00")
-    end
-    (@metadata.code.branch_hint "\00")
-  )
-)
+;; A branch hint must immediately precede an instruction; an annotation with no
+;; following instruction is rejected.
+(assert_malformed
+  (module quote "(func (@metadata.code.branch_hint \"\\00\"))")
+  "must precede an instruction")
