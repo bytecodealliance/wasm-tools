@@ -1474,18 +1474,15 @@ impl<'a> EncodingState<'a> {
                             .into_iter(*encoding, self.memory_index, realloc_index)?;
                     self.component.task_return(result, options)
                 }
-                ShimKind::ThreadNewIndirect {
-                    for_module,
-                    func_ty,
-                } => {
+                ShimKind::ThreadNewIndirect { func_ty } => {
                     // Encode the function type for the thread start function so we can reference it in the `canon` call.
                     let (func_ty_idx, f) = self.component.core_type(Some("thread-start"));
                     f.core().func_type(func_ty);
 
                     // In order for the funcref table referenced by `thread.new-indirect` to be used,
-                    // it must have been exported by the module.
-                    let exports = self.info.exports_for(*for_module);
-                    let instance_index = self.instance_for(*for_module);
+                    // it must have been exported by the main module.
+                    let exports = self.info.exports_for(CustomModule::Main);
+                    let instance_index = self.instance_for(CustomModule::Main);
                     let table_idx = exports.indirect_function_table().map(|table| {
                         self.core_alias_export(
                             Some("indirect-function-table"),
@@ -2005,7 +2002,6 @@ impl<'a> EncodingState<'a> {
             Import::ThreadNewIndirect => Ok(self.materialize_shim_import(
                 shims,
                 &ShimKind::ThreadNewIndirect {
-                    for_module,
                     // This is fixed for now
                     func_ty: FuncType::new([ValType::I32], []),
                 },
@@ -2611,8 +2607,6 @@ enum ShimKind<'a> {
     /// A shim used for the `thread.new-indirect` built-in function, which
     /// must refer to the core module instance's indirect function table.
     ThreadNewIndirect {
-        /// Which instance to pull the function table from.
-        for_module: CustomModule<'a>,
         /// The function type to use when creating the thread.
         func_ty: FuncType,
     },
@@ -2866,7 +2860,6 @@ impl<'a> Shims<'a> {
                         debug_name: "thread.new-indirect".to_string(),
                         options: RequiredOptions::empty(),
                         kind: ShimKind::ThreadNewIndirect {
-                            for_module,
                             // This is fixed for now
                             func_ty: FuncType::new([ValType::I32], vec![]),
                         },
