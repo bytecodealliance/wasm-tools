@@ -1306,7 +1306,11 @@ mod tests {
                 wasmparser::Chunk::NeedMoreData(_) => {
                     panic!("This should not happen")
                 }
-                wasmparser::Chunk::Parsed { consumed, payload } => (payload, consumed),
+                wasmparser::Chunk::Parsed {
+                    consumed,
+                    payload,
+                    offset: _,
+                } => (payload, consumed),
             };
 
             consumed += size;
@@ -1362,7 +1366,11 @@ mod tests {
                 wasmparser::Chunk::NeedMoreData(_) => {
                     panic!("This should not happen")
                 }
-                wasmparser::Chunk::Parsed { consumed, payload } => (payload, consumed),
+                wasmparser::Chunk::Parsed {
+                    consumed,
+                    payload,
+                    offset: _,
+                } => (payload, consumed),
             };
 
             consumed += size;
@@ -1444,7 +1452,11 @@ mod tests {
                 wasmparser::Chunk::NeedMoreData(_) => {
                     panic!("This should not happen")
                 }
-                wasmparser::Chunk::Parsed { consumed, payload } => (payload, consumed),
+                wasmparser::Chunk::Parsed {
+                    consumed,
+                    payload,
+                    offset: _,
+                } => (payload, consumed),
             };
 
             consumed += size;
@@ -1501,7 +1513,11 @@ mod tests {
         loop {
             let (payload, size) = match parser.parse(&original[consumed..], true).unwrap() {
                 wasmparser::Chunk::NeedMoreData(_) => unreachable!(),
-                wasmparser::Chunk::Parsed { consumed, payload } => (payload, consumed),
+                wasmparser::Chunk::Parsed {
+                    consumed,
+                    payload,
+                    offset: _,
+                } => (payload, consumed),
             };
 
             consumed += size;

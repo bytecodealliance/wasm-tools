@@ -122,7 +122,11 @@ impl<'a> Component<'a> {
         let mut cur = bytes.as_ref();
         loop {
             match parser.parse(cur, true)? {
-                Chunk::Parsed { payload, consumed } => {
+                Chunk::Parsed {
+                    payload,
+                    consumed,
+                    offset: _,
+                } => {
                     cur = &cur[consumed..];
 
                     match validator.payload(&payload)? {

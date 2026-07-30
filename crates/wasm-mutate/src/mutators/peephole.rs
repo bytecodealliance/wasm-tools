@@ -42,7 +42,7 @@ use egg::{Rewrite, Runner};
 use rand::RngExt;
 use wasm_encoder::reencode::{Reencode, RoundtripReencoder};
 use wasm_encoder::{CodeSection, ConstExpr, Function, GlobalSection, Module, ValType};
-use wasmparser::{CodeSectionReader, FunctionBody, GlobalSectionReader, InMemData, LocalsReader};
+use wasmparser::{CodeSectionReader, FunctionBody, GlobalSectionReader, LocalsReader};
 
 /// This mutator applies a random peephole transformation to the input Wasm module
 #[derive(Clone)]
@@ -108,7 +108,7 @@ impl PeepholeMutator {
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         let code_section = config.info().code.unwrap();
         let reader = config.info().get_binary_reader(code_section);
-        let input_code_section = InMemData::new(config.info().get_code_section().data);
+        let input_code_section = config.info().get_code_section().data;
         let sectionreader = CodeSectionReader::new(reader)?;
         let function_count = sectionreader.count();
         let mut function_to_mutate = config.rng().random_range(0..function_count);

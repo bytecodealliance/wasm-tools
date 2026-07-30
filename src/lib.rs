@@ -358,7 +358,7 @@ impl OutputArg {
 
 pub fn parse_binary_wasm(parser: wasmparser::Parser, bytes: &[u8]) -> Result<()> {
     for payload in parser.parse_all(&bytes) {
-        match payload? {
+        match payload?.0 {
             wasmparser::Payload::TypeSection(s) => parse_section(s)?,
             wasmparser::Payload::ImportSection(s) => parse_section(s)?,
             wasmparser::Payload::FunctionSection(s) => parse_section(s)?,

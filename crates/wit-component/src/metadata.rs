@@ -49,7 +49,7 @@ use wasm_encoder::{
     ComponentBuilder, ComponentExportKind, ComponentType, ComponentTypeRef, CustomSection,
 };
 use wasm_metadata::Producers;
-use wasmparser::{BinaryReader, Encoding, InMemData, Parser, Payload};
+use wasmparser::{BinaryReader, Encoding, Parser, Payload};
 use wit_parser::{CloneMaps, Package, PackageName, Resolve, World, WorldId, WorldItem, WorldKey};
 
 const CURRENT_VERSION: u8 = 0x04;
@@ -227,13 +227,12 @@ impl EncodingMap {
 /// optionally returned with the custom sections stripped out. If no
 /// `component-type` custom sections are found then `None` is returned.
 pub fn decode(wasm: &[u8]) -> Result<(Option<Vec<u8>>, Bindgen)> {
-    let wasm = InMemData::new(wasm);
     let mut ret = Bindgen::default();
     let mut new_module = wasm_encoder::Module::new();
 
     let mut found_custom = false;
     for payload in wasmparser::Parser::new(0).parse_all(&wasm) {
-        let payload = payload.context("decoding item in module")?;
+        let (payload, offset) = payload.context("decoding item in module")?;
         match payload {
             wasmparser::Payload::CustomSection(cs) if cs.name().starts_with("component-type") => {
                 let data = Bindgen::decode_custom_section(cs.data())
@@ -249,7 +248,7 @@ pub fn decode(wasm: &[u8]) -> Result<(Option<Vec<u8>>, Bindgen)> {
                 if let Some((id, range)) = payload.as_section() {
                     new_module.section(&wasm_encoder::RawSection {
                         id,
-                        data: &wasm[range],
+                        data: &wasm[offset.convert_range(&range)],
                     });
                 }
             }
@@ -309,7 +308,7 @@ fn decode_custom_section(wasm: &[u8]) -> Result<(Resolve, WorldId, StringEncodin
     let mut custom_section = None;
 
     for payload in Parser::new(0).parse_all(wasm) {
-        match payload? {
+        match payload?.0 {
             Payload::CustomSection(s) if s.name() == CUSTOM_SECTION_NAME => {
                 custom_section = Some(s.data());
             }
@@ -351,15 +350,15 @@ impl Bindgen {
         let resolve;
         let encoding;
 
-        let data = InMemData::new(data);
         let mut reader = BinaryReader::new(&data, 0);
+        let offset = wasmparser::OffsetConverter::from_start(0);
         match reader.read_u8()? {
             // Historical 0x03 format where the support here will be deleted in
             // the future
             0x03 => {
                 encoding = decode_string_encoding(reader.read_u8()?)?;
                 let world_name = reader.read_string()?;
-                wasm = &data[reader.original_position()..];
+                wasm = &data[offset.convert_offset(reader.original_position())..];
 
                 let (r, pkg) = match crate::decode(wasm)? {
                     DecodedWasm::WitPackage(resolve, pkgs) => (resolve, pkgs),
@@ -371,7 +370,7 @@ impl Bindgen {
 
             // Current format where `data` is a wasm component itself.
             _ => {
-                wasm = data.data;
+                wasm = data;
                 (resolve, world, encoding) = decode_custom_section(wasm)?;
             }
         }

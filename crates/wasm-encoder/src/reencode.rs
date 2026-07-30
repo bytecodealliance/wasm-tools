@@ -661,7 +661,6 @@ pub mod utils {
     use crate::{CoreTypeEncoder, Encode, Imports};
     use alloc::vec::Vec;
     use core::ops::Range;
-    use wasmparser::InMemData;
 
     pub fn parse_core_module<T: ?Sized + Reencode>(
         reencoder: &mut T,
@@ -680,22 +679,23 @@ pub mod utils {
             reencoder.intersperse_section_hook(module, after, before)
         }
 
-        // Convert from `range` to a byte range within `data` while
-        // accounting for various offsets. Then create a
-        // `CodeSectionReader` (which notably the payload does not
-        // give us here) and recurse with that. This means that
-        // users overriding `parse_code_section` always get that
-        // function called.
-        let orig_offset = parser.offset();
-        let get_original_section = |range: Range<u64>| {
-            InMemData::new(data)
-                .get(range.start - orig_offset..range.end - orig_offset)
-                .ok_or(Error::InvalidCodeSectionSize)
-        };
         let mut last_section = None;
 
         for section in parser.parse_all(data) {
-            match section? {
+            let (section, offset) = section?;
+            // Convert from `range` to a byte range within `data` while
+            // accounting for various offsets. Then create a
+            // `CodeSectionReader` (which notably the payload does not
+            // give us here) and recurse with that. This means that
+            // users overriding `parse_code_section` always get that
+            // function called.
+            let get_original_section = |range: Range<u64>| {
+                let data_range = offset
+                    .try_convert_range(&range)
+                    .ok_or(Error::InvalidCodeSectionSize)?;
+                data.get(data_range).ok_or(Error::InvalidCodeSectionSize)
+            };
+            match section {
                 wasmparser::Payload::Version {
                     encoding: wasmparser::Encoding::Module,
                     ..

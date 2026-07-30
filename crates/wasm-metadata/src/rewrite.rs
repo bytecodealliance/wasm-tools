@@ -4,19 +4,19 @@ use anyhow::Result;
 use std::mem;
 use wasm_encoder::ComponentSection as _;
 use wasm_encoder::{ComponentSectionId, Encode, Section};
-use wasmparser::{InMemData, KnownCustom, Parser, Payload::*};
+use wasmparser::{KnownCustom, Parser, Payload::*};
 
 pub(crate) fn rewrite_wasm(
     metadata: &AddMetadata,
     add_producers: &Producers,
-    input: InMemData,
+    input: &[u8],
 ) -> Result<Vec<u8>> {
     let mut producers_found = false;
     let mut names_found = false;
     let mut stack = Vec::new();
     let mut output = Vec::new();
-    for payload in Parser::new(0).parse_all(&input) {
-        let payload = payload?;
+    for payload in Parser::new(0).parse_all(input) {
+        let (payload, offset) = payload?;
 
         // Track nesting depth, so that we don't mess with inner producer sections:
         match payload {
@@ -169,7 +169,7 @@ pub(crate) fn rewrite_wasm(
         if let Some((id, range)) = payload.as_section() {
             wasm_encoder::RawSection {
                 id,
-                data: &input[range],
+                data: &input[offset.convert_range(&range)],
             }
             .append_to(&mut output);
         }

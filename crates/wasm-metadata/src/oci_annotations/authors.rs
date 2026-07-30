@@ -93,7 +93,7 @@ mod test {
 
         let mut parsed = false;
         for section in wasmparser::Parser::new(0).parse_all(&component) {
-            if let Payload::CustomSection(reader) = section.unwrap() {
+            if let Payload::CustomSection(reader) = section.unwrap().0 {
                 let authors = Authors::parse_custom_section(&reader).unwrap();
                 assert_eq!(authors.to_string(), "Nori Cat");
                 parsed = true;

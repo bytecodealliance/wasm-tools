@@ -134,7 +134,7 @@ impl Opts {
 
         let start = Instant::now();
         for payload in Parser::new(0).parse_all(&wasm) {
-            match validator.payload(&payload?)? {
+            match validator.payload(&payload?.0)? {
                 ValidPayload::Ok | ValidPayload::Parser(_) | ValidPayload::End(_) => {}
                 ValidPayload::Func(validator, body) => {
                     functions_to_validate.push((validator, body))

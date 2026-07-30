@@ -73,7 +73,11 @@ impl ComponentInfo {
                     continue;
                 }
 
-                Chunk::Parsed { consumed, payload } => (payload, consumed),
+                Chunk::Parsed {
+                    consumed,
+                    payload,
+                    offset: _,
+                } => (payload, consumed),
             };
             match validator.payload(&payload)? {
                 ValidPayload::Ok => {}
@@ -425,7 +429,7 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
     let mut types = None;
 
     for payload in Parser::new(0).parse_all(wasm) {
-        let payload = payload?;
+        let (payload, _) = payload?;
 
         match validator.payload(&payload)? {
             ValidPayload::Ok => {}

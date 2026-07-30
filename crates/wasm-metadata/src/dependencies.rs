@@ -131,7 +131,7 @@ mod test {
 
         let mut parsed = false;
         for section in wasmparser::Parser::new(0).parse_all(&component) {
-            if let Payload::CustomSection(reader) = section.unwrap() {
+            if let Payload::CustomSection(reader) = section.unwrap().0 {
                 let dependencies = Dependencies::parse_custom_section(&reader).unwrap();
                 assert_eq!(dependencies.to_string(), json_str);
                 parsed = true;
@@ -161,7 +161,7 @@ mod test {
 
         let mut saw_section = false;
         for section in wasmparser::Parser::new(0).parse_all(&component) {
-            if let Payload::CustomSection(reader) = section.unwrap() {
+            if let Payload::CustomSection(reader) = section.unwrap().0 {
                 saw_section = true;
                 let err = Dependencies::parse_custom_section(&reader).unwrap_err();
                 assert!(

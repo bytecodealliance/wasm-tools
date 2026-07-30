@@ -6,7 +6,7 @@ use crate::{
 };
 use std::ops::Range;
 use wasm_encoder::Function;
-use wasmparser::{BlockType, InMemData, Operator};
+use wasmparser::{BlockType, Operator};
 
 use self::parse_context::{Ast, Node, State};
 
@@ -29,7 +29,7 @@ pub trait AstWriter {
         body: &[usize],
         newfunc: &mut Function,
         operators: &Vec<OperatorAndByteOffset>,
-        input_wasm: InMemData<'a>,
+        input_wasm: &'a [u8],
         ty: &BlockType,
     ) -> crate::Result<()> {
         self.write_loop_default(ast, nodeidx, body, newfunc, operators, input_wasm, ty)
@@ -46,7 +46,7 @@ pub trait AstWriter {
         body: &[usize],
         newfunc: &mut Function,
         operators: &Vec<OperatorAndByteOffset>,
-        input_wasm: InMemData<'a>,
+        input_wasm: &'a [u8],
         ty: &BlockType,
     ) -> crate::Result<()> {
         newfunc.instructions().loop_(map_block_type(*ty)?);
@@ -68,7 +68,7 @@ pub trait AstWriter {
         body: &[usize],
         newfunc: &mut Function,
         operators: &Vec<OperatorAndByteOffset>,
-        input_wasm: InMemData<'a>,
+        input_wasm: &'a [u8],
         ty: &BlockType,
     ) -> crate::Result<()> {
         newfunc.instructions().block(map_block_type(*ty)?);
@@ -94,7 +94,7 @@ pub trait AstWriter {
         body: &[usize],
         newfunc: &mut Function,
         operators: &Vec<OperatorAndByteOffset>,
-        input_wasm: InMemData<'a>,
+        input_wasm: &'a [u8],
         ty: &BlockType,
     ) -> crate::Result<()> {
         self.write_block_default(ast, nodeidx, body, newfunc, operators, input_wasm, ty)
@@ -114,7 +114,7 @@ pub trait AstWriter {
         alternative: &Option<Vec<usize>>,
         newfunc: &mut Function,
         operators: &Vec<OperatorAndByteOffset>,
-        input_wasm: InMemData<'a>,
+        input_wasm: &'a [u8],
         ty: &BlockType,
     ) -> crate::Result<()> {
         self.write_if_else_default(
@@ -141,7 +141,7 @@ pub trait AstWriter {
         alternative: &Option<Vec<usize>>,
         newfunc: &mut Function,
         operators: &Vec<OperatorAndByteOffset>,
-        input_wasm: InMemData<'a>,
+        input_wasm: &'a [u8],
         ty: &BlockType,
     ) -> crate::Result<()> {
         newfunc.instructions().if_(map_block_type(*ty)?);
@@ -174,14 +174,15 @@ pub trait AstWriter {
         range: Range<usize>,
         newfunc: &mut Function,
         operators: &Vec<OperatorAndByteOffset>,
-        input_wasm: InMemData<'a>,
+        input_wasm: &'a [u8],
     ) -> crate::Result<()> {
         let operator_range = (range.start, range.end);
         let bytes_range = (
             &operators[operator_range.0].1,
             &operators[operator_range.1].1,
         );
-        let piece_of_code = &input_wasm[*bytes_range.0..*bytes_range.1];
+        let offset = wasmparser::OffsetConverter::from_start(0);
+        let piece_of_code = &input_wasm[offset.convert_range(&(*bytes_range.0..*bytes_range.1))];
         newfunc.raw(piece_of_code.to_vec());
         Ok(())
     }
@@ -195,7 +196,7 @@ pub trait AstWriter {
         nodeidx: usize,
         newfunc: &mut Function,
         operators: &Vec<OperatorAndByteOffset>,
-        input_wasm: InMemData<'a>,
+        input_wasm: &'a [u8],
     ) -> crate::Result<()> {
         let node = &ast.get_nodes()[nodeidx];
 

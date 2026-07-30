@@ -33,7 +33,7 @@ use crate::{
 };
 use rand::{RngExt, prelude::*};
 use wasm_encoder::{CodeSection, Function, Module, ValType};
-use wasmparser::{CodeSectionReader, FunctionBody, InMemData};
+use wasmparser::{CodeSectionReader, FunctionBody};
 
 /// Code motion meta mutator, it groups all code motion mutators and select a
 /// valid random one when an input Wasm binary is passed to it.
@@ -65,7 +65,7 @@ impl CodemotionMutator {
         let info = config.info();
         let original_code_section = info.code.unwrap();
         let reader = info.get_binary_reader(original_code_section);
-        let input_code_section = InMemData::new(info.get_code_section().data);
+        let input_code_section = info.get_code_section().data;
         let sectionreader = CodeSectionReader::new(reader)?;
         let function_count = sectionreader.count();
         let function_to_mutate = config.rng().random_range(0..function_count);
@@ -122,7 +122,7 @@ pub trait AstMutator {
         ast: &Ast,
         locals: &[(u32, ValType)],
         operators: &Vec<OperatorAndByteOffset>,
-        input_code_section: InMemData<'a>,
+        input_code_section: &'a [u8],
     ) -> Result<Function>;
 
     /// Checks if this mutator can be applied to the passed `ast`

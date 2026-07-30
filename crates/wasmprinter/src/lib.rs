@@ -358,13 +358,19 @@ impl Printer<'_, '_> {
         state: &mut State,
     ) -> Result<()> {
         loop {
-            let payload = match parser.parse(bytes, true)? {
+            let (payload, offset) = match parser.parse(bytes, true)? {
                 Chunk::NeedMoreData(_) => unreachable!(),
-                Chunk::Parsed { payload, consumed } => {
+                Chunk::Parsed {
+                    payload,
+                    consumed,
+                    offset,
+                } => {
                     bytes = &bytes[consumed..];
-                    payload
+                    (payload, offset)
                 }
             };
+            #[cfg(not(feature = "component-model"))]
+            let _ = offset;
 
             match payload {
                 Payload::CodeSectionStart { size, .. } => {
@@ -383,7 +389,7 @@ impl Printer<'_, '_> {
                     unchecked_range: range,
                     ..
                 } => {
-                    let offset = InMemData::range_len(&range);
+                    let offset = offset.convert_range(&range).len();
                     if offset > bytes.len() {
                         bail!("invalid module or component section range");
                     }
@@ -450,7 +456,11 @@ impl Printer<'_, '_> {
         loop {
             let payload = match parser.parse(bytes, true)? {
                 Chunk::NeedMoreData(_) => unreachable!(),
-                Chunk::Parsed { payload, consumed } => {
+                Chunk::Parsed {
+                    payload,
+                    consumed,
+                    offset: _,
+                } => {
                     bytes = &bytes[consumed..];
                     payload
                 }

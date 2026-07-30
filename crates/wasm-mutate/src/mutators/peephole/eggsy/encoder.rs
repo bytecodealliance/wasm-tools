@@ -8,7 +8,6 @@ use crate::mutators::peephole::{OperatorAndByteOffset, dfg::BBlock};
 use egg::RecExpr;
 
 use wasm_encoder::Function;
-use wasmparser::InMemData;
 
 use self::expr2wasm::ResourceRequest;
 
@@ -35,12 +34,13 @@ impl Encoder {
         newfunc: &mut Function,
         dfg: &MiniDFG,
         egraph: &EG,
-        input_code_section: InMemData,
+        input_code_section: &[u8],
     ) -> crate::Result<Vec<ResourceRequest>> {
         // Copy previous code
         let range = basicblock.range.clone();
         let byterange = (&operators[0].1, &operators[range.start].1);
-        let bytes = &input_code_section[*byterange.0..*byterange.1];
+        let offset = wasmparser::OffsetConverter::from_start(0);
+        let bytes = &input_code_section[offset.convert_range(&(*byterange.0..*byterange.1))];
         newfunc.raw(bytes.iter().copied());
 
         // Write all entries in the minidfg in reverse order
@@ -67,7 +67,8 @@ impl Encoder {
             &operators[range.end].1, // In the worst case the next instruction will be and end
             &operators[operators.len() - 1].1,
         );
-        let bytes = &input_code_section[*byterange.0..=*byterange.1];
+        let bytes = &input_code_section
+            [offset.convert_offset(*byterange.0)..=offset.convert_offset(*byterange.1)];
 
         newfunc.raw(bytes.iter().copied());
         Ok(resource_request)

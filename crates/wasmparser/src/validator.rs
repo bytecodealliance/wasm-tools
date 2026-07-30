@@ -504,7 +504,7 @@ impl Validator {
         #[cfg(feature = "features")]
         parser.set_features(self.features);
         for payload in parser.parse_all(bytes) {
-            match self.payload(&payload?)? {
+            match self.payload(&payload?.0)? {
                 ValidPayload::Func(a, b) => {
                     functions_to_validate.push((a, b));
                 }

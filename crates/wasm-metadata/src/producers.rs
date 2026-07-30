@@ -1,7 +1,7 @@
 use anyhow::Result;
 use indexmap::{IndexMap, map::Entry};
 use wasm_encoder::Encode;
-use wasmparser::{BinaryReader, InMemData, KnownCustom, Parser, ProducersSectionReader};
+use wasmparser::{BinaryReader, KnownCustom, Parser, ProducersSectionReader};
 
 use crate::{AddMetadata, rewrite_wasm};
 /// A representation of a WebAssembly producers section.
@@ -41,7 +41,7 @@ impl Producers {
     pub fn from_wasm(bytes: &[u8]) -> Result<Option<Self>> {
         let mut depth = 0;
         for payload in Parser::new(0).parse_all(bytes) {
-            let payload = payload?;
+            let (payload, _) = payload?;
             use wasmparser::Payload::*;
             match payload {
                 ModuleSection { .. } | ComponentSection { .. } => depth += 1,
@@ -150,7 +150,7 @@ impl Producers {
     /// Merge into an existing wasm module. Rewrites the module with this producers section
     /// merged into its existing one, or adds this producers section if none is present.
     pub fn add_to_wasm(&self, input: &[u8]) -> Result<Vec<u8>> {
-        rewrite_wasm(&Default::default(), self, InMemData::new(input))
+        rewrite_wasm(&Default::default(), self, input)
     }
 }
 

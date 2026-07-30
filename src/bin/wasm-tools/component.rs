@@ -11,7 +11,7 @@ use wasm_encoder::reencode::{Error, Reencode, ReencodeComponent, RoundtripReenco
 use wasm_tools::Output;
 use wasm_tools::wit::WitResolve;
 use wasmparser::types::{CoreTypeId, EntityType, Types};
-use wasmparser::{InMemData, Payload, ValidPayload, WasmFeatures};
+use wasmparser::{Payload, ValidPayload, WasmFeatures};
 use wat::Detect;
 use wit_component::{
     ComponentEncoder, DecodedWasm, Linker, StringEncoding, WitPrinter, embed_component_metadata,
@@ -1358,7 +1358,6 @@ impl UnbundleOpts {
 
     fn run(self) -> Result<()> {
         let input = self.io.get_input_wasm(Some(&self.generate_dwarf))?;
-        let input = InMemData::new(&input);
         if !wasmparser::Parser::is_component(&input) {
             return self.io.output_wasm(&input, self.wat);
         }
@@ -1368,14 +1367,15 @@ impl UnbundleOpts {
         // the module itself or `None` indicating it's not being extracted.
         let mut modules_to_extract = Vec::new();
         for payload in wasmparser::Parser::new(0).parse_all(&input) {
-            let range = match payload? {
+            let (payload, offset) = payload?;
+            let range = match payload {
                 Payload::ModuleSection {
                     unchecked_range, ..
                 } => unchecked_range,
                 _ => continue,
             };
-            modules_to_extract.push(if InMemData::range_len(&range) > self.threshold {
-                Some(&input[range])
+            modules_to_extract.push(if offset.convert_range(&range).len() > self.threshold {
+                Some(&input[offset.convert_range(&range)])
             } else {
                 None
             });
@@ -1391,7 +1391,7 @@ impl UnbundleOpts {
             let mut types = None;
             for payload in wasmparser::Parser::new(0).parse_all(module) {
                 match validator
-                    .payload(&payload?)
+                    .payload(&payload?.0)
                     .context("failed to validate core wasm module found in component")?
                 {
                     ValidPayload::Ok | ValidPayload::Parser(_) | ValidPayload::Func(..) => {}

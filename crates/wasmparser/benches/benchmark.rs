@@ -96,7 +96,7 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
         Ok(())
     };
     for item in Parser::new(0).parse_all(wasm) {
-        match item? {
+        match item?.0 {
             TypeSection(s) => {
                 for item in s {
                     item?;

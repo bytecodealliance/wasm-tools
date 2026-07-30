@@ -53,7 +53,7 @@ impl Opts {
         printer.indices.push(IndexSpace::default());
 
         for payload in Parser::new(0).parse_all(&input) {
-            match payload? {
+            match payload?.0 {
                 Version { .. } => {}
 
                 TypeSection(s) => printer.section(s, "types")?,

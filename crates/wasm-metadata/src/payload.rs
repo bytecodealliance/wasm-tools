@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use anyhow::Result;
 use serde_derive::Serialize;
-use wasmparser::{InMemData, KnownCustom, Parser, Payload::*};
+use wasmparser::{KnownCustom, Parser, Payload::*};
 
 use crate::{
     Authors, ComponentNames, Description, Homepage, Licenses, Metadata, ModuleNames, Producers,
@@ -35,15 +35,16 @@ impl Payload {
         let mut output = Vec::new();
 
         for payload in Parser::new(0).parse_all(&input) {
-            match payload? {
+            let (payload, _) = payload?;
+            match payload {
                 Version { encoding, .. } => {
                     if output.is_empty() {
                         match encoding {
                             wasmparser::Encoding::Module => {
-                                output.push(Self::empty_module(InMemData::new(input).range()))
+                                output.push(Self::empty_module(0..input.len() as u64))
                             }
                             wasmparser::Encoding::Component => {
-                                output.push(Self::empty_component(InMemData::new(input).range()))
+                                output.push(Self::empty_component(0..input.len() as u64))
                             }
                         }
                     }

@@ -390,7 +390,6 @@ pub mod component_utils {
     use crate::reencode::Error;
     use alloc::boxed::Box;
     use alloc::vec::Vec;
-    use wasmparser::InMemData;
 
     pub fn parse_component<T: ?Sized + ReencodeComponent>(
         reencoder: &mut T,
@@ -401,10 +400,14 @@ pub mod component_utils {
     ) -> Result<(), Error<T::Error>> {
         let mut remaining = data;
         while !remaining.is_empty() {
-            let section = match parser.parse(remaining, true)? {
-                wasmparser::Chunk::Parsed { consumed, payload } => {
+            let (section, offset) = match parser.parse(remaining, true)? {
+                wasmparser::Chunk::Parsed {
+                    consumed,
+                    payload,
+                    offset,
+                } => {
                     remaining = &remaining[consumed..];
-                    payload
+                    (payload, offset)
                 }
                 wasmparser::Chunk::NeedMoreData(_) => unreachable!(),
             };
@@ -415,7 +418,7 @@ pub mod component_utils {
                 | wasmparser::Payload::ModuleSection {
                     unchecked_range, ..
                 } => {
-                    let skipped_len = InMemData::range_len(unchecked_range);
+                    let skipped_len = offset.convert_range(unchecked_range).len();
                     remaining = &remaining[skipped_len..];
                 }
                 _ => {}
@@ -432,7 +435,7 @@ pub mod component_utils {
         payload: wasmparser::Payload<'_>,
         whole_component: &[u8],
     ) -> Result<(), Error<T::Error>> {
-        let whole_component = InMemData::new(whole_component);
+        let offset = wasmparser::OffsetConverter::from_start(0);
         match payload {
             wasmparser::Payload::Version {
                 encoding: wasmparser::Encoding::Component,
@@ -507,7 +510,7 @@ pub mod component_utils {
                 reencoder.parse_component_submodule(
                     component,
                     parser,
-                    &whole_component[unchecked_range],
+                    &whole_component[offset.convert_range(&unchecked_range)],
                 )?;
             }
             wasmparser::Payload::ComponentSection {
@@ -517,8 +520,8 @@ pub mod component_utils {
                 reencoder.parse_component_subcomponent(
                     component,
                     parser,
-                    &whole_component[unchecked_range],
-                    whole_component.data,
+                    &whole_component[offset.convert_range(&unchecked_range)],
+                    whole_component,
                 )?;
             }
             wasmparser::Payload::ComponentStartSection { start, range: _ } => {
@@ -528,7 +531,7 @@ pub mod component_utils {
 
             other => match other.as_section() {
                 Some((id, range)) => {
-                    let section = &whole_component[range];
+                    let section = &whole_component[offset.convert_range(&range)];
                     reencoder.parse_unknown_component_section(component, id, section)?;
                 }
                 None => unreachable!(),

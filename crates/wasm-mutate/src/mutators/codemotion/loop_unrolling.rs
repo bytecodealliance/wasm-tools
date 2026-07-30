@@ -4,7 +4,7 @@ use std::{collections::HashMap, slice::Iter};
 
 use rand::prelude::*;
 use wasm_encoder::{Function, Instruction, ValType};
-use wasmparser::{BlockType, InMemData, Operator};
+use wasmparser::{BlockType, Operator};
 
 use crate::{
     Error, WasmMutate,
@@ -36,7 +36,7 @@ impl LoopUnrollWriter {
         chunk: Iter<OperatorAndByteOffset>,
         to_fix: &HashMap<usize, Instruction>,
         newfunc: &mut Function,
-        input_code_section: InMemData<'a>,
+        input_code_section: &'a [u8],
     ) -> crate::Result<()> {
         for (idx, ((_, curr_offset), (_, next_offset))) in
             chunk.clone().zip(chunk.skip(1)).enumerate()
@@ -44,8 +44,10 @@ impl LoopUnrollWriter {
             if to_fix.contains_key(&idx) {
                 newfunc.instruction(&to_fix[&idx]);
             } else {
-                let piece = &input_code_section[*curr_offset..*next_offset];
-                newfunc.raw(piece.to_vec());
+                let offset = wasmparser::OffsetConverter::from_start(0);
+                let piece =
+                    &input_code_section[offset.convert_range(&(*curr_offset..*next_offset))];
+                newfunc.raw(piece.into_iter().copied());
             }
         }
         Ok(())
@@ -57,7 +59,7 @@ impl LoopUnrollWriter {
         nodeidx: usize,
         newfunc: &mut Function,
         operators: &Vec<OperatorAndByteOffset>,
-        input_code_section: InMemData<'a>,
+        input_code_section: &'a [u8],
     ) -> crate::Result<()> {
         let nodes = ast.get_nodes();
 
@@ -172,7 +174,7 @@ impl AstWriter for LoopUnrollWriter {
         body: &[usize],
         newfunc: &mut Function,
         operators: &Vec<OperatorAndByteOffset>,
-        input_code_section: InMemData<'a>,
+        input_code_section: &'a [u8],
         ty: &wasmparser::BlockType,
     ) -> crate::Result<()> {
         if self.loop_to_mutate == nodeidx {
@@ -228,7 +230,7 @@ impl AstMutator for LoopUnrollMutator {
         ast: &Ast,
         locals: &[(u32, ValType)],
         operators: &Vec<OperatorAndByteOffset>,
-        input_code_section: InMemData<'a>,
+        input_code_section: &'a [u8],
     ) -> crate::Result<Function> {
         // Select the if index
         let mut newfunc = Function::new(locals.to_vec());

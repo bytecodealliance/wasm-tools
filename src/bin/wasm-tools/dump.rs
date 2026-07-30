@@ -29,7 +29,7 @@ impl Opts {
 }
 
 struct Dump<'a> {
-    bytes: InMemData<'a>,
+    bytes: &'a [u8],
     cur: u64,
     state: String,
     dst: Box<dyn WriteColor + 'a>,
@@ -71,7 +71,7 @@ const NBYTES: usize = 4;
 impl<'a> Dump<'a> {
     fn new(bytes: &'a [u8], dst: impl WriteColor + 'a) -> Dump<'a> {
         Dump {
-            bytes: InMemData::new(bytes),
+            bytes,
             cur: 0,
             nesting: 0,
             state: String::new(),
@@ -82,7 +82,10 @@ impl<'a> Dump<'a> {
 
     fn run(&mut self) -> Result<()> {
         self.print_module()?;
-        assert_eq!(InMemData::translate_offset(self.cur), self.bytes.len());
+        assert_eq!(
+            wasmparser::OffsetConverter::from_start(0).convert_offset(self.cur),
+            self.bytes.len()
+        );
         Ok(())
     }
 
@@ -92,8 +95,9 @@ impl<'a> Dump<'a> {
         let mut component_types = Vec::new();
         self.nesting += 1;
 
-        for item in Parser::new(0).parse_all(self.bytes.index(..)) {
-            match item? {
+        for item in Parser::new(0).parse_all(self.bytes) {
+            let (item, offset) = item?;
+            match item {
                 Payload::Version {
                     num,
                     encoding,
@@ -628,7 +632,7 @@ impl<'a> Dump<'a> {
                         for _ in 0..NBYTES {
                             write!(self.dst, "---")?;
                         }
-                        let len = InMemData::range_len(&range);
+                        let len = offset.convert_range(&range).len();
                         writeln!(self.dst, "-| ... {len} bytes of data")?;
                         self.cur = range.end;
                     }
@@ -842,7 +846,8 @@ impl<'a> Dump<'a> {
             end,
             self.state,
         );
-        let bytes = self.bytes.index(self.cur..end);
+        let range = wasmparser::OffsetConverter::from_start(0).convert_range(&(self.cur..end));
+        let bytes = &self.bytes[range];
         self.print_byte_header()?;
         for (i, chunk) in bytes.chunks(NBYTES).enumerate() {
             if i > 0 {

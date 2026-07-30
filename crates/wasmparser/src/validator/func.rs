@@ -470,7 +470,7 @@ mod tests {
         let mut actual = vec![];
 
         for payload in parser.parse_all(&wasm) {
-            let payload = payload.unwrap();
+            let payload = payload.unwrap().0;
             match payload {
                 crate::Payload::CodeSectionEntry(body) => {
                     let mut arity = vec![];

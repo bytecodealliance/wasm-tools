@@ -23,7 +23,7 @@ impl<'a> Addr2lineModules<'a> {
         let mut modules = Vec::new();
         let mut cur_module = None;
         for payload in Parser::new(0).parse_all(wasm) {
-            match payload? {
+            match payload?.0 {
                 Payload::Version {
                     encoding: Encoding::Module,
                     range,

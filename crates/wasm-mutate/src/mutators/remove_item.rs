@@ -123,7 +123,7 @@ impl RemoveItem<'_> {
         self.parse_core_module(
             &mut module,
             wasmparser::Parser::new(0),
-            self.info.input_wasm.data,
+            self.info.input_wasm,
         )?;
 
         // If an index was used that was actually being removed then flag this
