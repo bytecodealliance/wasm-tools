@@ -64,7 +64,7 @@ impl ValidatedModule {
         let mut ret = ValidatedModule::default();
 
         for payload in Parser::new(0).parse_all(bytes) {
-            let (payload, _) = payload?;
+            let payload = payload?;
             if let ValidPayload::End(_) = validator.payload(&payload)? {
                 break;
             }

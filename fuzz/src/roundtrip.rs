@@ -61,7 +61,7 @@ fn write_file(path: &str, contents: impl AsRef<[u8]>) {
 fn validate_name_section(wasm: &[u8]) -> wasmparser::Result<()> {
     use wasmparser::*;
     for payload in Parser::new(0).parse_all(wasm) {
-        let reader = match payload?.0 {
+        let reader = match payload? {
             Payload::CustomSection(c) => match c.as_known() {
                 KnownCustom::Name(name) => name,
                 _ => continue,

@@ -1260,10 +1260,7 @@ impl Module {
             .validate_all(example_module)
             .expect("Failed to validate `module_shape` module");
         for payload in wasmparser::Parser::new(0).parse_all(&example_module) {
-            match payload
-                .expect("could not parse the `module_shape` module")
-                .0
-            {
+            match payload.expect("could not parse the `module_shape` module") {
                 wasmparser::Payload::TypeSection(type_reader) => {
                     for recgrp in type_reader {
                         let recgrp = recgrp.expect("could not read recursive group");
@@ -1644,10 +1641,7 @@ impl Module {
             .validate_all(example_module)
             .expect("Failed to validate `module_shape` module");
         for payload in wasmparser::Parser::new(0).parse_all(&example_module) {
-            match payload
-                .expect("could not parse the available import payload")
-                .0
-            {
+            match payload.expect("could not parse the available import payload") {
                 wasmparser::Payload::TypeSection(type_reader) => {
                     for recgrp in type_reader {
                         let recgrp = recgrp.expect("could not read recursive group");
@@ -2467,7 +2461,7 @@ impl Module {
             .validate_all(&example_module)
             .expect("Failed to validate `exports` Wasm");
         for payload in wasmparser::Parser::new(0).parse_all(&example_module) {
-            match payload.expect("Failed to read `exports` Wasm").0 {
+            match payload.expect("Failed to read `exports` Wasm") {
                 wasmparser::Payload::ExportSection(export_reader) => {
                     required_exports = export_reader
                         .into_iter()

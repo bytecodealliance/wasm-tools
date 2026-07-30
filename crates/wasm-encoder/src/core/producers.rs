@@ -136,7 +136,7 @@ mod test {
         let wasm_bytes = module.finish();
 
         let mut parser = Parser::new(0).parse_all(&wasm_bytes);
-        let (payload, _) = parser
+        let payload = parser
             .next()
             .expect("parser is not empty")
             .expect("element is a payload");
@@ -144,7 +144,7 @@ mod test {
             Payload::Version { .. } => {}
             _ => panic!(""),
         }
-        let (payload, _) = parser
+        let payload = parser
             .next()
             .expect("parser is not empty")
             .expect("element is a payload");

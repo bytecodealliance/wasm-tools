@@ -34,7 +34,7 @@ fn smoke_test_imports_config() {
             let mut sig_types = Vec::new();
 
             for payload in Parser::new(0).parse_all(&wasm_bytes) {
-                let (payload, _) = payload.unwrap();
+                let payload = payload.unwrap();
                 if let wasmparser::Payload::TypeSection(rdr) = payload {
                     // Gather the signature types to later check function types
                     // against.

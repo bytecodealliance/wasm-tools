@@ -95,9 +95,9 @@ impl<'a> Dump<'a> {
         let mut component_types = Vec::new();
         self.nesting += 1;
 
+        let offset = wasmparser::OffsetConverter::from_start(0);
         for item in Parser::new(0).parse_all(self.bytes) {
-            let (item, offset) = item?;
-            match item {
+            match item? {
                 Payload::Version {
                     num,
                     encoding,

@@ -681,21 +681,21 @@ pub mod utils {
 
         let mut last_section = None;
 
+        let offset = wasmparser::OffsetConverter::from_start(parser.offset());
+        // Convert from `range` to a byte range within `data` while
+        // accounting for various offsets. Then create a
+        // `CodeSectionReader` (which notably the payload does not
+        // give us here) and recurse with that. This means that
+        // users overriding `parse_code_section` always get that
+        // function called.
+        let get_original_section = |range: Range<u64>| {
+            let data_range = offset
+                .try_convert_range(&range)
+                .ok_or(Error::InvalidCodeSectionSize)?;
+            data.get(data_range).ok_or(Error::InvalidCodeSectionSize)
+        };
         for section in parser.parse_all(data) {
-            let (section, offset) = section?;
-            // Convert from `range` to a byte range within `data` while
-            // accounting for various offsets. Then create a
-            // `CodeSectionReader` (which notably the payload does not
-            // give us here) and recurse with that. This means that
-            // users overriding `parse_code_section` always get that
-            // function called.
-            let get_original_section = |range: Range<u64>| {
-                let data_range = offset
-                    .try_convert_range(&range)
-                    .ok_or(Error::InvalidCodeSectionSize)?;
-                data.get(data_range).ok_or(Error::InvalidCodeSectionSize)
-            };
-            match section {
+            match section? {
                 wasmparser::Payload::Version {
                     encoding: wasmparser::Encoding::Module,
                     ..

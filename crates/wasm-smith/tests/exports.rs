@@ -128,7 +128,7 @@ fn get_exports(features: WasmFeatures, module: &[u8]) -> Vec<(String, ExportType
     let types = types.as_ref();
     let mut exports = vec![];
     for payload in Parser::new(0).parse_all(module) {
-        let (payload, _) = payload.unwrap();
+        let payload = payload.unwrap();
         if let wasmparser::Payload::ExportSection(rdr) = payload {
             for export in rdr {
                 let export = export.unwrap();

@@ -66,8 +66,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
         let expected_payload = expected
             .next()
             .expect("full parse stopped early")
-            .expect("full parse failed but incremental succeeded")
-            .0;
+            .expect("full parse failed but incremental succeeded");
         match (payload, expected_payload) {
             (End(_), End(_)) => match stack.pop() {
                 Some(p) => parser = p,

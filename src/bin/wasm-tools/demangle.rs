@@ -58,8 +58,9 @@ impl Opts {
         let input = self.io.get_input_wasm(None)?;
         let mut module = wasm_encoder::Module::new();
 
+        let offset = wasmparser::OffsetConverter::from_start(0);
         for payload in Parser::new(0).parse_all(&input) {
-            let (payload, offset) = payload?;
+            let payload = payload?;
             match &payload {
                 CustomSection(c) => {
                     if let KnownCustom::Name(s) = c.as_known() {

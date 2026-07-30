@@ -1366,8 +1366,9 @@ impl UnbundleOpts {
         // were found in the component itself. Record for each one the bytes of
         // the module itself or `None` indicating it's not being extracted.
         let mut modules_to_extract = Vec::new();
+        let offset = wasmparser::OffsetConverter::from_start(0);
         for payload in wasmparser::Parser::new(0).parse_all(&input) {
-            let (payload, offset) = payload?;
+            let payload = payload?;
             let range = match payload {
                 Payload::ModuleSection {
                     unchecked_range, ..
@@ -1391,7 +1392,7 @@ impl UnbundleOpts {
             let mut types = None;
             for payload in wasmparser::Parser::new(0).parse_all(module) {
                 match validator
-                    .payload(&payload?.0)
+                    .payload(&payload?)
                     .context("failed to validate core wasm module found in component")?
                 {
                     ValidPayload::Ok | ValidPayload::Parser(_) | ValidPayload::Func(..) => {}

@@ -77,6 +77,8 @@ pub trait ReencodeComponent: Reencode {
         parser: wasmparser::Parser,
         data: &[u8],
     ) -> Result<(), Error<Self::Error>> {
+        // so we can slice into the data with the offsets from the parser
+        assert_eq!(parser.offset(), 0, "data must be parsed at offset 0");
         component_utils::parse_component(self, component, parser, data, data)
     }
 

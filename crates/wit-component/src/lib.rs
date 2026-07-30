@@ -138,7 +138,7 @@ world test-world {}
         let original_len = bytes.len();
         let payloads = wasmparser::Parser::new(0).parse_all(&bytes);
         let original_custom_section_count = payloads.fold(0, |acc, payload| {
-            if let Ok((Payload::CustomSection { .. }, _)) = payload {
+            if let Ok(Payload::CustomSection { .. }) = payload {
                 acc + 1
             } else {
                 acc
@@ -159,7 +159,7 @@ world test-world {}
             wasmparser::Parser::new(0)
                 .parse_all(&bytes)
                 .fold(0, |acc, payload| {
-                    if let Ok((Payload::CustomSection(reader), _)) = payload {
+                    if let Ok(Payload::CustomSection(reader)) = payload {
                         if reader.name() == "component-type" {
                             found_component_section = true;
                         }

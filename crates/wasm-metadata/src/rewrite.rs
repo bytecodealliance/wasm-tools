@@ -15,8 +15,9 @@ pub(crate) fn rewrite_wasm(
     let mut names_found = false;
     let mut stack = Vec::new();
     let mut output = Vec::new();
+    let offset = wasmparser::OffsetConverter::from_start(0);
     for payload in Parser::new(0).parse_all(input) {
-        let (payload, offset) = payload?;
+        let payload = payload?;
 
         // Track nesting depth, so that we don't mess with inner producer sections:
         match payload {

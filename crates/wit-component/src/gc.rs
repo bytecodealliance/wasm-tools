@@ -219,7 +219,7 @@ impl<'a> Module<'a> {
         let mut next_code_index = 0;
         let mut validator = Validator::new();
         for payload in Parser::new(0).parse_all(wasm) {
-            let (payload, _) = payload?;
+            let payload = payload?;
             validator.payload(&payload)?;
             match payload {
                 Payload::Version { encoding, .. } => {

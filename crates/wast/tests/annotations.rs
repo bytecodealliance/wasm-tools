@@ -98,7 +98,7 @@ fn assert_local_name(name: &str, wat: &str) -> anyhow::Result<()> {
 
 fn get_name_section(wasm: &[u8]) -> anyhow::Result<NameSectionReader<'_>> {
     for payload in Parser::new(0).parse_all(&wasm) {
-        if let Payload::CustomSection(c) = payload?.0 {
+        if let Payload::CustomSection(c) = payload? {
             if let KnownCustom::Name(s) = c.as_known() {
                 return Ok(s);
             }
@@ -140,58 +140,58 @@ fn custom_section_order() -> anyhow::Result<()> {
     let wasm = Parser::new(0)
         .parse_all(&bytes)
         .collect::<Result<Vec<_>>>()?;
-    assert_matches!(wasm[0].0, Payload::Version { .. });
+    assert_matches!(wasm[0], Payload::Version { .. });
     assert_matches!(
-        wasm[1].0,
+        wasm[1],
         Payload::CustomSection(c) if c.name() == "K"
     );
     assert_matches!(
-        wasm[2].0,
+        wasm[2],
         Payload::CustomSection(c) if c.name() == "F"
     );
-    assert_matches!(wasm[3].0, Payload::TypeSection(_));
+    assert_matches!(wasm[3], Payload::TypeSection(_));
     assert_matches!(
-        wasm[4].0,
+        wasm[4],
         Payload::CustomSection(c) if c.name() == "E"
     );
     assert_matches!(
-        wasm[5].0,
+        wasm[5],
         Payload::CustomSection(c) if c.name() == "C"
     );
     assert_matches!(
-        wasm[6].0,
+        wasm[6],
         Payload::CustomSection(c) if c.name() == "J"
     );
-    assert_matches!(wasm[7].0, Payload::FunctionSection(_));
+    assert_matches!(wasm[7], Payload::FunctionSection(_));
     assert_matches!(
-        wasm[8].0,
+        wasm[8],
         Payload::CustomSection(c) if c.name() == "B"
     );
     assert_matches!(
-        wasm[9].0,
+        wasm[9],
         Payload::CustomSection(c) if c.name() == "I"
     );
-    assert_matches!(wasm[10].0, Payload::TableSection(_));
-    assert_matches!(wasm[11].0, Payload::CodeSectionStart { .. });
-    assert_matches!(wasm[12].0, Payload::CodeSectionEntry { .. });
+    assert_matches!(wasm[10], Payload::TableSection(_));
+    assert_matches!(wasm[11], Payload::CodeSectionStart { .. });
+    assert_matches!(wasm[12], Payload::CodeSectionEntry { .. });
     assert_matches!(
-        wasm[13].0,
+        wasm[13],
         Payload::CustomSection(c) if c.name() == "H"
     );
     assert_matches!(
-        wasm[14].0,
+        wasm[14],
         Payload::CustomSection(c) if c.name() == "G"
     );
     assert_matches!(
-        wasm[15].0,
+        wasm[15],
         Payload::CustomSection(c) if c.name() == "A"
     );
     assert_matches!(
-        wasm[16].0,
+        wasm[16],
         Payload::CustomSection(c) if c.name() == "D"
     );
 
-    match &wasm[17].0 {
+    match &wasm[17] {
         &Payload::End(x) if usize::try_from(x).ok() == Some(bytes.len()) => {}
         p => panic!("`{:?}` doesn't match expected length of {}", p, bytes.len()),
     }

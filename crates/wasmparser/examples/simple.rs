@@ -11,7 +11,7 @@ fn main() -> Result<()> {
 
     let buf: Vec<u8> = std::fs::read(&args[1])?;
     for payload in Parser::new(0).parse_all(&buf) {
-        match payload?.0 {
+        match payload? {
             Payload::Version { .. } => {
                 println!("====== Module");
             }

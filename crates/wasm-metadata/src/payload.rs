@@ -35,7 +35,7 @@ impl Payload {
         let mut output = Vec::new();
 
         for payload in Parser::new(0).parse_all(&input) {
-            let (payload, _) = payload?;
+            let payload = payload?;
             match payload {
                 Version { encoding, .. } => {
                     if output.is_empty() {

@@ -1031,7 +1031,7 @@ impl Parser {
     ///     let parser = Parser::new(0);
     ///
     ///     for payload in parser.parse_all(&buf) {
-    ///         match payload?.0 {
+    ///         match payload? {
     ///             // Sections for WebAssembly modules
     ///             Version { .. } => { /* ... */ }
     ///             TypeSection(_) => { /* ... */ }
@@ -1093,11 +1093,7 @@ impl Parser {
     ///
     /// # parse(&b"\0asm\x01\0\0\0"[..]).unwrap();
     /// ```
-    pub fn parse_all(
-        self,
-        mut data: &[u8],
-    ) -> impl Iterator<Item = Result<(Payload<'_>, OffsetConverter)>> {
-        let offset = OffsetConverter::from_start(self.offset);
+    pub fn parse_all(self, mut data: &[u8]) -> impl Iterator<Item = Result<Payload<'_>>> {
         let mut stack = Vec::new();
         let mut cur = self;
         let mut done = false;
@@ -1140,7 +1136,7 @@ impl Parser {
                 _ => {}
             }
 
-            Some(Ok((payload, offset)))
+            Some(Ok(payload))
         })
     }
 

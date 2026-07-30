@@ -429,7 +429,7 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
     let mut types = None;
 
     for payload in Parser::new(0).parse_all(wasm) {
-        let (payload, _) = payload?;
+        let payload = payload?;
 
         match validator.payload(&payload)? {
             ValidPayload::Ok => {}

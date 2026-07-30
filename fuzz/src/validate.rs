@@ -53,7 +53,7 @@ fn validate_all(u: &mut Unstructured<'_>, mut validator: Validator, wasm: &[u8])
     // panics and excessive resource usage here.
     for payload in Parser::new(0).parse_all(&wasm) {
         let payload = match payload {
-            Ok((p, _)) => p,
+            Ok(p) => p,
             Err(_) => return Ok(()),
         };
 

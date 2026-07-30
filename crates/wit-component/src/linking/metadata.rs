@@ -311,7 +311,7 @@ impl<'a> Metadata<'a> {
         let mut export_info = HashMap::new();
 
         for payload in Parser::new(0).parse_all(module) {
-            match payload?.0 {
+            match payload? {
                 Payload::CustomSection(section) => {
                     if let KnownCustom::Dylink0(reader) = section.as_known() {
                         for subsection in reader {

@@ -231,8 +231,9 @@ pub fn decode(wasm: &[u8]) -> Result<(Option<Vec<u8>>, Bindgen)> {
     let mut new_module = wasm_encoder::Module::new();
 
     let mut found_custom = false;
+    let offset = wasmparser::OffsetConverter::from_start(0);
     for payload in wasmparser::Parser::new(0).parse_all(&wasm) {
-        let (payload, offset) = payload.context("decoding item in module")?;
+        let payload = payload.context("decoding item in module")?;
         match payload {
             wasmparser::Payload::CustomSection(cs) if cs.name().starts_with("component-type") => {
                 let data = Bindgen::decode_custom_section(cs.data())
@@ -308,7 +309,7 @@ fn decode_custom_section(wasm: &[u8]) -> Result<(Resolve, WorldId, StringEncodin
     let mut custom_section = None;
 
     for payload in Parser::new(0).parse_all(wasm) {
-        match payload?.0 {
+        match payload? {
             Payload::CustomSection(s) if s.name() == CUSTOM_SECTION_NAME => {
                 custom_section = Some(s.data());
             }

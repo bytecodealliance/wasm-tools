@@ -90,7 +90,7 @@ fn get_imports_exports(
     let mut imports = vec![];
     let mut exports = vec![];
     for payload in Parser::new(0).parse_all(module) {
-        let (payload, _) = payload.unwrap();
+        let payload = payload.unwrap();
         match payload {
             wasmparser::Payload::ImportSection(ir) => {
                 for import in ir.into_imports() {

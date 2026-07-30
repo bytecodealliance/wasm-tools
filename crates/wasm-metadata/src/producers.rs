@@ -41,9 +41,8 @@ impl Producers {
     pub fn from_wasm(bytes: &[u8]) -> Result<Option<Self>> {
         let mut depth = 0;
         for payload in Parser::new(0).parse_all(bytes) {
-            let (payload, _) = payload?;
             use wasmparser::Payload::*;
-            match payload {
+            match payload? {
                 ModuleSection { .. } | ComponentSection { .. } => depth += 1,
                 End { .. } => depth -= 1,
                 CustomSection(c) if depth == 0 => {
