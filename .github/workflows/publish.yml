@@ -12,6 +12,7 @@ permissions:
   contents: write
   id-token: write
   attestations: write
+  packages: write
 
 jobs:
   create_tag:
