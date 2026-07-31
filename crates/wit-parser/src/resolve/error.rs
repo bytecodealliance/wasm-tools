@@ -104,7 +104,10 @@ impl fmt::Display for ResolveErrorKind {
             } => write!(f, "world '{requested}' not found in package '{package}'"),
             ResolveErrorKind::InterfaceNotFound {
                 requested, package, ..
-            } => write!(f, "interface '{requested}' not found in package '{package}'"),
+            } => write!(
+                f,
+                "interface '{requested}' not found in package '{package}'"
+            ),
             ResolveErrorKind::InvalidTransitiveDependency { name, .. } => write!(
                 f,
                 "interface `{name}` transitively depends on an interface in incompatible ways",
