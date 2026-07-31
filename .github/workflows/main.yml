@@ -194,7 +194,7 @@ jobs:
         submodules: true
     - uses: ./.github/actions/install-rust
       with:
-        toolchain: 1.89.0
+        toolchain: 1.97.0
     - run: rustup target add wasm32-wasip1
     - run: cd crates/wit-component/dl && bash check.sh
 
