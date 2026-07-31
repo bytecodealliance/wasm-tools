@@ -422,7 +422,20 @@ pub struct EncodingState<'a> {
     /// Maps from original export name to task initialization wrapper function index.
     /// Used to wrap exports with __wasm_init_(async_)task calls.
     export_task_initialization_wrappers: HashMap<String, u32>,
+
+    /// The index of the instance of the synthesized module which stores the TLS
+    /// base pointer in a `global`.
+    ///
+    /// This is only used, and only created, when a module imports
+    /// `__wasm_{get,set}_tls_base` but the program doesn't use cooperative
+    /// threading. See `materialize_tls_base_import`.
+    tls_base_instance_index: Option<(u32, ValType)>,
 }
+
+/// Name of the export of the synthesized TLS-base module which reads the base.
+const TLS_BASE_GET: &str = "get";
+/// Name of the export of the synthesized TLS-base module which writes the base.
+const TLS_BASE_SET: &str = "set";
 
 impl<'a> EncodingState<'a> {
     fn encode_core_modules(&mut self) {
@@ -1991,6 +2004,14 @@ impl<'a> EncodingState<'a> {
                 let index = self.component.context_set((*ty).try_into()?, *slot);
                 Ok((ExportKind::Func, index))
             }
+            Import::TlsBaseGet { ty } => Ok((
+                ExportKind::Func,
+                self.materialize_tls_base_import(false, (*ty).try_into()?),
+            )),
+            Import::TlsBaseSet { ty } => Ok((
+                ExportKind::Func,
+                self.materialize_tls_base_import(true, (*ty).try_into()?),
+            )),
             Import::ExportedTaskCancel => {
                 let index = self.component.task_cancel();
                 Ok((ExportKind::Func, index))
@@ -2035,6 +2056,93 @@ impl<'a> EncodingState<'a> {
                 Ok((ExportKind::Func, index))
             }
         }
+    }
+
+    /// Helper to satisfy `__wasm_{get,set}_tls_base` imports.
+    ///
+    /// For more information on this see WebAssembly/wasi-libc#857
+    fn materialize_tls_base_import(&mut self, set: bool, ty: ValType) -> u32 {
+        if self.info.uses_cooperative_threading() {
+            return if set {
+                self.component.context_set(ty, 1)
+            } else {
+                self.component.context_get(ty, 1)
+            };
+        }
+
+        let instance = match self.tls_base_instance_index {
+            Some((index, prev_ty)) => {
+                assert_eq!(prev_ty, ty, "conflicting TLS base pointer types");
+                index
+            }
+            None => {
+                let index = self.encode_tls_base_module(ty);
+                self.tls_base_instance_index = Some((index, ty));
+                index
+            }
+        };
+        let name = if set { TLS_BASE_SET } else { TLS_BASE_GET };
+        self.core_alias_export(
+            Some(&format!("tls-base-{name}")),
+            instance,
+            name,
+            ExportKind::Func,
+        )
+    }
+
+    /// Synthesizes and instantiates a module which stores the TLS base pointer
+    /// in a mutable `global`, exporting accessors for it.
+    fn encode_tls_base_module(&mut self, ty: ValType) -> u32 {
+        let mut types = TypeSection::new();
+        types.ty().function([], [ty]);
+        types.ty().function([ty], []);
+
+        let mut globals = GlobalSection::new();
+        globals.global(
+            wasm_encoder::GlobalType {
+                val_type: ty,
+                mutable: true,
+                shared: false,
+            },
+            &match ty {
+                ValType::I64 => ConstExpr::i64_const(0),
+                ValType::I32 => ConstExpr::i32_const(0),
+                _ => unreachable!(),
+            },
+        );
+
+        let mut functions = FunctionSection::new();
+        let mut code = CodeSection::new();
+
+        functions.function(0);
+        let mut get = wasm_encoder::Function::new([]);
+        get.instruction(&Instruction::GlobalGet(0));
+        get.instruction(&Instruction::End);
+        code.function(&get);
+
+        functions.function(1);
+        let mut set = wasm_encoder::Function::new([]);
+        set.instruction(&Instruction::LocalGet(0));
+        set.instruction(&Instruction::GlobalSet(0));
+        set.instruction(&Instruction::End);
+        code.function(&set);
+
+        let mut exports = ExportSection::new();
+        exports.export(TLS_BASE_GET, ExportKind::Func, 0);
+        exports.export(TLS_BASE_SET, ExportKind::Func, 1);
+
+        let mut module = Module::new();
+        module.section(&types);
+        module.section(&functions);
+        module.section(&globals);
+        module.section(&exports);
+        module.section(&code);
+
+        let module_index = self
+            .component
+            .core_module(Some("wit-component:tls-base"), &module);
+        self.component
+            .core_instantiate(Some("wit-component:tls-base"), module_index, [])
     }
 
     /// Helper for `materialize_import` above for materializing functions that
@@ -2686,6 +2794,8 @@ impl<'a> Shims<'a> {
                 | Import::WaitableJoin
                 | Import::ContextGet { .. }
                 | Import::ContextSet { .. }
+                | Import::TlsBaseGet { .. }
+                | Import::TlsBaseSet { .. }
                 | Import::ThreadIndex
                 | Import::ThreadResumeLater
                 | Import::ThreadSuspend { .. }
@@ -3411,6 +3521,7 @@ impl ComponentEncoder {
             aliased_core_items: Default::default(),
             info: &world,
             export_task_initialization_wrappers: HashMap::new(),
+            tls_base_instance_index: None,
         };
         state.encode_imports(&self.import_name_map)?;
         state.encode_core_modules();

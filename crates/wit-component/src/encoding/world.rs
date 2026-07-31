@@ -85,6 +85,21 @@ impl<'a> ComponentWorld<'a> {
         Ok(ret)
     }
 
+    /// Returns whether any module in this component may spawn a thread, and
+    /// thus whether the program is using cooperative threading.
+    ///
+    /// This is a heuristic which should go away once component-model-threading
+    /// has been stable for awhile and the return value of this function should
+    /// be const-propagated as `true`.
+    pub fn uses_cooperative_threading(&self) -> bool {
+        let uses = |info: &ValidatedModule| {
+            info.imports
+                .imports()
+                .any(|(_, _, import)| matches!(import, Import::ThreadNewIndirect))
+        };
+        uses(&self.info) || self.adapters.values().any(|a| uses(&a.info))
+    }
+
     /// Process adapters which are required here. Iterate over all
     /// adapters and figure out what functions are required from the
     /// adapter itself, either because the functions are imported by the
@@ -432,6 +447,8 @@ impl<'a> ComponentWorld<'a> {
                 | Import::Item(_)
                 | Import::ContextGet { .. }
                 | Import::ContextSet { .. }
+                | Import::TlsBaseGet { .. }
+                | Import::TlsBaseSet { .. }
                 | Import::BackpressureInc
                 | Import::BackpressureDec
                 | Import::WaitableSetNew

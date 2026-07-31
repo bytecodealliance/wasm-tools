@@ -148,16 +148,16 @@
     (type (;1;) (func (param i32)))
     (import "env" "memory" (memory (;0;) 0))
     (import "env" "__indirect_function_table" (table (;0;) 0 funcref))
-    (import "bar" "__wasm_apply_data_relocs" (func (;0;) (type 0)))
-    (import "bar" "__wasm_call_ctors" (func (;1;) (type 0)))
     (import "env" "foo:memory_base" (global (;0;) i32))
     (import "foo" "well" (global (;1;) i32))
     (import "env" "bar:well" (global (;2;) (mut i32)))
-    (import "foo" "__wasm_apply_data_relocs" (func (;2;) (type 0)))
-    (import "foo" "__wasm_call_ctors" (func (;3;) (type 0)))
     (import "env" "bar:memory_base" (global (;3;) i32))
     (import "bar" "um" (global (;4;) i32))
     (import "env" "foo:um" (global (;5;) (mut i32)))
+    (import "bar" "__wasm_apply_data_relocs" (func (;0;) (type 0)))
+    (import "foo" "__wasm_apply_data_relocs" (func (;1;) (type 0)))
+    (import "bar" "__wasm_call_ctors" (func (;2;) (type 0)))
+    (import "foo" "__wasm_call_ctors" (func (;3;) (type 0)))
     (start 4)
     (elem (;0;) (i32.const 1) func)
     (elem (;1;) (i32.const 1) func)
@@ -171,8 +171,8 @@
       i32.add
       global.set 5
       call 0
-      call 2
       call 1
+      call 2
       call 3
     )
     (data (;0;) (i32.const 1048576) "\00\00\00\00\00\00\10\00")
@@ -243,8 +243,8 @@
   )
   (core instance $__init (;10;) (instantiate $__init
       (with "env" (instance $main))
-      (with "bar" (instance $bar))
       (with "foo" (instance $foo))
+      (with "bar" (instance $bar))
     )
   )
   (type (;1;) (func (param "v" s32) (result s32)))
