@@ -44,9 +44,7 @@ impl LoopUnrollWriter {
             if to_fix.contains_key(&idx) {
                 newfunc.instruction(&to_fix[&idx]);
             } else {
-                let offset = wasmparser::OffsetConverter::from_start(0);
-                let piece =
-                    &input_code_section[offset.convert_range(&(*curr_offset..*next_offset))];
+                let piece = &input_code_section[*curr_offset as usize..*next_offset as usize];
                 newfunc.raw(piece.into_iter().copied());
             }
         }

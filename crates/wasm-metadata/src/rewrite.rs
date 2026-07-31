@@ -15,7 +15,6 @@ pub(crate) fn rewrite_wasm(
     let mut names_found = false;
     let mut stack = Vec::new();
     let mut output = Vec::new();
-    let offset = wasmparser::OffsetConverter::from_start(0);
     for payload in Parser::new(0).parse_all(input) {
         let payload = payload?;
 
@@ -170,7 +169,7 @@ pub(crate) fn rewrite_wasm(
         if let Some((id, range)) = payload.as_section() {
             wasm_encoder::RawSection {
                 id,
-                data: &input[offset.convert_range(&range)],
+                data: &input[range.start as usize..range.end as usize],
             }
             .append_to(&mut output);
         }

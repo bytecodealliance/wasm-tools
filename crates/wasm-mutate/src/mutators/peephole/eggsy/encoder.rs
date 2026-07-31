@@ -39,8 +39,7 @@ impl Encoder {
         // Copy previous code
         let range = basicblock.range.clone();
         let byterange = (&operators[0].1, &operators[range.start].1);
-        let offset = wasmparser::OffsetConverter::from_start(0);
-        let bytes = &input_code_section[offset.convert_range(&(*byterange.0..*byterange.1))];
+        let bytes = &input_code_section[*byterange.0 as usize..*byterange.1 as usize];
         newfunc.raw(bytes.iter().copied());
 
         // Write all entries in the minidfg in reverse order
@@ -67,8 +66,11 @@ impl Encoder {
             &operators[range.end].1, // In the worst case the next instruction will be and end
             &operators[operators.len() - 1].1,
         );
-        let bytes = &input_code_section
-            [offset.convert_offset(*byterange.0)..=offset.convert_offset(*byterange.1)];
+        assert!(matches!(
+            operators[operators.len() - 1].0,
+            wasmparser::Operator::End | wasmparser::Operator::Return
+        ));
+        let bytes = &input_code_section[*byterange.0 as usize..=*byterange.1 as usize];
 
         newfunc.raw(bytes.iter().copied());
         Ok(resource_request)

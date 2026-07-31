@@ -56,7 +56,6 @@ impl ModuleImportMap {
         let mut found_duplicate_imports = false;
 
         let data = wasm.as_ref();
-        let offset = wasmparser::OffsetConverter::from_start(0);
         for payload in Parser::new(0).parse_all(&data) {
             match payload? {
                 Version { encoding, .. } if encoding == wasmparser::Encoding::Component => {
@@ -87,7 +86,7 @@ impl ModuleImportMap {
                     if let Some((id, range)) = payload.as_section() {
                         module.section(&RawSection {
                             id,
-                            data: &data[offset.convert_range(&range)],
+                            data: &data[range.start as usize..range.end as usize],
                         });
                     }
                 }

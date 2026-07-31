@@ -231,7 +231,6 @@ pub fn decode(wasm: &[u8]) -> Result<(Option<Vec<u8>>, Bindgen)> {
     let mut new_module = wasm_encoder::Module::new();
 
     let mut found_custom = false;
-    let offset = wasmparser::OffsetConverter::from_start(0);
     for payload in wasmparser::Parser::new(0).parse_all(&wasm) {
         let payload = payload.context("decoding item in module")?;
         match payload {
@@ -249,7 +248,7 @@ pub fn decode(wasm: &[u8]) -> Result<(Option<Vec<u8>>, Bindgen)> {
                 if let Some((id, range)) = payload.as_section() {
                     new_module.section(&wasm_encoder::RawSection {
                         id,
-                        data: &wasm[offset.convert_range(&range)],
+                        data: &wasm[range.start as usize..range.end as usize],
                     });
                 }
             }
@@ -352,14 +351,14 @@ impl Bindgen {
         let encoding;
 
         let mut reader = BinaryReader::new(&data, 0);
-        let offset = wasmparser::OffsetConverter::from_start(0);
         match reader.read_u8()? {
             // Historical 0x03 format where the support here will be deleted in
             // the future
             0x03 => {
                 encoding = decode_string_encoding(reader.read_u8()?)?;
                 let world_name = reader.read_string()?;
-                wasm = &data[offset.convert_offset(reader.original_position())..];
+                let data_offset = reader.original_position() as usize;
+                wasm = &data[data_offset..];
 
                 let (r, pkg) = match crate::decode(wasm)? {
                     DecodedWasm::WitPackage(resolve, pkgs) => (resolve, pkgs),
