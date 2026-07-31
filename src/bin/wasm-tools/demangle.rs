@@ -58,7 +58,6 @@ impl Opts {
         let input = self.io.get_input_wasm(None)?;
         let mut module = wasm_encoder::Module::new();
 
-        let offset = wasmparser::OffsetConverter::from_start(0);
         for payload in Parser::new(0).parse_all(&input) {
             let payload = payload?;
             match &payload {
@@ -81,7 +80,7 @@ impl Opts {
             if let Some((id, range)) = payload.as_section() {
                 module.section(&RawSection {
                     id,
-                    data: &input[offset.convert_range(&range)],
+                    data: &input[range.start as usize..range.end as usize],
                 });
             }
         }

@@ -1366,17 +1366,16 @@ impl UnbundleOpts {
         // were found in the component itself. Record for each one the bytes of
         // the module itself or `None` indicating it's not being extracted.
         let mut modules_to_extract = Vec::new();
-        let offset = wasmparser::OffsetConverter::from_start(0);
         for payload in wasmparser::Parser::new(0).parse_all(&input) {
             let payload = payload?;
             let range = match payload {
                 Payload::ModuleSection {
                     unchecked_range, ..
-                } => unchecked_range,
+                } => unchecked_range.start as usize..unchecked_range.end as usize,
                 _ => continue,
             };
-            modules_to_extract.push(if offset.convert_range(&range).len() > self.threshold {
-                Some(&input[offset.convert_range(&range)])
+            modules_to_extract.push(if range.len() > self.threshold {
+                Some(&input[range])
             } else {
                 None
             });

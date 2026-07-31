@@ -82,10 +82,7 @@ impl<'a> Dump<'a> {
 
     fn run(&mut self) -> Result<()> {
         self.print_module()?;
-        assert_eq!(
-            wasmparser::OffsetConverter::from_start(0).convert_offset(self.cur),
-            self.bytes.len()
-        );
+        assert_eq!(self.cur as usize, self.bytes.len());
         Ok(())
     }
 
@@ -95,7 +92,6 @@ impl<'a> Dump<'a> {
         let mut component_types = Vec::new();
         self.nesting += 1;
 
-        let offset = wasmparser::OffsetConverter::from_start(0);
         for item in Parser::new(0).parse_all(self.bytes) {
             match item? {
                 Payload::Version {
@@ -632,7 +628,7 @@ impl<'a> Dump<'a> {
                         for _ in 0..NBYTES {
                             write!(self.dst, "---")?;
                         }
-                        let len = offset.convert_range(&range).len();
+                        let len = (range.start as usize..range.end as usize).len();
                         writeln!(self.dst, "-| ... {len} bytes of data")?;
                         self.cur = range.end;
                     }
@@ -846,7 +842,7 @@ impl<'a> Dump<'a> {
             end,
             self.state,
         );
-        let range = wasmparser::OffsetConverter::from_start(0).convert_range(&(self.cur..end));
+        let range = self.cur as usize..end as usize;
         let bytes = &self.bytes[range];
         self.print_byte_header()?;
         for (i, chunk) in bytes.chunks(NBYTES).enumerate() {
