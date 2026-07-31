@@ -7,7 +7,12 @@
 
 set -ex
 
-CARGO_PROFILE_RELEASE_LTO=true RUSTFLAGS="-C relocation-model=pic" cargo build --release --target=wasm32-wasip1
-$WASI_SDK_PATH/bin/clang -shared -o $1 -Wl,--whole-archive ../../../target/wasm32-wasip1/release/libdl.a -Wl,--no-whole-archive
+CARGO_PROFILE_RELEASE_LTO=true cargo build --release --target=wasm32-wasip2
+$WASI_SDK_PATH/bin/wasm32-wasip2-clang -shared \
+  -o $1 \
+  -Wl,--whole-archive \
+  ../../../target/wasm32-wasip2/release/libdl.a \
+  -Wl,--no-whole-archive \
+  -Wl,--allow-undefined
 cargo run --manifest-path ../../../Cargo.toml -- strip $1 -o $1
 cargo run --manifest-path ../../../Cargo.toml -- strip --delete name $1 -o $1

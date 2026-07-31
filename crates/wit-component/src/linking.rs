@@ -354,25 +354,33 @@ fn make_env_module<'a>(
         exports.export(CABI_REALLOC, ExportKind::Func, index);
     }
 
+    let mut add_global_export = |name: &str, value, mutable| {
+        let index = globals.len();
+        globals.global(
+            wasm_encoder::GlobalType {
+                val_type: ValType::I32,
+                mutable,
+                shared: false,
+            },
+            &const_u32(value),
+        );
+        exports.export(name, ExportKind::Global, index);
+    };
+
     let dl_openables = DlOpenables::new(table_offset, memory_offset, metadata);
+
+    if metadata.iter().any(|m| m.needs_libdl_libraries) {
+        add_global_export(
+            metadata::LIBDL_LIBRARIES,
+            dl_openables.libraries_address,
+            true,
+        );
+    }
 
     table_offset += dl_openables.function_count;
     memory_offset += u32::try_from(dl_openables.buffer.len()).unwrap();
 
     let memory_size = {
-        let mut add_global_export = |name: &str, value, mutable| {
-            let index = globals.len();
-            globals.global(
-                wasm_encoder::GlobalType {
-                    val_type: ValType::I32,
-                    mutable,
-                    shared: false,
-                },
-                &const_u32(value),
-            );
-            exports.export(name, ExportKind::Global, index);
-        };
-
         if metadata.iter().any(|m| m.needs_stack_pointer) {
             add_global_export(metadata::STACK_POINTER, stack_size_bytes, true);
         }
@@ -566,7 +574,6 @@ fn make_init_module(
     types.ty().function([], []);
     let thunk_ty = 0;
     types.ty().function([ValType::I32], []);
-    let one_i32_param_ty = 1;
     let mut type_offset = 2;
 
     for metadata in metadata {
@@ -733,18 +740,6 @@ fn make_init_module(
                 metadata.name,
                 metadata::INITIALIZE,
                 thunk_ty,
-            )));
-        }
-
-        if metadata.has_set_libraries {
-            ctor_calls.push(Ins::I32Const(
-                i32::try_from(dl_openables.libraries_address).unwrap(),
-            ));
-            ctor_calls.push(Ins::Call(add_function_import(
-                &mut imports,
-                metadata.name,
-                metadata::SET_LIBRARIES,
-                one_i32_param_ty,
             )));
         }
 
@@ -1756,6 +1751,7 @@ impl Linker {
                         metadata::HEAP_END,
                         metadata::STACK_HIGH,
                         metadata::STACK_LOW,
+                        metadata::LIBDL_LIBRARIES,
                     ]
                     .into_iter()
                     .map(|name| Item {

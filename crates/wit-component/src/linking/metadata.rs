@@ -32,7 +32,7 @@ pub const APPLY_DATA_RELOCS: &str = "__wasm_apply_data_relocs";
 pub const CALL_CTORS: &str = "__wasm_call_ctors";
 pub const INITIALIZE: &str = "_initialize";
 pub const START: &str = "_start";
-pub const SET_LIBRARIES: &str = "__wasm_set_libraries";
+pub const LIBDL_LIBRARIES: &str = "__wasm_libdl_libraries";
 pub const INIT_TASK: &str = "__wasm_init_task";
 pub const INIT_ASYNC_TASK: &str = "__wasm_init_async_task";
 
@@ -210,8 +210,8 @@ pub struct Metadata<'a> {
     /// Whether this module exports `_start`
     pub has_wasi_start: bool,
 
-    /// Whether this module exports `__wasm_set_libraries`
-    pub has_set_libraries: bool,
+    /// Whether this module imports `__wasm_libdl_libraries`
+    pub needs_libdl_libraries: bool,
 
     /// Whether this module exports `__wasm_init_task`
     pub has_init_task: bool,
@@ -286,7 +286,7 @@ impl<'a> Metadata<'a> {
             has_ctors: false,
             has_initialize: false,
             has_wasi_start: false,
-            has_set_libraries: false,
+            needs_libdl_libraries: false,
             has_init_task: false,
             has_component_exports,
             is_asyncified: false,
@@ -463,6 +463,10 @@ impl<'a> Metadata<'a> {
                                         self::HEAP_END => result.needs_heap_end = true,
                                         self::STACK_HIGH => result.needs_stack_high = true,
                                         self::STACK_LOW => result.needs_stack_low = true,
+                                        self::LIBDL_LIBRARIES => {
+                                            result.needs_libdl_libraries = true;
+                                        }
+
                                         _ => {
                                             result.memory_address_imports.insert(name);
                                         }
@@ -547,7 +551,6 @@ impl<'a> Metadata<'a> {
                             self::CALL_CTORS => result.has_ctors = true,
                             self::INITIALIZE => result.has_initialize = true,
                             self::START => result.has_wasi_start = true,
-                            self::SET_LIBRARIES => result.has_set_libraries = true,
                             _ => {
                                 if export.name == self::INIT_TASK {
                                     result.has_init_task = true;

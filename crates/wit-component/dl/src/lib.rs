@@ -48,20 +48,17 @@ pub struct Libraries {
 }
 
 static mut ERROR: *const c_char = ptr::null();
-static mut LIBRARIES: *const Libraries = ptr::null();
+
+unsafe extern "C" {
+    #[link_name = "__wasm_libdl_libraries"]
+    static LIBRARIES: Libraries;
+}
 
 unsafe fn invalid_handle(library: *const c_void) -> bool {
     unsafe {
-        if LIBRARIES.is_null() {
-            panic!(
-                "`__wasm_set_libraries` should have been called during \
-             instantiation with a non-NULL value"
-            );
-        }
-
         let library = library as *const Library;
-        if (0..(*LIBRARIES).count)
-            .any(|index| (*LIBRARIES).libraries.add(usize::try_from(index).unwrap()) == library)
+        if (0..LIBRARIES.count)
+            .any(|index| LIBRARIES.libraries.add(usize::try_from(index).unwrap()) == library)
         {
             false
         } else {
@@ -95,13 +92,6 @@ pub extern "C" fn dlerror() -> *const c_char {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dlopen(name: *const c_char, flags: c_int) -> *const c_void {
     unsafe {
-        if LIBRARIES.is_null() {
-            panic!(
-                "`__wasm_set_libraries` should have been called during \
-             instantiation with a non-NULL value"
-            );
-        }
-
         if (flags & !(RTLD_LAZY | RTLD_NOW | RTLD_GLOBAL)) != 0 {
             // TODO
             ERROR = c"dlopen flags not yet supported".as_ptr();
@@ -111,8 +101,8 @@ pub unsafe extern "C" fn dlopen(name: *const c_char, flags: c_int) -> *const c_v
         let name = CStr::from_ptr(name);
         let name = name.to_bytes();
         let libraries = slice::from_raw_parts(
-            (*LIBRARIES).libraries,
-            usize::try_from((*LIBRARIES).count).unwrap(),
+            LIBRARIES.libraries,
+            usize::try_from(LIBRARIES.count).unwrap(),
         );
         if let Ok(index) = libraries.binary_search_by(|library| {
             slice::from_raw_parts(
@@ -163,17 +153,6 @@ pub unsafe extern "C" fn dlsym(library: *const c_void, name: *const c_char) -> *
             ERROR = c"symbol not found".as_ptr();
             ptr::null()
         }
-    }
-}
-
-/// # Safety
-///
-/// `libraries` must be a valid pointer to a `Libraries` object, and this
-/// pointer must remain valid for the lifetime of the process.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn __wasm_set_libraries(libraries: *const Libraries) {
-    unsafe {
-        LIBRARIES = libraries;
     }
 }
 

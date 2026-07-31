@@ -30,6 +30,7 @@
   (func $abort (type 0)
     unreachable
   )
+  (func (export "__wasi_init_tp"))
   (export "malloc" (func $malloc))
   (export "memcmp" (func $memcmp))
   (export "strlen" (func $strlen))
