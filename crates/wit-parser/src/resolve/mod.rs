@@ -3808,19 +3808,50 @@ impl Remap {
         parent_pkg_id: &PackageId,
     ) -> ResolveResult<()> {
         for (unresolved_world_id, unresolved_world) in unresolved.worlds.iter() {
-            let pkg = match world_to_package.get(&unresolved_world_id) {
-                Some(items) => *items,
-                // Same as above, all worlds are foreign until we find a
-                // non-foreign one.
-                None => break,
-            };
-            self.process_foreign_world(
-                pkg,
-                unresolved_world_id,
-                unresolved_world,
-                resolve,
-                parent_pkg_id,
-            )?;
+            let (pkg_name, world, span, stabilities) =
+                match world_to_package.get(&unresolved_world_id) {
+                    Some(items) => *items,
+                    // Same as above, all worlds are foreign until we find a
+                    // non-foreign one.
+                    None => break,
+                };
+
+            let pkgid = resolve
+                .package_names
+                .get(pkg_name)
+                .copied()
+                .ok_or_else(|| {
+                    ResolveError::from(ResolveErrorKind::PackageNotFound {
+                        span,
+                        requested: pkg_name.clone(),
+                        known: resolve.package_names.keys().cloned().collect(),
+                    })
+                })?;
+            let pkg = &resolve.packages[pkgid];
+            let world_span = unresolved_world.span;
+
+            let mut enabled = false;
+            for stability in stabilities {
+                if resolve.include_stability(stability, parent_pkg_id, world_span)? {
+                    enabled = true;
+                    break;
+                }
+            }
+
+            if !enabled {
+                self.worlds.push(None);
+                continue;
+            }
+
+            let world_id = pkg.worlds.get(world).copied().ok_or_else(|| {
+                ResolveError::from(ResolveErrorKind::WorldNotFound {
+                    span: world_span,
+                    requested: world.to_string(),
+                    package: pkg.name.clone(),
+                })
+            })?;
+            assert_eq!(self.worlds.len(), unresolved_world_id.index());
+            self.worlds.push(Some(world_id));
         }
         for (id, _) in unresolved.worlds.iter().skip(self.worlds.len()) {
             assert!(
@@ -3828,53 +3859,6 @@ impl Remap {
                 "found foreign world after local world"
             );
         }
-        Ok(())
-    }
-
-    fn process_foreign_world(
-        &mut self,
-        (pkg_name, world, span, stabilities): (&PackageName, &String, Span, &Vec<Stability>),
-        unresolved_world_id: Id<World>,
-        unresolved_world: &World,
-        resolve: &mut Resolve,
-        parent_pkg_id: &PackageId,
-    ) -> ResolveResult<()> {
-        let pkgid = resolve
-            .package_names
-            .get(pkg_name)
-            .copied()
-            .ok_or_else(|| {
-                ResolveError::from(ResolveErrorKind::PackageNotFound {
-                    span,
-                    requested: pkg_name.clone(),
-                    known: resolve.package_names.keys().cloned().collect(),
-                })
-            })?;
-        let pkg = &resolve.packages[pkgid];
-        let world_span = unresolved_world.span;
-
-        let mut enabled = false;
-        for stability in stabilities {
-            if resolve.include_stability(stability, parent_pkg_id, world_span)? {
-                enabled = true;
-                break;
-            }
-        }
-
-        if !enabled {
-            self.worlds.push(None);
-            return Ok(());
-        }
-
-        let world_id = pkg.worlds.get(world).copied().ok_or_else(|| {
-            ResolveError::from(ResolveErrorKind::WorldNotFound {
-                span: world_span,
-                requested: world.to_string(),
-                package: pkg.name.clone(),
-            })
-        })?;
-        assert_eq!(self.worlds.len(), unresolved_world_id.index());
-        self.worlds.push(Some(world_id));
         Ok(())
     }
 
