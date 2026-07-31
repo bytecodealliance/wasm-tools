@@ -20,7 +20,7 @@
     (core func (canon lower (func $f) (memory (core memory $i "m"))))
 )
 
-;; subtyping works with explict page sizes
+;; subtyping works with explicit page sizes
 (component
   (core module $a (memory (export "m") 1 (pagesize 65536)))
   (core module $b (import "a" "m" (memory 1 (pagesize 65536))))

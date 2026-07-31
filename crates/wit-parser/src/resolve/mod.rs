@@ -3095,7 +3095,7 @@ impl Resolve {
         // never being importable-from it means that mutations to `CloneMaps`
         // are discarded when named interfaces are cloned. The trick here
         // happens where this unconditionally preserves all modifications to
-        // `CloneMaps` for `WorldKey::Interface` clones. Behaivor then "falls
+        // `CloneMaps` for `WorldKey::Interface` clones. Behavior then "falls
         // out" where references to cloned interfaces are naturally rewritten.
         //
         // This all falls down, however, if an import is cloned and recorded.
