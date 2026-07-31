@@ -1447,7 +1447,7 @@ world w {{
         let world = resolve.select_world(&[package], None).unwrap();
         let adapter = super::create(&resolve, world, None);
         for payload in Parser::new(0).parse_all(&adapter) {
-            match payload.unwrap().0 {
+            match payload.unwrap() {
                 Payload::CodeSectionEntry(body) => {
                     for operator in body.get_operators_reader().unwrap() {
                         match (operator.unwrap(), which) {
