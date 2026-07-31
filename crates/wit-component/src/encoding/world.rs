@@ -55,7 +55,14 @@ pub struct ImportedInterface {
 
 #[derive(Debug)]
 pub enum Lowering {
-    Direct,
+    /// This import can be `canon lower`'d at the same time that the core module
+    /// importing it is instantiated.
+    Direct {
+        options: RequiredOptions,
+    },
+    /// This import requires an indirection through the shim module's table as
+    /// the `options` required here can only be satisfied after the core module
+    /// in question has been instantiated (e.g. `realloc`).
     Indirect {
         sig: WasmSignature,
         options: RequiredOptions,
@@ -254,7 +261,14 @@ impl<'a> ComponentWorld<'a> {
             }
         }
         for (name, item) in resolve.worlds[world].imports.iter() {
-            add_item(&mut self.import_map, resolve, name, item, &required)?;
+            add_item(
+                &mut self.import_map,
+                resolve,
+                name,
+                item,
+                &required,
+                &self.info,
+            )?;
         }
         return Ok(());
 
@@ -264,6 +278,7 @@ impl<'a> ComponentWorld<'a> {
             key: &WorldKey,
             item: &WorldItem,
             required: &Required<'_>,
+            info: &ValidatedModule,
         ) -> Result<()> {
             let name = resolve.name_world_key(key);
             log::trace!("register import `{name}`");
@@ -297,7 +312,7 @@ impl<'a> ComponentWorld<'a> {
             assert_eq!(interface.external_id, external_id);
             match item {
                 WorldItem::Function(func) => {
-                    interface.add_func(required, resolve, func);
+                    interface.add_func(required, resolve, func, info);
                 }
                 WorldItem::Type { id, .. } => {
                     interface.add_type(required, resolve, *id);
@@ -307,7 +322,7 @@ impl<'a> ComponentWorld<'a> {
                         interface.add_type(required, resolve, *ty);
                     }
                     for (_name, func) in resolve.interfaces[*id].functions.iter() {
-                        interface.add_func(required, resolve, func);
+                        interface.add_func(required, resolve, func, info);
                     }
                 }
             }
@@ -442,7 +457,7 @@ impl<'a> ComponentWorld<'a> {
                 // Intrinsics that don't need to refer to WIT types can be
                 // skipped here.
                 Import::AdapterExport { .. }
-                | Import::MainModuleMemory
+                | Import::MainModuleMemory(_)
                 | Import::MainModuleExport { .. }
                 | Import::Item(_)
                 | Import::ContextGet { .. }
@@ -515,8 +530,33 @@ struct Required<'a> {
     resource_drops: IndexSet<TypeId>,
 }
 
+/// Returns whether `options` can all be satisfied without needing anything from
+/// a core module that hasn't been instantiated yet.
+fn options_are_available_before_instantiation(
+    options: RequiredOptions,
+    info: &ValidatedModule,
+) -> bool {
+    // Currently realloc always comes from the main module.
+    if options.contains(RequiredOptions::REALLOC) {
+        return false;
+    }
+    // If the main module imports memory then memory is available early, but if
+    // the main module doesn't import memory then memory isn't available until
+    // afterwards.
+    if options.contains(RequiredOptions::MEMORY) && info.imports.imported_memory().is_none() {
+        return false;
+    }
+    true
+}
+
 impl ImportedInterface {
-    fn add_func(&mut self, required: &Required<'_>, resolve: &Resolve, func: &Function) {
+    fn add_func(
+        &mut self,
+        required: &Required<'_>,
+        resolve: &Resolve,
+        func: &Function,
+        info: &ValidatedModule,
+    ) {
         let mut abis = Vec::with_capacity(2);
         if let Some(set) = required.interface_funcs.get(&self.interface) {
             if set.contains(&(func.name.as_str(), AbiVariant::GuestImport)) {
@@ -529,8 +569,8 @@ impl ImportedInterface {
         for abi in abis {
             log::trace!("add func {} {abi:?}", func.name);
             let options = RequiredOptions::for_import(resolve, func, abi);
-            let lowering = if options.is_empty() {
-                Lowering::Direct
+            let lowering = if options_are_available_before_instantiation(options, info) {
+                Lowering::Direct { options }
             } else {
                 let sig = resolve.wasm_signature(abi, func);
                 Lowering::Indirect { sig, options }
