@@ -1,4 +1,4 @@
-failed to resolve directory while parsing WIT for path [tests/ui/parse-fail/use-world]: interface not found in package
+failed to resolve directory while parsing WIT for path [tests/ui/parse-fail/use-world]: interface 'bar' not found in package 'foo:baz'
      --> tests/ui/parse-fail/use-world/root.wit:3:13
       |
     3 | use foo:baz/bar;

@@ -11,6 +11,10 @@ use crate::{PackageName, SourceMap, Span, Stability};
 /// Convenience alias for a `Result` whose error type is [`ResolveError`].
 pub type ResolveResult<T, E = ResolveError> = Result<T, E>;
 
+// temporary alias since most errors do not return `Ident`
+pub(crate) type WorldName = String;
+pub(crate) type InterfaceName = String;
+
 /// The category of error that occurred while resolving a WIT package.
 #[non_exhaustive]
 #[derive(Debug, PartialEq, Eq)]
@@ -20,6 +24,20 @@ pub enum ResolveErrorKind {
         span: Span,
         requested: PackageName,
         known: Vec<PackageName>,
+    },
+
+    /// A referenced world could not be found for the provided package
+    WorldNotFound {
+        span: Span,
+        requested: WorldName,
+        package: PackageName,
+    },
+
+    /// A referenced interface could not be found for the provided package
+    InterfaceNotFound {
+        span: Span,
+        requested: InterfaceName,
+        package: PackageName,
     },
     /// An interface has a transitive dependency that creates an incompatible
     /// import relationship.
@@ -53,6 +71,8 @@ impl ResolveErrorKind {
     pub fn span(&self) -> Span {
         match self {
             ResolveErrorKind::PackageNotFound { span, .. }
+            | ResolveErrorKind::WorldNotFound { span, .. }
+            | ResolveErrorKind::InterfaceNotFound { span, .. }
             | ResolveErrorKind::InvalidTransitiveDependency { span, .. }
             | ResolveErrorKind::PackageCycle { span, .. }
             | ResolveErrorKind::ItemShadowing { span, .. }
@@ -79,6 +99,15 @@ impl fmt::Display for ResolveErrorKind {
                     Ok(())
                 }
             }
+            ResolveErrorKind::WorldNotFound {
+                requested, package, ..
+            } => write!(f, "world '{requested}' not found in package '{package}'"),
+            ResolveErrorKind::InterfaceNotFound {
+                requested, package, ..
+            } => write!(
+                f,
+                "interface '{requested}' not found in package '{package}'"
+            ),
             ResolveErrorKind::InvalidTransitiveDependency { name, .. } => write!(
                 f,
                 "interface `{name}` transitively depends on an interface in incompatible ways",

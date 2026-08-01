@@ -3095,7 +3095,7 @@ impl Resolve {
         // never being importable-from it means that mutations to `CloneMaps`
         // are discarded when named interfaces are cloned. The trick here
         // happens where this unconditionally preserves all modifications to
-        // `CloneMaps` for `WorldKey::Interface` clones. Behaivor then "falls
+        // `CloneMaps` for `WorldKey::Interface` clones. Behavior then "falls
         // out" where references to cloned interfaces are naturally rewritten.
         //
         // This all falls down, however, if an import is cloned and recorded.
@@ -3782,7 +3782,11 @@ impl Remap {
             }
 
             let iface_id = pkg.interfaces.get(interface).copied().ok_or_else(|| {
-                ResolveError::new_semantic(iface_span, "interface not found in package")
+                ResolveError::from(ResolveErrorKind::InterfaceNotFound {
+                    span: iface_span,
+                    requested: interface.to_string(),
+                    package: pkg.name.clone(),
+                })
             })?;
             assert_eq!(self.interfaces.len(), unresolved_iface_id.index());
             self.interfaces.push(Some(iface_id));
@@ -3840,7 +3844,11 @@ impl Remap {
             }
 
             let world_id = pkg.worlds.get(world).copied().ok_or_else(|| {
-                ResolveError::new_semantic(world_span, "world not found in package")
+                ResolveError::from(ResolveErrorKind::WorldNotFound {
+                    span: world_span,
+                    requested: world.to_string(),
+                    package: pkg.name.clone(),
+                })
             })?;
             assert_eq!(self.worlds.len(), unresolved_world_id.index());
             self.worlds.push(Some(world_id));
