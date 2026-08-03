@@ -98,7 +98,7 @@ runs:
       shell: bash
       run: |
         echo "${{ github.token }}" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
-        image_ref="ghcr.io/${{ github.repository_owner }}/wasm-tools-wasm"
+        image_ref="ghcr.io/${{ github.repository_owner }}/wasm-tools-wasm32-wasip1"
         version=${{ steps.tag.outputs.version }}
         oras push "${image_ref}:${version}" "dist/wasm-tools.wasm:application/wasm"
 
@@ -106,14 +106,14 @@ runs:
       if: steps.tag.outputs.push_tag == 'yes' && github.ref == 'refs/heads/main'
       shell: bash
       run: |
-        image_ref="ghcr.io/${{ github.repository_owner }}/wasm-tools-wasm"
+        image_ref="ghcr.io/${{ github.repository_owner }}/wasm-tools-wasm32-wasip1"
         oras push "${image_ref}:latest" "dist/wasm-tools.wasm:application/wasm"
 
     - name: Sign OCI artifact with cosign
       if: steps.tag.outputs.push_tag == 'yes'
       shell: bash
       run: |
-        image_ref="ghcr.io/${{ github.repository_owner }}/wasm-tools-wasm"
+        image_ref="ghcr.io/${{ github.repository_owner }}/wasm-tools-wasm32-wasip1"
         version=${{ steps.tag.outputs.version }}
         cosign sign --yes "${image_ref}:${version}"
 
@@ -121,7 +121,7 @@ runs:
       if: steps.tag.outputs.push_tag == 'yes' && github.ref == 'refs/heads/main'
       shell: bash
       run: |
-        image_ref="ghcr.io/${{ github.repository_owner }}/wasm-tools-wasm"
+        image_ref="ghcr.io/${{ github.repository_owner }}/wasm-tools-wasm32-wasip1"
         cosign sign --yes "${image_ref}:latest"
 
     # Conditionally run crate publishes if the token is present.
