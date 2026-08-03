@@ -87,10 +87,9 @@ impl CodeSection {
     /// into a new code section encoder:
     ///
     /// ```
-    /// # use wasmparser::{BinaryReader, CodeSectionReader, OffsetConverter};
+    /// # use wasmparser::{BinaryReader, CodeSectionReader};
     /// //                  id, size, # entries, entry
     /// let code_section = [10, 6,    1,         4, 0, 65, 0, 11];
-    /// let offset = OffsetConverter::from_start(0);
     ///
     /// // Parse the code section.
     /// let reader = BinaryReader::new(&code_section, 0);
@@ -101,7 +100,7 @@ impl CodeSection {
     /// // Add the body to a new code section encoder by copying bytes rather
     /// // than re-parsing and re-encoding it.
     /// let mut encoder = wasm_encoder::CodeSection::new();
-    /// encoder.raw(&code_section[offset.convert_range(&body_range)]);
+    /// encoder.raw(&code_section[body_range.start as usize..body_range.end as usize]);
     /// ```
     pub fn raw(&mut self, data: &[u8]) -> &mut Self {
         data.encode(&mut self.bytes);

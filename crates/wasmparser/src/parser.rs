@@ -1,4 +1,3 @@
-use crate::OffsetConverter;
 #[cfg(feature = "features")]
 use crate::WasmFeatures;
 use crate::binary_reader::WASM_MAGIC_NUMBER;
@@ -125,9 +124,6 @@ pub enum Chunk<'a> {
         consumed: usize,
         /// The value that we actually parsed.
         payload: Payload<'a>,
-        /// Offset where this parse happened. You can use this to convert
-        /// offsets into the parsed byte slice.
-        offset: OffsetConverter,
     },
 }
 
@@ -552,7 +548,7 @@ impl Parser {
     ///                 continue;
     ///             }
     ///
-    ///             Chunk::Parsed { consumed, payload, offset: _ } => (payload, consumed),
+    ///             Chunk::Parsed { consumed, payload } => (payload, consumed),
     ///         };
     ///
     ///         match payload {
@@ -633,8 +629,7 @@ impl Parser {
         } else {
             (data, eof)
         };
-        let starting_offset = self.offset;
-        let mut reader = BinaryReader::new(data, starting_offset);
+        let mut reader = BinaryReader::new(data, self.offset);
         #[cfg(feature = "features")]
         {
             reader.set_features(self.features);
@@ -649,7 +644,6 @@ impl Parser {
                     // are inside the data chunk.
                     consumed: consumed,
                     payload,
-                    offset: OffsetConverter::from_start(starting_offset),
                 })
             }
             Err(e) => {
@@ -1111,11 +1105,7 @@ impl Parser {
                 // This isn't possible because `eof` is always true.
                 Ok(Chunk::NeedMoreData(_)) => unreachable!(),
 
-                Ok(Chunk::Parsed {
-                    payload,
-                    consumed,
-                    offset: _,
-                }) => {
+                Ok(Chunk::Parsed { payload, consumed }) => {
                     data = &data[consumed..];
                     payload
                 }
@@ -1164,7 +1154,7 @@ impl Parser {
     ///     let mut parser = Parser::new(0);
     ///     loop {
     ///         let payload = match parser.parse(wasm, true)? {
-    ///             Chunk::Parsed { consumed, payload, offset: _ } => {
+    ///             Chunk::Parsed { consumed, payload } => {
     ///                 wasm = &wasm[consumed..];
     ///                 payload
     ///             }
@@ -1500,9 +1490,9 @@ mod tests {
     use super::*;
 
     macro_rules! assert_matches {
-        ($a:expr, $b:pat $(if $guard:expr)? $(,)?) => {
+        ($a:expr, $b:pat $(,)?) => {
             match $a {
-                $b $(if $guard)? => {}
+                $b => {}
                 a => panic!("`{:?}` doesn't match `{}`", a, stringify!($b)),
             }
         };
@@ -1528,8 +1518,7 @@ mod tests {
             Ok(Chunk::Parsed {
                 consumed: 8,
                 payload: Payload::Version { num: 1, .. },
-                offset,
-            }) if offset.start() == 0,
+            }),
         );
     }
 
@@ -1552,8 +1541,7 @@ mod tests {
                     encoding: Encoding::Module,
                     ..
                 },
-                offset,
-            }) if offset.start() == 0,
+            }),
         );
         p
     }
@@ -1569,8 +1557,7 @@ mod tests {
                     encoding: Encoding::Component,
                     ..
                 },
-                offset,
-            }) if offset.start() == 0,
+            }),
         );
         p
     }
@@ -1601,7 +1588,6 @@ mod tests {
             Ok(Chunk::Parsed {
                 consumed: 3,
                 payload: Payload::StartSection { func: 1, .. },
-                offset: _,
             }),
         );
         assert!(parser_after_header().parse(&[8, 2, 1, 1], false).is_err());
@@ -1615,7 +1601,6 @@ mod tests {
             Ok(Chunk::Parsed {
                 consumed: 0,
                 payload: Payload::End(8),
-                offset: _,
             }),
         );
     }
@@ -1638,7 +1623,6 @@ mod tests {
             Ok(Chunk::Parsed {
                 consumed: 3,
                 payload: Payload::TypeSection(_),
-                offset: _,
             }),
         );
         assert_matches!(
@@ -1646,7 +1630,6 @@ mod tests {
             Ok(Chunk::Parsed {
                 consumed: 3,
                 payload: Payload::TypeSection(_),
-                offset: _,
             }),
         );
     }
@@ -1702,7 +1685,6 @@ mod tests {
             Chunk::Parsed {
                 consumed,
                 payload: Payload::CustomSection(s),
-                offset: _,
             } => (consumed, s),
             _ => panic!("not a custom section payload"),
         };
@@ -1732,7 +1714,6 @@ mod tests {
             Ok(Chunk::Parsed {
                 consumed: 3,
                 payload: Payload::CodeSectionStart { count: 0, .. },
-                offset: _,
             }),
         );
         assert_matches!(
@@ -1740,7 +1721,6 @@ mod tests {
             Ok(Chunk::Parsed {
                 consumed: 0,
                 payload: Payload::End(11),
-                offset: _,
             }),
         );
         let mut p = parser_after_header();
@@ -1749,7 +1729,6 @@ mod tests {
             Ok(Chunk::Parsed {
                 consumed: 4,
                 payload: Payload::FunctionSection { .. },
-                offset: _,
             }),
         );
         assert_matches!(
@@ -1757,7 +1736,6 @@ mod tests {
             Ok(Chunk::Parsed {
                 consumed: 3,
                 payload: Payload::CodeSectionStart { count: 1, .. },
-                offset: _,
             }),
         );
         assert_matches!(
@@ -1765,7 +1743,6 @@ mod tests {
             Ok(Chunk::Parsed {
                 consumed: 1,
                 payload: Payload::CodeSectionEntry(_),
-                offset: _,
             }),
         );
         assert_matches!(
@@ -1773,7 +1750,6 @@ mod tests {
             Ok(Chunk::Parsed {
                 consumed: 0,
                 payload: Payload::End(16),
-                offset: _,
             }),
         );
 
@@ -1785,7 +1761,6 @@ mod tests {
             Ok(Chunk::Parsed {
                 consumed: 4,
                 payload: Payload::FunctionSection { .. },
-                offset: _,
             }),
         );
         assert_matches!(
@@ -1793,7 +1768,6 @@ mod tests {
             Ok(Chunk::Parsed {
                 consumed: 3,
                 payload: Payload::CodeSectionStart { count: 1, .. },
-                offset: _,
             }),
         );
         assert_eq!(
@@ -1808,7 +1782,6 @@ mod tests {
             Ok(Chunk::Parsed {
                 consumed: 4,
                 payload: Payload::FunctionSection { .. },
-                offset: _,
             }),
         );
         assert_matches!(
@@ -1816,7 +1789,6 @@ mod tests {
             Ok(Chunk::Parsed {
                 consumed: 3,
                 payload: Payload::CodeSectionStart { count: 2, .. },
-                offset: _,
             }),
         );
         assert_matches!(
@@ -1824,7 +1796,6 @@ mod tests {
             Ok(Chunk::Parsed {
                 consumed: 1,
                 payload: Payload::CodeSectionEntry(_),
-                offset: _,
             }),
         );
         assert_matches!(p.parse(&[], false), Ok(Chunk::NeedMoreData(1)));
@@ -1840,7 +1811,6 @@ mod tests {
             Ok(Chunk::Parsed {
                 consumed: 4,
                 payload: Payload::FunctionSection { .. },
-                offset: _,
             }),
         );
         assert_matches!(
@@ -1848,7 +1818,6 @@ mod tests {
             Ok(Chunk::Parsed {
                 consumed: 3,
                 payload: Payload::CodeSectionStart { count: 1, .. },
-                offset: _,
             }),
         );
         assert_matches!(
@@ -1856,7 +1825,6 @@ mod tests {
             Ok(Chunk::Parsed {
                 consumed: 1,
                 payload: Payload::CodeSectionEntry(_),
-                offset: _,
             }),
         );
         assert_eq!(
@@ -1875,7 +1843,6 @@ mod tests {
             Ok(Chunk::Parsed {
                 consumed: 2,
                 payload: Payload::ModuleSection { parser, .. },
-                offset: _,
             }) => parser,
             other => panic!("bad parse {other:?}"),
         };
@@ -1892,7 +1859,6 @@ mod tests {
                     encoding: Encoding::Module,
                     ..
                 },
-                offset: _,
             }),
         );
 
@@ -1903,7 +1869,6 @@ mod tests {
             Ok(Chunk::Parsed {
                 consumed: 0,
                 payload: Payload::End(18),
-                offset: _,
             }),
         );
 
@@ -1916,7 +1881,6 @@ mod tests {
             Ok(Chunk::Parsed {
                 consumed: 0,
                 payload: Payload::End(18),
-                offset: _,
             }),
         );
     }
@@ -1930,7 +1894,6 @@ mod tests {
             Ok(Chunk::Parsed {
                 consumed: 2,
                 payload: Payload::ModuleSection { parser, .. },
-                offset: _,
             }) => parser,
             other => panic!("bad parse {other:?}"),
         };
@@ -1942,7 +1905,6 @@ mod tests {
             Ok(Chunk::Parsed {
                 consumed: 8,
                 payload: Payload::Version { num: 1, .. },
-                offset: _,
             }),
         );
 

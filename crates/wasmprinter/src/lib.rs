@@ -358,19 +358,13 @@ impl Printer<'_, '_> {
         state: &mut State,
     ) -> Result<()> {
         loop {
-            let (payload, offset) = match parser.parse(bytes, true)? {
+            let payload = match parser.parse(bytes, true)? {
                 Chunk::NeedMoreData(_) => unreachable!(),
-                Chunk::Parsed {
-                    payload,
-                    consumed,
-                    offset,
-                } => {
+                Chunk::Parsed { payload, consumed } => {
                     bytes = &bytes[consumed..];
-                    (payload, offset)
+                    payload
                 }
             };
-            #[cfg(not(feature = "component-model"))]
-            let _ = offset;
 
             match payload {
                 Payload::CodeSectionStart { size, .. } => {
@@ -389,10 +383,11 @@ impl Printer<'_, '_> {
                     unchecked_range: range,
                     ..
                 } => {
-                    let offset = offset.convert_range(&range).len();
-                    if offset > bytes.len() {
-                        bail!("invalid module or component section range");
-                    }
+                    let unchecked_len = range.end - range.start;
+                    let offset = match usize::try_from(unchecked_len) {
+                        Ok(len) if len <= bytes.len() => len,
+                        _ => bail!("invalid module or component section range"),
+                    };
                     bytes = &bytes[offset..];
                 }
 
@@ -456,11 +451,7 @@ impl Printer<'_, '_> {
         loop {
             let payload = match parser.parse(bytes, true)? {
                 Chunk::NeedMoreData(_) => unreachable!(),
-                Chunk::Parsed {
-                    payload,
-                    consumed,
-                    offset: _,
-                } => {
+                Chunk::Parsed { payload, consumed } => {
                     bytes = &bytes[consumed..];
                     payload
                 }

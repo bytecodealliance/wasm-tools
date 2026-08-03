@@ -73,11 +73,7 @@ impl ComponentInfo {
                     continue;
                 }
 
-                Chunk::Parsed {
-                    consumed,
-                    payload,
-                    offset: _,
-                } => (payload, consumed),
+                Chunk::Parsed { consumed, payload } => (payload, consumed),
             };
             match validator.payload(&payload)? {
                 ValidPayload::Ok => {}

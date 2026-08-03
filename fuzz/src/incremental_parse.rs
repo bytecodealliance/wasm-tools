@@ -39,11 +39,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
                 buf.extend(data.next().unwrap());
                 continue;
             }
-            Ok(Chunk::Parsed {
-                consumed,
-                payload,
-                offset: _,
-            }) => {
+            Ok(Chunk::Parsed { consumed, payload }) => {
                 log::debug!("parsed {consumed} bytes");
                 pos += consumed;
                 payload

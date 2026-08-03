@@ -387,6 +387,8 @@ impl ReencodeComponent for RoundtripReencoder {}
 
 #[allow(missing_docs)] // FIXME
 pub mod component_utils {
+    use core::ops::Range;
+
     use super::super::utils::name_map;
     use super::ReencodeComponent;
     use crate::reencode::Error;
@@ -402,14 +404,10 @@ pub mod component_utils {
     ) -> Result<(), Error<T::Error>> {
         let mut remaining = data;
         while !remaining.is_empty() {
-            let (section, offset) = match parser.parse(remaining, true)? {
-                wasmparser::Chunk::Parsed {
-                    consumed,
-                    payload,
-                    offset,
-                } => {
+            let section = match parser.parse(remaining, true)? {
+                wasmparser::Chunk::Parsed { consumed, payload } => {
                     remaining = &remaining[consumed..];
-                    (payload, offset)
+                    payload
                 }
                 wasmparser::Chunk::NeedMoreData(_) => unreachable!(),
             };
@@ -420,7 +418,7 @@ pub mod component_utils {
                 | wasmparser::Payload::ModuleSection {
                     unchecked_range, ..
                 } => {
-                    let skipped_len = offset.convert_range(unchecked_range).len();
+                    let skipped_len = (unchecked_range.end - unchecked_range.start) as usize;
                     remaining = &remaining[skipped_len..];
                 }
                 _ => {}
@@ -437,7 +435,10 @@ pub mod component_utils {
         payload: wasmparser::Payload<'_>,
         whole_component: &[u8],
     ) -> Result<(), Error<T::Error>> {
-        let offset = wasmparser::OffsetConverter::from_start(0);
+        let convert_range = |file_range: &Range<u64>| {
+            // By assumption that `whole_component` is at parser offset 0
+            file_range.start as usize..file_range.end as usize
+        };
         match payload {
             wasmparser::Payload::Version {
                 encoding: wasmparser::Encoding::Component,
@@ -512,7 +513,7 @@ pub mod component_utils {
                 reencoder.parse_component_submodule(
                     component,
                     parser,
-                    &whole_component[offset.convert_range(&unchecked_range)],
+                    &whole_component[convert_range(&unchecked_range)],
                 )?;
             }
             wasmparser::Payload::ComponentSection {
@@ -522,7 +523,7 @@ pub mod component_utils {
                 reencoder.parse_component_subcomponent(
                     component,
                     parser,
-                    &whole_component[offset.convert_range(&unchecked_range)],
+                    &whole_component[convert_range(&unchecked_range)],
                     whole_component,
                 )?;
             }
@@ -533,7 +534,7 @@ pub mod component_utils {
 
             other => match other.as_section() {
                 Some((id, range)) => {
-                    let section = &whole_component[offset.convert_range(&range)];
+                    let section = &whole_component[convert_range(&range)];
                     reencoder.parse_unknown_component_section(component, id, section)?;
                 }
                 None => unreachable!(),

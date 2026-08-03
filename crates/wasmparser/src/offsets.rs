@@ -20,8 +20,6 @@
 //! The structures in this file bridge the gap. Given a logical offset,
 //! we can compute a maximally allowed length of data at that offset.
 
-use core::{ops::Range, u64};
-
 // An (not necessarily exhaustive) list of properties we use of `u64` in relation
 // to usize:
 // - u64::MAX as an upper bound and sometimes invalid offset
@@ -29,13 +27,13 @@ use core::{ops::Range, u64};
 // - we can add and subtract small offsets to recalculate the original position
 //   in some error paths, where saving the position directly would clutter registers.
 
-/// An offset into some chunk of memory occurs at some specified logical offset in
-/// the file. We currently use `usize` to represent these offsets.
+/// An memory offset into some chunk of bytes occurs at some specified logical
+/// offset in the file. We currently use `usize` to represent memory offsets.
 ///
 /// This offset can always be added onto the logical offset without overflow.
 /// Compute the maximum allowable memory offset under both contraints
 // TODO: on platforms where usize::BITS > u64::BITS (currently almost no-where),
-// we could use u64 directly instead of usize to represent offsets.
+// we could use u64 directly instead of usize to represent memory offsets.
 pub fn max_memory_offset(mut max_logical: u64, max: usize) -> usize {
     if u64::BITS > usize::BITS {
         max_logical = max_logical.min(usize::MAX as u64)
@@ -53,50 +51,5 @@ pub fn max_memory_offset(mut max_logical: u64, max: usize) -> usize {
             constrained
         }
         smaller(max_logical)
-    }
-}
-/// Converts offsets from the parser back into offsets into the input.
-#[derive(Clone, Copy, Debug)]
-pub struct OffsetConverter {
-    start: u64,
-}
-
-impl OffsetConverter {
-    /// Convert ranges as if parsing a chunk of input data started at `start`.
-    pub fn from_start(start: u64) -> Self {
-        Self { start }
-    }
-    /// Return the offset at the start of the parsed input.
-    pub fn start(&self) -> u64 {
-        self.start
-    }
-    /// Convert an offset into a byte offset into the input.
-    ///
-    /// Returns `None` if the offset is before the offset at the start of
-    /// parsing, or if the offset from start is too large to represent as a
-    /// `usize`.
-    pub fn try_convert_offset(&self, offset: u64) -> Option<usize> {
-        let from_start = offset.checked_sub(self.start)?;
-        usize::try_from(from_start).ok()
-    }
-    /// Convert an offset into a byte offset into the input.
-    ///
-    /// Panics if the offset is before `start` or if the offset is too large to represent
-    /// as a `usize`. Both of these cases can generally not happen when passed an offset
-    /// inside the [`Payload`](crate::Payload) returned from a parsing function.
-    pub fn convert_offset(&self, offset: u64) -> usize {
-        self.try_convert_offset(offset).expect("invalid offset")
-    }
-    /// Convert a range into a range in the input.
-    pub fn try_convert_range(&self, range: &Range<u64>) -> Option<Range<usize>> {
-        let start = self.try_convert_offset(range.start)?;
-        let end = self.try_convert_offset(range.end)?;
-        Some(start..end)
-    }
-    /// Convert a range into a range in the input.
-    pub fn convert_range(&self, range: &Range<u64>) -> Range<usize> {
-        let start = self.try_convert_offset(range.start).expect("invalid start");
-        let end = self.try_convert_offset(range.end).expect("invalid end");
-        start..end
     }
 }

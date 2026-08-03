@@ -681,17 +681,16 @@ pub mod utils {
 
         let mut last_section = None;
 
-        let offset = wasmparser::OffsetConverter::from_start(parser.offset());
+        let start_offset = parser.offset();
         // Convert from `range` to a byte range within `data` while
-        // accounting for various offsets. Then create a
-        // `CodeSectionReader` (which notably the payload does not
-        // give us here) and recurse with that. This means that
-        // users overriding `parse_code_section` always get that
-        // function called.
+        // accounting for various offsets.
         let get_original_section = |range: Range<u64>| {
-            let data_range = offset
-                .try_convert_range(&range)
-                .ok_or(Error::InvalidCodeSectionSize)?;
+            let start = range.start - start_offset;
+            let end = range.end - start_offset;
+            let Ok(end) = usize::try_from(end) else {
+                return Err(Error::InvalidCodeSectionSize);
+            };
+            let data_range = start as usize..end;
             data.get(data_range).ok_or(Error::InvalidCodeSectionSize)
         };
         for section in parser.parse_all(data) {
@@ -843,12 +842,10 @@ pub mod utils {
                     )?;
                     let mut codes = crate::CodeSection::new();
 
-                    // Convert from `range` to a byte range within `data` while
-                    // accounting for various offsets. Then create a
-                    // `CodeSectionReader` (which notably the payload does not
-                    // give us here) and recurse with that. This means that
-                    // users overriding `parse_code_section` always get that
-                    // function called.
+                    // Crate a `CodeSectionReader` (which notably the payload
+                    // does not give us here) and recurse with that. This means
+                    // that users overriding `parse_code_section` always get
+                    // that function called.
                     let section = get_original_section(range.clone())?;
                     let reader = wasmparser::BinaryReader::new(section, range.start);
                     let section = wasmparser::CodeSectionReader::new(reader)?;
