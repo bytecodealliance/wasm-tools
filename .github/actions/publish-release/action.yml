@@ -71,6 +71,59 @@ runs:
       with:
         subject-path: 'dist/*'
 
+    # Publish wasm-tools.wasm as an OCI artifact to GHCR
+    - name: Install ORAS
+      uses: oras-project/setup-oras@v1
+      if: steps.tag.outputs.push_tag == 'yes'
+      with:
+        version: '1.2.2'
+
+    - name: Install cosign
+      uses: sigstore/cosign-installer@v3
+      if: steps.tag.outputs.push_tag == 'yes'
+      with:
+        cosign-release: 'v2.4.1'
+
+    - name: Extract wasm binary from tarball
+      if: steps.tag.outputs.push_tag == 'yes'
+      shell: bash
+      run: |
+        version=${{ steps.tag.outputs.version }}
+        tar xzf "dist/wasm-tools-${version}-wasm32-wasip1.tar.gz" \
+          --strip-components=1 -C dist \
+          "wasm-tools-${version}-wasm32-wasip1/wasm-tools.wasm"
+
+    - name: Push wasm to GHCR
+      if: steps.tag.outputs.push_tag == 'yes'
+      shell: bash
+      run: |
+        echo "${{ github.token }}" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
+        image_ref="ghcr.io/${{ github.repository_owner }}/wasm-tools-wasm32-wasip1"
+        version=${{ steps.tag.outputs.version }}
+        oras push "${image_ref}:${version}" "dist/wasm-tools.wasm:application/wasm"
+
+    - name: Push latest tag to GHCR
+      if: steps.tag.outputs.push_tag == 'yes' && github.ref == 'refs/heads/main'
+      shell: bash
+      run: |
+        image_ref="ghcr.io/${{ github.repository_owner }}/wasm-tools-wasm32-wasip1"
+        oras push "${image_ref}:latest" "dist/wasm-tools.wasm:application/wasm"
+
+    - name: Sign OCI artifact with cosign
+      if: steps.tag.outputs.push_tag == 'yes'
+      shell: bash
+      run: |
+        image_ref="ghcr.io/${{ github.repository_owner }}/wasm-tools-wasm32-wasip1"
+        version=${{ steps.tag.outputs.version }}
+        cosign sign --yes "${image_ref}:${version}"
+
+    - name: Sign latest tag with cosign
+      if: steps.tag.outputs.push_tag == 'yes' && github.ref == 'refs/heads/main'
+      shell: bash
+      run: |
+        image_ref="ghcr.io/${{ github.repository_owner }}/wasm-tools-wasm32-wasip1"
+        cosign sign --yes "${image_ref}:latest"
+
     # Conditionally run crate publishes if the token is present.
     - run: rustup update stable && rustup default stable
       shell: bash
