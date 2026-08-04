@@ -106,3 +106,44 @@
   (core func (canon stream.read $s))
   (core func (canon stream.write $s))
 )
+
+;; stream.splice
+(component
+  (core module $m
+    (import "" "stream.splice" (func $stream.splice (param i32 i32 i32) (result i32)))
+  )
+  (type $stream-type (stream u8))
+  (core func $stream.splice (canon stream.splice $stream-type))
+  (core instance $i (instantiate $m (with "" (instance (export "stream.splice" (func $stream.splice))))))
+)
+
+;; stream.splice; async
+(component
+  (core module $m
+    (import "" "stream.splice" (func $stream.splice (param i32 i32 i32) (result i32)))
+  )
+  (type $stream-type (stream u8))
+  (core func $stream.splice (canon stream.splice $stream-type async))
+  (core instance $i (instantiate $m (with "" (instance (export "stream.splice" (func $stream.splice))))))
+)
+
+;; stream.splice; incorrect type
+(assert_invalid
+  (component
+    (core module $m
+      (import "" "stream.splice" (func $stream.splice (param i32 i32) (result i32)))
+    )
+    (type $stream-type (stream u8))
+    (core func $stream.splice (canon stream.splice $stream-type async))
+    (core instance $i (instantiate $m (with "" (instance (export "stream.splice" (func $stream.splice))))))
+  )
+  "type mismatch for export `stream.splice` of module instantiation argument ``"
+)
+
+;; stream.splice; not a stream type
+(assert_invalid
+  (component
+    (type $future-type (future u8))
+    (core func (canon stream.splice $future-type)))
+  "`stream.splice` requires a stream type"
+)

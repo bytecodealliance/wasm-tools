@@ -64,6 +64,32 @@
       "line": 101,
       "filename": "async-builtins.9.wasm",
       "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 111,
+      "filename": "async-builtins.10.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 121,
+      "filename": "async-builtins.11.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 132,
+      "filename": "async-builtins.12.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `stream.splice` of module instantiation argument ``"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 145,
+      "filename": "async-builtins.13.wasm",
+      "module_type": "binary",
+      "text": "`stream.splice` requires a stream type"
     }
   ]
 }

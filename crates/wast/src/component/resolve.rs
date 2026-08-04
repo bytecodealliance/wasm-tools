@@ -420,6 +420,9 @@ impl<'a> Resolver<'a> {
                     self.component_item_ref(&mut info.ty)?;
                     self.canon_opts(&mut info.opts)?;
                 }
+                CoreFuncKind::StreamSplice(info) => {
+                    self.component_item_ref(&mut info.ty)?;
+                }
                 CoreFuncKind::StreamCancelRead(info) => {
                     self.component_item_ref(&mut info.ty)?;
                 }
