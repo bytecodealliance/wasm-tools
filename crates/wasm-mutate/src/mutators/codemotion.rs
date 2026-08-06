@@ -62,10 +62,9 @@ impl CodemotionMutator {
         config: &mut WasmMutate,
         mutators: &[Box<dyn AstMutator>],
     ) -> crate::Result<(Function, u32)> {
-        let info = config.info();
-        let original_code_section = info.code.unwrap();
-        let reader = info.get_binary_reader(original_code_section);
-        let input_code_section = info.get_code_section().data;
+        let original_code_section = config.info().code.unwrap();
+        let reader = config.info().get_binary_reader(original_code_section);
+        let input_code_section = config.info().get_code_section().data;
         let sectionreader = CodeSectionReader::new(reader)?;
         let function_count = sectionreader.count();
         let function_to_mutate = config.rng().random_range(0..function_count);
