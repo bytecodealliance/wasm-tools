@@ -158,7 +158,7 @@ impl<'a> BinaryReader<'a> {
 
     /// Returns a range from the starting offset to the end of the buffer.
     pub fn range(&self) -> Range<u64> {
-        self.original_offset..(self.original_offset + self.max_offset() as u64)
+        self.original_offset..(self.original_offset + self.max_position() as u64)
     }
 
     pub(crate) fn remaining_buffer(&self) -> &'a [u8] {
@@ -167,17 +167,17 @@ impl<'a> BinaryReader<'a> {
 
     /// Returns a range from the current position to the end of the buffer.
     pub fn remaining_range(&self) -> Range<u64> {
-        self.original_position()..(self.original_offset + self.max_offset() as u64)
+        self.original_position()..(self.original_offset + self.max_position() as u64)
     }
 
-    fn max_offset(&self) -> usize {
+    fn max_position(&self) -> usize {
         // constructor enforces:
         // self.buffer.len() <= max_memory_offset(u64::MAX - self.original_offset, self.buffer.len())
         self.buffer.len()
     }
 
     fn ensure_has_byte(&self) -> Result<()> {
-        if self.position < self.max_offset() {
+        if self.position < self.max_position() {
             Ok(())
         } else {
             Err(self.eof_err(1))
@@ -260,7 +260,7 @@ impl<'a> BinaryReader<'a> {
     /// Returns whether the `BinaryReader` has reached the end of the file.
     #[inline]
     pub fn eof(&self) -> bool {
-        self.position >= self.max_offset()
+        self.position >= self.max_position()
     }
 
     /// Returns the `BinaryReader`'s current position.
@@ -272,7 +272,7 @@ impl<'a> BinaryReader<'a> {
     /// Returns the number of bytes remaining in the `BinaryReader`.
     #[inline]
     pub fn bytes_remaining(&self) -> usize {
-        self.max_offset() - self.position
+        self.max_position() - self.position
     }
 
     /// Advances the `BinaryReader` `size` bytes, and returns a slice from the
@@ -322,7 +322,11 @@ impl<'a> BinaryReader<'a> {
     /// If `BinaryReader` has no bytes remaining.
     #[inline]
     pub fn read_u8(&mut self) -> Result<u8> {
-        let [b] = self.read_bytes(1)?.try_into().unwrap();
+        let b = match self.buffer.get(self.position) {
+            Some(b) => *b,
+            None => return Err(self.eof_err(1)),
+        };
+        self.position += 1;
         Ok(b)
     }
 

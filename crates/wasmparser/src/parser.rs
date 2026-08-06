@@ -640,8 +640,6 @@ impl Parser {
                 let consumed = reader.current_position();
                 self.offset += consumed as u64;
                 Ok(Chunk::Parsed {
-                    // We can be sure that the difference fits into a usize, as both positions
-                    // are inside the data chunk.
                     consumed: consumed,
                     payload,
                 })
@@ -1256,7 +1254,7 @@ where
     let range = reader.original_position()..section_end;
     let mut content = reader.skip(|r| {
         // length is guaranteed to fit into a u32
-        r.read_bytes((range.end - range.start) as usize)?;
+        r.read_bytes((range.end - range.start) as u32 as usize)?;
         Ok(())
     })?;
     // We can't recover from "unexpected eof" here because our entire section is

@@ -122,7 +122,7 @@ pub trait AstMutator {
         ast: &Ast,
         locals: &[(u32, ValType)],
         operators: &Vec<OperatorAndByteOffset>,
-        input_code_section: &'a [u8],
+        input_wasm: &'a [u8],
     ) -> Result<Function>;
 
     /// Checks if this mutator can be applied to the passed `ast`

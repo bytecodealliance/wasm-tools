@@ -55,9 +55,9 @@ impl ModuleImportMap {
         let mut ret = ModuleImportMap::default();
         let mut found_duplicate_imports = false;
 
-        let data = wasm.as_ref();
-        for payload in Parser::new(0).parse_all(&data) {
-            match payload? {
+        for payload in Parser::new(0).parse_all(&wasm) {
+            let payload = payload?;
+            match payload {
                 Version { encoding, .. } if encoding == wasmparser::Encoding::Component => {
                     // if this is a component let someone else deal with the
                     // error, we'll punt that up the stack.
@@ -82,11 +82,11 @@ impl ModuleImportMap {
                 // All other sections get plumbed through as-is. This ensures we
                 // don't tamper with binary offsets anywhere in the module
                 // except the import section, for example.
-                payload => {
+                _ => {
                     if let Some((id, range)) = payload.as_section() {
                         module.section(&RawSection {
                             id,
-                            data: &data[range.start as usize..range.end as usize],
+                            data: &wasm[range.start as usize..range.end as usize],
                         });
                     }
                 }

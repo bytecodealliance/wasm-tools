@@ -1005,7 +1005,7 @@ impl Validator {
         check_max(
             0,
             u32::try_from(body.range().end - body.range().start)
-                .expect("usize already validated to u32 during section-length decoding"),
+                .expect("body length already validated to u32 during section-length decoding"),
             MAX_WASM_FUNCTION_SIZE,
             "function body size",
             offset,

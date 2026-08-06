@@ -43,7 +43,7 @@ fn validate_all(u: &mut Unstructured<'_>, mut validator: Validator, wasm: &[u8])
     cfg.name_unnamed(u.arbitrary()?);
     log::debug!("print config {cfg:?}");
     let mut wat = String::new();
-    let _ = cfg.print(&wasm, &mut wasmprinter::PrintFmtWrite(&mut wat));
+    let _ = cfg.print(wasm, &mut wasmprinter::PrintFmtWrite(&mut wat));
     let is_valid_range = |r: std::ops::Range<u64>| {
         r.start <= r.end && usize::try_from(r.end).is_ok_and(|end| end <= wasm.len())
     };
@@ -51,7 +51,7 @@ fn validate_all(u: &mut Unstructured<'_>, mut validator: Validator, wasm: &[u8])
     // After printing then try to parse and validate the module. See how far we
     // get as invalid modules are explicitly allowed here. Generally looking for
     // panics and excessive resource usage here.
-    for payload in Parser::new(0).parse_all(&wasm) {
+    for payload in Parser::new(0).parse_all(wasm) {
         let payload = match payload {
             Ok(p) => p,
             Err(_) => return Ok(()),

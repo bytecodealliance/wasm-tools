@@ -1367,8 +1367,7 @@ impl UnbundleOpts {
         // the module itself or `None` indicating it's not being extracted.
         let mut modules_to_extract = Vec::new();
         for payload in wasmparser::Parser::new(0).parse_all(&input) {
-            let payload = payload?;
-            let range = match payload {
+            let range = match payload? {
                 Payload::ModuleSection {
                     unchecked_range, ..
                 } => unchecked_range.start as usize..unchecked_range.end as usize,

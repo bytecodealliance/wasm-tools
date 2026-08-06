@@ -36,7 +36,7 @@ impl LoopUnrollWriter {
         chunk: Iter<OperatorAndByteOffset>,
         to_fix: &HashMap<usize, Instruction>,
         newfunc: &mut Function,
-        input_code_section: &'a [u8],
+        input_wasm: &'a [u8],
     ) -> crate::Result<()> {
         for (idx, ((_, curr_offset), (_, next_offset))) in
             chunk.clone().zip(chunk.skip(1)).enumerate()
@@ -44,7 +44,7 @@ impl LoopUnrollWriter {
             if to_fix.contains_key(&idx) {
                 newfunc.instruction(&to_fix[&idx]);
             } else {
-                let piece = &input_code_section[*curr_offset as usize..*next_offset as usize];
+                let piece = &input_wasm[*curr_offset as usize..*next_offset as usize];
                 newfunc.raw(piece.into_iter().copied());
             }
         }
@@ -57,7 +57,7 @@ impl LoopUnrollWriter {
         nodeidx: usize,
         newfunc: &mut Function,
         operators: &Vec<OperatorAndByteOffset>,
-        input_code_section: &'a [u8],
+        input_wasm: &'a [u8],
     ) -> crate::Result<()> {
         let nodes = ast.get_nodes();
 
@@ -128,12 +128,7 @@ impl LoopUnrollWriter {
                 let including_chunk =
                     operators[range.start + 1 /* skip the loop instruction */..range.end + 1]
                         .iter();
-                self.write_and_fix_loop_body(
-                    including_chunk,
-                    &to_fix,
-                    newfunc,
-                    input_code_section,
-                )?;
+                self.write_and_fix_loop_body(including_chunk, &to_fix, newfunc, input_wasm)?;
 
                 // Write A' br B'
                 newfunc.instructions().br(1);
@@ -145,12 +140,7 @@ impl LoopUnrollWriter {
                 let including_chunk =
                     operators[range.start + 1 /* skip the loop instruction */..range.end + 1]
                         .iter();
-                self.write_and_fix_loop_body(
-                    including_chunk,
-                    &to_fix,
-                    newfunc,
-                    input_code_section,
-                )?;
+                self.write_and_fix_loop_body(including_chunk, &to_fix, newfunc, input_wasm)?;
 
                 // Closing loop
                 newfunc.instructions().end();
@@ -172,21 +162,13 @@ impl AstWriter for LoopUnrollWriter {
         body: &[usize],
         newfunc: &mut Function,
         operators: &Vec<OperatorAndByteOffset>,
-        input_code_section: &'a [u8],
+        input_wasm: &'a [u8],
         ty: &wasmparser::BlockType,
     ) -> crate::Result<()> {
         if self.loop_to_mutate == nodeidx {
-            self.unroll_loop(ast, nodeidx, newfunc, operators, input_code_section)?;
+            self.unroll_loop(ast, nodeidx, newfunc, operators, input_wasm)?;
         } else {
-            self.write_loop_default(
-                ast,
-                nodeidx,
-                body,
-                newfunc,
-                operators,
-                input_code_section,
-                ty,
-            )?;
+            self.write_loop_default(ast, nodeidx, body, newfunc, operators, input_wasm, ty)?;
         }
         Ok(())
     }
@@ -228,7 +210,7 @@ impl AstMutator for LoopUnrollMutator {
         ast: &Ast,
         locals: &[(u32, ValType)],
         operators: &Vec<OperatorAndByteOffset>,
-        input_code_section: &'a [u8],
+        input_wasm: &'a [u8],
     ) -> crate::Result<Function> {
         // Select the if index
         let mut newfunc = Function::new(locals.to_vec());
@@ -239,13 +221,7 @@ impl AstMutator for LoopUnrollMutator {
         let writer = LoopUnrollWriter {
             loop_to_mutate: *loop_index,
         };
-        writer.write(
-            ast,
-            ast.get_root(),
-            &mut newfunc,
-            operators,
-            input_code_section,
-        )?;
+        writer.write(ast, ast.get_root(), &mut newfunc, operators, input_wasm)?;
         Ok(newfunc)
     }
 }
