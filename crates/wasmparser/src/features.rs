@@ -265,7 +265,7 @@ define_wasm_features! {
         /// The WebAssembly [stack-switching proposal](https://github.com/WebAssembly/stack-switching).
         pub stack_switching: STACK_SWITCHING(1 << 25) = false;
         /// The WebAssembly [wide-arithmetic proposal](https://github.com/WebAssembly/wide-arithmetic).
-        pub wide_arithmetic: WIDE_ARITHMETIC(1 << 26) = false;
+        pub wide_arithmetic: WIDE_ARITHMETIC(1 << 26) = true;
 
         /// Support for the `value` type in the component model proposal.
         ///
@@ -333,7 +333,7 @@ define_wasm_features! {
         pub custom_descriptors: CUSTOM_DESCRIPTORS(1 << 36) = false;
 
         // Compact import section proposal.
-        pub compact_imports: COMPACT_IMPORTS(1 << 37) = false;
+        pub compact_imports: COMPACT_IMPORTS(1 << 37) = true;
 
         /// Support for maps in the component model proposal.
         ///
