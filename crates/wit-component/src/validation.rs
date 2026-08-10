@@ -290,6 +290,24 @@ pub enum Import {
         slot: u32,
     },
 
+    /// The `__wasm_get_tls_base` function that LLVM emits to read the base
+    /// pointer of this module's thread-local storage.
+    ///
+    /// Unlike [`Import::ContextGet`] this is not tied to a particular storage
+    /// mechanism: how it's satisfied depends on whether the program uses
+    /// cooperative threading. See
+    /// `EncodingState::materialize_tls_base_import` for the details.
+    TlsBaseGet {
+        /// The type of the base pointer (`i32` or `i64`).
+        ty: ValType,
+    },
+
+    /// The `__wasm_set_tls_base` counterpart to [`Import::TlsBaseGet`].
+    TlsBaseSet {
+        /// The type of the base pointer (`i32` or `i64`).
+        ty: ValType,
+    },
+
     /// A `canon backpressure.inc` intrinsic.
     BackpressureInc,
 
@@ -2608,13 +2626,16 @@ impl NameMangling for Legacy {
                 let ty = *ty.params().get(0)?;
                 Some(Import::ContextSet { ty, slot: 0 })
             }
+            // TLS handling is slightly different than above to handle
+            // coop-threading-vs-not, so the exact resolution of this import is
+            // deferred to later.
             "__wasm_get_tls_base" => {
                 let ty = *ty.results().get(0)?;
-                Some(Import::ContextGet { ty, slot: 1 })
+                Some(Import::TlsBaseGet { ty })
             }
             "__wasm_set_tls_base" => {
                 let ty = *ty.params().get(0)?;
-                Some(Import::ContextSet { ty, slot: 1 })
+                Some(Import::TlsBaseSet { ty })
             }
             _ => None,
         }

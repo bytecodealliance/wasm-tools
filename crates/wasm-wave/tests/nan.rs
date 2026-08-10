@@ -19,7 +19,7 @@ fn nan() {
         0xffffffff,
         0x7fff0f0f,
         0x8f800000,
-        f32::NAN.to_bits(),
+        <f32>::NAN.to_bits(),
     ] {
         let val = f32::from_bits(bits);
         let expected = if val.is_nan() { 0x7fc00000 } else { bits };
@@ -38,7 +38,7 @@ fn nan() {
         0xffffffffffffffff,
         0x7fff0f0f0f0f0f0f,
         0x8ff0000000000000,
-        f64::NAN.to_bits(),
+        <f64>::NAN.to_bits(),
     ] {
         let val = f64::from_bits(bits);
         let expected = if val.is_nan() {

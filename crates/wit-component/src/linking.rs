@@ -28,6 +28,7 @@ use {
     indexmap::{IndexMap, IndexSet, map::Entry},
     metadata::{Export, ExportKey, FunctionType, GlobalType, Metadata, Type, ValueType},
     std::{
+        cmp,
         collections::{BTreeMap, HashMap, HashSet},
         fmt::Debug,
         hash::Hash,
@@ -35,9 +36,9 @@ use {
     },
     wasm_encoder::{
         CodeSection, ConstExpr, DataSection, ElementSection, Elements, EntityType, ExportKind,
-        ExportSection, Function, FunctionSection, GlobalSection, ImportSection, Instruction as Ins,
-        MemArg, MemorySection, MemoryType, Module, RawCustomSection, RefType, StartSection,
-        TableSection, TableType, TypeSection, ValType,
+        ExportSection, Function, FunctionSection, GlobalSection, ImportSection, MemArg,
+        MemorySection, MemoryType, Module, RawCustomSection, RefType, StartSection, TableSection,
+        TableType, TypeSection, ValType,
     },
     wasmparser::SymbolFlags,
 };
@@ -183,6 +184,134 @@ impl<'a> DlOpenables<'a> {
     }
 }
 
+/// The layout of the whole program's thread-local storage bookkeeping.
+///
+/// This generates a C structure that matches this layout:
+///
+/// ```c
+/// struct {
+///     size_t num_libraries;
+///     struct {
+///         size_t __tls_size;
+///         size_t __tls_align;
+///         void (*__wasm_init_tls)(void*);
+///     } *library_info;
+///     void **main_thread_tls_base;
+/// } __wasm_program_tls_info;
+/// ```
+///
+/// where `main_thread_tls_base` is placed first, then `library_info`, then this
+/// structure itself.
+#[derive(Default)]
+struct TlsLayout {
+    /// Address of the `main_thread_tls_base` array.
+    ///
+    /// This is left zero-initialized; no data segment covers it.
+    main_thread_tls_base: u32,
+
+    /// Address of the `library_info` array.
+    library_info: u32,
+
+    /// Address of the `__wasm_program_tls_info` struct itself.
+    program_info: u32,
+
+    /// The libraries which have thread-local storage, in the order they appear
+    /// in `library_info`, paired with the table index reserved for each one's
+    /// `__wasm_init_tls`.
+    init_tls_functions: Vec<(usize, u32)>,
+
+    /// For each library, the slot it uses in the array of TLS base pointers, or
+    /// `None` if it has no thread-local storage of its own.
+    slots: Vec<Option<u32>>,
+
+    /// Static contents of the `library_info` array and the
+    /// `__wasm_program_tls_info` struct, which live contiguously starting at
+    /// `library_info`.
+    buffer: Vec<u8>,
+}
+
+impl TlsLayout {
+    /// Reserve linear memory and table space for the layout described above,
+    /// advancing `memory_offset` and `table_offset` past what's used.
+    ///
+    /// Nothing is reserved for a program which doesn't use thread-local storage
+    /// at all, and the `__wasm_program_tls_info` half is skipped unless some
+    /// library actually asks for it, which is only the case when the program
+    /// might spawn a thread.
+    fn new(metadata: &[Metadata], memory_offset: &mut u32, table_offset: &mut u32) -> Self {
+        let needs_tls_base = metadata
+            .iter()
+            .any(|m| m.needs_get_tls_base || m.needs_set_tls_base);
+        let needs_program_info = metadata.iter().any(|m| m.needs_program_tls_info);
+        if !needs_tls_base && !needs_program_info {
+            return Self::default();
+        }
+
+        // Filter out libraries that don't have TLS, and then sort this by
+        // biggest alignment first to help minimize the size of TLS blocks
+        // allocated.
+        let mut libraries = metadata
+            .iter()
+            .enumerate()
+            .filter(|(_, metadata)| metadata.has_tls_info)
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
+        libraries.sort_by_key(|&index| cmp::Reverse(metadata[index].tls_align));
+
+        let mut slots = vec![None; metadata.len()];
+        for (slot, index) in libraries.iter().enumerate() {
+            slots[*index] = Some(u32::try_from(slot).unwrap());
+        }
+        let count = u32::try_from(libraries.len()).unwrap();
+
+        // Allocate space for `main_thread_tls_base`
+        *memory_offset = align(*memory_offset, 4);
+        let main_thread_tls_base = *memory_offset;
+        *memory_offset += count * 4;
+
+        let mut library_info = 0;
+        let mut program_info = 0;
+        let mut init_tls_functions = Vec::new();
+        let mut buffer = Vec::new();
+        if needs_program_info {
+            // Allocate space for `library_info`
+            library_info = *memory_offset;
+            *memory_offset += count * 12;
+            // Allocate space for `__wasm_program_tls_info`
+            program_info = *memory_offset;
+            *memory_offset += 12;
+
+            init_tls_functions = libraries
+                .iter()
+                .map(|&index| (index, get_and_increment(table_offset)))
+                .collect::<Vec<_>>();
+
+            for &(index, table_index) in &init_tls_functions {
+                write_u32(&mut buffer, metadata[index].tls_size);
+                write_u32(&mut buffer, metadata[index].tls_align);
+                write_u32(&mut buffer, table_index);
+            }
+            write_u32(&mut buffer, count);
+            write_u32(&mut buffer, library_info);
+            write_u32(&mut buffer, main_thread_tls_base);
+        }
+
+        Self {
+            main_thread_tls_base,
+            library_info,
+            program_info,
+            init_tls_functions,
+            slots,
+            buffer,
+        }
+    }
+
+    /// The slot library `index` uses in the array of TLS base pointers.
+    fn slot(&self, index: usize) -> Option<u32> {
+        self.slots.get(index).copied().flatten()
+    }
+}
+
 fn write_u32(buffer: &mut Vec<u8>, value: u32) {
     buffer.extend(value.to_le_bytes());
 }
@@ -286,7 +415,7 @@ fn make_env_module<'a>(
     env_exports: &[EnvExport<'_>],
     cabi_realloc_exporter: Option<&str>,
     stack_size_bytes: u32,
-) -> (Vec<u8>, DlOpenables<'a>, u32) {
+) -> (Vec<u8>, DlOpenables<'a>, TlsLayout, u32) {
     // TODO: deduplicate types
     let mut types = TypeSection::new();
     let mut imports = ImportSection::new();
@@ -354,6 +483,25 @@ fn make_env_module<'a>(
         exports.export(CABI_REALLOC, ExportKind::Func, index);
     }
 
+    // If tls base shims are being generated, and something might spawn a
+    // thread, then the shims generated will need access to `context.get 1`.
+    let indirect_tls_base = metadata
+        .iter()
+        .any(|m| m.needs_get_tls_base || m.needs_set_tls_base)
+        && metadata.iter().any(|m| m.uses_thread_new_indirect);
+    let tls_context_get = if indirect_tls_base {
+        let index = get_and_increment(&mut function_count);
+        types.ty().function([], [ValType::I32]);
+        imports.import(
+            metadata::ROOT,
+            metadata::CONTEXT_GET_1,
+            EntityType::Function(index),
+        );
+        Some(index)
+    } else {
+        None
+    };
+
     let mut add_global_export = |name: &str, value, mutable| {
         let index = globals.len();
         globals.global(
@@ -379,6 +527,12 @@ fn make_env_module<'a>(
 
     table_offset += dl_openables.function_count;
     memory_offset += u32::try_from(dl_openables.buffer.len()).unwrap();
+
+    let tls = TlsLayout::new(metadata, &mut memory_offset, &mut table_offset);
+
+    if metadata.iter().any(|m| m.needs_program_tls_info) {
+        add_global_export(metadata::PROGRAM_TLS_INFO, tls.program_info, true);
+    }
 
     let memory_size = {
         if metadata.iter().any(|m| m.needs_stack_pointer) {
@@ -486,18 +640,139 @@ fn make_env_module<'a>(
         functions.function(u32::try_from(index).unwrap());
         let mut function = Function::new([]);
         for local in 0..export.ty.parameters.len() {
-            function.instruction(&Ins::LocalGet(u32::try_from(local).unwrap()));
+            function
+                .instructions()
+                .local_get(u32::try_from(local).unwrap());
         }
-        function.instruction(&Ins::I32Const(i32::try_from(table_offset).unwrap()));
-        function.instruction(&Ins::CallIndirect {
-            type_index: u32::try_from(index).unwrap(),
-            table_index: 0,
-        });
-        function.instruction(&Ins::End);
+        function
+            .instructions()
+            .i32_const(i32::try_from(table_offset).unwrap())
+            .call_indirect(0, u32::try_from(index).unwrap())
+            .end();
         code.function(&function);
         exports.export(export.name, ExportKind::Func, index);
 
         table_offset += 1;
+    }
+
+    // Define a distinct `__wasm_{get,set}_tls_base` pair for each library that
+    // needs one. Each pair reads and writes that library's slot of the array of
+    // pointers described by `TlsLayout`.
+    for (index, metadata) in metadata.iter().enumerate() {
+        // A library with no thread-local storage of its own has no slot in the
+        // array. If it still imports these then synthesize functions that trap
+        // since they shouldn't ever be called.
+        let Some(slot) = tls.slot(index) else {
+            for (needed, name, params, results) in [
+                (
+                    metadata.needs_get_tls_base,
+                    metadata::GET_TLS_BASE,
+                    &[][..],
+                    &[ValType::I32][..],
+                ),
+                (
+                    metadata.needs_set_tls_base,
+                    metadata::SET_TLS_BASE,
+                    &[ValType::I32][..],
+                    &[][..],
+                ),
+            ] {
+                if !needed {
+                    continue;
+                }
+                let func = get_and_increment(&mut function_count);
+                types
+                    .ty()
+                    .function(params.iter().copied(), results.iter().copied());
+                functions.function(func);
+                let mut function = Function::new([]);
+                function.instructions().unreachable().end();
+                code.function(&function);
+                exports.export(&format!("{}:{name}", metadata.name), ExportKind::Func, func);
+            }
+            continue;
+        };
+
+        let mem_arg = MemArg {
+            offset: u64::from(slot * 4),
+            align: 2,
+            memory_index: 0,
+        };
+
+        if metadata.needs_get_tls_base {
+            let func = get_and_increment(&mut function_count);
+            types.ty().function([], [ValType::I32]);
+            functions.function(func);
+            let mut function = Function::new([]);
+            // With coop threads the base pointer is in `context.get 1`. Without
+            // coop threads the base pointer is `main_thread_tls_base` itself.
+            match tls_context_get {
+                Some(get) => {
+                    function.instructions().call(get);
+                }
+                None => {
+                    function
+                        .instructions()
+                        .i32_const(i32::try_from(tls.main_thread_tls_base).unwrap());
+                }
+            }
+            function.instructions().i32_load(mem_arg).end();
+            code.function(&function);
+            exports.export(
+                &format!("{}:{}", metadata.name, metadata::GET_TLS_BASE),
+                ExportKind::Func,
+                func,
+            );
+        }
+
+        if metadata.needs_set_tls_base {
+            let func = get_and_increment(&mut function_count);
+            types.ty().function([ValType::I32], []);
+            functions.function(func);
+            let mut function = Function::new_with_locals_types(if tls_context_get.is_some() {
+                vec![ValType::I32]
+            } else {
+                vec![]
+            });
+            // With coop threads this intrinsic conditionally initializes
+            // `main_thread_tls_base` based on `context.get 1`. Otherwise it
+            // writes through to it if it's set.
+            //
+            // Without coop threads this is updating `main_thread_tls_base`.
+            match tls_context_get {
+                Some(get) => {
+                    function
+                        .instructions()
+                        .call(get)
+                        .local_tee(1)
+                        .i32_eqz()
+                        .if_(wasm_encoder::BlockType::Empty)
+                        .i32_const(i32::try_from(tls.main_thread_tls_base).unwrap())
+                        .local_get(0)
+                        .i32_store(mem_arg)
+                        .else_()
+                        .local_get(1)
+                        .local_get(0)
+                        .i32_store(mem_arg)
+                        .end()
+                        .end();
+                }
+                None => {
+                    function
+                        .instructions()
+                        .i32_const(i32::try_from(tls.main_thread_tls_base).unwrap())
+                        .local_get(0)
+                        .i32_store(mem_arg)
+                        .end();
+                }
+            }
+            code.function(&function);
+            exports.export(
+                &format!("{}:{}", metadata.name, metadata::SET_TLS_BASE),
+                ExportKind::Func,
+                func,
+            );
+        }
     }
 
     for (import, offset) in import_map {
@@ -553,7 +828,7 @@ fn make_env_module<'a>(
     let module = module.finish();
     wasmparser::validate(&module).unwrap();
 
-    (module, dl_openables, indirection_table_base)
+    (module, dl_openables, tls, indirection_table_base)
 }
 
 /// Synthesize the "init" module, responsible for initializing global variables per the dynamic linking tool
@@ -565,6 +840,7 @@ fn make_init_module(
     exporters: &IndexMap<&ExportKey, (&str, &Export)>,
     env_exports: &[EnvExport<'_>],
     dl_openables: DlOpenables,
+    tls: TlsLayout,
     indirection_table_base: u32,
 ) -> Result<Vec<u8>> {
     let mut module = Module::new();
@@ -574,6 +850,7 @@ fn make_init_module(
     types.ty().function([], []);
     let thunk_ty = 0;
     types.ty().function([ValType::I32], []);
+    let init_tls_ty = 1;
     let mut type_offset = 2;
 
     for metadata in metadata {
@@ -650,31 +927,70 @@ fn make_init_module(
             })
     };
 
-    let mut memory_address_inits = Vec::new();
-    let mut reloc_calls = Vec::new();
-    let mut ctor_calls = Vec::new();
+    let mut start = Function::new([]);
+
     let mut names = HashMap::new();
+    for (index, metadata) in metadata.iter().enumerate() {
+        names.insert_unique(index, metadata.name);
+    }
 
     for (exporter, export, address) in dl_openables.global_addresses.iter() {
-        memory_address_inits.push(Ins::I32Const(i32::try_from(*address).unwrap()));
-        memory_address_inits.push(Ins::GlobalGet(add_global_import(
+        let memory_base = add_global_import(
             &mut imports,
             metadata::ENV,
             &format!("{exporter}:memory_base"),
             false,
-        )));
-        memory_address_inits.push(Ins::GlobalGet(add_global_import(
-            &mut imports,
-            exporter,
-            export,
-            false,
-        )));
-        memory_address_inits.push(Ins::I32Add);
-        memory_address_inits.push(Ins::I32Store(MemArg {
-            offset: 0,
-            align: 2,
-            memory_index: 0,
-        }));
+        );
+        let export = add_global_import(&mut imports, exporter, export, false);
+        start
+            .instructions()
+            .i32_const(i32::try_from(*address).unwrap())
+            .global_get(memory_base)
+            .global_get(export)
+            .i32_add()
+            .i32_store(MemArg {
+                offset: 0,
+                align: 2,
+                memory_index: 0,
+            });
+    }
+
+    for metadata in metadata {
+        for import in &metadata.memory_address_imports {
+            let (exporter, _) = find_offset_exporter(import, exporters)?;
+
+            let memory_base = add_global_import(
+                &mut imports,
+                metadata::ENV,
+                &format!("{exporter}:memory_base"),
+                false,
+            );
+            let offset = add_global_import(&mut imports, exporter, import, false);
+            let address = add_global_import(
+                &mut imports,
+                metadata::ENV,
+                &format!("{}:{import}", metadata.name),
+                true,
+            );
+            start
+                .instructions()
+                .global_get(memory_base)
+                .global_get(offset)
+                .i32_add()
+                .global_set(address);
+        }
+    }
+
+    for metadata in metadata {
+        if metadata.has_data_relocs {
+            let func = add_function_import(
+                &mut imports,
+                metadata.name,
+                metadata::APPLY_DATA_RELOCS,
+                thunk_ty,
+            );
+            start.instructions().call(func);
+        }
     }
 
     let mut init_task_exporter = exporters
@@ -684,18 +1000,7 @@ fn make_init_module(
         })
         .map(|(name, _)| name);
 
-    for (index, metadata) in metadata.iter().enumerate() {
-        names.insert_unique(index, metadata.name);
-
-        if metadata.has_data_relocs {
-            reloc_calls.push(Ins::Call(add_function_import(
-                &mut imports,
-                metadata.name,
-                metadata::APPLY_DATA_RELOCS,
-                thunk_ty,
-            )));
-        }
-
+    for metadata in metadata {
         if metadata.has_ctors && metadata.has_initialize {
             bail!(
                 "library {} exports both `{}` and `{}`; \
@@ -717,54 +1022,20 @@ fn make_init_module(
             // `init_task_exporter` to `None` to avoid calling it again:
             init_task_exporter = None;
 
-            ctor_calls.push(Ins::Call(add_function_import(
-                &mut imports,
-                exporter,
-                metadata::INIT_TASK,
-                thunk_ty,
-            )));
+            let func = add_function_import(&mut imports, exporter, metadata::INIT_TASK, thunk_ty);
+            start.instructions().call(func);
         }
 
         if metadata.has_ctors {
-            ctor_calls.push(Ins::Call(add_function_import(
-                &mut imports,
-                metadata.name,
-                metadata::CALL_CTORS,
-                thunk_ty,
-            )));
+            let func =
+                add_function_import(&mut imports, metadata.name, metadata::CALL_CTORS, thunk_ty);
+            start.instructions().call(func);
         }
 
         if metadata.has_initialize {
-            ctor_calls.push(Ins::Call(add_function_import(
-                &mut imports,
-                metadata.name,
-                metadata::INITIALIZE,
-                thunk_ty,
-            )));
-        }
-
-        for import in &metadata.memory_address_imports {
-            let (exporter, _) = find_offset_exporter(import, exporters)?;
-
-            memory_address_inits.push(Ins::GlobalGet(add_global_import(
-                &mut imports,
-                metadata::ENV,
-                &format!("{exporter}:memory_base"),
-                false,
-            )));
-            memory_address_inits.push(Ins::GlobalGet(add_global_import(
-                &mut imports,
-                exporter,
-                import,
-                false,
-            )));
-            memory_address_inits.push(Ins::I32Add);
-            memory_address_inits.push(Ins::GlobalSet(add_global_import(
-                &mut imports,
-                metadata::ENV,
-                &format!("{}:{import}", metadata.name),
-                true,
-            )));
+            let func =
+                add_function_import(&mut imports, metadata.name, metadata::INITIALIZE, thunk_ty);
+            start.instructions().call(func);
         }
     }
 
@@ -796,6 +1067,22 @@ fn make_init_module(
         })
         .collect::<Vec<_>>();
 
+    // Each library's `__wasm_init_tls` needs a table slot so that wasi-libc
+    // can call it through the function pointer in `library_info`. Everything
+    // else about the layout is known statically and lives in a data segment.
+    let init_tls_functions = tls
+        .init_tls_functions
+        .iter()
+        .map(|&(index, _)| {
+            add_function_import(
+                &mut imports,
+                metadata[index].name,
+                metadata::INIT_TLS,
+                init_tls_ty,
+            )
+        })
+        .collect::<Vec<_>>();
+
     module.section(&imports);
 
     {
@@ -820,26 +1107,28 @@ fn make_init_module(
             &const_u32(indirection_table_base),
             Elements::Functions(indirections.into()),
         );
+        if let Some((_, table_base)) = tls.init_tls_functions.first() {
+            elements.active(
+                None,
+                &const_u32(*table_base),
+                Elements::Functions(init_tls_functions.into()),
+            );
+        }
         module.section(&elements);
     }
 
     {
         let mut code = CodeSection::new();
-        let mut function = Function::new([]);
-        for ins in memory_address_inits
-            .iter()
-            .chain(&reloc_calls)
-            .chain(&ctor_calls)
-        {
-            function.instruction(ins);
-        }
-        function.instruction(&Ins::End);
-        code.function(&function);
+        start.instructions().end();
+        code.function(&start);
         module.section(&code);
     }
 
     let mut data = DataSection::new();
     data.active(0, &const_u32(dl_openables.memory_base), dl_openables.buffer);
+    if !tls.buffer.is_empty() {
+        data.active(0, &const_u32(tls.library_info), tls.buffer);
+    }
     module.section(&data);
 
     module.section(&RawCustomSection(
@@ -1313,8 +1602,7 @@ fn make_stubs_module(missing: &[(&str, Export)]) -> Vec<u8> {
         );
         functions.function(offset);
         let mut function = Function::new([]);
-        function.instruction(&Ins::Unreachable);
-        function.instruction(&Ins::End);
+        function.instructions().unreachable().end();
         code.function(&function);
         exports.export(name, ExportKind::Func, offset);
     }
@@ -1591,7 +1879,7 @@ impl Linker {
             reexport_cabi_realloc,
         } = env_exports(&metadata, &exporters, &topo_sorted)?;
 
-        let (env_module, dl_openables, table_base) = make_env_module(
+        let (env_module, dl_openables, tls, table_base) = make_env_module(
             &metadata,
             &env_exports,
             if reexport_cabi_realloc {
@@ -1665,6 +1953,20 @@ impl Linker {
                         name: format!("{name}:table_base"),
                     },
                 ])
+                .chain(
+                    [
+                        (metadata.needs_get_tls_base, metadata::GET_TLS_BASE),
+                        (metadata.needs_set_tls_base, metadata::SET_TLS_BASE),
+                    ]
+                    .into_iter()
+                    .filter(|(needed, _)| *needed)
+                    .map(|(_, intrinsic)| Item {
+                        alias: intrinsic.into(),
+                        kind: ExportKind::Func,
+                        which: MainOrAdapter::Main,
+                        name: format!("{name}:{intrinsic}"),
+                    }),
+                )
                 .chain(metadata.env_imports.iter().map(|(name, (ty, _))| {
                     let (exporter, _) = find_function_exporter(name, ty, &exporters).unwrap();
 
@@ -1752,6 +2054,7 @@ impl Linker {
                         metadata::STACK_HIGH,
                         metadata::STACK_LOW,
                         metadata::LIBDL_LIBRARIES,
+                        metadata::PROGRAM_TLS_INFO,
                     ]
                     .into_iter()
                     .map(|name| Item {
@@ -1811,6 +2114,7 @@ impl Linker {
                     &exporters,
                     &env_exports,
                     dl_openables,
+                    tls,
                     table_base,
                 )?,
                 LibraryInfo {

@@ -42,7 +42,7 @@ impl State {
             engine: Engine::default(),
             print: true,
             total: AtomicUsize::new(0),
-            remaining: AtomicIsize::new(isize::max_value()),
+            remaining: AtomicIsize::new(isize::MAX),
             instantiate_trap: AtomicUsize::new(0),
             instantiate_oom: AtomicUsize::new(0),
         }
