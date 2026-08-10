@@ -70,7 +70,6 @@ use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::fmt;
-use std::usize;
 
 /// The maximum recursive depth of parens to parse.
 ///

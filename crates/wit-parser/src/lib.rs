@@ -895,9 +895,9 @@ impl Enum {
 fn discriminant_type(num_cases: usize) -> Int {
     match num_cases.checked_sub(1) {
         None => Int::U8,
-        Some(n) if n <= u8::max_value() as usize => Int::U8,
-        Some(n) if n <= u16::max_value() as usize => Int::U16,
-        Some(n) if n <= u32::max_value() as usize => Int::U32,
+        Some(n) if n <= u8::MAX as usize => Int::U8,
+        Some(n) if n <= u16::MAX as usize => Int::U16,
+        Some(n) if n <= u32::MAX as usize => Int::U32,
         _ => panic!("too many cases to fit in a repr"),
     }
 }

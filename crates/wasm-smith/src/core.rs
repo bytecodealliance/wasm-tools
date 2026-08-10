@@ -1796,7 +1796,7 @@ impl Module {
             ExportKind::Table => EntityType::Table(self.tables[index as usize]),
             ExportKind::Func => {
                 let (_idx, ty) = &self.funcs[index as usize];
-                EntityType::Func(u32::max_value(), ty.clone())
+                EntityType::Func(u32::MAX, ty.clone())
             }
             ExportKind::Tag => EntityType::Tag(self.tags[index as usize].clone()),
         }

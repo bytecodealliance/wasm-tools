@@ -1,7 +1,6 @@
 use addr2line::LookupResult;
 use anyhow::{Context as _, Result, bail};
 use std::io::Write;
-use std::u64;
 use wasm_tools::addr2line::Addr2lineModules;
 
 /// Translate a WebAssembly address to a filename and line number using DWARF

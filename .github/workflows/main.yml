@@ -244,7 +244,7 @@ jobs:
         submodules: true
     - uses: ./.github/actions/install-rust
       with:
-        toolchain: nightly
+        toolchain: nightly-2026-08-10
     - run: cargo install cargo-fuzz
     - run: cargo fuzz build --dev -s none
     - run: cargo fuzz build --dev --features wasmtime -s none
