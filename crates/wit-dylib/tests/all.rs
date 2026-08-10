@@ -56,6 +56,7 @@ fn run_test(tempdir: &TempDir, caller: &Path, callee: &Path, wit: &Path) -> Resu
         .arg("--invoke=run()")
         .arg("-Shttp")
         .arg("-Wcomponent-model-async")
+        .arg("-Wcomponent-model-map")
         .arg("-Wcomponent-model-error-context")
         .arg(&composition_file);
     let result = cmd.output().context("failed to run wasmtime")?;

@@ -250,6 +250,21 @@ impl Wit {
         self.raw_lists().iter().map(|e| List { wit: *self, ptr: e })
     }
 
+    fn raw_maps(&self) -> &'static [ffi::wit_map_t] {
+        unsafe { slice(self.ptr.maps, self.ptr.num_maps) }
+    }
+
+    pub fn map(&self, index: usize) -> Map {
+        Map {
+            wit: *self,
+            ptr: &self.raw_maps()[index],
+        }
+    }
+
+    pub fn iter_maps(&self) -> impl ExactSizeIterator<Item = Map> + Clone + '_ {
+        self.raw_maps().iter().map(|e| Map { wit: *self, ptr: e })
+    }
+
     fn raw_fixed_length_lists(&self) -> &'static [ffi::wit_fixed_length_list_t] {
         unsafe { slice(self.ptr.fixed_length_lists, self.ptr.num_fixed_length_lists) }
     }
@@ -582,6 +597,7 @@ pub enum Type {
     Option(WitOption),
     Result(WitResult),
     List(List),
+    Map(Map),
     FixedLengthList(FixedLengthList),
     Future(Future),
     Stream(Stream),
@@ -616,6 +632,7 @@ impl Type {
             ffi::WIT_TYPE_OPTION => Self::Option(wit.option(index)),
             ffi::WIT_TYPE_RESULT => Self::Result(wit.result(index)),
             ffi::WIT_TYPE_LIST => Self::List(wit.list(index)),
+            ffi::WIT_TYPE_MAP => Self::Map(wit.map(index)),
             ffi::WIT_TYPE_FIXED_LENGTH_LIST => Self::FixedLengthList(wit.fixed_length_list(index)),
             ffi::WIT_TYPE_FUTURE => Self::Future(wit.future(index)),
             ffi::WIT_TYPE_STREAM => Self::Stream(wit.stream(index)),
@@ -995,6 +1012,47 @@ impl fmt::Debug for List {
             .field("interface", &self.interface())
             .field("name", &self.name())
             .field("ty", &self.ty())
+            .finish()
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct Map {
+    wit: Wit,
+    ptr: &'static ffi::wit_map_t,
+}
+
+impl_extra_traits!(Map);
+
+impl Map {
+    pub fn index(&self) -> usize {
+        unsafe { (&raw const *self.ptr).offset_from_unsigned(self.wit.ptr.maps) }
+    }
+
+    pub fn interface(&self) -> Option<&'static str> {
+        unsafe { opt_str(self.ptr.interface) }
+    }
+
+    pub fn name(&self) -> Option<&'static str> {
+        unsafe { opt_str(self.ptr.name) }
+    }
+
+    pub fn key_type(&self) -> Type {
+        Type::from_raw(self.wit, self.ptr.key_type)
+    }
+
+    pub fn value_type(&self) -> Type {
+        Type::from_raw(self.wit, self.ptr.value_type)
+    }
+}
+
+impl fmt::Debug for Map {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Map")
+            .field("interface", &self.interface())
+            .field("name", &self.name())
+            .field("key_type", &self.key_type())
+            .field("value_type", &self.value_type())
             .finish()
     }
 }

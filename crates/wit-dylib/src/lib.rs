@@ -938,8 +938,16 @@ impl Adapter {
             TypeDefKind::Handle(Handle::Borrow(t)) => {
                 metadata::Type::Borrow(self.resource_map[&dealias(resolve, *t)])
             }
-            TypeDefKind::Map(_, _) => {
-                todo!("map")
+            TypeDefKind::Map(k, v) => {
+                let index = self.metadata.maps.len();
+                self.metadata.maps.push(metadata::Map {
+                    id,
+                    interface,
+                    name,
+                    key_type: self.lookup_ty(k),
+                    value_type: self.lookup_ty(v),
+                });
+                metadata::Type::Map(index)
             }
             TypeDefKind::Unknown => unreachable!(),
         };

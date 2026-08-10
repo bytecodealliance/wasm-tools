@@ -14,7 +14,7 @@
 use std::alloc::Layout;
 use std::any::{Any, TypeId};
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::ffi::c_void;
 use std::mem;
 use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
@@ -104,7 +104,8 @@ pub struct Cx<'a> {
     stack: Vec<Cow<'a, Val>>,
     temp_strings: Vec<String>,
     temp_bytes: Vec<Vec<u8>>,
-    iterators: Vec<CowIter<'a>>,
+    list_iterators: Vec<CowListIter<'a>>,
+    map_iterators: Vec<CowMapIter<'a>>,
     deferred_deallocs: Vec<(*mut u8, Layout)>,
 }
 
@@ -118,19 +119,41 @@ impl Drop for Cx<'_> {
     }
 }
 
-enum CowIter<'a> {
+enum CowListIter<'a> {
     Borrowed(std::slice::Iter<'a, Val>),
     Owned(std::vec::IntoIter<Val>),
 }
 
-impl<'a> Iterator for CowIter<'a> {
+impl<'a> Iterator for CowListIter<'a> {
     type Item = Cow<'a, Val>;
 
     fn next(&mut self) -> Option<Cow<'a, Val>> {
         match self {
-            CowIter::Borrowed(i) => Some(Cow::Borrowed(i.next()?)),
-            CowIter::Owned(i) => Some(Cow::Owned(i.next()?)),
+            CowListIter::Borrowed(i) => Some(Cow::Borrowed(i.next()?)),
+            CowListIter::Owned(i) => Some(Cow::Owned(i.next()?)),
         }
+    }
+}
+
+enum CowMapIter<'a> {
+    Borrowed(std::collections::btree_map::Iter<'a, Key, Val>),
+    Owned(std::collections::btree_map::IntoIter<Key, Val>),
+}
+
+impl<'a> Iterator for CowMapIter<'a> {
+    type Item = (Cow<'a, Key>, Cow<'a, Val>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(match self {
+            CowMapIter::Borrowed(i) => {
+                let (a, b) = i.next()?;
+                (Cow::Borrowed(a), Cow::Borrowed(b))
+            }
+            CowMapIter::Owned(i) => {
+                let (a, b) = i.next()?;
+                (Cow::Owned(a), Cow::Owned(b))
+            }
+        })
     }
 }
 
@@ -562,25 +585,25 @@ impl Call for Cx<'_> {
         assert!(ty.ty() != Type::U8);
         match self.always_pop() {
             Cow::Borrowed(Val::GenericList(l)) => {
-                self.iterators.push(CowIter::Borrowed(l.iter()));
+                self.list_iterators.push(CowListIter::Borrowed(l.iter()));
                 l.len()
             }
             Cow::Owned(Val::GenericList(l)) => {
                 let ret = l.len();
-                self.iterators.push(CowIter::Owned(l.into_iter()));
+                self.list_iterators.push(CowListIter::Owned(l.into_iter()));
                 ret
             }
             _ => invalid(),
         }
     }
 
-    fn pop_iter_next(&mut self, _ty: List) {
-        let value = self.iterators.last_mut().unwrap().next().unwrap();
+    fn pop_list_iter_next(&mut self, _ty: List) {
+        let value = self.list_iterators.last_mut().unwrap().next().unwrap();
         self.stack.push(value);
     }
 
-    fn pop_iter(&mut self, _ty: List) {
-        self.iterators.pop();
+    fn pop_list_iter(&mut self, _ty: List) {
+        self.list_iterators.pop();
     }
 
     unsafe fn push_raw_list(&mut self, ty: List, ptr: *mut u8, len: usize) -> bool {
@@ -591,6 +614,7 @@ impl Call for Cx<'_> {
             false
         }
     }
+
     fn push_list(&mut self, ty: List, capacity: usize) {
         assert!(ty.ty() != Type::U8);
         self.push_own(Val::GenericList(Vec::with_capacity(capacity)));
@@ -604,6 +628,61 @@ impl Call for Cx<'_> {
             _ => invalid(),
         }
     }
+
+    fn pop_map(&mut self, _ty: Map) -> usize {
+        match self.always_pop() {
+            Cow::Borrowed(Val::Map(v)) => {
+                self.map_iterators.push(CowMapIter::Borrowed(v.iter()));
+                v.len()
+            }
+            Cow::Owned(Val::Map(v)) => {
+                let ret = v.len();
+                self.map_iterators.push(CowMapIter::Owned(v.into_iter()));
+                ret
+            }
+            _ => invalid(),
+        }
+    }
+
+    fn pop_map_iter_next(&mut self, _ty: Map) {
+        let (key, value) = self.map_iterators.last_mut().unwrap().next().unwrap();
+        self.stack.push(value);
+        self.stack.push(Cow::Owned(key.into_owned().into()));
+    }
+
+    fn pop_map_iter(&mut self, _ty: Map) {
+        self.map_iterators.pop();
+    }
+
+    fn push_map(&mut self, _ty: Map, _capacity: usize) {
+        self.push_own(Val::Map(BTreeMap::new()));
+    }
+
+    fn map_append(&mut self, _ty: Map) {
+        let value = self.always_pop().into_owned();
+        let key = self.always_pop().into_owned();
+        match self.stack.last_mut() {
+            Some(Cow::Owned(Val::Map(v))) => {
+                v.insert(key.try_into().unwrap(), value);
+            }
+            _ => invalid(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Key {
+    U8(u8),
+    U16(u16),
+    U32(u32),
+    U64(u64),
+    S8(i8),
+    S16(i16),
+    S32(i32),
+    S64(i64),
+    Bool(bool),
+    Char(char),
+    String(String),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -634,6 +713,46 @@ pub enum Val {
     Variant(u32, Option<Box<Val>>),
     GenericList(Vec<Val>),
     ByteList(Vec<u8>),
+    Map(BTreeMap<Key, Val>),
+}
+
+impl TryFrom<Val> for Key {
+    type Error = ();
+
+    fn try_from(v: Val) -> Result<Self, Self::Error> {
+        Ok(match v {
+            Val::U8(v) => Self::U8(v),
+            Val::U16(v) => Self::U16(v),
+            Val::U32(v) => Self::U32(v),
+            Val::U64(v) => Self::U64(v),
+            Val::S8(v) => Self::S8(v),
+            Val::S16(v) => Self::S16(v),
+            Val::S32(v) => Self::S32(v),
+            Val::S64(v) => Self::S64(v),
+            Val::Bool(v) => Self::Bool(v),
+            Val::Char(v) => Self::Char(v),
+            Val::String(v) => Self::String(v),
+            _ => return Err(()),
+        })
+    }
+}
+
+impl From<Key> for Val {
+    fn from(v: Key) -> Self {
+        match v {
+            Key::U8(v) => Self::U8(v),
+            Key::U16(v) => Self::U16(v),
+            Key::U32(v) => Self::U32(v),
+            Key::U64(v) => Self::U64(v),
+            Key::S8(v) => Self::S8(v),
+            Key::S16(v) => Self::S16(v),
+            Key::S32(v) => Self::S32(v),
+            Key::S64(v) => Self::S64(v),
+            Key::Bool(v) => Self::Bool(v),
+            Key::Char(v) => Self::Char(v),
+            Key::String(v) => Self::String(v),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

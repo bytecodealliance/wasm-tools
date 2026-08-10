@@ -24,12 +24,13 @@ pub const WIT_TYPE_ENUM: u32 = 20;
 pub const WIT_TYPE_OPTION: u32 = 21;
 pub const WIT_TYPE_RESULT: u32 = 22;
 pub const WIT_TYPE_LIST: u32 = 23;
-pub const WIT_TYPE_FIXED_LENGTH_LIST: u32 = 24;
-pub const WIT_TYPE_FUTURE: u32 = 25;
-pub const WIT_TYPE_STREAM: u32 = 26;
-pub const WIT_TYPE_ALIAS: u32 = 27;
+pub const WIT_TYPE_MAP: u32 = 24;
+pub const WIT_TYPE_FIXED_LENGTH_LIST: u32 = 25;
+pub const WIT_TYPE_FUTURE: u32 = 26;
+pub const WIT_TYPE_STREAM: u32 = 27;
+pub const WIT_TYPE_ALIAS: u32 = 28;
 pub const WIT_TYPE_EMPTY: u32 = 255;
-pub const WIT_CURRENT_VERSION: u32 = 2;
+pub const WIT_CURRENT_VERSION: u32 = 3;
 pub type wit_type_t = u32;
 pub type wit_import_fn_t =
     ::std::option::Option<unsafe extern "C" fn(cx: *mut ::std::os::raw::c_void)>;
@@ -169,6 +170,15 @@ pub struct wit_list {
 pub type wit_list_t = wit_list;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+pub struct wit_map {
+    pub interface: *const ::std::os::raw::c_char,
+    pub name: *const ::std::os::raw::c_char,
+    pub key_type: wit_type_t,
+    pub value_type: wit_type_t,
+}
+pub type wit_map_t = wit_map;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct wit_fixed_length_list {
     pub interface: *const ::std::os::raw::c_char,
     pub name: *const ::std::os::raw::c_char,
@@ -280,6 +290,8 @@ pub struct wit {
     pub results: *const wit_result_t,
     pub num_lists: usize,
     pub lists: *const wit_list_t,
+    pub num_maps: usize,
+    pub maps: *const wit_map_t,
     pub num_fixed_length_lists: usize,
     pub fixed_length_lists: *const wit_fixed_length_list_t,
     pub num_futures: usize,

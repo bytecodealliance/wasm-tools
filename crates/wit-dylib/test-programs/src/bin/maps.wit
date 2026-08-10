@@ -1,0 +1,21 @@
+package a:b;
+
+interface x {
+  echo-u8-string: func(a: map<u8, string>) -> map<u8, string>;
+  echo-u32-string: func(a: map<u32, string>) -> map<u32, string>;
+  echo-string-u8: func(a: map<string, u8>) -> map<string, u8>;
+
+  map-of-variants: func(
+    name1: map<u8, map<u8, option<s8>>>,
+  );
+}
+
+world caller {
+  import x;
+
+  export run: func();
+}
+
+world callee {
+  export x;
+}
