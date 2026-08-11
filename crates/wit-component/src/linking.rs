@@ -28,7 +28,6 @@ use {
     indexmap::{IndexMap, IndexSet, map::Entry},
     metadata::{Export, ExportKey, FunctionType, GlobalType, Metadata, Type, ValueType},
     std::{
-        cmp,
         collections::{BTreeMap, HashMap, HashSet},
         fmt::Debug,
         hash::Hash,
@@ -191,17 +190,13 @@ impl<'a> DlOpenables<'a> {
 /// ```c
 /// struct {
 ///     size_t num_libraries;
-///     struct {
-///         size_t __tls_size;
-///         size_t __tls_align;
-///         void (*__wasm_init_tls)(void*);
-///     } *library_info;
+///     void **library_info;
 ///     void **main_thread_tls_base;
 /// } __wasm_program_tls_info;
 /// ```
 ///
-/// where `main_thread_tls_base` is placed first, then `library_info`, then this
-/// structure itself.
+/// where the `main_thread_tls_base` array is placed first, then the
+/// `library_info` array, then this structure itself.
 #[derive(Default)]
 struct TlsLayout {
     /// Address of the `main_thread_tls_base` array.
@@ -215,18 +210,11 @@ struct TlsLayout {
     /// Address of the `__wasm_program_tls_info` struct itself.
     program_info: u32,
 
-    /// The libraries which have thread-local storage, in the order they appear
-    /// in `library_info`, paired with the table index reserved for each one's
-    /// `__wasm_init_tls`.
-    init_tls_functions: Vec<(usize, u32)>,
-
     /// For each library, the slot it uses in the array of TLS base pointers, or
     /// `None` if it has no thread-local storage of its own.
     slots: Vec<Option<u32>>,
 
-    /// Static contents of the `library_info` array and the
-    /// `__wasm_program_tls_info` struct, which live contiguously starting at
-    /// `library_info`.
+    /// Static contents of the `__wasm_program_tls_info`.
     buffer: Vec<u8>,
 }
 
@@ -238,7 +226,7 @@ impl TlsLayout {
     /// at all, and the `__wasm_program_tls_info` half is skipped unless some
     /// library actually asks for it, which is only the case when the program
     /// might spawn a thread.
-    fn new(metadata: &[Metadata], memory_offset: &mut u32, table_offset: &mut u32) -> Self {
+    fn new(metadata: &[Metadata], memory_offset: &mut u32) -> Self {
         let needs_tls_base = metadata
             .iter()
             .any(|m| m.needs_get_tls_base || m.needs_set_tls_base);
@@ -247,16 +235,13 @@ impl TlsLayout {
             return Self::default();
         }
 
-        // Filter out libraries that don't have TLS, and then sort this by
-        // biggest alignment first to help minimize the size of TLS blocks
-        // allocated.
-        let mut libraries = metadata
+        // Filter out libraries that don't have TLS.
+        let libraries = metadata
             .iter()
             .enumerate()
-            .filter(|(_, metadata)| metadata.has_tls_info)
+            .filter(|(_, metadata)| metadata.has_library_tls_info)
             .map(|(index, _)| index)
             .collect::<Vec<_>>();
-        libraries.sort_by_key(|&index| cmp::Reverse(metadata[index].tls_align));
 
         let mut slots = vec![None; metadata.len()];
         for (slot, index) in libraries.iter().enumerate() {
@@ -271,26 +256,13 @@ impl TlsLayout {
 
         let mut library_info = 0;
         let mut program_info = 0;
-        let mut init_tls_functions = Vec::new();
         let mut buffer = Vec::new();
         if needs_program_info {
-            // Allocate space for `library_info`
             library_info = *memory_offset;
-            *memory_offset += count * 12;
-            // Allocate space for `__wasm_program_tls_info`
+            *memory_offset += count * 4;
             program_info = *memory_offset;
             *memory_offset += 12;
 
-            init_tls_functions = libraries
-                .iter()
-                .map(|&index| (index, get_and_increment(table_offset)))
-                .collect::<Vec<_>>();
-
-            for &(index, table_index) in &init_tls_functions {
-                write_u32(&mut buffer, metadata[index].tls_size);
-                write_u32(&mut buffer, metadata[index].tls_align);
-                write_u32(&mut buffer, table_index);
-            }
             write_u32(&mut buffer, count);
             write_u32(&mut buffer, library_info);
             write_u32(&mut buffer, main_thread_tls_base);
@@ -300,7 +272,6 @@ impl TlsLayout {
             main_thread_tls_base,
             library_info,
             program_info,
-            init_tls_functions,
             slots,
             buffer,
         }
@@ -528,7 +499,7 @@ fn make_env_module<'a>(
     table_offset += dl_openables.function_count;
     memory_offset += u32::try_from(dl_openables.buffer.len()).unwrap();
 
-    let tls = TlsLayout::new(metadata, &mut memory_offset, &mut table_offset);
+    let tls = TlsLayout::new(metadata, &mut memory_offset);
 
     if metadata.iter().any(|m| m.needs_program_tls_info) {
         add_global_export(metadata::PROGRAM_TLS_INFO, tls.program_info, true);
@@ -850,7 +821,6 @@ fn make_init_module(
     types.ty().function([], []);
     let thunk_ty = 0;
     types.ty().function([ValType::I32], []);
-    let init_tls_ty = 1;
     let mut type_offset = 2;
 
     for metadata in metadata {
@@ -1067,21 +1037,43 @@ fn make_init_module(
         })
         .collect::<Vec<_>>();
 
-    // Each library's `__wasm_init_tls` needs a table slot so that wasi-libc
-    // can call it through the function pointer in `library_info`. Everything
-    // else about the layout is known statically and lives in a data segment.
-    let init_tls_functions = tls
-        .init_tls_functions
-        .iter()
-        .map(|&(index, _)| {
-            add_function_import(
+    // For all libraries that export TLS information the initialization function
+    // here will setup the in-memory `__wasm_program_tls_info` structure by
+    // storing the pointers to each `__wasm_library_tls_info` structure in a
+    // sequence.
+    if tls.library_info != 0 {
+        for (lib_index, tls_index) in tls
+            .slots
+            .iter()
+            .enumerate()
+            .filter_map(|(i, slot)| slot.map(|j| (i, j)))
+        {
+            let metadata = &metadata[lib_index];
+            let memory_base = add_global_import(
                 &mut imports,
-                metadata[index].name,
-                metadata::INIT_TLS,
-                init_tls_ty,
-            )
-        })
-        .collect::<Vec<_>>();
+                metadata::ENV,
+                &format!("{}:memory_base", metadata.name),
+                false,
+            );
+            let i = add_global_import(
+                &mut imports,
+                metadata.name,
+                metadata::LIBRARY_TLS_INFO,
+                false,
+            );
+            start
+                .instructions()
+                .i32_const((tls.library_info + tls_index * 4) as i32)
+                .global_get(i)
+                .global_get(memory_base)
+                .i32_add()
+                .i32_store(MemArg {
+                    offset: 0,
+                    align: 2,
+                    memory_index: 0,
+                });
+        }
+    }
 
     module.section(&imports);
 
@@ -1107,13 +1099,6 @@ fn make_init_module(
             &const_u32(indirection_table_base),
             Elements::Functions(indirections.into()),
         );
-        if let Some((_, table_base)) = tls.init_tls_functions.first() {
-            elements.active(
-                None,
-                &const_u32(*table_base),
-                Elements::Functions(init_tls_functions.into()),
-            );
-        }
         module.section(&elements);
     }
 
@@ -1127,7 +1112,7 @@ fn make_init_module(
     let mut data = DataSection::new();
     data.active(0, &const_u32(dl_openables.memory_base), dl_openables.buffer);
     if !tls.buffer.is_empty() {
-        data.active(0, &const_u32(tls.library_info), tls.buffer);
+        data.active(0, &const_u32(tls.program_info), tls.buffer);
     }
     module.section(&data);
 

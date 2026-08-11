@@ -6,15 +6,15 @@
     (type (;3;) (func (result i32)))
     (type (;4;) (func (param i32)))
     (import "$root" "[context-get-1]" (func (;0;) (type 0)))
-    (table (;0;) 3 funcref)
+    (table (;0;) 1 funcref)
     (memory (;0;) 17)
-    (global (;0;) (mut i32) i32.const 1048616)
-    (global (;1;) i32 i32.const 1048640)
-    (global (;2;) i32 i32.const 3)
-    (global (;3;) i32 i32.const 1048656)
-    (global (;4;) i32 i32.const 3)
-    (global (;5;) i32 i32.const 1048672)
-    (global (;6;) i32 i32.const 3)
+    (global (;0;) (mut i32) i32.const 1048600)
+    (global (;1;) i32 i32.const 1048624)
+    (global (;2;) i32 i32.const 1)
+    (global (;3;) i32 i32.const 1048640)
+    (global (;4;) i32 i32.const 1)
+    (global (;5;) i32 i32.const 1048656)
+    (global (;6;) i32 i32.const 1)
     (export "__wasm_program_tls_info" (global 0))
     (export "c:memory_base" (global 1))
     (export "c:table_base" (global 2))
@@ -30,7 +30,7 @@
     (export "memory" (memory 0))
     (func (;1;) (type 1) (result i32)
       call 0
-      i32.load offset=4
+      i32.load
     )
     (func (;2;) (type 2) (param i32)
       (local i32)
@@ -40,16 +40,16 @@
       if ;; label = @1
         i32.const 1048584
         local.get 0
-        i32.store offset=4
+        i32.store
       else
         local.get 1
         local.get 0
-        i32.store offset=4
+        i32.store
       end
     )
     (func (;3;) (type 3) (result i32)
       call 0
-      i32.load
+      i32.load offset=4
     )
     (func (;4;) (type 4) (param i32)
       (local i32)
@@ -59,11 +59,11 @@
       if ;; label = @1
         i32.const 1048584
         local.get 0
-        i32.store
+        i32.store offset=4
       else
         local.get 1
         local.get 0
-        i32.store
+        i32.store offset=4
       end
     )
     (@producers
@@ -78,6 +78,7 @@
     (type $get (;1;) (func (result i32)))
     (type $set (;2;) (func (param i32)))
     (type $spawn (;3;) (func (param i32 i32) (result i32)))
+    (type (;4;) (func (param i32) (result i32)))
     (import "env" "memory" (memory (;0;) 1))
     (import "env" "__indirect_function_table" (table (;0;) 0 funcref))
     (import "env" "__memory_base" (global $__memory_base (;0;) i32))
@@ -90,17 +91,37 @@
     (import "$root" "[context-set-1]" (func $set_ctx (;5;) (type $set)))
     (import "GOT.mem" "__wasm_program_tls_info" (global $tls_info (;2;) (mut i32)))
     (import "$root" "[thread-new-indirect-v0]" (func $spawn (;6;) (type $spawn)))
-    (global (;3;) i32 i32.const 148)
-    (global (;4;) i32 i32.const 4)
-    (export "__tls_size" (global 3))
-    (export "__tls_align" (global 4))
-    (export "__wasm_init_tls" (func 7))
-    (export "abort" (func 8))
-    (func (;7;) (type $set) (param i32)
-      local.get 0
-      call $set_tls
+    (global $__tls_size (;3;) i32 i32.const 200)
+    (global $__tls_align (;4;) i32 i32.const 8)
+    (global (;5;) i32 i32.const 8)
+    (export "__wasm_library_tls_info" (global 5))
+    (export "__wasm_apply_data_relocs" (func 7))
+    (export "abort" (func 10))
+    (elem (;0;) (global.get $__table_base) func $get_size_and_align $__wasm_init_tls)
+    (func (;7;) (type $void)
+      global.get $__memory_base
+      i32.const 0
+      i32.add
+      global.get $__table_base
+      i32.const 0
+      i32.add
+      i32.store
+      global.get $__memory_base
+      i32.const 4
+      i32.add
+      global.get $__table_base
+      i32.const 1
+      i32.add
+      i32.store
     )
-    (func (;8;) (type $void)
+    (func $__wasm_init_tls (;8;) (type $set) (param i32))
+    (func $get_size_and_align (;9;) (type 4) (param i32) (result i32)
+      local.get 0
+      global.get $__tls_align
+      i32.store
+      global.get $__tls_size
+    )
+    (func (;10;) (type $void)
       unreachable
     )
   )
@@ -124,6 +145,7 @@
     (type $void (;0;) (func))
     (type $get (;1;) (func (result i32)))
     (type $set (;2;) (func (param i32)))
+    (type (;3;) (func (param i32) (result i32)))
     (import "env" "memory" (memory (;0;) 1))
     (import "env" "__indirect_function_table" (table (;0;) 0 funcref))
     (import "env" "__memory_base" (global $__memory_base (;0;) i32))
@@ -132,17 +154,37 @@
     (import "env" "__wasm_set_tls_base" (func $set_tls (;1;) (type $set)))
     (import "env" "abort" (func $abort (;2;) (type $void)))
     (import "env" "none_helper" (func $none_helper (;3;) (type $get)))
-    (global (;2;) i32 i32.const 32)
-    (global (;3;) i32 i32.const 16)
-    (export "__tls_size" (global 2))
-    (export "__tls_align" (global 3))
-    (export "__wasm_init_tls" (func 4))
-    (export "test:test/test#foo" (func 5))
-    (func (;4;) (type $set) (param i32)
-      local.get 0
-      call $set_tls
+    (global $__tls_size (;2;) i32 i32.const 100)
+    (global $__tls_align (;3;) i32 i32.const 4)
+    (global (;4;) i32 i32.const 8)
+    (export "__wasm_library_tls_info" (global 4))
+    (export "__wasm_apply_data_relocs" (func 4))
+    (export "test:test/test#foo" (func 7))
+    (elem (;0;) (global.get $__table_base) func $get_size_and_align $__wasm_init_tls)
+    (func (;4;) (type $void)
+      global.get $__memory_base
+      i32.const 0
+      i32.add
+      global.get $__table_base
+      i32.const 0
+      i32.add
+      i32.store
+      global.get $__memory_base
+      i32.const 4
+      i32.add
+      global.get $__table_base
+      i32.const 1
+      i32.add
+      i32.store
     )
-    (func (;5;) (type $get) (result i32)
+    (func $__wasm_init_tls (;5;) (type $set) (param i32))
+    (func $get_size_and_align (;6;) (type 3) (param i32) (result i32)
+      local.get 0
+      global.get $__tls_align
+      i32.store
+      global.get $__tls_size
+    )
+    (func (;7;) (type $get) (result i32)
       call $get_tls
       i32.load
       call $none_helper
@@ -154,15 +196,31 @@
     (type (;1;) (func (param i32)))
     (import "env" "memory" (memory (;0;) 0))
     (import "env" "__indirect_function_table" (table (;0;) 0 funcref))
-    (import "foo" "__wasm_init_tls" (func (;0;) (type 1)))
-    (import "c" "__wasm_init_tls" (func (;1;) (type 1)))
+    (import "c" "__wasm_apply_data_relocs" (func (;0;) (type 0)))
+    (import "foo" "__wasm_apply_data_relocs" (func (;1;) (type 0)))
+    (import "env" "c:memory_base" (global (;0;) i32))
+    (import "c" "__wasm_library_tls_info" (global (;1;) i32))
+    (import "env" "foo:memory_base" (global (;2;) i32))
+    (import "foo" "__wasm_library_tls_info" (global (;3;) i32))
     (start 2)
     (elem (;0;) (i32.const 1) func)
-    (elem (;1;) (i32.const 3) func)
-    (elem (;2;) (i32.const 1) func 0 1)
-    (func (;2;) (type 0))
+    (elem (;1;) (i32.const 1) func)
+    (func (;2;) (type 0)
+      call 0
+      call 1
+      i32.const 1048592
+      global.get 1
+      global.get 0
+      i32.add
+      i32.store
+      i32.const 1048596
+      global.get 3
+      global.get 2
+      i32.add
+      i32.store
+    )
     (data (;0;) (i32.const 1048576) "\00\00\00\00\00\00\10\00")
-    (data (;1;) (i32.const 1048592) " \00\00\00\10\00\00\00\01\00\00\00\94\00\00\00\04\00\00\00\02\00\00\00\02\00\00\00\10\00\10\00\08\00\10\00")
+    (data (;1;) (i32.const 1048600) "\02\00\00\00\10\00\10\00\08\00\10\00")
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )
@@ -270,8 +328,8 @@
   )
   (core instance $__init (;12;) (instantiate $__init
       (with "env" (instance $main))
-      (with "foo" (instance $foo))
       (with "c" (instance $c))
+      (with "foo" (instance $foo))
     )
   )
   (type (;0;) (func (result s32)))
