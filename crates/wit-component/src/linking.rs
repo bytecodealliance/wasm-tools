@@ -1063,7 +1063,7 @@ fn make_init_module(
             );
             start
                 .instructions()
-                .i32_const((tls.library_info + tls_index * 4).cast_signed())
+                .i32_const((tls.library_info + tls_index * 4) as i32)
                 .global_get(i)
                 .global_get(memory_base)
                 .i32_add()
