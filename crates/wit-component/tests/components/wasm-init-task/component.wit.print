@@ -7,4 +7,7 @@ world root {
   export async-stackful-argret: async func(s: string) -> string;
   export async-callback-argret: async func(s: string) -> string;
   export sync-argret: func(s: string) -> string;
+  export x: interface {
+    sync: func();
+  }
 }
