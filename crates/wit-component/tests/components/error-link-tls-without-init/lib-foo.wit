@@ -1,9 +1,0 @@
-package test:test;
-
-interface test {
-  foo: func() -> s32;
-}
-
-world lib-foo {
-  export test;
-}

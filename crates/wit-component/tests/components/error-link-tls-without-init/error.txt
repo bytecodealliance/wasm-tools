@@ -1,1 +1,0 @@
-failed to extract linking metadata from foo: foo has 32 bytes of thread-local storage but does not export `__wasm_init_tls`

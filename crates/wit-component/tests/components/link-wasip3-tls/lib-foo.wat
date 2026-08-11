@@ -17,12 +17,33 @@
   (import "env" "abort" (func $abort (type $void)))
   (import "env" "none_helper" (func $none_helper (type $get)))
 
-  (global (export "__tls_size") i32 i32.const 32)
-  (global (export "__tls_align") i32 i32.const 16)
-  (func (export "__wasm_init_tls") (param i32)
-    local.get 0
-    call $set_tls
+  (global $__tls_size i32 i32.const 100)
+  (global $__tls_align i32 i32.const 4)
+  (global (export "__wasm_library_tls_info") i32 i32.const 8)
+  (func (export "__wasm_apply_data_relocs")
+    (i32.store
+      (i32.add
+        (global.get $__memory_base)
+        (i32.const 0))
+      (i32.add
+        (global.get $__table_base)
+        (i32.const 0)))
+    (i32.store
+      (i32.add
+        (global.get $__memory_base)
+        (i32.const 4))
+      (i32.add
+        (global.get $__table_base)
+        (i32.const 1)))
   )
+  (func $__wasm_init_tls (param i32))
+  (func $get_size_and_align (param i32) (result i32)
+    (i32.store
+      (local.get 0)
+      (global.get $__tls_align))
+    global.get $__tls_size
+  )
+  (elem (global.get $__table_base) func $get_size_and_align $__wasm_init_tls)
 
   (func (export "test:test/test#foo") (result i32)
     call $get_tls

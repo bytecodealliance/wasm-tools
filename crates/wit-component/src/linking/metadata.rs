@@ -8,8 +8,8 @@ use {
         fmt,
     },
     wasmparser::{
-        Dylink0Subsection, ExternalKind, FuncType, KnownCustom, MemInfo, Operator, Parser, Payload,
-        RefType, SymbolFlags, TableType, TagKind, TagType, TypeRef, ValType,
+        Dylink0Subsection, ExternalKind, FuncType, KnownCustom, MemInfo, Parser, Payload, RefType,
+        SymbolFlags, TableType, TagKind, TagType, TypeRef, ValType,
     },
 };
 
@@ -42,10 +42,8 @@ pub const GET_STACK_POINTER: &str = "__wasm_get_stack_pointer";
 pub const SET_STACK_POINTER: &str = "__wasm_set_stack_pointer";
 pub const GET_TLS_BASE: &str = "__wasm_get_tls_base";
 pub const SET_TLS_BASE: &str = "__wasm_set_tls_base";
-pub const TLS_SIZE: &str = "__tls_size";
-pub const TLS_ALIGN: &str = "__tls_align";
-pub const INIT_TLS: &str = "__wasm_init_tls";
 pub const PROGRAM_TLS_INFO: &str = "__wasm_program_tls_info";
+pub const LIBRARY_TLS_INFO: &str = "__wasm_library_tls_info";
 
 /// Represents a core Wasm value type (not including V128 or reference types, which are not yet supported)
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -265,22 +263,8 @@ pub struct Metadata<'a> {
     /// the program may spawn threads and is thus using cooperative threading.
     pub uses_thread_new_indirect: bool,
 
-    /// Whether this module has thread-local storage of its own which needs
-    /// allocating and initializing on a freshly spawned thread.
-    ///
-    /// This requires the module to export all of `__tls_size`, `__tls_align`,
-    /// and `__wasm_init_tls`, and to have a non-zero `tls_size`.
-    pub has_tls_info: bool,
-
-    /// The size of this module's thread-local storage, i.e. the value of the
-    /// `__tls_size` global that `wasm-ld` synthesized for it.
-    ///
-    /// Zero if the module has no thread-local storage at all.
-    pub tls_size: u32,
-
-    /// The alignment of this module's thread-local storage, i.e. the value of
-    /// the `__tls_align` global. At least one whenever `has_tls_info` is set.
-    pub tls_align: u32,
+    /// Whether this module exports a `__wasm_library_tls_info` symbol.
+    pub has_library_tls_info: bool,
 
     /// The functions imported from the `env` module, if any
     pub env_imports: BTreeSet<(&'a str, (FunctionType, SymbolFlags))>,
@@ -341,9 +325,7 @@ impl<'a> Metadata<'a> {
             needs_set_tls_base: false,
             needs_program_tls_info: false,
             uses_thread_new_indirect: false,
-            has_tls_info: false,
-            tls_size: 0,
-            tls_align: 0,
+            has_library_tls_info: false,
             env_imports: BTreeSet::new(),
             memory_address_imports: BTreeSet::new(),
             table_address_imports: BTreeSet::new(),
@@ -354,10 +336,6 @@ impl<'a> Metadata<'a> {
         let mut types = Vec::new();
         let mut function_types = Vec::new();
         let mut global_types = Vec::new();
-        let mut global_values = Vec::new();
-        let mut tls_size = None;
-        let mut tls_align = None;
-        let mut has_init_tls = false;
         let mut tag_types = Vec::new();
         let mut import_info = HashMap::new();
         let mut export_info = HashMap::new();
@@ -407,7 +385,6 @@ impl<'a> Metadata<'a> {
                             TypeRef::Func(ty) => function_types.push(usize::try_from(ty).unwrap()),
                             TypeRef::Global(ty) => {
                                 global_types.push(ty);
-                                global_values.push(None);
                             }
                             TypeRef::Tag(ty) => tag_types.push(ty),
                             _ => (),
@@ -611,13 +588,6 @@ impl<'a> Metadata<'a> {
                     for global in reader {
                         let global = global?;
                         global_types.push(global.ty);
-                        let mut ops = global.init_expr.get_operators_reader();
-                        global_values.push(match (ops.read(), ops.read()) {
-                            (Ok(Operator::I32Const { value }), Ok(Operator::End)) => {
-                                Some(value as u32)
-                            }
-                            _ => None,
-                        });
                     }
                 }
 
@@ -631,20 +601,12 @@ impl<'a> Metadata<'a> {
                     for export in reader {
                         let export = export?;
 
-                        let global_value = || {
-                            global_values
-                                .get(usize::try_from(export.index).unwrap())
-                                .copied()
-                                .flatten()
-                        };
                         match export.name {
                             self::APPLY_DATA_RELOCS => result.has_data_relocs = true,
                             self::CALL_CTORS => result.has_ctors = true,
                             self::INITIALIZE => result.has_initialize = true,
                             self::START => result.has_wasi_start = true,
-                            self::TLS_SIZE => tls_size = global_value(),
-                            self::TLS_ALIGN => tls_align = global_value(),
-                            self::INIT_TLS => has_init_tls = true,
+                            self::LIBRARY_TLS_INFO => result.has_library_tls_info = true,
                             _ => {
                                 if export.name == self::INIT_TASK {
                                     result.has_init_task = true;
@@ -692,32 +654,6 @@ impl<'a> Metadata<'a> {
                 }
 
                 _ => {}
-            }
-        }
-
-        // A module only participates in whole-program TLS setup if the linker
-        // driver arranged for these to be exported and it actually has some
-        // thread-local storage. Anything else (a library built without those
-        // exports, or the synthesized stubs module) is left out of
-        // `__wasm_program_tls_info`: it never reads a TLS base.
-        result.tls_size = tls_size.unwrap_or(0);
-        result.tls_align = tls_align.unwrap_or(0);
-        result.has_tls_info = result.tls_size > 0;
-        if result.has_tls_info {
-            if !has_init_tls {
-                bail!(
-                    "{} has {} bytes of thread-local storage but does not export `{}`",
-                    result.name,
-                    result.tls_size,
-                    self::INIT_TLS,
-                );
-            }
-            if result.tls_align == 0 {
-                bail!(
-                    "{} has {} bytes of thread-local storage but no alignment",
-                    result.name,
-                    result.tls_size
-                );
             }
         }
 
