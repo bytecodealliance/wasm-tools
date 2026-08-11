@@ -2464,7 +2464,7 @@ impl<'a> EncodingState<'a> {
             n_params: usize,
         }
         let mut func_info = Vec::new();
-        for &(_, name, func, abi) in funcs_to_wrap.iter() {
+        for (i, &(_, name, func, abi)) in funcs_to_wrap.iter().enumerate() {
             let sig = resolve.wasm_signature(*abi, func);
             let type_idx = *type_indices.entry(sig.clone()).or_insert_with(|| {
                 let idx = next_type_idx;
@@ -2476,7 +2476,7 @@ impl<'a> EncodingState<'a> {
                 idx
             });
 
-            imports.import("", &import_func_name(func), EntityType::Function(type_idx));
+            imports.import("", &i.to_string(), EntityType::Function(type_idx));
             let orig_func_idx = next_func_idx;
             next_func_idx += 1;
 
@@ -2544,10 +2544,10 @@ impl<'a> EncodingState<'a> {
         ));
 
         // Import all original exports to be wrapped
-        for (instance_index, name, func, _) in &funcs_to_wrap {
+        for (i, (instance_index, name, _, _)) in funcs_to_wrap.iter().enumerate() {
             let orig_idx =
                 self.core_alias_export(Some(name), *instance_index, name, ExportKind::Func);
-            wrapper_imports.push((import_func_name(func), ExportKind::Func, orig_idx));
+            wrapper_imports.push((i.to_string(), ExportKind::Func, orig_idx));
         }
 
         let wrapper_args_idx = self.component.core_instantiate_exports(

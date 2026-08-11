@@ -288,7 +288,7 @@
     (type (;1;) (func (param i32) (result i32)))
     (import "" "__wasm_init_task" (func (;0;) (type 0)))
     (import "" "__wasm_init_async_task" (func (;1;) (type 0)))
-    (import "" "import-func-bar" (func (;2;) (type 1)))
+    (import "" "0" (func (;2;) (type 1)))
     (export "test:test/test#bar" (func 3))
     (func (;3;) (type 1) (param i32) (result i32)
       call 0
@@ -302,7 +302,7 @@
   (core instance $init-task-wrappers-args (;11;)
     (export "__wasm_init_task" (func $__wasm_init_task))
     (export "__wasm_init_async_task" (func $__wasm_init_async_task))
-    (export "import-func-bar" (func $test:test/test#bar))
+    (export "0" (func $test:test/test#bar))
   )
   (core instance $init-task-wrappers-instance (;12;) (instantiate $init-task-wrappers
       (with "" (instance $init-task-wrappers-args))
