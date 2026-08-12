@@ -17,8 +17,7 @@
 //! an integer of type [u64]. Data in each chunk is addressed through an offset
 //! into an `[u8]` slice, which uses `usize`-addressing.
 //!
-//! The structures in this file bridge the gap. Given a logical offset,
-//! we can compute a maximally allowed length of data at that offset.
+//! This module contains functionality to bridge the gap.
 
 // An (not necessarily exhaustive) list of properties we use of `u64` in relation
 // to usize:
@@ -27,29 +26,33 @@
 // - we can add and subtract small offsets to recalculate the original position
 //   in some error paths, where saving the position directly would clutter registers.
 
-/// An memory offset into some chunk of bytes occurs at some specified logical
-/// offset in the file. We currently use `usize` to represent memory offsets.
-///
-/// This offset can always be added onto the logical offset without overflow.
-/// Compute the maximum allowable memory offset under both contraints
+// An memory offset into some chunk of bytes occurs at some specified logical
+// offset in the file. We currently use `usize` to represent memory offsets.
 // TODO: on platforms where usize::BITS > u64::BITS (currently almost no-where),
 // we could use u64 directly instead of usize to represent memory offsets.
-pub fn max_memory_offset(mut max_logical: u64, max: usize) -> usize {
+
+use crate::Error;
+
+/// Return the largest memory offset that can be added to `offset` without going
+/// past `max_offset` or overflowing.
+pub fn max_data_len(offset: u64, max_offset: u64) -> usize {
+    let mut max_logical = max_offset - offset;
     if u64::BITS > usize::BITS {
         max_logical = max_logical.min(usize::MAX as u64)
     }
     // we now know that max_logical fits into a usize
-    let max_logical = max_logical as usize;
+    max_logical as usize
+}
 
-    // the more "natural" `max_logical.min(max)` generates a cmov which this avoids
-    if max <= max_logical {
-        max
-    } else {
-        // unlikely
-        #[cold]
-        fn smaller(constrained: usize) -> usize {
-            constrained
-        }
-        smaller(max_logical)
-    }
+#[cold]
+pub fn panic_too_many_bytes(offset: u64, len: usize, max_len: usize) -> ! {
+    panic!(
+        "Content too large to parse. Got {len}, expected at most {max_len} bytes at offset 0x{offset:x}."
+    )
+}
+pub fn err_too_many_bytes(offset: u64, len: usize, max_len: usize) -> Error {
+    format_err!(
+        offset,
+        "Content too large to parse. Got {len}, expected at most {max_len} bytes."
+    )
 }

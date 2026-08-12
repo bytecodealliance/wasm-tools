@@ -89,7 +89,7 @@ pub(crate) enum Order {
 pub struct Parser {
     state: State,
     offset: u64,
-    max_offset: u64,
+    max_offset: Option<u64>,
     encoding: Encoding,
     #[cfg(feature = "features")]
     features: WasmFeatures,
@@ -404,7 +404,7 @@ impl Parser {
         Parser {
             state: State::Header,
             offset,
-            max_offset: u64::MAX,
+            max_offset: None,
             // Assume the encoding is a module until we know otherwise
             encoding: Encoding::Module,
             #[cfg(feature = "features")]
@@ -622,9 +622,17 @@ impl Parser {
     /// # parse(&b"\0asm\x01\0\0\0"[..]).unwrap();
     /// ```
     pub fn parse<'a>(&mut self, data: &'a [u8], eof: bool) -> Result<Chunk<'a>> {
-        debug_assert!(self.offset <= self.max_offset, "inverted offset range");
-        let max_len = offsets::max_memory_offset(self.max_offset - self.offset, data.len());
+        let max_offset = self.max_offset.unwrap_or(u64::MAX);
+        debug_assert!(self.offset <= max_offset, "inverted offset range");
+        let max_len = offsets::max_data_len(self.offset, max_offset);
         let (data, eof) = if max_len < data.len() {
+            if self.max_offset.is_none() {
+                return Err(offsets::err_too_many_bytes(
+                    self.offset,
+                    data.len(),
+                    max_len,
+                ));
+            }
             (&data[..max_len], true)
         } else {
             (data, eof)
@@ -741,15 +749,13 @@ impl Parser {
                 // that all sections live entirely within their section of the
                 // file.
                 let section_start = reader.original_position();
-                let Some(section_end) =
-                    section_start
-                        .checked_add(u64::from(len))
-                        .and_then(|section_end| {
-                            (section_end <= self.max_offset).then_some(section_end)
-                        })
+                let max_offset = self.max_offset.unwrap_or(u64::MAX);
+                let Some(section_end) = section_start
+                    .checked_add(u64::from(len))
+                    .and_then(|section_end| (section_end <= max_offset).then_some(section_end))
                 else {
                     return Err(Error::new(
-                        &format!("section too large, {len} goes past 0x{:x}", self.max_offset),
+                        &format!("section too large, {len} goes past 0x{max_offset:x}"),
                         len_pos,
                     ));
                 };
@@ -864,7 +870,7 @@ impl Parser {
                         {
                             parser.features = self.features;
                         }
-                        parser.max_offset = section_end;
+                        parser.max_offset = Some(section_end);
 
                         Ok(match id {
                             COMPONENT_MODULE_SECTION => ModuleSection {

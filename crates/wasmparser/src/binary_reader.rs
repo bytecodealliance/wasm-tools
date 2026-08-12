@@ -55,10 +55,19 @@ impl<'a> BinaryReader<'a> {
     /// The returned binary reader will have all features known to this crate
     /// enabled. To reject binaries that aren't valid unless a certain feature
     /// is enabled use the [`BinaryReader::new_features`] constructor instead.
+    ///
+    /// # Panics
+    ///
+    /// If the data slice is too large, such that `original_offset + data.len()`
+    /// would overflow in `u64` arithmetic, this panics.
+    /// Use [`Self::max_data_len`] if you need to check the length limit.
     pub fn new(data: &[u8], original_offset: u64) -> BinaryReader<'_> {
-        let max_len = max_memory_offset(u64::MAX - original_offset, data.len());
+        let max_len = Self::max_data_len(original_offset);
+        if max_len < data.len() {
+            panic_too_many_bytes(original_offset, data.len(), max_len);
+        }
         BinaryReader {
-            buffer: &data[..max_len],
+            buffer: data,
             position: 0,
             original_offset,
             #[cfg(feature = "features")]
@@ -96,19 +105,34 @@ impl<'a> BinaryReader<'a> {
     /// only affects locations where preexisting bytes are reinterpreted in
     /// different ways with future proposals, such as the `memarg` moving from a
     /// 32-bit offset to a 64-bit offset with the `memory64` proposal.
+    ///
+    /// # Panics
+    ///
+    /// If the data slice is too large, such that `original_offset + data.len()`
+    /// would overflow in `u64` arithmetic, this panics.
+    /// Use [`Self::max_data_len`] if you need to check the length limit.
     #[cfg(feature = "features")]
     pub fn new_features(
         data: &[u8],
         original_offset: u64,
         features: WasmFeatures,
     ) -> BinaryReader<'_> {
-        let max_len = max_memory_offset(u64::MAX - original_offset, data.len());
+        let max_len = max_data_len(original_offset, u64::MAX);
+        if max_len < data.len() {
+            panic_too_many_bytes(original_offset, data.len(), max_len);
+        }
         BinaryReader {
-            buffer: &data[..max_len],
+            buffer: data,
             position: 0,
             original_offset,
             features,
         }
+    }
+
+    /// Returns the maximum length of a slice of data that can be passed when
+    /// constructing a new binary reader without panicking.
+    pub fn max_data_len(original_offset: u64) -> usize {
+        max_data_len(original_offset, u64::MAX)
     }
 
     /// "Shrinks" this binary reader to retain only the buffer left-to-parse.
@@ -2025,18 +2049,21 @@ mod tests {
     }
 
     #[test]
-    fn eof_on_large_offsets() {
-        let mut rdr = BinaryReader::new(&[10], u64::MAX);
-        assert_eq!(rdr.bytes_remaining(), 0);
-        assert_eq!(
-            rdr.read_u8().unwrap_err().message(),
-            "unexpected end-of-file"
+    #[should_panic = "too large"]
+    fn panic_on_large_offsets() {
+        assert!(
+            BinaryReader::max_data_len(u64::MAX) == 0,
+            "must not accept data at offset 0x{:x}",
+            u64::MAX
         );
+        let _rdr = BinaryReader::new(&[10], u64::MAX);
     }
 
     #[test]
     fn can_parse_on_large_offset() {
-        let mut rdr = BinaryReader::new(&[10], u64::from(u32::MAX) + 1);
+        let large_offset = u64::from(u32::MAX) + 1;
+        assert!(BinaryReader::max_data_len(large_offset) > 1);
+        let mut rdr = BinaryReader::new(&[10], large_offset);
         assert_matches!(rdr.read_u8(), Ok(10));
     }
 }
