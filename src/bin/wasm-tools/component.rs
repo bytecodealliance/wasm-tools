@@ -106,7 +106,7 @@ Examples:
 
     # Create a component and print it to stdout in in text format, skipping validation of
     # the output component.
-    $ wasm-tools component new foo.wasm -t --skip-validation
+    $ wasm-tools component new foo.wasm -t --validate=false
 
     # Create a component, using memory.grow to reallocate memory.
     # This can be useful if `cabi_realloc` cannot be called before the host runtime
@@ -115,9 +115,6 @@ Examples:
         --adapt wasi_snapshot_preview1.reactor.wasm -o foo.component.wasm
 ")]
 pub struct NewOpts {
-    #[clap(flatten)]
-    adapters: wasm_tools::AdaptersArg,
-
     /// Rename an instance import in the output component.
     ///
     /// This may be used to rename instance imports in the final component.
@@ -136,13 +133,64 @@ pub struct NewOpts {
     #[clap(flatten)]
     io: wasm_tools::InputOutput,
 
-    /// Skip validation of the output component.
-    #[clap(long)]
-    skip_validation: bool,
+    #[clap(flatten)]
+    encoder_opts: ComponentEncoderOpts,
 
     /// Print the output in the WebAssembly text format instead of binary.
     #[clap(long, short = 't')]
     wat: bool,
+}
+
+impl NewOpts {
+    fn general_opts(&self) -> &wasm_tools::GeneralOpts {
+        self.io.general_opts()
+    }
+
+    /// Executes the application.
+    fn run(self) -> Result<()> {
+        let wasm = self.io.get_input_wasm(Some(&self.generate_dwarf))?;
+        let mut encoder = ComponentEncoder::default();
+        self.encoder_opts.configure(&mut encoder)?;
+        encoder.module(&wasm)?;
+
+        let bytes = encoder
+            .import_name_map(self.import_names.into_iter().collect())
+            .encode()
+            .context("failed to encode a component from module")?;
+
+        self.io.output_wasm(&bytes, self.wat)?;
+
+        Ok(())
+    }
+}
+
+#[derive(Parser)]
+struct ComponentEncoderOpts {
+    /// The path to an adapter module to satisfy imports not otherwise bound to
+    /// WIT interfaces.
+    ///
+    /// An adapter module can be used to translate the `wasi_snapshot_preview1`
+    /// ABI, for example, to one that uses the component model. The first
+    /// `[NAME=]` specified in the argument is inferred from the name of file
+    /// specified by `MODULE` if not present and is the name of the import
+    /// module that's being implemented (e.g. `wasi_snapshot_preview1.wasm`).
+    ///
+    /// The second part of this argument is the path to the adapter module.
+    #[clap(long = "adapt", value_name = "[NAME=]MODULE", value_parser = parse_adapter)]
+    pub adapters: Vec<(String, Vec<u8>)>,
+
+    /// Deprecated, use `--validate=false` instead.
+    #[clap(long, hide = true, conflicts_with = "validate")]
+    skip_validation: bool,
+
+    /// Whether or not to validate the output component
+    #[arg(
+        long,
+        conflicts_with = "skip_validation",
+        require_equals = true,
+        value_name = "true|false"
+    )]
+    validate: Option<Option<bool>>,
 
     /// Use memory.grow to realloc memory and stack allocation.
     #[clap(long)]
@@ -152,8 +200,8 @@ pub struct NewOpts {
     /// semver ranges.
     ///
     /// This is enabled by default.
-    #[clap(long, value_name = "<true|false>")]
-    merge_imports_based_on_semver: Option<bool>,
+    #[arg(long, require_equals = true, value_name = "true|false")]
+    merge_imports_based_on_semver: Option<Option<bool>>,
 
     /// Reject usage of the "legacy" naming scheme of `wit-component` and
     /// require the new naming scheme to be used.
@@ -165,38 +213,56 @@ pub struct NewOpts {
     /// removal of the old scheme in the future.
     #[clap(long)]
     reject_legacy_names: bool,
+
+    /// Whether or not to add debug names to the generated binary.
+    #[arg(long, require_equals = true, value_name = "true|false")]
+    debug_names: Option<Option<bool>>,
 }
 
-impl NewOpts {
-    fn general_opts(&self) -> &wasm_tools::GeneralOpts {
-        self.io.general_opts()
+fn parse_optionally_name_file(s: &str) -> (&str, &str) {
+    let mut parts = s.splitn(2, '=');
+    let name_or_path = parts.next().unwrap();
+    match parts.next() {
+        Some(path) => (name_or_path, path),
+        None => {
+            let name = Path::new(name_or_path)
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap();
+            let name = match name.find('.') {
+                Some(i) => &name[..i],
+                None => name,
+            };
+            (name, name_or_path)
+        }
     }
+}
 
-    /// Executes the application.
-    fn run(self) -> Result<()> {
-        let wasm = self.io.get_input_wasm(Some(&self.generate_dwarf))?;
-        let mut encoder = ComponentEncoder::default()
-            .validate(!self.skip_validation)
-            .reject_legacy_names(self.reject_legacy_names);
+fn parse_adapter(s: &str) -> Result<(String, Vec<u8>)> {
+    let (name, path) = parse_optionally_name_file(s);
+    let wasm = wat::parse_file(path)?;
+    Ok((name.to_string(), wasm))
+}
 
-        if let Some(merge) = self.merge_imports_based_on_semver {
-            encoder = encoder.merge_imports_based_on_semver(merge);
+impl ComponentEncoderOpts {
+    fn configure(&self, encoder: &mut ComponentEncoder) -> Result<()> {
+        encoder
+            .validate(if self.skip_validation {
+                false
+            } else {
+                optional_flag_with_default(self.validate, true)
+            })
+            .reject_legacy_names(self.reject_legacy_names)
+            .debug_names(optional_flag_with_default(self.debug_names, true))
+            .merge_imports_based_on_semver(optional_flag_with_default(
+                self.merge_imports_based_on_semver,
+                false,
+            ))
+            .realloc_via_memory_grow(self.realloc_via_memory_grow);
+        for (name, wasm) in self.adapters.iter() {
+            encoder.adapter(name, wasm)?;
         }
-        encoder = encoder.module(&wasm)?;
-
-        for (name, wasm) in self.adapters.adapters.iter() {
-            encoder = encoder.adapter(name, wasm)?;
-        }
-
-        encoder = encoder.realloc_via_memory_grow(self.realloc_via_memory_grow);
-
-        let bytes = encoder
-            .import_name_map(self.import_names.into_iter().collect())
-            .encode()
-            .context("failed to encode a component from module")?;
-
-        self.io.output_wasm(&bytes, self.wat)?;
-
         Ok(())
     }
 }
@@ -479,9 +545,6 @@ pub struct LinkOpts {
     #[clap(long, value_name = "[NAME=]MODULE", value_parser = parse_library)]
     dl_openable: Vec<(String, Vec<u8>)>,
 
-    #[clap(flatten)]
-    adapters: wasm_tools::AdaptersArg,
-
     /// Size of stack (in bytes) to allocate in the synthesized main module
     #[clap(long)]
     stack_size: Option<u32>,
@@ -491,19 +554,6 @@ pub struct LinkOpts {
 
     #[clap(flatten)]
     general: wasm_tools::GeneralOpts,
-
-    /// Deprecated, use `--validate=false` instead.
-    #[clap(long, hide = true, conflicts_with = "validate")]
-    skip_validation: bool,
-
-    /// Whether or not to validate the output component
-    #[arg(
-        long,
-        conflicts_with = "skip_validation",
-        require_equals = true,
-        value_name = "true|false"
-    )]
-    validate: Option<Option<bool>>,
 
     /// Print the output in the WebAssembly text format instead of binary.
     #[clap(long, short = 't')]
@@ -517,16 +567,8 @@ pub struct LinkOpts {
     #[clap(long)]
     use_built_in_libdl: bool,
 
-    /// Indicates whether imports into the final component are merged based on
-    /// semver ranges.
-    ///
-    /// This is enabled by default.
-    #[arg(long, require_equals = true, value_name = "true|false")]
-    merge_imports_based_on_semver: Option<Option<bool>>,
-
-    /// Whether or not to add debug names to the generated binary.
-    #[arg(long, require_equals = true, value_name = "true|false")]
-    debug_names: Option<Option<bool>>,
+    #[clap(flatten)]
+    encoder_opts: ComponentEncoderOpts,
 }
 
 fn optional_flag_with_default(flag: Option<Option<bool>>, default: bool) -> bool {
@@ -544,30 +586,22 @@ impl LinkOpts {
 
     /// Executes the application.
     fn run(self) -> Result<()> {
-        let mut linker = Linker::default()
-            .validate(!self.skip_validation)
+        let mut linker = Linker::default();
+        linker
             .stub_missing_functions(self.stub_missing_functions)
-            .use_built_in_libdl(self.use_built_in_libdl)
-            .debug_names(optional_flag_with_default(self.debug_names, true));
+            .use_built_in_libdl(self.use_built_in_libdl);
+        self.encoder_opts.configure(linker.encoder())?;
 
         if let Some(stack_size) = self.stack_size {
-            linker = linker.stack_size(stack_size);
-        }
-
-        if let Some(merge) = self.merge_imports_based_on_semver {
-            linker = linker.merge_imports_based_on_semver(merge.unwrap_or(true));
+            linker.stack_size(stack_size);
         }
 
         for (name, wasm) in &self.inputs {
-            linker = linker.library(name, wasm, false)?;
+            linker.library(name, wasm, false)?;
         }
 
         for (name, wasm) in &self.dl_openable {
-            linker = linker.library(name, wasm, true)?;
-        }
-
-        for (name, wasm) in &self.adapters.adapters {
-            linker = linker.adapter(name, wasm)?;
+            linker.library(name, wasm, true)?;
         }
 
         let bytes = linker
@@ -654,7 +688,7 @@ Writing: out/component.wit
 
    # With the same foo.wasm file, print a textual WAT representation
    # of the interface to stdout, skipping validation of the WAT code.
-   $ wasm-tools component wit foo.wasm -t --skip-validation
+   $ wasm-tools component wit foo.wasm -t --validate=false
 
    # With the same foo.wasm file, print a JSON representation
    # of the interface to stdout.

@@ -158,23 +158,20 @@ fn encode(wat: &str, wit: Option<&str>) -> Result<Vec<u8>> {
 
 #[test]
 fn linking() -> Result<()> {
-    let component = [
+    let mut linker = wit_component::Linker::default();
+    linker.encoder().validate(true);
+    for (name, wat, wit) in [
         ("libfoo.so", FOO, None),
         ("libbar.so", BAR, Some(WIT)),
         ("libc.so", LIBC, None),
-    ]
-    .into_iter()
-    .try_fold(
-        wit_component::Linker::default().validate(true),
-        |linker, (name, wat, wit)| {
-            linker.library(
-                name,
-                &encode(wat, wit).with_context(|| name.to_owned())?,
-                false,
-            )
-        },
-    )?
-    .encode()?;
+    ] {
+        linker.library(
+            name,
+            &encode(wat, wit).with_context(|| name.to_owned())?,
+            false,
+        )?;
+    }
+    let component = linker.encode()?;
 
     #[cfg(target_family = "wasm")]
     {
@@ -250,22 +247,19 @@ world bar {
 
 #[test]
 fn linking_got_weak() -> Result<()> {
-    let component = [
+    let mut linker = wit_component::Linker::default();
+    linker.encoder().validate(true);
+    for (name, wat, wit) in [
         ("libfoo.so", GOT_IMPORT, Some(GOT_IMPORT_WIT)),
         ("libc.so", LIBC, None),
-    ]
-    .into_iter()
-    .try_fold(
-        wit_component::Linker::default().validate(true),
-        |linker, (name, wat, wit)| {
-            linker.library(
-                name,
-                &encode(wat, wit).with_context(|| name.to_owned())?,
-                false,
-            )
-        },
-    )?
-    .encode()?;
+    ] {
+        linker.library(
+            name,
+            &encode(wat, wit).with_context(|| name.to_owned())?,
+            false,
+        )?;
+    }
+    let component = linker.encode()?;
 
     #[cfg(target_family = "wasm")]
     {
