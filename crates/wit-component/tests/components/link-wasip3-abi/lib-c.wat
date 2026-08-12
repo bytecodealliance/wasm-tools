@@ -21,19 +21,15 @@
   (func $abort (type 0)
     unreachable
   )
-  (func $init_task (type 0)
-    unreachable
-  )
   (func $get_stack_pointer (result i32)
     unreachable
   )
   (func $set_stack_pointer (param i32)
     unreachable
   )
+  (func (export "__wasm_task_hook") (param i32) unreachable)
   (export "malloc" (func $malloc))
   (export "abort" (func $abort))
-  (export "__wasm_init_task" (func $init_task))
-  (export "__wasm_init_async_task" (func $init_task))
   (export "__wasm_get_stack_pointer" (func $get_stack_pointer))
   (export "__wasm_set_stack_pointer" (func $set_stack_pointer))
   (start $start)

@@ -762,8 +762,7 @@ impl<'a> EncodingState<'a> {
                 | Export::Initialize
                 | Export::ReallocForAdapter
                 | Export::IndirectFunctionTable
-                | Export::WasmInitTask
-                | Export::WasmInitAsyncTask => continue,
+                | Export::WasmTaskHook => continue,
             }
         }
 
@@ -1113,14 +1112,18 @@ impl<'a> EncodingState<'a> {
         let resolve = &self.info.encoder.metadata.resolve;
         let metadata = self.info.module_metadata_for(module);
         let instance_index = self.instance_for(module);
-        // If we generated an init task wrapper for this export, use that,
-        // otherwise alias the original export.
-        let core_func_index =
-            if let Some(&wrapper_idx) = self.export_task_initialization_wrappers.get(core_name) {
+
+        let core_alias_export = |me: &mut Self, core_name: &str| {
+            // If a hook was generated for this function, use that, otherwise
+            // use the original export.
+            if let Some(&wrapper_idx) = me.export_task_initialization_wrappers.get(core_name) {
                 wrapper_idx
             } else {
-                self.core_alias_export(Some(core_name), instance_index, core_name, ExportKind::Func)
-            };
+                me.core_alias_export(Some(core_name), instance_index, core_name, ExportKind::Func)
+            }
+        };
+
+        let core_func_index = core_alias_export(self, core_name);
         let exports = self.info.exports_for(module);
 
         let options = RequiredOptions::for_export(
@@ -1144,17 +1147,11 @@ impl<'a> EncodingState<'a> {
             .collect::<Vec<_>>();
 
         if let Some(post_return) = exports.post_return(key, func) {
-            let post_return = self.core_alias_export(
-                Some(post_return),
-                instance_index,
-                post_return,
-                ExportKind::Func,
-            );
+            let post_return = core_alias_export(self, post_return);
             options.push(CanonicalOption::PostReturn(post_return));
         }
         if let Some(callback) = exports.callback(key, func) {
-            let callback =
-                self.core_alias_export(Some(callback), instance_index, callback, ExportKind::Func);
+            let callback = core_alias_export(self, callback);
             options.push(CanonicalOption::Callback(callback));
         }
         let func_index = self

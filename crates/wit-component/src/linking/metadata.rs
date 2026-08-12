@@ -33,8 +33,7 @@ pub const CALL_CTORS: &str = "__wasm_call_ctors";
 pub const INITIALIZE: &str = "_initialize";
 pub const START: &str = "_start";
 pub const LIBDL_LIBRARIES: &str = "__wasm_libdl_libraries";
-pub const INIT_TASK: &str = "__wasm_init_task";
-pub const INIT_ASYNC_TASK: &str = "__wasm_init_async_task";
+pub const TASK_HOOK: &str = "__wasm_task_hook";
 pub const ROOT: &str = "$root";
 pub const THREAD_NEW_INDIRECT: &str = "[thread-new-indirect-v0]";
 pub const CONTEXT_GET_1: &str = "[context-get-1]";
@@ -222,9 +221,6 @@ pub struct Metadata<'a> {
     /// Whether this module imports `__wasm_libdl_libraries`
     pub needs_libdl_libraries: bool,
 
-    /// Whether this module exports `__wasm_init_task`
-    pub has_init_task: bool,
-
     /// Whether this module includes any `component-type*` custom sections which include exports
     pub has_component_exports: bool,
 
@@ -312,7 +308,6 @@ impl<'a> Metadata<'a> {
             has_initialize: false,
             has_wasi_start: false,
             needs_libdl_libraries: false,
-            has_init_task: false,
             has_component_exports,
             is_asyncified: false,
             needs_stack_pointer: false,
@@ -608,9 +603,6 @@ impl<'a> Metadata<'a> {
                             self::START => result.has_wasi_start = true,
                             self::LIBRARY_TLS_INFO => result.has_library_tls_info = true,
                             _ => {
-                                if export.name == self::INIT_TASK {
-                                    result.has_init_task = true;
-                                }
                                 let ty = match export.kind {
                                     ExternalKind::Func => Type::Function(FunctionType::try_from(
                                         &types[function_types

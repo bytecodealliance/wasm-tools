@@ -7,9 +7,8 @@
   )
   (import "test:test/test" (instance $test:test/test (;0;) (type $ty-test:test/test)))
   (core module $main (;0;)
-    (type (;0;) (func))
-    (type (;1;) (func))
-    (table (;0;) 3 funcref)
+    (type (;0;) (func (param i32)))
+    (table (;0;) 2 funcref)
     (memory (;0;) 17)
     (global (;0;) i32 i32.const 1048592)
     (global (;1;) i32 i32.const 1)
@@ -31,17 +30,13 @@
     (export "foo:um" (global 7))
     (export "__heap_base" (global 8))
     (export "__heap_end" (global 9))
-    (export "__wasm_init_task" (func 0))
-    (export "__wasm_init_async_task" (func 1))
+    (export "__wasm_task_hook" (func 0))
     (export "__indirect_function_table" (table 0))
     (export "memory" (memory 0))
-    (func (;0;) (type 0)
+    (func (;0;) (type 0) (param i32)
+      local.get 0
       i32.const 1
       call_indirect (type 0)
-    )
-    (func (;1;) (type 1)
-      i32.const 2
-      call_indirect (type 1)
     )
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
@@ -58,10 +53,9 @@
     (import "GOT.mem" "__heap_base" (global $__heap_base (;0;) (mut i32)))
     (import "GOT.mem" "__heap_end" (global $__heap_end (;1;) (mut i32)))
     (global $heap (;2;) (mut i32) i32.const 0)
+    (export "__wasm_task_hook" (func 5))
     (export "malloc" (func $malloc))
     (export "abort" (func $abort))
-    (export "__wasm_init_task" (func $init_task))
-    (export "__wasm_init_async_task" (func $init_task))
     (export "__wasm_get_stack_pointer" (func $get_stack_pointer))
     (export "__wasm_set_stack_pointer" (func $set_stack_pointer))
     (start $start)
@@ -79,13 +73,13 @@
     (func $abort (;2;) (type 0)
       unreachable
     )
-    (func $init_task (;3;) (type 0)
+    (func $get_stack_pointer (;3;) (type 2) (result i32)
       unreachable
     )
-    (func $get_stack_pointer (;4;) (type 2) (result i32)
+    (func $set_stack_pointer (;4;) (type 3) (param i32)
       unreachable
     )
-    (func $set_stack_pointer (;5;) (type 3) (param i32)
+    (func (;5;) (type 3) (param i32)
       unreachable
     )
   )
@@ -236,7 +230,8 @@
   )
   (core module $wit-component-fixup (;4;)
     (type (;0;) (func))
-    (type (;1;) (func (param i32) (result i32)))
+    (type (;1;) (func (param i32)))
+    (type (;2;) (func (param i32) (result i32)))
     (import "main" "memory" (memory (;0;) 0))
     (import "main" "__indirect_function_table" (table (;0;) 0 funcref))
     (import "main" "foo:memory_base" (global $foo:memory_base (;0;) i32))
@@ -249,20 +244,22 @@
     (import "foo" "__wasm_apply_data_relocs" (func $"#func1 __wasm_apply_data_relocs" (@name "__wasm_apply_data_relocs") (;1;) (type 0)))
     (import "bar" "__wasm_call_ctors" (func $__wasm_call_ctors (;2;) (type 0)))
     (import "foo" "__wasm_call_ctors" (func $"#func3 __wasm_call_ctors" (@name "__wasm_call_ctors") (;3;) (type 0)))
-    (import "c" "__wasm_init_task" (func $__wasm_init_task (;4;) (type 0)))
-    (import "c" "__wasm_init_async_task" (func $__wasm_init_async_task (;5;) (type 0)))
-    (import "main" "__wasm_init_task" (func $"#func6 __wasm_init_task" (@name "__wasm_init_task") (;6;) (type 0)))
-    (import "bar" "test:test/test#bar" (func $test:test/test#bar (;7;) (type 1)))
+    (import "c" "__wasm_task_hook" (func $__wasm_task_hook (;4;) (type 1)))
+    (import "main" "__wasm_task_hook" (func $"#func5 __wasm_task_hook" (@name "__wasm_task_hook") (;5;) (type 1)))
+    (import "bar" "test:test/test#bar" (func $test:test/test#bar (;6;) (type 2)))
     (export "hook0" (func $hook-test:test/test#bar))
     (start $start)
     (elem (;0;) (i32.const 1) func)
-    (elem (;1;) (i32.const 1) func $__wasm_init_task $__wasm_init_async_task)
-    (func $hook-test:test/test#bar (;8;) (type 1) (param i32) (result i32)
-      call $"#func6 __wasm_init_task"
+    (elem (;1;) (i32.const 1) func $__wasm_task_hook)
+    (func $hook-test:test/test#bar (;7;) (type 2) (param i32) (result i32)
+      i32.const 0
+      call $"#func5 __wasm_task_hook"
       local.get 0
       call $test:test/test#bar
+      i32.const 1
+      call $"#func5 __wasm_task_hook"
     )
-    (func $start (;9;) (type 0)
+    (func $start (;8;) (type 0)
       global.get $foo:memory_base
       global.get $well
       i32.add
@@ -273,9 +270,12 @@
       global.set $foo:um
       call $__wasm_apply_data_relocs
       call $"#func1 __wasm_apply_data_relocs"
-      call $"#func6 __wasm_init_task"
+      i32.const 6
+      call $"#func5 __wasm_task_hook"
       call $__wasm_call_ctors
       call $"#func3 __wasm_call_ctors"
+      i32.const 7
+      call $"#func5 __wasm_task_hook"
     )
     (data (;0;) (i32.const 1048576) "\00\00\00\00\00\00\10\00")
     (@producers

@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::mem;
 use wasm_encoder::*;
 use wit_parser::WorldItem;
-use wit_parser::abi::WasmSignature;
+use wit_parser::abi::{AbiVariant, WasmSignature};
 
 #[derive(Default)]
 pub struct FixupModule {
@@ -83,6 +83,8 @@ pub enum StartAction {
         export: u32,
         dest: AddressDest,
     },
+    /// Invoke the `func` hook with the `hook` argument.
+    CallHook { func: u32, hook: TaskHook },
 }
 
 pub enum AddressDest {
@@ -113,19 +115,56 @@ enum DefinedFunction {
     /// A function which wraps a core export to ensure that task state is set up
     /// before the core export is called.
     HookedCoreExport {
-        /// The hook to call first.
-        before: u32,
-        /// The core export to call after the hook.
-        export: u32,
+        /// The task hook function.
+        task_hook: u32,
+        /// The core function to call and delegate to.
+        to_wrap: u32,
         /// The number of parameters to forward to `export`.
         params: usize,
         /// The debug-related core name of this function it's hooking.
         core_name: String,
+        /// Whether or not to export this function.
+        export: bool,
+        /// The kind of hook to use at the start of this function.
+        start: TaskHook,
+        /// The kind of hook to use at the end of this function.
+        end: EndTaskHook,
     },
+}
 
-    /// Similar to `HookedCoreExport` except that this is specifically for
-    /// resource destructors which don't need to be reexported.
-    HookedResourceDtor { before: u32, export: u32 },
+#[derive(Copy, Clone)]
+pub enum TaskHook {
+    /// A synchronous task has started.
+    SyncStart = 0,
+    /// A synchronous task has finished.
+    SyncFinish = 1,
+    /// An async task has started.
+    AsyncStart = 2,
+    /// An async has resumed in its `callback` option.
+    AsyncResume = 3,
+    /// An async blocked, but not yet completed, and it's returning from either
+    /// the main entrypoint or the `callback` option.
+    AsyncBlock = 4,
+    /// An async task has finished, returning from either the main entrypoint or
+    /// the `callback` option.
+    AsyncFinish = 5,
+    /// The `_initialize` function and other ctors are being called.
+    InitializeStart = 6,
+    /// The `_initialize` function and other ctors are finished.
+    InitializeFinish = 7,
+    /// A resource destructor is starting.
+    ResourceDtorStart = 8,
+    /// A resource destructor is finished.
+    ResourceDtorFinish = 9,
+    /// A call to post-return is starting.
+    PostReturnStart = 10,
+    /// A call to post-return is finished.
+    PostReturnFinish = 11,
+}
+
+enum EndTaskHook {
+    AsyncCode,
+    Normal(TaskHook),
 }
 
 impl FixupModule {
@@ -334,7 +373,11 @@ impl FixupModule {
         // `state` that they should be preferred over their raw brethren.
         for (i, (_ty, func)) in self.defined_functions.iter().enumerate() {
             match func {
-                DefinedFunction::HookedCoreExport { core_name, .. } => {
+                DefinedFunction::HookedCoreExport {
+                    core_name,
+                    export: true,
+                    ..
+                } => {
                     let name = format!("hook{i}");
                     let wrapper =
                         state.core_alias_export(Some(&name), instance, &name, ExportKind::Func);
@@ -342,7 +385,7 @@ impl FixupModule {
                         .export_task_initialization_wrappers
                         .insert(core_name.clone(), wrapper);
                 }
-                DefinedFunction::HookedResourceDtor { .. } => {}
+                DefinedFunction::HookedCoreExport { export: false, .. } => {}
             }
         }
         Ok(())
@@ -372,34 +415,60 @@ impl FixupModule {
             functions.function(*ty);
             let index = inc(&mut self.funcs);
             defined_func_indices.push(index);
-            let func = match func {
+            let mut func = match func {
                 DefinedFunction::HookedCoreExport {
-                    before,
-                    export,
+                    task_hook,
+                    to_wrap,
                     params,
                     core_name,
+                    export,
+                    start,
+                    end,
                 } => {
-                    let mut f = Function::new(Vec::new());
-                    f.instructions().call(*before);
+                    let mut locals = Vec::new();
+                    if let EndTaskHook::AsyncCode = end {
+                        locals.push((1, ValType::I32));
+                    }
+                    let mut f = Function::new(locals);
+                    f.instructions().i32_const(*start as i32).call(*task_hook);
                     for i in 0..*params {
                         f.instructions().local_get(i as u32);
                     }
-                    f.instructions().call(*export).end();
-                    exports.export(&format!("hook{i}"), ExportKind::Func, index);
+                    f.instructions().call(*to_wrap);
+                    match end {
+                        EndTaskHook::AsyncCode => {
+                            f.instructions()
+                                .local_set(*params as u32)
+                                // 0 == EXIT, 1/2 == yield/wait, so delegate to
+                                // appropriate code.
+                                //
+                                // First thing pushed on the stack is "if true",
+                                // which in this case nonzero means blocking.
+                                // Second thing is "if false" meaning if 0
+                                // meaning EXIT meaning "done". Final thing is
+                                // what to test, the return code.
+                                .i32_const(TaskHook::AsyncBlock as i32)
+                                .i32_const(TaskHook::AsyncFinish as i32)
+                                .local_get(*params as u32)
+                                .select()
+                                .call(*task_hook)
+                                // put the return code back on the stack to
+                                // actually return
+                                .local_get(*params as u32);
+                        }
+                        EndTaskHook::Normal(hook) => {
+                            f.instructions().i32_const(*hook as i32).call(*task_hook);
+                        }
+                    }
+                    if *export {
+                        exports.export(&format!("hook{i}"), ExportKind::Func, index);
+                    }
                     self.function_names
                         .append(index, &format!("hook-{core_name}"));
                     f
                 }
-                DefinedFunction::HookedResourceDtor { before, export } => {
-                    let mut f = Function::new(Vec::new());
-                    f.instructions()
-                        .call(*before)
-                        .local_get(0)
-                        .call(*export)
-                        .end();
-                    f
-                }
             };
+            func.instructions().end();
             code.function(&func);
         }
 
@@ -455,6 +524,9 @@ impl FixupModule {
                         }
                         StartAction::Call(func) => {
                             start.instructions().call(*func);
+                        }
+                        StartAction::CallHook { func, hook } => {
+                            start.instructions().i32_const(*hook as i32).call(*func);
                         }
                         StartAction::InitializeAddress {
                             memory_base,
@@ -554,23 +626,6 @@ impl FixupModule {
         Ok(Some(module))
     }
 
-    fn lazy_import_task_hook(
-        &mut self,
-        cache: &mut Option<u32>,
-        name: Option<&str>,
-    ) -> Result<Option<u32>> {
-        let Some(name) = name else {
-            return Ok(None);
-        };
-        if let Some(i) = cache {
-            return Ok(Some(*i));
-        }
-        let ty = self.type_thunk();
-        let ret = self.import_func(&ImportedInstance::Main, name, ty)?;
-        *cache = Some(ret);
-        Ok(Some(ret))
-    }
-
     /// Prepares task hooks, like `__wasm_init_task`, to be configured in
     /// various locations throughout this fixup module.
     ///
@@ -580,40 +635,32 @@ impl FixupModule {
     /// * Hooks for all exports which are lifted.
     fn prepare_task_hooks(&mut self, state: &mut EncodingState<'_>) -> Result<()> {
         let info_main = state.info.exports_for(CustomModule::Main);
-        let init_task = info_main.wasm_init_task();
-        let async_init_task = info_main.wasm_init_async_task();
-        if init_task.is_none() && async_init_task.is_none() {
+        let Some(task_hook) = info_main.wasm_task_hook() else {
             return Ok(());
-        }
-
-        let mut init_index = None;
-        let mut async_init_index = None;
-        let mut init_index = |me: &mut Self| me.lazy_import_task_hook(&mut init_index, init_task);
-        let mut async_init_index =
-            |me: &mut Self| me.lazy_import_task_hook(&mut async_init_index, async_init_task);
+        };
+        let ty = self.type_intern(vec![ValType::I32], Vec::new());
+        let task_hook = self.import_func(&ImportedInstance::Main, task_hook, ty)?;
 
         // Handle the start function first where if there's something registered
         // in the "user function" area we need to configure that to work.
         if !self.start_user_funcs.is_empty() {
-            if let Some(init) = init_index(self)? {
-                self.start_user_funcs.insert(0, StartAction::Call(init));
-            }
+            self.start_user_funcs.insert(
+                0,
+                StartAction::CallHook {
+                    func: task_hook,
+                    hook: TaskHook::InitializeStart,
+                },
+            );
+            self.start_user_funcs.push(StartAction::CallHook {
+                func: task_hook,
+                hook: TaskHook::InitializeFinish,
+            });
         }
 
         // Afterwards handle all exports for the main/adapter modules.
-        self.prepare_export_task_hooks_for(
-            state,
-            CustomModule::Main,
-            &mut init_index,
-            &mut async_init_index,
-        )?;
+        self.prepare_export_task_hooks_for(state, CustomModule::Main, task_hook)?;
         for adapter in state.info.adapters.keys() {
-            self.prepare_export_task_hooks_for(
-                state,
-                CustomModule::Adapter(adapter),
-                &mut init_index,
-                &mut async_init_index,
-            )?;
+            self.prepare_export_task_hooks_for(state, CustomModule::Adapter(adapter), task_hook)?;
         }
 
         // And finally redirect all resource destructors to a local hook which
@@ -625,16 +672,18 @@ impl FixupModule {
                 ShimFill::ImportedResourceDtor(func) => *func,
                 ShimFill::Import(_) | ShimFill::DefinedFunction(_) => continue,
             };
-            let Some(init) = init_index(self)? else {
-                continue;
-            };
             let ty = self.type_intern(vec![ValType::I32], Vec::new());
             *shim = ShimFill::DefinedFunction(self.defined_functions.len());
             self.defined_functions.push((
                 ty,
-                DefinedFunction::HookedResourceDtor {
-                    before: init,
-                    export,
+                DefinedFunction::HookedCoreExport {
+                    task_hook,
+                    to_wrap: export,
+                    params: 1,
+                    start: TaskHook::ResourceDtorStart,
+                    end: EndTaskHook::Normal(TaskHook::ResourceDtorFinish),
+                    export: false,
+                    core_name: format!("resource-dtor"),
                 },
             ));
         }
@@ -652,8 +701,7 @@ impl FixupModule {
         &mut self,
         state: &mut EncodingState<'_>,
         for_module: CustomModule<'_>,
-        init_task: &mut dyn FnMut(&mut Self) -> Result<Option<u32>>,
-        async_init_task: &mut dyn FnMut(&mut Self) -> Result<Option<u32>>,
+        task_hook: u32,
     ) -> Result<()> {
         let resolve = &state.info.encoder.metadata.resolve;
         let world = &resolve.worlds[state.info.encoder.metadata.world];
@@ -664,38 +712,81 @@ impl FixupModule {
         };
 
         for (core_name, export) in info.iter() {
-            let (f, abi) = match export {
+            let (key, f, abi) = match export {
                 Export::WorldFunc(key, _, abi) => match &world.exports[key] {
-                    WorldItem::Function(f) => (f, abi),
+                    WorldItem::Function(f) => (key, f, abi),
                     _ => continue,
                 },
-                Export::InterfaceFunc(_, id, func_name, abi) => {
+                Export::InterfaceFunc(key, id, func_name, abi) => {
                     let func = &resolve.interfaces[*id].functions[func_name.as_str()];
-                    (func, abi)
+                    (key, func, abi)
                 }
                 _ => continue,
             };
 
-            let hook = if abi.is_async() {
-                async_init_task(self)?
-            } else {
-                init_task(self)?
-            };
-            let Some(hook) = hook else {
-                continue;
-            };
             let sig = resolve.wasm_signature(*abi, f);
             let ty = self.type_index(&sig);
             let func = self.import_func(&imported_instance, core_name, ty)?;
             self.defined_functions.push((
                 ty,
                 DefinedFunction::HookedCoreExport {
-                    before: hook,
-                    export: func,
+                    task_hook,
+                    to_wrap: func,
+                    export: true,
                     params: sig.params.len(),
                     core_name: core_name.to_string(),
+                    start: if abi.is_async() {
+                        TaskHook::AsyncStart
+                    } else {
+                        TaskHook::SyncStart
+                    },
+                    end: if abi.is_async() {
+                        if *abi == AbiVariant::GuestExportAsyncStackful {
+                            EndTaskHook::Normal(TaskHook::AsyncFinish)
+                        } else {
+                            EndTaskHook::AsyncCode
+                        }
+                    } else {
+                        EndTaskHook::Normal(TaskHook::SyncFinish)
+                    },
                 },
             ));
+
+            if let Some(post_return) = info.post_return(key, f) {
+                let mut post_return_sig = sig.clone();
+                post_return_sig.params = mem::take(&mut post_return_sig.results);
+                let ty = self.type_index(&post_return_sig);
+                let func = self.import_func(&imported_instance, post_return, ty)?;
+                self.defined_functions.push((
+                    ty,
+                    DefinedFunction::HookedCoreExport {
+                        task_hook,
+                        to_wrap: func,
+                        export: true,
+                        params: post_return_sig.params.len(),
+                        core_name: post_return.to_string(),
+                        start: TaskHook::PostReturnStart,
+                        end: EndTaskHook::Normal(TaskHook::PostReturnFinish),
+                    },
+                ));
+            }
+
+            if let Some(callback) = info.callback(key, f) {
+                let ty = self.type_intern(vec![ValType::I32; 3], vec![ValType::I32]);
+                let func = self.import_func(&imported_instance, callback, ty)?;
+                self.defined_functions.push((
+                    ty,
+                    DefinedFunction::HookedCoreExport {
+                        task_hook,
+                        to_wrap: func,
+                        export: true,
+                        params: 3,
+                        core_name: callback.to_string(),
+                        start: TaskHook::AsyncResume,
+                        end: EndTaskHook::AsyncCode,
+                    },
+                ));
+            }
         }
 
         Ok(())

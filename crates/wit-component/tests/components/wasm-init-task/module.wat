@@ -1,10 +1,10 @@
 (module
-  (func (export "__wasm_init_task") unreachable)
-  (func (export "__wasm_init_async_task") unreachable)
+  (func (export "__wasm_task_hook") (param i32) unreachable)
   (func (export "[async-lift-stackful]async-stackful") unreachable)
   (func (export "[async-lift]async-callback") (result i32) unreachable)
   (func (export "[callback][async-lift]async-callback") (param i32 i32 i32) (result i32) unreachable)
   (func (export "sync") unreachable)
+  (func (export "cabi_post_sync") unreachable)
   (func (export "_initialize"))
   (func (export "[async-lift-stackful]async-stackful-argret") (param i32 i32) unreachable)
   (func (export "[async-lift]async-callback-argret") (param i32 i32) (result i32) unreachable)

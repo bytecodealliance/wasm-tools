@@ -29,6 +29,7 @@ use {
     indexmap::{IndexMap, IndexSet, map::Entry},
     metadata::{Export, ExportKey, FunctionType, GlobalType, Metadata, Type, ValueType},
     std::{
+        borrow::Cow,
         collections::{BTreeMap, HashMap, HashSet},
         fmt::Debug,
         hash::Hash,
@@ -41,7 +42,7 @@ use {
     wasmparser::SymbolFlags,
 };
 
-mod metadata;
+pub(crate) mod metadata;
 
 const PAGE_SIZE_BYTES: u32 = 65536;
 // This matches the default stack size LLVM produces:
@@ -50,16 +51,12 @@ const HEAP_ALIGNMENT_BYTES: u32 = 16;
 const STUB_LIBRARY_NAME: &str = "wit-component:stubs";
 const CABI_REALLOC: &str = "cabi_realloc";
 
-static EMPTY_FUNCTION_TYPE: FunctionType = FunctionType {
-    parameters: Vec::new(),
-    results: Vec::new(),
-};
-
 /// Symbols to re-export from the `env` module regardless of whether any
 /// libraries import them, since
 /// `EncodingState::create_export_task_initialization_wrappers` needs to be able
 /// to call them.
-static ENV_REEXPORTS: &[&str] = &[metadata::INIT_TASK, metadata::INIT_ASYNC_TASK];
+static ENV_REEXPORTS: &[(&str, &[ValueType], &[ValueType])] =
+    &[(metadata::TASK_HOOK, &[ValueType::I32], &[])];
 
 enum Address<'a> {
     Function(u32),
@@ -1236,11 +1233,14 @@ fn resolve_symbols<'a>(
     // `env` module so that
     // `EncodingState::create_export_task_initialization_wrappers` can find
     // and use them:
-    for &name in ENV_REEXPORTS {
+    for (name, params, results) in ENV_REEXPORTS {
         let export = Export {
             key: ExportKey {
                 name,
-                ty: Type::Function(EMPTY_FUNCTION_TYPE.clone()),
+                ty: Type::Function(FunctionType {
+                    parameters: params.to_vec(),
+                    results: results.to_vec(),
+                }),
             },
             flags: SymbolFlags::empty(),
         };
@@ -1371,7 +1371,7 @@ struct EnvExports<'a> {
 
 struct EnvExport<'a> {
     name: &'a str,
-    ty: &'a FunctionType,
+    ty: Cow<'a, FunctionType>,
     exporter: usize,
 }
 
@@ -1421,7 +1421,7 @@ fn env_exports<'a>(
 
                 result.push(EnvExport {
                     name: *name,
-                    ty: *ty,
+                    ty: Cow::Borrowed(*ty),
                     exporter: indexes[exporter],
                 });
                 exported.insert(*name);
@@ -1436,7 +1436,7 @@ fn env_exports<'a>(
                 if !seen.contains(&exporter) {
                     result.push(EnvExport {
                         name: *import_name,
-                        ty,
+                        ty: Cow::Borrowed(ty),
                         exporter,
                     });
                     exported.insert(*import_name);
@@ -1451,15 +1451,19 @@ fn env_exports<'a>(
     // `env` module so that
     // `EncodingState::create_export_task_initialization_wrappers` can find
     // and use them:
-    for &name in ENV_REEXPORTS {
+    for (name, params, results) in ENV_REEXPORTS {
         if !exported.contains(name) {
+            let ty = FunctionType {
+                parameters: params.to_vec(),
+                results: results.to_vec(),
+            };
             if let Some(exporter) = exporters.get(&ExportKey {
                 name,
-                ty: Type::Function(EMPTY_FUNCTION_TYPE.clone()),
+                ty: Type::Function(ty.clone()),
             }) {
                 result.push(EnvExport {
                     name,
-                    ty: &EMPTY_FUNCTION_TYPE,
+                    ty: Cow::Owned(ty),
                     exporter: indexes[exporter.0],
                 });
                 exported.insert(name);
