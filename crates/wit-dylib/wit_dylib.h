@@ -46,10 +46,11 @@ typedef uint32_t wit_type_t;
 #define WIT_TYPE_OPTION 21
 #define WIT_TYPE_RESULT 22
 #define WIT_TYPE_LIST 23
-#define WIT_TYPE_FIXED_LENGTH_LIST 24
-#define WIT_TYPE_FUTURE 25
-#define WIT_TYPE_STREAM 26
-#define WIT_TYPE_ALIAS 27
+#define WIT_TYPE_MAP 24
+#define WIT_TYPE_FIXED_LENGTH_LIST 25
+#define WIT_TYPE_FUTURE 26
+#define WIT_TYPE_STREAM 27
+#define WIT_TYPE_ALIAS 28
 #define WIT_TYPE_EMPTY 0xff
 
 typedef void(*wit_import_fn_t)(void* cx);
@@ -199,6 +200,13 @@ typedef struct wit_list {
      wit_type_t ty;
 } wit_list_t;
 
+typedef struct wit_map {
+     const char *interface;
+     const char *name;
+     wit_type_t key_type;
+     wit_type_t value_type;
+} wit_map_t;
+
 typedef struct wit_fixed_length_list {
      const char *interface;
      const char *name;
@@ -265,7 +273,7 @@ typedef struct wit_alias {
      wit_type_t ty;
 } wit_alias_t;
 
-#define WIT_CURRENT_VERSION 2
+#define WIT_CURRENT_VERSION 3
 
 typedef struct wit {
      uint32_t version; // `WIT_V*`
@@ -292,6 +300,8 @@ typedef struct wit {
      const wit_result_t *results;
      size_t num_lists;
      const wit_list_t *lists;
+     size_t num_maps;
+     const wit_map_t *maps;
      size_t num_fixed_length_lists;
      const wit_fixed_length_list_t *fixed_length_lists;
      size_t num_futures;
@@ -388,7 +398,7 @@ void wit_dylib_push_tuple(void *cx, size_t ty);
 void wit_dylib_push_option(void *cx, size_t ty, uint32_t discr);
 void wit_dylib_push_result(void *cx, size_t ty, uint32_t discr);
 void wit_dylib_push_variant(void *cx, size_t ty, uint32_t discr);
-// If this function returns 0 then it means that `bytes`/`len` need to be pushed
+// If this function returns false then it means that `bytes`/`len` need to be pushed
 // one-by-one. If a true value is returned then it's assume that `bytes` and
 // `len` is now owned by the engine.
 //
@@ -402,6 +412,15 @@ void wit_dylib_push_variant(void *cx, size_t ty, uint32_t discr);
 // it onto the list which is then at the top of the stack.
 bool wit_dylib_push_list(void *cx, size_t ty, uint8_t *bytes, size_t len);
 void wit_dylib_list_append(void *cx, size_t ty);
+
+// Pushing maps works mostly the same as pushing lists, with two differences:
+//
+// - There's no "fast-path" for pushing all the elements in one call
+//
+// - Each appended element consists of two values: the key and the value the key
+//   maps to.  The key is pushed first (meaning it should be popped last).
+bool wit_dylib_push_map(void *cx, size_t ty, size_t len);
+void wit_dylib_map_append(void *cx, size_t ty);
 
 uint8_t wit_dylib_pop_u8(void *cx);
 uint16_t wit_dylib_pop_u16(void *cx);
@@ -455,12 +474,22 @@ void wit_dylib_pop_tuple(void *cx, size_t ty);
 // means that the data for this list is not in the canonical ABI format. That
 // means that it's required to translate elements one-by-one. In this situation
 // the list is popped from the stack and an iterator over the list is pushed
-// to the stack.  Calls to `wit_dylib_pop_iter_next` are used to then extract
+// to the stack.  Calls to `wit_dylib_pop_list_iter_next` are used to then extract
 // a single element from the iterator and push it onto the stack. Once
-// translation of the list is finished `wit_dylib_pop_iter` will be used to
+// translation of the list is finished `wit_dylib_pop_list_iter` will be used to
 // remove the iterator from the stack.
 size_t wit_dylib_pop_list(void *cx, size_t ty, void **ptr);
-void wit_dylib_pop_iter_next(void *cx, size_t ty);
-void wit_dylib_pop_iter(void *cx, size_t ty);
+void wit_dylib_pop_list_iter_next(void *cx, size_t ty);
+void wit_dylib_pop_list_iter(void *cx, size_t ty);
+
+// Popping maps works mostly the same as popping lists, with two differences:
+//
+// - There's no "fast-path" for popping all the elements in one call
+//
+// - Each lowered element consists of two values: the key and the value the key
+//   maps to.  The key should be pushed last (and will be popped first).
+void wit_dylib_pop_map(void *cx, size_t ty);
+void wit_dylib_pop_map_iter_next(void *cx, size_t ty);
+void wit_dylib_pop_map_iter(void *cx, size_t ty);
 
 #endif

@@ -1,10 +1,11 @@
 use crate::{
-    Enum, Flags, ImportFunction, List, Own, Resource, Type, Val, Variant, Wit, WitOption, WitResult,
+    Enum, Flags, ImportFunction, Key, List, Map, Own, Resource, Type, Val, Variant, Wit, WitOption,
+    WitResult,
 };
 use rand::distr::{SampleString, StandardUniform};
 use rand::rngs::SmallRng;
 use rand::{RngExt, SeedableRng};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::mem;
 
 const MAX_SIZE: usize = 1 << 20;
@@ -70,6 +71,7 @@ impl Generator {
                     Val::GenericList(self.generic_list(t))
                 }
             }
+            Type::Map(t) => Val::Map(self.map(t)),
 
             Type::Own(ty) => Val::Own(self.own(ty)),
             Type::Borrow(_) => unimplemented!("should be handled at caller"),
@@ -78,6 +80,23 @@ impl Generator {
             Type::Stream(_) => todo!(),
             Type::Future(_) => todo!(),
             Type::FixedLengthList(_) => todo!(),
+        }
+    }
+
+    pub fn generate_key(&mut self, ty: Type) -> Key {
+        match ty {
+            Type::U8 => Key::U8(self.primitive()),
+            Type::U16 => Key::U16(self.primitive()),
+            Type::U32 => Key::U32(self.primitive()),
+            Type::U64 => Key::U64(self.primitive()),
+            Type::S8 => Key::S8(self.primitive()),
+            Type::S16 => Key::S16(self.primitive()),
+            Type::S32 => Key::S32(self.primitive()),
+            Type::S64 => Key::S64(self.primitive()),
+            Type::Bool => Key::Bool(self.primitive()),
+            Type::Char => Key::Char(self.primitive()),
+            Type::String => Key::String(self.string()),
+            _ => unimplemented!("unsupported map key type"),
         }
     }
 
@@ -161,6 +180,17 @@ impl Generator {
         let mut result = Vec::new();
         while self.remaining > 0 && self.rng.random_ratio(9, 10) {
             result.push(self.generate(ty.ty()));
+        }
+        result
+    }
+
+    fn map(&mut self, ty: Map) -> BTreeMap<Key, Val> {
+        let mut result = BTreeMap::new();
+        while self.remaining > 0 && self.rng.random_ratio(9, 10) {
+            result.insert(
+                self.generate_key(ty.key_type()),
+                self.generate(ty.value_type()),
+            );
         }
         result
     }

@@ -4,7 +4,9 @@ use std::collections::HashMap;
 use std::slice;
 use wasm_encoder::{BlockType, Function, InstructionSink, MemArg, ValType};
 use wit_parser::abi::{AbiVariant, FlatTypes, WasmSignature, WasmType};
-use wit_parser::{FlagsRepr, Handle, Int, Resolve, Type, TypeDefKind, TypeId};
+use wit_parser::{
+    Alignment, ArchitectureSize, FlagsRepr, Handle, Int, Resolve, Type, TypeDefKind, TypeId,
+};
 
 macro_rules! intrinsics {
     ($(
@@ -67,8 +69,12 @@ intrinsics! {
     pop_string : [ValType::I32; 2] -> [ValType::I32] = "wit_dylib_pop_string",
 
     pop_list : [ValType::I32; 3] -> [ValType::I32] = "wit_dylib_pop_list",
-    pop_iter_next : [ValType::I32; 2] -> [] = "wit_dylib_pop_iter_next",
-    pop_iter : [ValType::I32; 2] -> [] = "wit_dylib_pop_iter",
+    pop_list_iter_next : [ValType::I32; 2] -> [] = "wit_dylib_pop_list_iter_next",
+    pop_list_iter : [ValType::I32; 2] -> [] = "wit_dylib_pop_list_iter",
+
+    pop_map : [ValType::I32; 2] -> [ValType::I32] = "wit_dylib_pop_map",
+    pop_map_iter_next : [ValType::I32; 2] -> [] = "wit_dylib_pop_map_iter_next",
+    pop_map_iter : [ValType::I32; 2] -> [] = "wit_dylib_pop_map_iter",
 
     push_bool : [ValType::I32; 2] -> [] = "wit_dylib_push_bool",
     push_char : [ValType::I32; 2] -> [] = "wit_dylib_push_char",
@@ -96,6 +102,14 @@ intrinsics! {
     push_result : [ValType::I32; 3] -> [] = "wit_dylib_push_result",
     push_list : [ValType::I32; 4] -> [ValType::I32] = "wit_dylib_push_list",
     list_append : [ValType::I32; 2] -> [] = "wit_dylib_list_append",
+    push_map : [ValType::I32; 3] -> [] = "wit_dylib_push_map",
+    map_append : [ValType::I32; 2] -> [] = "wit_dylib_map_append",
+}
+
+struct ElementInfo {
+    increments: Vec<usize>,
+    size: usize,
+    align: usize,
 }
 
 pub fn import(
@@ -967,11 +981,8 @@ impl<'a> FunctionCompiler<'a> {
                     unreachable!()
                 };
                 let pop_list = self.adapter.intrinsics().pop_list;
-                let pop_iter_next = self.adapter.intrinsics().pop_iter_next;
-                let pop_iter = self.adapter.intrinsics().pop_iter;
-                let cabi_realloc = self.adapter.intrinsics().cabi_realloc;
-                let size = self.adapter.sizes.size(t).size_wasm32();
-                let align = self.adapter.sizes.align(t).align_wasm32();
+                let pop_iter_next = self.adapter.intrinsics().pop_list_iter_next;
+                let pop_iter = self.adapter.intrinsics().pop_list_iter;
                 let (dst_ptr, dst_len) = dest.split_ptr_len();
 
                 // Load the list ptr/len into locals
@@ -993,74 +1004,9 @@ impl<'a> FunctionCompiler<'a> {
                 // required to lower element-by-element.
                 self.ins().local_get(l_ptr.idx);
                 self.ins().i32_eqz();
+
                 self.ins().if_(BlockType::Empty);
-                {
-                    self.ins().i32_const(0);
-                    let l_index = self.local_set_new_tmp(ValType::I32);
-
-                    self.ins().i32_const(0);
-                    self.ins().i32_const(0);
-                    self.ins().i32_const(align.try_into().unwrap());
-                    self.ins().local_get(l_len.idx);
-                    self.ins().i32_const(size.try_into().unwrap());
-                    self.ins().i32_mul();
-                    let l_byte_size = self.local_tee_new_tmp(ValType::I32);
-                    self.ins().call(cabi_realloc);
-                    let l_elem_addr = self.local_tee_new_tmp(ValType::I32);
-                    self.ins().local_set(l_ptr.idx);
-
-                    // Loop over each element of the list.
-                    self.ins().loop_(BlockType::Empty);
-                    {
-                        // Entry loop condition, `l_index != l_len`
-                        self.ins().local_get(l_index.idx);
-                        self.ins().local_get(l_len.idx);
-                        self.ins().i32_ne();
-                        self.ins().if_(BlockType::Empty);
-                        {
-                            // Get the `l_index`th element from `l_list`
-                            self.local_get_ctx();
-                            self.ins().i32_const(list_index.try_into().unwrap());
-                            self.ins().call(pop_iter_next);
-
-                            // Lower the list element
-                            self.lower(
-                                *t,
-                                &AbiLoc::Memory(Memory {
-                                    addr: TempLocal::new(l_elem_addr.idx, ValType::I32),
-                                    offset: 0,
-                                }),
-                            );
-
-                            // Increment the `l_index` counter
-                            self.ins().local_get(l_index.idx);
-                            self.ins().i32_const(1);
-                            self.ins().i32_add();
-                            self.ins().local_set(l_index.idx);
-
-                            // Increment the `l_elem_addr` counter
-                            self.ins().local_get(l_elem_addr.idx);
-                            self.ins().i32_const(size.try_into().unwrap());
-                            self.ins().i32_add();
-                            self.ins().local_set(l_elem_addr.idx);
-
-                            // Continue the loop.
-                            self.ins().br(1);
-                        }
-                        self.ins().end();
-                    }
-                    self.ins().end();
-
-                    self.defer_deallocate_lowered_list(&l_ptr, &l_byte_size, align);
-
-                    self.local_get_ctx();
-                    self.ins().i32_const(list_index.try_into().unwrap());
-                    self.ins().call(pop_iter);
-
-                    self.free_temp_local(l_index);
-                    self.free_temp_local(l_elem_addr);
-                    self.free_temp_local(l_byte_size);
-                }
+                self.lower_list_or_map(list_index, &[*t], &l_ptr, &l_len, pop_iter_next, pop_iter);
                 self.ins().end();
 
                 self.ins().local_get(l_ptr.idx);
@@ -1112,14 +1058,153 @@ impl<'a> FunctionCompiler<'a> {
             }
 
             TypeDefKind::Map(k, v) => {
-                let _ = (k, v);
-                todo!("map")
+                let metadata::Type::Map(map_index) = ty else {
+                    unreachable!()
+                };
+                let pop_map = self.adapter.intrinsics().pop_map;
+                let pop_map_iter_next = self.adapter.intrinsics().pop_map_iter_next;
+                let pop_map_iter = self.adapter.intrinsics().pop_map_iter;
+                let (dst_ptr, dst_len) = dest.split_ptr_len();
+
+                self.local_get_ctx();
+                self.ins().i32_const(map_index.try_into().unwrap());
+                self.ins().call(pop_map);
+                let l_len = self.local_set_new_tmp(ValType::I32);
+                let l_ptr = self.gen_temp_local(ValType::I32);
+
+                self.lower_list_or_map(
+                    map_index,
+                    &[*k, *v],
+                    &l_ptr,
+                    &l_len,
+                    pop_map_iter_next,
+                    pop_map_iter,
+                );
+
+                self.ins().local_get(l_ptr.idx);
+                self.store_scalar_from_top_of_stack(&dst_ptr, ValType::I32, 2);
+                self.ins().local_get(l_len.idx);
+                self.store_scalar_from_top_of_stack(&dst_len, ValType::I32, 2);
+
+                self.free_temp_local(l_len);
+                self.free_temp_local(l_ptr);
             }
 
             // Should not be possible to hit during lowering.
             TypeDefKind::Resource => unreachable!(),
             TypeDefKind::Unknown => unreachable!(),
         }
+    }
+
+    fn element_info(&self, element_types: &[Type]) -> ElementInfo {
+        let mut increments = Vec::with_capacity(element_types.len());
+        let mut size = ArchitectureSize::default();
+        let mut align = Alignment::default();
+        let mut previous_size = None::<ArchitectureSize>;
+        for element_type in element_types {
+            let element_align = self.adapter.sizes.align(element_type);
+            size = wit_parser::align_to_arch(size, element_align);
+            if let Some(previous_size) = previous_size {
+                increments.push(size.size_wasm32() - previous_size.size_wasm32());
+            }
+            previous_size = Some(size);
+            size += self.adapter.sizes.size(element_type);
+            align = element_align.max(align);
+        }
+        size = wit_parser::align_to_arch(size, align);
+        if let Some(previous_size) = previous_size {
+            increments.push(size.size_wasm32() - previous_size.size_wasm32());
+        }
+        ElementInfo {
+            increments,
+            size: size.size_wasm32(),
+            align: align.align_wasm32(),
+        }
+    }
+
+    fn lower_list_or_map(
+        &mut self,
+        type_index: usize,
+        element_types: &[Type],
+        l_ptr: &TempLocal,
+        l_len: &TempLocal,
+        pop_iter_next: u32,
+        pop_iter: u32,
+    ) {
+        let cabi_realloc = self.adapter.intrinsics().cabi_realloc;
+        let ElementInfo {
+            increments,
+            size,
+            align,
+        } = self.element_info(element_types);
+
+        self.ins().i32_const(0);
+        let l_index = self.local_set_new_tmp(ValType::I32);
+
+        self.ins().i32_const(0);
+        self.ins().i32_const(0);
+        self.ins().i32_const(align.try_into().unwrap());
+        self.ins().local_get(l_len.idx);
+        self.ins().i32_const(size.try_into().unwrap());
+        self.ins().i32_mul();
+        let l_byte_size = self.local_tee_new_tmp(ValType::I32);
+        self.ins().call(cabi_realloc);
+        let l_elem_addr = self.local_tee_new_tmp(ValType::I32);
+        self.ins().local_set(l_ptr.idx);
+
+        // Loop over each element of the list or map.
+        self.ins().loop_(BlockType::Empty);
+        {
+            // Entry loop condition, `l_index != l_len`
+            self.ins().local_get(l_index.idx);
+            self.ins().local_get(l_len.idx);
+            self.ins().i32_ne();
+            self.ins().if_(BlockType::Empty);
+            {
+                // Get the `l_index`th elements from `l_list`
+                self.local_get_ctx();
+                self.ins().i32_const(type_index.try_into().unwrap());
+                self.ins().call(pop_iter_next);
+
+                // Lower the list elements
+                for (&ty, &increment) in element_types.iter().zip(&increments) {
+                    self.lower(
+                        ty,
+                        &AbiLoc::Memory(Memory {
+                            addr: TempLocal::new(l_elem_addr.idx, ValType::I32),
+                            offset: 0,
+                        }),
+                    );
+
+                    // Increment the `l_elem_addr` counter
+                    self.ins().local_get(l_elem_addr.idx);
+                    self.ins().i32_const(increment.try_into().unwrap());
+                    self.ins().i32_add();
+                    self.ins().local_set(l_elem_addr.idx);
+                }
+
+                // Increment the `l_index` counter
+                self.ins().local_get(l_index.idx);
+                self.ins().i32_const(1);
+                self.ins().i32_add();
+                self.ins().local_set(l_index.idx);
+
+                // Continue the loop.
+                self.ins().br(1);
+            }
+            self.ins().end();
+        }
+        self.ins().end();
+
+        self.defer_deallocate_lowered_list(&l_ptr, &l_byte_size, align);
+
+        self.local_get_ctx();
+        self.ins().i32_const(type_index.try_into().unwrap());
+        self.ins().call(pop_iter);
+
+        self.free_temp_local(l_index);
+        self.free_temp_local(l_elem_addr);
+        self.free_temp_local(l_byte_size);
     }
 
     fn pop_record<'b>(
@@ -1490,18 +1575,14 @@ impl<'a> FunctionCompiler<'a> {
                 let metadata::Type::List(list_index) = ty else {
                     unreachable!()
                 };
-                let elem_size = self.adapter.sizes.size(t).size_wasm32();
-                let elem_align = self.adapter.sizes.align(t).align_wasm32();
-                let list_index = i32::try_from(list_index).unwrap();
                 let push_list = i.push_list;
                 let list_append = i.list_append;
-                let dealloc_bytes = i.dealloc_bytes;
                 let (src_ptr, src_len) = src.split_ptr_len();
 
                 // Give the interpreter to lift the list exactly as-is and take
                 // ownership of the allocation.
                 self.local_get_ctx();
-                self.ins().i32_const(list_index);
+                self.ins().i32_const(list_index.try_into().unwrap());
                 self.load_abi_loc(&src_ptr, ValType::I32, 2, false);
                 let l_ptr = self.local_tee_new_tmp(ValType::I32);
                 self.load_abi_loc(&src_len, ValType::I32, 2, false);
@@ -1512,71 +1593,7 @@ impl<'a> FunctionCompiler<'a> {
                 // lifted manually element-by-element.
                 self.ins().i32_eqz();
                 self.ins().if_(BlockType::Empty);
-                {
-                    // Prep deallocation of the list after the loop by saving
-                    // off the pointer/byte size.
-                    self.ins().local_get(l_len.idx);
-                    self.ins().i32_const(elem_size.try_into().unwrap());
-                    self.ins().i32_mul();
-                    let l_byte_size = self.local_set_new_tmp(ValType::I32);
-                    self.ins().local_get(l_ptr.idx);
-                    let l_ptr_to_free = self.local_set_new_tmp(ValType::I32);
-
-                    // Using `l_len` as the loop counter, element-by-element
-                    // lift from the list and push into the list.
-                    self.ins().loop_(BlockType::Empty);
-                    {
-                        self.ins().local_get(l_len.idx);
-                        self.ins().if_(BlockType::Empty);
-                        {
-                            // Lift this list element from memory into a local
-                            let src = AbiLoc::Memory(Memory {
-                                addr: TempLocal::new(l_ptr.idx, l_ptr.ty),
-                                offset: 0,
-                            });
-                            self.lift(&src, *t);
-
-                            // Push the lifted element onto the list. Note that
-                            // this takes and returns the list.
-                            self.local_get_ctx();
-                            self.ins().i32_const(list_index);
-                            self.ins().call(list_append);
-
-                            // decrement the length counter
-                            self.ins().local_get(l_len.idx);
-                            self.ins().i32_const(1);
-                            self.ins().i32_sub();
-                            self.ins().local_set(l_len.idx);
-
-                            // increment the pointer
-                            self.ins().local_get(l_ptr.idx);
-                            self.ins().i32_const(elem_size.try_into().unwrap());
-                            self.ins().i32_add();
-                            self.ins().local_set(l_ptr.idx);
-
-                            self.ins().br(1);
-                        }
-                        self.ins().end();
-                    }
-                    self.ins().end();
-
-                    // The canonical ABI representation of this list is no
-                    // longer needed, so discard it.
-                    self.ins().local_get(l_byte_size.idx);
-                    self.ins().if_(BlockType::Empty);
-                    {
-                        self.local_get_ctx();
-                        self.ins().local_get(l_ptr_to_free.idx);
-                        self.ins().local_get(l_byte_size.idx);
-                        self.ins().i32_const(elem_align.try_into().unwrap());
-                        self.ins().i32_const(0);
-                        self.ins().call(dealloc_bytes);
-                    }
-                    self.ins().end();
-
-                    self.free_temp_local(l_byte_size);
-                    self.free_temp_local(l_ptr_to_free);
-                }
+                self.lift_list_or_map(list_index, &[*t], &l_ptr, &l_len, list_append);
                 self.ins().end();
 
                 self.free_temp_local(l_ptr);
@@ -1584,14 +1601,112 @@ impl<'a> FunctionCompiler<'a> {
             }
 
             TypeDefKind::Map(k, v) => {
-                let _ = (k, v);
-                todo!("map")
+                let metadata::Type::Map(map_index) = ty else {
+                    unreachable!()
+                };
+                let push_map = i.push_map;
+                let map_append = i.map_append;
+                let (src_ptr, src_len) = src.split_ptr_len();
+
+                self.local_get_ctx();
+                self.ins().i32_const(map_index.try_into().unwrap());
+                self.load_abi_loc(&src_ptr, ValType::I32, 2, false);
+                let l_ptr = self.local_set_new_tmp(ValType::I32);
+                self.load_abi_loc(&src_len, ValType::I32, 2, false);
+                let l_len = self.local_tee_new_tmp(ValType::I32);
+                self.ins().call(push_map);
+
+                self.lift_list_or_map(map_index, &[*k, *v], &l_ptr, &l_len, map_append);
+
+                self.free_temp_local(l_ptr);
+                self.free_temp_local(l_len);
             }
 
             // Should not be possible to hit during lifting.
             TypeDefKind::Resource => unreachable!(),
             TypeDefKind::Unknown => unreachable!(),
         }
+    }
+
+    fn lift_list_or_map(
+        &mut self,
+        type_index: usize,
+        element_types: &[Type],
+        l_ptr: &TempLocal,
+        l_len: &TempLocal,
+        list_append: u32,
+    ) {
+        let dealloc_bytes = self.adapter.intrinsics().dealloc_bytes;
+        let ElementInfo {
+            increments,
+            size,
+            align,
+        } = self.element_info(element_types);
+
+        // Prep deallocation of the list or map after the loop by saving off the
+        // pointer/byte size.
+        self.ins().local_get(l_len.idx);
+        self.ins().i32_const(size.try_into().unwrap());
+        self.ins().i32_mul();
+        let l_byte_size = self.local_set_new_tmp(ValType::I32);
+        self.ins().local_get(l_ptr.idx);
+        let l_ptr_to_free = self.local_set_new_tmp(ValType::I32);
+
+        // Using `l_len` as the loop counter, element-by-element lift from the
+        // list or map and push into it.
+        self.ins().loop_(BlockType::Empty);
+        {
+            self.ins().local_get(l_len.idx);
+            self.ins().if_(BlockType::Empty);
+            {
+                for (&ty, &increment) in element_types.iter().zip(&increments) {
+                    // Lift this list or map element from memory into a local
+                    let src = AbiLoc::Memory(Memory {
+                        addr: TempLocal::new(l_ptr.idx, l_ptr.ty),
+                        offset: 0,
+                    });
+                    self.lift(&src, ty);
+
+                    // increment the pointer
+                    self.ins().local_get(l_ptr.idx);
+                    self.ins().i32_const(increment.try_into().unwrap());
+                    self.ins().i32_add();
+                    self.ins().local_set(l_ptr.idx);
+                }
+
+                // Push the lifted elements onto the list or map.
+                self.local_get_ctx();
+                self.ins().i32_const(type_index.try_into().unwrap());
+                self.ins().call(list_append);
+
+                // decrement the length counter
+                self.ins().local_get(l_len.idx);
+                self.ins().i32_const(1);
+                self.ins().i32_sub();
+                self.ins().local_set(l_len.idx);
+
+                self.ins().br(1);
+            }
+            self.ins().end();
+        }
+        self.ins().end();
+
+        // The canonical ABI representation of this list or map is no longer
+        // needed, so discard it.
+        self.ins().local_get(l_byte_size.idx);
+        self.ins().if_(BlockType::Empty);
+        {
+            self.local_get_ctx();
+            self.ins().local_get(l_ptr_to_free.idx);
+            self.ins().local_get(l_byte_size.idx);
+            self.ins().i32_const(align.try_into().unwrap());
+            self.ins().i32_const(0);
+            self.ins().call(dealloc_bytes);
+        }
+        self.ins().end();
+
+        self.free_temp_local(l_byte_size);
+        self.free_temp_local(l_ptr_to_free);
     }
 
     fn push_record<'b>(

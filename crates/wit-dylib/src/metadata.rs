@@ -3,7 +3,7 @@ use std::mem;
 use wasm_encoder::{Function, MemArg};
 use wit_parser::TypeId;
 
-const VERSION: u32 = 2;
+const VERSION: u32 = 3;
 
 #[derive(Default)]
 pub struct Metadata {
@@ -18,6 +18,7 @@ pub struct Metadata {
     pub options: Vec<WitOption>,
     pub results: Vec<WitResult>,
     pub lists: Vec<List>,
+    pub maps: Vec<Map>,
     pub fixed_length_lists: Vec<FixedLengthList>,
     pub futures: Vec<Future>,
     pub streams: Vec<Stream>,
@@ -117,6 +118,14 @@ pub struct FixedLengthList {
     pub ty: Type,
 }
 
+pub struct Map {
+    pub id: TypeId,
+    pub interface: Option<String>,
+    pub name: Option<String>,
+    pub key_type: Type,
+    pub value_type: Type,
+}
+
 pub struct Future {
     pub id: TypeId,
     pub interface: Option<String>,
@@ -187,6 +196,7 @@ pub enum Type {
     Result(usize),
     List(usize),
     FixedLengthList(usize),
+    Map(usize),
     Future(usize),
     Stream(usize),
     Alias(usize),
@@ -242,6 +252,7 @@ impl Metadata {
         let options = encoder.encode_list(&self.options, Encoder::encode_options);
         let results = encoder.encode_list(&self.results, Encoder::encode_results);
         let lists = encoder.encode_list(&self.lists, Encoder::encode_lists);
+        let maps = encoder.encode_list(&self.maps, Encoder::encode_maps);
         let fixed_length_lists =
             encoder.encode_list(&self.fixed_length_lists, Encoder::encode_fixed_length_lists);
         let futures = encoder.encode_list(&self.futures, Encoder::encode_futures);
@@ -263,6 +274,7 @@ impl Metadata {
             options,
             results,
             lists,
+            maps,
             fixed_length_lists,
             futures,
             streams,
@@ -538,6 +550,22 @@ impl Encoder {
         }
     }
 
+    fn encode_maps(&mut self, maps: &[Map]) {
+        for map in maps {
+            let Map {
+                id: _,
+                interface,
+                name,
+                key_type,
+                value_type,
+            } = map;
+            self.opt_string_ptr(interface.as_deref());
+            self.opt_string_ptr(name.as_deref());
+            self.ty(key_type);
+            self.ty(value_type);
+        }
+    }
+
     fn encode_fixed_length_lists(&mut self, lists: &[FixedLengthList]) {
         for list in lists {
             let FixedLengthList {
@@ -758,10 +786,11 @@ impl Encoder {
             Type::Option(i) => index(21, i),
             Type::Result(i) => index(22, i),
             Type::List(i) => index(23, i),
-            Type::FixedLengthList(i) => index(24, i),
-            Type::Future(i) => index(25, i),
-            Type::Stream(i) => index(26, i),
-            Type::Alias(i) => index(27, i),
+            Type::Map(i) => index(24, i),
+            Type::FixedLengthList(i) => index(25, i),
+            Type::Future(i) => index(26, i),
+            Type::Stream(i) => index(27, i),
+            Type::Alias(i) => index(28, i),
         };
         self.put_u32(val);
     }
