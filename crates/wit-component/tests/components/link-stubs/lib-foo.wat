@@ -1,3 +1,5 @@
+;;! stub-missing-functions = true
+
 (module
   (@dylink.0
     (mem-info (memory 0 4))

@@ -1,0 +1,11 @@
+// RUN: component embed % --dummy | component new --return-call-ref | validate
+
+package foo:foo;
+
+// Note that both the import and export here require a `memory`, meaning that
+// the import can only be lowered after the core module is instantiated, which
+// in turn means that a shim is generated for it.
+world module {
+  import bar: func(s: string) -> u32;
+  export foo: func(s: string) -> u32;
+}

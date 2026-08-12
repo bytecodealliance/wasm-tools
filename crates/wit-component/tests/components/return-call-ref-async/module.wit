@@ -1,0 +1,10 @@
+package foo:foo;
+
+interface bar {
+  foo: async func(s: string) -> string;
+}
+
+world module {
+  export bar;
+  export foo: async func(s: string) -> string;
+}

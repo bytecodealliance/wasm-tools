@@ -1171,18 +1171,21 @@ impl<'a> EncodingState<'a> {
         //   imported functions have been lowered.
 
         let mut types = TypeSection::new();
-        let mut tables = TableSection::new();
-        let mut functions = FunctionSection::new();
-        let mut exports = ExportSection::new();
-        let mut code = CodeSection::new();
+        let mut shim_globals = GlobalSection::new();
+        let mut shim_tables = TableSection::new();
+        let mut shim_functions = FunctionSection::new();
+        let mut shim_exports = ExportSection::new();
+        let mut shim_code = CodeSection::new();
         let mut sigs = IndexMap::new();
-        let mut imports_section = ImportSection::new();
-        let mut elements = ElementSection::new();
+        let mut trapping_stubs = IndexMap::new();
+        let mut fixup_imports = ImportSection::new();
+        let mut fixup_elements = ElementSection::new();
         let mut func_indexes = Vec::new();
         let mut func_names = NameMap::new();
 
-        for (i, shim) in ret.shims.values().enumerate() {
-            let i = i as u32;
+        let mut fixup_start = wasm_encoder::Function::new(std::iter::empty());
+
+        for shim in ret.shims.values() {
             let type_index = *sigs.entry(&shim.sig).or_insert_with(|| {
                 let index = types.len();
                 types.ty().function(
@@ -1192,62 +1195,162 @@ impl<'a> EncodingState<'a> {
                 index
             });
 
-            functions.function(type_index);
-            Self::encode_shim_function(type_index, i, &mut code, shim.sig.params.len() as u32);
-            exports.export(&shim.name, ExportKind::Func, i);
+            let trapping_stub = if self.info.encoder.shim_return_call_ref {
+                // Generate a stub which is `unreachable` for the initializer of
+                // this global. This can be deduplicated by type signature.
+                Some(*trapping_stubs.entry(type_index).or_insert_with(|| {
+                    let mut stub = wasm_encoder::Function::new(std::iter::empty());
+                    stub.instructions().unreachable().end();
+                    let index = shim_code.len();
+                    shim_functions.function(type_index);
+                    shim_code.function(&stub);
+                    func_names.append(index, "trap stub before initialization");
+                    index
+                }))
+            } else {
+                None
+            };
 
-            imports_section.import("", &shim.name, EntityType::Function(type_index));
-            func_indexes.push(i);
-            func_names.append(i, &shim.debug_name);
+            let func_index = shim_functions.len();
+            shim_functions.function(type_index);
+            let mut func = wasm_encoder::Function::new(std::iter::empty());
+            for i in 0..shim.sig.params.len() {
+                func.instructions().local_get(i as u32);
+            }
+            if self.info.encoder.shim_return_call_ref {
+                // Generate a global-per-function which gets exported from the
+                // module and then filled in later.
+                let global = shim_globals.len();
+                let ty = GlobalType {
+                    val_type: RefType {
+                        nullable: false,
+                        heap_type: HeapType::Concrete(type_index),
+                    }
+                    .into(),
+                    mutable: true,
+                    shared: false,
+                };
+                let global_name = format!("g{}", shim.name);
+                shim_globals.global(ty, &ConstExpr::ref_func(trapping_stub.unwrap()));
+                shim_exports.export(&global_name, ExportKind::Global, global);
+
+                func.instructions().global_get(global);
+                func.instructions().return_call_ref(type_index);
+
+                fixup_imports.import("shim", &global_name, ty);
+                fixup_start
+                    .instructions()
+                    .ref_func(fixup_imports.len() / 2)
+                    .global_set(global);
+            } else {
+                func.instructions().i32_const(func_index as i32);
+                func.instructions().call_indirect(0, type_index);
+            }
+            func.instructions().end();
+            shim_code.function(&func);
+            shim_exports.export(&shim.name, ExportKind::Func, func_index);
+
+            fixup_imports.import("", &shim.name, EntityType::Function(type_index));
+            func_indexes.push(func_index);
+            func_names.append(func_index, &shim.debug_name);
         }
-        let mut names = NameSection::new();
-        names.module("wit-component:shim");
-        names.functions(&func_names);
+        let mut shim_names = NameSection::new();
+        shim_names.module("wit-component:shim");
+        shim_names.functions(&func_names);
 
-        let table_type = TableType {
-            element_type: RefType::FUNCREF,
-            minimum: ret.shims.len() as u64,
-            maximum: Some(ret.shims.len() as u64),
-            table64: false,
-            shared: false,
-        };
+        if !self.info.encoder.shim_return_call_ref {
+            let table_type = TableType {
+                element_type: RefType::FUNCREF,
+                minimum: ret.shims.len() as u64,
+                maximum: Some(ret.shims.len() as u64),
+                table64: false,
+                shared: false,
+            };
 
-        tables.table(table_type);
-
-        exports.export(INDIRECT_TABLE_NAME, ExportKind::Table, 0);
-        imports_section.import("", INDIRECT_TABLE_NAME, table_type);
-
-        elements.active(
-            None,
-            &ConstExpr::i32_const(0),
-            Elements::Functions(func_indexes.into()),
-        );
+            shim_tables.table(table_type);
+            shim_exports.export(INDIRECT_TABLE_NAME, ExportKind::Table, 0);
+            fixup_imports.import("", INDIRECT_TABLE_NAME, table_type);
+            fixup_elements.active(
+                None,
+                &ConstExpr::i32_const(0),
+                Elements::Functions(func_indexes.clone().into()),
+            );
+        }
 
         let mut shim = Module::new();
         shim.section(&types);
-        shim.section(&functions);
-        shim.section(&tables);
-        shim.section(&exports);
-        shim.section(&code);
+        if !shim_functions.is_empty() {
+            shim.section(&shim_functions);
+        }
+        if !shim_tables.is_empty() {
+            shim.section(&shim_tables);
+        }
+        if !shim_globals.is_empty() {
+            shim.section(&shim_globals);
+        }
+        if !shim_exports.is_empty() {
+            shim.section(&shim_exports);
+        }
+        if !shim_code.is_empty() {
+            shim.section(&shim_code);
+        }
         shim.section(&RawCustomSection(
             &crate::base_producers().raw_custom_section(),
         ));
         if self.info.encoder.debug_names {
-            shim.section(&names);
+            shim.section(&shim_names);
+        }
+
+        let mut fixup_functions = FunctionSection::new();
+        let mut fixup_code = CodeSection::new();
+
+        let fixup_start = if self.info.encoder.shim_return_call_ref {
+            let type_index = types.len();
+            types.ty().function([], []);
+            fixup_functions.function(type_index);
+            fixup_start.instructions().end();
+            fixup_code.function(&fixup_start);
+            Some(func_indexes.len() as u32)
+        } else {
+            None
+        };
+
+        if self.info.encoder.shim_return_call_ref {
+            fixup_elements.declared(Elements::Functions(
+                (0..func_indexes.len())
+                    .map(|i| i as u32)
+                    .collect::<Vec<_>>()
+                    .into(),
+            ));
         }
 
         let mut fixups = Module::default();
         fixups.section(&types);
-        fixups.section(&imports_section);
-        fixups.section(&elements);
+        if !fixup_imports.is_empty() {
+            fixups.section(&fixup_imports);
+        }
+        if !fixup_functions.is_empty() {
+            fixups.section(&fixup_functions);
+        }
+        if let Some(start) = fixup_start {
+            fixups.section(&StartSection {
+                function_index: start,
+            });
+        }
+        if !fixup_elements.is_empty() {
+            fixups.section(&fixup_elements);
+        }
+        if !fixup_code.is_empty() {
+            fixups.section(&fixup_code);
+        }
         fixups.section(&RawCustomSection(
             &crate::base_producers().raw_custom_section(),
         ));
 
         if self.info.encoder.debug_names {
-            let mut names = NameSection::new();
-            names.module("wit-component:fixups");
-            fixups.section(&names);
+            let mut fixup_names = NameSection::new();
+            fixup_names.module("wit-component:fixups");
+            fixups.section(&fixup_names);
         }
 
         let shim_module_index = self
@@ -1267,22 +1370,6 @@ impl<'a> EncodingState<'a> {
         return Ok(ret);
     }
 
-    fn encode_shim_function(
-        type_index: u32,
-        func_index: u32,
-        code: &mut CodeSection,
-        param_count: u32,
-    ) {
-        let mut func = wasm_encoder::Function::new(std::iter::empty());
-        for i in 0..param_count {
-            func.instructions().local_get(i);
-        }
-        func.instructions().i32_const(func_index as i32);
-        func.instructions().call_indirect(0, type_index);
-        func.instructions().end();
-        code.function(&func);
-    }
-
     fn encode_indirect_lowerings(&mut self, shims: &Shims<'_>) -> Result<()> {
         if shims.shims.is_empty() {
             return Ok(());
@@ -1292,17 +1379,18 @@ impl<'a> EncodingState<'a> {
             .shim_instance_index
             .expect("must have an instantiated shim");
 
-        let table_index = self.core_alias_export(
-            Some("shim table"),
-            shim_instance_index,
-            INDIRECT_TABLE_NAME,
-            ExportKind::Table,
-        );
-
         let resolve = &self.info.encoder.metadata.resolve;
 
         let mut exports = Vec::new();
-        exports.push((INDIRECT_TABLE_NAME, ExportKind::Table, table_index));
+        if !self.info.encoder.shim_return_call_ref {
+            let table_index = self.core_alias_export(
+                Some("shim table"),
+                shim_instance_index,
+                INDIRECT_TABLE_NAME,
+                ExportKind::Table,
+            );
+            exports.push((INDIRECT_TABLE_NAME, ExportKind::Table, table_index));
+        }
 
         for shim in shims.shims.values() {
             let core_func_index = match &shim.kind {
@@ -1519,10 +1607,17 @@ impl<'a> EncodingState<'a> {
         let instance_index = self
             .component
             .core_instantiate_exports(Some("fixup-args"), exports);
+        let mut instance_args = vec![("", ModuleArg::Instance(instance_index))];
+        if self.info.encoder.shim_return_call_ref {
+            let shim_instance_index = self
+                .shim_instance_index
+                .expect("must have an instantiated shim");
+            instance_args.push(("shim", ModuleArg::Instance(shim_instance_index)));
+        }
         self.component.core_instantiate(
             Some("fixup"),
             self.fixups_module_index.expect("must have fixup module"),
-            [("", ModuleArg::Instance(instance_index))],
+            instance_args,
         );
         Ok(())
     }
@@ -3303,6 +3398,7 @@ pub struct ComponentEncoder {
     merge_imports_based_on_semver: Option<bool>,
     pub(super) reject_legacy_names: bool,
     debug_names: bool,
+    shim_return_call_ref: bool,
 }
 
 impl ComponentEncoder {
@@ -3348,6 +3444,13 @@ impl ComponentEncoder {
     /// Sets whether or not to generate debug names in the output component.
     pub fn debug_names(&mut self, debug_names: bool) -> &mut Self {
         self.debug_names = debug_names;
+        self
+    }
+
+    /// Configures whether the shim module, if needed, will use
+    /// `return_call_ref` as opposed to the default `call_indirect`.
+    pub fn shim_return_call_ref(&mut self, enable: bool) -> &mut Self {
+        self.shim_return_call_ref = enable;
         self
     }
 

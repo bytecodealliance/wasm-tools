@@ -68,6 +68,9 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
 
         log::debug!("... componentizing the world into a binary component");
         let wasm = wit_component::ComponentEncoder::default()
+            .shim_return_call_ref(u.arbitrary()?)
+            .debug_names(u.arbitrary()?)
+            .realloc_via_memory_grow(u.arbitrary()?)
             .module(&dummy)
             .unwrap()
             .encode()

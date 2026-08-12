@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, bail};
 use libtest_mimic::{Arguments, Trial};
 use pretty_assertions::assert_eq;
+use serde_derive::Deserialize;
 use std::{borrow::Cow, fs, path::Path};
 use wasm_encoder::{Encode, Section};
 use wasm_metadata::{Metadata, Payload};
@@ -31,12 +32,24 @@ use wit_parser::{PackageId, Resolve, UnresolvedPackageGroup};
 ///   `, e.g. `;; module name: wasi:cli/environment@0.2.0`.
 /// * [optional] `adapt-$name.wit` - required for each `*.wat` adapter to
 ///   describe imports/exports of the adapter.
-/// * [optional] `stub-missing-functions` - if linking libraries and this file
-///   exists, `Linker::stub_missing_functions` will be set to `true`.  The
-///   contents of the file are ignored.
-/// * [optional] `use-built-in-libdl` - if linking libraries and this file
-///   exists, `Linker::use_built_in_libdl` will be set to `true`.  The contents
-///   of the file are ignored.
+///
+/// Additionally each test may specify configuration options which tune how the
+/// component is encoded. Configuration is specified with comments at the top of
+/// any one of a test's input `*.wat` files where each configuration line is
+/// prefixed with `;;!`. The contents of all such lines are concatenated
+/// together, after stripping the `;;!` prefix, and the result is deserialized
+/// as TOML. For example:
+///
+/// ```text
+/// ;;! return-call-ref = true
+///
+/// (module ...)
+/// ```
+///
+/// Configuration lines may be interleaved with other leading comments, such as
+/// the `;; module name: ...` directive above, but they must all appear before
+/// the first non-comment line of the file. At most one input file per test may
+/// specify configuration.
 ///
 /// And the output files are one of the following:
 ///
@@ -77,6 +90,8 @@ fn main() -> Result<()> {
 
 fn run_test(path: &Path) -> Result<()> {
     let test_case = path.file_stem().unwrap().to_str().unwrap();
+    let config = read_config(path)
+        .with_context(|| format!("failed to read test configuration in {path:?}"))?;
     let mut resolve = Resolve::default();
     let (pkg_id, _) = resolve.push_dir(&path)?;
 
@@ -87,11 +102,20 @@ fn run_test(path: &Path) -> Result<()> {
     let module_path = path.join("module.wat");
     let adapters = glob::glob(path.join("adapt-*.wat").to_str().unwrap())?;
     let result = if module_path.is_file() {
+        if config.stub_missing_functions || config.use_built_in_libdl {
+            bail!(
+                "the `stub-missing-functions` and `use-built-in-libdl` options \
+                 are only supported for tests which link libraries"
+            );
+        }
         let mut encoder = ComponentEncoder::default();
         (|| -> Result<_> {
             let module = read_core_module(&module_path, &resolve, pkg_id)
                 .with_context(|| format!("failed to read core module at {module_path:?}"))?;
-            encoder.debug_names(true).module(&module)?;
+            encoder
+                .debug_names(true)
+                .shim_return_call_ref(config.return_call_ref)
+                .module(&module)?;
             for adapter in adapters {
                 let (name, wasm) = read_name_and_module("adapt-", &adapter?, &resolve, pkg_id)?;
                 encoder.adapter(&name, &wasm)?;
@@ -111,15 +135,13 @@ fn run_test(path: &Path) -> Result<()> {
         libs.sort_by(|(_, a, _), (_, b, _)| a.cmp(b));
 
         let mut linker = Linker::default();
-        linker.encoder().validate(false).debug_names(true);
-
-        if path.join("stub-missing-functions").is_file() {
-            linker.stub_missing_functions(true);
-        }
-
-        if path.join("use-built-in-libdl").is_file() {
-            linker.use_built_in_libdl(true);
-        }
+        linker
+            .stub_missing_functions(config.stub_missing_functions)
+            .use_built_in_libdl(config.use_built_in_libdl)
+            .encoder()
+            .validate(false)
+            .debug_names(true)
+            .shim_return_call_ref(config.return_call_ref);
 
         (|| -> Result<_> {
             for (prefix, path, dl_openable) in libs {
@@ -214,6 +236,71 @@ fn run_test(path: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Configuration for a test which tunes how its component is encoded.
+#[derive(Default, Deserialize)]
+#[serde(default, deny_unknown_fields, rename_all = "kebab-case")]
+struct Config {
+    stub_missing_functions: bool,
+    use_built_in_libdl: bool,
+    return_call_ref: bool,
+}
+
+/// Reads the configuration for the test located at `path`.
+///
+/// All input `*.wat` files for this test are searched for configuration and at
+/// most one of them may specify it. If none do then a default configuration is
+/// returned.
+fn read_config(path: &Path) -> Result<Config> {
+    let mut files = glob::glob(path.join("*.wat").to_str().unwrap())?
+        .map(|p| Ok(p?))
+        .collect::<Result<Vec<_>>>()?;
+    files.sort();
+
+    let mut found = None;
+    for file in files {
+        if file.file_name().and_then(|s| s.to_str()) == Some("component.wat") {
+            continue;
+        }
+        let contents = fs::read_to_string(&file)?;
+        let Some(config) = extract_config(&contents) else {
+            continue;
+        };
+        if let Some((prev, _)) = &found {
+            bail!(
+                "test configuration is specified in both {prev:?} and {file:?}, \
+                 but at most one file per test may specify configuration"
+            );
+        }
+        found = Some((file, config));
+    }
+
+    let Some((file, config)) = found else {
+        return Ok(Config::default());
+    };
+    return toml::from_str(&config)
+        .with_context(|| format!("failed to parse configuration in {file:?}"));
+
+    fn extract_config(contents: &str) -> Option<String> {
+        let mut config = String::new();
+        for line in contents.lines() {
+            let line = line.trim();
+            if let Some(rest) = line.strip_prefix(";;!") {
+                config.push_str(rest);
+                config.push('\n');
+            } else if line.is_empty() || line.starts_with(";;") {
+                continue;
+            } else {
+                break;
+            }
+        }
+        if config.is_empty() {
+            None
+        } else {
+            Some(config)
+        }
+    }
+}
+
 fn read_name_and_module(
     prefix: &str,
     path: &Path,
@@ -223,10 +310,12 @@ fn read_name_and_module(
     let wasm = read_core_module(path, resolve, pkg)
         .with_context(|| format!("failed to read core module at {path:?}"))?;
     let stem = path.file_stem().unwrap().to_str().unwrap();
-    let name = if let Some(name) = fs::read_to_string(path)?
+    let contents = fs::read_to_string(path)?;
+    let name = if let Some(name) = contents
         .lines()
-        .next()
-        .and_then(|line| line.strip_prefix(";; module name: "))
+        .map(|line| line.trim())
+        .take_while(|line| line.is_empty() || line.starts_with(";;"))
+        .find_map(|line| line.strip_prefix(";; module name: "))
     {
         name.to_owned()
     } else {

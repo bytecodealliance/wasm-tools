@@ -217,6 +217,15 @@ struct ComponentEncoderOpts {
     /// Whether or not to add debug names to the generated binary.
     #[arg(long, require_equals = true, value_name = "true|false")]
     debug_names: Option<Option<bool>>,
+
+    /// Whether or not to use `return_call_ref` for shims.
+    ///
+    /// If this is not specified or specified as `false` then generated shim
+    /// modules will use `call_indirect`. Note that enabling this option means
+    /// the generated component will require the WebAssembly tail-call and
+    /// function-references proposal.
+    #[arg(long, require_equals = true, value_name = "true|false")]
+    return_call_ref: Option<Option<bool>>,
 }
 
 fn parse_optionally_name_file(s: &str) -> (&str, &str) {
@@ -255,6 +264,7 @@ impl ComponentEncoderOpts {
             })
             .reject_legacy_names(self.reject_legacy_names)
             .debug_names(optional_flag_with_default(self.debug_names, true))
+            .shim_return_call_ref(optional_flag_with_default(self.return_call_ref, false))
             .merge_imports_based_on_semver(optional_flag_with_default(
                 self.merge_imports_based_on_semver,
                 false,
