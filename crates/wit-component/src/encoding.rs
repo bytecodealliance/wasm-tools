@@ -704,6 +704,10 @@ impl<'a> EncodingState<'a> {
             self.instantiate_adapter_module(&shims, name)?;
         }
 
+        if let Some(initialize) = self.info.info.exports.initialize() {
+            fixups.add_initialize(initialize)?;
+        }
+
         // With all the relevant core wasm instances in play now the original shim
         // module, if present, can be filled in with lowerings/adapters/etc.
         fixups.instantiate(&shims, self)?;
@@ -711,8 +715,6 @@ impl<'a> EncodingState<'a> {
         for (name, _adapter) in after {
             self.instantiate_adapter_module(&shims, name)?;
         }
-
-        self.encode_initialize_with_start()?;
 
         // Create any wrappers needed for initializing tasks if task initialization
         // exports are present in the main module.
@@ -2316,98 +2318,6 @@ impl<'a> EncodingState<'a> {
             }
         };
         Ok((ExportKind::Func, index))
-    }
-
-    /// Generates component bits that are responsible for executing
-    /// `_initialize`, if found, in the original component.
-    ///
-    /// The `_initialize` function was a part of WASIp1 where it generally is
-    /// intended to run after imports and memory and such are all "hooked up"
-    /// and performs other various initialization tasks. This is additionally
-    /// specified in https://github.com/WebAssembly/component-model/pull/378
-    /// to be part of the component model lowerings as well.
-    ///
-    /// This implements this functionality by encoding a core module that
-    /// imports a function and then registers a `start` section with that
-    /// imported function. This is all encoded after the
-    /// imports/lowerings/tables/etc are all filled in above meaning that this
-    /// is the last piece to run. That means that when this is running
-    /// everything should be hooked up for all imported functions to work.
-    ///
-    /// Note that at this time `_initialize` is only detected in the "main
-    /// module", not adapters/libraries.
-    fn encode_initialize_with_start(&mut self) -> Result<()> {
-        let initialize = match self.info.info.exports.initialize() {
-            Some(name) => name,
-            // If this core module didn't have `_initialize` or similar, then
-            // there's nothing to do here.
-            None => return Ok(()),
-        };
-        let init_task = self.info.info.exports.wasm_init_task();
-        let initialize_index = self.core_alias_export(
-            Some("start"),
-            self.instance_index.unwrap(),
-            initialize,
-            ExportKind::Func,
-        );
-        let init_task_index = init_task.map(|name| {
-            self.core_alias_export(
-                Some("init-task-for-start"),
-                self.instance_index.unwrap(),
-                name,
-                ExportKind::Func,
-            )
-        });
-        let mut shim = Module::default();
-        let mut section = TypeSection::new();
-        section.ty().function([], []);
-        shim.section(&section);
-
-        let mut section = ImportSection::new();
-        section.import("", "", EntityType::Function(0));
-        if init_task.is_some() {
-            section.import("", "init", EntityType::Function(0));
-        }
-        shim.section(&section);
-
-        if init_task.is_some() {
-            let mut functions = FunctionSection::new();
-            functions.function(0);
-            shim.section(&functions);
-        }
-
-        shim.section(&StartSection {
-            function_index: if init_task.is_some() { 2 } else { 0 },
-        });
-
-        if init_task.is_some() {
-            let mut code = CodeSection::new();
-            let mut func = wasm_encoder::Function::new([]);
-            func.instructions().call(1);
-            func.instructions().call(0);
-            func.instructions().end();
-            code.function(&func);
-            shim.section(&code);
-        }
-
-        // Declare the core module within the component, create a dummy core
-        // instance with one export of our `_initialize` function, and then use
-        // that to instantiate the module we emit to run the `start` function in
-        // core wasm to run `_initialize`.
-        let shim_module_index = self.component.core_module(Some("start-shim-module"), &shim);
-        let mut shim_args = vec![("", ExportKind::Func, initialize_index)];
-        if let Some(i) = init_task_index {
-            shim_args.push(("init", ExportKind::Func, i));
-        }
-        let shim_args_instance_index = self
-            .component
-            .core_instantiate_exports(Some("start-shim-args"), shim_args);
-        self.component.core_instantiate(
-            Some("start-shim-instance"),
-            shim_module_index,
-            [("", ModuleArg::Instance(shim_args_instance_index))],
-        );
-        Ok(())
     }
 
     /// Convenience function to go from `CustomModule` to the instance index

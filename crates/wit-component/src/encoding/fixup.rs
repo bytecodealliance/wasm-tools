@@ -1,5 +1,5 @@
 use crate::ComponentEncoder;
-use crate::encoding::{EncodingState, Shim, Shims};
+use crate::encoding::{CustomModule, EncodingState, Shim, Shims};
 use anyhow::Result;
 use std::collections::HashMap;
 use wasm_encoder::*;
@@ -17,8 +17,11 @@ pub struct FixupModule {
     /// Interning map for type signatures.
     type_map: HashMap<WasmSignature, u32>,
 
-    /// The start function, if needed.
-    start_function: Vec<StartAction>,
+    /// The start function, if needed. This is split between "ABI details" and
+    /// "user funcs" where ABI details must happen first and user funcs need to
+    /// be wrapped in task intrinsics if provided.
+    start_abi_details: Vec<StartAction>,
+    start_user_funcs: Vec<StartAction>,
 
     /// Entries used to initialize the imported shim's table, if necessary.
     shims_in_table: Vec<u32>,
@@ -29,16 +32,31 @@ pub struct FixupModule {
     /// Whether or not this module imports the shim instance itself.
     imports_shim_instance: bool,
 
+    /// Whether or not this module imports the main instance itself.
+    imports_main_instance: bool,
+
     // Current counters for index spaces.
     funcs: u32,
     globals: u32,
 }
 
 enum StartAction {
+    /// Sets `$global` to `ref.func $func`
     InitGlobal { func: u32, global: u32 },
+    /// Calls the specified function index.
+    Call(u32),
 }
 
 impl FixupModule {
+    fn type_thunk(&mut self) -> u32 {
+        self.type_index(&WasmSignature {
+            params: Vec::new(),
+            results: Vec::new(),
+            indirect_params: false,
+            retptr: false,
+        })
+    }
+
     fn type_index(&mut self, sig: &WasmSignature) -> u32 {
         *self.type_map.entry(sig.clone()).or_insert_with(|| {
             let index = self.types.len();
@@ -76,7 +94,7 @@ impl FixupModule {
             let global = self.globals;
             self.globals += 1;
 
-            self.start_function
+            self.start_abi_details
                 .push(StartAction::InitGlobal { func, global });
             self.declared_funcs.push(func);
         } else {
@@ -84,10 +102,22 @@ impl FixupModule {
         }
     }
 
+    /// Ensures there's a `start` function which invokes `initialize`.
+    pub fn add_initialize(&mut self, initialize: &str) -> Result<()> {
+        self.imports_main_instance = true;
+        let func = self.funcs;
+        self.funcs += 1;
+        let ty = self.type_thunk();
+        self.imports
+            .import("main", initialize, EntityType::Function(ty));
+        self.start_user_funcs.push(StartAction::Call(func));
+        Ok(())
+    }
+
     pub fn instantiate(&mut self, shims: &Shims<'_>, state: &mut EncodingState<'_>) -> Result<()> {
         // Generate the module, and this'll return `None` if the module isn't
         // necessary in which case we bail out.
-        let Some(module) = self.encode(&state.info.encoder) else {
+        let Some(module) = self.encode(state) else {
             return Ok(());
         };
 
@@ -100,10 +130,17 @@ impl FixupModule {
         // out with the shim instance itself if that's imported directly.
         let mut instance_args = Vec::new();
         if self.imports_shim_instance {
-            let shim_instance_index = state
+            let index = state
                 .shim_instance_index
                 .expect("must have an instantiated shim");
-            instance_args.push(("shim", ModuleArg::Instance(shim_instance_index)));
+            instance_args.push(("shim", ModuleArg::Instance(index)));
+        }
+
+        if self.imports_main_instance {
+            let index = state
+                .instance_index
+                .expect("must have an instantiated module");
+            instance_args.push(("main", ModuleArg::Instance(index)));
         }
 
         // Shims get imported under the instance name "actual" since they're
@@ -127,12 +164,26 @@ impl FixupModule {
         Ok(())
     }
 
-    fn encode(&mut self, opts: &ComponentEncoder) -> Option<Module> {
-        if self.start_function.is_empty()
+    fn encode(&mut self, state: &EncodingState<'_>) -> Option<Module> {
+        let opts = &state.info.encoder;
+        if self.start_abi_details.is_empty()
+            && self.start_user_funcs.is_empty()
             && self.shims_in_table.is_empty()
             && self.declared_funcs.is_empty()
         {
             return None;
+        }
+
+        // Be sure to hook `__wasm_init_task` around `_initialize`
+        if !self.start_user_funcs.is_empty() {
+            if let Some(name) = state.info.exports_for(CustomModule::Main).wasm_init_task() {
+                self.imports_main_instance = true;
+                let init = self.funcs;
+                self.funcs += 1;
+                let ty = self.type_thunk();
+                self.imports.import("main", name, EntityType::Function(ty));
+                self.start_user_funcs.insert(0, StartAction::Call(init));
+            }
         }
 
         let mut elements = ElementSection::new();
@@ -154,30 +205,30 @@ impl FixupModule {
             );
         }
 
-        let start = if !self.start_function.is_empty() {
-            let mut start = Function::new(Vec::new());
-            for action in &self.start_function {
-                match action {
-                    StartAction::InitGlobal { func, global } => {
-                        start.instructions().ref_func(*func).global_set(*global);
+        let start = match (&self.start_abi_details[..], &self.start_user_funcs[..]) {
+            ([], []) => None,
+            ([], [StartAction::Call(func)]) => Some(*func),
+            (first, second) => {
+                let mut start = Function::new(Vec::new());
+                for action in first.iter().chain(second.iter()) {
+                    match action {
+                        StartAction::InitGlobal { func, global } => {
+                            start.instructions().ref_func(*func).global_set(*global);
+                        }
+                        StartAction::Call(func) => {
+                            start.instructions().call(*func);
+                        }
                     }
                 }
+                start.instructions().end();
+                let index = self.funcs;
+                self.funcs += 1;
+                let ty = self.type_thunk();
+                self.functions.function(ty);
+                self.code.function(&start);
+                self.function_names.append(index, "start");
+                Some(index)
             }
-            start.instructions().end();
-            let index = self.funcs;
-            self.funcs += 1;
-            let ty = self.type_index(&WasmSignature {
-                params: Vec::new(),
-                results: Vec::new(),
-                indirect_params: false,
-                retptr: false,
-            });
-            self.functions.function(ty);
-            self.code.function(&start);
-            self.function_names.append(index, "start");
-            Some(index)
-        } else {
-            None
         };
         if !self.declared_funcs.is_empty() {
             elements.declared(Elements::Functions((&self.declared_funcs).into()));
