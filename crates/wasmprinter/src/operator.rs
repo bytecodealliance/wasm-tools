@@ -9,7 +9,7 @@ use wasmparser::{
 };
 
 pub struct OperatorState {
-    op_offset: usize,
+    op_offset: u64,
     nesting_start: u32,
     label: u32,
     label_indices: Vec<u32>,
@@ -38,7 +38,7 @@ struct FoldedInstruction {
     plain: String,
     folded: Vec<FoldedInstruction>,
     results: u32,
-    offset: usize,
+    offset: u64,
     /// A branch hint annotation (e.g. `@metadata.code.branch_hint "\00"`) that
     /// applies to this instruction. It's printed on its own line immediately
     /// before the instruction, since that's the instruction it annotates.
@@ -51,8 +51,8 @@ struct Block {
     plain: String,
     folded: Vec<FoldedInstruction>,
     predicate: Option<Vec<FoldedInstruction>>,
-    consequent: Option<(Vec<FoldedInstruction>, usize)>,
-    offset: usize,
+    consequent: Option<(Vec<FoldedInstruction>, u64)>,
+    offset: u64,
     /// A branch hint annotation applying to the `if` instruction that opened
     /// this block, carried until the block is turned into a `FoldedInstruction`.
     hint: Option<String>,
@@ -1437,8 +1437,8 @@ impl<'a> VisitSimdOperator<'a> for PrintOperator<'_, '_, '_, '_> {
 }
 
 pub trait OpPrinter {
-    fn branch_hint(&mut self, offset: usize, taken: bool) -> Result<()>;
-    fn set_offset(&mut self, offset: usize);
+    fn branch_hint(&mut self, offset: u64, taken: bool) -> Result<()>;
+    fn set_offset(&mut self, offset: u64);
     fn visit_operator(
         &mut self,
         reader: &mut OperatorsReader<'_>,
@@ -1449,7 +1449,7 @@ pub trait OpPrinter {
 }
 
 impl OpPrinter for PrintOperator<'_, '_, '_, '_> {
-    fn branch_hint(&mut self, offset: usize, taken: bool) -> Result<()> {
+    fn branch_hint(&mut self, offset: u64, taken: bool) -> Result<()> {
         self.printer.newline(offset)?;
         let desc = if taken { "\"\\01\"" } else { "\"\\00\"" };
         self.printer.result.start_comment()?;
@@ -1458,7 +1458,7 @@ impl OpPrinter for PrintOperator<'_, '_, '_, '_> {
         Ok(())
     }
 
-    fn set_offset(&mut self, offset: usize) {
+    fn set_offset(&mut self, offset: u64) {
         self.operator_state.op_offset = offset;
     }
 
@@ -1493,7 +1493,7 @@ impl OpPrinter for PrintOperator<'_, '_, '_, '_> {
 }
 
 impl OpPrinter for PrintOperatorFolded<'_, '_, '_, '_> {
-    fn branch_hint(&mut self, _offset: usize, taken: bool) -> Result<()> {
+    fn branch_hint(&mut self, _offset: u64, taken: bool) -> Result<()> {
         let mut hint = String::new();
         hint.push_str("@metadata.code.branch_hint ");
         hint.push_str(if taken { "\"\\01\"" } else { "\"\\00\"" });
@@ -1501,7 +1501,7 @@ impl OpPrinter for PrintOperatorFolded<'_, '_, '_, '_> {
         Ok(())
     }
 
-    fn set_offset(&mut self, offset: usize) {
+    fn set_offset(&mut self, offset: u64) {
         self.operator_state.op_offset = offset;
     }
 
@@ -1739,7 +1739,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperatorFolded<'printer, 'state, 'a, 'b> {
     fn print_separator(
         printer: &mut Printer,
         sep: &mut OperatorSeparator,
-        offset: usize,
+        offset: u64,
     ) -> Result<()> {
         match sep {
             OperatorSeparator::Newline => printer.newline(offset)?,

@@ -58,7 +58,7 @@ impl Producers {
         Ok(None)
     }
     /// Read the producers section from a Wasm binary.
-    pub fn from_bytes(bytes: &[u8], offset: usize) -> Result<Self> {
+    pub fn from_bytes(bytes: &[u8], offset: u64) -> Result<Self> {
         let reader = BinaryReader::new(bytes, offset);
         let section = ProducersSectionReader::new(reader)?;
         let mut fields = IndexMap::new();

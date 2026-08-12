@@ -77,6 +77,8 @@ pub trait ReencodeComponent: Reencode {
         parser: wasmparser::Parser,
         data: &[u8],
     ) -> Result<(), Error<Self::Error>> {
+        // so we can slice into the data with the offsets from the parser
+        assert_eq!(parser.offset(), 0, "data must be parsed at offset 0");
         component_utils::parse_component(self, component, parser, data, data)
     }
 
@@ -385,6 +387,8 @@ impl ReencodeComponent for RoundtripReencoder {}
 
 #[allow(missing_docs)] // FIXME
 pub mod component_utils {
+    use core::ops::Range;
+
     use super::super::utils::name_map;
     use super::ReencodeComponent;
     use crate::reencode::Error;
@@ -414,7 +418,8 @@ pub mod component_utils {
                 | wasmparser::Payload::ModuleSection {
                     unchecked_range, ..
                 } => {
-                    remaining = &remaining[unchecked_range.len()..];
+                    let skipped_len = (unchecked_range.end - unchecked_range.start) as usize;
+                    remaining = &remaining[skipped_len..];
                 }
                 _ => {}
             }
@@ -430,6 +435,10 @@ pub mod component_utils {
         payload: wasmparser::Payload<'_>,
         whole_component: &[u8],
     ) -> Result<(), Error<T::Error>> {
+        let convert_range = |file_range: &Range<u64>| {
+            // By assumption that `whole_component` is at parser offset 0
+            file_range.start as usize..file_range.end as usize
+        };
         match payload {
             wasmparser::Payload::Version {
                 encoding: wasmparser::Encoding::Component,
@@ -504,7 +513,7 @@ pub mod component_utils {
                 reencoder.parse_component_submodule(
                     component,
                     parser,
-                    &whole_component[unchecked_range],
+                    &whole_component[convert_range(&unchecked_range)],
                 )?;
             }
             wasmparser::Payload::ComponentSection {
@@ -514,7 +523,7 @@ pub mod component_utils {
                 reencoder.parse_component_subcomponent(
                     component,
                     parser,
-                    &whole_component[unchecked_range],
+                    &whole_component[convert_range(&unchecked_range)],
                     whole_component,
                 )?;
             }
@@ -525,7 +534,7 @@ pub mod component_utils {
 
             other => match other.as_section() {
                 Some((id, range)) => {
-                    let section = &whole_component[range];
+                    let section = &whole_component[convert_range(&range)];
                     reencoder.parse_unknown_component_section(component, id, section)?;
                 }
                 None => unreachable!(),

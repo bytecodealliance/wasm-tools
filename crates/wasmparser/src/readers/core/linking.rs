@@ -72,7 +72,7 @@ pub struct LinkingSectionReader<'a> {
     /// The subsections in this section.
     subsections: Subsections<'a, Linking<'a>>,
     /// The range of the entire section, including the version.
-    range: Range<usize>,
+    range: Range<u64>,
 }
 
 /// Represents a reader for segments from the linking custom section.
@@ -376,14 +376,12 @@ pub enum Linking<'a> {
         data: &'a [u8],
         /// The range of bytes, relative to the start of the original data
         /// stream, that the contents of this subsection reside in.
-        range: Range<usize>,
+        range: Range<u64>,
     },
 }
 
 impl<'a> Subsection<'a> for Linking<'a> {
     fn from_reader(id: u8, reader: BinaryReader<'a>) -> Result<Self> {
-        let data = reader.remaining_buffer();
-        let offset = reader.original_position();
         Ok(match id {
             5 => Self::SegmentInfo(SegmentMap::new(reader)?),
             6 => Self::InitFuncs(InitFuncMap::new(reader)?),
@@ -391,8 +389,8 @@ impl<'a> Subsection<'a> for Linking<'a> {
             8 => Self::SymbolTable(SymbolInfoMap::new(reader)?),
             ty => Self::Unknown {
                 ty,
-                data,
-                range: offset..offset + data.len(),
+                data: reader.remaining_buffer(),
+                range: reader.remaining_range(),
             },
         })
     }
@@ -427,13 +425,13 @@ impl<'a> LinkingSectionReader<'a> {
     }
 
     /// Returns the original byte offset of this section.
-    pub fn original_position(&self) -> usize {
+    pub fn original_position(&self) -> u64 {
         self.subsections.original_position()
     }
 
     /// Returns the range, as byte offsets, of this section within the original
     /// wasm binary.
-    pub fn range(&self) -> Range<usize> {
+    pub fn range(&self) -> Range<u64> {
         self.range.clone()
     }
 

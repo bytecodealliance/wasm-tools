@@ -34,11 +34,12 @@ impl Encoder {
         newfunc: &mut Function,
         dfg: &MiniDFG,
         egraph: &EG,
+        input_wasm: &[u8],
     ) -> crate::Result<Vec<ResourceRequest>> {
         // Copy previous code
         let range = basicblock.range.clone();
         let byterange = (&operators[0].1, &operators[range.start].1);
-        let bytes = &config.info().get_code_section().data[*byterange.0..*byterange.1];
+        let bytes = &input_wasm[*byterange.0 as usize..*byterange.1 as usize];
         newfunc.raw(bytes.iter().copied());
 
         // Write all entries in the minidfg in reverse order
@@ -65,7 +66,7 @@ impl Encoder {
             &operators[range.end].1, // In the worst case the next instruction will be and end
             &operators[operators.len() - 1].1,
         );
-        let bytes = &config.info().get_code_section().data[*byterange.0..=*byterange.1];
+        let bytes = &input_wasm[*byterange.0 as usize..=*byterange.1 as usize];
 
         newfunc.raw(bytes.iter().copied());
         Ok(resource_request)

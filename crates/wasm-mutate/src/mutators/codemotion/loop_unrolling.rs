@@ -44,8 +44,8 @@ impl LoopUnrollWriter {
             if to_fix.contains_key(&idx) {
                 newfunc.instruction(&to_fix[&idx]);
             } else {
-                let piece = &input_wasm[*curr_offset..*next_offset];
-                newfunc.raw(piece.to_vec());
+                let piece = &input_wasm[*curr_offset as usize..*next_offset as usize];
+                newfunc.raw(piece.into_iter().copied());
             }
         }
         Ok(())

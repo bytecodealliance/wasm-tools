@@ -44,6 +44,9 @@ fn validate_all(u: &mut Unstructured<'_>, mut validator: Validator, wasm: &[u8])
     log::debug!("print config {cfg:?}");
     let mut wat = String::new();
     let _ = cfg.print(wasm, &mut wasmprinter::PrintFmtWrite(&mut wat));
+    let is_valid_range = |r: std::ops::Range<u64>| {
+        r.start <= r.end && usize::try_from(r.end).is_ok_and(|end| end <= wasm.len())
+    };
 
     // After printing then try to parse and validate the module. See how far we
     // get as invalid modules are explicitly allowed here. Generally looking for
@@ -62,32 +65,32 @@ fn validate_all(u: &mut Unstructured<'_>, mut validator: Validator, wasm: &[u8])
         // supposedly valid.
         use wasmparser::Payload::*;
         match payload {
-            Version { range, .. } => assert!(wasm.get(range).is_some()),
-            TypeSection(s) => assert!(wasm.get(s.range()).is_some()),
-            ImportSection(s) => assert!(wasm.get(s.range()).is_some()),
-            FunctionSection(s) => assert!(wasm.get(s.range()).is_some()),
-            TableSection(s) => assert!(wasm.get(s.range()).is_some()),
-            MemorySection(s) => assert!(wasm.get(s.range()).is_some()),
-            TagSection(s) => assert!(wasm.get(s.range()).is_some()),
-            GlobalSection(s) => assert!(wasm.get(s.range()).is_some()),
-            ExportSection(s) => assert!(wasm.get(s.range()).is_some()),
-            StartSection { range, .. } => assert!(wasm.get(range).is_some()),
-            ElementSection(s) => assert!(wasm.get(s.range()).is_some()),
-            DataCountSection { range, .. } => assert!(wasm.get(range).is_some()),
-            DataSection(s) => assert!(wasm.get(s.range()).is_some()),
-            CodeSectionStart { range, .. } => assert!(wasm.get(range).is_some()),
-            CodeSectionEntry(body) => assert!(wasm.get(body.range()).is_some()),
-            InstanceSection(s) => assert!(wasm.get(s.range()).is_some()),
-            CoreTypeSection(s) => assert!(wasm.get(s.range()).is_some()),
-            ComponentInstanceSection(s) => assert!(wasm.get(s.range()).is_some()),
-            ComponentAliasSection(s) => assert!(wasm.get(s.range()).is_some()),
-            ComponentTypeSection(s) => assert!(wasm.get(s.range()).is_some()),
-            ComponentCanonicalSection(s) => assert!(wasm.get(s.range()).is_some()),
-            ComponentStartSection { range, .. } => assert!(wasm.get(range).is_some()),
-            ComponentImportSection(s) => assert!(wasm.get(s.range()).is_some()),
-            ComponentExportSection(s) => assert!(wasm.get(s.range()).is_some()),
-            CustomSection(s) => assert!(wasm.get(s.range()).is_some()),
-            UnknownSection { range, .. } => assert!(wasm.get(range).is_some()),
+            Version { range, .. } => assert!(is_valid_range(range)),
+            TypeSection(s) => assert!(is_valid_range(s.range())),
+            ImportSection(s) => assert!(is_valid_range(s.range())),
+            FunctionSection(s) => assert!(is_valid_range(s.range())),
+            TableSection(s) => assert!(is_valid_range(s.range())),
+            MemorySection(s) => assert!(is_valid_range(s.range())),
+            TagSection(s) => assert!(is_valid_range(s.range())),
+            GlobalSection(s) => assert!(is_valid_range(s.range())),
+            ExportSection(s) => assert!(is_valid_range(s.range())),
+            StartSection { range, .. } => assert!(is_valid_range(range)),
+            ElementSection(s) => assert!(is_valid_range(s.range())),
+            DataCountSection { range, .. } => assert!(is_valid_range(range)),
+            DataSection(s) => assert!(is_valid_range(s.range())),
+            CodeSectionStart { range, .. } => assert!(is_valid_range(range)),
+            CodeSectionEntry(body) => assert!(is_valid_range(body.range())),
+            InstanceSection(s) => assert!(is_valid_range(s.range())),
+            CoreTypeSection(s) => assert!(is_valid_range(s.range())),
+            ComponentInstanceSection(s) => assert!(is_valid_range(s.range())),
+            ComponentAliasSection(s) => assert!(is_valid_range(s.range())),
+            ComponentTypeSection(s) => assert!(is_valid_range(s.range())),
+            ComponentCanonicalSection(s) => assert!(is_valid_range(s.range())),
+            ComponentStartSection { range, .. } => assert!(is_valid_range(range)),
+            ComponentImportSection(s) => assert!(is_valid_range(s.range())),
+            ComponentExportSection(s) => assert!(is_valid_range(s.range())),
+            CustomSection(s) => assert!(is_valid_range(s.range())),
+            UnknownSection { range, .. } => assert!(is_valid_range(range)),
 
             // In order to support streaming parsing and validation, these
             // sections' ranges are not checked during validation, since they

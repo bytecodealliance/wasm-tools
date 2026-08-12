@@ -30,7 +30,7 @@ impl<'a> ModuleNames<'a> {
     }
     /// Read a name section from a WebAssembly binary. Records the module name, and all other
     /// contents of name section, for later serialization.
-    pub fn from_bytes(bytes: &'a [u8], offset: usize) -> Result<ModuleNames<'a>> {
+    pub fn from_bytes(bytes: &'a [u8], offset: u64) -> Result<ModuleNames<'a>> {
         let reader = BinaryReader::new(bytes, offset);
         let section = NameSectionReader::new(reader);
         let mut s = Self::empty();

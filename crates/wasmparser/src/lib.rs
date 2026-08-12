@@ -1329,6 +1329,7 @@ mod binary_reader;
 mod error;
 mod features;
 mod limits;
+mod offsets;
 mod parser;
 mod readers;
 

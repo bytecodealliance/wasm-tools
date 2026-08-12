@@ -15,7 +15,7 @@ pub(crate) fn rewrite_wasm(
     let mut names_found = false;
     let mut stack = Vec::new();
     let mut output = Vec::new();
-    for payload in Parser::new(0).parse_all(&input) {
+    for payload in Parser::new(0).parse_all(input) {
         let payload = payload?;
 
         // Track nesting depth, so that we don't mess with inner producer sections:
@@ -169,7 +169,7 @@ pub(crate) fn rewrite_wasm(
         if let Some((id, range)) = payload.as_section() {
             wasm_encoder::RawSection {
                 id,
-                data: &input[range],
+                data: &input[range.start as usize..range.end as usize],
             }
             .append_to(&mut output);
         }

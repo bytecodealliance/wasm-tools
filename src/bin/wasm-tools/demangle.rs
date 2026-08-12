@@ -80,7 +80,7 @@ impl Opts {
             if let Some((id, range)) = payload.as_section() {
                 module.section(&RawSection {
                     id,
-                    data: &input[range],
+                    data: &input[range.start as usize..range.end as usize],
                 });
             }
         }

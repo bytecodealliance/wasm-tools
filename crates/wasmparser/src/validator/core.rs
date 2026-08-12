@@ -58,12 +58,7 @@ impl ModuleState {
         ((*index - 1) as u32, ty)
     }
 
-    pub fn add_global(
-        &mut self,
-        mut global: Global,
-        types: &TypeList,
-        offset: usize,
-    ) -> Result<()> {
+    pub fn add_global(&mut self, mut global: Global, types: &TypeList, offset: u64) -> Result<()> {
         self.module
             .check_global_type(&mut global.ty, types, offset)?;
         self.check_const_expr(&global.init_expr, global.ty.content_type, types)?;
@@ -71,12 +66,7 @@ impl ModuleState {
         Ok(())
     }
 
-    pub fn add_table(
-        &mut self,
-        mut table: Table<'_>,
-        types: &TypeList,
-        offset: usize,
-    ) -> Result<()> {
+    pub fn add_table(&mut self, mut table: Table<'_>, types: &TypeList, offset: u64) -> Result<()> {
         self.module.check_table_type(&mut table.ty, types, offset)?;
 
         match &table.init {
@@ -99,7 +89,7 @@ impl ModuleState {
         Ok(())
     }
 
-    pub fn add_data_segment(&mut self, data: Data, types: &TypeList, offset: usize) -> Result<()> {
+    pub fn add_data_segment(&mut self, data: Data, types: &TypeList, offset: u64) -> Result<()> {
         match data.kind {
             DataKind::Passive => {
                 require_feature::bulk_memory(
@@ -123,7 +113,7 @@ impl ModuleState {
         &mut self,
         mut e: Element,
         types: &TypeList,
-        offset: usize,
+        offset: u64,
     ) -> Result<()> {
         // the `funcref` value type is allowed all the way back to the MVP, so
         // don't check it here
@@ -225,7 +215,7 @@ impl ModuleState {
         return Ok(());
 
         struct VisitConstOperator<'a> {
-            offset: usize,
+            offset: u64,
             uninserted_funcref: bool,
             ops: OperatorValidator,
             resources: OperatorValidatorResources<'a>,
@@ -522,7 +512,7 @@ impl Module {
         &mut self,
         rec_group: RecGroup,
         types: &mut TypeAlloc,
-        offset: usize,
+        offset: u64,
         check_limit: bool,
     ) -> Result<()> {
         if check_limit {
@@ -541,7 +531,7 @@ impl Module {
         &mut self,
         mut import: crate::Import,
         types: &TypeList,
-        offset: usize,
+        offset: u64,
     ) -> Result<()> {
         let entity = self.check_type_ref(&mut import.ty, types, offset)?;
 
@@ -600,7 +590,7 @@ impl Module {
         &mut self,
         name: &str,
         ty: EntityType,
-        offset: usize,
+        offset: u64,
         check_limit: bool,
         types: &TypeList,
     ) -> Result<()> {
@@ -629,25 +619,25 @@ impl Module {
         }
     }
 
-    pub fn add_function(&mut self, type_index: u32, types: &TypeList, offset: usize) -> Result<()> {
+    pub fn add_function(&mut self, type_index: u32, types: &TypeList, offset: u64) -> Result<()> {
         self.func_type_at(type_index, types, offset)?;
         self.functions.push(type_index);
         Ok(())
     }
 
-    pub fn add_memory(&mut self, ty: MemoryType, offset: usize) -> Result<()> {
+    pub fn add_memory(&mut self, ty: MemoryType, offset: u64) -> Result<()> {
         self.check_memory_type(&ty, offset)?;
         self.memories.push(ty);
         Ok(())
     }
 
-    pub fn add_tag(&mut self, ty: TagType, types: &TypeList, offset: usize) -> Result<()> {
+    pub fn add_tag(&mut self, ty: TagType, types: &TypeList, offset: u64) -> Result<()> {
         self.check_tag_type(&ty, types, offset)?;
         self.tags.push(self.types[ty.func_type_idx as usize]);
         Ok(())
     }
 
-    fn sub_type_at<'a>(&self, types: &'a TypeList, idx: u32, offset: usize) -> Result<&'a SubType> {
+    fn sub_type_at<'a>(&self, types: &'a TypeList, idx: u32, offset: u64) -> Result<&'a SubType> {
         let id = self.type_id_at(idx, offset)?;
         Ok(&types[id])
     }
@@ -656,7 +646,7 @@ impl Module {
         &self,
         type_index: u32,
         types: &'a TypeList,
-        offset: usize,
+        offset: u64,
     ) -> Result<&'a FuncType> {
         match &self
             .sub_type_at(types, type_index, offset)?
@@ -672,7 +662,7 @@ impl Module {
         &self,
         type_ref: &mut TypeRef,
         types: &TypeList,
-        offset: usize,
+        offset: u64,
     ) -> Result<EntityType> {
         Ok(match type_ref {
             TypeRef::Func(type_index) => {
@@ -702,7 +692,7 @@ impl Module {
         })
     }
 
-    fn check_table_type(&self, ty: &mut TableType, types: &TypeList, offset: usize) -> Result<()> {
+    fn check_table_type(&self, ty: &mut TableType, types: &TypeList, offset: u64) -> Result<()> {
         // The `funcref` value type is allowed all the way back to the MVP, so
         // don't check it here.
         if ty.element_type != RefType::FUNCREF {
@@ -748,7 +738,7 @@ impl Module {
         Ok(())
     }
 
-    fn check_memory_type(&self, ty: &MemoryType, offset: usize) -> Result<()> {
+    fn check_memory_type(&self, ty: &MemoryType, offset: u64) -> Result<()> {
         self.check_limits(ty.initial, ty.maximum, offset)?;
 
         if ty.memory64 {
@@ -809,7 +799,7 @@ impl Module {
     #[cfg(feature = "component-model")]
     pub(crate) fn imports_for_module_type(
         &self,
-        offset: usize,
+        offset: u64,
     ) -> Result<IndexMap<(String, String), EntityType>> {
         // Ensure imports are unique, which is a requirement of the component model:
         // https://github.com/WebAssembly/component-model/blob/d09f907/design/mvp/Explainer.md#import-and-export-definitions
@@ -828,7 +818,7 @@ impl Module {
             .collect::<Result<_>>()
     }
 
-    fn check_value_type(&self, ty: &mut ValType, offset: usize) -> Result<()> {
+    fn check_value_type(&self, ty: &mut ValType, offset: u64) -> Result<()> {
         // The above only checks the value type for features.
         // We must check it if it's a reference.
         match ty {
@@ -837,7 +827,7 @@ impl Module {
         }
     }
 
-    fn check_ref_type(&self, ty: &mut RefType, offset: usize) -> Result<()> {
+    fn check_ref_type(&self, ty: &mut RefType, offset: u64) -> Result<()> {
         self.features.check_ref_type(*ty, offset)?;
         let mut hty = ty.heap_type();
         self.check_heap_type(&mut hty, offset)?;
@@ -845,7 +835,7 @@ impl Module {
         Ok(())
     }
 
-    fn check_heap_type(&self, ty: &mut HeapType, offset: usize) -> Result<()> {
+    fn check_heap_type(&self, ty: &mut HeapType, offset: u64) -> Result<()> {
         // Check that the heap type is valid.
         let type_index = match ty {
             HeapType::Abstract { .. } => return Ok(()),
@@ -864,7 +854,7 @@ impl Module {
         }
     }
 
-    fn check_tag_type(&self, ty: &TagType, types: &TypeList, offset: usize) -> Result<()> {
+    fn check_tag_type(&self, ty: &TagType, types: &TypeList, offset: u64) -> Result<()> {
         require_feature::exceptions(self.features, "exceptions proposal not enabled", offset)?;
         let ty = self.func_type_at(ty.func_type_idx, types, offset)?;
         if !ty.results().is_empty() {
@@ -877,12 +867,7 @@ impl Module {
         Ok(())
     }
 
-    fn check_global_type(
-        &self,
-        ty: &mut GlobalType,
-        types: &TypeList,
-        offset: usize,
-    ) -> Result<()> {
+    fn check_global_type(&self, ty: &mut GlobalType, types: &TypeList, offset: u64) -> Result<()> {
         self.check_value_type(&mut ty.content_type, offset)?;
         if ty.shared {
             require_feature::shared_everything_threads(
@@ -900,7 +885,7 @@ impl Module {
         Ok(())
     }
 
-    fn check_limits<T>(&self, initial: T, maximum: Option<T>, offset: usize) -> Result<()>
+    fn check_limits<T>(&self, initial: T, maximum: Option<T>, offset: u64) -> Result<()>
     where
         T: Into<u64>,
     {
@@ -934,7 +919,7 @@ impl Module {
     pub fn export_to_entity_type(
         &mut self,
         export: &crate::Export,
-        offset: usize,
+        offset: u64,
     ) -> Result<EntityType> {
         let check = |ty: &str, index: u32, total: usize| {
             if index as usize >= total {
@@ -976,7 +961,7 @@ impl Module {
         &self,
         func_idx: u32,
         types: &'a TypeList,
-        offset: usize,
+        offset: u64,
     ) -> Result<&'a FuncType> {
         match self.functions.get(func_idx as usize) {
             Some(idx) => self.func_type_at(*idx, types, offset),
@@ -987,7 +972,7 @@ impl Module {
         }
     }
 
-    fn global_at(&self, idx: u32, offset: usize) -> Result<&GlobalType> {
+    fn global_at(&self, idx: u32, offset: u64) -> Result<&GlobalType> {
         match self.globals.get(idx as usize) {
             Some(t) => Ok(t),
             None => Err(format_err!(
@@ -997,7 +982,7 @@ impl Module {
         }
     }
 
-    fn table_at(&self, idx: u32, offset: usize) -> Result<&TableType> {
+    fn table_at(&self, idx: u32, offset: u64) -> Result<&TableType> {
         match self.tables.get(idx as usize) {
             Some(t) => Ok(t),
             None => Err(format_err!(
@@ -1007,7 +992,7 @@ impl Module {
         }
     }
 
-    fn memory_at(&self, idx: u32, offset: usize) -> Result<&MemoryType> {
+    fn memory_at(&self, idx: u32, offset: u64) -> Result<&MemoryType> {
         match self.memories.get(idx as usize) {
             Some(t) => Ok(t),
             None => Err(format_err!(
@@ -1027,7 +1012,7 @@ impl InternRecGroup for Module {
         self.types.push(id);
     }
 
-    fn type_id_at(&self, idx: u32, offset: usize) -> Result<CoreTypeId> {
+    fn type_id_at(&self, idx: u32, offset: u64) -> Result<CoreTypeId> {
         self.types
             .get(idx as usize)
             .copied()
@@ -1080,7 +1065,7 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
         self.module.functions.get(at as usize).copied()
     }
 
-    fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<()> {
+    fn check_heap_type(&self, t: &mut HeapType, offset: u64) -> Result<()> {
         self.module.check_heap_type(t, offset)
     }
 
@@ -1168,7 +1153,7 @@ impl WasmModuleResources for ValidatorResources {
         self.0.functions.get(at as usize).copied()
     }
 
-    fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<()> {
+    fn check_heap_type(&self, t: &mut HeapType, offset: u64) -> Result<()> {
         self.0.check_heap_type(t, offset)
     }
 

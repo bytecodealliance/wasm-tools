@@ -1340,10 +1340,10 @@ impl Printer<'_, '_> {
     pub(crate) fn print_component_start(
         &mut self,
         state: &mut State,
-        pos: usize,
+        offset: u64,
         start: ComponentStartFunction,
     ) -> Result<()> {
-        self.newline(pos)?;
+        self.newline(offset)?;
         self.start_group("start ")?;
         self.print_idx(&state.component.func_names, start.func_index)?;
 

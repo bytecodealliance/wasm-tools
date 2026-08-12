@@ -30,7 +30,7 @@ impl<'a> ComponentNames<'a> {
     }
     /// Read a component-name section from a WebAssembly binary. Records the component name, as
     /// well as all other component name fields for later serialization.
-    pub fn from_bytes(bytes: &'a [u8], offset: usize) -> Result<ComponentNames<'a>> {
+    pub fn from_bytes(bytes: &'a [u8], offset: u64) -> Result<ComponentNames<'a>> {
         let reader = BinaryReader::new(bytes, offset);
         let section = ComponentNameSectionReader::new(reader);
         let mut s = Self::empty();

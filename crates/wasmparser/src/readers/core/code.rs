@@ -72,7 +72,7 @@ impl<'a> FunctionBody<'a> {
     }
 
     /// Gets the range of the function body.
-    pub fn range(&self) -> Range<usize> {
+    pub fn range(&self) -> Range<u64> {
         self.reader.range()
     }
 
@@ -105,7 +105,7 @@ impl<'a> LocalsReader<'a> {
     }
 
     /// Gets the original position of the reader.
-    pub fn original_position(&self) -> usize {
+    pub fn original_position(&self) -> u64 {
         self.reader.original_position()
     }
 

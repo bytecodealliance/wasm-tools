@@ -1370,7 +1370,7 @@ impl UnbundleOpts {
             let range = match payload? {
                 Payload::ModuleSection {
                     unchecked_range, ..
-                } => unchecked_range,
+                } => unchecked_range.start as usize..unchecked_range.end as usize,
                 _ => continue,
             };
             modules_to_extract.push(if range.len() > self.threshold {

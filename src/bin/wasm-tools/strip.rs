@@ -147,7 +147,7 @@ impl Opts {
             if let Some((id, range)) = payload.as_section() {
                 RawSection {
                     id,
-                    data: &input[range],
+                    data: &input[range.start as usize..range.end as usize],
                 }
                 .append_to(&mut output);
             }

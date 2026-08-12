@@ -57,8 +57,8 @@ impl ModuleImportMap {
 
         for payload in Parser::new(0).parse_all(&wasm) {
             let payload = payload?;
-            match &payload {
-                Version { encoding, .. } if *encoding == wasmparser::Encoding::Component => {
+            match payload {
+                Version { encoding, .. } if encoding == wasmparser::Encoding::Component => {
                     // if this is a component let someone else deal with the
                     // error, we'll punt that up the stack.
                     assert!(!found_duplicate_imports);
@@ -86,7 +86,7 @@ impl ModuleImportMap {
                     if let Some((id, range)) = payload.as_section() {
                         module.section(&RawSection {
                             id,
-                            data: &wasm[range],
+                            data: &wasm[range.start as usize..range.end as usize],
                         });
                     }
                 }

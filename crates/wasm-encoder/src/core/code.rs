@@ -100,7 +100,7 @@ impl CodeSection {
     /// // Add the body to a new code section encoder by copying bytes rather
     /// // than re-parsing and re-encoding it.
     /// let mut encoder = wasm_encoder::CodeSection::new();
-    /// encoder.raw(&code_section[body_range.start..body_range.end]);
+    /// encoder.raw(&code_section[body_range.start as usize..body_range.end as usize]);
     /// ```
     pub fn raw(&mut self, data: &[u8]) -> &mut Self {
         data.encode(&mut self.bytes);

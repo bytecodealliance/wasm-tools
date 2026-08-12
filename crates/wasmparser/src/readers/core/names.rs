@@ -82,7 +82,7 @@ pub enum Name<'a> {
         /// The specified name.
         name: &'a str,
         /// The byte range that `name` occupies in the original binary.
-        name_range: Range<usize>,
+        name_range: Range<u64>,
     },
     /// The name is for the functions.
     Function(NameMap<'a>),
@@ -114,7 +114,7 @@ pub enum Name<'a> {
         data: &'a [u8],
         /// The range of bytes, relative to the start of the original data
         /// stream, that the contents of this subsection reside in.
-        range: Range<usize>,
+        range: Range<u64>,
     },
 }
 
@@ -123,10 +123,9 @@ pub type NameSectionReader<'a> = Subsections<'a, Name<'a>>;
 
 impl<'a> Subsection<'a> for Name<'a> {
     fn from_reader(id: u8, mut reader: BinaryReader<'a>) -> Result<Self> {
-        let data = reader.remaining_buffer();
-        let offset = reader.original_position();
         Ok(match id {
             0 => {
+                let offset = reader.original_position();
                 let name = reader.read_string()?;
                 if !reader.eof() {
                     return Err(Error::new(
@@ -152,8 +151,8 @@ impl<'a> Subsection<'a> for Name<'a> {
             11 => Name::Tag(NameMap::new(reader)?),
             ty => Name::Unknown {
                 ty,
-                data,
-                range: offset..offset + data.len(),
+                data: reader.remaining_buffer(),
+                range: reader.remaining_range(),
             },
         })
     }

@@ -181,7 +181,7 @@ pub trait AstWriter {
             &operators[operator_range.0].1,
             &operators[operator_range.1].1,
         );
-        let piece_of_code = &input_wasm[*bytes_range.0..*bytes_range.1];
+        let piece_of_code = &input_wasm[*bytes_range.0 as usize..*bytes_range.1 as usize];
         newfunc.raw(piece_of_code.to_vec());
         Ok(())
     }

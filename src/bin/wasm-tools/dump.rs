@@ -30,7 +30,7 @@ impl Opts {
 
 struct Dump<'a> {
     bytes: &'a [u8],
-    cur: usize,
+    cur: u64,
     state: String,
     dst: Box<dyn WriteColor + 'a>,
     nesting: u32,
@@ -82,7 +82,7 @@ impl<'a> Dump<'a> {
 
     fn run(&mut self) -> Result<()> {
         self.print_module()?;
-        assert_eq!(self.cur, self.bytes.len());
+        assert_eq!(self.cur as usize, self.bytes.len());
         Ok(())
     }
 
@@ -265,7 +265,7 @@ impl<'a> Dump<'a> {
                     match i.kind {
                         DataKind::Passive => {
                             write!(me.state, "data passive")?;
-                            me.print(end - i.data.len())?;
+                            me.print(end - i.data.len() as u64)?;
                         }
                         DataKind::Active {
                             memory_index,
@@ -289,7 +289,7 @@ impl<'a> Dump<'a> {
                     write!(self.state, "code section")?;
                     self.color_print(range.start)?;
                     write!(self.state, "{count} count")?;
-                    self.print(range.end - size as usize)?;
+                    self.print(range.end - size as u64)?;
                 }
 
                 Payload::CodeSectionEntry(body) => {
@@ -610,7 +610,7 @@ impl<'a> Dump<'a> {
                                 write!(self.dst, "---")?;
                             }
                             writeln!(self.dst, "-| ... {} bytes of data", c.data().len())?;
-                            self.cur += c.data().len();
+                            self.cur = c.range().end;
                         }
                     }
                 }
@@ -628,8 +628,9 @@ impl<'a> Dump<'a> {
                         for _ in 0..NBYTES {
                             write!(self.dst, "---")?;
                         }
-                        writeln!(self.dst, "-| ... {} bytes of data", range.len())?;
-                        self.cur += range.len();
+                        let len = (range.start as usize..range.end as usize).len();
+                        writeln!(self.dst, "-| ... {len} bytes of data")?;
+                        self.cur = range.end;
                     }
                     None => {
                         bail!("unsupported payload {other:?}")
@@ -663,7 +664,7 @@ impl<'a> Dump<'a> {
     fn print_subsections<'b, T>(
         &mut self,
         mut section: Subsections<'b, T>,
-        print_item: impl Fn(&mut Self, T, usize) -> Result<()>,
+        print_item: impl Fn(&mut Self, T, u64) -> Result<()>,
     ) -> Result<()>
     where
         T: wasmparser::Subsection<'b>,
@@ -699,7 +700,7 @@ impl<'a> Dump<'a> {
         Ok(())
     }
 
-    fn print_core_name(&mut self, name: Name<'_>, end: usize) -> Result<()> {
+    fn print_core_name(&mut self, name: Name<'_>, end: u64) -> Result<()> {
         match name {
             Name::Module { name, name_range } => {
                 write!(self.state, "module name")?;
@@ -727,7 +728,7 @@ impl<'a> Dump<'a> {
         Ok(())
     }
 
-    fn print_component_name(&mut self, name: ComponentName<'_>, end: usize) -> Result<()> {
+    fn print_component_name(&mut self, name: ComponentName<'_>, end: u64) -> Result<()> {
         match name {
             ComponentName::Component { name, name_range } => {
                 write!(self.state, "component name")?;
@@ -757,7 +758,7 @@ impl<'a> Dump<'a> {
         Ok(())
     }
 
-    fn print_linking_subsection(&mut self, s: Linking<'_>, end: usize) -> Result<()> {
+    fn print_linking_subsection(&mut self, s: Linking<'_>, end: u64) -> Result<()> {
         match s {
             Linking::SegmentInfo(map) => self.section(map, "segment info", |me, pos, item| {
                 write!(me.state, "{item:?}")?;
@@ -787,7 +788,7 @@ impl<'a> Dump<'a> {
         &mut self,
         iter: SectionLimited<'b, T>,
         name: &str,
-        print: impl FnMut(&mut Self, usize, T) -> Result<()>,
+        print: impl FnMut(&mut Self, u64, T) -> Result<()>,
     ) -> Result<()>
     where
         T: FromReader<'b>,
@@ -800,7 +801,7 @@ impl<'a> Dump<'a> {
     fn print_iter<'b, T>(
         &mut self,
         iter: SectionLimited<'b, T>,
-        mut print: impl FnMut(&mut Self, usize, T) -> Result<()>,
+        mut print: impl FnMut(&mut Self, u64, T) -> Result<()>,
     ) -> Result<()>
     where
         T: FromReader<'b>,
@@ -825,15 +826,15 @@ impl<'a> Dump<'a> {
         Ok(())
     }
 
-    fn color_print(&mut self, end: usize) -> Result<()> {
+    fn color_print(&mut self, end: u64) -> Result<()> {
         self.print_(end, true)
     }
 
-    fn print(&mut self, end: usize) -> Result<()> {
+    fn print(&mut self, end: u64) -> Result<()> {
         self.print_(end, false)
     }
 
-    fn print_(&mut self, end: usize, color: bool) -> Result<()> {
+    fn print_(&mut self, end: u64, color: bool) -> Result<()> {
         assert!(
             self.cur < end,
             "{:#x} >= {:#x}\ntrying to print: {}",
@@ -841,7 +842,8 @@ impl<'a> Dump<'a> {
             end,
             self.state,
         );
-        let bytes = &self.bytes[self.cur..end];
+        let range = self.cur as usize..end as usize;
+        let bytes = &self.bytes[range];
         self.print_byte_header()?;
         for (i, chunk) in bytes.chunks(NBYTES).enumerate() {
             if i > 0 {
