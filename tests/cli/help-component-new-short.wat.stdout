@@ -6,9 +6,6 @@ Arguments:
   [INPUT]  Input file to process
 
 Options:
-      --adapt <[NAME=]MODULE>
-          The path to an adapter module to satisfy imports not otherwise bound
-          to WIT interfaces
       --import-name <OLD=NEW>
           Rename an instance import in the output component
       --generate-dwarf <lines|full>
@@ -23,18 +20,25 @@ Options:
       --color <COLOR>
           Configuration over whether terminal colors are used in output
           [default: auto]
-      --skip-validation
-          Skip validation of the output component
-  -t, --wat
-          Print the output in the WebAssembly text format instead of binary
+      --adapt <[NAME=]MODULE>
+          The path to an adapter module to satisfy imports not otherwise bound
+          to WIT interfaces
+      --validate[=<true|false>]
+          Whether or not to validate the output component [possible values:
+          true, false]
       --realloc-via-memory-grow
           Use memory.grow to realloc memory and stack allocation
-      --merge-imports-based-on-semver <<true|false>>
+      --merge-imports-based-on-semver[=<true|false>]
           Indicates whether imports into the final component are merged based on
           semver ranges [possible values: true, false]
       --reject-legacy-names
           Reject usage of the "legacy" naming scheme of `wit-component` and
           require the new naming scheme to be used
+      --debug-names[=<true|false>]
+          Whether or not to add debug names to the generated binary [possible
+          values: true, false]
+  -t, --wat
+          Print the output in the WebAssembly text format instead of binary
   -h, --help
           Print help (see more with '--help')
 
@@ -73,7 +77,7 @@ Examples:
     # Create a component and print it to stdout in in text format, skipping
     validation of
     # the output component.
-    $ wasm-tools component new foo.wasm -t --skip-validation
+    $ wasm-tools component new foo.wasm -t --validate=false
 
     # Create a component, using memory.grow to reallocate memory.
     # This can be useful if `cabi_realloc` cannot be called before the host

@@ -21,19 +21,6 @@ Arguments:
           binary `*.wasm` file or a textual format `*.wat` file.
 
 Options:
-      --adapt <[NAME=]MODULE>
-          The path to an adapter module to satisfy imports not otherwise bound
-          to WIT interfaces.
-          
-          An adapter module can be used to translate the
-          `wasi_snapshot_preview1` ABI, for example, to one that uses the
-          component model. The first `[NAME=]` specified in the argument is
-          inferred from the name of file specified by `MODULE` if not present
-          and is the name of the import module that's being implemented (e.g.
-          `wasi_snapshot_preview1.wasm`).
-          
-          The second part of this argument is the path to the adapter module.
-
       --import-name <OLD=NEW>
           Rename an instance import in the output component.
           
@@ -78,16 +65,28 @@ Options:
           
           [default: auto]
 
-      --skip-validation
-          Skip validation of the output component
+      --adapt <[NAME=]MODULE>
+          The path to an adapter module to satisfy imports not otherwise bound
+          to WIT interfaces.
+          
+          An adapter module can be used to translate the
+          `wasi_snapshot_preview1` ABI, for example, to one that uses the
+          component model. The first `[NAME=]` specified in the argument is
+          inferred from the name of file specified by `MODULE` if not present
+          and is the name of the import module that's being implemented (e.g.
+          `wasi_snapshot_preview1.wasm`).
+          
+          The second part of this argument is the path to the adapter module.
 
-  -t, --wat
-          Print the output in the WebAssembly text format instead of binary
+      --validate[=<true|false>]
+          Whether or not to validate the output component
+          
+          [possible values: true, false]
 
       --realloc-via-memory-grow
           Use memory.grow to realloc memory and stack allocation
 
-      --merge-imports-based-on-semver <<true|false>>
+      --merge-imports-based-on-semver[=<true|false>]
           Indicates whether imports into the final component are merged based on
           semver ranges.
           
@@ -104,6 +103,14 @@ Options:
           compatibility `wit-component`'s historical naming scheme. This is
           intended to be used to test if a tool is compatible with a
           hypothetical removal of the old scheme in the future.
+
+      --debug-names[=<true|false>]
+          Whether or not to add debug names to the generated binary
+          
+          [possible values: true, false]
+
+  -t, --wat
+          Print the output in the WebAssembly text format instead of binary
 
   -h, --help
           Print help (see a summary with '-h')
@@ -143,7 +150,7 @@ Examples:
     # Create a component and print it to stdout in in text format, skipping
     validation of
     # the output component.
-    $ wasm-tools component new foo.wasm -t --skip-validation
+    $ wasm-tools component new foo.wasm -t --validate=false
 
     # Create a component, using memory.grow to reallocate memory.
     # This can be useful if `cabi_realloc` cannot be called before the host

@@ -1647,30 +1647,18 @@ pub struct Linker {
     /// The order of this list determines priority in cases where more than one library exports the same symbol.
     libraries: Vec<(String, Vec<u8>, bool)>,
 
-    /// The set of adapters to use when generating the component
-    adapters: Vec<(String, Vec<u8>)>,
-
-    /// Whether to validate the resulting component prior to returning it
-    validate: bool,
-
     /// Whether to generate trapping stubs for any unresolved imports
     stub_missing_functions: bool,
 
     /// Whether to use a built-in implementation of `dlopen`/`dlsym`.
     use_built_in_libdl: bool,
 
-    /// Whether to generate debug `name` sections.
-    debug_names: bool,
-
     /// Size of stack (in bytes) to allocate in the synthesized main module
     ///
     /// If `None`, use `DEFAULT_STACK_SIZE_BYTES`.
     stack_size: Option<u32>,
 
-    /// This affects how when to WIT worlds are merged together, for example
-    /// from two different libraries, whether their imports are unified when the
-    /// semver version ranges for interface allow it.
-    merge_imports_based_on_semver: Option<bool>,
+    encoder: ComponentEncoder,
 }
 
 impl Linker {
@@ -1678,78 +1666,50 @@ impl Linker {
     ///
     /// If `dl_openable` is true, all of the library's exports will be added to the `dlopen`/`dlsym` lookup table
     /// for runtime resolution.
-    pub fn library(mut self, name: &str, module: &[u8], dl_openable: bool) -> Result<Self> {
+    pub fn library(&mut self, name: &str, module: &[u8], dl_openable: bool) -> Result<&mut Self> {
         self.libraries
             .push((name.to_owned(), module.to_vec(), dl_openable));
 
         Ok(self)
     }
 
-    /// Add an adapter to this linker.
-    ///
-    /// See [crate::encoding::ComponentEncoder::adapter] for details.
-    pub fn adapter(mut self, name: &str, module: &[u8]) -> Result<Self> {
-        self.adapters.push((name.to_owned(), module.to_vec()));
-
-        Ok(self)
-    }
-
-    /// Specify whether to validate the resulting component prior to returning it
-    pub fn validate(mut self, validate: bool) -> Self {
-        self.validate = validate;
-        self
-    }
-
     /// Specify size of stack to allocate in the synthesized main module
-    pub fn stack_size(mut self, stack_size: u32) -> Self {
+    pub fn stack_size(&mut self, stack_size: u32) -> &mut Self {
         self.stack_size = Some(stack_size);
         self
     }
 
     /// Specify whether to generate trapping stubs for any unresolved imports
-    pub fn stub_missing_functions(mut self, stub_missing_functions: bool) -> Self {
+    pub fn stub_missing_functions(&mut self, stub_missing_functions: bool) -> &mut Self {
         self.stub_missing_functions = stub_missing_functions;
         self
     }
 
     /// Specify whether to use a built-in implementation of `dlopen`/`dlsym`.
-    pub fn use_built_in_libdl(mut self, use_built_in_libdl: bool) -> Self {
+    pub fn use_built_in_libdl(&mut self, use_built_in_libdl: bool) -> &mut Self {
         self.use_built_in_libdl = use_built_in_libdl;
         self
     }
 
-    /// Whether or not to generate debug name sections.
-    pub fn debug_names(mut self, enable: bool) -> Self {
-        self.debug_names = enable;
-        self
-    }
-
-    /// This affects how when to WIT worlds are merged together, for example
-    /// from two different libraries, whether their imports are unified when the
-    /// semver version ranges for interface allow it.
-    ///
-    /// This is enabled by default.
-    pub fn merge_imports_based_on_semver(mut self, merge: bool) -> Self {
-        self.merge_imports_based_on_semver = Some(merge);
-        self
+    /// Returns a reference to the internal [`ComponentEncoder`] that can be
+    /// configured.
+    pub fn encoder(&mut self) -> &mut ComponentEncoder {
+        &mut self.encoder
     }
 
     /// Encode the component and return the bytes
     pub fn encode(mut self) -> Result<Vec<u8>> {
         if self.use_built_in_libdl {
             self.use_built_in_libdl = false;
-            self = self.library("libdl.so", include_bytes!("../libdl.so"), false)?;
+            self.library("libdl.so", include_bytes!("../libdl.so"), false)?;
         }
 
         let adapter_names = self
+            .encoder
             .adapters
-            .iter()
-            .map(|(name, _)| name.as_str())
-            .collect_unique::<HashSet<_>>();
-
-        if adapter_names.len() != self.adapters.len() {
-            bail!("duplicate adapter name");
-        }
+            .keys()
+            .map(|name| name.as_str())
+            .collect::<HashSet<_>>();
 
         let metadata = self
             .libraries
@@ -1877,17 +1837,7 @@ impl Linker {
             self.stack_size.unwrap_or(DEFAULT_STACK_SIZE_BYTES),
         );
 
-        let mut encoder = ComponentEncoder::default()
-            .validate(self.validate)
-            .debug_names(self.debug_names);
-        if let Some(merge) = self.merge_imports_based_on_semver {
-            encoder = encoder.merge_imports_based_on_semver(merge);
-        };
-        encoder = encoder.module(&env_module)?;
-
-        for (name, module) in &self.adapters {
-            encoder = encoder.adapter(name, module)?;
-        }
+        self.encoder.module(&env_module)?;
 
         let default_env_items = [
             Item {
@@ -2068,7 +2018,7 @@ impl Linker {
                 });
             }
 
-            encoder = encoder.library(
+            self.encoder.library(
                 name,
                 module,
                 LibraryInfo {
@@ -2091,7 +2041,7 @@ impl Linker {
             seen.insert(name.as_str());
         }
 
-        encoder
+        self.encoder
             .library(
                 "__init",
                 &make_init_module(

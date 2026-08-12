@@ -1,4 +1,4 @@
-use anyhow::{Context, Error, Result, bail};
+use anyhow::{Context, Result, bail};
 use libtest_mimic::{Arguments, Trial};
 use pretty_assertions::assert_eq;
 use std::{borrow::Cow, fs, path::Path};
@@ -85,21 +85,19 @@ fn run_test(path: &Path) -> Result<()> {
     let path = path.to_path_buf();
 
     let module_path = path.join("module.wat");
-    let mut adapters = glob::glob(path.join("adapt-*.wat").to_str().unwrap())?;
+    let adapters = glob::glob(path.join("adapt-*.wat").to_str().unwrap())?;
     let result = if module_path.is_file() {
-        let module = read_core_module(&module_path, &resolve, pkg_id)
-            .with_context(|| format!("failed to read core module at {module_path:?}"))?;
-        adapters
-            .try_fold(
-                ComponentEncoder::default()
-                    .debug_names(true)
-                    .module(&module)?,
-                |encoder, path| {
-                    let (name, wasm) = read_name_and_module("adapt-", &path?, &resolve, pkg_id)?;
-                    Ok::<_, Error>(encoder.adapter(&name, &wasm)?)
-                },
-            )?
-            .encode()
+        let mut encoder = ComponentEncoder::default();
+        (|| -> Result<_> {
+            let module = read_core_module(&module_path, &resolve, pkg_id)
+                .with_context(|| format!("failed to read core module at {module_path:?}"))?;
+            encoder.debug_names(true).module(&module)?;
+            for adapter in adapters {
+                let (name, wasm) = read_name_and_module("adapt-", &adapter?, &resolve, pkg_id)?;
+                encoder.adapter(&name, &wasm)?;
+            }
+            encoder.encode()
+        })()
     } else {
         let mut libs = glob::glob(path.join("lib-*.wat").to_str().unwrap())?
             .map(|path| Ok(("lib-", path?, false)))
@@ -112,29 +110,29 @@ fn run_test(path: &Path) -> Result<()> {
         // Sort list to ensure deterministic order, which determines priority in cases of duplicate symbols:
         libs.sort_by(|(_, a, _), (_, b, _)| a.cmp(b));
 
-        let mut linker = Linker::default().validate(false).debug_names(true);
+        let mut linker = Linker::default();
+        linker.encoder().validate(false).debug_names(true);
 
         if path.join("stub-missing-functions").is_file() {
-            linker = linker.stub_missing_functions(true);
+            linker.stub_missing_functions(true);
         }
 
         if path.join("use-built-in-libdl").is_file() {
-            linker = linker.use_built_in_libdl(true);
+            linker.use_built_in_libdl(true);
         }
 
-        let linker = libs
-            .into_iter()
-            .try_fold(linker, |linker, (prefix, path, dl_openable)| {
+        (|| -> Result<_> {
+            for (prefix, path, dl_openable) in libs {
                 let (name, wasm) = read_name_and_module(prefix, &path, &resolve, pkg_id)?;
-                Ok::<_, Error>(linker.library(&name, &wasm, dl_openable)?)
-            })?;
-
-        adapters
-            .try_fold(linker, |linker, path| {
+                linker.library(&name, &wasm, dl_openable)?;
+            }
+            for path in adapters {
                 let (name, wasm) = read_name_and_module("adapt-", &path?, &resolve, pkg_id)?;
-                Ok::<_, Error>(linker.adapter(&name, &wasm)?)
-            })?
-            .encode()
+                linker.encoder().adapter(&name, &wasm)?;
+            }
+
+            linker.encode()
+        })()
     };
     let component_path = path.join("component.wat");
     let component_wit_path = path.join("component.wit.print");

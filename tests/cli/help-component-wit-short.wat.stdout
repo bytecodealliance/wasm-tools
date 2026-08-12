@@ -126,7 +126,7 @@ Writing: out/component.wit
 
    # With the same foo.wasm file, print a textual WAT representation
    # of the interface to stdout, skipping validation of the WAT code.
-   $ wasm-tools component wit foo.wasm -t --skip-validation
+   $ wasm-tools component wit foo.wasm -t --validate=false
 
    # With the same foo.wasm file, print a JSON representation
    # of the interface to stdout.

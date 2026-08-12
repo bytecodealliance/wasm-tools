@@ -3311,18 +3311,18 @@ impl ComponentEncoder {
     /// inside the module and add them as the interface, imports, and exports.
     /// It will also add any producers information inside the component type information to the
     /// core module.
-    pub fn module(mut self, module: &[u8]) -> Result<Self> {
+    pub fn module(&mut self, module: &[u8]) -> Result<&mut Self> {
         let (wasm, metadata) = self.decode(module.as_ref())?;
         let (wasm, module_import_map) = ModuleImportMap::new(wasm)?;
-        let exports = self
-            .merge_metadata(metadata)
-            .context("failed merge WIT metadata for module with previous metadata")?;
-        self.main_module_exports.extend(exports);
-        self.module = if let Some(producers) = &self.metadata.producers {
+        self.module = if let Some(producers) = &metadata.producers {
             producers.add_to_wasm(&wasm)?
         } else {
             wasm.to_vec()
         };
+        let exports = self
+            .merge_metadata(metadata)
+            .context("failed merge WIT metadata for module with previous metadata")?;
+        self.main_module_exports.extend(exports);
         self.module_import_map = module_import_map;
         Ok(self)
     }
@@ -3340,13 +3340,13 @@ impl ComponentEncoder {
     }
 
     /// Sets whether or not the encoder will validate its output.
-    pub fn validate(mut self, validate: bool) -> Self {
+    pub fn validate(&mut self, validate: bool) -> &mut Self {
         self.validate = validate;
         self
     }
 
     /// Sets whether or not to generate debug names in the output component.
-    pub fn debug_names(mut self, debug_names: bool) -> Self {
+    pub fn debug_names(&mut self, debug_names: bool) -> &mut Self {
         self.debug_names = debug_names;
         self
     }
@@ -3358,7 +3358,7 @@ impl ComponentEncoder {
     /// semver version ranges for interface allow it.
     ///
     /// This is enabled by default.
-    pub fn merge_imports_based_on_semver(mut self, merge: bool) -> Self {
+    pub fn merge_imports_based_on_semver(&mut self, merge: bool) -> &mut Self {
         self.merge_imports_based_on_semver = Some(merge);
         self
     }
@@ -3371,7 +3371,7 @@ impl ComponentEncoder {
     /// support.
     ///
     /// This is disabled by default.
-    pub fn reject_legacy_names(mut self, reject: bool) -> Self {
+    pub fn reject_legacy_names(&mut self, reject: bool) -> &mut Self {
         self.reject_legacy_names = reject;
         self
     }
@@ -3393,7 +3393,7 @@ impl ComponentEncoder {
     /// wasm module specified by `bytes` imports. The `bytes` will then import
     /// `interface` and export functions to get imported from the module `name`
     /// in the core wasm that's being wrapped.
-    pub fn adapter(self, name: &str, bytes: &[u8]) -> Result<Self> {
+    pub fn adapter(&mut self, name: &str, bytes: &[u8]) -> Result<&mut Self> {
         self.library_or_adapter(name, bytes, None)
     }
 
@@ -3409,16 +3409,21 @@ impl ComponentEncoder {
     /// Libraries are treated similarly to adapters, except that they are not
     /// "minified" the way adapters are, and instantiation is controlled
     /// declaratively via the `library_info` parameter.
-    pub fn library(self, name: &str, bytes: &[u8], library_info: LibraryInfo) -> Result<Self> {
+    pub fn library(
+        &mut self,
+        name: &str,
+        bytes: &[u8],
+        library_info: LibraryInfo,
+    ) -> Result<&mut Self> {
         self.library_or_adapter(name, bytes, Some(library_info))
     }
 
     fn library_or_adapter(
-        mut self,
+        &mut self,
         name: &str,
         bytes: &[u8],
         library_info: Option<LibraryInfo>,
-    ) -> Result<Self> {
+    ) -> Result<&mut Self> {
         let (wasm, mut metadata) = self.decode(bytes)?;
         // Merge the adapter's document into our own document to have one large
         // document, and then afterwards merge worlds as well.
@@ -3471,7 +3476,7 @@ impl ComponentEncoder {
     /// The default is to use the main module realloc
     /// Can be useful if cabi_realloc cannot be called before the host
     /// runtime is initialized.
-    pub fn realloc_via_memory_grow(mut self, value: bool) -> Self {
+    pub fn realloc_via_memory_grow(&mut self, value: bool) -> &mut Self {
         self.realloc_via_memory_grow = value;
         self
     }
@@ -3486,7 +3491,7 @@ impl ComponentEncoder {
     ///
     /// Note: the replacement names are not validated during encoding unless
     /// the `validate` option is set to true.
-    pub fn import_name_map(mut self, map: HashMap<String, String>) -> Self {
+    pub fn import_name_map(&mut self, map: HashMap<String, String>) -> &mut Self {
         self.import_name_map = map;
         self
     }
