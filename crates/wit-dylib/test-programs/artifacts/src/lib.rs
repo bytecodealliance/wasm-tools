@@ -61,7 +61,7 @@ fn create_component(
     let mut linker = Linker::default();
 
     // First define our caller/callee component with its own filename.
-    linker = linker
+    linker
         .library(
             wasm.0.file_name().unwrap().to_str().unwrap(),
             &std::fs::read(wasm.0).context("failed to read wasm")?,
@@ -71,13 +71,13 @@ fn create_component(
 
     // Next insert the synthesized adapter that is what we're primarily testing
     // in this file.
-    linker = linker
+    linker
         .library(&format!("{name}-interpreter-adapter.wasm"), &adapter, false)
         .context("failed to link adapter as library")?;
 
     // Next load up `libc.so` as we specified in the compilation of the original
     // file that it should be linked dynamically.
-    linker = linker
+    linker
         .library(
             "libc.so",
             &std::fs::read(LIBC_SO).context("failed to read libc.so")?,
@@ -87,7 +87,8 @@ fn create_component(
 
     // Rust-sourced compiles still, as of the time of this writing, require the
     // WASIp1 adapter. Load that in here.
-    linker = linker
+    linker
+        .encoder()
         .adapter(
             "wasi_snapshot_preview1",
             wasi_preview1_component_adapter_provider::WASI_SNAPSHOT_PREVIEW1_REACTOR_ADAPTER,
