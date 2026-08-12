@@ -17,8 +17,8 @@
   (core instance $main (;0;) (instantiate $main))
   (core module $wit-component-fixup (;1;)
     (type (;0;) (func))
-    (import "main" "_initialize" (func (;0;) (type 0)))
-    (start 0)
+    (import "main" "_initialize" (func $_initialize (;0;) (type 0)))
+    (start $_initialize)
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )

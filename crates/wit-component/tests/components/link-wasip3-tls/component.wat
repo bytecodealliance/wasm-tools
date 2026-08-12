@@ -191,41 +191,7 @@
       i32.add
     )
   )
-  (core module $__init (;4;)
-    (type (;0;) (func))
-    (type (;1;) (func (param i32)))
-    (import "env" "memory" (memory (;0;) 0))
-    (import "env" "__indirect_function_table" (table (;0;) 0 funcref))
-    (import "c" "__wasm_apply_data_relocs" (func (;0;) (type 0)))
-    (import "foo" "__wasm_apply_data_relocs" (func (;1;) (type 0)))
-    (import "env" "c:memory_base" (global (;0;) i32))
-    (import "c" "__wasm_library_tls_info" (global (;1;) i32))
-    (import "env" "foo:memory_base" (global (;2;) i32))
-    (import "foo" "__wasm_library_tls_info" (global (;3;) i32))
-    (start 2)
-    (elem (;0;) (i32.const 1) func)
-    (elem (;1;) (i32.const 1) func)
-    (func (;2;) (type 0)
-      call 0
-      call 1
-      i32.const 1048592
-      global.get 1
-      global.get 0
-      i32.add
-      i32.store
-      i32.const 1048596
-      global.get 3
-      global.get 2
-      i32.add
-      i32.store
-    )
-    (data (;0;) (i32.const 1048576) "\00\00\00\00\00\00\10\00")
-    (data (;1;) (i32.const 1048600) "\02\00\00\00\10\00\10\00\08\00\10\00")
-    (@producers
-      (processed-by "wit-component" "$CARGO_PKG_VERSION")
-    )
-  )
-  (core module $wit-component-shim-module (;5;)
+  (core module $wit-component-shim-module (;4;)
     (type (;0;) (func (param i32 i32) (result i32)))
     (table (;0;) 1 1 funcref)
     (export "0" (func $thread.new-indirect))
@@ -306,11 +272,39 @@
       (with "env" (instance $"#core-instance8 env"))
     )
   )
-  (core module $wit-component-fixup (;6;)
+  (core module $wit-component-fixup (;5;)
     (type (;0;) (func (param i32 i32) (result i32)))
-    (import "actual" "0" (func (;0;) (type 0)))
-    (import "shim" "$imports" (table (;0;) 1 1 funcref))
-    (elem (;0;) (i32.const 0) func 0)
+    (type (;1;) (func))
+    (import "actual" "0" (func $0 (;0;) (type 0)))
+    (import "main" "memory" (memory (;0;) 0))
+    (import "main" "__indirect_function_table" (table (;0;) 0 funcref))
+    (import "c" "__wasm_apply_data_relocs" (func $__wasm_apply_data_relocs (;1;) (type 1)))
+    (import "foo" "__wasm_apply_data_relocs" (func $"#func2 __wasm_apply_data_relocs" (@name "__wasm_apply_data_relocs") (;2;) (type 1)))
+    (import "main" "c:memory_base" (global $c:memory_base (;0;) i32))
+    (import "c" "__wasm_library_tls_info" (global $__wasm_library_tls_info (;1;) i32))
+    (import "main" "foo:memory_base" (global $foo:memory_base (;2;) i32))
+    (import "foo" "__wasm_library_tls_info" (global $"#global3 __wasm_library_tls_info" (@name "__wasm_library_tls_info") (;3;) i32))
+    (import "shim" "$imports" (table (;1;) 1 1 funcref))
+    (start $start)
+    (elem (;0;) (i32.const 1) func)
+    (elem (;1;) (i32.const 1) func)
+    (elem (;2;) (table 1) (i32.const 0) func $0)
+    (func $start (;3;) (type 1)
+      call $__wasm_apply_data_relocs
+      call $"#func2 __wasm_apply_data_relocs"
+      i32.const 1048592
+      global.get $c:memory_base
+      global.get $__wasm_library_tls_info
+      i32.add
+      i32.store
+      i32.const 1048596
+      global.get $foo:memory_base
+      global.get $"#global3 __wasm_library_tls_info"
+      i32.add
+      i32.store
+    )
+    (data (;0;) (i32.const 1048576) "\00\00\00\00\00\00\10\00")
+    (data (;1;) (i32.const 1048600) "\02\00\00\00\10\00\10\00\08\00\10\00")
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )
@@ -321,14 +315,11 @@
     (export "0" (func $"#core-func12 thread.new-indirect"))
   )
   (core instance $fixup (;11;) (instantiate $wit-component-fixup
-      (with "shim" (instance $wit-component-shim-instance))
       (with "actual" (instance $actual))
-    )
-  )
-  (core instance $__init (;12;) (instantiate $__init
-      (with "env" (instance $main))
+      (with "main" (instance $main))
       (with "c" (instance $c))
       (with "foo" (instance $foo))
+      (with "shim" (instance $wit-component-shim-instance))
     )
   )
   (type (;0;) (func (result s32)))

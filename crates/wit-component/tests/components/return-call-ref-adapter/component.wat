@@ -72,19 +72,18 @@
   )
   (core module $wit-component-fixup (;3;)
     (type (;0;) (func (param i32 i32)))
-    (type (;1;) (func (param i32 i32)))
-    (type (;2;) (func))
-    (import "actual" "0" (func (;0;) (type 0)))
-    (import "shim" "g0" (global (;0;) (mut (ref 0))))
-    (import "actual" "1" (func (;1;) (type 1)))
-    (import "shim" "g1" (global (;1;) (mut (ref 1))))
+    (type (;1;) (func))
+    (import "actual" "0" (func $0 (;0;) (type 0)))
+    (import "shim" "g0" (global $g0 (;0;) (mut (ref 0))))
+    (import "actual" "1" (func $1 (;1;) (type 0)))
+    (import "shim" "g1" (global $g1 (;1;) (mut (ref 0))))
     (start $start)
-    (elem (;0;) declare func 0 1)
-    (func $start (;2;) (type 2)
-      ref.func 0
-      global.set 0
-      ref.func 1
-      global.set 1
+    (elem (;0;) declare func $0 $1)
+    (func $start (;2;) (type 1)
+      ref.func $0
+      global.set $g0
+      ref.func $1
+      global.set $g1
     )
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
@@ -98,8 +97,8 @@
     (export "1" (func $"#core-func3 indirect-new-log"))
   )
   (core instance $fixup (;6;) (instantiate $wit-component-fixup
-      (with "shim" (instance $wit-component-shim-instance))
       (with "actual" (instance $actual))
+      (with "shim" (instance $wit-component-shim-instance))
     )
   )
   (@producers

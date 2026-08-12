@@ -94,7 +94,7 @@ use wit_parser::{
 const INDIRECT_TABLE_NAME: &str = "$imports";
 const SHIM_MEMORY_NAME: &str = "$memory";
 
-mod fixup;
+pub(crate) mod fixup;
 
 mod wit;
 pub use wit::{encode, encode_world};
@@ -670,7 +670,10 @@ impl<'a> EncodingState<'a> {
             .alias_export(instance, name, ComponentExportKind::Type)
     }
 
-    fn encode_core_instantiation(&mut self) -> Result<()> {
+    fn encode_core_instantiation(
+        &mut self,
+        fixup_hook: Option<&mut dyn FnMut(&mut fixup::FixupModule) -> Result<()>>,
+    ) -> Result<()> {
         // Encode a shim instantiation if needed
         let (shims, mut fixups) = self.encode_shim_instantiation()?;
 
@@ -684,23 +687,7 @@ impl<'a> EncodingState<'a> {
         // at the end.
         self.instantiate_main_module(&shims)?;
 
-        // Separate the adapters according which should be instantiated before
-        // and after indirect lowerings are encoded.
-        let (before, after) = self
-            .info
-            .adapters
-            .iter()
-            .partition::<Vec<_>, _>(|(_, adapter)| {
-                !matches!(
-                    adapter.library_info,
-                    Some(LibraryInfo {
-                        instantiate_after_shims: true,
-                        ..
-                    })
-                )
-            });
-
-        for (name, _adapter) in before {
+        for (name, _adapter) in self.info.adapters.iter() {
             self.instantiate_adapter_module(&shims, name)?;
         }
 
@@ -708,13 +695,13 @@ impl<'a> EncodingState<'a> {
             fixups.add_initialize(initialize)?;
         }
 
+        if let Some(hook) = fixup_hook {
+            hook(&mut fixups)?;
+        }
+
         // With all the relevant core wasm instances in play now the original shim
         // module, if present, can be filled in with lowerings/adapters/etc.
         fixups.instantiate(&shims, self)?;
-
-        for (name, _adapter) in after {
-            self.instantiate_adapter_module(&shims, name)?;
-        }
 
         // Create any wrappers needed for initializing tasks if task initialization
         // exports are present in the main module.
@@ -1253,7 +1240,7 @@ impl<'a> EncodingState<'a> {
             for i in 0..shim.sig.params.len() {
                 func.instructions().local_get(i as u32);
             }
-            fixups.add_shim(&self.info.encoder, shim);
+            fixups.add_shim(&self.info.encoder, shim)?;
             if self.info.encoder.shim_return_call_ref {
                 // Generate a global-per-function which gets exported from the
                 // module and then filled in later.
@@ -3236,9 +3223,6 @@ pub enum Instance {
 /// relative to other module instances
 #[derive(Clone)]
 pub struct LibraryInfo {
-    /// If true, instantiate any shims prior to this module
-    pub instantiate_after_shims: bool,
-
     /// Instantiation arguments
     pub arguments: Vec<(String, Instance)>,
 }
@@ -3479,6 +3463,13 @@ impl ComponentEncoder {
 
     /// Encode the component and return the bytes.
     pub fn encode(&mut self) -> Result<Vec<u8>> {
+        self.encode_with_fixups(None)
+    }
+
+    pub(crate) fn encode_with_fixups(
+        &mut self,
+        fixup_hook: Option<&mut dyn FnMut(&mut fixup::FixupModule) -> Result<()>>,
+    ) -> Result<Vec<u8>> {
         if self.module.is_empty() {
             bail!("a module is required when encoding a component");
         }
@@ -3510,7 +3501,7 @@ impl ComponentEncoder {
         };
         state.encode_imports(&self.import_name_map)?;
         state.encode_core_modules();
-        state.encode_core_instantiation()?;
+        state.encode_core_instantiation(fixup_hook)?;
         state.encode_exports(CustomModule::Main)?;
         for name in self.adapters.keys() {
             state.encode_exports(CustomModule::Adapter(name))?;

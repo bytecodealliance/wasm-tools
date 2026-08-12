@@ -89,21 +89,7 @@
       unreachable
     )
   )
-  (core module $__init (;3;)
-    (type (;0;) (func))
-    (type (;1;) (func (param i32)))
-    (import "env" "memory" (memory (;0;) 0))
-    (import "env" "__indirect_function_table" (table (;0;) 0 funcref))
-    (start 0)
-    (elem (;0;) (i32.const 1) func)
-    (elem (;1;) (i32.const 1) func)
-    (func (;0;) (type 0))
-    (data (;0;) (i32.const 1048576) "\00\00\00\00\00\00\10\00")
-    (@producers
-      (processed-by "wit-component" "$CARGO_PKG_VERSION")
-    )
-  )
-  (core module $wit-component-shim-module (;4;)
+  (core module $wit-component-shim-module (;3;)
     (type (;0;) (func (param i32 i32 i32 i32) (result i32)))
     (type (;1;) (func (param i32)))
     (global (;0;) (mut (ref 0)) ref.func $"trap stub before initialization")
@@ -169,22 +155,27 @@
       (with "$root" (instance $$root))
     )
   )
-  (core module $wit-component-fixup (;5;)
+  (core module $wit-component-fixup (;4;)
     (type (;0;) (func (param i32 i32 i32 i32) (result i32)))
     (type (;1;) (func (param i32)))
     (type (;2;) (func))
-    (import "actual" "0" (func (;0;) (type 0)))
-    (import "shim" "g0" (global (;0;) (mut (ref 0))))
-    (import "actual" "1" (func (;1;) (type 1)))
-    (import "shim" "g1" (global (;1;) (mut (ref 1))))
+    (import "actual" "0" (func $0 (;0;) (type 0)))
+    (import "shim" "g0" (global $g0 (;0;) (mut (ref 0))))
+    (import "actual" "1" (func $1 (;1;) (type 1)))
+    (import "shim" "g1" (global $g1 (;1;) (mut (ref 1))))
+    (import "main" "memory" (memory (;0;) 0))
+    (import "main" "__indirect_function_table" (table (;0;) 0 funcref))
     (start $start)
-    (elem (;0;) declare func 0 1)
+    (elem (;0;) (i32.const 1) func)
+    (elem (;1;) (i32.const 1) func)
+    (elem (;2;) declare func $0 $1)
     (func $start (;2;) (type 2)
-      ref.func 0
-      global.set 0
-      ref.func 1
-      global.set 1
+      ref.func $0
+      global.set $g0
+      ref.func $1
+      global.set $g1
     )
+    (data (;0;) (i32.const 1048576) "\00\00\00\00\00\00\10\00")
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )
@@ -197,12 +188,9 @@
     (export "1" (func $"#core-func5 indirect-$root-bar"))
   )
   (core instance $fixup (;9;) (instantiate $wit-component-fixup
-      (with "shim" (instance $wit-component-shim-instance))
       (with "actual" (instance $actual))
-    )
-  )
-  (core instance $__init (;10;) (instantiate $__init
-      (with "env" (instance $main))
+      (with "shim" (instance $wit-component-shim-instance))
+      (with "main" (instance $main))
     )
   )
   (alias core export $"#core-instance7 foo" "baz" (core func $baz (;6;)))

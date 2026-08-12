@@ -64,11 +64,10 @@
   )
   (core module $wit-component-fixup (;3;)
     (type (;0;) (func (param i32 i32)))
-    (type (;1;) (func (param i32 i32)))
-    (import "actual" "0" (func (;0;) (type 0)))
-    (import "actual" "1" (func (;1;) (type 1)))
+    (import "actual" "0" (func $0 (;0;) (type 0)))
+    (import "actual" "1" (func $1 (;1;) (type 0)))
     (import "shim" "$imports" (table (;0;) 2 2 funcref))
-    (elem (;0;) (i32.const 0) func 0 1)
+    (elem (;0;) (i32.const 0) func $0 $1)
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )
@@ -81,8 +80,8 @@
     (export "1" (func $"#core-func3 indirect-new-log"))
   )
   (core instance $fixup (;6;) (instantiate $wit-component-fixup
-      (with "shim" (instance $wit-component-shim-instance))
       (with "actual" (instance $actual))
+      (with "shim" (instance $wit-component-shim-instance))
     )
   )
   (@producers

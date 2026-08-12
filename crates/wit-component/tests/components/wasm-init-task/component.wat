@@ -67,12 +67,12 @@
   (alias core export $main "memory" (core memory $memory (;0;)))
   (core module $wit-component-fixup (;1;)
     (type (;0;) (func))
-    (import "main" "_initialize" (func (;0;) (type 0)))
-    (import "main" "__wasm_init_task" (func (;1;) (type 0)))
+    (import "main" "_initialize" (func $_initialize (;0;) (type 0)))
+    (import "main" "__wasm_init_task" (func $__wasm_init_task (;1;) (type 0)))
     (start $start)
     (func $start (;2;) (type 0)
-      call 1
-      call 0
+      call $__wasm_init_task
+      call $_initialize
     )
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")

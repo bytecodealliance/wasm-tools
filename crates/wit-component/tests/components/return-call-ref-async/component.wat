@@ -216,51 +216,50 @@
   (core module $wit-component-fixup (;2;)
     (type (;0;) (func (param i32 i32) (result i32)))
     (type (;1;) (func (param i32 i32)))
-    (type (;2;) (func (param i32 i32)))
-    (type (;3;) (func))
-    (import "actual" "0" (func (;0;) (type 0)))
-    (import "shim" "g0" (global (;0;) (mut (ref 0))))
-    (import "actual" "1" (func (;1;) (type 0)))
-    (import "shim" "g1" (global (;1;) (mut (ref 0))))
-    (import "actual" "2" (func (;2;) (type 0)))
-    (import "shim" "g2" (global (;2;) (mut (ref 0))))
-    (import "actual" "3" (func (;3;) (type 0)))
-    (import "shim" "g3" (global (;3;) (mut (ref 0))))
-    (import "actual" "4" (func (;4;) (type 0)))
-    (import "shim" "g4" (global (;4;) (mut (ref 0))))
-    (import "actual" "5" (func (;5;) (type 1)))
-    (import "shim" "g5" (global (;5;) (mut (ref 1))))
-    (import "actual" "6" (func (;6;) (type 1)))
-    (import "shim" "g6" (global (;6;) (mut (ref 1))))
-    (import "actual" "7" (func (;7;) (type 1)))
-    (import "shim" "g7" (global (;7;) (mut (ref 1))))
-    (import "actual" "8" (func (;8;) (type 2)))
-    (import "shim" "g8" (global (;8;) (mut (ref 2))))
-    (import "actual" "9" (func (;9;) (type 2)))
-    (import "shim" "g9" (global (;9;) (mut (ref 2))))
+    (type (;2;) (func))
+    (import "actual" "0" (func $0 (;0;) (type 0)))
+    (import "shim" "g0" (global $g0 (;0;) (mut (ref 0))))
+    (import "actual" "1" (func $1 (;1;) (type 0)))
+    (import "shim" "g1" (global $g1 (;1;) (mut (ref 0))))
+    (import "actual" "2" (func $2 (;2;) (type 0)))
+    (import "shim" "g2" (global $g2 (;2;) (mut (ref 0))))
+    (import "actual" "3" (func $3 (;3;) (type 0)))
+    (import "shim" "g3" (global $g3 (;3;) (mut (ref 0))))
+    (import "actual" "4" (func $4 (;4;) (type 0)))
+    (import "shim" "g4" (global $g4 (;4;) (mut (ref 0))))
+    (import "actual" "5" (func $5 (;5;) (type 1)))
+    (import "shim" "g5" (global $g5 (;5;) (mut (ref 1))))
+    (import "actual" "6" (func $6 (;6;) (type 1)))
+    (import "shim" "g6" (global $g6 (;6;) (mut (ref 1))))
+    (import "actual" "7" (func $7 (;7;) (type 1)))
+    (import "shim" "g7" (global $g7 (;7;) (mut (ref 1))))
+    (import "actual" "8" (func $8 (;8;) (type 1)))
+    (import "shim" "g8" (global $g8 (;8;) (mut (ref 1))))
+    (import "actual" "9" (func $9 (;9;) (type 1)))
+    (import "shim" "g9" (global $g9 (;9;) (mut (ref 1))))
     (start $start)
-    (elem (;0;) declare func 0 1 2 3 4 5 6 7 8 9)
-    (func $start (;10;) (type 3)
-      ref.func 0
-      global.set 0
-      ref.func 1
-      global.set 1
-      ref.func 2
-      global.set 2
-      ref.func 3
-      global.set 3
-      ref.func 4
-      global.set 4
-      ref.func 5
-      global.set 5
-      ref.func 6
-      global.set 6
-      ref.func 7
-      global.set 7
-      ref.func 8
-      global.set 8
-      ref.func 9
-      global.set 9
+    (elem (;0;) declare func $0 $1 $2 $3 $4 $5 $6 $7 $8 $9)
+    (func $start (;10;) (type 2)
+      ref.func $0
+      global.set $g0
+      ref.func $1
+      global.set $g1
+      ref.func $2
+      global.set $g2
+      ref.func $3
+      global.set $g3
+      ref.func $4
+      global.set $g4
+      ref.func $5
+      global.set $g5
+      ref.func $6
+      global.set $g6
+      ref.func $7
+      global.set $g7
+      ref.func $8
+      global.set $g8
+      ref.func $9
+      global.set $g9
     )
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
@@ -290,8 +289,8 @@
     (export "9" (func $"#core-func32 task.return"))
   )
   (core instance $fixup (;6;) (instantiate $wit-component-fixup
-      (with "shim" (instance $wit-component-shim-instance))
       (with "actual" (instance $actual))
+      (with "shim" (instance $wit-component-shim-instance))
     )
   )
   (type (;0;) (func async (param "s" string) (result string)))

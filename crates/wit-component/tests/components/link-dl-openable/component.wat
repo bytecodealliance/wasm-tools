@@ -34,34 +34,6 @@
       unreachable
     )
   )
-  (core module $__init (;2;)
-    (type (;0;) (func))
-    (type (;1;) (func (param i32)))
-    (type (;2;) (func (param i32) (result i32)))
-    (type (;3;) (func (param i32) (result i32)))
-    (type (;4;) (func (param i32) (result i32)))
-    (import "env" "memory" (memory (;0;) 0))
-    (import "env" "__indirect_function_table" (table (;0;) 0 funcref))
-    (import "env" "foo:memory_base" (global (;0;) i32))
-    (import "foo" "what" (global (;1;) i32))
-    (import "foo" "bar" (func (;0;) (type 2)))
-    (import "foo" "baz" (func (;1;) (type 3)))
-    (import "foo" "test:test/test#foo" (func (;2;) (type 4)))
-    (start 3)
-    (elem (;0;) (i32.const 1) func 0 1 2)
-    (elem (;1;) (i32.const 4) func)
-    (func (;3;) (type 0)
-      i32.const 1048656
-      global.get 0
-      global.get 1
-      i32.add
-      i32.store
-    )
-    (data (;0;) (i32.const 1048576) "foo\00bar\00baz\00test:test/test#foo\00\00what\03\00\00\00\04\00\10\00\01\00\00\00\03\00\00\00\08\00\10\00\02\00\00\00\12\00\00\00\0c\00\10\00\03\00\00\00\04\00\00\00 \00\10\00\00\00\00\00\03\00\00\00\00\00\10\00\04\00\00\00$\00\10\00\01\00\00\00T\00\10\00")
-    (@producers
-      (processed-by "wit-component" "$CARGO_PKG_VERSION")
-    )
-  )
   (core instance $main (;0;) (instantiate $main))
   (alias core export $main "memory" (core memory $memory (;0;)))
   (alias export $test:test/test "foo" (func $foo (;0;)))
@@ -73,8 +45,33 @@
       (with "test:test/test" (instance $test:test/test))
     )
   )
-  (core instance $__init (;3;) (instantiate $__init
-      (with "env" (instance $main))
+  (core module $wit-component-fixup (;2;)
+    (type (;0;) (func))
+    (type (;1;) (func (param i32) (result i32)))
+    (import "main" "memory" (memory (;0;) 0))
+    (import "main" "__indirect_function_table" (table (;0;) 0 funcref))
+    (import "main" "foo:memory_base" (global $foo:memory_base (;0;) i32))
+    (import "foo" "what" (global $what (;1;) i32))
+    (import "foo" "bar" (func $bar (;0;) (type 1)))
+    (import "foo" "baz" (func $baz (;1;) (type 1)))
+    (import "foo" "test:test/test#foo" (func $test:test/test#foo (;2;) (type 1)))
+    (start $start)
+    (elem (;0;) (i32.const 1) func $bar $baz $test:test/test#foo)
+    (elem (;1;) (i32.const 4) func)
+    (func $start (;3;) (type 0)
+      i32.const 1048656
+      global.get $foo:memory_base
+      global.get $what
+      i32.add
+      i32.store
+    )
+    (data (;0;) (i32.const 1048576) "foo\00bar\00baz\00test:test/test#foo\00\00what\03\00\00\00\04\00\10\00\01\00\00\00\03\00\00\00\08\00\10\00\02\00\00\00\12\00\00\00\0c\00\10\00\03\00\00\00\04\00\00\00 \00\10\00\00\00\00\00\03\00\00\00\00\00\10\00\04\00\00\00$\00\10\00\01\00\00\00T\00\10\00")
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+    )
+  )
+  (core instance $fixup (;3;) (instantiate $wit-component-fixup
+      (with "main" (instance $main))
       (with "foo" (instance $foo))
     )
   )

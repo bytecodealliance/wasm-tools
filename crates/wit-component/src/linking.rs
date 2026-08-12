@@ -23,6 +23,7 @@
 //! ahead-of-time.
 
 use {
+    crate::encoding::fixup::{AddressDest, FixupModule, ImportedInstance, StartAction},
     crate::encoding::{ComponentEncoder, Instance, Item, LibraryInfo, MainOrAdapter},
     anyhow::{Context, Result, anyhow, bail},
     indexmap::{IndexMap, IndexSet, map::Entry},
@@ -31,13 +32,11 @@ use {
         collections::{BTreeMap, HashMap, HashSet},
         fmt::Debug,
         hash::Hash,
-        iter,
     },
     wasm_encoder::{
-        CodeSection, ConstExpr, DataSection, ElementSection, Elements, EntityType, ExportKind,
-        ExportSection, Function, FunctionSection, GlobalSection, ImportSection, MemArg,
-        MemorySection, MemoryType, Module, RawCustomSection, RefType, StartSection, TableSection,
-        TableType, TypeSection, ValType,
+        CodeSection, ConstExpr, Elements, EntityType, ExportKind, ExportSection, Function,
+        FunctionSection, GlobalSection, ImportSection, MemArg, MemorySection, MemoryType, Module,
+        RawCustomSection, RefType, TableSection, TableType, TypeSection, ValType,
     },
     wasmparser::SymbolFlags,
 };
@@ -807,45 +806,17 @@ fn make_env_module<'a>(
 ///
 /// This module also contains the data segment for the `dlopen`/`dlsym` lookup table.
 fn make_init_module(
+    fixups: &mut FixupModule,
     metadata: &[Metadata],
     exporters: &IndexMap<&ExportKey, (&str, &Export)>,
     env_exports: &[EnvExport<'_>],
-    dl_openables: DlOpenables,
-    tls: TlsLayout,
+    dl_openables: &DlOpenables,
+    tls: &TlsLayout,
     indirection_table_base: u32,
-) -> Result<Vec<u8>> {
-    let mut module = Module::new();
-
-    // TODO: deduplicate types
-    let mut types = TypeSection::new();
-    types.ty().function([], []);
-    let thunk_ty = 0;
-    types.ty().function([ValType::I32], []);
-    let mut type_offset = 2;
-
-    for metadata in metadata {
-        if metadata.dl_openable {
-            for export in &metadata.exports {
-                if let Type::Function(ty) = &export.key.ty {
-                    types.ty().function(
-                        ty.parameters.iter().copied().map(ValType::from),
-                        ty.results.iter().copied().map(ValType::from),
-                    );
-                }
-            }
-        }
-    }
-    for export in env_exports {
-        types.ty().function(
-            export.ty.parameters.iter().copied().map(ValType::from),
-            export.ty.results.iter().copied().map(ValType::from),
-        );
-    }
-    module.section(&types);
-
-    let mut imports = ImportSection::new();
-    imports.import(
-        metadata::ENV,
+) -> Result<()> {
+    let thunk_ty = fixups.type_thunk();
+    let memory = fixups.import(
+        &ImportedInstance::Main,
         metadata::MEMORY,
         MemoryType {
             minimum: 0,
@@ -853,10 +824,11 @@ fn make_init_module(
             memory64: false,
             shared: false,
             page_size_log2: None,
-        },
-    );
-    imports.import(
-        metadata::ENV,
+        }
+        .into(),
+    )?;
+    let table = fixups.import(
+        &ImportedInstance::Main,
         metadata::INDIRECT_FUNCTION_TABLE,
         TableType {
             element_type: RefType::FUNCREF,
@@ -864,40 +836,44 @@ fn make_init_module(
             maximum: None,
             table64: false,
             shared: false,
-        },
-    );
+        }
+        .into(),
+    )?;
 
-    let mut global_count = 0;
+    let module_name_to_instance = |module: &str| match module {
+        metadata::ENV => ImportedInstance::Main,
+        other => ImportedInstance::Adapter(other.to_string()),
+    };
+
     let mut global_map = HashMap::new();
-    let mut add_global_import = |imports: &mut ImportSection, module: &str, name: &str, mutable| {
+    let mut add_global_import = |fixups: &mut FixupModule, module: &str, name: &str, mutable| {
         *global_map
             .entry((module.to_owned(), name.to_owned()))
             .or_insert_with(|| {
-                imports.import(
-                    module,
-                    name,
-                    wasm_encoder::GlobalType {
-                        val_type: ValType::I32,
-                        mutable,
-                        shared: false,
-                    },
-                );
-                get_and_increment(&mut global_count)
+                fixups
+                    .import_global(
+                        &module_name_to_instance(module),
+                        name,
+                        wasm_encoder::GlobalType {
+                            val_type: ValType::I32,
+                            mutable,
+                            shared: false,
+                        },
+                    )
+                    .unwrap()
             })
     };
 
-    let mut function_count = 0;
     let mut function_map = HashMap::new();
-    let mut add_function_import = |imports: &mut ImportSection, module: &str, name: &str, ty| {
+    let mut add_function_import = |fixups: &mut FixupModule, module: &str, name: &str, ty| {
         *function_map
             .entry((module.to_owned(), name.to_owned()))
             .or_insert_with(|| {
-                imports.import(module, name, EntityType::Function(ty));
-                get_and_increment(&mut function_count)
+                fixups
+                    .import_func(&module_name_to_instance(module), name, ty)
+                    .unwrap()
             })
     };
-
-    let mut start = Function::new([]);
 
     let mut names = HashMap::new();
     for (index, metadata) in metadata.iter().enumerate() {
@@ -906,23 +882,21 @@ fn make_init_module(
 
     for (exporter, export, address) in dl_openables.global_addresses.iter() {
         let memory_base = add_global_import(
-            &mut imports,
+            fixups,
             metadata::ENV,
             &format!("{exporter}:memory_base"),
             false,
         );
-        let export = add_global_import(&mut imports, exporter, export, false);
-        start
-            .instructions()
-            .i32_const(i32::try_from(*address).unwrap())
-            .global_get(memory_base)
-            .global_get(export)
-            .i32_add()
-            .i32_store(MemArg {
-                offset: 0,
-                align: 2,
-                memory_index: 0,
-            });
+        let export = add_global_import(fixups, exporter, export, false);
+
+        fixups.add_start_abi_detail(StartAction::InitializeAddress {
+            memory_base,
+            export,
+            dest: AddressDest::LinearMemory {
+                address: *address,
+                memory,
+            },
+        });
     }
 
     for metadata in metadata {
@@ -930,45 +904,33 @@ fn make_init_module(
             let (exporter, _) = find_offset_exporter(import, exporters)?;
 
             let memory_base = add_global_import(
-                &mut imports,
+                fixups,
                 metadata::ENV,
                 &format!("{exporter}:memory_base"),
                 false,
             );
-            let offset = add_global_import(&mut imports, exporter, import, false);
+            let offset = add_global_import(fixups, exporter, import, false);
             let address = add_global_import(
-                &mut imports,
+                fixups,
                 metadata::ENV,
                 &format!("{}:{import}", metadata.name),
                 true,
             );
-            start
-                .instructions()
-                .global_get(memory_base)
-                .global_get(offset)
-                .i32_add()
-                .global_set(address);
+            fixups.add_start_abi_detail(StartAction::InitializeAddress {
+                memory_base,
+                export: offset,
+                dest: AddressDest::Global(address),
+            });
         }
     }
 
     for metadata in metadata {
         if metadata.has_data_relocs {
-            let func = add_function_import(
-                &mut imports,
-                metadata.name,
-                metadata::APPLY_DATA_RELOCS,
-                thunk_ty,
-            );
-            start.instructions().call(func);
+            let func =
+                add_function_import(fixups, metadata.name, metadata::APPLY_DATA_RELOCS, thunk_ty);
+            fixups.add_start_abi_detail(StartAction::Call(func));
         }
     }
-
-    let mut init_task_exporter = exporters
-        .get(&ExportKey {
-            name: metadata::INIT_TASK,
-            ty: Type::Function(EMPTY_FUNCTION_TYPE.clone()),
-        })
-        .map(|(name, _)| name);
 
     for metadata in metadata {
         if metadata.has_ctors && metadata.has_initialize {
@@ -981,44 +943,35 @@ fn make_init_module(
             );
         }
 
-        // Before calling either `__wasm_call_ctors` or `_initialize`, we need
-        // to call `__wasm_init_task` if present to set up the shadow stack when
-        // using the cooperative multithreading ABI.
-        if let (Some(exporter), true) = (
-            init_task_exporter,
-            metadata.has_ctors || metadata.has_initialize,
-        ) {
-            // We only need to call it at most once, so we set
-            // `init_task_exporter` to `None` to avoid calling it again:
-            init_task_exporter = None;
-
-            let func = add_function_import(&mut imports, exporter, metadata::INIT_TASK, thunk_ty);
-            start.instructions().call(func);
-        }
-
         if metadata.has_ctors {
-            let func =
-                add_function_import(&mut imports, metadata.name, metadata::CALL_CTORS, thunk_ty);
-            start.instructions().call(func);
+            let func = add_function_import(fixups, metadata.name, metadata::CALL_CTORS, thunk_ty);
+            fixups.add_start_user_func(StartAction::Call(func));
         }
 
         if metadata.has_initialize {
-            let func =
-                add_function_import(&mut imports, metadata.name, metadata::INITIALIZE, thunk_ty);
-            start.instructions().call(func);
+            let func = add_function_import(fixups, metadata.name, metadata::INITIALIZE, thunk_ty);
+            fixups.add_start_user_func(StartAction::Call(func));
         }
     }
+
+    let intern_type = |fixups: &mut FixupModule, ty: &FunctionType| {
+        fixups.type_intern(
+            ty.parameters.iter().copied().map(|t| t.into()).collect(),
+            ty.results.iter().copied().map(|t| t.into()).collect(),
+        )
+    };
 
     let mut dl_openable_functions = Vec::new();
     for metadata in metadata {
         if metadata.dl_openable {
             for export in &metadata.exports {
-                if let Type::Function(_) = &export.key.ty {
+                if let Type::Function(fty) = &export.key.ty {
+                    let ty = intern_type(fixups, fty);
                     dl_openable_functions.push(add_function_import(
-                        &mut imports,
+                        fixups,
                         metadata.name,
                         export.key.name,
-                        get_and_increment(&mut type_offset),
+                        ty,
                     ));
                 }
             }
@@ -1027,13 +980,9 @@ fn make_init_module(
 
     let indirections = env_exports
         .iter()
-        .map(|EnvExport { name, exporter, .. }| {
-            add_function_import(
-                &mut imports,
-                names[exporter],
-                name,
-                get_and_increment(&mut type_offset),
-            )
+        .map(|EnvExport { name, exporter, ty }| {
+            let ty = intern_type(fixups, ty);
+            add_function_import(fixups, names[exporter], name, ty)
         })
         .collect::<Vec<_>>();
 
@@ -1050,80 +999,46 @@ fn make_init_module(
         {
             let metadata = &metadata[lib_index];
             let memory_base = add_global_import(
-                &mut imports,
+                fixups,
                 metadata::ENV,
                 &format!("{}:memory_base", metadata.name),
                 false,
             );
-            let i = add_global_import(
-                &mut imports,
-                metadata.name,
-                metadata::LIBRARY_TLS_INFO,
-                false,
-            );
-            start
-                .instructions()
-                .i32_const((tls.library_info + tls_index * 4) as i32)
-                .global_get(i)
-                .global_get(memory_base)
-                .i32_add()
-                .i32_store(MemArg {
-                    offset: 0,
-                    align: 2,
-                    memory_index: 0,
-                });
+            let i = add_global_import(fixups, metadata.name, metadata::LIBRARY_TLS_INFO, false);
+
+            fixups.add_start_abi_detail(StartAction::InitializeAddress {
+                memory_base,
+                export: i,
+                dest: AddressDest::LinearMemory {
+                    address: tls.library_info + tls_index * 4,
+                    memory,
+                },
+            });
         }
     }
 
-    module.section(&imports);
+    fixups.elements().active(
+        if table == 0 { None } else { Some(table) },
+        &const_u32(dl_openables.table_base),
+        Elements::Functions(dl_openable_functions.into()),
+    );
+    fixups.elements().active(
+        if table == 0 { None } else { Some(table) },
+        &const_u32(indirection_table_base),
+        Elements::Functions(indirections.into()),
+    );
 
-    {
-        let mut functions = FunctionSection::new();
-        functions.function(thunk_ty);
-        module.section(&functions);
-    }
-
-    module.section(&StartSection {
-        function_index: function_count,
-    });
-
-    {
-        let mut elements = ElementSection::new();
-        elements.active(
-            None,
-            &const_u32(dl_openables.table_base),
-            Elements::Functions(dl_openable_functions.into()),
-        );
-        elements.active(
-            None,
-            &const_u32(indirection_table_base),
-            Elements::Functions(indirections.into()),
-        );
-        module.section(&elements);
-    }
-
-    {
-        let mut code = CodeSection::new();
-        start.instructions().end();
-        code.function(&start);
-        module.section(&code);
-    }
-
-    let mut data = DataSection::new();
-    data.active(0, &const_u32(dl_openables.memory_base), dl_openables.buffer);
+    let data = fixups.data();
+    data.active(
+        memory,
+        &const_u32(dl_openables.memory_base),
+        dl_openables.buffer.clone(),
+    );
     if !tls.buffer.is_empty() {
-        data.active(0, &const_u32(tls.program_info), tls.buffer);
+        data.active(memory, &const_u32(tls.program_info), tls.buffer.clone());
     }
-    module.section(&data);
 
-    module.section(&RawCustomSection(
-        &crate::base_producers().raw_custom_section(),
-    ));
-
-    let module = module.finish();
-    wasmparser::validate(&module)?;
-
-    Ok(module)
+    Ok(())
 }
 
 /// Find the library which exports the specified function or global address.
@@ -2022,7 +1937,6 @@ impl Linker {
                 name,
                 module,
                 LibraryInfo {
-                    instantiate_after_shims: false,
                     arguments: [
                         (metadata::GOT_MEM.into(), Instance::Items(mem_items)),
                         (metadata::GOT_FUNC.into(), Instance::Items(func_items)),
@@ -2041,32 +1955,16 @@ impl Linker {
             seen.insert(name.as_str());
         }
 
-        self.encoder
-            .library(
-                "__init",
-                &make_init_module(
-                    &metadata,
-                    &exporters,
-                    &env_exports,
-                    dl_openables,
-                    tls,
-                    table_base,
-                )?,
-                LibraryInfo {
-                    instantiate_after_shims: true,
-                    arguments: iter::once((
-                        metadata::ENV.into(),
-                        Instance::MainOrAdapter(MainOrAdapter::Main),
-                    ))
-                    .chain(self.libraries.iter().map(|(name, ..)| {
-                        (
-                            name.clone(),
-                            Instance::MainOrAdapter(MainOrAdapter::Adapter(name.clone())),
-                        )
-                    }))
-                    .collect(),
-                },
-            )?
-            .encode()
+        self.encoder.encode_with_fixups(Some(&mut |fixups| {
+            make_init_module(
+                fixups,
+                &metadata,
+                &exporters,
+                &env_exports,
+                &dl_openables,
+                &tls,
+                table_base,
+            )
+        }))
     }
 }
