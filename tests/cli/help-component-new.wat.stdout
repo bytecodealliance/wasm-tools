@@ -109,6 +109,16 @@ Options:
           
           [possible values: true, false]
 
+      --return-call-ref[=<true|false>]
+          Whether or not to use `return_call_ref` for shims.
+          
+          If this is not specified or specified as `false` then generated shim
+          modules will use `call_indirect`. Note that enabling this option means
+          the generated component will require the WebAssembly tail-call and
+          function-references proposal.
+          
+          [possible values: true, false]
+
   -t, --wat
           Print the output in the WebAssembly text format instead of binary
 

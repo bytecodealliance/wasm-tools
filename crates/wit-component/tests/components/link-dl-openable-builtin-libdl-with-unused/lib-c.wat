@@ -1,3 +1,5 @@
+;;! use-built-in-libdl = true
+
 ;; module name: libc.so
 (module
   (@dylink.0

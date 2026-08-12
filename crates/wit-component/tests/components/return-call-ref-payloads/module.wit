@@ -1,0 +1,5 @@
+package foo:foo;
+
+world module {
+  import foo: async func(x: stream<u8>);
+}

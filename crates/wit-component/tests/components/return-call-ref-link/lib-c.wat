@@ -1,7 +1,5 @@
-;;! stub-missing-functions = true
-;;! use-built-in-libdl = true
+;;! return-call-ref = true
 
-;; module name: libc.so
 (module
   (@dylink.0
     (mem-info (memory 0 4))
@@ -10,7 +8,6 @@
   (type (func (param i32) (result i32)))
   (import "GOT.mem" "__heap_base" (global $__heap_base (mut i32)))
   (import "GOT.mem" "__heap_end" (global $__heap_end (mut i32)))
-  (global $errno i32 i32.const 0)
   (global $heap (mut i32) i32.const 0)
   (func $start (type 0)
     global.get $__heap_base
@@ -26,11 +23,7 @@
   (func $abort (type 0)
     unreachable
   )
-  (func (export "__wasi_init_tp"))
-  (func (export "memcmp") (param i32 i32 i32) (result i32) unreachable)
-  (func (export "strlen") (param i32) (result i32) unreachable)
   (export "malloc" (func $malloc))
   (export "abort" (func $abort))
-  (export "errno" (global $errno))
   (start $start)
 )
