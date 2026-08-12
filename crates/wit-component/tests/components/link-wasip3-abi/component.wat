@@ -236,6 +236,7 @@
   )
   (core module $wit-component-fixup (;4;)
     (type (;0;) (func))
+    (type (;1;) (func (param i32) (result i32)))
     (import "main" "memory" (memory (;0;) 0))
     (import "main" "__indirect_function_table" (table (;0;) 0 funcref))
     (import "main" "foo:memory_base" (global $foo:memory_base (;0;) i32))
@@ -251,10 +252,17 @@
     (import "c" "__wasm_init_task" (func $__wasm_init_task (;4;) (type 0)))
     (import "c" "__wasm_init_async_task" (func $__wasm_init_async_task (;5;) (type 0)))
     (import "main" "__wasm_init_task" (func $"#func6 __wasm_init_task" (@name "__wasm_init_task") (;6;) (type 0)))
+    (import "bar" "test:test/test#bar" (func $test:test/test#bar (;7;) (type 1)))
+    (export "hook0" (func $hook-test:test/test#bar))
     (start $start)
     (elem (;0;) (i32.const 1) func)
     (elem (;1;) (i32.const 1) func $__wasm_init_task $__wasm_init_async_task)
-    (func $start (;7;) (type 0)
+    (func $hook-test:test/test#bar (;8;) (type 1) (param i32) (result i32)
+      call $"#func6 __wasm_init_task"
+      local.get 0
+      call $test:test/test#bar
+    )
+    (func $start (;9;) (type 0)
       global.get $foo:memory_base
       global.get $well
       i32.add
@@ -281,34 +289,9 @@
       (with "c" (instance $c))
     )
   )
-  (core module $init-task-wrappers (;5;)
-    (type (;0;) (func))
-    (type (;1;) (func (param i32) (result i32)))
-    (import "" "__wasm_init_task" (func (;0;) (type 0)))
-    (import "" "__wasm_init_async_task" (func (;1;) (type 0)))
-    (import "" "0" (func (;2;) (type 1)))
-    (export "test:test/test#bar" (func 3))
-    (func (;3;) (type 1) (param i32) (result i32)
-      call 0
-      local.get 0
-      call 2
-    )
-  )
-  (alias core export $main "__wasm_init_task" (core func $__wasm_init_task (;6;)))
-  (alias core export $main "__wasm_init_async_task" (core func $__wasm_init_async_task (;7;)))
-  (alias core export $bar "test:test/test#bar" (core func $test:test/test#bar (;8;)))
-  (core instance $init-task-wrappers-args (;11;)
-    (export "__wasm_init_task" (func $__wasm_init_task))
-    (export "__wasm_init_async_task" (func $__wasm_init_async_task))
-    (export "0" (func $test:test/test#bar))
-  )
-  (core instance $init-task-wrappers-instance (;12;) (instantiate $init-task-wrappers
-      (with "" (instance $init-task-wrappers-args))
-    )
-  )
-  (alias core export $init-task-wrappers-instance "test:test/test#bar" (core func $"#core-func9 test:test/test#bar" (@name "test:test/test#bar") (;9;)))
+  (alias core export $fixup "hook0" (core func $hook0 (;6;)))
   (type (;1;) (func (param "v" s32) (result s32)))
-  (func $"#func1 bar" (@name "bar") (;1;) (type 1) (canon lift (core func $"#core-func9 test:test/test#bar")))
+  (func $"#func1 bar" (@name "bar") (;1;) (type 1) (canon lift (core func $hook0)))
   (component $test:test/test-shim-component (;0;)
     (type (;0;) (func (param "v" s32) (result s32)))
     (import "import-func-bar" (func (;0;) (type 0)))

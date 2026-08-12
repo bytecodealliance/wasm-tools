@@ -10,5 +10,6 @@ world module {
 
   export x: interface {
     sync: func();
+    resource r;
   }
 }
