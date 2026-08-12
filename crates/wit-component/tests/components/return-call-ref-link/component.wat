@@ -135,26 +135,6 @@
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )
   )
-  (core module $wit-component-fixup (;5;)
-    (type (;0;) (func (param i32 i32 i32 i32) (result i32)))
-    (type (;1;) (func (param i32)))
-    (type (;2;) (func))
-    (import "shim" "g0" (global (;0;) (mut (ref 0))))
-    (import "" "0" (func (;0;) (type 0)))
-    (import "shim" "g1" (global (;1;) (mut (ref 1))))
-    (import "" "1" (func (;1;) (type 1)))
-    (start 2)
-    (elem (;0;) declare func 0 1)
-    (func (;2;) (type 2)
-      ref.func 0
-      global.set 0
-      ref.func 1
-      global.set 1
-    )
-    (@producers
-      (processed-by "wit-component" "$CARGO_PKG_VERSION")
-    )
-  )
   (core instance $wit-component-shim-instance (;0;) (instantiate $wit-component-shim-module))
   (alias core export $wit-component-shim-instance "0" (core func $adapt-foo-cabi_realloc (;0;)))
   (core instance $foo (;1;)
@@ -189,16 +169,36 @@
       (with "$root" (instance $$root))
     )
   )
+  (core module $wit-component-fixup (;5;)
+    (type (;0;) (func (param i32 i32 i32 i32) (result i32)))
+    (type (;1;) (func (param i32)))
+    (type (;2;) (func))
+    (import "actual" "0" (func (;0;) (type 0)))
+    (import "shim" "g0" (global (;0;) (mut (ref 0))))
+    (import "actual" "1" (func (;1;) (type 1)))
+    (import "shim" "g1" (global (;1;) (mut (ref 1))))
+    (start $start)
+    (elem (;0;) declare func 0 1)
+    (func $start (;2;) (type 2)
+      ref.func 0
+      global.set 0
+      ref.func 1
+      global.set 1
+    )
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+    )
+  )
   (alias core export $"#core-instance7 foo" "cabi_realloc" (core func $cabi_realloc (;3;)))
   (alias core export $"#core-instance7 foo" "cabi_import_realloc" (core func $realloc (;4;)))
   (core func $"#core-func5 indirect-$root-bar" (@name "indirect-$root-bar") (;5;) (canon lower (func $bar) (memory $memory) (realloc $realloc) string-encoding=utf8))
-  (core instance $fixup-args (;8;)
+  (core instance $actual (;8;)
     (export "0" (func $cabi_realloc))
     (export "1" (func $"#core-func5 indirect-$root-bar"))
   )
   (core instance $fixup (;9;) (instantiate $wit-component-fixup
-      (with "" (instance $fixup-args))
       (with "shim" (instance $wit-component-shim-instance))
+      (with "actual" (instance $actual))
     )
   )
   (core instance $__init (;10;) (instantiate $__init

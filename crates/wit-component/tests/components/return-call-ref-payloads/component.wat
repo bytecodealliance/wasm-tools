@@ -54,25 +54,6 @@
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )
   )
-  (core module $wit-component-fixup (;2;)
-    (type (;0;) (func (param i32 i32 i32) (result i32)))
-    (type (;1;) (func))
-    (import "shim" "g0" (global (;0;) (mut (ref 0))))
-    (import "" "0" (func (;0;) (type 0)))
-    (import "shim" "g1" (global (;1;) (mut (ref 0))))
-    (import "" "1" (func (;1;) (type 0)))
-    (start 2)
-    (elem (;0;) declare func 0 1)
-    (func (;2;) (type 1)
-      ref.func 0
-      global.set 0
-      ref.func 1
-      global.set 1
-    )
-    (@producers
-      (processed-by "wit-component" "$CARGO_PKG_VERSION")
-    )
-  )
   (core instance $wit-component-shim-instance (;0;) (instantiate $wit-component-shim-module))
   (core func $foo (;0;) (canon lower (func $foo) async))
   (core func $stream.new (;1;) (canon stream.new 0))
@@ -93,15 +74,34 @@
     )
   )
   (alias core export $main "memory" (core memory $memory (;0;)))
+  (core module $wit-component-fixup (;2;)
+    (type (;0;) (func (param i32 i32 i32) (result i32)))
+    (type (;1;) (func))
+    (import "actual" "0" (func (;0;) (type 0)))
+    (import "shim" "g0" (global (;0;) (mut (ref 0))))
+    (import "actual" "1" (func (;1;) (type 0)))
+    (import "shim" "g1" (global (;1;) (mut (ref 0))))
+    (start $start)
+    (elem (;0;) declare func 0 1)
+    (func $start (;2;) (type 1)
+      ref.func 0
+      global.set 0
+      ref.func 1
+      global.set 1
+    )
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+    )
+  )
   (core func $stream.read (;6;) (canon stream.read 0 (memory $memory)))
   (core func $stream.write (;7;) (canon stream.write 0 (memory $memory)))
-  (core instance $fixup-args (;3;)
+  (core instance $actual (;3;)
     (export "0" (func $stream.read))
     (export "1" (func $stream.write))
   )
   (core instance $fixup (;4;) (instantiate $wit-component-fixup
-      (with "" (instance $fixup-args))
       (with "shim" (instance $wit-component-shim-instance))
+      (with "actual" (instance $actual))
     )
   )
   (@producers

@@ -94,6 +94,8 @@ use wit_parser::{
 const INDIRECT_TABLE_NAME: &str = "$imports";
 const SHIM_MEMORY_NAME: &str = "$memory";
 
+mod fixup;
+
 mod wit;
 pub use wit::{encode, encode_world};
 
@@ -429,10 +431,6 @@ pub struct EncodingState<'a> {
     ///
     /// If `None`, then the shim instance how not yet been encoded.
     shim_instance_index: Option<u32>,
-    /// The index of the fixups module to instantiate to fill in the lowered imports.
-    ///
-    /// If `None`, then a fixup module has not yet been encoded.
-    fixups_module_index: Option<u32>,
 
     /// A map of named adapter modules and the index that the module was defined
     /// at.
@@ -674,7 +672,7 @@ impl<'a> EncodingState<'a> {
 
     fn encode_core_instantiation(&mut self) -> Result<()> {
         // Encode a shim instantiation if needed
-        let shims = self.encode_shim_instantiation()?;
+        let (shims, mut fixups) = self.encode_shim_instantiation()?;
 
         // Next declare any types needed for imported intrinsics. This
         // populates `export_type_map` and will additionally be used for
@@ -708,7 +706,7 @@ impl<'a> EncodingState<'a> {
 
         // With all the relevant core wasm instances in play now the original shim
         // module, if present, can be filled in with lowerings/adapters/etc.
-        self.encode_indirect_lowerings(&shims)?;
+        fixups.instantiate(&shims, self)?;
 
         for (name, _adapter) in after {
             self.instantiate_adapter_module(&shims, name)?;
@@ -1180,8 +1178,9 @@ impl<'a> EncodingState<'a> {
         Ok(func_index)
     }
 
-    fn encode_shim_instantiation(&mut self) -> Result<Shims<'a>> {
+    fn encode_shim_instantiation(&mut self) -> Result<(Shims<'a>, fixup::FixupModule)> {
         let mut ret = Shims::default();
+        let mut fixups = fixup::FixupModule::default();
 
         ret.append_indirect(self.info, CustomModule::Main)
             .context("failed to register indirect shims for main module")?;
@@ -1197,19 +1196,16 @@ impl<'a> EncodingState<'a> {
         }
 
         if ret.shims.is_empty() && self.info.info.imports.imported_memory().is_none() {
-            return Ok(ret);
+            return Ok((ret, fixups));
         }
 
         assert!(self.shim_instance_index.is_none());
-        assert!(self.fixups_module_index.is_none());
 
         // This function encodes up to two modules:
         // - A shim module that defines functions to indirectly call through
         //   tables or globals. This shim also may contain memory for the main
         //   module if it needs it. This shim is instantiated before the
         //   main module.
-        // - A fixup module that is instantiated after the main module is
-        //   available and fills in the shim module's tables/globals/etc.
 
         let mut types = TypeSection::new();
         let mut shim_globals = GlobalSection::new();
@@ -1220,12 +1216,8 @@ impl<'a> EncodingState<'a> {
         let mut shim_code = CodeSection::new();
         let mut sigs = IndexMap::new();
         let mut trapping_stubs = IndexMap::new();
-        let mut fixup_imports = ImportSection::new();
-        let mut fixup_elements = ElementSection::new();
         let mut func_indexes = Vec::new();
         let mut func_names = NameMap::new();
-
-        let mut fixup_start = wasm_encoder::Function::new(std::iter::empty());
 
         for shim in ret.shims.values() {
             let type_index = *sigs.entry(&shim.sig).or_insert_with(|| {
@@ -1259,6 +1251,7 @@ impl<'a> EncodingState<'a> {
             for i in 0..shim.sig.params.len() {
                 func.instructions().local_get(i as u32);
             }
+            fixups.add_shim(&self.info.encoder, shim);
             if self.info.encoder.shim_return_call_ref {
                 // Generate a global-per-function which gets exported from the
                 // module and then filled in later.
@@ -1278,12 +1271,6 @@ impl<'a> EncodingState<'a> {
 
                 func.instructions().global_get(global);
                 func.instructions().return_call_ref(type_index);
-
-                fixup_imports.import("shim", &global_name, ty);
-                fixup_start
-                    .instructions()
-                    .ref_func(fixup_imports.len() / 2)
-                    .global_set(global);
             } else {
                 func.instructions().i32_const(func_index as i32);
                 func.instructions().call_indirect(0, type_index);
@@ -1292,7 +1279,6 @@ impl<'a> EncodingState<'a> {
             shim_code.function(&func);
             shim_exports.export(&shim.name, ExportKind::Func, func_index);
 
-            fixup_imports.import("", &shim.name, EntityType::Function(type_index));
             func_indexes.push(func_index);
             func_names.append(func_index, &shim.debug_name);
         }
@@ -1311,12 +1297,6 @@ impl<'a> EncodingState<'a> {
 
             shim_tables.table(table_type);
             shim_exports.export(INDIRECT_TABLE_NAME, ExportKind::Table, 0);
-            fixup_imports.import("", INDIRECT_TABLE_NAME, table_type);
-            fixup_elements.active(
-                None,
-                &ConstExpr::i32_const(0),
-                Elements::Functions(func_indexes.clone().into()),
-            );
         }
 
         // If the main module imports its memory then define it here and export
@@ -1357,68 +1337,6 @@ impl<'a> EncodingState<'a> {
             .component
             .core_module(Some("wit-component-shim-module"), &shim);
 
-        // The fixup module is only necessary if there's at least one shim
-        // requiring an indirection; a shim module which only defines memory
-        // needs no fixups.
-        if !ret.shims.is_empty() {
-            let mut fixup_functions = FunctionSection::new();
-            let mut fixup_code = CodeSection::new();
-
-            let fixup_start = if self.info.encoder.shim_return_call_ref {
-                let type_index = types.len();
-                types.ty().function([], []);
-                fixup_functions.function(type_index);
-                fixup_start.instructions().end();
-                fixup_code.function(&fixup_start);
-                Some(func_indexes.len() as u32)
-            } else {
-                None
-            };
-
-            if self.info.encoder.shim_return_call_ref {
-                fixup_elements.declared(Elements::Functions(
-                    (0..func_indexes.len())
-                        .map(|i| i as u32)
-                        .collect::<Vec<_>>()
-                        .into(),
-                ));
-            }
-
-            let mut fixups = Module::default();
-            fixups.section(&types);
-            if !fixup_imports.is_empty() {
-                fixups.section(&fixup_imports);
-            }
-            if !fixup_functions.is_empty() {
-                fixups.section(&fixup_functions);
-            }
-            if let Some(start) = fixup_start {
-                fixups.section(&StartSection {
-                    function_index: start,
-                });
-            }
-            if !fixup_elements.is_empty() {
-                fixups.section(&fixup_elements);
-            }
-            if !fixup_code.is_empty() {
-                fixups.section(&fixup_code);
-            }
-            fixups.section(&RawCustomSection(
-                &crate::base_producers().raw_custom_section(),
-            ));
-
-            if self.info.encoder.debug_names {
-                let mut fixup_names = NameSection::new();
-                fixup_names.module("wit-component:fixups");
-                fixups.section(&fixup_names);
-            }
-
-            let fixup_index = self
-                .component
-                .core_module(Some("wit-component-fixup"), &fixups);
-            self.fixups_module_index = Some(fixup_index);
-        }
-
         let shim_instance = self.component.core_instantiate(
             Some("wit-component-shim-instance"),
             shim_module_index,
@@ -1438,176 +1356,147 @@ impl<'a> EncodingState<'a> {
             ));
         }
 
-        return Ok(ret);
+        Ok((ret, fixups))
     }
 
-    fn encode_indirect_lowerings(&mut self, shims: &Shims<'_>) -> Result<()> {
-        if shims.shims.is_empty() {
-            return Ok(());
-        }
-
-        let shim_instance_index = self
-            .shim_instance_index
-            .expect("must have an instantiated shim");
-
+    fn encode_shim(&mut self, shim: &Shim<'_>) -> Result<u32> {
         let resolve = &self.info.encoder.metadata.resolve;
+        Ok(match &shim.kind {
+            // Indirect lowerings are a `canon lower`'d function with
+            // options specified from a previously instantiated instance.
+            // This previous instance could either be the main module or an
+            // adapter module, which affects the `realloc` option here.
+            // Currently only one linear memory is supported so the linear
+            // memory always comes from the main module.
+            ShimKind::IndirectLowering {
+                interface,
+                index,
+                realloc,
+                encoding,
+            } => {
+                let interface = &self.info.import_map[interface];
+                let ((name, _), _) = interface.lowerings.get_index(*index).unwrap();
+                let func_index = match &interface.interface {
+                    Some(interface_id) => {
+                        let instance_index = self.instances[interface_id];
+                        self.component
+                            .alias_export(instance_index, name, ComponentExportKind::Func)
+                    }
+                    None => self.imported_funcs[name],
+                };
 
-        let mut exports = Vec::new();
-        if !self.info.encoder.shim_return_call_ref {
-            let table_index = self.core_alias_export(
-                Some("shim table"),
-                shim_instance_index,
-                INDIRECT_TABLE_NAME,
-                ExportKind::Table,
-            );
-            exports.push((INDIRECT_TABLE_NAME, ExportKind::Table, table_index));
-        }
-
-        for shim in shims.shims.values() {
-            let core_func_index = match &shim.kind {
-                // Indirect lowerings are a `canon lower`'d function with
-                // options specified from a previously instantiated instance.
-                // This previous instance could either be the main module or an
-                // adapter module, which affects the `realloc` option here.
-                // Currently only one linear memory is supported so the linear
-                // memory always comes from the main module.
-                ShimKind::IndirectLowering {
-                    interface,
-                    index,
-                    realloc,
-                    encoding,
-                } => {
-                    let interface = &self.info.import_map[interface];
-                    let ((name, _), _) = interface.lowerings.get_index(*index).unwrap();
-                    let func_index = match &interface.interface {
-                        Some(interface_id) => {
-                            let instance_index = self.instances[interface_id];
-                            self.component.alias_export(
-                                instance_index,
-                                name,
-                                ComponentExportKind::Func,
-                            )
-                        }
-                        None => self.imported_funcs[name],
-                    };
-
-                    let realloc = self
-                        .info
-                        .exports_for(*realloc)
-                        .import_realloc_for(interface.interface, name)
-                        .map(|name| {
-                            let instance = self.instance_for(*realloc);
-                            self.core_alias_export(
-                                Some("realloc"),
-                                instance,
-                                name,
-                                ExportKind::Func,
-                            )
-                        });
-
-                    self.component.lower_func(
-                        Some(&shim.debug_name),
-                        func_index,
-                        shim.options
-                            .into_iter(*encoding, self.memory_index, realloc)?,
-                    )
-                }
-
-                // Adapter shims are defined by an export from an adapter
-                // instance, so use the specified name here and the previously
-                // created instances to get the core item that represents the
-                // shim.
-                ShimKind::Adapter { adapter, func } => self.core_alias_export(
-                    Some(func),
-                    self.adapter_instances[adapter],
-                    func,
-                    ExportKind::Func,
-                ),
-
-                // Resources are required for a module to be instantiated
-                // meaning that any destructor for the resource must be called
-                // indirectly due to the otherwise circular dependency between
-                // the module and the resource itself.
-                ShimKind::ResourceDtor { module, export } => self.core_alias_export(
-                    Some(export),
-                    self.instance_for(*module),
-                    export,
-                    ExportKind::Func,
-                ),
-
-                ShimKind::PayloadFunc {
-                    for_module,
-                    info,
-                    kind,
-                } => self.encode_payload_func(for_module, info, kind, shim.options)?,
-
-                ShimKind::WaitableSetWait { cancellable } => self
-                    .component
-                    .waitable_set_wait(*cancellable, self.memory_index.unwrap()),
-                ShimKind::WaitableSetPoll { cancellable } => self
-                    .component
-                    .waitable_set_poll(*cancellable, self.memory_index.unwrap()),
-                ShimKind::ErrorContextNew { encoding } => self.component.error_context_new(
-                    shim.options.into_iter(*encoding, self.memory_index, None)?,
-                ),
-                ShimKind::ErrorContextDebugMessage {
-                    for_module,
-                    encoding,
-                } => {
-                    let instance_index = self.instance_for(*for_module);
-                    let realloc = self.info.exports_for(*for_module).import_realloc_fallback();
-                    let realloc_index = realloc.map(|r| {
-                        self.core_alias_export(Some("realloc"), instance_index, r, ExportKind::Func)
+                let realloc = self
+                    .info
+                    .exports_for(*realloc)
+                    .import_realloc_for(interface.interface, name)
+                    .map(|name| {
+                        let instance = self.instance_for(*realloc);
+                        self.core_alias_export(Some("realloc"), instance, name, ExportKind::Func)
                     });
 
-                    self.component
-                        .error_context_debug_message(shim.options.into_iter(
-                            *encoding,
-                            self.memory_index,
-                            realloc_index,
-                        )?)
-                }
-                ShimKind::TaskReturn {
-                    interface,
-                    func,
-                    result,
-                    encoding,
-                    for_module,
-                } => {
-                    // See `Import::ExportedTaskReturn` handling for why this
-                    // encoder is treated specially.
-                    let mut encoder = if interface.is_none() {
-                        self.root_import_type_encoder(*interface)
-                    } else {
-                        self.root_export_type_encoder(*interface)
-                    };
-                    let result = match result {
-                        Some(ty) => Some(encoder.encode_valtype(resolve, ty)?),
-                        None => None,
-                    };
+                self.component.lower_func(
+                    Some(&shim.debug_name),
+                    func_index,
+                    shim.options
+                        .into_iter(*encoding, self.memory_index, realloc)?,
+                )
+            }
 
-                    let exports = self.info.exports_for(*for_module);
-                    let realloc = exports.import_realloc_for(*interface, func);
+            // Adapter shims are defined by an export from an adapter
+            // instance, so use the specified name here and the previously
+            // created instances to get the core item that represents the
+            // shim.
+            ShimKind::Adapter { adapter, func } => self.core_alias_export(
+                Some(func),
+                self.adapter_instances[adapter],
+                func,
+                ExportKind::Func,
+            ),
 
-                    let instance_index = self.instance_for(*for_module);
-                    let realloc_index = realloc.map(|r| {
-                        self.core_alias_export(Some("realloc"), instance_index, r, ExportKind::Func)
-                    });
-                    let options =
-                        shim.options
-                            .into_iter(*encoding, self.memory_index, realloc_index)?;
-                    self.component.task_return(result, options)
-                }
-                ShimKind::ThreadNewIndirect { func_ty } => {
-                    // Encode the function type for the thread start function so we can reference it in the `canon` call.
-                    let (func_ty_idx, f) = self.component.core_type(Some("thread-start"));
-                    f.core().func_type(func_ty);
+            // Resources are required for a module to be instantiated
+            // meaning that any destructor for the resource must be called
+            // indirectly due to the otherwise circular dependency between
+            // the module and the resource itself.
+            ShimKind::ResourceDtor { module, export } => self.core_alias_export(
+                Some(export),
+                self.instance_for(*module),
+                export,
+                ExportKind::Func,
+            ),
 
-                    // In order for the funcref table referenced by `thread.new-indirect` to be used,
-                    // it must have been exported by the main module.
-                    let exports = self.info.exports_for(CustomModule::Main);
-                    let instance_index = self.instance_for(CustomModule::Main);
-                    let table_idx = exports.indirect_function_table().map(|table| {
+            ShimKind::PayloadFunc {
+                for_module,
+                info,
+                kind,
+            } => self.encode_payload_func(for_module, info, kind, shim.options)?,
+
+            ShimKind::WaitableSetWait { cancellable } => self
+                .component
+                .waitable_set_wait(*cancellable, self.memory_index.unwrap()),
+            ShimKind::WaitableSetPoll { cancellable } => self
+                .component
+                .waitable_set_poll(*cancellable, self.memory_index.unwrap()),
+            ShimKind::ErrorContextNew { encoding } => self
+                .component
+                .error_context_new(shim.options.into_iter(*encoding, self.memory_index, None)?),
+            ShimKind::ErrorContextDebugMessage {
+                for_module,
+                encoding,
+            } => {
+                let instance_index = self.instance_for(*for_module);
+                let realloc = self.info.exports_for(*for_module).import_realloc_fallback();
+                let realloc_index = realloc.map(|r| {
+                    self.core_alias_export(Some("realloc"), instance_index, r, ExportKind::Func)
+                });
+
+                self.component
+                    .error_context_debug_message(shim.options.into_iter(
+                        *encoding,
+                        self.memory_index,
+                        realloc_index,
+                    )?)
+            }
+            ShimKind::TaskReturn {
+                interface,
+                func,
+                result,
+                encoding,
+                for_module,
+            } => {
+                // See `Import::ExportedTaskReturn` handling for why this
+                // encoder is treated specially.
+                let mut encoder = if interface.is_none() {
+                    self.root_import_type_encoder(*interface)
+                } else {
+                    self.root_export_type_encoder(*interface)
+                };
+                let result = match result {
+                    Some(ty) => Some(encoder.encode_valtype(resolve, ty)?),
+                    None => None,
+                };
+
+                let exports = self.info.exports_for(*for_module);
+                let realloc = exports.import_realloc_for(*interface, func);
+
+                let instance_index = self.instance_for(*for_module);
+                let realloc_index = realloc.map(|r| {
+                    self.core_alias_export(Some("realloc"), instance_index, r, ExportKind::Func)
+                });
+                let options =
+                    shim.options
+                        .into_iter(*encoding, self.memory_index, realloc_index)?;
+                self.component.task_return(result, options)
+            }
+            ShimKind::ThreadNewIndirect { func_ty } => {
+                // Encode the function type for the thread start function so we can reference it in the `canon` call.
+                let (func_ty_idx, f) = self.component.core_type(Some("thread-start"));
+                f.core().func_type(func_ty);
+
+                // In order for the funcref table referenced by `thread.new-indirect` to be used,
+                // it must have been exported by the main module.
+                let exports = self.info.exports_for(CustomModule::Main);
+                let instance_index = self.instance_for(CustomModule::Main);
+                let table_idx = exports.indirect_function_table().map(|table| {
                         self.core_alias_export(
                             Some("indirect-function-table"),
                             instance_index,
@@ -1620,29 +1509,9 @@ impl<'a> EncodingState<'a> {
                         )
                     })?;
 
-                    self.component.thread_new_indirect(func_ty_idx, table_idx)
-                }
-            };
-
-            exports.push((shim.name.as_str(), ExportKind::Func, core_func_index));
-        }
-
-        let instance_index = self
-            .component
-            .core_instantiate_exports(Some("fixup-args"), exports);
-        let mut instance_args = vec![("", ModuleArg::Instance(instance_index))];
-        if self.info.encoder.shim_return_call_ref {
-            let shim_instance_index = self
-                .shim_instance_index
-                .expect("must have an instantiated shim");
-            instance_args.push(("shim", ModuleArg::Instance(shim_instance_index)));
-        }
-        self.component.core_instantiate(
-            Some("fixup"),
-            self.fixups_module_index.expect("must have fixup module"),
-            instance_args,
-        );
-        Ok(())
+                self.component.thread_new_indirect(func_ty_idx, table_idx)
+            }
+        })
     }
 
     fn encode_payload_func(
@@ -3719,7 +3588,6 @@ impl ComponentEncoder {
             instance_index: None,
             memory_index: None,
             shim_instance_index: None,
-            fixups_module_index: None,
             adapter_modules: IndexMap::new(),
             adapter_instances: IndexMap::new(),
             type_encoding_maps: Default::default(),
