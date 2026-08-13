@@ -8,6 +8,8 @@ world root {
   export async-callback-argret: async func(s: string) -> string;
   export sync-argret: func(s: string) -> string;
   export x: interface {
+    resource r;
+
     sync: func();
   }
 }

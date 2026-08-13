@@ -176,12 +176,13 @@ fn run_test(path: &Path) -> Result<()> {
         }
     };
 
+    let wat = wasmprinter::print_bytes(&bytes).context("failed to print bytes")?;
+    assert_output(&wat, &component_path)?;
+
     Validator::new_with_features(WasmFeatures::all())
         .validate_all(&bytes)
         .context("failed to validate component output")?;
 
-    let wat = wasmprinter::print_bytes(&bytes).context("failed to print bytes")?;
-    assert_output(&wat, &component_path)?;
     let mut parser = Parser::new(0);
     parser.set_features(WasmFeatures::all());
     let (pkg, resolve) = match wit_component::decode_reader(bytes.as_slice())

@@ -6,6 +6,7 @@
     (type (;3;) (func (param i32 i32)))
     (type (;4;) (func (param i32 i32) (result i32)))
     (type (;5;) (func (param i32 i32 i32 i32) (result i32)))
+    (type (;6;) (func (param i32)))
     (memory (;0;) 1)
     (export "__wasm_init_task" (func 0))
     (export "__wasm_init_async_task" (func 1))
@@ -21,6 +22,7 @@
     (export "memory" (memory 0))
     (export "cabi_realloc" (func 11))
     (export "x#sync" (func 12))
+    (export "x#[dtor]r" (func 13))
     (func (;0;) (type 0)
       unreachable
     )
@@ -58,149 +60,155 @@
     (func (;12;) (type 0)
       unreachable
     )
+    (func (;13;) (type 6) (param i32)
+      unreachable
+    )
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
       (processed-by "my-fake-bindgen" "123.45")
     )
   )
-  (core instance $main (;0;) (instantiate $main))
+  (core module $wit-component-shim-module (;1;)
+    (type (;0;) (func (param i32)))
+    (table (;0;) 1 1 funcref)
+    (export "0" (func $dtor-r))
+    (export "$imports" (table 0))
+    (func $dtor-r (;0;) (type 0) (param i32)
+      local.get 0
+      i32.const 0
+      call_indirect (type 0)
+    )
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+    )
+  )
+  (core instance $wit-component-shim-instance (;0;) (instantiate $wit-component-shim-module))
+  (alias core export $wit-component-shim-instance "0" (core func $dtor-r (;0;)))
+  (type $r (;0;) (resource (rep i32) (dtor $dtor-r)))
+  (core instance $main (;1;) (instantiate $main))
   (alias core export $main "memory" (core memory $memory (;0;)))
-  (alias core export $main "_initialize" (core func $start (;0;)))
-  (alias core export $main "__wasm_init_task" (core func $init-task-for-start (;1;)))
-  (core module $start-shim-module (;1;)
-    (type (;0;) (func))
-    (import "" "" (func (;0;) (type 0)))
-    (import "" "init" (func (;1;) (type 0)))
-    (start 2)
-    (func (;2;) (type 0)
-      call 1
-      call 0
-    )
-  )
-  (core instance $start-shim-args (;1;)
-    (export "" (func $start))
-    (export "init" (func $init-task-for-start))
-  )
-  (core instance $start-shim-instance (;2;) (instantiate $start-shim-module
-      (with "" (instance $start-shim-args))
-    )
-  )
-  (core module $init-task-wrappers (;2;)
-    (type (;0;) (func))
+  (core module $wit-component-fixup (;2;)
+    (type (;0;) (func (param i32)))
     (type (;1;) (func))
     (type (;2;) (func (result i32)))
     (type (;3;) (func (param i32 i32)))
     (type (;4;) (func (param i32 i32) (result i32)))
-    (type (;5;) (func (param i32 i32) (result i32)))
-    (import "" "__wasm_init_task" (func (;0;) (type 0)))
-    (import "" "__wasm_init_async_task" (func (;1;) (type 0)))
-    (import "" "0" (func (;2;) (type 1)))
-    (import "" "1" (func (;3;) (type 2)))
-    (import "" "2" (func (;4;) (type 1)))
-    (import "" "3" (func (;5;) (type 3)))
-    (import "" "4" (func (;6;) (type 4)))
-    (import "" "5" (func (;7;) (type 5)))
-    (import "" "6" (func (;8;) (type 1)))
-    (export "[async-lift-stackful]async-stackful" (func 9))
-    (export "[async-lift]async-callback" (func 10))
-    (export "sync" (func 11))
-    (export "[async-lift-stackful]async-stackful-argret" (func 12))
-    (export "[async-lift]async-callback-argret" (func 13))
-    (export "sync-argret" (func 14))
-    (export "x#sync" (func 15))
-    (func (;9;) (type 1)
-      call 1
-      call 2
+    (import "actual" "0" (func $0 (;0;) (type 0)))
+    (import "main" "_initialize" (func $_initialize (;1;) (type 1)))
+    (import "main" "__wasm_init_task" (func $__wasm_init_task (;2;) (type 1)))
+    (import "main" "__wasm_init_async_task" (func $__wasm_init_async_task (;3;) (type 1)))
+    (import "main" "[async-lift-stackful]async-stackful" (func $"[async-lift-stackful]async-stackful" (;4;) (type 1)))
+    (import "main" "[async-lift]async-callback" (func $"[async-lift]async-callback" (;5;) (type 2)))
+    (import "main" "sync" (func $sync (;6;) (type 1)))
+    (import "main" "[async-lift-stackful]async-stackful-argret" (func $"[async-lift-stackful]async-stackful-argret" (;7;) (type 3)))
+    (import "main" "[async-lift]async-callback-argret" (func $"[async-lift]async-callback-argret" (;8;) (type 4)))
+    (import "main" "sync-argret" (func $sync-argret (;9;) (type 4)))
+    (import "main" "x#sync" (func $x#sync (;10;) (type 1)))
+    (import "shim" "$imports" (table (;0;) 1 1 funcref))
+    (export "hook0" (func $"hook-[async-lift-stackful]async-stackful"))
+    (export "hook1" (func $"hook-[async-lift]async-callback"))
+    (export "hook2" (func $hook-sync))
+    (export "hook3" (func $"hook-[async-lift-stackful]async-stackful-argret"))
+    (export "hook4" (func $"hook-[async-lift]async-callback-argret"))
+    (export "hook5" (func $hook-sync-argret))
+    (export "hook6" (func $hook-x#sync))
+    (start $start)
+    (elem (;0;) (i32.const 0) func 18)
+    (func $"hook-[async-lift-stackful]async-stackful" (;11;) (type 1)
+      call $__wasm_init_async_task
+      call $"[async-lift-stackful]async-stackful"
     )
-    (func (;10;) (type 2) (result i32)
-      call 1
-      call 3
+    (func $"hook-[async-lift]async-callback" (;12;) (type 2) (result i32)
+      call $__wasm_init_async_task
+      call $"[async-lift]async-callback"
     )
-    (func (;11;) (type 1)
-      call 0
-      call 4
+    (func $hook-sync (;13;) (type 1)
+      call $__wasm_init_task
+      call $sync
     )
-    (func (;12;) (type 3) (param i32 i32)
-      call 1
+    (func $"hook-[async-lift-stackful]async-stackful-argret" (;14;) (type 3) (param i32 i32)
+      call $__wasm_init_async_task
       local.get 0
       local.get 1
-      call 5
+      call $"[async-lift-stackful]async-stackful-argret"
     )
-    (func (;13;) (type 4) (param i32 i32) (result i32)
-      call 1
+    (func $"hook-[async-lift]async-callback-argret" (;15;) (type 4) (param i32 i32) (result i32)
+      call $__wasm_init_async_task
       local.get 0
       local.get 1
-      call 6
+      call $"[async-lift]async-callback-argret"
     )
-    (func (;14;) (type 5) (param i32 i32) (result i32)
-      call 0
+    (func $hook-sync-argret (;16;) (type 4) (param i32 i32) (result i32)
+      call $__wasm_init_task
       local.get 0
       local.get 1
-      call 7
+      call $sync-argret
     )
-    (func (;15;) (type 1)
-      call 0
-      call 8
+    (func $hook-x#sync (;17;) (type 1)
+      call $__wasm_init_task
+      call $x#sync
     )
-  )
-  (alias core export $main "__wasm_init_async_task" (core func $__wasm_init_async_task (;2;)))
-  (alias core export $main "[async-lift-stackful]async-stackful" (core func $"[async-lift-stackful]async-stackful" (;3;)))
-  (alias core export $main "[async-lift]async-callback" (core func $"[async-lift]async-callback" (;4;)))
-  (alias core export $main "sync" (core func $sync (;5;)))
-  (alias core export $main "[async-lift-stackful]async-stackful-argret" (core func $"[async-lift-stackful]async-stackful-argret" (;6;)))
-  (alias core export $main "[async-lift]async-callback-argret" (core func $"[async-lift]async-callback-argret" (;7;)))
-  (alias core export $main "sync-argret" (core func $sync-argret (;8;)))
-  (alias core export $main "x#sync" (core func $x#sync (;9;)))
-  (core instance $init-task-wrappers-args (;3;)
-    (export "__wasm_init_task" (func $init-task-for-start))
-    (export "__wasm_init_async_task" (func $__wasm_init_async_task))
-    (export "0" (func $"[async-lift-stackful]async-stackful"))
-    (export "1" (func $"[async-lift]async-callback"))
-    (export "2" (func $sync))
-    (export "3" (func $"[async-lift-stackful]async-stackful-argret"))
-    (export "4" (func $"[async-lift]async-callback-argret"))
-    (export "5" (func $sync-argret))
-    (export "6" (func $x#sync))
-  )
-  (core instance $init-task-wrappers-instance (;4;) (instantiate $init-task-wrappers
-      (with "" (instance $init-task-wrappers-args))
+    (func (;18;) (type 0) (param i32)
+      call $__wasm_init_task
+      local.get 0
+      call $0
+    )
+    (func $start (;19;) (type 1)
+      call $__wasm_init_task
+      call $_initialize
+    )
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )
   )
-  (alias core export $init-task-wrappers-instance "[async-lift-stackful]async-stackful" (core func $"#core-func10 [async-lift-stackful]async-stackful" (@name "[async-lift-stackful]async-stackful") (;10;)))
-  (alias core export $init-task-wrappers-instance "[async-lift]async-callback" (core func $"#core-func11 [async-lift]async-callback" (@name "[async-lift]async-callback") (;11;)))
-  (alias core export $init-task-wrappers-instance "sync" (core func $"#core-func12 sync" (@name "sync") (;12;)))
-  (alias core export $init-task-wrappers-instance "[async-lift-stackful]async-stackful-argret" (core func $"#core-func13 [async-lift-stackful]async-stackful-argret" (@name "[async-lift-stackful]async-stackful-argret") (;13;)))
-  (alias core export $init-task-wrappers-instance "[async-lift]async-callback-argret" (core func $"#core-func14 [async-lift]async-callback-argret" (@name "[async-lift]async-callback-argret") (;14;)))
-  (alias core export $init-task-wrappers-instance "sync-argret" (core func $"#core-func15 sync-argret" (@name "sync-argret") (;15;)))
-  (alias core export $init-task-wrappers-instance "x#sync" (core func $"#core-func16 x#sync" (@name "x#sync") (;16;)))
-  (type (;0;) (func async))
-  (alias core export $main "cabi_realloc" (core func $cabi_realloc (;17;)))
-  (func $async-stackful (;0;) (type 0) (canon lift (core func $"#core-func10 [async-lift-stackful]async-stackful") async))
+  (alias core export $main "x#[dtor]r" (core func $"x#[dtor]r" (;1;)))
+  (core instance $actual (;2;)
+    (export "0" (func $"x#[dtor]r"))
+  )
+  (core instance $fixup (;3;) (instantiate $wit-component-fixup
+      (with "actual" (instance $actual))
+      (with "main" (instance $main))
+      (with "shim" (instance $wit-component-shim-instance))
+    )
+  )
+  (alias core export $fixup "hook0" (core func $hook0 (;2;)))
+  (alias core export $fixup "hook1" (core func $hook1 (;3;)))
+  (alias core export $fixup "hook2" (core func $hook2 (;4;)))
+  (alias core export $fixup "hook3" (core func $hook3 (;5;)))
+  (alias core export $fixup "hook4" (core func $hook4 (;6;)))
+  (alias core export $fixup "hook5" (core func $hook5 (;7;)))
+  (alias core export $fixup "hook6" (core func $hook6 (;8;)))
+  (type (;1;) (func async))
+  (alias core export $main "cabi_realloc" (core func $cabi_realloc (;9;)))
+  (func $async-stackful (;0;) (type 1) (canon lift (core func $hook0) async))
   (export $"#func1 async-stackful" (@name "async-stackful") (;1;) "async-stackful" (func $async-stackful))
-  (alias core export $main "[callback][async-lift]async-callback" (core func $"[callback][async-lift]async-callback" (;18;)))
-  (func $async-callback (;2;) (type 0) (canon lift (core func $"#core-func11 [async-lift]async-callback") async (callback $"[callback][async-lift]async-callback")))
+  (alias core export $main "[callback][async-lift]async-callback" (core func $"[callback][async-lift]async-callback" (;10;)))
+  (func $async-callback (;2;) (type 1) (canon lift (core func $hook1) async (callback $"[callback][async-lift]async-callback")))
   (export $"#func3 async-callback" (@name "async-callback") (;3;) "async-callback" (func $async-callback))
-  (type (;1;) (func))
-  (func $sync (;4;) (type 1) (canon lift (core func $"#core-func12 sync")))
+  (type (;2;) (func))
+  (func $sync (;4;) (type 2) (canon lift (core func $hook2)))
   (export $"#func5 sync" (@name "sync") (;5;) "sync" (func $sync))
-  (type (;2;) (func async (param "s" string) (result string)))
-  (func $async-stackful-argret (;6;) (type 2) (canon lift (core func $"#core-func13 [async-lift-stackful]async-stackful-argret") (memory $memory) (realloc $cabi_realloc) string-encoding=utf8 async))
+  (type (;3;) (func async (param "s" string) (result string)))
+  (func $async-stackful-argret (;6;) (type 3) (canon lift (core func $hook3) (memory $memory) (realloc $cabi_realloc) string-encoding=utf8 async))
   (export $"#func7 async-stackful-argret" (@name "async-stackful-argret") (;7;) "async-stackful-argret" (func $async-stackful-argret))
-  (alias core export $main "[callback][async-lift]async-callback-argret" (core func $"[callback][async-lift]async-callback-argret" (;19;)))
-  (func $async-callback-argret (;8;) (type 2) (canon lift (core func $"#core-func14 [async-lift]async-callback-argret") (memory $memory) (realloc $cabi_realloc) string-encoding=utf8 async (callback $"[callback][async-lift]async-callback-argret")))
+  (alias core export $main "[callback][async-lift]async-callback-argret" (core func $"[callback][async-lift]async-callback-argret" (;11;)))
+  (func $async-callback-argret (;8;) (type 3) (canon lift (core func $hook4) (memory $memory) (realloc $cabi_realloc) string-encoding=utf8 async (callback $"[callback][async-lift]async-callback-argret")))
   (export $"#func9 async-callback-argret" (@name "async-callback-argret") (;9;) "async-callback-argret" (func $async-callback-argret))
-  (type (;3;) (func (param "s" string) (result string)))
-  (func $sync-argret (;10;) (type 3) (canon lift (core func $"#core-func15 sync-argret") (memory $memory) (realloc $cabi_realloc) string-encoding=utf8))
+  (type (;4;) (func (param "s" string) (result string)))
+  (func $sync-argret (;10;) (type 4) (canon lift (core func $hook5) (memory $memory) (realloc $cabi_realloc) string-encoding=utf8))
   (export $"#func11 sync-argret" (@name "sync-argret") (;11;) "sync-argret" (func $sync-argret))
-  (func $"#func12 sync" (@name "sync") (;12;) (type 1) (canon lift (core func $"#core-func16 x#sync")))
+  (func $"#func12 sync" (@name "sync") (;12;) (type 2) (canon lift (core func $hook6)))
   (component $x-shim-component (;0;)
-    (type (;0;) (func))
-    (import "import-func-sync" (func (;0;) (type 0)))
+    (import "import-type-r" (type (;0;) (sub resource)))
     (type (;1;) (func))
-    (export (;1;) "sync" (func 0) (func (type 1)))
+    (import "import-func-sync" (func (;0;) (type 1)))
+    (export (;2;) "r" (type 0))
+    (type (;3;) (func))
+    (export (;1;) "sync" (func 0) (func (type 3)))
   )
   (instance $x-shim-instance (;0;) (instantiate $x-shim-component
       (with "import-func-sync" (func $"#func12 sync"))
+      (with "import-type-r" (type $r))
     )
   )
   (export $x (;1;) "x" (instance $x-shim-instance))

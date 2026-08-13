@@ -145,25 +145,6 @@
       global.get $__tls_size
     )
   )
-  (core module $__init (;3;)
-    (type (;0;) (func))
-    (type (;1;) (func (param i32)))
-    (import "env" "memory" (memory (;0;) 0))
-    (import "env" "__indirect_function_table" (table (;0;) 0 funcref))
-    (import "c" "__wasm_apply_data_relocs" (func (;0;) (type 0)))
-    (import "foo" "__wasm_apply_data_relocs" (func (;1;) (type 0)))
-    (start 2)
-    (elem (;0;) (i32.const 1) func)
-    (elem (;1;) (i32.const 3) func)
-    (func (;2;) (type 0)
-      call 0
-      call 1
-    )
-    (data (;0;) (i32.const 1048576) "\00\00\00\00\00\00\10\00")
-    (@producers
-      (processed-by "wit-component" "$CARGO_PKG_VERSION")
-    )
-  )
   (core instance $main (;0;) (instantiate $main))
   (alias core export $main "memory" (core memory $memory (;0;)))
   (alias core export $main "__indirect_function_table" (core table $__indirect_function_table (;0;)))
@@ -209,8 +190,26 @@
       (with "env" (instance $"#core-instance3 env"))
     )
   )
-  (core instance $__init (;5;) (instantiate $__init
-      (with "env" (instance $main))
+  (core module $wit-component-fixup (;3;)
+    (type (;0;) (func))
+    (import "main" "memory" (memory (;0;) 0))
+    (import "main" "__indirect_function_table" (table (;0;) 0 funcref))
+    (import "c" "__wasm_apply_data_relocs" (func $__wasm_apply_data_relocs (;0;) (type 0)))
+    (import "foo" "__wasm_apply_data_relocs" (func $"#func1 __wasm_apply_data_relocs" (@name "__wasm_apply_data_relocs") (;1;) (type 0)))
+    (start $start)
+    (elem (;0;) (i32.const 1) func)
+    (elem (;1;) (i32.const 3) func)
+    (func $start (;2;) (type 0)
+      call $__wasm_apply_data_relocs
+      call $"#func1 __wasm_apply_data_relocs"
+    )
+    (data (;0;) (i32.const 1048576) "\00\00\00\00\00\00\10\00")
+    (@producers
+      (processed-by "wit-component" "$CARGO_PKG_VERSION")
+    )
+  )
+  (core instance $fixup (;5;) (instantiate $wit-component-fixup
+      (with "main" (instance $main))
       (with "c" (instance $c))
       (with "foo" (instance $foo))
     )
