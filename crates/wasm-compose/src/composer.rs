@@ -198,7 +198,7 @@ impl<'a> CompositionGraphBuilder<'a> {
                     );
                 }
 
-                log::warn!(
+                log::info!(
                     "instance `{name}` will be imported because a dependency named `{component_name}` could not be found"
                 );
                 Ok(None)
