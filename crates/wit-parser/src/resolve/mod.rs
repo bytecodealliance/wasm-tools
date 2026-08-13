@@ -515,6 +515,8 @@ impl Resolve {
 
         let mut map = MergeMap::new(&resolve, &self);
         map.build()?;
+        #[cfg(feature = "canon-names")]
+        let version_upgrades = map.version_upgrades.clone();
         let MergeMap {
             package_map,
             interface_map,
@@ -712,6 +714,16 @@ impl Resolve {
             if let Some(prev) = self.package_names.insert(name, id) {
                 assert_eq!(prev, id);
             }
+        }
+
+        // When canon-names is enabled and a package from `from` had a larger
+        // version than the matching package in `into`, upgrade the version
+        // stored on the `into` package and update the `package_names` index.
+        #[cfg(feature = "canon-names")]
+        for (into_id, version) in version_upgrades {
+            let pkg = &mut self.packages[into_id];
+            pkg.name.version = Some(version);
+            self.package_names.insert(pkg.name.clone(), into_id);
         }
 
         // Fixup all "parent" links now.
@@ -1293,8 +1305,16 @@ impl Resolve {
         base.push_str(name);
         if let Some(version) = &package.name.version {
             base.push_str("@");
-            let string = PackageName::version_compat_track_string(version);
-            base.push_str(&string);
+            #[cfg(feature = "canon-names")]
+            {
+                let (prefix, _) = PackageName::canon_version_split(version);
+                base.push_str(&prefix);
+            }
+            #[cfg(not(feature = "canon-names"))]
+            {
+                let string = PackageName::version_compat_track_string(version);
+                base.push_str(&string);
+            }
         }
         base
     }
@@ -1548,6 +1568,20 @@ impl Resolve {
                 .canonicalized_id_of(*i)
                 .expect("unexpected anonymous interface"),
         }
+    }
+
+    /// Returns the version suffix for the given interface's package, if any.
+    ///
+    /// This is the second element of [`PackageName::canon_version_split`]:
+    /// e.g. for version `2.0.1` the canonical name uses `@2` and this
+    /// returns `Some(".0.1")`. Returns `None` only if the package has no
+    /// version.
+    pub fn version_suffix_of(&self, interface: InterfaceId) -> Option<String> {
+        let iface = &self.interfaces[interface];
+        let pkg = &self.packages[iface.package?];
+        let version = pkg.name.version.as_ref()?;
+        let (_, suffix) = PackageName::canon_version_split(version);
+        Some(suffix)
     }
 
     /// Returns the component model `implements` value for the world import of
@@ -4469,6 +4503,12 @@ struct MergeMap<'a> {
     interfaces_to_add: Vec<(String, PackageId, InterfaceId)>,
     worlds_to_add: Vec<(String, PackageId, WorldId)>,
 
+    /// Packages in `into` whose version should be upgraded because `from`
+    /// had a larger version on the same canonical track. Maps `into` package
+    /// ID to the larger version from `from`.
+    #[cfg(feature = "canon-names")]
+    version_upgrades: HashMap<PackageId, Version>,
+
     /// Which `Resolve` is being merged from.
     from: &'a Resolve,
 
@@ -4485,6 +4525,8 @@ impl<'a> MergeMap<'a> {
             world_map: Default::default(),
             interfaces_to_add: Default::default(),
             worlds_to_add: Default::default(),
+            #[cfg(feature = "canon-names")]
+            version_upgrades: Default::default(),
             from,
             into,
         }
@@ -4504,6 +4546,16 @@ impl<'a> MergeMap<'a> {
                 }
             };
             log::trace!("merging duplicate package {}", from.name);
+
+            #[cfg(feature = "canon-names")]
+            {
+                let into = &self.into.packages[into_id];
+                if from.name.full_version_cmp(&into.name).is_gt() {
+                    if let Some(version) = from.name.version.clone() {
+                        self.version_upgrades.insert(into_id, version);
+                    }
+                }
+            }
 
             self.build_package(from_id, into_id).with_context(|| {
                 format!("failed to merge package `{}` into existing copy", from.name)
@@ -6072,6 +6124,244 @@ interface iface {
                 "expected `{key}` to be an export after round-trip, got exports: {final_export_keys:?}"
             );
         }
+
+        Ok(())
+    }
+
+    #[cfg(feature = "canon-names")]
+    #[test]
+    fn canon_names_merge_keeps_larger_version() -> Result<()> {
+        let mut resolve1 = Resolve::default();
+        resolve1.push_str(
+            "a.wit",
+            r#"
+                package foo:bar@2.0.0;
+
+                interface my-iface {
+                    type my-type = u32;
+                    my-func: func();
+                }
+            "#,
+        )?;
+
+        let mut resolve2 = Resolve::default();
+        resolve2.push_str(
+            "b.wit",
+            r#"
+                package foo:bar@2.0.1;
+
+                interface my-iface {
+                    type my-type = u32;
+                    my-func: func();
+                }
+            "#,
+        )?;
+
+        resolve1.merge(resolve2)?;
+
+        // Should have exactly one package (merged on canonical prefix "2")
+        assert_eq!(resolve1.packages.len(), 1);
+        let (_, pkg) = resolve1.packages.iter().next().unwrap();
+        assert_eq!(
+            pkg.name.version.as_ref().unwrap().to_string(),
+            "2.0.1",
+            "should keep the larger version"
+        );
+
+        // Interface should be present with its type and function
+        let iface_id = pkg.interfaces["my-iface"];
+        assert!(resolve1.interfaces[iface_id].types.contains_key("my-type"));
+        assert!(resolve1.interfaces[iface_id]
+            .functions
+            .contains_key("my-func"));
+
+        Ok(())
+    }
+
+    #[cfg(feature = "canon-names")]
+    #[test]
+    fn canon_names_merge_larger_into_smaller() -> Result<()> {
+        // The larger version (from) is merged into the smaller (into).
+        // Extra types/functions from the larger version should appear in the result.
+        let mut resolve1 = Resolve::default();
+        resolve1.push_str(
+            "a.wit",
+            r#"
+                package foo:bar@1.0.0;
+
+                interface my-iface {
+                    type base-type = u32;
+                    base-func: func();
+                }
+            "#,
+        )?;
+
+        let mut resolve2 = Resolve::default();
+        resolve2.push_str(
+            "b.wit",
+            r#"
+                package foo:bar@1.2.3;
+
+                interface my-iface {
+                    type base-type = u32;
+                    base-func: func();
+                    type new-type = string;
+                    new-func: func() -> string;
+                }
+            "#,
+        )?;
+
+        resolve1.merge(resolve2)?;
+
+        assert_eq!(resolve1.packages.len(), 1);
+        let (_, pkg) = resolve1.packages.iter().next().unwrap();
+        assert_eq!(pkg.name.version.as_ref().unwrap().to_string(), "1.2.3");
+
+        let iface_id = pkg.interfaces["my-iface"];
+        let iface = &resolve1.interfaces[iface_id];
+        assert!(iface.types.contains_key("base-type"));
+        assert!(iface.types.contains_key("new-type"));
+        assert!(iface.functions.contains_key("base-func"));
+        assert!(iface.functions.contains_key("new-func"));
+
+        Ok(())
+    }
+
+    #[cfg(feature = "canon-names")]
+    #[test]
+    fn canon_names_merge_smaller_into_larger() -> Result<()> {
+        // The smaller version (from) is merged into the larger (into).
+        // The larger version's content should be preserved as-is.
+        let mut resolve1 = Resolve::default();
+        resolve1.push_str(
+            "a.wit",
+            r#"
+                package foo:bar@1.2.3;
+
+                interface my-iface {
+                    type base-type = u32;
+                    base-func: func();
+                    type new-type = string;
+                    new-func: func() -> string;
+                }
+            "#,
+        )?;
+
+        let mut resolve2 = Resolve::default();
+        resolve2.push_str(
+            "b.wit",
+            r#"
+                package foo:bar@1.0.0;
+
+                interface my-iface {
+                    type base-type = u32;
+                    base-func: func();
+                }
+            "#,
+        )?;
+
+        resolve1.merge(resolve2)?;
+
+        assert_eq!(resolve1.packages.len(), 1);
+        let (_, pkg) = resolve1.packages.iter().next().unwrap();
+        assert_eq!(
+            pkg.name.version.as_ref().unwrap().to_string(),
+            "1.2.3",
+            "should keep the larger version already in into"
+        );
+
+        let iface_id = pkg.interfaces["my-iface"];
+        let iface = &resolve1.interfaces[iface_id];
+        assert!(iface.types.contains_key("base-type"));
+        assert!(iface.types.contains_key("new-type"));
+        assert!(iface.functions.contains_key("base-func"));
+        assert!(iface.functions.contains_key("new-func"));
+
+        Ok(())
+    }
+
+    #[cfg(feature = "canon-names")]
+    #[test]
+    fn canon_names_different_tracks_not_merged() -> Result<()> {
+        // Packages on different canonical tracks should NOT merge.
+        // 0.1.x and 0.2.x have different canonical prefixes ("0.1" vs "0.2").
+        let mut resolve1 = Resolve::default();
+        resolve1.push_str(
+            "a.wit",
+            r#"
+                package foo:bar@0.1.0;
+
+                interface iface-a {
+                    type-a: func();
+                }
+            "#,
+        )?;
+
+        let mut resolve2 = Resolve::default();
+        resolve2.push_str(
+            "b.wit",
+            r#"
+                package foo:bar@0.2.0;
+
+                interface iface-b {
+                    type-b: func();
+                }
+            "#,
+        )?;
+
+        resolve1.merge(resolve2)?;
+
+        // Should have two separate packages
+        assert_eq!(resolve1.packages.len(), 2);
+
+        Ok(())
+    }
+
+    #[cfg(feature = "canon-names")]
+    #[test]
+    fn canon_names_merge_with_extra_interface() -> Result<()> {
+        // When the larger version adds a new interface, it should be added
+        // to the merged package.
+        let mut resolve1 = Resolve::default();
+        resolve1.push_str(
+            "a.wit",
+            r#"
+                package foo:bar@3.0.0;
+
+                interface existing {
+                    base-func: func();
+                }
+            "#,
+        )?;
+
+        let mut resolve2 = Resolve::default();
+        resolve2.push_str(
+            "b.wit",
+            r#"
+                package foo:bar@3.1.0;
+
+                interface existing {
+                    base-func: func();
+                }
+
+                interface added {
+                    new-func: func();
+                }
+            "#,
+        )?;
+
+        resolve1.merge(resolve2)?;
+
+        assert_eq!(resolve1.packages.len(), 1);
+        let (_, pkg) = resolve1.packages.iter().next().unwrap();
+        assert_eq!(pkg.name.version.as_ref().unwrap().to_string(), "3.1.0");
+        assert!(pkg.interfaces.contains_key("existing"));
+        assert!(pkg.interfaces.contains_key("added"));
+
+        let added_id = pkg.interfaces["added"];
+        assert!(resolve1.interfaces[added_id]
+            .functions
+            .contains_key("new-func"));
 
         Ok(())
     }

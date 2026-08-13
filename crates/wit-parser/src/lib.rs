@@ -232,7 +232,7 @@ pub enum AstItem {
 ///
 /// This is directly encoded as an "ID" in the binary component representation
 /// with an interfaced tacked on as well.
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[cfg_attr(feature = "serde", serde(into = "String"))]
 pub struct PackageName {
@@ -242,6 +242,71 @@ pub struct PackageName {
     pub name: String,
     /// Optional major/minor version information.
     pub version: Option<Version>,
+}
+
+impl PackageName {
+    /// Returns the canonical version prefix for comparison purposes.
+    ///
+    /// When `canon-names` is enabled, this returns only the canonical prefix
+    /// from [`PackageName::canon_version_split`]. Otherwise returns the full
+    /// version string.
+    fn version_key(&self) -> Option<String> {
+        let version = self.version.as_ref()?;
+        #[cfg(feature = "canon-names")]
+        {
+            let (prefix, _) = Self::canon_version_split(version);
+            Some(prefix)
+        }
+        #[cfg(not(feature = "canon-names"))]
+        {
+            Some(version.to_string())
+        }
+    }
+}
+
+impl core::hash::Hash for PackageName {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        self.namespace.hash(state);
+        self.name.hash(state);
+        self.version_key().hash(state);
+    }
+}
+
+impl PartialEq for PackageName {
+    fn eq(&self, other: &Self) -> bool {
+        self.namespace == other.namespace
+            && self.name == other.name
+            && self.version_key() == other.version_key()
+    }
+}
+
+impl Eq for PackageName {}
+
+impl PartialOrd for PackageName {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for PackageName {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.namespace
+            .cmp(&other.namespace)
+            .then_with(|| self.name.cmp(&other.name))
+            .then_with(|| self.version_key().cmp(&other.version_key()))
+    }
+}
+
+impl PackageName {
+    /// Compares the full version of two package names.
+    ///
+    /// Unlike `Ord` (which may compare only canonical prefixes when
+    /// `canon-names` is enabled), this always compares the complete semver
+    /// version. Useful for determining which package has the larger version
+    /// during merging.
+    pub fn full_version_cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.version.cmp(&other.version)
+    }
 }
 
 impl From<PackageName> for String {
@@ -307,6 +372,30 @@ impl PackageName {
             return format!("{}.{}", version.major, version.minor);
         }
         version.to_string()
+    }
+
+    /// Splits a semver version into a canonical version prefix and a version
+    /// suffix according to the component model spec.
+    ///
+    /// The split point is:
+    /// - If `major > 0`: split after major (e.g. `1.2.3` → `("1", ".2.3")`)
+    /// - If `major == 0` and `minor > 0`: split after minor
+    ///   (e.g. `0.2.6-rc.1` → `("0.2", ".6-rc.1")`)
+    /// - Otherwise: split after patch (e.g. `0.0.1-alpha` → `("0.0.1", "-alpha")`)
+    pub fn canon_version_split(version: &Version) -> (String, String) {
+        let s = version.to_string();
+        let split_pos = if version.major > 0 {
+            version.major.to_string().len()
+        } else if version.minor > 0 {
+            // "0.".len() + minor digits
+            2 + version.minor.to_string().len()
+        } else {
+            // "0.0.".len() + patch digits
+            4 + version.patch.to_string().len()
+        };
+        let prefix = s[..split_pos].to_string();
+        let suffix = s[split_pos..].to_string();
+        (prefix, suffix)
     }
 }
 
@@ -1571,5 +1660,62 @@ mod test {
         assert_eq!(t0, found[0]);
         assert_eq!(t1, found[1]);
         assert_eq!(t2, found[2]);
+    }
+
+    #[test]
+    fn test_canon_version_split() {
+        use semver::Version;
+
+        // major > 0: split after major
+        let v = Version::parse("1.2.3").unwrap();
+        assert_eq!(
+            PackageName::canon_version_split(&v),
+            ("1".to_string(), ".2.3".to_string())
+        );
+
+        let v = Version::parse("2.0.0").unwrap();
+        assert_eq!(
+            PackageName::canon_version_split(&v),
+            ("2".to_string(), ".0.0".to_string())
+        );
+
+        let v = Version::parse("10.20.30").unwrap();
+        assert_eq!(
+            PackageName::canon_version_split(&v),
+            ("10".to_string(), ".20.30".to_string())
+        );
+
+        // major == 0, minor > 0: split after minor
+        let v = Version::parse("0.2.6-rc.1").unwrap();
+        assert_eq!(
+            PackageName::canon_version_split(&v),
+            ("0.2".to_string(), ".6-rc.1".to_string())
+        );
+
+        let v = Version::parse("0.1.0").unwrap();
+        assert_eq!(
+            PackageName::canon_version_split(&v),
+            ("0.1".to_string(), ".0".to_string())
+        );
+
+        // major == 0, minor == 0: split after patch
+        let v = Version::parse("0.0.1-alpha").unwrap();
+        assert_eq!(
+            PackageName::canon_version_split(&v),
+            ("0.0.1".to_string(), "-alpha".to_string())
+        );
+
+        let v = Version::parse("0.0.0").unwrap();
+        assert_eq!(
+            PackageName::canon_version_split(&v),
+            ("0.0.0".to_string(), "".to_string())
+        );
+
+        // Pre-release on major > 0
+        let v = Version::parse("1.0.0-beta.1").unwrap();
+        assert_eq!(
+            PackageName::canon_version_split(&v),
+            ("1".to_string(), ".0.0-beta.1".to_string())
+        );
     }
 }

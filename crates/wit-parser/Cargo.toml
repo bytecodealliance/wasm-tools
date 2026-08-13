@@ -36,6 +36,12 @@ default = ['std', 'serde', 'decoding']
 # Enables use of std::path::Path and filesystem-related APIs.
 std = ['semver/std']
 
+# Enables canonical interface name support where PackageName equality uses the
+# canonical version prefix (from canon_version_split) rather than the full
+# semver version. This allows packages on the same canonical version track to
+# be merged, keeping the largest version.
+canon-names = []
+
 # Enables support for `derive(Serialize, Deserialize)` on many structures, such
 # as `Resolve`, which can assist when encoding `Resolve` as JSON for example.
 serde = ['dep:serde', 'dep:serde_derive', 'indexmap/serde', 'serde_json']

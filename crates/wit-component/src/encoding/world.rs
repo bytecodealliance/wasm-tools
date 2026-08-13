@@ -265,6 +265,9 @@ impl<'a> ComponentWorld<'a> {
             item: &WorldItem,
             required: &Required<'_>,
         ) -> Result<()> {
+            #[cfg(feature = "canon-names")]
+            let name = resolve.name_canonicalized_world_key(key);
+            #[cfg(not(feature = "canon-names"))]
             let name = resolve.name_world_key(key);
             log::trace!("register import `{name}`");
             let import_map_key = match item {

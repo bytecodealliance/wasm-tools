@@ -577,12 +577,17 @@ impl<'a> EncodingState<'a> {
         let instance_type_idx = self
             .component
             .type_instance(Some(&format!("ty-{name}")), &ty);
+        #[cfg(feature = "canon-names")]
+        let version_suffix = resolve.version_suffix_of(interface_id);
+        #[cfg(not(feature = "canon-names"))]
+        let version_suffix: Option<String> = None;
+
         let instance_idx = self.component.import(
             wasm_encoder::ComponentExternName {
                 name: name.into(),
                 implements: info.implements.as_deref().map(|s| s.into()),
                 external_id: info.external_id.as_deref().map(|s| s.into()),
-                version_suffix: None,
+                version_suffix: version_suffix.as_deref().map(|s| s.into()),
             },
             ComponentTypeRef::Instance(instance_type_idx),
         );
@@ -746,6 +751,9 @@ impl<'a> EncodingState<'a> {
         let world = &resolve.worlds[self.info.encoder.metadata.world];
 
         for export_name in exports {
+            #[cfg(feature = "canon-names")]
+            let export_string = resolve.name_canonicalized_world_key(export_name);
+            #[cfg(not(feature = "canon-names"))]
             let export_string = resolve.name_world_key(export_name);
             match &world.exports[export_name] {
                 WorldItem::Function(func) => {
@@ -977,12 +985,17 @@ impl<'a> EncodingState<'a> {
             component_index,
             imports,
         );
+        #[cfg(feature = "canon-names")]
+        let version_suffix = resolve.version_suffix_of(export);
+        #[cfg(not(feature = "canon-names"))]
+        let version_suffix: Option<String> = None;
+
         let idx = self.component.export(
             wasm_encoder::ComponentExternName {
                 name: export_name.into(),
                 implements: resolve.implements_value(key, item).map(|s| s.into()),
                 external_id: resolve.external_id_value(key, item).map(|s| s.into()),
-                version_suffix: None,
+                version_suffix: version_suffix.as_deref().map(|s| s.into()),
             },
             ComponentExportKind::Instance,
             instance_index,
@@ -1808,7 +1821,12 @@ impl<'a> EncodingState<'a> {
                 self.materialize_wit_import(
                     shims,
                     for_module,
-                    iface.map(|_| resolve.name_world_key(key)),
+                    iface.map(|_| {
+                        #[cfg(feature = "canon-names")]
+                        { resolve.name_canonicalized_world_key(key) }
+                        #[cfg(not(feature = "canon-names"))]
+                        { resolve.name_world_key(key) }
+                    }),
                     &format!("{name}_drop"),
                     key,
                     AbiVariant::GuestImport,
@@ -1978,7 +1996,12 @@ impl<'a> EncodingState<'a> {
             Import::InterfaceFunc(key, _, name, abi) => self.materialize_wit_import(
                 shims,
                 for_module,
-                Some(resolve.name_world_key(key)),
+                Some({
+                    #[cfg(feature = "canon-names")]
+                    { resolve.name_canonicalized_world_key(key) }
+                    #[cfg(not(feature = "canon-names"))]
+                    { resolve.name_world_key(key) }
+                }),
                 name,
                 key,
                 *abi,
@@ -3025,7 +3048,12 @@ impl<'a> Shims<'a> {
                         field,
                         key,
                         name,
-                        Some(resolve.name_world_key(key)),
+                        Some({
+                            #[cfg(feature = "canon-names")]
+                            { resolve.name_canonicalized_world_key(key) }
+                            #[cfg(not(feature = "canon-names"))]
+                            { resolve.name_world_key(key) }
+                        }),
                         *abi,
                     )?;
                 }

@@ -126,11 +126,24 @@ fn component_extern_name(
     key: &WorldKey,
     item: &WorldItem,
 ) -> wasm_encoder::ComponentExternName<'static> {
+    #[cfg(feature = "canon-names")]
+    let (name, version_suffix) = {
+        let name = resolve.name_canonicalized_world_key(key);
+        let suffix = match key {
+            WorldKey::Interface(id) => resolve.version_suffix_of(*id),
+            WorldKey::Name(_) => None,
+        };
+        (name, suffix)
+    };
+    #[cfg(not(feature = "canon-names"))]
+    let (name, version_suffix): (String, Option<String>) =
+        (resolve.name_world_key(key), None);
+
     ComponentExternName {
-        name: resolve.name_world_key(key).into(),
+        name: name.into(),
         implements: resolve.implements_value(key, item).map(|s| s.into()),
         external_id: resolve.external_id_value(key, item).map(|s| s.into()),
-        version_suffix: None,
+        version_suffix: version_suffix.map(|s| s.into()),
     }
 }
 
