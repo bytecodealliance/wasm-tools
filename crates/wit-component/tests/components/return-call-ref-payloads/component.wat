@@ -26,79 +26,62 @@
     )
   )
   (core module $wit-component-shim-module (;1;)
-    (type (;0;) (func (param i32) (result i32)))
-    (type (;1;) (func (param i32 i32 i32) (result i32)))
+    (type (;0;) (func (param i32 i32 i32) (result i32)))
     (global (;0;) (mut (ref 0)) ref.func $"trap stub before initialization")
-    (global (;1;) (mut (ref 1)) ref.func $"#func2 trap stub before initialization")
-    (global (;2;) (mut (ref 1)) ref.func $"#func2 trap stub before initialization")
+    (global (;1;) (mut (ref 0)) ref.func $"trap stub before initialization")
     (export "g0" (global 0))
-    (export "0" (func $"indirect-$root-[async-lower]foo"))
+    (export "0" (func $"$root-[stream-read-0]foo"))
     (export "g1" (global 1))
-    (export "1" (func $"$root-[stream-read-0]foo"))
-    (export "g2" (global 2))
-    (export "2" (func $"$root-[stream-write-0]foo"))
-    (func $"trap stub before initialization" (;0;) (type 0) (param i32) (result i32)
+    (export "1" (func $"$root-[stream-write-0]foo"))
+    (func $"trap stub before initialization" (;0;) (type 0) (param i32 i32 i32) (result i32)
       unreachable
     )
-    (func $"indirect-$root-[async-lower]foo" (;1;) (type 0) (param i32) (result i32)
+    (func $"$root-[stream-read-0]foo" (;1;) (type 0) (param i32 i32 i32) (result i32)
       local.get 0
+      local.get 1
+      local.get 2
       global.get 0
       return_call_ref 0
     )
-    (func $"#func2 trap stub before initialization" (@name "trap stub before initialization") (;2;) (type 1) (param i32 i32 i32) (result i32)
-      unreachable
-    )
-    (func $"$root-[stream-read-0]foo" (;3;) (type 1) (param i32 i32 i32) (result i32)
+    (func $"$root-[stream-write-0]foo" (;2;) (type 0) (param i32 i32 i32) (result i32)
       local.get 0
       local.get 1
       local.get 2
       global.get 1
-      return_call_ref 1
-    )
-    (func $"$root-[stream-write-0]foo" (;4;) (type 1) (param i32 i32 i32) (result i32)
-      local.get 0
-      local.get 1
-      local.get 2
-      global.get 2
-      return_call_ref 1
+      return_call_ref 0
     )
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )
   )
   (core module $wit-component-fixup (;2;)
-    (type (;0;) (func (param i32) (result i32)))
-    (type (;1;) (func (param i32 i32 i32) (result i32)))
-    (type (;2;) (func))
+    (type (;0;) (func (param i32 i32 i32) (result i32)))
+    (type (;1;) (func))
     (import "shim" "g0" (global (;0;) (mut (ref 0))))
     (import "" "0" (func (;0;) (type 0)))
-    (import "shim" "g1" (global (;1;) (mut (ref 1))))
-    (import "" "1" (func (;1;) (type 1)))
-    (import "shim" "g2" (global (;2;) (mut (ref 1))))
-    (import "" "2" (func (;2;) (type 1)))
-    (start 3)
-    (elem (;0;) declare func 0 1 2)
-    (func (;3;) (type 2)
+    (import "shim" "g1" (global (;1;) (mut (ref 0))))
+    (import "" "1" (func (;1;) (type 0)))
+    (start 2)
+    (elem (;0;) declare func 0 1)
+    (func (;2;) (type 1)
       ref.func 0
       global.set 0
       ref.func 1
       global.set 1
-      ref.func 2
-      global.set 2
     )
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )
   )
   (core instance $wit-component-shim-instance (;0;) (instantiate $wit-component-shim-module))
-  (alias core export $wit-component-shim-instance "0" (core func $"indirect-$root-[async-lower]foo" (;0;)))
+  (core func $foo (;0;) (canon lower (func $foo) async))
   (core func $stream.new (;1;) (canon stream.new 0))
-  (alias core export $wit-component-shim-instance "1" (core func $"$root-[stream-read-0]foo" (;2;)))
-  (alias core export $wit-component-shim-instance "2" (core func $"$root-[stream-write-0]foo" (;3;)))
+  (alias core export $wit-component-shim-instance "0" (core func $"$root-[stream-read-0]foo" (;2;)))
+  (alias core export $wit-component-shim-instance "1" (core func $"$root-[stream-write-0]foo" (;3;)))
   (core func $stream.drop-readable (;4;) (canon stream.drop-readable 0))
   (core func $stream.drop-writable (;5;) (canon stream.drop-writable 0))
   (core instance $$root (;1;)
-    (export "[async-lower]foo" (func $"indirect-$root-[async-lower]foo"))
+    (export "[async-lower]foo" (func $foo))
     (export "[stream-new-0]foo" (func $stream.new))
     (export "[stream-read-0]foo" (func $"$root-[stream-read-0]foo"))
     (export "[stream-write-0]foo" (func $"$root-[stream-write-0]foo"))
@@ -110,14 +93,11 @@
     )
   )
   (alias core export $main "memory" (core memory $memory (;0;)))
-  (alias core export $main "cabi_realloc" (core func $realloc (;6;)))
-  (core func $"#core-func7 indirect-$root-[async-lower]foo" (@name "indirect-$root-[async-lower]foo") (;7;) (canon lower (func $foo) async))
-  (core func $stream.read (;8;) (canon stream.read 0 (memory $memory)))
-  (core func $stream.write (;9;) (canon stream.write 0 (memory $memory)))
+  (core func $stream.read (;6;) (canon stream.read 0 (memory $memory)))
+  (core func $stream.write (;7;) (canon stream.write 0 (memory $memory)))
   (core instance $fixup-args (;3;)
-    (export "0" (func $"#core-func7 indirect-$root-[async-lower]foo"))
-    (export "1" (func $stream.read))
-    (export "2" (func $stream.write))
+    (export "0" (func $stream.read))
+    (export "1" (func $stream.write))
   )
   (core instance $fixup (;4;) (instantiate $wit-component-fixup
       (with "" (instance $fixup-args))

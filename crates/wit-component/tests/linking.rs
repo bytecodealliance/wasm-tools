@@ -122,7 +122,19 @@ const LIBC: &str = r#"
 )
 "#;
 
-const WIT: &str = r#"
+const FOO_WIT: &str = r#"
+package test:test;
+
+interface test {
+   bar: func(v: s32) -> s32;
+}
+
+world foo {
+    import test;
+}
+"#;
+
+const BAR_WIT: &str = r#"
 package test:test;
 
 interface test {
@@ -161,8 +173,8 @@ fn linking() -> Result<()> {
     let mut linker = wit_component::Linker::default();
     linker.encoder().validate(true);
     for (name, wat, wit) in [
-        ("libfoo.so", FOO, None),
-        ("libbar.so", BAR, Some(WIT)),
+        ("libfoo.so", FOO, Some(FOO_WIT)),
+        ("libbar.so", BAR, Some(BAR_WIT)),
         ("libc.so", LIBC, None),
     ] {
         linker.library(

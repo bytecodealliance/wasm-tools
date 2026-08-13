@@ -1,0 +1,9 @@
+package foo:foo;
+
+world module {
+  import no-options: func(x: u32) -> u32;
+  import takes-string: func(x: string);
+  import returns-string: func() -> string;
+
+  export run: func();
+}

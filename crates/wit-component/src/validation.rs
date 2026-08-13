@@ -8,8 +8,8 @@ use std::mem;
 use wasm_encoder::ExportKind;
 use wasmparser::names::{ComponentName, ComponentNameKind};
 use wasmparser::{
-    Encoding, ExternalKind, FuncType, Parser, Payload, TypeRef, ValType, ValidPayload, Validator,
-    WasmFeatures, types::TypesRef,
+    Encoding, ExternalKind, FuncType, MemoryType, Parser, Payload, TypeRef, ValType, ValidPayload,
+    Validator, WasmFeatures, types::TypesRef,
 };
 use wit_parser::{
     Function, InterfaceId, PackageName, Resolve, Type, TypeDefKind, TypeId, World, WorldId,
@@ -108,6 +108,9 @@ pub struct ImportMap {
     /// and the second level of the map is the field namespace. The item is then
     /// how the import is satisfied.
     names: IndexMap<String, ImportInstance>,
+
+    /// Cache for the last-inserted `MainModuleMemory` into `names`
+    imported_memory: Option<MemoryType>,
 }
 
 pub enum ImportInstance {
@@ -248,7 +251,7 @@ pub enum Import {
     /// An adapter is importing the memory of the main module.
     ///
     /// (should be combined with `MainModuleExport` below one day)
-    MainModuleMemory,
+    MainModuleMemory(MemoryType),
 
     /// An adapter is importing an arbitrary item from the main module.
     MainModuleExport { name: String, kind: ExportKind },
@@ -515,6 +518,11 @@ impl ImportMap {
         &self.names
     }
 
+    /// Returns the type of the `env::memory` import of this module, if present.
+    pub fn imported_memory(&self) -> Option<MemoryType> {
+        self.imported_memory
+    }
+
     /// Classify an import and call `insert_import()` on it. Used during
     /// validation to build up this `ImportMap`.
     fn add(
@@ -559,7 +567,9 @@ impl ImportMap {
         // Special-case the main module's memory imported into adapters which
         // currently with `wasm-ld` is not easily configurable.
         if import.module == "env" && import.name == "memory" {
-            return Ok(Import::MainModuleMemory);
+            if let TypeRef::Memory(ty) = import.ty {
+                return Ok(Import::MainModuleMemory(ty));
+            }
         }
 
         // Special-case imports from the main module into adapters.
@@ -1067,6 +1077,12 @@ impl ImportMap {
     /// kind of `Import` it is: for example, a certain-typed function from an
     /// adapter.
     fn insert_import(&mut self, import: wasmparser::Import<'_>, item: Import) -> Result<()> {
+        if let Import::MainModuleMemory(ty) = item {
+            if self.imported_memory.is_some() {
+                bail!("module has multiple imports for memory");
+            }
+            self.imported_memory = Some(ty);
+        }
         let entry = self
             .names
             .entry(import.module.to_string())
