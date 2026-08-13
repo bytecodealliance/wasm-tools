@@ -125,7 +125,7 @@ enum DefinedFunction {
 
     /// Similar to `HookedCoreExport` except that this is specifically for
     /// resource destructors which don't need to be reexported.
-    HookedResuorceDtor { before: u32, export: u32 },
+    HookedResourceDtor { before: u32, export: u32 },
 }
 
 impl FixupModule {
@@ -342,7 +342,7 @@ impl FixupModule {
                         .export_task_initialization_wrappers
                         .insert(core_name.clone(), wrapper);
                 }
-                DefinedFunction::HookedResuorceDtor { .. } => {}
+                DefinedFunction::HookedResourceDtor { .. } => {}
             }
         }
         Ok(())
@@ -390,7 +390,7 @@ impl FixupModule {
                         .append(index, &format!("hook-{core_name}"));
                     f
                 }
-                DefinedFunction::HookedResuorceDtor { before, export } => {
+                DefinedFunction::HookedResourceDtor { before, export } => {
                     let mut f = Function::new(Vec::new());
                     f.instructions()
                         .call(*before)
@@ -632,7 +632,7 @@ impl FixupModule {
             *shim = ShimFill::DefinedFunction(self.defined_functions.len());
             self.defined_functions.push((
                 ty,
-                DefinedFunction::HookedResuorceDtor {
+                DefinedFunction::HookedResourceDtor {
                     before: init,
                     export,
                 },
