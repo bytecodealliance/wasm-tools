@@ -51,7 +51,6 @@
   (core module $wit-component-shim-module (;1;)
     (type (;0;) (func (param i32 i32) (result i32)))
     (type (;1;) (func (param i32 i32)))
-    (type (;2;) (func (param i32 i32)))
     (global (;0;) (mut (ref 0)) ref.func $"trap stub before initialization")
     (global (;1;) (mut (ref 0)) ref.func $"trap stub before initialization")
     (global (;2;) (mut (ref 0)) ref.func $"trap stub before initialization")
@@ -60,8 +59,8 @@
     (global (;5;) (mut (ref 1)) ref.func $"#func6 trap stub before initialization")
     (global (;6;) (mut (ref 1)) ref.func $"#func6 trap stub before initialization")
     (global (;7;) (mut (ref 1)) ref.func $"#func6 trap stub before initialization")
-    (global (;8;) (mut (ref 2)) ref.func $"#func10 trap stub before initialization")
-    (global (;9;) (mut (ref 2)) ref.func $"#func10 trap stub before initialization")
+    (global (;8;) (mut (ref 1)) ref.func $"#func6 trap stub before initialization")
+    (global (;9;) (mut (ref 1)) ref.func $"#func6 trap stub before initialization")
     (export "g0" (global 0))
     (export "0" (func $waitable-set.wait))
     (export "g1" (global 1))
@@ -81,7 +80,7 @@
     (export "g8" (global 8))
     (export "8" (func $task-return-foo))
     (export "g9" (global 9))
-    (export "9" (func $"#func12 task-return-foo"))
+    (export "9" (func $"#func11 task-return-foo"))
     (func $"trap stub before initialization" (;0;) (type 0) (param i32 i32) (result i32)
       unreachable
     )
@@ -136,20 +135,17 @@
       global.get 7
       return_call_ref 1
     )
-    (func $"#func10 trap stub before initialization" (@name "trap stub before initialization") (;10;) (type 2) (param i32 i32)
-      unreachable
-    )
-    (func $task-return-foo (;11;) (type 2) (param i32 i32)
+    (func $task-return-foo (;10;) (type 1) (param i32 i32)
       local.get 0
       local.get 1
       global.get 8
-      return_call_ref 2
+      return_call_ref 1
     )
-    (func $"#func12 task-return-foo" (@name "task-return-foo") (;12;) (type 2) (param i32 i32)
+    (func $"#func11 task-return-foo" (@name "task-return-foo") (;11;) (type 1) (param i32 i32)
       local.get 0
       local.get 1
       global.get 9
-      return_call_ref 2
+      return_call_ref 1
     )
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")

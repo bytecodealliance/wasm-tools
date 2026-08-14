@@ -51,7 +51,6 @@
   (core module $wit-component-shim-module (;1;)
     (type (;0;) (func (param i32 i32) (result i32)))
     (type (;1;) (func (param i32 i32)))
-    (type (;2;) (func (param i32 i32)))
     (table (;0;) 10 10 funcref)
     (export "0" (func $waitable-set.wait))
     (export "1" (func $waitable-set.poll))
@@ -112,17 +111,17 @@
       i32.const 7
       call_indirect (type 1)
     )
-    (func $task-return-foo (;8;) (type 2) (param i32 i32)
+    (func $task-return-foo (;8;) (type 1) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 8
-      call_indirect (type 2)
+      call_indirect (type 1)
     )
-    (func $"#func9 task-return-foo" (@name "task-return-foo") (;9;) (type 2) (param i32 i32)
+    (func $"#func9 task-return-foo" (@name "task-return-foo") (;9;) (type 1) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 9
-      call_indirect (type 2)
+      call_indirect (type 1)
     )
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
