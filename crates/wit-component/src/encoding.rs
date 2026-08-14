@@ -460,9 +460,13 @@ pub struct EncodingState<'a> {
     /// Metadata about the world inferred from the input to `ComponentEncoder`.
     info: &'a ComponentWorld<'a>,
 
-    /// Maps from original export name to task initialization wrapper function index.
-    /// Used to wrap exports with __wasm_init_(async_)task calls.
-    export_task_initialization_wrappers: HashMap<String, u32>,
+    /// Maps from the instance an export came from, plus its original core
+    /// name, to the index of the wrapper function which the fixup module
+    /// defines for it.
+    ///
+    /// Used to invoke the task hook around lifted exports, post-return
+    /// functions, callbacks, and `realloc` functions.
+    export_task_initialization_wrappers: HashMap<(fixup::ImportedInstance, String), u32>,
 }
 
 impl<'a> EncodingState<'a> {
@@ -1101,11 +1105,13 @@ impl<'a> EncodingState<'a> {
         let resolve = &self.info.encoder.metadata.resolve;
         let metadata = self.info.module_metadata_for(module);
         let instance_index = self.instance_for(module);
+        let imported_instance = module.to_imported_instance();
 
         let core_alias_export = |me: &mut Self, core_name: &str| {
             // If a hook was generated for this function, use that, otherwise
             // use the original export.
-            if let Some(&wrapper_idx) = me.export_task_initialization_wrappers.get(core_name) {
+            let key = (imported_instance.clone(), core_name.to_string());
+            if let Some(&wrapper_idx) = me.export_task_initialization_wrappers.get(&key) {
                 wrapper_idx
             } else {
                 me.core_alias_export(Some(core_name), instance_index, core_name, ExportKind::Func)
@@ -1128,9 +1134,13 @@ impl<'a> EncodingState<'a> {
             .get(resolve, key, &func.name)
             .unwrap();
         let exports = self.info.exports_for(module);
-        let realloc_index = exports
-            .export_realloc_for(key, &func.name)
-            .map(|name| self.core_alias_export(Some(name), instance_index, name, ExportKind::Func));
+        let realloc_index = if options.contains(RequiredOptions::REALLOC) {
+            exports
+                .export_realloc_for(key, &func.name)
+                .map(|name| core_alias_export(self, name))
+        } else {
+            None
+        };
         let mut options = options
             .into_iter(encoding, self.memory_index, realloc_index)?
             .collect::<Vec<_>>();
@@ -1409,7 +1419,7 @@ impl<'a> EncodingState<'a> {
         Ok((ret, fixups))
     }
 
-    fn encode_shim(&mut self, shim: &Shim<'_>) -> Result<u32> {
+    fn encode_shim(&mut self, shims: &Shims<'_>, shim: &Shim<'_>) -> Result<u32> {
         let resolve = &self.info.encoder.metadata.resolve;
         Ok(match &shim.kind {
             // Indirect lowerings are a `canon lower`'d function with
@@ -1435,14 +1445,17 @@ impl<'a> EncodingState<'a> {
                     None => self.imported_funcs[name],
                 };
 
-                let realloc = self
+                let realloc_export = self
                     .info
                     .exports_for(*realloc)
-                    .import_realloc_for(interface.interface, name)
-                    .map(|name| {
-                        let instance = self.instance_for(*realloc);
-                        self.core_alias_export(Some("realloc"), instance, name, ExportKind::Func)
-                    });
+                    .import_realloc_for(interface.interface, name);
+                let realloc = self.realloc_index(
+                    shims,
+                    *realloc,
+                    ReallocSite::AfterInstantiation,
+                    shim.options,
+                    realloc_export,
+                );
 
                 self.component.lower_func(
                     Some(&shim.debug_name),
@@ -1478,7 +1491,14 @@ impl<'a> EncodingState<'a> {
                 for_module,
                 info,
                 kind,
-            } => self.encode_payload_func(for_module, info, kind, shim.options)?,
+            } => self.encode_payload_func(
+                shims,
+                for_module,
+                info,
+                kind,
+                shim.options,
+                ReallocSite::AfterInstantiation,
+            )?,
 
             ShimKind::WaitableSetWait { cancellable } => self
                 .component
@@ -1493,11 +1513,14 @@ impl<'a> EncodingState<'a> {
                 for_module,
                 encoding,
             } => {
-                let instance_index = self.instance_for(*for_module);
                 let realloc = self.info.exports_for(*for_module).import_realloc_fallback();
-                let realloc_index = realloc.map(|r| {
-                    self.core_alias_export(Some("realloc"), instance_index, r, ExportKind::Func)
-                });
+                let realloc_index = self.realloc_index(
+                    shims,
+                    *for_module,
+                    ReallocSite::AfterInstantiation,
+                    shim.options,
+                    realloc,
+                );
 
                 self.component
                     .error_context_debug_message(shim.options.into_iter(
@@ -1561,45 +1584,38 @@ impl<'a> EncodingState<'a> {
 
                 self.component.thread_new_indirect(func_ty_idx, table_idx)
             }
+
+            ShimKind::Realloc { module, export } => {
+                let instance = self.instance_for(*module);
+                self.core_alias_export(Some(export), instance, export, ExportKind::Func)
+            }
         })
     }
 
     fn encode_payload_func(
         &mut self,
+        shims: &Shims<'_>,
         for_module: &CustomModule,
         info: &PayloadInfo,
         kind: &PayloadFuncKind,
         options: RequiredOptions,
+        site: ReallocSite,
     ) -> Result<u32> {
         let resolve = &self.info.encoder.metadata.resolve;
         let metadata = self.info.module_metadata_for(*for_module);
-        let exports = self.info.exports_for(*for_module);
-        let (encoding, realloc) = match &info.ty {
+        let encoding = match &info.ty {
             PayloadType::Type { function, .. } => {
                 if info.imported {
-                    (
-                        metadata.import_encodings.get(resolve, &info.key, function),
-                        exports.import_realloc_for(info.interface, function),
-                    )
+                    metadata.import_encodings.get(resolve, &info.key, function)
                 } else {
-                    (
-                        metadata.export_encodings.get(resolve, &info.key, function),
-                        exports.export_realloc_for(&info.key, function),
-                    )
+                    metadata.export_encodings.get(resolve, &info.key, function)
                 }
             }
-            PayloadType::UnitFuture | PayloadType::UnitStream => (None, None),
+            PayloadType::UnitFuture | PayloadType::UnitStream => None,
         };
-        let realloc = if options.contains(RequiredOptions::REALLOC) {
-            realloc
-        } else {
-            None
-        };
+        let realloc = payload_realloc_name(self.info, *for_module, info);
         let encoding = encoding.unwrap_or(StringEncoding::UTF8);
-        let realloc_index = realloc.map(|name| {
-            let instance_index = self.instance_for(*for_module);
-            self.core_alias_export(Some("realloc"), instance_index, name, ExportKind::Func)
-        });
+        let realloc_index = self.realloc_index(shims, *for_module, site, options, realloc);
         let type_index = self.payload_type_index(info)?;
         let options = options.into_iter(encoding, self.memory_index, realloc_index)?;
 
@@ -2234,7 +2250,14 @@ impl<'a> EncodingState<'a> {
         }
         let resolve = &self.info.encoder.metadata.resolve;
         let options = RequiredOptions::for_payload(resolve, info, &kind, async_);
-        let func = self.encode_payload_func(&for_module, info, &kind, options)?;
+        let func = self.encode_payload_func(
+            shims,
+            &for_module,
+            info,
+            &kind,
+            options,
+            ReallocSite::BeforeInstantiation,
+        )?;
         Ok((ExportKind::Func, func))
     }
 
@@ -2270,8 +2293,19 @@ impl<'a> EncodingState<'a> {
                     .import_encodings
                     .get(resolve, key, name)
                     .ok_or_else(|| anyhow!("missing component metadata for import of `{name}`"))?;
+                let realloc = self
+                    .info
+                    .exports_for(for_module)
+                    .import_realloc_for(import.interface, name);
+                let realloc = self.realloc_index(
+                    shims,
+                    for_module,
+                    ReallocSite::BeforeInstantiation,
+                    *options,
+                    realloc,
+                );
                 let options = options
-                    .into_iter(encoding, self.memory_index, None)?
+                    .into_iter(encoding, self.memory_index, realloc)?
                     .collect::<Vec<_>>();
                 self.component.lower_func(Some(name), func_index, options)
             }
@@ -2300,6 +2334,45 @@ impl<'a> EncodingState<'a> {
             }
         };
         Ok((ExportKind::Func, index))
+    }
+
+    /// Returns the core function index to use for the `realloc` canonical
+    /// option where the function is named `export` within `module`.
+    fn realloc_index(
+        &mut self,
+        shims: &Shims<'_>,
+        module: CustomModule<'_>,
+        site: ReallocSite,
+        options: RequiredOptions,
+        export: Option<&str>,
+    ) -> Option<u32> {
+        if !options.contains(RequiredOptions::REALLOC) {
+            return None;
+        }
+        let export = export?;
+
+        if !realloc_needs_shim(self.info, site) {
+            let instance = self.instance_for(module);
+            return Some(self.core_alias_export(Some(export), instance, export, ExportKind::Func));
+        }
+
+        let kind = ShimKind::Realloc { module, export };
+        let shim = shims.shims.get(&kind).unwrap_or_else(|| {
+            panic!(
+                "no shim was registered for the `realloc` \
+                 function `{export}` in `{}`",
+                module.debug_name()
+            )
+        });
+        let instance = self
+            .shim_instance_index
+            .expect("shim should be instantiated");
+        Some(self.core_alias_export(
+            Some(&shim.debug_name),
+            instance,
+            &shim.name,
+            ExportKind::Func,
+        ))
     }
 
     /// Convenience function to go from `CustomModule` to the instance index
@@ -2484,6 +2557,35 @@ enum ShimKind<'a> {
         /// The function type to use when creating the thread.
         func_ty: FuncType,
     },
+    /// A shim for a `realloc` function used as a canonical option.
+    Realloc {
+        /// Which instance the `realloc` function is exported from.
+        module: CustomModule<'a>,
+        /// The name of the `realloc` export within `module`.
+        export: &'a str,
+    },
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+enum ReallocSite {
+    /// This `realloc` is needed before the main module is instantiated.
+    BeforeInstantiation,
+    /// This `realloc` is needed after the main module is instantiated, but
+    /// before the fixup module is instantiated.
+    AfterInstantiation,
+}
+
+fn realloc_needs_shim(world: &ComponentWorld<'_>, site: ReallocSite) -> bool {
+    match site {
+        // The function isn't available at all yet, so an indirection is
+        // required no matter what.
+        ReallocSite::BeforeInstantiation => true,
+
+        // The function itself is available, but if task hooks are enabled then
+        // the hooked version of it is defined by the fixup module which hasn't
+        // been instantiated yet.
+        ReallocSite::AfterInstantiation => world.info.exports.wasm_task_hook().is_some(),
+    }
 }
 
 /// Indicator for which module is being used for a lowering or where options
@@ -2510,6 +2612,15 @@ impl<'a> CustomModule<'a> {
         match self {
             CustomModule::Main => "main",
             CustomModule::Adapter(s) => s,
+        }
+    }
+
+    /// Returns the instance, as imported into the fixup module, that this
+    /// module corresponds to.
+    fn to_imported_instance(&self) -> fixup::ImportedInstance {
+        match self {
+            CustomModule::Main => fixup::ImportedInstance::Main,
+            CustomModule::Adapter(s) => fixup::ImportedInstance::Adapter(s.to_string()),
         }
     }
 }
@@ -2720,12 +2831,13 @@ impl<'a> Shims<'a> {
 
                 Import::ErrorContextDebugMessage { encoding } => {
                     let name = self.shims.len().to_string();
+                    let options = RequiredOptions::MEMORY
+                        | RequiredOptions::STRING_ENCODING
+                        | RequiredOptions::REALLOC;
                     self.push(Shim {
                         name,
                         debug_name: "error-debug-message".to_string(),
-                        options: RequiredOptions::MEMORY
-                            | RequiredOptions::STRING_ENCODING
-                            | RequiredOptions::REALLOC,
+                        options,
                         kind: ShimKind::ErrorContextDebugMessage {
                             for_module,
                             encoding: *encoding,
@@ -2737,6 +2849,14 @@ impl<'a> Shims<'a> {
                             retptr: false,
                         },
                     });
+                    let realloc = module_exports.import_realloc_fallback();
+                    self.push_realloc(
+                        world,
+                        for_module,
+                        ReallocSite::AfterInstantiation,
+                        options,
+                        realloc,
+                    );
                 }
 
                 Import::ThreadNewIndirect => {
@@ -2884,6 +3004,14 @@ impl<'a> Shims<'a> {
                 retptr: false,
             },
         });
+        let realloc = payload_realloc_name(world, for_module, info);
+        self.push_realloc(
+            world,
+            for_module,
+            ReallocSite::AfterInstantiation,
+            options,
+            realloc,
+        );
     }
 
     /// Helper for `append_indirect` above which will conditionally push a shim
@@ -2905,7 +3033,20 @@ impl<'a> Shims<'a> {
         let (index, _, lowering) = interface.lowerings.get_full(&(name.clone(), abi)).unwrap();
         let shim_name = self.shims.len().to_string();
         match lowering {
-            Lowering::Direct { .. } | Lowering::ResourceDrop(_) => {}
+            Lowering::ResourceDrop(_) => {}
+
+            Lowering::Direct { options } => {
+                let realloc = world
+                    .exports_for(for_module)
+                    .import_realloc_for(interface.interface, name);
+                self.push_realloc(
+                    world,
+                    for_module,
+                    ReallocSite::BeforeInstantiation,
+                    *options,
+                    realloc,
+                );
+            }
 
             Lowering::Indirect { sig, options } => {
                 log::debug!(
@@ -2932,10 +3073,57 @@ impl<'a> Shims<'a> {
                     },
                     sig: sig.clone(),
                 });
+
+                let realloc = world
+                    .exports_for(for_module)
+                    .import_realloc_for(interface.interface, name);
+                self.push_realloc(
+                    world,
+                    for_module,
+                    ReallocSite::AfterInstantiation,
+                    *options,
+                    realloc,
+                );
             }
         }
 
         Ok(())
+    }
+
+    /// Registers a shim, if one is necessary, for the `realloc` function named
+    /// `export` within `for_module` which is going to be used at `site` by
+    /// something requiring `options`.
+    fn push_realloc(
+        &mut self,
+        world: &'a ComponentWorld<'a>,
+        for_module: CustomModule<'a>,
+        site: ReallocSite,
+        options: RequiredOptions,
+        export: Option<&'a str>,
+    ) {
+        if !options.contains(RequiredOptions::REALLOC) {
+            return;
+        }
+        let Some(export) = export else { return };
+        if !realloc_needs_shim(world, site) {
+            return;
+        }
+        let name = self.shims.len().to_string();
+        self.push(Shim {
+            name,
+            debug_name: format!("realloc-{}-{export}", for_module.debug_name()),
+            options: RequiredOptions::empty(),
+            kind: ShimKind::Realloc {
+                module: for_module,
+                export,
+            },
+            sig: WasmSignature {
+                params: vec![WasmType::I32; 4],
+                results: vec![WasmType::I32],
+                indirect_params: false,
+                retptr: false,
+            },
+        });
     }
 
     fn push(&mut self, shim: Shim<'a>) {
@@ -2945,6 +3133,24 @@ impl<'a> Shims<'a> {
         if !self.shims.contains_key(&shim.kind) {
             self.shims.insert(shim.kind.clone(), shim);
         }
+    }
+}
+
+fn payload_realloc_name<'a>(
+    world: &'a ComponentWorld<'_>,
+    for_module: CustomModule<'_>,
+    info: &PayloadInfo,
+) -> Option<&'a str> {
+    let exports = world.exports_for(for_module);
+    match &info.ty {
+        PayloadType::Type { function, .. } => {
+            if info.imported {
+                exports.import_realloc_for(info.interface, function)
+            } else {
+                exports.export_realloc_for(&info.key, function)
+            }
+        }
+        PayloadType::UnitFuture | PayloadType::UnitStream => None,
     }
 }
 

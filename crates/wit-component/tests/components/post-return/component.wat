@@ -26,8 +26,7 @@
   (alias core export $main "memory" (core memory $memory (;0;)))
   (type (;0;) (func (result string)))
   (alias core export $main "a" (core func $a (;0;)))
-  (alias core export $main "cabi_realloc" (core func $cabi_realloc (;1;)))
-  (alias core export $main "cabi_post_a" (core func $cabi_post_a (;2;)))
+  (alias core export $main "cabi_post_a" (core func $cabi_post_a (;1;)))
   (func $a (;0;) (type 0) (canon lift (core func $a) (memory $memory) string-encoding=utf8 (post-return $cabi_post_a)))
   (export $"#func1 a" (@name "a") (;1;) "a" (func $a))
   (@producers

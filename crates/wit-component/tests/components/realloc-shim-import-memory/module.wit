@@ -1,0 +1,13 @@
+package foo:foo;
+
+world module {
+  import returns-string: func() -> string;
+  import returns-list: func() -> list<u32>;
+  import returns-string2: func(a: u32) -> string;
+
+  import takes-string: func(s: string);
+  import no-options: func(a: u32) -> u32;
+
+  export takes-and-returns: func(s: string) -> string;
+  export run: func();
+}

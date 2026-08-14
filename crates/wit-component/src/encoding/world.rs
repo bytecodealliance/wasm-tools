@@ -536,17 +536,20 @@ fn options_are_available_before_instantiation(
     options: RequiredOptions,
     info: &ValidatedModule,
 ) -> bool {
-    // Currently realloc always comes from the main module.
-    if options.contains(RequiredOptions::REALLOC) {
-        return false;
+    // If neither memory nor realloc are needed, so this can always be lowered
+    // eagerly.
+    if !options.contains(RequiredOptions::MEMORY) && !options.contains(RequiredOptions::REALLOC) {
+        return true;
     }
-    // If the main module imports memory then memory is available early, but if
-    // the main module doesn't import memory then memory isn't available until
-    // afterwards.
-    if options.contains(RequiredOptions::MEMORY) && info.imports.imported_memory().is_none() {
-        return false;
-    }
-    true
+
+    // Otherwise this depends on linear memory. If the main module imports
+    // linear memory then it's available before instantiating it, and in that
+    // situation we'll also generate shim functions for `realloc` so that's also
+    // available before instantiation.
+    //
+    // If linear memory isn't imported, but instead it's only exported, then we
+    // can't have it before we instantiate the main module.
+    info.imports.imported_memory().is_some()
 }
 
 impl ImportedInterface {

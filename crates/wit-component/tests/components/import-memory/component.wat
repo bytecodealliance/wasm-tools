@@ -27,14 +27,17 @@
     )
   )
   (core module $wit-component-shim-module (;1;)
-    (type (;0;) (func (param i32)))
+    (type (;0;) (func (param i32 i32 i32 i32) (result i32)))
     (table (;0;) 1 1 funcref)
     (memory (;0;) 1)
-    (export "0" (func $indirect-$root-returns-string))
+    (export "0" (func $realloc-main-cabi_realloc))
     (export "$imports" (table 0))
     (export "$memory" (memory 0))
-    (func $indirect-$root-returns-string (;0;) (type 0) (param i32)
+    (func $realloc-main-cabi_realloc (;0;) (type 0) (param i32 i32 i32 i32) (result i32)
       local.get 0
+      local.get 1
+      local.get 2
+      local.get 3
       i32.const 0
       call_indirect (type 0)
     )
@@ -49,11 +52,12 @@
   )
   (core func $no-options (;0;) (canon lower (func $no-options)))
   (core func $takes-string (;1;) (canon lower (func $takes-string) (memory $memory) string-encoding=utf8))
-  (alias core export $wit-component-shim-instance "0" (core func $indirect-$root-returns-string (;2;)))
+  (alias core export $wit-component-shim-instance "0" (core func $realloc-main-cabi_realloc (;2;)))
+  (core func $returns-string (;3;) (canon lower (func $returns-string) (memory $memory) (realloc $realloc-main-cabi_realloc) string-encoding=utf8))
   (core instance $$root (;2;)
     (export "no-options" (func $no-options))
     (export "takes-string" (func $takes-string))
-    (export "returns-string" (func $indirect-$root-returns-string))
+    (export "returns-string" (func $returns-string))
   )
   (core instance $main (;3;) (instantiate $main
       (with "env" (instance $env))
@@ -61,7 +65,7 @@
     )
   )
   (core module $wit-component-fixup (;2;)
-    (type (;0;) (func (param i32)))
+    (type (;0;) (func (param i32 i32 i32 i32) (result i32)))
     (import "actual" "0" (func $0 (;0;) (type 0)))
     (import "shim" "$imports" (table (;0;) 1 1 funcref))
     (elem (;0;) (i32.const 0) func $0)
@@ -69,10 +73,9 @@
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )
   )
-  (alias core export $main "cabi_realloc" (core func $realloc (;3;)))
-  (core func $"#core-func4 indirect-$root-returns-string" (@name "indirect-$root-returns-string") (;4;) (canon lower (func $returns-string) (memory $memory) (realloc $realloc) string-encoding=utf8))
+  (alias core export $main "cabi_realloc" (core func $cabi_realloc (;4;)))
   (core instance $actual (;4;)
-    (export "0" (func $"#core-func4 indirect-$root-returns-string"))
+    (export "0" (func $cabi_realloc))
   )
   (core instance $fixup (;5;) (instantiate $wit-component-fixup
       (with "actual" (instance $actual))
