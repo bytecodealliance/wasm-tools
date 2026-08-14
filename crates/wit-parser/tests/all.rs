@@ -25,7 +25,7 @@ fn main() {
     let mut trials = Vec::new();
     for test in tests {
         let name = test.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-        if cfg!(feature = "canon-names") != name.starts_with("canon-names-") {
+        if name.starts_with("canon-names-") {
             continue;
         }
         let trial = Trial::test(format!("{test:?}"), move || {
@@ -124,6 +124,16 @@ impl Runner {
             test.with_extension(format!("md.{extension}"))
         } else {
             test.with_extension(format!("wit.{extension}"))
+        };
+        let result_file = if cfg!(feature = "canon-names") {
+            let canon_file = result_file.with_extension(format!("canon-names.{extension}"));
+            if env::var_os("BLESS").is_some() || canon_file.exists() {
+                canon_file
+            } else {
+                result_file
+            }
+        } else {
+            result_file
         };
         if env::var_os("BLESS").is_some() {
             let normalized = normalize(&result, extension);

@@ -30,7 +30,7 @@ fn main() -> Result<()> {
         };
         let is_dir = path.is_dir();
         let is_test = is_dir || name.ends_with(".wit");
-        if cfg!(feature = "canon-names") != name.starts_with("canon-names-") {
+        if name.starts_with("canon-names-") {
             continue;
         }
         if is_test {
@@ -49,6 +49,17 @@ fn main() -> Result<()> {
     libtest_mimic::run(&args, trials).exit();
 }
 
+fn canon_names_path(path: &Path, ext: &str) -> std::path::PathBuf {
+    if cfg!(feature = "canon-names") {
+        let canon_ext = format!("canon-names.{ext}");
+        let canon_path = path.with_extension(&canon_ext);
+        if std::env::var_os("BLESS").is_some() || canon_path.exists() {
+            return canon_path;
+        }
+    }
+    path.with_extension(ext)
+}
+
 fn run_test(path: &Path, is_dir: bool) -> Result<()> {
     let mut resolve = Resolve::new();
     let package = if is_dir {
@@ -64,7 +75,7 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
     // expectation.
     let wasm = wit_component::encode(&resolve, package)?;
     let wat = wasmprinter::print_bytes(&wasm)?;
-    assert_output(&path.with_extension("wat"), &wat)?;
+    assert_output(&canon_names_path(path, "wat"), &wat)?;
     wasmparser::Validator::new_with_features(WasmFeatures::all())
         .validate_all(&wasm)
         .context("failed to validate wasm output")?;
@@ -95,9 +106,19 @@ fn assert_print(resolve: &Resolve, pkg_id: PackageId, path: &Path, is_dir: bool)
     let output = printer.output.to_string();
     let pkg = &resolve.packages[pkg_id];
     let expected = if is_dir {
-        path.join(format!("{}.wit.print", &pkg.name.name))
+        let base = path.join(format!("{}.wit.print", &pkg.name.name));
+        if cfg!(feature = "canon-names") {
+            let canon = path.join(format!("{}.canon-names.wit.print", &pkg.name.name));
+            if std::env::var_os("BLESS").is_some() || canon.exists() {
+                canon
+            } else {
+                base
+            }
+        } else {
+            base
+        }
     } else {
-        path.with_extension("wit.print")
+        canon_names_path(path, "wit.print")
     };
     assert_output(&expected, &output)?;
 

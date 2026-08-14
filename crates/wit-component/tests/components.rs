@@ -63,7 +63,7 @@ fn main() -> Result<()> {
             continue;
         }
         let name = path.file_name().unwrap().to_str().unwrap();
-        if cfg!(feature = "canon-names") != name.starts_with("canon-names-") {
+        if name.starts_with("canon-names-") {
             continue;
         }
 
@@ -80,7 +80,23 @@ fn main() -> Result<()> {
 }
 
 fn is_error_test(test_case: &str) -> bool {
-    test_case.starts_with("error-") || test_case.starts_with("canon-names-error-")
+    test_case.starts_with("error-")
+}
+
+fn canon_names_output(path: &Path, name: &str) -> std::path::PathBuf {
+    if cfg!(feature = "canon-names") {
+        let parts: Vec<&str> = name.splitn(2, '.').collect();
+        let canon_name = if parts.len() == 2 {
+            format!("{}.canon-names.{}", parts[0], parts[1])
+        } else {
+            format!("{name}.canon-names")
+        };
+        let canon_path = path.join(&canon_name);
+        if std::env::var_os("BLESS").is_some() || canon_path.exists() {
+            return canon_path;
+        }
+    }
+    path.join(name)
 }
 
 fn run_test(path: &Path) -> Result<()> {
@@ -154,8 +170,8 @@ fn run_test(path: &Path) -> Result<()> {
             })?
             .encode()
     };
-    let component_path = path.join("component.wat");
-    let component_wit_path = path.join("component.wit.print");
+    let component_path = canon_names_output(&path, "component.wat");
+    let component_wit_path = canon_names_output(&path, "component.wit.print");
     let error_path = path.join("error.txt");
 
     let bytes = match result {
