@@ -711,9 +711,21 @@ impl<'a> Resolver<'a> {
             };
             if let WorldKey::Interface(id) = key {
                 if !interfaces.insert(id) {
+                    let full_name = match kind {
+                        ast::ExternKind::Path(ast::UsePath::Package { id, name }) => {
+                            let pkg = id.package_name();
+                            format!("{pkg}/{}", name.name)
+                        }
+                        _ => self.interfaces[id]
+                            .name
+                            .clone()
+                            .unwrap_or_else(|| "unnamed".into()),
+                    };
                     return Err(ParseError::new_syntax(
                         kind.span(),
-                        format!("interface cannot be {desc}ed more than once"),
+                        format!(
+                            "interface `{full_name}` cannot be {desc}ed more than once",
+                        ),
                     ));
                 }
             }

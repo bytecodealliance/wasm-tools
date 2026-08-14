@@ -1,4 +1,4 @@
-interface cannot be exported more than once
+interface `foo` cannot be exported more than once
      --> tests/ui/parse-fail/export-twice.wit:7:10
       |
     7 |   export foo;
