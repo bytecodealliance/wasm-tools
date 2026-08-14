@@ -1164,11 +1164,8 @@ pub enum Export {
     /// __indirect_function_table, used for `thread.new-indirect`
     IndirectFunctionTable,
 
-    /// __wasm_init_task, used for initializing export tasks
-    WasmInitTask,
-
-    /// __wasm_init_async_task, used for initializing export tasks for async-lifted exports
-    WasmInitAsyncTask,
+    /// Used to hook lifecycle events for tasks.
+    WasmTaskHook,
 }
 
 impl ExportMap {
@@ -1267,14 +1264,10 @@ impl ExportMap {
             let expected = FuncType::new([], []);
             validate_func_sig(name, &expected, ty)?;
             return Ok(Some(Export::Initialize));
-        } else if Some(name) == names.export_wasm_init_task() {
-            let expected = FuncType::new([], []);
+        } else if Some(name) == names.export_wasm_task_hook() {
+            let expected = FuncType::new([ValType::I32], []);
             validate_func_sig(name, &expected, ty)?;
-            return Ok(Some(Export::WasmInitTask));
-        } else if Some(name) == names.export_wasm_init_async_task() {
-            let expected = FuncType::new([], []);
-            validate_func_sig(name, &expected, ty)?;
-            return Ok(Some(Export::WasmInitAsyncTask));
+            return Ok(Some(Export::WasmTaskHook));
         }
 
         let full_name = name;
@@ -1438,14 +1431,9 @@ impl ExportMap {
         self.find(|t| matches!(t, Export::IndirectFunctionTable))
     }
 
-    /// Returns the `__wasm_init_task` function, if exported, for this module.
-    pub fn wasm_init_task(&self) -> Option<&str> {
-        self.find(|t| matches!(t, Export::WasmInitTask))
-    }
-
-    /// Returns the `__wasm_init_async_task` function, if exported, for this module.
-    pub fn wasm_init_async_task(&self) -> Option<&str> {
-        self.find(|t| matches!(t, Export::WasmInitAsyncTask))
+    /// Returns the hook for tasks, if exported.
+    pub fn wasm_task_hook(&self) -> Option<&str> {
+        self.find(|t| matches!(t, Export::WasmTaskHook))
     }
 
     /// Returns the `_initialize` intrinsic, if exported, for this module.
@@ -1605,8 +1593,7 @@ trait NameMangling {
     fn export_initialize(&self) -> &str;
     fn export_realloc(&self) -> &str;
     fn export_indirect_function_table(&self) -> Option<&str>;
-    fn export_wasm_init_task(&self) -> Option<&str>;
-    fn export_wasm_init_async_task(&self) -> Option<&str>;
+    fn export_wasm_task_hook(&self) -> Option<&str>;
     fn resource_drop_name<'a>(&self, name: &'a str) -> Option<&'a str>;
     fn resource_new_name<'a>(&self, name: &'a str) -> Option<&'a str>;
     fn resource_rep_name<'a>(&self, name: &'a str) -> Option<&'a str>;
@@ -1754,10 +1741,7 @@ impl NameMangling for Standard {
     fn export_indirect_function_table(&self) -> Option<&str> {
         None
     }
-    fn export_wasm_init_task(&self) -> Option<&str> {
-        None
-    }
-    fn export_wasm_init_async_task(&self) -> Option<&str> {
+    fn export_wasm_task_hook(&self) -> Option<&str> {
         None
     }
     fn resource_drop_name<'a>(&self, name: &'a str) -> Option<&'a str> {
@@ -2226,11 +2210,8 @@ impl NameMangling for Legacy {
     fn export_indirect_function_table(&self) -> Option<&str> {
         Some("__indirect_function_table")
     }
-    fn export_wasm_init_task(&self) -> Option<&str> {
-        Some("__wasm_init_task")
-    }
-    fn export_wasm_init_async_task(&self) -> Option<&str> {
-        Some("__wasm_init_async_task")
+    fn export_wasm_task_hook(&self) -> Option<&str> {
+        Some(crate::linking::metadata::TASK_HOOK)
     }
     fn resource_drop_name<'a>(&self, name: &'a str) -> Option<&'a str> {
         name.strip_prefix("[resource-drop]")
