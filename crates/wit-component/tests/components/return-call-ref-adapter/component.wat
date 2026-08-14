@@ -23,9 +23,8 @@
   )
   (core module $wit-component-shim-module (;2;)
     (type (;0;) (func (param i32 i32)))
-    (type (;1;) (func (param i32 i32)))
     (global (;0;) (mut (ref 0)) ref.func $"trap stub before initialization")
-    (global (;1;) (mut (ref 1)) ref.func $"#func2 trap stub before initialization")
+    (global (;1;) (mut (ref 0)) ref.func $"trap stub before initialization")
     (export "g0" (global 0))
     (export "0" (func $adapt-old-log))
     (export "g1" (global 1))
@@ -39,14 +38,11 @@
       global.get 0
       return_call_ref 0
     )
-    (func $"#func2 trap stub before initialization" (@name "trap stub before initialization") (;2;) (type 1) (param i32 i32)
-      unreachable
-    )
-    (func $indirect-new-log (;3;) (type 1) (param i32 i32)
+    (func $indirect-new-log (;2;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       global.get 1
-      return_call_ref 1
+      return_call_ref 0
     )
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")

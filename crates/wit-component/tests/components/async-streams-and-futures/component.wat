@@ -129,8 +129,7 @@
   )
   (core module $wit-component-shim-module (;1;)
     (type (;0;) (func (param i32 i32 i32) (result i32)))
-    (type (;1;) (func (param i32 i32 i32) (result i32)))
-    (type (;2;) (func (param i32 i32) (result i32)))
+    (type (;1;) (func (param i32 i32) (result i32)))
     (table (;0;) 26 26 funcref)
     (export "0" (func $"indirect-$root-[async-lower]foo"))
     (export "1" (func $"$root-[stream-read-2]foo"))
@@ -166,43 +165,43 @@
       i32.const 0
       call_indirect (type 0)
     )
-    (func $"$root-[stream-read-2]foo" (;1;) (type 1) (param i32 i32 i32) (result i32)
+    (func $"$root-[stream-read-2]foo" (;1;) (type 0) (param i32 i32 i32) (result i32)
       local.get 0
       local.get 1
       local.get 2
       i32.const 1
-      call_indirect (type 1)
+      call_indirect (type 0)
     )
-    (func $"$root-[stream-write-2]foo" (;2;) (type 1) (param i32 i32 i32) (result i32)
+    (func $"$root-[stream-write-2]foo" (;2;) (type 0) (param i32 i32 i32) (result i32)
       local.get 0
       local.get 1
       local.get 2
       i32.const 2
-      call_indirect (type 1)
+      call_indirect (type 0)
     )
-    (func $"$root-[future-read-0]foo" (;3;) (type 2) (param i32 i32) (result i32)
+    (func $"$root-[future-read-0]foo" (;3;) (type 1) (param i32 i32) (result i32)
       local.get 0
       local.get 1
       i32.const 3
-      call_indirect (type 2)
+      call_indirect (type 1)
     )
-    (func $"$root-[future-write-0]foo" (;4;) (type 2) (param i32 i32) (result i32)
+    (func $"$root-[future-write-0]foo" (;4;) (type 1) (param i32 i32) (result i32)
       local.get 0
       local.get 1
       i32.const 4
-      call_indirect (type 2)
+      call_indirect (type 1)
     )
-    (func $"$root-[future-read-1]foo" (;5;) (type 2) (param i32 i32) (result i32)
+    (func $"$root-[future-read-1]foo" (;5;) (type 1) (param i32 i32) (result i32)
       local.get 0
       local.get 1
       i32.const 5
-      call_indirect (type 2)
+      call_indirect (type 1)
     )
-    (func $"$root-[future-write-1]foo" (;6;) (type 2) (param i32 i32) (result i32)
+    (func $"$root-[future-write-1]foo" (;6;) (type 1) (param i32 i32) (result i32)
       local.get 0
       local.get 1
       i32.const 6
-      call_indirect (type 2)
+      call_indirect (type 1)
     )
     (func $"indirect-foo:foo/bar-[async-lower]foo" (;7;) (type 0) (param i32 i32 i32) (result i32)
       local.get 0
@@ -211,119 +210,119 @@
       i32.const 7
       call_indirect (type 0)
     )
-    (func $"foo:foo/bar-[stream-read-2]foo" (;8;) (type 1) (param i32 i32 i32) (result i32)
+    (func $"foo:foo/bar-[stream-read-2]foo" (;8;) (type 0) (param i32 i32 i32) (result i32)
       local.get 0
       local.get 1
       local.get 2
       i32.const 8
-      call_indirect (type 1)
+      call_indirect (type 0)
     )
-    (func $"foo:foo/bar-[stream-write-2]foo" (;9;) (type 1) (param i32 i32 i32) (result i32)
+    (func $"foo:foo/bar-[stream-write-2]foo" (;9;) (type 0) (param i32 i32 i32) (result i32)
       local.get 0
       local.get 1
       local.get 2
       i32.const 9
-      call_indirect (type 1)
+      call_indirect (type 0)
     )
-    (func $"foo:foo/bar-[future-read-0]foo" (;10;) (type 2) (param i32 i32) (result i32)
+    (func $"foo:foo/bar-[future-read-0]foo" (;10;) (type 1) (param i32 i32) (result i32)
       local.get 0
       local.get 1
       i32.const 10
-      call_indirect (type 2)
+      call_indirect (type 1)
     )
-    (func $"foo:foo/bar-[future-write-0]foo" (;11;) (type 2) (param i32 i32) (result i32)
+    (func $"foo:foo/bar-[future-write-0]foo" (;11;) (type 1) (param i32 i32) (result i32)
       local.get 0
       local.get 1
       i32.const 11
-      call_indirect (type 2)
+      call_indirect (type 1)
     )
-    (func $"foo:foo/bar-[future-read-1]foo" (;12;) (type 2) (param i32 i32) (result i32)
+    (func $"foo:foo/bar-[future-read-1]foo" (;12;) (type 1) (param i32 i32) (result i32)
       local.get 0
       local.get 1
       i32.const 12
-      call_indirect (type 2)
+      call_indirect (type 1)
     )
-    (func $"foo:foo/bar-[future-write-1]foo" (;13;) (type 2) (param i32 i32) (result i32)
+    (func $"foo:foo/bar-[future-write-1]foo" (;13;) (type 1) (param i32 i32) (result i32)
       local.get 0
       local.get 1
       i32.const 13
-      call_indirect (type 2)
+      call_indirect (type 1)
     )
-    (func $"[export]$root-[stream-read-2]foo" (;14;) (type 1) (param i32 i32 i32) (result i32)
+    (func $"[export]$root-[stream-read-2]foo" (;14;) (type 0) (param i32 i32 i32) (result i32)
       local.get 0
       local.get 1
       local.get 2
       i32.const 14
-      call_indirect (type 1)
+      call_indirect (type 0)
     )
-    (func $"[export]$root-[stream-write-2]foo" (;15;) (type 1) (param i32 i32 i32) (result i32)
+    (func $"[export]$root-[stream-write-2]foo" (;15;) (type 0) (param i32 i32 i32) (result i32)
       local.get 0
       local.get 1
       local.get 2
       i32.const 15
-      call_indirect (type 1)
+      call_indirect (type 0)
     )
-    (func $"[export]$root-[future-read-0]foo" (;16;) (type 2) (param i32 i32) (result i32)
+    (func $"[export]$root-[future-read-0]foo" (;16;) (type 1) (param i32 i32) (result i32)
       local.get 0
       local.get 1
       i32.const 16
-      call_indirect (type 2)
+      call_indirect (type 1)
     )
-    (func $"[export]$root-[future-write-0]foo" (;17;) (type 2) (param i32 i32) (result i32)
+    (func $"[export]$root-[future-write-0]foo" (;17;) (type 1) (param i32 i32) (result i32)
       local.get 0
       local.get 1
       i32.const 17
-      call_indirect (type 2)
+      call_indirect (type 1)
     )
-    (func $"[export]$root-[future-read-1]foo" (;18;) (type 2) (param i32 i32) (result i32)
+    (func $"[export]$root-[future-read-1]foo" (;18;) (type 1) (param i32 i32) (result i32)
       local.get 0
       local.get 1
       i32.const 18
-      call_indirect (type 2)
+      call_indirect (type 1)
     )
-    (func $"[export]$root-[future-write-1]foo" (;19;) (type 2) (param i32 i32) (result i32)
+    (func $"[export]$root-[future-write-1]foo" (;19;) (type 1) (param i32 i32) (result i32)
       local.get 0
       local.get 1
       i32.const 19
-      call_indirect (type 2)
+      call_indirect (type 1)
     )
-    (func $"[export]foo:foo/bar-[stream-read-2]foo" (;20;) (type 1) (param i32 i32 i32) (result i32)
+    (func $"[export]foo:foo/bar-[stream-read-2]foo" (;20;) (type 0) (param i32 i32 i32) (result i32)
       local.get 0
       local.get 1
       local.get 2
       i32.const 20
-      call_indirect (type 1)
+      call_indirect (type 0)
     )
-    (func $"[export]foo:foo/bar-[stream-write-2]foo" (;21;) (type 1) (param i32 i32 i32) (result i32)
+    (func $"[export]foo:foo/bar-[stream-write-2]foo" (;21;) (type 0) (param i32 i32 i32) (result i32)
       local.get 0
       local.get 1
       local.get 2
       i32.const 21
-      call_indirect (type 1)
+      call_indirect (type 0)
     )
-    (func $"[export]foo:foo/bar-[future-read-0]foo" (;22;) (type 2) (param i32 i32) (result i32)
+    (func $"[export]foo:foo/bar-[future-read-0]foo" (;22;) (type 1) (param i32 i32) (result i32)
       local.get 0
       local.get 1
       i32.const 22
-      call_indirect (type 2)
+      call_indirect (type 1)
     )
-    (func $"[export]foo:foo/bar-[future-write-0]foo" (;23;) (type 2) (param i32 i32) (result i32)
+    (func $"[export]foo:foo/bar-[future-write-0]foo" (;23;) (type 1) (param i32 i32) (result i32)
       local.get 0
       local.get 1
       i32.const 23
-      call_indirect (type 2)
+      call_indirect (type 1)
     )
-    (func $"[export]foo:foo/bar-[future-read-1]foo" (;24;) (type 2) (param i32 i32) (result i32)
+    (func $"[export]foo:foo/bar-[future-read-1]foo" (;24;) (type 1) (param i32 i32) (result i32)
       local.get 0
       local.get 1
       i32.const 24
-      call_indirect (type 2)
+      call_indirect (type 1)
     )
-    (func $"[export]foo:foo/bar-[future-write-1]foo" (;25;) (type 2) (param i32 i32) (result i32)
+    (func $"[export]foo:foo/bar-[future-write-1]foo" (;25;) (type 1) (param i32 i32) (result i32)
       local.get 0
       local.get 1
       i32.const 25
-      call_indirect (type 2)
+      call_indirect (type 1)
     )
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")

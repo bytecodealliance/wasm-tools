@@ -109,7 +109,6 @@
     (type (;0;) (func (param i32)))
     (type (;1;) (func (param i32 i32) (result i32)))
     (type (;2;) (func (param i32 i32)))
-    (type (;3;) (func (param i32)))
     (table (;0;) 7 7 funcref)
     (export "0" (func $indirect-cm32p2-f))
     (export "1" (func $"indirect-cm32p2|ns:pkg/i@0.2-[constructor]r"))
@@ -148,15 +147,15 @@
       i32.const 4
       call_indirect (type 2)
     )
-    (func $dtor-r (;5;) (type 3) (param i32)
+    (func $dtor-r (;5;) (type 0) (param i32)
       local.get 0
       i32.const 5
-      call_indirect (type 3)
+      call_indirect (type 0)
     )
-    (func $"#func6 dtor-r" (@name "dtor-r") (;6;) (type 3) (param i32)
+    (func $"#func6 dtor-r" (@name "dtor-r") (;6;) (type 0) (param i32)
       local.get 0
       i32.const 6
-      call_indirect (type 3)
+      call_indirect (type 0)
     )
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")

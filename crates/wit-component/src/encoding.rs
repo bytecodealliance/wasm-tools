@@ -93,6 +93,8 @@ use wit_parser::{
 
 const INDIRECT_TABLE_NAME: &str = "$imports";
 const SHIM_MEMORY_NAME: &str = "$memory";
+const TLS_BASE_GET: &str = "$get-tls-base";
+const TLS_BASE_SET: &str = "$set-tls-base";
 
 pub(crate) mod fixup;
 
@@ -461,20 +463,7 @@ pub struct EncodingState<'a> {
     /// Maps from original export name to task initialization wrapper function index.
     /// Used to wrap exports with __wasm_init_(async_)task calls.
     export_task_initialization_wrappers: HashMap<String, u32>,
-
-    /// The index of the instance of the synthesized module which stores the TLS
-    /// base pointer in a `global`.
-    ///
-    /// This is only used, and only created, when a module imports
-    /// `__wasm_{get,set}_tls_base` but the program doesn't use cooperative
-    /// threading. See `materialize_tls_base_import`.
-    tls_base_instance_index: Option<(u32, ValType)>,
 }
-
-/// Name of the export of the synthesized TLS-base module which reads the base.
-const TLS_BASE_GET: &str = "get";
-/// Name of the export of the synthesized TLS-base module which writes the base.
-const TLS_BASE_SET: &str = "set";
 
 impl<'a> EncodingState<'a> {
     fn encode_core_modules(&mut self) {
@@ -1180,17 +1169,47 @@ impl<'a> EncodingState<'a> {
                 })?;
         }
 
-        if ret.shims.is_empty() && self.info.info.imports.imported_memory().is_none() {
+        // Determine if a TLS global needs to be synthesized here by seeing if
+        // it was imported into any module.
+        let tls_base_global_type = if self.info.uses_cooperative_threading() {
+            None
+        } else {
+            let infos = [&self.info.info]
+                .into_iter()
+                .chain(self.info.adapters.values().map(|a| &a.info));
+            let mut ret = None;
+            for info in infos {
+                for (_, _, import) in info.imports.imports() {
+                    let ty = match import {
+                        Import::TlsBaseGet { ty } | Import::TlsBaseSet { ty } => *ty,
+                        _ => continue,
+                    };
+                    let prev = *ret.get_or_insert(ty);
+                    if prev != ty {
+                        bail!("conflicting TLS base pointer types `{prev}` and `{ty}`");
+                    }
+                }
+            }
+            match ret {
+                Some(ret) => Some(ret.try_into()?),
+                None => None,
+            }
+        };
+
+        if ret.shims.is_empty()
+            && self.info.info.imports.imported_memory().is_none()
+            && tls_base_global_type.is_none()
+        {
             return Ok((ret, fixups));
         }
 
         assert!(self.shim_instance_index.is_none());
 
-        // This function encodes up to two modules:
-        // - A shim module that defines functions to indirectly call through
-        //   tables or globals. This shim also may contain memory for the main
-        //   module if it needs it. This shim is instantiated before the
-        //   main module.
+        // This function encodes a single module, the shim module, which defines
+        // functions to indirectly call through tables or globals. This shim
+        // additionally may contain the memory for the main module if it needs
+        // it as well as the TLS base pointer for the program. This shim is
+        // instantiated before the main module.
 
         let mut types = TypeSection::new();
         let mut shim_globals = GlobalSection::new();
@@ -1204,15 +1223,25 @@ impl<'a> EncodingState<'a> {
         let mut func_indexes = Vec::new();
         let mut func_names = NameMap::new();
 
+        let mut intern_type =
+            |types: &mut TypeSection, params: Vec<ValType>, results: Vec<ValType>| {
+                *sigs
+                    .entry((params, results))
+                    .or_insert_with_key(|(params, results)| {
+                        let index = types.len();
+                        types
+                            .ty()
+                            .function(params.iter().copied(), results.iter().copied());
+                        index
+                    })
+            };
+
         for shim in ret.shims.values() {
-            let type_index = *sigs.entry(&shim.sig).or_insert_with(|| {
-                let index = types.len();
-                types.ty().function(
-                    shim.sig.params.iter().map(to_val_type),
-                    shim.sig.results.iter().map(to_val_type),
-                );
-                index
-            });
+            let type_index = intern_type(
+                &mut types,
+                shim.sig.params.iter().map(to_val_type).collect(),
+                shim.sig.results.iter().map(to_val_type).collect(),
+            );
 
             let trapping_stub = if self.info.encoder.shim_return_call_ref {
                 // Generate a stub which is `unreachable` for the initializer of
@@ -1267,9 +1296,6 @@ impl<'a> EncodingState<'a> {
             func_indexes.push(func_index);
             func_names.append(func_index, &shim.debug_name);
         }
-        let mut shim_names = NameSection::new();
-        shim_names.module("wit-component:shim");
-        shim_names.functions(&func_names);
 
         if !ret.shims.is_empty() && !self.info.encoder.shim_return_call_ref {
             let table_type = TableType {
@@ -1290,6 +1316,48 @@ impl<'a> EncodingState<'a> {
             shim_memories.memory(RoundtripReencoder.memory_type(ty)?);
             shim_exports.export(SHIM_MEMORY_NAME, ExportKind::Memory, 0);
         }
+
+        // If the TLS base pointer is stored in a `global`, as opposed to a
+        // `context` slot, then define that global here along with accessors
+        // for it which everyone else uses.
+        if let Some(ty) = tls_base_global_type {
+            let get_ty = intern_type(&mut types, Vec::new(), vec![ty]);
+            let set_ty = intern_type(&mut types, vec![ty], Vec::new());
+
+            let global = shim_globals.len();
+            shim_globals.global(
+                GlobalType {
+                    val_type: ty,
+                    mutable: true,
+                    shared: false,
+                },
+                &match ty {
+                    ValType::I64 => ConstExpr::i64_const(0),
+                    ValType::I32 => ConstExpr::i32_const(0),
+                    _ => unreachable!(),
+                },
+            );
+
+            let get = shim_functions.len();
+            shim_functions.function(get_ty);
+            let mut func = wasm_encoder::Function::new(std::iter::empty());
+            func.instructions().global_get(global).end();
+            shim_code.function(&func);
+            shim_exports.export(TLS_BASE_GET, ExportKind::Func, get);
+            func_names.append(get, TLS_BASE_GET);
+
+            let set = shim_functions.len();
+            shim_functions.function(set_ty);
+            let mut func = wasm_encoder::Function::new(std::iter::empty());
+            func.instructions().local_get(0).global_set(global).end();
+            shim_code.function(&func);
+            shim_exports.export(TLS_BASE_SET, ExportKind::Func, set);
+            func_names.append(set, TLS_BASE_SET);
+        }
+
+        let mut shim_names = NameSection::new();
+        shim_names.module("wit-component:shim");
+        shim_names.functions(&func_names);
 
         let mut shim = Module::new();
         shim.section(&types);
@@ -2120,86 +2188,20 @@ impl<'a> EncodingState<'a> {
     /// For more information on this see WebAssembly/wasi-libc#857
     fn materialize_tls_base_import(&mut self, set: bool, ty: ValType) -> u32 {
         if self.info.uses_cooperative_threading() {
-            return if set {
+            if set {
                 self.component.context_set(ty, 1)
             } else {
                 self.component.context_get(ty, 1)
-            };
+            }
+        } else {
+            let name = if set { TLS_BASE_SET } else { TLS_BASE_GET };
+            self.core_alias_export(
+                Some(name),
+                self.shim_instance_index.unwrap(),
+                name,
+                ExportKind::Func,
+            )
         }
-
-        let instance = match self.tls_base_instance_index {
-            Some((index, prev_ty)) => {
-                assert_eq!(prev_ty, ty, "conflicting TLS base pointer types");
-                index
-            }
-            None => {
-                let index = self.encode_tls_base_module(ty);
-                self.tls_base_instance_index = Some((index, ty));
-                index
-            }
-        };
-        let name = if set { TLS_BASE_SET } else { TLS_BASE_GET };
-        self.core_alias_export(
-            Some(&format!("tls-base-{name}")),
-            instance,
-            name,
-            ExportKind::Func,
-        )
-    }
-
-    /// Synthesizes and instantiates a module which stores the TLS base pointer
-    /// in a mutable `global`, exporting accessors for it.
-    fn encode_tls_base_module(&mut self, ty: ValType) -> u32 {
-        let mut types = TypeSection::new();
-        types.ty().function([], [ty]);
-        types.ty().function([ty], []);
-
-        let mut globals = GlobalSection::new();
-        globals.global(
-            wasm_encoder::GlobalType {
-                val_type: ty,
-                mutable: true,
-                shared: false,
-            },
-            &match ty {
-                ValType::I64 => ConstExpr::i64_const(0),
-                ValType::I32 => ConstExpr::i32_const(0),
-                _ => unreachable!(),
-            },
-        );
-
-        let mut functions = FunctionSection::new();
-        let mut code = CodeSection::new();
-
-        functions.function(0);
-        let mut get = wasm_encoder::Function::new([]);
-        get.instruction(&Instruction::GlobalGet(0));
-        get.instruction(&Instruction::End);
-        code.function(&get);
-
-        functions.function(1);
-        let mut set = wasm_encoder::Function::new([]);
-        set.instruction(&Instruction::LocalGet(0));
-        set.instruction(&Instruction::GlobalSet(0));
-        set.instruction(&Instruction::End);
-        code.function(&set);
-
-        let mut exports = ExportSection::new();
-        exports.export(TLS_BASE_GET, ExportKind::Func, 0);
-        exports.export(TLS_BASE_SET, ExportKind::Func, 1);
-
-        let mut module = Module::new();
-        module.section(&types);
-        module.section(&functions);
-        module.section(&globals);
-        module.section(&exports);
-        module.section(&code);
-
-        let module_index = self
-            .component
-            .core_module(Some("wit-component:tls-base"), &module);
-        self.component
-            .core_instantiate(Some("wit-component:tls-base"), module_index, [])
     }
 
     /// Helper for `materialize_import` above for materializing functions that
@@ -3291,7 +3293,6 @@ impl ComponentEncoder {
             aliased_core_items: Default::default(),
             info: &world,
             export_task_initialization_wrappers: HashMap::new(),
-            tls_base_instance_index: None,
         };
         state.encode_imports(&self.import_name_map)?;
         state.encode_core_modules();
