@@ -1823,9 +1823,13 @@ impl<'a> EncodingState<'a> {
                     for_module,
                     iface.map(|_| {
                         #[cfg(feature = "canon-names")]
-                        { resolve.name_canonicalized_world_key(key) }
+                        {
+                            resolve.name_canonicalized_world_key(key)
+                        }
                         #[cfg(not(feature = "canon-names"))]
-                        { resolve.name_world_key(key) }
+                        {
+                            resolve.name_world_key(key)
+                        }
                     }),
                     &format!("{name}_drop"),
                     key,
@@ -1998,9 +2002,13 @@ impl<'a> EncodingState<'a> {
                 for_module,
                 Some({
                     #[cfg(feature = "canon-names")]
-                    { resolve.name_canonicalized_world_key(key) }
+                    {
+                        resolve.name_canonicalized_world_key(key)
+                    }
                     #[cfg(not(feature = "canon-names"))]
-                    { resolve.name_world_key(key) }
+                    {
+                        resolve.name_world_key(key)
+                    }
                 }),
                 name,
                 key,
@@ -3050,9 +3058,13 @@ impl<'a> Shims<'a> {
                         name,
                         Some({
                             #[cfg(feature = "canon-names")]
-                            { resolve.name_canonicalized_world_key(key) }
+                            {
+                                resolve.name_canonicalized_world_key(key)
+                            }
                             #[cfg(not(feature = "canon-names"))]
-                            { resolve.name_world_key(key) }
+                            {
+                                resolve.name_world_key(key)
+                            }
                         }),
                         *abi,
                     )?;

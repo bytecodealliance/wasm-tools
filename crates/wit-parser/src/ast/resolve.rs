@@ -723,9 +723,7 @@ impl<'a> Resolver<'a> {
                     };
                     return Err(ParseError::new_syntax(
                         kind.span(),
-                        format!(
-                            "interface `{full_name}` cannot be {desc}ed more than once",
-                        ),
+                        format!("interface `{full_name}` cannot be {desc}ed more than once",),
                     ));
                 }
             }

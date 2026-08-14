@@ -294,8 +294,7 @@ impl Resolve {
                     match prev_pkg.name.full_version_cmp(&current_pkg.name) {
                         std::cmp::Ordering::Greater => {
                             // Previous package had larger version, put it back
-                            pkg_details_map
-                                .insert(name, (prev_pkg, prev_source_map_index));
+                            pkg_details_map.insert(name, (prev_pkg, prev_source_map_index));
                         }
                         std::cmp::Ordering::Less => {}
                         std::cmp::Ordering::Equal => {
@@ -304,13 +303,11 @@ impl Resolve {
                             span1.adjust(offset);
                             let mut span2 = prev_pkg.package_name_span;
                             span2.adjust(prev_offset);
-                            return Err(ResolveError::from(
-                                ResolveErrorKind::DuplicatePackage {
-                                    name,
-                                    span1,
-                                    span2,
-                                },
-                            ));
+                            return Err(ResolveError::from(ResolveErrorKind::DuplicatePackage {
+                                name,
+                                span1,
+                                span2,
+                            }));
                         }
                     }
                 }

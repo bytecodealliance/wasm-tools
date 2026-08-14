@@ -136,8 +136,7 @@ fn component_extern_name(
         (name, suffix)
     };
     #[cfg(not(feature = "canon-names"))]
-    let (name, version_suffix): (String, Option<String>) =
-        (resolve.name_world_key(key), None);
+    let (name, version_suffix): (String, Option<String>) = (resolve.name_world_key(key), None);
 
     ComponentExternName {
         name: name.into(),
@@ -231,7 +230,9 @@ impl Encoder<'_> {
             if interface == id {
                 let idx = encoder.encode_instance(interface)?;
                 log::trace!("exporting self as {idx}");
-                encoder.outer.export(extern_name, ComponentTypeRef::Instance(idx));
+                encoder
+                    .outer
+                    .export(extern_name, ComponentTypeRef::Instance(idx));
             } else {
                 encoder.push_instance();
                 for (_, id) in iface.types.iter() {
@@ -242,7 +243,9 @@ impl Encoder<'_> {
                 encoder.outer.ty().instance(&instance);
                 encoder.import_map.insert(interface, encoder.instances);
                 encoder.instances += 1;
-                encoder.outer.import(extern_name, ComponentTypeRef::Instance(idx));
+                encoder
+                    .outer
+                    .import(extern_name, ComponentTypeRef::Instance(idx));
             }
         }
 

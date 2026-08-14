@@ -267,18 +267,16 @@ impl core::hash::Hash for PackageName {
 
 impl PartialEq for PackageName {
     fn eq(&self, other: &Self) -> bool {
-        self.namespace == other.namespace
-            && self.name == other.name
-            && {
-                #[cfg(feature = "canon-names")]
-                {
-                    self.version_key() == other.version_key()
-                }
-                #[cfg(not(feature = "canon-names"))]
-                {
-                    self.version == other.version
-                }
+        self.namespace == other.namespace && self.name == other.name && {
+            #[cfg(feature = "canon-names")]
+            {
+                self.version_key() == other.version_key()
             }
+            #[cfg(not(feature = "canon-names"))]
+            {
+                self.version == other.version
+            }
+        }
     }
 }
 
