@@ -71,11 +71,11 @@
 //! otherwise there's no way to run a `wasi_snapshot_preview1` module within the
 //! component model.
 
-use crate::StringEncoding;
 use crate::metadata::{self, Bindgen, ModuleMetadata};
 use crate::validation::{
     Export, ExportMap, Import, ImportInstance, ImportMap, PayloadInfo, PayloadType,
 };
+use crate::{SemverCompat, StringEncoding};
 use anyhow::{Context, Result, anyhow, bail};
 use indexmap::{IndexMap, IndexSet};
 use std::borrow::Cow;
@@ -3330,10 +3330,9 @@ pub struct ComponentEncoder {
     pub(super) adapters: IndexMap<String, Adapter>,
     import_name_map: HashMap<String, String>,
     realloc_via_memory_grow: bool,
-    merge_imports_based_on_semver: Option<bool>,
+    semver_compat: SemverCompat,
     pub(super) reject_legacy_names: bool,
     debug_names: bool,
-    use_canonical_names: bool,
 }
 
 impl ComponentEncoder {
@@ -3368,7 +3367,7 @@ impl ComponentEncoder {
 
     fn merge_metadata(&mut self, metadata: Bindgen) -> Result<IndexSet<WorldKey>> {
         let result = self.metadata.merge(metadata);
-        self.metadata.resolve.use_canonical_names = self.use_canonical_names;
+        self.metadata.resolve.use_canonical_names = self.semver_compat == SemverCompat::Canonical;
         result
     }
 
@@ -3378,31 +3377,22 @@ impl ComponentEncoder {
         self
     }
 
-    /// Sets whether to use canonical interface names during encoding.
-    ///
-    /// When enabled, interface names use canonical version prefixes and version
-    /// suffixes (e.g., `ns:pkg/iface@0.2` + versionsuffix `.1`) instead of full
-    /// version strings.
-    pub fn use_canonical_names(mut self, canonical: bool) -> Self {
-        self.use_canonical_names = canonical;
-        self
-    }
-
     /// Sets whether or not to generate debug names in the output component.
     pub fn debug_names(mut self, debug_names: bool) -> Self {
         self.debug_names = debug_names;
         self
     }
 
-    /// Sets whether to merge imports based on semver to the specified value.
+    /// Sets the semver compatibility mode for this encoder.
     ///
-    /// This affects how when to WIT worlds are merged together, for example
-    /// from two different libraries, whether their imports are unified when the
-    /// semver version ranges for interface allow it.
-    ///
-    /// This is enabled by default.
-    pub fn merge_imports_based_on_semver(mut self, merge: bool) -> Self {
-        self.merge_imports_based_on_semver = Some(merge);
+    /// - `SemverCompat::None`: exact version matching, no merging. Same as the old flag
+    ///   `merge_imports_based_on_semver(false)`.
+    /// - `SemverCompat::Merge`: merge imports based on semver.
+    ///   Same as the old flag `merge_imports_based_on_semver(true)`.
+    ///   This is the default behavior.
+    /// - `SemverCompat::Canonical`: merge imports based on the canonical version prefixes.
+    pub fn semver_compat(mut self, compat: SemverCompat) -> Self {
+        self.semver_compat = compat;
         self
     }
 
@@ -3540,7 +3530,7 @@ impl ComponentEncoder {
             bail!("a module is required when encoding a component");
         }
 
-        if self.merge_imports_based_on_semver.unwrap_or(true) {
+        if self.semver_compat != SemverCompat::None {
             self.metadata
                 .resolve
                 .merge_world_imports_based_on_semver(self.metadata.world)?;

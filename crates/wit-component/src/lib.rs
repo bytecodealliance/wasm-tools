@@ -81,6 +81,45 @@ impl From<StringEncoding> for wasm_encoder::CanonicalOption {
     }
 }
 
+/// Controls how semver is used when resolving and encoding interfaces.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum SemverCompat {
+    /// Exact version matching everywhere. No merging or canonicalization.
+    None,
+    /// Merge imports based on semver. This is the default behavior.
+    /// Package identity still use exact versions.
+    #[default]
+    Merge,
+    /// Merge imports based on the canonical version prefixes.
+    /// Package identity uses canonical version prefixes only.
+    Canonical,
+}
+
+impl Display for SemverCompat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SemverCompat::None => write!(f, "none"),
+            SemverCompat::Merge => write!(f, "merge"),
+            SemverCompat::Canonical => write!(f, "canonical"),
+        }
+    }
+}
+
+impl FromStr for SemverCompat {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        match s {
+            "none" => Ok(SemverCompat::None),
+            "merge" => Ok(SemverCompat::Merge),
+            "canonical" => Ok(SemverCompat::Canonical),
+            _ => {
+                bail!("unknown semver compat mode `{s}`, expected `none`, `merge`, or `canonical`")
+            }
+        }
+    }
+}
+
 /// A producer section to be added to all modules and components synthesized by
 /// this crate
 pub(crate) fn base_producers() -> wasm_metadata::Producers {

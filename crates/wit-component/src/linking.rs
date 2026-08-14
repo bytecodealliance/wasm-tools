@@ -23,6 +23,7 @@
 //! ahead-of-time.
 
 use {
+    crate::SemverCompat,
     crate::encoding::{ComponentEncoder, Instance, Item, LibraryInfo, MainOrAdapter},
     anyhow::{Context, Result, anyhow, bail},
     indexmap::{IndexMap, IndexSet, map::Entry},
@@ -1682,13 +1683,8 @@ pub struct Linker {
     /// If `None`, use `DEFAULT_STACK_SIZE_BYTES`.
     stack_size: Option<u32>,
 
-    /// This affects how when to WIT worlds are merged together, for example
-    /// from two different libraries, whether their imports are unified when the
-    /// semver version ranges for interface allow it.
-    merge_imports_based_on_semver: Option<bool>,
-
-    /// Whether to use canonical interface names.
-    use_canonical_names: bool,
+    /// Controls how semver is used when resolving and encoding interfaces.
+    semver_compat: Option<SemverCompat>,
 }
 
 impl Linker {
@@ -1742,19 +1738,11 @@ impl Linker {
         self
     }
 
-    /// This affects how when to WIT worlds are merged together, for example
-    /// from two different libraries, whether their imports are unified when the
-    /// semver version ranges for interface allow it.
+    /// Sets the semver compatibility mode for this linker.
     ///
-    /// This is enabled by default.
-    pub fn merge_imports_based_on_semver(mut self, merge: bool) -> Self {
-        self.merge_imports_based_on_semver = Some(merge);
-        self
-    }
-
-    /// Whether to use canonical interface names.
-    pub fn use_canonical_names(mut self, canonical: bool) -> Self {
-        self.use_canonical_names = canonical;
+    /// See [`SemverCompat`] for available modes.
+    pub fn semver_compat(mut self, compat: SemverCompat) -> Self {
+        self.semver_compat = Some(compat);
         self
     }
 
@@ -1903,11 +1891,10 @@ impl Linker {
 
         let mut encoder = ComponentEncoder::default()
             .validate(self.validate)
-            .debug_names(self.debug_names)
-            .use_canonical_names(self.use_canonical_names);
-        if let Some(merge) = self.merge_imports_based_on_semver {
-            encoder = encoder.merge_imports_based_on_semver(merge);
-        };
+            .debug_names(self.debug_names);
+        if let Some(compat) = self.semver_compat {
+            encoder = encoder.semver_compat(compat);
+        }
         encoder = encoder.module(&env_module)?;
 
         for (name, module) in &self.adapters {

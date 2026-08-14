@@ -14,8 +14,8 @@ use wasmparser::types::{CoreTypeId, EntityType, Types};
 use wasmparser::{Payload, ValidPayload, WasmFeatures};
 use wat::Detect;
 use wit_component::{
-    ComponentEncoder, DecodedWasm, Linker, StringEncoding, WitPrinter, embed_component_metadata,
-    metadata,
+    ComponentEncoder, DecodedWasm, Linker, SemverCompat, StringEncoding, WitPrinter,
+    embed_component_metadata, metadata,
 };
 use wit_parser::{LiftLowerAbi, Mangling, ManglingAndAbi, WorldItem, WorldKey};
 
@@ -148,12 +148,20 @@ pub struct NewOpts {
     #[clap(long)]
     realloc_via_memory_grow: bool,
 
-    /// Indicates whether imports into the final component are merged based on
-    /// semver ranges.
+    /// Controls how semver is used when resolving and encoding interfaces.
     ///
-    /// This is enabled by default.
-    #[clap(long, value_name = "<true|false>")]
-    merge_imports_based_on_semver: Option<bool>,
+    /// Possible values: `none`, `merge` (default), `canonical`.
+    ///
+    /// - `none`: exact version matching, no merging. Same as the old flag
+    ///   `merge_imports_based_on_semver = false`.
+    /// 
+    /// - `merge`: merge imports based on semver.
+    ///   Same as the old flag `merge_imports_based_on_semver = true`.
+    ///   This is the default behavior.
+    /// 
+    /// - `canonical`: merge imports based on the canonical version prefixes.
+    #[clap(long, value_name = "MODE")]
+    semver_compat: Option<SemverCompat>,
 
     /// Reject usage of the "legacy" naming scheme of `wit-component` and
     /// require the new naming scheme to be used.
@@ -179,8 +187,8 @@ impl NewOpts {
             .validate(!self.skip_validation)
             .reject_legacy_names(self.reject_legacy_names);
 
-        if let Some(merge) = self.merge_imports_based_on_semver {
-            encoder = encoder.merge_imports_based_on_semver(merge);
+        if let Some(compat) = self.semver_compat {
+            encoder = encoder.semver_compat(compat);
         }
         encoder = encoder.module(&wasm)?;
 
@@ -517,12 +525,11 @@ pub struct LinkOpts {
     #[clap(long)]
     use_built_in_libdl: bool,
 
-    /// Indicates whether imports into the final component are merged based on
-    /// semver ranges.
+    /// Controls how semver is used when resolving and encoding interfaces.
     ///
-    /// This is enabled by default.
-    #[arg(long, require_equals = true, value_name = "true|false")]
-    merge_imports_based_on_semver: Option<Option<bool>>,
+    /// Possible values: `none`, `merge` (default), `canonical`.
+    #[arg(long, value_name = "MODE")]
+    semver_compat: Option<SemverCompat>,
 
     /// Whether or not to add debug names to the generated binary.
     #[arg(long, require_equals = true, value_name = "true|false")]
@@ -554,8 +561,8 @@ impl LinkOpts {
             linker = linker.stack_size(stack_size);
         }
 
-        if let Some(merge) = self.merge_imports_based_on_semver {
-            linker = linker.merge_imports_based_on_semver(merge.unwrap_or(true));
+        if let Some(compat) = self.semver_compat {
+            linker = linker.semver_compat(compat);
         }
 
         for (name, wasm) in &self.inputs {

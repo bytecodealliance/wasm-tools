@@ -5,7 +5,9 @@ use std::{borrow::Cow, fs, path::Path};
 use wasm_encoder::{Encode, Section};
 use wasm_metadata::{Metadata, Payload};
 use wasmparser::{Parser, Validator, WasmFeatures};
-use wit_component::{ComponentEncoder, DecodedWasm, Linker, StringEncoding, WitPrinter};
+use wit_component::{
+    ComponentEncoder, DecodedWasm, Linker, SemverCompat, StringEncoding, WitPrinter,
+};
 use wit_parser::{PackageId, Resolve, UnresolvedPackageGroup};
 
 /// Tests the encoding of components.
@@ -135,7 +137,11 @@ fn run_test(path: &Path, use_canonical: bool) -> Result<()> {
             .try_fold(
                 ComponentEncoder::default()
                     .debug_names(true)
-                    .use_canonical_names(use_canonical)
+                    .semver_compat(if use_canonical {
+                        SemverCompat::Canonical
+                    } else {
+                        SemverCompat::Merge
+                    })
                     .module(&module)?,
                 |encoder, path| {
                     let (name, wasm) = read_name_and_module("adapt-", &path?, &resolve, pkg_id)?;
@@ -158,7 +164,11 @@ fn run_test(path: &Path, use_canonical: bool) -> Result<()> {
         let mut linker = Linker::default()
             .validate(false)
             .debug_names(true)
-            .use_canonical_names(use_canonical);
+            .semver_compat(if use_canonical {
+                SemverCompat::Canonical
+            } else {
+                SemverCompat::Merge
+            });
 
         if path.join("stub-missing-functions").is_file() {
             linker = linker.stub_missing_functions(true);
