@@ -30,6 +30,9 @@ fn main() -> Result<()> {
         };
         let is_dir = path.is_dir();
         let is_test = is_dir || name.ends_with(".wit");
+        if cfg!(feature = "canon-names") != name.starts_with("canon-names-") {
+            continue;
+        }
         if is_test {
             trials.push(Trial::test(name.to_string(), move || {
                 run_test(&path, is_dir)

@@ -284,16 +284,51 @@ impl Resolve {
             if let Some((prev_pkg, prev_source_map_index)) =
                 pkg_details_map.insert(name.clone(), (pkg, source_map_index))
             {
-                let prev_offset = source_map_offsets[prev_source_map_index];
-                let mut span1 = my_span;
-                span1.adjust(offset);
-                let mut span2 = prev_pkg.package_name_span;
-                span2.adjust(prev_offset);
-                return Err(ResolveError::from(ResolveErrorKind::DuplicatePackage {
-                    name,
-                    span1,
-                    span2,
-                }));
+                #[cfg(feature = "canon-names")]
+                {
+                    // When canon-names is enabled, packages with the same
+                    // canonical version prefix are considered equivalent.
+                    // Keep the one with the larger full version.
+                    // If full versions are exactly equal, it's a true duplicate error.
+                    let (current_pkg, _) = pkg_details_map.get(&name).unwrap();
+                    match prev_pkg.name.full_version_cmp(&current_pkg.name) {
+                        std::cmp::Ordering::Greater => {
+                            // Previous package had larger version, put it back
+                            pkg_details_map
+                                .insert(name, (prev_pkg, prev_source_map_index));
+                        }
+                        std::cmp::Ordering::Less => {
+                            // Current (just inserted) is larger, keep it
+                        }
+                        std::cmp::Ordering::Equal => {
+                            let prev_offset = source_map_offsets[prev_source_map_index];
+                            let mut span1 = my_span;
+                            span1.adjust(offset);
+                            let mut span2 = prev_pkg.package_name_span;
+                            span2.adjust(prev_offset);
+                            return Err(ResolveError::from(
+                                ResolveErrorKind::DuplicatePackage {
+                                    name,
+                                    span1,
+                                    span2,
+                                },
+                            ));
+                        }
+                    }
+                }
+                #[cfg(not(feature = "canon-names"))]
+                {
+                    let prev_offset = source_map_offsets[prev_source_map_index];
+                    let mut span1 = my_span;
+                    span1.adjust(offset);
+                    let mut span2 = prev_pkg.package_name_span;
+                    span2.adjust(prev_offset);
+                    return Err(ResolveError::from(ResolveErrorKind::DuplicatePackage {
+                        name,
+                        span1,
+                        span2,
+                    }));
+                }
             }
         }
 

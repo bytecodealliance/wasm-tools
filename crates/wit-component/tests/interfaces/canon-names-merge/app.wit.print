@@ -1,0 +1,5 @@
+package test:app@1.0.0;
+
+world my-world {
+  import test:lib/types@1.2.0;
+}

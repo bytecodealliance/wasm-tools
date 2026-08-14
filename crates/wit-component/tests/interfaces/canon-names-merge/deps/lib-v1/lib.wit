@@ -1,0 +1,6 @@
+package test:lib@1.0.0;
+
+interface types {
+    type my-type = u32;
+    my-func: func() -> my-type;
+}

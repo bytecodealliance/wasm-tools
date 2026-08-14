@@ -210,11 +210,28 @@ impl Encoder<'_> {
         for interface in interfaces {
             encoder.interface = Some(interface);
             let iface = &self.resolve.interfaces[interface];
-            let name = self.resolve.id_of(interface).unwrap();
+            #[cfg(feature = "canon-names")]
+            let extern_name = {
+                let name = self.resolve.canonicalized_id_of(interface).unwrap();
+                let suffix = self.resolve.version_suffix_of(interface);
+                ComponentExternName {
+                    name: name.into(),
+                    implements: None,
+                    external_id: None,
+                    version_suffix: suffix.map(|s| s.into()),
+                }
+            };
+            #[cfg(not(feature = "canon-names"))]
+            let extern_name = ComponentExternName {
+                name: self.resolve.id_of(interface).unwrap().into(),
+                implements: None,
+                external_id: None,
+                version_suffix: None,
+            };
             if interface == id {
                 let idx = encoder.encode_instance(interface)?;
                 log::trace!("exporting self as {idx}");
-                encoder.outer.export(name, ComponentTypeRef::Instance(idx));
+                encoder.outer.export(extern_name, ComponentTypeRef::Instance(idx));
             } else {
                 encoder.push_instance();
                 for (_, id) in iface.types.iter() {
@@ -225,7 +242,7 @@ impl Encoder<'_> {
                 encoder.outer.ty().instance(&instance);
                 encoder.import_map.insert(interface, encoder.instances);
                 encoder.instances += 1;
-                encoder.outer.import(name, ComponentTypeRef::Instance(idx));
+                encoder.outer.import(extern_name, ComponentTypeRef::Instance(idx));
             }
         }
 

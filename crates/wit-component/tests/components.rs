@@ -62,6 +62,10 @@ fn main() -> Result<()> {
         if !path.is_dir() {
             continue;
         }
+        let name = path.file_name().unwrap().to_str().unwrap();
+        if cfg!(feature = "canon-names") != name.starts_with("canon-names-") {
+            continue;
+        }
 
         trials.push(Trial::test(path.to_str().unwrap().to_string(), move || {
             run_test(&path).map_err(|e| format!("{e:?}").into())
@@ -75,10 +79,24 @@ fn main() -> Result<()> {
     libtest_mimic::run(&args, trials).exit();
 }
 
+fn is_error_test(test_case: &str) -> bool {
+    test_case.starts_with("error-") || test_case.starts_with("canon-names-error-")
+}
+
 fn run_test(path: &Path) -> Result<()> {
     let test_case = path.file_stem().unwrap().to_str().unwrap();
     let mut resolve = Resolve::default();
-    let (pkg_id, _) = resolve.push_dir(&path)?;
+    let (pkg_id, _) = match resolve.push_dir(&path) {
+        Ok(v) => v,
+        Err(err) => {
+            if !is_error_test(test_case) {
+                return Err(err.into());
+            }
+            let error_path = path.join("error.txt");
+            assert_output(&format!("{err:#}"), &error_path)?;
+            return Ok(());
+        }
+    };
 
     // If this test case contained multiple packages, create separate sub-directories for
     // each.
@@ -142,13 +160,13 @@ fn run_test(path: &Path) -> Result<()> {
 
     let bytes = match result {
         Ok(bytes) => {
-            if test_case.starts_with("error-") {
+            if is_error_test(test_case) {
                 bail!("expected an error but got success");
             }
             bytes
         }
         Err(err) => {
-            if !test_case.starts_with("error-") {
+            if !is_error_test(test_case) {
                 return Err(err);
             }
             assert_output(&format!("{err:#}"), &error_path)?;

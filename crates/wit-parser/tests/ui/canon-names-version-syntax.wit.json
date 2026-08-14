@@ -1,0 +1,17 @@
+{
+  "worlds": [],
+  "interfaces": [],
+  "types": [],
+  "packages": [
+    {
+      "name": "a:b@1.0.1",
+      "interfaces": {},
+      "worlds": {}
+    },
+    {
+      "name": "foo:root",
+      "interfaces": {},
+      "worlds": {}
+    }
+  ]
+}

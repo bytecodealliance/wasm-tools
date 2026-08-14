@@ -24,6 +24,10 @@ fn main() {
 
     let mut trials = Vec::new();
     for test in tests {
+        let name = test.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+        if cfg!(feature = "canon-names") != name.starts_with("canon-names-") {
+            continue;
+        }
         let trial = Trial::test(format!("{test:?}"), move || {
             Runner {}
                 .run(&test)

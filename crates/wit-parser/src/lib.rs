@@ -244,23 +244,16 @@ pub struct PackageName {
     pub version: Option<Version>,
 }
 
+#[cfg(feature = "canon-names")]
 impl PackageName {
     /// Returns the canonical version prefix for comparison purposes.
     ///
     /// When `canon-names` is enabled, this returns only the canonical prefix
-    /// from [`PackageName::canon_version_split`]. Otherwise returns the full
-    /// version string.
+    /// from [`PackageName::canon_version_split`].
     fn version_key(&self) -> Option<String> {
         let version = self.version.as_ref()?;
-        #[cfg(feature = "canon-names")]
-        {
-            let (prefix, _) = Self::canon_version_split(version);
-            Some(prefix)
-        }
-        #[cfg(not(feature = "canon-names"))]
-        {
-            Some(version.to_string())
-        }
+        let (prefix, _) = Self::canon_version_split(version);
+        Some(prefix)
     }
 }
 
@@ -268,7 +261,10 @@ impl core::hash::Hash for PackageName {
     fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         self.namespace.hash(state);
         self.name.hash(state);
+        #[cfg(feature = "canon-names")]
         self.version_key().hash(state);
+        #[cfg(not(feature = "canon-names"))]
+        self.version.hash(state);
     }
 }
 
@@ -276,7 +272,16 @@ impl PartialEq for PackageName {
     fn eq(&self, other: &Self) -> bool {
         self.namespace == other.namespace
             && self.name == other.name
-            && self.version_key() == other.version_key()
+            && {
+                #[cfg(feature = "canon-names")]
+                {
+                    self.version_key() == other.version_key()
+                }
+                #[cfg(not(feature = "canon-names"))]
+                {
+                    self.version == other.version
+                }
+            }
     }
 }
 
@@ -293,7 +298,16 @@ impl Ord for PackageName {
         self.namespace
             .cmp(&other.namespace)
             .then_with(|| self.name.cmp(&other.name))
-            .then_with(|| self.version_key().cmp(&other.version_key()))
+            .then_with(|| {
+                #[cfg(feature = "canon-names")]
+                {
+                    self.version_key().cmp(&other.version_key())
+                }
+                #[cfg(not(feature = "canon-names"))]
+                {
+                    self.version.cmp(&other.version)
+                }
+            })
     }
 }
 
