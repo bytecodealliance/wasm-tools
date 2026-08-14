@@ -62,14 +62,21 @@ fn main() -> Result<()> {
         if !path.is_dir() {
             continue;
         }
-        let name = path.file_name().unwrap().to_str().unwrap();
+        let name = path.file_name().unwrap().to_str().unwrap().to_string();
         if name.starts_with("canon-names-") {
-            continue;
+            trials.push(Trial::test(path.to_str().unwrap().to_string(), move || {
+                run_test(&path, true).map_err(|e| format!("{e:?}").into())
+            }));
+        } else {
+            let path2 = path.clone();
+            trials.push(Trial::test(path.to_str().unwrap().to_string(), move || {
+                run_test(&path, false).map_err(|e| format!("{e:?}").into())
+            }));
+            let canon_name = format!("{}@canon-names", path2.to_str().unwrap());
+            trials.push(Trial::test(canon_name, move || {
+                run_test(&path2, true).map_err(|e| format!("{e:?}").into())
+            }));
         }
-
-        trials.push(Trial::test(path.to_str().unwrap().to_string(), move || {
-            run_test(&path).map_err(|e| format!("{e:?}").into())
-        }));
     }
 
     let mut args = Arguments::from_args();
@@ -83,8 +90,8 @@ fn is_error_test(test_case: &str) -> bool {
     test_case.starts_with("error-")
 }
 
-fn canon_names_output(path: &Path, name: &str) -> std::path::PathBuf {
-    if cfg!(feature = "canon-names") {
+fn canon_names_output(path: &Path, name: &str, use_canonical: bool) -> std::path::PathBuf {
+    if use_canonical {
         let parts: Vec<&str> = name.splitn(2, '.').collect();
         let canon_name = if parts.len() == 2 {
             format!("{}.canon-names.{}", parts[0], parts[1])
@@ -99,9 +106,10 @@ fn canon_names_output(path: &Path, name: &str) -> std::path::PathBuf {
     path.join(name)
 }
 
-fn run_test(path: &Path) -> Result<()> {
+fn run_test(path: &Path, use_canonical: bool) -> Result<()> {
     let test_case = path.file_stem().unwrap().to_str().unwrap();
     let mut resolve = Resolve::default();
+    resolve.use_canonical_names = use_canonical;
     let (pkg_id, _) = match resolve.push_dir(&path) {
         Ok(v) => v,
         Err(err) => {
@@ -127,6 +135,7 @@ fn run_test(path: &Path) -> Result<()> {
             .try_fold(
                 ComponentEncoder::default()
                     .debug_names(true)
+                    .use_canonical_names(use_canonical)
                     .module(&module)?,
                 |encoder, path| {
                     let (name, wasm) = read_name_and_module("adapt-", &path?, &resolve, pkg_id)?;
@@ -146,7 +155,10 @@ fn run_test(path: &Path) -> Result<()> {
         // Sort list to ensure deterministic order, which determines priority in cases of duplicate symbols:
         libs.sort_by(|(_, a, _), (_, b, _)| a.cmp(b));
 
-        let mut linker = Linker::default().validate(false).debug_names(true);
+        let mut linker = Linker::default()
+            .validate(false)
+            .debug_names(true)
+            .use_canonical_names(use_canonical);
 
         if path.join("stub-missing-functions").is_file() {
             linker = linker.stub_missing_functions(true);
@@ -170,8 +182,8 @@ fn run_test(path: &Path) -> Result<()> {
             })?
             .encode()
     };
-    let component_path = canon_names_output(&path, "component.wat");
-    let component_wit_path = canon_names_output(&path, "component.wit.print");
+    let component_path = canon_names_output(&path, "component.wat", use_canonical);
+    let component_wit_path = canon_names_output(&path, "component.wit.print", use_canonical);
     let error_path = path.join("error.txt");
 
     let bytes = match result {

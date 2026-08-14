@@ -232,7 +232,7 @@ pub enum AstItem {
 ///
 /// This is directly encoded as an "ID" in the binary component representation
 /// with an interfaced tacked on as well.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[cfg_attr(feature = "serde", serde(into = "String"))]
 pub struct PackageName {
@@ -244,77 +244,120 @@ pub struct PackageName {
     pub version: Option<Version>,
 }
 
-#[cfg(feature = "canon-names")]
-impl PackageName {
-    /// Returns the canonical version prefix for comparison purposes.
-    fn version_key(&self) -> Option<String> {
-        let version = self.version.as_ref()?;
-        let (prefix, _) = Self::canon_version_split(version);
-        Some(prefix)
-    }
+/// A key type for comparing packages, optionally by canonical version prefix.
+///
+/// When `use_canonical` is true, the version is reduced to its canonical
+/// prefix (e.g., `1.2.3` → `"1"`, `0.2.1` → `"0.2"`), compared as a string.
+/// When false, the full `semver::Version` is used, preserving proper semver
+/// ordering.
+#[derive(Clone, Debug)]
+pub struct PackageKey {
+    namespace: String,
+    name: String,
+    version_key: VersionKey,
 }
 
-impl core::hash::Hash for PackageName {
-    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+#[derive(Clone, Debug)]
+enum VersionKey {
+    Exact(Option<Version>),
+    Canonical(Option<String>),
+}
+
+impl PartialEq for PackageKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.namespace == other.namespace
+            && self.name == other.name
+            && self.version_key == other.version_key
+    }
+}
+impl Eq for PackageKey {}
+
+impl std::hash::Hash for PackageKey {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.namespace.hash(state);
         self.name.hash(state);
-        #[cfg(feature = "canon-names")]
-        self.version_key().hash(state);
-        #[cfg(not(feature = "canon-names"))]
-        self.version.hash(state);
+        self.version_key.hash(state);
     }
 }
 
-impl PartialEq for PackageName {
+impl PartialOrd for PackageKey {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for PackageKey {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.namespace
+            .cmp(&other.namespace)
+            .then_with(|| self.name.cmp(&other.name))
+            .then_with(|| self.version_key.cmp(&other.version_key))
+    }
+}
+
+impl PartialEq for VersionKey {
     fn eq(&self, other: &Self) -> bool {
-        self.namespace == other.namespace && self.name == other.name && {
-            #[cfg(feature = "canon-names")]
-            {
-                self.version_key() == other.version_key()
+        match (self, other) {
+            (VersionKey::Exact(a), VersionKey::Exact(b)) => a == b,
+            (VersionKey::Canonical(a), VersionKey::Canonical(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+impl Eq for VersionKey {}
+
+impl std::hash::Hash for VersionKey {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            VersionKey::Exact(v) => {
+                0u8.hash(state);
+                v.hash(state);
             }
-            #[cfg(not(feature = "canon-names"))]
-            {
-                self.version == other.version
+            VersionKey::Canonical(s) => {
+                1u8.hash(state);
+                s.hash(state);
             }
         }
     }
 }
 
-impl Eq for PackageName {}
-
-impl PartialOrd for PackageName {
-    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+impl PartialOrd for VersionKey {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for PackageName {
-    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
-        self.namespace
-            .cmp(&other.namespace)
-            .then_with(|| self.name.cmp(&other.name))
-            .then_with(|| {
-                #[cfg(feature = "canon-names")]
-                {
-                    self.version_key().cmp(&other.version_key())
-                }
-                #[cfg(not(feature = "canon-names"))]
-                {
-                    self.version.cmp(&other.version)
-                }
-            })
+impl Ord for VersionKey {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match (self, other) {
+            (VersionKey::Exact(a), VersionKey::Exact(b)) => a.cmp(b),
+            (VersionKey::Canonical(a), VersionKey::Canonical(b)) => a.cmp(b),
+            (_, _) => unreachable!(),
+        }
     }
 }
 
-impl PackageName {
-    /// Compares the full version of two package names.
+impl PackageKey {
+    /// Creates a new `PackageKey` from a `PackageName`.
     ///
-    /// Unlike `Ord` (which may compare only canonical prefixes when
-    /// `canon-names` is enabled), this always compares the complete semver
-    /// version. Useful for determining which package has the larger version
-    /// during merging.
-    pub fn full_version_cmp(&self, other: &Self) -> core::cmp::Ordering {
-        self.version.cmp(&other.version)
+    /// If `use_canonical` is true, the version is reduced to its canonical
+    /// prefix for comparison purposes. Otherwise the full semver `Version` is
+    /// used, preserving proper semver ordering.
+    pub fn new(pkg: &PackageName, use_canonical: bool) -> Self {
+        let version_key = if use_canonical {
+            VersionKey::Canonical(
+                pkg.version
+                    .as_ref()
+                    .map(|v| PackageName::canon_version_split(v).0),
+            )
+        } else {
+            VersionKey::Exact(pkg.version.clone())
+        };
+        PackageKey {
+            namespace: pkg.namespace.clone(),
+            name: pkg.name.clone(),
+            version_key,
+        }
     }
 }
 

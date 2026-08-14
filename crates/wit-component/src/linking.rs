@@ -1686,6 +1686,9 @@ pub struct Linker {
     /// from two different libraries, whether their imports are unified when the
     /// semver version ranges for interface allow it.
     merge_imports_based_on_semver: Option<bool>,
+
+    /// Whether to use canonical interface names.
+    use_canonical_names: bool,
 }
 
 impl Linker {
@@ -1746,6 +1749,12 @@ impl Linker {
     /// This is enabled by default.
     pub fn merge_imports_based_on_semver(mut self, merge: bool) -> Self {
         self.merge_imports_based_on_semver = Some(merge);
+        self
+    }
+
+    /// Whether to use canonical interface names.
+    pub fn use_canonical_names(mut self, canonical: bool) -> Self {
+        self.use_canonical_names = canonical;
         self
     }
 
@@ -1894,7 +1903,8 @@ impl Linker {
 
         let mut encoder = ComponentEncoder::default()
             .validate(self.validate)
-            .debug_names(self.debug_names);
+            .debug_names(self.debug_names)
+            .use_canonical_names(self.use_canonical_names);
         if let Some(merge) = self.merge_imports_based_on_semver {
             encoder = encoder.merge_imports_based_on_semver(merge);
         };

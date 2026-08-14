@@ -51,7 +51,6 @@ wasmtime = { workspace = true }
 dummy-module = ['dep:wat']
 wat = ['dep:wast', 'dep:wat']
 semver-check = ['dummy-module']
-canon-names = ['wit-parser/canon-names']
 
 [[test]]
 name = "components"

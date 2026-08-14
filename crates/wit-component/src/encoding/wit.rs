@@ -126,17 +126,16 @@ fn component_extern_name(
     key: &WorldKey,
     item: &WorldItem,
 ) -> wasm_encoder::ComponentExternName<'static> {
-    #[cfg(feature = "canon-names")]
-    let (name, version_suffix) = {
+    let (name, version_suffix) = if resolve.use_canonical_names {
         let name = resolve.name_canonicalized_world_key(key);
         let suffix = match key {
             WorldKey::Interface(id) => resolve.version_suffix_of(*id),
             WorldKey::Name(_) => None,
         };
         (name, suffix)
+    } else {
+        (resolve.name_world_key(key), None)
     };
-    #[cfg(not(feature = "canon-names"))]
-    let (name, version_suffix): (String, Option<String>) = (resolve.name_world_key(key), None);
 
     ComponentExternName {
         name: name.into(),
@@ -209,8 +208,7 @@ impl Encoder<'_> {
         for interface in interfaces {
             encoder.interface = Some(interface);
             let iface = &self.resolve.interfaces[interface];
-            #[cfg(feature = "canon-names")]
-            let extern_name = {
+            let extern_name = if self.resolve.use_canonical_names {
                 let name = self.resolve.canonicalized_id_of(interface).unwrap();
                 let suffix = self.resolve.version_suffix_of(interface);
                 ComponentExternName {
@@ -219,13 +217,13 @@ impl Encoder<'_> {
                     external_id: None,
                     version_suffix: suffix.map(|s| s.into()),
                 }
-            };
-            #[cfg(not(feature = "canon-names"))]
-            let extern_name = ComponentExternName {
-                name: self.resolve.id_of(interface).unwrap().into(),
-                implements: None,
-                external_id: None,
-                version_suffix: None,
+            } else {
+                ComponentExternName {
+                    name: self.resolve.id_of(interface).unwrap().into(),
+                    implements: None,
+                    external_id: None,
+                    version_suffix: None,
+                }
             };
             if interface == id {
                 let idx = encoder.encode_instance(interface)?;

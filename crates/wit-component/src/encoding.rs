@@ -577,10 +577,11 @@ impl<'a> EncodingState<'a> {
         let instance_type_idx = self
             .component
             .type_instance(Some(&format!("ty-{name}")), &ty);
-        #[cfg(feature = "canon-names")]
-        let version_suffix = resolve.version_suffix_of(interface_id);
-        #[cfg(not(feature = "canon-names"))]
-        let version_suffix: Option<String> = None;
+        let version_suffix = if resolve.use_canonical_names {
+            resolve.version_suffix_of(interface_id)
+        } else {
+            None
+        };
 
         let instance_idx = self.component.import(
             wasm_encoder::ComponentExternName {
@@ -751,10 +752,11 @@ impl<'a> EncodingState<'a> {
         let world = &resolve.worlds[self.info.encoder.metadata.world];
 
         for export_name in exports {
-            #[cfg(feature = "canon-names")]
-            let export_string = resolve.name_canonicalized_world_key(export_name);
-            #[cfg(not(feature = "canon-names"))]
-            let export_string = resolve.name_world_key(export_name);
+            let export_string = if resolve.use_canonical_names {
+                resolve.name_canonicalized_world_key(export_name)
+            } else {
+                resolve.name_world_key(export_name)
+            };
             match &world.exports[export_name] {
                 WorldItem::Function(func) => {
                     let ty = self
@@ -985,10 +987,11 @@ impl<'a> EncodingState<'a> {
             component_index,
             imports,
         );
-        #[cfg(feature = "canon-names")]
-        let version_suffix = resolve.version_suffix_of(export);
-        #[cfg(not(feature = "canon-names"))]
-        let version_suffix: Option<String> = None;
+        let version_suffix = if resolve.use_canonical_names {
+            resolve.version_suffix_of(export)
+        } else {
+            None
+        };
 
         let idx = self.component.export(
             wasm_encoder::ComponentExternName {
@@ -1822,12 +1825,9 @@ impl<'a> EncodingState<'a> {
                     shims,
                     for_module,
                     iface.map(|_| {
-                        #[cfg(feature = "canon-names")]
-                        {
+                        if resolve.use_canonical_names {
                             resolve.name_canonicalized_world_key(key)
-                        }
-                        #[cfg(not(feature = "canon-names"))]
-                        {
+                        } else {
                             resolve.name_world_key(key)
                         }
                     }),
@@ -2000,15 +2000,10 @@ impl<'a> EncodingState<'a> {
             Import::InterfaceFunc(key, _, name, abi) => self.materialize_wit_import(
                 shims,
                 for_module,
-                Some({
-                    #[cfg(feature = "canon-names")]
-                    {
-                        resolve.name_canonicalized_world_key(key)
-                    }
-                    #[cfg(not(feature = "canon-names"))]
-                    {
-                        resolve.name_world_key(key)
-                    }
+                Some(if resolve.use_canonical_names {
+                    resolve.name_canonicalized_world_key(key)
+                } else {
+                    resolve.name_world_key(key)
                 }),
                 name,
                 key,
@@ -3056,15 +3051,10 @@ impl<'a> Shims<'a> {
                         field,
                         key,
                         name,
-                        Some({
-                            #[cfg(feature = "canon-names")]
-                            {
-                                resolve.name_canonicalized_world_key(key)
-                            }
-                            #[cfg(not(feature = "canon-names"))]
-                            {
-                                resolve.name_world_key(key)
-                            }
+                        Some(if resolve.use_canonical_names {
+                            resolve.name_canonicalized_world_key(key)
+                        } else {
+                            resolve.name_world_key(key)
                         }),
                         *abi,
                     )?;
@@ -3343,6 +3333,7 @@ pub struct ComponentEncoder {
     merge_imports_based_on_semver: Option<bool>,
     pub(super) reject_legacy_names: bool,
     debug_names: bool,
+    use_canonical_names: bool,
 }
 
 impl ComponentEncoder {
@@ -3376,12 +3367,24 @@ impl ComponentEncoder {
     }
 
     fn merge_metadata(&mut self, metadata: Bindgen) -> Result<IndexSet<WorldKey>> {
-        self.metadata.merge(metadata)
+        let result = self.metadata.merge(metadata);
+        self.metadata.resolve.use_canonical_names = self.use_canonical_names;
+        result
     }
 
     /// Sets whether or not the encoder will validate its output.
     pub fn validate(mut self, validate: bool) -> Self {
         self.validate = validate;
+        self
+    }
+
+    /// Sets whether to use canonical interface names during encoding.
+    ///
+    /// When enabled, interface names use canonical version prefixes and version
+    /// suffixes (e.g., `ns:pkg/iface@0.2` + versionsuffix `.1`) instead of full
+    /// version strings.
+    pub fn use_canonical_names(mut self, canonical: bool) -> Self {
+        self.use_canonical_names = canonical;
         self
     }
 

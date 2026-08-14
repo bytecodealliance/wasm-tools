@@ -104,6 +104,12 @@ pub struct Resolve {
     /// Source map for converting spans to file locations.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub source_map: SourceMap,
+
+    /// When true, packages are compared and encoded using canonical version
+    /// prefixes (e.g., `1.2.3` and `1.3.0` share the canonical prefix `"1"`).
+    /// When false (the default), full exact versions are used.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub use_canonical_names: bool,
 }
 
 /// A WIT package within a `Resolve`.
@@ -193,40 +199,44 @@ impl PackageSources {
 /// Visitor helper for performing topological sort on a group of packages.
 fn visit<'a>(
     pkg: &'a UnresolvedPackage,
-    pkg_details_map: &'a BTreeMap<PackageName, (UnresolvedPackage, usize)>,
-    order: &mut IndexSet<PackageName>,
-    visiting: &mut HashSet<&'a PackageName>,
+    pkg_details_map: &'a BTreeMap<PackageKey, (UnresolvedPackage, usize)>,
+    order: &mut IndexSet<PackageKey>,
+    visiting: &mut HashSet<PackageKey>,
     source_map_offsets: &[u32],
+    use_canonical: bool,
 ) -> ResolveResult<()> {
-    if order.contains(&pkg.name) {
+    let key = PackageKey::new(&pkg.name, use_canonical);
+    if order.contains(&key) {
         return Ok(());
     }
 
     let (_, source_map_index) = pkg_details_map
-        .get(&pkg.name)
+        .get(&key)
         .expect("No pkg_details found for package when doing topological sort");
     let offset = source_map_offsets[*source_map_index];
     for (i, (dep, _)) in pkg.foreign_deps.iter().enumerate() {
         let mut span = pkg.foreign_dep_spans[i];
         span.adjust(offset);
-        if !visiting.insert(dep) {
+        let dep_key = PackageKey::new(dep, use_canonical);
+        if !visiting.insert(dep_key.clone()) {
             return Err(ResolveError::from(ResolveErrorKind::PackageCycle {
                 package: dep.clone(),
                 span,
             }));
         }
-        if let Some((dep_pkg, _)) = pkg_details_map.get(dep) {
+        if let Some((dep_pkg, _)) = pkg_details_map.get(&dep_key) {
             visit(
                 dep_pkg,
                 pkg_details_map,
                 order,
                 visiting,
                 source_map_offsets,
+                use_canonical,
             )?;
         }
-        assert!(visiting.remove(dep));
+        assert!(visiting.remove(&dep_key));
     }
-    assert!(order.insert(pkg.name.clone()));
+    assert!(order.insert(key));
     Ok(())
 }
 
@@ -234,6 +244,20 @@ impl Resolve {
     /// Creates a new [`Resolve`] with no packages/items inside of it.
     pub fn new() -> Resolve {
         Resolve::default()
+    }
+
+    /// Looks up a package ID by name. When `use_canonical_names` is enabled,
+    /// matches by canonical version prefix rather than exact version.
+    pub fn find_package(&self, name: &PackageName) -> Option<PackageId> {
+        if self.use_canonical_names {
+            let key = PackageKey::new(name, true);
+            self.package_names
+                .iter()
+                .find(|(n, _)| PackageKey::new(n, true) == key)
+                .map(|(_, id)| *id)
+        } else {
+            self.package_names.get(name).copied()
+        }
     }
 
     /// Merge `main` and `deps` into this [`Resolve`], topologically sorting
@@ -275,26 +299,24 @@ impl Resolve {
             .map(|sm| self.push_source_map(sm.clone()))
             .collect();
 
-        let mut pkg_details_map: BTreeMap<PackageName, (UnresolvedPackage, usize)> =
-            BTreeMap::new();
+        let mut pkg_details_map: BTreeMap<PackageKey, (UnresolvedPackage, usize)> = BTreeMap::new();
         for (pkg, source_map_index) in all_packages {
-            let name = pkg.name.clone();
+            let key = PackageKey::new(&pkg.name, self.use_canonical_names);
             let my_span = pkg.package_name_span;
             let offset = source_map_offsets[source_map_index];
             if let Some((prev_pkg, prev_source_map_index)) =
-                pkg_details_map.insert(name.clone(), (pkg, source_map_index))
+                pkg_details_map.insert(key.clone(), (pkg, source_map_index))
             {
-                #[cfg(feature = "canon-names")]
-                {
-                    // When canon-names is enabled, packages with the same
+                if self.use_canonical_names {
+                    // When canonical names are enabled, packages with the same
                     // canonical version prefix are considered equivalent.
                     // Keep the one with the larger full version.
                     // If full versions are exactly equal, it's a true duplicate error.
-                    let (current_pkg, _) = pkg_details_map.get(&name).unwrap();
-                    match prev_pkg.name.full_version_cmp(&current_pkg.name) {
+                    let (current_pkg, _) = pkg_details_map.get(&key).unwrap();
+                    match prev_pkg.name.version.cmp(&current_pkg.name.version) {
                         std::cmp::Ordering::Greater => {
                             // Previous package had larger version, put it back
-                            pkg_details_map.insert(name, (prev_pkg, prev_source_map_index));
+                            pkg_details_map.insert(key, (prev_pkg, prev_source_map_index));
                         }
                         std::cmp::Ordering::Less => {}
                         std::cmp::Ordering::Equal => {
@@ -304,22 +326,20 @@ impl Resolve {
                             let mut span2 = prev_pkg.package_name_span;
                             span2.adjust(prev_offset);
                             return Err(ResolveError::from(ResolveErrorKind::DuplicatePackage {
-                                name,
+                                name: prev_pkg.name,
                                 span1,
                                 span2,
                             }));
                         }
                     }
-                }
-                #[cfg(not(feature = "canon-names"))]
-                {
+                } else {
                     let prev_offset = source_map_offsets[prev_source_map_index];
                     let mut span1 = my_span;
                     span1.adjust(offset);
                     let mut span2 = prev_pkg.package_name_span;
                     span2.adjust(prev_offset);
                     return Err(ResolveError::from(ResolveErrorKind::DuplicatePackage {
-                        name,
+                        name: prev_pkg.name,
                         span1,
                         span2,
                     }));
@@ -340,14 +360,15 @@ impl Resolve {
                     &mut order,
                     &mut visiting,
                     &source_map_offsets,
+                    self.use_canonical_names,
                 )?;
             }
         }
 
         let mut package_id_to_source_map_idx = BTreeMap::new();
         let mut main_pkg_id = None;
-        for name in order {
-            let (pkg, source_map_index) = pkg_details_map.remove(&name).unwrap();
+        for key in order {
+            let (pkg, source_map_index) = pkg_details_map.remove(&key).unwrap();
             let span_offset = source_map_offsets[source_map_index];
             let is_main = pkg.name == main_name;
             let id = self.push(pkg, span_offset)?;
@@ -545,7 +566,6 @@ impl Resolve {
 
         let mut map = MergeMap::new(&resolve, &self);
         map.build()?;
-        #[cfg(feature = "canon-names")]
         let version_upgrades = map.version_upgrades.clone();
         let MergeMap {
             package_map,
@@ -746,10 +766,10 @@ impl Resolve {
             }
         }
 
-        // When canon-names is enabled and a package from `from` had a larger
-        // version than the matching package in `into`, upgrade the version
-        // stored on the `into` package and update the `package_names` index.
-        #[cfg(feature = "canon-names")]
+        // When canonical names are enabled and a package from `from` had a
+        // larger version than the matching package in `into`, upgrade the
+        // version stored on the `into` package and update the `package_names`
+        // index.
         for (into_id, version) in version_upgrades {
             let pkg = &mut self.packages[into_id];
             pkg.name.version = Some(version);
@@ -1335,13 +1355,10 @@ impl Resolve {
         base.push_str(name);
         if let Some(version) = &package.name.version {
             base.push_str("@");
-            #[cfg(feature = "canon-names")]
-            {
+            if self.use_canonical_names {
                 let (prefix, _) = PackageName::canon_version_split(version);
                 base.push_str(&prefix);
-            }
-            #[cfg(not(feature = "canon-names"))]
-            {
+            } else {
                 let string = PackageName::version_compat_track_string(version);
                 base.push_str(&string);
             }
@@ -1503,8 +1520,8 @@ impl Resolve {
 
                     // The world name is fully-qualified.
                     (_, ParsedUsePath::Package(pkg, world_name)) => {
-                        let pkg = match self.package_names.get(&pkg) {
-                            Some(pkg) => *pkg,
+                        let pkg = match self.find_package(&pkg) {
+                            Some(pkg) => pkg,
                             None => {
                                 let mut candidates =
                                     self.package_names.iter().filter(|(name, _)| {
@@ -3811,17 +3828,13 @@ impl Remap {
                     None => break,
                 };
 
-            let pkgid = resolve
-                .package_names
-                .get(pkg_name)
-                .copied()
-                .ok_or_else(|| {
-                    ResolveError::from(ResolveErrorKind::PackageNotFound {
-                        span,
-                        requested: pkg_name.clone(),
-                        known: resolve.package_names.keys().cloned().collect(),
-                    })
-                })?;
+            let pkgid = resolve.find_package(pkg_name).ok_or_else(|| {
+                ResolveError::from(ResolveErrorKind::PackageNotFound {
+                    span,
+                    requested: pkg_name.clone(),
+                    known: resolve.package_names.keys().cloned().collect(),
+                })
+            })?;
 
             // Functions can't be imported so this should be empty.
             assert!(unresolved_iface.functions.is_empty());
@@ -3877,17 +3890,13 @@ impl Remap {
                     None => break,
                 };
 
-            let pkgid = resolve
-                .package_names
-                .get(pkg_name)
-                .copied()
-                .ok_or_else(|| {
-                    ResolveError::from(ResolveErrorKind::PackageNotFound {
-                        span,
-                        requested: pkg_name.clone(),
-                        known: resolve.package_names.keys().cloned().collect(),
-                    })
-                })?;
+            let pkgid = resolve.find_package(pkg_name).ok_or_else(|| {
+                ResolveError::from(ResolveErrorKind::PackageNotFound {
+                    span,
+                    requested: pkg_name.clone(),
+                    known: resolve.package_names.keys().cloned().collect(),
+                })
+            })?;
             let pkg = &resolve.packages[pkgid];
             let world_span = unresolved_world.span;
 
@@ -4533,7 +4542,6 @@ struct MergeMap<'a> {
     /// Packages in `into` whose version should be upgraded because `from`
     /// had a larger version on the same canonical track. Maps `into` package
     /// ID to the larger version from `from`.
-    #[cfg(feature = "canon-names")]
     version_upgrades: HashMap<PackageId, Version>,
 
     /// Which `Resolve` is being merged from.
@@ -4552,7 +4560,6 @@ impl<'a> MergeMap<'a> {
             world_map: Default::default(),
             interfaces_to_add: Default::default(),
             worlds_to_add: Default::default(),
-            #[cfg(feature = "canon-names")]
             version_upgrades: Default::default(),
             from,
             into,
@@ -4562,8 +4569,8 @@ impl<'a> MergeMap<'a> {
     fn build(&mut self) -> anyhow::Result<()> {
         for from_id in self.from.topological_packages() {
             let from = &self.from.packages[from_id];
-            let into_id = match self.into.package_names.get(&from.name) {
-                Some(id) => *id,
+            let into_id = match self.into.find_package(&from.name) {
+                Some(id) => id,
 
                 // This package, according to its name and url, is not present
                 // in `self` so it needs to get added below.
@@ -4574,10 +4581,9 @@ impl<'a> MergeMap<'a> {
             };
             log::trace!("merging duplicate package {}", from.name);
 
-            #[cfg(feature = "canon-names")]
-            {
+            if self.into.use_canonical_names {
                 let into = &self.into.packages[into_id];
-                if from.name.full_version_cmp(&into.name).is_gt() {
+                if from.name.version.cmp(&into.name.version).is_gt() {
                     if let Some(version) = from.name.version.clone() {
                         self.version_upgrades.insert(into_id, version);
                     }
@@ -6155,12 +6161,12 @@ interface iface {
         Ok(())
     }
 
-    #[cfg(feature = "canon-names")]
     #[test]
     fn canon_names_merge_larger_into_smaller() -> Result<()> {
         // The larger version (from) is merged into the smaller (into).
         // Extra types/functions from the larger version should appear in the result.
         let mut resolve1 = Resolve::default();
+        resolve1.use_canonical_names = true;
         resolve1.push_str(
             "a.wit",
             r#"
@@ -6204,12 +6210,12 @@ interface iface {
         Ok(())
     }
 
-    #[cfg(feature = "canon-names")]
     #[test]
     fn canon_names_merge_smaller_into_larger() -> Result<()> {
         // The smaller version (from) is merged into the larger (into).
         // The larger version's content should be preserved as-is.
         let mut resolve1 = Resolve::default();
+        resolve1.use_canonical_names = true;
         resolve1.push_str(
             "a.wit",
             r#"
@@ -6257,10 +6263,10 @@ interface iface {
         Ok(())
     }
 
-    #[cfg(feature = "canon-names")]
     #[test]
     fn canon_names_different_tracks_not_merged() -> Result<()> {
         let mut resolve1 = Resolve::default();
+        resolve1.use_canonical_names = true;
         resolve1.push_str(
             "a.wit",
             r#"

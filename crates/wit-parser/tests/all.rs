@@ -24,17 +24,42 @@ fn main() {
 
     let mut trials = Vec::new();
     for test in tests {
-        let name = test.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+        let name = test
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_string();
         if name.starts_with("canon-names-") {
-            continue;
-        }
-        let trial = Trial::test(format!("{test:?}"), move || {
-            Runner {}
+            let trial = Trial::test(format!("{test:?}"), move || {
+                Runner {
+                    use_canonical: true,
+                }
                 .run(&test)
                 .context(format!("test {test:?} failed"))
                 .map_err(|e| format!("{e:?}").into())
-        });
-        trials.push(trial);
+            });
+            trials.push(trial);
+        } else {
+            let test2 = test.clone();
+            let trial = Trial::test(format!("{test:?}"), move || {
+                Runner {
+                    use_canonical: false,
+                }
+                .run(&test)
+                .context(format!("test {test:?} failed"))
+                .map_err(|e| format!("{e:?}").into())
+            });
+            trials.push(trial);
+            let trial = Trial::test(format!("{test2:?}@canon-names"), move || {
+                Runner {
+                    use_canonical: true,
+                }
+                .run(&test2)
+                .context(format!("test {test2:?}@canon-names failed"))
+                .map_err(|e| format!("{e:?}").into())
+            });
+            trials.push(trial);
+        }
     }
 
     let mut args = Arguments::from_args();
@@ -74,11 +99,14 @@ fn find_tests() -> Vec<PathBuf> {
     }
 }
 
-struct Runner {}
+struct Runner {
+    use_canonical: bool,
+}
 
 impl Runner {
     fn run(&mut self, test: &Path) -> Result<()> {
         let mut resolve = Resolve::new();
+        resolve.use_canonical_names = self.use_canonical;
         resolve.features.insert("active".to_string());
         let result = resolve.push_path(test);
         let result = if test.iter().any(|s| s == "parse-fail") {
@@ -125,7 +153,7 @@ impl Runner {
         } else {
             test.with_extension(format!("wit.{extension}"))
         };
-        let result_file = if cfg!(feature = "canon-names") {
+        let result_file = if self.use_canonical {
             let canon_file = result_file.with_extension(format!("canon-names.{extension}"));
             if env::var_os("BLESS").is_some() || canon_file.exists() {
                 canon_file

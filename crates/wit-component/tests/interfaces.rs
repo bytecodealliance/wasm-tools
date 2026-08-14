@@ -25,18 +25,30 @@ fn main() -> Result<()> {
     for entry in fs::read_dir("tests/interfaces")? {
         let path = entry?.path();
         let name = match path.file_name().and_then(|s| s.to_str()) {
-            Some(s) => s,
+            Some(s) => s.to_string(),
             None => continue,
         };
         let is_dir = path.is_dir();
         let is_test = is_dir || name.ends_with(".wit");
-        if !cfg!(feature = "canon-names") && name.starts_with("canon-names-") {
+        if !is_test {
             continue;
         }
-        if is_test {
-            trials.push(Trial::test(name.to_string(), move || {
-                run_test(&path, is_dir)
+        if name.starts_with("canon-names-") {
+            trials.push(Trial::test(name, move || {
+                run_test(&path, is_dir, true)
                     .context(format!("failed test `{}`", path.display()))
+                    .map_err(|e| format!("{e:?}").into())
+            }));
+        } else {
+            let path2 = path.clone();
+            trials.push(Trial::test(name.clone(), move || {
+                run_test(&path, is_dir, false)
+                    .context(format!("failed test `{}`", path.display()))
+                    .map_err(|e| format!("{e:?}").into())
+            }));
+            trials.push(Trial::test(format!("{name}@canon-names"), move || {
+                run_test(&path2, is_dir, true)
+                    .context(format!("failed test `{}`", path2.display()))
                     .map_err(|e| format!("{e:?}").into())
             }));
         }
@@ -49,8 +61,8 @@ fn main() -> Result<()> {
     libtest_mimic::run(&args, trials).exit();
 }
 
-fn canon_names_path(path: &Path, ext: &str) -> std::path::PathBuf {
-    if cfg!(feature = "canon-names") {
+fn canon_names_path(path: &Path, ext: &str, use_canonical: bool) -> std::path::PathBuf {
+    if use_canonical {
         let canon_ext = format!("canon-names.{ext}");
         let canon_path = path.with_extension(&canon_ext);
         if std::env::var_os("BLESS").is_some() || canon_path.exists() {
@@ -60,22 +72,23 @@ fn canon_names_path(path: &Path, ext: &str) -> std::path::PathBuf {
     path.with_extension(ext)
 }
 
-fn run_test(path: &Path, is_dir: bool) -> Result<()> {
+fn run_test(path: &Path, is_dir: bool, use_canonical: bool) -> Result<()> {
     let mut resolve = Resolve::new();
+    resolve.use_canonical_names = use_canonical;
     let package = if is_dir {
         resolve.push_dir(path)?.0
     } else {
         resolve.push_file(path)?
     };
 
-    assert_print(&resolve, package, path, is_dir)?;
+    assert_print(&resolve, package, path, is_dir, use_canonical)?;
 
     // First convert the WIT package to a binary WebAssembly output, then
     // convert that binary wasm to textual wasm, then assert it matches the
     // expectation.
     let wasm = wit_component::encode(&resolve, package)?;
     let wat = wasmprinter::print_bytes(&wasm)?;
-    assert_output(&canon_names_path(path, "wat"), &wat)?;
+    assert_output(&canon_names_path(path, "wat", use_canonical), &wat)?;
     wasmparser::Validator::new_with_features(WasmFeatures::all())
         .validate_all(&wasm)
         .context("failed to validate wasm output")?;
@@ -87,7 +100,7 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
     let decoded_package = decoded.package();
     let resolve = decoded.resolve();
 
-    assert_print(resolve, decoded.package(), path, is_dir)?;
+    assert_print(resolve, decoded.package(), path, is_dir, use_canonical)?;
 
     // Finally convert the decoded package to wasm again and make sure it
     // matches the prior wasm.
@@ -100,14 +113,20 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
     Ok(())
 }
 
-fn assert_print(resolve: &Resolve, pkg_id: PackageId, path: &Path, is_dir: bool) -> Result<()> {
+fn assert_print(
+    resolve: &Resolve,
+    pkg_id: PackageId,
+    path: &Path,
+    is_dir: bool,
+    use_canonical: bool,
+) -> Result<()> {
     let mut printer = WitPrinter::default();
     printer.print(resolve, pkg_id, &[])?;
     let output = printer.output.to_string();
     let pkg = &resolve.packages[pkg_id];
     let expected = if is_dir {
         let base = path.join(format!("{}.wit.print", &pkg.name.name));
-        if cfg!(feature = "canon-names") {
+        if use_canonical {
             let canon = path.join(format!("{}.canon-names.wit.print", &pkg.name.name));
             if std::env::var_os("BLESS").is_some() || canon.exists() {
                 canon
@@ -118,7 +137,7 @@ fn assert_print(resolve: &Resolve, pkg_id: PackageId, path: &Path, is_dir: bool)
             base
         }
     } else {
-        canon_names_path(path, "wit.print")
+        canon_names_path(path, "wit.print", use_canonical)
     };
     assert_output(&expected, &output)?;
 
