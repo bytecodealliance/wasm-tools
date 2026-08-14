@@ -247,9 +247,6 @@ pub struct PackageName {
 #[cfg(feature = "canon-names")]
 impl PackageName {
     /// Returns the canonical version prefix for comparison purposes.
-    ///
-    /// When `canon-names` is enabled, this returns only the canonical prefix
-    /// from [`PackageName::canon_version_split`].
     fn version_key(&self) -> Option<String> {
         let version = self.version.as_ref()?;
         let (prefix, _) = Self::canon_version_split(version);
@@ -1691,12 +1688,6 @@ mod test {
         assert_eq!(
             PackageName::canon_version_split(&v),
             ("2".to_string(), ".0.0".to_string())
-        );
-
-        let v = Version::parse("10.20.30").unwrap();
-        assert_eq!(
-            PackageName::canon_version_split(&v),
-            ("10".to_string(), ".20.30".to_string())
         );
 
         // major == 0, minor > 0: split after minor

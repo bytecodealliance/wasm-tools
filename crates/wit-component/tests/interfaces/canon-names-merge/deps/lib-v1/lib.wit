@@ -1,0 +1,8 @@
+package test:lib@1.0.1;
+
+interface api {
+  record info {
+    name: string,
+  }
+  get-info: func() -> info;
+}

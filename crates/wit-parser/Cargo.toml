@@ -38,8 +38,8 @@ std = ['semver/std']
 
 # Enables canonical interface name support where PackageName equality uses the
 # canonical version prefix (from canon_version_split) rather than the full
-# semver version. This allows packages on the same canonical version track to
-# be merged, keeping the largest version.
+# semver version. This allows packages on the same canonical version to be
+# merged, keeping the largest version.
 canon-names = []
 
 # Enables support for `derive(Serialize, Deserialize)` on many structures, such

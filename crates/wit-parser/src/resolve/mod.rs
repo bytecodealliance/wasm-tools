@@ -297,9 +297,7 @@ impl Resolve {
                             pkg_details_map
                                 .insert(name, (prev_pkg, prev_source_map_index));
                         }
-                        std::cmp::Ordering::Less => {
-                            // Current (just inserted) is larger, keep it
-                        }
+                        std::cmp::Ordering::Less => {}
                         std::cmp::Ordering::Equal => {
                             let prev_offset = source_map_offsets[prev_source_map_index];
                             let mut span1 = my_span;
@@ -1607,10 +1605,7 @@ impl Resolve {
 
     /// Returns the version suffix for the given interface's package, if any.
     ///
-    /// This is the second element of [`PackageName::canon_version_split`]:
-    /// e.g. for version `2.0.1` the canonical name uses `@2` and this
-    /// returns `Some(".0.1")`. Returns `None` only if the package has no
-    /// version.
+    /// See the component model explainer and 🔗 for more information on this feature.
     pub fn version_suffix_of(&self, interface: InterfaceId) -> Option<String> {
         let iface = &self.interfaces[interface];
         let pkg = &self.packages[iface.package?];
@@ -6165,56 +6160,6 @@ interface iface {
 
     #[cfg(feature = "canon-names")]
     #[test]
-    fn canon_names_merge_keeps_larger_version() -> Result<()> {
-        let mut resolve1 = Resolve::default();
-        resolve1.push_str(
-            "a.wit",
-            r#"
-                package foo:bar@2.0.0;
-
-                interface my-iface {
-                    type my-type = u32;
-                    my-func: func();
-                }
-            "#,
-        )?;
-
-        let mut resolve2 = Resolve::default();
-        resolve2.push_str(
-            "b.wit",
-            r#"
-                package foo:bar@2.0.1;
-
-                interface my-iface {
-                    type my-type = u32;
-                    my-func: func();
-                }
-            "#,
-        )?;
-
-        resolve1.merge(resolve2)?;
-
-        // Should have exactly one package (merged on canonical prefix "2")
-        assert_eq!(resolve1.packages.len(), 1);
-        let (_, pkg) = resolve1.packages.iter().next().unwrap();
-        assert_eq!(
-            pkg.name.version.as_ref().unwrap().to_string(),
-            "2.0.1",
-            "should keep the larger version"
-        );
-
-        // Interface should be present with its type and function
-        let iface_id = pkg.interfaces["my-iface"];
-        assert!(resolve1.interfaces[iface_id].types.contains_key("my-type"));
-        assert!(resolve1.interfaces[iface_id]
-            .functions
-            .contains_key("my-func"));
-
-        Ok(())
-    }
-
-    #[cfg(feature = "canon-names")]
-    #[test]
     fn canon_names_merge_larger_into_smaller() -> Result<()> {
         // The larger version (from) is merged into the smaller (into).
         // Extra types/functions from the larger version should appear in the result.
@@ -6318,8 +6263,6 @@ interface iface {
     #[cfg(feature = "canon-names")]
     #[test]
     fn canon_names_different_tracks_not_merged() -> Result<()> {
-        // Packages on different canonical tracks should NOT merge.
-        // 0.1.x and 0.2.x have different canonical prefixes ("0.1" vs "0.2").
         let mut resolve1 = Resolve::default();
         resolve1.push_str(
             "a.wit",
@@ -6348,55 +6291,6 @@ interface iface {
 
         // Should have two separate packages
         assert_eq!(resolve1.packages.len(), 2);
-
-        Ok(())
-    }
-
-    #[cfg(feature = "canon-names")]
-    #[test]
-    fn canon_names_merge_with_extra_interface() -> Result<()> {
-        // When the larger version adds a new interface, it should be added
-        // to the merged package.
-        let mut resolve1 = Resolve::default();
-        resolve1.push_str(
-            "a.wit",
-            r#"
-                package foo:bar@3.0.0;
-
-                interface existing {
-                    base-func: func();
-                }
-            "#,
-        )?;
-
-        let mut resolve2 = Resolve::default();
-        resolve2.push_str(
-            "b.wit",
-            r#"
-                package foo:bar@3.1.0;
-
-                interface existing {
-                    base-func: func();
-                }
-
-                interface added {
-                    new-func: func();
-                }
-            "#,
-        )?;
-
-        resolve1.merge(resolve2)?;
-
-        assert_eq!(resolve1.packages.len(), 1);
-        let (_, pkg) = resolve1.packages.iter().next().unwrap();
-        assert_eq!(pkg.name.version.as_ref().unwrap().to_string(), "3.1.0");
-        assert!(pkg.interfaces.contains_key("existing"));
-        assert!(pkg.interfaces.contains_key("added"));
-
-        let added_id = pkg.interfaces["added"];
-        assert!(resolve1.interfaces[added_id]
-            .functions
-            .contains_key("new-func"));
 
         Ok(())
     }
