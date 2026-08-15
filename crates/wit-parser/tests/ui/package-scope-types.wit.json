@@ -1,0 +1,195 @@
+{
+  "worlds": [
+    {
+      "name": "w",
+      "imports": {
+        "host": {
+          "interface": {
+            "id": 1
+          }
+        }
+      },
+      "exports": {
+        "interface-0": {
+          "interface": {
+            "id": 0
+          }
+        }
+      },
+      "package": 0
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "api",
+      "types": {},
+      "functions": {
+        "move-to": {
+          "name": "move-to",
+          "kind": "freestanding",
+          "params": [
+            {
+              "name": "p",
+              "type": 0
+            }
+          ]
+        },
+        "heading": {
+          "name": "heading",
+          "kind": "freestanding",
+          "params": [],
+          "result": 3
+        },
+        "trail": {
+          "name": "trail",
+          "kind": "freestanding",
+          "params": [],
+          "result": 4
+        },
+        "draw": {
+          "name": "draw",
+          "kind": "freestanding",
+          "params": [
+            {
+              "name": "s",
+              "type": 1
+            },
+            {
+              "name": "style",
+              "type": 2
+            }
+          ]
+        }
+      },
+      "package": 0
+    },
+    {
+      "name": null,
+      "types": {},
+      "functions": {
+        "place": {
+          "name": "place",
+          "kind": "freestanding",
+          "params": [
+            {
+              "name": "p",
+              "type": 0
+            }
+          ]
+        }
+      },
+      "package": 0
+    }
+  ],
+  "types": [
+    {
+      "name": "point",
+      "kind": {
+        "record": {
+          "fields": [
+            {
+              "name": "x",
+              "type": "u32"
+            },
+            {
+              "name": "y",
+              "type": "u32"
+            }
+          ]
+        }
+      },
+      "owner": {
+        "package": 0
+      }
+    },
+    {
+      "name": "shape",
+      "kind": {
+        "variant": {
+          "cases": [
+            {
+              "name": "circle",
+              "type": "u32"
+            },
+            {
+              "name": "rect",
+              "type": 0
+            }
+          ]
+        }
+      },
+      "owner": {
+        "package": 0
+      }
+    },
+    {
+      "name": "style",
+      "kind": {
+        "flags": {
+          "flags": [
+            {
+              "name": "bold"
+            },
+            {
+              "name": "italic"
+            }
+          ]
+        }
+      },
+      "owner": {
+        "package": 0
+      }
+    },
+    {
+      "name": "direction",
+      "kind": {
+        "enum": {
+          "cases": [
+            {
+              "name": "north"
+            },
+            {
+              "name": "south"
+            },
+            {
+              "name": "east"
+            },
+            {
+              "name": "west"
+            }
+          ]
+        }
+      },
+      "owner": {
+        "package": 0
+      }
+    },
+    {
+      "name": "path",
+      "kind": {
+        "list": 0
+      },
+      "owner": {
+        "package": 0
+      }
+    }
+  ],
+  "packages": [
+    {
+      "name": "local:demo",
+      "interfaces": {
+        "api": 0
+      },
+      "worlds": {
+        "w": 0
+      },
+      "types": {
+        "point": 0,
+        "shape": 1,
+        "style": 2,
+        "direction": 3,
+        "path": 4
+      }
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+package local:demo;
+
+type c = u32;
+type b = list<c>;
+type a = option<b>;
+
+interface api {
+  make: func() -> a;
+}
+
+world w {
+  export api;
+}

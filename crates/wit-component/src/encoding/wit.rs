@@ -82,7 +82,12 @@ pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentTyp
             }
             WorldItem::Function(f) => {
                 component.interface = None;
+                // Package-scope types referenced by freestanding world funcs
+                // must be imported into the world component type (same as
+                // world-owned named types), not exported.
+                component.import_types = true;
                 let idx = component.encode_func_type(resolve, f)?;
+                component.import_types = false;
                 ComponentTypeRef::Func(idx)
             }
             WorldItem::Type { id, .. } => {
@@ -108,7 +113,12 @@ pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentTyp
             }
             WorldItem::Function(f) => {
                 component.interface = None;
+                // Package-scope types referenced by freestanding world funcs
+                // must be imported into the world component type (same as
+                // world-owned named types), not exported.
+                component.import_types = true;
                 let idx = component.encode_func_type(resolve, f)?;
+                component.import_types = false;
                 ComponentTypeRef::Func(idx)
             }
             WorldItem::Type { .. } => unreachable!(),
@@ -142,6 +152,18 @@ struct Encoder<'a> {
 
 impl Encoder<'_> {
     fn run(&mut self) -> Result<()> {
+        // Encode package-scope types first so V2 sniffing still sees a Label
+        // as the first export name when types are present.
+        {
+            let mut encoder = PackageTypeEncoder {
+                component: &mut self.component,
+                type_encoding_maps: Default::default(),
+            };
+            for (_, &id) in self.resolve.packages[self.package].types.iter() {
+                encoder.encode_valtype(self.resolve, &Type::Id(id))?;
+            }
+        }
+
         // Encode all interfaces as component types and then export them.
         for (name, &id) in self.resolve.packages[self.package].interfaces.iter() {
             let component_ty = self.encode_interface(id)?;
@@ -404,5 +426,37 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
             }
             None => outer_idx,
         }
+    }
+}
+
+struct PackageTypeEncoder<'a> {
+    component: &'a mut ComponentBuilder,
+    type_encoding_maps: TypeEncodingMaps<'a>,
+}
+
+impl<'a> ValtypeEncoder<'a> for PackageTypeEncoder<'a> {
+    fn defined_type(&mut self) -> (u32, ComponentDefinedTypeEncoder<'_>) {
+        self.component.type_defined(None)
+    }
+    fn define_function_type(&mut self) -> (u32, ComponentFuncTypeEncoder<'_>) {
+        self.component.type_function(None)
+    }
+    fn export_type(&mut self, index: u32, name: ComponentExternName<'a>) -> Option<u32> {
+        Some(
+            self.component
+                .export(name, ComponentExportKind::Type, index, None),
+        )
+    }
+    fn export_resource(&mut self, _name: ComponentExternName<'a>) -> u32 {
+        unreachable!("package-scope resources are not allowed")
+    }
+    fn type_encoding_maps(&mut self) -> &mut TypeEncodingMaps<'a> {
+        &mut self.type_encoding_maps
+    }
+    fn interface(&self) -> Option<InterfaceId> {
+        None
+    }
+    fn import_type(&mut self, _owner: InterfaceId, _id: TypeId) -> u32 {
+        unreachable!("package-scope types do not import from interfaces")
     }
 }

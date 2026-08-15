@@ -1,0 +1,41 @@
+(component
+  (type (;0;) (record (field "x" u32) (field "y" u32)))
+  (export (;1;) "point" (type 0))
+  (type (;2;)
+    (component
+      (type (;0;)
+        (instance
+          (type (;0;) (record (field "x" u32) (field "y" u32)))
+          (export (;1;) "point" (type (eq 0)))
+          (type (;2;) (func (param "p" 1)))
+          (export (;0;) "move-to" (func (type 2)))
+        )
+      )
+      (export (;0;) "local:demo/api" (instance (type 0)))
+    )
+  )
+  (export (;3;) "api" (type 2))
+  (type (;4;)
+    (component
+      (type (;0;)
+        (component
+          (type (;0;)
+            (instance
+              (type (;0;) (record (field "x" u32) (field "y" u32)))
+              (export (;1;) "point" (type (eq 0)))
+              (type (;2;) (func (param "p" 1)))
+              (export (;0;) "move-to" (func (type 2)))
+            )
+          )
+          (export (;0;) "local:demo/api" (instance (type 0)))
+        )
+      )
+      (export (;0;) "local:demo/w" (component (type 0)))
+    )
+  )
+  (export (;5;) "w" (type 4))
+  (@custom "package-docs" "\01{\22interfaces\22:{\22api\22:{\22funcs\22:{\22move-to\22:{\22docs\22:\22Move to a package-scope point.\22}}}},\22types\22:{\22point\22:{\22docs\22:\22A shared point type at package scope.\22}}}")
+  (@producers
+    (processed-by "wit-component" "$CARGO_PKG_VERSION")
+  )
+)

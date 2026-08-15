@@ -111,10 +111,10 @@ pub fn embed_component_metadata(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use wasmparser::Payload;
+    use wasmparser::{Payload, WasmFeatures};
     use wit_parser::Resolve;
 
-    use super::{StringEncoding, embed_component_metadata};
+    use super::{StringEncoding, embed_component_metadata, encode};
 
     const MODULE_WAT: &str = r#"
 (module
@@ -173,6 +173,195 @@ world test-world {}
         assert_eq!(original_custom_section_count + 1, new_custom_section_count);
         assert!(found_component_section);
 
+        Ok(())
+    }
+
+    #[test]
+    fn package_scope_foreign_type_encodes_without_import() -> Result<()> {
+        let mut resolve = Resolve::new();
+        resolve.push_str(
+            "types.wit",
+            r#"
+package local:types;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+interface unused {}
+"#,
+        )?;
+        let pkg = resolve.push_str(
+            "consumer.wit",
+            r#"
+package local:consumer;
+
+use local:types/point;
+
+interface api {
+  move-to: func(p: point);
+}
+
+world w {
+  export api;
+}
+"#,
+        )?;
+
+        let wasm = encode(&resolve, pkg)?;
+        let wat = wasmprinter::print_bytes(&wasm)?;
+        assert!(
+            !wat.contains("(import"),
+            "package-scope foreign type must be inlined, not imported:\n{wat}"
+        );
+        assert!(
+            wat.contains("(record"),
+            "expected inlined record for foreign package type:\n{wat}"
+        );
+        wasmparser::Validator::new_with_features(WasmFeatures::all()).validate_all(&wasm)?;
+
+        // Text print of the resolved package should emit a toplevel use.
+        let mut printer = crate::WitPrinter::default();
+        printer.print(&resolve, pkg, &[])?;
+        let printed = printer.output.to_string();
+        assert!(
+            printed.contains("use local:types/point;"),
+            "expected toplevel use printback:\n{printed}"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn package_scope_foreign_type_as_printback() -> Result<()> {
+        let mut resolve = Resolve::new();
+        resolve.push_str(
+            "types.wit",
+            r#"
+package local:types;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+interface unused {}
+"#,
+        )?;
+        let pkg = resolve.push_str(
+            "consumer.wit",
+            r#"
+package local:consumer;
+
+use local:types/point as pt;
+
+interface api {
+  move-to: func(p: pt);
+}
+
+world w {
+  export api;
+}
+"#,
+        )?;
+
+        let mut printer = crate::WitPrinter::default();
+        printer.print(&resolve, pkg, &[])?;
+        let printed = printer.output.to_string();
+        // Printer canonicalizes to the original package type name rather than
+        // preserving the local `as` alias.
+        assert!(
+            printed.contains("use local:types/point"),
+            "expected toplevel use printback:\n{printed}"
+        );
+        assert!(
+            printed.contains("func(p: point)") || printed.contains("func(p: pt)"),
+            "expected func to reference the foreign type:\n{printed}"
+        );
+
+        let wasm = encode(&resolve, pkg)?;
+        wasmparser::Validator::new_with_features(WasmFeatures::all()).validate_all(&wasm)?;
+        Ok(())
+    }
+
+    #[test]
+    fn package_scope_nested_package_encodes() -> Result<()> {
+        let mut resolve = Resolve::new();
+        resolve.push_str(
+            "nested.wit",
+            r#"
+package local:root;
+
+package local:nested {
+  record point {
+    x: u32,
+    y: u32,
+  }
+
+  interface api {
+    move-to: func(p: point);
+  }
+
+  world w {
+    export api;
+  }
+}
+"#,
+        )?;
+        let nested = *resolve
+            .package_names
+            .iter()
+            .find(|(name, _)| name.name == "nested")
+            .map(|(_, id)| id)
+            .expect("nested package");
+
+        let wasm = encode(&resolve, nested)?;
+        let wat = wasmprinter::print_bytes(&wasm)?;
+        assert!(
+            wat.contains("(export (;1;) \"point\" (type 0))"),
+            "expected package-scope point export:\n{wat}"
+        );
+        assert!(!wat.contains("(import"), "{wat}");
+        wasmparser::Validator::new_with_features(WasmFeatures::all()).validate_all(&wasm)?;
+
+        let decoded = crate::decode(&wasm)?;
+        let mut printer = crate::WitPrinter::default();
+        printer.print(decoded.resolve(), decoded.package(), &[])?;
+        let printed = printer.output.to_string();
+        assert!(printed.contains("record point"), "{printed}");
+        assert!(printed.contains("interface api"), "{printed}");
+
+        Ok(())
+    }
+
+    #[test]
+    fn package_scope_type_only_package_decode_fails() -> Result<()> {
+        let mut resolve = Resolve::new();
+        let pkg = resolve.push_str(
+            "types-only.wit",
+            r#"
+package local:types;
+
+record point {
+  x: u32,
+  y: u32,
+}
+"#,
+        )?;
+
+        let wasm = encode(&resolve, pkg)?;
+        match crate::decode(&wasm) {
+            Ok(_) => panic!("type-only packages cannot round-trip"),
+            Err(err) => {
+                let msg = format!("{err:#}");
+                assert!(
+                    msg.contains("only package-scope types")
+                        || msg.contains("no interfaces or worlds"),
+                    "unexpected error: {msg}"
+                );
+            }
+        }
         Ok(())
     }
 }

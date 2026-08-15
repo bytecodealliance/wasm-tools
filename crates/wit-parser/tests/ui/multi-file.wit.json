@@ -294,7 +294,8 @@
       "worlds": {
         "more-depends-on-later-things": 0,
         "the-world": 1
-      }
+      },
+      "types": {}
     }
   ]
 }

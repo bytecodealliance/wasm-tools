@@ -1,0 +1,20 @@
+package local:consumer;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+record bin {
+  p: point,
+}
+
+interface api {
+  wrap: func(b: bin);
+
+  move-to: func(p: point);
+}
+
+world w {
+  export api;
+}

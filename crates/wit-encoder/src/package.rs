@@ -3,7 +3,7 @@ use std::ops::{Deref, DerefMut};
 
 use semver::Version;
 
-use crate::{Interface, Render, RenderOpts, World, ident::Ident};
+use crate::{Interface, Render, RenderOpts, TypeDef, World, ident::Ident};
 
 /// A WIT package.
 ///
@@ -48,6 +48,17 @@ impl Package {
         self.items.push(PackageItem::World(world))
     }
 
+    /// Add a package-scope type to the package
+    pub fn type_def(&mut self, type_def: TypeDef) {
+        self.items.push(PackageItem::Type(type_def))
+    }
+
+    /// Add a toplevel `use` (e.g. `use ns:pkg/name;`) for a foreign package-scope type.
+    pub fn use_type(&mut self, path: impl Into<Ident>, alias: Option<Ident>) {
+        self.items
+            .push(PackageItem::Use(ToplevelUse::new(path, alias)));
+    }
+
     pub fn item(&mut self, item: impl Into<PackageItem>) {
         self.items.push(item.into());
     }
@@ -81,6 +92,12 @@ impl Package {
                 }
                 PackageItem::World(world) => {
                     world.render(f, opts)?;
+                }
+                PackageItem::Type(type_def) => {
+                    type_def.render(f, opts)?;
+                }
+                PackageItem::Use(use_) => {
+                    use_.render(f, opts)?;
                 }
             }
         }
@@ -147,6 +164,45 @@ impl fmt::Display for NestedPackage {
 pub enum PackageItem {
     Interface(Interface),
     World(World),
+    Type(TypeDef),
+    /// Toplevel `use ns:pkg/name;` for a foreign package-scope type.
+    Use(ToplevelUse),
+}
+
+/// A toplevel WIT `use` of a package-scope type (`use ns:pkg/name [as alias];`).
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
+pub struct ToplevelUse {
+    path: Ident,
+    alias: Option<Ident>,
+}
+
+impl ToplevelUse {
+    pub fn new(path: impl Into<Ident>, alias: Option<Ident>) -> Self {
+        Self {
+            path: path.into(),
+            alias,
+        }
+    }
+
+    pub fn path(&self) -> &Ident {
+        &self.path
+    }
+
+    pub fn alias(&self) -> Option<&Ident> {
+        self.alias.as_ref()
+    }
+}
+
+impl Render for ToplevelUse {
+    fn render(&self, f: &mut fmt::Formatter<'_>, opts: &RenderOpts) -> fmt::Result {
+        write!(f, "{}use {}", opts.spaces(), self.path)?;
+        if let Some(alias) = &self.alias {
+            write!(f, " as {alias}")?;
+        }
+        write!(f, ";\n")
+    }
 }
 
 /// A structure used to keep track of the name of a package, containing optional

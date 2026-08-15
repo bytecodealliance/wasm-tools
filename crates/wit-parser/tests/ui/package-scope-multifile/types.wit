@@ -1,0 +1,6 @@
+package local:demo;
+
+record point {
+  x: u32,
+  y: u32,
+}

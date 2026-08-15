@@ -30,6 +30,33 @@ impl<'a> Converter<'a> {
 
     fn convert_package(&self, package_id: PackageId, package: &wit_parser::Package) -> Package {
         let mut output = Package::new(self.convert_package_name(&package.name));
+        // Emit toplevel `use` for foreign package-scope types referenced by
+        // this package's types, interfaces, and worlds.
+        let mut foreign_uses = Vec::new();
+        for (_, id) in &package.types {
+            self.collect_foreign_package_type_uses(package_id, *id, &mut foreign_uses);
+        }
+        for (_, id) in &package.interfaces {
+            let interface = self.resolve.interfaces.get(*id).unwrap();
+            self.collect_foreign_package_type_uses_from_interface(
+                package_id,
+                interface,
+                &mut foreign_uses,
+            );
+        }
+        for (_, id) in &package.worlds {
+            let world = self.resolve.worlds.get(*id).unwrap();
+            self.collect_foreign_package_type_uses_from_world(package_id, world, &mut foreign_uses);
+        }
+        for path in foreign_uses {
+            output.use_type(path, None);
+        }
+        for (_, id) in &package.types {
+            let type_def = self.resolve.types.get(*id).unwrap();
+            if let Some(converted) = self.convert_type_def(type_def, *id) {
+                output.type_def(converted);
+            }
+        }
         for (_, id) in &package.interfaces {
             let interface = self.resolve.interfaces.get(*id).unwrap();
             output.interface(self.convert_interface(
@@ -384,7 +411,9 @@ impl<'a> Converter<'a> {
             wit_parser::TypeOwner::Interface(id) => {
                 &self.resolve.interfaces.get(*id).unwrap().functions
             }
-            wit_parser::TypeOwner::None => panic!("Resource has to have an owner"),
+            wit_parser::TypeOwner::Package(_) | wit_parser::TypeOwner::None => {
+                panic!("Resource has to have an owner")
+            }
         };
 
         let mut output = Resource::empty();
@@ -576,6 +605,153 @@ impl<'a> Converter<'a> {
             Some(self.interface_ident(package_id, None, self.resolve.interfaces.get(id).unwrap()))
         } else {
             None
+        }
+    }
+
+    fn package_type_path(&self, package_id: PackageId, type_name: &str) -> Ident {
+        let package = self.resolve.packages.get(package_id).unwrap();
+        Ident::new(format!(
+            "{}:{}/{}{}",
+            package.name.namespace,
+            package.name.name,
+            type_name,
+            package
+                .name
+                .version
+                .as_ref()
+                .map(|version| format!("@{version}"))
+                .unwrap_or_default()
+        ))
+    }
+
+    fn collect_foreign_package_type_uses(
+        &self,
+        package_id: PackageId,
+        type_id: wit_parser::TypeId,
+        uses: &mut Vec<Ident>,
+    ) {
+        let type_def = self.resolve.types.get(type_id).unwrap();
+        match &type_def.kind {
+            wit_parser::TypeDefKind::Type(ty)
+            | wit_parser::TypeDefKind::List(ty)
+            | wit_parser::TypeDefKind::FixedLengthList(ty, _)
+            | wit_parser::TypeDefKind::Option(ty)
+            | wit_parser::TypeDefKind::Future(Some(ty))
+            | wit_parser::TypeDefKind::Stream(Some(ty)) => {
+                self.collect_foreign_package_type_uses_from_type(package_id, ty, uses);
+            }
+            wit_parser::TypeDefKind::Map(k, v) => {
+                self.collect_foreign_package_type_uses_from_type(package_id, k, uses);
+                self.collect_foreign_package_type_uses_from_type(package_id, v, uses);
+            }
+            wit_parser::TypeDefKind::Result(r) => {
+                if let Some(ty) = &r.ok {
+                    self.collect_foreign_package_type_uses_from_type(package_id, ty, uses);
+                }
+                if let Some(ty) = &r.err {
+                    self.collect_foreign_package_type_uses_from_type(package_id, ty, uses);
+                }
+            }
+            wit_parser::TypeDefKind::Tuple(t) => {
+                for ty in &t.types {
+                    self.collect_foreign_package_type_uses_from_type(package_id, ty, uses);
+                }
+            }
+            wit_parser::TypeDefKind::Record(r) => {
+                for field in &r.fields {
+                    self.collect_foreign_package_type_uses_from_type(package_id, &field.ty, uses);
+                }
+            }
+            wit_parser::TypeDefKind::Variant(v) => {
+                for case in &v.cases {
+                    if let Some(ty) = &case.ty {
+                        self.collect_foreign_package_type_uses_from_type(package_id, ty, uses);
+                    }
+                }
+            }
+            wit_parser::TypeDefKind::Handle(h) => {
+                let id = match h {
+                    wit_parser::Handle::Own(id) | wit_parser::Handle::Borrow(id) => *id,
+                };
+                self.collect_foreign_package_type_uses(package_id, id, uses);
+            }
+            wit_parser::TypeDefKind::Enum(_)
+            | wit_parser::TypeDefKind::Flags(_)
+            | wit_parser::TypeDefKind::Resource
+            | wit_parser::TypeDefKind::Future(None)
+            | wit_parser::TypeDefKind::Stream(None)
+            | wit_parser::TypeDefKind::Unknown => {}
+        }
+    }
+
+    fn collect_foreign_package_type_uses_from_type(
+        &self,
+        package_id: PackageId,
+        ty: &wit_parser::Type,
+        uses: &mut Vec<Ident>,
+    ) {
+        let wit_parser::Type::Id(id) = ty else {
+            return;
+        };
+        let type_def = self.resolve.types.get(*id).unwrap();
+        if let wit_parser::TypeOwner::Package(owner) = type_def.owner {
+            if owner != package_id {
+                let name = type_def.name.as_deref().expect("package type must be named");
+                let path = self.package_type_path(owner, name);
+                if !uses.contains(&path) {
+                    uses.push(path);
+                }
+                return;
+            }
+        }
+        self.collect_foreign_package_type_uses(package_id, *id, uses);
+    }
+
+    fn collect_foreign_package_type_uses_from_interface(
+        &self,
+        package_id: PackageId,
+        interface: &wit_parser::Interface,
+        uses: &mut Vec<Ident>,
+    ) {
+        for (_, type_id) in &interface.types {
+            self.collect_foreign_package_type_uses(package_id, *type_id, uses);
+        }
+        for (_, func) in &interface.functions {
+            for ty in func.parameter_and_result_types() {
+                self.collect_foreign_package_type_uses_from_type(package_id, &ty, uses);
+            }
+        }
+    }
+
+    fn collect_foreign_package_type_uses_from_world(
+        &self,
+        package_id: PackageId,
+        world: &wit_parser::World,
+        uses: &mut Vec<Ident>,
+    ) {
+        for (_, item) in world.imports.iter().chain(world.exports.iter()) {
+            match item {
+                wit_parser::WorldItem::Function(func) => {
+                    for ty in func.parameter_and_result_types() {
+                        self.collect_foreign_package_type_uses_from_type(package_id, &ty, uses);
+                    }
+                }
+                wit_parser::WorldItem::Type { id, .. } => {
+                    self.collect_foreign_package_type_uses(package_id, *id, uses);
+                }
+                wit_parser::WorldItem::Interface { id, .. } => {
+                    let interface = self.resolve.interfaces.get(*id).unwrap();
+                    // Named interfaces from other packages are imported by name;
+                    // only scan anonymous/inline interfaces owned here.
+                    if interface.package == Some(package_id) && interface.name.is_none() {
+                        self.collect_foreign_package_type_uses_from_interface(
+                            package_id,
+                            interface,
+                            uses,
+                        );
+                    }
+                }
+            }
         }
     }
 }

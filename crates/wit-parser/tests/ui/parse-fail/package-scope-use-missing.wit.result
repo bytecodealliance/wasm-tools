@@ -1,0 +1,5 @@
+failed to resolve directory while parsing WIT for path [tests/ui/parse-fail/package-scope-use-missing]: interface or type `missing` not found in package `local:types`
+     --> tests/ui/parse-fail/package-scope-use-missing/root.wit:3:17
+      |
+    3 | use local:types/missing;
+      |                 ^------

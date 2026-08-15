@@ -64,12 +64,14 @@
       },
       "worlds": {
         "w1": 0
-      }
+      },
+      "types": {}
     },
     {
       "name": "foo:root",
       "interfaces": {},
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }

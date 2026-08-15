@@ -28,14 +28,16 @@
       "interfaces": {
         "types": 0
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "foo:foo",
       "interfaces": {},
       "worlds": {
         "foo": 0
-      }
+      },
+      "types": {}
     }
   ]
 }

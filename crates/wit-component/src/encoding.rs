@@ -713,7 +713,7 @@ impl<'a> EncodingState<'a> {
                 self.component
                     .alias_export(instance, name, ComponentExportKind::Type)
             }
-            TypeOwner::None => panic!("resources must have an owner"),
+            TypeOwner::Package(_) | TypeOwner::None => panic!("resources must have an owner"),
         }
     }
 

@@ -163,6 +163,18 @@ pub struct UnresolvedPackage {
     /// Doc comments for this package.
     pub docs: Docs,
 
+    /// Named types declared at package scope, keyed by kebab-name.
+    ///
+    /// These types temporarily use [`TypeOwner::None`] until they are merged
+    /// into a [`Resolve`], at which point their owner becomes
+    /// [`TypeOwner::Package`].
+    pub package_types: IndexMap<String, TypeId>,
+
+    /// Foreign toplevel `use ns:pkg/name` entries whose target may be either an
+    /// interface or a package-scope type. Each entry records the dual stubs
+    /// allocated before the dependency is known.
+    pub foreign_unknown: IndexMap<(PackageName, String), (InterfaceId, TypeId)>,
+
     #[cfg_attr(not(feature = "std"), allow(dead_code))]
     package_name_span: Span,
     unknown_type_spans: Vec<Span>,
@@ -225,6 +237,9 @@ pub enum AstItem {
     Interface(InterfaceId),
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
     World(WorldId),
+    /// A package-scope type declaration.
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
+    Type(TypeId),
 }
 
 /// A structure used to keep track of the name of a package, containing optional
@@ -730,6 +745,9 @@ pub enum TypeOwner {
     /// This type was defined within an `interface` block.
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
     Interface(InterfaceId),
+    /// This type was defined at package scope.
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
+    Package(PackageId),
     /// This type wasn't inherently defined anywhere, such as a `list<T>`, which
     /// doesn't need an owner.
     #[cfg_attr(feature = "serde", serde(untagged, serialize_with = "serialize_none"))]

@@ -1,0 +1,7 @@
+package local:consumer;
+
+use local:types/api;
+
+world w {
+  import api;
+}
