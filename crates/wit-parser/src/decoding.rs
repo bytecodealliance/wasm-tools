@@ -242,8 +242,7 @@ impl ComponentInfo {
                             ),
                         }
                     };
-                    let id =
-                        decoder.register_type_export(&name, export, TypeOwner::None)?;
+                    let id = decoder.register_type_export(&name, export, TypeOwner::None)?;
                     let prev = fields.types.insert(name, id);
                     if prev.is_some() {
                         bail!("duplicate package-scope type export");
@@ -1675,11 +1674,7 @@ impl WitPackageDecoder<'_> {
                 // Named package interfaces are handled above; still coalesce
                 // anonymous ifaces reachable from worlds.
                 if self.resolve.interfaces[iface_id].name.is_none() {
-                    self.coalesce_package_types_in_interface(
-                        iface_id,
-                        &package_types,
-                        &mut remap,
-                    );
+                    self.coalesce_package_types_in_interface(iface_id, &package_types, &mut remap);
                 }
             }
         }
@@ -1697,11 +1692,7 @@ impl WitPackageDecoder<'_> {
             }
         }
         for (_id, world) in self.resolve.worlds.iter_mut() {
-            for item in world
-                .imports
-                .values_mut()
-                .chain(world.exports.values_mut())
-            {
+            for item in world.imports.values_mut().chain(world.exports.values_mut()) {
                 match item {
                     WorldItem::Function(f) => rewrite_type_ids_in_func(f, &remap),
                     WorldItem::Type { id, .. } => {

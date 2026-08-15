@@ -575,9 +575,9 @@ impl<'a> Resolver<'a> {
                     assert!(prev.is_none());
                     world_id_order.push(id);
                 }
-                ast::AstItem::Type(_)
-                | ast::AstItem::Use(_)
-                | ast::AstItem::Package(_) => unreachable!(),
+                ast::AstItem::Type(_) | ast::AstItem::Use(_) | ast::AstItem::Package(_) => {
+                    unreachable!()
+                }
             };
         }
         Ok((iface_id_order, world_id_order, ids))
@@ -612,12 +612,14 @@ impl<'a> Resolver<'a> {
                                         continue;
                                     }
                                     None => {
-                                        return Err(ParseError::from(ParseErrorKind::ItemNotFound {
-                                            span: name.span,
-                                            name: name.name.to_string(),
-                                            kind: "interface, world, or type".to_owned(),
-                                            hint: None,
-                                        }));
+                                        return Err(ParseError::from(
+                                            ParseErrorKind::ItemNotFound {
+                                                span: name.span,
+                                                name: name.name.to_string(),
+                                                kind: "interface, world, or type".to_owned(),
+                                                hint: None,
+                                            },
+                                        ));
                                     }
                                 }
                             }
@@ -1433,10 +1435,7 @@ impl<'a> Resolver<'a> {
                     None if self.pending_package_type_names.contains(id.name) => {
                         Err(ParseError::new_syntax(
                             id.span,
-                            format!(
-                                "name `{}` is defined as a type, not an interface",
-                                id.name
-                            ),
+                            format!("name `{}` is defined as a type, not an interface", id.name),
                         ))
                     }
                     None => Err(ParseError::from(ParseErrorKind::ItemNotFound {

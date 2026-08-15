@@ -3867,9 +3867,7 @@ impl Remap {
                     None if type_id.is_some() => {
                         return Err(ResolveError::new_semantic(
                             iface_span,
-                            format!(
-                                "name `{interface}` is defined as a type, not an interface"
-                            ),
+                            format!("name `{interface}` is defined as a type, not an interface"),
                         ));
                     }
                     None => {
@@ -3981,15 +3979,16 @@ impl Remap {
                     let iface_id = self.map_interface(unresolved_iface_id, Default::default())?;
                     let name = unresolved_ty.name.as_ref().unwrap();
                     let span = unresolved.unknown_type_spans[unresolved_type_id.index()];
-                    let type_id = *resolve.interfaces[iface_id]
-                        .types
-                        .get(name)
-                        .ok_or_else(|| {
-                            ResolveError::new_semantic(
-                                span,
-                                format!("type `{name}` not defined in interface"),
-                            )
-                        })?;
+                    let type_id =
+                        *resolve.interfaces[iface_id]
+                            .types
+                            .get(name)
+                            .ok_or_else(|| {
+                                ResolveError::new_semantic(
+                                    span,
+                                    format!("type `{name}` not defined in interface"),
+                                )
+                            })?;
                     assert_eq!(self.types.len(), unresolved_type_id.index());
                     self.types.push(Some(type_id));
                 }

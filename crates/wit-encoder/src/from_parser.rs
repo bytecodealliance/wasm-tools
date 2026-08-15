@@ -696,7 +696,10 @@ impl<'a> Converter<'a> {
         let type_def = self.resolve.types.get(*id).unwrap();
         if let wit_parser::TypeOwner::Package(owner) = type_def.owner {
             if owner != package_id {
-                let name = type_def.name.as_deref().expect("package type must be named");
+                let name = type_def
+                    .name
+                    .as_deref()
+                    .expect("package type must be named");
                 let path = self.package_type_path(owner, name);
                 if !uses.contains(&path) {
                     uses.push(path);
@@ -745,9 +748,7 @@ impl<'a> Converter<'a> {
                     // only scan anonymous/inline interfaces owned here.
                     if interface.package == Some(package_id) && interface.name.is_none() {
                         self.collect_foreign_package_type_uses_from_interface(
-                            package_id,
-                            interface,
-                            uses,
+                            package_id, interface, uses,
                         );
                     }
                 }

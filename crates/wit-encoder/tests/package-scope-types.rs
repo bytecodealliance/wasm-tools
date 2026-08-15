@@ -126,12 +126,8 @@ world w {
         .iter()
         .find(|p| p.name().to_string() == "local:types")
         .unwrap();
-    resolve2
-        .push_str("types.wit", &types.to_string())
-        .unwrap();
-    resolve2
-        .push_str("consumer.wit", &rendered)
-        .unwrap();
+    resolve2.push_str("types.wit", &types.to_string()).unwrap();
+    resolve2.push_str("consumer.wit", &rendered).unwrap();
     let packages2 = packages_from_parsed(&resolve2);
     let rendered2 = packages2
         .iter()
@@ -231,12 +227,8 @@ world w {
         .iter()
         .find(|p| p.name().to_string() == "local:types")
         .unwrap();
-    resolve2
-        .push_str("types.wit", &types.to_string())
-        .unwrap();
-    resolve2
-        .push_str("consumer.wit", &rendered)
-        .unwrap();
+    resolve2.push_str("types.wit", &types.to_string()).unwrap();
+    resolve2.push_str("consumer.wit", &rendered).unwrap();
     let packages2 = packages_from_parsed(&resolve2);
     let rendered2 = packages2
         .iter()
@@ -296,12 +288,8 @@ world w {
         .iter()
         .find(|p| p.name().to_string() == "local:types")
         .unwrap();
-    resolve2
-        .push_str("types.wit", &types.to_string())
-        .unwrap();
-    resolve2
-        .push_str("consumer.wit", &rendered)
-        .unwrap();
+    resolve2.push_str("types.wit", &types.to_string()).unwrap();
+    resolve2.push_str("consumer.wit", &rendered).unwrap();
     let packages2 = packages_from_parsed(&resolve2);
     assert_eq!(
         consumer.to_string(),

@@ -289,9 +289,7 @@ impl<'a> AstItem<'a> {
             Some((_span, Token::Package)) => {
                 PackageFile::parse_nested(tokens, docs, attributes, depth).map(Self::Package)
             }
-            Some((_span, Token::Type)) => {
-                TypeDef::parse(tokens, docs, attributes).map(Self::Type)
-            }
+            Some((_span, Token::Type)) => TypeDef::parse(tokens, docs, attributes).map(Self::Type),
             Some((_span, Token::Flags)) => {
                 TypeDef::parse_flags(tokens, docs, attributes).map(Self::Type)
             }

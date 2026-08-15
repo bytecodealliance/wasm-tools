@@ -120,11 +120,7 @@ impl<O: Output> WitPrinter<O> {
 
     /// Emit toplevel `use ns:pkg/name;` for foreign package-scope types that
     /// are referenced from this package's interfaces/worlds.
-    fn print_foreign_package_type_uses(
-        &mut self,
-        resolve: &Resolve,
-        pkg: PackageId,
-    ) -> Result<()> {
+    fn print_foreign_package_type_uses(&mut self, resolve: &Resolve, pkg: PackageId) -> Result<()> {
         let mut live = LiveTypes::default();
         for (_, &id) in resolve.packages[pkg].interfaces.iter() {
             live.add_interface(resolve, id);
