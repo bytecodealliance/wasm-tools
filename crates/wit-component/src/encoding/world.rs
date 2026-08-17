@@ -536,7 +536,7 @@ fn options_are_available_before_instantiation(
     options: RequiredOptions,
     info: &ValidatedModule,
 ) -> bool {
-    // If neither memory nor realloc are needed, so this can always be lowered
+    // If neither memory nor realloc are needed, this can always be lowered
     // eagerly.
     if !options.contains(RequiredOptions::MEMORY) && !options.contains(RequiredOptions::REALLOC) {
         return true;
