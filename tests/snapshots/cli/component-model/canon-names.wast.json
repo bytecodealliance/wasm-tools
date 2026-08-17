@@ -27,6 +27,27 @@
       "filename": "canon-names.3.wasm",
       "module_type": "binary",
       "text": "only instances can have"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 28,
+      "filename": "canon-names.4.wasm",
+      "module_type": "binary",
+      "text": "invalid interface version"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 33,
+      "filename": "canon-names.5.wasm",
+      "module_type": "binary",
+      "text": "invalid interface version"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 38,
+      "filename": "canon-names.6.wasm",
+      "module_type": "binary",
+      "text": "invalid interface version"
     }
   ]
 }
