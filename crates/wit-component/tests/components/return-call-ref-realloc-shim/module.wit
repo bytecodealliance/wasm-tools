@@ -1,0 +1,8 @@
+package foo:foo;
+
+world module {
+  import returns-string: func() -> string;
+  import takes-string: func(s: string);
+
+  export takes-and-returns: func(s: string) -> string;
+}

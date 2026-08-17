@@ -1,0 +1,12 @@
+package foo:foo;
+
+interface bar {
+  foo: async func(x: future<future<u32>>, y: u32) -> stream<string>;
+}
+
+world module {
+  import bar;
+  import foo: async func(x: future<future<u32>>, y: u32) -> stream<string>;
+  export bar;
+  export foo: async func(x: future<future<u32>>, y: u32) -> stream<string>;
+}

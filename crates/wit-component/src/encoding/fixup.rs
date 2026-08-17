@@ -38,6 +38,9 @@ pub struct FixupModule {
     /// instances correspond to.
     imported_instances: IndexMap<String, ImportedInstance>,
 
+    /// Interning map for imports.
+    imported_items: HashMap<(String, String), (u32, EntityType)>,
+
     /// Functions that will be defined in this module itself.
     ///
     /// This is deferred to get emitted until the very end so all imports have
@@ -52,7 +55,7 @@ pub struct FixupModule {
 }
 
 /// Different instances that can be imported into the fixup module.
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ImportedInstance {
     /// The original "shim" module with stubs that need to be filled in.
     Shim,
@@ -105,6 +108,13 @@ enum ShimFill {
     /// An imported function which is also known to be a resource destructor.
     /// Used to know when to insert task hooks.
     ImportedResourceDtor(u32),
+    /// A `realloc` function which is exported from `instance` under the name
+    /// `export` and imported here as `func`.
+    Realloc {
+        instance: ImportedInstance,
+        export: String,
+        func: u32,
+    },
     /// A function defined in this fixup module.
     DefinedFunction(usize),
 }
@@ -123,8 +133,9 @@ enum DefinedFunction {
         params: usize,
         /// The debug-related core name of this function it's hooking.
         core_name: String,
-        /// Whether or not to export this function.
-        export: bool,
+        /// If `Some` this is the instance that is is exported for which will
+        /// get inserted into `EncodingState`'s export wrapper map.
+        export: Option<ImportedInstance>,
         /// The kind of hook to use at the start of this function.
         start: TaskHook,
         /// The kind of hook to use at the end of this function.
@@ -160,6 +171,10 @@ pub enum TaskHook {
     PostReturnStart = 10,
     /// A call to post-return is finished.
     PostReturnFinish = 11,
+    /// A `realloc` function used as a canonical ABI option is being invoked.
+    ReallocStart = 12,
+    /// A `realloc` function used as a canonical ABI option has finished.
+    ReallocFinish = 13,
 }
 
 enum EndTaskHook {
@@ -221,14 +236,35 @@ impl FixupModule {
         ty: EntityType,
     ) -> Result<u32> {
         let module = self.import_instance(instance)?;
+        let key = (module, name.to_string());
+        if let Some((index, prev)) = self.imported_items.get(&key) {
+            if *prev != ty {
+                bail!(
+                    "`{}::{name}` was already imported with a different type",
+                    key.0
+                );
+            }
+            return Ok(*index);
+        }
+        // Note that debug names are recorded here, rather than in the helpers
+        // below, so that a name is only recorded for a freshly created import.
         let ret = match ty {
-            EntityType::Function(_) => inc(&mut self.funcs),
-            EntityType::Global(_) => inc(&mut self.globals),
+            EntityType::Function(_) => {
+                let index = inc(&mut self.funcs);
+                self.function_names.append(index, name);
+                index
+            }
+            EntityType::Global(_) => {
+                let index = inc(&mut self.globals);
+                self.global_names.append(index, name);
+                index
+            }
             EntityType::Table(_) => inc(&mut self.tables),
             EntityType::Memory(_) => inc(&mut self.memories),
             EntityType::Tag(_) | EntityType::FunctionExact(_) => unimplemented!(),
         };
-        self.imports.import(&module, name, ty);
+        self.imports.import(&key.0, name, ty);
+        self.imported_items.insert(key, (ret, ty));
         Ok(ret)
     }
 
@@ -239,16 +275,12 @@ impl FixupModule {
         name: &str,
         ty: GlobalType,
     ) -> Result<u32> {
-        let index = self.import(instance, name, ty.into())?;
-        self.global_names.append(index, name);
-        Ok(index)
+        self.import(instance, name, ty.into())
     }
 
     /// Helper over `self.import(...)`
     pub fn import_func(&mut self, instance: &ImportedInstance, name: &str, ty: u32) -> Result<u32> {
-        let index = self.import(instance, name, EntityType::Function(ty))?;
-        self.function_names.append(index, name);
-        Ok(index)
+        self.import(instance, name, EntityType::Function(ty))
     }
 
     /// Appends to the `start` function that'll get generated.
@@ -276,12 +308,14 @@ impl FixupModule {
         let type_index = self.type_index(&shim.sig);
         let func = self.import_func(&ImportedInstance::Actual, &shim.name, type_index)?;
 
-        // Classify this as either a resource destructor or not as resource
-        // destructors need some special handling with task hooks below.
-        let shim_fill = if matches!(shim.kind, ShimKind::ResourceDtor { .. }) {
-            ShimFill::ImportedResourceDtor(func)
-        } else {
-            ShimFill::Import(func)
+        let shim_fill = match &shim.kind {
+            ShimKind::Realloc { module, export } => ShimFill::Realloc {
+                instance: module.to_imported_instance(),
+                export: export.to_string(),
+                func,
+            },
+            ShimKind::ResourceDtor { .. } => ShimFill::ImportedResourceDtor(func),
+            _ => ShimFill::Import(func),
         };
 
         if opts.shim_return_call_ref {
@@ -353,7 +387,7 @@ impl FixupModule {
                 ImportedInstance::Actual => {
                     let mut actual = Vec::new();
                     for shim in shims.shims.values() {
-                        let core_func_index = state.encode_shim(shim)?;
+                        let core_func_index = state.encode_shim(shims, shim)?;
                         actual.push((shim.name.as_str(), ExportKind::Func, core_func_index));
                     }
                     state
@@ -375,7 +409,7 @@ impl FixupModule {
             match func {
                 DefinedFunction::HookedCoreExport {
                     core_name,
-                    export: true,
+                    export: Some(from),
                     ..
                 } => {
                     let name = format!("hook{i}");
@@ -383,9 +417,9 @@ impl FixupModule {
                         state.core_alias_export(Some(&name), instance, &name, ExportKind::Func);
                     state
                         .export_task_initialization_wrappers
-                        .insert(core_name.clone(), wrapper);
+                        .insert((from.clone(), core_name.clone()), wrapper);
                 }
-                DefinedFunction::HookedCoreExport { export: false, .. } => {}
+                DefinedFunction::HookedCoreExport { export: None, .. } => {}
             }
         }
         Ok(())
@@ -460,7 +494,7 @@ impl FixupModule {
                             f.instructions().i32_const(*hook as i32).call(*task_hook);
                         }
                     }
-                    if *export {
+                    if export.is_some() {
                         exports.export(&format!("hook{i}"), ExportKind::Func, index);
                     }
                     self.function_names
@@ -478,6 +512,7 @@ impl FixupModule {
             ShimFill::Import(func) => *func,
             ShimFill::ImportedResourceDtor(func) => *func,
             ShimFill::DefinedFunction(i) => defined_func_indices[*i],
+            ShimFill::Realloc { func, .. } => *func,
         };
 
         // If this fixup is filling in a table, then import the table and use an
@@ -663,34 +698,99 @@ impl FixupModule {
             self.prepare_export_task_hooks_for(state, CustomModule::Adapter(adapter), task_hook)?;
         }
 
-        // And finally redirect all resource destructors to a local hook which
-        // ensures that task state is configured correctly there.
+        // Next up generate wrappers for all `realloc` functions which might be
+        // used as a canonical option.
+        let mut reallocs = HashMap::new();
+        self.prepare_realloc_task_hooks_for(state, CustomModule::Main, task_hook, &mut reallocs)?;
+        for adapter in state.info.adapters.keys() {
+            self.prepare_realloc_task_hooks_for(
+                state,
+                CustomModule::Adapter(adapter),
+                task_hook,
+                &mut reallocs,
+            )?;
+        }
+
+        // And finally redirect/fixup shims that need hooks to defined versions
+        // locally in this module.
         let mut shims_in_table = mem::take(&mut self.shims_in_table);
         let mut declared_funcs = mem::take(&mut self.declared_funcs);
         for shim in shims_in_table.iter_mut().chain(declared_funcs.iter_mut()) {
-            let export = match shim {
-                ShimFill::ImportedResourceDtor(func) => *func,
-                ShimFill::Import(_) | ShimFill::DefinedFunction(_) => continue,
+            match shim {
+                // Resource destructors are handled here directly inline.
+                ShimFill::ImportedResourceDtor(func) => {
+                    let func = *func;
+                    let ty = self.type_intern(vec![ValType::I32], Vec::new());
+                    *shim = ShimFill::DefinedFunction(self.defined_functions.len());
+                    self.defined_functions.push((
+                        ty,
+                        DefinedFunction::HookedCoreExport {
+                            task_hook,
+                            to_wrap: func,
+                            params: 1,
+                            start: TaskHook::ResourceDtorStart,
+                            end: EndTaskHook::Normal(TaskHook::ResourceDtorFinish),
+                            export: None,
+                            core_name: format!("resource-dtor"),
+                        },
+                    ));
+                }
+
+                // All realloc functions were hooked above in
+                // `prepare_realloc_task_hooks_for` so this just looks up in the
+                // map built there to figure out which function to redirect to.
+                ShimFill::Realloc {
+                    instance, export, ..
+                } => {
+                    let func = reallocs
+                        .get(&(instance.clone(), export.clone()))
+                        .copied()
+                        .expect("realloc wrapper should have been generated");
+                    *shim = ShimFill::DefinedFunction(func);
+                }
+
+                ShimFill::Import(_) | ShimFill::DefinedFunction(_) => {}
             };
-            let ty = self.type_intern(vec![ValType::I32], Vec::new());
-            *shim = ShimFill::DefinedFunction(self.defined_functions.len());
-            self.defined_functions.push((
-                ty,
-                DefinedFunction::HookedCoreExport {
-                    task_hook,
-                    to_wrap: export,
-                    params: 1,
-                    start: TaskHook::ResourceDtorStart,
-                    end: EndTaskHook::Normal(TaskHook::ResourceDtorFinish),
-                    export: false,
-                    core_name: format!("resource-dtor"),
-                },
-            ));
         }
 
         self.shims_in_table = shims_in_table;
         self.declared_funcs = declared_funcs;
 
+        Ok(())
+    }
+
+    /// Generates a task hook wrapper for each `realloc` function exported by
+    /// `for_module` which may be used as a canonical option.
+    ///
+    /// These wrappers are themselves imported from the fixup module for use in
+    /// lifts-of-exports, and then additionally these are used to fill in
+    /// `ShimFill::Realloc` later on.
+    fn prepare_realloc_task_hooks_for(
+        &mut self,
+        state: &mut EncodingState<'_>,
+        for_module: CustomModule<'_>,
+        task_hook: u32,
+        reallocs: &mut HashMap<(ImportedInstance, String), usize>,
+    ) -> Result<()> {
+        let instance = for_module.to_imported_instance();
+        for name in state.info.exports_for(for_module).reallocs() {
+            let ty = self.type_intern(vec![ValType::I32; 4], vec![ValType::I32]);
+            let func = self.import_func(&instance, name, ty)?;
+            let index = self.defined_functions.len();
+            self.defined_functions.push((
+                ty,
+                DefinedFunction::HookedCoreExport {
+                    task_hook,
+                    to_wrap: func,
+                    params: 4,
+                    start: TaskHook::ReallocStart,
+                    end: EndTaskHook::Normal(TaskHook::ReallocFinish),
+                    export: Some(instance.clone()),
+                    core_name: name.to_string(),
+                },
+            ));
+            reallocs.insert((instance.clone(), name.to_string()), index);
+        }
         Ok(())
     }
 
@@ -706,10 +806,7 @@ impl FixupModule {
         let resolve = &state.info.encoder.metadata.resolve;
         let world = &resolve.worlds[state.info.encoder.metadata.world];
         let info = state.info.exports_for(for_module);
-        let imported_instance = match for_module {
-            CustomModule::Main => ImportedInstance::Main,
-            CustomModule::Adapter(name) => ImportedInstance::Adapter(name.to_string()),
-        };
+        let imported_instance = for_module.to_imported_instance();
 
         for (core_name, export) in info.iter() {
             let (key, f, abi) = match export {
@@ -732,7 +829,7 @@ impl FixupModule {
                 DefinedFunction::HookedCoreExport {
                     task_hook,
                     to_wrap: func,
-                    export: true,
+                    export: Some(imported_instance.clone()),
                     params: sig.params.len(),
                     core_name: core_name.to_string(),
                     start: if abi.is_async() {
@@ -762,7 +859,7 @@ impl FixupModule {
                     DefinedFunction::HookedCoreExport {
                         task_hook,
                         to_wrap: func,
-                        export: true,
+                        export: Some(imported_instance.clone()),
                         params: post_return_sig.params.len(),
                         core_name: post_return.to_string(),
                         start: TaskHook::PostReturnStart,
@@ -779,7 +876,7 @@ impl FixupModule {
                     DefinedFunction::HookedCoreExport {
                         task_hook,
                         to_wrap: func,
-                        export: true,
+                        export: Some(imported_instance.clone()),
                         params: 3,
                         core_name: callback.to_string(),
                         start: TaskHook::AsyncResume,

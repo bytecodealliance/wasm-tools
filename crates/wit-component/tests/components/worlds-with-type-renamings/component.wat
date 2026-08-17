@@ -43,7 +43,6 @@
   (alias core export $main "memory" (core memory $memory (;0;)))
   (type (;4;) (func (result 3)))
   (alias core export $main "foo:foo/i#the-func" (core func $foo:foo/i#the-func (;1;)))
-  (alias core export $main "cabi_realloc" (core func $cabi_realloc (;2;)))
   (func $"#func1 the-func" (@name "the-func") (;1;) (type 4) (canon lift (core func $foo:foo/i#the-func)))
   (component $foo:foo/i-shim-component (;0;)
     (type (;0;) (record (field "f" u8)))

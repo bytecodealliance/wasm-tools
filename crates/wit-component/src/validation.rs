@@ -1421,6 +1421,21 @@ impl ExportMap {
         self.find(|m| matches!(m, Export::GeneralPurposeRealloc))
     }
 
+    /// Returns an iterator over all `realloc` functions exported by this module
+    /// which may be used as a `realloc` canonical option.
+    ///
+    /// Note that `cabi_realloc_adapter` is intentionally not included here as
+    /// that's only ever imported directly into an adapter module and is never
+    /// used as a canonical option.
+    pub fn reallocs(&self) -> impl Iterator<Item = &str> + '_ {
+        self.names.iter().filter_map(|(name, export)| match export {
+            Export::GeneralPurposeRealloc
+            | Export::GeneralPurposeExportRealloc
+            | Export::GeneralPurposeImportRealloc => Some(name.as_str()),
+            _ => None,
+        })
+    }
+
     /// Returns the memory, if exported, for this module.
     pub fn memory(&self) -> Option<&str> {
         self.find(|m| matches!(m, Export::Memory))

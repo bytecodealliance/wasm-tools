@@ -41,7 +41,6 @@
   (alias core export $main "memory" (core memory $memory (;0;)))
   (type (;1;) (func (param "b" u8)))
   (alias core export $main "a" (core func $"#core-func1 a" (@name "a") (;1;)))
-  (alias core export $main "cabi_realloc" (core func $cabi_realloc (;2;)))
   (func $"#func1 a" (@name "a") (;1;) (type 1) (canon lift (core func $"#core-func1 a")))
   (export $"#func2 a" (@name "a") (;2;) "a" (func $"#func1 a"))
   (@producers
