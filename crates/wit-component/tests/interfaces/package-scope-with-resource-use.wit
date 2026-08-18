@@ -1,0 +1,19 @@
+package local:demo;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+interface files {
+  resource file {
+    path: func() -> string;
+  }
+}
+
+interface api {
+  use files.{file};
+
+  move-to: func(p: point);
+  open: func() -> file;
+}
