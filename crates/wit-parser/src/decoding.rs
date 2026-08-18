@@ -234,11 +234,24 @@ impl ComponentInfo {
             let export = match item {
                 Extern::Export(e) => e,
 
-                // An import here names a package-scope type from another
-                // package that this package's own definitions depend on. It's
-                // necessarily foreign, so there's no local definition to
-                // reconcile it with yet.
+                // An import here either binds one of this package's own
+                // exported types under its fully-qualified name, which is how
+                // the package name of a package without interfaces or worlds
+                // is recovered, or it names a package-scope type from another
+                // package that this package's own definitions depend on.
                 Extern::Import(import) => {
+                    if let Some(owner) =
+                        decoder.match_self_package_type_import(export_name, import, &fields)?
+                    {
+                        if let Some(prev) = pkg_name.as_ref() {
+                            if *prev != owner {
+                                bail!("item defined with mismatched package name")
+                            }
+                        } else {
+                            pkg_name = Some(owner);
+                        }
+                        continue;
+                    }
                     decoder
                         .register_package_type_import(export_name, import, None, &mut fields)
                         .with_context(|| format!("failed to process import `{export_name}`"))?;
@@ -325,10 +338,13 @@ impl ComponentInfo {
                 types,
             }
         } else if !types.is_empty() {
+            // A package encoded with self-describing type imports never lands
+            // here; this is only reachable for binaries produced before those
+            // imports were emitted for packages without interfaces or worlds.
             bail!(
-                "WIT package with only package-scope types (no interfaces or worlds) \
-                 cannot be decoded; add an interface or world so the package name can \
-                 be recovered from the binary format"
+                "cannot recover the package name of this WIT package: it contains \
+                 only package-scope types and no fully-qualified names; re-encode \
+                 it with a newer version of wit-component"
             );
         } else {
             bail!("no exported component type found");
@@ -707,6 +723,51 @@ impl WitPackageDecoder<'_> {
     /// already decoded for `package`, when the name belongs to it, or with a
     /// lazily created type otherwise. `package` is `None` where no local
     /// definition can be in scope yet, which makes the name necessarily foreign.
+    /// Detects a self-import: a root-level type import bound with `eq` to one
+    /// of this package's own exported types, named by its fully-qualified
+    /// `namespace:package/name`.
+    ///
+    /// Such an import is emitted for packages without interfaces or worlds,
+    /// where it is the only place the package name appears in the binary.
+    /// Returns the package name recovered from the import, or `None` when the
+    /// import is a foreign package-scope dependency instead.
+    fn match_self_package_type_import(
+        &mut self,
+        name: &str,
+        item: &ComponentItem,
+        fields: &PackageFields<'_>,
+    ) -> Result<Option<PackageName>> {
+        let parsed = self.parse_component_name(name)?;
+        let owner_name = match parsed.kind() {
+            ComponentNameKind::Interface(id) => id,
+            _ => return Ok(None),
+        };
+        let type_name = owner_name.interface().to_string();
+
+        let (referenced, created) = match item.ty {
+            ComponentEntityType::Type {
+                referenced,
+                created,
+            } => (referenced, created),
+            _ => return Ok(None),
+        };
+
+        // The import is a self-import only when its `eq` bound resolves to the
+        // same type that this package exported under the import's unqualified
+        // label. A foreign dependency's bound is a restated definition that no
+        // local export refers to, so it never matches.
+        let Some(prev) = self.find_alias(referenced) else {
+            return Ok(None);
+        };
+        if fields.types.get(&type_name) != Some(&prev) {
+            return Ok(None);
+        }
+
+        let owner = owner_name.to_package_name(item)?;
+        self.type_map.insert(created, prev);
+        Ok(Some(owner))
+    }
+
     fn register_package_type_import(
         &mut self,
         name: &str,

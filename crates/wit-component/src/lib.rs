@@ -367,23 +367,32 @@ type point-list = list<point>;
 
         let wasm = encode(&resolve, pkg)?;
         let wat = wasmprinter::print_bytes(&wasm)?;
-        // `point` is exported first as a record...
+        // `point` is exported first as a record and, since this package has
+        // no interfaces or worlds, re-imported under its fully-qualified name
+        // so the package name is recoverable...
         assert!(
             wat.contains("(record (field \"x\" u32) (field \"y\" u32))")
-                && wat.contains("\"point\" (type 0)"),
-            "expected `point` to be exported as its own definition:\n{wat}"
+                && wat.contains("\"point\" (type 0)")
+                && wat.contains("(import \"local:demo/point\" (type (;2;) (eq 1)))"),
+            "expected `point` to be exported and self-imported:\n{wat}"
         );
-        // ...and `point-list` is a `list` of that exported type, exported next.
+        // ...and `point-list` is a `list` of the imported `point`, exported
+        // next.
         assert!(
-            wat.contains("(type (;2;) (list 1))") && wat.contains("\"point-list\" (type 2)"),
-            "expected `point-list` to reference the exported `point`:\n{wat}"
+            wat.contains("(type (;3;) (list 2))") && wat.contains("\"point-list\" (type 3)"),
+            "expected `point-list` to reference the imported `point`:\n{wat}"
         );
         wasmparser::Validator::new_with_features(WasmFeatures::all()).validate_all(&wasm)?;
         Ok(())
     }
 
+    /// A package without interfaces or worlds has no fully-qualified export
+    /// to recover the package name from, so each of its types is additionally
+    /// bound with a self-referential `eq` import named by the type's
+    /// fully-qualified name, and decoding recovers the package name from
+    /// those imports.
     #[test]
-    fn package_scope_type_only_package_decode_fails() -> Result<()> {
+    fn package_scope_type_only_package_round_trips() -> Result<()> {
         let mut resolve = Resolve::new();
         let pkg = resolve.push_str(
             "types-only.wit",
@@ -394,21 +403,83 @@ record point {
   x: u32,
   y: u32,
 }
+
+type path = list<point>;
 "#,
         )?;
 
         let wasm = encode(&resolve, pkg)?;
-        match crate::decode(&wasm) {
-            Ok(_) => panic!("type-only packages cannot round-trip"),
-            Err(err) => {
-                let msg = format!("{err:#}");
-                assert!(
-                    msg.contains("only package-scope types")
-                        || msg.contains("no interfaces or worlds"),
-                    "unexpected error: {msg}"
-                );
-            }
-        }
+        wasmparser::Validator::new_with_features(WasmFeatures::all()).validate_all(&wasm)?;
+
+        let wat = wasmprinter::print_bytes(&wasm)?;
+        assert!(
+            wat.contains("(import \"local:types/point\""),
+            "expected a self-import binding `point`:\n{wat}"
+        );
+        assert!(
+            wat.contains("(import \"local:types/path\""),
+            "expected a self-import binding `path`:\n{wat}"
+        );
+
+        let decoded = crate::decode(&wasm)?;
+        let resolve = decoded.resolve();
+        let package = &resolve.packages[decoded.package()];
+        assert_eq!(package.name.to_string(), "local:types");
+        assert_eq!(package.types.len(), 2);
+        assert!(package.types.contains_key("point"));
+        assert!(package.types.contains_key("path"));
+        assert!(package.interfaces.is_empty());
+        assert!(package.worlds.is_empty());
+        Ok(())
+    }
+
+    /// Same as above, but the types-only package also depends on a foreign
+    /// package-scope type: the self-imports and the foreign import coexist at
+    /// the package root and decoding tells them apart.
+    #[test]
+    fn package_scope_type_only_package_with_foreign_dep_round_trips() -> Result<()> {
+        let mut resolve = Resolve::new();
+        resolve.push_str(
+            "types.wit",
+            r#"
+package local:types;
+
+record point {
+  x: u32,
+  y: u32,
+}
+"#,
+        )?;
+        let pkg = resolve.push_str(
+            "consumer.wit",
+            r#"
+package local:consumer;
+
+use local:types/point;
+
+record bin {
+  p: point,
+}
+"#,
+        )?;
+
+        let wasm = encode(&resolve, pkg)?;
+        wasmparser::Validator::new_with_features(WasmFeatures::all()).validate_all(&wasm)?;
+
+        let decoded = crate::decode(&wasm)?;
+        let resolve = decoded.resolve();
+        let package = &resolve.packages[decoded.package()];
+        assert_eq!(package.name.to_string(), "local:consumer");
+        assert!(package.types.contains_key("bin"));
+
+        // The foreign `point` stays owned by `local:types`.
+        let types_pkg = resolve
+            .packages
+            .iter()
+            .find(|(_, p)| p.name.to_string() == "local:types")
+            .map(|(_, p)| p)
+            .expect("foreign package should be present");
+        assert!(types_pkg.types.contains_key("point"));
         Ok(())
     }
 

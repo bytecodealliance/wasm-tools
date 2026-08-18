@@ -145,6 +145,16 @@ impl Encoder<'_> {
         // Encode package-scope types first so V2 sniffing still sees a Label
         // as the first export name when types are present.
         {
+            // Decoding recovers the package name from the fully-qualified
+            // export inside an interface's or world's component type. A
+            // package without either has no such export, so each of its types
+            // is additionally bound with a self-referential `eq` import whose
+            // fully-qualified name carries the package name. Later types then
+            // reference the imported index so that every import stays valid
+            // per the component model's named-type rules.
+            let pkg = &self.resolve.packages[self.package];
+            let self_describe = pkg.interfaces.is_empty() && pkg.worlds.is_empty();
+
             let mut encoder = PackageTypeEncoder {
                 component: &mut self.component,
                 package: self.package,
@@ -154,6 +164,21 @@ impl Encoder<'_> {
             };
             for (_, &id) in self.resolve.packages[self.package].types.iter() {
                 encoder.encode_valtype(self.resolve, &Type::Id(id))?;
+
+                if self_describe {
+                    let index = encoder.type_encoding_maps.id_to_index[&id];
+                    let ty = &self.resolve.types[id];
+                    let imported = encoder.component.import(
+                        ComponentExternName {
+                            name: package_type_name(self.resolve, id).into(),
+                            implements: None,
+                            version_suffix: None,
+                            external_id: ty.external_id.clone().map(Into::into),
+                        },
+                        ComponentTypeRef::Type(TypeBounds::Eq(index)),
+                    );
+                    encoder.type_encoding_maps.id_to_index.insert(id, imported);
+                }
             }
         }
 
