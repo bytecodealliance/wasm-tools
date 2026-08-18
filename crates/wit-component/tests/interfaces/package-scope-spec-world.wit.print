@@ -1,0 +1,10 @@
+package local:demo;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+world the-world {
+  export move-to: func(p: point);
+}

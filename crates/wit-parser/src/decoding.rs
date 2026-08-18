@@ -151,17 +151,21 @@ impl ComponentInfo {
             return None;
         }
 
-        if !self.externs.iter().all(|(_, item)| {
-            let export = match item {
-                Extern::Export(e) => e,
-                _ => return false,
-            };
-            match export.ty {
+        if !self.externs.iter().all(|(name, item)| match item {
+            Extern::Export(export) => match export.ty {
                 ComponentEntityType::Type { created, .. } => matches!(
                     created,
                     ComponentAnyTypeId::Component(_) | ComponentAnyTypeId::Defined(_)
                 ),
                 _ => false,
+            },
+
+            // A package's definitions are all exported, with one exception: a
+            // package-scope type defined in terms of one from another package
+            // has no wrapping component-type to hold the `import` naming where
+            // that definition came from, so the import lands here instead.
+            Extern::Import(import) => {
+                matches!(import.ty, ComponentEntityType::Type { .. }) && is_qualified_name(name)
             }
         }) {
             return None;
@@ -171,7 +175,11 @@ impl ComponentInfo {
         // strings for each component. The v1 format uses "<namespace>:<package>/wit" as the name
         // for the top-level exports, while the v2 format uses the unqualified name of the encoded
         // entity.
-        match ComponentName::new(&self.externs[0].0, 0).ok()?.kind() {
+        let (first_export, _) = self
+            .externs
+            .iter()
+            .find(|(_, item)| matches!(item, Extern::Export(_)))?;
+        match ComponentName::new(first_export, 0).ok()?.kind() {
             ComponentNameKind::Interface(name) if name.interface().as_str() == "wit" => {
                 Some(WitEncodingVersion::V1)
             }
@@ -225,7 +233,17 @@ impl ComponentInfo {
         for (export_name, item) in self.externs.iter() {
             let export = match item {
                 Extern::Export(e) => e,
-                _ => unreachable!(),
+
+                // An import here names a package-scope type from another
+                // package that this package's own definitions depend on. It's
+                // necessarily foreign, so there's no local definition to
+                // reconcile it with yet.
+                Extern::Import(import) => {
+                    decoder
+                        .register_package_type_import(export_name, import, None, &mut fields)
+                        .with_context(|| format!("failed to process import `{export_name}`"))?;
+                    continue;
+                }
             };
             match export.ty {
                 ComponentEntityType::Type {
@@ -577,13 +595,6 @@ impl WitPackageDecoder<'_> {
             _ => unreachable!(),
         };
 
-        // Process all imports for this package first, where imports are
-        // importing from remote packages.
-        for (name, item) in ty.imports.iter() {
-            self.register_import(name, item)
-                .with_context(|| format!("failed to process import `{name}`"))?;
-        }
-
         let mut package = Package {
             // The name encoded for packages must be of the form `foo:bar/wit`
             // where "wit" is just a placeholder for now. The package name in
@@ -600,11 +611,19 @@ impl WitPackageDecoder<'_> {
             types: Default::default(),
         };
 
+        let package_name = package.name.clone();
         let mut fields = PackageFields {
             interfaces: &mut package.interfaces,
             worlds: &mut package.worlds,
             types: &mut package.types,
         };
+
+        // Process all imports for this package first, where imports are
+        // importing from remote packages.
+        for (name, item) in ty.imports.iter() {
+            self.register_component_type_import(name, item, &package_name, &mut fields)
+                .with_context(|| format!("failed to process import `{name}`"))?;
+        }
 
         for (name, ty) in ty.exports.iter() {
             match ty.ty {
@@ -614,7 +633,7 @@ impl WitPackageDecoder<'_> {
                 }
                 ComponentEntityType::Component(idx) => {
                     let ty = &self.types[idx];
-                    self.register_world(name.as_str(), ty, &mut fields)
+                    self.register_world(name.as_str(), ty, &package_name, &mut fields)
                         .with_context(|| format!("failed to process export `{name}`"))?;
                 }
                 ComponentEntityType::Type {
@@ -649,14 +668,120 @@ impl WitPackageDecoder<'_> {
             _ => bail!("expected world name to be fully qualified"),
         };
 
-        for (name, ty) in imports.iter() {
-            self.register_import(name, ty)
-                .with_context(|| format!("failed to process import `{name}`"))?;
+        for (import_name, ty) in imports.iter() {
+            self.register_component_type_import(import_name, ty, &package, fields)
+                .with_context(|| format!("failed to process import `{import_name}`"))?;
         }
 
         let _ = self.register_interface(name, item, fields)?;
 
         Ok(package)
+    }
+
+    /// Processes one import of a wrapping component-type, which is either an
+    /// instance for a `use`d interface or a type for a package-scope type.
+    fn register_component_type_import(
+        &mut self,
+        name: &str,
+        item: &ComponentItem,
+        package: &PackageName,
+        fields: &mut PackageFields<'_>,
+    ) -> Result<()> {
+        match item.ty {
+            ComponentEntityType::Type { .. } => {
+                self.register_package_type_import(name, item, Some(package), fields)?;
+            }
+            _ => {
+                self.register_import(name, item)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Registers a dependency on the package-scope type named by `name`, a
+    /// fully-qualified `namespace:package/name`.
+    ///
+    /// Package-scope types are structural, so the importer restates the
+    /// definition and binds it with an `eq` import rather than supplying an
+    /// instance to satisfy it. The restated definition is unified with the type
+    /// already decoded for `package`, when the name belongs to it, or with a
+    /// lazily created type otherwise. `package` is `None` where no local
+    /// definition can be in scope yet, which makes the name necessarily foreign.
+    fn register_package_type_import(
+        &mut self,
+        name: &str,
+        item: &ComponentItem,
+        package: Option<&PackageName>,
+        fields: &mut PackageFields<'_>,
+    ) -> Result<TypeId> {
+        let parsed = self.parse_component_name(name)?;
+        let owner_name = match parsed.kind() {
+            ComponentNameKind::Interface(id) => id,
+            _ => bail!("expected type import `{name}` to be fully qualified"),
+        };
+        let owner = owner_name.to_package_name(item)?;
+        let type_name = owner_name.interface().to_string();
+
+        let (referenced, created) = match item.ty {
+            ComponentEntityType::Type {
+                referenced,
+                created,
+            } => (referenced, created),
+            _ => unreachable!(),
+        };
+        let referenced = match referenced {
+            ComponentAnyTypeId::Defined(ty) => ty,
+            // `resource` is excluded from package scope precisely because its
+            // bound is abstract and so can't be restated like this.
+            _ => bail!("package-scope type `{name}` is not a structural type"),
+        };
+
+        let existing = if package == Some(&owner) {
+            fields.types.get(&type_name).copied()
+        } else {
+            None
+        }
+        .or_else(|| {
+            self.foreign_packages
+                .get(&owner.to_string())
+                .and_then(|pkg| pkg.types.get(&type_name).copied())
+        });
+
+        let id = match existing {
+            Some(id) => {
+                // Walk the restated definition to unify its anonymous inner
+                // types with those of the original definition, the same way the
+                // types of a `use`d interface are unified.
+                let types = self.types;
+                self.register_defined(id, &types[referenced])?;
+                let prev = self.type_map.insert(created, id);
+                assert!(prev.is_none());
+                id
+            }
+
+            // Nothing has declared this definition yet, so fill it in here.
+            // This is the only view available when a definition is decoded on
+            // its own, such as a `world` out of a `component-type` custom
+            // section, and it leaves the owning package with just the slice of
+            // types this resolve needs.
+            None => {
+                let id = self.register_type_export(&type_name, item, TypeOwner::None)?;
+                let package = self
+                    .foreign_packages
+                    .entry(owner.to_string())
+                    .or_insert_with(|| Package {
+                        name: owner.clone(),
+                        docs: Default::default(),
+                        interfaces: Default::default(),
+                        worlds: Default::default(),
+                        types: Default::default(),
+                    });
+                package.types.insert(type_name, id);
+                id
+            }
+        };
+
+        Ok(id)
     }
 
     fn decode_world<'a>(
@@ -678,7 +803,7 @@ impl WitPackageDecoder<'_> {
             _ => bail!("expected world name to be fully qualified"),
         };
 
-        let _ = self.register_world(name, ty, fields)?;
+        let _ = self.register_world(name, ty, &package, fields)?;
 
         Ok(package)
     }
@@ -1152,6 +1277,7 @@ impl WitPackageDecoder<'_> {
         &mut self,
         name: &str,
         ty: &ComponentType,
+        package_name: &PackageName,
         package: &mut PackageFields<'a>,
     ) -> Result<WorldId> {
         let name = self
@@ -1173,6 +1299,13 @@ impl WitPackageDecoder<'_> {
             let (name, item) = match item.ty {
                 ComponentEntityType::Instance(_) => {
                     self.decode_world_instance(name, item, package)?
+                }
+                // A fully-qualified name here is a package-scope type the world
+                // depends on, which is not an item of the world itself. A plain
+                // name is a type the world defines.
+                ComponentEntityType::Type { .. } if is_qualified_name(name) => {
+                    self.register_package_type_import(name, item, Some(package_name), package)?;
+                    continue;
                 }
                 ComponentEntityType::Type { .. } => {
                     let ty = self.register_type_export(name.as_str(), item, owner)?;
@@ -1613,117 +1746,7 @@ impl WitPackageDecoder<'_> {
             self.resolve.types[id].owner = TypeOwner::Package(pkg);
         }
 
-        // Encoding inlines package-scope types into interface/world instances
-        // and exports them for validation. Drop those duplicates so round-trip
-        // WIT keeps package ownership (bare names, no invented interface decls).
-        self.coalesce_inlined_package_types(pkg);
-
         pkg
-    }
-
-    /// Rewrite interface/world references that duplicate package-scope types.
-    fn coalesce_inlined_package_types(&mut self, pkg: PackageId) {
-        let package_types = self.resolve.packages[pkg].types.clone();
-        if package_types.is_empty() {
-            return;
-        }
-
-        let mut remap = HashMap::new();
-        let iface_ids: Vec<_> = self.resolve.packages[pkg]
-            .interfaces
-            .values()
-            .copied()
-            .collect();
-        for iface_id in iface_ids {
-            self.coalesce_package_types_in_interface(iface_id, &package_types, &mut remap);
-        }
-
-        let world_ids: Vec<_> = self.resolve.packages[pkg]
-            .worlds
-            .values()
-            .copied()
-            .collect();
-        for world_id in world_ids {
-            let mut remove = Vec::new();
-            let mut inline_ifaces = Vec::new();
-            for (key, item) in self.resolve.worlds[world_id].imports.iter() {
-                match (key, item) {
-                    (WorldKey::Name(name), WorldItem::Type { id, .. }) => {
-                        if let Some(&pkg_ty) = package_types.get(name) {
-                            if *id != pkg_ty {
-                                remap.insert(*id, pkg_ty);
-                                remove.push(key.clone());
-                            }
-                        }
-                    }
-                    (_, WorldItem::Interface { id, .. }) => {
-                        inline_ifaces.push(*id);
-                    }
-                    _ => {}
-                }
-            }
-            for (_key, item) in self.resolve.worlds[world_id].exports.iter() {
-                if let WorldItem::Interface { id, .. } = item {
-                    inline_ifaces.push(*id);
-                }
-            }
-            for key in remove {
-                self.resolve.worlds[world_id].imports.swap_remove(&key);
-            }
-            for iface_id in inline_ifaces {
-                // Named package interfaces are handled above; still coalesce
-                // anonymous ifaces reachable from worlds.
-                if self.resolve.interfaces[iface_id].name.is_none() {
-                    self.coalesce_package_types_in_interface(iface_id, &package_types, &mut remap);
-                }
-            }
-        }
-
-        if remap.is_empty() {
-            return;
-        }
-
-        for (_id, ty) in self.resolve.types.iter_mut() {
-            rewrite_type_ids_in_kind(&mut ty.kind, &remap);
-        }
-        for (_id, iface) in self.resolve.interfaces.iter_mut() {
-            for func in iface.functions.values_mut() {
-                rewrite_type_ids_in_func(func, &remap);
-            }
-        }
-        for (_id, world) in self.resolve.worlds.iter_mut() {
-            for item in world.imports.values_mut().chain(world.exports.values_mut()) {
-                match item {
-                    WorldItem::Function(f) => rewrite_type_ids_in_func(f, &remap),
-                    WorldItem::Type { id, .. } => {
-                        if let Some(&new) = remap.get(id) {
-                            *id = new;
-                        }
-                    }
-                    WorldItem::Interface { .. } => {}
-                }
-            }
-        }
-    }
-
-    fn coalesce_package_types_in_interface(
-        &mut self,
-        iface_id: InterfaceId,
-        package_types: &IndexMap<String, TypeId>,
-        remap: &mut HashMap<TypeId, TypeId>,
-    ) {
-        let mut remove = Vec::new();
-        for (name, &ty_id) in self.resolve.interfaces[iface_id].types.iter() {
-            if let Some(&pkg_ty) = package_types.get(name) {
-                if ty_id != pkg_ty {
-                    remap.insert(ty_id, pkg_ty);
-                    remove.push(name.clone());
-                }
-            }
-        }
-        for name in remove {
-            self.resolve.interfaces[iface_id].types.swap_remove(&name);
-        }
     }
 
     fn visit_package(&self, idx: usize, order: &mut IndexSet<usize>) {
@@ -2046,76 +2069,11 @@ impl InterfaceNameExt for wasmparser::names::InterfaceName<'_> {
     }
 }
 
-fn rewrite_type_id(id: &mut TypeId, remap: &HashMap<TypeId, TypeId>) {
-    if let Some(new) = remap.get(id) {
-        *id = *new;
-    }
-}
-
-fn rewrite_type(ty: &mut Type, remap: &HashMap<TypeId, TypeId>) {
-    if let Type::Id(id) = ty {
-        rewrite_type_id(id, remap);
-    }
-}
-
-fn rewrite_type_ids_in_kind(kind: &mut TypeDefKind, remap: &HashMap<TypeId, TypeId>) {
-    match kind {
-        TypeDefKind::Record(r) => {
-            for field in r.fields.iter_mut() {
-                rewrite_type(&mut field.ty, remap);
-            }
-        }
-        TypeDefKind::Tuple(t) => {
-            for ty in t.types.iter_mut() {
-                rewrite_type(ty, remap);
-            }
-        }
-        TypeDefKind::Variant(v) => {
-            for case in v.cases.iter_mut() {
-                if let Some(ty) = &mut case.ty {
-                    rewrite_type(ty, remap);
-                }
-            }
-        }
-        TypeDefKind::Option(t) | TypeDefKind::List(t) | TypeDefKind::Type(t) => {
-            rewrite_type(t, remap);
-        }
-        TypeDefKind::FixedLengthList(t, _) => rewrite_type(t, remap),
-        TypeDefKind::Map(k, v) => {
-            rewrite_type(k, remap);
-            rewrite_type(v, remap);
-        }
-        TypeDefKind::Result(r) => {
-            if let Some(ty) = &mut r.ok {
-                rewrite_type(ty, remap);
-            }
-            if let Some(ty) = &mut r.err {
-                rewrite_type(ty, remap);
-            }
-        }
-        TypeDefKind::Future(t) | TypeDefKind::Stream(t) => {
-            if let Some(ty) = t {
-                rewrite_type(ty, remap);
-            }
-        }
-        TypeDefKind::Handle(Handle::Own(id) | Handle::Borrow(id)) => {
-            rewrite_type_id(id, remap);
-        }
-        TypeDefKind::Flags(_)
-        | TypeDefKind::Enum(_)
-        | TypeDefKind::Resource
-        | TypeDefKind::Unknown => {}
-    }
-}
-
-fn rewrite_type_ids_in_func(func: &mut Function, remap: &HashMap<TypeId, TypeId>) {
-    for param in func.params.iter_mut() {
-        rewrite_type(&mut param.ty, remap);
-    }
-    if let Some(ty) = &mut func.result {
-        rewrite_type(ty, remap);
-    }
-    if let Some(id) = func.kind.resource_mut() {
-        rewrite_type_id(id, remap);
-    }
+/// Whether `name` is a fully-qualified `namespace:package/name` rather than a
+/// plain kebab name.
+fn is_qualified_name(name: &str) -> bool {
+    matches!(
+        ComponentName::new(name, 0).map(|n| matches!(n.kind(), ComponentNameKind::Interface(_))),
+        Ok(true)
+    )
 }

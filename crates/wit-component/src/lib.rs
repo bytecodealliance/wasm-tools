@@ -177,7 +177,7 @@ world test-world {}
     }
 
     #[test]
-    fn package_scope_foreign_type_encodes_without_import() -> Result<()> {
+    fn package_scope_foreign_type_encodes_as_qualified_import() -> Result<()> {
         let mut resolve = Resolve::new();
         resolve.push_str(
             "types.wit",
@@ -211,13 +211,19 @@ world w {
 
         let wasm = encode(&resolve, pkg)?;
         let wat = wasmprinter::print_bytes(&wasm)?;
+        // The definition is restated locally and the import names where it came
+        // from, just as it is for a type projected out of a foreign interface.
         assert!(
-            !wat.contains("(import"),
-            "package-scope foreign type must be inlined, not imported:\n{wat}"
+            wat.contains("(record (field \"x\" u32) (field \"y\" u32))"),
+            "expected the foreign definition to be restated:\n{wat}"
         );
         assert!(
-            wat.contains("(record"),
-            "expected inlined record for foreign package type:\n{wat}"
+            wat.contains("(import \"local:types/point\" (type"),
+            "expected a qualified import for the foreign package type:\n{wat}"
+        );
+        assert!(
+            !wat.contains("(import \"local:types/point\" (instance"),
+            "a package-scope type must not be wrapped in an instance:\n{wat}"
         );
         wasmparser::Validator::new_with_features(WasmFeatures::all()).validate_all(&wasm)?;
 
@@ -322,7 +328,10 @@ package local:nested {
             wat.contains("(export (;1;) \"point\" (type 0))"),
             "expected package-scope point export:\n{wat}"
         );
-        assert!(!wat.contains("(import"), "{wat}");
+        assert!(
+            wat.contains("(import \"local:nested/point\" (type"),
+            "expected the interface to import the package-scope type:\n{wat}"
+        );
         wasmparser::Validator::new_with_features(WasmFeatures::all()).validate_all(&wasm)?;
 
         let decoded = crate::decode(&wasm)?;
@@ -332,6 +341,44 @@ package local:nested {
         assert!(printed.contains("record point"), "{printed}");
         assert!(printed.contains("interface api"), "{printed}");
 
+        Ok(())
+    }
+
+    /// The approved WIT.md "a package-scope type may refer to another one"
+    /// example: since an exported type may only refer to types named by an
+    /// import or export, the referenced definition is exported under its own id
+    /// first and the dependent one refers back to that export.
+    #[test]
+    fn package_scope_type_referring_to_another_exports_before_use() -> Result<()> {
+        let mut resolve = Resolve::new();
+        let pkg = resolve.push_str(
+            "demo.wit",
+            r#"
+package local:demo;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+type point-list = list<point>;
+"#,
+        )?;
+
+        let wasm = encode(&resolve, pkg)?;
+        let wat = wasmprinter::print_bytes(&wasm)?;
+        // `point` is exported first as a record...
+        assert!(
+            wat.contains("(record (field \"x\" u32) (field \"y\" u32))")
+                && wat.contains("\"point\" (type 0)"),
+            "expected `point` to be exported as its own definition:\n{wat}"
+        );
+        // ...and `point-list` is a `list` of that exported type, exported next.
+        assert!(
+            wat.contains("(type (;2;) (list 1))") && wat.contains("\"point-list\" (type 2)"),
+            "expected `point-list` to reference the exported `point`:\n{wat}"
+        );
+        wasmparser::Validator::new_with_features(WasmFeatures::all()).validate_all(&wasm)?;
         Ok(())
     }
 
@@ -362,6 +409,249 @@ record point {
                 );
             }
         }
+        Ok(())
+    }
+
+    /// An `interface` or `world` names a foreign package-scope type with an
+    /// `import` on its wrapping component-type. A package-scope definition has
+    /// no such wrapper, so its import goes on the package's component itself.
+    #[test]
+    fn package_scope_type_depending_on_foreign_package_type() -> Result<()> {
+        let mut resolve = Resolve::new();
+        resolve.push_str(
+            "types.wit",
+            r#"
+package local:types;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+interface unused {}
+"#,
+        )?;
+        let pkg = resolve.push_str(
+            "consumer.wit",
+            r#"
+package local:consumer;
+
+use local:types/point;
+
+record bin {
+  p: point,
+}
+
+interface api {
+  wrap: func(b: bin);
+}
+"#,
+        )?;
+
+        let wasm = encode(&resolve, pkg)?;
+        let wat = wasmprinter::print_bytes(&wasm)?;
+        assert!(
+            wat.contains("(import \"local:types/point\" (type"),
+            "expected a qualified import on the package itself:\n{wat}"
+        );
+        wasmparser::Validator::new_with_features(WasmFeatures::all()).validate_all(&wasm)?;
+
+        // The import must not be mistaken for a concrete component's, and
+        // `point` must stay owned by `local:types` rather than being claimed by
+        // the consumer.
+        let decoded = crate::decode(&wasm)?;
+        let mut printer = crate::WitPrinter::default();
+        printer.print(decoded.resolve(), decoded.package(), &[])?;
+        let printed = printer.output.to_string();
+        assert!(printed.contains("use local:types/point;"), "{printed}");
+        assert!(printed.contains("record bin {"), "{printed}");
+        assert!(
+            !printed.contains("record point"),
+            "the foreign definition must not be restated as our own:\n{printed}"
+        );
+
+        Ok(())
+    }
+
+    /// A foreign package-scope type carries its version in the fully-qualified
+    /// import name and that version survives a decode round-trip.
+    #[test]
+    fn package_scope_foreign_type_preserves_version() -> Result<()> {
+        let mut resolve = Resolve::new();
+        resolve.push_str(
+            "types.wit",
+            r#"
+package local:types@1.2.3;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+interface unused {}
+"#,
+        )?;
+        let pkg = resolve.push_str(
+            "consumer.wit",
+            r#"
+package local:consumer@0.1.0;
+
+use local:types/point@1.2.3;
+
+interface api {
+  move-to: func(p: point);
+}
+
+world w {
+  export api;
+}
+"#,
+        )?;
+
+        let wasm = encode(&resolve, pkg)?;
+        let wat = wasmprinter::print_bytes(&wasm)?;
+        assert!(
+            wat.contains("local:types/point@1.2.3"),
+            "expected the import name to carry the version:\n{wat}"
+        );
+        wasmparser::Validator::new_with_features(WasmFeatures::all()).validate_all(&wasm)?;
+
+        let decoded = crate::decode(&wasm)?;
+        let mut printer = crate::WitPrinter::default();
+        printer.print(decoded.resolve(), decoded.package(), &[])?;
+        let printed = printer.output.to_string();
+        assert!(
+            printed.contains("use local:types/point@1.2.3;"),
+            "expected the decoded use to keep the version:\n{printed}"
+        );
+
+        Ok(())
+    }
+
+    /// `resource` is excluded from package scope: its bound is abstract, so it
+    /// can't be restated and bound with `eq`. A component that nonetheless names
+    /// a resource where a package-scope type would go must be rejected rather
+    /// than silently decoded.
+    #[test]
+    fn package_scope_resource_import_is_rejected() -> Result<()> {
+        let wasm = wat::parse_str(
+            r#"
+(component
+  (import "local:types/thing" (type (;0;) (sub resource)))
+  (type (;1;) (record (field "x" u32)))
+  (export (;2;) "bin" (type 1))
+)
+"#,
+        )?;
+
+        let err = match crate::decode(&wasm) {
+            Ok(_) => panic!("resource at package scope must fail to decode"),
+            Err(err) => format!("{err:#}"),
+        };
+        assert!(
+            err.contains("not a structural type"),
+            "unexpected error: {err}"
+        );
+        Ok(())
+    }
+}
+
+#[cfg(all(test, feature = "dummy-module"))]
+mod component_tests {
+    use crate::{
+        ComponentEncoder, DecodedWasm, StringEncoding, dummy_module, embed_component_metadata,
+    };
+    use anyhow::Result;
+    use wit_parser::{ManglingAndAbi, Resolve};
+
+    // Note: `wit_parser::{Type, TypeOwner, WorldItem}` are referenced via full
+    // paths in the assertions below to keep this module's imports minimal.
+
+    /// Building a real component from a world that uses a package-scope type
+    /// must not fabricate an interface just to hold the type: the export is the
+    /// interface itself. This is the outcome motivating the feature (issue
+    /// #694). The produced artifact must also decode as a component, not be
+    /// mistaken for a WIT package now that packages may carry type imports.
+    #[test]
+    fn package_scope_component_has_no_invented_interface() -> Result<()> {
+        let mut resolve = Resolve::new();
+        let pkg = resolve.push_str(
+            "demo.wit",
+            r#"
+package local:demo;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+interface api {
+  move-to: func(p: point);
+}
+
+world w {
+  export api;
+}
+"#,
+        )?;
+        let world = resolve.select_world(&[pkg], Some("w"))?;
+
+        let mut module = dummy_module(&resolve, world, ManglingAndAbi::Standard32);
+        embed_component_metadata(&mut module, &resolve, world, StringEncoding::UTF8)?;
+        let component = ComponentEncoder::default()
+            .module(&module)?
+            .validate(true)
+            .encode()?;
+
+        let decoded = crate::decode(&component)?;
+        let (resolve, world) = match &decoded {
+            DecodedWasm::Component(resolve, world) => (resolve, *world),
+            DecodedWasm::WitPackage(..) => {
+                panic!("a real component must not be sniffed as a WIT package")
+            }
+        };
+
+        // The world exports the interface directly, with no import fabricated
+        // to carry the package-scope type.
+        assert!(
+            resolve.worlds[world].imports.is_empty(),
+            "no import should be invented to hold the package-scope type"
+        );
+        let exports: Vec<_> = resolve.worlds[world].exports.values().collect();
+        assert_eq!(
+            exports.len(),
+            1,
+            "world should export exactly the interface"
+        );
+        let iface = match exports[0] {
+            wit_parser::WorldItem::Interface { id, .. } => *id,
+            other => panic!("expected an interface export, got {other:?}"),
+        };
+
+        // That interface still carries `move-to`, and its parameter is the
+        // package-scope `point`, owned by a package rather than by the
+        // interface.
+        let func = resolve.interfaces[iface]
+            .functions
+            .get("move-to")
+            .expect("api interface should keep its function");
+        let point = match func.params.as_slice() {
+            [param] => match param.ty {
+                wit_parser::Type::Id(id) => id,
+                other => panic!("expected a named type param, got {other:?}"),
+            },
+            params => panic!("expected one param, got {}", params.len()),
+        };
+        // Decoding a component doesn't reconstruct package scope, but the type
+        // must still resolve to the sole `api` interface rather than to any
+        // separate interface fabricated to hold it.
+        assert_eq!(
+            resolve.types[point].owner,
+            wit_parser::TypeOwner::Interface(iface),
+            "point should belong to the api interface, not an invented one"
+        );
+        assert_eq!(resolve.types[point].name.as_deref(), Some("point"));
+
         Ok(())
     }
 }

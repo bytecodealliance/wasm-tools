@@ -82,12 +82,7 @@ pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentTyp
             }
             WorldItem::Function(f) => {
                 component.interface = None;
-                // Package-scope types referenced by freestanding world funcs
-                // must be imported into the world component type (same as
-                // world-owned named types), not exported.
-                component.import_types = true;
                 let idx = component.encode_func_type(resolve, f)?;
-                component.import_types = false;
                 ComponentTypeRef::Func(idx)
             }
             WorldItem::Type { id, .. } => {
@@ -113,12 +108,7 @@ pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentTyp
             }
             WorldItem::Function(f) => {
                 component.interface = None;
-                // Package-scope types referenced by freestanding world funcs
-                // must be imported into the world component type (same as
-                // world-owned named types), not exported.
-                component.import_types = true;
                 let idx = component.encode_func_type(resolve, f)?;
-                component.import_types = false;
                 ComponentTypeRef::Func(idx)
             }
             WorldItem::Type { .. } => unreachable!(),
@@ -157,7 +147,10 @@ impl Encoder<'_> {
         {
             let mut encoder = PackageTypeEncoder {
                 component: &mut self.component,
+                package: self.package,
                 type_encoding_maps: Default::default(),
+                foreign_type_maps: Default::default(),
+                foreign_declared: Default::default(),
             };
             for (_, &id) in self.resolve.packages[self.package].types.iter() {
                 encoder.encode_valtype(self.resolve, &Type::Id(id))?;
@@ -262,6 +255,10 @@ struct InterfaceEncoder<'a> {
     ty: Option<InstanceType>,
     type_encoding_maps: TypeEncodingMaps<'a>,
     saved_maps: Option<TypeEncodingMaps<'a>>,
+    /// Encoding maps for the definitions restated in `outer` to bind
+    /// package-scope type imports, kept separate from the maps of whichever
+    /// scope is currently being encoded.
+    package_type_maps: TypeEncodingMaps<'a>,
     import_map: HashMap<InterfaceId, u32>,
     outer_type_map: HashMap<TypeId, u32>,
     instances: u32,
@@ -269,13 +266,14 @@ struct InterfaceEncoder<'a> {
     interface: Option<InterfaceId>,
 }
 
-impl InterfaceEncoder<'_> {
+impl<'a> InterfaceEncoder<'a> {
     fn new(resolve: &Resolve) -> InterfaceEncoder<'_> {
         InterfaceEncoder {
             resolve,
             outer: ComponentType::new(),
             ty: None,
             type_encoding_maps: Default::default(),
+            package_type_maps: Default::default(),
             import_map: Default::default(),
             outer_type_map: Default::default(),
             instances: 0,
@@ -283,6 +281,18 @@ impl InterfaceEncoder<'_> {
             import_types: false,
             interface: None,
         }
+    }
+
+    /// Declares the package-scope type `id` in `outer`, returning the index of
+    /// the `import` that binds it there.
+    fn declare_package_type(&mut self, resolve: &'a Resolve, id: TypeId) -> Result<u32> {
+        PackageTypeImporter {
+            resolve,
+            outer: &mut self.outer,
+            type_encoding_maps: &mut self.package_type_maps,
+            declared: &mut self.outer_type_map,
+        }
+        .declare(id)
     }
 
     fn encode_instance(&mut self, interface: InterfaceId) -> Result<u32> {
@@ -414,6 +424,18 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
             });
             ret
         });
+        self.alias_outer_type(outer_idx)
+    }
+    fn import_package_type(&mut self, resolve: &'a Resolve, id: TypeId) -> Result<Option<u32>> {
+        let outer_idx = self.declare_package_type(resolve, id)?;
+        Ok(Some(self.alias_outer_type(outer_idx)))
+    }
+}
+
+impl InterfaceEncoder<'_> {
+    /// Brings `outer_idx`, an index in the wrapping component-type, into the
+    /// instance type currently being built, if any.
+    fn alias_outer_type(&mut self, outer_idx: u32) -> u32 {
         match &mut self.ty {
             Some(ty) => {
                 let ret = ty.type_count();
@@ -429,12 +451,144 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
     }
 }
 
-struct PackageTypeEncoder<'a> {
-    component: &'a mut ComponentBuilder,
-    type_encoding_maps: TypeEncodingMaps<'a>,
+/// An index space that a restated package-scope type definition, and the
+/// `import` naming it, can be written into.
+trait PackageTypeScope {
+    fn defined_type(&mut self) -> (u32, ComponentDefinedTypeEncoder<'_>);
+    fn define_function_type(&mut self) -> (u32, ComponentFuncTypeEncoder<'_>);
+    /// Imports a type bound with `eq` to `index`, returning the index of the
+    /// imported type.
+    fn import_eq(&mut self, name: ComponentExternName<'_>, index: u32) -> u32;
 }
 
-impl<'a> ValtypeEncoder<'a> for PackageTypeEncoder<'a> {
+impl PackageTypeScope for ComponentType {
+    fn defined_type(&mut self) -> (u32, ComponentDefinedTypeEncoder<'_>) {
+        (self.type_count(), self.ty().defined_type())
+    }
+    fn define_function_type(&mut self) -> (u32, ComponentFuncTypeEncoder<'_>) {
+        (self.type_count(), self.ty().function())
+    }
+    fn import_eq(&mut self, name: ComponentExternName<'_>, index: u32) -> u32 {
+        let ret = self.type_count();
+        self.import(name, ComponentTypeRef::Type(TypeBounds::Eq(index)));
+        ret
+    }
+}
+
+impl PackageTypeScope for ComponentBuilder {
+    fn defined_type(&mut self) -> (u32, ComponentDefinedTypeEncoder<'_>) {
+        self.type_defined(None)
+    }
+    fn define_function_type(&mut self) -> (u32, ComponentFuncTypeEncoder<'_>) {
+        self.type_function(None)
+    }
+    fn import_eq(&mut self, name: ComponentExternName<'_>, index: u32) -> u32 {
+        self.import(name, ComponentTypeRef::Type(TypeBounds::Eq(index)))
+    }
+}
+
+/// Declares package-scope types that something depends on.
+///
+/// A package-scope type is encoded like a `use` of an `interface`, just without
+/// the wrapping `instance` type: the definition is restated locally and then
+/// imported under its fully-qualified `namespace:package/name`, bound with `eq`
+/// so that nothing has to be supplied to satisfy the import.
+struct PackageTypeImporter<'b, 'a, S> {
+    resolve: &'a Resolve,
+    outer: &'b mut S,
+    type_encoding_maps: &'b mut TypeEncodingMaps<'a>,
+    declared: &'b mut HashMap<TypeId, u32>,
+}
+
+impl<'a, S: PackageTypeScope> PackageTypeImporter<'_, 'a, S> {
+    fn declare(&mut self, id: TypeId) -> Result<u32> {
+        if let Some(index) = self.declared.get(&id) {
+            return Ok(*index);
+        }
+
+        let resolve = self.resolve;
+        let structure = match self.encode_typedef_structure(resolve, id)? {
+            ComponentValType::Type(index) => index,
+            // A named primitive still needs an entry in the type section for
+            // the import's bound to refer to.
+            ComponentValType::Primitive(ty) => {
+                let (index, encoder) = self.defined_type();
+                encoder.primitive(ty);
+                index
+            }
+        };
+
+        let ty = &resolve.types[id];
+        let index = self.outer.import_eq(
+            ComponentExternName {
+                name: package_type_name(resolve, id).into(),
+                implements: None,
+                version_suffix: None,
+                external_id: ty.external_id.clone().map(Into::into),
+            },
+            structure,
+        );
+
+        self.declared.insert(id, index);
+        self.type_encoding_maps.insert(resolve, id, index);
+        Ok(index)
+    }
+}
+
+impl<'a, S: PackageTypeScope> ValtypeEncoder<'a> for PackageTypeImporter<'_, 'a, S> {
+    fn defined_type(&mut self) -> (u32, ComponentDefinedTypeEncoder<'_>) {
+        self.outer.defined_type()
+    }
+    fn define_function_type(&mut self) -> (u32, ComponentFuncTypeEncoder<'_>) {
+        self.outer.define_function_type()
+    }
+    fn export_type(&mut self, _index: u32, _name: ComponentExternName<'a>) -> Option<u32> {
+        // Definitions restated here are named by the `import` that binds them,
+        // so the index of the definition itself is what callers want.
+        None
+    }
+    fn export_resource(&mut self, _name: ComponentExternName<'a>) -> u32 {
+        unreachable!("package-scope resources are not allowed")
+    }
+    fn type_encoding_maps(&mut self) -> &mut TypeEncodingMaps<'a> {
+        self.type_encoding_maps
+    }
+    fn interface(&self) -> Option<InterfaceId> {
+        None
+    }
+    fn import_type(&mut self, _owner: InterfaceId, _id: TypeId) -> u32 {
+        unreachable!("package-scope types cannot refer to interface types")
+    }
+    fn import_package_type(&mut self, _resolve: &'a Resolve, id: TypeId) -> Result<Option<u32>> {
+        self.declare(id).map(Some)
+    }
+}
+
+/// The fully-qualified `namespace:package/name` of a package-scope type.
+fn package_type_name(resolve: &Resolve, id: TypeId) -> String {
+    let ty = &resolve.types[id];
+    let package = match ty.owner {
+        TypeOwner::Package(package) => package,
+        _ => unreachable!("not a package-scope type"),
+    };
+    let name = ty.name.as_ref().expect("package-scope types are named");
+    resolve.packages[package].name.interface_id(name)
+}
+
+/// Encodes a package's own package-scope types as type exports of the
+/// package's component.
+struct PackageTypeEncoder<'b, 'a> {
+    component: &'b mut ComponentBuilder,
+    package: PackageId,
+    type_encoding_maps: TypeEncodingMaps<'a>,
+    /// Encoding maps for the definitions restated to bind imports of
+    /// package-scope types from other packages, kept separate from the maps of
+    /// the definitions this package exports.
+    foreign_type_maps: TypeEncodingMaps<'a>,
+    foreign_declared: HashMap<TypeId, u32>,
+}
+
+impl<'a> ValtypeEncoder<'a> for PackageTypeEncoder<'_, 'a> {
     fn defined_type(&mut self) -> (u32, ComponentDefinedTypeEncoder<'_>) {
         self.component.type_defined(None)
     }
@@ -458,5 +612,24 @@ impl<'a> ValtypeEncoder<'a> for PackageTypeEncoder<'a> {
     }
     fn import_type(&mut self, _owner: InterfaceId, _id: TypeId) -> u32 {
         unreachable!("package-scope types do not import from interfaces")
+    }
+    fn import_package_type(&mut self, resolve: &'a Resolve, id: TypeId) -> Result<Option<u32>> {
+        // This encoder is defining the package's own types, so those are
+        // defined and exported rather than imported.
+        if resolve.types[id].owner == TypeOwner::Package(self.package) {
+            return Ok(None);
+        }
+
+        // A definition from another package has no wrapping component-type to
+        // hold the `import` naming it, so it goes on the package's component
+        // directly.
+        PackageTypeImporter {
+            resolve,
+            outer: &mut *self.component,
+            type_encoding_maps: &mut self.foreign_type_maps,
+            declared: &mut self.foreign_declared,
+        }
+        .declare(id)
+        .map(Some)
     }
 }

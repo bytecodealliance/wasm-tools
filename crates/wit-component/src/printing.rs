@@ -78,6 +78,8 @@ impl<O: Output> WitPrinter<O> {
             self.output.indent_start();
         }
 
+        self.print_foreign_package_type_uses(resolve, pkg)?;
+
         for (name, id) in package.types.iter() {
             let ty = &resolve.types[*id];
             self.print_docs(&ty.docs);
@@ -89,8 +91,6 @@ impl<O: Output> WitPrinter<O> {
                 self.output.newline();
             }
         }
-
-        self.print_foreign_package_type_uses(resolve, pkg)?;
 
         for (name, id) in package.interfaces.iter() {
             self.print_interface_outer(resolve, *id, name)?;
@@ -119,9 +119,12 @@ impl<O: Output> WitPrinter<O> {
     }
 
     /// Emit toplevel `use ns:pkg/name;` for foreign package-scope types that
-    /// are referenced from this package's interfaces/worlds.
+    /// this package's types, interfaces, or worlds refer to.
     fn print_foreign_package_type_uses(&mut self, resolve: &Resolve, pkg: PackageId) -> Result<()> {
         let mut live = LiveTypes::default();
+        for (_, &id) in resolve.packages[pkg].types.iter() {
+            live.add_type_id(resolve, id);
+        }
         for (_, &id) in resolve.packages[pkg].interfaces.iter() {
             live.add_interface(resolve, id);
         }
