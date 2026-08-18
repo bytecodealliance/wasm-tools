@@ -1178,7 +1178,7 @@ impl<'a> EncodingState<'a> {
 
         // Determine if a TLS global needs to be synthesized here by seeing if
         // it was imported into any module.
-        let tls_base_global_type = if self.info.uses_cooperative_threading() {
+        let tls_base_global_type = if self.info.can_use_context_slot_1() {
             None
         } else {
             let infos = [&self.info.info]
@@ -2200,7 +2200,7 @@ impl<'a> EncodingState<'a> {
     ///
     /// For more information on this see WebAssembly/wasi-libc#857
     fn materialize_tls_base_import(&mut self, set: bool, ty: ValType) -> u32 {
-        if self.info.uses_cooperative_threading() {
+        if self.info.can_use_context_slot_1() {
             if set {
                 self.component.context_set(ty, 1)
             } else {
