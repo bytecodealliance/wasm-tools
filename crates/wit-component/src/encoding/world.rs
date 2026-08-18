@@ -92,17 +92,20 @@ impl<'a> ComponentWorld<'a> {
         Ok(ret)
     }
 
-    /// Returns whether any module in this component may spawn a thread, and
-    /// thus whether the program is using cooperative threading.
+    /// Returns whether the component encoding process should use context slot 1
+    /// in tasks, generally reserved for TLS.
     ///
     /// This is a heuristic which should go away once component-model-threading
     /// has been stable for awhile and the return value of this function should
     /// be const-propagated as `true`.
-    pub fn uses_cooperative_threading(&self) -> bool {
+    pub fn can_use_context_slot_1(&self) -> bool {
         let uses = |info: &ValidatedModule| {
-            info.imports
-                .imports()
-                .any(|(_, _, import)| matches!(import, Import::ThreadNewIndirect))
+            info.imports.imports().any(|(_, _, import)| match import {
+                Import::ThreadNewIndirect
+                | Import::ContextGet { slot: 1, .. }
+                | Import::ContextSet { slot: 1, .. } => true,
+                _ => false,
+            })
         };
         uses(&self.info) || self.adapters.values().any(|a| uses(&a.info))
     }
