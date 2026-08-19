@@ -267,7 +267,7 @@ impl ComponentEncoderOpts {
             .shim_return_call_ref(optional_flag_with_default(self.return_call_ref, false))
             .merge_imports_based_on_semver(optional_flag_with_default(
                 self.merge_imports_based_on_semver,
-                false,
+                true,
             ))
             .realloc_via_memory_grow(self.realloc_via_memory_grow);
         for (name, wasm) in self.adapters.iter() {
