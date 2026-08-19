@@ -192,7 +192,15 @@ struct ComponentEncoderOpts {
     )]
     validate: Option<Option<bool>>,
 
-    /// Use memory.grow to realloc memory and stack allocation.
+    /// Use memory.grow to realloc memory and stack allocation in adapters.
+    ///
+    /// This only affects adapter modules passed with `--adapt`. It makes an
+    /// adapter allocate with `memory.grow` instead of importing `cabi_realloc`
+    /// from the main module, which is the default. It does not synthesize a
+    /// `cabi_realloc` for a main module that doesn't export one.
+    ///
+    /// This can be useful if `cabi_realloc` cannot be called before the host
+    /// runtime is initialized.
     #[clap(long)]
     realloc_via_memory_grow: bool,
 
