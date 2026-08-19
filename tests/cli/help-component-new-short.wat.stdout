@@ -27,7 +27,7 @@ Options:
           Whether or not to validate the output component [possible values:
           true, false]
       --realloc-via-memory-grow
-          Use memory.grow to realloc memory and stack allocation
+          Use memory.grow to realloc memory and stack allocation in adapters
       --merge-imports-based-on-semver[=<true|false>]
           Indicates whether imports into the final component are merged based on
           semver ranges [possible values: true, false]

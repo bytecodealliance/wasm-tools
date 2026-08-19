@@ -3466,10 +3466,16 @@ impl ComponentEncoder {
         Ok(self)
     }
 
-    /// True if the realloc and stack allocation should use memory.grow
-    /// The default is to use the main module realloc
-    /// Can be useful if cabi_realloc cannot be called before the host
+    /// Whether adapters use `memory.grow` for realloc and stack allocation.
+    ///
+    /// By default an adapter imports `cabi_realloc` from the main module.
+    /// Setting this to `true` makes it allocate with `memory.grow` instead,
+    /// which can be useful if `cabi_realloc` cannot be called before the host
     /// runtime is initialized.
+    ///
+    /// This only affects modules added with [`ComponentEncoder::adapter`]. It
+    /// has no effect on the main module and does not synthesize a
+    /// `cabi_realloc` for a module that doesn't export one.
     pub fn realloc_via_memory_grow(&mut self, value: bool) -> &mut Self {
         self.realloc_via_memory_grow = value;
         self
