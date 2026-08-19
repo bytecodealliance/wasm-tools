@@ -1417,7 +1417,7 @@ impl ExportMap {
         self.general_purpose_realloc()
     }
 
-    fn general_purpose_realloc(&self) -> Option<&str> {
+    pub fn general_purpose_realloc(&self) -> Option<&str> {
         self.find(|m| matches!(m, Export::GeneralPurposeRealloc))
     }
 

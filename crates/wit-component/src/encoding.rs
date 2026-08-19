@@ -1104,19 +1104,9 @@ impl<'a> EncodingState<'a> {
     ) -> Result<u32> {
         let resolve = &self.info.encoder.metadata.resolve;
         let metadata = self.info.module_metadata_for(module);
-        let instance_index = self.instance_for(module);
-        let imported_instance = module.to_imported_instance();
 
-        let core_alias_export = |me: &mut Self, core_name: &str| {
-            // If a hook was generated for this function, use that, otherwise
-            // use the original export.
-            let key = (imported_instance.clone(), core_name.to_string());
-            if let Some(&wrapper_idx) = me.export_task_initialization_wrappers.get(&key) {
-                wrapper_idx
-            } else {
-                me.core_alias_export(Some(core_name), instance_index, core_name, ExportKind::Func)
-            }
-        };
+        let core_alias_export =
+            |me: &mut Self, core_name: &str| me.hooked_core_alias_export(module, core_name);
 
         let core_func_index = core_alias_export(self, core_name);
         let exports = self.info.exports_for(module);
@@ -1135,9 +1125,9 @@ impl<'a> EncodingState<'a> {
             .unwrap();
         let exports = self.info.exports_for(module);
         let realloc_index = if options.contains(RequiredOptions::REALLOC) {
-            exports
-                .export_realloc_for(key, &func.name)
-                .map(|name| core_alias_export(self, name))
+            let realloc = exports.export_realloc_for(key, &func.name);
+            resolve_realloc(self.info, module, realloc)
+                .map(|(module, name)| self.hooked_core_alias_export(module, name))
         } else {
             None
         };
@@ -2349,7 +2339,7 @@ impl<'a> EncodingState<'a> {
         if !options.contains(RequiredOptions::REALLOC) {
             return None;
         }
-        let export = export?;
+        let (module, export) = resolve_realloc(self.info, module, export)?;
 
         if !realloc_needs_shim(self.info, site) {
             let instance = self.instance_for(module);
@@ -2373,6 +2363,16 @@ impl<'a> EncodingState<'a> {
             &shim.name,
             ExportKind::Func,
         ))
+    }
+
+    fn hooked_core_alias_export(&mut self, module: CustomModule<'_>, core_name: &str) -> u32 {
+        let key = (module.to_imported_instance(), core_name.to_string());
+        if let Some(&wrapper_idx) = self.export_task_initialization_wrappers.get(&key) {
+            wrapper_idx
+        } else {
+            let instance = self.instance_for(module);
+            self.core_alias_export(Some(core_name), instance, core_name, ExportKind::Func)
+        }
     }
 
     /// Convenience function to go from `CustomModule` to the instance index
@@ -3104,7 +3104,9 @@ impl<'a> Shims<'a> {
         if !options.contains(RequiredOptions::REALLOC) {
             return;
         }
-        let Some(export) = export else { return };
+        let Some((for_module, export)) = resolve_realloc(world, for_module, export) else {
+            return;
+        };
         if !realloc_needs_shim(world, site) {
             return;
         }
@@ -3132,6 +3134,34 @@ impl<'a> Shims<'a> {
         // it.
         if !self.shims.contains_key(&shim.kind) {
             self.shims.insert(shim.kind.clone(), shim);
+        }
+    }
+}
+
+/// Resolves which module, and which export of it, provides the `realloc`
+/// canonical option for `module`, where `export` is `module`'s own realloc
+/// export if it has one.
+///
+/// Libraries in a shared-everything link which don't export a realloc of their
+/// own fall back to the one shared by the rest of the link
+fn resolve_realloc<'a>(
+    world: &'a ComponentWorld<'a>,
+    module: CustomModule<'a>,
+    export: Option<&'a str>,
+) -> Option<(CustomModule<'a>, &'a str)> {
+    if let Some(export) = export {
+        return Some((module, export));
+    }
+    match module {
+        // If the main module doesn't have a realloc, then there's nothing to
+        // use.
+        CustomModule::Main => None,
+
+        // For libraries fallback to the realloc in the main module, if present.
+        CustomModule::Adapter(name) => {
+            let _info = world.adapters[name].library_info.as_ref()?;
+            let main_realloc = world.info.exports.general_purpose_realloc()?;
+            Some((CustomModule::Main, main_realloc))
         }
     }
 }
