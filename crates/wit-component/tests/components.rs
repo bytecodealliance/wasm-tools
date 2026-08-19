@@ -115,6 +115,7 @@ fn run_test(path: &Path) -> Result<()> {
             encoder
                 .debug_names(true)
                 .shim_return_call_ref(config.return_call_ref)
+                .realloc_via_memory_grow(config.realloc_via_memory_grow)
                 .module(&module)?;
             for adapter in adapters {
                 let (name, wasm) = read_name_and_module("adapt-", &adapter?, &resolve, pkg_id)?;
@@ -141,7 +142,8 @@ fn run_test(path: &Path) -> Result<()> {
             .encoder()
             .validate(false)
             .debug_names(true)
-            .shim_return_call_ref(config.return_call_ref);
+            .shim_return_call_ref(config.return_call_ref)
+            .realloc_via_memory_grow(config.realloc_via_memory_grow);
 
         (|| -> Result<_> {
             for (prefix, path, dl_openable) in libs {
@@ -244,6 +246,7 @@ struct Config {
     stub_missing_functions: bool,
     use_built_in_libdl: bool,
     return_call_ref: bool,
+    realloc_via_memory_grow: bool,
 }
 
 /// Reads the configuration for the test located at `path`.
