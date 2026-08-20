@@ -625,6 +625,64 @@ world w {
         );
         Ok(())
     }
+
+    /// Merging worlds from two packages that each declare a package-scope type
+    /// under the same local name keeps both types distinct. The merged world
+    /// encodes them as separate imports named by their fully-qualified names
+    /// rather than unifying them into one.
+    #[test]
+    fn package_scope_world_merge_keeps_qualified_type_imports() -> Result<()> {
+        let mut resolve = Resolve::new();
+        let pkg1 = resolve.push_str(
+            "b1.wit",
+            r#"
+package a:b1;
+
+record r {
+  a: u32,
+}
+
+world w1 {
+  export f1: func() -> r;
+}
+"#,
+        )?;
+        let pkg2 = resolve.push_str(
+            "b2.wit",
+            r#"
+package a:b2;
+
+record r {
+  a: f32,
+}
+
+world w2 {
+  export f2: func() -> r;
+}
+"#,
+        )?;
+
+        let w1 = resolve.packages[pkg1].worlds["w1"];
+        let w2 = resolve.packages[pkg2].worlds["w2"];
+        resolve.merge_worlds(w2, w1, &mut wit_parser::CloneMaps::default())?;
+
+        let wasm = encode(&resolve, pkg1)?;
+        wasmparser::Validator::new_with_features(WasmFeatures::all()).validate_all(&wasm)?;
+        let wat = wasmprinter::print_bytes(&wasm)?;
+        assert!(
+            wat.contains("(import \"a:b1/r\"") && wat.contains("(record (field \"a\" u32))"),
+            "expected `a:b1/r` as a u32 record:\n{wat}"
+        );
+        assert!(
+            wat.contains("(import \"a:b2/r\"") && wat.contains("(record (field \"a\" f32))"),
+            "expected `a:b2/r` as an f32 record:\n{wat}"
+        );
+        assert!(
+            wat.contains("\"f1\"") && wat.contains("\"f2\""),
+            "merged world should export both functions:\n{wat}"
+        );
+        Ok(())
+    }
 }
 
 #[cfg(all(test, feature = "dummy-module"))]
