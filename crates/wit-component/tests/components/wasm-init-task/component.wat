@@ -163,14 +163,10 @@
       i32.const 0
       call $__wasm_task_hook
       call $sync
-      i32.const 1
-      call $__wasm_task_hook
     )
     (func $hook-cabi_post_sync (;18;) (type 1)
-      i32.const 10
-      call $__wasm_task_hook
       call $cabi_post_sync
-      i32.const 11
+      i32.const 1
       call $__wasm_task_hook
     )
     (func $"hook-[async-lift-stackful]async-stackful-argret" (;19;) (type 4) (param i32 i32)

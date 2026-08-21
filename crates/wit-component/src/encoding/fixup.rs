@@ -137,7 +137,7 @@ enum DefinedFunction {
         /// get inserted into `EncodingState`'s export wrapper map.
         export: Option<ImportedInstance>,
         /// The kind of hook to use at the start of this function.
-        start: TaskHook,
+        start: Option<TaskHook>,
         /// The kind of hook to use at the end of this function.
         end: EndTaskHook,
     },
@@ -167,10 +167,9 @@ pub enum TaskHook {
     ResourceDtorStart = 8,
     /// A resource destructor is finished.
     ResourceDtorFinish = 9,
-    /// A call to post-return is starting.
-    PostReturnStart = 10,
-    /// A call to post-return is finished.
-    PostReturnFinish = 11,
+    //
+    // 11/12 intentionally missing
+    //
     /// A `realloc` function used as a canonical ABI option is being invoked.
     ReallocStart = 12,
     /// A `realloc` function used as a canonical ABI option has finished.
@@ -178,6 +177,7 @@ pub enum TaskHook {
 }
 
 enum EndTaskHook {
+    None,
     AsyncCode,
     Normal(TaskHook),
 }
@@ -464,7 +464,9 @@ impl FixupModule {
                         locals.push((1, ValType::I32));
                     }
                     let mut f = Function::new(locals);
-                    f.instructions().i32_const(*start as i32).call(*task_hook);
+                    if let Some(start) = *start {
+                        f.instructions().i32_const(start as i32).call(*task_hook);
+                    }
                     for i in 0..*params {
                         f.instructions().local_get(i as u32);
                     }
@@ -493,6 +495,7 @@ impl FixupModule {
                         EndTaskHook::Normal(hook) => {
                             f.instructions().i32_const(*hook as i32).call(*task_hook);
                         }
+                        EndTaskHook::None => {}
                     }
                     if export.is_some() {
                         exports.export(&format!("hook{i}"), ExportKind::Func, index);
@@ -728,7 +731,7 @@ impl FixupModule {
                             task_hook,
                             to_wrap: func,
                             params: 1,
-                            start: TaskHook::ResourceDtorStart,
+                            start: Some(TaskHook::ResourceDtorStart),
                             end: EndTaskHook::Normal(TaskHook::ResourceDtorFinish),
                             export: None,
                             core_name: format!("resource-dtor"),
@@ -783,7 +786,7 @@ impl FixupModule {
                     task_hook,
                     to_wrap: func,
                     params: 4,
-                    start: TaskHook::ReallocStart,
+                    start: Some(TaskHook::ReallocStart),
                     end: EndTaskHook::Normal(TaskHook::ReallocFinish),
                     export: Some(instance.clone()),
                     core_name: name.to_string(),
@@ -824,6 +827,7 @@ impl FixupModule {
             let sig = resolve.wasm_signature(*abi, f);
             let ty = self.type_index(&sig);
             let func = self.import_func(&imported_instance, core_name, ty)?;
+            let post_return = info.post_return(key, f);
             self.defined_functions.push((
                 ty,
                 DefinedFunction::HookedCoreExport {
@@ -832,19 +836,24 @@ impl FixupModule {
                     export: Some(imported_instance.clone()),
                     params: sig.params.len(),
                     core_name: core_name.to_string(),
-                    start: if abi.is_async() {
+                    start: Some(if abi.is_async() {
                         TaskHook::AsyncStart
                     } else {
                         TaskHook::SyncStart
-                    },
+                    }),
                     end: if abi.is_async() {
+                        assert!(post_return.is_none());
                         if *abi == AbiVariant::GuestExportAsyncStackful {
                             EndTaskHook::Normal(TaskHook::AsyncFinish)
                         } else {
                             EndTaskHook::AsyncCode
                         }
                     } else {
-                        EndTaskHook::Normal(TaskHook::SyncFinish)
+                        if post_return.is_some() {
+                            EndTaskHook::None
+                        } else {
+                            EndTaskHook::Normal(TaskHook::SyncFinish)
+                        }
                     },
                 },
             ));
@@ -862,8 +871,8 @@ impl FixupModule {
                         export: Some(imported_instance.clone()),
                         params: post_return_sig.params.len(),
                         core_name: post_return.to_string(),
-                        start: TaskHook::PostReturnStart,
-                        end: EndTaskHook::Normal(TaskHook::PostReturnFinish),
+                        start: None,
+                        end: EndTaskHook::Normal(TaskHook::SyncFinish),
                     },
                 ));
             }
@@ -879,7 +888,7 @@ impl FixupModule {
                         export: Some(imported_instance.clone()),
                         params: 3,
                         core_name: callback.to_string(),
-                        start: TaskHook::AsyncResume,
+                        start: Some(TaskHook::AsyncResume),
                         end: EndTaskHook::AsyncCode,
                     },
                 ));
