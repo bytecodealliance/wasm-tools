@@ -575,6 +575,7 @@ pub mod kw {
     custom_keyword!(stream_new = "stream.new");
     custom_keyword!(stream_read = "stream.read");
     custom_keyword!(stream_write = "stream.write");
+    custom_keyword!(stream_forward = "stream.forward");
     custom_keyword!(stream_cancel_read = "stream.cancel-read");
     custom_keyword!(stream_cancel_write = "stream.cancel-write");
     custom_keyword!(stream_drop_readable = "stream.drop-readable");
