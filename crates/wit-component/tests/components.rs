@@ -116,6 +116,7 @@ fn run_test(path: &Path) -> Result<()> {
                 .debug_names(true)
                 .shim_return_call_ref(config.return_call_ref)
                 .realloc_via_memory_grow(config.realloc_via_memory_grow)
+                .emit_canonical_names(config.merge_imports_based_on_canonical_version)
                 .module(&module)?;
             for adapter in adapters {
                 let (name, wasm) = read_name_and_module("adapt-", &adapter?, &resolve, pkg_id)?;
@@ -247,6 +248,7 @@ struct Config {
     use_built_in_libdl: bool,
     return_call_ref: bool,
     realloc_via_memory_grow: bool,
+    merge_imports_based_on_canonical_version: bool,
 }
 
 /// Reads the configuration for the test located at `path`.

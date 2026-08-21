@@ -25,7 +25,16 @@ use wit_parser::*;
 /// The binary returned can be [`decode`d](crate::decode) to recover the WIT
 /// package provided.
 pub fn encode(resolve: &Resolve, package: PackageId) -> Result<Vec<u8>> {
-    let mut component = encode_component(resolve, package)?;
+    encode_with_options(resolve, package, false)
+}
+
+/// Same as [`encode`] but with an option to emit canonical interface names.
+pub fn encode_with_options(
+    resolve: &Resolve,
+    package: PackageId,
+    canonical_names: bool,
+) -> Result<Vec<u8>> {
+    let mut component = encode_component_with_options(resolve, package, canonical_names)?;
     component.raw_custom_section(&crate::base_producers().raw_custom_section());
     Ok(component.finish())
 }
@@ -48,11 +57,16 @@ pub fn encode(resolve: &Resolve, package: PackageId) -> Result<Vec<u8>> {
 ///
 /// The binary returned can be [`decode`d](crate::decode) to recover the WIT
 /// package provided.
-pub fn encode_component(resolve: &Resolve, package: PackageId) -> Result<ComponentBuilder> {
+pub fn encode_component_with_options(
+    resolve: &Resolve,
+    package: PackageId,
+    canonical_names: bool,
+) -> Result<ComponentBuilder> {
     let mut encoder = Encoder {
         component: ComponentBuilder::default(),
         resolve,
         package,
+        canonical_names,
     };
     encoder.run()?;
 
@@ -67,6 +81,15 @@ pub fn encode_component(resolve: &Resolve, package: PackageId) -> Result<Compone
 
 /// Encodes a `world` as a component type.
 pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentType> {
+    encode_world_with_options(resolve, world_id, false)
+}
+
+/// Same as [`encode_world`] but with an option to emit canonical names.
+pub fn encode_world_with_options(
+    resolve: &Resolve,
+    world_id: WorldId,
+    canonical_names: bool,
+) -> Result<ComponentType> {
     let mut component = InterfaceEncoder::new(resolve);
     let world = &resolve.worlds[world_id];
     log::trace!("encoding world {}", world.name);
@@ -93,9 +116,10 @@ pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentTyp
                 continue;
             }
         };
-        component
-            .outer
-            .import(component_extern_name(resolve, key, import), ty);
+        component.outer.import(
+            component_extern_name(resolve, key, import, canonical_names),
+            ty,
+        );
     }
     // Encode the exports
     for (key, export) in world.exports.iter() {
@@ -113,9 +137,10 @@ pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentTyp
             }
             WorldItem::Type { .. } => unreachable!(),
         };
-        component
-            .outer
-            .export(component_extern_name(resolve, key, export), ty);
+        component.outer.export(
+            component_extern_name(resolve, key, export, canonical_names),
+            ty,
+        );
     }
 
     Ok(component.outer)
@@ -125,12 +150,27 @@ fn component_extern_name(
     resolve: &Resolve,
     key: &WorldKey,
     item: &WorldItem,
+    canonical_names: bool,
 ) -> wasm_encoder::ComponentExternName<'static> {
-    ComponentExternName {
-        name: resolve.name_world_key(key).into(),
-        implements: resolve.implements_value(key, item).map(|s| s.into()),
-        external_id: resolve.external_id_value(key, item).map(|s| s.into()),
-        version_suffix: None,
+    if canonical_names {
+        let name = resolve.name_canon_world_key(key);
+        let version_suffix = match key {
+            WorldKey::Interface(id) => resolve.version_suffix_of(*id),
+            WorldKey::Name(_) => None,
+        };
+        ComponentExternName {
+            name: name.into(),
+            implements: resolve.implements_value(key, item).map(|s| s.into()),
+            external_id: resolve.external_id_value(key, item).map(|s| s.into()),
+            version_suffix: version_suffix.map(|s| s.into()),
+        }
+    } else {
+        ComponentExternName {
+            name: resolve.name_world_key(key).into(),
+            implements: resolve.implements_value(key, item).map(|s| s.into()),
+            external_id: resolve.external_id_value(key, item).map(|s| s.into()),
+            version_suffix: None,
+        }
     }
 }
 
@@ -138,6 +178,7 @@ struct Encoder<'a> {
     component: ComponentBuilder,
     resolve: &'a Resolve,
     package: PackageId,
+    canonical_names: bool,
 }
 
 impl Encoder<'_> {
@@ -153,7 +194,8 @@ impl Encoder<'_> {
         // For each `world` encode it directly as a component and then create a
         // wrapper component that exports that component.
         for (name, &world) in self.resolve.packages[self.package].worlds.iter() {
-            let component_ty = encode_world(self.resolve, world)?;
+            let component_ty =
+                encode_world_with_options(self.resolve, world, self.canonical_names)?;
 
             let world = &self.resolve.worlds[world];
             let mut wrapper = ComponentType::new();
@@ -197,11 +239,15 @@ impl Encoder<'_> {
         for interface in interfaces {
             encoder.interface = Some(interface);
             let iface = &self.resolve.interfaces[interface];
-            let name = self.resolve.id_of(interface).unwrap();
+            let name = if self.canonical_names {
+                self.resolve.canon_id_of(interface).unwrap()
+            } else {
+                self.resolve.id_of(interface).unwrap()
+            };
             if interface == id {
                 let idx = encoder.encode_instance(interface)?;
                 log::trace!("exporting self as {idx}");
-                encoder.outer.export(name, ComponentTypeRef::Instance(idx));
+                encoder.outer.export(&name, ComponentTypeRef::Instance(idx));
             } else {
                 encoder.push_instance();
                 for (_, id) in iface.types.iter() {
@@ -212,7 +258,7 @@ impl Encoder<'_> {
                 encoder.outer.ty().instance(&instance);
                 encoder.import_map.insert(interface, encoder.instances);
                 encoder.instances += 1;
-                encoder.outer.import(name, ComponentTypeRef::Instance(idx));
+                encoder.outer.import(&name, ComponentTypeRef::Instance(idx));
             }
         }
 

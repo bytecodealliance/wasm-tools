@@ -133,6 +133,16 @@ Options:
           can be used to explore outside of that command what's happening to the
           WIT.
 
+      --merge-world-imports-based-on-canonical-version <WORLD>
+          Updates the world specified to deduplicate all of its imports based on
+          canonical version prefixes.
+          
+          This option can be used to read a WIT world from a package and update
+          it to deduplicate WIT imports based on their version. This happens by
+          default in the `component new` subcommand for example and this flag
+          can be used to explore outside of that command what's happening to the
+          WIT.
+
       --generate-nominal-type-ids <WORLD>
           Generates unique type IDs for nominal types in the world provided.
           

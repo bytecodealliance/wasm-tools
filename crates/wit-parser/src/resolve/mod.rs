@@ -1550,6 +1550,60 @@ impl Resolve {
         }
     }
 
+    /// Returns the canonical interface ID using [`PackageName::canon_version_split`].
+    ///
+    /// For example, for a package at version `0.2.1` with interface name `types`,
+    /// this returns `"wasi:http/types@0.2"`.
+    pub fn canon_id_of(&self, interface: InterfaceId) -> Option<String> {
+        let interface = &self.interfaces[interface];
+        Some(self.canon_id_of_name(interface.package.unwrap(), interface.name.as_ref()?))
+    }
+
+    /// Returns the canonical interface name using [`PackageName::canon_version_split`].
+    pub fn canon_id_of_name(&self, pkg: PackageId, name: &str) -> String {
+        let package = &self.packages[pkg];
+        let mut base = String::new();
+        base.push_str(&package.name.namespace);
+        base.push(':');
+        base.push_str(&package.name.name);
+        base.push('/');
+        base.push_str(name);
+        if let Some(version) = &package.name.version {
+            base.push('@');
+            let (prefix, _) = PackageName::canon_version_split(version);
+            base.push_str(&prefix);
+        }
+        base
+    }
+
+    /// Same as [`Resolve::name_world_key`] except that `WorldKey::Interface`
+    /// uses [`Resolve::canon_id_of`].
+    pub fn name_canon_world_key(&self, key: &WorldKey) -> String {
+        match key {
+            WorldKey::Name(s) => s.to_string(),
+            WorldKey::Interface(i) => self
+                .canon_id_of(*i)
+                .expect("unexpected anonymous interface"),
+        }
+    }
+
+    /// Returns the version suffix for the given interface's package version,
+    /// using [`PackageName::canon_version_split`].
+    ///
+    /// For example, for a package at version `0.2.1`, returns `Some(".1")`.
+    /// Returns `None` if the suffix is empty or there is no version.
+    pub fn version_suffix_of(&self, interface: InterfaceId) -> Option<String> {
+        let iface = &self.interfaces[interface];
+        let pkg = &self.packages[iface.package?];
+        let version = pkg.name.version.as_ref()?;
+        let (_, suffix) = PackageName::canon_version_split(version);
+        if suffix.is_empty() {
+            None
+        } else {
+            Some(suffix)
+        }
+    }
+
     /// Returns the component model `implements` value for the world import of
     /// `key` and `item`.
     ///
@@ -2408,6 +2462,23 @@ impl Resolve {
     /// 0.2.1. If, however, 0.3.0 where imported then the final result would
     /// import both 0.2.0 and 0.3.0.
     pub fn merge_world_imports_based_on_semver(&mut self, world_id: WorldId) -> anyhow::Result<()> {
+        self.merge_world_imports_inner(world_id, false)
+    }
+
+    /// Same as [`Resolve::merge_world_imports_based_on_semver`] but groups by
+    /// canonical version prefix from [`PackageName::canon_version_split`].
+    pub fn merge_world_imports_based_on_canonical_version(
+        &mut self,
+        world_id: WorldId,
+    ) -> anyhow::Result<()> {
+        self.merge_world_imports_inner(world_id, true)
+    }
+
+    fn merge_world_imports_inner(
+        &mut self,
+        world_id: WorldId,
+        use_canonical_version: bool,
+    ) -> anyhow::Result<()> {
         let world = &self.worlds[world_id];
 
         // The first pass here is to build a map of "semver tracks" where they
@@ -2418,14 +2489,14 @@ impl Resolve {
         // At the same time a `to_remove` set is maintained to remember what
         // interfaces are being removed from `from` and `into`. All of
         // `to_remove` are placed with a known other version.
-        let mut semver_tracks = HashMap::new();
+        let mut semver_tracks: HashMap<(String, String), (&Version, InterfaceId)> = HashMap::new();
         let mut to_remove = HashSet::new();
         for (key, _) in world.imports.iter() {
             let iface_id = match key {
                 WorldKey::Interface(id) => *id,
                 WorldKey::Name(_) => continue,
             };
-            let (track, version) = match self.semver_track(iface_id) {
+            let (track, version) = match self.semver_track(iface_id, use_canonical_version) {
                 Some(track) => track,
                 None => continue,
             };
@@ -2435,7 +2506,7 @@ impl Resolve {
                 track.0,
                 track.1,
             );
-            match semver_tracks.entry(track.clone()) {
+            match semver_tracks.entry(track) {
                 Entry::Vacant(e) => {
                     e.insert((version, iface_id));
                 }
@@ -2456,7 +2527,7 @@ impl Resolve {
         // the results of the loop above.
         let mut replacements = HashMap::new();
         for id in to_remove {
-            let (track, _) = self.semver_track(id).unwrap();
+            let (track, _) = self.semver_track(id, use_canonical_version).unwrap();
             let (_, latest) = semver_tracks[&track];
             let prev = replacements.insert(id, latest);
             assert!(prev.is_none());
@@ -2575,16 +2646,25 @@ impl Resolve {
     /// tuple returned is a "semver track" for the specific interface. The
     /// version listed in `PackageName` will be modified so all
     /// semver-compatible versions are listed the same way.
-    ///
-    /// The second element in the returned tuple is this interface's package's
-    /// version.
-    fn semver_track(&self, id: InterfaceId) -> Option<((PackageName, String), &Version)> {
+    fn semver_track(
+        &self,
+        id: InterfaceId,
+        use_canonical_version: bool,
+    ) -> Option<((String, String), &Version)> {
         let iface = &self.interfaces[id];
         let pkg = &self.packages[iface.package?];
         let version = pkg.name.version.as_ref()?;
-        let mut name = pkg.name.clone();
-        name.version = Some(PackageName::version_compat_track(version));
-        Some(((name, iface.name.clone()?), version))
+        let version_prefix = if use_canonical_version {
+            let (prefix, _) = PackageName::canon_version_split(version);
+            prefix
+        } else {
+            PackageName::version_compat_track_string(version)
+        };
+        let pkg_key = format!(
+            "{}:{}@{}",
+            pkg.name.namespace, pkg.name.name, version_prefix
+        );
+        Some(((pkg_key, iface.name.clone()?), version))
     }
 
     /// If `ty` is a definition where it's a `use` from another interface, then

@@ -308,6 +308,28 @@ impl PackageName {
         }
         version.to_string()
     }
+
+    /// Splits a semver version into a canonical version prefix and a version
+    /// suffix according to the component model spec.
+    ///
+    /// The split point is:
+    /// - If `major > 0`: split after major (e.g. `1.2.3` -> `("1", ".2.3")`)
+    /// - If `major == 0` and `minor > 0`: split after minor
+    ///   (e.g. `0.2.6-rc.1` -> `("0.2", ".6-rc.1")`)
+    /// - Otherwise: split after patch (e.g. `0.0.1-alpha` -> `("0.0.1", "-alpha")`)
+    pub fn canon_version_split(version: &Version) -> (String, String) {
+        let s = version.to_string();
+        let split_pos = if version.major > 0 {
+            version.major.to_string().len()
+        } else if version.minor > 0 {
+            2 + version.minor.to_string().len()
+        } else {
+            4 + version.patch.to_string().len()
+        };
+        let prefix = s[..split_pos].to_string();
+        let suffix = s[split_pos..].to_string();
+        (prefix, suffix)
+    }
 }
 
 impl fmt::Display for PackageName {
@@ -1571,5 +1593,46 @@ mod test {
         assert_eq!(t0, found[0]);
         assert_eq!(t1, found[1]);
         assert_eq!(t2, found[2]);
+    }
+
+    #[test]
+    fn test_canon_version_split() {
+        use semver::Version;
+
+        let v = Version::parse("1.2.3").unwrap();
+        assert_eq!(
+            PackageName::canon_version_split(&v),
+            ("1".to_string(), ".2.3".to_string())
+        );
+
+        let v = Version::parse("0.2.6-rc.1").unwrap();
+        assert_eq!(
+            PackageName::canon_version_split(&v),
+            ("0.2".to_string(), ".6-rc.1".to_string())
+        );
+
+        let v = Version::parse("0.1.0").unwrap();
+        assert_eq!(
+            PackageName::canon_version_split(&v),
+            ("0.1".to_string(), ".0".to_string())
+        );
+
+        let v = Version::parse("0.0.1-alpha").unwrap();
+        assert_eq!(
+            PackageName::canon_version_split(&v),
+            ("0.0.1".to_string(), "-alpha".to_string())
+        );
+
+        let v = Version::parse("0.0.0").unwrap();
+        assert_eq!(
+            PackageName::canon_version_split(&v),
+            ("0.0.0".to_string(), "".to_string())
+        );
+
+        let v = Version::parse("1.0.0-beta.1").unwrap();
+        assert_eq!(
+            PackageName::canon_version_split(&v),
+            ("1".to_string(), ".0.0-beta.1".to_string())
+        );
     }
 }

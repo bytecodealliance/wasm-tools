@@ -609,12 +609,23 @@ impl<'a> EncodingState<'a> {
         let instance_type_idx = self
             .component
             .type_instance(Some(&format!("ty-{name}")), &ty);
+
+        let (import_name, version_suffix) = if self.info.encoder.emit_canonical_names {
+            let canon_name = resolve
+                .canon_id_of(interface_id)
+                .unwrap_or_else(|| name.to_string());
+            let suffix = resolve.version_suffix_of(interface_id);
+            (canon_name, suffix)
+        } else {
+            (name.to_string(), None)
+        };
+
         let instance_idx = self.component.import(
             wasm_encoder::ComponentExternName {
-                name: name.into(),
+                name: import_name.into(),
                 implements: info.implements.as_deref().map(|s| s.into()),
                 external_id: info.external_id.as_deref().map(|s| s.into()),
-                version_suffix: None,
+                version_suffix: version_suffix.map(|s| s.into()),
             },
             ComponentTypeRef::Instance(instance_type_idx),
         );
@@ -762,7 +773,11 @@ impl<'a> EncodingState<'a> {
         let world = &resolve.worlds[self.info.encoder.metadata.world];
 
         for export_name in exports {
-            let export_string = resolve.name_world_key(export_name);
+            let export_string = if self.info.encoder.emit_canonical_names {
+                resolve.name_canon_world_key(export_name)
+            } else {
+                resolve.name_world_key(export_name)
+            };
             match &world.exports[export_name] {
                 WorldItem::Function(func) => {
                     let ty = self
@@ -993,12 +1008,21 @@ impl<'a> EncodingState<'a> {
             component_index,
             imports,
         );
+        let export_version_suffix = if self.info.encoder.emit_canonical_names {
+            if let WorldKey::Interface(id) = key {
+                resolve.version_suffix_of(*id)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
         let idx = self.component.export(
             wasm_encoder::ComponentExternName {
                 name: export_name.into(),
                 implements: resolve.implements_value(key, item).map(|s| s.into()),
                 external_id: resolve.external_id_value(key, item).map(|s| s.into()),
-                version_suffix: None,
+                version_suffix: export_version_suffix.map(|s| s.into()),
             },
             ComponentExportKind::Instance,
             instance_index,
@@ -3290,6 +3314,7 @@ pub struct ComponentEncoder {
     pub(super) reject_legacy_names: bool,
     debug_names: bool,
     shim_return_call_ref: bool,
+    emit_canonical_names: bool,
 }
 
 impl ComponentEncoder {
@@ -3354,6 +3379,20 @@ impl ComponentEncoder {
     /// This is enabled by default.
     pub fn merge_imports_based_on_semver(&mut self, merge: bool) -> &mut Self {
         self.merge_imports_based_on_semver = Some(merge);
+        self
+    }
+
+    /// Sets whether to emit canonical interface names in the component binary.
+    ///
+    /// When enabled, import/export names use canonical version prefixes (e.g.,
+    /// `wasi:cli/exit@0.2` instead of `wasi:cli/exit@0.2.1`) and the
+    /// `version_suffix` field is populated. This also forces merging of
+    /// imports that share the same canonical version prefix.
+    /// This flag subsumes the `merge_imports_based_on_semver` flag.
+    ///
+    /// This is disabled by default.
+    pub fn emit_canonical_names(&mut self, emit: bool) -> &mut Self {
+        self.emit_canonical_names = emit;
         self
     }
 
@@ -3509,7 +3548,11 @@ impl ComponentEncoder {
             bail!("a module is required when encoding a component");
         }
 
-        if self.merge_imports_based_on_semver.unwrap_or(true) {
+        if self.emit_canonical_names {
+            self.metadata
+                .resolve
+                .merge_world_imports_based_on_canonical_version(self.metadata.world)?;
+        } else if self.merge_imports_based_on_semver.unwrap_or(true) {
             self.metadata
                 .resolve
                 .merge_world_imports_based_on_semver(self.metadata.world)?;

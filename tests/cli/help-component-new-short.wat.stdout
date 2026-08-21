@@ -31,6 +31,9 @@ Options:
       --merge-imports-based-on-semver[=<true|false>]
           Indicates whether imports into the final component are merged based on
           semver ranges [possible values: true, false]
+      --merge-imports-based-on-canonical-version
+          Merges imports based on canonical version prefixes and emits canonical
+          interface names with version suffixes
       --reject-legacy-names
           Reject usage of the "legacy" naming scheme of `wit-component` and
           require the new naming scheme to be used
