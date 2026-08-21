@@ -1031,10 +1031,10 @@ pub mod component_utils {
                 section.stream_write(reencoder.component_type_index(ty), options);
             }
             wasmparser::CanonicalFunction::StreamCancelRead { ty, async_ } => {
-                section.stream_cancel_read(ty, async_);
+                section.stream_cancel_read(reencoder.component_type_index(ty), async_);
             }
             wasmparser::CanonicalFunction::StreamCancelWrite { ty, async_ } => {
-                section.stream_cancel_write(ty, async_);
+                section.stream_cancel_write(reencoder.component_type_index(ty), async_);
             }
             wasmparser::CanonicalFunction::StreamDropReadable { ty } => {
                 section.stream_drop_readable(reencoder.component_type_index(ty));
@@ -1060,10 +1060,10 @@ pub mod component_utils {
                 section.future_write(reencoder.component_type_index(ty), options);
             }
             wasmparser::CanonicalFunction::FutureCancelRead { ty, async_ } => {
-                section.future_cancel_read(ty, async_);
+                section.future_cancel_read(reencoder.component_type_index(ty), async_);
             }
             wasmparser::CanonicalFunction::FutureCancelWrite { ty, async_ } => {
-                section.future_cancel_write(ty, async_);
+                section.future_cancel_write(reencoder.component_type_index(ty), async_);
             }
             wasmparser::CanonicalFunction::FutureDropReadable { ty } => {
                 section.future_drop_readable(reencoder.component_type_index(ty));
