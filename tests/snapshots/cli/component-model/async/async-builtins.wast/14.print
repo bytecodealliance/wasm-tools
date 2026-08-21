@@ -1,0 +1,15 @@
+(component
+  (core module $m (;0;)
+    (type (;0;) (func (param i32 i32)))
+    (import "" "stream.forward" (func $stream.forward (;0;) (type 0)))
+  )
+  (type $stream-type (;0;) (stream u8))
+  (core func $stream.forward (;0;) (canon stream.forward $stream-type))
+  (core instance (;0;)
+    (export "stream.forward" (func $stream.forward))
+  )
+  (core instance $i (;1;) (instantiate $m
+      (with "" (instance 0))
+    )
+  )
+)

@@ -423,6 +423,9 @@ impl<'a> Resolver<'a> {
                 CoreFuncKind::StreamSplice(info) => {
                     self.component_item_ref(&mut info.ty)?;
                 }
+                CoreFuncKind::StreamForward(info) => {
+                    self.component_item_ref(&mut info.ty)?;
+                }
                 CoreFuncKind::StreamCancelRead(info) => {
                     self.component_item_ref(&mut info.ty)?;
                 }

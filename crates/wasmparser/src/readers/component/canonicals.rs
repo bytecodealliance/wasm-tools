@@ -169,6 +169,17 @@ pub enum CanonicalFunction {
         /// `BLOCKED`.
         async_: bool,
     },
+    /// A function to forward all remaining elements from the readable end of
+    /// one `stream` to the writable end of another `stream` of the same
+    /// specified type, transferring both ends out of the calling instance.
+    ///
+    /// 🚧 This is an experimental builtin sketched in
+    /// <https://github.com/WebAssembly/component-model/issues/658> and not yet
+    /// part of the Component Model specification.
+    StreamForward {
+        /// The `stream` type to expect.
+        ty: u32,
+    },
     /// A function to cancel an in-progress read from a `stream` of the
     /// specified type.
     StreamCancelRead {
@@ -388,6 +399,7 @@ impl<'a> FromReader<'a> for CanonicalFunction {
                 ty: reader.read()?,
                 async_: reader.read()?,
             },
+            0x2f => CanonicalFunction::StreamForward { ty: reader.read()? },
             0x11 => CanonicalFunction::StreamCancelRead {
                 ty: reader.read()?,
                 async_: reader.read()?,

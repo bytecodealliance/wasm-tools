@@ -482,6 +482,7 @@ impl<'a> Dump<'a> {
                             | CanonicalFunction::StreamRead { .. }
                             | CanonicalFunction::StreamWrite { .. }
                             | CanonicalFunction::StreamSplice { .. }
+                            | CanonicalFunction::StreamForward { .. }
                             | CanonicalFunction::StreamCancelRead { .. }
                             | CanonicalFunction::StreamCancelWrite { .. }
                             | CanonicalFunction::StreamDropReadable { .. }

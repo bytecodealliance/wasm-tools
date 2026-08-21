@@ -1033,6 +1033,9 @@ pub mod component_utils {
             wasmparser::CanonicalFunction::StreamSplice { ty, async_ } => {
                 section.stream_splice(reencoder.component_type_index(ty), async_);
             }
+            wasmparser::CanonicalFunction::StreamForward { ty } => {
+                section.stream_forward(reencoder.component_type_index(ty));
+            }
             wasmparser::CanonicalFunction::StreamCancelRead { ty, async_ } => {
                 section.stream_cancel_read(ty, async_);
             }

@@ -61,3 +61,9 @@
     (type $t (stream))
     (core func (canon stream.splice $t)))
   "requires the component model more async builtins feature")
+
+(assert_invalid
+  (component
+    (type $t (stream))
+    (core func (canon stream.forward $t)))
+  "requires the component model more async builtins feature")
