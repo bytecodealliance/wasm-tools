@@ -109,7 +109,8 @@
       "interfaces": {
         "functions": 0
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }

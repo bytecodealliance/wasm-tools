@@ -223,14 +223,16 @@
       "interfaces": {
         "types": 0
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "foo:dep2",
       "interfaces": {
         "types": 1
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "foo:bar",
@@ -239,7 +241,8 @@
       },
       "worlds": {
         "w-bar": 0
-      }
+      },
+      "types": {}
     },
     {
       "name": "foo:qux",
@@ -248,14 +251,16 @@
       },
       "worlds": {
         "w-qux": 1
-      }
+      },
+      "types": {}
     },
     {
       "name": "foo:root",
       "interfaces": {
         "root": 4
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }

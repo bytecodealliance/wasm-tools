@@ -1,0 +1,5 @@
+duplicate item named `point`
+     --> tests/ui/parse-fail/package-scope-type-iface-clash.wit:8:11
+      |
+    8 | interface point {
+      |           ^----

@@ -1,0 +1,16 @@
+package local:demo;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+use point as pt;
+
+interface api {
+  move-to: func(p: pt);
+}
+
+world w {
+  export api;
+}

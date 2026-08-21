@@ -1,0 +1,5 @@
+type `b` depends on itself
+     --> tests/ui/parse-fail/package-scope-type-cycle.wit:3:15
+      |
+    3 | type a = list<b>;
+      |               ^

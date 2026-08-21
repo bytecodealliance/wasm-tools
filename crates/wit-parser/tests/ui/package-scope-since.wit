@@ -1,0 +1,20 @@
+package local:demo@1.0.0;
+
+@since(version = 0.2.0)
+record kept {
+  x: u32,
+}
+
+@since(version = 1.0.0)
+record also-kept {
+  x: u32,
+}
+
+interface api {
+  f: func(k: kept);
+  g: func(a: also-kept);
+}
+
+world w {
+  export api;
+}

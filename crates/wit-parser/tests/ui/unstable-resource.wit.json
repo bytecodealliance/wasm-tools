@@ -31,14 +31,16 @@
       "interfaces": {
         "error": 0
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "a:b@0.1.0",
       "interfaces": {
         "foo": 1
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }
