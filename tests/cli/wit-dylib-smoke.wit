@@ -1,4 +1,5 @@
 // RUN: wit-dylib --validate % | strip -t
+// RUN[task-context]: wit-dylib --validate % --stack-pointer task-context | strip -t
 
 package the:test;
 
