@@ -1242,6 +1242,10 @@ impl ComponentState {
             CanonicalFunction::StreamWrite { ty, options } => {
                 self.stream_write(ty, &options, types, offset)
             }
+            CanonicalFunction::StreamSplice { ty, async_ } => {
+                self.stream_splice(ty, async_, types, offset)
+            }
+            CanonicalFunction::StreamForward { ty } => self.stream_forward(ty, types, offset),
             CanonicalFunction::StreamCancelRead { ty, async_ } => {
                 self.stream_cancel_read(ty, async_, types, offset)
             }
@@ -1725,6 +1729,56 @@ impl ComponentState {
             )?;
 
         self.core_funcs.push(ty_id);
+        Ok(())
+    }
+
+    fn stream_splice(
+        &mut self,
+        ty: u32,
+        _async: bool,
+        types: &mut TypeAlloc,
+        offset: u64,
+    ) -> Result<()> {
+        require_feature::cm_async(
+            self.features,
+            "`stream.splice` requires the component model async feature",
+            offset,
+        )?;
+        require_feature::cm_more_async_builtins(
+            self.features,
+            "`stream.splice` requires the component model more async builtins feature",
+            offset,
+        )?;
+
+        let ty = self.defined_type_at(ty, offset)?;
+        let ComponentDefinedType::Stream { .. } = &types[ty] else {
+            bail!(offset, "`stream.splice` requires a stream type")
+        };
+
+        self.core_funcs
+            .push(types.intern_func_type(FuncType::new([ValType::I32; 3], [ValType::I32]), offset));
+        Ok(())
+    }
+
+    fn stream_forward(&mut self, ty: u32, types: &mut TypeAlloc, offset: u64) -> Result<()> {
+        require_feature::cm_async(
+            self.features,
+            "`stream.forward` requires the component model async feature",
+            offset,
+        )?;
+        require_feature::cm_more_async_builtins(
+            self.features,
+            "`stream.forward` requires the component model more async builtins feature",
+            offset,
+        )?;
+
+        let ty = self.defined_type_at(ty, offset)?;
+        let ComponentDefinedType::Stream { .. } = &types[ty] else {
+            bail!(offset, "`stream.forward` requires a stream type")
+        };
+
+        self.core_funcs
+            .push(types.intern_func_type(FuncType::new([ValType::I32; 2], []), offset));
         Ok(())
     }
 

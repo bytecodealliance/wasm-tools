@@ -418,6 +418,14 @@ impl<'a> Encoder<'a> {
                     self.funcs
                         .stream_write((&info.ty).into(), info.opts.iter().map(Into::into));
                 }
+                CoreFuncKind::StreamSplice(info) => {
+                    self.core_func_names.push(name);
+                    self.funcs.stream_splice((&info.ty).into(), info.async_);
+                }
+                CoreFuncKind::StreamForward(info) => {
+                    self.core_func_names.push(name);
+                    self.funcs.stream_forward((&info.ty).into());
+                }
                 CoreFuncKind::StreamCancelRead(info) => {
                     self.core_func_names.push(name);
                     self.funcs

@@ -556,6 +556,18 @@ impl ComponentBuilder {
         self.core_funcs.add(Some("stream.write"))
     }
 
+    /// Declares a new `stream.splice` intrinsic.
+    pub fn stream_splice(&mut self, ty: u32, async_: bool) -> u32 {
+        self.canonical_functions().stream_splice(ty, async_);
+        self.core_funcs.add(Some("stream.splice"))
+    }
+
+    /// Declares a new `stream.forward` intrinsic.
+    pub fn stream_forward(&mut self, ty: u32) -> u32 {
+        self.canonical_functions().stream_forward(ty);
+        self.core_funcs.add(Some("stream.forward"))
+    }
+
     /// Declares a new `stream.cancel-read` intrinsic.
     pub fn stream_cancel_read(&mut self, ty: u32, async_: bool) -> u32 {
         self.canonical_functions().stream_cancel_read(ty, async_);

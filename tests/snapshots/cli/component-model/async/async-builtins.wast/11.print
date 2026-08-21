@@ -1,0 +1,15 @@
+(component
+  (core module $m (;0;)
+    (type (;0;) (func (param i32 i32 i32) (result i32)))
+    (import "" "stream.splice" (func $stream.splice (;0;) (type 0)))
+  )
+  (type $stream-type (;0;) (stream u8))
+  (core func $stream.splice (;0;) (canon stream.splice $stream-type async))
+  (core instance (;0;)
+    (export "stream.splice" (func $stream.splice))
+  )
+  (core instance $i (;1;) (instantiate $m
+      (with "" (instance 0))
+    )
+  )
+)
