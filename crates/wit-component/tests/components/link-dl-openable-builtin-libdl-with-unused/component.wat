@@ -78,9 +78,9 @@
       (mem-info (memory 148 2))
       (needed "libc.so")
     )
-    (type (;0;) (func))
-    (type (;1;) (func (param i32) (result i32)))
-    (type (;2;) (func (param i32 i32 i32) (result i32)))
+    (type (;0;) (func (param i32) (result i32)))
+    (type (;1;) (func (param i32 i32 i32) (result i32)))
+    (type (;2;) (func))
     (type (;3;) (func (result i32)))
     (type (;4;) (func (param i32 i32) (result i32)))
     (type (;5;) (func (param i32 i32)))
@@ -88,18 +88,17 @@
     (import "env" "__indirect_function_table" (table (;0;) 0 funcref))
     (import "env" "__memory_base" (global (;0;) i32))
     (import "env" "__table_base" (global (;1;) i32))
-    (import "env" "__wasi_init_tp" (func (;0;) (type 0)))
-    (import "env" "strlen" (func (;1;) (type 1)))
-    (import "env" "memcmp" (func (;2;) (type 2)))
+    (import "env" "strlen" (func (;0;) (type 0)))
+    (import "env" "memcmp" (func (;1;) (type 1)))
     (import "GOT.mem" "__wasm_libdl_libraries" (global (;2;) (mut i32)))
-    (export "_initialize" (func 5))
-    (export "dlclose" (func 6))
-    (export "dlerror" (func 7))
-    (export "dlopen" (func 8))
-    (export "dlsym" (func 10))
-    (start 4)
-    (func (;3;) (type 0))
-    (func (;4;) (type 0)
+    (export "_initialize" (func 4))
+    (export "dlclose" (func 5))
+    (export "dlerror" (func 6))
+    (export "dlopen" (func 7))
+    (export "dlsym" (func 9))
+    (start 3)
+    (func (;2;) (type 2))
+    (func (;3;) (type 2)
       i32.const 140
       global.get 0
       i32.add
@@ -107,7 +106,7 @@
       i32.const 8
       memory.fill
     )
-    (func (;5;) (type 0)
+    (func (;4;) (type 2)
       block ;; label = @1
         global.get 0
         i32.const 140
@@ -122,10 +121,9 @@
       i32.add
       i32.const 1
       i32.store
-      call 0
-      call 3
+      call 2
     )
-    (func (;6;) (type 1) (param i32) (result i32)
+    (func (;5;) (type 0) (param i32) (result i32)
       (local i32 i32)
       global.get 2
       local.tee 1
@@ -167,7 +165,7 @@
       i32.store
       i32.const -1
     )
-    (func (;7;) (type 3) (result i32)
+    (func (;6;) (type 3) (result i32)
       (local i32 i32)
       global.get 0
       i32.const 144
@@ -180,7 +178,7 @@
       i32.store
       local.get 1
     )
-    (func (;8;) (type 4) (param i32 i32) (result i32)
+    (func (;7;) (type 4) (param i32 i32) (result i32)
       (local i32 i32 i32 i32 i32 i32 i32 i32)
       global.get 0
       local.set 2
@@ -201,7 +199,7 @@
           global.get 2
           local.set 2
           local.get 0
-          call 1
+          call 0
           local.set 1
           local.get 2
           i32.load
@@ -252,7 +250,7 @@
               local.get 1
               i32.lt_u
               select
-              call 2
+              call 1
               local.tee 9
               local.get 8
               local.get 1
@@ -290,7 +288,7 @@
           local.get 1
           i32.lt_u
           select
-          call 2
+          call 1
           local.set 8
           global.get 0
           local.set 6
@@ -315,7 +313,7 @@
           br_if 1 (;@1;)
           local.get 2
           local.get 4
-          call 9
+          call 8
           unreachable
         end
         global.get 0
@@ -328,11 +326,11 @@
       end
       local.get 3
     )
-    (func (;9;) (type 5) (param i32 i32)
-      call 11
+    (func (;8;) (type 5) (param i32 i32)
+      call 10
       unreachable
     )
-    (func (;10;) (type 4) (param i32 i32) (result i32)
+    (func (;9;) (type 4) (param i32 i32) (result i32)
       (local i32 i32 i32 i32 i32 i32 i32 i32)
       block ;; label = @1
         local.get 0
@@ -384,7 +382,7 @@
                   br_if 0 (;@6;)
                 end
                 local.get 1
-                call 1
+                call 0
                 local.set 2
                 local.get 0
                 i32.load offset=12
@@ -439,7 +437,7 @@
               local.get 2
               i32.lt_u
               select
-              call 2
+              call 1
               local.tee 9
               local.get 8
               local.get 2
@@ -477,7 +475,7 @@
           local.get 2
           i32.lt_u
           select
-          call 2
+          call 1
           local.tee 8
           local.get 0
           local.get 2
@@ -509,10 +507,10 @@
       end
       local.get 3
       local.get 5
-      call 9
+      call 8
       unreachable
     )
-    (func (;11;) (type 0)
+    (func (;10;) (type 2)
       unreachable
     )
     (data (;0;) (global.get 0) "invalid library handle\00library not found\00symbol not found\00dlopen flags not yet supported\00dlsym RTLD_NEXT and RTLD_DEFAULT not yet supported\00")
@@ -551,15 +549,13 @@
   (alias core export $main "__indirect_function_table" (core table $__indirect_function_table (;0;)))
   (alias core export $main "libdl.so:memory_base" (core global $libdl.so:memory_base (;2;)))
   (alias core export $main "libdl.so:table_base" (core global $libdl.so:table_base (;3;)))
-  (alias core export $libc.so "__wasi_init_tp" (core func $__wasi_init_tp (;0;)))
-  (alias core export $libc.so "strlen" (core func $strlen (;1;)))
-  (alias core export $libc.so "memcmp" (core func $memcmp (;2;)))
+  (alias core export $libc.so "strlen" (core func $strlen (;0;)))
+  (alias core export $libc.so "memcmp" (core func $memcmp (;1;)))
   (core instance $env (;3;)
     (export "memory" (memory $memory))
     (export "__indirect_function_table" (table $__indirect_function_table))
     (export "__memory_base" (global $libdl.so:memory_base))
     (export "__table_base" (global $libdl.so:table_base))
-    (export "__wasi_init_tp" (func $__wasi_init_tp))
     (export "strlen" (func $strlen))
     (export "memcmp" (func $memcmp))
   )
@@ -573,11 +569,11 @@
     )
   )
   (alias export $test:test/test "foo" (func $foo (;0;)))
-  (core func $foo (;3;) (canon lower (func $foo)))
+  (core func $foo (;2;) (canon lower (func $foo)))
   (core instance $test:test/test (;6;)
     (export "foo" (func $foo))
   )
-  (alias core export $libdl.so "dlopen" (core func $dlopen (;4;)))
+  (alias core export $libdl.so "dlopen" (core func $dlopen (;3;)))
   (core instance $"#core-instance7 env" (@name "env") (;7;)
     (export "dlopen" (func $dlopen))
   )
@@ -626,7 +622,7 @@
     )
   )
   (type (;1;) (func (param "v" s32) (result s32)))
-  (alias core export $foo "test:test/test#foo" (core func $test:test/test#foo (;5;)))
+  (alias core export $foo "test:test/test#foo" (core func $test:test/test#foo (;4;)))
   (func $"#func1 foo" (@name "foo") (;1;) (type 1) (canon lift (core func $test:test/test#foo)))
   (component $test:test/test-shim-component (;0;)
     (type (;0;) (func (param "v" s32) (result s32)))
