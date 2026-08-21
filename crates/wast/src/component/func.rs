@@ -65,6 +65,7 @@ pub enum CoreFuncKind<'a> {
     StreamNew(CanonStreamNew<'a>),
     StreamRead(CanonStreamRead<'a>),
     StreamWrite(CanonStreamWrite<'a>),
+    StreamForward(CanonStreamForward<'a>),
     StreamCancelRead(CanonStreamCancelRead<'a>),
     StreamCancelWrite(CanonStreamCancelWrite<'a>),
     StreamDropReadable(CanonStreamDropReadable<'a>),
@@ -157,6 +158,8 @@ impl<'a> CoreFuncKind<'a> {
             Ok(CoreFuncKind::StreamRead(parser.parse()?))
         } else if l.peek::<kw::stream_write>()? {
             Ok(CoreFuncKind::StreamWrite(parser.parse()?))
+        } else if l.peek::<kw::stream_forward>()? {
+            Ok(CoreFuncKind::StreamForward(parser.parse()?))
         } else if l.peek::<kw::stream_cancel_read>()? {
             Ok(CoreFuncKind::StreamCancelRead(parser.parse()?))
         } else if l.peek::<kw::stream_cancel_write>()? {
@@ -716,6 +719,23 @@ impl<'a> Parse<'a> for CanonStreamWrite<'a> {
         Ok(Self {
             ty: parser.parse::<IndexOrRef<'_, _>>()?.0,
             opts: parser.parse()?,
+        })
+    }
+}
+
+/// Information relating to the `stream.forward` intrinsic.
+#[derive(Debug)]
+pub struct CanonStreamForward<'a> {
+    /// The stream type to forward.
+    pub ty: ItemRef<'a, kw::r#type>,
+}
+
+impl<'a> Parse<'a> for CanonStreamForward<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.parse::<kw::stream_forward>()?;
+
+        Ok(Self {
+            ty: parser.parse::<IndexOrRef<'_, _>>()?.0,
         })
     }
 }

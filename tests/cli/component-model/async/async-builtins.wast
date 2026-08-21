@@ -106,3 +106,34 @@
   (core func (canon stream.read $s))
   (core func (canon stream.write $s))
 )
+
+;; stream.forward
+(component
+  (core module $m
+    (import "" "stream.forward" (func $stream.forward (param i32 i32)))
+  )
+  (type $stream-type (stream u8))
+  (core func $stream.forward (canon stream.forward $stream-type))
+  (core instance $i (instantiate $m (with "" (instance (export "stream.forward" (func $stream.forward))))))
+)
+
+;; stream.forward; incorrect type
+(assert_invalid
+  (component
+    (core module $m
+      (import "" "stream.forward" (func $stream.forward (param i32 i32) (result i32)))
+    )
+    (type $stream-type (stream u8))
+    (core func $stream.forward (canon stream.forward $stream-type))
+    (core instance $i (instantiate $m (with "" (instance (export "stream.forward" (func $stream.forward))))))
+  )
+  "type mismatch for export `stream.forward` of module instantiation argument ``"
+)
+
+;; stream.forward; not a stream type
+(assert_invalid
+  (component
+    (type $future-type (future u8))
+    (core func (canon stream.forward $future-type)))
+  "`stream.forward` requires a stream type"
+)
