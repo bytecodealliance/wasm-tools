@@ -1,0 +1,189 @@
+(module
+  (@dylink.0
+    (mem-info (memory 200 2) (table 1 0))
+  )
+  (type (;0;) (func (param i32)))
+  (type (;1;) (func (param i32 i32 i32 i32) (result i32)))
+  (type (;2;) (func (param i32 i32 i32 i32 i32)))
+  (type (;3;) (func (param i32) (result i32)))
+  (type (;4;) (func (param i32 i32)))
+  (type (;5;) (func (param i32 i32) (result i32)))
+  (type (;6;) (func (param i32) (result i64)))
+  (type (;7;) (func (param i32) (result f32)))
+  (type (;8;) (func (param i32) (result f64)))
+  (type (;9;) (func (param i32 i32 i32) (result i32)))
+  (type (;10;) (func (param i32 i64)))
+  (type (;11;) (func (param i32 f32)))
+  (type (;12;) (func (param i32 f64)))
+  (type (;13;) (func (param i32 i32 i32)))
+  (type (;14;) (func))
+  (type (;15;) (func (result i32)))
+  (import "env" "wit_dylib_initialize" (func $wit_dylib_initialize (;0;) (type 0)))
+  (import "env" "cabi_realloc" (func $cabi_realloc (;1;) (type 1)))
+  (import "env" "wit_dylib_dealloc_bytes" (func $wit_dylib_dealloc_bytes (;2;) (type 2)))
+  (import "env" "wit_dylib_export_start" (func $wit_dylib_export_start (;3;) (type 3)))
+  (import "env" "wit_dylib_export_call" (func $wit_dylib_export_call (;4;) (type 4)))
+  (import "env" "wit_dylib_export_async_call" (func $wit_dylib_export_async_call (;5;) (type 5)))
+  (import "env" "wit_dylib_export_async_callback" (func $wit_dylib_export_async_callback (;6;) (type 1)))
+  (import "env" "wit_dylib_export_finish" (func $wit_dylib_export_finish (;7;) (type 4)))
+  (import "env" "wit_dylib_resource_dtor" (func $wit_dylib_resource_dtor (;8;) (type 4)))
+  (import "env" "wit_dylib_pop_u8" (func $wit_dylib_pop_u8 (;9;) (type 3)))
+  (import "env" "wit_dylib_pop_u16" (func $wit_dylib_pop_u16 (;10;) (type 3)))
+  (import "env" "wit_dylib_pop_u32" (func $wit_dylib_pop_u32 (;11;) (type 3)))
+  (import "env" "wit_dylib_pop_u64" (func $wit_dylib_pop_u64 (;12;) (type 6)))
+  (import "env" "wit_dylib_pop_s8" (func $wit_dylib_pop_s8 (;13;) (type 3)))
+  (import "env" "wit_dylib_pop_s16" (func $wit_dylib_pop_s16 (;14;) (type 3)))
+  (import "env" "wit_dylib_pop_s32" (func $wit_dylib_pop_s32 (;15;) (type 3)))
+  (import "env" "wit_dylib_pop_s64" (func $wit_dylib_pop_s64 (;16;) (type 6)))
+  (import "env" "wit_dylib_pop_bool" (func $wit_dylib_pop_bool (;17;) (type 3)))
+  (import "env" "wit_dylib_pop_char" (func $wit_dylib_pop_char (;18;) (type 3)))
+  (import "env" "wit_dylib_pop_f32" (func $wit_dylib_pop_f32 (;19;) (type 7)))
+  (import "env" "wit_dylib_pop_f64" (func $wit_dylib_pop_f64 (;20;) (type 8)))
+  (import "env" "wit_dylib_pop_flags" (func $wit_dylib_pop_flags (;21;) (type 5)))
+  (import "env" "wit_dylib_pop_enum" (func $wit_dylib_pop_enum (;22;) (type 5)))
+  (import "env" "wit_dylib_pop_borrow" (func $wit_dylib_pop_borrow (;23;) (type 5)))
+  (import "env" "wit_dylib_pop_own" (func $wit_dylib_pop_own (;24;) (type 5)))
+  (import "env" "wit_dylib_pop_future" (func $wit_dylib_pop_future (;25;) (type 5)))
+  (import "env" "wit_dylib_pop_stream" (func $wit_dylib_pop_stream (;26;) (type 5)))
+  (import "env" "wit_dylib_pop_record" (func $wit_dylib_pop_record (;27;) (type 4)))
+  (import "env" "wit_dylib_pop_tuple" (func $wit_dylib_pop_tuple (;28;) (type 4)))
+  (import "env" "wit_dylib_pop_variant" (func $wit_dylib_pop_variant (;29;) (type 5)))
+  (import "env" "wit_dylib_pop_option" (func $wit_dylib_pop_option (;30;) (type 5)))
+  (import "env" "wit_dylib_pop_result" (func $wit_dylib_pop_result (;31;) (type 5)))
+  (import "env" "wit_dylib_pop_string" (func $wit_dylib_pop_string (;32;) (type 5)))
+  (import "env" "wit_dylib_pop_list" (func $wit_dylib_pop_list (;33;) (type 9)))
+  (import "env" "wit_dylib_pop_list_iter_next" (func $wit_dylib_pop_list_iter_next (;34;) (type 4)))
+  (import "env" "wit_dylib_pop_list_iter" (func $wit_dylib_pop_list_iter (;35;) (type 4)))
+  (import "env" "wit_dylib_pop_map" (func $wit_dylib_pop_map (;36;) (type 5)))
+  (import "env" "wit_dylib_pop_map_iter_next" (func $wit_dylib_pop_map_iter_next (;37;) (type 4)))
+  (import "env" "wit_dylib_pop_map_iter" (func $wit_dylib_pop_map_iter (;38;) (type 4)))
+  (import "env" "wit_dylib_push_bool" (func $wit_dylib_push_bool (;39;) (type 4)))
+  (import "env" "wit_dylib_push_char" (func $wit_dylib_push_char (;40;) (type 4)))
+  (import "env" "wit_dylib_push_u8" (func $wit_dylib_push_u8 (;41;) (type 4)))
+  (import "env" "wit_dylib_push_s8" (func $wit_dylib_push_s8 (;42;) (type 4)))
+  (import "env" "wit_dylib_push_u16" (func $wit_dylib_push_u16 (;43;) (type 4)))
+  (import "env" "wit_dylib_push_s16" (func $wit_dylib_push_s16 (;44;) (type 4)))
+  (import "env" "wit_dylib_push_u32" (func $wit_dylib_push_u32 (;45;) (type 4)))
+  (import "env" "wit_dylib_push_s32" (func $wit_dylib_push_s32 (;46;) (type 4)))
+  (import "env" "wit_dylib_push_u64" (func $wit_dylib_push_u64 (;47;) (type 10)))
+  (import "env" "wit_dylib_push_s64" (func $wit_dylib_push_s64 (;48;) (type 10)))
+  (import "env" "wit_dylib_push_f32" (func $wit_dylib_push_f32 (;49;) (type 11)))
+  (import "env" "wit_dylib_push_f64" (func $wit_dylib_push_f64 (;50;) (type 12)))
+  (import "env" "wit_dylib_push_string" (func $wit_dylib_push_string (;51;) (type 13)))
+  (import "env" "wit_dylib_push_record" (func $wit_dylib_push_record (;52;) (type 4)))
+  (import "env" "wit_dylib_push_tuple" (func $wit_dylib_push_tuple (;53;) (type 4)))
+  (import "env" "wit_dylib_push_flags" (func $wit_dylib_push_flags (;54;) (type 13)))
+  (import "env" "wit_dylib_push_enum" (func $wit_dylib_push_enum (;55;) (type 13)))
+  (import "env" "wit_dylib_push_borrow" (func $wit_dylib_push_borrow (;56;) (type 13)))
+  (import "env" "wit_dylib_push_own" (func $wit_dylib_push_own (;57;) (type 13)))
+  (import "env" "wit_dylib_push_future" (func $wit_dylib_push_future (;58;) (type 13)))
+  (import "env" "wit_dylib_push_stream" (func $wit_dylib_push_stream (;59;) (type 13)))
+  (import "env" "wit_dylib_push_variant" (func $wit_dylib_push_variant (;60;) (type 13)))
+  (import "env" "wit_dylib_push_option" (func $wit_dylib_push_option (;61;) (type 13)))
+  (import "env" "wit_dylib_push_result" (func $wit_dylib_push_result (;62;) (type 13)))
+  (import "env" "wit_dylib_push_list" (func $wit_dylib_push_list (;63;) (type 1)))
+  (import "env" "wit_dylib_list_append" (func $wit_dylib_list_append (;64;) (type 4)))
+  (import "env" "wit_dylib_push_map" (func $wit_dylib_push_map (;65;) (type 13)))
+  (import "env" "wit_dylib_map_append" (func $wit_dylib_map_append (;66;) (type 4)))
+  (import "$root" "x" (func $x (;67;) (type 14)))
+  (import "env" "__table_base" (global $__table_base (;0;) i32))
+  (import "env" "__memory_base" (global $__memory_base (;1;) i32))
+  (import "$root" "[context-get-0]" (func $"[context-get-0]" (;68;) (type 15)))
+  (import "$root" "[context-set-0]" (func $"[context-set-0]" (;69;) (type 0)))
+  (import "env" "memory" (memory (;0;) 0))
+  (import "env" "__indirect_function_table" (table (;0;) 0 funcref))
+  (export "cabi_realloc" (func $cabi_realloc))
+  (export "y" (func $y))
+  (export "cabi_post_y" (func $cabi_post_y))
+  (export "__wasm_apply_data_relocs" (func $__wasm_apply_data_relocs))
+  (export "__wasm_call_ctors" (func $__wasm_call_ctors))
+  (elem (;0;) (table 0) (global.get $__table_base) func $"adapter x")
+  (func $"adapter x" (;70;) (type 0) (param i32)
+    (local i32)
+    call $"[context-get-0]"
+    i32.const 16
+    i32.sub
+    local.tee 1
+    call $"[context-set-0]"
+    call $x
+    local.get 1
+    i32.const 16
+    i32.add
+    call $"[context-set-0]"
+  )
+  (func $y (;71;) (type 14)
+    (local i32 i32 i32)
+    call $"[context-get-0]"
+    i32.const 16
+    i32.sub
+    local.tee 0
+    call $"[context-set-0]"
+    i32.const 0
+    call $wit_dylib_export_start
+    local.set 1
+    local.get 1
+    i32.const 0
+    call $wit_dylib_export_call
+    call $"[context-get-0]"
+    i32.const 8
+    i32.sub
+    local.tee 2
+    call $"[context-set-0]"
+    local.get 2
+    local.get 1
+    i32.store
+  )
+  (func $cabi_post_y (;72;) (type 14)
+    (local i32 i32)
+    call $"[context-get-0]"
+    local.set 0
+    local.get 0
+    i32.load
+    local.set 1
+    local.get 0
+    i32.const 8
+    i32.add
+    call $"[context-set-0]"
+    local.get 1
+    i32.const 0
+    call $wit_dylib_export_finish
+    call $"[context-get-0]"
+    local.set 1
+    local.get 1
+    i32.const 16
+    i32.add
+    call $"[context-set-0]"
+  )
+  (func $__wasm_apply_data_relocs (;73;) (type 14)
+    global.get $__memory_base
+    global.get $__memory_base
+    i32.const 196
+    i32.add
+    i32.store offset=4
+    global.get $__memory_base
+    global.get $__table_base
+    i32.store offset=8
+    global.get $__memory_base
+    global.get $__memory_base
+    i32.const 198
+    i32.add
+    i32.store offset=44
+    global.get $__memory_base
+    global.get $__memory_base
+    i32.const 0
+    i32.add
+    i32.store offset=72
+    global.get $__memory_base
+    global.get $__memory_base
+    i32.const 40
+    i32.add
+    i32.store offset=80
+  )
+  (func $__wasm_call_ctors (;74;) (type 14)
+    i32.const 64
+    global.get $__memory_base
+    i32.add
+    call $wit_dylib_initialize
+  )
+  (data (;0;) (global.get $__memory_base) "/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/ff/ff/ff/ff/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/ff/ff/ff/ff/03/00/00/00/01/00/00/00/00/00/00/00/01/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00/00x/00y/00")
+)

@@ -26,11 +26,29 @@ pub const C_HEADER: &'static str = include_str!("../wit_dylib.h");
 pub struct DylibOpts {
     /// The interpreter name to insert into the `WASM_DYLINK_NEEDED` section
     /// encoded as `dylink.0`.
-    #[cfg_attr(feature = "clap", clap(long))]
+    #[cfg_attr(feature = "clap", clap(long, value_name = "name"))]
     pub interpreter: Option<String>,
 
     #[cfg_attr(feature = "clap", clap(flatten))]
     pub async_: AsyncFilterSet,
+
+    /// Where the stack pointer is located in the ABI of the generated dylib.
+    ///
+    /// For WASIp2-and-prior the `global` option should be used, and for
+    /// WASIp3-and-later the `task-context` option should be used.
+    #[cfg_attr(
+        feature = "clap",
+        clap(long, value_name = "loc", default_value = "global")
+    )]
+    pub stack_pointer: StackPointer,
+}
+
+#[derive(Default, Clone, Debug)]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
+pub enum StackPointer {
+    #[default]
+    Global,
+    TaskContext,
 }
 
 pub fn create(resolve: &Resolve, world_id: WorldId, opts: Option<&mut DylibOpts>) -> Vec<u8> {
@@ -62,7 +80,7 @@ struct Adapter {
     global_index: u32,
     table_base: Option<u32>,
     memory_base: Option<u32>,
-    stack_pointer: Option<u32>,
+    stack_pointer: Option<ImportedStackPointer>,
     func_index: u32,
     functions: FunctionSection,
     exports: ExportSection,
@@ -83,6 +101,12 @@ struct Adapter {
     /// Elements of this list are function indices in this module which will be
     /// placed into the element segment.
     elem_segment: Vec<u32>,
+}
+
+#[derive(Copy, Clone)]
+enum ImportedStackPointer {
+    Global(u32),
+    TaskContext { get: u32, set: u32 },
 }
 
 #[derive(Default)]
@@ -401,7 +425,21 @@ impl Adapter {
 
         self.table_base = Some(self.import_global("env", "__table_base", const_i32_global));
         self.memory_base = Some(self.import_global("env", "__memory_base", const_i32_global));
-        self.stack_pointer = Some(self.import_global("env", "__stack_pointer", mut_i32_global));
+        self.stack_pointer = Some(match self.opts.stack_pointer {
+            StackPointer::Global => ImportedStackPointer::Global(self.import_global(
+                "env",
+                "__stack_pointer",
+                mut_i32_global,
+            )),
+            StackPointer::TaskContext => {
+                let get_ty = self.define_ty([], [ValType::I32]);
+                let set_ty = self.define_ty([ValType::I32], []);
+                ImportedStackPointer::TaskContext {
+                    get: self.import_func("$root", "[context-get-0]", get_ty),
+                    set: self.import_func("$root", "[context-set-0]", set_ty),
+                }
+            }
+        });
 
         self.imports.import(
             "env",
@@ -1200,10 +1238,6 @@ impl Adapter {
 
     fn intrinsics(&self) -> &bindgen::WitInterpreterIntrinsics {
         self.intrinsics.as_ref().unwrap()
-    }
-
-    fn stack_pointer(&self) -> u32 {
-        self.stack_pointer.unwrap()
     }
 
     fn memory_base(&self) -> u32 {
