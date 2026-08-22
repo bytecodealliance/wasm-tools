@@ -524,18 +524,39 @@ impl<'a> InterfaceName<'a> {
     }
 
     /// Returns the `1.2.3` in `a:b:c/d/e@1.2.3`
-    pub fn version(&self, suffix: Option<&str>) -> Result<Option<Version>, semver::Error> {
+    pub fn version(&self, suffix: Option<&str>) -> crate::Result<Option<Version>> {
         let Some(at) = self.0.find('@') else {
             return Ok(None);
         };
         let prefix = &self.0[at + 1..];
         match suffix {
-            // FIXME: this should perform full validation of the version
-            // suffix/prefix, notably that "prefix" is indeed the "semver track"
-            // that is expected. For example "1.2.3" means that prefix must be
-            // "1", nothing else. This validation is deferred to a future PR.
-            Some(suffix) => Ok(Some(Version::parse(&format!("{prefix}{suffix}"))?)),
-            None => Ok(Some(Version::parse(prefix)?)),
+            Some(suffix) => {
+                let assembled = format!("{prefix}{suffix}");
+                let v = Version::parse(&assembled)
+                    .map_err(|e| crate::Error::new(e.to_string(), 0))?;
+                // Verify that `prefix` is exactly the canonical semver
+                // "compatibility track" for the assembled version. The track
+                // rules, mirroring the component model spec and
+                // `wit_parser::PackageName::version_compat_track_string`, are:
+                //
+                // * Pre-release versions  → full `major.minor.patch-pre` string
+                // * major != 0            → just `major`
+                // * major == 0, minor !=0 → `0.minor`
+                // * major == minor == 0   → full `0.0.patch` string
+                let expected_prefix = semver_track_prefix(&v);
+                if prefix != expected_prefix {
+                    return Err(crate::Error::new(
+                        format!(
+                            "versionsuffix produces `{assembled}` but the \
+                             expected compatibility-track prefix is \
+                             `{expected_prefix}`, not `{prefix}`"
+                        ),
+                        0,
+                    ));
+                }
+                Ok(Some(v))
+            }
+            None => Version::parse(prefix).map(Some).map_err(|e| crate::Error::new(e.to_string(), 0)),
         }
     }
 }
@@ -901,6 +922,32 @@ impl<'a> ComponentNameParser<'a> {
     }
 }
 
+/// Returns the canonical semver "compatibility track" prefix string for `v`.
+///
+/// This mirrors the logic in `wit_parser::PackageName::version_compat_track_string`:
+///
+/// * Pre-release versions use the full `major.minor.patch-pre` string because
+///   pre-release components are never implicitly compatible with one another.
+/// * Stable releases with `major != 0` use just the major number (e.g. `"1"`).
+/// * Releases with `major == 0` and `minor != 0` use `"0.minor"`.
+/// * Releases with `major == minor == 0` use the full `"0.0.patch"` string.
+///
+/// The string is allocated on every call; callers compare it against a slice
+/// from the import name so no caching is necessary.
+fn semver_track_prefix(v: &Version) -> String {
+    if !v.pre.is_empty() {
+        // Full pre-release version is the track; build metadata is ignored.
+        return format!("{}.{}.{}-{}", v.major, v.minor, v.patch, v.pre);
+    }
+    if v.major != 0 {
+        return format!("{}", v.major);
+    }
+    if v.minor != 0 {
+        return format!("{}.{}", v.major, v.minor);
+    }
+    format!("{}.{}.{}", v.major, v.minor, v.patch)
+}
+
 fn is_base64(s: &str) -> bool {
     if s.is_empty() {
         return false;
@@ -1005,5 +1052,128 @@ mod tests {
         assert!(s.insert(parse_kebab_name("[method]a.b")));
         assert!(!s.insert(parse_kebab_name("[static]a.b")));
         assert!(s.insert(parse_kebab_name("[static]b.b")));
+    }
+
+    // ---------------------------------------------------------------------------
+    // Tests for InterfaceName::version() with versionsuffix track validation
+    // ---------------------------------------------------------------------------
+
+    fn interface_name_version(name: &str, suffix: Option<&str>) -> crate::Result<Option<Version>> {
+        let cn = ComponentName::new(name, 0).unwrap();
+        match cn.kind() {
+            ComponentNameKind::Interface(iname) => iname.version(suffix),
+            _ => panic!("not an interface name"),
+        }
+    }
+
+    #[test]
+    fn interface_version_no_suffix() {
+        // No @ in the name — version() returns None regardless of suffix.
+        let cn = ComponentName::new("a:b/c", 0).unwrap();
+        let iname = match cn.kind() {
+            ComponentNameKind::Interface(i) => i,
+            _ => panic!(),
+        };
+        assert!(iname.version(None).unwrap().is_none());
+        // With a suffix but no @ in the base name, suffix is meaningless and
+        // returns None (the suffix attaches to the assembled name, but there
+        // is no @ anchor, so the method returns None immediately).
+        //
+        // Note: the spec only allows versionsuffix on names that contain '@',
+        // but we test the helper directly here.
+        assert!(iname.version(Some(".2.3")).is_err() || iname.version(Some(".2.3")).unwrap().is_none());
+    }
+
+    #[test]
+    fn interface_version_suffix_valid_tracks() {
+        // major != 0: track is just the major number.
+        // "a:b/c@1" + ".2.3" => "1.2.3", track prefix = "1" ✓
+        let v = interface_name_version("a:b/c@1", Some(".2.3")).unwrap().unwrap();
+        assert_eq!(v, Version::parse("1.2.3").unwrap());
+
+        // major == 0, minor != 0: track is "0.minor".
+        // "a:b/c@0.2" + ".3" => "0.2.3", track prefix = "0.2" ✓
+        let v = interface_name_version("a:b/c@0.2", Some(".3")).unwrap().unwrap();
+        assert_eq!(v, Version::parse("0.2.3").unwrap());
+
+        // major == minor == 0: track is the full version.
+        // "a:b/c@0.0.3" without a suffix should succeed.
+        let v = interface_name_version("a:b/c@0.0.3", None).unwrap().unwrap();
+        assert_eq!(v, Version::parse("0.0.3").unwrap());
+
+        // Pre-release: track is the full pre-release version string.
+        // "a:b/c@1.2.3-rc.1" without suffix should succeed.
+        let v = interface_name_version("a:b/c@1.2.3-rc.1", None)
+            .unwrap()
+            .unwrap();
+        assert_eq!(v, Version::parse("1.2.3-rc.1").unwrap());
+    }
+
+    #[test]
+    fn interface_version_suffix_wrong_track_rejected() {
+        // "a:b/c@1.0" + ".1" assembles to "1.0.1", whose track is "1", but
+        // the prefix in the name is "1.0" — mismatch, must be rejected.
+        assert!(
+            interface_name_version("a:b/c@1.0", Some(".1")).is_err(),
+            "prefix '1.0' does not match track '1' for 1.0.1"
+        );
+
+        // "a:b/c@0.0" + ".3" assembles to "0.0.3", whose track is "0.0.3"
+        // (full string), but prefix is "0.0" — mismatch.
+        assert!(
+            interface_name_version("a:b/c@0.0", Some(".3")).is_err(),
+            "prefix '0.0' does not match track '0.0.3' for 0.0.3"
+        );
+
+        // "a:b/c@0.2.0" + ".1" would assemble to "0.2.0.1" which isn't
+        // valid semver at all.
+        assert!(
+            interface_name_version("a:b/c@0.2.0", Some(".1")).is_err(),
+            "0.2.0.1 is not valid semver"
+        );
+
+        // "a:b/c@2.0" + ".0" assembles to "2.0.0", whose track is "2", but
+        // prefix is "2.0" — mismatch.
+        assert!(
+            interface_name_version("a:b/c@2.0", Some(".0")).is_err(),
+            "prefix '2.0' does not match track '2' for 2.0.0"
+        );
+    }
+
+    #[test]
+    fn semver_track_prefix_cases() {
+        // Stable, major != 0
+        assert_eq!(
+            semver_track_prefix(&Version::parse("1.2.3").unwrap()),
+            "1"
+        );
+        assert_eq!(
+            semver_track_prefix(&Version::parse("3.0.0").unwrap()),
+            "3"
+        );
+        // Stable, major == 0, minor != 0
+        assert_eq!(
+            semver_track_prefix(&Version::parse("0.2.3").unwrap()),
+            "0.2"
+        );
+        // Stable, major == minor == 0
+        assert_eq!(
+            semver_track_prefix(&Version::parse("0.0.5").unwrap()),
+            "0.0.5"
+        );
+        // Pre-release
+        assert_eq!(
+            semver_track_prefix(&Version::parse("1.2.3-rc.1").unwrap()),
+            "1.2.3-rc.1"
+        );
+        assert_eq!(
+            semver_track_prefix(&Version::parse("0.2.3-alpha.0").unwrap()),
+            "0.2.3-alpha.0"
+        );
+        // Build metadata is ignored in track prefix
+        assert_eq!(
+            semver_track_prefix(&Version::parse("1.2.3+build.42").unwrap()),
+            "1"
+        );
     }
 }
