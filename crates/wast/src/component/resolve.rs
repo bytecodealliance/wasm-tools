@@ -1,6 +1,7 @@
 use crate::Error;
 use crate::component::*;
 use crate::core::{self, ValType, resolve::ResolveCoreType};
+use crate::gensym;
 use crate::kw;
 use crate::names::Namespace;
 use crate::token::Span;
@@ -45,10 +46,23 @@ impl<'a> From<Alias<'a>> for InstanceTypeDecl<'a> {
 struct Resolver<'a> {
     stack: Vec<ComponentState<'a>>,
 
+    // Current resolver phase, see `resolve_group` for more information.
+    phase: Phase,
+
     // When a name refers to a definition in an outer scope, we'll need to
     // insert an outer alias before it. This collects the aliases to be
     // inserted during resolution.
     aliases_to_insert: Vec<Alias<'a>>,
+}
+
+/// The phases of resolution when processing a group of fields.
+///
+/// See `resolve_group` for more information.
+#[derive(Default, PartialEq, Debug)]
+enum Phase {
+    ExpandAliases,
+    #[default]
+    Resolve,
 }
 
 /// Context structure used to perform name resolution.
@@ -108,44 +122,112 @@ impl<'a> Resolver<'a> {
         id: Option<Id<'a>>,
         fields: &mut Vec<ComponentField<'a>>,
     ) -> Result<(), Error> {
-        self.stack.push(ComponentState::new(id));
-        self.resolve_prepending_aliases(fields, Resolver::field, ComponentState::register)?;
-        self.stack.pop();
+        self.resolve_group(id, fields, Resolver::field, ComponentState::register)?;
         Ok(())
     }
 
-    fn resolve_prepending_aliases<T>(
+    /// Helper function to resolve a group of `fields` together within their own
+    /// index space.
+    ///
+    /// The `process` function is the means by which each field is recursively
+    /// traversed and visited internally to resolve all of its names that it
+    /// references. The `register` function inserts the name of the field into
+    /// the `ComponentState` if it's defined.
+    ///
+    /// This will internally handle injection of aliases as necessary.
+    fn resolve_group<T>(
         &mut self,
+        group_id: Option<Id<'a>>,
         fields: &mut Vec<T>,
-        resolve: fn(&mut Self, &mut T) -> Result<(), Error>,
+        process: fn(&mut Self, &mut T) -> Result<(), Error>,
         register: fn(&mut ComponentState<'a>, &T) -> Result<(), Error>,
     ) -> Result<(), Error>
     where
         T: From<Alias<'a>>,
     {
+        // During the expansion phase there's no need to recurse into
+        // groups-within-that-container, so this is skipped entirely.
+        if let Phase::ExpandAliases = self.phase {
+            return Ok(());
+        }
+
         assert!(self.aliases_to_insert.is_empty());
 
-        // Iterate through the fields of the component. We use an index
-        // instead of an iterator because we'll be inserting aliases
-        // as we go.
-        let mut i = 0;
-        while i < fields.len() {
-            // Resolve names within the field.
-            resolve(self, &mut fields[i])?;
+        // The first phase of resolution is done to expand and inject aliases
+        // into the AST. This will resolve aliased exports and outer aliases as
+        // necessary. The `self.phase` tracker is used to configure minor bits
+        // of behavior in core functions below.
+        //
+        // Note that this phase still starts with a `register` to build up the
+        // namespace of all known items. The actual indices here, however, are
+        // known to be incorrect because they don't take into account injected
+        // aliases. That's ok though because this phase doesn't actually rewrite
+        // any name references in the AST. The `state` here is discarded
+        // entirely before moving on to the next phase to represent how these
+        // invalid indices are all thrown away.
+        //
+        // The namespaces here are primarily populated to handle resolution of
+        // outer aliases. Outer aliases are injected when there's otherwise
+        // nothing to refer to within a component, but we only know what's able
+        // to be referred to if the namespaces are registered.
+        {
+            self.phase = Phase::ExpandAliases;
+            let mut state = ComponentState::new(group_id);
 
-            // Name resolution may have emitted some aliases. Insert them before
-            // the current definition.
-            let amt = self.aliases_to_insert.len();
-            fields.splice(i..i, self.aliases_to_insert.drain(..).map(T::from));
-            i += amt;
+            for field in fields.iter() {
+                register(&mut state, field)?;
+            }
 
-            // Definitions can't refer to themselves or to definitions that appear
-            // later in the format. Now that we're done resolving this field,
-            // assign it an index for later definitions to refer to.
-            register(self.current(), &fields[i])?;
+            self.stack.push(state);
 
-            i += 1;
+            // Process each field, and then handle the `aliases_to_insert` to
+            // prepend all those aliases ust before the field being processed.
+            // Then the field, and the aliases, are all skipped and the next
+            // field is processed.
+            let mut i = 0;
+            while i < fields.len() {
+                process(self, &mut fields[i])?;
+                let amt = self.aliases_to_insert.len();
+                fields.splice(i..i, self.aliases_to_insert.drain(..).map(T::from));
+                i += amt + 1;
+            }
+
+            self.stack.pop();
         }
+
+        assert!(self.aliases_to_insert.is_empty());
+
+        // The second phase of resolution is where everything is now final and
+        // we're ready to rewrite the AST from names to indices. This is modeled
+        // after the core wasm resolution where everything is registered to
+        // assign indexes an then everything is processed.
+        //
+        // Note that this explicitly allows forward-references which aren't
+        // actually valid in the component model. This makes printing/parsing
+        // invalid components easier to work with and additionally ensures that
+        // `wasmprinter`'s printing of an invalid component isn't something that
+        // then can't parse. Basically it makes tooling easier to allow
+        // forward/backward references at the same time, even if only one of
+        // those is valid.
+        {
+            self.phase = Phase::Resolve;
+            let mut state = ComponentState::new(group_id);
+
+            for field in fields.iter() {
+                register(&mut state, field)?;
+            }
+
+            self.stack.push(state);
+
+            for field in fields.iter_mut() {
+                process(self, field)?;
+            }
+
+            assert_eq!(self.phase, Phase::Resolve);
+            self.stack.pop();
+        }
+
+        assert!(self.aliases_to_insert.is_empty());
 
         Ok(())
     }
@@ -178,7 +260,9 @@ impl<'a> Resolver<'a> {
     fn core_module(&mut self, module: &mut CoreModule) -> Result<(), Error> {
         match &mut module.kind {
             CoreModuleKind::Inline { fields } => {
-                crate::core::resolve::resolve(fields)?;
+                if let Phase::Resolve = self.phase {
+                    crate::core::resolve::resolve(fields)?;
+                }
             }
 
             CoreModuleKind::Import { .. } => {
@@ -192,7 +276,10 @@ impl<'a> Resolver<'a> {
     fn component(&mut self, component: &mut NestedComponent<'a>) -> Result<(), Error> {
         match &mut component.kind {
             NestedComponentKind::Import { .. } => unreachable!("should be expanded already"),
-            NestedComponentKind::Inline(fields) => self.fields(component.id, fields),
+            NestedComponentKind::Inline(fields) => {
+                self.fields(component.id, fields)?;
+                Ok(())
+            }
         }
     }
 
@@ -257,10 +344,7 @@ impl<'a> Resolver<'a> {
             ItemSigKind::Instance(t) => self.component_type_use(t),
             ItemSigKind::Value(t) => self.component_val_type(&mut t.0),
             ItemSigKind::Type(b) => match b {
-                TypeBounds::Eq(i) => {
-                    self.resolve_ns(i, Ns::Type)?;
-                    Ok(())
-                }
+                TypeBounds::Eq(i) => self.resolve_ns(i, Ns::Type),
                 TypeBounds::SubResource => Ok(()),
             },
         }
@@ -293,6 +377,11 @@ impl<'a> Resolver<'a> {
         kind: T,
         span: Span,
     ) -> Result<(), Error> {
+        // Nothing here injects an alias, so skip this function on this phase.
+        if let Phase::ExpandAliases = self.phase {
+            return Ok(());
+        }
+
         // Short-circuit when both indices are already resolved as this
         // helps to write tests for invalid modules where wasmparser should
         // be the one returning the error.
@@ -553,7 +642,9 @@ impl<'a> Resolver<'a> {
                 // Namespace for case identifier resolution
                 let mut ns = Namespace::default();
                 for case in v.cases.iter_mut() {
-                    ns.register(case.id, "variant case")?;
+                    if self.phase == Phase::Resolve {
+                        ns.register(case.id, "variant case")?;
+                    }
 
                     if let Some(ty) = &mut case.ty {
                         self.component_val_type(ty)?;
@@ -619,31 +710,23 @@ impl<'a> Resolver<'a> {
     fn core_ty(&mut self, field: &mut CoreType<'a>) -> Result<(), Error> {
         match &mut field.def {
             CoreTypeDef::Def(ty) => {
-                // See comments in `module_type` for why registration of ids happens
-                // here for core types early.
-                self.current().core_types.register(field.id, "core type")?;
-                self.current().resolve_type_def(ty)?;
-                assert!(self.aliases_to_insert.is_empty());
+                if let Phase::Resolve = self.phase {
+                    self.current().resolve_type_def(ty)?;
+                }
             }
             CoreTypeDef::Module(t) => {
-                self.stack.push(ComponentState::new(field.id));
-                self.module_type(t)?;
-                self.stack.pop();
+                self.module_type(field.id, t)?;
             }
         }
         Ok(())
     }
 
     fn core_rec(&mut self, rec: &mut core::Rec<'a>) -> Result<(), Error> {
-        // See comments in `module_type` for why registration of ids happens
-        // here for core types early.
-        for ty in rec.types.iter() {
-            self.current().core_types.register(ty.id, "core type")?;
+        if let Phase::Resolve = self.phase {
+            for ty in rec.types.iter_mut() {
+                self.current().resolve_type(ty)?;
+            }
         }
-        for ty in rec.types.iter_mut() {
-            self.current().resolve_type(ty)?;
-        }
-        assert!(self.aliases_to_insert.is_empty());
         Ok(())
     }
 
@@ -662,14 +745,10 @@ impl<'a> Resolver<'a> {
                 }
             }
             TypeDef::Component(c) => {
-                self.stack.push(ComponentState::new(field.id));
-                self.component_type(c)?;
-                self.stack.pop();
+                self.component_type(field.id, c)?;
             }
             TypeDef::Instance(i) => {
-                self.stack.push(ComponentState::new(field.id));
-                self.instance_type(i)?;
-                self.stack.pop();
+                self.instance_type(field.id, i)?;
             }
             TypeDef::Resource(r) => {
                 self.ref_type(&mut r.rep)?;
@@ -681,8 +760,13 @@ impl<'a> Resolver<'a> {
         Ok(())
     }
 
-    fn component_type(&mut self, c: &mut ComponentType<'a>) -> Result<(), Error> {
-        self.resolve_prepending_aliases(
+    fn component_type(
+        &mut self,
+        id: Option<Id<'a>>,
+        c: &mut ComponentType<'a>,
+    ) -> Result<(), Error> {
+        self.resolve_group(
+            id,
             &mut c.decls,
             |resolver, decl| match decl {
                 ComponentTypeDecl::Alias(alias) => resolver.alias(alias),
@@ -714,8 +798,9 @@ impl<'a> Resolver<'a> {
         )
     }
 
-    fn instance_type(&mut self, c: &mut InstanceType<'a>) -> Result<(), Error> {
-        self.resolve_prepending_aliases(
+    fn instance_type(&mut self, id: Option<Id<'a>>, c: &mut InstanceType<'a>) -> Result<(), Error> {
+        self.resolve_group(
+            id,
             &mut c.decls,
             |resolver, decl| match decl {
                 InstanceTypeDecl::Alias(alias) => resolver.alias(alias),
@@ -747,56 +832,65 @@ impl<'a> Resolver<'a> {
     where
         K: CoreItem + Copy,
     {
-        // Check for not being an instance export reference
-        if item.export_name.is_none() {
-            self.resolve_ns(&mut item.idx, item.kind.ns())?;
-            return Ok(());
-        }
+        match self.phase {
+            Phase::ExpandAliases => {
+                // If this has an export name then an alias will be injected,
+                // but otherwise delegate to `resolve_ns` logic.
+                let name = match item.export_name {
+                    Some(name) => name,
+                    None => return self.resolve_ns(&mut item.idx, item.kind.ns()),
+                };
+                let span = item.idx.span();
+                let kind = match item.kind.ns() {
+                    ns @ (Ns::CoreFunc
+                    | Ns::CoreTable
+                    | Ns::CoreGlobal
+                    | Ns::CoreMemory
+                    | Ns::CoreTag) => ns.into(),
+                    Ns::CoreType
+                    | Ns::CoreInstance
+                    | Ns::CoreModule
+                    | Ns::Func
+                    | Ns::Type
+                    | Ns::Instance
+                    | Ns::Component
+                    | Ns::Value => {
+                        return Err(Error::new(
+                            span,
+                            "core instances cannot export this kind of item, \
+                             so an export name cannot be used to resolve this \
+                             reference"
+                                .to_string(),
+                        ));
+                    }
+                };
 
-        let span = item.idx.span();
-        let kind = match item.kind.ns() {
-            ns @ (Ns::CoreFunc | Ns::CoreTable | Ns::CoreGlobal | Ns::CoreMemory | Ns::CoreTag) => {
-                ns.into()
-            }
-            Ns::CoreType
-            | Ns::CoreInstance
-            | Ns::CoreModule
-            | Ns::Func
-            | Ns::Type
-            | Ns::Instance
-            | Ns::Component
-            | Ns::Value => {
-                return Err(Error::new(
+                // Record an alias to reference the export
+                let id = gensym::generate(span);
+                let alias = Alias {
                     span,
-                    "core instances cannot export this kind of item, so an \
-                     export name cannot be used to resolve this reference"
-                        .to_string(),
-                ));
+                    id: Some(id),
+                    name: None,
+                    target: AliasTarget::CoreExport {
+                        instance: item.idx,
+                        name,
+                        kind,
+                    },
+                };
+
+                self.aliases_to_insert.push(alias);
+
+                item.idx = Index::Id(id);
+                item.export_name = None;
             }
-        };
 
-        // This is a reference to a core instance export
-        let mut index = item.idx;
-        self.resolve_ns(&mut index, Ns::CoreInstance)?;
-
-        // Record an alias to reference the export
-        let alias = Alias {
-            span,
-            id: None,
-            name: None,
-            target: AliasTarget::CoreExport {
-                instance: index,
-                name: item.export_name.unwrap(),
-                kind,
-            },
-        };
-
-        index = Index::Num(self.current().register_alias(&alias)?, span);
-        self.aliases_to_insert.push(alias);
-
-        item.idx = index;
-        item.export_name = None;
-
+            // During this phase any optional aliases should have been procesed,
+            // so proceed directly to normal resolution.
+            Phase::Resolve => {
+                assert!(item.export_name.is_none());
+                self.resolve_ns(&mut item.idx, item.kind.ns())?;
+            }
+        }
         Ok(())
     }
 
@@ -804,162 +898,163 @@ impl<'a> Resolver<'a> {
     where
         K: ComponentItem + Copy,
     {
-        // Check for not being an instance export reference
-        if item.export_names.is_empty() {
-            self.resolve_ns(&mut item.idx, item.kind.ns())?;
-            return Ok(());
+        match self.phase {
+            Phase::ExpandAliases => {
+                let span = item.idx.span();
+                let names = item.export_names.len();
+                for (pos, export_name) in item.export_names.drain(..).enumerate() {
+                    // Record an alias to reference the export
+                    let id = gensym::generate(span);
+                    let alias = Alias {
+                        span,
+                        id: Some(id),
+                        name: None,
+                        target: AliasTarget::Export {
+                            instance: item.idx,
+                            name: export_name,
+                            kind: if pos == names - 1 {
+                                item.kind.ns().into()
+                            } else {
+                                ComponentExportAliasKind::Instance
+                            },
+                        },
+                    };
+
+                    item.idx = Index::Id(id);
+                    self.aliases_to_insert.push(alias);
+                }
+            }
+            Phase::Resolve => {
+                assert!(item.export_names.is_empty());
+            }
         }
 
-        // This is a reference to an instance export
-        let mut index = item.idx;
-        self.resolve_ns(&mut index, Ns::Instance)?;
-
-        let span = item.idx.span();
-        for (pos, export_name) in item.export_names.iter().enumerate() {
-            // Record an alias to reference the export
-            let alias = Alias {
-                span,
-                id: None,
-                name: None,
-                target: AliasTarget::Export {
-                    instance: index,
-                    name: export_name,
-                    kind: if pos == item.export_names.len() - 1 {
-                        item.kind.ns().into()
-                    } else {
-                        ComponentExportAliasKind::Instance
-                    },
-                },
-            };
-
-            index = Index::Num(self.current().register_alias(&alias)?, span);
-            self.aliases_to_insert.push(alias);
-        }
-
-        item.idx = index;
-        item.export_names = Vec::new();
-
+        self.resolve_ns(&mut item.idx, item.kind.ns())?;
         Ok(())
     }
 
-    fn resolve_ns(&mut self, idx: &mut Index<'a>, ns: Ns) -> Result<u32, Error> {
-        // Perform resolution on a local clone walking up the stack of components
-        // that we have. Note that a local clone is used since we don't want to use
-        // the parent's resolved index if a parent matches, instead we want to use
-        // the index of the alias that we will automatically insert.
-        let mut idx_clone = *idx;
-        for (depth, resolver) in self.stack.iter_mut().rev().enumerate() {
-            let depth = depth as u32;
-            let found = match resolver.resolve(ns, &mut idx_clone) {
-                Ok(idx) => idx,
-                // Try the next parent
-                Err(_) => continue,
-            };
+    fn resolve_ns(&mut self, idx: &mut Index<'a>, ns: Ns) -> Result<(), Error> {
+        match self.phase {
+            Phase::ExpandAliases => {
+                let mut idx_clone = *idx;
+                for (depth, resolver) in self.stack.iter_mut().rev().enumerate() {
+                    let depth = depth as u32;
+                    // Try to find `idx_clone` within `resolver`, but failing
+                    // that move on to the next parent.
+                    //
+                    // Note that this implicitly relies on all resolution
+                    // registering all names first, which is part of the
+                    // processing in `resolve_group`.
+                    let (r, _) = resolver.resolver(ns);
+                    let found = match r.try_resolve(&mut idx_clone) {
+                        Some(idx) => idx,
+                        None => continue,
+                    };
 
-            // If this is the current component then no extra alias is necessary, so
-            // return success.
-            if depth == 0 {
-                *idx = idx_clone;
-                return Ok(found);
+                    // If this is the current component then no extra alias is
+                    // necessary, so return success.
+                    if depth == 0 {
+                        return Ok(());
+                    }
+                    let id = match idx {
+                        Index::Id(id) => *id,
+                        Index::Num(..) => unreachable!(),
+                    };
+
+                    // When resolution succeeds in a parent then an outer alias
+                    // is automatically inserted here in this component.
+                    let span = idx.span();
+                    let alias = Alias {
+                        span,
+                        id: Some(id),
+                        name: None,
+                        target: AliasTarget::Outer {
+                            outer: Index::Num(depth, span),
+                            index: Index::Num(found, span),
+                            kind: match ns {
+                                Ns::CoreModule => ComponentOuterAliasKind::CoreModule,
+                                Ns::CoreType => ComponentOuterAliasKind::CoreType,
+                                Ns::Type => ComponentOuterAliasKind::Type,
+                                Ns::Component => ComponentOuterAliasKind::Component,
+                                _ => {
+                                    return Err(Error::new(
+                                        span,
+                                        format!(
+                                            "outer item `{}` is not a module, type, or component",
+                                            id.name(),
+                                        ),
+                                    ));
+                                }
+                            },
+                        },
+                    };
+                    // Register `alias` with the well-known-name `id` so future
+                    // outer aliases to the same type reuse this injected alias.
+                    self.current().register_alias(&alias)?;
+
+                    self.aliases_to_insert.push(alias);
+                    break;
+                }
             }
-            let id = match idx {
-                Index::Id(id) => *id,
-                Index::Num(..) => unreachable!(),
-            };
 
-            // When resolution succeeds in a parent then an outer alias is
-            // automatically inserted here in this component.
-            let span = idx.span();
-            let alias = Alias {
-                span,
-                id: Some(id),
-                name: None,
-                target: AliasTarget::Outer {
-                    outer: Index::Num(depth, span),
-                    index: Index::Num(found, span),
-                    kind: match ns {
-                        Ns::CoreModule => ComponentOuterAliasKind::CoreModule,
-                        Ns::CoreType => ComponentOuterAliasKind::CoreType,
-                        Ns::Type => ComponentOuterAliasKind::Type,
-                        Ns::Component => ComponentOuterAliasKind::Component,
-                        _ => {
-                            return Err(Error::new(
-                                span,
-                                format!(
-                                    "outer item `{}` is not a module, type, or component",
-                                    id.name(),
-                                ),
-                            ));
-                        }
-                    },
-                },
-            };
-            let local_index = self.current().register_alias(&alias)?;
-            self.aliases_to_insert.push(alias);
-            *idx = Index::Num(local_index, span);
-            return Ok(local_index);
+            // During the resovle phase of processing it's required that `idx`
+            // lives within the current namespace, so just resolve it there.
+            Phase::Resolve => {
+                self.current().resolve(ns, idx)?;
+            }
         }
-
-        // If resolution in any parent failed then simply return the error from our
-        // local namespace
-        self.current().resolve(ns, idx)?;
-        unreachable!()
+        Ok(())
     }
 
-    fn module_type(&mut self, ty: &mut ModuleType<'a>) -> Result<(), Error> {
-        return self.resolve_prepending_aliases(
+    fn module_type(&mut self, id: Option<Id<'a>>, ty: &mut ModuleType<'a>) -> Result<(), Error> {
+        return self.resolve_group(
+            id,
             &mut ty.decls,
             |resolver, decl| match decl {
                 ModuleTypeDecl::Alias(alias) => resolver.alias(alias),
-
-                // For types since the GC proposal to core wasm they're allowed
-                // to both refer to themselves and additionally a recursion
-                // group can define a set of types that all refer to one
-                // another. That means that the type names must be registered
-                // first before the type is resolved so the type's own name is
-                // in scope for itself.
-                //
-                // Note though that this means that aliases cannot be injected
-                // automatically for references to outer types. We don't know
-                // how many aliases are going to be created so we otherwise
-                // don't know the type index to register.
-                //
-                // As a compromise for now core types don't support
-                // auto-injection of aliases from outer scopes. They must be
-                // explicitly aliased in. Also note that the error message isn't
-                // great either. This may be something we want to improve in the
-                // future with a better error message or a pass that goes over
-                // everything first to inject aliases and then afterwards all
-                // other names are registered.
                 ModuleTypeDecl::Type(t) => {
-                    resolver.current().core_types.register(t.id, "type")?;
-                    resolver.current().resolve_type(t)
+                    if let Phase::Resolve = resolver.phase {
+                        resolver.current().resolve_type(t)?;
+                    }
+                    Ok(())
                 }
                 ModuleTypeDecl::Rec(t) => {
-                    for t in t.types.iter_mut() {
-                        resolver.current().core_types.register(t.id, "type")?;
-                    }
-                    for t in t.types.iter_mut() {
-                        resolver.current().resolve_type(t)?;
+                    if let Phase::Resolve = resolver.phase {
+                        for t in t.types.iter_mut() {
+                            resolver.current().resolve_type(t)?;
+                        }
                     }
                     Ok(())
                 }
 
                 ModuleTypeDecl::Import(imports) => {
-                    for sig in imports.unique_sigs_mut() {
-                        resolve_item_sig(resolver, sig)?;
+                    if let Phase::Resolve = resolver.phase {
+                        for sig in imports.unique_sigs_mut() {
+                            resolve_item_sig(resolver, sig)?;
+                        }
                     }
                     Ok(())
                 }
-                ModuleTypeDecl::Export(_, item) => resolve_item_sig(resolver, item),
+                ModuleTypeDecl::Export(_, item) => {
+                    if let Phase::Resolve = resolver.phase {
+                        resolve_item_sig(resolver, item)?;
+                    }
+                    Ok(())
+                }
             },
             |state, decl| {
                 match decl {
                     ModuleTypeDecl::Alias(alias) => {
                         state.register_alias(alias)?;
                     }
-                    // These were registered above already
-                    ModuleTypeDecl::Type(_) | ModuleTypeDecl::Rec(_) => {}
+                    ModuleTypeDecl::Type(t) => {
+                        state.core_types.register(t.id, "type")?;
+                    }
+                    ModuleTypeDecl::Rec(t) => {
+                        for t in t.types.iter() {
+                            state.core_types.register(t.id, "type")?;
+                        }
+                    }
                     // Only the type namespace is populated within the module type
                     // namespace so these are ignored here.
                     ModuleTypeDecl::Import(_) | ModuleTypeDecl::Export(..) => {}
@@ -995,20 +1090,25 @@ impl<'a> Resolver<'a> {
 
 impl<'a> ComponentState<'a> {
     fn resolve(&self, ns: Ns, idx: &mut Index<'a>) -> Result<u32, Error> {
+        let (ns, desc) = self.resolver(ns);
+        ns.resolve(idx, desc)
+    }
+
+    fn resolver(&self, ns: Ns) -> (&Namespace<'a>, &'static str) {
         match ns {
-            Ns::CoreFunc => self.core_funcs.resolve(idx, "core func"),
-            Ns::CoreGlobal => self.core_globals.resolve(idx, "core global"),
-            Ns::CoreTable => self.core_tables.resolve(idx, "core table"),
-            Ns::CoreMemory => self.core_memories.resolve(idx, "core memory"),
-            Ns::CoreType => self.core_types.resolve(idx, "core type"),
-            Ns::CoreTag => self.core_tags.resolve(idx, "core tag"),
-            Ns::CoreInstance => self.core_instances.resolve(idx, "core instance"),
-            Ns::CoreModule => self.core_modules.resolve(idx, "core module"),
-            Ns::Func => self.funcs.resolve(idx, "func"),
-            Ns::Type => self.types.resolve(idx, "type"),
-            Ns::Instance => self.instances.resolve(idx, "instance"),
-            Ns::Component => self.components.resolve(idx, "component"),
-            Ns::Value => self.values.resolve(idx, "value"),
+            Ns::CoreFunc => (&self.core_funcs, "core func"),
+            Ns::CoreGlobal => (&self.core_globals, "core global"),
+            Ns::CoreTable => (&self.core_tables, "core table"),
+            Ns::CoreMemory => (&self.core_memories, "core memory"),
+            Ns::CoreType => (&self.core_types, "core type"),
+            Ns::CoreTag => (&self.core_tags, "core tag"),
+            Ns::CoreInstance => (&self.core_instances, "core instance"),
+            Ns::CoreModule => (&self.core_modules, "core module"),
+            Ns::Func => (&self.funcs, "func"),
+            Ns::Type => (&self.types, "type"),
+            Ns::Instance => (&self.instances, "instance"),
+            Ns::Component => (&self.components, "component"),
+            Ns::Value => (&self.values, "value"),
         }
     }
 
@@ -1020,10 +1120,15 @@ impl<'a> ComponentState<'a> {
                 self.core_instances.register(i.id, "core instance")?
             }
             ComponentField::CoreType(ty) => match &ty.def {
-                CoreTypeDef::Def(_) => 0, // done above in `core_rec`
+                CoreTypeDef::Def(_) => self.core_types.register(ty.id, "core type")?,
                 CoreTypeDef::Module(_) => self.core_types.register(ty.id, "core type")?,
             },
-            ComponentField::CoreRec(_) => 0, // done above in `core_rec`
+            ComponentField::CoreRec(ty) => {
+                for ty in ty.types.iter() {
+                    self.core_types.register(ty.id, "core type")?;
+                }
+                0
+            }
             ComponentField::Component(c) => self.components.register(c.id, "component")?,
             ComponentField::Instance(i) => self.instances.register(i.id, "instance")?,
             ComponentField::Alias(a) => self.register_alias(a)?,
