@@ -168,7 +168,7 @@ pub enum TaskHook {
     /// A resource destructor is finished.
     ResourceDtorFinish = 9,
     //
-    // 11/12 intentionally missing
+    // 10/11 intentionally missing
     //
     /// A `realloc` function used as a canonical ABI option is being invoked.
     ReallocStart = 12,
