@@ -39,8 +39,8 @@
     i32.const 9
   )
   (func (;10;) (type 1)
-    i32.const 31
-    i32.const 5
+    i32.const 12
+    i32.const 4
     i32.const 0
     table.init 1
   )

@@ -1,0 +1,6 @@
+(component
+  (type (;0;) string)
+  (alias outer 0 0 (type (;1;)))
+  (@custom "between" "")
+  (type (;2;) (list 1))
+)

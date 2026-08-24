@@ -1,0 +1,196 @@
+(component
+  (type $f1' (;0;) (flags "f1"))
+  (type $f8' (;1;) (flags "f1" "f2" "f3" "f4" "f5" "f6" "f7" "f8"))
+  (type $f9' (;2;) (flags "f1" "f2" "f3" "f4" "f5" "f6" "f7" "f8" "f9"))
+  (type $f16' (;3;) (flags "f1" "f2" "f3" "f4" "f5" "f6" "f7" "f8" "g1" "g2" "g3" "g4" "g5" "g6" "g7" "g8"))
+  (type $f17' (;4;) (flags "f1" "f2" "f3" "f4" "f5" "f6" "f7" "f8" "g1" "g2" "g3" "g4" "g5" "g6" "g7" "g8" "g9"))
+  (type $f32' (;5;) (flags "f1" "f2" "f3" "f4" "f5" "f6" "f7" "f8" "g1" "g2" "g3" "g4" "g5" "g6" "g7" "g8" "h1" "h2" "h3" "h4" "h5" "h6" "h7" "h8" "i1" "i2" "i3" "i4" "i5" "i6" "i7" "i8"))
+  (component $C (;0;)
+    (alias outer 1 $f1' (type $f1' (;0;)))
+    (export $f1 (;1;) "t-f1" (type $f1'))
+    (alias outer 1 $f8' (type $f8' (;2;)))
+    (export $f8 (;3;) "t-f8" (type $f8'))
+    (alias outer 1 $f9' (type $f9' (;4;)))
+    (export $f9 (;5;) "t-f9" (type $f9'))
+    (alias outer 1 $f16' (type $f16' (;6;)))
+    (export $f16 (;7;) "t-f16" (type $f16'))
+    (alias outer 1 $f17' (type $f17' (;8;)))
+    (export $f17 (;9;) "t-f17" (type $f17'))
+    (alias outer 1 $f32' (type $f32' (;10;)))
+    (export $f32 (;11;) "t-f32" (type $f32'))
+    (core module $M (;0;)
+      (type (;0;) (func (param i32)))
+      (export "f1" (func 0))
+      (export "f8" (func 1))
+      (export "f9" (func 2))
+      (export "f16" (func 3))
+      (export "f17" (func 4))
+      (export "f32" (func 5))
+      (func (;0;) (type 0) (param i32)
+        local.get 0
+        i32.const 1
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+      )
+      (func (;1;) (type 0) (param i32)
+        local.get 0
+        i32.const 17
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+      )
+      (func (;2;) (type 0) (param i32)
+        local.get 0
+        i32.const 273
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+      )
+      (func (;3;) (type 0) (param i32)
+        local.get 0
+        i32.const 4369
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+      )
+      (func (;4;) (type 0) (param i32)
+        local.get 0
+        i32.const 69905
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+      )
+      (func (;5;) (type 0) (param i32)
+        local.get 0
+        i32.const -1
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+      )
+    )
+    (core instance $m (;0;) (instantiate $M))
+    (type (;12;) (func (param "x" $f1)))
+    (alias core export $m "f1" (core func (;0;)))
+    (func (;0;) (type 12) (canon lift (core func 0)))
+    (type (;13;) (func (param "x" $f8)))
+    (alias core export $m "f8" (core func (;1;)))
+    (func (;1;) (type 13) (canon lift (core func 1)))
+    (type (;14;) (func (param "x" $f9)))
+    (alias core export $m "f9" (core func (;2;)))
+    (func (;2;) (type 14) (canon lift (core func 2)))
+    (type (;15;) (func (param "x" $f16)))
+    (alias core export $m "f16" (core func (;3;)))
+    (func (;3;) (type 15) (canon lift (core func 3)))
+    (type (;16;) (func (param "x" $f17)))
+    (alias core export $m "f17" (core func (;4;)))
+    (func (;4;) (type 16) (canon lift (core func 4)))
+    (type (;17;) (func (param "x" $f32)))
+    (alias core export $m "f32" (core func (;5;)))
+    (func (;5;) (type 17) (canon lift (core func 5)))
+    (export (;6;) "f1" (func 0))
+    (export (;7;) "f8" (func 1))
+    (export (;8;) "f9" (func 2))
+    (export (;9;) "f16" (func 3))
+    (export (;10;) "f17" (func 4))
+    (export (;11;) "f32" (func 5))
+  )
+  (component $D (;1;)
+    (type (;0;)
+      (instance
+        (alias outer 2 $f1' (type (;0;)))
+        (export (;1;) "t-f1" (type (eq 0)))
+        (alias outer 2 $f8' (type (;2;)))
+        (export (;3;) "t-f8" (type (eq 2)))
+        (alias outer 2 $f9' (type (;4;)))
+        (export (;5;) "t-f9" (type (eq 4)))
+        (alias outer 2 $f16' (type (;6;)))
+        (export (;7;) "t-f16" (type (eq 6)))
+        (alias outer 2 $f17' (type (;8;)))
+        (export (;9;) "t-f17" (type (eq 8)))
+        (alias outer 2 $f32' (type (;10;)))
+        (export (;11;) "t-f32" (type (eq 10)))
+        (type (;12;) (func (param "x" 1)))
+        (export (;0;) "f1" (func (type 12)))
+        (type (;13;) (func (param "x" 3)))
+        (export (;1;) "f8" (func (type 13)))
+        (type (;14;) (func (param "x" 5)))
+        (export (;2;) "f9" (func (type 14)))
+        (type (;15;) (func (param "x" 7)))
+        (export (;3;) "f16" (func (type 15)))
+        (type (;16;) (func (param "x" 9)))
+        (export (;4;) "f17" (func (type 16)))
+        (type (;17;) (func (param "x" 11)))
+        (export (;5;) "f32" (func (type 17)))
+      )
+    )
+    (import "c" (instance $i (;0;) (type 0)))
+    (alias export $i "f1" (func (;0;)))
+    (core func $f1' (;0;) (canon lower (func 0)))
+    (alias export $i "f8" (func (;1;)))
+    (core func $f8' (;1;) (canon lower (func 1)))
+    (alias export $i "f9" (func (;2;)))
+    (core func $f9' (;2;) (canon lower (func 2)))
+    (alias export $i "f16" (func (;3;)))
+    (core func $f16' (;3;) (canon lower (func 3)))
+    (alias export $i "f17" (func (;4;)))
+    (core func $f17' (;4;) (canon lower (func 4)))
+    (alias export $i "f32" (func (;5;)))
+    (core func $f32' (;5;) (canon lower (func 5)))
+    (core module $M (;0;)
+      (type (;0;) (func (param i32)))
+      (type (;1;) (func (result i32)))
+      (import "" "f1" (func $f1 (;0;) (type 0)))
+      (import "" "f8" (func $f8 (;1;) (type 0)))
+      (import "" "f9" (func $f9 (;2;) (type 0)))
+      (import "" "f16" (func $f16 (;3;) (type 0)))
+      (import "" "f17" (func $f17 (;4;) (type 0)))
+      (import "" "f32" (func $f32 (;5;) (type 0)))
+      (export "run" (func 6))
+      (func (;6;) (type 1) (result i32)
+        i32.const -255
+        call $f1
+        i32.const -239
+        call $f8
+        i32.const -239
+        call $f9
+        i32.const -61167
+        call $f16
+        i32.const -61167
+        call $f17
+        i32.const -1
+        call $f32
+        i32.const 45
+      )
+    )
+    (core instance (;0;)
+      (export "f1" (func $f1'))
+      (export "f8" (func $f8'))
+      (export "f9" (func $f9'))
+      (export "f16" (func $f16'))
+      (export "f17" (func $f17'))
+      (export "f32" (func $f32'))
+    )
+    (core instance $m (;1;) (instantiate $M
+        (with "" (instance 0))
+      )
+    )
+    (type (;1;) (func (result u32)))
+    (alias core export $m "run" (core func (;6;)))
+    (func (;6;) (type 1) (canon lift (core func 6)))
+    (export (;7;) "run" (func 6))
+  )
+  (instance $c (;0;) (instantiate $C))
+  (instance $d (;1;) (instantiate $D
+      (with "c" (instance $c))
+    )
+  )
+  (alias export $d "run" (func (;0;)))
+  (export (;1;) "run" (func 0))
+)

@@ -1,0 +1,50 @@
+(component
+  (core module $Tag (;0;)
+    (type (;0;) (func (param i32)))
+    (tag (;0;) (type 0) (param i32))
+    (export "t" (tag 0))
+  )
+  (core module $Thrower (;1;)
+    (type (;0;) (func (param i32)))
+    (import "tag" "t" (tag $t (;0;) (type 0) (param i32)))
+    (export "throw-if" (func 0))
+    (func (;0;) (type 0) (param i32)
+      local.get 0
+      if ;; label = @1
+        local.get 0
+        throw $t
+      end
+    )
+  )
+  (core module $Catcher (;2;)
+    (type (;0;) (func (param i32)))
+    (type (;1;) (func (param i32) (result i32)))
+    (import "tag" "t" (tag $t (;0;) (type 0) (param i32)))
+    (import "thrower" "throw-if" (func $throw-if (;0;) (type 0)))
+    (export "run" (func 1))
+    (func (;1;) (type 1) (param i32) (result i32)
+      block $h (result i32)
+        try_table (catch $t $h) ;; label = @2
+          local.get 0
+          call $throw-if
+        end
+        i32.const 99
+        return
+      end
+    )
+  )
+  (core instance $tag (;0;) (instantiate $Tag))
+  (core instance $thrower (;1;) (instantiate $Thrower
+      (with "tag" (instance $tag))
+    )
+  )
+  (core instance $catcher (;2;) (instantiate $Catcher
+      (with "tag" (instance $tag))
+      (with "thrower" (instance $thrower))
+    )
+  )
+  (type (;0;) (func (param "x" u32) (result u32)))
+  (alias core export $catcher "run" (core func (;0;)))
+  (func (;0;) (type 0) (canon lift (core func 0)))
+  (export (;1;) "run" (func 0))
+)

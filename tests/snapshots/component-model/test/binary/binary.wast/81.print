@@ -1,0 +1,10 @@
+(component
+  (type (;0;) string)
+  (type (;1;)
+    (instance
+      (core type (;0;) (func))
+      (alias outer 1 0 (type (;0;)))
+      (export (;1;) "t" (type (eq 0)))
+    )
+  )
+)

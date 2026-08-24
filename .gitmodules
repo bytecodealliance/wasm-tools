@@ -1,3 +1,6 @@
 [submodule "tests/testsuite"]
 	path = tests/testsuite
 	url = https://github.com/WebAssembly/testsuite
+[submodule "tests/component-model"]
+	path = tests/component-model
+	url = https://github.com/webassembly/component-model

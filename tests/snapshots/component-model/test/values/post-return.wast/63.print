@@ -1,0 +1,33 @@
+(component
+  (core func $bp.inc (;0;) (canon backpressure.inc))
+  (core func $bp.dec (;1;) (canon backpressure.dec))
+  (core module $CM (;0;)
+    (type (;0;) (func))
+    (type (;1;) (func (result i32)))
+    (type (;2;) (func (param i32)))
+    (import "" "bp.inc" (func $bp.inc (;0;) (type 0)))
+    (import "" "bp.dec" (func $bp.dec (;1;) (type 0)))
+    (export "f" (func 2))
+    (export "f-pr" (func 3))
+    (func (;2;) (type 1) (result i32)
+      i32.const 11
+    )
+    (func (;3;) (type 2) (param i32)
+      call $bp.inc
+      call $bp.dec
+    )
+  )
+  (core instance (;0;)
+    (export "bp.inc" (func $bp.inc))
+    (export "bp.dec" (func $bp.dec))
+  )
+  (core instance $cm (;1;) (instantiate $CM
+      (with "" (instance 0))
+    )
+  )
+  (type (;0;) (func (result u32)))
+  (alias core export $cm "f" (core func (;2;)))
+  (alias core export $cm "f-pr" (core func (;3;)))
+  (func (;0;) (type 0) (canon lift (core func 2) (post-return 3)))
+  (export (;1;) "f" (func 0))
+)

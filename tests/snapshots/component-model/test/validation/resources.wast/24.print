@@ -1,0 +1,16 @@
+(component
+  (type $R (;0;) (resource (rep i32)))
+  (type (;1;) (own $R))
+  (type $Var (;2;) (variant (case "c" 1)))
+  (component $c (;0;)
+    (import "T" (type $t (;0;) (sub resource)))
+    (type (;1;) (own $t))
+    (type $expected (;2;) (variant (case "c" 1)))
+    (import "a" (type (;3;) (eq $expected)))
+  )
+  (instance (;0;) (instantiate $c
+      (with "T" (type $R))
+      (with "a" (type $Var))
+    )
+  )
+)

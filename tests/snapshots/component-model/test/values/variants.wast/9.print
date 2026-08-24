@@ -1,0 +1,251 @@
+(component
+  (component $C (;0;)
+    (type $narrow' (;0;) (variant (case "a" u8) (case "b" u32)))
+    (export $narrow (;1;) "narrow-t" (type $narrow'))
+    (type $wide' (;2;) (variant (case "a" u16) (case "b" u64)))
+    (export $wide (;3;) "wide-t" (type $wide'))
+    (type $mix' (;4;) (variant (case "f" f32) (case "l" u64)))
+    (export $mix (;5;) "mix-t" (type $mix'))
+    (core module $M (;0;)
+      (type (;0;) (func (param i32 i64)))
+      (type (;1;) (func (param i32 i32)))
+      (type (;2;) (func))
+      (import "" "task.return" (func $task.return-mix (;0;) (type 0)))
+      (export "narrow" (func 1))
+      (export "wide" (func 2))
+      (export "mix" (func 3))
+      (export "mix-ret" (func 4))
+      (func (;1;) (type 1) (param i32 i32)
+        local.get 0
+        i32.eqz
+        if ;; label = @1
+          local.get 1
+          i32.const 2
+          i32.ne
+          if ;; label = @2
+            unreachable
+          end
+        else
+          local.get 1
+          i32.const -559038737
+          i32.ne
+          if ;; label = @2
+            unreachable
+          end
+        end
+      )
+      (func (;2;) (type 0) (param i32 i64)
+        local.get 0
+        i32.eqz
+        if ;; label = @1
+          local.get 1
+          i64.const 4
+          i64.ne
+          if ;; label = @2
+            unreachable
+          end
+        else
+          local.get 1
+          i64.const 1311768467463790320
+          i64.ne
+          if ;; label = @2
+            unreachable
+          end
+        end
+      )
+      (func (;3;) (type 0) (param i32 i64)
+        local.get 0
+        i32.eqz
+        if ;; label = @1
+          local.get 1
+          i64.const 1078530011
+          i64.ne
+          if ;; label = @2
+            unreachable
+          end
+        else
+          local.get 1
+          i64.const -81985529216486896
+          i64.ne
+          if ;; label = @2
+            unreachable
+          end
+        end
+      )
+      (func (;4;) (type 2)
+        i32.const 0
+        i64.const -3216437285
+        call $task.return-mix
+      )
+    )
+    (core func $task.return-mix (;0;) (canon task.return (result $mix)))
+    (core instance (;0;)
+      (export "task.return" (func $task.return-mix))
+    )
+    (core instance $m (;1;) (instantiate $M
+        (with "" (instance 0))
+      )
+    )
+    (type (;6;) (func (param "v" $narrow)))
+    (alias core export $m "narrow" (core func (;1;)))
+    (func (;0;) (type 6) (canon lift (core func 1)))
+    (type (;7;) (func (param "v" $wide)))
+    (alias core export $m "wide" (core func (;2;)))
+    (func (;1;) (type 7) (canon lift (core func 2)))
+    (type (;8;) (func (param "v" $mix)))
+    (alias core export $m "mix" (core func (;3;)))
+    (func (;2;) (type 8) (canon lift (core func 3)))
+    (type (;9;) (func async (result $mix)))
+    (alias core export $m "mix-ret" (core func (;4;)))
+    (func (;3;) (type 9) (canon lift (core func 4) async))
+    (export (;4;) "narrow" (func 0))
+    (export (;5;) "wide" (func 1))
+    (export (;6;) "mix" (func 2))
+    (export (;7;) "mix-ret" (func 3))
+  )
+  (component $D (;1;)
+    (type (;0;)
+      (instance
+        (type (;0;) (variant (case "a" u8) (case "b" u32)))
+        (export (;1;) "narrow-t" (type (eq 0)))
+        (type (;2;) (variant (case "a" u16) (case "b" u64)))
+        (export (;3;) "wide-t" (type (eq 2)))
+        (type (;4;) (variant (case "f" f32) (case "l" u64)))
+        (export (;5;) "mix-t" (type (eq 4)))
+        (type (;6;) (func (param "v" 1)))
+        (export (;0;) "narrow" (func (type 6)))
+        (type (;7;) (func (param "v" 3)))
+        (export (;1;) "wide" (func (type 7)))
+        (type (;8;) (func (param "v" 5)))
+        (export (;2;) "mix" (func (type 8)))
+        (type (;9;) (func async (result 5)))
+        (export (;3;) "mix-ret" (func (type 9)))
+      )
+    )
+    (import "c" (instance $c (;0;) (type 0)))
+    (core module $Memory (;0;)
+      (memory (;0;) 1)
+      (export "mem" (memory 0))
+    )
+    (core instance $memory (;0;) (instantiate $Memory))
+    (alias export $c "narrow" (func (;0;)))
+    (core func $narrow' (;0;) (canon lower (func 0)))
+    (alias export $c "wide" (func (;1;)))
+    (core func $wide' (;1;) (canon lower (func 1)))
+    (alias export $c "mix" (func (;2;)))
+    (core func $mix' (;2;) (canon lower (func 2)))
+    (alias export $c "mix-ret" (func (;3;)))
+    (alias core export $memory "mem" (core memory (;0;)))
+    (core func $mix-ret' (;3;) (canon lower (func 3) async (memory 0)))
+    (core module $Main (;1;)
+      (type (;0;) (func (param i32 i32)))
+      (type (;1;) (func (param i32 i64)))
+      (type (;2;) (func (param i32) (result i32)))
+      (type (;3;) (func (result i32)))
+      (import "" "mem" (memory (;0;) 1))
+      (import "" "narrow" (func $narrow (;0;) (type 0)))
+      (import "" "wide" (func $wide (;1;) (type 1)))
+      (import "" "mix" (func $mix (;2;) (type 1)))
+      (import "" "mix-ret" (func $mix-ret (;3;) (type 2)))
+      (export "join-narrow" (func 4))
+      (export "join-wide" (func 5))
+      (export "join-f32" (func 6))
+      (export "ret-f32" (func 7))
+      (func (;4;) (type 3) (result i32)
+        i32.const 0
+        i32.const 65282
+        call $narrow
+        i32.const 1
+        i32.const -559038737
+        call $narrow
+        i32.const 42
+      )
+      (func (;5;) (type 3) (result i32)
+        i32.const 0
+        i64.const 16711684
+        call $wide
+        i32.const 0
+        i64.const 1095216660484
+        call $wide
+        i32.const 1
+        i64.const 1311768467463790320
+        call $wide
+        i32.const 43
+      )
+      (func (;6;) (type 3) (result i32)
+        i32.const 0
+        i64.const -3216437285
+        call $mix
+        i32.const 1
+        i64.const -81985529216486896
+        call $mix
+        i32.const 44
+      )
+      (func (;7;) (type 3) (result i32)
+        i32.const 16
+        call $mix-ret
+        i32.const 2
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 16
+        i32.load8_u
+        i32.const 0
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 16
+        i32.load offset=8
+        i32.const 1078530011
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 45
+      )
+    )
+    (alias core export $memory "mem" (core memory (;1;)))
+    (core instance (;1;)
+      (export "mem" (memory 1))
+      (export "narrow" (func $narrow'))
+      (export "wide" (func $wide'))
+      (export "mix" (func $mix'))
+      (export "mix-ret" (func $mix-ret'))
+    )
+    (core instance $main (;2;) (instantiate $Main
+        (with "" (instance 1))
+      )
+    )
+    (type (;1;) (func (result u32)))
+    (alias core export $main "join-narrow" (core func (;4;)))
+    (func (;4;) (type 1) (canon lift (core func 4)))
+    (type (;2;) (func (result u32)))
+    (alias core export $main "join-wide" (core func (;5;)))
+    (func (;5;) (type 2) (canon lift (core func 5)))
+    (type (;3;) (func (result u32)))
+    (alias core export $main "join-f32" (core func (;6;)))
+    (func (;6;) (type 3) (canon lift (core func 6)))
+    (type (;4;) (func (result u32)))
+    (alias core export $main "ret-f32" (core func (;7;)))
+    (func (;7;) (type 4) (canon lift (core func 7)))
+    (export (;8;) "join-narrow" (func 4))
+    (export (;9;) "join-wide" (func 5))
+    (export (;10;) "join-f32" (func 6))
+    (export (;11;) "ret-f32" (func 7))
+  )
+  (instance $c (;0;) (instantiate $C))
+  (instance $d (;1;) (instantiate $D
+      (with "c" (instance $c))
+    )
+  )
+  (alias export $d "join-narrow" (func (;0;)))
+  (alias export $d "join-wide" (func (;1;)))
+  (alias export $d "join-f32" (func (;2;)))
+  (alias export $d "ret-f32" (func (;3;)))
+  (export (;4;) "join-narrow" (func 0))
+  (export (;5;) "join-wide" (func 1))
+  (export (;6;) "join-f32" (func 2))
+  (export (;7;) "ret-f32" (func 3))
+)

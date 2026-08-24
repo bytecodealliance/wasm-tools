@@ -1,0 +1,26 @@
+{
+  "source_filename": "tests/component-model/test/async/cancel-subtask.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 5,
+      "filename": "cancel-subtask.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 201,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    }
+  ]
+}

@@ -8707,21 +8707,21 @@
       "line": 515,
       "filename": "simd_lane.92.wat",
       "module_type": "text",
-      "text": "invalid lane length"
+      "text": "wrong number of lane indices"
     },
     {
       "type": "assert_malformed",
       "line": 518,
       "filename": "simd_lane.93.wat",
       "module_type": "text",
-      "text": "invalid lane length"
+      "text": "wrong number of lane indices"
     },
     {
       "type": "assert_malformed",
       "line": 521,
       "filename": "simd_lane.94.wat",
       "module_type": "text",
-      "text": "i8 constant out of range"
+      "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
@@ -8980,42 +8980,42 @@
       "line": 600,
       "filename": "simd_lane.131.wat",
       "module_type": "text",
-      "text": "invalid lane length"
+      "text": "wrong number of lane indices"
     },
     {
       "type": "assert_malformed",
       "line": 604,
       "filename": "simd_lane.132.wat",
       "module_type": "text",
-      "text": "i8 constant out of range"
+      "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
       "line": 608,
       "filename": "simd_lane.133.wat",
       "module_type": "text",
-      "text": "i8 constant out of range"
+      "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
       "line": 612,
       "filename": "simd_lane.134.wat",
       "module_type": "text",
-      "text": "i8 constant out of range"
+      "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
       "line": 616,
       "filename": "simd_lane.135.wat",
       "module_type": "text",
-      "text": "i8 constant out of range"
+      "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
       "line": 620,
       "filename": "simd_lane.136.wat",
       "module_type": "text",
-      "text": "i8 constant out of range"
+      "text": "unexpected token"
     },
     {
       "type": "module",
@@ -11906,7 +11906,7 @@
       "line": 1238,
       "filename": "simd_lane.198.wat",
       "module_type": "text",
-      "text": "invalid lane length"
+      "text": "wrong number of lane indices"
     },
     {
       "type": "assert_invalid",
@@ -11920,7 +11920,7 @@
       "line": 1259,
       "filename": "simd_lane.200.wat",
       "module_type": "text",
-      "text": "invalid lane length"
+      "text": "wrong number of lane indices"
     }
   ]
 }

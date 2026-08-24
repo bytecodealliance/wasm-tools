@@ -1,0 +1,69 @@
+(component
+  (component $C (;0;)
+    (core module $M (;0;)
+      (type (;0;) (func (param i32) (result i32)))
+      (export "id" (func 0))
+      (func (;0;) (type 0) (param i32) (result i32)
+        local.get 0
+      )
+    )
+    (core instance $m (;0;) (instantiate $M))
+    (type (;0;) (func (param "x" char) (result char)))
+    (alias core export $m "id" (core func (;0;)))
+    (func (;0;) (type 0) (canon lift (core func 0)))
+    (export (;1;) "id" (func 0))
+  )
+  (component $D (;1;)
+    (type (;0;) (func (param "x" char) (result char)))
+    (import "id" (func $id (;0;) (type 0)))
+    (core func $id' (;0;) (canon lower (func $id)))
+    (core module $M (;0;)
+      (type (;0;) (func (param i32) (result i32)))
+      (type (;1;) (func (param i32)))
+      (type (;2;) (func (result i32)))
+      (import "" "id" (func $id (;0;) (type 0)))
+      (export "run" (func 2))
+      (func $check (;1;) (type 1) (param i32)
+        local.get 0
+        call $id
+        local.get 0
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+      )
+      (func (;2;) (type 2) (result i32)
+        i32.const 0
+        call $check
+        i32.const 55295
+        call $check
+        i32.const 57344
+        call $check
+        i32.const 1114111
+        call $check
+        i32.const 44
+      )
+    )
+    (core instance (;0;)
+      (export "id" (func $id'))
+    )
+    (core instance $m (;1;) (instantiate $M
+        (with "" (instance 0))
+      )
+    )
+    (type (;1;) (func (result u32)))
+    (alias core export $m "run" (core func (;1;)))
+    (func (;1;) (type 1) (canon lift (core func 1)))
+    (export (;2;) "run" (func 1))
+  )
+  (instance $c (;0;) (instantiate $C))
+  (alias export $c "id" (func (;0;)))
+  (instance $d (;1;) (instantiate $D
+      (with "id" (func 0))
+    )
+  )
+  (alias export $d "run" (func (;1;)))
+  (alias export $c "id" (func (;2;)))
+  (export (;3;) "run" (func 1))
+  (export (;4;) "roundtrip" (func 2))
+)

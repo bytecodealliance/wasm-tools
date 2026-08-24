@@ -1,0 +1,26 @@
+{
+  "source_filename": "tests/component-model/test/async/sync-streams.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 7,
+      "filename": "sync-streams.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 208,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    }
+  ]
+}

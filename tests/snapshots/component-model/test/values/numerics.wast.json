@@ -1,0 +1,335 @@
+{
+  "source_filename": "tests/component-model/test/values/numerics.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 6,
+      "filename": "numerics.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 65,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 69,
+      "filename": "numerics.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 78,
+      "action": {
+        "type": "invoke",
+        "field": "i-to-b",
+        "args": [
+          {
+            "type": "u32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 79,
+      "action": {
+        "type": "invoke",
+        "field": "i-to-b",
+        "args": [
+          {
+            "type": "u32",
+            "value": "2"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "bool",
+          "value": true
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 80,
+      "action": {
+        "type": "invoke",
+        "field": "i-to-u8",
+        "args": [
+          {
+            "type": "u32",
+            "value": "3841"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u8",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 81,
+      "action": {
+        "type": "invoke",
+        "field": "i-to-s8",
+        "args": [
+          {
+            "type": "u32",
+            "value": "4294967295"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "s8",
+          "value": "-1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 82,
+      "action": {
+        "type": "invoke",
+        "field": "i-to-u16",
+        "args": [
+          {
+            "type": "u32",
+            "value": "4294967295"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u16",
+          "value": "65535"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 83,
+      "action": {
+        "type": "invoke",
+        "field": "i-to-s16",
+        "args": [
+          {
+            "type": "u32",
+            "value": "4294967295"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "s16",
+          "value": "-1"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 87,
+      "filename": "numerics.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 128,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "43"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 132,
+      "filename": "numerics.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 161,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "44"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 162,
+      "action": {
+        "type": "invoke",
+        "field": "roundtrip",
+        "args": [
+          {
+            "type": "char",
+            "value": "⛳"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "char",
+          "value": "⛳"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 163,
+      "action": {
+        "type": "invoke",
+        "field": "roundtrip",
+        "args": [
+          {
+            "type": "char",
+            "value": "🍰"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "char",
+          "value": "🍰"
+        }
+      ]
+    },
+    {
+      "type": "module_definition",
+      "line": 167,
+      "name": "CharTraps",
+      "filename": "numerics.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 193,
+      "instance": "ct",
+      "module": "CharTraps"
+    },
+    {
+      "type": "assert_trap",
+      "line": 194,
+      "action": {
+        "type": "invoke",
+        "field": "run-d800",
+        "args": []
+      },
+      "text": "invalid `char` bit pattern"
+    },
+    {
+      "type": "module_instance",
+      "line": 195,
+      "instance": "ct",
+      "module": "CharTraps"
+    },
+    {
+      "type": "assert_trap",
+      "line": 196,
+      "action": {
+        "type": "invoke",
+        "field": "run-dfff",
+        "args": []
+      },
+      "text": "invalid `char` bit pattern"
+    },
+    {
+      "type": "module_instance",
+      "line": 197,
+      "instance": "ct",
+      "module": "CharTraps"
+    },
+    {
+      "type": "assert_trap",
+      "line": 198,
+      "action": {
+        "type": "invoke",
+        "field": "run-too-big",
+        "args": []
+      },
+      "text": "invalid `char` bit pattern"
+    },
+    {
+      "type": "module",
+      "line": 202,
+      "filename": "numerics.5.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 302,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "45"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 306,
+      "filename": "numerics.6.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 313,
+      "action": {
+        "type": "invoke",
+        "field": "junk-to-f9",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "flags",
+          "value": [
+            "f1",
+            "f5",
+            "f9"
+          ]
+        }
+      ]
+    }
+  ]
+}

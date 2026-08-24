@@ -1,0 +1,18 @@
+(component $C
+  (type $R (;0;) (resource (rep i32)))
+  (type $B (;1;) (borrow $R))
+  (type (;2;) (own $R))
+  (type $L (;3;) (list 2))
+  (type (;4;)
+    (component
+      (alias outer $C $R (type (;0;)))
+      (alias outer $C $B (type (;1;)))
+      (alias outer $C $L (type (;2;)))
+    )
+  )
+  (type (;5;)
+    (instance
+      (alias outer $C $R (type (;0;)))
+    )
+  )
+)

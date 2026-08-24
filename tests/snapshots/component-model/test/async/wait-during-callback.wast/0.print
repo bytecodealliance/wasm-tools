@@ -1,0 +1,117 @@
+(component
+  (core module $Memory (;0;)
+    (memory (;0;) 1)
+    (export "mem" (memory 0))
+  )
+  (core instance $memory (;0;) (instantiate $Memory))
+  (core module $CM (;1;)
+    (type (;0;) (func (param i32)))
+    (type (;1;) (func (param i32 i32)))
+    (type (;2;) (func (result i32)))
+    (type (;3;) (func (param i32 i32) (result i32)))
+    (type (;4;) (func (result i64)))
+    (type (;5;) (func (param i32 i32 i32) (result i32)))
+    (import "" "mem" (memory (;0;) 1))
+    (import "" "task.return" (func $task.return (;0;) (type 0)))
+    (import "" "waitable.join" (func $waitable.join (;1;) (type 1)))
+    (import "" "waitable-set.new" (func $waitable-set.new (;2;) (type 2)))
+    (import "" "waitable-set.wait" (func $waitable-set.wait (;3;) (type 3)))
+    (import "" "future.new" (func $future.new (;4;) (type 4)))
+    (import "" "future.read" (func $future.read (;5;) (type 3)))
+    (import "" "future.write" (func $future.write (;6;) (type 3)))
+    (export "run" (func $run))
+    (export "run_cb" (func 8))
+    (func $run (;7;) (type 2) (result i32)
+      (local $ret i32) (local $ret64 i64) (local $futr i32) (local $futw i32) (local $ws i32) (local $event_code i32) (local $retp i32)
+      call $future.new
+      local.set $ret64
+      local.get $ret64
+      i32.wrap_i64
+      local.set $futr
+      local.get $ret64
+      i64.const 32
+      i64.shr_u
+      i32.wrap_i64
+      local.set $futw
+      local.get $futr
+      i32.const -559038737
+      call $future.read
+      local.set $ret
+      i32.const -1
+      local.get $ret
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      local.get $futw
+      i32.const -559038737
+      call $future.write
+      local.set $ret
+      i32.const 0
+      local.get $ret
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      call $waitable-set.new
+      local.set $ws
+      local.get $futr
+      local.get $ws
+      call $waitable.join
+      i32.const 0
+      local.set $retp
+      local.get $ws
+      local.get $retp
+      call $waitable-set.wait
+      local.set $event_code
+      i32.const 4
+      local.get $event_code
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      local.get $futr
+      local.get $retp
+      i32.load
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 42
+      call $task.return
+      i32.const 0
+    )
+    (func (;8;) (type 5) (param i32 i32 i32) (result i32)
+      unreachable
+    )
+  )
+  (type $FT (;0;) (future))
+  (core func $task.return (;0;) (canon task.return (result u32)))
+  (core func $waitable.join (;1;) (canon waitable.join))
+  (core func $waitable-set.new (;2;) (canon waitable-set.new))
+  (alias core export $memory "mem" (core memory (;0;)))
+  (core func $waitable-set.wait (;3;) (canon waitable-set.wait (memory 0)))
+  (core func $future.new (;4;) (canon future.new $FT))
+  (core func $future.read (;5;) (canon future.read $FT async))
+  (core func $future.write (;6;) (canon future.write $FT async))
+  (alias core export $memory "mem" (core memory (;1;)))
+  (core instance (;1;)
+    (export "mem" (memory 1))
+    (export "task.return" (func $task.return))
+    (export "waitable.join" (func $waitable.join))
+    (export "waitable-set.new" (func $waitable-set.new))
+    (export "waitable-set.wait" (func $waitable-set.wait))
+    (export "future.new" (func $future.new))
+    (export "future.read" (func $future.read))
+    (export "future.write" (func $future.write))
+  )
+  (core instance $cm (;2;) (instantiate $CM
+      (with "" (instance 1))
+    )
+  )
+  (type (;1;) (func async (result u32)))
+  (alias core export $cm "run" (core func (;7;)))
+  (alias core export $cm "run_cb" (core func (;8;)))
+  (func (;0;) (type 1) (canon lift (core func 7) async (callback 8)))
+  (export (;1;) "run" (func 0))
+)

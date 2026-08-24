@@ -1,0 +1,9 @@
+(component
+  (type (;0;)
+    (instance
+      (type (;0;) (record (field "x" u32)))
+      (type (;1;) (func (param "x" 0)))
+      (export (;0;) "f" (func (type 1)))
+    )
+  )
+)

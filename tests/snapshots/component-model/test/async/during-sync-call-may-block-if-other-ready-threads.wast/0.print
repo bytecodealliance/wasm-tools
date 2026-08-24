@@ -1,0 +1,137 @@
+(component $Tester
+  (component $C (;0;)
+    (core module $CM (;0;)
+      (type (;0;) (func (result i32)))
+      (export "eager-async-func" (func 0))
+      (func (;0;) (type 0) (result i32)
+        i32.const 43
+      )
+    )
+    (core instance $cm (;0;) (instantiate $CM))
+    (type (;0;) (func async (result u32)))
+    (alias core export $cm "eager-async-func" (core func (;0;)))
+    (func (;0;) (type 0) (canon lift (core func 0)))
+    (export (;1;) "eager-async-func" (func 0))
+  )
+  (component $D (;1;)
+    (type (;0;)
+      (instance
+        (type (;0;) (func async (result u32)))
+        (export (;0;) "eager-async-func" (func (type 0)))
+      )
+    )
+    (import "c" (instance $c (;0;) (type 0)))
+    (core module $Table (;0;)
+      (table (;0;) 2 funcref)
+      (export "__indirect_function_table" (table 0))
+    )
+    (core instance $table (;0;) (instantiate $Table))
+    (core module $Core (;1;)
+      (type (;0;) (func (result i32)))
+      (type (;1;) (func (param i32)))
+      (type (;2;) (func (param i32 i32) (result i32)))
+      (type (;3;) (func (param i32) (result i32)))
+      (type (;4;) (func (param i32 i32 i32) (result i32)))
+      (import "" "eager-async-func" (func $eager-async-func (;0;) (type 0)))
+      (import "" "task.return" (func $task.return (;1;) (type 1)))
+      (import "" "thread.new-indirect" (func $thread.new-indirect (;2;) (type 2)))
+      (import "" "thread.resume-later" (func $thread.resume-later (;3;) (type 1)))
+      (import "" "thread.suspend-then-resume" (func $thread.suspend-then-resume (;4;) (type 3)))
+      (import "" "thread.index" (func $thread.index (;5;) (type 0)))
+      (import "" "__indirect_function_table" (table $indirect-function-table (;0;) 2 funcref))
+      (global $x-index (;0;) (mut i32) i32.const 57005)
+      (global $i-index (;1;) (mut i32) i32.const 57005)
+      (global $result (;2;) (mut i32) i32.const 57005)
+      (export "never-cb" (func 6))
+      (export "setup" (func 10))
+      (export "sync-task-thread-caller" (func 11))
+      (export "async-task-thread-caller" (func 12))
+      (elem (;0;) (table $indirect-function-table) (i32.const 0) func $thread-start-noop)
+      (elem (;1;) (table $indirect-function-table) (i32.const 1) func $thread-start-call)
+      (func (;6;) (type 4) (param i32 i32 i32) (result i32)
+        unreachable
+      )
+      (func $thread-start-noop (;7;) (type 1) (param i32))
+      (func $arm-and-call (;8;) (type 0) (result i32)
+        i32.const 0
+        i32.const 0
+        call $thread.new-indirect
+        call $thread.resume-later
+        call $eager-async-func
+      )
+      (func $thread-start-call (;9;) (type 1) (param i32)
+        call $arm-and-call
+        global.set $result
+        global.get $i-index
+        call $thread.suspend-then-resume
+        drop
+      )
+      (func (;10;) (type 0) (result i32)
+        i32.const 1
+        i32.const 0
+        call $thread.new-indirect
+        global.set $x-index
+        i32.const 1
+        call $task.return
+        i32.const 0
+      )
+      (func (;11;) (type 0) (result i32)
+        call $arm-and-call
+      )
+      (func (;12;) (type 0) (result i32)
+        call $thread.index
+        global.set $i-index
+        global.get $x-index
+        call $thread.suspend-then-resume
+        drop
+        global.get $result
+      )
+    )
+    (core type $start-func-ty (;0;) (func (param i32)))
+    (alias core export $table "__indirect_function_table" (core table $indirect-function-table (;0;)))
+    (core func $thread.new-indirect (;0;) (canon thread.new-indirect $start-func-ty $indirect-function-table))
+    (core func $task.return (;1;) (canon task.return (result u32)))
+    (core func $thread.resume-later (;2;) (canon thread.resume-later))
+    (core func $thread.suspend-then-resume (;3;) (canon thread.suspend-then-resume))
+    (core func $thread.index (;4;) (canon thread.index))
+    (alias export $c "eager-async-func" (func (;0;)))
+    (core func $eager-async-func' (;5;) (canon lower (func 0)))
+    (core instance (;1;)
+      (export "eager-async-func" (func $eager-async-func'))
+      (export "task.return" (func $task.return))
+      (export "thread.new-indirect" (func $thread.new-indirect))
+      (export "thread.resume-later" (func $thread.resume-later))
+      (export "thread.suspend-then-resume" (func $thread.suspend-then-resume))
+      (export "thread.index" (func $thread.index))
+      (export "__indirect_function_table" (table $indirect-function-table))
+    )
+    (core instance $core (;2;) (instantiate $Core
+        (with "" (instance 1))
+      )
+    )
+    (type (;1;) (func async (result u32)))
+    (alias core export $core "setup" (core func (;6;)))
+    (alias core export $core "never-cb" (core func (;7;)))
+    (func (;1;) (type 1) (canon lift (core func 6) async (callback 7)))
+    (type (;2;) (func (result u32)))
+    (alias core export $core "sync-task-thread-caller" (core func (;8;)))
+    (func (;2;) (type 2) (canon lift (core func 8)))
+    (type (;3;) (func (result u32)))
+    (alias core export $core "async-task-thread-caller" (core func (;9;)))
+    (func (;3;) (type 3) (canon lift (core func 9)))
+    (export (;4;) "setup" (func 1))
+    (export (;5;) "sync-task-thread-caller" (func 2))
+    (export (;6;) "async-task-thread-caller" (func 3))
+  )
+  (instance $c (;0;) (instantiate $C))
+  (instance $d (;1;) (instantiate $D
+      (with "c" (instance $c))
+    )
+  )
+  (alias export $d "setup" (func (;0;)))
+  (alias export $d "sync-task-thread-caller" (func (;1;)))
+  (alias export $d "async-task-thread-caller" (func (;2;)))
+  (export (;3;) "setup" (func 0))
+  (export (;4;) "sync-task-thread-caller" (func 1))
+  (export (;5;) "async-task-thread-caller" (func 2))
+)

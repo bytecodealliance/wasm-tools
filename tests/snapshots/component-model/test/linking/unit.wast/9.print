@@ -1,0 +1,40 @@
+(component
+  (core module $M (;0;)
+    (type $t (;0;) (func (result i32)))
+    (type (;1;) (func))
+    (table (;0;) 1 funcref)
+    (export "set-twenty" (func 2))
+    (export "call" (func 3))
+    (elem (;0;) (i32.const 0) func $ten)
+    (elem (;1;) declare func $twenty)
+    (func $ten (;0;) (type $t) (result i32)
+      i32.const 10
+    )
+    (func $twenty (;1;) (type $t) (result i32)
+      i32.const 20
+    )
+    (func (;2;) (type 1)
+      i32.const 0
+      ref.func $twenty
+      table.set 0
+    )
+    (func (;3;) (type $t) (result i32)
+      i32.const 0
+      call_indirect (type $t)
+    )
+  )
+  (core instance $a (;0;) (instantiate $M))
+  (core instance $b (;1;) (instantiate $M))
+  (type (;0;) (func))
+  (alias core export $a "set-twenty" (core func (;0;)))
+  (func (;0;) (type 0) (canon lift (core func 0)))
+  (type (;1;) (func (result u32)))
+  (alias core export $a "call" (core func (;1;)))
+  (func (;1;) (type 1) (canon lift (core func 1)))
+  (type (;2;) (func (result u32)))
+  (alias core export $b "call" (core func (;2;)))
+  (func (;2;) (type 2) (canon lift (core func 2)))
+  (export (;3;) "set-twenty-a" (func 0))
+  (export (;4;) "call-a" (func 1))
+  (export (;5;) "call-b" (func 2))
+)

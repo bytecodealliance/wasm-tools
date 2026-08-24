@@ -1,0 +1,50 @@
+error: 7 test failures in tests/component-model/test/validation/max-value-size.wast:
+
+--------------------------------
+
+failed directive on tests/component-model/test/validation/max-value-size.wast:25:2
+
+Caused by:
+    encoded and validated successfully but should have failed with: exceeds maximum byte size
+
+--------------------------------
+
+failed directive on tests/component-model/test/validation/max-value-size.wast:31:2
+
+Caused by:
+    encoded and validated successfully but should have failed with: exceeds maximum byte size
+
+--------------------------------
+
+failed directive on tests/component-model/test/validation/max-value-size.wast:37:2
+
+Caused by:
+    encoded and validated successfully but should have failed with: exceeds maximum byte size
+
+--------------------------------
+
+failed directive on tests/component-model/test/validation/max-value-size.wast:43:2
+
+Caused by:
+    encoded and validated successfully but should have failed with: exceeds maximum byte size
+
+--------------------------------
+
+failed directive on tests/component-model/test/validation/max-value-size.wast:48:2
+
+Caused by:
+    encoded and validated successfully but should have failed with: exceeds maximum byte size
+
+--------------------------------
+
+failed directive on tests/component-model/test/validation/max-value-size.wast:57:2
+
+Caused by:
+    encoded and validated successfully but should have failed with: exceeds maximum byte size
+
+--------------------------------
+
+failed directive on tests/component-model/test/validation/max-value-size.wast:63:2
+
+Caused by:
+    encoded and validated successfully but should have failed with: exceeds maximum byte size

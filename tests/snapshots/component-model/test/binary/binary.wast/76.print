@@ -1,0 +1,5 @@
+(component
+  (type (;0;) (func))
+  (type (;1;) (func (param "p" bool) (result u32)))
+  (type (;2;) (func async))
+)

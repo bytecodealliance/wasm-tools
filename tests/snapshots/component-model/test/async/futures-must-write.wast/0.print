@@ -1,0 +1,179 @@
+(component
+  (component $C (;0;)
+    (core module $Memory (;0;)
+      (memory (;0;) 1)
+      (export "mem" (memory 0))
+    )
+    (core instance $memory (;0;) (instantiate $Memory))
+    (core module $CM (;1;)
+      (type (;0;) (func (result i64)))
+      (type (;1;) (func (param i32 i32) (result i32)))
+      (type (;2;) (func (param i32)))
+      (type (;3;) (func (result i32)))
+      (type (;4;) (func))
+      (import "" "mem" (memory (;0;) 1))
+      (import "" "future.new" (func $future.new (;0;) (type 0)))
+      (import "" "future.write" (func $future.write (;1;) (type 1)))
+      (import "" "future.drop-writable" (func $future.drop-writable (;2;) (type 2)))
+      (global $fw (;0;) (mut i32) i32.const 0)
+      (export "start-future" (func $start-future))
+      (export "attempt-write" (func $attempt-write))
+      (export "drop-writable" (func $drop-writable))
+      (func $start-future (;3;) (type 3) (result i32)
+        (local $ret64 i64)
+        call $future.new
+        local.set $ret64
+        local.get $ret64
+        i64.const 32
+        i64.shr_u
+        i32.wrap_i64
+        global.set $fw
+        local.get $ret64
+        i32.wrap_i64
+      )
+      (func $attempt-write (;4;) (type 3) (result i32)
+        (local $ret i32)
+        global.get $fw
+        i32.const 42
+        call $future.write
+        local.set $ret
+        i32.const 1
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 42
+      )
+      (func $drop-writable (;5;) (type 4)
+        global.get $fw
+        call $future.drop-writable
+      )
+    )
+    (type $FT (;0;) (future u8))
+    (core func $future.new (;0;) (canon future.new $FT))
+    (alias core export $memory "mem" (core memory (;0;)))
+    (core func $future.write (;1;) (canon future.write $FT async (memory 0)))
+    (core func $future.drop-writable (;2;) (canon future.drop-writable $FT))
+    (alias core export $memory "mem" (core memory (;1;)))
+    (core instance (;1;)
+      (export "mem" (memory 1))
+      (export "future.new" (func $future.new))
+      (export "future.write" (func $future.write))
+      (export "future.drop-writable" (func $future.drop-writable))
+    )
+    (core instance $cm (;2;) (instantiate $CM
+        (with "" (instance 1))
+      )
+    )
+    (type (;1;) (future u8))
+    (type (;2;) (func (result 1)))
+    (alias core export $cm "start-future" (core func (;3;)))
+    (func (;0;) (type 2) (canon lift (core func 3)))
+    (type (;3;) (func (result u32)))
+    (alias core export $cm "attempt-write" (core func (;4;)))
+    (func (;1;) (type 3) (canon lift (core func 4)))
+    (type (;4;) (func))
+    (alias core export $cm "drop-writable" (core func (;5;)))
+    (func (;2;) (type 4) (canon lift (core func 5)))
+    (export (;3;) "start-future" (func 0))
+    (export (;4;) "attempt-write" (func 1))
+    (export (;5;) "drop-writable" (func 2))
+  )
+  (component $D (;1;)
+    (type (;0;)
+      (instance
+        (type (;0;) (future u8))
+        (type (;1;) (func (result 0)))
+        (export (;0;) "start-future" (func (type 1)))
+        (type (;2;) (func (result u32)))
+        (export (;1;) "attempt-write" (func (type 2)))
+        (type (;3;) (func))
+        (export (;2;) "drop-writable" (func (type 3)))
+      )
+    )
+    (import "c" (instance $c (;0;) (type 0)))
+    (core module $Memory (;0;)
+      (memory (;0;) 1)
+      (export "mem" (memory 0))
+    )
+    (core instance $memory (;0;) (instantiate $Memory))
+    (core module $Core (;1;)
+      (type (;0;) (func (param i32)))
+      (type (;1;) (func (result i32)))
+      (type (;2;) (func))
+      (import "" "mem" (memory (;0;) 1))
+      (import "" "future.drop-readable" (func $future.drop-readable (;0;) (type 0)))
+      (import "" "start-future" (func $start-future (;1;) (type 1)))
+      (import "" "attempt-write" (func $attempt-write (;2;) (type 1)))
+      (import "" "drop-writable" (func $drop-writable (;3;) (type 2)))
+      (export "drop-readable-future-before-read" (func $drop-readable-future-before-read))
+      (export "drop-writable-future-before-write" (func $drop-writable-future-before-write))
+      (func $drop-readable-future-before-read (;4;) (type 1) (result i32)
+        (local $fr i32)
+        call $start-future
+        local.set $fr
+        i32.const 1
+        local.get $fr
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $fr
+        call $future.drop-readable
+        call $attempt-write
+      )
+      (func $drop-writable-future-before-write (;5;) (type 2)
+        (local $fr i32)
+        call $start-future
+        local.set $fr
+        i32.const 1
+        local.get $fr
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        call $drop-writable
+      )
+    )
+    (type $FT (;1;) (future u8))
+    (core func $future.new (;0;) (canon future.new $FT))
+    (core func $future.drop-readable (;1;) (canon future.drop-readable $FT))
+    (alias export $c "start-future" (func (;0;)))
+    (core func $start-future' (;2;) (canon lower (func 0)))
+    (alias export $c "attempt-write" (func (;1;)))
+    (core func $attempt-write' (;3;) (canon lower (func 1)))
+    (alias export $c "drop-writable" (func (;2;)))
+    (core func $drop-writable' (;4;) (canon lower (func 2)))
+    (alias core export $memory "mem" (core memory (;0;)))
+    (core instance (;1;)
+      (export "mem" (memory 0))
+      (export "future.new" (func $future.new))
+      (export "future.drop-readable" (func $future.drop-readable))
+      (export "start-future" (func $start-future'))
+      (export "attempt-write" (func $attempt-write'))
+      (export "drop-writable" (func $drop-writable'))
+    )
+    (core instance $core (;2;) (instantiate $Core
+        (with "" (instance 1))
+      )
+    )
+    (type (;2;) (func (result u32)))
+    (alias core export $core "drop-readable-future-before-read" (core func (;5;)))
+    (func (;3;) (type 2) (canon lift (core func 5)))
+    (type (;3;) (func))
+    (alias core export $core "drop-writable-future-before-write" (core func (;6;)))
+    (func (;4;) (type 3) (canon lift (core func 6)))
+    (export (;5;) "drop-readable-future-before-read" (func 3))
+    (export (;6;) "drop-writable-future-before-write" (func 4))
+  )
+  (instance $c (;0;) (instantiate $C))
+  (instance $d (;1;) (instantiate $D
+      (with "c" (instance $c))
+    )
+  )
+  (alias export $d "drop-writable-future-before-write" (func (;0;)))
+  (alias export $d "drop-readable-future-before-read" (func (;1;)))
+  (export (;2;) "drop-writable-future-before-write" (func 0))
+  (export (;3;) "drop-readable-future-before-read" (func 1))
+)

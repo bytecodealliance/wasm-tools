@@ -1,0 +1,20 @@
+(component
+  (core module $m (;0;)
+    (import "" "m" (memory (;0;) 1))
+    (memory (;1;) 2)
+    (export "x" (memory 1))
+  )
+  (component $c (;0;)
+    (core type (;0;)
+      (module
+        (import "" "m" (memory 2))
+        (export "x" (memory 1))
+      )
+    )
+    (import "m" (core module (;0;) (type 0)))
+  )
+  (instance (;0;) (instantiate $c
+      (with "m" (core module $m))
+    )
+  )
+)

@@ -1,0 +1,279 @@
+(component
+  (component $Producer (;0;)
+    (core module $Memory (;0;)
+      (memory (;0;) 1)
+      (export "mem" (memory 0))
+    )
+    (core instance $memory (;0;) (instantiate $Memory))
+    (core module $Core (;1;)
+      (type (;0;) (func (param i32) (result i32)))
+      (type (;1;) (func (result i64)))
+      (type (;2;) (func (param i32 i32 i32) (result i32)))
+      (type (;3;) (func (param i32)))
+      (type (;4;) (func (result i32)))
+      (type (;5;) (func))
+      (import "" "mem" (memory (;0;) 1))
+      (import "" "resource.new" (func $resource.new (;0;) (type 0)))
+      (import "" "resource.rep" (func $resource.rep (;1;) (type 0)))
+      (import "" "stream.new" (func $stream.new (;2;) (type 1)))
+      (import "" "stream.write" (func $stream.write (;3;) (type 2)))
+      (import "" "stream.cancel-write" (func $stream.cancel-write (;4;) (type 0)))
+      (import "" "stream.drop-writable" (func $stream.drop-writable (;5;) (type 3)))
+      (global $ws (;0;) (mut i32) i32.const 0)
+      (global $res1 (;1;) (mut i32) i32.const 0)
+      (global $res2 (;2;) (mut i32) i32.const 0)
+      (export "start-stream" (func $start-stream))
+      (export "cancel-write" (func $cancel-write))
+      (export "R.foo" (func $R.foo))
+      (export "fail-accessing-res1" (func $fail-accessing-res1))
+      (func $start-stream (;6;) (type 4) (result i32)
+        (local $ret i32) (local $ret64 i64) (local $rs i32)
+        call $stream.new
+        local.set $ret64
+        local.get $ret64
+        i64.const 32
+        i64.shr_u
+        i32.wrap_i64
+        global.set $ws
+        local.get $ret64
+        i32.wrap_i64
+        local.set $rs
+        i32.const 50
+        call $resource.new
+        global.set $res1
+        i32.const 51
+        call $resource.new
+        global.set $res2
+        i32.const 8
+        global.get $res1
+        i32.store
+        i32.const 12
+        global.get $res2
+        i32.store
+        global.get $ws
+        i32.const 8
+        i32.const 2
+        call $stream.write
+        local.set $ret
+        i32.const -1
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 50
+        global.get $res1
+        call $resource.rep
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 51
+        global.get $res2
+        call $resource.rep
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $rs
+      )
+      (func $cancel-write (;7;) (type 5)
+        (local $ret i32)
+        global.get $ws
+        call $stream.cancel-write
+        local.set $ret
+        i32.const 17
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 51
+        global.get $res2
+        call $resource.rep
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        global.get $ws
+        call $stream.drop-writable
+      )
+      (func $R.foo (;8;) (type 0) (param $rep i32) (result i32)
+        local.get $rep
+        i32.const 50
+        i32.add
+      )
+      (func $fail-accessing-res1 (;9;) (type 5)
+        global.get $res1
+        call $resource.rep
+        unreachable
+      )
+    )
+    (type $R (;0;) (resource (rep i32)))
+    (type (;1;) (own $R))
+    (type $ST (;2;) (stream 1))
+    (core func $resource.new (;0;) (canon resource.new $R))
+    (core func $resource.rep (;1;) (canon resource.rep $R))
+    (core func $stream.new (;2;) (canon stream.new $ST))
+    (alias core export $memory "mem" (core memory (;0;)))
+    (core func $stream.write (;3;) (canon stream.write $ST async (memory 0)))
+    (core func $stream.cancel-write (;4;) (canon stream.cancel-write $ST))
+    (core func $stream.drop-writable (;5;) (canon stream.drop-writable $ST))
+    (alias core export $memory "mem" (core memory (;1;)))
+    (core instance (;1;)
+      (export "mem" (memory 1))
+      (export "resource.new" (func $resource.new))
+      (export "resource.rep" (func $resource.rep))
+      (export "stream.new" (func $stream.new))
+      (export "stream.write" (func $stream.write))
+      (export "stream.cancel-write" (func $stream.cancel-write))
+      (export "stream.drop-writable" (func $stream.drop-writable))
+    )
+    (core instance $core (;2;) (instantiate $Core
+        (with "" (instance 1))
+      )
+    )
+    (export $R' (;3;) "R" (type $R))
+    (type (;4;) (borrow $R'))
+    (type (;5;) (func async (param "self" 4) (result u32)))
+    (alias core export $core "R.foo" (core func (;6;)))
+    (func (;0;) (type 5) (canon lift (core func 6)))
+    (type (;6;) (own $R'))
+    (type (;7;) (stream 6))
+    (type (;8;) (func async (result 7)))
+    (alias core export $core "start-stream" (core func (;7;)))
+    (func (;1;) (type 8) (canon lift (core func 7)))
+    (type (;9;) (func async))
+    (alias core export $core "cancel-write" (core func (;8;)))
+    (func (;2;) (type 9) (canon lift (core func 8)))
+    (type (;10;) (func async))
+    (alias core export $core "fail-accessing-res1" (core func (;9;)))
+    (func (;3;) (type 10) (canon lift (core func 9)))
+    (export (;4;) "[method]R.foo" (func 0))
+    (export (;5;) "start-stream" (func 1))
+    (export (;6;) "cancel-write" (func 2))
+    (export (;7;) "fail-accessing-res1" (func 3))
+  )
+  (component $Consumer (;1;)
+    (type (;0;)
+      (instance
+        (export (;0;) "R" (type (sub resource)))
+        (type (;1;) (borrow 0))
+        (type (;2;) (func async (param "self" 1) (result u32)))
+        (export (;0;) "[method]R.foo" (func (type 2)))
+        (type (;3;) (own 0))
+        (type (;4;) (stream 3))
+        (type (;5;) (func async (result 4)))
+        (export (;1;) "start-stream" (func (type 5)))
+        (type (;6;) (func async))
+        (export (;2;) "cancel-write" (func (type 6)))
+      )
+    )
+    (import "producer" (instance $producer (;0;) (type 0)))
+    (core module $Memory (;0;)
+      (memory (;0;) 1)
+      (export "mem" (memory 0))
+    )
+    (core instance $memory (;0;) (instantiate $Memory))
+    (core module $Core (;1;)
+      (type (;0;) (func (param i32 i32 i32) (result i32)))
+      (type (;1;) (func (param i32)))
+      (type (;2;) (func (param i32) (result i32)))
+      (type (;3;) (func (result i32)))
+      (type (;4;) (func))
+      (import "" "mem" (memory (;0;) 1))
+      (import "" "stream.read" (func $stream.read (;0;) (type 0)))
+      (import "" "stream.drop-readable" (func $stream.drop-readable (;1;) (type 1)))
+      (import "" "R.foo" (func $R.foo (;2;) (type 2)))
+      (import "" "start-stream" (func $start-stream (;3;) (type 3)))
+      (import "" "cancel-write" (func $cancel-write (;4;) (type 4)))
+      (export "run" (func $run))
+      (func $run (;5;) (type 3) (result i32)
+        (local $ret i32) (local $rs i32) (local $res1 i32)
+        call $start-stream
+        local.set $rs
+        local.get $rs
+        i32.const 1
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 8
+        i64.const -2401053088876216593
+        i64.store
+        local.get $rs
+        i32.const 8
+        i32.const 1
+        call $stream.read
+        local.set $ret
+        i32.const 16
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 8
+        i32.load
+        local.set $res1
+        i32.const 12
+        i32.load
+        i32.const -559038737
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $res1
+        call $R.foo
+        local.set $ret
+        i32.const 100
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $rs
+        call $stream.drop-readable
+        call $cancel-write
+        i32.const 42
+      )
+    )
+    (alias export $producer "R" (type $R (;1;)))
+    (type (;2;) (own $R))
+    (type $ST (;3;) (stream 2))
+    (alias core export $memory "mem" (core memory (;0;)))
+    (core func $stream.read (;0;) (canon stream.read $ST async (memory 0)))
+    (core func $stream.drop-readable (;1;) (canon stream.drop-readable $ST))
+    (alias export $producer "[method]R.foo" (func (;0;)))
+    (core func $R.foo' (;2;) (canon lower (func 0)))
+    (alias export $producer "start-stream" (func (;1;)))
+    (core func $start-stream' (;3;) (canon lower (func 1)))
+    (alias export $producer "cancel-write" (func (;2;)))
+    (core func $cancel-write' (;4;) (canon lower (func 2)))
+    (alias core export $memory "mem" (core memory (;1;)))
+    (core instance (;1;)
+      (export "mem" (memory 1))
+      (export "stream.read" (func $stream.read))
+      (export "stream.drop-readable" (func $stream.drop-readable))
+      (export "R.foo" (func $R.foo'))
+      (export "start-stream" (func $start-stream'))
+      (export "cancel-write" (func $cancel-write'))
+    )
+    (core instance $core (;2;) (instantiate $Core
+        (with "" (instance 1))
+      )
+    )
+    (type (;4;) (func async (result u32)))
+    (alias core export $core "run" (core func (;5;)))
+    (func (;3;) (type 4) (canon lift (core func 5)))
+    (export (;4;) "run" (func 3))
+  )
+  (instance $producer (;0;) (instantiate $Producer))
+  (instance $consumer (;1;) (instantiate $Consumer
+      (with "producer" (instance $producer))
+    )
+  )
+  (alias export $consumer "run" (func (;0;)))
+  (alias export $producer "fail-accessing-res1" (func (;1;)))
+  (export (;2;) "run" (func 0))
+  (export (;3;) "fail-accessing-res1" (func 1))
+)

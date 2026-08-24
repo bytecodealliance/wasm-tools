@@ -1,0 +1,189 @@
+(component
+  (component $RealFs (;0;)
+    (core module $M (;0;)
+      (type (;0;) (func (param i32) (result i32)))
+      (type (;1;) (func (param i32 i32)))
+      (memory (;0;) 1)
+      (export "mem" (memory 0))
+      (export "read" (func 0))
+      (export "write" (func 1))
+      (func (;0;) (type 0) (param $addr i32) (result i32)
+        local.get $addr
+        i32.load8_u
+      )
+      (func (;1;) (type 1) (param $addr i32) (param $val i32)
+        local.get $addr
+        local.get $val
+        i32.store8
+      )
+    )
+    (core instance $m (;0;) (instantiate $M))
+    (type (;0;) (func (param "addr" u32) (result u32)))
+    (alias core export $m "read" (core func (;0;)))
+    (func (;0;) (type 0) (canon lift (core func 0)))
+    (type (;1;) (func (param "addr" u32) (param "val" u32)))
+    (alias core export $m "write" (core func (;1;)))
+    (func (;1;) (type 1) (canon lift (core func 1)))
+    (export (;2;) "read" (func 0))
+    (export (;3;) "write" (func 1))
+  )
+  (component $Virtualize (;1;)
+    (type (;0;)
+      (instance
+        (type (;0;) (func (param "addr" u32) (result u32)))
+        (export (;0;) "read" (func (type 0)))
+        (type (;1;) (func (param "addr" u32) (param "val" u32)))
+        (export (;1;) "write" (func (type 1)))
+      )
+    )
+    (import "fs" (instance $fs (;0;) (type 0)))
+    (core type (;0;)
+      (module
+        (export "base" (global i32))
+      )
+    )
+    (import "base" (core module $Base (;0;) (type 0)))
+    (alias export $fs "read" (func (;0;)))
+    (core func $read (;0;) (canon lower (func 0)))
+    (alias export $fs "write" (func (;1;)))
+    (core func $write (;1;) (canon lower (func 1)))
+    (core module $M (;1;)
+      (type (;0;) (func (param i32) (result i32)))
+      (type (;1;) (func (param i32 i32)))
+      (type (;2;) (func (result i32)))
+      (import "fs" "read" (func $read (;0;) (type 0)))
+      (import "fs" "write" (func $write (;1;) (type 1)))
+      (import "cfg" "base" (global $base (;0;) i32))
+      (global $calls (;1;) (mut i32) i32.const 0)
+      (export "read" (func 2))
+      (export "write" (func 3))
+      (export "calls" (func 4))
+      (func (;2;) (type 0) (param $addr i32) (result i32)
+        global.get $calls
+        i32.const 1
+        i32.add
+        global.set $calls
+        local.get $addr
+        global.get $base
+        i32.add
+        call $read
+      )
+      (func (;3;) (type 1) (param $addr i32) (param $val i32)
+        global.get $calls
+        i32.const 1
+        i32.add
+        global.set $calls
+        local.get $addr
+        global.get $base
+        i32.add
+        local.get $val
+        call $write
+      )
+      (func (;4;) (type 2) (result i32)
+        global.get $calls
+      )
+    )
+    (core instance $base (;0;) (instantiate $Base))
+    (core instance (;1;)
+      (export "read" (func $read))
+      (export "write" (func $write))
+    )
+    (core instance $m (;2;) (instantiate $M
+        (with "fs" (instance 1))
+        (with "cfg" (instance $base))
+      )
+    )
+    (type (;1;) (func (param "addr" u32) (result u32)))
+    (alias core export $m "read" (core func (;2;)))
+    (func (;2;) (type 1) (canon lift (core func 2)))
+    (type (;2;) (func (param "addr" u32) (param "val" u32)))
+    (alias core export $m "write" (core func (;3;)))
+    (func (;3;) (type 2) (canon lift (core func 3)))
+    (type (;3;) (func (result u32)))
+    (alias core export $m "calls" (core func (;4;)))
+    (func (;4;) (type 3) (canon lift (core func 4)))
+    (export (;5;) "read" (func 2))
+    (export (;6;) "write" (func 3))
+    (export (;7;) "calls" (func 4))
+  )
+  (core module $Base256 (;0;)
+    (global (;0;) i32 i32.const 256)
+    (export "base" (global 0))
+  )
+  (core module $Base512 (;1;)
+    (global (;0;) i32 i32.const 512)
+    (export "base" (global 0))
+  )
+  (component $Child (;2;)
+    (type (;0;)
+      (instance
+        (type (;0;) (func (param "addr" u32) (result u32)))
+        (export (;0;) "read" (func (type 0)))
+        (type (;1;) (func (param "addr" u32) (param "val" u32)))
+        (export (;1;) "write" (func (type 1)))
+      )
+    )
+    (import "fs" (instance $fs (;0;) (type 0)))
+    (alias export $fs "read" (func (;0;)))
+    (core func $read (;0;) (canon lower (func 0)))
+    (alias export $fs "write" (func (;1;)))
+    (core func $write (;1;) (canon lower (func 1)))
+    (core module $M (;0;)
+      (type (;0;) (func (param i32) (result i32)))
+      (type (;1;) (func (param i32 i32)))
+      (import "fs" "read" (func $read (;0;) (type 0)))
+      (import "fs" "write" (func $write (;1;) (type 1)))
+      (export "run" (func 2))
+      (func (;2;) (type 0) (param $v i32) (result i32)
+        i32.const 10
+        local.get $v
+        call $write
+        i32.const 10
+        call $read
+        i32.const 2
+        i32.mul
+      )
+    )
+    (core instance (;0;)
+      (export "read" (func $read))
+      (export "write" (func $write))
+    )
+    (core instance $m (;1;) (instantiate $M
+        (with "fs" (instance 0))
+      )
+    )
+    (type (;1;) (func (param "v" u32) (result u32)))
+    (alias core export $m "run" (core func (;2;)))
+    (func (;2;) (type 1) (canon lift (core func 2)))
+    (export (;3;) "run" (func 2))
+  )
+  (instance $real (;0;) (instantiate $RealFs))
+  (instance $virtA (;1;) (instantiate $Virtualize
+      (with "fs" (instance $real))
+      (with "base" (core module $Base256))
+    )
+  )
+  (instance $virtB (;2;) (instantiate $Virtualize
+      (with "fs" (instance $real))
+      (with "base" (core module $Base512))
+    )
+  )
+  (instance $childA (;3;) (instantiate $Child
+      (with "fs" (instance $virtA))
+    )
+  )
+  (instance $childB (;4;) (instantiate $Child
+      (with "fs" (instance $virtB))
+    )
+  )
+  (alias export $childA "run" (func (;0;)))
+  (alias export $childB "run" (func (;1;)))
+  (alias export $virtA "calls" (func (;2;)))
+  (alias export $virtB "calls" (func (;3;)))
+  (alias export $real "read" (func (;4;)))
+  (export (;5;) "run-a" (func 0))
+  (export (;6;) "run-b" (func 1))
+  (export (;7;) "calls-a" (func 2))
+  (export (;8;) "calls-b" (func 3))
+  (export (;9;) "real-read" (func 4))
+)

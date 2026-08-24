@@ -1,0 +1,12 @@
+(component
+  (type (;0;) (func (param "x" u32) (result u32)))
+  (import "f" (func $f (;0;) (type 0)))
+  (component $c (;0;)
+    (type (;0;) (func (param "x" u32) (result u32)))
+    (import "f" (func (;0;) (type 0)))
+  )
+  (instance (;0;) (instantiate $c
+      (with "f" (func $f))
+    )
+  )
+)

@@ -1,0 +1,41 @@
+{
+  "source_filename": "tests/component-model/test/async/async-calls-sync.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 12,
+      "filename": "async-calls-sync.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 250,
+      "action": {
+        "type": "invoke",
+        "field": "run1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 251,
+      "action": {
+        "type": "invoke",
+        "field": "run2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    }
+  ]
+}

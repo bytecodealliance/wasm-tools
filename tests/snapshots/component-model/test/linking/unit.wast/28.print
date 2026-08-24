@@ -1,0 +1,74 @@
+(component
+  (core module $Log (;0;)
+    (type (;0;) (func (param i32)))
+    (type (;1;) (func (param i32) (result i32)))
+    (memory (;0;) 1)
+    (global $n (;0;) (mut i32) i32.const 0)
+    (export "append" (func 0))
+    (export "get" (func 1))
+    (func (;0;) (type 0) (param i32)
+      global.get $n
+      local.get 0
+      i32.store8
+      global.get $n
+      i32.const 1
+      i32.add
+      global.set $n
+    )
+    (func (;1;) (type 1) (param i32) (result i32)
+      local.get 0
+      i32.load8_u
+    )
+  )
+  (core module $M (;1;)
+    (type (;0;) (func (param i32)))
+    (type (;1;) (func))
+    (import "log" "append" (func $append (;0;) (type 0)))
+    (import "cfg" "id" (global $id (;0;) i32))
+    (start $start)
+    (func $start (;1;) (type 1)
+      global.get $id
+      call $append
+    )
+  )
+  (core module $Id1 (;2;)
+    (global (;0;) i32 i32.const 1)
+    (export "id" (global 0))
+  )
+  (core module $Id2 (;3;)
+    (global (;0;) i32 i32.const 2)
+    (export "id" (global 0))
+  )
+  (core module $Id3 (;4;)
+    (global (;0;) i32 i32.const 3)
+    (export "id" (global 0))
+  )
+  (core instance $log (;0;) (instantiate $Log))
+  (core instance $id1 (;1;) (instantiate $Id1))
+  (core instance $id2 (;2;) (instantiate $Id2))
+  (core instance $id3 (;3;) (instantiate $Id3))
+  (core instance (;4;) (instantiate $M
+      (with "log" (instance $log))
+      (with "cfg" (instance $id1))
+    )
+  )
+  (core instance (;5;) (instantiate $M
+      (with "log" (instance $log))
+      (with "cfg" (instance $id2))
+    )
+  )
+  (core instance (;6;) (instantiate $M
+      (with "log" (instance $log))
+      (with "cfg" (instance $id1))
+    )
+  )
+  (core instance (;7;) (instantiate $M
+      (with "log" (instance $log))
+      (with "cfg" (instance $id3))
+    )
+  )
+  (type (;0;) (func (param "i" u32) (result u32)))
+  (alias core export $log "get" (core func (;0;)))
+  (func (;0;) (type 0) (canon lift (core func 0)))
+  (export (;1;) "log-at" (func 0))
+)

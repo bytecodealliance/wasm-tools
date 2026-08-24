@@ -1,0 +1,10 @@
+(component
+  (core module (;0;))
+  (core type (;0;) (func))
+  (type (;0;) string)
+  (component (;0;))
+  (alias outer 0 0 (core module (;1;)))
+  (alias outer 0 0 (core type (;1;)))
+  (alias outer 0 0 (type (;1;)))
+  (alias outer 0 0 (component (;1;)))
+)

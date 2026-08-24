@@ -4893,14 +4893,13 @@
       "module_type": "binary"
     },
     {
-      "type": "assert_trap",
+      "type": "action",
       "line": 716,
       "action": {
         "type": "invoke",
         "field": "test",
         "args": []
-      },
-      "text": "out of bounds table access"
+      }
     },
     {
       "type": "module",
@@ -4925,14 +4924,13 @@
       "module_type": "binary"
     },
     {
-      "type": "assert_trap",
+      "type": "action",
       "line": 764,
       "action": {
         "type": "invoke",
         "field": "test",
         "args": []
-      },
-      "text": "out of bounds table access"
+      }
     },
     {
       "type": "module",
@@ -4988,13 +4986,14 @@
       "module_type": "binary"
     },
     {
-      "type": "action",
+      "type": "assert_trap",
       "line": 860,
       "action": {
         "type": "invoke",
         "field": "test",
         "args": []
-      }
+      },
+      "text": "out of bounds table access"
     },
     {
       "type": "module",
@@ -5019,13 +5018,14 @@
       "module_type": "binary"
     },
     {
-      "type": "action",
+      "type": "assert_trap",
       "line": 908,
       "action": {
         "type": "invoke",
         "field": "test",
         "args": []
-      }
+      },
+      "text": "out of bounds table access"
     },
     {
       "type": "module",
@@ -5034,14 +5034,13 @@
       "module_type": "binary"
     },
     {
-      "type": "assert_trap",
+      "type": "action",
       "line": 932,
       "action": {
         "type": "invoke",
         "field": "test",
         "args": []
-      },
-      "text": "out of bounds table access"
+      }
     },
     {
       "type": "module",
@@ -5128,13 +5127,14 @@
       "module_type": "binary"
     },
     {
-      "type": "action",
+      "type": "assert_trap",
       "line": 1076,
       "action": {
         "type": "invoke",
         "field": "test",
         "args": []
-      }
+      },
+      "text": "out of bounds table access"
     },
     {
       "type": "module",
@@ -5143,8 +5143,85 @@
       "module_type": "binary"
     },
     {
-      "type": "assert_trap",
+      "type": "action",
       "line": 1100,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": []
+      }
+    },
+    {
+      "type": "module",
+      "line": 1102,
+      "filename": "table_init64.35.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1124,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": []
+      },
+      "text": "out of bounds table access"
+    },
+    {
+      "type": "module",
+      "line": 1126,
+      "filename": "table_init64.36.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "action",
+      "line": 1148,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": []
+      }
+    },
+    {
+      "type": "module",
+      "line": 1150,
+      "filename": "table_init64.37.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1172,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": []
+      },
+      "text": "out of bounds table access"
+    },
+    {
+      "type": "module",
+      "line": 1174,
+      "filename": "table_init64.38.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "action",
+      "line": 1196,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": []
+      }
+    },
+    {
+      "type": "module",
+      "line": 1198,
+      "filename": "table_init64.39.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1220,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -5154,966 +5231,461 @@
     },
     {
       "type": "assert_invalid",
-      "line": 1103,
-      "filename": "table_init64.35.wasm",
-      "module_type": "binary",
-      "text": "type mismatch"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 1112,
-      "filename": "table_init64.36.wasm",
-      "module_type": "binary",
-      "text": "type mismatch"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 1121,
-      "filename": "table_init64.37.wasm",
-      "module_type": "binary",
-      "text": "type mismatch"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 1130,
-      "filename": "table_init64.38.wasm",
-      "module_type": "binary",
-      "text": "type mismatch"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 1139,
-      "filename": "table_init64.39.wasm",
-      "module_type": "binary",
-      "text": "type mismatch"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 1148,
+      "line": 1223,
       "filename": "table_init64.40.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1157,
+      "line": 1232,
       "filename": "table_init64.41.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1166,
+      "line": 1241,
       "filename": "table_init64.42.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1175,
+      "line": 1250,
       "filename": "table_init64.43.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1184,
+      "line": 1259,
       "filename": "table_init64.44.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1193,
+      "line": 1268,
       "filename": "table_init64.45.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1202,
+      "line": 1277,
       "filename": "table_init64.46.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1211,
+      "line": 1286,
       "filename": "table_init64.47.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1220,
+      "line": 1295,
       "filename": "table_init64.48.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1229,
+      "line": 1304,
       "filename": "table_init64.49.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1238,
+      "line": 1313,
       "filename": "table_init64.50.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1247,
+      "line": 1322,
       "filename": "table_init64.51.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1256,
+      "line": 1331,
       "filename": "table_init64.52.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1265,
+      "line": 1340,
       "filename": "table_init64.53.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1274,
+      "line": 1349,
       "filename": "table_init64.54.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1283,
+      "line": 1358,
       "filename": "table_init64.55.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1292,
+      "line": 1367,
       "filename": "table_init64.56.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1301,
+      "line": 1376,
       "filename": "table_init64.57.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1310,
+      "line": 1385,
       "filename": "table_init64.58.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1319,
+      "line": 1394,
       "filename": "table_init64.59.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1328,
+      "line": 1403,
       "filename": "table_init64.60.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1337,
+      "line": 1412,
       "filename": "table_init64.61.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1346,
+      "line": 1421,
       "filename": "table_init64.62.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1355,
+      "line": 1430,
       "filename": "table_init64.63.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1364,
+      "line": 1439,
       "filename": "table_init64.64.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1373,
+      "line": 1448,
       "filename": "table_init64.65.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1382,
+      "line": 1457,
       "filename": "table_init64.66.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1391,
+      "line": 1466,
       "filename": "table_init64.67.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1400,
+      "line": 1475,
       "filename": "table_init64.68.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1409,
+      "line": 1484,
       "filename": "table_init64.69.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1418,
+      "line": 1493,
       "filename": "table_init64.70.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1427,
+      "line": 1502,
       "filename": "table_init64.71.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1436,
+      "line": 1511,
       "filename": "table_init64.72.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1445,
+      "line": 1520,
       "filename": "table_init64.73.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1454,
+      "line": 1529,
       "filename": "table_init64.74.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1463,
+      "line": 1538,
       "filename": "table_init64.75.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1472,
+      "line": 1547,
       "filename": "table_init64.76.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1481,
+      "line": 1556,
       "filename": "table_init64.77.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1490,
+      "line": 1565,
       "filename": "table_init64.78.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1499,
+      "line": 1574,
       "filename": "table_init64.79.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1508,
+      "line": 1583,
       "filename": "table_init64.80.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1517,
+      "line": 1592,
       "filename": "table_init64.81.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1526,
+      "line": 1601,
       "filename": "table_init64.82.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1535,
+      "line": 1610,
       "filename": "table_init64.83.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1544,
+      "line": 1619,
       "filename": "table_init64.84.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1553,
+      "line": 1628,
       "filename": "table_init64.85.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1562,
+      "line": 1637,
       "filename": "table_init64.86.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1571,
+      "line": 1646,
       "filename": "table_init64.87.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1580,
+      "line": 1655,
       "filename": "table_init64.88.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1589,
+      "line": 1664,
       "filename": "table_init64.89.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1598,
+      "line": 1673,
       "filename": "table_init64.90.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1607,
+      "line": 1682,
       "filename": "table_init64.91.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1616,
+      "line": 1691,
       "filename": "table_init64.92.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1625,
+      "line": 1700,
       "filename": "table_init64.93.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1634,
+      "line": 1709,
       "filename": "table_init64.94.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1643,
+      "line": 1718,
       "filename": "table_init64.95.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1652,
+      "line": 1727,
       "filename": "table_init64.96.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 1661,
+      "line": 1736,
       "filename": "table_init64.97.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
-      "type": "module",
-      "line": 1669,
+      "type": "assert_invalid",
+      "line": 1745,
       "filename": "table_init64.98.wasm",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
-      "type": "assert_trap",
-      "line": 1697,
-      "action": {
-        "type": "invoke",
-        "field": "run",
-        "args": [
-          {
-            "type": "i32",
-            "value": "24"
-          },
-          {
-            "type": "i32",
-            "value": "16"
-          }
-        ]
-      },
-      "text": "out of bounds table access"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1698,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "0"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1699,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "1"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1700,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "2"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1701,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "3"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1702,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "4"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1703,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "5"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1704,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "6"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1705,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "7"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1706,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "8"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1707,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "9"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1708,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "10"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1709,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "11"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1710,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "12"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1711,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "13"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1712,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "14"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1713,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "15"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1714,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "16"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1715,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "17"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1716,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "18"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1717,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "19"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1718,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "20"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1719,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "21"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1720,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "22"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1721,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "23"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1722,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "24"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1723,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "25"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1724,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "26"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1725,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "27"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1726,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "28"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1727,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "29"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1728,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "30"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1729,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "31"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "module",
-      "line": 1731,
+      "type": "assert_invalid",
+      "line": 1754,
       "filename": "table_init64.99.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1763,
+      "filename": "table_init64.100.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1772,
+      "filename": "table_init64.101.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1781,
+      "filename": "table_init64.102.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "module",
+      "line": 1789,
+      "filename": "table_init64.103.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_trap",
-      "line": 1759,
+      "line": 1817,
       "action": {
         "type": "invoke",
         "field": "run",
         "args": [
           {
             "type": "i32",
-            "value": "25"
+            "value": "24"
           },
           {
             "type": "i32",
@@ -6125,7 +5697,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 1760,
+      "line": 1818,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -6140,7 +5712,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 1761,
+      "line": 1819,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -6155,7 +5727,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 1762,
+      "line": 1820,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -6167,466 +5739,21 @@
         ]
       },
       "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1763,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "3"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1764,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "4"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1765,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "5"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1766,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "6"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1767,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "7"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1768,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "8"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1769,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "9"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1770,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "10"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1771,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "11"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1772,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "12"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1773,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "13"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1774,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "14"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1775,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "15"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1776,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "16"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1777,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "17"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1778,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "18"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1779,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "19"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1780,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "20"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1781,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "21"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1782,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "22"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1783,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "23"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1784,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "24"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1785,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "25"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1786,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "26"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1787,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "27"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1788,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "28"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1789,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "29"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1790,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "30"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1791,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "31"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "module",
-      "line": 1793,
-      "filename": "table_init64.100.wasm",
-      "module_type": "binary"
     },
     {
       "type": "assert_trap",
       "line": 1821,
       "action": {
         "type": "invoke",
-        "field": "run",
+        "field": "test",
         "args": [
           {
             "type": "i32",
-            "value": "96"
-          },
-          {
-            "type": "i32",
-            "value": "32"
+            "value": "3"
           }
         ]
       },
-      "text": "out of bounds table access"
+      "text": "uninitialized element"
     },
     {
       "type": "assert_trap",
@@ -6637,7 +5764,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "0"
+            "value": "4"
           }
         ]
       },
@@ -6652,7 +5779,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "1"
+            "value": "5"
           }
         ]
       },
@@ -6667,7 +5794,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "2"
+            "value": "6"
           }
         ]
       },
@@ -6682,7 +5809,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "3"
+            "value": "7"
           }
         ]
       },
@@ -6697,7 +5824,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "4"
+            "value": "8"
           }
         ]
       },
@@ -6712,7 +5839,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "5"
+            "value": "9"
           }
         ]
       },
@@ -6727,7 +5854,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "6"
+            "value": "10"
           }
         ]
       },
@@ -6742,7 +5869,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "7"
+            "value": "11"
           }
         ]
       },
@@ -6757,7 +5884,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "8"
+            "value": "12"
           }
         ]
       },
@@ -6772,7 +5899,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "9"
+            "value": "13"
           }
         ]
       },
@@ -6787,7 +5914,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "10"
+            "value": "14"
           }
         ]
       },
@@ -6802,7 +5929,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "11"
+            "value": "15"
           }
         ]
       },
@@ -6817,7 +5944,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "12"
+            "value": "16"
           }
         ]
       },
@@ -6832,7 +5959,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "13"
+            "value": "17"
           }
         ]
       },
@@ -6847,7 +5974,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "14"
+            "value": "18"
           }
         ]
       },
@@ -6862,7 +5989,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "15"
+            "value": "19"
           }
         ]
       },
@@ -6877,7 +6004,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "16"
+            "value": "20"
           }
         ]
       },
@@ -6892,7 +6019,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "17"
+            "value": "21"
           }
         ]
       },
@@ -6907,7 +6034,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "18"
+            "value": "22"
           }
         ]
       },
@@ -6922,7 +6049,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "19"
+            "value": "23"
           }
         ]
       },
@@ -6937,7 +6064,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "20"
+            "value": "24"
           }
         ]
       },
@@ -6952,7 +6079,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "21"
+            "value": "25"
           }
         ]
       },
@@ -6967,7 +6094,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "22"
+            "value": "26"
           }
         ]
       },
@@ -6982,7 +6109,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "23"
+            "value": "27"
           }
         ]
       },
@@ -6997,7 +6124,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "24"
+            "value": "28"
           }
         ]
       },
@@ -7012,7 +6139,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "25"
+            "value": "29"
           }
         ]
       },
@@ -7027,7 +6154,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "26"
+            "value": "30"
           }
         ]
       },
@@ -7042,66 +6169,6 @@
         "args": [
           {
             "type": "i32",
-            "value": "27"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1850,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "28"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1851,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "29"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1852,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "30"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1853,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
             "value": "31"
           }
         ]
@@ -7109,394 +6176,29 @@
       "text": "uninitialized element"
     },
     {
-      "type": "assert_trap",
-      "line": 1854,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "32"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1855,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "33"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1856,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "34"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1857,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "35"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1858,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "36"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1859,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "37"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1860,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "38"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1861,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "39"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1862,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "40"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1863,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "41"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1864,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "42"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1865,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "43"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1866,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "44"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1867,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "45"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1868,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "46"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1869,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "47"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1870,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "48"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1871,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "49"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1872,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "50"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1873,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "51"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1874,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "52"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1875,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "53"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1876,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "54"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1877,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "55"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1878,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "56"
-          }
-        ]
-      },
-      "text": "uninitialized element"
+      "type": "module",
+      "line": 1851,
+      "filename": "table_init64.104.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
       "line": 1879,
       "action": {
         "type": "invoke",
-        "field": "test",
+        "field": "run",
         "args": [
           {
             "type": "i32",
-            "value": "57"
+            "value": "25"
+          },
+          {
+            "type": "i32",
+            "value": "16"
           }
         ]
       },
-      "text": "uninitialized element"
+      "text": "out of bounds table access"
     },
     {
       "type": "assert_trap",
@@ -7507,7 +6209,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "58"
+            "value": "0"
           }
         ]
       },
@@ -7522,7 +6224,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "59"
+            "value": "1"
           }
         ]
       },
@@ -7537,7 +6239,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "60"
+            "value": "2"
           }
         ]
       },
@@ -7552,7 +6254,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "61"
+            "value": "3"
           }
         ]
       },
@@ -7567,7 +6269,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "62"
+            "value": "4"
           }
         ]
       },
@@ -7582,7 +6284,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "63"
+            "value": "5"
           }
         ]
       },
@@ -7597,7 +6299,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "64"
+            "value": "6"
           }
         ]
       },
@@ -7612,7 +6314,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "65"
+            "value": "7"
           }
         ]
       },
@@ -7627,7 +6329,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "66"
+            "value": "8"
           }
         ]
       },
@@ -7642,7 +6344,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "67"
+            "value": "9"
           }
         ]
       },
@@ -7657,7 +6359,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "68"
+            "value": "10"
           }
         ]
       },
@@ -7672,7 +6374,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "69"
+            "value": "11"
           }
         ]
       },
@@ -7687,7 +6389,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "70"
+            "value": "12"
           }
         ]
       },
@@ -7702,7 +6404,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "71"
+            "value": "13"
           }
         ]
       },
@@ -7717,7 +6419,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "72"
+            "value": "14"
           }
         ]
       },
@@ -7732,7 +6434,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "73"
+            "value": "15"
           }
         ]
       },
@@ -7747,7 +6449,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "74"
+            "value": "16"
           }
         ]
       },
@@ -7762,7 +6464,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "75"
+            "value": "17"
           }
         ]
       },
@@ -7777,7 +6479,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "76"
+            "value": "18"
           }
         ]
       },
@@ -7792,7 +6494,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "77"
+            "value": "19"
           }
         ]
       },
@@ -7807,7 +6509,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "78"
+            "value": "20"
           }
         ]
       },
@@ -7822,7 +6524,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "79"
+            "value": "21"
           }
         ]
       },
@@ -7837,7 +6539,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "80"
+            "value": "22"
           }
         ]
       },
@@ -7852,7 +6554,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "81"
+            "value": "23"
           }
         ]
       },
@@ -7867,7 +6569,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "82"
+            "value": "24"
           }
         ]
       },
@@ -7882,7 +6584,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "83"
+            "value": "25"
           }
         ]
       },
@@ -7897,7 +6599,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "84"
+            "value": "26"
           }
         ]
       },
@@ -7912,7 +6614,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "85"
+            "value": "27"
           }
         ]
       },
@@ -7927,7 +6629,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "86"
+            "value": "28"
           }
         ]
       },
@@ -7942,7 +6644,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "87"
+            "value": "29"
           }
         ]
       },
@@ -7957,7 +6659,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "88"
+            "value": "30"
           }
         ]
       },
@@ -7972,461 +6674,36 @@
         "args": [
           {
             "type": "i32",
-            "value": "89"
+            "value": "31"
           }
         ]
       },
       "text": "uninitialized element"
     },
     {
-      "type": "assert_trap",
-      "line": 1912,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "90"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
+      "type": "module",
       "line": 1913,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "91"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1914,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "92"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1915,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "93"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1916,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "94"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1917,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "95"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1918,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "96"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1919,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "97"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1920,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "98"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1921,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "99"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1922,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "100"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1923,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "101"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1924,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "102"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1925,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "103"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1926,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "104"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1927,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "105"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1928,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "106"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1929,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "107"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1930,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "108"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1931,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "109"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1932,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "110"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1933,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "111"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1934,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "112"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1935,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "113"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1936,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "114"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1937,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "115"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1938,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "116"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1939,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "117"
-          }
-        ]
-      },
-      "text": "uninitialized element"
-    },
-    {
-      "type": "assert_trap",
-      "line": 1940,
-      "action": {
-        "type": "invoke",
-        "field": "test",
-        "args": [
-          {
-            "type": "i32",
-            "value": "118"
-          }
-        ]
-      },
-      "text": "uninitialized element"
+      "filename": "table_init64.105.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
       "line": 1941,
       "action": {
         "type": "invoke",
-        "field": "test",
+        "field": "run",
         "args": [
           {
             "type": "i32",
-            "value": "119"
+            "value": "96"
+          },
+          {
+            "type": "i32",
+            "value": "32"
           }
         ]
       },
-      "text": "uninitialized element"
+      "text": "out of bounds table access"
     },
     {
       "type": "assert_trap",
@@ -8437,7 +6714,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "120"
+            "value": "0"
           }
         ]
       },
@@ -8452,7 +6729,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "121"
+            "value": "1"
           }
         ]
       },
@@ -8467,7 +6744,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "122"
+            "value": "2"
           }
         ]
       },
@@ -8482,7 +6759,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "123"
+            "value": "3"
           }
         ]
       },
@@ -8497,7 +6774,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "124"
+            "value": "4"
           }
         ]
       },
@@ -8512,7 +6789,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "125"
+            "value": "5"
           }
         ]
       },
@@ -8527,7 +6804,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "126"
+            "value": "6"
           }
         ]
       },
@@ -8542,7 +6819,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "127"
+            "value": "7"
           }
         ]
       },
@@ -8557,7 +6834,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "128"
+            "value": "8"
           }
         ]
       },
@@ -8572,7 +6849,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "129"
+            "value": "9"
           }
         ]
       },
@@ -8587,7 +6864,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "130"
+            "value": "10"
           }
         ]
       },
@@ -8602,7 +6879,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "131"
+            "value": "11"
           }
         ]
       },
@@ -8617,7 +6894,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "132"
+            "value": "12"
           }
         ]
       },
@@ -8632,7 +6909,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "133"
+            "value": "13"
           }
         ]
       },
@@ -8647,7 +6924,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "134"
+            "value": "14"
           }
         ]
       },
@@ -8662,7 +6939,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "135"
+            "value": "15"
           }
         ]
       },
@@ -8677,7 +6954,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "136"
+            "value": "16"
           }
         ]
       },
@@ -8692,7 +6969,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "137"
+            "value": "17"
           }
         ]
       },
@@ -8707,7 +6984,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "138"
+            "value": "18"
           }
         ]
       },
@@ -8722,7 +6999,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "139"
+            "value": "19"
           }
         ]
       },
@@ -8737,7 +7014,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "140"
+            "value": "20"
           }
         ]
       },
@@ -8752,7 +7029,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "141"
+            "value": "21"
           }
         ]
       },
@@ -8767,7 +7044,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "142"
+            "value": "22"
           }
         ]
       },
@@ -8782,7 +7059,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "143"
+            "value": "23"
           }
         ]
       },
@@ -8797,7 +7074,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "144"
+            "value": "24"
           }
         ]
       },
@@ -8812,7 +7089,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "145"
+            "value": "25"
           }
         ]
       },
@@ -8827,7 +7104,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "146"
+            "value": "26"
           }
         ]
       },
@@ -8842,7 +7119,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "147"
+            "value": "27"
           }
         ]
       },
@@ -8857,7 +7134,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "148"
+            "value": "28"
           }
         ]
       },
@@ -8872,7 +7149,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "149"
+            "value": "29"
           }
         ]
       },
@@ -8887,7 +7164,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "150"
+            "value": "30"
           }
         ]
       },
@@ -8902,7 +7179,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "151"
+            "value": "31"
           }
         ]
       },
@@ -8917,7 +7194,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "152"
+            "value": "32"
           }
         ]
       },
@@ -8932,7 +7209,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "153"
+            "value": "33"
           }
         ]
       },
@@ -8947,7 +7224,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "154"
+            "value": "34"
           }
         ]
       },
@@ -8962,7 +7239,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "155"
+            "value": "35"
           }
         ]
       },
@@ -8977,7 +7254,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "156"
+            "value": "36"
           }
         ]
       },
@@ -8992,7 +7269,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "157"
+            "value": "37"
           }
         ]
       },
@@ -9007,7 +7284,7 @@
         "args": [
           {
             "type": "i32",
-            "value": "158"
+            "value": "38"
           }
         ]
       },
@@ -9022,6 +7299,1806 @@
         "args": [
           {
             "type": "i32",
+            "value": "39"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1982,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "40"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1983,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "41"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1984,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "42"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1985,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "43"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1986,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "44"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1987,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "45"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1988,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "46"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1989,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "47"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1990,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "48"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1991,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "49"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1992,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "50"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1993,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "51"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1994,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "52"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1995,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "53"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1996,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "54"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1997,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "55"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1998,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "56"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1999,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "57"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2000,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "58"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2001,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "59"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2002,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "60"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2003,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "61"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2004,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "62"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2005,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "63"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2006,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "64"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2007,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "65"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2008,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "66"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2009,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "67"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2010,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "68"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2011,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "69"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2012,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "70"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2013,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "71"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2014,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "72"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2015,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "73"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2016,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "74"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2017,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "75"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2018,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "76"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2019,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "77"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2020,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "78"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2021,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "79"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2022,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "80"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2023,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "81"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2024,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "82"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2025,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "83"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2026,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "84"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2027,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "85"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2028,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "86"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2029,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "87"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2030,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "88"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2031,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "89"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2032,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "90"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2033,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "91"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2034,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "92"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2035,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "93"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2036,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "94"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2037,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "95"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2038,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "96"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2039,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "97"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2040,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "98"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2041,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "99"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2042,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "100"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2043,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "101"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2044,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "102"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2045,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "103"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2046,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "104"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2047,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "105"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2048,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "106"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2049,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "107"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2050,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "108"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2051,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "109"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2052,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "110"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2053,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "111"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2054,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "112"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2055,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "113"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2056,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "114"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2057,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "115"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2058,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "116"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2059,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "117"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2060,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "118"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2061,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "119"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2062,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "120"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2063,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "121"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2064,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "122"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2065,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "123"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2066,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "124"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2067,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "125"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2068,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "126"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2069,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "127"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2070,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "128"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2071,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "129"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2072,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "130"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2073,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "131"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2074,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "132"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2075,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "133"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2076,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "134"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2077,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "135"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2078,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "136"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2079,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "137"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2080,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "138"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2081,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "139"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2082,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "140"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2083,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "141"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2084,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "142"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2085,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "143"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2086,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "144"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2087,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "145"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2088,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "146"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2089,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "147"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2090,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "148"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2091,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "149"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2092,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "150"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2093,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "151"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2094,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "152"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2095,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "153"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2096,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "154"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2097,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "155"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2098,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "156"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2099,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "157"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2100,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
+            "value": "158"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2101,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": [
+          {
+            "type": "i32",
             "value": "159"
           }
         ]
@@ -9030,13 +9107,13 @@
     },
     {
       "type": "module",
-      "line": 1983,
-      "filename": "table_init64.101.wasm",
+      "line": 2103,
+      "filename": "table_init64.106.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_trap",
-      "line": 2011,
+      "line": 2131,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -9055,7 +9132,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2012,
+      "line": 2132,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9070,7 +9147,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2013,
+      "line": 2133,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9085,7 +9162,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2014,
+      "line": 2134,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9100,7 +9177,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2015,
+      "line": 2135,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9115,7 +9192,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2016,
+      "line": 2136,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9130,7 +9207,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2017,
+      "line": 2137,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9145,7 +9222,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2018,
+      "line": 2138,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9160,7 +9237,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2019,
+      "line": 2139,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9175,7 +9252,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2020,
+      "line": 2140,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9190,7 +9267,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2021,
+      "line": 2141,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9205,7 +9282,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2022,
+      "line": 2142,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9220,7 +9297,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2023,
+      "line": 2143,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9235,7 +9312,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2024,
+      "line": 2144,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9250,7 +9327,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2025,
+      "line": 2145,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9265,7 +9342,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2026,
+      "line": 2146,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9280,7 +9357,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2027,
+      "line": 2147,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9295,7 +9372,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2028,
+      "line": 2148,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9310,7 +9387,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2029,
+      "line": 2149,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9325,7 +9402,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2030,
+      "line": 2150,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9340,7 +9417,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2031,
+      "line": 2151,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9355,7 +9432,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2032,
+      "line": 2152,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9370,7 +9447,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2033,
+      "line": 2153,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9385,7 +9462,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2034,
+      "line": 2154,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9400,7 +9477,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2035,
+      "line": 2155,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9415,7 +9492,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2036,
+      "line": 2156,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9430,7 +9507,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2037,
+      "line": 2157,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9445,7 +9522,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2038,
+      "line": 2158,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9460,7 +9537,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2039,
+      "line": 2159,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9475,7 +9552,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2040,
+      "line": 2160,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9490,7 +9567,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2041,
+      "line": 2161,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9505,7 +9582,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2042,
+      "line": 2162,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9520,7 +9597,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2043,
+      "line": 2163,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9535,7 +9612,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2044,
+      "line": 2164,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9550,7 +9627,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2045,
+      "line": 2165,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9565,7 +9642,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2046,
+      "line": 2166,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9580,7 +9657,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2047,
+      "line": 2167,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9595,7 +9672,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2048,
+      "line": 2168,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9610,7 +9687,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2049,
+      "line": 2169,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9625,7 +9702,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2050,
+      "line": 2170,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9640,7 +9717,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2051,
+      "line": 2171,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9655,7 +9732,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2052,
+      "line": 2172,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9670,7 +9747,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2053,
+      "line": 2173,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9685,7 +9762,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2054,
+      "line": 2174,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9700,7 +9777,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2055,
+      "line": 2175,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9715,7 +9792,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2056,
+      "line": 2176,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9730,7 +9807,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2057,
+      "line": 2177,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9745,7 +9822,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2058,
+      "line": 2178,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9760,7 +9837,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2059,
+      "line": 2179,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9775,7 +9852,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2060,
+      "line": 2180,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9790,7 +9867,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2061,
+      "line": 2181,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9805,7 +9882,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2062,
+      "line": 2182,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9820,7 +9897,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2063,
+      "line": 2183,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9835,7 +9912,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2064,
+      "line": 2184,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9850,7 +9927,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2065,
+      "line": 2185,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9865,7 +9942,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2066,
+      "line": 2186,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9880,7 +9957,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2067,
+      "line": 2187,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9895,7 +9972,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2068,
+      "line": 2188,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9910,7 +9987,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2069,
+      "line": 2189,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9925,7 +10002,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2070,
+      "line": 2190,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9940,7 +10017,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2071,
+      "line": 2191,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9955,7 +10032,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2072,
+      "line": 2192,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9970,7 +10047,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2073,
+      "line": 2193,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -9985,7 +10062,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2074,
+      "line": 2194,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10000,7 +10077,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2075,
+      "line": 2195,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10015,7 +10092,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2076,
+      "line": 2196,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10030,7 +10107,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2077,
+      "line": 2197,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10045,7 +10122,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2078,
+      "line": 2198,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10060,7 +10137,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2079,
+      "line": 2199,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10075,7 +10152,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2080,
+      "line": 2200,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10090,7 +10167,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2081,
+      "line": 2201,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10105,7 +10182,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2082,
+      "line": 2202,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10120,7 +10197,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2083,
+      "line": 2203,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10135,7 +10212,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2084,
+      "line": 2204,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10150,7 +10227,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2085,
+      "line": 2205,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10165,7 +10242,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2086,
+      "line": 2206,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10180,7 +10257,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2087,
+      "line": 2207,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10195,7 +10272,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2088,
+      "line": 2208,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10210,7 +10287,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2089,
+      "line": 2209,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10225,7 +10302,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2090,
+      "line": 2210,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10240,7 +10317,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2091,
+      "line": 2211,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10255,7 +10332,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2092,
+      "line": 2212,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10270,7 +10347,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2093,
+      "line": 2213,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10285,7 +10362,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2094,
+      "line": 2214,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10300,7 +10377,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2095,
+      "line": 2215,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10315,7 +10392,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2096,
+      "line": 2216,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10330,7 +10407,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2097,
+      "line": 2217,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10345,7 +10422,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2098,
+      "line": 2218,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10360,7 +10437,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2099,
+      "line": 2219,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10375,7 +10452,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2100,
+      "line": 2220,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10390,7 +10467,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2101,
+      "line": 2221,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10405,7 +10482,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2102,
+      "line": 2222,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10420,7 +10497,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2103,
+      "line": 2223,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10435,7 +10512,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2104,
+      "line": 2224,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10450,7 +10527,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2105,
+      "line": 2225,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10465,7 +10542,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2106,
+      "line": 2226,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10480,7 +10557,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2107,
+      "line": 2227,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10495,7 +10572,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2108,
+      "line": 2228,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10510,7 +10587,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2109,
+      "line": 2229,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10525,7 +10602,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2110,
+      "line": 2230,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10540,7 +10617,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2111,
+      "line": 2231,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10555,7 +10632,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2112,
+      "line": 2232,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10570,7 +10647,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2113,
+      "line": 2233,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10585,7 +10662,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2114,
+      "line": 2234,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10600,7 +10677,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2115,
+      "line": 2235,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10615,7 +10692,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2116,
+      "line": 2236,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10630,7 +10707,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2117,
+      "line": 2237,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10645,7 +10722,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2118,
+      "line": 2238,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10660,7 +10737,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2119,
+      "line": 2239,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10675,7 +10752,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2120,
+      "line": 2240,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10690,7 +10767,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2121,
+      "line": 2241,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10705,7 +10782,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2122,
+      "line": 2242,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10720,7 +10797,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2123,
+      "line": 2243,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10735,7 +10812,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2124,
+      "line": 2244,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10750,7 +10827,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2125,
+      "line": 2245,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10765,7 +10842,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2126,
+      "line": 2246,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10780,7 +10857,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2127,
+      "line": 2247,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10795,7 +10872,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2128,
+      "line": 2248,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10810,7 +10887,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2129,
+      "line": 2249,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10825,7 +10902,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2130,
+      "line": 2250,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10840,7 +10917,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2131,
+      "line": 2251,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10855,7 +10932,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2132,
+      "line": 2252,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10870,7 +10947,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2133,
+      "line": 2253,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10885,7 +10962,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2134,
+      "line": 2254,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10900,7 +10977,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2135,
+      "line": 2255,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10915,7 +10992,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2136,
+      "line": 2256,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10930,7 +11007,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2137,
+      "line": 2257,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10945,7 +11022,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2138,
+      "line": 2258,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10960,7 +11037,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2139,
+      "line": 2259,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10975,7 +11052,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2140,
+      "line": 2260,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -10990,7 +11067,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2141,
+      "line": 2261,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11005,7 +11082,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2142,
+      "line": 2262,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11020,7 +11097,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2143,
+      "line": 2263,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11035,7 +11112,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2144,
+      "line": 2264,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11050,7 +11127,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2145,
+      "line": 2265,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11065,7 +11142,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2146,
+      "line": 2266,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11080,7 +11157,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2147,
+      "line": 2267,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11095,7 +11172,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2148,
+      "line": 2268,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11110,7 +11187,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2149,
+      "line": 2269,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11125,7 +11202,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2150,
+      "line": 2270,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11140,7 +11217,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2151,
+      "line": 2271,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11155,7 +11232,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2152,
+      "line": 2272,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11170,7 +11247,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2153,
+      "line": 2273,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11185,7 +11262,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2154,
+      "line": 2274,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11200,7 +11277,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2155,
+      "line": 2275,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11215,7 +11292,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2156,
+      "line": 2276,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11230,7 +11307,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2157,
+      "line": 2277,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11245,7 +11322,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2158,
+      "line": 2278,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11260,7 +11337,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2159,
+      "line": 2279,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11275,7 +11352,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2160,
+      "line": 2280,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11290,7 +11367,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2161,
+      "line": 2281,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11305,7 +11382,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2162,
+      "line": 2282,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11320,7 +11397,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2163,
+      "line": 2283,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11335,7 +11412,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2164,
+      "line": 2284,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11350,7 +11427,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2165,
+      "line": 2285,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11365,7 +11442,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2166,
+      "line": 2286,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11380,7 +11457,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2167,
+      "line": 2287,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11395,7 +11472,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2168,
+      "line": 2288,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11410,7 +11487,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2169,
+      "line": 2289,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11425,7 +11502,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2170,
+      "line": 2290,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11440,7 +11517,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2171,
+      "line": 2291,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11455,13 +11532,13 @@
     },
     {
       "type": "module",
-      "line": 2173,
-      "filename": "table_init64.102.wasm",
+      "line": 2293,
+      "filename": "table_init64.107.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_trap",
-      "line": 2201,
+      "line": 2321,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -11480,7 +11557,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2202,
+      "line": 2322,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11495,7 +11572,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2203,
+      "line": 2323,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11510,7 +11587,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2204,
+      "line": 2324,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11525,7 +11602,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2205,
+      "line": 2325,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11540,7 +11617,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2206,
+      "line": 2326,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11555,7 +11632,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2207,
+      "line": 2327,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11570,7 +11647,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2208,
+      "line": 2328,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11585,7 +11662,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2209,
+      "line": 2329,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11600,7 +11677,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2210,
+      "line": 2330,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11615,7 +11692,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2211,
+      "line": 2331,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11630,7 +11707,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2212,
+      "line": 2332,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11645,7 +11722,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2213,
+      "line": 2333,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11660,7 +11737,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2214,
+      "line": 2334,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11675,7 +11752,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2215,
+      "line": 2335,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11690,7 +11767,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2216,
+      "line": 2336,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11705,7 +11782,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2217,
+      "line": 2337,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11720,7 +11797,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2218,
+      "line": 2338,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11735,7 +11812,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2219,
+      "line": 2339,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11750,7 +11827,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2220,
+      "line": 2340,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11765,7 +11842,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2221,
+      "line": 2341,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11780,7 +11857,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2222,
+      "line": 2342,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11795,7 +11872,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2223,
+      "line": 2343,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11810,7 +11887,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2224,
+      "line": 2344,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11825,7 +11902,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2225,
+      "line": 2345,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11840,7 +11917,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2226,
+      "line": 2346,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11855,7 +11932,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2227,
+      "line": 2347,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11870,7 +11947,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2228,
+      "line": 2348,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11885,7 +11962,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2229,
+      "line": 2349,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11900,7 +11977,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2230,
+      "line": 2350,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11915,7 +11992,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2231,
+      "line": 2351,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11930,7 +12007,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2232,
+      "line": 2352,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11945,7 +12022,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2233,
+      "line": 2353,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11960,7 +12037,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2234,
+      "line": 2354,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11975,7 +12052,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2235,
+      "line": 2355,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -11990,7 +12067,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2236,
+      "line": 2356,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12005,7 +12082,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2237,
+      "line": 2357,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12020,7 +12097,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2238,
+      "line": 2358,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12035,7 +12112,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2239,
+      "line": 2359,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12050,7 +12127,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2240,
+      "line": 2360,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12065,7 +12142,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2241,
+      "line": 2361,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12080,7 +12157,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2242,
+      "line": 2362,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12095,7 +12172,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2243,
+      "line": 2363,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12110,7 +12187,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2244,
+      "line": 2364,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12125,7 +12202,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2245,
+      "line": 2365,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12140,7 +12217,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2246,
+      "line": 2366,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12155,7 +12232,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2247,
+      "line": 2367,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12170,7 +12247,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2248,
+      "line": 2368,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12185,7 +12262,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2249,
+      "line": 2369,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12200,7 +12277,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2250,
+      "line": 2370,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12215,7 +12292,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2251,
+      "line": 2371,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12230,7 +12307,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2252,
+      "line": 2372,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12245,7 +12322,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2253,
+      "line": 2373,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12260,7 +12337,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2254,
+      "line": 2374,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12275,7 +12352,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2255,
+      "line": 2375,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12290,7 +12367,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2256,
+      "line": 2376,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12305,7 +12382,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2257,
+      "line": 2377,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12320,7 +12397,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2258,
+      "line": 2378,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12335,7 +12412,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2259,
+      "line": 2379,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12350,7 +12427,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2260,
+      "line": 2380,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12365,7 +12442,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2261,
+      "line": 2381,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12380,7 +12457,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2262,
+      "line": 2382,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12395,7 +12472,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2263,
+      "line": 2383,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12410,7 +12487,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2264,
+      "line": 2384,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12425,7 +12502,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2265,
+      "line": 2385,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12440,13 +12517,13 @@
     },
     {
       "type": "module",
-      "line": 2267,
-      "filename": "table_init64.103.wasm",
+      "line": 2387,
+      "filename": "table_init64.108.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_trap",
-      "line": 2295,
+      "line": 2415,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -12465,7 +12542,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2296,
+      "line": 2416,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12480,7 +12557,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2297,
+      "line": 2417,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12495,7 +12572,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2298,
+      "line": 2418,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12510,7 +12587,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2299,
+      "line": 2419,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12525,7 +12602,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2300,
+      "line": 2420,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12540,7 +12617,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2301,
+      "line": 2421,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12555,7 +12632,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2302,
+      "line": 2422,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12570,7 +12647,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2303,
+      "line": 2423,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12585,7 +12662,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2304,
+      "line": 2424,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12600,7 +12677,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2305,
+      "line": 2425,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12615,7 +12692,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2306,
+      "line": 2426,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12630,7 +12707,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2307,
+      "line": 2427,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12645,7 +12722,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2308,
+      "line": 2428,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12660,7 +12737,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2309,
+      "line": 2429,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12675,7 +12752,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2310,
+      "line": 2430,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12690,7 +12767,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 2311,
+      "line": 2431,
       "action": {
         "type": "invoke",
         "field": "test",
@@ -12705,9 +12782,30 @@
     },
     {
       "type": "module",
-      "line": 2313,
-      "filename": "table_init64.104.wasm",
+      "line": 2433,
+      "filename": "table_init64.109.wasm",
       "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 2457,
+      "filename": "table_init64.110.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 2471,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
     }
   ]
 }

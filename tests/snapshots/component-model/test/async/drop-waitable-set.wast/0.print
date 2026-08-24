@@ -1,0 +1,119 @@
+(component
+  (component $C (;0;)
+    (core module $Core (;0;)
+      (type (;0;) (func (result i32)))
+      (type (;1;) (func (param i32)))
+      (type (;2;) (func))
+      (type (;3;) (func (param i32 i32 i32) (result i32)))
+      (import "" "waitable-set.new" (func $waitable-set.new (;0;) (type 0)))
+      (import "" "waitable-set.drop" (func $waitable-set.drop (;1;) (type 1)))
+      (global $ws (;0;) (mut i32) i32.const 0)
+      (export "wait-on-set" (func $wait-on-set))
+      (export "drop-while-waiting" (func $drop-while-waiting))
+      (export "unreachable-cb" (func $unreachable-cb))
+      (start $start)
+      (func $start (;2;) (type 2)
+        call $waitable-set.new
+        global.set $ws
+      )
+      (func $wait-on-set (;3;) (type 0) (result i32)
+        i32.const 2
+        global.get $ws
+        i32.const 4
+        i32.shl
+        i32.or
+      )
+      (func $drop-while-waiting (;4;) (type 0) (result i32)
+        global.get $ws
+        call $waitable-set.drop
+        unreachable
+      )
+      (func $unreachable-cb (;5;) (type 3) (param i32 i32 i32) (result i32)
+        unreachable
+      )
+    )
+    (core func $waitable-set.new (;0;) (canon waitable-set.new))
+    (core func $waitable-set.drop (;1;) (canon waitable-set.drop))
+    (core instance (;0;)
+      (export "waitable-set.new" (func $waitable-set.new))
+      (export "waitable-set.drop" (func $waitable-set.drop))
+    )
+    (core instance $core (;1;) (instantiate $Core
+        (with "" (instance 0))
+      )
+    )
+    (type (;0;) (func async))
+    (alias core export $core "wait-on-set" (core func (;2;)))
+    (alias core export $core "unreachable-cb" (core func (;3;)))
+    (func (;0;) (type 0) (canon lift (core func 2) async (callback 3)))
+    (type (;1;) (func async))
+    (alias core export $core "drop-while-waiting" (core func (;4;)))
+    (alias core export $core "unreachable-cb" (core func (;5;)))
+    (func (;1;) (type 1) (canon lift (core func 4) async (callback 5)))
+    (export (;2;) "wait-on-set" (func 0))
+    (export (;3;) "drop-while-waiting" (func 1))
+  )
+  (component $D (;1;)
+    (type (;0;)
+      (instance
+        (type (;0;) (func async))
+        (export (;0;) "wait-on-set" (func (type 0)))
+        (type (;1;) (func async))
+        (export (;1;) "drop-while-waiting" (func (type 1)))
+      )
+    )
+    (import "c" (instance $c (;0;) (type 0)))
+    (core module $Memory (;0;)
+      (memory (;0;) 1)
+      (export "mem" (memory 0))
+    )
+    (core instance $memory (;0;) (instantiate $Memory))
+    (core module $Core (;1;)
+      (type (;0;) (func (result i32)))
+      (type (;1;) (func))
+      (import "" "mem" (memory (;0;) 1))
+      (import "" "wait-on-set" (func $wait-on-set (;0;) (type 0)))
+      (import "" "drop-while-waiting" (func $drop-while-waiting (;1;) (type 1)))
+      (export "run" (func $run))
+      (func $run (;2;) (type 0) (result i32)
+        (local $ret i32)
+        call $wait-on-set
+        local.set $ret
+        i32.const 17
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        call $drop-while-waiting
+        unreachable
+      )
+    )
+    (alias export $c "wait-on-set" (func (;0;)))
+    (alias core export $memory "mem" (core memory (;0;)))
+    (core func $wait-on-set' (;0;) (canon lower (func 0) async (memory 0)))
+    (alias export $c "drop-while-waiting" (func (;1;)))
+    (core func $drop-while-waiting' (;1;) (canon lower (func 1)))
+    (alias core export $memory "mem" (core memory (;1;)))
+    (core instance (;1;)
+      (export "mem" (memory 1))
+      (export "wait-on-set" (func $wait-on-set'))
+      (export "drop-while-waiting" (func $drop-while-waiting'))
+    )
+    (core instance $core (;2;) (instantiate $Core
+        (with "" (instance 1))
+      )
+    )
+    (type (;1;) (func async (result u32)))
+    (alias core export $core "run" (core func (;2;)))
+    (func (;2;) (type 1) (canon lift (core func 2)))
+    (export (;3;) "run" (func 2))
+  )
+  (instance $c (;0;) (instantiate $C))
+  (instance $d (;1;) (instantiate $D
+      (with "c" (instance $c))
+    )
+  )
+  (alias export $d "run" (func (;0;)))
+  (export (;1;) "run" (func 0))
+)

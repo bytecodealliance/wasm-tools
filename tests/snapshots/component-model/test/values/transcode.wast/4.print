@@ -1,0 +1,273 @@
+(component
+  (component $C (;0;)
+    (core module $M (;0;)
+      (type (;0;) (func (param i32 i32 i32 i32) (result i32)))
+      (type (;1;) (func (param i32 i32) (result i32)))
+      (memory (;0;) 1)
+      (global $next (;0;) (mut i32) i32.const 1024)
+      (export "mem" (memory 0))
+      (export "realloc" (func 0))
+      (export "compact" (func 1))
+      (export "unicode" (func 2))
+      (func (;0;) (type 0) (param $old i32) (param $osize i32) (param $align i32) (param $nsize i32) (result i32)
+        (local $r i32)
+        local.get $old
+        i32.const 0
+        i32.ne
+        local.get $nsize
+        local.get $osize
+        i32.le_u
+        i32.and
+        if ;; label = @1
+          local.get $old
+          return
+        end
+        global.get $next
+        i32.const 7
+        i32.add
+        i32.const -8
+        i32.and
+        global.set $next
+        global.get $next
+        local.set $r
+        global.get $next
+        local.get $nsize
+        i32.add
+        global.set $next
+        local.get $old
+        i32.const 0
+        i32.ne
+        if ;; label = @1
+          local.get $r
+          local.get $old
+          local.get $osize
+          memory.copy
+        end
+        local.get $r
+      )
+      (func (;1;) (type 1) (param $ptr i32) (param $len i32) (result i32)
+        local.get $len
+        i32.const 5
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $ptr
+        i32.load
+        i32.const 1823916904
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $ptr
+        i32.load8_u offset=4
+        i32.const 97
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 0
+        i32.const 64
+        i32.store
+        i32.const 4
+        i32.const 5
+        i32.store
+        i32.const 0
+      )
+      (func (;2;) (type 1) (param $ptr i32) (param $len i32) (result i32)
+        local.get $len
+        i32.const 7
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $ptr
+        i32.load
+        i32.const -259811102
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $ptr
+        i32.load16_u offset=4
+        i32.const 36255
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $ptr
+        i32.load8_u offset=6
+        i32.const 176
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 0
+        i32.const 80
+        i32.store
+        i32.const 4
+        i32.const 5
+        i32.store
+        i32.const 0
+      )
+      (data (;0;) (i32.const 64) "gr\c3\bcn")
+      (data (;1;) (i32.const 80) "sn\e2\98\83")
+    )
+    (core instance $m (;0;) (instantiate $M))
+    (type (;0;) (func (param "s" string) (result string)))
+    (alias core export $m "compact" (core func (;0;)))
+    (alias core export $m "mem" (core memory (;0;)))
+    (alias core export $m "realloc" (core func (;1;)))
+    (func (;0;) (type 0) (canon lift (core func 0) string-encoding=utf8 (memory 0) (realloc 1)))
+    (type (;1;) (func (param "s" string) (result string)))
+    (alias core export $m "unicode" (core func (;2;)))
+    (alias core export $m "mem" (core memory (;1;)))
+    (alias core export $m "realloc" (core func (;3;)))
+    (func (;1;) (type 1) (canon lift (core func 2) string-encoding=utf8 (memory 1) (realloc 3)))
+    (export (;2;) "compact" (func 0))
+    (export (;3;) "unicode" (func 1))
+  )
+  (component $D (;1;)
+    (type (;0;) (func (param "s" string) (result string)))
+    (import "compact" (func $compact (;0;) (type 0)))
+    (type (;1;) (func (param "s" string) (result string)))
+    (import "unicode" (func $unicode (;1;) (type 1)))
+    (core module $Libc (;0;)
+      (type (;0;) (func (param i32 i32 i32 i32) (result i32)))
+      (memory (;0;) 1)
+      (global $next (;0;) (mut i32) i32.const 1024)
+      (export "mem" (memory 0))
+      (export "realloc" (func 0))
+      (func (;0;) (type 0) (param $old i32) (param $osize i32) (param $align i32) (param $nsize i32) (result i32)
+        (local $r i32)
+        local.get $old
+        i32.const 0
+        i32.ne
+        local.get $nsize
+        local.get $osize
+        i32.le_u
+        i32.and
+        if ;; label = @1
+          local.get $old
+          return
+        end
+        global.get $next
+        i32.const 7
+        i32.add
+        i32.const -8
+        i32.and
+        global.set $next
+        global.get $next
+        local.set $r
+        global.get $next
+        local.get $nsize
+        i32.add
+        global.set $next
+        local.get $old
+        i32.const 0
+        i32.ne
+        if ;; label = @1
+          local.get $r
+          local.get $old
+          local.get $osize
+          memory.copy
+        end
+        local.get $r
+      )
+    )
+    (core instance $libc (;0;) (instantiate $Libc))
+    (alias core export $libc "mem" (core memory (;0;)))
+    (alias core export $libc "realloc" (core func (;0;)))
+    (core func $compact' (;1;) (canon lower (func $compact) string-encoding=latin1+utf16 (memory 0) (realloc 0)))
+    (alias core export $libc "mem" (core memory (;1;)))
+    (alias core export $libc "realloc" (core func (;2;)))
+    (core func $unicode' (;3;) (canon lower (func $unicode) string-encoding=latin1+utf16 (memory 1) (realloc 2)))
+    (core module $Main (;1;)
+      (type (;0;) (func (param i32 i32 i32)))
+      (type (;1;) (func (result i32)))
+      (import "" "mem" (memory (;0;) 1))
+      (import "" "compact" (func $compact (;0;) (type 0)))
+      (import "" "unicode" (func $unicode (;1;) (type 0)))
+      (export "run" (func 2))
+      (func (;2;) (type 1) (result i32)
+        (local $p i32)
+        i32.const 16
+        i32.const 4
+        i32.const 8
+        call $compact
+        i32.const 8
+        i32.load
+        local.set $p
+        i32.const 12
+        i32.load
+        i32.const 4
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $p
+        i32.load
+        i32.const 1862038119
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 24
+        i32.const -2147483645
+        i32.const 8
+        call $unicode
+        i32.const 8
+        i32.load
+        local.set $p
+        i32.const 12
+        i32.load
+        i32.const -2147483645
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $p
+        i32.load
+        i32.const 7209075
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $p
+        i32.load16_u offset=4
+        i32.const 9731
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 44
+      )
+      (data (;0;) (i32.const 16) "h\f6la")
+      (data (;1;) (i32.const 24) "\03&<\d8p\df")
+    )
+    (alias core export $libc "mem" (core memory (;2;)))
+    (core instance (;1;)
+      (export "mem" (memory 2))
+      (export "compact" (func $compact'))
+      (export "unicode" (func $unicode'))
+    )
+    (core instance $main (;2;) (instantiate $Main
+        (with "" (instance 1))
+      )
+    )
+    (type (;2;) (func (result u32)))
+    (alias core export $main "run" (core func (;4;)))
+    (func (;2;) (type 2) (canon lift (core func 4)))
+    (export (;3;) "run" (func 2))
+  )
+  (instance $c (;0;) (instantiate $C))
+  (alias export $c "compact" (func (;0;)))
+  (alias export $c "unicode" (func (;1;)))
+  (instance $d (;1;) (instantiate $D
+      (with "compact" (func 0))
+      (with "unicode" (func 1))
+    )
+  )
+  (alias export $d "run" (func (;2;)))
+  (export (;3;) "run" (func 2))
+)

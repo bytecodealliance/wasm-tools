@@ -1,0 +1,570 @@
+{
+  "source_filename": "tests/component-model/test/validation/instantiation.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 7,
+      "filename": "instantiation.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 15,
+      "filename": "instantiation.1.wasm",
+      "module_type": "binary",
+      "text": "expected primitive `u32` found primitive `string`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 24,
+      "filename": "instantiation.2.wasm",
+      "module_type": "binary",
+      "text": "expected primitive, found record"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 33,
+      "filename": "instantiation.3.wasm",
+      "module_type": "binary",
+      "text": "expected record, found u32"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 42,
+      "filename": "instantiation.4.wasm",
+      "module_type": "binary",
+      "text": "expected u32, found tuple"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 52,
+      "filename": "instantiation.5.wasm",
+      "module_type": "binary",
+      "text": "type mismatch in record field `x`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 62,
+      "filename": "instantiation.6.wasm",
+      "module_type": "binary",
+      "text": "expected 1 fields, found 2"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 71,
+      "filename": "instantiation.7.wasm",
+      "module_type": "binary",
+      "text": "expected field name `a`, found `b`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 80,
+      "filename": "instantiation.8.wasm",
+      "module_type": "binary",
+      "text": "expected 1 cases, found 2"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 89,
+      "filename": "instantiation.9.wasm",
+      "module_type": "binary",
+      "text": "expected case named `x`, found `y`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 98,
+      "filename": "instantiation.10.wasm",
+      "module_type": "binary",
+      "text": "expected case `x` to have a type, found none"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 107,
+      "filename": "instantiation.11.wasm",
+      "module_type": "binary",
+      "text": "expected case `x` to have no type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 116,
+      "filename": "instantiation.12.wasm",
+      "module_type": "binary",
+      "text": "type mismatch in variant case `x`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 125,
+      "filename": "instantiation.13.wasm",
+      "module_type": "binary",
+      "text": "expected 1 types, found 2"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 134,
+      "filename": "instantiation.14.wasm",
+      "module_type": "binary",
+      "text": "type mismatch in tuple field 0"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 143,
+      "filename": "instantiation.15.wasm",
+      "module_type": "binary",
+      "text": "mismatch in flags elements"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 152,
+      "filename": "instantiation.16.wasm",
+      "module_type": "binary",
+      "text": "mismatch in enum elements"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 161,
+      "filename": "instantiation.17.wasm",
+      "module_type": "binary",
+      "text": "type mismatch in ok variant"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 170,
+      "filename": "instantiation.18.wasm",
+      "module_type": "binary",
+      "text": "type mismatch in err variant"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 179,
+      "filename": "instantiation.19.wasm",
+      "module_type": "binary",
+      "text": "expected ok type to not be present"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 188,
+      "filename": "instantiation.20.wasm",
+      "module_type": "binary",
+      "text": "expected ok type, but found none"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 197,
+      "filename": "instantiation.21.wasm",
+      "module_type": "binary",
+      "text": "expected err type to not be present"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 206,
+      "filename": "instantiation.22.wasm",
+      "module_type": "binary",
+      "text": "expected err type, but found none"
+    },
+    {
+      "type": "module_definition",
+      "line": 218,
+      "filename": "instantiation.23.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 224,
+      "filename": "instantiation.24.wasm",
+      "module_type": "binary",
+      "text": "expected a result, found none"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 231,
+      "filename": "instantiation.25.wasm",
+      "module_type": "binary",
+      "text": "expected 0 parameters, found 1"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 238,
+      "filename": "instantiation.26.wasm",
+      "module_type": "binary",
+      "text": "expected parameter named `y`, found `x`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 245,
+      "filename": "instantiation.27.wasm",
+      "module_type": "binary",
+      "text": "type mismatch in function parameter `x`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 252,
+      "filename": "instantiation.28.wasm",
+      "module_type": "binary",
+      "text": "type mismatch with result type"
+    },
+    {
+      "type": "module_definition",
+      "line": 262,
+      "filename": "instantiation.29.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 270,
+      "filename": "instantiation.30.wasm",
+      "module_type": "binary",
+      "text": "type mismatch in instance export `a`"
+    },
+    {
+      "type": "module",
+      "line": 281,
+      "filename": "instantiation.31.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 289,
+      "filename": "instantiation.32.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 298,
+      "filename": "instantiation.33.wasm",
+      "module_type": "binary",
+      "text": "type mismatch in import `::f`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 306,
+      "filename": "instantiation.34.wasm",
+      "module_type": "binary",
+      "text": "missing expected import `::extra`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 314,
+      "filename": "instantiation.35.wasm",
+      "module_type": "binary",
+      "text": "missing expected export `x`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 322,
+      "filename": "instantiation.36.wasm",
+      "module_type": "binary",
+      "text": "type mismatch in export `g`"
+    },
+    {
+      "type": "module",
+      "line": 332,
+      "filename": "instantiation.37.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 342,
+      "filename": "instantiation.38.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 357,
+      "filename": "instantiation.39.wasm",
+      "module_type": "binary",
+      "text": "expected: (func)"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 365,
+      "filename": "instantiation.40.wasm",
+      "module_type": "binary",
+      "text": "expected: (func)"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 373,
+      "filename": "instantiation.41.wasm",
+      "module_type": "binary",
+      "text": "expected: (func)"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 382,
+      "filename": "instantiation.42.wasm",
+      "module_type": "binary",
+      "text": "expected global type i32, found i64"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 390,
+      "filename": "instantiation.43.wasm",
+      "module_type": "binary",
+      "text": "expected table element type funcref, found externref"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 398,
+      "filename": "instantiation.44.wasm",
+      "module_type": "binary",
+      "text": "mismatch in table limits"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 406,
+      "filename": "instantiation.45.wasm",
+      "module_type": "binary",
+      "text": "mismatch in table limits"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 414,
+      "filename": "instantiation.46.wasm",
+      "module_type": "binary",
+      "text": "mismatch in table limits"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 422,
+      "filename": "instantiation.47.wasm",
+      "module_type": "binary",
+      "text": "mismatch in the shared flag for memories"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 430,
+      "filename": "instantiation.48.wasm",
+      "module_type": "binary",
+      "text": "mismatch in memory limits"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 438,
+      "filename": "instantiation.49.wasm",
+      "module_type": "binary",
+      "text": "expected global, found func"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 449,
+      "filename": "instantiation.50.wasm",
+      "module_type": "binary",
+      "text": "missing module instantiation argument"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 455,
+      "filename": "instantiation.51.wasm",
+      "module_type": "binary",
+      "text": "does not export an item named `table`"
+    },
+    {
+      "type": "module",
+      "line": 471,
+      "filename": "instantiation.52.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 476,
+      "filename": "instantiation.53.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 484,
+      "filename": "instantiation.54.wasm",
+      "module_type": "binary",
+      "text": "expected func, found component"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 491,
+      "filename": "instantiation.55.wasm",
+      "module_type": "binary",
+      "text": "expected component, found instance"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 501,
+      "filename": "instantiation.56.wasm",
+      "module_type": "binary",
+      "text": "duplicate module instantiation argument named `a`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 510,
+      "filename": "instantiation.57.wasm",
+      "module_type": "binary",
+      "text": "instantiation argument `a` conflicts with previous argument `a`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 522,
+      "filename": "instantiation.58.wasm",
+      "module_type": "binary",
+      "text": "export name `a` conflicts with previous name `a`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 530,
+      "filename": "instantiation.59.wasm",
+      "module_type": "binary",
+      "text": "export name `a` already defined"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 542,
+      "filename": "instantiation.60.wasm",
+      "module_type": "binary",
+      "text": "unknown module"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 547,
+      "filename": "instantiation.61.wasm",
+      "module_type": "binary",
+      "text": "unknown component"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 552,
+      "filename": "instantiation.62.wasm",
+      "module_type": "binary",
+      "text": "unknown module"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 560,
+      "filename": "instantiation.63.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 564,
+      "filename": "instantiation.64.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 568,
+      "filename": "instantiation.65.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 572,
+      "filename": "instantiation.66.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 576,
+      "filename": "instantiation.67.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 580,
+      "filename": "instantiation.68.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 584,
+      "filename": "instantiation.69.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 588,
+      "filename": "instantiation.70.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 594,
+      "filename": "instantiation.71.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 600,
+      "filename": "instantiation.72.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 606,
+      "filename": "instantiation.73.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 612,
+      "filename": "instantiation.74.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 620,
+      "filename": "instantiation.75.wasm",
+      "module_type": "binary",
+      "text": "no export named `a`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 627,
+      "filename": "instantiation.76.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 632,
+      "filename": "instantiation.77.wasm",
+      "module_type": "binary",
+      "text": "instance 0 has no export named `Xml`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 638,
+      "filename": "instantiation.78.wasm",
+      "module_type": "binary",
+      "text": "core instance 0 has no export named `a`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 645,
+      "filename": "instantiation.79.wasm",
+      "module_type": "binary",
+      "text": "instance 0 has no export named `a`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 654,
+      "filename": "instantiation.80.wasm",
+      "module_type": "binary",
+      "text": "is not a module"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 660,
+      "filename": "instantiation.81.wasm",
+      "module_type": "binary",
+      "text": "is not a module"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+(component
+  (core module $P (;0;)
+    (type (;0;) (func (result i32)))
+    (table (;0;) 1 funcref)
+    (memory (;0;) 1)
+    (global (;0;) i32 i32.const 300)
+    (export "1" (memory 0))
+    (export "2" (global 0))
+    (export "3" (table 0))
+    (elem (;0;) (i32.const 0) func $forty)
+    (func $forty (;0;) (type 0) (result i32)
+      i32.const 40
+    )
+    (data (;0;) (i32.const 0) "\05")
+  )
+  (core instance $p (;0;) (instantiate $P))
+  (core module $Client (;1;)
+    (type $t (;0;) (func (result i32)))
+    (import "env" "mem" (memory (;0;) 1))
+    (import "env" "glob" (global $g (;0;) i32))
+    (import "env" "tab" (table (;0;) 1 funcref))
+    (export "sum" (func 0))
+    (func (;0;) (type $t) (result i32)
+      i32.const 0
+      i32.load8_u
+      global.get $g
+      i32.add
+      i32.const 0
+      call_indirect (type $t)
+      i32.add
+    )
+  )
+  (alias core export $p "1" (core memory (;0;)))
+  (alias core export $p "2" (core global (;0;)))
+  (alias core export $p "3" (core table (;0;)))
+  (core instance (;1;)
+    (export "mem" (memory 0))
+    (export "glob" (global 0))
+    (export "tab" (table 0))
+  )
+  (core instance $c (;2;) (instantiate $Client
+      (with "env" (instance 1))
+    )
+  )
+  (type (;0;) (func (result u32)))
+  (alias core export $c "sum" (core func (;0;)))
+  (func (;0;) (type 0) (canon lift (core func 0)))
+  (export (;1;) "sum" (func 0))
+)

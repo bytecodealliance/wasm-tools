@@ -1,0 +1,325 @@
+(component
+  (component $C (;0;)
+    (core module $Memory (;0;)
+      (memory (;0;) 1)
+      (export "mem" (memory 0))
+    )
+    (core instance $memory (;0;) (instantiate $Memory))
+    (core module $CM (;1;)
+      (type (;0;) (func))
+      (type (;1;) (func (param i32)))
+      (type (;2;) (func (result i64)))
+      (type (;3;) (func (param i32 i32 i32) (result i32)))
+      (type (;4;) (func (result i32)))
+      (type (;5;) (func (param i32) (result i32)))
+      (import "" "mem" (memory (;0;) 1))
+      (import "" "task.return0" (func $task.return0 (;0;) (type 0)))
+      (import "" "task.return1" (func $task.return1 (;1;) (type 1)))
+      (import "" "stream.new" (func $stream.new (;2;) (type 2)))
+      (import "" "stream.read" (func $stream.read (;3;) (type 3)))
+      (import "" "stream.write" (func $stream.write (;4;) (type 3)))
+      (import "" "stream.drop-readable" (func $stream.drop-readable (;5;) (type 1)))
+      (import "" "stream.drop-writable" (func $stream.drop-writable (;6;) (type 1)))
+      (export "get" (func 7))
+      (export "get_cb" (func 8))
+      (export "set" (func 9))
+      (export "set_cb" (func 10))
+      (func (;7;) (type 4) (result i32)
+        (local $ret i32) (local $ret64 i64) (local $tx i32) (local $rx i32) (local $bufp i32)
+        call $stream.new
+        local.set $ret64
+        local.get $ret64
+        i32.wrap_i64
+        local.set $rx
+        local.get $ret64
+        i64.const 32
+        i64.shr_u
+        i32.wrap_i64
+        local.set $tx
+        local.get $rx
+        call $task.return1
+        i32.const 16
+        local.set $bufp
+        local.get $bufp
+        i32.const 19088743
+        i32.store
+        local.get $tx
+        local.get $bufp
+        i32.const 4
+        call $stream.write
+        local.set $ret
+        i32.const 65
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $tx
+        call $stream.drop-writable
+        i32.const 0
+        return
+      )
+      (func (;8;) (type 3) (param i32 i32 i32) (result i32)
+        unreachable
+      )
+      (func (;9;) (type 5) (param $rx i32) (result i32)
+        (local $ret i32) (local $ret64 i64) (local $bufp i32)
+        i32.const 16
+        local.set $bufp
+        local.get $rx
+        local.get $bufp
+        i32.const 4
+        call $stream.read
+        local.set $ret
+        i32.const 65
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const -1985229329
+        local.get $bufp
+        i32.load
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $rx
+        call $stream.drop-readable
+        call $task.return0
+        i32.const 0
+        return
+      )
+      (func (;10;) (type 3) (param i32 i32 i32) (result i32)
+        unreachable
+      )
+    )
+    (type $ST (;0;) (stream u8))
+    (alias core export $memory "mem" (core memory (;0;)))
+    (core func $task.return0 (;0;) (canon task.return (memory 0)))
+    (alias core export $memory "mem" (core memory (;1;)))
+    (core func $task.return1 (;1;) (canon task.return (result $ST) (memory 1)))
+    (core func $stream.new (;2;) (canon stream.new $ST))
+    (alias core export $memory "mem" (core memory (;2;)))
+    (core func $stream.read (;3;) (canon stream.read $ST (memory 2)))
+    (alias core export $memory "mem" (core memory (;3;)))
+    (core func $stream.write (;4;) (canon stream.write $ST (memory 3)))
+    (core func $stream.drop-readable (;5;) (canon stream.drop-readable $ST))
+    (core func $stream.drop-writable (;6;) (canon stream.drop-writable $ST))
+    (alias core export $memory "mem" (core memory (;4;)))
+    (core instance (;1;)
+      (export "mem" (memory 4))
+      (export "task.return0" (func $task.return0))
+      (export "task.return1" (func $task.return1))
+      (export "stream.new" (func $stream.new))
+      (export "stream.read" (func $stream.read))
+      (export "stream.write" (func $stream.write))
+      (export "stream.drop-readable" (func $stream.drop-readable))
+      (export "stream.drop-writable" (func $stream.drop-writable))
+    )
+    (core instance $cm (;2;) (instantiate $CM
+        (with "" (instance 1))
+      )
+    )
+    (type (;1;) (stream u8))
+    (type (;2;) (func async (result 1)))
+    (alias core export $cm "get" (core func (;7;)))
+    (alias core export $memory "mem" (core memory (;5;)))
+    (alias core export $cm "get_cb" (core func (;8;)))
+    (func (;0;) (type 2) (canon lift (core func 7) async (memory 5) (callback 8)))
+    (type (;3;) (stream u8))
+    (type (;4;) (func async (param "in" 3)))
+    (alias core export $cm "set" (core func (;9;)))
+    (alias core export $memory "mem" (core memory (;6;)))
+    (alias core export $cm "set_cb" (core func (;10;)))
+    (func (;1;) (type 4) (canon lift (core func 9) async (memory 6) (callback 10)))
+    (export (;2;) "get" (func 0))
+    (export (;3;) "set" (func 1))
+  )
+  (component $D (;1;)
+    (type (;0;) (stream u8))
+    (type (;1;) (func async (result 0)))
+    (import "get" (func $get (;0;) (type 1)))
+    (type (;2;) (stream u8))
+    (type (;3;) (func async (param "in" 2)))
+    (import "set" (func $set (;1;) (type 3)))
+    (core module $Memory (;0;)
+      (memory (;0;) 1)
+      (export "mem" (memory 0))
+    )
+    (core instance $memory (;0;) (instantiate $Memory))
+    (core module $DM (;1;)
+      (type (;0;) (func (result i64)))
+      (type (;1;) (func (param i32 i32 i32) (result i32)))
+      (type (;2;) (func (param i32)))
+      (type (;3;) (func (result i32)))
+      (type (;4;) (func (param i32 i32) (result i32)))
+      (type (;5;) (func (param i32 i32)))
+      (type (;6;) (func (param i32) (result i32)))
+      (import "" "mem" (memory (;0;) 1))
+      (import "" "stream.new" (func $stream.new (;0;) (type 0)))
+      (import "" "stream.read" (func $stream.read (;1;) (type 1)))
+      (import "" "stream.write" (func $stream.write (;2;) (type 1)))
+      (import "" "stream.drop-readable" (func $stream.drop-readable (;3;) (type 2)))
+      (import "" "stream.drop-writable" (func $stream.drop-writable (;4;) (type 2)))
+      (import "" "waitable-set.new" (func $waitable-set.new (;5;) (type 3)))
+      (import "" "waitable-set.wait" (func $waitable-set.wait (;6;) (type 4)))
+      (import "" "waitable.join" (func $waitable.join (;7;) (type 5)))
+      (import "" "subtask.drop" (func $subtask.drop (;8;) (type 2)))
+      (import "" "get" (func $get (;9;) (type 3)))
+      (import "" "set" (func $set (;10;) (type 6)))
+      (export "run" (func 11))
+      (func (;11;) (type 3) (result i32)
+        (local $ret i32) (local $ret64 i64) (local $rx i32) (local $tx i32) (local $bufp i32) (local $subtask i32) (local $ws i32)
+        call $get
+        local.set $rx
+        i32.const 20
+        local.set $bufp
+        local.get $rx
+        local.get $bufp
+        i32.const 4
+        call $stream.read
+        local.set $ret
+        i32.const 64
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 19088743
+        local.get $bufp
+        i32.load
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $rx
+        call $stream.drop-readable
+        call $stream.new
+        local.set $ret64
+        local.get $ret64
+        i32.wrap_i64
+        local.set $rx
+        local.get $ret64
+        i64.const 32
+        i64.shr_u
+        i32.wrap_i64
+        local.set $tx
+        local.get $rx
+        call $set
+        local.set $ret
+        i32.const 1
+        local.get $ret
+        i32.const 15
+        i32.and
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $ret
+        i32.const 4
+        i32.shr_u
+        local.set $subtask
+        i32.const 16
+        local.set $bufp
+        local.get $bufp
+        i32.const -1985229329
+        i32.store
+        local.get $tx
+        local.get $bufp
+        i32.const 4
+        call $stream.write
+        local.set $ret
+        i32.const 64
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $tx
+        call $stream.drop-writable
+        call $waitable-set.new
+        local.set $ws
+        local.get $subtask
+        local.get $ws
+        call $waitable.join
+        local.get $ws
+        i32.const 0
+        call $waitable-set.wait
+        local.set $ret
+        i32.const 1
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $subtask
+        i32.const 0
+        i32.load
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 2
+        i32.const 4
+        i32.load
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $subtask
+        call $subtask.drop
+        i32.const 42
+      )
+    )
+    (type $ST (;4;) (stream u8))
+    (core func $stream.new (;0;) (canon stream.new $ST))
+    (alias core export $memory "mem" (core memory (;0;)))
+    (core func $stream.read (;1;) (canon stream.read $ST async (memory 0)))
+    (alias core export $memory "mem" (core memory (;1;)))
+    (core func $stream.write (;2;) (canon stream.write $ST async (memory 1)))
+    (core func $stream.drop-readable (;3;) (canon stream.drop-readable $ST))
+    (core func $stream.drop-writable (;4;) (canon stream.drop-writable $ST))
+    (core func $waitable-set.new (;5;) (canon waitable-set.new))
+    (alias core export $memory "mem" (core memory (;2;)))
+    (core func $waitable-set.wait (;6;) (canon waitable-set.wait (memory 2)))
+    (core func $waitable.join (;7;) (canon waitable.join))
+    (core func $subtask.drop (;8;) (canon subtask.drop))
+    (core func $get' (;9;) (canon lower (func $get)))
+    (alias core export $memory "mem" (core memory (;3;)))
+    (core func $set' (;10;) (canon lower (func $set) async (memory 3)))
+    (alias core export $memory "mem" (core memory (;4;)))
+    (core instance (;1;)
+      (export "mem" (memory 4))
+      (export "stream.new" (func $stream.new))
+      (export "stream.read" (func $stream.read))
+      (export "stream.write" (func $stream.write))
+      (export "stream.drop-readable" (func $stream.drop-readable))
+      (export "stream.drop-writable" (func $stream.drop-writable))
+      (export "waitable-set.new" (func $waitable-set.new))
+      (export "waitable-set.wait" (func $waitable-set.wait))
+      (export "waitable.join" (func $waitable.join))
+      (export "subtask.drop" (func $subtask.drop))
+      (export "get" (func $get'))
+      (export "set" (func $set'))
+    )
+    (core instance $dm (;2;) (instantiate $DM
+        (with "" (instance 1))
+      )
+    )
+    (type (;5;) (func async (result u32)))
+    (alias core export $dm "run" (core func (;11;)))
+    (func (;2;) (type 5) (canon lift (core func 11)))
+    (export (;3;) "run" (func 2))
+  )
+  (instance $c (;0;) (instantiate $C))
+  (alias export $c "get" (func (;0;)))
+  (alias export $c "set" (func (;1;)))
+  (instance $d (;1;) (instantiate $D
+      (with "get" (func 0))
+      (with "set" (func 1))
+    )
+  )
+  (alias export $d "run" (func (;2;)))
+  (export (;3;) "run" (func 2))
+)

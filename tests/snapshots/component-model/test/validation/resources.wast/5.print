@@ -1,0 +1,17 @@
+(component
+  (import "T" (type $T (;0;) (sub resource)))
+  (type (;1;) (own $T))
+  (type (;2;) (func (param "x" 1)))
+  (import "f" (func $f (;0;) (type 2)))
+  (component $c (;0;)
+    (import "T" (type $T (;0;) (sub resource)))
+    (type (;1;) (own $T))
+    (type (;2;) (func (param "x" 1)))
+    (import "g" (func (;0;) (type 2)))
+  )
+  (instance (;0;) (instantiate $c
+      (with "T" (type $T))
+      (with "g" (func $f))
+    )
+  )
+)

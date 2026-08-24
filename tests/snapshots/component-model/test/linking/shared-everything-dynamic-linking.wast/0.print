@@ -1,0 +1,267 @@
+(component
+  (core module $Libc (;0;)
+    (type (;0;) (func (param i32) (result i32)))
+    (type (;1;) (func (param i32 i32) (result i32)))
+    (memory (;0;) 1)
+    (global $next (;0;) (mut i32) i32.const 8192)
+    (export "memory" (memory 0))
+    (export "malloc" (func 0))
+    (export "poke" (func 1))
+    (func (;0;) (type 0) (param $n i32) (result i32)
+      (local $p i32)
+      global.get $next
+      local.set $p
+      global.get $next
+      local.get $n
+      i32.add
+      global.set $next
+      local.get $p
+    )
+    (func (;1;) (type 1) (param $addr i32) (param $val i32) (result i32)
+      (local $old i32)
+      local.get $addr
+      i32.load
+      local.set $old
+      local.get $addr
+      local.get $val
+      i32.store
+      local.get $old
+    )
+  )
+  (core module $Libzip (;1;)
+    (type (;0;) (func (param i32) (result i32)))
+    (import "libc" "memory" (memory (;0;) 1))
+    (import "libc" "malloc" (func $malloc (;0;) (type 0)))
+    (export "zip" (func 1))
+    (func (;1;) (type 0) (param $x i32) (result i32)
+      (local $p i32)
+      i32.const 4
+      call $malloc
+      local.set $p
+      local.get $p
+      local.get $x
+      i32.store
+      local.get $p
+      i32.load
+      i32.const 2
+      i32.mul
+    )
+  )
+  (core module $Libimg (;2;)
+    (type (;0;) (func (param i32) (result i32)))
+    (import "libc" "memory" (memory (;0;) 1))
+    (import "libc" "malloc" (func (;0;) (type 0)))
+    (import "libzip" "zip" (func $zip (;1;) (type 0)))
+    (export "compress" (func 2))
+    (func (;2;) (type 0) (param $x i32) (result i32)
+      local.get $x
+      call $zip
+      i32.const 100
+      i32.add
+    )
+  )
+  (component $Zipper (;0;)
+    (core type (;0;)
+      (module
+        (export "memory" (memory 1))
+        (type (;0;) (func (param i32) (result i32)))
+        (export "malloc" (func (type 0)))
+        (type (;1;) (func (param i32 i32) (result i32)))
+        (export "poke" (func (type 1)))
+      )
+    )
+    (import "libc" (core module $Libc (;0;) (type 0)))
+    (core type (;1;)
+      (module
+        (import "libc" "memory" (memory 1))
+        (type (;0;) (func (param i32) (result i32)))
+        (import "libc" "malloc" (func (type 0)))
+        (type (;1;) (func (param i32) (result i32)))
+        (export "zip" (func (type 1)))
+      )
+    )
+    (import "libzip" (core module $Libzip (;1;) (type 1)))
+    (core module $Main (;2;)
+      (type (;0;) (func (param i32) (result i32)))
+      (import "libzip" "zip" (func $zip (;0;) (type 0)))
+      (export "zip" (func 1))
+      (func (;1;) (type 0) (param $x i32) (result i32)
+        local.get $x
+        call $zip
+      )
+    )
+    (core instance $libc (;0;) (instantiate $Libc))
+    (core instance $libzip (;1;) (instantiate $Libzip
+        (with "libc" (instance $libc))
+      )
+    )
+    (core instance $main (;2;) (instantiate $Main
+        (with "libzip" (instance $libzip))
+      )
+    )
+    (type (;0;) (func (param "x" u32) (result u32)))
+    (alias core export $main "zip" (core func (;0;)))
+    (func (;0;) (type 0) (canon lift (core func 0)))
+    (type (;1;) (func (param "addr" u32) (param "val" u32) (result u32)))
+    (alias core export $libc "poke" (core func (;1;)))
+    (func (;1;) (type 1) (canon lift (core func 1)))
+    (export (;2;) "zip" (func 0))
+    (export (;3;) "poke" (func 1))
+  )
+  (component $Imgmgk (;1;)
+    (core type (;0;)
+      (module
+        (export "memory" (memory 1))
+        (type (;0;) (func (param i32) (result i32)))
+        (export "malloc" (func (type 0)))
+        (type (;1;) (func (param i32 i32) (result i32)))
+        (export "poke" (func (type 1)))
+      )
+    )
+    (import "libc" (core module $Libc (;0;) (type 0)))
+    (core type (;1;)
+      (module
+        (import "libc" "memory" (memory 1))
+        (type (;0;) (func (param i32) (result i32)))
+        (import "libc" "malloc" (func (type 0)))
+        (type (;1;) (func (param i32) (result i32)))
+        (export "zip" (func (type 1)))
+      )
+    )
+    (import "libzip" (core module $Libzip (;1;) (type 1)))
+    (core type (;2;)
+      (module
+        (import "libc" "memory" (memory 1))
+        (type (;0;) (func (param i32) (result i32)))
+        (import "libc" "malloc" (func (type 0)))
+        (type (;1;) (func (param i32) (result i32)))
+        (import "libzip" "zip" (func (type 1)))
+        (type (;2;) (func (param i32) (result i32)))
+        (export "compress" (func (type 2)))
+      )
+    )
+    (import "libimg" (core module $Libimg (;2;) (type 2)))
+    (core module $Main (;3;)
+      (type (;0;) (func (param i32) (result i32)))
+      (import "libimg" "compress" (func $compress (;0;) (type 0)))
+      (export "transform" (func 1))
+      (func (;1;) (type 0) (param $x i32) (result i32)
+        local.get $x
+        call $compress
+        i32.const 42
+        i32.add
+      )
+    )
+    (core instance $libc (;0;) (instantiate $Libc))
+    (core instance $libzip (;1;) (instantiate $Libzip
+        (with "libc" (instance $libc))
+      )
+    )
+    (core instance $libimg (;2;) (instantiate $Libimg
+        (with "libc" (instance $libc))
+        (with "libzip" (instance $libzip))
+      )
+    )
+    (core instance $main (;3;) (instantiate $Main
+        (with "libimg" (instance $libimg))
+      )
+    )
+    (type (;0;) (func (param "x" u32) (result u32)))
+    (alias core export $main "transform" (core func (;0;)))
+    (func (;0;) (type 0) (canon lift (core func 0)))
+    (type (;1;) (func (param "addr" u32) (param "val" u32) (result u32)))
+    (alias core export $libc "poke" (core func (;1;)))
+    (func (;1;) (type 1) (canon lift (core func 1)))
+    (export (;2;) "transform" (func 0))
+    (export (;3;) "poke" (func 1))
+  )
+  (component $App (;2;)
+    (core type (;0;)
+      (module
+        (export "memory" (memory 1))
+        (type (;0;) (func (param i32) (result i32)))
+        (export "malloc" (func (type 0)))
+        (type (;1;) (func (param i32 i32) (result i32)))
+        (export "poke" (func (type 1)))
+      )
+    )
+    (import "libc" (core module $Libc (;0;) (type 0)))
+    (type (;0;)
+      (instance
+        (type (;0;) (func (param "x" u32) (result u32)))
+        (export (;0;) "zip" (func (type 0)))
+      )
+    )
+    (import "zipper" (instance $zipper (;0;) (type 0)))
+    (type (;1;)
+      (instance
+        (type (;0;) (func (param "x" u32) (result u32)))
+        (export (;0;) "transform" (func (type 0)))
+      )
+    )
+    (import "imgmgk" (instance $imgmgk (;1;) (type 1)))
+    (core instance $libc (;0;) (instantiate $Libc))
+    (alias export $zipper "zip" (func (;0;)))
+    (core func $zip (;0;) (canon lower (func 0)))
+    (alias export $imgmgk "transform" (func (;1;)))
+    (core func $transform (;1;) (canon lower (func 1)))
+    (core module $Main (;1;)
+      (type (;0;) (func (param i32) (result i32)))
+      (import "dep" "zip" (func $zip (;0;) (type 0)))
+      (import "dep" "transform" (func $transform (;1;) (type 0)))
+      (export "run" (func 2))
+      (func (;2;) (type 0) (param $x i32) (result i32)
+        local.get $x
+        call $zip
+        local.get $x
+        call $transform
+        i32.add
+      )
+    )
+    (core instance (;1;)
+      (export "zip" (func $zip))
+      (export "transform" (func $transform))
+    )
+    (core instance $main (;2;) (instantiate $Main
+        (with "dep" (instance 1))
+      )
+    )
+    (type (;2;) (func (param "x" u32) (result u32)))
+    (alias core export $main "run" (core func (;2;)))
+    (func (;2;) (type 2) (canon lift (core func 2)))
+    (type (;3;) (func (param "addr" u32) (param "val" u32) (result u32)))
+    (alias core export $libc "poke" (core func (;3;)))
+    (func (;3;) (type 3) (canon lift (core func 3)))
+    (export (;4;) "run" (func 2))
+    (export (;5;) "poke" (func 3))
+  )
+  (instance $zipper (;0;) (instantiate $Zipper
+      (with "libc" (core module $Libc))
+      (with "libzip" (core module $Libzip))
+    )
+  )
+  (instance $imgmgk (;1;) (instantiate $Imgmgk
+      (with "libc" (core module $Libc))
+      (with "libzip" (core module $Libzip))
+      (with "libimg" (core module $Libimg))
+    )
+  )
+  (instance $app (;2;) (instantiate $App
+      (with "libc" (core module $Libc))
+      (with "zipper" (instance $zipper))
+      (with "imgmgk" (instance $imgmgk))
+    )
+  )
+  (alias export $app "run" (func (;0;)))
+  (alias export $zipper "zip" (func (;1;)))
+  (alias export $imgmgk "transform" (func (;2;)))
+  (alias export $zipper "poke" (func (;3;)))
+  (alias export $imgmgk "poke" (func (;4;)))
+  (alias export $app "poke" (func (;5;)))
+  (export (;6;) "run" (func 0))
+  (export (;7;) "zip" (func 1))
+  (export (;8;) "transform" (func 2))
+  (export (;9;) "poke-zipper" (func 3))
+  (export (;10;) "poke-imgmgk" (func 4))
+  (export (;11;) "poke-app" (func 5))
+)

@@ -1,0 +1,116 @@
+(component
+  (component $C (;0;)
+    (core module $M (;0;)
+      (type (;0;) (func (param i32)))
+      (export "expect-zero" (func 0))
+      (export "expect-neg1" (func 1))
+      (func (;0;) (type 0) (param i32)
+        local.get 0
+        i32.const 0
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+      )
+      (func (;1;) (type 0) (param i32)
+        local.get 0
+        i32.const -1
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+      )
+    )
+    (core instance $m (;0;) (instantiate $M))
+    (type (;0;) (func (param "x" u8)))
+    (alias core export $m "expect-zero" (core func (;0;)))
+    (func (;0;) (type 0) (canon lift (core func 0)))
+    (type (;1;) (func (param "x" u16)))
+    (alias core export $m "expect-zero" (core func (;1;)))
+    (func (;1;) (type 1) (canon lift (core func 1)))
+    (type (;2;) (func (param "x" s8)))
+    (alias core export $m "expect-neg1" (core func (;2;)))
+    (func (;2;) (type 2) (canon lift (core func 2)))
+    (type (;3;) (func (param "x" s16)))
+    (alias core export $m "expect-neg1" (core func (;3;)))
+    (func (;3;) (type 3) (canon lift (core func 3)))
+    (export (;4;) "u8" (func 0))
+    (export (;5;) "u16" (func 1))
+    (export (;6;) "s8" (func 2))
+    (export (;7;) "s16" (func 3))
+  )
+  (component $D (;1;)
+    (type (;0;) (func (param "x" u8)))
+    (import "u8" (func $u8 (;0;) (type 0)))
+    (type (;1;) (func (param "x" s8)))
+    (import "s8" (func $s8 (;1;) (type 1)))
+    (type (;2;) (func (param "x" u16)))
+    (import "u16" (func $u16 (;2;) (type 2)))
+    (type (;3;) (func (param "x" s16)))
+    (import "s16" (func $s16 (;3;) (type 3)))
+    (core func $u8' (;0;) (canon lower (func $u8)))
+    (core func $s8' (;1;) (canon lower (func $s8)))
+    (core func $u16' (;2;) (canon lower (func $u16)))
+    (core func $s16' (;3;) (canon lower (func $s16)))
+    (core module $M (;0;)
+      (type (;0;) (func (param i32)))
+      (type (;1;) (func (result i32)))
+      (import "" "u8" (func $u8 (;0;) (type 0)))
+      (import "" "s8" (func $s8 (;1;) (type 0)))
+      (import "" "u16" (func $u16 (;2;) (type 0)))
+      (import "" "s16" (func $s16 (;3;) (type 0)))
+      (export "run" (func 4))
+      (func (;4;) (type 1) (result i32)
+        i32.const 0
+        call $u8
+        i32.const 65280
+        call $u8
+        i32.const -1
+        call $s8
+        i32.const 255
+        call $s8
+        i32.const 65535
+        call $s8
+        i32.const 0
+        call $u16
+        i32.const 16711680
+        call $u16
+        i32.const -1
+        call $s16
+        i32.const 65535
+        call $s16
+        i32.const 16777215
+        call $s16
+        i32.const 42
+      )
+    )
+    (core instance (;0;)
+      (export "u8" (func $u8'))
+      (export "s8" (func $s8'))
+      (export "u16" (func $u16'))
+      (export "s16" (func $s16'))
+    )
+    (core instance $m (;1;) (instantiate $M
+        (with "" (instance 0))
+      )
+    )
+    (type (;4;) (func (result u32)))
+    (alias core export $m "run" (core func (;4;)))
+    (func (;4;) (type 4) (canon lift (core func 4)))
+    (export (;5;) "run" (func 4))
+  )
+  (instance $c (;0;) (instantiate $C))
+  (alias export $c "u8" (func (;0;)))
+  (alias export $c "s8" (func (;1;)))
+  (alias export $c "u16" (func (;2;)))
+  (alias export $c "s16" (func (;3;)))
+  (instance $d (;1;) (instantiate $D
+      (with "u8" (func 0))
+      (with "s8" (func 1))
+      (with "u16" (func 2))
+      (with "s16" (func 3))
+    )
+  )
+  (alias export $d "run" (func (;4;)))
+  (export (;5;) "run" (func 4))
+)

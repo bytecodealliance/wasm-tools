@@ -1,0 +1,52 @@
+(component
+  (core module $Core (;0;)
+    (type (;0;) (func (param i32)))
+    (type (;1;) (func (result i32)))
+    (type (;2;) (func (param i32 i32 i32) (result i32)))
+    (type (;3;) (func))
+    (import "" "task.return" (func $task.return (;0;) (type 0)))
+    (import "" "thread.suspend" (func $thread.suspend (;1;) (type 1)))
+    (global $in-sync-call (;0;) (mut i32) i32.const 0)
+    (export "arm" (func 2))
+    (export "never-cb" (func 3))
+    (export "sync-block" (func 4))
+    (func (;2;) (type 1) (result i32)
+      i32.const 1
+      call $task.return
+      i32.const 1
+    )
+    (func (;3;) (type 2) (param i32 i32 i32) (result i32)
+      global.get $in-sync-call
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 1
+    )
+    (func (;4;) (type 3)
+      i32.const 1
+      global.set $in-sync-call
+      call $thread.suspend
+      drop
+      unreachable
+    )
+  )
+  (core func $task.return (;0;) (canon task.return (result u32)))
+  (core func $thread.suspend (;1;) (canon thread.suspend))
+  (core instance (;0;)
+    (export "task.return" (func $task.return))
+    (export "thread.suspend" (func $thread.suspend))
+  )
+  (core instance $core (;1;) (instantiate $Core
+      (with "" (instance 0))
+    )
+  )
+  (type (;0;) (func async (result u32)))
+  (alias core export $core "arm" (core func (;2;)))
+  (alias core export $core "never-cb" (core func (;3;)))
+  (func (;0;) (type 0) (canon lift (core func 2) async (callback 3)))
+  (type (;1;) (func))
+  (alias core export $core "sync-block" (core func (;4;)))
+  (func (;1;) (type 1) (canon lift (core func 4)))
+  (export (;2;) "arm" (func 0))
+  (export (;3;) "sync-block" (func 1))
+)

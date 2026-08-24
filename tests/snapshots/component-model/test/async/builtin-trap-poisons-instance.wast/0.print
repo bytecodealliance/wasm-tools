@@ -1,0 +1,14 @@
+(component $Unreachable
+  (core module $M (;0;)
+    (type (;0;) (func))
+    (export "f" (func 0))
+    (func (;0;) (type 0)
+      unreachable
+    )
+  )
+  (core instance $m (;0;) (instantiate $M))
+  (type (;0;) (func))
+  (alias core export $m "f" (core func (;0;)))
+  (func (;0;) (type 0) (canon lift (core func 0)))
+  (export (;1;) "f" (func 0))
+)

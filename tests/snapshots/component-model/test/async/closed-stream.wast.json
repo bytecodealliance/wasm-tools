@@ -1,0 +1,27 @@
+{
+  "source_filename": "tests/component-model/test/async/closed-stream.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 4,
+      "name": "Tester",
+      "filename": "closed-stream.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 101,
+      "instance": "new-tester-instance",
+      "module": "Tester"
+    },
+    {
+      "type": "action",
+      "line": 102,
+      "action": {
+        "type": "invoke",
+        "field": "read-from-closed-stream",
+        "args": []
+      }
+    }
+  ]
+}

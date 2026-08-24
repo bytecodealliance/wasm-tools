@@ -1,0 +1,16 @@
+(component
+  (type $f9 (;0;) (flags "f1" "f2" "f3" "f4" "f5" "f6" "f7" "f8" "f9"))
+  (export $f9' (;1;) "f9" (type $f9))
+  (core module $M (;0;)
+    (type (;0;) (func (result i32)))
+    (export "junk" (func 0))
+    (func (;0;) (type 0) (result i32)
+      i32.const -239
+    )
+  )
+  (core instance $m (;0;) (instantiate $M))
+  (type (;2;) (func (result $f9')))
+  (alias core export $m "junk" (core func (;0;)))
+  (func (;0;) (type 2) (canon lift (core func 0)))
+  (export (;1;) "junk-to-f9" (func 0))
+)

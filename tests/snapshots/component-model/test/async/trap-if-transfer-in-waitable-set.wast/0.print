@@ -1,0 +1,70 @@
+(component $Tester
+  (core module $Memory (;0;)
+    (memory (;0;) 1)
+    (export "mem" (memory 0))
+  )
+  (core instance $memory (;0;) (instantiate $Memory))
+  (core module $M (;1;)
+    (type (;0;) (func (param i32 i32)))
+    (type (;1;) (func (result i32)))
+    (type (;2;) (func (result i64)))
+    (import "" "waitable.join" (func $waitable.join (;0;) (type 0)))
+    (import "" "waitable-set.new" (func $waitable-set.new (;1;) (type 1)))
+    (import "" "future.new" (func $future.new (;2;) (type 2)))
+    (import "" "stream.new" (func $stream.new (;3;) (type 2)))
+    (export "return-future-in-set" (func $return-future-in-set))
+    (export "return-stream-in-set" (func $return-stream-in-set))
+    (func $return-future-in-set (;4;) (type 1) (result i32)
+      (local $ret64 i64) (local $rx i32) (local $ws i32)
+      call $future.new
+      local.set $ret64
+      local.get $ret64
+      i32.wrap_i64
+      local.set $rx
+      call $waitable-set.new
+      local.set $ws
+      local.get $rx
+      local.get $ws
+      call $waitable.join
+      local.get $rx
+    )
+    (func $return-stream-in-set (;5;) (type 1) (result i32)
+      (local $ret64 i64) (local $rx i32) (local $ws i32)
+      call $stream.new
+      local.set $ret64
+      local.get $ret64
+      i32.wrap_i64
+      local.set $rx
+      call $waitable-set.new
+      local.set $ws
+      local.get $rx
+      local.get $ws
+      call $waitable.join
+      local.get $rx
+    )
+  )
+  (type $FT (;0;) (future u8))
+  (type $ST (;1;) (stream u8))
+  (core func $waitable.join (;0;) (canon waitable.join))
+  (core func $waitable-set.new (;1;) (canon waitable-set.new))
+  (core func $future.new (;2;) (canon future.new $FT))
+  (core func $stream.new (;3;) (canon stream.new $ST))
+  (core instance (;1;)
+    (export "waitable.join" (func $waitable.join))
+    (export "waitable-set.new" (func $waitable-set.new))
+    (export "future.new" (func $future.new))
+    (export "stream.new" (func $stream.new))
+  )
+  (core instance $m (;2;) (instantiate $M
+      (with "" (instance 1))
+    )
+  )
+  (type (;2;) (func async (result $FT)))
+  (alias core export $m "return-future-in-set" (core func (;4;)))
+  (func (;0;) (type 2) (canon lift (core func 4)))
+  (type (;3;) (func async (result $ST)))
+  (alias core export $m "return-stream-in-set" (core func (;5;)))
+  (func (;1;) (type 3) (canon lift (core func 5)))
+  (export (;2;) "return-future-in-set" (func 0))
+  (export (;3;) "return-stream-in-set" (func 1))
+)

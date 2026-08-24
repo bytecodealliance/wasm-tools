@@ -1,0 +1,70 @@
+(component
+  (component $C1 (;0;)
+    (component $C2 (;0;)
+      (core module $M (;0;)
+        (type (;0;) (func (result i32)))
+        (global $g (;0;) (mut i32) i32.const 0)
+        (export "bump" (func 0))
+        (func (;0;) (type 0) (result i32)
+          global.get $g
+          i32.const 1
+          i32.add
+          global.set $g
+          global.get $g
+        )
+      )
+      (export (;1;) "m" (core module $M))
+    )
+    (instance $a (;0;) (instantiate $C2))
+    (instance $b (;1;) (instantiate $C2))
+    (alias export $a "m" (core module $Ma (;0;)))
+    (alias export $b "m" (core module $Mb (;1;)))
+    (export (;2;) "m1" (core module $Ma))
+    (export (;3;) "m2" (core module $Mb))
+  )
+  (instance $c1 (;0;) (instantiate $C1))
+  (instance $c2 (;1;) (instantiate $C1))
+  (alias export $c1 "m1" (core module $M11 (;0;)))
+  (alias export $c1 "m2" (core module $M12 (;1;)))
+  (alias export $c2 "m1" (core module $M21 (;2;)))
+  (alias export $c2 "m2" (core module $M22 (;3;)))
+  (core instance $i11 (;0;) (instantiate $M11))
+  (core instance $i12 (;1;) (instantiate $M12))
+  (core instance $i21 (;2;) (instantiate $M21))
+  (core instance $i22 (;3;) (instantiate $M22))
+  (core module $Use (;4;)
+    (type (;0;) (func (result i32)))
+    (import "e" "b11" (func $b11 (;0;) (type 0)))
+    (import "e" "b12" (func $b12 (;1;) (type 0)))
+    (import "e" "b21" (func $b21 (;2;) (type 0)))
+    (import "e" "b22" (func $b22 (;3;) (type 0)))
+    (export "run" (func 4))
+    (func (;4;) (type 0) (result i32)
+      call $b11
+      call $b12
+      i32.add
+      call $b21
+      call $b22
+      i32.add
+      i32.add
+    )
+  )
+  (alias core export $i11 "bump" (core func (;0;)))
+  (alias core export $i12 "bump" (core func (;1;)))
+  (alias core export $i21 "bump" (core func (;2;)))
+  (alias core export $i22 "bump" (core func (;3;)))
+  (core instance (;4;)
+    (export "b11" (func 0))
+    (export "b12" (func 1))
+    (export "b21" (func 2))
+    (export "b22" (func 3))
+  )
+  (core instance $use (;5;) (instantiate $Use
+      (with "e" (instance 4))
+    )
+  )
+  (type (;0;) (func (result u32)))
+  (alias core export $use "run" (core func (;4;)))
+  (func (;0;) (type 0) (canon lift (core func 4)))
+  (export (;1;) "run" (func 0))
+)

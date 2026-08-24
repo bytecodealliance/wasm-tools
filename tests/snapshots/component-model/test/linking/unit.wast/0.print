@@ -1,0 +1,24 @@
+(component
+  (core module $M (;0;)
+    (type (;0;) (func (result i32)))
+    (global $g (;0;) (mut i32) i32.const 0)
+    (export "bump" (func 0))
+    (func (;0;) (type 0) (result i32)
+      global.get $g
+      i32.const 1
+      i32.add
+      global.set $g
+      global.get $g
+    )
+  )
+  (core instance $a (;0;) (instantiate $M))
+  (core instance $b (;1;) (instantiate $M))
+  (type (;0;) (func (result u32)))
+  (alias core export $a "bump" (core func (;0;)))
+  (func (;0;) (type 0) (canon lift (core func 0)))
+  (type (;1;) (func (result u32)))
+  (alias core export $b "bump" (core func (;1;)))
+  (func (;1;) (type 1) (canon lift (core func 1)))
+  (export (;2;) "bump-a" (func 0))
+  (export (;3;) "bump-b" (func 1))
+)

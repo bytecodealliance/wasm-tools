@@ -1,0 +1,8 @@
+(component
+  (component $c (;0;))
+  (instance $i (;0;) (instantiate $c))
+  (instance (;1;) (instantiate $c
+      (with "extra" (instance $i))
+    )
+  )
+)

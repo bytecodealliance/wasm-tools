@@ -1,0 +1,70 @@
+{
+  "source_filename": "tests/component-model/test/async/drop-cross-task-borrow.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 9,
+      "name": "Test",
+      "filename": "drop-cross-task-borrow.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 304,
+      "instance": "i",
+      "module": "Test"
+    },
+    {
+      "type": "assert_return",
+      "line": 305,
+      "action": {
+        "type": "invoke",
+        "field": "drop-other-no-self",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 306,
+      "instance": "i",
+      "module": "Test"
+    },
+    {
+      "type": "assert_return",
+      "line": 307,
+      "action": {
+        "type": "invoke",
+        "field": "drop-other-and-self",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "43"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 308,
+      "instance": "i",
+      "module": "Test"
+    },
+    {
+      "type": "assert_trap",
+      "line": 309,
+      "action": {
+        "type": "invoke",
+        "field": "drop-other-miss-self",
+        "args": []
+      },
+      "text": "borrow handles still remain at the end of the call"
+    }
+  ]
+}

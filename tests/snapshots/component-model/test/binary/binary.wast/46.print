@@ -1,0 +1,17 @@
+(component
+  (type (;0;) (func))
+  (import "f" (func (;0;) (type 0)))
+  (component (;0;)
+    (type (;0;) (func))
+    (import "x" (func (;0;) (type 0)))
+  )
+  (instance (;0;) (instantiate 0
+      (with "x" (func 0))
+    )
+  )
+  (instance (;1;))
+  (instance (;2;)
+    (export "g" (func 0))
+  )
+  (alias export 2 "g" (func (;1;)))
+)

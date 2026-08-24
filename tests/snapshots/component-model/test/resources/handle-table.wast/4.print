@@ -1,0 +1,205 @@
+(component $Traps
+  (type $R (;0;) (resource (rep i32)))
+  (core func $R.resource.new (;0;) (canon resource.new $R))
+  (core func $R.resource.drop (;1;) (canon resource.drop $R))
+  (core func $R.resource.rep (;2;) (canon resource.rep $R))
+  (core module $M (;0;)
+    (type (;0;) (func (param i32) (result i32)))
+    (type (;1;) (func (param i32)))
+    (type (;2;) (func))
+    (import "" "new" (func $new (;0;) (type 0)))
+    (import "" "drop" (func $drop (;1;) (type 1)))
+    (import "" "rep" (func $rep (;2;) (type 0)))
+    (export "drop-never-allocated" (func 3))
+    (export "rep-never-allocated" (func 4))
+    (export "double-drop" (func 5))
+    (export "drop-zero" (func 6))
+    (export "drop-max" (func 7))
+    (func (;3;) (type 2)
+      i32.const 5
+      call $drop
+    )
+    (func (;4;) (type 2)
+      i32.const 5
+      call $rep
+      drop
+    )
+    (func (;5;) (type 2)
+      i32.const 1
+      i32.const 100
+      call $new
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 1
+      call $drop
+      i32.const 1
+      call $drop
+    )
+    (func (;6;) (type 2)
+      i32.const 0
+      call $drop
+    )
+    (func (;7;) (type 2)
+      i32.const -1
+      call $drop
+    )
+  )
+  (core instance (;0;)
+    (export "new" (func $R.resource.new))
+    (export "drop" (func $R.resource.drop))
+    (export "rep" (func $R.resource.rep))
+  )
+  (core instance $m (;1;) (instantiate $M
+      (with "" (instance 0))
+    )
+  )
+  (type (;1;) (func))
+  (alias core export $m "drop-never-allocated" (core func (;3;)))
+  (func (;0;) (type 1) (canon lift (core func 3)))
+  (type (;2;) (func))
+  (alias core export $m "rep-never-allocated" (core func (;4;)))
+  (func (;1;) (type 2) (canon lift (core func 4)))
+  (type (;3;) (func))
+  (alias core export $m "double-drop" (core func (;5;)))
+  (func (;2;) (type 3) (canon lift (core func 5)))
+  (type (;4;) (func))
+  (alias core export $m "drop-zero" (core func (;6;)))
+  (func (;3;) (type 4) (canon lift (core func 6)))
+  (type (;5;) (func))
+  (alias core export $m "drop-max" (core func (;7;)))
+  (func (;4;) (type 5) (canon lift (core func 7)))
+  (component $C (;0;)
+    (type $R' (;0;) (resource (rep i32)))
+    (export $R (;1;) "R" (type $R'))
+    (core func $R.resource.new (;0;) (canon resource.new $R'))
+    (core func $R.resource.drop (;1;) (canon resource.drop $R'))
+    (core module $CM (;0;)
+      (type (;0;) (func (param i32) (result i32)))
+      (type (;1;) (func (param i32)))
+      (type (;2;) (func (result i32)))
+      (import "" "new" (func $new (;0;) (type 0)))
+      (import "" "drop" (func $drop (;1;) (type 1)))
+      (export "make" (func 2))
+      (export "consume" (func 3))
+      (export "use" (func 4))
+      (func (;2;) (type 2) (result i32)
+        i32.const 100
+        call $new
+      )
+      (func (;3;) (type 1) (param $h i32)
+        local.get $h
+        call $drop
+      )
+      (func (;4;) (type 1) (param $rep i32))
+    )
+    (core instance (;0;)
+      (export "new" (func $R.resource.new))
+      (export "drop" (func $R.resource.drop))
+    )
+    (core instance $cm (;1;) (instantiate $CM
+        (with "" (instance 0))
+      )
+    )
+    (type (;2;) (own $R))
+    (type (;3;) (func (result 2)))
+    (alias core export $cm "make" (core func (;2;)))
+    (func (;0;) (type 3) (canon lift (core func 2)))
+    (type (;4;) (own $R))
+    (type (;5;) (func (param "r" 4)))
+    (alias core export $cm "consume" (core func (;3;)))
+    (func (;1;) (type 5) (canon lift (core func 3)))
+    (type (;6;) (borrow $R))
+    (type (;7;) (func (param "r" 6)))
+    (alias core export $cm "use" (core func (;4;)))
+    (func (;2;) (type 7) (canon lift (core func 4)))
+    (export (;3;) "make" (func 0))
+    (export (;4;) "consume" (func 1))
+    (export (;5;) "use" (func 2))
+  )
+  (component $D (;1;)
+    (type (;0;)
+      (instance
+        (export (;0;) "R" (type (sub resource)))
+        (type (;1;) (own 0))
+        (type (;2;) (func (result 1)))
+        (export (;0;) "make" (func (type 2)))
+        (type (;3;) (own 0))
+        (type (;4;) (func (param "r" 3)))
+        (export (;1;) "consume" (func (type 4)))
+        (type (;5;) (borrow 0))
+        (type (;6;) (func (param "r" 5)))
+        (export (;2;) "use" (func (type 6)))
+      )
+    )
+    (import "c" (instance $c (;0;) (type 0)))
+    (alias export $c "R" (type $R (;1;)))
+    (core func $R.resource.drop (;0;) (canon resource.drop $R))
+    (alias export $c "make" (func (;0;)))
+    (core func $make' (;1;) (canon lower (func 0)))
+    (alias export $c "consume" (func (;1;)))
+    (core func $consume' (;2;) (canon lower (func 1)))
+    (alias export $c "use" (func (;2;)))
+    (core func $use' (;3;) (canon lower (func 2)))
+    (core module $DM (;0;)
+      (type (;0;) (func (result i32)))
+      (type (;1;) (func (param i32)))
+      (type (;2;) (func))
+      (import "" "make" (func $make (;0;) (type 0)))
+      (import "" "consume" (func $consume (;1;) (type 1)))
+      (import "" "use" (func $use (;2;) (type 1)))
+      (import "" "drop" (func $drop (;3;) (type 1)))
+      (export "own-use-after-drop" (func 4))
+      (export "borrow-never-valid" (func 5))
+      (func (;4;) (type 2)
+        i32.const 1
+        call $make
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 1
+        call $drop
+        i32.const 1
+        call $consume
+      )
+      (func (;5;) (type 2)
+        i32.const 3
+        call $use
+      )
+    )
+    (core instance (;0;)
+      (export "make" (func $make'))
+      (export "consume" (func $consume'))
+      (export "use" (func $use'))
+      (export "drop" (func $R.resource.drop))
+    )
+    (core instance $dm (;1;) (instantiate $DM
+        (with "" (instance 0))
+      )
+    )
+    (type (;2;) (func))
+    (alias core export $dm "own-use-after-drop" (core func (;4;)))
+    (func (;3;) (type 2) (canon lift (core func 4)))
+    (type (;3;) (func))
+    (alias core export $dm "borrow-never-valid" (core func (;5;)))
+    (func (;4;) (type 3) (canon lift (core func 5)))
+    (export (;5;) "own-use-after-drop" (func 3))
+    (export (;6;) "borrow-never-valid" (func 4))
+  )
+  (instance $c (;0;) (instantiate $C))
+  (instance $d (;1;) (instantiate $D
+      (with "c" (instance $c))
+    )
+  )
+  (alias export $d "own-use-after-drop" (func (;5;)))
+  (alias export $d "borrow-never-valid" (func (;6;)))
+  (export (;7;) "drop-never-allocated" (func 0))
+  (export (;8;) "rep-never-allocated" (func 1))
+  (export (;9;) "double-drop" (func 2))
+  (export (;10;) "drop-zero" (func 3))
+  (export (;11;) "drop-max" (func 4))
+  (export (;12;) "own-use-after-drop" (func 5))
+  (export (;13;) "borrow-never-valid" (func 6))
+)

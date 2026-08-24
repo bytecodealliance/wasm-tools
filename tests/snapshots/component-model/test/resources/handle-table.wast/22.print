@@ -1,0 +1,53 @@
+(component
+  (component $Child (;0;)
+    (type $R' (;0;) (resource (rep i32)))
+    (core func $R.resource.new (;0;) (canon resource.new $R'))
+    (core module $M (;0;)
+      (type (;0;) (func (param i32) (result i32)))
+      (type (;1;) (func))
+      (import "" "new" (func $new (;0;) (type 0)))
+      (start $start)
+      (func $start (;1;) (type 1)
+        i32.const 1
+        i32.const 100
+        call $new
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+      )
+    )
+    (core instance (;0;)
+      (export "new" (func $R.resource.new))
+    )
+    (core instance (;1;) (instantiate $M
+        (with "" (instance 0))
+      )
+    )
+    (export (;1;) "R" (type $R'))
+  )
+  (instance $child (;0;) (instantiate $Child))
+  (alias export $child "R" (type $R (;0;)))
+  (core func $R.resource.drop (;0;) (canon resource.drop $R))
+  (core module $PM (;0;)
+    (type (;0;) (func (param i32)))
+    (type (;1;) (func))
+    (import "" "drop" (func $drop (;0;) (type 0)))
+    (export "drop-childs-index" (func 1))
+    (func (;1;) (type 1)
+      i32.const 1
+      call $drop
+    )
+  )
+  (core instance (;0;)
+    (export "drop" (func $R.resource.drop))
+  )
+  (core instance $pm (;1;) (instantiate $PM
+      (with "" (instance 0))
+    )
+  )
+  (type (;1;) (func))
+  (alias core export $pm "drop-childs-index" (core func (;1;)))
+  (func (;0;) (type 1) (canon lift (core func 1)))
+  (export (;1;) "drop-childs-index" (func 0))
+)
