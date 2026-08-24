@@ -211,15 +211,11 @@
       local.get 0
       local.get 1
       call $foo2
-      i32.const 1
-      call $"#func4 __wasm_task_hook"
     )
     (func $hook-cabi_post_foo2 (;14;) (type 1) (param i32)
-      i32.const 10
-      call $"#func4 __wasm_task_hook"
       local.get 0
       call $cabi_post_foo2
-      i32.const 11
+      i32.const 1
       call $"#func4 __wasm_task_hook"
     )
     (func $hook-cabi_realloc (;15;) (type 0) (param i32 i32 i32 i32) (result i32)
