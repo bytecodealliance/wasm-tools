@@ -73,6 +73,7 @@ pub enum CoreFuncKind<'a> {
     FutureNew(CanonFutureNew<'a>),
     FutureRead(CanonFutureRead<'a>),
     FutureWrite(CanonFutureWrite<'a>),
+    FutureForward(CanonFutureForward<'a>),
     FutureCancelRead(CanonFutureCancelRead<'a>),
     FutureCancelWrite(CanonFutureCancelWrite<'a>),
     FutureDropReadable(CanonFutureDropReadable<'a>),
@@ -174,6 +175,8 @@ impl<'a> CoreFuncKind<'a> {
             Ok(CoreFuncKind::FutureRead(parser.parse()?))
         } else if l.peek::<kw::future_write>()? {
             Ok(CoreFuncKind::FutureWrite(parser.parse()?))
+        } else if l.peek::<kw::future_forward>()? {
+            Ok(CoreFuncKind::FutureForward(parser.parse()?))
         } else if l.peek::<kw::future_cancel_read>()? {
             Ok(CoreFuncKind::FutureCancelRead(parser.parse()?))
         } else if l.peek::<kw::future_cancel_write>()? {
@@ -869,6 +872,23 @@ impl<'a> Parse<'a> for CanonFutureWrite<'a> {
         Ok(Self {
             ty: parser.parse::<IndexOrRef<'_, _>>()?.0,
             opts: parser.parse()?,
+        })
+    }
+}
+
+/// Information relating to the `future.forward` intrinsic.
+#[derive(Debug)]
+pub struct CanonFutureForward<'a> {
+    /// The future type to forward.
+    pub ty: ItemRef<'a, kw::r#type>,
+}
+
+impl<'a> Parse<'a> for CanonFutureForward<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.parse::<kw::future_forward>()?;
+
+        Ok(Self {
+            ty: parser.parse::<IndexOrRef<'_, _>>()?.0,
         })
     }
 }

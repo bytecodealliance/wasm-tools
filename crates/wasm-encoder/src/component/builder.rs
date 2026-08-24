@@ -612,6 +612,12 @@ impl ComponentBuilder {
         self.core_funcs.add(Some("future.write"))
     }
 
+    /// Declares a new `future.forward` intrinsic.
+    pub fn future_forward(&mut self, ty: u32) -> u32 {
+        self.canonical_functions().future_forward(ty);
+        self.core_funcs.add(Some("future.forward"))
+    }
+
     /// Declares a new `future.cancel-read` intrinsic.
     pub fn future_cancel_read(&mut self, ty: u32, async_: bool) -> u32 {
         self.canonical_functions().future_cancel_read(ty, async_);

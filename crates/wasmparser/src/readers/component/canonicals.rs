@@ -218,6 +218,17 @@ pub enum CanonicalFunction {
         /// memory.
         options: Box<[CanonicalOption]>,
     },
+    /// A function to forward the value of the readable end of one `future`
+    /// to the writable end of another `future` of the same specified type,
+    /// transferring both ends out of the calling instance.
+    ///
+    /// 🚧 This is an experimental builtin sketched in
+    /// <https://github.com/WebAssembly/component-model/issues/658> and not yet
+    /// part of the Component Model specification.
+    FutureForward {
+        /// The `future` type to expect.
+        ty: u32,
+    },
     /// A function to cancel an in-progress read from a `future` of the
     /// specified type.
     FutureCancelRead {
@@ -402,6 +413,7 @@ impl<'a> FromReader<'a> for CanonicalFunction {
                 ty: reader.read()?,
                 options: read_opts(reader)?,
             },
+            0x2f => CanonicalFunction::FutureForward { ty: reader.read()? },
             0x18 => CanonicalFunction::FutureCancelRead {
                 ty: reader.read()?,
                 async_: reader.read()?,

@@ -535,6 +535,9 @@ impl<'a> Resolver<'a> {
                     self.component_item_ref(&mut info.ty)?;
                     self.canon_opts(&mut info.opts)?;
                 }
+                CoreFuncKind::FutureForward(info) => {
+                    self.component_item_ref(&mut info.ty)?;
+                }
                 CoreFuncKind::FutureCancelRead(info) => {
                     self.component_item_ref(&mut info.ty)?;
                 }

@@ -583,6 +583,7 @@ pub mod kw {
     custom_keyword!(future_new = "future.new");
     custom_keyword!(future_read = "future.read");
     custom_keyword!(future_write = "future.write");
+    custom_keyword!(future_forward = "future.forward");
     custom_keyword!(future_cancel_read = "future.cancel-read");
     custom_keyword!(future_cancel_write = "future.cancel-write");
     custom_keyword!(future_drop_readable = "future.drop-readable");

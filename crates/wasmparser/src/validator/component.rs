@@ -1262,6 +1262,7 @@ impl ComponentState {
             CanonicalFunction::FutureWrite { ty, options } => {
                 self.future_write(ty, &options, types, offset)
             }
+            CanonicalFunction::FutureForward { ty } => self.future_forward(ty, types, offset),
             CanonicalFunction::FutureCancelRead { ty, async_ } => {
                 self.future_cancel_read(ty, async_, types, offset)
             }
@@ -1937,6 +1938,28 @@ impl ComponentState {
             )?;
 
         self.core_funcs.push(ty_id);
+        Ok(())
+    }
+
+    fn future_forward(&mut self, ty: u32, types: &mut TypeAlloc, offset: u64) -> Result<()> {
+        require_feature::cm_async(
+            self.features,
+            "`future.forward` requires the component model async feature",
+            offset,
+        )?;
+        require_feature::cm_more_async_builtins(
+            self.features,
+            "`future.forward` requires the component model more async builtins feature",
+            offset,
+        )?;
+
+        let ty = self.defined_type_at(ty, offset)?;
+        let ComponentDefinedType::Future { .. } = &types[ty] else {
+            bail!(offset, "`future.forward` requires a future type")
+        };
+
+        self.core_funcs
+            .push(types.intern_func_type(FuncType::new([ValType::I32; 2], []), offset));
         Ok(())
     }
 
