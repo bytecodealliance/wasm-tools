@@ -308,3 +308,30 @@
     ))
   )
   "aliases in a component or instance type may only refer to types or instances")
+
+(component
+  (core module $m (func (export "f")))
+  (component $d
+    (import "c" (instance $ci (export "f" (func))))
+    (canon lower (func $ci "f") (core func $l1))
+    (canon lower (func $ci "f") (core func $l2))
+    (canon lower (func $ci "f") (core func $l3))
+    (func (export "g1") (canon lift (core func $l1)))
+    (func (export "g2") (canon lift (core func $l2)))
+    (func (export "g3") (canon lift (core func $l3)))
+  )
+)
+
+(component
+  (core module $m (func (export "f")))
+  (core instance $i (instantiate $m))
+  (func (export "f1") (canon lift (core func $i "f")))
+  (func (export "f2") (canon lift (core func $i "f")))
+  (func (export "f3") (canon lift (core func $i "f")))
+  (func (export "f4") (canon lift (core func $i "f")))
+
+  (component $d
+    (import "c" (instance $c (export "f" (func))))
+    (canon lower (func $c "f") (core func $lowered))
+  )
+)
