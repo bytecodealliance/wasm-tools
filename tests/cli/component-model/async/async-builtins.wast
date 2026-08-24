@@ -137,3 +137,34 @@
     (core func (canon stream.forward $future-type)))
   "`stream.forward` requires a stream type"
 )
+
+;; future.forward
+(component
+  (core module $m
+    (import "" "future.forward" (func $future.forward (param i32 i32)))
+  )
+  (type $future-type (future u8))
+  (core func $future.forward (canon future.forward $future-type))
+  (core instance $i (instantiate $m (with "" (instance (export "future.forward" (func $future.forward))))))
+)
+
+;; future.forward; incorrect type
+(assert_invalid
+  (component
+    (core module $m
+      (import "" "future.forward" (func $future.forward (param i32 i32) (result i32)))
+    )
+    (type $future-type (future u8))
+    (core func $future.forward (canon future.forward $future-type))
+    (core instance $i (instantiate $m (with "" (instance (export "future.forward" (func $future.forward))))))
+  )
+  "type mismatch for export `future.forward` of module instantiation argument ``"
+)
+
+;; future.forward; not a future type
+(assert_invalid
+  (component
+    (type $stream-type (stream u8))
+    (core func (canon future.forward $stream-type)))
+  "`future.forward` requires a future type"
+)

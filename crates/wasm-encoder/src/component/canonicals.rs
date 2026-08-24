@@ -381,6 +381,16 @@ impl CanonicalFunctionSection {
         self
     }
 
+    /// Defines a function to forward the value of the readable end of one
+    /// `future` to the writable end of another `future` of the specified
+    /// type, transferring both ends out of the calling instance.
+    pub fn future_forward(&mut self, ty: u32) -> &mut Self {
+        self.bytes.push(0x2f);
+        ty.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
     /// Defines a function to cancel an in-progress read from a `future` of the
     /// specified type.
     pub fn future_cancel_read(&mut self, ty: u32, async_: bool) -> &mut Self {

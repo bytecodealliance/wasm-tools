@@ -1,0 +1,15 @@
+(component
+  (core module $m (;0;)
+    (type (;0;) (func (param i32 i32)))
+    (import "" "future.forward" (func $future.forward (;0;) (type 0)))
+  )
+  (type $future-type (;0;) (future u8))
+  (core func $future.forward (;0;) (canon future.forward $future-type))
+  (core instance (;0;)
+    (export "future.forward" (func $future.forward))
+  )
+  (core instance $i (;1;) (instantiate $m
+      (with "" (instance 0))
+    )
+  )
+)

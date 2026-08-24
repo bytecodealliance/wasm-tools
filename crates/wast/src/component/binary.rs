@@ -454,6 +454,10 @@ impl<'a> Encoder<'a> {
                     self.funcs
                         .future_write((&info.ty).into(), info.opts.iter().map(Into::into));
                 }
+                CoreFuncKind::FutureForward(info) => {
+                    self.core_func_names.push(name);
+                    self.funcs.future_forward((&info.ty).into());
+                }
                 CoreFuncKind::FutureCancelRead(info) => {
                     self.core_func_names.push(name);
                     self.funcs

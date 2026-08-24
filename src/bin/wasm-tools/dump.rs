@@ -489,6 +489,7 @@ impl<'a> Dump<'a> {
                             | CanonicalFunction::FutureNew { .. }
                             | CanonicalFunction::FutureRead { .. }
                             | CanonicalFunction::FutureWrite { .. }
+                            | CanonicalFunction::FutureForward { .. }
                             | CanonicalFunction::FutureCancelRead { .. }
                             | CanonicalFunction::FutureCancelWrite { .. }
                             | CanonicalFunction::FutureDropReadable { .. }
