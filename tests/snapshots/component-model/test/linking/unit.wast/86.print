@@ -1,0 +1,77 @@
+(component
+  (component $Ticket (;0;)
+    (core module $M (;0;)
+      (type (;0;) (func (result i32)))
+      (global $n (;0;) (mut i32) i32.const 0)
+      (export "next" (func 0))
+      (func (;0;) (type 0) (result i32)
+        global.get $n
+        i32.const 1
+        i32.add
+        global.set $n
+        global.get $n
+      )
+    )
+    (core instance $m (;0;) (instantiate $M))
+    (type (;0;) (func (result u32)))
+    (alias core export $m "next" (core func (;0;)))
+    (func (;0;) (type 0) (canon lift (core func 0)))
+    (export (;1;) "next" (func 0))
+  )
+  (component $Child (;1;)
+    (type (;0;)
+      (instance
+        (type (;0;) (func (result u32)))
+        (export (;0;) "next" (func (type 0)))
+      )
+    )
+    (import "ticket" (instance $t (;0;) (type 0)))
+    (alias export $t "next" (func (;0;)))
+    (core func $next (;0;) (canon lower (func 0)))
+    (core module $M (;0;)
+      (type (;0;) (func (result i32)))
+      (type (;1;) (func))
+      (import "t" "next" (func $next (;0;) (type 0)))
+      (global $rank (;0;) (mut i32) i32.const 0)
+      (export "rank" (func 2))
+      (start $start)
+      (func $start (;1;) (type 1)
+        call $next
+        global.set $rank
+      )
+      (func (;2;) (type 0) (result i32)
+        global.get $rank
+      )
+    )
+    (core instance (;0;)
+      (export "next" (func $next))
+    )
+    (core instance $m (;1;) (instantiate $M
+        (with "t" (instance 0))
+      )
+    )
+    (type (;1;) (func (result u32)))
+    (alias core export $m "rank" (core func (;1;)))
+    (func (;1;) (type 1) (canon lift (core func 1)))
+    (export (;2;) "rank" (func 1))
+  )
+  (instance $ticket (;0;) (instantiate $Ticket))
+  (instance $a (;1;) (instantiate $Child
+      (with "ticket" (instance $ticket))
+    )
+  )
+  (instance $b (;2;) (instantiate $Child
+      (with "ticket" (instance $ticket))
+    )
+  )
+  (instance $c (;3;) (instantiate $Child
+      (with "ticket" (instance $ticket))
+    )
+  )
+  (alias export $a "rank" (func (;0;)))
+  (alias export $b "rank" (func (;1;)))
+  (alias export $c "rank" (func (;2;)))
+  (export (;3;) "rank-a" (func 0))
+  (export (;4;) "rank-b" (func 1))
+  (export (;5;) "rank-c" (func 2))
+)

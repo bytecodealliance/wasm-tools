@@ -1,0 +1,530 @@
+(component $Tester
+  (core module $Memory (;0;)
+    (memory (;0;) 1)
+    (export "mem" (memory 0))
+  )
+  (core instance $memory (;0;) (instantiate $Memory))
+  (core module $M (;1;)
+    (type (;0;) (func (param i32 i32)))
+    (type (;1;) (func (result i32)))
+    (type (;2;) (func (param i32 i32) (result i32)))
+    (type (;3;) (func (result i64)))
+    (type (;4;) (func (param i32 i32 i32) (result i32)))
+    (type (;5;) (func))
+    (import "" "mem" (memory (;0;) 1))
+    (import "" "waitable.join" (func $waitable.join (;0;) (type 0)))
+    (import "" "waitable-set.new" (func $waitable-set.new (;1;) (type 1)))
+    (import "" "waitable-set.wait" (func $waitable-set.wait (;2;) (type 2)))
+    (import "" "future.new" (func $future.new (;3;) (type 3)))
+    (import "" "future.read" (func $future.read (;4;) (type 2)))
+    (import "" "future.write" (func $future.write (;5;) (type 2)))
+    (import "" "stream.new" (func $stream.new (;6;) (type 3)))
+    (import "" "stream.read" (func $stream.read (;7;) (type 4)))
+    (import "" "stream.write" (func $stream.write (;8;) (type 4)))
+    (import "" "future.newb" (func $future.newb (;9;) (type 3)))
+    (import "" "future.readb" (func $future.readb (;10;) (type 2)))
+    (import "" "future.writeb" (func $future.writeb (;11;) (type 2)))
+    (import "" "stream.newb" (func $stream.newb (;12;) (type 3)))
+    (import "" "stream.readb" (func $stream.readb (;13;) (type 4)))
+    (import "" "stream.writeb" (func $stream.writeb (;14;) (type 4)))
+    (import "" "future.newc" (func $future.newc (;15;) (type 3)))
+    (import "" "future.readc" (func $future.readc (;16;) (type 2)))
+    (import "" "future.writec" (func $future.writec (;17;) (type 2)))
+    (export "test-empty" (func 18))
+    (export "test-bytes" (func 20))
+    (export "test-no-read-char" (func 21))
+    (export "test-no-write-char" (func 22))
+    (func (;18;) (type 1) (result i32)
+      (local $ret i32) (local $ret64 i64) (local $rx i32) (local $tx i32)
+      call $future.new
+      local.set $ret64
+      local.get $ret64
+      i32.wrap_i64
+      local.set $rx
+      local.get $ret64
+      i64.const 32
+      i64.shr_u
+      i32.wrap_i64
+      local.set $tx
+      local.get $rx
+      i32.const -559038737
+      call $future.read
+      local.set $ret
+      i32.const -1
+      local.get $ret
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      local.get $tx
+      i32.const -559038737
+      call $future.write
+      local.set $ret
+      i32.const 0
+      local.get $ret
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      call $future.new
+      local.set $ret64
+      local.get $ret64
+      i32.wrap_i64
+      local.set $rx
+      local.get $ret64
+      i64.const 32
+      i64.shr_u
+      i32.wrap_i64
+      local.set $tx
+      local.get $tx
+      i32.const -559038737
+      call $future.write
+      local.set $ret
+      i32.const -1
+      local.get $ret
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      local.get $rx
+      i32.const -559038737
+      call $future.read
+      local.set $ret
+      i32.const 0
+      local.get $ret
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      call $stream.new
+      local.set $ret64
+      local.get $ret64
+      i32.wrap_i64
+      local.set $rx
+      local.get $ret64
+      i64.const 32
+      i64.shr_u
+      i32.wrap_i64
+      local.set $tx
+      local.get $rx
+      i32.const -559038737
+      i32.const 1
+      call $stream.read
+      local.set $ret
+      i32.const -1
+      local.get $ret
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      local.get $tx
+      i32.const -559038737
+      i32.const 1
+      call $stream.write
+      local.set $ret
+      i32.const 16
+      local.get $ret
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      call $stream.new
+      local.set $ret64
+      local.get $ret64
+      i32.wrap_i64
+      local.set $rx
+      local.get $ret64
+      i64.const 32
+      i64.shr_u
+      i32.wrap_i64
+      local.set $tx
+      local.get $tx
+      i32.const -559038737
+      i32.const 1
+      call $stream.write
+      local.set $ret
+      i32.const -1
+      local.get $ret
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      local.get $rx
+      i32.const -559038737
+      i32.const 1
+      call $stream.read
+      local.set $ret
+      i32.const 16
+      local.get $ret
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 42
+    )
+    (func $test-stream (;19;) (type 0) (param $srcp i32) (param $dstp i32)
+      (local $ret i32) (local $ret64 i64) (local $rx i32) (local $tx i32)
+      local.get $dstp
+      i64.const 0
+      i64.store
+      local.get $srcp
+      i64.const 81985529216486895
+      i64.store
+      call $stream.newb
+      local.set $ret64
+      local.get $ret64
+      i32.wrap_i64
+      local.set $rx
+      local.get $ret64
+      i64.const 32
+      i64.shr_u
+      i32.wrap_i64
+      local.set $tx
+      local.get $rx
+      local.get $dstp
+      i32.const 8
+      call $stream.readb
+      local.set $ret
+      i32.const -1
+      local.get $ret
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      local.get $tx
+      local.get $srcp
+      i32.const 8
+      call $stream.writeb
+      local.set $ret
+      i32.const 128
+      local.get $ret
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      local.get $dstp
+      i64.load
+      i64.const 81985529216486895
+      i64.ne
+      if ;; label = @1
+        unreachable
+      end
+      local.get $dstp
+      i64.const 0
+      i64.store
+      local.get $srcp
+      i64.const 81985529216486895
+      i64.store
+      call $stream.newb
+      local.set $ret64
+      local.get $ret64
+      i32.wrap_i64
+      local.set $rx
+      local.get $ret64
+      i64.const 32
+      i64.shr_u
+      i32.wrap_i64
+      local.set $tx
+      local.get $tx
+      local.get $srcp
+      i32.const 8
+      call $stream.writeb
+      local.set $ret
+      i32.const -1
+      local.get $ret
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      local.get $rx
+      local.get $dstp
+      i32.const 8
+      call $stream.readb
+      local.set $ret
+      i32.const 128
+      local.get $ret
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      local.get $dstp
+      i64.load
+      i64.const 81985529216486895
+      i64.ne
+      if ;; label = @1
+        unreachable
+      end
+    )
+    (func (;20;) (type 1) (result i32)
+      (local $ret i32) (local $ret64 i64) (local $rx i32) (local $tx i32) (local $dstp i32) (local $srcp i32)
+      i32.const 16
+      local.set $srcp
+      i32.const 17
+      local.set $dstp
+      local.get $dstp
+      i32.const 0
+      i32.store8
+      local.get $srcp
+      i32.const 42
+      i32.store8
+      call $future.newb
+      local.set $ret64
+      local.get $ret64
+      i32.wrap_i64
+      local.set $rx
+      local.get $ret64
+      i64.const 32
+      i64.shr_u
+      i32.wrap_i64
+      local.set $tx
+      local.get $rx
+      local.get $dstp
+      call $future.readb
+      local.set $ret
+      i32.const -1
+      local.get $ret
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      local.get $tx
+      local.get $srcp
+      call $future.writeb
+      local.set $ret
+      i32.const 0
+      local.get $ret
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      local.get $dstp
+      i32.load8_u
+      i32.const 42
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      local.get $dstp
+      i32.const 0
+      i32.store8
+      local.get $srcp
+      i32.const 42
+      i32.store8
+      call $future.newb
+      local.set $ret64
+      local.get $ret64
+      i32.wrap_i64
+      local.set $rx
+      local.get $ret64
+      i64.const 32
+      i64.shr_u
+      i32.wrap_i64
+      local.set $tx
+      local.get $tx
+      local.get $srcp
+      call $future.writeb
+      local.set $ret
+      i32.const -1
+      local.get $ret
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      local.get $rx
+      local.get $dstp
+      call $future.readb
+      local.set $ret
+      i32.const 0
+      local.get $ret
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      local.get $dstp
+      i32.load8_u
+      i32.const 42
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 16
+      i32.const 8
+      call $test-stream
+      i32.const 16
+      i32.const 9
+      call $test-stream
+      i32.const 16
+      i32.const 10
+      call $test-stream
+      i32.const 16
+      i32.const 11
+      call $test-stream
+      i32.const 16
+      i32.const 12
+      call $test-stream
+      i32.const 16
+      i32.const 13
+      call $test-stream
+      i32.const 16
+      i32.const 14
+      call $test-stream
+      i32.const 16
+      i32.const 15
+      call $test-stream
+      i32.const 16
+      i32.const 16
+      call $test-stream
+      i32.const 16
+      i32.const 17
+      call $test-stream
+      i32.const 16
+      i32.const 18
+      call $test-stream
+      i32.const 16
+      i32.const 19
+      call $test-stream
+      i32.const 16
+      i32.const 20
+      call $test-stream
+      i32.const 16
+      i32.const 21
+      call $test-stream
+      i32.const 16
+      i32.const 22
+      call $test-stream
+      i32.const 16
+      i32.const 23
+      call $test-stream
+      i32.const 16
+      i32.const 24
+      call $test-stream
+      i32.const 43
+    )
+    (func (;21;) (type 5)
+      (local $ret i32) (local $ret64 i64) (local $rx i32) (local $tx i32)
+      call $future.newc
+      local.set $ret64
+      local.get $ret64
+      i32.wrap_i64
+      local.set $rx
+      local.get $ret64
+      i64.const 32
+      i64.shr_u
+      i32.wrap_i64
+      local.set $tx
+      local.get $rx
+      i32.const 0
+      call $future.readc
+      local.set $ret
+      i32.const -1
+      local.get $ret
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      local.get $tx
+      i32.const 0
+      call $future.writec
+      unreachable
+    )
+    (func (;22;) (type 5)
+      (local $ret i32) (local $ret64 i64) (local $rx i32) (local $tx i32)
+      call $future.newc
+      local.set $ret64
+      local.get $ret64
+      i32.wrap_i64
+      local.set $rx
+      local.get $ret64
+      i64.const 32
+      i64.shr_u
+      i32.wrap_i64
+      local.set $tx
+      local.get $tx
+      i32.const 0
+      call $future.writec
+      local.set $ret
+      i32.const -1
+      local.get $ret
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      local.get $rx
+      i32.const 0
+      call $future.readc
+      unreachable
+    )
+  )
+  (type $FT (;0;) (future))
+  (type $ST (;1;) (stream))
+  (type $FTB (;2;) (future u8))
+  (type $STB (;3;) (stream u8))
+  (type $FTC (;4;) (future char))
+  (core func $waitable.join (;0;) (canon waitable.join))
+  (alias core export $memory "mem" (core memory (;0;)))
+  (core func $waitable-set.wait (;1;) (canon waitable-set.wait (memory 0)))
+  (core func $waitable-set.new (;2;) (canon waitable-set.new))
+  (core func $future.new (;3;) (canon future.new $FT))
+  (core func $future.read (;4;) (canon future.read $FT async))
+  (core func $future.write (;5;) (canon future.write $FT async))
+  (core func $stream.new (;6;) (canon stream.new $ST))
+  (core func $stream.read (;7;) (canon stream.read $ST async))
+  (core func $stream.write (;8;) (canon stream.write $ST async))
+  (core func $future.newb (;9;) (canon future.new $FTB))
+  (alias core export $memory "mem" (core memory (;1;)))
+  (core func $future.readb (;10;) (canon future.read $FTB async (memory 1)))
+  (alias core export $memory "mem" (core memory (;2;)))
+  (core func $future.writeb (;11;) (canon future.write $FTB async (memory 2)))
+  (core func $stream.newb (;12;) (canon stream.new $STB))
+  (alias core export $memory "mem" (core memory (;3;)))
+  (core func $stream.readb (;13;) (canon stream.read $STB async (memory 3)))
+  (alias core export $memory "mem" (core memory (;4;)))
+  (core func $stream.writeb (;14;) (canon stream.write $STB async (memory 4)))
+  (core func $future.newc (;15;) (canon future.new $FTC))
+  (alias core export $memory "mem" (core memory (;5;)))
+  (core func $future.readc (;16;) (canon future.read $FTC async (memory 5)))
+  (alias core export $memory "mem" (core memory (;6;)))
+  (core func $future.writec (;17;) (canon future.write $FTC async (memory 6)))
+  (alias core export $memory "mem" (core memory (;7;)))
+  (core instance (;1;)
+    (export "mem" (memory 7))
+    (export "waitable.join" (func $waitable.join))
+    (export "waitable-set.new" (func $waitable-set.new))
+    (export "waitable-set.wait" (func $waitable-set.wait))
+    (export "future.new" (func $future.new))
+    (export "future.read" (func $future.read))
+    (export "future.write" (func $future.write))
+    (export "stream.new" (func $stream.new))
+    (export "stream.read" (func $stream.read))
+    (export "stream.write" (func $stream.write))
+    (export "future.newb" (func $future.newb))
+    (export "future.readb" (func $future.readb))
+    (export "future.writeb" (func $future.writeb))
+    (export "stream.newb" (func $stream.newb))
+    (export "stream.readb" (func $stream.readb))
+    (export "stream.writeb" (func $stream.writeb))
+    (export "future.newc" (func $future.newc))
+    (export "future.readc" (func $future.readc))
+    (export "future.writec" (func $future.writec))
+  )
+  (core instance $m (;2;) (instantiate $M
+      (with "" (instance 1))
+    )
+  )
+  (type (;5;) (func (result u32)))
+  (alias core export $m "test-empty" (core func (;18;)))
+  (func (;0;) (type 5) (canon lift (core func 18)))
+  (type (;6;) (func (result u32)))
+  (alias core export $m "test-bytes" (core func (;19;)))
+  (func (;1;) (type 6) (canon lift (core func 19)))
+  (type (;7;) (func))
+  (alias core export $m "test-no-read-char" (core func (;20;)))
+  (func (;2;) (type 7) (canon lift (core func 20)))
+  (type (;8;) (func))
+  (alias core export $m "test-no-write-char" (core func (;21;)))
+  (func (;3;) (type 8) (canon lift (core func 21)))
+  (export (;4;) "test-empty" (func 0))
+  (export (;5;) "test-bytes" (func 1))
+  (export (;6;) "test-no-read-char" (func 2))
+  (export (;7;) "test-no-write-char" (func 3))
+)

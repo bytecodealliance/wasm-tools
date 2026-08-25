@@ -1,0 +1,38 @@
+(component
+  (core module $Cfg10 (;0;)
+    (global (;0;) i32 i32.const 10)
+    (export "base" (global 0))
+  )
+  (core module $Cfg20 (;1;)
+    (global (;0;) i32 i32.const 20)
+    (export "base" (global 0))
+  )
+  (core module $M (;2;)
+    (type (;0;) (func (param i32) (result i32)))
+    (import "cfg" "base" (global $base (;0;) i32))
+    (export "add" (func 0))
+    (func (;0;) (type 0) (param i32) (result i32)
+      global.get $base
+      local.get 0
+      i32.add
+    )
+  )
+  (core instance $cfg10 (;0;) (instantiate $Cfg10))
+  (core instance $cfg20 (;1;) (instantiate $Cfg20))
+  (core instance $a (;2;) (instantiate $M
+      (with "cfg" (instance $cfg10))
+    )
+  )
+  (core instance $b (;3;) (instantiate $M
+      (with "cfg" (instance $cfg20))
+    )
+  )
+  (type (;0;) (func (param "x" u32) (result u32)))
+  (alias core export $a "add" (core func (;0;)))
+  (func (;0;) (type 0) (canon lift (core func 0)))
+  (type (;1;) (func (param "x" u32) (result u32)))
+  (alias core export $b "add" (core func (;1;)))
+  (func (;1;) (type 1) (canon lift (core func 1)))
+  (export (;2;) "add-10" (func 0))
+  (export (;3;) "add-20" (func 1))
+)

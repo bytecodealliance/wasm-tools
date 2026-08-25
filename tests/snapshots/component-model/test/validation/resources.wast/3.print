@@ -1,0 +1,14 @@
+(component
+  (import "T1" (type $T1 (;0;) (sub resource)))
+  (import "T2" (type $T2 (;1;) (eq $T1)))
+  (import "T3" (type $T3 (;2;) (eq $T2)))
+  (component $eq (;0;)
+    (import "a" (type $a (;0;) (sub resource)))
+    (import "b" (type (;1;) (eq $a)))
+  )
+  (instance (;0;) (instantiate $eq
+      (with "a" (type $T1))
+      (with "b" (type $T3))
+    )
+  )
+)

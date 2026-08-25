@@ -1,0 +1,6 @@
+(component $C
+  (type $R (;0;) (resource (rep i32)))
+  (type $B (;1;) (borrow $R))
+  (alias outer $C $R (type $r (;2;)))
+  (alias outer $C $B (type $b (;3;)))
+)

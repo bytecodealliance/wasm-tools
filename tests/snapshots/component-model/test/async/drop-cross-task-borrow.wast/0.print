@@ -1,0 +1,500 @@
+(component $Test
+  (component $C (;0;)
+    (type $R' (;0;) (resource (rep i32)))
+    (core func $resource.new (;0;) (canon resource.new $R'))
+    (core module $CM (;0;)
+      (type (;0;) (func (param i32) (result i32)))
+      (export "id" (func 0))
+      (func (;0;) (type 0) (param i32) (result i32)
+        local.get 0
+      )
+    )
+    (core instance $cm (;0;) (instantiate $CM))
+    (alias core export $cm "id" (core func $resource.rep (;1;)))
+    (export $R (;1;) "R" (type $R'))
+    (type (;2;) (own $R))
+    (type (;3;) (func (param "rep" u32) (result 2)))
+    (func (;0;) (type 3) (canon lift (core func $resource.new)))
+    (type (;4;) (borrow $R))
+    (type (;5;) (func (param "self" 4) (result u32)))
+    (func (;1;) (type 5) (canon lift (core func $resource.rep)))
+    (export (;2;) "R-new" (func 0))
+    (export (;3;) "R-rep" (func 1))
+  )
+  (component $D (;1;)
+    (type (;0;)
+      (instance
+        (export (;0;) "R" (type (sub resource)))
+        (type (;1;) (own 0))
+        (type (;2;) (func (param "rep" u32) (result 1)))
+        (export (;0;) "R-new" (func (type 2)))
+        (type (;3;) (borrow 0))
+        (type (;4;) (func (param "self" 3) (result u32)))
+        (export (;1;) "R-rep" (func (type 4)))
+      )
+    )
+    (import "c" (instance $d (;0;) (type 0)))
+    (core module $DM (;0;)
+      (type (;0;) (func (param i32 i32)))
+      (type (;1;) (func (result i32)))
+      (type (;2;) (func (result i64)))
+      (type (;3;) (func (param i32 i32) (result i32)))
+      (type (;4;) (func))
+      (type (;5;) (func (param i32)))
+      (type (;6;) (func (param i32) (result i32)))
+      (type (;7;) (func (param i32 i32 i32) (result i32)))
+      (import "" "waitable.join" (func $waitable.join (;0;) (type 0)))
+      (import "" "waitable-set.new" (func $waitable-set.new (;1;) (type 1)))
+      (import "" "future.new" (func $future.new (;2;) (type 2)))
+      (import "" "future.read" (func $future.read (;3;) (type 3)))
+      (import "" "future.write" (func $future.write (;4;) (type 3)))
+      (import "" "task.return0" (func $task.return0 (;5;) (type 4)))
+      (import "" "task.return1" (func $task.return1 (;6;) (type 5)))
+      (import "" "R-rep" (func $R-rep (;7;) (type 6)))
+      (import "" "R-drop" (func $R-drop (;8;) (type 5)))
+      (global $handle (;0;) (mut i32) i32.const 0)
+      (global $dont-drop-result (;1;) (mut i32) i32.const 0)
+      (global $dont-drop-ws (;2;) (mut i32) i32.const 0)
+      (export "dont-drop" (func 9))
+      (export "dont-drop-cb" (func 10))
+      (export "drop-handle" (func 11))
+      (export "resume-dont-drop" (func 12))
+      (export "drop-other-and-self" (func 13))
+      (export "drop-wrong-one" (func 14))
+      (export "unreachable-cb" (func 15))
+      (func (;9;) (type 6) (param $h i32) (result i32)
+        local.get $h
+        global.set $handle
+        local.get $h
+        call $R-rep
+        global.set $dont-drop-result
+        call $waitable-set.new
+        global.set $dont-drop-ws
+        i32.const 2
+        global.get $dont-drop-ws
+        i32.const 4
+        i32.shl
+        i32.or
+      )
+      (func (;10;) (type 7) (param i32 i32 i32) (result i32)
+        global.get $dont-drop-result
+        call $task.return1
+        i32.const 0
+      )
+      (func (;11;) (type 1) (result i32)
+        (local $result i32)
+        global.get $handle
+        call $R-rep
+        local.set $result
+        global.get $handle
+        call $R-drop
+        local.get $result
+      )
+      (func (;12;) (type 4)
+        (local $ret i32) (local $ret64 i64) (local $futw i32) (local $futr i32)
+        call $future.new
+        local.set $ret64
+        local.get $ret64
+        i32.wrap_i64
+        local.set $futr
+        local.get $ret64
+        i64.const 32
+        i64.shr_u
+        i32.wrap_i64
+        local.set $futw
+        local.get $futr
+        i32.const -559038737
+        call $future.read
+        local.set $ret
+        i32.const -1
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $futw
+        i32.const -559038737
+        call $future.write
+        local.set $ret
+        i32.const 0
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $futr
+        global.get $dont-drop-ws
+        call $waitable.join
+      )
+      (func (;13;) (type 6) (param $h i32) (result i32)
+        (local $result i32)
+        global.get $handle
+        call $R-rep
+        local.set $result
+        global.get $handle
+        call $R-drop
+        local.get $h
+        call $R-drop
+        local.get $result
+        call $task.return1
+        i32.const 0
+      )
+      (func (;14;) (type 6) (param $h i32) (result i32)
+        global.get $handle
+        call $R-drop
+        call $task.return0
+        i32.const 0
+      )
+      (func (;15;) (type 7) (param i32 i32 i32) (result i32)
+        unreachable
+      )
+    )
+    (type $FT (;1;) (future))
+    (alias export $d "R" (type $R (;2;)))
+    (core func $task.return0 (;0;) (canon task.return))
+    (core func $task.return1 (;1;) (canon task.return (result u32)))
+    (core func $waitable.join (;2;) (canon waitable.join))
+    (core func $waitable-set.new (;3;) (canon waitable-set.new))
+    (core func $future.new (;4;) (canon future.new $FT))
+    (core func $future.read (;5;) (canon future.read $FT async))
+    (core func $future.write (;6;) (canon future.write $FT async))
+    (alias export $d "R-rep" (func (;0;)))
+    (core func $R-rep (;7;) (canon lower (func 0)))
+    (core func $R-drop (;8;) (canon resource.drop $R))
+    (core instance (;0;)
+      (export "task.return0" (func $task.return0))
+      (export "task.return1" (func $task.return1))
+      (export "waitable.join" (func $waitable.join))
+      (export "waitable-set.new" (func $waitable-set.new))
+      (export "future.new" (func $future.new))
+      (export "future.read" (func $future.read))
+      (export "future.write" (func $future.write))
+      (export "R-rep" (func $R-rep))
+      (export "R-drop" (func $R-drop))
+    )
+    (core instance $dm (;1;) (instantiate $DM
+        (with "" (instance 0))
+      )
+    )
+    (type (;3;) (borrow $R))
+    (type (;4;) (func async (param "self" 3) (result u32)))
+    (alias core export $dm "dont-drop" (core func (;9;)))
+    (alias core export $dm "dont-drop-cb" (core func (;10;)))
+    (func (;1;) (type 4) (canon lift (core func 9) async (callback 10)))
+    (type (;5;) (func (result u32)))
+    (alias core export $dm "drop-handle" (core func (;11;)))
+    (func (;2;) (type 5) (canon lift (core func 11)))
+    (type (;6;) (func))
+    (alias core export $dm "resume-dont-drop" (core func (;12;)))
+    (func (;3;) (type 6) (canon lift (core func 12)))
+    (type (;7;) (borrow $R))
+    (type (;8;) (func async (param "self" 7) (result u32)))
+    (alias core export $dm "drop-other-and-self" (core func (;13;)))
+    (alias core export $dm "unreachable-cb" (core func (;14;)))
+    (func (;4;) (type 8) (canon lift (core func 13) async (callback 14)))
+    (type (;9;) (borrow $R))
+    (type (;10;) (func async (param "self" 9)))
+    (alias core export $dm "drop-wrong-one" (core func (;15;)))
+    (alias core export $dm "unreachable-cb" (core func (;16;)))
+    (func (;5;) (type 10) (canon lift (core func 15) async (callback 16)))
+    (export (;6;) "dont-drop" (func 1))
+    (export (;7;) "drop-handle" (func 2))
+    (export (;8;) "resume-dont-drop" (func 3))
+    (export (;9;) "drop-other-and-self" (func 4))
+    (export (;10;) "drop-wrong-one" (func 5))
+  )
+  (component $E (;2;)
+    (type (;0;)
+      (instance
+        (export (;0;) "R" (type (sub resource)))
+        (type (;1;) (own 0))
+        (type (;2;) (func (param "rep" u32) (result 1)))
+        (export (;0;) "R-new" (func (type 2)))
+      )
+    )
+    (import "c" (instance $c (;0;) (type 0)))
+    (alias export $c "R" (type $R (;1;)))
+    (type (;2;)
+      (instance
+        (alias outer $E $R (type (;0;)))
+        (type (;1;) (borrow 0))
+        (type (;2;) (func async (param "self" 1) (result u32)))
+        (export (;0;) "dont-drop" (func (type 2)))
+        (type (;3;) (func (result u32)))
+        (export (;1;) "drop-handle" (func (type 3)))
+        (type (;4;) (func))
+        (export (;2;) "resume-dont-drop" (func (type 4)))
+        (type (;5;) (borrow 0))
+        (type (;6;) (func async (param "self" 5) (result u32)))
+        (export (;3;) "drop-other-and-self" (func (type 6)))
+        (type (;7;) (borrow 0))
+        (type (;8;) (func async (param "self" 7)))
+        (export (;4;) "drop-wrong-one" (func (type 8)))
+      )
+    )
+    (import "d" (instance $d (;1;) (type 2)))
+    (core module $Memory (;0;)
+      (memory (;0;) 1)
+      (export "mem" (memory 0))
+    )
+    (core instance $memory (;0;) (instantiate $Memory))
+    (core module $EM (;1;)
+      (type (;0;) (func (param i32 i32)))
+      (type (;1;) (func (result i32)))
+      (type (;2;) (func (param i32 i32) (result i32)))
+      (type (;3;) (func (param i32) (result i32)))
+      (type (;4;) (func))
+      (type (;5;) (func (param i32)))
+      (import "" "mem" (memory (;0;) 1))
+      (import "" "waitable.join" (func $waitable.join (;0;) (type 0)))
+      (import "" "waitable-set.new" (func $waitable-set.new (;1;) (type 1)))
+      (import "" "waitable-set.wait" (func $waitable-set.wait (;2;) (type 2)))
+      (import "" "R-new" (func $R-new (;3;) (type 3)))
+      (import "" "dont-drop" (func $dont-drop (;4;) (type 2)))
+      (import "" "drop-handle" (func $drop-handle (;5;) (type 1)))
+      (import "" "resume-dont-drop" (func $resume-dont-drop (;6;) (type 4)))
+      (import "" "drop-other-and-self" (func $drop-other-and-self (;7;) (type 3)))
+      (import "" "drop-wrong-one" (func $drop-wrong-one (;8;) (type 5)))
+      (export "drop-other-no-self" (func 9))
+      (export "drop-other-and-self" (func 10))
+      (export "drop-other-miss-self" (func 11))
+      (func (;9;) (type 1) (result i32)
+        (local $ret i32) (local $retp i32) (local $retp2 i32) (local $handle i32) (local $subtask i32) (local $magic i32) (local $ws i32) (local $event_code i32)
+        i32.const 10
+        local.set $magic
+        local.get $magic
+        call $R-new
+        local.set $handle
+        i32.const 16
+        local.set $retp
+        local.get $handle
+        local.get $retp
+        call $dont-drop
+        local.set $ret
+        i32.const 1
+        local.get $ret
+        i32.const 15
+        i32.and
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $ret
+        i32.const 4
+        i32.shr_u
+        local.set $subtask
+        call $drop-handle
+        local.set $ret
+        local.get $magic
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        call $resume-dont-drop
+        call $waitable-set.new
+        local.set $ws
+        local.get $subtask
+        local.get $ws
+        call $waitable.join
+        i32.const 32
+        local.set $retp2
+        local.get $ws
+        local.get $retp2
+        call $waitable-set.wait
+        local.set $event_code
+        i32.const 1
+        local.get $event_code
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $subtask
+        local.get $retp2
+        i32.load
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 2
+        local.get $retp2
+        i32.load offset=4
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $magic
+        local.get $retp
+        i32.load
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 42
+      )
+      (func (;10;) (type 1) (result i32)
+        (local $ret i32) (local $retp i32) (local $retp2 i32) (local $handle i32) (local $subtask i32) (local $magic i32) (local $ws i32) (local $event_code i32)
+        i32.const 11
+        local.set $magic
+        local.get $magic
+        call $R-new
+        local.set $handle
+        i32.const 16
+        local.set $retp
+        local.get $handle
+        local.get $retp
+        call $dont-drop
+        local.set $ret
+        i32.const 1
+        local.get $ret
+        i32.const 15
+        i32.and
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $ret
+        i32.const 4
+        i32.shr_u
+        local.set $subtask
+        local.get $handle
+        call $drop-other-and-self
+        local.set $ret
+        local.get $magic
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        call $resume-dont-drop
+        call $waitable-set.new
+        local.set $ws
+        local.get $subtask
+        local.get $ws
+        call $waitable.join
+        i32.const 32
+        local.set $retp2
+        local.get $ws
+        local.get $retp2
+        call $waitable-set.wait
+        local.set $event_code
+        i32.const 1
+        local.get $event_code
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $subtask
+        local.get $retp2
+        i32.load
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 2
+        local.get $retp2
+        i32.load offset=4
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $magic
+        local.get $retp
+        i32.load
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 43
+      )
+      (func (;11;) (type 4)
+        (local $ret i32) (local $retp i32) (local $handle i32) (local $subtask i32)
+        i32.const 42
+        call $R-new
+        local.set $handle
+        i32.const 16
+        local.set $retp
+        local.get $handle
+        local.get $retp
+        call $dont-drop
+        local.set $ret
+        i32.const 1
+        local.get $ret
+        i32.const 15
+        i32.and
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $ret
+        i32.const 4
+        i32.shr_u
+        local.set $subtask
+        local.get $handle
+        call $drop-wrong-one
+      )
+    )
+    (core func $waitable.join (;0;) (canon waitable.join))
+    (core func $waitable-set.new (;1;) (canon waitable-set.new))
+    (alias core export $memory "mem" (core memory (;0;)))
+    (core func $waitable-set.wait (;2;) (canon waitable-set.wait (memory 0)))
+    (alias export $c "R-new" (func (;0;)))
+    (core func $R-new (;3;) (canon lower (func 0)))
+    (alias export $d "dont-drop" (func (;1;)))
+    (alias core export $memory "mem" (core memory (;1;)))
+    (core func $dont-drop (;4;) (canon lower (func 1) async (memory 1)))
+    (alias export $d "drop-handle" (func (;2;)))
+    (core func $drop-handle (;5;) (canon lower (func 2)))
+    (alias export $d "resume-dont-drop" (func (;3;)))
+    (core func $resume-dont-drop (;6;) (canon lower (func 3)))
+    (alias export $d "drop-other-and-self" (func (;4;)))
+    (core func $drop-other-and-self (;7;) (canon lower (func 4)))
+    (alias export $d "drop-wrong-one" (func (;5;)))
+    (core func $drop-wrong-one (;8;) (canon lower (func 5)))
+    (alias core export $memory "mem" (core memory (;2;)))
+    (core instance (;1;)
+      (export "mem" (memory 2))
+      (export "waitable.join" (func $waitable.join))
+      (export "waitable-set.new" (func $waitable-set.new))
+      (export "waitable-set.wait" (func $waitable-set.wait))
+      (export "R-new" (func $R-new))
+      (export "dont-drop" (func $dont-drop))
+      (export "drop-handle" (func $drop-handle))
+      (export "resume-dont-drop" (func $resume-dont-drop))
+      (export "drop-other-and-self" (func $drop-other-and-self))
+      (export "drop-wrong-one" (func $drop-wrong-one))
+    )
+    (core instance $em (;2;) (instantiate $EM
+        (with "" (instance 1))
+      )
+    )
+    (type (;3;) (func async (result u32)))
+    (alias core export $em "drop-other-no-self" (core func (;9;)))
+    (func (;6;) (type 3) (canon lift (core func 9)))
+    (type (;4;) (func async (result u32)))
+    (alias core export $em "drop-other-and-self" (core func (;10;)))
+    (func (;7;) (type 4) (canon lift (core func 10)))
+    (type (;5;) (func async))
+    (alias core export $em "drop-other-miss-self" (core func (;11;)))
+    (func (;8;) (type 5) (canon lift (core func 11)))
+    (export (;9;) "drop-other-no-self" (func 6))
+    (export (;10;) "drop-other-and-self" (func 7))
+    (export (;11;) "drop-other-miss-self" (func 8))
+  )
+  (instance $c (;0;) (instantiate $C))
+  (instance $d (;1;) (instantiate $D
+      (with "c" (instance $c))
+    )
+  )
+  (instance $e (;2;) (instantiate $E
+      (with "c" (instance $c))
+      (with "d" (instance $d))
+    )
+  )
+  (alias export $e "drop-other-no-self" (func (;0;)))
+  (alias export $e "drop-other-and-self" (func (;1;)))
+  (alias export $e "drop-other-miss-self" (func (;2;)))
+  (export (;3;) "drop-other-no-self" (func 0))
+  (export (;4;) "drop-other-and-self" (func 1))
+  (export (;5;) "drop-other-miss-self" (func 2))
+)

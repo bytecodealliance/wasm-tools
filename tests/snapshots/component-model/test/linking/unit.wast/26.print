@@ -1,0 +1,43 @@
+(component
+  (core module $A (;0;)
+    (type (;0;) (func (result i32)))
+    (export "f" (func 0))
+    (func (;0;) (type 0) (result i32)
+      i32.const 100
+    )
+  )
+  (core module $B (;1;)
+    (type (;0;) (func (result i32)))
+    (export "g" (func 0))
+    (func (;0;) (type 0) (result i32)
+      i32.const 23
+    )
+  )
+  (core instance $a (;0;) (instantiate $A))
+  (core instance $b (;1;) (instantiate $B))
+  (core module $Client (;2;)
+    (type (;0;) (func (result i32)))
+    (import "env" "f" (func $f (;0;) (type 0)))
+    (import "env" "g" (func $g (;1;) (type 0)))
+    (export "sum" (func 2))
+    (func (;2;) (type 0) (result i32)
+      call $f
+      call $g
+      i32.add
+    )
+  )
+  (alias core export $a "f" (core func (;0;)))
+  (alias core export $b "g" (core func (;1;)))
+  (core instance (;2;)
+    (export "f" (func 0))
+    (export "g" (func 1))
+  )
+  (core instance $c (;3;) (instantiate $Client
+      (with "env" (instance 2))
+    )
+  )
+  (type (;0;) (func (result u32)))
+  (alias core export $c "sum" (core func (;2;)))
+  (func (;0;) (type 0) (canon lift (core func 2)))
+  (export (;1;) "sum" (func 0))
+)

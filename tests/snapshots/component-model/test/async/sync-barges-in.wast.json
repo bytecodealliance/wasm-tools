@@ -1,0 +1,33 @@
+{
+  "source_filename": "tests/component-model/test/async/sync-barges-in.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 6,
+      "name": "Tester",
+      "filename": "sync-barges-in.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 322,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 323,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "100"
+        }
+      ]
+    }
+  ]
+}

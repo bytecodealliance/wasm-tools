@@ -1,0 +1,8 @@
+(component $C
+  (type $Pure (;0;) (record (field "x" u32)))
+  (component (;0;)
+    (alias outer $C $Pure (type $pure (;0;)))
+    (type $R (;1;) (resource (rep i32)))
+    (alias outer 0 $R (type $localR (;2;)))
+  )
+)

@@ -1,0 +1,19 @@
+{
+  "source_filename": "tests/component-model/test/async/dont-block-start.wast",
+  "commands": [
+    {
+      "type": "assert_uninstantiable",
+      "line": 4,
+      "filename": "dont-block-start.0.wasm",
+      "module_type": "binary",
+      "text": "cannot block a synchronous task before returning"
+    },
+    {
+      "type": "assert_uninstantiable",
+      "line": 25,
+      "filename": "dont-block-start.1.wasm",
+      "module_type": "binary",
+      "text": "cannot block a synchronous task before returning"
+    }
+  ]
+}

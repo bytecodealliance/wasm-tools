@@ -1,0 +1,168 @@
+{
+  "source_filename": "tests/component-model/test/values/strings.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "strings.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 23,
+      "action": {
+        "type": "invoke",
+        "field": "f1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "a"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 24,
+      "action": {
+        "type": "invoke",
+        "field": "f2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "☃☺️öツ"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 27,
+      "filename": "strings.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 39,
+      "action": {
+        "type": "invoke",
+        "field": "f",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 42,
+      "filename": "strings.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 54,
+      "action": {
+        "type": "invoke",
+        "field": "f",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 57,
+      "filename": "strings.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_trap",
+      "line": 69,
+      "action": {
+        "type": "invoke",
+        "field": "f",
+        "args": []
+      },
+      "text": "string pointer/length out of bounds of memory"
+    },
+    {
+      "type": "module",
+      "line": 72,
+      "filename": "strings.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_trap",
+      "line": 85,
+      "action": {
+        "type": "invoke",
+        "field": "f",
+        "args": []
+      },
+      "text": "invalid utf-8"
+    },
+    {
+      "type": "module",
+      "line": 88,
+      "filename": "strings.5.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_trap",
+      "line": 101,
+      "action": {
+        "type": "invoke",
+        "field": "f",
+        "args": []
+      },
+      "text": "incomplete utf-8 byte sequence"
+    },
+    {
+      "type": "module",
+      "line": 104,
+      "filename": "strings.6.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 119,
+      "action": {
+        "type": "invoke",
+        "field": "f",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "ok"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 122,
+      "filename": "strings.7.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_trap",
+      "line": 135,
+      "action": {
+        "type": "invoke",
+        "field": "f",
+        "args": []
+      },
+      "text": "string pointer/length out of bounds of memory"
+    }
+  ]
+}

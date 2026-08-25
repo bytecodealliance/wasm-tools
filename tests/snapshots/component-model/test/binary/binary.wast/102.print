@@ -1,0 +1,7 @@
+(component
+  (type (;0;)
+    (instance)
+  )
+  (import "i1" (implements "my:dep/iface") (instance (;0;) (type 0)))
+  (import "i2" (external-id "some-external-id") (instance (;1;) (type 0)))
+)

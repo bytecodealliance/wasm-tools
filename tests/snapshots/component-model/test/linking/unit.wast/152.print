@@ -1,0 +1,84 @@
+(component
+  (component $L1 (;0;)
+    (core type (;0;)
+      (module
+        (type (;0;) (func (result i32)))
+        (export "bump" (func (type 0)))
+      )
+    )
+    (import "m" (core module $M1 (;0;) (type 0)))
+    (component $L2 (;0;)
+      (core type (;0;)
+        (module
+          (type (;0;) (func (result i32)))
+          (export "bump" (func (type 0)))
+        )
+      )
+      (import "m" (core module $M2 (;0;) (type 0)))
+      (core instance $a (;0;) (instantiate $M2))
+      (core instance $b (;1;) (instantiate $M2))
+      (core module $Sum (;1;)
+        (type (;0;) (func (result i32)))
+        (import "a" "bump" (func $ba (;0;) (type 0)))
+        (import "b" "bump" (func $bb (;1;) (type 0)))
+        (export "run" (func 2))
+        (func (;2;) (type 0) (result i32)
+          call $ba
+          i32.const 10
+          call $bb
+          i32.mul
+          i32.add
+        )
+      )
+      (core instance $sum (;2;) (instantiate $Sum
+          (with "a" (instance $a))
+          (with "b" (instance $b))
+        )
+      )
+      (type (;0;) (func (result u32)))
+      (alias core export $sum "run" (core func (;0;)))
+      (func (;0;) (type 0) (canon lift (core func 0)))
+      (export (;1;) "run" (func 0))
+    )
+    (instance $x (;0;) (instantiate $L2
+        (with "m" (core module $M1))
+      )
+    )
+    (instance $y (;1;) (instantiate $L2
+        (with "m" (core module $M1))
+      )
+    )
+    (alias export $x "run" (func (;0;)))
+    (alias export $y "run" (func (;1;)))
+    (export (;2;) "run-1" (func 0))
+    (export (;3;) "run-2" (func 1))
+  )
+  (core module $Impl (;0;)
+    (type (;0;) (func (result i32)))
+    (global $g (;0;) (mut i32) i32.const 0)
+    (export "bump" (func 0))
+    (func (;0;) (type 0) (result i32)
+      global.get $g
+      i32.const 1
+      i32.add
+      global.set $g
+      global.get $g
+    )
+  )
+  (instance $o1 (;0;) (instantiate $L1
+      (with "m" (core module $Impl))
+    )
+  )
+  (instance $o2 (;1;) (instantiate $L1
+      (with "m" (core module $Impl))
+    )
+  )
+  (alias export $o1 "run-1" (func (;0;)))
+  (alias export $o1 "run-2" (func (;1;)))
+  (alias export $o2 "run-1" (func (;2;)))
+  (alias export $o2 "run-2" (func (;3;)))
+  (export (;4;) "run-11" (func 0))
+  (export (;5;) "run-12" (func 1))
+  (export (;6;) "run-21" (func 2))
+  (export (;7;) "run-22" (func 3))
+)

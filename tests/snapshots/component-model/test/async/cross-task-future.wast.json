@@ -1,0 +1,26 @@
+{
+  "source_filename": "tests/component-model/test/async/cross-task-future.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 2,
+      "filename": "cross-task-future.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 103,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    }
+  ]
+}

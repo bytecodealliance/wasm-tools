@@ -1,0 +1,10 @@
+(module
+  (type $a1 (;0;) (sub (struct)))
+  (type $b1 (;1;) (sub (struct)))
+  (type $a2 (;2;) (sub $a1 (struct)))
+  (type $b2 (;3;) (sub $b1 (struct)))
+  (type $a3 (;4;) (sub $a2 (struct)))
+  (type $b3 (;5;) (sub $b2 (struct)))
+  (type $t (;6;) (sub (struct (field (ref $a3)))))
+  (type $u (;7;) (sub $t (struct (field (ref $b3)))))
+)

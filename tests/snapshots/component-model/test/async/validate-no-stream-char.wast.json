@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/component-model/test/async/validate-no-stream-char.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "validate-no-stream-char.0.wasm",
+      "module_type": "binary",
+      "text": "`stream<char>` is not valid"
+    }
+  ]
+}

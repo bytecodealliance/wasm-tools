@@ -1,0 +1,81 @@
+(component
+  (core module $Base (;0;)
+    (type (;0;) (func (param i32)))
+    (type (;1;) (func (result i32)))
+    (global $g (;0;) (mut i32) i32.const 0)
+    (export "add" (func 0))
+    (export "get" (func 1))
+    (func (;0;) (type 0) (param i32)
+      global.get $g
+      local.get 0
+      i32.add
+      global.set $g
+    )
+    (func (;1;) (type 1) (result i32)
+      global.get $g
+    )
+  )
+  (core module $Mid (;1;)
+    (type (;0;) (func (param i32)))
+    (type (;1;) (func (result i32)))
+    (type (;2;) (func))
+    (import "base" "add" (func $add (;0;) (type 0)))
+    (import "base" "get" (func $get (;1;) (type 1)))
+    (import "cfg" "inc" (global $inc (;0;) i32))
+    (export "bump" (func 2))
+    (export "read" (func 3))
+    (func (;2;) (type 2)
+      global.get $inc
+      call $add
+    )
+    (func (;3;) (type 1) (result i32)
+      call $get
+    )
+  )
+  (core module $Inc1 (;2;)
+    (global (;0;) i32 i32.const 1)
+    (export "inc" (global 0))
+  )
+  (core module $Inc10 (;3;)
+    (global (;0;) i32 i32.const 10)
+    (export "inc" (global 0))
+  )
+  (core module $Top (;4;)
+    (type (;0;) (func))
+    (type (;1;) (func (result i32)))
+    (import "m1" "bump" (func $bump1 (;0;) (type 0)))
+    (import "m2" "bump" (func $bump2 (;1;) (type 0)))
+    (import "m1" "read" (func $read1 (;2;) (type 1)))
+    (import "m2" "read" (func $read2 (;3;) (type 1)))
+    (export "run" (func 4))
+    (func (;4;) (type 1) (result i32)
+      call $bump1
+      call $bump2
+      call $read1
+      call $read2
+      i32.add
+    )
+  )
+  (core instance $base (;0;) (instantiate $Base))
+  (core instance $inc1 (;1;) (instantiate $Inc1))
+  (core instance $inc10 (;2;) (instantiate $Inc10))
+  (core instance $m1 (;3;) (instantiate $Mid
+      (with "base" (instance $base))
+      (with "cfg" (instance $inc1))
+    )
+  )
+  (core instance $m2 (;4;) (instantiate $Mid
+      (with "base" (instance $base))
+      (with "cfg" (instance $inc10))
+    )
+  )
+  (core instance $top (;5;) (instantiate $Top
+      (with "m1" (instance $m1))
+      (with "m2" (instance $m2))
+    )
+  )
+  (type (;0;) (func (result u32)))
+  (alias core export $top "run" (core func (;0;)))
+  (func (;0;) (type 0) (canon lift (core func 0)))
+  (export (;1;) "run" (func 0))
+)

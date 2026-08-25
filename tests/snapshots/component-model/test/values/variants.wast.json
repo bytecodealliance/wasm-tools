@@ -1,0 +1,142 @@
+{
+  "source_filename": "tests/component-model/test/values/variants.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 6,
+      "name": "BadDiscriminant",
+      "filename": "variants.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 72,
+      "instance": "i",
+      "module": "BadDiscriminant"
+    },
+    {
+      "type": "assert_trap",
+      "line": 73,
+      "action": {
+        "type": "invoke",
+        "field": "bad-variant-param",
+        "args": []
+      },
+      "text": "invalid variant discriminant"
+    },
+    {
+      "type": "module_instance",
+      "line": 74,
+      "instance": "i",
+      "module": "BadDiscriminant"
+    },
+    {
+      "type": "assert_trap",
+      "line": 75,
+      "action": {
+        "type": "invoke",
+        "field": "bad-variant-result",
+        "args": []
+      },
+      "text": "invalid variant discriminant"
+    },
+    {
+      "type": "module_instance",
+      "line": 76,
+      "instance": "i",
+      "module": "BadDiscriminant"
+    },
+    {
+      "type": "assert_trap",
+      "line": 77,
+      "action": {
+        "type": "invoke",
+        "field": "bad-enum-param",
+        "args": []
+      },
+      "text": "invalid variant discriminant"
+    },
+    {
+      "type": "module_instance",
+      "line": 78,
+      "instance": "i",
+      "module": "BadDiscriminant"
+    },
+    {
+      "type": "assert_trap",
+      "line": 79,
+      "action": {
+        "type": "invoke",
+        "field": "bad-enum-result",
+        "args": []
+      },
+      "text": "invalid variant discriminant"
+    },
+    {
+      "type": "module",
+      "line": 83,
+      "filename": "variants.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 183,
+      "action": {
+        "type": "invoke",
+        "field": "join-narrow",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 184,
+      "action": {
+        "type": "invoke",
+        "field": "join-wide",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "43"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 185,
+      "action": {
+        "type": "invoke",
+        "field": "join-f32",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "44"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 186,
+      "action": {
+        "type": "invoke",
+        "field": "ret-f32",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "45"
+        }
+      ]
+    }
+  ]
+}

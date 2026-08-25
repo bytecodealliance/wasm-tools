@@ -1,0 +1,44 @@
+{
+  "source_filename": "tests/component-model/test/async/drop-stream.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 7,
+      "name": "Tester",
+      "filename": "drop-stream.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 157,
+      "instance": "new-tester-instance",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 158,
+      "action": {
+        "type": "invoke",
+        "field": "drop-while-reading",
+        "args": []
+      },
+      "text": "cannot remove busy stream"
+    },
+    {
+      "type": "module_instance",
+      "line": 159,
+      "instance": "new-tester-instance",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 160,
+      "action": {
+        "type": "invoke",
+        "field": "drop-while-writing",
+        "args": []
+      },
+      "text": "cannot drop busy stream"
+    }
+  ]
+}

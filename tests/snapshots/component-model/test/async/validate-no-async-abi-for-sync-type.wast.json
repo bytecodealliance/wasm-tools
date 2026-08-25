@@ -1,0 +1,26 @@
+{
+  "source_filename": "tests/component-model/test/async/validate-no-async-abi-for-sync-type.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 2,
+      "filename": "validate-no-async-abi-for-sync-type.0.wasm",
+      "module_type": "binary",
+      "text": "the `async` canonical option requires an async function type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 12,
+      "filename": "validate-no-async-abi-for-sync-type.1.wasm",
+      "module_type": "binary",
+      "text": "the `async` canonical option requires an async function type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 23,
+      "filename": "validate-no-async-abi-for-sync-type.2.wasm",
+      "module_type": "binary",
+      "text": "the `async` canonical option requires an async function type"
+    }
+  ]
+}

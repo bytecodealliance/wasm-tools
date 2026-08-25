@@ -1,0 +1,883 @@
+(component
+  (core module $M (;0;)
+    (type (;0;) (func (param i32 i32 i32 i32) (result i32)))
+    (type (;1;) (func (param i32 i32)))
+    (type (;2;) (func (param i32)))
+    (type (;3;) (func (param i64) (result i32 i32)))
+    (type (;4;) (func (param i64)))
+    (type (;5;) (func (result i32)))
+    (type (;6;) (func (param i32 i32 i32 i32 i32 i32 i32 i64 i64 i32 i32 i32) (result i32)))
+    (type (;7;) (func (param i32 i32) (result i32)))
+    (type (;8;) (func (param i32 i32 i32) (result i32)))
+    (type (;9;) (func (param i32) (result i32)))
+    (type (;10;) (func (param i64) (result i32)))
+    (type (;11;) (func (param i32 i64) (result i32)))
+    (type (;12;) (func (param i32 i32 f32) (result i32)))
+    (memory (;0;) 4)
+    (global $next (;0;) (mut i32) i32.const 65536)
+    (global $w (;1;) (mut i32) i32.const 1024)
+    (export "mem" (memory 0))
+    (export "realloc" (func 0))
+    (export "prims" (func 9))
+    (export "list" (func 10))
+    (export "tuple" (func 11))
+    (export "record" (func 12))
+    (export "variant" (func 13))
+    (export "enum" (func 14))
+    (export "flags" (func 15))
+    (export "option" (func 16))
+    (export "result" (func 17))
+    (export "nested-list" (func 18))
+    (export "profile" (func 19))
+    (export "maybe-pair" (func 20))
+    (export "entries" (func 21))
+    (export "deep" (func 22))
+    (export "concat-u32s" (func 23))
+    (export "echo" (func 24))
+    (export "bignum" (func 25))
+    (export "flat-mix" (func 26))
+    (export "flat-pad" (func 27))
+    (export "list-variant" (func 28))
+    (export "list-variant2" (func 29))
+    (func (;0;) (type 0) (param $old i32) (param $os i32) (param $al i32) (param $ns i32) (result i32)
+      (local $r i32)
+      global.get $next
+      i32.const 7
+      i32.add
+      i32.const -8
+      i32.and
+      global.set $next
+      global.get $next
+      local.set $r
+      global.get $next
+      local.get $ns
+      i32.add
+      global.set $next
+      local.get $r
+    )
+    (func $emit (;1;) (type 1) (param $src i32) (param $len i32)
+      global.get $w
+      local.get $src
+      local.get $len
+      memory.copy
+      global.get $w
+      local.get $len
+      i32.add
+      global.set $w
+    )
+    (func $emit_char (;2;) (type 2) (param $c i32)
+      global.get $w
+      local.get $c
+      i32.store8
+      global.get $w
+      i32.const 1
+      i32.add
+      global.set $w
+    )
+    (func $u64toa (;3;) (type 3) (param $v i64) (result i32 i32)
+      (local $p i32)
+      i32.const 48
+      local.set $p
+      block $z
+        local.get $v
+        i64.eqz
+        br_if $z
+        loop $l
+          local.get $p
+          i32.const 1
+          i32.sub
+          local.set $p
+          local.get $p
+          i32.const 48
+          local.get $v
+          i64.const 10
+          i64.rem_u
+          i32.wrap_i64
+          i32.add
+          i32.store8
+          local.get $v
+          i64.const 10
+          i64.div_u
+          local.set $v
+          local.get $v
+          i64.const 0
+          i64.ne
+          br_if $l
+        end
+        local.get $p
+        i32.const 48
+        local.get $p
+        i32.sub
+        return
+      end
+      i32.const 47
+      i32.const 48
+      i32.store8
+      i32.const 47
+      i32.const 1
+    )
+    (func $emit_u64 (;4;) (type 4) (param $v i64)
+      (local $p i32) (local $l i32)
+      local.get $v
+      call $u64toa
+      local.set $l
+      local.set $p
+      local.get $p
+      local.get $l
+      call $emit
+    )
+    (func $emit_s64 (;5;) (type 4) (param $v i64)
+      local.get $v
+      i64.const 0
+      i64.lt_s
+      if ;; label = @1
+        i32.const 45
+        call $emit_char
+        i64.const 0
+        local.get $v
+        i64.sub
+        local.set $v
+      end
+      local.get $v
+      call $emit_u64
+    )
+    (func $emit_bool (;6;) (type 2) (param $b i32)
+      local.get $b
+      if ;; label = @1
+        i32.const 64
+        i32.const 4
+        call $emit
+      else
+        i32.const 68
+        i32.const 5
+        call $emit
+      end
+    )
+    (func $emit_u32_list (;7;) (type 1) (param $ptr i32) (param $len i32)
+      (local $i i32)
+      block $d
+        loop $l
+          local.get $i
+          local.get $len
+          i32.ge_u
+          br_if $d
+          local.get $ptr
+          local.get $i
+          i32.const 4
+          i32.mul
+          i32.add
+          i32.load
+          i64.extend_i32_u
+          call $emit_u64
+          local.get $i
+          i32.const 1
+          i32.add
+          local.set $i
+          br $l
+        end
+      end
+    )
+    (func $finish (;8;) (type 5) (result i32)
+      i32.const 0
+      i32.const 1024
+      i32.store
+      i32.const 4
+      global.get $w
+      i32.const 1024
+      i32.sub
+      i32.store
+      i32.const 0
+    )
+    (func (;9;) (type 6) (param $b i32) (param $u8 i32) (param $s8 i32) (param $u16 i32) (param $s16 i32) (param $u32 i32) (param $s32 i32) (param $u64 i64) (param $s64 i64) (param $c i32) (param $sp i32) (param $sl i32) (result i32)
+      i32.const 1024
+      global.set $w
+      local.get $b
+      call $emit_bool
+      local.get $u8
+      i64.extend_i32_u
+      call $emit_u64
+      local.get $s8
+      i64.extend_i32_s
+      call $emit_s64
+      local.get $u16
+      i64.extend_i32_u
+      call $emit_u64
+      local.get $s16
+      i64.extend_i32_s
+      call $emit_s64
+      local.get $u32
+      i64.extend_i32_u
+      call $emit_u64
+      local.get $s32
+      i64.extend_i32_s
+      call $emit_s64
+      local.get $u64
+      call $emit_u64
+      local.get $s64
+      call $emit_s64
+      local.get $c
+      call $emit_char
+      local.get $sp
+      local.get $sl
+      call $emit
+      call $finish
+    )
+    (func (;10;) (type 7) (param $p i32) (param $n i32) (result i32)
+      (local $i i32)
+      i32.const 1024
+      global.set $w
+      block $done
+        loop $l
+          local.get $i
+          local.get $n
+          i32.ge_u
+          br_if $done
+          local.get $p
+          local.get $i
+          i32.const 8
+          i32.mul
+          i32.add
+          i32.load
+          local.get $p
+          local.get $i
+          i32.const 8
+          i32.mul
+          i32.add
+          i32.load offset=4
+          call $emit
+          local.get $i
+          i32.const 1
+          i32.add
+          local.set $i
+          br $l
+        end
+      end
+      call $finish
+    )
+    (func (;11;) (type 0) (param $sp i32) (param $sl i32) (param $u i32) (param $b i32) (result i32)
+      i32.const 1024
+      global.set $w
+      local.get $sp
+      local.get $sl
+      call $emit
+      local.get $u
+      i64.extend_i32_u
+      call $emit_u64
+      local.get $b
+      call $emit_bool
+      call $finish
+    )
+    (func (;12;) (type 8) (param $sp i32) (param $sl i32) (param $n i32) (result i32)
+      i32.const 1024
+      global.set $w
+      local.get $sp
+      local.get $sl
+      call $emit
+      local.get $n
+      i64.extend_i32_u
+      call $emit_u64
+      call $finish
+    )
+    (func (;13;) (type 8) (param $d i32) (param $a i32) (param $b i32) (result i32)
+      i32.const 1024
+      global.set $w
+      local.get $d
+      if ;; label = @1
+        local.get $a
+        i64.extend_i32_u
+        call $emit_u64
+      else
+        local.get $a
+        local.get $b
+        call $emit
+      end
+      call $finish
+    )
+    (func (;14;) (type 9) (param $d i32) (result i32)
+      i32.const 1024
+      global.set $w
+      local.get $d
+      i32.const 0
+      i32.eq
+      if ;; label = @1
+        i32.const 73
+        i32.const 3
+        call $emit
+      end
+      local.get $d
+      i32.const 1
+      i32.eq
+      if ;; label = @1
+        i32.const 76
+        i32.const 5
+        call $emit
+      end
+      local.get $d
+      i32.const 2
+      i32.eq
+      if ;; label = @1
+        i32.const 81
+        i32.const 4
+        call $emit
+      end
+      call $finish
+    )
+    (func (;15;) (type 9) (param $f i32) (result i32)
+      i32.const 1024
+      global.set $w
+      local.get $f
+      i32.const 1
+      i32.and
+      if ;; label = @1
+        i32.const 97
+        call $emit_char
+      end
+      local.get $f
+      i32.const 2
+      i32.and
+      if ;; label = @1
+        i32.const 98
+        call $emit_char
+      end
+      local.get $f
+      i32.const 4
+      i32.and
+      if ;; label = @1
+        i32.const 99
+        call $emit_char
+      end
+      call $finish
+    )
+    (func (;16;) (type 7) (param $d i32) (param $v i32) (result i32)
+      i32.const 1024
+      global.set $w
+      local.get $d
+      if ;; label = @1
+        i32.const 85
+        i32.const 4
+        call $emit
+        local.get $v
+        i64.extend_i32_u
+        call $emit_u64
+      else
+        i32.const 89
+        i32.const 4
+        call $emit
+      end
+      call $finish
+    )
+    (func (;17;) (type 8) (param $d i32) (param $a i32) (param $b i32) (result i32)
+      i32.const 1024
+      global.set $w
+      local.get $d
+      if ;; label = @1
+        i32.const 95
+        i32.const 3
+        call $emit
+        local.get $a
+        i64.extend_i32_u
+        call $emit_u64
+      else
+        i32.const 93
+        i32.const 2
+        call $emit
+        local.get $a
+        local.get $b
+        call $emit
+      end
+      call $finish
+    )
+    (func (;18;) (type 7) (param $ptr i32) (param $len i32) (result i32)
+      (local $i i32) (local $e i32) (local $ip i32) (local $il i32) (local $j i32) (local $se i32)
+      i32.const 1024
+      global.set $w
+      block $od
+        loop $ol
+          local.get $i
+          local.get $len
+          i32.ge_u
+          br_if $od
+          local.get $ptr
+          local.get $i
+          i32.const 8
+          i32.mul
+          i32.add
+          local.set $e
+          local.get $e
+          i32.load
+          local.set $ip
+          local.get $e
+          i32.load offset=4
+          local.set $il
+          i32.const 0
+          local.set $j
+          block $id
+            loop $il2
+              local.get $j
+              local.get $il
+              i32.ge_u
+              br_if $id
+              local.get $ip
+              local.get $j
+              i32.const 8
+              i32.mul
+              i32.add
+              local.set $se
+              local.get $se
+              i32.load
+              local.get $se
+              i32.load offset=4
+              call $emit
+              local.get $j
+              i32.const 1
+              i32.add
+              local.set $j
+              br $il2
+            end
+          end
+          local.get $i
+          i32.const 1
+          i32.add
+          local.set $i
+          br $ol
+        end
+      end
+      call $finish
+    )
+    (func (;19;) (type 0) (param $np i32) (param $nl i32) (param $sp i32) (param $sl i32) (result i32)
+      i32.const 1024
+      global.set $w
+      local.get $np
+      local.get $nl
+      call $emit
+      local.get $sp
+      local.get $sl
+      call $emit_u32_list
+      call $finish
+    )
+    (func (;20;) (type 0) (param $d i32) (param $p0 i32) (param $p1 i32) (param $p2 i32) (result i32)
+      i32.const 1024
+      global.set $w
+      local.get $d
+      if ;; label = @1
+        local.get $p0
+        local.get $p1
+        call $emit
+        local.get $p2
+        i64.extend_i32_u
+        call $emit_u64
+      else
+        i32.const 89
+        i32.const 4
+        call $emit
+      end
+      call $finish
+    )
+    (func (;21;) (type 7) (param $ptr i32) (param $len i32) (result i32)
+      (local $i i32) (local $e i32)
+      i32.const 1024
+      global.set $w
+      block $d
+        loop $l
+          local.get $i
+          local.get $len
+          i32.ge_u
+          br_if $d
+          local.get $ptr
+          local.get $i
+          i32.const 12
+          i32.mul
+          i32.add
+          local.set $e
+          local.get $e
+          i32.load
+          local.get $e
+          i32.load offset=4
+          call $emit
+          local.get $e
+          i32.load offset=8
+          i64.extend_i32_u
+          call $emit_u64
+          local.get $i
+          i32.const 1
+          i32.add
+          local.set $i
+          br $l
+        end
+      end
+      call $finish
+    )
+    (func (;22;) (type 7) (param $ptr i32) (param $len i32) (result i32)
+      (local $i i32) (local $e i32)
+      i32.const 1024
+      global.set $w
+      block $d
+        loop $l
+          local.get $i
+          local.get $len
+          i32.ge_u
+          br_if $d
+          local.get $ptr
+          local.get $i
+          i32.const 20
+          i32.mul
+          i32.add
+          local.set $e
+          local.get $e
+          i32.load
+          if ;; label = @3
+            local.get $e
+            i32.load offset=4
+            local.get $e
+            i32.load offset=8
+            call $emit
+            local.get $e
+            i32.load offset=12
+            local.get $e
+            i32.load offset=16
+            call $emit_u32_list
+          else
+            i32.const 89
+            i32.const 4
+            call $emit
+          end
+          local.get $i
+          i32.const 1
+          i32.add
+          local.set $i
+          br $l
+        end
+      end
+      call $finish
+    )
+    (func (;23;) (type 7) (param $ptr i32) (param $len i32) (result i32)
+      i32.const 1024
+      global.set $w
+      local.get $ptr
+      local.get $len
+      call $emit_u32_list
+      call $finish
+    )
+    (func (;24;) (type 7) (param $p i32) (param $l i32) (result i32)
+      i32.const 1024
+      global.set $w
+      local.get $p
+      local.get $l
+      call $emit
+      call $finish
+    )
+    (func (;25;) (type 10) (param $v i64) (result i32)
+      i32.const 1024
+      global.set $w
+      local.get $v
+      call $emit_u64
+      call $finish
+    )
+    (func (;26;) (type 11) (param $d i32) (param $p i64) (result i32)
+      i32.const 1024
+      global.set $w
+      block $done
+        local.get $d
+        i32.eqz
+        if ;; label = @2
+          local.get $p
+          i32.wrap_i64
+          i64.extend_i32_u
+          call $emit_u64
+          br $done
+        end
+        local.get $d
+        i32.const 1
+        i32.eq
+        if ;; label = @2
+          local.get $p
+          i32.wrap_i64
+          f32.reinterpret_i32
+          i64.trunc_f32_u
+          call $emit_u64
+          br $done
+        end
+        local.get $d
+        i32.const 2
+        i32.eq
+        if ;; label = @2
+          local.get $p
+          call $emit_u64
+          br $done
+        end
+        local.get $d
+        i32.const 3
+        i32.eq
+        if ;; label = @2
+          local.get $p
+          f64.reinterpret_i64
+          i64.trunc_f64_u
+          call $emit_u64
+          br $done
+        end
+      end
+      call $finish
+    )
+    (func (;27;) (type 12) (param $d i32) (param $s0 i32) (param $s1 f32) (result i32)
+      i32.const 1024
+      global.set $w
+      local.get $d
+      if ;; label = @1
+        local.get $s0
+        i64.extend_i32_u
+        call $emit_u64
+      else
+        local.get $s0
+        f32.reinterpret_i32
+        i64.trunc_f32_u
+        call $emit_u64
+        local.get $s1
+        i64.trunc_f32_u
+        call $emit_u64
+      end
+      call $finish
+    )
+    (func (;28;) (type 7) (param $ptr i32) (param $len i32) (result i32)
+      (local $i i32) (local $e i32)
+      i32.const 1024
+      global.set $w
+      block $d
+        loop $l
+          local.get $i
+          local.get $len
+          i32.ge_u
+          br_if $d
+          local.get $ptr
+          local.get $i
+          i32.const 12
+          i32.mul
+          i32.add
+          local.set $e
+          local.get $e
+          i32.load8_u
+          if ;; label = @3
+            local.get $e
+            i32.load offset=4
+            local.get $e
+            i32.load offset=8
+            call $emit
+          else
+            local.get $e
+            i32.load offset=4
+            i64.extend_i32_u
+            call $emit_u64
+          end
+          local.get $i
+          i32.const 1
+          i32.add
+          local.set $i
+          br $l
+        end
+      end
+      call $finish
+    )
+    (func (;29;) (type 7) (param $ptr i32) (param $len i32) (result i32)
+      (local $i i32) (local $e i32)
+      i32.const 1024
+      global.set $w
+      block $d
+        loop $l
+          local.get $i
+          local.get $len
+          i32.ge_u
+          br_if $d
+          local.get $ptr
+          local.get $i
+          i32.const 16
+          i32.mul
+          i32.add
+          local.set $e
+          local.get $e
+          i32.load8_u
+          if ;; label = @3
+            local.get $e
+            i64.load offset=8
+            call $emit_u64
+          else
+            local.get $e
+            i32.load8_u offset=8
+            i64.extend_i32_u
+            call $emit_u64
+          end
+          local.get $i
+          i32.const 1
+          i32.add
+          local.set $i
+          br $l
+        end
+      end
+      call $finish
+    )
+    (data (;0;) (i32.const 64) "truefalseredgreenbluesomenoneokerr")
+  )
+  (core instance $m (;0;) (instantiate $M))
+  (type (;0;) (func (param "p0" bool) (param "p1" u8) (param "p2" s8) (param "p3" u16) (param "p4" s16) (param "p5" u32) (param "p6" s32) (param "p7" u64) (param "p8" s64) (param "p9" char) (param "p10" string) (result string)))
+  (alias core export $m "prims" (core func (;0;)))
+  (alias core export $m "mem" (core memory (;0;)))
+  (alias core export $m "realloc" (core func (;1;)))
+  (func (;0;) (type 0) (canon lift (core func 0) (memory 0) (realloc 1)))
+  (type (;1;) (list string))
+  (type (;2;) (func (param "a" 1) (result string)))
+  (alias core export $m "list" (core func (;2;)))
+  (alias core export $m "mem" (core memory (;1;)))
+  (alias core export $m "realloc" (core func (;3;)))
+  (func (;1;) (type 2) (canon lift (core func 2) (memory 1) (realloc 3)))
+  (type (;3;) (tuple string u32 bool))
+  (type (;4;) (func (param "a" 3) (result string)))
+  (alias core export $m "tuple" (core func (;4;)))
+  (alias core export $m "mem" (core memory (;2;)))
+  (alias core export $m "realloc" (core func (;5;)))
+  (func (;2;) (type 4) (canon lift (core func 4) (memory 2) (realloc 5)))
+  (type $rec-t (;5;) (record (field "s" string) (field "n" u32)))
+  (export $rec-e (;6;) "rec-t" (type $rec-t))
+  (type (;7;) (func (param "a" $rec-e) (result string)))
+  (alias core export $m "record" (core func (;6;)))
+  (alias core export $m "mem" (core memory (;3;)))
+  (alias core export $m "realloc" (core func (;7;)))
+  (func (;3;) (type 7) (canon lift (core func 6) (memory 3) (realloc 7)))
+  (type $var-t (;8;) (variant (case "s" string) (case "n" u32)))
+  (export $var-e (;9;) "var-t" (type $var-t))
+  (type (;10;) (func (param "a" $var-e) (result string)))
+  (alias core export $m "variant" (core func (;8;)))
+  (alias core export $m "mem" (core memory (;4;)))
+  (alias core export $m "realloc" (core func (;9;)))
+  (func (;4;) (type 10) (canon lift (core func 8) (memory 4) (realloc 9)))
+  (type $enum-t (;11;) (enum "red" "green" "blue"))
+  (export $enum-e (;12;) "enum-t" (type $enum-t))
+  (type (;13;) (func (param "a" $enum-e) (result string)))
+  (alias core export $m "enum" (core func (;10;)))
+  (alias core export $m "mem" (core memory (;5;)))
+  (alias core export $m "realloc" (core func (;11;)))
+  (func (;5;) (type 13) (canon lift (core func 10) (memory 5) (realloc 11)))
+  (type $flags-t (;14;) (flags "a" "b" "c"))
+  (export $flags-e (;15;) "flags-t" (type $flags-t))
+  (type (;16;) (func (param "a" $flags-e) (result string)))
+  (alias core export $m "flags" (core func (;12;)))
+  (alias core export $m "mem" (core memory (;6;)))
+  (alias core export $m "realloc" (core func (;13;)))
+  (func (;6;) (type 16) (canon lift (core func 12) (memory 6) (realloc 13)))
+  (type (;17;) (option u32))
+  (type (;18;) (func (param "a" 17) (result string)))
+  (alias core export $m "option" (core func (;14;)))
+  (alias core export $m "mem" (core memory (;7;)))
+  (alias core export $m "realloc" (core func (;15;)))
+  (func (;7;) (type 18) (canon lift (core func 14) (memory 7) (realloc 15)))
+  (type (;19;) (result string (error u32)))
+  (type (;20;) (func (param "a" 19) (result string)))
+  (alias core export $m "result" (core func (;16;)))
+  (alias core export $m "mem" (core memory (;8;)))
+  (alias core export $m "realloc" (core func (;17;)))
+  (func (;8;) (type 20) (canon lift (core func 16) (memory 8) (realloc 17)))
+  (type (;21;) (list string))
+  (type (;22;) (list 21))
+  (type (;23;) (func (param "a" 22) (result string)))
+  (alias core export $m "nested-list" (core func (;18;)))
+  (alias core export $m "mem" (core memory (;9;)))
+  (alias core export $m "realloc" (core func (;19;)))
+  (func (;9;) (type 23) (canon lift (core func 18) (memory 9) (realloc 19)))
+  (type (;24;) (list u32))
+  (type $profile-t (;25;) (record (field "name" string) (field "scores" 24)))
+  (export $profile-e (;26;) "profile-t" (type $profile-t))
+  (type (;27;) (func (param "a" $profile-e) (result string)))
+  (alias core export $m "profile" (core func (;20;)))
+  (alias core export $m "mem" (core memory (;10;)))
+  (alias core export $m "realloc" (core func (;21;)))
+  (func (;10;) (type 27) (canon lift (core func 20) (memory 10) (realloc 21)))
+  (type (;28;) (tuple string u32))
+  (type (;29;) (option 28))
+  (type (;30;) (func (param "a" 29) (result string)))
+  (alias core export $m "maybe-pair" (core func (;22;)))
+  (alias core export $m "mem" (core memory (;11;)))
+  (alias core export $m "realloc" (core func (;23;)))
+  (func (;11;) (type 30) (canon lift (core func 22) (memory 11) (realloc 23)))
+  (type $entry-t (;31;) (record (field "k" string) (field "v" u32)))
+  (export $entry-e (;32;) "entry-t" (type $entry-t))
+  (type (;33;) (list $entry-e))
+  (type (;34;) (func (param "a" 33) (result string)))
+  (alias core export $m "entries" (core func (;24;)))
+  (alias core export $m "mem" (core memory (;12;)))
+  (alias core export $m "realloc" (core func (;25;)))
+  (func (;12;) (type 34) (canon lift (core func 24) (memory 12) (realloc 25)))
+  (type (;35;) (list u32))
+  (type (;36;) (tuple string 35))
+  (type (;37;) (option 36))
+  (type (;38;) (list 37))
+  (type (;39;) (func (param "a" 38) (result string)))
+  (alias core export $m "deep" (core func (;26;)))
+  (alias core export $m "mem" (core memory (;13;)))
+  (alias core export $m "realloc" (core func (;27;)))
+  (func (;13;) (type 39) (canon lift (core func 26) (memory 13) (realloc 27)))
+  (type (;40;) (list u32))
+  (type (;41;) (func (param "a" 40) (result string)))
+  (alias core export $m "concat-u32s" (core func (;28;)))
+  (alias core export $m "mem" (core memory (;14;)))
+  (alias core export $m "realloc" (core func (;29;)))
+  (func (;14;) (type 41) (canon lift (core func 28) (memory 14) (realloc 29)))
+  (type (;42;) (func (param "a" string) (result string)))
+  (alias core export $m "echo" (core func (;30;)))
+  (alias core export $m "mem" (core memory (;15;)))
+  (alias core export $m "realloc" (core func (;31;)))
+  (func (;15;) (type 42) (canon lift (core func 30) (memory 15) (realloc 31)))
+  (type (;43;) (func (param "a" u64) (result string)))
+  (alias core export $m "bignum" (core func (;32;)))
+  (alias core export $m "mem" (core memory (;16;)))
+  (alias core export $m "realloc" (core func (;33;)))
+  (func (;16;) (type 43) (canon lift (core func 32) (memory 16) (realloc 33)))
+  (type $mix-t (;44;) (variant (case "a" u32) (case "b" f32) (case "c" u64) (case "d" f64)))
+  (export $mix-e (;45;) "mix-t" (type $mix-t))
+  (type (;46;) (func (param "a" $mix-e) (result string)))
+  (alias core export $m "flat-mix" (core func (;34;)))
+  (alias core export $m "mem" (core memory (;17;)))
+  (alias core export $m "realloc" (core func (;35;)))
+  (func (;17;) (type 46) (canon lift (core func 34) (memory 17) (realloc 35)))
+  (type (;47;) (tuple f32 f32))
+  (type $pad-t (;48;) (variant (case "p" 47) (case "q" u32)))
+  (export $pad-e (;49;) "pad-t" (type $pad-t))
+  (type (;50;) (func (param "a" $pad-e) (result string)))
+  (alias core export $m "flat-pad" (core func (;36;)))
+  (alias core export $m "mem" (core memory (;18;)))
+  (alias core export $m "realloc" (core func (;37;)))
+  (func (;18;) (type 50) (canon lift (core func 36) (memory 18) (realloc 37)))
+  (type $lv-t (;51;) (variant (case "n" u32) (case "s" string)))
+  (export $lv-e (;52;) "lv-t" (type $lv-t))
+  (type (;53;) (list $lv-e))
+  (type (;54;) (func (param "a" 53) (result string)))
+  (alias core export $m "list-variant" (core func (;38;)))
+  (alias core export $m "mem" (core memory (;19;)))
+  (alias core export $m "realloc" (core func (;39;)))
+  (func (;19;) (type 54) (canon lift (core func 38) (memory 19) (realloc 39)))
+  (type $lv2-t (;55;) (variant (case "b" u8) (case "w" u64)))
+  (export $lv2-e (;56;) "lv2-t" (type $lv2-t))
+  (type (;57;) (list $lv2-e))
+  (type (;58;) (func (param "a" 57) (result string)))
+  (alias core export $m "list-variant2" (core func (;40;)))
+  (alias core export $m "mem" (core memory (;20;)))
+  (alias core export $m "realloc" (core func (;41;)))
+  (func (;20;) (type 58) (canon lift (core func 40) (memory 20) (realloc 41)))
+  (export (;21;) "prims" (func 0))
+  (export (;22;) "list" (func 1))
+  (export (;23;) "tuple" (func 2))
+  (export (;24;) "record" (func 3))
+  (export (;25;) "variant" (func 4))
+  (export (;26;) "enum" (func 5))
+  (export (;27;) "flags" (func 6))
+  (export (;28;) "option" (func 7))
+  (export (;29;) "result" (func 8))
+  (export (;30;) "nested-list" (func 9))
+  (export (;31;) "profile" (func 10))
+  (export (;32;) "maybe-pair" (func 11))
+  (export (;33;) "entries" (func 12))
+  (export (;34;) "deep" (func 13))
+  (export (;35;) "concat-u32s" (func 14))
+  (export (;36;) "echo" (func 15))
+  (export (;37;) "bignum" (func 16))
+  (export (;38;) "flat-mix" (func 17))
+  (export (;39;) "flat-pad" (func 18))
+  (export (;40;) "list-variant" (func 19))
+  (export (;41;) "list-variant2" (func 20))
+)

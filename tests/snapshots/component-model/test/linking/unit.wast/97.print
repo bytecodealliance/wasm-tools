@@ -1,0 +1,122 @@
+(component
+  (component $Def (;0;)
+    (core module $M (;0;)
+      (type (;0;) (func (param i32)))
+      (type (;1;) (func (param i32) (result i32)))
+      (memory (;0;) 1)
+      (global $n (;0;) (mut i32) i32.const 0)
+      (export "dtor" (func 0))
+      (export "log-at" (func 1))
+      (func (;0;) (type 0) (param i32)
+        global.get $n
+        local.get 0
+        i32.store8
+        global.get $n
+        i32.const 1
+        i32.add
+        global.set $n
+      )
+      (func (;1;) (type 1) (param i32) (result i32)
+        local.get 0
+        i32.load8_u
+      )
+    )
+    (core instance $m (;0;) (instantiate $M))
+    (alias core export $m "dtor" (core func (;0;)))
+    (type $R (;0;) (resource (rep i32) (dtor 0)))
+    (export $Re (;1;) "r" (type $R))
+    (core func $new (;1;) (canon resource.new $R))
+    (core module $Maker (;1;)
+      (type (;0;) (func (param i32) (result i32)))
+      (import "canon" "new" (func $new (;0;) (type 0)))
+      (export "make" (func 1))
+      (func (;1;) (type 0) (param i32) (result i32)
+        local.get 0
+        call $new
+      )
+    )
+    (core instance (;1;)
+      (export "new" (func $new))
+    )
+    (core instance $maker (;2;) (instantiate $Maker
+        (with "canon" (instance 1))
+      )
+    )
+    (type (;2;) (own $Re))
+    (type (;3;) (func (param "rep" u32) (result 2)))
+    (alias core export $maker "make" (core func (;2;)))
+    (func (;0;) (type 3) (canon lift (core func 2)))
+    (type (;4;) (func (param "i" u32) (result u32)))
+    (alias core export $m "log-at" (core func (;3;)))
+    (func (;1;) (type 4) (canon lift (core func 3)))
+    (export (;2;) "make" (func 0))
+    (export (;3;) "log-at" (func 1))
+  )
+  (component $User (;1;)
+    (type (;0;)
+      (instance
+        (export (;0;) "r" (type (sub resource)))
+        (type (;1;) (own 0))
+        (type (;2;) (func (param "rep" u32) (result 1)))
+        (export (;0;) "make" (func (type 2)))
+      )
+    )
+    (import "def" (instance $def (;0;) (type 0)))
+    (alias export $def "r" (type $R (;1;)))
+    (alias export $def "make" (func (;0;)))
+    (core func $make (;0;) (canon lower (func 0)))
+    (core func $drop (;1;) (canon resource.drop $R))
+    (core module $M (;0;)
+      (type (;0;) (func (param i32) (result i32)))
+      (type (;1;) (func (param i32)))
+      (import "e" "make" (func $make (;0;) (type 0)))
+      (import "e" "drop" (func $drop (;1;) (type 1)))
+      (export "run" (func 2))
+      (func (;2;) (type 1) (param i32)
+        (local $h1 i32) (local $h2 i32)
+        local.get 0
+        call $make
+        local.set $h1
+        local.get 0
+        i32.const 2
+        i32.add
+        call $make
+        local.set $h2
+        local.get $h2
+        call $drop
+        local.get $h1
+        call $drop
+      )
+    )
+    (core instance (;0;)
+      (export "make" (func $make))
+      (export "drop" (func $drop))
+    )
+    (core instance $m (;1;) (instantiate $M
+        (with "e" (instance 0))
+      )
+    )
+    (type (;2;) (func (param "rep" u32)))
+    (alias core export $m "run" (core func (;2;)))
+    (func (;1;) (type 2) (canon lift (core func 2)))
+    (export (;2;) "run" (func 1))
+  )
+  (instance $def1 (;0;) (instantiate $Def))
+  (instance $def2 (;1;) (instantiate $Def))
+  (instance $user1 (;2;) (instantiate $User
+      (with "def" (instance $def1))
+    )
+  )
+  (instance $user2 (;3;) (instantiate $User
+      (with "def" (instance $def2))
+    )
+  )
+  (alias export $user1 "run" (func (;0;)))
+  (alias export $user2 "run" (func (;1;)))
+  (alias export $def1 "log-at" (func (;2;)))
+  (alias export $def2 "log-at" (func (;3;)))
+  (export (;4;) "run-1" (func 0))
+  (export (;5;) "run-2" (func 1))
+  (export (;6;) "log-at-1" (func 2))
+  (export (;7;) "log-at-2" (func 3))
+)

@@ -1,0 +1,223 @@
+(component
+  (component $Inner (;0;)
+    (core module $Table (;0;)
+      (table (;0;) 1 funcref)
+      (export "__indirect_function_table" (table 0))
+    )
+    (core instance $table (;0;) (instantiate $Table))
+    (core module $Core (;1;)
+      (type (;0;) (func (param i32)))
+      (type (;1;) (func (param i32 i32) (result i32)))
+      (type (;2;) (func (param i32) (result i32)))
+      (type (;3;) (func (result i32)))
+      (type (;4;) (func (param i32 i32 i32) (result i32)))
+      (import "" "task.return" (func $task.return (;0;) (type 0)))
+      (import "" "thread.new-indirect" (func $thread.new-indirect (;1;) (type 1)))
+      (import "" "thread.suspend-then-resume" (func $thread.suspend-then-resume (;2;) (type 2)))
+      (import "" "thread.resume-later" (func $thread.resume-later (;3;) (type 0)))
+      (import "" "thread.suspend" (func $thread.suspend (;4;) (type 3)))
+      (import "" "thread.index" (func $thread.index (;5;) (type 3)))
+      (import "" "__indirect_function_table" (table $indirect-function-table (;0;) 1 funcref))
+      (global $setup-thread-index (;0;) (mut i32) i32.const 57005)
+      (global $implicit-thread-index (;1;) (mut i32) i32.const 57005)
+      (global $pinned (;2;) (mut i32) i32.const 0)
+      (export "never-cb" (func 6))
+      (export "setup" (func 8))
+      (export "inner-block" (func 9))
+      (elem (;0;) (table $indirect-function-table) (i32.const 0) func $thread-start-block)
+      (func (;6;) (type 4) (param i32 i32 i32) (result i32)
+        unreachable
+      )
+      (func $thread-start-block (;7;) (type 0) (param i32)
+        (local $r i32)
+        loop $rounds
+          global.get $implicit-thread-index
+          call $thread.resume-later
+          call $thread.suspend
+          drop
+          local.get $r
+          i32.const 1
+          i32.add
+          local.set $r
+          local.get $r
+          i32.const 4
+          i32.lt_u
+          br_if $rounds
+        end
+        unreachable
+      )
+      (func (;8;) (type 3) (result i32)
+        i32.const 0
+        i32.const 0
+        call $thread.new-indirect
+        global.set $setup-thread-index
+        i32.const 1
+        call $task.return
+        i32.const 0
+      )
+      (func (;9;) (type 3) (result i32)
+        (local $r i32)
+        call $thread.index
+        global.set $implicit-thread-index
+        i32.const 1
+        global.set $pinned
+        loop $rounds
+          global.get $setup-thread-index
+          call $thread.suspend-then-resume
+          drop
+          local.get $r
+          i32.const 1
+          i32.add
+          local.set $r
+          local.get $r
+          i32.const 4
+          i32.lt_u
+          br_if $rounds
+        end
+        i32.const 0
+        global.set $pinned
+        i32.const 42
+      )
+    )
+    (core type $start-func-ty (;0;) (func (param i32)))
+    (alias core export $table "__indirect_function_table" (core table $indirect-function-table (;0;)))
+    (core func $thread.new-indirect (;0;) (canon thread.new-indirect $start-func-ty $indirect-function-table))
+    (core func $task.return (;1;) (canon task.return (result u32)))
+    (core func $thread.suspend-then-resume (;2;) (canon thread.suspend-then-resume))
+    (core func $thread.resume-later (;3;) (canon thread.resume-later))
+    (core func $thread.suspend (;4;) (canon thread.suspend))
+    (core func $thread.index (;5;) (canon thread.index))
+    (core instance (;1;)
+      (export "task.return" (func $task.return))
+      (export "thread.new-indirect" (func $thread.new-indirect))
+      (export "thread.suspend-then-resume" (func $thread.suspend-then-resume))
+      (export "thread.resume-later" (func $thread.resume-later))
+      (export "thread.suspend" (func $thread.suspend))
+      (export "thread.index" (func $thread.index))
+      (export "__indirect_function_table" (table $indirect-function-table))
+    )
+    (core instance $core (;2;) (instantiate $Core
+        (with "" (instance 1))
+      )
+    )
+    (type (;0;) (func async (result u32)))
+    (alias core export $core "setup" (core func (;6;)))
+    (alias core export $core "never-cb" (core func (;7;)))
+    (func (;0;) (type 0) (canon lift (core func 6) async (callback 7)))
+    (type (;1;) (func (result u32)))
+    (alias core export $core "inner-block" (core func (;8;)))
+    (func (;1;) (type 1) (canon lift (core func 8)))
+    (export (;2;) "setup" (func 0))
+    (export (;3;) "inner-block" (func 1))
+  )
+  (component $Sibling (;1;)
+    (core module $Table (;0;)
+      (table (;0;) 1 funcref)
+      (export "__indirect_function_table" (table 0))
+    )
+    (core instance $table (;0;) (instantiate $Table))
+    (core module $Core (;1;)
+      (type (;0;) (func (param i32 i32) (result i32)))
+      (type (;1;) (func (param i32)))
+      (import "" "thread.new-indirect" (func $thread.new-indirect (;0;) (type 0)))
+      (import "" "thread.resume-later" (func $thread.resume-later (;1;) (type 1)))
+      (import "" "__indirect_function_table" (table $indirect-function-table (;0;) 1 funcref))
+      (export "arm" (func 3))
+      (elem (;0;) (table $indirect-function-table) (i32.const 0) func $thread-start-func)
+      (func $thread-start-func (;2;) (type 1) (param i32)
+        unreachable
+      )
+      (func (;3;) (type 1) (param $count i32)
+        loop $again
+          i32.const 0
+          i32.const 0
+          call $thread.new-indirect
+          call $thread.resume-later
+          local.get $count
+          i32.const 1
+          i32.sub
+          local.set $count
+          local.get $count
+          i32.const 0
+          i32.gt_u
+          br_if $again
+        end
+      )
+    )
+    (core type $start-func-ty (;0;) (func (param i32)))
+    (alias core export $table "__indirect_function_table" (core table $indirect-function-table (;0;)))
+    (core func $thread.new-indirect (;0;) (canon thread.new-indirect $start-func-ty $indirect-function-table))
+    (core func $thread.resume-later (;1;) (canon thread.resume-later))
+    (core instance (;1;)
+      (export "thread.new-indirect" (func $thread.new-indirect))
+      (export "thread.resume-later" (func $thread.resume-later))
+      (export "__indirect_function_table" (table $indirect-function-table))
+    )
+    (core instance $core (;2;) (instantiate $Core
+        (with "" (instance 1))
+      )
+    )
+    (type (;0;) (func (param "count" u32)))
+    (alias core export $core "arm" (core func (;2;)))
+    (func (;0;) (type 0) (canon lift (core func 2)))
+    (export (;1;) "arm" (func 0))
+  )
+  (component $Driver (;2;)
+    (type (;0;)
+      (instance
+        (type (;0;) (func (param "count" u32)))
+        (export (;0;) "arm" (func (type 0)))
+      )
+    )
+    (import "sibling" (instance $sibling (;0;) (type 0)))
+    (type (;1;)
+      (instance
+        (type (;0;) (func (result u32)))
+        (export (;0;) "inner-block" (func (type 0)))
+      )
+    )
+    (import "inner" (instance $inner (;1;) (type 1)))
+    (core module $Core (;0;)
+      (type (;0;) (func (param i32)))
+      (type (;1;) (func (result i32)))
+      (import "" "arm" (func $arm (;0;) (type 0)))
+      (import "" "inner-block" (func $inner-block (;1;) (type 1)))
+      (export "run" (func 2))
+      (func (;2;) (type 1) (result i32)
+        i32.const 8
+        call $arm
+        call $inner-block
+      )
+    )
+    (alias export $sibling "arm" (func (;0;)))
+    (core func $arm' (;0;) (canon lower (func 0)))
+    (alias export $inner "inner-block" (func (;1;)))
+    (core func $inner-block' (;1;) (canon lower (func 1)))
+    (core instance (;0;)
+      (export "arm" (func $arm'))
+      (export "inner-block" (func $inner-block'))
+    )
+    (core instance $core (;1;) (instantiate $Core
+        (with "" (instance 0))
+      )
+    )
+    (type (;2;) (func (result u32)))
+    (alias core export $core "run" (core func (;2;)))
+    (func (;2;) (type 2) (canon lift (core func 2)))
+    (export (;3;) "run" (func 2))
+  )
+  (instance $inner (;0;) (instantiate $Inner))
+  (instance $sibling (;1;) (instantiate $Sibling
+      (with "inner" (instance $inner))
+    )
+  )
+  (instance $driver (;2;) (instantiate $Driver
+      (with "sibling" (instance $sibling))
+      (with "inner" (instance $inner))
+    )
+  )
+  (alias export $inner "setup" (func (;0;)))
+  (alias export $driver "run" (func (;1;)))
+  (export (;2;) "setup" (func 0))
+  (export (;3;) "run" (func 1))
+)

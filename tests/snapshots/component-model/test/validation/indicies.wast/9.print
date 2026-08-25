@@ -1,0 +1,18 @@
+(component
+  (component (;0;)
+    (type $T (;0;) (future u32))
+    (type (;1;)
+      (instance
+        (alias outer 1 $T (type (;0;)))
+        (export (;1;) "T" (type (eq 0)))
+      )
+    )
+    (import "i" (instance $i (;0;) (type 1)))
+    (core func (;0;) (canon future.new $T))
+    (core func (;1;) (canon future.new $T))
+    (core func (;2;) (canon future.new $T))
+    (core func (;3;) (canon future.new $T))
+    (alias export $i "T" (type (;2;)))
+    (core func (;4;) (canon future.new 2))
+  )
+)

@@ -1,0 +1,75 @@
+(component
+  (component $C (;0;)
+    (core type (;0;)
+      (module
+        (import "cfg" "step" (global i32))
+        (type (;0;) (func (result i32)))
+        (export "bump" (func (type 0)))
+      )
+    )
+    (import "m" (core module $M (;0;) (type 0)))
+    (core module $Step1 (;1;)
+      (global (;0;) i32 i32.const 1)
+      (export "step" (global 0))
+    )
+    (core module $Step10 (;2;)
+      (global (;0;) i32 i32.const 10)
+      (export "step" (global 0))
+    )
+    (core instance $step1 (;0;) (instantiate $Step1))
+    (core instance $step10 (;1;) (instantiate $Step10))
+    (core instance $a (;2;) (instantiate $M
+        (with "cfg" (instance $step1))
+      )
+    )
+    (core instance $b (;3;) (instantiate $M
+        (with "cfg" (instance $step10))
+      )
+    )
+    (core module $Top (;3;)
+      (type (;0;) (func (result i32)))
+      (import "a" "bump" (func $ba (;0;) (type 0)))
+      (import "b" "bump" (func $bb (;1;) (type 0)))
+      (export "run" (func 2))
+      (func (;2;) (type 0) (result i32)
+        call $ba
+        drop
+        call $ba
+        drop
+        call $ba
+        i32.const 100
+        i32.mul
+        call $bb
+        i32.add
+      )
+    )
+    (core instance $top (;4;) (instantiate $Top
+        (with "a" (instance $a))
+        (with "b" (instance $b))
+      )
+    )
+    (type (;0;) (func (result u32)))
+    (alias core export $top "run" (core func (;0;)))
+    (func (;0;) (type 0) (canon lift (core func 0)))
+    (export (;1;) "run" (func 0))
+  )
+  (core module $Counter (;0;)
+    (type (;0;) (func (result i32)))
+    (import "cfg" "step" (global $step (;0;) i32))
+    (global $g (;1;) (mut i32) i32.const 0)
+    (export "bump" (func 0))
+    (func (;0;) (type 0) (result i32)
+      global.get $g
+      global.get $step
+      i32.add
+      global.set $g
+      global.get $g
+    )
+  )
+  (instance $c (;0;) (instantiate $C
+      (with "m" (core module $Counter))
+    )
+  )
+  (alias export $c "run" (func (;0;)))
+  (export (;1;) "run" (func 0))
+)

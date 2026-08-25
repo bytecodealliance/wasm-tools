@@ -1,0 +1,32 @@
+(component
+  (core module $A (;0;)
+    (type (;0;) (func (result i32)))
+    (export "three" (func 0))
+    (func (;0;) (type 0) (result i32)
+      i32.const 3
+    )
+  )
+  (core instance $a (;0;) (instantiate $A))
+  (alias core export $a "three" (core func $three (;0;)))
+  (core instance $syn (;1;)
+    (export "f" (func $three))
+  )
+  (core module $Client (;1;)
+    (type (;0;) (func (result i32)))
+    (import "env" "f" (func $f (;0;) (type 0)))
+    (export "run" (func 1))
+    (func (;1;) (type 0) (result i32)
+      call $f
+      i32.const 1
+      i32.add
+    )
+  )
+  (core instance $c (;2;) (instantiate $Client
+      (with "env" (instance $syn))
+    )
+  )
+  (type (;0;) (func (result u32)))
+  (alias core export $c "run" (core func (;1;)))
+  (func (;0;) (type 0) (canon lift (core func 1)))
+  (export (;1;) "run" (func 0))
+)

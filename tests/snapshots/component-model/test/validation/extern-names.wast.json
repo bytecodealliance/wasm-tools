@@ -1,0 +1,88 @@
+{
+  "source_filename": "tests/component-model/test/validation/extern-names.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 8,
+      "filename": "extern-names.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 19,
+      "filename": "extern-names.1.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 27,
+      "filename": "extern-names.2.wasm",
+      "module_type": "binary",
+      "text": "empty string"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 30,
+      "filename": "extern-names.3.wasm",
+      "module_type": "binary",
+      "text": "unexpected character '.'"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 33,
+      "filename": "extern-names.4.wasm",
+      "module_type": "binary",
+      "text": "unexpected end of input"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 36,
+      "filename": "extern-names.5.wasm",
+      "module_type": "binary",
+      "text": "unexpected character 'a'"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 39,
+      "filename": "extern-names.6.wasm",
+      "module_type": "binary",
+      "text": "unexpected character 'b'"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 42,
+      "filename": "extern-names.7.wasm",
+      "module_type": "binary",
+      "text": "unexpected character 'x'"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 45,
+      "filename": "extern-names.8.wasm",
+      "module_type": "binary",
+      "text": "empty identifier segment"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 48,
+      "filename": "extern-names.9.wasm",
+      "module_type": "binary",
+      "text": "empty identifier segment"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 54,
+      "filename": "extern-names.10.wasm",
+      "module_type": "binary",
+      "text": "expected `/` after package name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 57,
+      "filename": "extern-names.11.wasm",
+      "module_type": "binary",
+      "text": "trailing characters found: `/qux`"
+    }
+  ]
+}

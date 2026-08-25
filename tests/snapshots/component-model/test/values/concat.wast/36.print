@@ -1,0 +1,675 @@
+(component
+  (component $C (;0;)
+    (core module $CM (;0;)
+      (type (;0;) (func (param i32 i32 i32 i32) (result i32)))
+      (type (;1;) (func (param i32 i32)))
+      (type (;2;) (func (param i32)))
+      (type (;3;) (func (param i64) (result i32 i32)))
+      (type (;4;) (func (param i64)))
+      (type (;5;) (func (result i32)))
+      (type (;6;) (func (param i32 i32) (result i32)))
+      (memory (;0;) 4)
+      (global $next (;0;) (mut i32) i32.const 65536)
+      (global $w (;1;) (mut i32) i32.const 1024)
+      (export "mem" (memory 0))
+      (export "realloc" (func 0))
+      (export "map-str-u32" (func 9))
+      (export "map-u32-str" (func 10))
+      (export "map-char-bool" (func 11))
+      (export "map-u8-u64" (func 12))
+      (export "map-str-list" (func 13))
+      (export "map-str-map" (func 14))
+      (func (;0;) (type 0) (param $old i32) (param $os i32) (param $al i32) (param $ns i32) (result i32)
+        (local $r i32)
+        global.get $next
+        i32.const 7
+        i32.add
+        i32.const -8
+        i32.and
+        global.set $next
+        global.get $next
+        local.set $r
+        global.get $next
+        local.get $ns
+        i32.add
+        global.set $next
+        local.get $r
+      )
+      (func $emit (;1;) (type 1) (param $src i32) (param $len i32)
+        global.get $w
+        local.get $src
+        local.get $len
+        memory.copy
+        global.get $w
+        local.get $len
+        i32.add
+        global.set $w
+      )
+      (func $emit_char (;2;) (type 2) (param $c i32)
+        global.get $w
+        local.get $c
+        i32.store8
+        global.get $w
+        i32.const 1
+        i32.add
+        global.set $w
+      )
+      (func $u64toa (;3;) (type 3) (param $v i64) (result i32 i32)
+        (local $p i32)
+        i32.const 48
+        local.set $p
+        block $z
+          local.get $v
+          i64.eqz
+          br_if $z
+          loop $l
+            local.get $p
+            i32.const 1
+            i32.sub
+            local.set $p
+            local.get $p
+            i32.const 48
+            local.get $v
+            i64.const 10
+            i64.rem_u
+            i32.wrap_i64
+            i32.add
+            i32.store8
+            local.get $v
+            i64.const 10
+            i64.div_u
+            local.set $v
+            local.get $v
+            i64.const 0
+            i64.ne
+            br_if $l
+          end
+          local.get $p
+          i32.const 48
+          local.get $p
+          i32.sub
+          return
+        end
+        i32.const 47
+        i32.const 48
+        i32.store8
+        i32.const 47
+        i32.const 1
+      )
+      (func $emit_u64 (;4;) (type 4) (param $v i64)
+        (local $p i32) (local $l i32)
+        local.get $v
+        call $u64toa
+        local.set $l
+        local.set $p
+        local.get $p
+        local.get $l
+        call $emit
+      )
+      (func $emit_bool (;5;) (type 2) (param $b i32)
+        local.get $b
+        if ;; label = @1
+          i32.const 64
+          i32.const 4
+          call $emit
+        else
+          i32.const 68
+          i32.const 5
+          call $emit
+        end
+      )
+      (func $emit_u32_list (;6;) (type 1) (param $ptr i32) (param $len i32)
+        (local $i i32)
+        block $d
+          loop $l
+            local.get $i
+            local.get $len
+            i32.ge_u
+            br_if $d
+            local.get $ptr
+            local.get $i
+            i32.const 4
+            i32.mul
+            i32.add
+            i32.load
+            i64.extend_i32_u
+            call $emit_u64
+            local.get $i
+            i32.const 1
+            i32.add
+            local.set $i
+            br $l
+          end
+        end
+      )
+      (func $emit_u8_list (;7;) (type 1) (param $ptr i32) (param $len i32)
+        (local $i i32)
+        block $d
+          loop $l
+            local.get $i
+            local.get $len
+            i32.ge_u
+            br_if $d
+            local.get $ptr
+            local.get $i
+            i32.add
+            i32.load8_u
+            i64.extend_i32_u
+            call $emit_u64
+            local.get $i
+            i32.const 1
+            i32.add
+            local.set $i
+            br $l
+          end
+        end
+      )
+      (func $finish (;8;) (type 5) (result i32)
+        i32.const 0
+        i32.const 1024
+        i32.store
+        i32.const 4
+        global.get $w
+        i32.const 1024
+        i32.sub
+        i32.store
+        i32.const 0
+      )
+      (func (;9;) (type 6) (param $p i32) (param $n i32) (result i32)
+        (local $i i32) (local $e i32)
+        i32.const 1024
+        global.set $w
+        block $d
+          loop $l
+            local.get $i
+            local.get $n
+            i32.ge_u
+            br_if $d
+            local.get $p
+            local.get $i
+            i32.const 12
+            i32.mul
+            i32.add
+            local.set $e
+            local.get $e
+            i32.load
+            local.get $e
+            i32.load offset=4
+            call $emit
+            local.get $e
+            i32.load offset=8
+            i64.extend_i32_u
+            call $emit_u64
+            local.get $i
+            i32.const 1
+            i32.add
+            local.set $i
+            br $l
+          end
+        end
+        call $finish
+      )
+      (func (;10;) (type 6) (param $p i32) (param $n i32) (result i32)
+        (local $i i32) (local $e i32)
+        i32.const 1024
+        global.set $w
+        block $d
+          loop $l
+            local.get $i
+            local.get $n
+            i32.ge_u
+            br_if $d
+            local.get $p
+            local.get $i
+            i32.const 12
+            i32.mul
+            i32.add
+            local.set $e
+            local.get $e
+            i32.load
+            i64.extend_i32_u
+            call $emit_u64
+            local.get $e
+            i32.load offset=4
+            local.get $e
+            i32.load offset=8
+            call $emit
+            local.get $i
+            i32.const 1
+            i32.add
+            local.set $i
+            br $l
+          end
+        end
+        call $finish
+      )
+      (func (;11;) (type 6) (param $p i32) (param $n i32) (result i32)
+        (local $i i32) (local $e i32)
+        i32.const 1024
+        global.set $w
+        block $d
+          loop $l
+            local.get $i
+            local.get $n
+            i32.ge_u
+            br_if $d
+            local.get $p
+            local.get $i
+            i32.const 8
+            i32.mul
+            i32.add
+            local.set $e
+            local.get $e
+            i32.load
+            call $emit_char
+            local.get $e
+            i32.load8_u offset=4
+            call $emit_bool
+            local.get $i
+            i32.const 1
+            i32.add
+            local.set $i
+            br $l
+          end
+        end
+        call $finish
+      )
+      (func (;12;) (type 6) (param $p i32) (param $n i32) (result i32)
+        (local $i i32) (local $e i32)
+        i32.const 1024
+        global.set $w
+        block $d
+          loop $l
+            local.get $i
+            local.get $n
+            i32.ge_u
+            br_if $d
+            local.get $p
+            local.get $i
+            i32.const 16
+            i32.mul
+            i32.add
+            local.set $e
+            local.get $e
+            i32.load8_u
+            i64.extend_i32_u
+            call $emit_u64
+            local.get $e
+            i64.load offset=8
+            call $emit_u64
+            local.get $i
+            i32.const 1
+            i32.add
+            local.set $i
+            br $l
+          end
+        end
+        call $finish
+      )
+      (func (;13;) (type 6) (param $p i32) (param $n i32) (result i32)
+        (local $i i32) (local $e i32)
+        i32.const 1024
+        global.set $w
+        block $d
+          loop $l
+            local.get $i
+            local.get $n
+            i32.ge_u
+            br_if $d
+            local.get $p
+            local.get $i
+            i32.const 16
+            i32.mul
+            i32.add
+            local.set $e
+            local.get $e
+            i32.load
+            local.get $e
+            i32.load offset=4
+            call $emit
+            local.get $e
+            i32.load offset=8
+            local.get $e
+            i32.load offset=12
+            call $emit_u32_list
+            local.get $i
+            i32.const 1
+            i32.add
+            local.set $i
+            br $l
+          end
+        end
+        call $finish
+      )
+      (func (;14;) (type 6) (param $p i32) (param $n i32) (result i32)
+        (local $i i32) (local $e i32) (local $ip i32) (local $il i32) (local $j i32) (local $ie i32)
+        i32.const 1024
+        global.set $w
+        block $od
+          loop $ol
+            local.get $i
+            local.get $n
+            i32.ge_u
+            br_if $od
+            local.get $p
+            local.get $i
+            i32.const 16
+            i32.mul
+            i32.add
+            local.set $e
+            local.get $e
+            i32.load
+            local.get $e
+            i32.load offset=4
+            call $emit
+            local.get $e
+            i32.load offset=8
+            local.set $ip
+            local.get $e
+            i32.load offset=12
+            local.set $il
+            i32.const 0
+            local.set $j
+            block $id
+              loop $il2
+                local.get $j
+                local.get $il
+                i32.ge_u
+                br_if $id
+                local.get $ip
+                local.get $j
+                i32.const 16
+                i32.mul
+                i32.add
+                local.set $ie
+                local.get $ie
+                i32.load
+                local.get $ie
+                i32.load offset=4
+                call $emit
+                local.get $ie
+                i32.load offset=8
+                local.get $ie
+                i32.load offset=12
+                call $emit_u8_list
+                local.get $j
+                i32.const 1
+                i32.add
+                local.set $j
+                br $il2
+              end
+            end
+            local.get $i
+            i32.const 1
+            i32.add
+            local.set $i
+            br $ol
+          end
+        end
+        call $finish
+      )
+      (data (;0;) (i32.const 64) "truefalse")
+    )
+    (core instance $cm (;0;) (instantiate $CM))
+    (type (;0;) (map string u32))
+    (type (;1;) (func (param "a" 0) (result string)))
+    (alias core export $cm "map-str-u32" (core func (;0;)))
+    (alias core export $cm "mem" (core memory (;0;)))
+    (alias core export $cm "realloc" (core func (;1;)))
+    (func (;0;) (type 1) (canon lift (core func 0) (memory 0) (realloc 1)))
+    (type (;2;) (map u32 string))
+    (type (;3;) (func (param "a" 2) (result string)))
+    (alias core export $cm "map-u32-str" (core func (;2;)))
+    (alias core export $cm "mem" (core memory (;1;)))
+    (alias core export $cm "realloc" (core func (;3;)))
+    (func (;1;) (type 3) (canon lift (core func 2) (memory 1) (realloc 3)))
+    (type (;4;) (map char bool))
+    (type (;5;) (func (param "a" 4) (result string)))
+    (alias core export $cm "map-char-bool" (core func (;4;)))
+    (alias core export $cm "mem" (core memory (;2;)))
+    (alias core export $cm "realloc" (core func (;5;)))
+    (func (;2;) (type 5) (canon lift (core func 4) (memory 2) (realloc 5)))
+    (type (;6;) (map u8 u64))
+    (type (;7;) (func (param "a" 6) (result string)))
+    (alias core export $cm "map-u8-u64" (core func (;6;)))
+    (alias core export $cm "mem" (core memory (;3;)))
+    (alias core export $cm "realloc" (core func (;7;)))
+    (func (;3;) (type 7) (canon lift (core func 6) (memory 3) (realloc 7)))
+    (type (;8;) (list u32))
+    (type (;9;) (map string 8))
+    (type (;10;) (func (param "a" 9) (result string)))
+    (alias core export $cm "map-str-list" (core func (;8;)))
+    (alias core export $cm "mem" (core memory (;4;)))
+    (alias core export $cm "realloc" (core func (;9;)))
+    (func (;4;) (type 10) (canon lift (core func 8) (memory 4) (realloc 9)))
+    (type (;11;) (list u8))
+    (type (;12;) (map string 11))
+    (type (;13;) (map string 12))
+    (type (;14;) (func (param "a" 13) (result string)))
+    (alias core export $cm "map-str-map" (core func (;10;)))
+    (alias core export $cm "mem" (core memory (;5;)))
+    (alias core export $cm "realloc" (core func (;11;)))
+    (func (;5;) (type 14) (canon lift (core func 10) (memory 5) (realloc 11)))
+    (export (;6;) "map-str-u32" (func 0))
+    (export (;7;) "map-u32-str" (func 1))
+    (export (;8;) "map-char-bool" (func 2))
+    (export (;9;) "map-u8-u64" (func 3))
+    (export (;10;) "map-str-list" (func 4))
+    (export (;11;) "map-str-map" (func 5))
+  )
+  (component $D (;1;)
+    (type (;0;)
+      (instance
+        (type (;0;) (map string u32))
+        (type (;1;) (func (param "a" 0) (result string)))
+        (export (;0;) "map-str-u32" (func (type 1)))
+        (type (;2;) (map u32 string))
+        (type (;3;) (func (param "a" 2) (result string)))
+        (export (;1;) "map-u32-str" (func (type 3)))
+        (type (;4;) (map char bool))
+        (type (;5;) (func (param "a" 4) (result string)))
+        (export (;2;) "map-char-bool" (func (type 5)))
+        (type (;6;) (map u8 u64))
+        (type (;7;) (func (param "a" 6) (result string)))
+        (export (;3;) "map-u8-u64" (func (type 7)))
+        (type (;8;) (list u32))
+        (type (;9;) (map string 8))
+        (type (;10;) (func (param "a" 9) (result string)))
+        (export (;4;) "map-str-list" (func (type 10)))
+        (type (;11;) (list u8))
+        (type (;12;) (map string 11))
+        (type (;13;) (map string 12))
+        (type (;14;) (func (param "a" 13) (result string)))
+        (export (;5;) "map-str-map" (func (type 14)))
+      )
+    )
+    (import "c" (instance $c (;0;) (type 0)))
+    (core module $DM (;0;)
+      (type (;0;) (func (param i32 i32 i32 i32) (result i32)))
+      (memory (;0;) 4)
+      (global $next (;0;) (mut i32) i32.const 65536)
+      (export "mem" (memory 0))
+      (export "realloc" (func 0))
+      (func (;0;) (type 0) (param $old i32) (param $os i32) (param $al i32) (param $ns i32) (result i32)
+        (local $r i32)
+        global.get $next
+        i32.const 7
+        i32.add
+        i32.const -8
+        i32.and
+        global.set $next
+        global.get $next
+        local.set $r
+        global.get $next
+        local.get $ns
+        i32.add
+        global.set $next
+        local.get $r
+      )
+    )
+    (core instance $dm (;0;) (instantiate $DM))
+    (alias export $c "map-str-u32" (func (;0;)))
+    (alias core export $dm "mem" (core memory (;0;)))
+    (alias core export $dm "realloc" (core func (;0;)))
+    (core func $map-str-u32' (;1;) (canon lower (func 0) (memory 0) (realloc 0)))
+    (alias export $c "map-u32-str" (func (;1;)))
+    (alias core export $dm "mem" (core memory (;1;)))
+    (alias core export $dm "realloc" (core func (;2;)))
+    (core func $map-u32-str' (;3;) (canon lower (func 1) (memory 1) (realloc 2)))
+    (alias export $c "map-char-bool" (func (;2;)))
+    (alias core export $dm "mem" (core memory (;2;)))
+    (alias core export $dm "realloc" (core func (;4;)))
+    (core func $map-char-bool' (;5;) (canon lower (func 2) (memory 2) (realloc 4)))
+    (alias export $c "map-u8-u64" (func (;3;)))
+    (alias core export $dm "mem" (core memory (;3;)))
+    (alias core export $dm "realloc" (core func (;6;)))
+    (core func $map-u8-u64' (;7;) (canon lower (func 3) (memory 3) (realloc 6)))
+    (alias export $c "map-str-list" (func (;4;)))
+    (alias core export $dm "mem" (core memory (;4;)))
+    (alias core export $dm "realloc" (core func (;8;)))
+    (core func $map-str-list' (;9;) (canon lower (func 4) (memory 4) (realloc 8)))
+    (alias export $c "map-str-map" (func (;5;)))
+    (alias core export $dm "mem" (core memory (;5;)))
+    (alias core export $dm "realloc" (core func (;10;)))
+    (core func $map-str-map' (;11;) (canon lower (func 5) (memory 5) (realloc 10)))
+    (core module $Fwd (;1;)
+      (type (;0;) (func (param i32 i32 i32)))
+      (type (;1;) (func (param i32 i32) (result i32)))
+      (import "" "map-str-u32" (func $str-u32 (;0;) (type 0)))
+      (import "" "map-u32-str" (func $u32-str (;1;) (type 0)))
+      (import "" "map-char-bool" (func $char-bool (;2;) (type 0)))
+      (import "" "map-u8-u64" (func $u8-u64 (;3;) (type 0)))
+      (import "" "map-str-list" (func $str-list (;4;) (type 0)))
+      (import "" "map-str-map" (func $str-map (;5;) (type 0)))
+      (export "map-str-u32" (func 6))
+      (export "map-u32-str" (func 7))
+      (export "map-char-bool" (func 8))
+      (export "map-u8-u64" (func 9))
+      (export "map-str-list" (func 10))
+      (export "map-str-map" (func 11))
+      (func (;6;) (type 1) (param $p i32) (param $n i32) (result i32)
+        local.get $p
+        local.get $n
+        i32.const 16
+        call $str-u32
+        i32.const 16
+      )
+      (func (;7;) (type 1) (param $p i32) (param $n i32) (result i32)
+        local.get $p
+        local.get $n
+        i32.const 16
+        call $u32-str
+        i32.const 16
+      )
+      (func (;8;) (type 1) (param $p i32) (param $n i32) (result i32)
+        local.get $p
+        local.get $n
+        i32.const 16
+        call $char-bool
+        i32.const 16
+      )
+      (func (;9;) (type 1) (param $p i32) (param $n i32) (result i32)
+        local.get $p
+        local.get $n
+        i32.const 16
+        call $u8-u64
+        i32.const 16
+      )
+      (func (;10;) (type 1) (param $p i32) (param $n i32) (result i32)
+        local.get $p
+        local.get $n
+        i32.const 16
+        call $str-list
+        i32.const 16
+      )
+      (func (;11;) (type 1) (param $p i32) (param $n i32) (result i32)
+        local.get $p
+        local.get $n
+        i32.const 16
+        call $str-map
+        i32.const 16
+      )
+    )
+    (core instance (;1;)
+      (export "map-str-u32" (func $map-str-u32'))
+      (export "map-u32-str" (func $map-u32-str'))
+      (export "map-char-bool" (func $map-char-bool'))
+      (export "map-u8-u64" (func $map-u8-u64'))
+      (export "map-str-list" (func $map-str-list'))
+      (export "map-str-map" (func $map-str-map'))
+    )
+    (core instance $fwd (;2;) (instantiate $Fwd
+        (with "" (instance 1))
+      )
+    )
+    (type (;1;) (tuple string u32))
+    (type (;2;) (list 1))
+    (type (;3;) (func (param "a" 2) (result string)))
+    (alias core export $fwd "map-str-u32" (core func (;12;)))
+    (alias core export $dm "mem" (core memory (;6;)))
+    (alias core export $dm "realloc" (core func (;13;)))
+    (func (;6;) (type 3) (canon lift (core func 12) (memory 6) (realloc 13)))
+    (type (;4;) (tuple u32 string))
+    (type (;5;) (list 4))
+    (type (;6;) (func (param "a" 5) (result string)))
+    (alias core export $fwd "map-u32-str" (core func (;14;)))
+    (alias core export $dm "mem" (core memory (;7;)))
+    (alias core export $dm "realloc" (core func (;15;)))
+    (func (;7;) (type 6) (canon lift (core func 14) (memory 7) (realloc 15)))
+    (type (;7;) (tuple char bool))
+    (type (;8;) (list 7))
+    (type (;9;) (func (param "a" 8) (result string)))
+    (alias core export $fwd "map-char-bool" (core func (;16;)))
+    (alias core export $dm "mem" (core memory (;8;)))
+    (alias core export $dm "realloc" (core func (;17;)))
+    (func (;8;) (type 9) (canon lift (core func 16) (memory 8) (realloc 17)))
+    (type (;10;) (tuple u8 u64))
+    (type (;11;) (list 10))
+    (type (;12;) (func (param "a" 11) (result string)))
+    (alias core export $fwd "map-u8-u64" (core func (;18;)))
+    (alias core export $dm "mem" (core memory (;9;)))
+    (alias core export $dm "realloc" (core func (;19;)))
+    (func (;9;) (type 12) (canon lift (core func 18) (memory 9) (realloc 19)))
+    (type (;13;) (list u32))
+    (type (;14;) (tuple string 13))
+    (type (;15;) (list 14))
+    (type (;16;) (func (param "a" 15) (result string)))
+    (alias core export $fwd "map-str-list" (core func (;20;)))
+    (alias core export $dm "mem" (core memory (;10;)))
+    (alias core export $dm "realloc" (core func (;21;)))
+    (func (;10;) (type 16) (canon lift (core func 20) (memory 10) (realloc 21)))
+    (type (;17;) (list u8))
+    (type (;18;) (tuple string 17))
+    (type (;19;) (list 18))
+    (type (;20;) (tuple string 19))
+    (type (;21;) (list 20))
+    (type (;22;) (func (param "a" 21) (result string)))
+    (alias core export $fwd "map-str-map" (core func (;22;)))
+    (alias core export $dm "mem" (core memory (;11;)))
+    (alias core export $dm "realloc" (core func (;23;)))
+    (func (;11;) (type 22) (canon lift (core func 22) (memory 11) (realloc 23)))
+    (export (;12;) "map-str-u32" (func 6))
+    (export (;13;) "map-u32-str" (func 7))
+    (export (;14;) "map-char-bool" (func 8))
+    (export (;15;) "map-u8-u64" (func 9))
+    (export (;16;) "map-str-list" (func 10))
+    (export (;17;) "map-str-map" (func 11))
+  )
+  (instance $c (;0;) (instantiate $C))
+  (instance $d (;1;) (instantiate $D
+      (with "c" (instance $c))
+    )
+  )
+  (alias export $d "map-str-u32" (func (;0;)))
+  (alias export $d "map-u32-str" (func (;1;)))
+  (alias export $d "map-char-bool" (func (;2;)))
+  (alias export $d "map-u8-u64" (func (;3;)))
+  (alias export $d "map-str-list" (func (;4;)))
+  (alias export $d "map-str-map" (func (;5;)))
+  (export (;6;) "map-str-u32" (func 0))
+  (export (;7;) "map-u32-str" (func 1))
+  (export (;8;) "map-char-bool" (func 2))
+  (export (;9;) "map-u8-u64" (func 3))
+  (export (;10;) "map-str-list" (func 4))
+  (export (;11;) "map-str-map" (func 5))
+)

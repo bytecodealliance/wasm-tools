@@ -1,0 +1,13 @@
+(component
+  (type $R (;0;) (resource (rep i32)))
+  (component $C (;0;)
+    (import "x" (type $x (;0;) (sub resource)))
+    (export (;1;) "y" (type $x))
+  )
+  (instance $c (;0;) (instantiate $C
+      (with "x" (type $R))
+    )
+  )
+  (alias export $c "y" (type $R2 (;1;)))
+  (core func (;0;) (canon resource.rep $R2))
+)

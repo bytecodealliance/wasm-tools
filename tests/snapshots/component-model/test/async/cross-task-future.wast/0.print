@@ -1,0 +1,171 @@
+(component
+  (component $C (;0;)
+    (core module $Memory (;0;)
+      (memory (;0;) 1)
+      (export "mem" (memory 0))
+    )
+    (core instance $memory (;0;) (instantiate $Memory))
+    (core module $CM (;1;)
+      (type (;0;) (func (param i32)))
+      (type (;1;) (func (result i64)))
+      (type (;2;) (func (param i32 i32) (result i32)))
+      (type (;3;) (func))
+      (type (;4;) (func (result i32)))
+      (type (;5;) (func (param i32 i32 i32) (result i32)))
+      (import "" "mem" (memory (;0;) 1))
+      (import "" "task.return" (func $task.return (;0;) (type 0)))
+      (import "" "future.new" (func $future.new (;1;) (type 1)))
+      (import "" "future.write" (func $future.write (;2;) (type 2)))
+      (global $futr (;0;) (mut i32) i32.const 0)
+      (global $futw (;1;) (mut i32) i32.const 0)
+      (export "one" (func $one))
+      (export "two" (func $two))
+      (export "two_cb" (func $two_cb))
+      (func $one (;3;) (type 3)
+        (local $ret i32) (local $ret64 i64)
+        call $future.new
+        local.set $ret64
+        local.get $ret64
+        i32.wrap_i64
+        global.set $futr
+        local.get $ret64
+        i64.const 32
+        i64.shr_u
+        i32.wrap_i64
+        global.set $futw
+      )
+      (func $two (;4;) (type 4) (result i32)
+        (local $ret i32) (local $ptr i32)
+        global.get $futr
+        call $task.return
+        i32.const 32
+        local.set $ptr
+        local.get $ptr
+        i32.const 66
+        i32.store
+        global.get $futw
+        local.get $ptr
+        call $future.write
+        local.set $ret
+        i32.const -1
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 0
+      )
+      (func $two_cb (;5;) (type 5) (param i32 i32 i32) (result i32)
+        unreachable
+      )
+    )
+    (type $FT (;0;) (future u8))
+    (core func $task.return (;0;) (canon task.return (result $FT)))
+    (core func $future.new (;1;) (canon future.new $FT))
+    (alias core export $memory "mem" (core memory (;0;)))
+    (core func $future.write (;2;) (canon future.write $FT async (memory 0)))
+    (alias core export $memory "mem" (core memory (;1;)))
+    (core instance (;1;)
+      (export "mem" (memory 1))
+      (export "task.return" (func $task.return))
+      (export "future.new" (func $future.new))
+      (export "future.write" (func $future.write))
+    )
+    (core instance $cm (;2;) (instantiate $CM
+        (with "" (instance 1))
+      )
+    )
+    (type (;1;) (func))
+    (alias core export $cm "one" (core func (;3;)))
+    (func (;0;) (type 1) (canon lift (core func 3)))
+    (type (;2;) (future u8))
+    (type (;3;) (func async (result 2)))
+    (alias core export $cm "two" (core func (;4;)))
+    (alias core export $cm "two_cb" (core func (;5;)))
+    (func (;1;) (type 3) (canon lift (core func 4) async (callback 5)))
+    (export (;2;) "one" (func 0))
+    (export (;3;) "two" (func 1))
+  )
+  (component $D (;1;)
+    (type (;0;)
+      (instance
+        (type (;0;) (func))
+        (export (;0;) "one" (func (type 0)))
+        (type (;1;) (future u8))
+        (type (;2;) (func async (result 1)))
+        (export (;1;) "two" (func (type 2)))
+      )
+    )
+    (import "c" (instance $c (;0;) (type 0)))
+    (core module $Memory (;0;)
+      (memory (;0;) 1)
+      (export "mem" (memory 0))
+    )
+    (core instance $memory (;0;) (instantiate $Memory))
+    (core module $DM (;1;)
+      (type (;0;) (func (param i32 i32) (result i32)))
+      (type (;1;) (func))
+      (type (;2;) (func (result i32)))
+      (import "" "mem" (memory (;0;) 1))
+      (import "" "future.read" (func $future.read (;0;) (type 0)))
+      (import "" "one" (func $one (;1;) (type 1)))
+      (import "" "two" (func $two (;2;) (type 2)))
+      (export "run" (func $run))
+      (func $run (;3;) (type 2) (result i32)
+        (local $ret i32) (local $retp i32) (local $futr i32)
+        call $one
+        call $two
+        local.set $futr
+        i32.const 32
+        local.set $retp
+        local.get $futr
+        local.get $retp
+        call $future.read
+        local.set $ret
+        i32.const 0
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $retp
+        i32.load8_u
+        i32.const 66
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 42
+      )
+    )
+    (type $FT (;1;) (future u8))
+    (alias core export $memory "mem" (core memory (;0;)))
+    (core func $future.read (;0;) (canon future.read $FT async (memory 0)))
+    (alias export $c "one" (func (;0;)))
+    (core func $one' (;1;) (canon lower (func 0)))
+    (alias export $c "two" (func (;1;)))
+    (core func $two' (;2;) (canon lower (func 1)))
+    (alias core export $memory "mem" (core memory (;1;)))
+    (core instance (;1;)
+      (export "mem" (memory 1))
+      (export "future.read" (func $future.read))
+      (export "one" (func $one'))
+      (export "two" (func $two'))
+    )
+    (core instance $dm (;2;) (instantiate $DM
+        (with "" (instance 1))
+      )
+    )
+    (type (;2;) (func async (result u32)))
+    (alias core export $dm "run" (core func (;3;)))
+    (func (;2;) (type 2) (canon lift (core func 3)))
+    (export (;3;) "run" (func 2))
+  )
+  (instance $c (;0;) (instantiate $C))
+  (instance $d (;1;) (instantiate $D
+      (with "c" (instance $c))
+    )
+  )
+  (alias export $d "run" (func (;0;)))
+  (export (;1;) "run" (func 0))
+)

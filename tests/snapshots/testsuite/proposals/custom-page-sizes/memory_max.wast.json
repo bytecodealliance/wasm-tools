@@ -2,55 +2,40 @@
   "source_filename": "tests/testsuite/proposals/custom-page-sizes/memory_max.wast",
   "commands": [
     {
-      "type": "module",
-      "line": 12,
+      "type": "module_definition",
+      "line": 4,
       "filename": "memory_max.0.wasm",
       "module_type": "binary"
     },
     {
-      "type": "register",
-      "line": 15,
-      "as": "test"
-    },
-    {
-      "type": "assert_unlinkable",
-      "line": 19,
+      "type": "module_definition",
+      "line": 8,
       "filename": "memory_max.1.wasm",
-      "module_type": "binary",
-      "text": "incompatible import type"
+      "module_type": "binary"
     },
     {
-      "type": "assert_unlinkable",
-      "line": 26,
+      "type": "module_definition",
+      "line": 12,
       "filename": "memory_max.2.wasm",
-      "module_type": "binary",
-      "text": "incompatible import type"
+      "module_type": "binary"
     },
     {
-      "type": "assert_unlinkable",
-      "line": 32,
+      "type": "module_definition",
+      "line": 17,
       "filename": "memory_max.3.wasm",
-      "module_type": "binary",
-      "text": "incompatible import type"
-    },
-    {
-      "type": "assert_unlinkable",
-      "line": 39,
-      "filename": "memory_max.4.wasm",
-      "module_type": "binary",
-      "text": "incompatible import type"
+      "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 47,
-      "filename": "memory_max.5.wasm",
+      "line": 24,
+      "filename": "memory_max.4.wasm",
       "module_type": "binary",
       "text": "memory size must be at most"
     },
     {
       "type": "assert_invalid",
-      "line": 53,
-      "filename": "memory_max.6.wasm",
+      "line": 30,
+      "filename": "memory_max.5.wasm",
       "module_type": "binary",
       "text": "memory size must be at most"
     }

@@ -1,0 +1,81 @@
+{
+  "source_filename": "tests/component-model/test/validation/core-modules.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 7,
+      "filename": "core-modules.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 25,
+      "filename": "core-modules.1.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 37,
+      "filename": "core-modules.2.wasm",
+      "module_type": "binary",
+      "text": "type index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 44,
+      "filename": "core-modules.3.wasm",
+      "module_type": "binary",
+      "text": "export name `a` already defined"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 52,
+      "filename": "core-modules.4.wasm",
+      "module_type": "binary",
+      "text": "memory size must be at most"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 63,
+      "filename": "core-modules.5.wasm",
+      "module_type": "binary",
+      "text": "name `` already defined"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 73,
+      "filename": "core-modules.6.wasm",
+      "module_type": "binary",
+      "text": "name `` already defined"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 87,
+      "filename": "core-modules.7.wasm",
+      "module_type": "binary",
+      "text": "duplicate import name `:`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 95,
+      "filename": "core-modules.8.wasm",
+      "module_type": "binary",
+      "text": "duplicate import name `:a`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 103,
+      "filename": "core-modules.9.wasm",
+      "module_type": "binary",
+      "text": "duplicate import name `:`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 111,
+      "filename": "core-modules.10.wasm",
+      "module_type": "binary",
+      "text": "duplicate import name `:a`"
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+(component
+  (core module $Tag (;0;)
+    (type (;0;) (func (param i32)))
+    (tag (;0;) (type 0) (param i32))
+    (export "t" (tag 0))
+  )
+  (core module $Thrower (;1;)
+    (type (;0;) (func (param i32)))
+    (import "tag" "t" (tag $t (;0;) (type 0) (param i32)))
+    (export "throw" (func 0))
+    (func (;0;) (type 0) (param i32)
+      local.get 0
+      throw $t
+    )
+  )
+  (core module $Catcher (;2;)
+    (type (;0;) (func (param i32)))
+    (type (;1;) (func (param i32) (result i32)))
+    (import "tag" "t" (tag $t (;0;) (type 0) (param i32)))
+    (import "a" "throw" (func $throw-a (;0;) (type 0)))
+    (import "b" "throw" (func $throw-b (;1;) (type 0)))
+    (export "run-a" (func 2))
+    (export "run-b" (func 3))
+    (func (;2;) (type 1) (param i32) (result i32)
+      block $all
+        block $h (result i32)
+          try_table (catch $t $h) (catch_all $all) ;; label = @3
+            local.get 0
+            call $throw-a
+          end
+          i32.const 99
+          return
+        end
+        return
+      end
+      i32.const 77
+    )
+    (func (;3;) (type 1) (param i32) (result i32)
+      block $all
+        block $h (result i32)
+          try_table (catch $t $h) (catch_all $all) ;; label = @3
+            local.get 0
+            call $throw-b
+          end
+          i32.const 99
+          return
+        end
+        return
+      end
+      i32.const 77
+    )
+  )
+  (core instance $tag-a (;0;) (instantiate $Tag))
+  (core instance $tag-b (;1;) (instantiate $Tag))
+  (core instance $ta (;2;) (instantiate $Thrower
+      (with "tag" (instance $tag-a))
+    )
+  )
+  (core instance $tb (;3;) (instantiate $Thrower
+      (with "tag" (instance $tag-b))
+    )
+  )
+  (core instance $c (;4;) (instantiate $Catcher
+      (with "tag" (instance $tag-a))
+      (with "a" (instance $ta))
+      (with "b" (instance $tb))
+    )
+  )
+  (type (;0;) (func (param "x" u32) (result u32)))
+  (alias core export $c "run-a" (core func (;0;)))
+  (func (;0;) (type 0) (canon lift (core func 0)))
+  (type (;1;) (func (param "x" u32) (result u32)))
+  (alias core export $c "run-b" (core func (;1;)))
+  (func (;1;) (type 1) (canon lift (core func 1)))
+  (export (;2;) "run-a" (func 0))
+  (export (;3;) "run-b" (func 1))
+)

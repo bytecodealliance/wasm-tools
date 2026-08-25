@@ -1,0 +1,12 @@
+(component
+  (type $R (;0;) (resource (rep i32)))
+  (component $eq (;0;)
+    (import "a" (type $a (;0;) (sub resource)))
+    (import "b" (type (;1;) (eq $a)))
+  )
+  (instance (;0;) (instantiate $eq
+      (with "a" (type $R))
+      (with "b" (type $R))
+    )
+  )
+)

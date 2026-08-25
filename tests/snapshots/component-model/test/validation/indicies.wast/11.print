@@ -1,0 +1,8 @@
+(component
+  (component (;0;)
+    (type (;0;) u8)
+    (core module (;0;))
+    (export (;1;) "foo" (type 0))
+    (export (;1;) "x" (core module 0))
+  )
+)

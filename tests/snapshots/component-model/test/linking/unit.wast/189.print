@@ -1,0 +1,68 @@
+(component
+  (component $Base (;0;)
+    (core module $M (;0;)
+      (type (;0;) (func (param i32) (result i32)))
+      (export "f" (func 0))
+      (func (;0;) (type 0) (param i32) (result i32)
+        local.get 0
+        i32.const 1
+        i32.add
+      )
+    )
+    (core instance $m (;0;) (instantiate $M))
+    (type (;0;) (func (param "x" u32) (result u32)))
+    (alias core export $m "f" (core func (;0;)))
+    (func (;0;) (type 0) (canon lift (core func 0)))
+    (export (;1;) "f" (func 0))
+  )
+  (component $Wrap (;1;)
+    (type (;0;) (func (param "x" u32) (result u32)))
+    (import "next" (func $next (;0;) (type 0)))
+    (core func $next_l (;0;) (canon lower (func $next)))
+    (core module $M (;0;)
+      (type (;0;) (func (param i32) (result i32)))
+      (import "e" "next" (func $next (;0;) (type 0)))
+      (export "f" (func 1))
+      (func (;1;) (type 0) (param i32) (result i32)
+        local.get 0
+        call $next
+        i32.const 10
+        i32.add
+      )
+    )
+    (core instance (;0;)
+      (export "next" (func $next_l))
+    )
+    (core instance $m (;1;) (instantiate $M
+        (with "e" (instance 0))
+      )
+    )
+    (type (;1;) (func (param "x" u32) (result u32)))
+    (alias core export $m "f" (core func (;1;)))
+    (func (;1;) (type 1) (canon lift (core func 1)))
+    (export (;2;) "f" (func 1))
+  )
+  (instance $c0 (;0;) (instantiate $Base))
+  (alias export $c0 "f" (func (;0;)))
+  (instance $c1 (;1;) (instantiate $Wrap
+      (with "next" (func 0))
+    )
+  )
+  (alias export $c1 "f" (func (;1;)))
+  (instance $c2 (;2;) (instantiate $Wrap
+      (with "next" (func 1))
+    )
+  )
+  (alias export $c2 "f" (func (;2;)))
+  (instance $c3 (;3;) (instantiate $Wrap
+      (with "next" (func 2))
+    )
+  )
+  (alias export $c3 "f" (func (;3;)))
+  (instance $c4 (;4;) (instantiate $Wrap
+      (with "next" (func 3))
+    )
+  )
+  (alias export $c4 "f" (func (;4;)))
+  (export (;5;) "f" (func 4))
+)

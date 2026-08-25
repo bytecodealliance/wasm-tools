@@ -1,0 +1,116 @@
+(component
+  (component $C (;0;)
+    (core module $Memory (;0;)
+      (memory (;0;) 1)
+      (export "mem" (memory 0))
+    )
+    (core instance $memory (;0;) (instantiate $Memory))
+    (core module $CM (;1;)
+      (type (;0;) (func (result i32)))
+      (type (;1;) (func (param i32 i32 i32) (result i32)))
+      (import "" "mem" (memory (;0;) 1))
+      (import "" "waitable-set.new" (func $waitable-set.new (;0;) (type 0)))
+      (export "f" (func 1))
+      (export "cb" (func 2))
+      (func (;1;) (type 0) (result i32)
+        (local $ws i32)
+        call $waitable-set.new
+        local.set $ws
+        i32.const 2
+        local.get $ws
+        i32.const 4
+        i32.shl
+        i32.or
+      )
+      (func (;2;) (type 1) (param $event_code i32) (param $index i32) (param $payload i32) (result i32)
+        unreachable
+      )
+    )
+    (core func $waitable-set.new (;0;) (canon waitable-set.new))
+    (alias core export $memory "mem" (core memory (;0;)))
+    (core instance (;1;)
+      (export "mem" (memory 0))
+      (export "waitable-set.new" (func $waitable-set.new))
+    )
+    (core instance $cm (;2;) (instantiate $CM
+        (with "" (instance 1))
+      )
+    )
+    (type (;0;) (func async (result u32)))
+    (alias core export $cm "f" (core func (;1;)))
+    (alias core export $memory "mem" (core memory (;1;)))
+    (alias core export $cm "cb" (core func (;2;)))
+    (func (;0;) (type 0) (canon lift (core func 1) async (memory 1) (callback 2)))
+    (export (;1;) "f" (func 0))
+  )
+  (component $D (;1;)
+    (type (;0;) (func async (result u32)))
+    (import "f" (func $f (;0;) (type 0)))
+    (core module $Memory (;0;)
+      (memory (;0;) 1)
+      (export "mem" (memory 0))
+    )
+    (core instance $memory (;0;) (instantiate $Memory))
+    (core module $DM (;1;)
+      (type (;0;) (func (param i32 i32)))
+      (type (;1;) (func (result i32)))
+      (type (;2;) (func (param i32 i32) (result i32)))
+      (type (;3;) (func (param i32) (result i32)))
+      (import "" "mem" (memory (;0;) 1))
+      (import "" "waitable.join" (func $waitable.join (;0;) (type 0)))
+      (import "" "waitable-set.new" (func $waitable-set.new (;1;) (type 1)))
+      (import "" "waitable-set.wait" (func $waitable-set.wait (;2;) (type 2)))
+      (import "" "f" (func $f (;3;) (type 3)))
+      (export "g" (func 4))
+      (func (;4;) (type 1) (result i32)
+        (local $ws i32) (local $ret i32) (local $subtaski i32)
+        i32.const 0
+        call $f
+        local.set $ret
+        local.get $ret
+        i32.const 4
+        i32.shr_u
+        local.set $subtaski
+        call $waitable-set.new
+        local.set $ws
+        local.get $subtaski
+        local.get $ws
+        call $waitable.join
+        local.get $ws
+        i32.const 0
+        call $waitable-set.wait
+        unreachable
+      )
+    )
+    (core func $waitable.join (;0;) (canon waitable.join))
+    (core func $waitable-set.new (;1;) (canon waitable-set.new))
+    (alias core export $memory "mem" (core memory (;0;)))
+    (core func $waitable-set.wait (;2;) (canon waitable-set.wait (memory 0)))
+    (alias core export $memory "mem" (core memory (;1;)))
+    (core func $f' (;3;) (canon lower (func $f) async (memory 1)))
+    (alias core export $memory "mem" (core memory (;2;)))
+    (core instance (;1;)
+      (export "mem" (memory 2))
+      (export "waitable.join" (func $waitable.join))
+      (export "waitable-set.new" (func $waitable-set.new))
+      (export "waitable-set.wait" (func $waitable-set.wait))
+      (export "f" (func $f'))
+    )
+    (core instance $dm (;2;) (instantiate $DM
+        (with "" (instance 1))
+      )
+    )
+    (type (;1;) (func async (result u32)))
+    (alias core export $dm "g" (core func (;4;)))
+    (func (;1;) (type 1) (canon lift (core func 4)))
+    (export (;2;) "f" (func 1))
+  )
+  (instance $c (;0;) (instantiate $C))
+  (alias export $c "f" (func (;0;)))
+  (instance $d (;1;) (instantiate $D
+      (with "f" (func 0))
+    )
+  )
+  (alias export $d "f" (func (;1;)))
+  (export (;2;) "f" (func 1))
+)

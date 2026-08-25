@@ -1,0 +1,45 @@
+(component
+  (core func $context.get (;0;) (canon context.get i32 0))
+  (core func $context.set (;1;) (canon context.set i32 0))
+  (core module $CM (;0;)
+    (type (;0;) (func (result i32)))
+    (type (;1;) (func (param i32)))
+    (import "" "context.get" (func $context.get (;0;) (type 0)))
+    (import "" "context.set" (func $context.set (;1;) (type 1)))
+    (global $saved (;0;) (mut i32) i32.const 0)
+    (export "f" (func 2))
+    (export "f-pr" (func 3))
+    (export "check" (func 4))
+    (func (;2;) (type 0) (result i32)
+      i32.const 42
+      call $context.set
+      i32.const 7
+    )
+    (func (;3;) (type 1) (param i32)
+      call $context.get
+      global.set $saved
+      i32.const 99
+      call $context.set
+    )
+    (func (;4;) (type 0) (result i32)
+      global.get $saved
+    )
+  )
+  (core instance (;0;)
+    (export "context.get" (func $context.get))
+    (export "context.set" (func $context.set))
+  )
+  (core instance $cm (;1;) (instantiate $CM
+      (with "" (instance 0))
+    )
+  )
+  (type (;0;) (func (result u32)))
+  (alias core export $cm "f" (core func (;2;)))
+  (alias core export $cm "f-pr" (core func (;3;)))
+  (func (;0;) (type 0) (canon lift (core func 2) (post-return 3)))
+  (type (;1;) (func (result u32)))
+  (alias core export $cm "check" (core func (;4;)))
+  (func (;1;) (type 1) (canon lift (core func 4)))
+  (export (;2;) "f" (func 0))
+  (export (;3;) "check" (func 1))
+)

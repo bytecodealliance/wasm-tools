@@ -1,0 +1,261 @@
+(component $Tester
+  (component $C (;0;)
+    (core module $Memory (;0;)
+      (memory (;0;) 1)
+      (export "mem" (memory 0))
+    )
+    (core instance $memory (;0;) (instantiate $Memory))
+    (core module $CM (;1;)
+      (type (;0;) (func (result i64)))
+      (type (;1;) (func (param i32 i32 i32) (result i32)))
+      (type (;2;) (func (param i32)))
+      (type (;3;) (func (result i32)))
+      (type (;4;) (func))
+      (import "" "mem" (memory (;0;) 1))
+      (import "" "stream.new" (func $stream.new (;0;) (type 0)))
+      (import "" "stream.write" (func $stream.write (;1;) (type 1)))
+      (import "" "stream.drop-writable" (func $stream.drop-writable (;2;) (type 2)))
+      (global $sw (;0;) (mut i32) i32.const 0)
+      (export "start-stream" (func $start-stream))
+      (export "write4" (func $write4))
+      (export "start-blocking-write" (func $start-blocking-write))
+      (export "drop-writable" (func $drop-writable))
+      (func $start-stream (;3;) (type 3) (result i32)
+        (local $ret64 i64)
+        call $stream.new
+        local.set $ret64
+        local.get $ret64
+        i64.const 32
+        i64.shr_u
+        i32.wrap_i64
+        global.set $sw
+        local.get $ret64
+        i32.wrap_i64
+      )
+      (func $write4 (;4;) (type 4)
+        (local $ret i32)
+        i32.const 8
+        i32.const 305419896
+        i32.store
+        global.get $sw
+        i32.const 8
+        i32.const 4
+        call $stream.write
+        local.set $ret
+        i32.const 64
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+      )
+      (func $start-blocking-write (;5;) (type 4)
+        (local $ret i32)
+        i32.const 8
+        i64.const 81985529216486895
+        i64.store
+        global.get $sw
+        i32.const 8
+        i32.const 8
+        call $stream.write
+        local.set $ret
+        i32.const -1
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+      )
+      (func $drop-writable (;6;) (type 4)
+        global.get $sw
+        call $stream.drop-writable
+      )
+    )
+    (type $ST (;0;) (stream u8))
+    (core func $stream.new (;0;) (canon stream.new $ST))
+    (alias core export $memory "mem" (core memory (;0;)))
+    (core func $stream.write (;1;) (canon stream.write $ST async (memory 0)))
+    (core func $stream.drop-writable (;2;) (canon stream.drop-writable $ST))
+    (alias core export $memory "mem" (core memory (;1;)))
+    (core instance (;1;)
+      (export "mem" (memory 1))
+      (export "stream.new" (func $stream.new))
+      (export "stream.write" (func $stream.write))
+      (export "stream.drop-writable" (func $stream.drop-writable))
+    )
+    (core instance $cm (;2;) (instantiate $CM
+        (with "" (instance 1))
+      )
+    )
+    (type (;1;) (stream u8))
+    (type (;2;) (func (result 1)))
+    (alias core export $cm "start-stream" (core func (;3;)))
+    (func (;0;) (type 2) (canon lift (core func 3)))
+    (type (;3;) (func))
+    (alias core export $cm "write4" (core func (;4;)))
+    (func (;1;) (type 3) (canon lift (core func 4)))
+    (type (;4;) (func))
+    (alias core export $cm "start-blocking-write" (core func (;5;)))
+    (func (;2;) (type 4) (canon lift (core func 5)))
+    (type (;5;) (func))
+    (alias core export $cm "drop-writable" (core func (;6;)))
+    (func (;3;) (type 5) (canon lift (core func 6)))
+    (export (;4;) "start-stream" (func 0))
+    (export (;5;) "write4" (func 1))
+    (export (;6;) "start-blocking-write" (func 2))
+    (export (;7;) "drop-writable" (func 3))
+  )
+  (component $D (;1;)
+    (type (;0;)
+      (instance
+        (type (;0;) (stream u8))
+        (type (;1;) (func (result 0)))
+        (export (;0;) "start-stream" (func (type 1)))
+        (type (;2;) (func))
+        (export (;1;) "write4" (func (type 2)))
+        (type (;3;) (func))
+        (export (;2;) "start-blocking-write" (func (type 3)))
+        (type (;4;) (func))
+        (export (;3;) "drop-writable" (func (type 4)))
+      )
+    )
+    (import "c" (instance $c (;0;) (type 0)))
+    (core module $Memory (;0;)
+      (memory (;0;) 1)
+      (export "mem" (memory 0))
+    )
+    (core instance $memory (;0;) (instantiate $Memory))
+    (core module $Core (;1;)
+      (type (;0;) (func (result i64)))
+      (type (;1;) (func (param i32 i32 i32) (result i32)))
+      (type (;2;) (func (param i32)))
+      (type (;3;) (func (result i32)))
+      (type (;4;) (func))
+      (import "" "mem" (memory (;0;) 1))
+      (import "" "stream.new" (func $stream.new (;0;) (type 0)))
+      (import "" "stream.read" (func $stream.read (;1;) (type 1)))
+      (import "" "stream.write" (func $stream.write (;2;) (type 1)))
+      (import "" "stream.drop-readable" (func $stream.drop-readable (;3;) (type 2)))
+      (import "" "stream.drop-writable" (func $stream.drop-writable (;4;) (type 2)))
+      (import "" "start-stream" (func $start-stream (;5;) (type 3)))
+      (import "" "write4" (func $write4 (;6;) (type 4)))
+      (import "" "start-blocking-write" (func $start-blocking-write (;7;) (type 4)))
+      (import "" "drop-writable" (func $drop-writable (;8;) (type 4)))
+      (export "drop-while-reading" (func 9))
+      (export "drop-while-writing" (func 10))
+      (func (;9;) (type 4)
+        (local $ret i32) (local $sr i32)
+        call $start-stream
+        local.set $sr
+        i32.const 1
+        local.get $sr
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $sr
+        i32.const 8
+        i32.const 100
+        call $stream.read
+        local.set $ret
+        i32.const -1
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        call $write4
+        i32.const 305419896
+        i32.const 8
+        i32.load
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $sr
+        call $stream.drop-readable
+      )
+      (func (;10;) (type 4)
+        (local $ret i32) (local $sr i32)
+        call $start-stream
+        local.set $sr
+        i32.const 1
+        local.get $sr
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        call $start-blocking-write
+        local.get $sr
+        i32.const 8
+        i32.const 4
+        call $stream.read
+        local.set $ret
+        i32.const 64
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const -1985229329
+        i32.const 8
+        i32.load
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        call $drop-writable
+      )
+    )
+    (type $ST (;1;) (stream u8))
+    (core func $stream.new (;0;) (canon stream.new $ST))
+    (alias core export $memory "mem" (core memory (;0;)))
+    (core func $stream.read (;1;) (canon stream.read $ST async (memory 0)))
+    (alias core export $memory "mem" (core memory (;1;)))
+    (core func $stream.write (;2;) (canon stream.write $ST async (memory 1)))
+    (core func $stream.drop-readable (;3;) (canon stream.drop-readable $ST))
+    (core func $stream.drop-writable (;4;) (canon stream.drop-writable $ST))
+    (alias export $c "start-stream" (func (;0;)))
+    (core func $start-stream' (;5;) (canon lower (func 0)))
+    (alias export $c "write4" (func (;1;)))
+    (core func $write4' (;6;) (canon lower (func 1)))
+    (alias export $c "start-blocking-write" (func (;2;)))
+    (core func $start-blocking-write' (;7;) (canon lower (func 2)))
+    (alias export $c "drop-writable" (func (;3;)))
+    (core func $drop-writable' (;8;) (canon lower (func 3)))
+    (alias core export $memory "mem" (core memory (;2;)))
+    (core instance (;1;)
+      (export "mem" (memory 2))
+      (export "stream.new" (func $stream.new))
+      (export "stream.read" (func $stream.read))
+      (export "stream.write" (func $stream.write))
+      (export "stream.drop-readable" (func $stream.drop-readable))
+      (export "stream.drop-writable" (func $stream.drop-writable))
+      (export "start-stream" (func $start-stream'))
+      (export "write4" (func $write4'))
+      (export "start-blocking-write" (func $start-blocking-write'))
+      (export "drop-writable" (func $drop-writable'))
+    )
+    (core instance $core (;2;) (instantiate $Core
+        (with "" (instance 1))
+      )
+    )
+    (type (;2;) (func))
+    (alias core export $core "drop-while-reading" (core func (;9;)))
+    (func (;4;) (type 2) (canon lift (core func 9)))
+    (type (;3;) (func))
+    (alias core export $core "drop-while-writing" (core func (;10;)))
+    (func (;5;) (type 3) (canon lift (core func 10)))
+    (export (;6;) "drop-while-reading" (func 4))
+    (export (;7;) "drop-while-writing" (func 5))
+  )
+  (instance $c (;0;) (instantiate $C))
+  (instance $d (;1;) (instantiate $D
+      (with "c" (instance $c))
+    )
+  )
+  (alias export $d "drop-while-reading" (func (;0;)))
+  (alias export $d "drop-while-writing" (func (;1;)))
+  (export (;2;) "drop-while-reading" (func 0))
+  (export (;3;) "drop-while-writing" (func 1))
+)

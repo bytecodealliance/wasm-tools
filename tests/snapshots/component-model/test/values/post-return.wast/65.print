@@ -1,0 +1,101 @@
+(component
+  (component $C (;0;)
+    (core module $CM (;0;)
+      (type (;0;) (func (result i32)))
+      (type (;1;) (func (param i32)))
+      (global $post-called (;0;) (mut i32) i32.const 0)
+      (export "foo" (func 0))
+      (export "foo-post" (func 1))
+      (export "assert-post" (func 2))
+      (func (;0;) (type 0) (result i32)
+        global.get $post-called
+        i32.const 0
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 100
+      )
+      (func (;1;) (type 1) (param i32)
+        local.get 0
+        i32.const 100
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        global.get $post-called
+        i32.const 0
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 1
+        global.set $post-called
+      )
+      (func (;2;) (type 0) (result i32)
+        global.get $post-called
+      )
+    )
+    (core instance $cm (;0;) (instantiate $CM))
+    (type (;0;) (func (result u32)))
+    (alias core export $cm "foo" (core func (;0;)))
+    (alias core export $cm "foo-post" (core func (;1;)))
+    (func (;0;) (type 0) (canon lift (core func 0) (post-return 1)))
+    (type (;1;) (func (result u32)))
+    (alias core export $cm "assert-post" (core func (;2;)))
+    (func (;1;) (type 1) (canon lift (core func 2)))
+    (export (;2;) "foo" (func 0))
+    (export (;3;) "assert-post" (func 1))
+  )
+  (component $D (;1;)
+    (type (;0;) (func (result u32)))
+    (import "foo" (func $foo (;0;) (type 0)))
+    (type (;1;) (func (result u32)))
+    (import "assert-post" (func $assert-post (;1;) (type 1)))
+    (core func $foo' (;0;) (canon lower (func $foo)))
+    (core func $assert-post' (;1;) (canon lower (func $assert-post)))
+    (core module $DM (;0;)
+      (type (;0;) (func (result i32)))
+      (import "" "foo" (func $foo (;0;) (type 0)))
+      (import "" "assert-post" (func $assert-post (;1;) (type 0)))
+      (export "run" (func 2))
+      (func (;2;) (type 0) (result i32)
+        call $foo
+        i32.const 100
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        call $assert-post
+        i32.const 1
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 42
+      )
+    )
+    (core instance (;0;)
+      (export "foo" (func $foo'))
+      (export "assert-post" (func $assert-post'))
+    )
+    (core instance $dm (;1;) (instantiate $DM
+        (with "" (instance 0))
+      )
+    )
+    (type (;2;) (func (result u32)))
+    (alias core export $dm "run" (core func (;2;)))
+    (func (;2;) (type 2) (canon lift (core func 2)))
+    (export (;3;) "run" (func 2))
+  )
+  (instance $c (;0;) (instantiate $C))
+  (alias export $c "foo" (func (;0;)))
+  (alias export $c "assert-post" (func (;1;)))
+  (instance $d (;1;) (instantiate $D
+      (with "foo" (func 0))
+      (with "assert-post" (func 1))
+    )
+  )
+  (alias export $d "run" (func (;2;)))
+  (export (;3;) "run" (func 2))
+)

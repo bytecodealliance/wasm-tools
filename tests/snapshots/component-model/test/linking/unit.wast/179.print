@@ -1,0 +1,35 @@
+(component
+  (core module $Counter (;0;)
+    (type (;0;) (func (result i32)))
+    (global $g (;0;) (mut i32) i32.const 0)
+    (export "bump" (func 0))
+    (func (;0;) (type 0) (result i32)
+      global.get $g
+      i32.const 1
+      i32.add
+      global.set $g
+      global.get $g
+    )
+  )
+  (component $Mid (;0;)
+    (component $Leaf (;0;)
+      (alias outer 2 $Counter (core module $Counter (;0;)))
+      (core instance $m (;0;) (instantiate $Counter))
+      (type (;0;) (func (result u32)))
+      (alias core export $m "bump" (core func (;0;)))
+      (func (;0;) (type 0) (canon lift (core func 0)))
+      (export (;1;) "bump" (func 0))
+    )
+    (instance $l1 (;0;) (instantiate $Leaf))
+    (instance $l2 (;1;) (instantiate $Leaf))
+    (alias export $l1 "bump" (func (;0;)))
+    (alias export $l2 "bump" (func (;1;)))
+    (export (;2;) "bump-1" (func 0))
+    (export (;3;) "bump-2" (func 1))
+  )
+  (instance $mid (;0;) (instantiate $Mid))
+  (alias export $mid "bump-1" (func (;0;)))
+  (alias export $mid "bump-2" (func (;1;)))
+  (export (;2;) "bump-1" (func 0))
+  (export (;3;) "bump-2" (func 1))
+)

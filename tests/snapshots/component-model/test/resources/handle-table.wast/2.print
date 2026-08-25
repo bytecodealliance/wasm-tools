@@ -1,0 +1,119 @@
+(component
+  (component $C (;0;)
+    (type $R' (;0;) (resource (rep i32)))
+    (export $R (;1;) "R" (type $R'))
+    (core func $R.resource.new (;0;) (canon resource.new $R'))
+    (core func $R.resource.drop (;1;) (canon resource.drop $R'))
+    (core module $CM (;0;)
+      (type (;0;) (func (param i32) (result i32)))
+      (type (;1;) (func (param i32)))
+      (import "" "new" (func $new (;0;) (type 0)))
+      (import "" "drop" (func $drop (;1;) (type 1)))
+      (export "make" (func 2))
+      (export "take" (func 3))
+      (func (;2;) (type 0) (param $rep i32) (result i32)
+        local.get $rep
+        call $new
+      )
+      (func (;3;) (type 1) (param $h i32)
+        local.get $h
+        call $drop
+      )
+    )
+    (core instance (;0;)
+      (export "new" (func $R.resource.new))
+      (export "drop" (func $R.resource.drop))
+    )
+    (core instance $cm (;1;) (instantiate $CM
+        (with "" (instance 0))
+      )
+    )
+    (type (;2;) (own $R))
+    (type (;3;) (func (param "rep" u32) (result 2)))
+    (alias core export $cm "make" (core func (;2;)))
+    (func (;0;) (type 3) (canon lift (core func 2)))
+    (type (;4;) (own $R))
+    (type (;5;) (func (param "r" 4)))
+    (alias core export $cm "take" (core func (;3;)))
+    (func (;1;) (type 5) (canon lift (core func 3)))
+    (export (;2;) "make" (func 0))
+    (export (;3;) "take" (func 1))
+  )
+  (component $D (;1;)
+    (type (;0;)
+      (instance
+        (export (;0;) "R" (type (sub resource)))
+        (type (;1;) (own 0))
+        (type (;2;) (func (param "rep" u32) (result 1)))
+        (export (;0;) "make" (func (type 2)))
+        (type (;3;) (own 0))
+        (type (;4;) (func (param "r" 3)))
+        (export (;1;) "take" (func (type 4)))
+      )
+    )
+    (import "c" (instance $c (;0;) (type 0)))
+    (alias export $c "R" (type $R (;1;)))
+    (core func $R.resource.drop (;0;) (canon resource.drop $R))
+    (alias export $c "make" (func (;0;)))
+    (core func $make' (;1;) (canon lower (func 0)))
+    (alias export $c "take" (func (;1;)))
+    (core func $take' (;2;) (canon lower (func 1)))
+    (core module $DM (;0;)
+      (type (;0;) (func (param i32) (result i32)))
+      (type (;1;) (func (param i32)))
+      (type (;2;) (func (result i32)))
+      (import "" "make" (func $make (;0;) (type 0)))
+      (import "" "take" (func $take (;1;) (type 1)))
+      (import "" "drop" (func $drop (;2;) (type 1)))
+      (export "run" (func 3))
+      (func (;3;) (type 2) (result i32)
+        i32.const 1
+        i32.const 100
+        call $make
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 2
+        i32.const 200
+        call $make
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 2
+        call $drop
+        i32.const 1
+        call $take
+        i32.const 1
+        i32.const 300
+        call $make
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 43
+      )
+    )
+    (core instance (;0;)
+      (export "make" (func $make'))
+      (export "take" (func $take'))
+      (export "drop" (func $R.resource.drop))
+    )
+    (core instance $dm (;1;) (instantiate $DM
+        (with "" (instance 0))
+      )
+    )
+    (type (;2;) (func (result u32)))
+    (alias core export $dm "run" (core func (;3;)))
+    (func (;2;) (type 2) (canon lift (core func 3)))
+    (export (;3;) "run" (func 2))
+  )
+  (instance $c (;0;) (instantiate $C))
+  (instance $d (;1;) (instantiate $D
+      (with "c" (instance $c))
+    )
+  )
+  (alias export $d "run" (func (;0;)))
+  (export (;1;) "run" (func 0))
+)

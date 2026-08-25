@@ -1,0 +1,39 @@
+(component
+  (core module $Counter (;0;)
+    (type (;0;) (func (result i32)))
+    (global $g (;0;) (mut i32) i32.const 0)
+    (export "bump" (func 0))
+    (func (;0;) (type 0) (result i32)
+      global.get $g
+      i32.const 1
+      i32.add
+      global.set $g
+      global.get $g
+    )
+  )
+  (core module $Client (;1;)
+    (type (;0;) (func (result i32)))
+    (import "env" "bump" (func $bump (;0;) (type 0)))
+    (export "go" (func 1))
+    (func (;1;) (type 0) (result i32)
+      call $bump
+    )
+  )
+  (core instance $counter (;0;) (instantiate $Counter))
+  (core instance $c1 (;1;) (instantiate $Client
+      (with "env" (instance $counter))
+    )
+  )
+  (core instance $c2 (;2;) (instantiate $Client
+      (with "env" (instance $counter))
+    )
+  )
+  (type (;0;) (func (result u32)))
+  (alias core export $c1 "go" (core func (;0;)))
+  (func (;0;) (type 0) (canon lift (core func 0)))
+  (type (;1;) (func (result u32)))
+  (alias core export $c2 "go" (core func (;1;)))
+  (func (;1;) (type 1) (canon lift (core func 1)))
+  (export (;2;) "go-1" (func 0))
+  (export (;3;) "go-2" (func 1))
+)

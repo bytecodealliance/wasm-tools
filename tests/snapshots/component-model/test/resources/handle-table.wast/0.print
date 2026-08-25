@@ -1,0 +1,137 @@
+(component
+  (type $R (;0;) (resource (rep i32)))
+  (core func $R.resource.new (;0;) (canon resource.new $R))
+  (core func $R.resource.drop (;1;) (canon resource.drop $R))
+  (core func $R.resource.rep (;2;) (canon resource.rep $R))
+  (core module $M (;0;)
+    (type (;0;) (func (param i32) (result i32)))
+    (type (;1;) (func (param i32)))
+    (type (;2;) (func (result i32)))
+    (import "" "new" (func $new (;0;) (type 0)))
+    (import "" "drop" (func $drop (;1;) (type 1)))
+    (import "" "rep" (func $rep (;2;) (type 0)))
+    (export "run" (func 3))
+    (func (;3;) (type 2) (result i32)
+      i32.const 1
+      i32.const 100
+      call $new
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 2
+      i32.const 200
+      call $new
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 3
+      i32.const 300
+      call $new
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 2
+      call $drop
+      i32.const 2
+      i32.const 400
+      call $new
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 100
+      i32.const 1
+      call $rep
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 400
+      i32.const 2
+      call $rep
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 300
+      i32.const 3
+      call $rep
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 1
+      call $drop
+      i32.const 2
+      call $drop
+      i32.const 3
+      call $drop
+      i32.const 3
+      i32.const 500
+      call $new
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 2
+      i32.const 600
+      call $new
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 1
+      i32.const 700
+      call $new
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 500
+      i32.const 3
+      call $rep
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 600
+      i32.const 2
+      call $rep
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 700
+      i32.const 1
+      call $rep
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 4
+      i32.const 800
+      call $new
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 42
+    )
+  )
+  (core instance (;0;)
+    (export "new" (func $R.resource.new))
+    (export "drop" (func $R.resource.drop))
+    (export "rep" (func $R.resource.rep))
+  )
+  (core instance $m (;1;) (instantiate $M
+      (with "" (instance 0))
+    )
+  )
+  (type (;1;) (func (result u32)))
+  (alias core export $m "run" (core func (;3;)))
+  (func (;0;) (type 1) (canon lift (core func 3)))
+  (export (;1;) "run" (func 0))
+)

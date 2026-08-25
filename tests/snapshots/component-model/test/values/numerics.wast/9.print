@@ -1,0 +1,82 @@
+(component
+  (component $C (;0;)
+    (core module $M (;0;)
+      (type (;0;) (func (param i32)))
+      (export "expect-one" (func 0))
+      (export "expect-zero" (func 1))
+      (func (;0;) (type 0) (param i32)
+        local.get 0
+        i32.const 1
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+      )
+      (func (;1;) (type 0) (param i32)
+        local.get 0
+        i32.const 0
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+      )
+    )
+    (core instance $m (;0;) (instantiate $M))
+    (type (;0;) (func (param "x" bool)))
+    (alias core export $m "expect-one" (core func (;0;)))
+    (func (;0;) (type 0) (canon lift (core func 0)))
+    (type (;1;) (func (param "x" bool)))
+    (alias core export $m "expect-zero" (core func (;1;)))
+    (func (;1;) (type 1) (canon lift (core func 1)))
+    (export (;2;) "assert-true" (func 0))
+    (export (;3;) "assert-false" (func 1))
+  )
+  (component $D (;1;)
+    (type (;0;) (func (param "x" bool)))
+    (import "assert-true" (func $assert-true (;0;) (type 0)))
+    (type (;1;) (func (param "x" bool)))
+    (import "assert-false" (func $assert-false (;1;) (type 1)))
+    (core func $assert-true' (;0;) (canon lower (func $assert-true)))
+    (core func $assert-false' (;1;) (canon lower (func $assert-false)))
+    (core module $M (;0;)
+      (type (;0;) (func (param i32)))
+      (type (;1;) (func (result i32)))
+      (import "" "assert-true" (func $assert-true (;0;) (type 0)))
+      (import "" "assert-false" (func $assert-false (;1;) (type 0)))
+      (export "run" (func 2))
+      (func (;2;) (type 1) (result i32)
+        i32.const 1
+        call $assert-true
+        i32.const 2
+        call $assert-true
+        i32.const -1
+        call $assert-true
+        i32.const 0
+        call $assert-false
+        i32.const 43
+      )
+    )
+    (core instance (;0;)
+      (export "assert-true" (func $assert-true'))
+      (export "assert-false" (func $assert-false'))
+    )
+    (core instance $m (;1;) (instantiate $M
+        (with "" (instance 0))
+      )
+    )
+    (type (;2;) (func (result u32)))
+    (alias core export $m "run" (core func (;2;)))
+    (func (;2;) (type 2) (canon lift (core func 2)))
+    (export (;3;) "run" (func 2))
+  )
+  (instance $c (;0;) (instantiate $C))
+  (alias export $c "assert-true" (func (;0;)))
+  (alias export $c "assert-false" (func (;1;)))
+  (instance $d (;1;) (instantiate $D
+      (with "assert-true" (func 0))
+      (with "assert-false" (func 1))
+    )
+  )
+  (alias export $d "run" (func (;2;)))
+  (export (;3;) "run" (func 2))
+)

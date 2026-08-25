@@ -16,19 +16,23 @@
   (type $over-i64-duplicate (;14;) (func (param i64) (result i64)))
   (type $over-f32-duplicate (;15;) (func (param f32) (result f32)))
   (type $over-f64-duplicate (;16;) (func (param f64) (result f64)))
-  (type (;17;) (func (param i32 f32)))
-  (type (;18;) (func (param f64 i64) (result i32 f32)))
-  (type (;19;) (func (param i64)))
-  (type (;20;) (func (param i64 f64 i32 i64)))
-  (type (;21;) (func (param i64) (result i32)))
-  (type (;22;) (func (param i64 f64 i32 i64) (result i32)))
-  (type (;23;) (func (param i32) (result i64)))
-  (type (;24;) (func (param i64 i64) (result i64)))
-  (import "spectest" "print_i32_f32" (func $print_i32_f32 (;0;) (type 17)))
+  (type $t (;17;) (func))
+  (type (;18;) (func (param i32 f32)))
+  (type (;19;) (func (param f64 i64) (result i32 f32)))
+  (type (;20;) (func (param i64)))
+  (type (;21;) (func (param i64 f64 i32 i64)))
+  (type (;22;) (func (param i64) (result i32)))
+  (type (;23;) (func (param i64 f64 i32 i64) (result i32)))
+  (type (;24;) (func (param i32) (result i64)))
+  (type (;25;) (func (param i64 i64) (result i64)))
+  (type (;26;) (func (result (ref null $t))))
+  (type (;27;) (func (result funcref)))
+  (import "spectest" "print_i32_f32" (func $print_i32_f32 (;0;) (type 18)))
   (table (;0;) 20 20 funcref)
   (table $tab2 (;1;) 1 1 funcref)
   (table $tab3 (;2;) 1 1 funcref)
   (table $tab4 (;3;) 2 2 funcref)
+  (table $tab5 (;4;) 1 1 funcref)
   (export "tailprint_i32_f32" (func $tailprint_i32_f32))
   (export "type-f64-i64-to-i32-f32" (func $type-f64-i64-to-i32-f32))
   (export "type-i32" (func 23))
@@ -52,10 +56,12 @@
   (export "odd" (func $odd))
   (export "call_tailprint" (func 45))
   (export "call_mpmr" (func 46))
+  (export "type-funcref" (func 48))
   (elem (;0;) (table 0) (i32.const 0) func $const-i32 $const-i64 $const-f32 $const-f64 $id-i32 $id-i64 $id-f32 $id-f64 $f32-i32 $i32-i64 $f64-f32 $i64-f64 $fac $fac-acc $even $odd $over-i32-duplicate $over-i64-duplicate $over-f32-duplicate $over-f64-duplicate)
   (elem (;1;) (table $tab2) (i32.const 0) func $tab-f1)
   (elem (;2;) (table $tab3) (i32.const 0) func $tab-f2)
   (elem (;3;) (table $tab4) (i32.const 0) func $tailprint_i32_f32 $type-f64-i64-to-i32-f32)
+  (elem (;4;) (table $tab5) (i32.const 0) func $f)
   (func $const-i32 (;1;) (type $out-i32) (result i32)
     i32.const 306
   )
@@ -104,18 +110,18 @@
   (func $over-f64-duplicate (;16;) (type $over-f64-duplicate) (param f64) (result f64)
     local.get 0
   )
-  (func $tailprint_i32_f32 (;17;) (type 17) (param i32 f32)
+  (func $tailprint_i32_f32 (;17;) (type 18) (param i32 f32)
     local.get 0
     local.get 1
     return_call $print_i32_f32
   )
-  (func $swizzle (;18;) (type 18) (param f64 i64) (result i32 f32)
+  (func $swizzle (;18;) (type 19) (param f64 i64) (result i32 f32)
     local.get 1
     i32.wrap_i64
     local.get 0
     f32.demote_f64
   )
-  (func $type-f64-i64-to-i32-f32 (;19;) (type 18) (param f64 i64) (result i32 f32)
+  (func $type-f64-i64-to-i32-f32 (;19;) (type 19) (param f64 i64) (result i32 f32)
     local.get 0
     local.get 1
     return_call $swizzle
@@ -125,13 +131,13 @@
     return_call_indirect (type $proc)
     i64.const 0
     i32.const 0
-    return_call_indirect (type 19)
+    return_call_indirect (type 20)
     i64.const 0
     f64.const 0x0p+0 (;=0;)
     i32.const 0
     i64.const 0
     i32.const 0
-    return_call_indirect (type 20)
+    return_call_indirect (type 21)
     i32.const 0
     return_call_indirect (type $proc)
   )
@@ -142,13 +148,13 @@
     return_call_indirect (type $out-i32)
     i64.const 0
     i32.const 0
-    return_call_indirect (type 21)
+    return_call_indirect (type 22)
     i64.const 0
     f64.const 0x0p+0 (;=0;)
     i32.const 0
     i64.const 0
     i32.const 0
-    return_call_indirect (type 22)
+    return_call_indirect (type 23)
   )
   (func (;22;) (type $out-i64) (result i64)
     i64.const 0
@@ -225,7 +231,7 @@
     local.get 0
     return_call_indirect (type $over-i64)
   )
-  (func (;37;) (type 23) (param i32) (result i64)
+  (func (;37;) (type 24) (param i32) (result i64)
     i64.const 9
     local.get 0
     return_call_indirect (type $over-i64-duplicate)
@@ -264,9 +270,9 @@
     local.get 0
     i64.const 1
     i32.const 13
-    return_call_indirect (type 24)
+    return_call_indirect (type 25)
   )
-  (func $fac-acc (;42;) (type 24) (param i64 i64) (result i64)
+  (func $fac-acc (;42;) (type 25) (param i64 i64) (result i64)
     local.get 0
     i64.eqz
     if (result i64) ;; label = @1
@@ -279,7 +285,7 @@
       local.get 1
       i64.mul
       i32.const 13
-      return_call_indirect (type 24)
+      return_call_indirect (type 25)
     end
   )
   (func $even (;43;) (type $over-i32) (param i32) (result i32)
@@ -308,16 +314,23 @@
       return_call_indirect (type $over-i32)
     end
   )
-  (func (;45;) (type 17) (param i32 f32)
+  (func (;45;) (type 18) (param i32 f32)
     local.get 0
     local.get 1
     i32.const 0
-    return_call_indirect $tab4 (type 17)
+    return_call_indirect $tab4 (type 18)
   )
-  (func (;46;) (type 18) (param f64 i64) (result i32 f32)
+  (func (;46;) (type 19) (param f64 i64) (result i32 f32)
     local.get 0
     local.get 1
     i32.const 1
-    return_call_indirect $tab4 (type 18)
+    return_call_indirect $tab4 (type 19)
+  )
+  (func $f (;47;) (type 26) (result (ref null $t))
+    ref.null $t
+  )
+  (func (;48;) (type 27) (result funcref)
+    i32.const 0
+    return_call_indirect $tab5 (type 26)
   )
 )

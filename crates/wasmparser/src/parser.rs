@@ -99,7 +99,7 @@ pub struct Parser {
 
 #[derive(Debug, Clone)]
 enum State {
-    Header,
+    Header { expect: Option<Encoding> },
     SectionStart,
     FunctionBody { remaining: u32, len: u32 },
 }
@@ -402,7 +402,7 @@ impl Parser {
     /// is some logical offset within the input stream that we're parsing.
     pub fn new(offset: u64) -> Parser {
         Parser {
-            state: State::Header,
+            state: State::Header { expect: None },
             offset,
             max_offset: None,
             // Assume the encoding is a module until we know otherwise
@@ -693,13 +693,23 @@ impl Parser {
         use Payload::*;
 
         match self.state {
-            State::Header => {
+            State::Header { expect } => {
                 let start = reader.original_position();
                 let header_version = reader.read_header_version()?;
                 let num = header_version as u16;
                 self.encoding = match (num, (header_version >> 16) as u16) {
-                    (WASM_MODULE_VERSION, KIND_MODULE) => Encoding::Module,
-                    (WASM_COMPONENT_VERSION, KIND_COMPONENT) => Encoding::Component,
+                    (WASM_MODULE_VERSION, KIND_MODULE) => match expect {
+                        None | Some(Encoding::Module) => Encoding::Module,
+                        Some(Encoding::Component) => {
+                            bail!(start, "expected a version header for a component")
+                        }
+                    },
+                    (WASM_COMPONENT_VERSION, KIND_COMPONENT) => match expect {
+                        None | Some(Encoding::Component) => Encoding::Component,
+                        Some(Encoding::Module) => {
+                            bail!(start, "expected a version header for a module")
+                        }
+                    },
                     _ => bail!(start + 4, "unknown binary version: {header_version:#10x}"),
                 };
                 self.state = State::SectionStart;
@@ -866,6 +876,13 @@ impl Parser {
                         // at section_end.
                         self.offset += u64::from(len);
                         let mut parser = Parser::new(section_start);
+                        parser.state = State::Header {
+                            expect: Some(if id == COMPONENT_MODULE_SECTION {
+                                Encoding::Module
+                            } else {
+                                Encoding::Component
+                            }),
+                        };
                         #[cfg(feature = "features")]
                         {
                             parser.features = self.features;

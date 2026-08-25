@@ -1,0 +1,7 @@
+(component
+  (type (;0;) string)
+  (instance (;0;)
+    (export "t" (type 0))
+  )
+  (alias export 0 "t" (type (;1;)))
+)

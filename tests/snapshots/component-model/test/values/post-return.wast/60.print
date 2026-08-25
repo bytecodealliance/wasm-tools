@@ -1,0 +1,48 @@
+(component
+  (type $R (;0;) (resource (rep i32)))
+  (core func $resource.new (;0;) (canon resource.new $R))
+  (core func $resource.rep (;1;) (canon resource.rep $R))
+  (core module $CM (;0;)
+    (type (;0;) (func (param i32) (result i32)))
+    (type (;1;) (func (result i32)))
+    (type (;2;) (func (param i32)))
+    (import "" "resource.new" (func $resource.new (;0;) (type 0)))
+    (import "" "resource.rep" (func $resource.rep (;1;) (type 0)))
+    (global $handle (;0;) (mut i32) i32.const 0)
+    (global $saved-rep (;1;) (mut i32) i32.const 0)
+    (export "f" (func 2))
+    (export "f-pr" (func 3))
+    (export "check" (func 4))
+    (func (;2;) (type 1) (result i32)
+      i32.const 123
+      call $resource.new
+      global.set $handle
+      i32.const 5
+    )
+    (func (;3;) (type 2) (param i32)
+      global.get $handle
+      call $resource.rep
+      global.set $saved-rep
+    )
+    (func (;4;) (type 1) (result i32)
+      global.get $saved-rep
+    )
+  )
+  (core instance (;0;)
+    (export "resource.new" (func $resource.new))
+    (export "resource.rep" (func $resource.rep))
+  )
+  (core instance $cm (;1;) (instantiate $CM
+      (with "" (instance 0))
+    )
+  )
+  (type (;1;) (func (result u32)))
+  (alias core export $cm "f" (core func (;2;)))
+  (alias core export $cm "f-pr" (core func (;3;)))
+  (func (;0;) (type 1) (canon lift (core func 2) (post-return 3)))
+  (type (;2;) (func (result u32)))
+  (alias core export $cm "check" (core func (;4;)))
+  (func (;1;) (type 2) (canon lift (core func 4)))
+  (export (;2;) "f" (func 0))
+  (export (;3;) "check" (func 1))
+)

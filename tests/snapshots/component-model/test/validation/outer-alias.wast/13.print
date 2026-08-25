@@ -1,0 +1,26 @@
+(component $C
+  (type (;0;)
+    (component
+      (type (;0;)
+        (instance
+          (export (;0;) "t" (type (sub resource)))
+          (type (;1;)
+            (instance)
+          )
+          (export (;0;) "j" (instance (type 1)))
+        )
+      )
+      (import "i" (instance (;0;) (type 0)))
+      (alias export 0 "t" (type (;1;)))
+      (alias export 0 "j" (instance (;1;)))
+    )
+  )
+  (core type $FT (;0;) (func (param i32) (result i32)))
+  (type $T (;1;) (record (field "x" u32)))
+  (type (;2;)
+    (component
+      (alias outer $C $FT (core type (;0;)))
+      (alias outer $C $T (type (;0;)))
+    )
+  )
+)

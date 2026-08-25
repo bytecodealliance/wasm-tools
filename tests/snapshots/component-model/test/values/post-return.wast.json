@@ -1,0 +1,574 @@
+{
+  "source_filename": "tests/component-model/test/values/post-return.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 4,
+      "name": "Tester",
+      "filename": "post-return.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 201,
+      "instance": "i1",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 202,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-import",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 203,
+      "instance": "i2",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 204,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-resource-new",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 205,
+      "instance": "i3",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 206,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-resource-drop",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 207,
+      "instance": "i4",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 208,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-task-return",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 209,
+      "instance": "i5",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 210,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-task-cancel",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 211,
+      "instance": "i6",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 212,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-yield",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 213,
+      "instance": "i7",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 214,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-thread-index",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 215,
+      "instance": "i8",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 216,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-waitable-set-new",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 217,
+      "instance": "i8",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 218,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-waitable-set-wait",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 219,
+      "instance": "i9",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 220,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-waitable-set-poll",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 221,
+      "instance": "i10",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 222,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-waitable-set-drop",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 223,
+      "instance": "i11",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 224,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-waitable-join",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 225,
+      "instance": "i12",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 226,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-subtask-cancel",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 227,
+      "instance": "i13",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 228,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-subtask-drop",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 229,
+      "instance": "i14",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 230,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-stream-new",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 231,
+      "instance": "i15",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 232,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-stream-read",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 233,
+      "instance": "i16",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 234,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-stream-write",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 235,
+      "instance": "i17",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 236,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-stream-cancel-read",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 237,
+      "instance": "i18",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 238,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-stream-cancel-write",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 239,
+      "instance": "i19",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 240,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-stream-drop-readable",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 241,
+      "instance": "i20",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 242,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-stream-drop-writable",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 243,
+      "instance": "i21",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 244,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-future-new",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 245,
+      "instance": "i22",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 246,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-future-read",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 247,
+      "instance": "i23",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 248,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-future-write",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 249,
+      "instance": "i24",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 250,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-future-cancel-read",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 251,
+      "instance": "i25",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 252,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-future-cancel-write",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 253,
+      "instance": "i26",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 254,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-future-drop-readable",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module_instance",
+      "line": 255,
+      "instance": "i27",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 256,
+      "action": {
+        "type": "invoke",
+        "field": "trap-calling-future-drop-writable",
+        "args": []
+      },
+      "text": "cannot leave component instance"
+    },
+    {
+      "type": "module",
+      "line": 260,
+      "filename": "post-return.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 292,
+      "action": {
+        "type": "invoke",
+        "field": "f",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "7"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 293,
+      "action": {
+        "type": "invoke",
+        "field": "check",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 296,
+      "filename": "post-return.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 330,
+      "action": {
+        "type": "invoke",
+        "field": "f",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "5"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 331,
+      "action": {
+        "type": "invoke",
+        "field": "check",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "123"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 334,
+      "filename": "post-return.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 358,
+      "action": {
+        "type": "invoke",
+        "field": "f",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "11"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 363,
+      "filename": "post-return.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 416,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    }
+  ]
+}

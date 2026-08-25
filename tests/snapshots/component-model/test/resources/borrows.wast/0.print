@@ -1,0 +1,310 @@
+(component $BorrowTester
+  (component $C (;0;)
+    (core module $Indirect (;0;)
+      (type $FT (;0;) (func (param i32)))
+      (table (;0;) 1 funcref)
+      (export "ftbl" (table 0))
+      (export "R-dtor" (func 0))
+      (func (;0;) (type $FT) (param i32)
+        local.get 0
+        i32.const 0
+        call_indirect (type $FT)
+      )
+    )
+    (core instance $indirect (;0;) (instantiate $Indirect))
+    (alias core export $indirect "R-dtor" (core func (;0;)))
+    (type $R' (;0;) (resource (rep i32) (dtor 0)))
+    (export $R (;1;) "R" (type $R'))
+    (core func $resource.new (;1;) (canon resource.new $R'))
+    (core func $resource.drop (;2;) (canon resource.drop $R'))
+    (core module $CM (;1;)
+      (type (;0;) (func (param i32) (result i32)))
+      (type (;1;) (func (param i32)))
+      (type (;2;) (func (result i32)))
+      (type (;3;) (func (param i32 i32) (result i32)))
+      (import "" "ftbl" (table (;0;) 1 funcref))
+      (import "" "resource.new" (func $resource.new (;0;) (type 0)))
+      (import "" "resource.drop" (func $resource.drop (;1;) (type 1)))
+      (global $num-made (;0;) (mut i32) i32.const 0)
+      (global $num-live (;1;) (mut i32) i32.const 0)
+      (export "make" (func 2))
+      (export "get-rep" (func 3))
+      (export "get-rep-pair" (func 4))
+      (export "borrow-and-take" (func 5))
+      (export "num-live" (func 6))
+      (elem (;0;) (i32.const 0) func $dtor)
+      (func (;2;) (type 2) (result i32)
+        global.get $num-made
+        i32.const 1
+        i32.add
+        global.set $num-made
+        global.get $num-live
+        i32.const 1
+        i32.add
+        global.set $num-live
+        i32.const 64
+        global.get $num-made
+        i32.add
+        call $resource.new
+      )
+      (func (;3;) (type 0) (param $rep i32) (result i32)
+        local.get $rep
+      )
+      (func (;4;) (type 3) (param $rep1 i32) (param $rep2 i32) (result i32)
+        local.get $rep1
+        local.get $rep2
+        i32.add
+      )
+      (func (;5;) (type 3) (param $rep i32) (param $own i32) (result i32)
+        local.get $own
+        call $resource.drop
+        local.get $rep
+      )
+      (func (;6;) (type 2) (result i32)
+        global.get $num-live
+      )
+      (func $dtor (;7;) (type 1) (param $rep i32)
+        local.get $rep
+        i32.const 64
+        i32.le_u
+        local.get $rep
+        i32.const 64
+        global.get $num-made
+        i32.add
+        i32.gt_u
+        i32.or
+        if ;; label = @1
+          unreachable
+        end
+        global.get $num-live
+        i32.eqz
+        if ;; label = @1
+          unreachable
+        end
+        global.get $num-live
+        i32.const 1
+        i32.sub
+        global.set $num-live
+      )
+    )
+    (alias core export $indirect "ftbl" (core table (;0;)))
+    (core instance (;1;)
+      (export "ftbl" (table 0))
+      (export "resource.new" (func $resource.new))
+      (export "resource.drop" (func $resource.drop))
+    )
+    (core instance $cm (;2;) (instantiate $CM
+        (with "" (instance 1))
+      )
+    )
+    (type (;2;) (own $R))
+    (type (;3;) (func (result 2)))
+    (alias core export $cm "make" (core func (;3;)))
+    (func (;0;) (type 3) (canon lift (core func 3)))
+    (type (;4;) (borrow $R))
+    (type (;5;) (func (param "r" 4) (result u32)))
+    (alias core export $cm "get-rep" (core func (;4;)))
+    (func (;1;) (type 5) (canon lift (core func 4)))
+    (type (;6;) (borrow $R))
+    (type (;7;) (borrow $R))
+    (type (;8;) (func (param "a" 6) (param "b" 7) (result u32)))
+    (alias core export $cm "get-rep-pair" (core func (;5;)))
+    (func (;2;) (type 8) (canon lift (core func 5)))
+    (type (;9;) (borrow $R))
+    (type (;10;) (own $R))
+    (type (;11;) (func (param "b" 9) (param "o" 10) (result u32)))
+    (alias core export $cm "borrow-and-take" (core func (;6;)))
+    (func (;3;) (type 11) (canon lift (core func 6)))
+    (type (;12;) (func (result u32)))
+    (alias core export $cm "num-live" (core func (;7;)))
+    (func (;4;) (type 12) (canon lift (core func 7)))
+    (export (;5;) "make" (func 0))
+    (export (;6;) "get-rep" (func 1))
+    (export (;7;) "get-rep-pair" (func 2))
+    (export (;8;) "borrow-and-take" (func 3))
+    (export (;9;) "num-live" (func 4))
+  )
+  (component $D (;1;)
+    (type (;0;)
+      (instance
+        (export (;0;) "R" (type (sub resource)))
+        (type (;1;) (own 0))
+        (type (;2;) (func (result 1)))
+        (export (;0;) "make" (func (type 2)))
+        (type (;3;) (borrow 0))
+        (type (;4;) (func (param "r" 3) (result u32)))
+        (export (;1;) "get-rep" (func (type 4)))
+        (type (;5;) (borrow 0))
+        (type (;6;) (borrow 0))
+        (type (;7;) (func (param "a" 5) (param "b" 6) (result u32)))
+        (export (;2;) "get-rep-pair" (func (type 7)))
+        (type (;8;) (borrow 0))
+        (type (;9;) (own 0))
+        (type (;10;) (func (param "b" 8) (param "o" 9) (result u32)))
+        (export (;3;) "borrow-and-take" (func (type 10)))
+        (type (;11;) (func (result u32)))
+        (export (;4;) "num-live" (func (type 11)))
+      )
+    )
+    (import "c" (instance $c (;0;) (type 0)))
+    (core module $DM (;0;)
+      (type (;0;) (func (param i32)))
+      (type (;1;) (func (result i32)))
+      (type (;2;) (func (param i32) (result i32)))
+      (type (;3;) (func (param i32 i32) (result i32)))
+      (type (;4;) (func))
+      (import "" "resource.drop" (func $resource.drop (;0;) (type 0)))
+      (import "" "make" (func $make (;1;) (type 1)))
+      (import "" "get-rep" (func $get-rep (;2;) (type 2)))
+      (import "" "get-rep-pair" (func $get-rep-pair (;3;) (type 3)))
+      (import "" "borrow-and-take" (func $borrow-and-take (;4;) (type 3)))
+      (import "" "num-live" (func $num-live (;5;) (type 1)))
+      (export "run" (func 6))
+      (export "lend-trap" (func 7))
+      (func (;6;) (type 1) (result i32)
+        (local $h1 i32) (local $h2 i32) (local $h3 i32)
+        call $make
+        local.set $h1
+        i32.const 1
+        local.get $h1
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 65
+        local.get $h1
+        call $get-rep
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 65
+        local.get $h1
+        call $get-rep
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 130
+        local.get $h1
+        local.get $h1
+        call $get-rep-pair
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        call $make
+        local.set $h2
+        i32.const 2
+        local.get $h2
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 2
+        call $num-live
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 65
+        local.get $h1
+        local.get $h2
+        call $borrow-and-take
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 1
+        call $num-live
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 65
+        local.get $h1
+        call $get-rep
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $h1
+        call $resource.drop
+        i32.const 0
+        call $num-live
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        call $make
+        local.set $h3
+        i32.const 1
+        local.get $h3
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 67
+        local.get $h3
+        call $get-rep
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $h3
+        call $resource.drop
+        i32.const 42
+      )
+      (func (;7;) (type 4)
+        (local $h i32)
+        call $make
+        local.set $h
+        local.get $h
+        local.get $h
+        call $borrow-and-take
+        drop
+      )
+    )
+    (alias export $c "R" (type $R (;1;)))
+    (core func $resource.drop (;0;) (canon resource.drop $R))
+    (alias export $c "make" (func (;0;)))
+    (core func $make' (;1;) (canon lower (func 0)))
+    (alias export $c "get-rep" (func (;1;)))
+    (core func $get-rep' (;2;) (canon lower (func 1)))
+    (alias export $c "get-rep-pair" (func (;2;)))
+    (core func $get-rep-pair' (;3;) (canon lower (func 2)))
+    (alias export $c "borrow-and-take" (func (;3;)))
+    (core func $borrow-and-take' (;4;) (canon lower (func 3)))
+    (alias export $c "num-live" (func (;4;)))
+    (core func $num-live' (;5;) (canon lower (func 4)))
+    (core instance (;0;)
+      (export "resource.drop" (func $resource.drop))
+      (export "make" (func $make'))
+      (export "get-rep" (func $get-rep'))
+      (export "get-rep-pair" (func $get-rep-pair'))
+      (export "borrow-and-take" (func $borrow-and-take'))
+      (export "num-live" (func $num-live'))
+    )
+    (core instance $dm (;1;) (instantiate $DM
+        (with "" (instance 0))
+      )
+    )
+    (type (;2;) (func (result u32)))
+    (alias core export $dm "run" (core func (;6;)))
+    (func (;5;) (type 2) (canon lift (core func 6)))
+    (type (;3;) (func))
+    (alias core export $dm "lend-trap" (core func (;7;)))
+    (func (;6;) (type 3) (canon lift (core func 7)))
+    (export (;7;) "run" (func 5))
+    (export (;8;) "lend-trap" (func 6))
+  )
+  (instance $c (;0;) (instantiate $C))
+  (instance $d (;1;) (instantiate $D
+      (with "c" (instance $c))
+    )
+  )
+  (alias export $d "run" (func (;0;)))
+  (alias export $d "lend-trap" (func (;1;)))
+  (export (;2;) "run" (func 0))
+  (export (;3;) "lend-trap" (func 1))
+)
