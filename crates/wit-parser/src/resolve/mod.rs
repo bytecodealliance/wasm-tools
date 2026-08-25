@@ -2583,10 +2583,15 @@ impl Resolve {
         // Afterwards exports are additionally updated, but only their
         // dependencies on imports which were remapped. Exports themselves are
         // not deduplicated and/or removed.
-        for (key, item) in mem::take(&mut self.worlds[world_id].imports) {
-            if let WorldItem::Interface { id, .. } = item {
-                if replacements.contains_key(&id) {
-                    continue;
+        for (key, mut item) in mem::take(&mut self.worlds[world_id].imports) {
+            if let WorldItem::Interface { id, .. } = &mut item {
+                if let Some(&replacement) = replacements.get(id) {
+                    if let WorldKey::Interface(_) = key {
+                        continue;
+                    }
+                    // Labeled imports with `implements` keep their label but
+                    // update to the newer semver-compatible interface.
+                    *id = replacement;
                 }
             }
 

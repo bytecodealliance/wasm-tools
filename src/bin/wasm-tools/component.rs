@@ -208,7 +208,12 @@ struct ComponentEncoderOpts {
     /// semver ranges.
     ///
     /// This is enabled by default.
-    #[arg(long, require_equals = true, value_name = "true|false", conflicts_with = "merge_imports_based_on_canonical_version")]
+    #[arg(
+        long,
+        require_equals = true,
+        value_name = "true|false",
+        conflicts_with = "merge_imports_based_on_canonical_version"
+    )]
     merge_imports_based_on_semver: Option<Option<bool>>,
 
     /// Merges imports based on canonical version prefixes and emits canonical

@@ -610,12 +610,18 @@ impl<'a> EncodingState<'a> {
             .component
             .type_instance(Some(&format!("ty-{name}")), &ty);
 
+        let mut implements = info.implements.clone();
         let (import_name, version_suffix) = if self.info.encoder.emit_canonical_names {
-            let canon_name = resolve
-                .canon_id_of(interface_id)
-                .unwrap_or_else(|| name.to_string());
             let suffix = resolve.version_suffix_of(interface_id);
-            (canon_name, suffix)
+            if implements.is_some() {
+                implements = resolve.canon_id_of(interface_id);
+                (name.to_string(), suffix)
+            } else {
+                let canon_name = resolve
+                    .canon_id_of(interface_id)
+                    .unwrap_or_else(|| name.to_string());
+                (canon_name, suffix)
+            }
         } else {
             (name.to_string(), None)
         };
@@ -623,7 +629,7 @@ impl<'a> EncodingState<'a> {
         let instance_idx = self.component.import(
             wasm_encoder::ComponentExternName {
                 name: import_name.into(),
-                implements: info.implements.as_deref().map(|s| s.into()),
+                implements: implements.map(|s| s.into()),
                 external_id: info.external_id.as_deref().map(|s| s.into()),
                 version_suffix: version_suffix.map(|s| s.into()),
             },
@@ -1008,11 +1014,15 @@ impl<'a> EncodingState<'a> {
             component_index,
             imports,
         );
+        let mut implements = resolve.implements_value(key, item);
         let export_version_suffix = if self.info.encoder.emit_canonical_names {
-            if let WorldKey::Interface(id) = key {
-                resolve.version_suffix_of(*id)
-            } else {
-                None
+            match (&implements, key, item) {
+                (Some(_), _, WorldItem::Interface { id, .. }) => {
+                    implements = resolve.canon_id_of(*id);
+                    resolve.version_suffix_of(*id)
+                }
+                (None, WorldKey::Interface(id), _) => resolve.version_suffix_of(*id),
+                _ => None,
             }
         } else {
             None
@@ -1020,7 +1030,7 @@ impl<'a> EncodingState<'a> {
         let idx = self.component.export(
             wasm_encoder::ComponentExternName {
                 name: export_name.into(),
-                implements: resolve.implements_value(key, item).map(|s| s.into()),
+                implements: implements.map(|s| s.into()),
                 external_id: resolve.external_id_value(key, item).map(|s| s.into()),
                 version_suffix: export_version_suffix.map(|s| s.into()),
             },
