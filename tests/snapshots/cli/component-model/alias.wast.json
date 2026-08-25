@@ -190,6 +190,18 @@
       "filename": "alias.28.wasm",
       "module_type": "binary",
       "text": "aliases in a component or instance type may only refer to types or instances"
+    },
+    {
+      "type": "module",
+      "line": 312,
+      "filename": "alias.29.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 325,
+      "filename": "alias.30.wasm",
+      "module_type": "binary"
     }
   ]
 }
