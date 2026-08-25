@@ -367,6 +367,13 @@ pub enum Import {
     /// stream.
     StreamWrite { async_: bool, info: PayloadInfo },
 
+    /// A `canon stream.forward` intrinsic.
+    ///
+    /// This allows the guest to forward all remaining elements from the
+    /// readable end of one `stream` to the writable end of another,
+    /// transferring both ends out of the calling instance.
+    StreamForward(PayloadInfo),
+
     /// A `canon stream.cancel-read` intrinsic.
     ///
     /// This allows the guest to cancel a pending read it initiated earlier (but
@@ -404,6 +411,13 @@ pub enum Import {
     ///
     /// This allows the guest to write a value to the specified future.
     FutureWrite { async_: bool, info: PayloadInfo },
+
+    /// A `canon future.forward` intrinsic.
+    ///
+    /// This allows the guest to forward the value of the readable end of one
+    /// `future` to the writable end of another, transferring both ends out of
+    /// the calling instance.
+    FutureForward(PayloadInfo),
 
     /// A `canon future.cancel-read` intrinsic.
     ///
@@ -981,6 +995,9 @@ impl ImportMap {
                 async_: info.async_lowered,
                 info: info.inner,
             }
+        } else if let Some(info) = names.future_forward(&lookup_context, name) {
+            validate_func_sig(name, &FuncType::new([ValType::I32; 2], []), ty)?;
+            Import::FutureForward(info)
         } else if let Some(info) = names.future_cancel_read(&lookup_context, name) {
             validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
             Import::FutureCancelRead {
@@ -1014,6 +1031,9 @@ impl ImportMap {
                 async_: info.async_lowered,
                 info: info.inner,
             }
+        } else if let Some(info) = names.stream_forward(&lookup_context, name) {
+            validate_func_sig(name, &FuncType::new([ValType::I32; 2], []), ty)?;
+            Import::StreamForward(info)
         } else if let Some(info) = names.stream_cancel_read(&lookup_context, name) {
             validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
             Import::StreamCancelRead {
@@ -1647,6 +1667,11 @@ trait NameMangling {
         lookup_context: &PayloadLookupContext,
         name: &str,
     ) -> Option<MaybeAsyncLowered<PayloadInfo>>;
+    fn future_forward(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<PayloadInfo>;
     fn future_cancel_read(
         &self,
         lookup_context: &PayloadLookupContext,
@@ -1678,6 +1703,11 @@ trait NameMangling {
         lookup_context: &PayloadLookupContext,
         name: &str,
     ) -> Option<MaybeAsyncLowered<PayloadInfo>>;
+    fn stream_forward(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<PayloadInfo>;
     fn stream_cancel_read(
         &self,
         lookup_context: &PayloadLookupContext,
@@ -1880,6 +1910,13 @@ impl NameMangling for Standard {
     ) -> Option<MaybeAsyncLowered<PayloadInfo>> {
         None
     }
+    fn future_forward(
+        &self,
+        _lookup_context: &PayloadLookupContext,
+        _name: &str,
+    ) -> Option<PayloadInfo> {
+        None
+    }
     fn future_cancel_read(
         &self,
         _lookup_context: &PayloadLookupContext,
@@ -1927,6 +1964,13 @@ impl NameMangling for Standard {
         _lookup_context: &PayloadLookupContext,
         _name: &str,
     ) -> Option<MaybeAsyncLowered<PayloadInfo>> {
+        None
+    }
+    fn stream_forward(
+        &self,
+        _lookup_context: &PayloadLookupContext,
+        _name: &str,
+    ) -> Option<PayloadInfo> {
         None
     }
     fn stream_cancel_read(
@@ -2368,6 +2412,13 @@ impl NameMangling for Legacy {
     ) -> Option<MaybeAsyncLowered<PayloadInfo>> {
         self.maybe_async_lowered_payload(lookup_context, name, "[future-cancel-write-")
     }
+    fn future_forward(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<PayloadInfo> {
+        self.prefixed_payload(lookup_context, name, "[future-forward-")
+    }
     fn future_cancel_read(
         &self,
         lookup_context: &PayloadLookupContext,
@@ -2412,6 +2463,13 @@ impl NameMangling for Legacy {
         name: &str,
     ) -> Option<MaybeAsyncLowered<PayloadInfo>> {
         self.maybe_async_lowered_payload(lookup_context, name, "[stream-cancel-write-")
+    }
+    fn stream_forward(
+        &self,
+        lookup_context: &PayloadLookupContext,
+        name: &str,
+    ) -> Option<PayloadInfo> {
+        self.prefixed_payload(lookup_context, name, "[stream-forward-")
     }
     fn stream_cancel_read(
         &self,
