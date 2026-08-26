@@ -15,8 +15,9 @@ use semver::Version;
 /// a valid kebab case string according to the component model
 /// specification.
 ///
-/// It also provides an equality and hashing implementation
-/// that ignores ASCII case.
+/// It also provides an equality and hashing implementation which performs the
+/// component model's canonicalization of a `label` when determining whether
+/// names are "strongly-unique".
 #[derive(Debug, Eq, Clone, Copy)]
 #[repr(transparent)]
 pub struct KebabStr<'a>(&'a str);
@@ -42,6 +43,14 @@ impl<'a> KebabStr<'a> {
     /// Converts the slice to an owned string.
     pub fn to_kebab_string(&self) -> KebabString {
         KebabString(self.to_string())
+    }
+
+    /// Returns the characters of this `label` as canonicalized when determining
+    /// whether two names are "strongly-unique".
+    fn canonical_chars(&self) -> impl Iterator<Item = char> + '_ {
+        self.chars()
+            .filter(|c| *c != '-')
+            .map(|c| c.to_ascii_lowercase())
     }
 
     fn is_kebab_case(&self) -> bool {
@@ -81,13 +90,7 @@ impl Deref for KebabStr<'_> {
 
 impl PartialEq for KebabStr<'_> {
     fn eq(&self, other: &Self) -> bool {
-        if self.len() != other.len() {
-            return false;
-        }
-
-        self.chars()
-            .zip(other.chars())
-            .all(|(a, b)| a.to_ascii_lowercase() == b.to_ascii_lowercase())
+        self.canonical_chars().eq(other.canonical_chars())
     }
 }
 
@@ -99,9 +102,7 @@ impl PartialEq<KebabString> for KebabStr<'_> {
 
 impl Ord for KebabStr<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
-        let self_chars = self.chars().map(|c| c.to_ascii_lowercase());
-        let other_chars = other.chars().map(|c| c.to_ascii_lowercase());
-        self_chars.cmp(other_chars)
+        self.canonical_chars().cmp(other.canonical_chars())
     }
 }
 
@@ -113,10 +114,10 @@ impl PartialOrd for KebabStr<'_> {
 
 impl Hash for KebabStr<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.len().hash(state);
+        self.canonical_chars().count().hash(state);
 
-        for b in self.chars() {
-            b.to_ascii_lowercase().hash(state);
+        for c in self.canonical_chars() {
+            c.hash(state);
         }
     }
 }
@@ -133,8 +134,9 @@ impl fmt::Display for KebabStr<'_> {
 /// a valid kebab case string according to the component model
 /// specification.
 ///
-/// It also provides an equality and hashing implementation
-/// that ignores ASCII case.
+/// It also provides an equality and hashing implementation which performs the
+/// component model's canonicalization of a `label` when determining whether
+/// names are "strongly-unique".
 #[derive(Debug, Clone, Eq)]
 pub struct KebabString(String);
 

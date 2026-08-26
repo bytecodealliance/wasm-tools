@@ -1,0 +1,10 @@
+error: 1 test failures in tests/component-model/test/validation/kebab.wast:
+
+--------------------------------
+
+failed directive on tests/component-model/test/validation/kebab.wast:4:2
+
+Caused by:
+    0: failed testing wasm binary produced by `wast`
+    1: wasm isn't valid
+    2: import name `a-1` conflicts with previous name `a1` (at offset 0x3c)

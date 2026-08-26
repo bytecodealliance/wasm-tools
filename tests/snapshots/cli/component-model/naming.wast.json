@@ -164,6 +164,90 @@
       "filename": "naming.23.wasm",
       "module_type": "binary",
       "text": "conflicts with previous name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 164,
+      "filename": "naming.24.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 167,
+      "filename": "naming.25.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 170,
+      "filename": "naming.26.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 173,
+      "filename": "naming.27.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 177,
+      "filename": "naming.28.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 184,
+      "filename": "naming.29.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 189,
+      "filename": "naming.30.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 195,
+      "filename": "naming.31.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous field name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 198,
+      "filename": "naming.32.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous case name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 201,
+      "filename": "naming.33.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous flag name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 204,
+      "filename": "naming.34.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous tag name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 207,
+      "filename": "naming.35.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous parameter name"
     }
   ]
 }
