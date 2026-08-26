@@ -1605,16 +1605,22 @@ mod test {
             ("1".to_string(), ".2.3".to_string())
         );
 
+        let v = Version::parse("101.201.301").unwrap();
+        assert_eq!(
+            PackageName::canon_version_split(&v),
+            ("101".to_string(), ".201.301".to_string())
+        );
+
         let v = Version::parse("0.2.6-rc.1").unwrap();
         assert_eq!(
             PackageName::canon_version_split(&v),
             ("0.2".to_string(), ".6-rc.1".to_string())
         );
 
-        let v = Version::parse("0.1.0").unwrap();
+        let v = Version::parse("0.10.0").unwrap();
         assert_eq!(
             PackageName::canon_version_split(&v),
-            ("0.1".to_string(), ".0".to_string())
+            ("0.10".to_string(), ".0".to_string())
         );
 
         let v = Version::parse("0.0.1-alpha").unwrap();
@@ -1633,6 +1639,12 @@ mod test {
         assert_eq!(
             PackageName::canon_version_split(&v),
             ("1".to_string(), ".0.0-beta.1".to_string())
+        );
+
+        let v = Version::parse("0.0.100-beta+build.1").unwrap();
+        assert_eq!(
+            PackageName::canon_version_split(&v),
+            ("0.0.100".to_string(), "-beta+build.1".to_string())
         );
     }
 }

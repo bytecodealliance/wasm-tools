@@ -1,4 +1,4 @@
-// RUN: component wit --merge-world-imports-based-on-canonical-version foo %
+// RUN: component wit --emit-canonical-names foo %
 
 // When merging semver-compatible imports, labeled imports with `implements`
 // should be kept (updated to the newer version) rather than removed.

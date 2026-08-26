@@ -52,9 +52,9 @@ Options:
       --merge-world-imports-based-on-semver <WORLD>
           Updates the world specified to deduplicate all of its imports based on
           semver versions
-      --merge-world-imports-based-on-canonical-version <WORLD>
+      --emit-canonical-names <WORLD>
           Updates the world specified to deduplicate all of its imports based on
-          canonical version prefixes
+          canonical version prefixes and emits canonical interface names
       --generate-nominal-type-ids <WORLD>
           Generates unique type IDs for nominal types in the world provided
       --features <FEATURES>

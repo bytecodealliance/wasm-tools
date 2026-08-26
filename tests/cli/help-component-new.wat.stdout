@@ -102,9 +102,8 @@ Options:
           
           [possible values: true, false]
 
-      --merge-imports-based-on-canonical-version
-          Merges imports based on canonical version prefixes and emits canonical
-          interface names with version suffixes.
+      --emit-canonical-names
+          Emits canonical interface names with version suffixes.
           
           When enabled, import/export names use canonical version prefixes
           (e.g., `wasi:cli/exit@0.2` instead of `wasi:cli/exit@0.2.1`) and the

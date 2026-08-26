@@ -208,23 +208,17 @@ struct ComponentEncoderOpts {
     /// semver ranges.
     ///
     /// This is enabled by default.
-    #[arg(
-        long,
-        require_equals = true,
-        value_name = "true|false",
-        conflicts_with = "merge_imports_based_on_canonical_version"
-    )]
+    #[arg(long, require_equals = true, value_name = "true|false")]
     merge_imports_based_on_semver: Option<Option<bool>>,
 
-    /// Merges imports based on canonical version prefixes and emits canonical
-    /// interface names with version suffixes.
+    /// Emits canonical interface names with version suffixes.
     ///
     /// When enabled, import/export names use canonical version prefixes (e.g.,
     /// `wasi:cli/exit@0.2` instead of `wasi:cli/exit@0.2.1`) and the
     /// `version_suffix` field is populated in the binary. This also forces
     /// merging of imports that share the same canonical version prefix.
-    #[clap(long, conflicts_with = "merge_imports_based_on_semver")]
-    merge_imports_based_on_canonical_version: bool,
+    #[clap(long)]
+    emit_canonical_names: bool,
 
     /// Reject usage of the "legacy" naming scheme of `wit-component` and
     /// require the new naming scheme to be used.
@@ -293,7 +287,12 @@ impl ComponentEncoderOpts {
                 true,
             ))
             .realloc_via_memory_grow(self.realloc_via_memory_grow)
-            .emit_canonical_names(self.merge_imports_based_on_canonical_version);
+            .emit_canonical_names(self.emit_canonical_names);
+        if self.emit_canonical_names
+            && matches!(self.merge_imports_based_on_semver, Some(Some(false)))
+        {
+            bail!("cannot use `--emit-canonical-names` with `--merge-imports-based-on-semver=false`");
+        }
         for (name, wasm) in self.adapters.iter() {
             encoder.adapter(name, wasm)?;
         }
@@ -832,7 +831,6 @@ pub struct WitOpts {
         conflicts_with = "exportize",
         conflicts_with = "exportize_world",
         conflicts_with = "merge_world_imports_based_on_semver",
-        conflicts_with = "merge_world_imports_based_on_canonical_version",
         conflicts_with = "generate_nominal_type_ids"
     )]
     importize: bool,
@@ -857,7 +855,6 @@ pub struct WitOpts {
         conflicts_with = "exportize",
         conflicts_with = "exportize_world",
         conflicts_with = "merge_world_imports_based_on_semver",
-        conflicts_with = "merge_world_imports_based_on_canonical_version",
         conflicts_with = "generate_nominal_type_ids",
         value_name = "WORLD"
     )]
@@ -877,7 +874,6 @@ pub struct WitOpts {
         conflicts_with = "importize_world",
         conflicts_with = "exportize_world",
         conflicts_with = "merge_world_imports_based_on_semver",
-        conflicts_with = "merge_world_imports_based_on_canonical_version",
         conflicts_with = "generate_nominal_type_ids"
     )]
     exportize: bool,
@@ -908,7 +904,6 @@ pub struct WitOpts {
         conflicts_with = "importize_world",
         conflicts_with = "exportize",
         conflicts_with = "merge_world_imports_based_on_semver",
-        conflicts_with = "merge_world_imports_based_on_canonical_version",
         conflicts_with = "generate_nominal_type_ids",
         value_name = "WORLD"
     )]
@@ -928,18 +923,17 @@ pub struct WitOpts {
         conflicts_with = "exportize",
         conflicts_with = "exportize_world",
         conflicts_with = "generate_nominal_type_ids",
-        conflicts_with = "merge_world_imports_based_on_canonical_version",
         value_name = "WORLD"
     )]
     merge_world_imports_based_on_semver: Option<String>,
 
     /// Updates the world specified to deduplicate all of its imports based on
-    /// canonical version prefixes.
+    /// canonical version prefixes and emits canonical interface names.
     ///
     /// This option can be used to read a WIT world from a package and update it
-    /// to deduplicate WIT imports based on their version. This happens by
-    /// default in the `component new` subcommand for example and this flag can
-    /// be used to explore outside of that command what's happening to the WIT.
+    /// to deduplicate WIT imports based on their canonical version prefix. This
+    /// is the same merge that happens in `component new` when
+    /// `--emit-canonical-names` is passed.
     #[clap(
         long,
         conflicts_with = "importize",
@@ -947,10 +941,9 @@ pub struct WitOpts {
         conflicts_with = "exportize",
         conflicts_with = "exportize_world",
         conflicts_with = "generate_nominal_type_ids",
-        conflicts_with = "merge_world_imports_based_on_semver",
         value_name = "WORLD"
     )]
-    merge_world_imports_based_on_canonical_version: Option<String>,
+    emit_canonical_names: Option<String>,
 
     /// Generates unique type IDs for nominal types in the world provided.
     ///
@@ -968,7 +961,6 @@ pub struct WitOpts {
         conflicts_with = "exportize",
         conflicts_with = "exportize_world",
         conflicts_with = "merge_world_imports_based_on_semver",
-        conflicts_with = "merge_world_imports_based_on_canonical_version",
         value_name = "WORLD"
     )]
     generate_nominal_type_ids: Option<String>,
@@ -1037,11 +1029,11 @@ impl WitOpts {
                 .context("failed to merge world imports based on semver")?;
             let resolve = mem::take(resolve);
             decoded = DecodedWasm::Component(resolve, world_id);
-        } else if let Some(world) = &self.merge_world_imports_based_on_canonical_version {
+        } else if let Some(world) = &self.emit_canonical_names {
             let (resolve, world_id) = match &mut decoded {
                 DecodedWasm::Component(..) => {
                     bail!(
-                        "the `--merge-world-imports-based-on-canonical-version` flag is \
+                        "the `--emit-canonical-names` flag is \
                         not compatible with a component input"
                     );
                 }
