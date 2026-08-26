@@ -357,7 +357,7 @@ impl Ord for ComponentName {
 
 impl PartialOrd for ComponentName {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.kind.partial_cmp(&other.kind)
+        Some(self.cmp(other))
     }
 }
 
@@ -464,7 +464,7 @@ impl PartialEq for ComponentNameKind<'_> {
 impl Eq for ComponentNameKind<'_> {}
 
 /// A resource name and its function, stored as `a.b`.
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone)]
 pub struct ResourceFunc<'a>(&'a str);
 
 impl<'a> ResourceFunc<'a> {
@@ -486,9 +486,43 @@ impl<'a> ResourceFunc<'a> {
     }
 }
 
+impl Ord for ResourceFunc<'_> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        (self.resource(), self.method()).cmp(&(other.resource(), other.method()))
+    }
+}
+
+impl PartialOrd for ResourceFunc<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for ResourceFunc<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.resource() == other.resource() && self.method() == other.method()
+    }
+}
+
+impl Eq for ResourceFunc<'_> {}
+
+impl Hash for ResourceFunc<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.resource().hash(state);
+        self.method().hash(state);
+    }
+}
+
 /// An interface name, stored as `a:b/c@1.2.3`
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone)]
 pub struct InterfaceName<'a>(&'a str);
+
+#[derive(Ord, PartialOrd, Eq, PartialEq, Hash)]
+enum InterfaceNameComponent<'a> {
+    Namespace(KebabStr<'a>),
+    Projection(KebabStr<'a>),
+    VersionPrefix(&'a str),
+}
 
 impl<'a> InterfaceName<'a> {
     /// Returns the entire underlying string.
@@ -525,10 +559,9 @@ impl<'a> InterfaceName<'a> {
 
     /// Returns the `1.2.3` in `a:b:c/d/e@1.2.3`
     pub fn version(&self, suffix: Option<&str>) -> Result<Option<Version>, semver::Error> {
-        let Some(at) = self.0.find('@') else {
+        let Some(prefix) = self.version_prefix() else {
             return Ok(None);
         };
-        let prefix = &self.0[at + 1..];
         match suffix {
             // FIXME: this should perform full validation of the version
             // suffix/prefix, notably that "prefix" is indeed the "semver track"
@@ -536,6 +569,74 @@ impl<'a> InterfaceName<'a> {
             // "1", nothing else. This validation is deferred to a future PR.
             Some(suffix) => Ok(Some(Version::parse(&format!("{prefix}{suffix}"))?)),
             None => Ok(Some(Version::parse(prefix)?)),
+        }
+    }
+
+    /// Returns the `@1.2.3` in `a:b/c@1.2.3`.
+    fn version_prefix(&self) -> Option<&'a str> {
+        let at = self.0.find('@')?;
+        Some(&self.0[at + 1..])
+    }
+
+    fn components(&self) -> impl Iterator<Item = InterfaceNameComponent<'a>> {
+        let mut next = self.0;
+        let mut prev_char = None;
+        core::iter::from_fn(move || {
+            if next.is_empty() {
+                return None;
+            }
+            match next.find([':', '/', '@']) {
+                Some(i) => {
+                    let ch = next.as_bytes()[i];
+                    let name = KebabStr::new_unchecked(&next[..i]);
+                    next = &next[i + 1..];
+                    prev_char = Some(ch);
+                    if ch == b':' {
+                        Some(InterfaceNameComponent::Namespace(name))
+                    } else {
+                        Some(InterfaceNameComponent::Projection(name))
+                    }
+                }
+                None => {
+                    let name = next;
+                    next = "";
+                    if prev_char == Some(b'@') {
+                        Some(InterfaceNameComponent::VersionPrefix(name))
+                    } else {
+                        let name = KebabStr::new_unchecked(name);
+                        Some(InterfaceNameComponent::Projection(name))
+                    }
+                }
+            }
+        })
+    }
+}
+
+impl Ord for InterfaceName<'_> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.components().cmp(other.components())
+    }
+}
+
+impl PartialOrd for InterfaceName<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for InterfaceName<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.components().eq(other.components())
+    }
+}
+
+impl Eq for InterfaceName<'_> {}
+
+impl Hash for InterfaceName<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.components().count().hash(state);
+        for component in self.components() {
+            component.hash(state);
         }
     }
 }
