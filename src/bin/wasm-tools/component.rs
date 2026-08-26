@@ -291,7 +291,9 @@ impl ComponentEncoderOpts {
         if self.emit_canonical_names
             && matches!(self.merge_imports_based_on_semver, Some(Some(false)))
         {
-            bail!("cannot use `--emit-canonical-names` with `--merge-imports-based-on-semver=false`");
+            bail!(
+                "cannot use `--emit-canonical-names` with `--merge-imports-based-on-semver=false`"
+            );
         }
         for (name, wasm) in self.adapters.iter() {
             encoder.adapter(name, wasm)?;
