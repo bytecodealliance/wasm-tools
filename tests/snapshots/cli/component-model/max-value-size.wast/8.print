@@ -1,0 +1,5 @@
+(component
+  (type $big (;0;) (list u8 268435455))
+  (type (;1;) (map u8 $big))
+  (type (;2;) (list 1 16777215))
+)

@@ -1,0 +1,4 @@
+(component
+  (type $a (;0;) (list u8 268435439))
+  (type (;1;) (record (field "a" $a) (field "b" u64)))
+)

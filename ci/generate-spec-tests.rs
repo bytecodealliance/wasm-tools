@@ -87,7 +87,6 @@ fn copy_test(src: &Path, dst: &Path, features: fn(&Path) -> &str) {
     let directive = match dst.file_name().and_then(|s| s.to_str()) {
         // Disable tests by doing something like:
         // Some("exact-func-import.wast") => "FAIL",
-        Some("max-value-size.wast") => "FAIL", // not yet implemented here
 
         // Temporary exception until WebAssembly/component-model#704 lands
         Some("kebab.wast") => "FAIL",
