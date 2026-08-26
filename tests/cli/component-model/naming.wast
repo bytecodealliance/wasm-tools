@@ -132,3 +132,29 @@
 (component
   (type (flags "a-1-c"))
 )
+
+(assert_invalid
+  (component
+    (import "foo" (type $foo (sub resource)))
+    (import "[method]foo.bar" (func (param "self" (borrow $foo))))
+    (import "[method]foo.BAR" (func (param "self" (borrow $foo)))))
+  "conflicts with previous name")
+
+(assert_invalid
+  (component
+    (import "foo" (type $foo (sub resource)))
+    (import "[static]foo.bar" (func))
+    (import "[method]foo.BAR" (func (param "self" (borrow $foo)))))
+  "conflicts with previous name")
+
+(assert_invalid
+  (component
+    (import "foo:bar/baz" (instance))
+    (import "foo:bar/BAZ" (instance)))
+  "conflicts with previous name")
+
+(assert_invalid
+  (component
+    (import "foo:bar/baz@1.0.0" (instance))
+    (import "foo:bar/BAZ@1.0.0" (instance)))
+  "conflicts with previous name")

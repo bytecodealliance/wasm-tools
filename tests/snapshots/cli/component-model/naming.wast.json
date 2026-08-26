@@ -136,6 +136,34 @@
       "line": 132,
       "filename": "naming.19.wasm",
       "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 137,
+      "filename": "naming.20.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 144,
+      "filename": "naming.21.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 151,
+      "filename": "naming.22.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 157,
+      "filename": "naming.23.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous name"
     }
   ]
 }
