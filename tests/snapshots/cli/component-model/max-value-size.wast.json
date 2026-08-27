@@ -1,0 +1,64 @@
+{
+  "source_filename": "tests/cli/component-model/max-value-size.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "max-value-size.0.wasm",
+      "module_type": "binary",
+      "text": "exceeds maximum byte size"
+    },
+    {
+      "type": "module",
+      "line": 9,
+      "filename": "max-value-size.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 14,
+      "filename": "max-value-size.2.wasm",
+      "module_type": "binary",
+      "text": "exceeds maximum byte size"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 22,
+      "filename": "max-value-size.3.wasm",
+      "module_type": "binary",
+      "text": "exceeds maximum byte size"
+    },
+    {
+      "type": "module",
+      "line": 31,
+      "filename": "max-value-size.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 40,
+      "filename": "max-value-size.5.wasm",
+      "module_type": "binary",
+      "text": "exceeds maximum byte size"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 46,
+      "filename": "max-value-size.6.wasm",
+      "module_type": "binary",
+      "text": "exceeds maximum byte size"
+    },
+    {
+      "type": "module",
+      "line": 51,
+      "filename": "max-value-size.7.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 58,
+      "filename": "max-value-size.8.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

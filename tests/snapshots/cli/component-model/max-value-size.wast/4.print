@@ -1,0 +1,12 @@
+(component
+  (type $a (;0;) (list u8 134217727))
+  (type (;1;)
+    (instance
+      (alias outer 1 $a (type (;0;)))
+      (export (;1;) "t" (type (eq 0)))
+    )
+  )
+  (import "i" (instance $i (;0;) (type 1)))
+  (alias export $i "t" (type $t (;2;)))
+  (type (;3;) (list $t 2))
+)
