@@ -103,6 +103,12 @@ macro_rules! define_config {
             /// with exactly the same names and types as those in the provided
             /// WebAssembly module.
             ///
+            /// When `compact_imports_enabled` is enabled, the import section preserves
+            /// the source entries' order and their `Single`, `Compact1`, and `Compact2`
+            /// grouping. Empty compact groups are omitted.
+            /// When `compact_imports_enabled` is disabled,
+            /// compact groups are emitted as ordinary imports.
+            ///
             /// Defaults to `None` which means arbitrary imports and exports will be
             /// generated.
             ///
@@ -218,6 +224,12 @@ macro_rules! define_config {
             /// If provided, the generated module will have imports and exports
             /// with exactly the same names and types as those in the provided
             /// WebAssembly module.
+            ///
+            /// When `compact_imports_enabled` is enabled, the import section preserves
+            /// the source entries' order and their `Single`, `Compact1`, and `Compact2`
+            /// grouping. Empty compact groups are omitted.
+            /// When `compact_imports_enabled` is disabled,
+            /// compact groups are emitted as ordinary imports.
             ///
             /// Defaults to `None` which means arbitrary imports and exports will be
             /// generated.
@@ -427,6 +439,11 @@ define_config! {
         ///
         /// Defaults to `true`.
         pub gc_enabled: bool = true,
+
+        /// Determines whether compact import section proposal is enabled.
+        ///
+        /// Defaults to `true`.
+        pub compact_imports_enabled: bool = true,
 
         /// Determines whether the custom descriptors proposal is enabled when
         /// generating a Wasm module.
@@ -842,6 +859,7 @@ impl<'a> Arbitrary<'a> for Config {
             threads_enabled: u.arbitrary()?,
             tail_call_enabled: u.arbitrary()?,
             gc_enabled: u.arbitrary()?,
+            compact_imports_enabled: u.arbitrary()?,
             memory64_enabled: u.arbitrary()?,
             allowed_instructions: {
                 use flagset::Flags;
@@ -982,6 +1000,7 @@ impl Config {
         features.set(WasmFeatures::TAIL_CALL, self.tail_call_enabled);
         features.set(WasmFeatures::FUNCTION_REFERENCES, self.gc_enabled);
         features.set(WasmFeatures::GC, self.gc_enabled);
+        features.set(WasmFeatures::COMPACT_IMPORTS, self.compact_imports_enabled);
         features.set(WasmFeatures::THREADS, self.threads_enabled);
         features.set(
             WasmFeatures::SHARED_EVERYTHING_THREADS,

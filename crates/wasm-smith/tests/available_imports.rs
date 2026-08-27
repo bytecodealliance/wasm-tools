@@ -13,6 +13,8 @@ use common::validate;
 #[test]
 fn smoke_test_imports_config() {
     let mut n_partial = 0;
+    let mut compact1_seen = false;
+    let mut compact2_seen = false;
     let mut global_imports_seen = HashMap::<_, bool>::new();
     let mut rng = SmallRng::seed_from_u64(11);
     let mut buf = vec![0; 512];
@@ -50,6 +52,14 @@ fn smoke_test_imports_config() {
                         }
                     }
                 } else if let wasmparser::Payload::ImportSection(rdr) = payload {
+                    for imports in rdr.clone() {
+                        match imports.unwrap() {
+                            wasmparser::Imports::Compact1 { .. } => compact1_seen = true,
+                            wasmparser::Imports::Compact2 { .. } => compact2_seen = true,
+                            wasmparser::Imports::Single(_, _) => {}
+                        }
+                    }
+
                     // Read out imports, checking that they all are within the
                     // list of expected imports (i.e. we don't generate
                     // arbitrary ones), and that we handle the logic correctly
@@ -118,6 +128,8 @@ fn smoke_test_imports_config() {
     }
     assert!(global_imports_seen.values().all(|v| *v));
     assert!(n_partial > 0);
+    assert!(compact1_seen);
+    assert!(compact2_seen);
 }
 
 #[derive(Debug)]
