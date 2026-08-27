@@ -172,6 +172,12 @@
 (assert_invalid
   (component (import "foo-bar" (func)) (import "FOOBAR" (func)))
   "conflicts with previous name")
+(assert_invalid
+  (component
+    (import "foo-bar" (type $t(sub resource)))
+    (import "[method]foo-bar.FO-ob-AR" (func (param "self" (borrow $t))))
+  )
+  "conflicts with previous name")
 
 (assert_invalid
   (component
