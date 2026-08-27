@@ -239,6 +239,7 @@ fn smoke_can_smith_valid_webassembly_one_point_oh() {
         cfg.tail_call_enabled = false;
         cfg.threads_enabled = false;
         cfg.compact_imports_enabled = false;
+        cfg.wide_arithmetic_enabled = false;
         cfg.max_memories = 1;
         cfg.max_tables = 1;
         if let Ok(module) = Module::new(cfg, &mut u) {

@@ -746,7 +746,7 @@ define_config! {
         /// [wide-arithmetic proposal]: https://github.com/WebAssembly/wide-arithmetic
         ///
         /// Defaults to `false`.
-        pub wide_arithmetic_enabled: bool = false,
+        pub wide_arithmetic_enabled: bool = true,
 
         /// Determines whether the [extended-const proposal] is enabled.
         ///
