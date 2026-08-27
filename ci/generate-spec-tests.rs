@@ -88,6 +88,10 @@ fn copy_test(src: &Path, dst: &Path, features: fn(&Path) -> &str) {
         // Disable tests by doing something like:
         // Some("exact-func-import.wast") => "FAIL",
         Some("max-value-size.wast") => "FAIL", // not yet implemented here
+
+        // Temporary exception until WebAssembly/component-model#704 lands
+        Some("kebab.wast") => "FAIL",
+
         Some(_) | None => "RUN",
     };
 

@@ -158,3 +158,57 @@
     (import "foo:bar/baz@1.0.0" (instance))
     (import "foo:bar/BAZ@1.0.0" (instance)))
   "conflicts with previous name")
+
+;; Hyphens are insignificant, so all of these name the same thing.
+(assert_invalid
+  (component (import "foo-bar" (func)) (import "foobar" (func)))
+  "conflicts with previous name")
+(assert_invalid
+  (component (import "foo-bar" (func)) (import "foob-ar" (func)))
+  "conflicts with previous name")
+(assert_invalid
+  (component (import "foo-bar" (func)) (import "foo-BAR" (func)))
+  "conflicts with previous name")
+(assert_invalid
+  (component (import "foo-bar" (func)) (import "FOOBAR" (func)))
+  "conflicts with previous name")
+(assert_invalid
+  (component
+    (import "foo-bar" (type $t(sub resource)))
+    (import "[method]foo-bar.FO-ob-AR" (func (param "self" (borrow $t))))
+  )
+  "conflicts with previous name")
+
+(assert_invalid
+  (component
+    (import "foo" (type $foo (sub resource)))
+    (import "[static]foo.bar-baz" (func))
+    (import "[method]foo.barbaz" (func (param "self" (borrow $foo)))))
+  "conflicts with previous name")
+
+(assert_invalid
+  (component
+    (import "foo:bar/baz-qux" (instance))
+    (import "foo:bar/bazqux" (instance)))
+  "conflicts with previous name")
+(assert_invalid
+  (component
+    (import "foo-a:bar/baz" (instance))
+    (import "fooa:bar/baz" (instance)))
+  "conflicts with previous name")
+
+(assert_invalid
+  (component (type (record (field "foo-bar" u8) (field "foobar" u8))))
+  "conflicts with previous field name")
+(assert_invalid
+  (component (type (variant (case "foo-bar") (case "FOOBAR"))))
+  "conflicts with previous case name")
+(assert_invalid
+  (component (type (flags "foo-bar" "foobar")))
+  "conflicts with previous flag name")
+(assert_invalid
+  (component (type (enum "foo-bar" "foobar")))
+  "conflicts with previous tag name")
+(assert_invalid
+  (component (type (func (param "foo-bar" u8) (param "foobar" u8))))
+  "conflicts with previous parameter name")
