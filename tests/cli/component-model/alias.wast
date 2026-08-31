@@ -335,3 +335,12 @@
     (canon lower (func $c "f") (core func $lowered))
   )
 )
+
+(component
+  (type $a string)
+
+  (component
+    (type (instance (export "a" (type (eq $a)))))
+    (type $b (record (field "x" $a)))
+  )
+)
