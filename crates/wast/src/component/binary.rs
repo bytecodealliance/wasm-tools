@@ -488,13 +488,11 @@ impl<'a> Encoder<'a> {
                 }
                 CoreFuncKind::WaitableSetWait(info) => {
                     self.core_func_names.push(name);
-                    self.funcs
-                        .waitable_set_wait(info.async_, info.memory.idx.into());
+                    self.funcs.waitable_set_wait(info.memory.idx.into());
                 }
                 CoreFuncKind::WaitableSetPoll(info) => {
                     self.core_func_names.push(name);
-                    self.funcs
-                        .waitable_set_poll(info.async_, info.memory.idx.into());
+                    self.funcs.waitable_set_poll(info.memory.idx.into());
                 }
                 CoreFuncKind::WaitableSetDrop => {
                     self.core_func_names.push(name);
@@ -517,29 +515,29 @@ impl<'a> Encoder<'a> {
                     self.core_func_names.push(name);
                     self.funcs.thread_resume_later();
                 }
-                CoreFuncKind::ThreadSuspend(info) => {
+                CoreFuncKind::ThreadSuspend => {
                     self.core_func_names.push(name);
-                    self.funcs.thread_suspend(info.cancellable);
+                    self.funcs.thread_suspend();
                 }
-                CoreFuncKind::ThreadYield(info) => {
+                CoreFuncKind::ThreadYield => {
                     self.core_func_names.push(name);
-                    self.funcs.thread_yield(info.cancellable);
+                    self.funcs.thread_yield();
                 }
-                CoreFuncKind::ThreadSuspendThenResume(info) => {
+                CoreFuncKind::ThreadSuspendThenResume => {
                     self.core_func_names.push(name);
-                    self.funcs.thread_suspend_then_resume(info.cancellable);
+                    self.funcs.thread_suspend_then_resume();
                 }
-                CoreFuncKind::ThreadYieldThenResume(info) => {
+                CoreFuncKind::ThreadYieldThenResume => {
                     self.core_func_names.push(name);
-                    self.funcs.thread_yield_then_resume(info.cancellable);
+                    self.funcs.thread_yield_then_resume();
                 }
-                CoreFuncKind::ThreadSuspendThenPromote(info) => {
+                CoreFuncKind::ThreadSuspendThenPromote => {
                     self.core_func_names.push(name);
-                    self.funcs.thread_suspend_then_promote(info.cancellable);
+                    self.funcs.thread_suspend_then_promote();
                 }
-                CoreFuncKind::ThreadYieldThenPromote(info) => {
+                CoreFuncKind::ThreadYieldThenPromote => {
                     self.core_func_names.push(name);
-                    self.funcs.thread_yield_then_promote(info.cancellable);
+                    self.funcs.thread_yield_then_promote();
                 }
             },
         }

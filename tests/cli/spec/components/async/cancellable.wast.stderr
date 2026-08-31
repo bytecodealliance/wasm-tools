@@ -1,0 +1,5 @@
+error: the `cancellable` option is no longer supported after WebAssembly/component-model#716
+     --> tests/component-model/test/async/cancellable.wast:142:42
+      |
+  142 |     (canon waitable-set.wait cancellable (memory (core memory $memory "mem")) (core func $waitable-set.wait-cancellable))
+      |                                          ^
