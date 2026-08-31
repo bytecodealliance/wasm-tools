@@ -1030,6 +1030,9 @@ pub mod component_utils {
                     .collect::<Result<Vec<_>, _>>()?;
                 section.stream_write(reencoder.component_type_index(ty), options);
             }
+            wasmparser::CanonicalFunction::StreamForward { ty } => {
+                section.stream_forward(reencoder.component_type_index(ty));
+            }
             wasmparser::CanonicalFunction::StreamCancelRead { ty, async_ } => {
                 section.stream_cancel_read(reencoder.component_type_index(ty), async_);
             }
@@ -1058,6 +1061,9 @@ pub mod component_utils {
                     .map(|o| reencoder.canonical_option(*o))
                     .collect::<Result<Vec<_>, _>>()?;
                 section.future_write(reencoder.component_type_index(ty), options);
+            }
+            wasmparser::CanonicalFunction::FutureForward { ty } => {
+                section.future_forward(reencoder.component_type_index(ty));
             }
             wasmparser::CanonicalFunction::FutureCancelRead { ty, async_ } => {
                 section.future_cancel_read(reencoder.component_type_index(ty), async_);

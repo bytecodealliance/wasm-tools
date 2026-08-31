@@ -62,6 +62,20 @@
       "filename": "async-builtins.8.wasm",
       "module_type": "binary",
       "text": "requires the component model more async builtins feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 60,
+      "filename": "async-builtins.9.wasm",
+      "module_type": "binary",
+      "text": "requires the component model more async builtins feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 66,
+      "filename": "async-builtins.10.wasm",
+      "module_type": "binary",
+      "text": "requires the component model more async builtins feature"
     }
   ]
 }

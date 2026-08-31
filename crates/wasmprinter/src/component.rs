@@ -1048,6 +1048,11 @@ impl Printer<'_, '_> {
                         me.print_canonical_options(state, &options)
                     })?;
                 }
+                CanonicalFunction::StreamForward { ty } => {
+                    self.print_intrinsic(state, "canon stream.forward ", &|me, state| {
+                        me.print_idx(&state.component.type_names, ty)
+                    })?;
+                }
                 CanonicalFunction::StreamCancelRead { ty, async_ } => {
                     self.print_intrinsic(state, "canon stream.cancel-read ", &|me, state| {
                         me.print_idx(&state.component.type_names, ty)?;
@@ -1091,6 +1096,11 @@ impl Printer<'_, '_> {
                     self.print_intrinsic(state, "canon future.write ", &|me, state| {
                         me.print_idx(&state.component.type_names, ty)?;
                         me.print_canonical_options(state, &options)
+                    })?;
+                }
+                CanonicalFunction::FutureForward { ty } => {
+                    self.print_intrinsic(state, "canon future.forward ", &|me, state| {
+                        me.print_idx(&state.component.type_names, ty)
                     })?;
                 }
                 CanonicalFunction::FutureCancelRead { ty, async_ } => {

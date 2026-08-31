@@ -1,0 +1,6 @@
+package foo:foo;
+
+world module {
+  import foo: async func(x: future<u32>) -> stream<u32>;
+  export foo: async func(x: future<u32>) -> stream<u32>;
+}

@@ -2016,6 +2016,11 @@ impl<'a> EncodingState<'a> {
                 PayloadFuncKind::StreamWrite,
                 *async_,
             ),
+            Import::StreamForward(info) => {
+                let ty = self.payload_type_index(info)?;
+                let index = self.component.stream_forward(ty);
+                Ok((ExportKind::Func, index))
+            }
             Import::StreamCancelRead { info, async_ } => {
                 let ty = self.payload_type_index(info)?;
                 let index = self.component.stream_cancel_read(ty, *async_);
@@ -2055,6 +2060,11 @@ impl<'a> EncodingState<'a> {
                 PayloadFuncKind::FutureWrite,
                 *async_,
             ),
+            Import::FutureForward(info) => {
+                let ty = self.payload_type_index(info)?;
+                let index = self.component.future_forward(ty);
+                Ok((ExportKind::Func, index))
+            }
             Import::FutureCancelRead { info, async_ } => {
                 let ty = self.payload_type_index(info)?;
                 let index = self.component.future_cancel_read(ty, *async_);
@@ -2659,10 +2669,12 @@ impl<'a> Shims<'a> {
                 | Import::SubtaskCancel { .. }
                 | Import::FutureNew(..)
                 | Import::StreamNew(..)
+                | Import::FutureForward { .. }
                 | Import::FutureCancelRead { .. }
                 | Import::FutureCancelWrite { .. }
                 | Import::FutureDropWritable { .. }
                 | Import::FutureDropReadable { .. }
+                | Import::StreamForward { .. }
                 | Import::StreamCancelRead { .. }
                 | Import::StreamCancelWrite { .. }
                 | Import::StreamDropWritable { .. }
