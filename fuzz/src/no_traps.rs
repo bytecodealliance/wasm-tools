@@ -19,19 +19,12 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
         config.max_memory32_bytes = config.max_memory32_bytes.min(1 << 18);
         config.max_memory64_bytes = config.max_memory64_bytes.min(1 << 18);
 
-        // NB: should re-enable once wasmtime implements the table64 extension
-        // to the memory64 proposal.
-        config.memory64_enabled = false;
         Ok(())
     })?;
     validate_module(&wasm_bytes);
 
-    // Don't try to run these modules until we update to Wasmtime >=23.
-    if config.custom_page_sizes_enabled {
-        return Ok(());
-    }
     // Not implemented in wasmtime at this time.
-    if config.wide_arithmetic_enabled {
+    if config.compact_imports_enabled {
         return Ok(());
     }
 
@@ -39,9 +32,8 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     {
         // Configure the engine, module, and store
         let mut eng_conf = wasmtime::Config::new();
-        eng_conf.wasm_memory64(true);
-        eng_conf.wasm_multi_memory(true);
-        eng_conf.wasm_tail_call(true);
+        eng_conf.wasm_wide_arithmetic(true);
+        eng_conf.wasm_custom_page_sizes(true);
         eng_conf.consume_fuel(true);
         let engine = Engine::new(&eng_conf).unwrap();
         let module = match Module::from_binary(&engine, &wasm_bytes) {
@@ -87,7 +79,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
             }
         }
 
-        fn check_err(err: anyhow::Error) {
+        fn check_err(err: wasmtime::Error) {
             // Allow stack overflow since this generally can't be protected
             // against as it's an implementation detail of cranelift we could
             // expose regardless of the limits placed on the function.
