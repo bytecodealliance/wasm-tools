@@ -79,7 +79,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
             }
         }
 
-        fn check_err(err: anyhow::Error) {
+        fn check_err(err: wasmtime::Error) {
             // Allow stack overflow since this generally can't be protected
             // against as it's an implementation detail of cranelift we could
             // expose regardless of the limits placed on the function.
