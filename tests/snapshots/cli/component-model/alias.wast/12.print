@@ -1,8 +1,8 @@
 (component $PARENT
   (type $t (;0;) (func (result string)))
   (component (;0;)
-    (alias outer $PARENT $t (type $t (;0;)))
-    (import "a" (func (;0;) (type $t)))
+    (alias outer $PARENT $t (type (;0;)))
+    (import "a" (func (;0;) (type 0)))
   )
   (component (;1;)
     (alias outer $PARENT $t (type $my_type (;0;)))

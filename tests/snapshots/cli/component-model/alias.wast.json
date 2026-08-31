@@ -202,6 +202,12 @@
       "line": 325,
       "filename": "alias.30.wasm",
       "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 339,
+      "filename": "alias.31.wasm",
+      "module_type": "binary"
     }
   ]
 }

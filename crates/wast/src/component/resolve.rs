@@ -964,9 +964,10 @@ impl<'a> Resolver<'a> {
                     // When resolution succeeds in a parent then an outer alias
                     // is automatically inserted here in this component.
                     let span = idx.span();
+                    let alias_id = gensym::generate(span);
                     let alias = Alias {
                         span,
-                        id: Some(id),
+                        id: Some(alias_id),
                         name: None,
                         target: AliasTarget::Outer {
                             outer: Index::Num(depth, span),
@@ -993,6 +994,7 @@ impl<'a> Resolver<'a> {
                     self.current().register_alias(&alias)?;
 
                     self.aliases_to_insert.push(alias);
+                    *idx = Index::Id(alias_id);
                     break;
                 }
             }
