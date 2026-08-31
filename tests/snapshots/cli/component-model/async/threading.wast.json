@@ -174,7 +174,7 @@
     },
     {
       "type": "module",
-      "line": 276,
+      "line": 266,
       "filename": "threading.26.wasm",
       "module_type": "binary"
     }

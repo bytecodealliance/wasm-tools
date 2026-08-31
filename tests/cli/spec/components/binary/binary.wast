@@ -1,4 +1,4 @@
-;; RUN: wast \
+;; FAIL: wast \
 ;;      --assert default \
 ;;      --assert permissive \
 ;;      --snapshot tests/snapshots \

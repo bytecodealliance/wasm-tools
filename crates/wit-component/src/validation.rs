@@ -325,14 +325,14 @@ pub enum Import {
     /// This allows the guest to wait for any pending calls to async-lowered
     /// imports and/or `stream` and `future` operations to complete without
     /// unwinding the current Wasm stack.
-    WaitableSetWait { cancellable: bool },
+    WaitableSetWait,
 
     /// A `canon waitable.poll` intrinsic.
     ///
     /// This allows the guest to check whether any pending calls to
     /// async-lowered imports and/or `stream` and `future` operations have
     /// completed without unwinding the current Wasm stack and without blocking.
-    WaitableSetPoll { cancellable: bool },
+    WaitableSetPoll,
 
     /// A `waitable-set.drop` intrinsic.
     WaitableSetDrop,
@@ -460,22 +460,22 @@ pub enum Import {
     ThreadResumeLater,
 
     /// A `canon thread.suspend` intrinsic.
-    ThreadSuspend { cancellable: bool },
+    ThreadSuspend,
 
     /// A `canon thread.yield` intrinsic.
-    ThreadYield { cancellable: bool },
+    ThreadYield,
 
     /// A `canon thread.suspend-then-resume` intrinsic.
-    ThreadSuspendThenResume { cancellable: bool },
+    ThreadSuspendThenResume,
 
     /// A `canon thread.yield-then-resume` intrinsic.
-    ThreadYieldThenResume { cancellable: bool },
+    ThreadYieldThenResume,
 
     /// A `canon thread.suspend-then-promote` intrinsic.
-    ThreadSuspendThenPromote { cancellable: bool },
+    ThreadSuspendThenPromote,
 
     /// A `canon thread.yield-then-promote` intrinsic.
-    ThreadYieldThenPromote { cancellable: bool },
+    ThreadYieldThenPromote,
 }
 
 impl ImportMap {
@@ -650,20 +650,16 @@ impl ImportMap {
                 return Ok(Import::WaitableSetNew);
             }
 
-            if let Some((info, result_ty)) = names.waitable_set_wait(name) {
+            if let Some(result_ty) = names.waitable_set_wait(name) {
                 let expected = FuncType::new([ValType::I32, result_ty], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::WaitableSetWait {
-                    cancellable: info.cancellable,
-                });
+                return Ok(Import::WaitableSetWait);
             }
 
-            if let Some((info, result_ty)) = names.waitable_set_poll(name) {
+            if let Some(result_ty) = names.waitable_set_poll(name) {
                 let expected = FuncType::new([ValType::I32, result_ty], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::WaitableSetPoll {
-                    cancellable: info.cancellable,
-                });
+                return Ok(Import::WaitableSetPoll);
             }
 
             if names.waitable_set_drop(name) {
@@ -729,47 +725,35 @@ impl ImportMap {
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::ThreadResumeLater);
             }
-            if let Some(info) = names.thread_suspend(name) {
+            if names.thread_suspend(name) {
                 let expected = FuncType::new([], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::ThreadSuspend {
-                    cancellable: info.cancellable,
-                });
+                return Ok(Import::ThreadSuspend);
             }
-            if let Some(info) = names.thread_yield(name) {
+            if names.thread_yield(name) {
                 let expected = FuncType::new([], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::ThreadYield {
-                    cancellable: info.cancellable,
-                });
+                return Ok(Import::ThreadYield);
             }
-            if let Some(info) = names.thread_suspend_then_resume(name) {
+            if names.thread_suspend_then_resume(name) {
                 let expected = FuncType::new([ValType::I32], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::ThreadSuspendThenResume {
-                    cancellable: info.cancellable,
-                });
+                return Ok(Import::ThreadSuspendThenResume);
             }
-            if let Some(info) = names.thread_yield_then_resume(name) {
+            if names.thread_yield_then_resume(name) {
                 let expected = FuncType::new([ValType::I32], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::ThreadYieldThenResume {
-                    cancellable: info.cancellable,
-                });
+                return Ok(Import::ThreadYieldThenResume);
             }
-            if let Some(info) = names.thread_suspend_then_promote(name) {
+            if names.thread_suspend_then_promote(name) {
                 let expected = FuncType::new([ValType::I32], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::ThreadSuspendThenPromote {
-                    cancellable: info.cancellable,
-                });
+                return Ok(Import::ThreadSuspendThenPromote);
             }
-            if let Some(info) = names.thread_yield_then_promote(name) {
+            if names.thread_yield_then_promote(name) {
                 let expected = FuncType::new([ValType::I32], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::ThreadYieldThenPromote {
-                    cancellable: info.cancellable,
-                });
+                return Ok(Import::ThreadYieldThenPromote);
             }
 
             let (key_name, abi) = names.world_key_name_and_abi(name);
@@ -1556,13 +1540,6 @@ impl ExportMap {
     }
 }
 
-/// A builtin that may be declared as cancellable.
-struct MaybeCancellable<T> {
-    #[allow(unused)]
-    inner: T,
-    cancellable: bool,
-}
-
 /// A builtin that may be declared as async-lowered.
 struct MaybeAsyncLowered<T> {
     inner: T,
@@ -1617,8 +1594,8 @@ trait NameMangling {
     fn backpressure_inc(&self, name: &str) -> bool;
     fn backpressure_dec(&self, name: &str) -> bool;
     fn waitable_set_new(&self, name: &str) -> bool;
-    fn waitable_set_wait(&self, name: &str) -> Option<(MaybeCancellable<()>, ValType)>;
-    fn waitable_set_poll(&self, name: &str) -> Option<(MaybeCancellable<()>, ValType)>;
+    fn waitable_set_wait(&self, name: &str) -> Option<ValType>;
+    fn waitable_set_poll(&self, name: &str) -> Option<ValType>;
     fn waitable_set_drop(&self, name: &str) -> bool;
     fn waitable_join(&self, name: &str) -> bool;
     fn subtask_drop(&self, name: &str) -> bool;
@@ -1696,12 +1673,12 @@ trait NameMangling {
     fn thread_index(&self, name: &str) -> bool;
     fn thread_new_indirect(&self, name: &str) -> bool;
     fn thread_resume_later(&self, name: &str) -> bool;
-    fn thread_suspend(&self, name: &str) -> Option<MaybeCancellable<()>>;
-    fn thread_yield(&self, name: &str) -> Option<MaybeCancellable<()>>;
-    fn thread_suspend_then_resume(&self, name: &str) -> Option<MaybeCancellable<()>>;
-    fn thread_yield_then_resume(&self, name: &str) -> Option<MaybeCancellable<()>>;
-    fn thread_suspend_then_promote(&self, name: &str) -> Option<MaybeCancellable<()>>;
-    fn thread_yield_then_promote(&self, name: &str) -> Option<MaybeCancellable<()>>;
+    fn thread_suspend(&self, name: &str) -> bool;
+    fn thread_yield(&self, name: &str) -> bool;
+    fn thread_suspend_then_resume(&self, name: &str) -> bool;
+    fn thread_yield_then_resume(&self, name: &str) -> bool;
+    fn thread_suspend_then_promote(&self, name: &str) -> bool;
+    fn thread_yield_then_promote(&self, name: &str) -> bool;
     fn module_to_interface(
         &self,
         module: &str,
@@ -1783,10 +1760,10 @@ impl NameMangling for Standard {
     fn waitable_set_new(&self, _name: &str) -> bool {
         false
     }
-    fn waitable_set_wait(&self, _name: &str) -> Option<(MaybeCancellable<()>, ValType)> {
+    fn waitable_set_wait(&self, _name: &str) -> Option<ValType> {
         None
     }
-    fn waitable_set_poll(&self, _name: &str) -> Option<(MaybeCancellable<()>, ValType)> {
+    fn waitable_set_poll(&self, _name: &str) -> Option<ValType> {
         None
     }
     fn waitable_set_drop(&self, _name: &str) -> bool {
@@ -1834,23 +1811,23 @@ impl NameMangling for Standard {
     fn thread_resume_later(&self, _name: &str) -> bool {
         false
     }
-    fn thread_suspend(&self, _name: &str) -> Option<MaybeCancellable<()>> {
-        None
+    fn thread_suspend(&self, _name: &str) -> bool {
+        false
     }
-    fn thread_yield(&self, _name: &str) -> Option<MaybeCancellable<()>> {
-        None
+    fn thread_yield(&self, _name: &str) -> bool {
+        false
     }
-    fn thread_suspend_then_resume(&self, _name: &str) -> Option<MaybeCancellable<()>> {
-        None
+    fn thread_suspend_then_resume(&self, _name: &str) -> bool {
+        false
     }
-    fn thread_yield_then_resume(&self, _name: &str) -> Option<MaybeCancellable<()>> {
-        None
+    fn thread_yield_then_resume(&self, _name: &str) -> bool {
+        false
     }
-    fn thread_suspend_then_promote(&self, _name: &str) -> Option<MaybeCancellable<()>> {
-        None
+    fn thread_suspend_then_promote(&self, _name: &str) -> bool {
+        false
     }
-    fn thread_yield_then_promote(&self, _name: &str) -> Option<MaybeCancellable<()>> {
-        None
+    fn thread_yield_then_promote(&self, _name: &str) -> bool {
+        false
     }
     fn future_new(
         &self,
@@ -2165,25 +2142,6 @@ impl Legacy {
             None
         }
     }
-    fn strip_cancellable_prefix<'a>(&self, name: &'a str) -> (bool, &'a str) {
-        name.strip_prefix("[cancellable]")
-            .map_or((false, name), |s| (true, s))
-    }
-    fn match_with_cancellable_prefix(
-        &self,
-        name: &str,
-        expected: &str,
-    ) -> Option<MaybeCancellable<()>> {
-        let (cancellable, clean_name) = self.strip_cancellable_prefix(name);
-        if clean_name == expected {
-            Some(MaybeCancellable {
-                inner: (),
-                cancellable,
-            })
-        } else {
-            None
-        }
-    }
 
     /// Matches a name with the given prefix and either no suffix (for backwards compat) or
     /// "-i32" or "-i64".
@@ -2252,23 +2210,13 @@ impl NameMangling for Legacy {
     fn waitable_set_new(&self, name: &str) -> bool {
         name == "[waitable-set-new]"
     }
-    fn waitable_set_wait(&self, name: &str) -> Option<(MaybeCancellable<()>, ValType)> {
-        let (cancellable, clean_name) = self.strip_cancellable_prefix(name);
-        let mb_cancellable = MaybeCancellable {
-            inner: (),
-            cancellable,
-        };
-        let result_ty = Legacy::match_with_optional_type_suffix(clean_name, "[waitable-set-wait")?;
-        Some((mb_cancellable, result_ty))
+    fn waitable_set_wait(&self, name: &str) -> Option<ValType> {
+        let result_ty = Legacy::match_with_optional_type_suffix(name, "[waitable-set-wait")?;
+        Some(result_ty)
     }
-    fn waitable_set_poll(&self, name: &str) -> Option<(MaybeCancellable<()>, ValType)> {
-        let (cancellable, clean_name) = self.strip_cancellable_prefix(name);
-        let mb_cancellable = MaybeCancellable {
-            inner: (),
-            cancellable,
-        };
-        let result_ty = Legacy::match_with_optional_type_suffix(clean_name, "[waitable-set-poll")?;
-        Some((mb_cancellable, result_ty))
+    fn waitable_set_poll(&self, name: &str) -> Option<ValType> {
+        let result_ty = Legacy::match_with_optional_type_suffix(name, "[waitable-set-poll")?;
+        Some(result_ty)
     }
     fn waitable_set_drop(&self, name: &str) -> bool {
         name == "[waitable-set-drop]"
@@ -2326,23 +2274,23 @@ impl NameMangling for Legacy {
     fn thread_resume_later(&self, name: &str) -> bool {
         name == "[thread-resume-later]"
     }
-    fn thread_suspend(&self, name: &str) -> Option<MaybeCancellable<()>> {
-        self.match_with_cancellable_prefix(name, "[thread-suspend]")
+    fn thread_suspend(&self, name: &str) -> bool {
+        name == "[thread-suspend]"
     }
-    fn thread_yield(&self, name: &str) -> Option<MaybeCancellable<()>> {
-        self.match_with_cancellable_prefix(name, "[thread-yield]")
+    fn thread_yield(&self, name: &str) -> bool {
+        name == "[thread-yield]"
     }
-    fn thread_suspend_then_resume(&self, name: &str) -> Option<MaybeCancellable<()>> {
-        self.match_with_cancellable_prefix(name, "[thread-suspend-then-resume]")
+    fn thread_suspend_then_resume(&self, name: &str) -> bool {
+        name == "[thread-suspend-then-resume]"
     }
-    fn thread_yield_then_resume(&self, name: &str) -> Option<MaybeCancellable<()>> {
-        self.match_with_cancellable_prefix(name, "[thread-yield-then-resume]")
+    fn thread_yield_then_resume(&self, name: &str) -> bool {
+        name == "[thread-yield-then-resume]"
     }
-    fn thread_suspend_then_promote(&self, name: &str) -> Option<MaybeCancellable<()>> {
-        self.match_with_cancellable_prefix(name, "[thread-suspend-then-promote]")
+    fn thread_suspend_then_promote(&self, name: &str) -> bool {
+        name == "[thread-suspend-then-promote]"
     }
-    fn thread_yield_then_promote(&self, name: &str) -> Option<MaybeCancellable<()>> {
-        self.match_with_cancellable_prefix(name, "[thread-yield-then-promote]")
+    fn thread_yield_then_promote(&self, name: &str) -> bool {
+        name == "[thread-yield-then-promote]"
     }
     fn future_new(&self, lookup_context: &PayloadLookupContext, name: &str) -> Option<PayloadInfo> {
         self.prefixed_payload(lookup_context, name, "[future-new-")

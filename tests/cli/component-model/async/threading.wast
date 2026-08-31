@@ -249,28 +249,18 @@
 
   (core func (canon thread.suspend))
   (canon thread.suspend (core func))
-  (core func (canon thread.suspend cancellable))
-  (canon thread.suspend cancellable (core func))
 
   (core func (canon thread.suspend-then-resume))
   (canon thread.suspend-then-resume (core func))
-  (core func (canon thread.suspend-then-resume cancellable))
-  (canon thread.suspend-then-resume cancellable (core func))
 
   (core func (canon thread.yield-then-resume))
   (canon thread.yield-then-resume (core func))
-  (core func (canon thread.yield-then-resume cancellable))
-  (canon thread.yield-then-resume cancellable (core func))
 
   (core func (canon thread.suspend-then-promote))
   (canon thread.suspend-then-promote (core func))
-  (core func (canon thread.suspend-then-promote cancellable))
-  (canon thread.suspend-then-promote cancellable (core func))
 
   (core func (canon thread.yield-then-promote))
   (canon thread.yield-then-promote (core func))
-  (core func (canon thread.yield-then-promote cancellable))
-  (canon thread.yield-then-promote cancellable (core func))
 )
 
 (component

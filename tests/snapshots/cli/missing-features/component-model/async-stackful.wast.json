@@ -7,42 +7,6 @@
       "filename": "async-stackful.0.wasm",
       "module_type": "binary",
       "text": "requires the component model async stackful feature"
-    },
-    {
-      "type": "module",
-      "line": 16,
-      "filename": "async-stackful.1.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "module",
-      "line": 22,
-      "filename": "async-stackful.2.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "module",
-      "line": 29,
-      "filename": "async-stackful.3.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "module",
-      "line": 35,
-      "filename": "async-stackful.4.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "module",
-      "line": 42,
-      "filename": "async-stackful.5.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "module",
-      "line": 44,
-      "filename": "async-stackful.6.wasm",
-      "module_type": "binary"
     }
   ]
 }

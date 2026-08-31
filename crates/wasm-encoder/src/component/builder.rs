@@ -664,16 +664,14 @@ impl ComponentBuilder {
     }
 
     /// Declares a new `waitable-set.wait` intrinsic.
-    pub fn waitable_set_wait(&mut self, cancellable: bool, memory: u32) -> u32 {
-        self.canonical_functions()
-            .waitable_set_wait(cancellable, memory);
+    pub fn waitable_set_wait(&mut self, memory: u32) -> u32 {
+        self.canonical_functions().waitable_set_wait(memory);
         self.core_funcs.add(Some("waitable-set.wait"))
     }
 
     /// Declares a new `waitable-set.poll` intrinsic.
-    pub fn waitable_set_poll(&mut self, cancellable: bool, memory: u32) -> u32 {
-        self.canonical_functions()
-            .waitable_set_poll(cancellable, memory);
+    pub fn waitable_set_poll(&mut self, memory: u32) -> u32 {
+        self.canonical_functions().waitable_set_poll(memory);
         self.core_funcs.add(Some("waitable-set.poll"))
     }
 
@@ -709,42 +707,38 @@ impl ComponentBuilder {
     }
 
     /// Declares a new `thread.suspend` intrinsic.
-    pub fn thread_suspend(&mut self, cancellable: bool) -> u32 {
-        self.canonical_functions().thread_suspend(cancellable);
+    pub fn thread_suspend(&mut self) -> u32 {
+        self.canonical_functions().thread_suspend();
         self.core_funcs.add(Some("thread.suspend"))
     }
 
     /// Declares a new `thread.yield` intrinsic.
-    pub fn thread_yield(&mut self, cancellable: bool) -> u32 {
-        self.canonical_functions().thread_yield(cancellable);
+    pub fn thread_yield(&mut self) -> u32 {
+        self.canonical_functions().thread_yield();
         self.core_funcs.add(Some("thread.yield"))
     }
 
     /// Declares a new `thread.suspend-then-resume` intrinsic.
-    pub fn thread_suspend_then_resume(&mut self, cancellable: bool) -> u32 {
-        self.canonical_functions()
-            .thread_suspend_then_resume(cancellable);
+    pub fn thread_suspend_then_resume(&mut self) -> u32 {
+        self.canonical_functions().thread_suspend_then_resume();
         self.core_funcs.add(Some("thread.suspend-then-resume"))
     }
 
     /// Declares a new `thread.yield-then-resume` intrinsic.
-    pub fn thread_yield_then_resume(&mut self, cancellable: bool) -> u32 {
-        self.canonical_functions()
-            .thread_yield_then_resume(cancellable);
+    pub fn thread_yield_then_resume(&mut self) -> u32 {
+        self.canonical_functions().thread_yield_then_resume();
         self.core_funcs.add(Some("thread.yield-then-resume"))
     }
 
     /// Declares a new `thread.suspend-then-promote` intrinsic.
-    pub fn thread_suspend_then_promote(&mut self, cancellable: bool) -> u32 {
-        self.canonical_functions()
-            .thread_suspend_then_promote(cancellable);
+    pub fn thread_suspend_then_promote(&mut self) -> u32 {
+        self.canonical_functions().thread_suspend_then_promote();
         self.core_funcs.add(Some("thread.suspend-then-promote"))
     }
 
     /// Declares a new `thread.yield-then-promote` intrinsic.
-    pub fn thread_yield_then_promote(&mut self, cancellable: bool) -> u32 {
-        self.canonical_functions()
-            .thread_yield_then_promote(cancellable);
+    pub fn thread_yield_then_promote(&mut self) -> u32 {
+        self.canonical_functions().thread_yield_then_promote();
         self.core_funcs.add(Some("thread.yield-then-resume"))
     }
 

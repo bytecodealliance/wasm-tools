@@ -565,12 +565,12 @@ impl<'a> Resolver<'a> {
                     self.core_item_ref(&mut info.table)?;
                 }
                 CoreFuncKind::ThreadResumeLater => {}
-                CoreFuncKind::ThreadSuspend(_) => {}
-                CoreFuncKind::ThreadYield(_) => {}
-                CoreFuncKind::ThreadSuspendThenResume(_) => {}
-                CoreFuncKind::ThreadYieldThenResume(_) => {}
-                CoreFuncKind::ThreadSuspendThenPromote(_) => {}
-                CoreFuncKind::ThreadYieldThenPromote(_) => {}
+                CoreFuncKind::ThreadSuspend => {}
+                CoreFuncKind::ThreadYield => {}
+                CoreFuncKind::ThreadSuspendThenResume => {}
+                CoreFuncKind::ThreadYieldThenResume => {}
+                CoreFuncKind::ThreadSuspendThenPromote => {}
+                CoreFuncKind::ThreadYieldThenPromote => {}
             },
         }
 

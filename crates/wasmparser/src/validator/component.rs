@@ -1281,14 +1281,12 @@ impl ComponentState {
             }
             CanonicalFunction::ErrorContextDrop => self.error_context_drop(types, offset),
             CanonicalFunction::WaitableSetNew => self.waitable_set_new(types, offset),
-            CanonicalFunction::WaitableSetWait {
-                cancellable: _,
-                memory,
-            } => self.waitable_set_wait(memory, types, offset),
-            CanonicalFunction::WaitableSetPoll {
-                cancellable: _,
-                memory,
-            } => self.waitable_set_poll(memory, types, offset),
+            CanonicalFunction::WaitableSetWait { memory } => {
+                self.waitable_set_wait(memory, types, offset)
+            }
+            CanonicalFunction::WaitableSetPoll { memory } => {
+                self.waitable_set_poll(memory, types, offset)
+            }
             CanonicalFunction::WaitableSetDrop => self.waitable_set_drop(types, offset),
             CanonicalFunction::WaitableJoin => self.waitable_join(types, offset),
             CanonicalFunction::ThreadIndex => self.thread_index(types, offset),
@@ -1297,21 +1295,19 @@ impl ComponentState {
                 table_index,
             } => self.thread_new_indirect(func_ty_index, table_index, types, offset),
             CanonicalFunction::ThreadResumeLater => self.thread_resume_later(types, offset),
-            CanonicalFunction::ThreadSuspend { cancellable } => {
-                self.thread_suspend(cancellable, types, offset)
+            CanonicalFunction::ThreadSuspend => self.thread_suspend(types, offset),
+            CanonicalFunction::ThreadYield => self.thread_yield(types, offset),
+            CanonicalFunction::ThreadSuspendThenResume => {
+                self.thread_suspend_then_resume(types, offset)
             }
-            CanonicalFunction::ThreadYield { cancellable: _ } => self.thread_yield(types, offset),
-            CanonicalFunction::ThreadSuspendThenResume { cancellable } => {
-                self.thread_suspend_then_resume(cancellable, types, offset)
+            CanonicalFunction::ThreadYieldThenResume => {
+                self.thread_yield_then_resume(types, offset)
             }
-            CanonicalFunction::ThreadYieldThenResume { cancellable } => {
-                self.thread_yield_then_resume(cancellable, types, offset)
+            CanonicalFunction::ThreadSuspendThenPromote => {
+                self.thread_suspend_then_promote(types, offset)
             }
-            CanonicalFunction::ThreadSuspendThenPromote { cancellable } => {
-                self.thread_suspend_then_promote(cancellable, types, offset)
-            }
-            CanonicalFunction::ThreadYieldThenPromote { cancellable } => {
-                self.thread_yield_then_promote(cancellable, types, offset)
+            CanonicalFunction::ThreadYieldThenPromote => {
+                self.thread_yield_then_promote(types, offset)
             }
         }
     }
@@ -2223,12 +2219,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn thread_suspend(
-        &mut self,
-        _cancellable: bool,
-        types: &mut TypeAlloc,
-        offset: u64,
-    ) -> Result<()> {
+    fn thread_suspend(&mut self, types: &mut TypeAlloc, offset: u64) -> Result<()> {
         require_feature::cm_threading(
             self.features,
             "`thread.suspend` requires the component model threading feature",
@@ -2251,12 +2242,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn thread_suspend_then_resume(
-        &mut self,
-        _cancellable: bool,
-        types: &mut TypeAlloc,
-        offset: u64,
-    ) -> Result<()> {
+    fn thread_suspend_then_resume(&mut self, types: &mut TypeAlloc, offset: u64) -> Result<()> {
         require_feature::cm_threading(
             self.features,
             "`thread.suspend-then-resume` requires the component model threading feature",
@@ -2268,12 +2254,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn thread_yield_then_resume(
-        &mut self,
-        _cancellable: bool,
-        types: &mut TypeAlloc,
-        offset: u64,
-    ) -> Result<()> {
+    fn thread_yield_then_resume(&mut self, types: &mut TypeAlloc, offset: u64) -> Result<()> {
         require_feature::cm_threading(
             self.features,
             "`thread.yield-then-resume` requires the component model threading feature",
@@ -2284,12 +2265,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn thread_suspend_then_promote(
-        &mut self,
-        _cancellable: bool,
-        types: &mut TypeAlloc,
-        offset: u64,
-    ) -> Result<()> {
+    fn thread_suspend_then_promote(&mut self, types: &mut TypeAlloc, offset: u64) -> Result<()> {
         require_feature::cm_threading(
             self.features,
             "`thread.suspend-then-promote` requires the component model threading feature",
@@ -2300,12 +2276,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn thread_yield_then_promote(
-        &mut self,
-        _cancellable: bool,
-        types: &mut TypeAlloc,
-        offset: u64,
-    ) -> Result<()> {
+    fn thread_yield_then_promote(&mut self, types: &mut TypeAlloc, offset: u64) -> Result<()> {
         require_feature::cm_threading(
             self.features,
             "`thread.yield-then-promote` requires the component model threading feature",

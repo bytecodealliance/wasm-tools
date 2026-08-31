@@ -1490,12 +1490,12 @@ impl<'a> EncodingState<'a> {
                 ReallocSite::AfterInstantiation,
             )?,
 
-            ShimKind::WaitableSetWait { cancellable } => self
-                .component
-                .waitable_set_wait(*cancellable, self.memory_index.unwrap()),
-            ShimKind::WaitableSetPoll { cancellable } => self
-                .component
-                .waitable_set_poll(*cancellable, self.memory_index.unwrap()),
+            ShimKind::WaitableSetWait => {
+                self.component.waitable_set_wait(self.memory_index.unwrap())
+            }
+            ShimKind::WaitableSetPoll => {
+                self.component.waitable_set_poll(self.memory_index.unwrap())
+            }
             ShimKind::ErrorContextNew { encoding } => self
                 .component
                 .error_context_new(shim.options.into_iter(*encoding, self.memory_index, None)?),
@@ -1965,29 +1965,19 @@ impl<'a> EncodingState<'a> {
                 let index = self.component.backpressure_dec();
                 Ok((ExportKind::Func, index))
             }
-            Import::WaitableSetWait { cancellable } => {
+            Import::WaitableSetWait => {
                 if let Some(memory) = self.memory_index {
-                    let index = self.component.waitable_set_wait(*cancellable, memory);
+                    let index = self.component.waitable_set_wait(memory);
                     return Ok((ExportKind::Func, index));
                 }
-                Ok(self.materialize_shim_import(
-                    shims,
-                    &ShimKind::WaitableSetWait {
-                        cancellable: *cancellable,
-                    },
-                ))
+                Ok(self.materialize_shim_import(shims, &ShimKind::WaitableSetWait))
             }
-            Import::WaitableSetPoll { cancellable } => {
+            Import::WaitableSetPoll => {
                 if let Some(memory) = self.memory_index {
-                    let index = self.component.waitable_set_poll(*cancellable, memory);
+                    let index = self.component.waitable_set_poll(memory);
                     return Ok((ExportKind::Func, index));
                 }
-                Ok(self.materialize_shim_import(
-                    shims,
-                    &ShimKind::WaitableSetPoll {
-                        cancellable: *cancellable,
-                    },
-                ))
+                Ok(self.materialize_shim_import(shims, &ShimKind::WaitableSetPoll))
             }
             Import::SubtaskDrop => {
                 let index = self.component.subtask_drop();
@@ -2159,28 +2149,28 @@ impl<'a> EncodingState<'a> {
                 let index = self.component.thread_resume_later();
                 Ok((ExportKind::Func, index))
             }
-            Import::ThreadSuspend { cancellable } => {
-                let index = self.component.thread_suspend(*cancellable);
+            Import::ThreadSuspend => {
+                let index = self.component.thread_suspend();
                 Ok((ExportKind::Func, index))
             }
-            Import::ThreadYield { cancellable } => {
-                let index = self.component.thread_yield(*cancellable);
+            Import::ThreadYield => {
+                let index = self.component.thread_yield();
                 Ok((ExportKind::Func, index))
             }
-            Import::ThreadSuspendThenResume { cancellable } => {
-                let index = self.component.thread_suspend_then_resume(*cancellable);
+            Import::ThreadSuspendThenResume => {
+                let index = self.component.thread_suspend_then_resume();
                 Ok((ExportKind::Func, index))
             }
-            Import::ThreadYieldThenResume { cancellable } => {
-                let index = self.component.thread_yield_then_resume(*cancellable);
+            Import::ThreadYieldThenResume => {
+                let index = self.component.thread_yield_then_resume();
                 Ok((ExportKind::Func, index))
             }
-            Import::ThreadSuspendThenPromote { cancellable } => {
-                let index = self.component.thread_suspend_then_promote(*cancellable);
+            Import::ThreadSuspendThenPromote => {
+                let index = self.component.thread_suspend_then_promote();
                 Ok((ExportKind::Func, index))
             }
-            Import::ThreadYieldThenPromote { cancellable } => {
-                let index = self.component.thread_yield_then_promote(*cancellable);
+            Import::ThreadYieldThenPromote => {
+                let index = self.component.thread_yield_then_promote();
                 Ok((ExportKind::Func, index))
             }
         }
@@ -2515,11 +2505,11 @@ enum ShimKind<'a> {
     /// A shim used for the `waitable-set.wait` built-in function, which must
     /// refer to the core module instance's memory to which results will be
     /// written.
-    WaitableSetWait { cancellable: bool },
+    WaitableSetWait,
     /// A shim used for the `waitable-set.poll` built-in function, which must
     /// refer to the core module instance's memory to which results will be
     /// written.
-    WaitableSetPoll { cancellable: bool },
+    WaitableSetPoll,
     /// Shim for `task.return` to handle a reference to a `memory` which may
     TaskReturn {
         /// The interface (optional) that owns `func` below. If `None` then it's
@@ -2766,7 +2756,7 @@ impl<'a> Shims<'a> {
                     );
                 }
 
-                Import::WaitableSetWait { cancellable } => {
+                Import::WaitableSetWait => {
                     if memory_available {
                         continue;
                     }
@@ -2775,9 +2765,7 @@ impl<'a> Shims<'a> {
                         name,
                         debug_name: "waitable-set.wait".to_string(),
                         options: RequiredOptions::empty(),
-                        kind: ShimKind::WaitableSetWait {
-                            cancellable: *cancellable,
-                        },
+                        kind: ShimKind::WaitableSetWait,
                         sig: WasmSignature {
                             params: vec![WasmType::I32; 2],
                             results: vec![WasmType::I32],
@@ -2787,7 +2775,7 @@ impl<'a> Shims<'a> {
                     });
                 }
 
-                Import::WaitableSetPoll { cancellable } => {
+                Import::WaitableSetPoll => {
                     if memory_available {
                         continue;
                     }
@@ -2796,9 +2784,7 @@ impl<'a> Shims<'a> {
                         name,
                         debug_name: "waitable-set.poll".to_string(),
                         options: RequiredOptions::empty(),
-                        kind: ShimKind::WaitableSetPoll {
-                            cancellable: *cancellable,
-                        },
+                        kind: ShimKind::WaitableSetPoll,
                         sig: WasmSignature {
                             params: vec![WasmType::I32; 2],
                             results: vec![WasmType::I32],

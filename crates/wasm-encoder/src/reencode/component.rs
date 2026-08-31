@@ -1091,17 +1091,11 @@ pub mod component_utils {
             wasmparser::CanonicalFunction::WaitableSetNew => {
                 section.waitable_set_new();
             }
-            wasmparser::CanonicalFunction::WaitableSetWait {
-                cancellable,
-                memory,
-            } => {
-                section.waitable_set_wait(cancellable, reencoder.memory_index(memory)?);
+            wasmparser::CanonicalFunction::WaitableSetWait { memory } => {
+                section.waitable_set_wait(reencoder.memory_index(memory)?);
             }
-            wasmparser::CanonicalFunction::WaitableSetPoll {
-                cancellable,
-                memory,
-            } => {
-                section.waitable_set_poll(cancellable, reencoder.memory_index(memory)?);
+            wasmparser::CanonicalFunction::WaitableSetPoll { memory } => {
+                section.waitable_set_poll(reencoder.memory_index(memory)?);
             }
             wasmparser::CanonicalFunction::WaitableSetDrop => {
                 section.waitable_set_drop();
@@ -1123,23 +1117,23 @@ pub mod component_utils {
             wasmparser::CanonicalFunction::ThreadResumeLater => {
                 section.thread_resume_later();
             }
-            wasmparser::CanonicalFunction::ThreadSuspend { cancellable } => {
-                section.thread_suspend(cancellable);
+            wasmparser::CanonicalFunction::ThreadSuspend => {
+                section.thread_suspend();
             }
-            wasmparser::CanonicalFunction::ThreadYield { cancellable } => {
-                section.thread_yield(cancellable);
+            wasmparser::CanonicalFunction::ThreadYield => {
+                section.thread_yield();
             }
-            wasmparser::CanonicalFunction::ThreadSuspendThenResume { cancellable } => {
-                section.thread_suspend_then_resume(cancellable);
+            wasmparser::CanonicalFunction::ThreadSuspendThenResume => {
+                section.thread_suspend_then_resume();
             }
-            wasmparser::CanonicalFunction::ThreadYieldThenResume { cancellable } => {
-                section.thread_yield_then_resume(cancellable);
+            wasmparser::CanonicalFunction::ThreadYieldThenResume => {
+                section.thread_yield_then_resume();
             }
-            wasmparser::CanonicalFunction::ThreadSuspendThenPromote { cancellable } => {
-                section.thread_suspend_then_promote(cancellable);
+            wasmparser::CanonicalFunction::ThreadSuspendThenPromote => {
+                section.thread_suspend_then_promote();
             }
-            wasmparser::CanonicalFunction::ThreadYieldThenPromote { cancellable } => {
-                section.thread_yield_then_promote(cancellable);
+            wasmparser::CanonicalFunction::ThreadYieldThenPromote => {
+                section.thread_yield_then_promote();
             }
         }
         Ok(())

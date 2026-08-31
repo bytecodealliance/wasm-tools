@@ -91,6 +91,10 @@ fn copy_test(src: &Path, dst: &Path, features: fn(&Path) -> &str) {
         // Temporary exception until WebAssembly/component-model#704 lands
         Some("kebab.wast") => "FAIL",
 
+        // Temporary until WebAssembly/component-model#716 lands
+        Some("cancellable.wast") => "FAIL",
+        Some("binary.wast") if dst.ends_with("components/binary/binary.wast") => "FAIL",
+
         Some(_) | None => "RUN",
     };
 
