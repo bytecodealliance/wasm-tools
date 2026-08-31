@@ -1,4 +1,3 @@
-use anyhow::Context;
 use clap::Parser;
 use core::sync::atomic::Ordering::{Relaxed, SeqCst};
 use rand::RngExt;
@@ -14,6 +13,7 @@ use std::time::Duration;
 use std::{collections::HashMap, sync::Arc};
 use std::{panic, process};
 use wasm_mutate::WasmMutate;
+use wasmtime::error::Context;
 use wasmtime::{Config, Engine, OptLevel};
 
 #[derive(Debug)]

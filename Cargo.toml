@@ -139,7 +139,7 @@ spdx = "0.13.4"
 termcolor = "1.2.0"
 toml = "0.9.8"
 url = "2.0.0"
-wasmtime = { version = "36.0.7", default-features = false, features = ['cranelift', 'component-model', 'runtime', 'gc-drc'] }
+wasmtime = { version = "48.0.1", default-features = false, features = ['cranelift', 'component-model', 'runtime', 'gc-drc', 'anyhow'] }
 thiserror = { version = "2.0.12", default-features = false }
 tempfile = "3.2.0"
 wit-bindgen = { version = "0.57.1", default-features = false }
