@@ -19,7 +19,7 @@ use crate::token::Index;
 /// default will be flipped to strict in the future, and eventually support
 /// for the legacy syntax will be removed.
 pub(crate) fn allow_legacy_indices() -> bool {
-    const DEFAULT: bool = true;
+    const DEFAULT: bool = false;
     static ALLOW: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| {
         match std::env::var("WAST_STRICT_COMPONENT_INDICES").as_deref() {
             Ok("0") => true,
