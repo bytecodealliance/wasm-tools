@@ -1,4 +1,4 @@
-;; RUN: wast % --assert default --snapshot tests/snapshots
+;; RUN: wast % --assert default --snapshot tests/snapshots -f=-cm-map
 
 (assert_invalid
   (component
