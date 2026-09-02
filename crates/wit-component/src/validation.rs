@@ -2528,8 +2528,8 @@ impl NameMangling for Legacy {
             };
 
             // Test if the two semver versions are compatible
-            let module_compat = PackageName::version_compat_track(&module_version);
-            let pkg_compat = PackageName::version_compat_track(pkg_version);
+            let (module_compat, _) = PackageName::version_compat_track(&module_version);
+            let (pkg_compat, _) = PackageName::version_compat_track(pkg_version);
             if module_compat == pkg_compat {
                 return Ok((key.clone(), id));
             }
