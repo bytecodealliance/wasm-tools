@@ -152,27 +152,18 @@ fn component_extern_name(
     item: &WorldItem,
     canonical_names: bool,
 ) -> wasm_encoder::ComponentExternName<'static> {
+    let implements = resolve.implements_interface(key, item);
     if canonical_names {
-        let name = resolve.name_canon_world_key(key);
-        let mut implements = resolve.implements_value(key, item);
-        let version_suffix = match (&implements, key, item) {
-            (Some(_), _, WorldItem::Interface { id, .. }) => {
-                implements = resolve.canon_id_of(*id);
-                resolve.version_suffix_of(*id)
-            }
-            (None, WorldKey::Interface(id), _) => resolve.version_suffix_of(*id),
-            _ => None,
-        };
         ComponentExternName {
-            name: name.into(),
-            implements: implements.map(|s| s.into()),
+            name: resolve.name_canonicalized_world_key(key).into(),
+            implements: implements.map(|id| resolve.canonicalized_id_of(id).unwrap().into()),
             external_id: resolve.external_id_value(key, item).map(|s| s.into()),
-            version_suffix: version_suffix.map(|s| s.into()),
+            version_suffix: resolve.version_suffix_value(key, item).map(|s| s.into()),
         }
     } else {
         ComponentExternName {
             name: resolve.name_world_key(key).into(),
-            implements: resolve.implements_value(key, item).map(|s| s.into()),
+            implements: implements.map(|id| resolve.id_of(id).unwrap().into()),
             external_id: resolve.external_id_value(key, item).map(|s| s.into()),
             version_suffix: None,
         }
@@ -245,7 +236,7 @@ impl Encoder<'_> {
             encoder.interface = Some(interface);
             let iface = &self.resolve.interfaces[interface];
             let extern_name = if self.canonical_names {
-                let name = self.resolve.canon_id_of(interface).unwrap();
+                let name = self.resolve.canonicalized_id_of(interface).unwrap();
                 let version_suffix = self.resolve.version_suffix_of(interface);
                 ComponentExternName {
                     name: name.into(),

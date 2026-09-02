@@ -929,24 +929,6 @@ pub struct WitOpts {
     )]
     merge_world_imports_based_on_semver: Option<String>,
 
-    /// Updates the world specified to deduplicate all of its imports based on
-    /// canonical version prefixes and emits canonical interface names.
-    ///
-    /// This option can be used to read a WIT world from a package and update it
-    /// to deduplicate WIT imports based on their canonical version prefix. This
-    /// is the same merge that happens in `component new` when
-    /// `--emit-canonical-names` is passed.
-    #[clap(
-        long,
-        conflicts_with = "importize",
-        conflicts_with = "importize_world",
-        conflicts_with = "exportize",
-        conflicts_with = "exportize_world",
-        conflicts_with = "generate_nominal_type_ids",
-        value_name = "WORLD"
-    )]
-    emit_canonical_names: Option<String>,
-
     /// Generates unique type IDs for nominal types in the world provided.
     ///
     /// This option can be used to affect the `--json` output of this command,
@@ -1029,24 +1011,6 @@ impl WitOpts {
             resolve
                 .merge_world_imports_based_on_semver(world_id)
                 .context("failed to merge world imports based on semver")?;
-            let resolve = mem::take(resolve);
-            decoded = DecodedWasm::Component(resolve, world_id);
-        } else if let Some(world) = &self.emit_canonical_names {
-            let (resolve, world_id) = match &mut decoded {
-                DecodedWasm::Component(..) => {
-                    bail!(
-                        "the `--emit-canonical-names` flag is \
-                        not compatible with a component input"
-                    );
-                }
-                DecodedWasm::WitPackage(resolve, id) => {
-                    let world = resolve.select_world(&[*id], Some(world))?;
-                    (resolve, world)
-                }
-            };
-            resolve
-                .merge_world_imports_based_on_canonical_version(world_id)
-                .context("failed to merge world imports based on canonical version")?;
             let resolve = mem::take(resolve);
             decoded = DecodedWasm::Component(resolve, world_id);
         } else if let Some(world) = &self.generate_nominal_type_ids {

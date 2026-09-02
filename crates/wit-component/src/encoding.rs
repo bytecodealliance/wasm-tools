@@ -610,31 +610,41 @@ impl<'a> EncodingState<'a> {
             .component
             .type_instance(Some(&format!("ty-{name}")), &ty);
 
-        let mut implements = info.implements.clone();
-        let (import_name, version_suffix) = if self.info.encoder.emit_canonical_names {
-            let suffix = resolve.version_suffix_of(interface_id);
-            if implements.is_some() {
-                implements = resolve.canon_id_of(interface_id);
-                (name.to_string(), suffix)
+        let extern_name = if self.info.encoder.emit_canonical_names {
+            let name = resolve
+                .canonicalized_id_of(interface_id)
+                .unwrap_or_else(|| name.to_string());
+            let implements = info
+                .implements
+                .map(|id| resolve.canonicalized_id_of(id).unwrap());
+            let suffix_id = if let Some(id) = info.implements {
+                id
             } else {
-                let canon_name = resolve
-                    .canon_id_of(interface_id)
-                    .unwrap_or_else(|| name.to_string());
-                (canon_name, suffix)
-            }
-        } else {
-            (name.to_string(), None)
-        };
-
-        let instance_idx = self.component.import(
+                interface_id
+            };
             wasm_encoder::ComponentExternName {
-                name: import_name.into(),
+                name: resolve
+                    .canonicalized_id_of(interface_id)
+                    .unwrap_or_else(|| name.to_string())
+                    .into(),
                 implements: implements.map(|s| s.into()),
                 external_id: info.external_id.as_deref().map(|s| s.into()),
-                version_suffix: version_suffix.map(|s| s.into()),
-            },
-            ComponentTypeRef::Instance(instance_type_idx),
-        );
+                version_suffix: resolve.version_suffix_of(suffix_id).map(|s| s.into()),
+            }
+        } else {
+            wasm_encoder::ComponentExternName {
+                name: name.into(),
+                implements: info
+                    .implements
+                    .as_ref()
+                    .map(|s| resolve.id_of(*s).unwrap().into()),
+                external_id: info.external_id.as_deref().map(|s| s.into()),
+                version_suffix: None,
+            }
+        };
+        let instance_idx = self
+            .component
+            .import(extern_name, ComponentTypeRef::Instance(instance_type_idx));
         let prev = self.instances.insert(interface_id, instance_idx);
         assert!(prev.is_none());
         Ok(())
@@ -780,7 +790,7 @@ impl<'a> EncodingState<'a> {
 
         for export_name in exports {
             let export_string = if self.info.encoder.emit_canonical_names {
-                resolve.name_canon_world_key(export_name)
+                resolve.name_canonicalized_world_key(export_name)
             } else {
                 resolve.name_world_key(export_name)
             };
@@ -1014,26 +1024,24 @@ impl<'a> EncodingState<'a> {
             component_index,
             imports,
         );
-        let mut implements = resolve.implements_value(key, item);
-        let export_version_suffix = if self.info.encoder.emit_canonical_names {
-            match (&implements, key, item) {
-                (Some(_), _, WorldItem::Interface { id, .. }) => {
-                    implements = resolve.canon_id_of(*id);
-                    resolve.version_suffix_of(*id)
-                }
-                (None, WorldKey::Interface(id), _) => resolve.version_suffix_of(*id),
-                _ => None,
-            }
-        } else {
-            None
-        };
-        let idx = self.component.export(
+        let implements = resolve.implements_interface(key, item);
+        let extern_name = if self.info.encoder.emit_canonical_names {
             wasm_encoder::ComponentExternName {
                 name: export_name.into(),
-                implements: implements.map(|s| s.into()),
+                implements: implements.map(|id| resolve.canonicalized_id_of(id).unwrap().into()),
                 external_id: resolve.external_id_value(key, item).map(|s| s.into()),
-                version_suffix: export_version_suffix.map(|s| s.into()),
-            },
+                version_suffix: resolve.version_suffix_value(key, item).map(|s| s.into()),
+            }
+        } else {
+            wasm_encoder::ComponentExternName {
+                name: export_name.into(),
+                implements: implements.map(|id| resolve.id_of(id).unwrap().into()),
+                external_id: resolve.external_id_value(key, item).map(|s| s.into()),
+                version_suffix: None,
+            }
+        };
+        let idx = self.component.export(
+            extern_name,
             ComponentExportKind::Instance,
             instance_index,
             None,
@@ -3558,11 +3566,7 @@ impl ComponentEncoder {
             bail!("a module is required when encoding a component");
         }
 
-        if self.emit_canonical_names {
-            self.metadata
-                .resolve
-                .merge_world_imports_based_on_canonical_version(self.metadata.world)?;
-        } else if self.merge_imports_based_on_semver.unwrap_or(true) {
+        if self.merge_imports_based_on_semver.unwrap_or(true) {
             self.metadata
                 .resolve
                 .merge_world_imports_based_on_semver(self.metadata.world)?;

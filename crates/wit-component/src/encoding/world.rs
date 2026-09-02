@@ -49,7 +49,7 @@ pub struct ComponentWorld<'a> {
 pub struct ImportedInterface {
     pub lowerings: IndexMap<(String, AbiVariant), Lowering>,
     pub interface: Option<InterfaceId>,
-    pub implements: Option<String>,
+    pub implements: Option<InterfaceId>,
     pub external_id: Option<String>,
 }
 
@@ -293,7 +293,7 @@ impl<'a> ComponentWorld<'a> {
                 WorldItem::Function(_) | WorldItem::Type { .. } => None,
                 WorldItem::Interface { id, .. } => Some(*id),
             };
-            let implements = resolve.implements_value(key, item);
+            let implements = resolve.implements_interface(key, item);
             // Note that `external_id` is only tracked for interface imports
             // here. World-level functions and types all share the `None` entry
             // in `import_map` but each item can have its own `external-id`
