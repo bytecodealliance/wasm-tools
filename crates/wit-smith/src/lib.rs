@@ -46,13 +46,20 @@ pub fn smith(config: &Config, u: &mut Unstructured<'_>) -> Result<Vec<u8>> {
 
     let wasm = wit_component::encode(&resolve, pkg).expect("failed to encode WIT document");
 
-    // Handle disallowing `stream<char>` here vs not generating it to start
-    // with as it's a bit easier to handle.
     if let Err(e) = wasmparser::Validator::new_with_features(wasmparser::WasmFeatures::all())
         .validate_all(&wasm)
     {
+        // Handle disallowing `stream<char>` here vs not generating it to start
+        // with as it's a bit easier to handle.
         if e.to_string()
             .contains("`stream<char>` is not valid at this time")
+        {
+            return Err(arbitrary::Error::IncorrectFormat);
+        }
+
+        // Easier to handle this limit here rather than in generation right now.
+        if e.to_string()
+            .contains("value type's maximum in-memory size exceeds maximum byte size")
         {
             return Err(arbitrary::Error::IncorrectFormat);
         }
