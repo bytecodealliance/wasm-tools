@@ -2990,6 +2990,8 @@ impl Module {
             return Ok(());
         }
 
+        let mut total_elements = 0_usize;
+
         arbitrary_loop(
             u,
             self.config.min_element_segments,
@@ -3000,7 +3002,7 @@ impl Module {
                 let (kind, max_size_hint) = u.choose(&choices)?(u)?;
                 let max = max_size_hint
                     .map(|i| usize::try_from(i).unwrap())
-                    .unwrap_or_else(|| self.config.max_elements);
+                    .unwrap_or(self.config.max_elements);
 
                 // Infer, from the kind of segment, the type of the element
                 // segment. Passive/declared segments can be declared with any
@@ -3043,6 +3045,11 @@ impl Module {
                     }
                 }
 
+                // Clamp the max elements for this segment based on the
+                // configuration's maximum number of elements for the entire
+                // module minus what we've generated so far.
+                let max = (total_elements.saturating_sub(self.config.max_elements)).min(max);
+
                 // And finally actually generate the arbitrary elements of this
                 // element segment. Function indices are used if they're either
                 // forced or allowed, and otherwise expressions are used
@@ -3058,6 +3065,7 @@ impl Module {
                             Ok(true)
                         })?;
                     }
+                    total_elements += init.len();
                     Elements::Functions(init)
                 } else {
                     let mut init = vec![];
@@ -3065,6 +3073,7 @@ impl Module {
                         init.push(self.arbitrary_const_expr(ValType::Ref(ty), u, true)?);
                         Ok(true)
                     })?;
+                    total_elements += init.len();
                     Elements::Expressions(init)
                 };
 
