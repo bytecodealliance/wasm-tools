@@ -215,8 +215,7 @@ struct ComponentEncoderOpts {
     ///
     /// When enabled, import/export names use canonical version prefixes (e.g.,
     /// `wasi:cli/exit@0.2` instead of `wasi:cli/exit@0.2.1`) and the
-    /// `version_suffix` field is populated in the binary. This also forces
-    /// merging of imports that share the same canonical version prefix.
+    /// `version_suffix` field is populated in the binary.
     #[clap(long)]
     emit_canonical_names: bool,
 
@@ -288,13 +287,6 @@ impl ComponentEncoderOpts {
             ))
             .realloc_via_memory_grow(self.realloc_via_memory_grow)
             .emit_canonical_names(self.emit_canonical_names);
-        if self.emit_canonical_names
-            && matches!(self.merge_imports_based_on_semver, Some(Some(false)))
-        {
-            bail!(
-                "cannot use `--emit-canonical-names` with `--merge-imports-based-on-semver=false`"
-            );
-        }
         for (name, wasm) in self.adapters.iter() {
             encoder.adapter(name, wasm)?;
         }

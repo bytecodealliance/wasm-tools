@@ -307,7 +307,7 @@ impl<'a> ComponentWorld<'a> {
                 .or_insert_with(|| ImportedInterface {
                     interface: interface_id,
                     lowerings: Default::default(),
-                    implements: implements.clone(),
+                    implements,
                     external_id: external_id.clone(),
                 });
             assert_eq!(interface.interface, interface_id);

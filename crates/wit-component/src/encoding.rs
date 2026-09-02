@@ -623,10 +623,7 @@ impl<'a> EncodingState<'a> {
                 interface_id
             };
             wasm_encoder::ComponentExternName {
-                name: resolve
-                    .canonicalized_id_of(interface_id)
-                    .unwrap_or_else(|| name.to_string())
-                    .into(),
+                name: name.into(),
                 implements: implements.map(|s| s.into()),
                 external_id: info.external_id.as_deref().map(|s| s.into()),
                 version_suffix: resolve.version_suffix_of(suffix_id).map(|s| s.into()),
@@ -3404,9 +3401,7 @@ impl ComponentEncoder {
     ///
     /// When enabled, import/export names use canonical version prefixes (e.g.,
     /// `wasi:cli/exit@0.2` instead of `wasi:cli/exit@0.2.1`) and the
-    /// `version_suffix` field is populated. This also forces merging of
-    /// imports that share the same canonical version prefix.
-    /// This flag subsumes the `merge_imports_based_on_semver` flag.
+    /// `version_suffix` field is populated.
     ///
     /// This is disabled by default.
     pub fn emit_canonical_names(&mut self, emit: bool) -> &mut Self {

@@ -2606,6 +2606,9 @@ impl Resolve {
     /// tuple returned is a "semver track" for the specific interface. The
     /// version listed in `PackageName` will be modified so all
     /// semver-compatible versions are listed the same way.
+    ///
+    /// The second element in the returned tuple is this interface's package's
+    /// version.
     fn semver_track(&self, id: InterfaceId) -> Option<((PackageName, String), &Version)> {
         let iface = &self.interfaces[id];
         let pkg = &self.packages[iface.package?];
