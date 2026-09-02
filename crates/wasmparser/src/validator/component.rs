@@ -4663,7 +4663,7 @@ impl ComponentNameContext {
             }
         }
 
-        if let Some(implements) = implements {
+        let implements_name = if let Some(implements) = implements {
             require_feature::cm_implements(
                 *features,
                 "the `cm-implements` feature is not active",
@@ -4685,7 +4685,10 @@ impl ComponentNameContext {
                 ComponentNameKind::Interface(_) => {}
                 _ => bail!(offset, "name `{implements}` must be an interface"),
             }
-        }
+            Some(implements)
+        } else {
+            None
+        };
 
         if let Some(_) = version_suffix {
             require_feature::cm_canon_names(
@@ -4709,8 +4712,15 @@ impl ComponentNameContext {
 
         // Validate that the kebab name, if it has structure such as
         // `[method]a.b`, is indeed valid with respect to known resources.
-        self.validate(&kebab, version_suffix, ty, types, offset)
-            .with_context(|| format!("{} name `{kebab}` is not valid", kind.desc()))?;
+        self.validate(
+            &kebab,
+            version_suffix,
+            implements_name.as_ref(),
+            ty,
+            types,
+            offset,
+        )
+        .with_context(|| format!("{} name `{kebab}` is not valid", kind.desc()))?;
 
         // Top-level kebab-names must all be unique, even between both imports
         // and exports ot a component. For those names consult the `kebab_names`
@@ -4753,6 +4763,7 @@ impl ComponentNameContext {
         &self,
         name: &ComponentName,
         version_suffix: Option<&str>,
+        implements: Option<&ComponentName>,
         ty: &ComponentEntityType,
         types: &TypeAlloc,
         offset: u64,
@@ -4764,6 +4775,16 @@ impl ComponentNameContext {
             };
             Ok(&types[id])
         };
+
+        // When an `implements` is present, validate the `version_suffix`
+        // against the implements interface name rather than the main name.
+        if let Some(implements) = implements {
+            if let ComponentNameKind::Interface(iface) = implements.kind() {
+                if let Err(e) = iface.version(version_suffix) {
+                    bail!(offset, "invalid interface version: {e}");
+                }
+            }
+        }
 
         match name.kind() {
             // No validation necessary for these styles of names
