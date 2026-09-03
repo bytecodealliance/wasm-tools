@@ -66,8 +66,14 @@ pub fn semver_check(mut resolve: Resolve, prev: WorldId, new: WorldId) -> Result
 
     // (1) above - create a dummy component which has the shape of `prev`.
     let mut prev_as_module = dummy_module(&resolve, prev, ManglingAndAbi::Standard32);
-    embed_component_metadata(&mut prev_as_module, &resolve, prev, StringEncoding::UTF8)
-        .context("failed to embed component metadata")?;
+    embed_component_metadata(
+        &mut prev_as_module,
+        &resolve,
+        prev,
+        StringEncoding::UTF8,
+        true,
+    )
+    .context("failed to embed component metadata")?;
     let prev_as_component = ComponentEncoder::default()
         .module(&prev_as_module)
         .context("failed to register previous world encoded as a module")?
@@ -78,8 +84,8 @@ pub fn semver_check(mut resolve: Resolve, prev: WorldId, new: WorldId) -> Result
     // (2) above - create a component which imports a component of the shape of
     // `new`.
     let test_component_idx = {
-        let component_ty =
-            encode_world(&resolve, new).context("failed to encode the new world as a type")?;
+        let component_ty = encode_world(&resolve, new, true)
+            .context("failed to encode the new world as a type")?;
         let mut component = ComponentBuilder::default();
         let component_ty_idx = component.type_component(None, &component_ty);
         component.import(

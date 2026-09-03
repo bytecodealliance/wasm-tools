@@ -44,7 +44,8 @@ pub fn smith(config: &Config, u: &mut Unstructured<'_>) -> Result<Vec<u8>> {
     }
     let pkg = last.unwrap();
 
-    let wasm = wit_component::encode(&resolve, pkg).expect("failed to encode WIT document");
+    let wasm = wit_component::encode(&resolve, pkg, config.canonical_names)
+        .expect("failed to encode WIT document");
 
     // Handle disallowing `stream<char>` here vs not generating it to start
     // with as it's a bit easier to handle.

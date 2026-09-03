@@ -24,17 +24,8 @@ use wit_parser::*;
 ///
 /// The binary returned can be [`decode`d](crate::decode) to recover the WIT
 /// package provided.
-pub fn encode(resolve: &Resolve, package: PackageId) -> Result<Vec<u8>> {
-    encode_with_options(resolve, package, false)
-}
-
-/// Same as [`encode`] but with an option to emit canonical interface names.
-pub fn encode_with_options(
-    resolve: &Resolve,
-    package: PackageId,
-    canonical_names: bool,
-) -> Result<Vec<u8>> {
-    let mut component = encode_component_with_options(resolve, package, canonical_names)?;
+pub fn encode(resolve: &Resolve, package: PackageId, canonical_names: bool) -> Result<Vec<u8>> {
+    let mut component = encode_component(resolve, package, canonical_names)?;
     component.raw_custom_section(&crate::base_producers().raw_custom_section());
     Ok(component.finish())
 }
@@ -57,7 +48,7 @@ pub fn encode_with_options(
 ///
 /// The binary returned can be [`decode`d](crate::decode) to recover the WIT
 /// package provided.
-pub fn encode_component_with_options(
+pub fn encode_component(
     resolve: &Resolve,
     package: PackageId,
     canonical_names: bool,
@@ -80,12 +71,7 @@ pub fn encode_component_with_options(
 }
 
 /// Encodes a `world` as a component type.
-pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentType> {
-    encode_world_with_options(resolve, world_id, false)
-}
-
-/// Same as [`encode_world`] but with an option to emit canonical names.
-pub fn encode_world_with_options(
+pub fn encode_world(
     resolve: &Resolve,
     world_id: WorldId,
     canonical_names: bool,
@@ -190,8 +176,7 @@ impl Encoder<'_> {
         // For each `world` encode it directly as a component and then create a
         // wrapper component that exports that component.
         for (name, &world) in self.resolve.packages[self.package].worlds.iter() {
-            let component_ty =
-                encode_world_with_options(self.resolve, world, self.canonical_names)?;
+            let component_ty = encode_world(self.resolve, world, self.canonical_names)?;
 
             let world = &self.resolve.worlds[world];
             let mut wrapper = ComponentType::new();

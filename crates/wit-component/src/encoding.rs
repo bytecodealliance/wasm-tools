@@ -99,7 +99,7 @@ const TLS_BASE_SET: &str = "$set-tls-base";
 pub(crate) mod fixup;
 
 mod wit;
-pub use wit::{encode, encode_with_options, encode_world};
+pub use wit::{encode, encode_world};
 
 mod types;
 use types::{InstanceTypeEncoder, RootTypeEncoder, TypeEncodingMaps, ValtypeEncoder};

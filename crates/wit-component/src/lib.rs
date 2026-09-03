@@ -17,7 +17,7 @@ mod printing;
 mod targets;
 mod validation;
 
-pub use encoding::{ComponentEncoder, LibraryInfo, encode, encode_with_options};
+pub use encoding::{ComponentEncoder, LibraryInfo, encode};
 pub use linking::Linker;
 pub use printing::*;
 pub use targets::*;
@@ -95,8 +95,9 @@ pub fn embed_component_metadata(
     wit_resolver: &Resolve,
     world: WorldId,
     encoding: StringEncoding,
+    canonical_names: bool,
 ) -> Result<()> {
-    let encoded = metadata::encode(&wit_resolver, world, encoding, None)?;
+    let encoded = metadata::encode(&wit_resolver, world, encoding, None, canonical_names)?;
 
     let section = wasm_encoder::CustomSection {
         name: "component-type".into(),
