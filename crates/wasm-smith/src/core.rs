@@ -3138,21 +3138,24 @@ impl Module {
             return Ok(());
         }
         let disallow_traps = self.config.disallow_traps;
-        let mut choices32: Vec<Box<dyn Fn(&mut Unstructured, u64, usize) -> Result<Offset>>> =
-            vec![];
-        choices32.push(Box::new(|u, min_size, data_len| {
-            let min = u32::try_from(min_size.saturating_mul(64 * 1024))
-                .unwrap_or(u32::MAX)
-                .into();
+        let mut choices32: Vec<
+            Box<dyn Fn(&mut Unstructured, &MemoryType, usize) -> Result<Offset>>,
+        > = vec![];
+        fn min(ty: &MemoryType) -> u64 {
+            ty.minimum.saturating_mul(u64::from(ty.page_size()))
+        }
+        choices32.push(Box::new(|u, ty, data_len| {
+            let min = u32::try_from(min(ty)).unwrap_or(u32::MAX).into();
             let max = if disallow_traps { min } else { u32::MAX.into() };
             Ok(Offset::Const32(
                 arbitrary_offset(u, min, max, data_len)? as i32
             ))
         }));
-        let mut choices64: Vec<Box<dyn Fn(&mut Unstructured, u64, usize) -> Result<Offset>>> =
-            vec![];
-        choices64.push(Box::new(|u, min_size, data_len| {
-            let min = min_size.saturating_mul(64 * 1024);
+        let mut choices64: Vec<
+            Box<dyn Fn(&mut Unstructured, &MemoryType, usize) -> Result<Offset>>,
+        > = vec![];
+        choices64.push(Box::new(|u, ty, data_len| {
+            let min = min(ty);
             let max = if disallow_traps { min } else { u64::MAX };
             Ok(Offset::Const64(
                 arbitrary_offset(u, min, max, data_len)? as i64
@@ -3208,14 +3211,15 @@ impl Module {
                         } else {
                             u.choose(&choices32)?
                         };
-                        let mut offset = f(u, mem.minimum, init.len())?;
+                        let mut offset = f(u, mem, init.len())?;
 
                         // If traps are disallowed then truncate the size of the
                         // data segment to the minimum size of memory to guarantee
                         // it will fit. Afterwards ensure that the offset of the
                         // data segment is in-bounds by clamping it to the
                         if self.config.disallow_traps {
-                            let max_size = (u64::MAX / 64 / 1024).min(mem.minimum) * 64 * 1024;
+                            let page_size = u64::from(mem.page_size());
+                            let max_size = (u64::MAX / page_size).min(mem.minimum) * page_size;
                             init.truncate(max_size as usize);
                             let max_offset = max_size - init.len() as u64;
                             match &mut offset {
