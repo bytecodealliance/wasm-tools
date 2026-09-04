@@ -44,7 +44,8 @@ pub fn smith(config: &Config, u: &mut Unstructured<'_>) -> Result<Vec<u8>> {
     }
     let pkg = last.unwrap();
 
-    let wasm = wit_component::encode(&resolve, pkg).expect("failed to encode WIT document");
+    let wasm = wit_component::encode(&resolve, pkg, config.canonical_names)
+        .expect("failed to encode WIT document");
 
     if let Err(e) = wasmparser::Validator::new_with_features(wasmparser::WasmFeatures::all())
         .validate_all(&wasm)

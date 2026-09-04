@@ -609,15 +609,39 @@ impl<'a> EncodingState<'a> {
         let instance_type_idx = self
             .component
             .type_instance(Some(&format!("ty-{name}")), &ty);
-        let instance_idx = self.component.import(
+
+        let extern_name = if self.info.encoder.emit_canonical_names {
+            let name = resolve
+                .canonicalized_id_of(interface_id)
+                .unwrap_or_else(|| name.to_string());
+            let implements = info
+                .implements
+                .map(|id| resolve.canonicalized_id_of(id).unwrap());
+            let suffix_id = if let Some(id) = info.implements {
+                id
+            } else {
+                interface_id
+            };
             wasm_encoder::ComponentExternName {
                 name: name.into(),
-                implements: info.implements.as_deref().map(|s| s.into()),
+                implements: implements.map(|s| s.into()),
+                external_id: info.external_id.as_deref().map(|s| s.into()),
+                version_suffix: resolve.version_suffix_of(suffix_id).map(|s| s.into()),
+            }
+        } else {
+            wasm_encoder::ComponentExternName {
+                name: name.into(),
+                implements: info
+                    .implements
+                    .as_ref()
+                    .map(|s| resolve.id_of(*s).unwrap().into()),
                 external_id: info.external_id.as_deref().map(|s| s.into()),
                 version_suffix: None,
-            },
-            ComponentTypeRef::Instance(instance_type_idx),
-        );
+            }
+        };
+        let instance_idx = self
+            .component
+            .import(extern_name, ComponentTypeRef::Instance(instance_type_idx));
         let prev = self.instances.insert(interface_id, instance_idx);
         assert!(prev.is_none());
         Ok(())
@@ -762,7 +786,11 @@ impl<'a> EncodingState<'a> {
         let world = &resolve.worlds[self.info.encoder.metadata.world];
 
         for export_name in exports {
-            let export_string = resolve.name_world_key(export_name);
+            let export_string = if self.info.encoder.emit_canonical_names {
+                resolve.name_canonicalized_world_key(export_name)
+            } else {
+                resolve.name_world_key(export_name)
+            };
             match &world.exports[export_name] {
                 WorldItem::Function(func) => {
                     let ty = self
@@ -993,13 +1021,24 @@ impl<'a> EncodingState<'a> {
             component_index,
             imports,
         );
-        let idx = self.component.export(
+        let implements = resolve.implements_interface(key, item);
+        let extern_name = if self.info.encoder.emit_canonical_names {
             wasm_encoder::ComponentExternName {
                 name: export_name.into(),
-                implements: resolve.implements_value(key, item).map(|s| s.into()),
+                implements: implements.map(|id| resolve.canonicalized_id_of(id).unwrap().into()),
+                external_id: resolve.external_id_value(key, item).map(|s| s.into()),
+                version_suffix: resolve.version_suffix_value(key, item).map(|s| s.into()),
+            }
+        } else {
+            wasm_encoder::ComponentExternName {
+                name: export_name.into(),
+                implements: implements.map(|id| resolve.id_of(id).unwrap().into()),
                 external_id: resolve.external_id_value(key, item).map(|s| s.into()),
                 version_suffix: None,
-            },
+            }
+        };
+        let idx = self.component.export(
+            extern_name,
             ComponentExportKind::Instance,
             instance_index,
             None,
@@ -3276,6 +3315,7 @@ pub struct ComponentEncoder {
     pub(super) reject_legacy_names: bool,
     debug_names: bool,
     shim_return_call_ref: bool,
+    emit_canonical_names: bool,
 }
 
 impl ComponentEncoder {
@@ -3340,6 +3380,18 @@ impl ComponentEncoder {
     /// This is enabled by default.
     pub fn merge_imports_based_on_semver(&mut self, merge: bool) -> &mut Self {
         self.merge_imports_based_on_semver = Some(merge);
+        self
+    }
+
+    /// Sets whether to emit canonical interface names in the component binary.
+    ///
+    /// When enabled, import/export names use canonical version prefixes (e.g.,
+    /// `wasi:cli/exit@0.2` instead of `wasi:cli/exit@0.2.1`) and the
+    /// `version_suffix` field is populated.
+    ///
+    /// This is disabled by default.
+    pub fn emit_canonical_names(&mut self, emit: bool) -> &mut Self {
+        self.emit_canonical_names = emit;
         self
     }
 
@@ -3657,7 +3709,7 @@ world test {
 
         let mut module = dummy_module(&resolve, world, ManglingAndAbi::Standard32);
 
-        embed_component_metadata(&mut module, &resolve, world, StringEncoding::UTF8).unwrap();
+        embed_component_metadata(&mut module, &resolve, world, StringEncoding::UTF8, true).unwrap();
 
         let encoded = ComponentEncoder::default()
             .import_name_map(HashMap::from([

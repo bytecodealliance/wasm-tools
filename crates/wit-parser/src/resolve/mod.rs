@@ -1293,7 +1293,7 @@ impl Resolve {
         base.push_str(name);
         if let Some(version) = &package.name.version {
             base.push_str("@");
-            let string = PackageName::version_compat_track_string(version);
+            let (string, _) = PackageName::version_compat_track_string(version);
             base.push_str(&string);
         }
         base
@@ -1550,19 +1550,41 @@ impl Resolve {
         }
     }
 
-    /// Returns the component model `implements` value for the world import of
+    /// Returns the component model `implements` interface for the world import of
     /// `key` and `item`.
     ///
     /// See the component model explainer and 🏷️ for more information on this feature.
-    pub fn implements_value(&self, key: &WorldKey, item: &WorldItem) -> Option<String> {
+    pub fn implements_interface(&self, key: &WorldKey, item: &WorldItem) -> Option<InterfaceId> {
         if let WorldKey::Name(_) = key {
             if let WorldItem::Interface { id, .. } = item {
                 if self.interfaces[*id].name.is_some() {
-                    return Some(self.id_of(*id).unwrap().into());
+                    return Some(*id);
                 }
             }
         }
         None
+    }
+
+    /// Returns the component model `version-suffix` value for the interface `id`.
+    ///
+    /// See the component model explainer and 🔗 for more information on this feature.
+    pub fn version_suffix_of(&self, id: InterfaceId) -> Option<String> {
+        let pkg = self.interfaces[id].package?;
+        let version = self.packages[pkg].name.version.as_ref()?;
+        let (_, suffix) = PackageName::version_compat_track(version);
+        Some(suffix)
+    }
+
+    /// Returns the component model `version-suffix` value for the world import of
+    /// `key` and `item`.
+    ///
+    /// See the component model explainer and 🔗 for more information on this feature.
+    pub fn version_suffix_value(&self, key: &WorldKey, item: &WorldItem) -> Option<String> {
+        let interface_id = match key {
+            WorldKey::Interface(id) => *id,
+            WorldKey::Name(_) => self.implements_interface(key, item)?,
+        };
+        self.version_suffix_of(interface_id)
     }
 
     /// Returns the component model `external-id` value for the world import of
@@ -2435,7 +2457,7 @@ impl Resolve {
                 track.0,
                 track.1,
             );
-            match semver_tracks.entry(track.clone()) {
+            match semver_tracks.entry(track) {
                 Entry::Vacant(e) => {
                     e.insert((version, iface_id));
                 }
@@ -2515,7 +2537,10 @@ impl Resolve {
         for (key, item) in mem::take(&mut self.worlds[world_id].imports) {
             if let WorldItem::Interface { id, .. } = item {
                 if replacements.contains_key(&id) {
-                    continue;
+                    if let WorldKey::Interface(_) = key {
+                        continue;
+                    }
+                    // Keep labeled imports with `implements` version unchanged
                 }
             }
 
@@ -2583,7 +2608,7 @@ impl Resolve {
         let pkg = &self.packages[iface.package?];
         let version = pkg.name.version.as_ref()?;
         let mut name = pkg.name.clone();
-        name.version = Some(PackageName::version_compat_track(version));
+        name.version = Some(PackageName::version_compat_track(version).0);
         Some(((name, iface.name.clone()?), version))
     }
 

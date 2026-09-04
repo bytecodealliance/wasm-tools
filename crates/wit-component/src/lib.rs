@@ -95,8 +95,9 @@ pub fn embed_component_metadata(
     wit_resolver: &Resolve,
     world: WorldId,
     encoding: StringEncoding,
+    canonical_names: bool,
 ) -> Result<()> {
-    let encoded = metadata::encode(&wit_resolver, world, encoding, None)?;
+    let encoded = metadata::encode(&wit_resolver, world, encoding, None, canonical_names)?;
 
     let section = wasm_encoder::CustomSection {
         name: "component-type".into(),
@@ -151,7 +152,7 @@ world test-world {}
         let world = resolver.select_world(&[pkg], Some("test-world"))?;
 
         // Embed component metadata
-        embed_component_metadata(&mut bytes, &resolver, world, StringEncoding::UTF8)?;
+        embed_component_metadata(&mut bytes, &resolver, world, StringEncoding::UTF8, true)?;
 
         // Re-retrieve custom section count, and search for the component-type custom section along the way
         let mut found_component_section = false;

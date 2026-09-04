@@ -50,6 +50,7 @@ fn create_component(
         resolve,
         wasm.1,
         wit_component::StringEncoding::UTF8,
+        true,
     )?;
 
     let adapter_file = tempdir.path().join(format!("{name}_adapter.wasm"));

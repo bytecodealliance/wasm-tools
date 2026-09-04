@@ -4660,6 +4660,18 @@ impl ComponentNameContext {
             }
         }
 
+        if let Some(_) = version_suffix {
+            require_feature::cm_canon_names(
+                *features,
+                "the `cm-canon-names` feature is not active",
+                offset,
+            )?;
+            match ty {
+                ComponentEntityType::Instance(_) => {}
+                _ => bail!(offset, "only instances can have an `versionsuffix`"),
+            }
+        }
+
         if let Some(implements) = implements {
             require_feature::cm_implements(
                 *features,
@@ -4679,22 +4691,21 @@ impl ComponentNameContext {
             let implements = ComponentName::new_with_features(implements, offset, *features)
                 .with_context(|| format!("`{implements}` is not a valid name"))?;
             match implements.kind() {
-                ComponentNameKind::Interface(_) => {}
+                ComponentNameKind::Interface(_) => {
+                    if let Some(version) = version_suffix {
+                        if let ComponentNameKind::Interface(iface) = implements.kind() {
+                            if let Err(e) = iface.version(Some(version)) {
+                                bail!(offset, "invalid interface version: {e}");
+                            }
+                        }
+                    }
+                }
                 _ => bail!(offset, "name `{implements}` must be an interface"),
             }
-        }
-
-        if let Some(_) = version_suffix {
-            require_feature::cm_canon_names(
-                *features,
-                "the `cm-canon-names` feature is not active",
-                offset,
-            )?;
-            match ty {
-                ComponentEntityType::Instance(_) => {}
-                _ => bail!(offset, "only instances can have an `versionsuffix`"),
-            }
-        }
+            Some(implements)
+        } else {
+            None
+        };
 
         if let Some(_) = external_id {
             require_feature::cm_implements(
