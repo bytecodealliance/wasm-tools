@@ -182,7 +182,7 @@ fn roundtrip_through_printing(file: &str, resolve: &Resolve, pkg: PackageId, was
 
     // Finally encode the `new_resolve` which should be the exact same as
     // before.
-    let wasm2 = wit_component::encode(&new_resolve, new_pkg, true).unwrap();
+    let wasm2 = wit_component::encode(&new_resolve, new_pkg, false).unwrap();
     write_file(&format!("{file}-reencoded.wasm"), &wasm2);
     if wasm != wasm2 {
         panic!("failed to roundtrip through text printing");
