@@ -1,0 +1,17 @@
+package local:demo;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+interface types {
+  type tag = string;
+}
+
+world w {
+  use types.{tag};
+
+  import move-to: func(p: point);
+  export label: func(t: tag) -> point;
+}

@@ -201,7 +201,8 @@
       "interfaces": {
         "resources-multiple": 0
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }

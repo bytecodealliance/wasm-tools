@@ -1,0 +1,5 @@
+failed to resolve directory while parsing WIT for path [tests/ui/parse-fail/package-scope-multifile-ns-clash]: failed to parse package: tests/ui/parse-fail/package-scope-multifile-ns-clash: duplicate item named `point`
+     --> tests/ui/parse-fail/package-scope-multifile-ns-clash/types.wit:3:8
+      |
+    3 | record point {
+      |        ^----

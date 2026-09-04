@@ -134,28 +134,32 @@
       "interfaces": {
         "i2": 0
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "foo:dep1",
       "interfaces": {
         "i1": 1
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "foo:nest",
       "interfaces": {
         "nesty": 2
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "foo:root",
       "interfaces": {
         "i0": 3
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }

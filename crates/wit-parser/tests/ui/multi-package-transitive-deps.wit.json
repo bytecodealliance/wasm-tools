@@ -135,40 +135,46 @@
       "interfaces": {
         "types": 0
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "foo:dep2",
       "interfaces": {
         "types": 1
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "foo:dep1",
       "interfaces": {
         "types": 2
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "foo:bar",
       "interfaces": {},
       "worlds": {
         "w-bar": 0
-      }
+      },
+      "types": {}
     },
     {
       "name": "foo:qux",
       "interfaces": {},
       "worlds": {
         "w-qux": 1
-      }
+      },
+      "types": {}
     },
     {
       "name": "foo:root",
       "interfaces": {},
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }

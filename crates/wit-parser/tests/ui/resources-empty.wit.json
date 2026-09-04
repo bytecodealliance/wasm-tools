@@ -64,7 +64,8 @@
       "interfaces": {
         "resources-empty": 0
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }

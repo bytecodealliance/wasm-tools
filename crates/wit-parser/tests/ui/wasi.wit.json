@@ -533,7 +533,8 @@
       "interfaces": {
         "wasi": 0
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }

@@ -762,7 +762,8 @@
       "interfaces": {
         "types": 0
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }

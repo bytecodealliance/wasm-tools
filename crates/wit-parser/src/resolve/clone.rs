@@ -109,6 +109,17 @@ impl<'a> Cloner<'a> {
     }
 
     fn type_id(&mut self, ty: &mut TypeId) {
+        let owner = self.resolve.types[*ty].owner;
+        // Package-scope types (and other types not owned by the world/interface
+        // being cloned) are shared by reference across includes. Only types
+        // owned by `prev_owner` (or anonymous `None` types) are deep-cloned.
+        if owner != TypeOwner::None && owner != self.prev_owner {
+            if let Some(new_id) = self.maps.types.get(ty) {
+                *ty = *new_id;
+            }
+            return;
+        }
+
         if !self.maps.types.contains_key(ty) {
             let mut new = self.resolve.types[*ty].clone();
             self.type_def(&mut new);
@@ -226,6 +237,7 @@ impl<'a> Cloner<'a> {
         new.package = Some(self.new_package.unwrap_or_else(|| match self.new_owner {
             TypeOwner::Interface(id) => self.resolve.interfaces[id].package.unwrap(),
             TypeOwner::World(id) => self.resolve.worlds[id].package.unwrap(),
+            TypeOwner::Package(id) => id,
             TypeOwner::None => unreachable!(),
         }));
         new.clone_of = Some(old_id);

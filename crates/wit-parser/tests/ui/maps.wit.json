@@ -249,7 +249,8 @@
       },
       "worlds": {
         "maps-world": 0
-      }
+      },
+      "types": {}
     }
   ]
 }

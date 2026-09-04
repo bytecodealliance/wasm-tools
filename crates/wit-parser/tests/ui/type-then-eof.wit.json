@@ -22,7 +22,8 @@
       "interfaces": {
         "foo": 0
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }

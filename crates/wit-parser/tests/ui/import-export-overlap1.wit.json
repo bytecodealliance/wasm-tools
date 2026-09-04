@@ -31,7 +31,8 @@
       "interfaces": {},
       "worlds": {
         "foo": 0
-      }
+      },
+      "types": {}
     }
   ]
 }

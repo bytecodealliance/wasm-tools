@@ -199,7 +199,8 @@
       "interfaces": {
         "streams-and-futures": 0
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }

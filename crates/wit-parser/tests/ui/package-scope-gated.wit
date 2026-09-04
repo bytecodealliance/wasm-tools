@@ -1,0 +1,25 @@
+package local:demo;
+
+@unstable(feature = inactive)
+record hidden {
+  x: u32,
+}
+
+@unstable(feature = active)
+record kept {
+  x: u32,
+}
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+interface api {
+  move-to: func(p: point);
+  keep: func(k: kept);
+}
+
+world w {
+  export api;
+}

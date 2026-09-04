@@ -1,0 +1,16 @@
+package local:demo;
+
+flags style {
+  bold,
+  italic,
+}
+
+interface api {
+  /// Function may share a name with a package-scope type; the return type
+  /// still resolves to the package type.
+  style: func() -> style;
+}
+
+world w {
+  export api;
+}
