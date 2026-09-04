@@ -1355,7 +1355,7 @@ impl TargetsOpts {
             &resolve,
             world,
             &component_to_test,
-            self.emit_canonical_names
+            self.emit_canonical_names,
         )?;
 
         Ok(())
