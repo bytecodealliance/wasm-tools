@@ -152,7 +152,7 @@ world test-world {}
         let world = resolver.select_world(&[pkg], Some("test-world"))?;
 
         // Embed component metadata
-        embed_component_metadata(&mut bytes, &resolver, world, StringEncoding::UTF8)?;
+        embed_component_metadata(&mut bytes, &resolver, world, StringEncoding::UTF8, true)?;
 
         // Re-retrieve custom section count, and search for the component-type custom section along the way
         let mut found_component_section = false;

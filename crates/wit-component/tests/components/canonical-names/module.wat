@@ -1,6 +1,8 @@
 ;;! emit-canonical-names = true
 
 (module
+  (import "a:b/c@0.1.0" "x" (func (param i32 i32)))
+  (import "a:b/c@0.1.0" "y" (func))
   (import "a:b/c@0.1.1" "x" (func (param i32 i32)))
   (import "a:b/c@0.1.1" "y" (func))
 

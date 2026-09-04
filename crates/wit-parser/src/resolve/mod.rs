@@ -1582,13 +1582,7 @@ impl Resolve {
     pub fn version_suffix_value(&self, key: &WorldKey, item: &WorldItem) -> Option<String> {
         let interface_id = match key {
             WorldKey::Interface(id) => *id,
-            WorldKey::Name(_) => {
-                if let WorldItem::Interface { id, .. } = item {
-                    *id
-                } else {
-                    return None;
-                }
-            }
+            WorldKey::Name(_) => self.implements_interface(key, item)?,
         };
         self.version_suffix_of(interface_id)
     }

@@ -147,7 +147,7 @@ world bar {
 }
 "#;
 
-fn encode(wat: &str, wit: Option<&str>) -> Result<Vec<u8>> {
+fn encode(wat: &str, wit: Option<&str>, canonical_names: bool) -> Result<Vec<u8>> {
     let mut module = wat::parse_str(wat)?;
 
     if let Some(wit) = wit {
@@ -160,6 +160,7 @@ fn encode(wat: &str, wit: Option<&str>) -> Result<Vec<u8>> {
             &resolve,
             world,
             StringEncoding::UTF8,
+            canonical_names,
         )?;
     }
 
@@ -168,8 +169,7 @@ fn encode(wat: &str, wit: Option<&str>) -> Result<Vec<u8>> {
     Ok(module)
 }
 
-#[test]
-fn linking() -> Result<()> {
+fn run_linking(canonical_names: bool) -> Result<()> {
     let mut linker = wit_component::Linker::default();
     linker.encoder().validate(true);
     for (name, wat, wit) in [
@@ -179,7 +179,7 @@ fn linking() -> Result<()> {
     ] {
         linker.library(
             name,
-            &encode(wat, wit).with_context(|| name.to_owned())?,
+            &encode(wat, wit, canonical_names).with_context(|| name.to_owned())?,
             false,
         )?;
     }
@@ -226,6 +226,13 @@ fn linking() -> Result<()> {
     Ok(())
 }
 
+#[test]
+fn linking() -> Result<()> {
+    run_linking(false)?;
+    run_linking(true)?;
+    Ok(())
+}
+
 const GOT_IMPORT: &str = r#"
 (module
   (@dylink.0
@@ -257,8 +264,7 @@ world bar {
 }
 "#;
 
-#[test]
-fn linking_got_weak() -> Result<()> {
+fn run_linking_got_weak(canonical_names: bool) -> Result<()> {
     let mut linker = wit_component::Linker::default();
     linker.encoder().validate(true);
     for (name, wat, wit) in [
@@ -267,7 +273,7 @@ fn linking_got_weak() -> Result<()> {
     ] {
         linker.library(
             name,
-            &encode(wat, wit).with_context(|| name.to_owned())?,
+            &encode(wat, wit, canonical_names).with_context(|| name.to_owned())?,
             false,
         )?;
     }
@@ -301,5 +307,12 @@ fn linking_got_weak() -> Result<()> {
 
         assert_eq!(0, func.call(&mut store, ())?.0);
     }
+    Ok(())
+}
+
+#[test]
+fn linking_got_weak() -> Result<()> {
+    run_linking_got_weak(false)?;
+    run_linking_got_weak(true)?;
     Ok(())
 }

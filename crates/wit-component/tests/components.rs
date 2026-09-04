@@ -110,8 +110,9 @@ fn run_test(path: &Path) -> Result<()> {
         }
         let mut encoder = ComponentEncoder::default();
         (|| -> Result<_> {
-            let module = read_core_module(&module_path, &resolve, pkg_id)
-                .with_context(|| format!("failed to read core module at {module_path:?}"))?;
+            let module =
+                read_core_module(&module_path, &resolve, pkg_id, config.emit_canonical_names)
+                    .with_context(|| format!("failed to read core module at {module_path:?}"))?;
             encoder
                 .debug_names(true)
                 .shim_return_call_ref(config.return_call_ref)
@@ -119,7 +120,13 @@ fn run_test(path: &Path) -> Result<()> {
                 .emit_canonical_names(config.emit_canonical_names)
                 .module(&module)?;
             for adapter in adapters {
-                let (name, wasm) = read_name_and_module("adapt-", &adapter?, &resolve, pkg_id)?;
+                let (name, wasm) = read_name_and_module(
+                    "adapt-",
+                    &adapter?,
+                    &resolve,
+                    pkg_id,
+                    config.emit_canonical_names,
+                )?;
                 encoder.adapter(&name, &wasm)?;
             }
             encoder.encode()
@@ -148,11 +155,23 @@ fn run_test(path: &Path) -> Result<()> {
 
         (|| -> Result<_> {
             for (prefix, path, dl_openable) in libs {
-                let (name, wasm) = read_name_and_module(prefix, &path, &resolve, pkg_id)?;
+                let (name, wasm) = read_name_and_module(
+                    prefix,
+                    &path,
+                    &resolve,
+                    pkg_id,
+                    config.emit_canonical_names,
+                )?;
                 linker.library(&name, &wasm, dl_openable)?;
             }
             for path in adapters {
-                let (name, wasm) = read_name_and_module("adapt-", &path?, &resolve, pkg_id)?;
+                let (name, wasm) = read_name_and_module(
+                    "adapt-",
+                    &path?,
+                    &resolve,
+                    pkg_id,
+                    config.emit_canonical_names,
+                )?;
                 linker.encoder().adapter(&name, &wasm)?;
             }
 
@@ -312,8 +331,9 @@ fn read_name_and_module(
     path: &Path,
     resolve: &Resolve,
     pkg: PackageId,
+    canonical_names: bool,
 ) -> Result<(String, Vec<u8>)> {
-    let wasm = read_core_module(path, resolve, pkg)
+    let wasm = read_core_module(path, resolve, pkg, canonical_names)
         .with_context(|| format!("failed to read core module at {path:?}"))?;
     let stem = path.file_stem().unwrap().to_str().unwrap();
     let contents = fs::read_to_string(path)?;
@@ -335,20 +355,34 @@ fn read_name_and_module(
 /// The `resolve` and `pkg` are the parsed WIT package from this test's
 /// directory and the `path`'s filename is used to find a WIT document of the
 /// corresponding name which should have a world that `path` ascribes to.
-fn read_core_module(path: &Path, resolve: &Resolve, pkg: PackageId) -> Result<Vec<u8>> {
+fn read_core_module(
+    path: &Path,
+    resolve: &Resolve,
+    pkg: PackageId,
+    canonical_names: bool,
+) -> Result<Vec<u8>> {
     let mut wasm = wat::parse_file(path)?;
     let name = path.file_stem().and_then(|s| s.to_str()).unwrap();
+    let mut resolve = resolve.clone();
     let world = resolve
         .select_world(&[pkg], Some(name))
         .context("failed to select a world")?;
+    if canonical_names {
+        resolve.merge_world_imports_based_on_semver(world)?;
+    }
 
     // Add this producer data to the wit-component metadata so we can make sure it gets through the
     // translation:
     let mut producers = wasm_metadata::Producers::empty();
     producers.add("processed-by", "my-fake-bindgen", "123.45");
 
-    let encoded =
-        wit_component::metadata::encode(resolve, world, StringEncoding::UTF8, Some(&producers))?;
+    let encoded = wit_component::metadata::encode(
+        &resolve,
+        world,
+        StringEncoding::UTF8,
+        Some(&producers),
+        canonical_names,
+    )?;
 
     let section = wasm_encoder::CustomSection {
         name: "component-type".into(),

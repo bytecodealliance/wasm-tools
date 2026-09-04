@@ -41,7 +41,7 @@ fn targets() -> Result<()> {
         let component = wat::parse_file(path.join("test.wat"))
             .with_context(|| "failed to parse component WAT".to_string())?;
 
-        match wit_component::targets(&resolve, world, &component) {
+        match wit_component::targets(&resolve, world, &component, true) {
             Ok(_) => {
                 assert!(
                     !test_case.starts_with("error-"),
