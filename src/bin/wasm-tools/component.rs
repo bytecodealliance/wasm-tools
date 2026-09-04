@@ -1351,7 +1351,12 @@ impl TargetsOpts {
         let world = resolve.select_world(&[pkg_id], self.world.as_deref())?;
         let component_to_test = self.input.get_binary_wasm(None)?;
 
-        wit_component::targets(&resolve, world, &component_to_test, self.emit_canonical_names)?;
+        wit_component::targets(
+            &resolve,
+            world,
+            &component_to_test,
+            self.emit_canonical_names
+        )?;
 
         Ok(())
     }

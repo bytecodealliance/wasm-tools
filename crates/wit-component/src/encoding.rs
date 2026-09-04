@@ -3723,7 +3723,7 @@ world test {
 
         let mut module = dummy_module(&resolve, world, ManglingAndAbi::Standard32);
 
-        embed_component_metadata(&mut module, &resolve, world, StringEncoding::UTF8).unwrap();
+        embed_component_metadata(&mut module, &resolve, world, StringEncoding::UTF8, true).unwrap();
 
         let encoded = ComponentEncoder::default()
             .import_name_map(HashMap::from([

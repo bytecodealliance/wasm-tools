@@ -25,7 +25,9 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     };
     resolve2.assert_valid();
 
-    let wasm2 = wit_component::encode(&resolve2, pkg2).expect("failed to encode WIT document");
+    let canonical_names = u.arbitrary()?;
+    let wasm2 = wit_component::encode(&resolve2, pkg2, canonical_names)
+        .expect("failed to encode WIT document");
     write_file("doc2.wasm", &wasm2);
     roundtrip_through_printing("doc2", &resolve2, pkg2, &wasm2);
 
@@ -62,8 +64,15 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
                 dummy = dst.finish();
             }
         }
-        wit_component::embed_component_metadata(&mut dummy, &resolve, id, StringEncoding::UTF8)
-            .unwrap();
+        let canonical_names = u.arbitrary()?;
+        wit_component::embed_component_metadata(
+            &mut dummy,
+            &resolve,
+            id,
+            StringEncoding::UTF8,
+            canonical_names,
+        )
+        .unwrap();
         write_file("dummy.wasm", &dummy);
 
         log::debug!("... componentizing the world into a binary component");
@@ -173,7 +182,7 @@ fn roundtrip_through_printing(file: &str, resolve: &Resolve, pkg: PackageId, was
 
     // Finally encode the `new_resolve` which should be the exact same as
     // before.
-    let wasm2 = wit_component::encode(&new_resolve, new_pkg).unwrap();
+    let wasm2 = wit_component::encode(&new_resolve, new_pkg, true).unwrap();
     write_file(&format!("{file}-reencoded.wasm"), &wasm2);
     if wasm != wasm2 {
         panic!("failed to roundtrip through text printing");
