@@ -1531,9 +1531,8 @@ impl OpPrinter for PrintOperatorFolded<'_, '_, '_, '_> {
             code_section_hints: Vec::new(),
         };
 
-        let mut op_printer =
-            PrintOperator::new(&mut internal_printer, self.state, self.operator_state);
-        reader.visit_operator(&mut op_printer)??;
+        let op_printer = PrintOperator::new(&mut internal_printer, self.state, self.operator_state);
+        reader.visit_operator_owned(op_printer)??;
         if let Some(s) = annotation {
             internal_printer.result.start_comment()?;
             write!(internal_printer.result, " (; {s}")?;

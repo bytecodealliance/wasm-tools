@@ -353,6 +353,12 @@ pub trait FrameStack {
     fn current_frame(&self) -> Option<FrameKind>;
 }
 
+impl<T: FrameStack> FrameStack for &mut T {
+    fn current_frame(&self) -> Option<FrameKind> {
+        (**self).current_frame()
+    }
+}
+
 /// The Wasm control stack for the [`OperatorsReader`].
 #[derive(Debug, Default, Clone)]
 pub struct ControlStack {
@@ -398,7 +404,7 @@ impl ControlStack {
 /// Adapters from VisitOperators to FrameStacks
 struct FrameStackAdapter<'a, T> {
     stack: &'a mut ControlStack,
-    visitor: &'a mut T,
+    visitor: T,
 }
 
 impl<T> FrameStack for FrameStackAdapter<'_, T> {
@@ -407,12 +413,12 @@ impl<T> FrameStack for FrameStackAdapter<'_, T> {
     }
 }
 
-struct SingleFrameAdapter<'a, T> {
+struct SingleFrameAdapter<T> {
     current_frame: FrameKind,
-    visitor: &'a mut T,
+    visitor: T,
 }
 
-impl<T> FrameStack for SingleFrameAdapter<'_, T> {
+impl<T> FrameStack for SingleFrameAdapter<T> {
     fn current_frame(&self) -> Option<FrameKind> {
         Some(self.current_frame)
     }
@@ -502,7 +508,7 @@ impl<'a> OperatorsReader<'a> {
     /// If `OperatorsReader` has less bytes remaining than required to parse
     /// the `Operator`, or if the input is malformed.
     pub fn read(&mut self) -> Result<Operator<'a>> {
-        self.visit_operator(&mut OperatorFactory)
+        self.visit_operator_owned(OperatorFactory)
     }
 
     /// Visit the next available operator with the specified [`VisitOperator`] instance.
@@ -555,7 +561,20 @@ impl<'a> OperatorsReader<'a> {
     where
         T: VisitOperator<'a>,
     {
-        self.reader.visit_operator(&mut FrameStackAdapter {
+        self.visit_operator_owned(visitor)
+    }
+
+    /// Visit the next available operator with the specified [`VisitOperator`] instance.
+    ///
+    /// Owned (faster) version of [`OperatorsReader::visit_operator`], because this one does not use pointer `&mut T`.
+    pub fn visit_operator_owned<T>(
+        &mut self,
+        visitor: T,
+    ) -> Result<<T as VisitOperator<'a>>::Output>
+    where
+        T: VisitOperator<'a>,
+    {
+        self.reader.visit_operator_owned(FrameStackAdapter {
             stack: &mut self.stack,
             visitor,
         })
@@ -1085,7 +1104,7 @@ macro_rules! define_passthrough_visit_operator {
     };
 }
 
-impl<'a, T: VisitOperator<'a>> VisitOperator<'a> for SingleFrameAdapter<'_, T> {
+impl<'a, T: VisitOperator<'a>> VisitOperator<'a> for SingleFrameAdapter<T> {
     type Output = T::Output;
 
     #[cfg(feature = "simd")]
@@ -1104,14 +1123,14 @@ impl<'a> BinaryReader<'a> {
     /// If `BinaryReader` has less bytes remaining than required to parse
     /// the `Operator`, or if the input is malformed.
     pub fn peek_operator<T: FrameStack>(&self, stack: &T) -> Result<Operator<'a>> {
-        self.clone().visit_operator(&mut SingleFrameAdapter {
+        self.clone().visit_operator_owned(SingleFrameAdapter {
             current_frame: stack.current_frame().ok_or_else(|| {
                 format_err!(
                     self.original_position(),
                     "operators remaining after end of function body or expression"
                 )
             })?,
-            visitor: &mut OperatorFactory,
+            visitor: OperatorFactory,
         })
     }
 }

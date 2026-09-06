@@ -89,7 +89,7 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
         let mut ops = OperatorsReader::new_with_allocs(reader, mem::take(&mut allocs));
 
         while !ops.eof() {
-            ops.visit_operator(&mut NopVisit)?;
+            ops.visit_operator_owned(NopVisit)?;
         }
         ops.finish()?;
         allocs = ops.into_allocations();

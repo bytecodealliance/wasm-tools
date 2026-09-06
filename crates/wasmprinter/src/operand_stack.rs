@@ -50,7 +50,7 @@ impl FuncValidator {
         let pos = reader.original_position();
         reader
             .clone()
-            .visit_operator(&mut self.validator.visitor(pos))??;
+            .visit_operator_owned(self.validator.visitor(pos))??;
 
         if !is_end {
             let op = reader.clone().read()?;

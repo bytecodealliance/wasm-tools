@@ -831,6 +831,20 @@ impl<'a> BinaryReader<'a> {
     where
         T: VisitOperator<'a> + FrameStack,
     {
+        self.visit_operator_owned(visitor)
+    }
+
+    /// Visit the next available operator with the specified [`VisitOperator`] instance
+    /// that is also a [`FrameStack`].
+    ///
+    /// Owned (faster) version of [`BinaryReader::visit_operator`], because this one does not use pointer `&mut T`.
+    pub fn visit_operator_owned<T>(
+        &mut self,
+        mut visitor: T,
+    ) -> Result<<T as VisitOperator<'a>>::Output>
+    where
+        T: VisitOperator<'a> + FrameStack,
+    {
         if visitor.current_frame().is_none() {
             bail!(
                 self.original_position(),
@@ -846,7 +860,7 @@ impl<'a> BinaryReader<'a> {
             0x03 => visitor.visit_loop(self.read_block_type()?),
             0x04 => visitor.visit_if(self.read_block_type()?),
             0x05 => {
-                self.expect_frame(visitor, FrameKind::If, "else")?;
+                self.expect_frame(&visitor, FrameKind::If, "else")?;
                 visitor.visit_else()
             }
             0x06 => {
@@ -865,9 +879,9 @@ impl<'a> BinaryReader<'a> {
                     "legacy_exceptions feature required for catch instruction",
                     pos,
                 )?;
-                match self.expect_frame(visitor, FrameKind::LegacyCatch, "catch") {
+                match self.expect_frame(&visitor, FrameKind::LegacyCatch, "catch") {
                     Ok(()) => (),
-                    Err(_) => self.expect_frame(visitor, FrameKind::LegacyTry, "catch")?,
+                    Err(_) => self.expect_frame(&visitor, FrameKind::LegacyTry, "catch")?,
                 }
                 visitor.visit_catch(self.read_var_u32()?)
             }
@@ -890,7 +904,7 @@ impl<'a> BinaryReader<'a> {
             0x14 => visitor.visit_call_ref(self.read()?),
             0x15 => visitor.visit_return_call_ref(self.read()?),
             0x18 => {
-                self.expect_frame(visitor, FrameKind::LegacyTry, "delegate")?;
+                self.expect_frame(&visitor, FrameKind::LegacyTry, "delegate")?;
                 visitor.visit_delegate(self.read_var_u32()?)
             }
             0x19 => {
@@ -900,9 +914,9 @@ impl<'a> BinaryReader<'a> {
                     "legacy_exceptions feature required for catch_all instruction",
                     pos,
                 )?;
-                match self.expect_frame(visitor, FrameKind::LegacyCatch, "catch_all") {
+                match self.expect_frame(&visitor, FrameKind::LegacyCatch, "catch_all") {
                     Ok(()) => (),
-                    Err(_) => self.expect_frame(visitor, FrameKind::LegacyTry, "catch_all")?,
+                    Err(_) => self.expect_frame(&visitor, FrameKind::LegacyTry, "catch_all")?,
                 }
                 visitor.visit_catch_all()
             }
@@ -1134,7 +1148,7 @@ impl<'a> BinaryReader<'a> {
     fn visit_0xfb_operator<T>(
         &mut self,
         pos: u64,
-        visitor: &mut T,
+        mut visitor: T,
     ) -> Result<<T as VisitOperator<'a>>::Output>
     where
         T: VisitOperator<'a>,
@@ -1351,7 +1365,7 @@ impl<'a> BinaryReader<'a> {
     fn visit_0xfc_operator<T>(
         &mut self,
         pos: u64,
-        visitor: &mut T,
+        mut visitor: T,
     ) -> Result<<T as VisitOperator<'a>>::Output>
     where
         T: VisitOperator<'a>,
@@ -1748,7 +1762,7 @@ impl<'a> BinaryReader<'a> {
     fn visit_0xfe_operator<T>(
         &mut self,
         pos: u64,
-        visitor: &mut T,
+        mut visitor: T,
     ) -> Result<<T as VisitOperator<'a>>::Output>
     where
         T: VisitOperator<'a>,
