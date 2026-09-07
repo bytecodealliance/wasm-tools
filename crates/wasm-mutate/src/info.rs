@@ -159,6 +159,10 @@ impl<'a> ModuleInfo<'a> {
                         info.memory_types.push(ty?);
                     }
                 }
+                Payload::TagSection(reader) => {
+                    info.tag_count += reader.count();
+                    info.section(SectionId::Tag.into(), get_input_data(&reader.range()));
+                }
                 Payload::GlobalSection(reader) => {
                     info.globals = Some(info.raw_sections.len());
                     info.section(SectionId::Global.into(), get_input_data(&reader.range()));
