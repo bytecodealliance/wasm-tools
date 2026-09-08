@@ -4,7 +4,6 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wit-dylib"
-homepage = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wit-dylib"
 documentation = "https://docs.rs/wit-dylib"
 description = """
 Generate an dynamic wasm library from a WIT world.

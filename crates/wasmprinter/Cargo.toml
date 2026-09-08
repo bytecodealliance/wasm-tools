@@ -4,9 +4,7 @@ version.workspace = true
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 edition.workspace = true
 license.workspace = true
-readme = "README.md"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasmprinter"
-homepage = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasmprinter"
 documentation = "https://docs.rs/wasmprinter"
 description = """
 Rust converter from the WebAssembly binary format to the text format.

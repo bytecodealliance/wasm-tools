@@ -4,9 +4,7 @@ version = "1.258.0"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 edition.workspace = true
 license.workspace = true
-readme = "README.md"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wat"
-homepage = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wat"
 documentation = "https://docs.rs/wat"
 description = """
 Rust parser for the WebAssembly Text format, WAT
