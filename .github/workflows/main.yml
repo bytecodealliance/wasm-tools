@@ -37,6 +37,7 @@ jobs:
           os: ubuntu-latest
           env:
             CARGO_BUILD_TARGET: x86_64-unknown-linux-musl
+            CARGO_BUILD_WARNINGS: allow
             DOCKER_IMAGE: ./ci/docker/x86_64-musl/Dockerfile
         - build: aarch64-linux
           os: ubuntu-latest
@@ -47,6 +48,7 @@ jobs:
           os: ubuntu-latest
           env:
             CARGO_BUILD_TARGET: aarch64-unknown-linux-musl
+            CARGO_BUILD_WARNINGS: allow
             DOCKER_IMAGE: ./ci/docker/aarch64-musl/Dockerfile
         - build: riscv64-linux
           os: ubuntu-latest
@@ -117,7 +119,7 @@ jobs:
           - os: ubuntu-latest
             rust: beta
           - os: ubuntu-latest
-            rust: nightly-2026-08-31
+            rust: nightly-2026-09-08
           - os: macos-latest
             rust: stable
           - os: windows-latest
@@ -244,7 +246,7 @@ jobs:
         submodules: true
     - uses: ./.github/actions/install-rust
       with:
-        toolchain: nightly-2026-08-31
+        toolchain: nightly-2026-09-08
     - run: cargo install cargo-fuzz
     - run: cargo fuzz build --dev -s none
     - run: cargo fuzz build --dev --features wasmtime -s none

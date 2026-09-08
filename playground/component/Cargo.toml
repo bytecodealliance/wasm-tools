@@ -3,6 +3,9 @@ name = "component"
 publish = false
 edition.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 wasmprinter = { workspace = true }
 wat = { workspace = true }

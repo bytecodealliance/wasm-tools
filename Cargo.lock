@@ -2307,7 +2307,6 @@ version = "0.258.0"
 dependencies = [
  "anyhow",
  "glob",
- "heck",
  "indexmap 2.14.0",
  "log",
  "petgraph",
@@ -2555,7 +2554,6 @@ dependencies = [
  "wat",
  "wit-component 0.258.0",
  "wit-dylib",
- "wit-encoder",
  "wit-parser 0.258.0",
  "wit-smith",
 ]

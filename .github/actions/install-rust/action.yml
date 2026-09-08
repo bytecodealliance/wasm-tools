@@ -40,7 +40,9 @@ runs:
         EOF
 
         # Deny warnings on CI to keep our code warning-free as it lands in-tree.
-        echo RUSTFLAGS="-D warnings $RUSTFLAGS" >> "$GITHUB_ENV"
+        if [ "$CARGO_BUILD_WARNINGS" = "" ]; then
+          echo "CARGO_BUILD_WARNINGS=deny" >> "$GITHUB_ENV"
+        fi
 
     - run: rustup target add wasm32-wasip2
       if: inputs.toolchain != 'msrv'

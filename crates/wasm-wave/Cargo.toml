@@ -9,7 +9,6 @@ description = "WebAssembly Value Encoding"
 documentation = "https://docs.rs/wasm-wave"
 categories = ["wasm", "encoding", "parser-implementations"]
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-wave"
-readme = "README.md"
 
 [lints]
 workspace = true
