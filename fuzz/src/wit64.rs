@@ -26,7 +26,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     sa64.fill(r1);
 
     let mut alt = wit_parser_new::SizeAlign::default();
-    alt.fill(r2);
+    alt.fill(r2).unwrap();
 
     for ((t1, _), (t2, _)) in r1.types.iter().zip(r2.types.iter()) {
         let t1 = &wit_parser_old::Type::Id(t1);
