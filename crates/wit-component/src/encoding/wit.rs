@@ -221,7 +221,14 @@ impl Encoder<'_> {
             encoder.interface = Some(interface);
             let iface = &self.resolve.interfaces[interface];
             let extern_name = if self.canonical_names {
-                ComponentExternName::from(self.resolve.canonicalized_id_of(interface).unwrap())
+                let name = self.resolve.canonicalized_id_of(interface).unwrap();
+                let version_suffix = self.resolve.version_suffix_of(interface);
+                ComponentExternName {
+                    name: name.into(),
+                    implements: None,
+                    external_id: None,
+                    version_suffix: version_suffix.map(|s| s.into()),
+                }
             } else {
                 ComponentExternName::from(self.resolve.id_of(interface).unwrap())
             };
