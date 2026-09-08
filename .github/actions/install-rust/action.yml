@@ -32,14 +32,17 @@ runs:
         rustup default "${{ steps.select.outputs.version }}"
 
         # Save disk space by avoiding incremental compilation. Also turn down
-        # debuginfo from 2 to 0 to help save disk space. Deny warnings on CI to
-        # keep our code warning-free as it lands in-tree.
+        # debuginfo from 2 to 0 to help save disk space.
         cat >> "$GITHUB_ENV" <<EOF
         CARGO_INCREMENTAL=0
         CARGO_PROFILE_DEV_DEBUG=0
         CARGO_PROFILE_TEST_DEBUG=0
-        CARGO_BUILD_WARNINGS=deny
         EOF
+
+        # Deny warnings on CI to keep our code warning-free as it lands in-tree.
+        if [ "$CARGO_BUILD_WARNINGS" = "" ]; then
+          echo "CARGO_BUILD_WARNINGS=deny" >> "$GITHUB_ENV"
+        fi
 
     - run: rustup target add wasm32-wasip2
       if: inputs.toolchain != 'msrv'
