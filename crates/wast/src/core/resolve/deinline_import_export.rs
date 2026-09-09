@@ -4,7 +4,9 @@ use crate::token::{Id, Index, Span};
 use std::mem;
 
 pub fn run(fields: &mut Vec<ModuleField>) {
-    for mut item in mem::take(fields) {
+    let fields_to_expand = mem::take(fields);
+    fields.reserve(fields_to_expand.len());
+    for mut item in fields_to_expand {
         match &mut item {
             ModuleField::Func(f) => {
                 for name in f.exports.names.drain(..) {
