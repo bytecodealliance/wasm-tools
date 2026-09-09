@@ -611,6 +611,7 @@ impl<'a> EncodingState<'a> {
             .component
             .type_instance(Some(&format!("ty-{name}")), &ty);
 
+        // TODO: refactor extern_name into a helper function
         let extern_name = if self.info.encoder.emit_canonical_names {
             let name = resolve
                 .canonicalized_id_of(interface_id)

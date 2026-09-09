@@ -220,6 +220,7 @@ impl Encoder<'_> {
         for interface in interfaces {
             encoder.interface = Some(interface);
             let iface = &self.resolve.interfaces[interface];
+            // TODO: refactor extern_name into a helper function
             let extern_name = if self.canonical_names {
                 let name = self.resolve.canonicalized_id_of(interface).unwrap();
                 let version_suffix = self.resolve.version_suffix_of(interface);

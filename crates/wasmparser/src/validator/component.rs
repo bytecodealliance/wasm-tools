@@ -4694,21 +4694,14 @@ impl ComponentNameContext {
             let implements = ComponentName::new_with_features(implements, offset, *features)
                 .with_context(|| format!("`{implements}` is not a valid name"))?;
             match implements.kind() {
-                ComponentNameKind::Interface(_) => {
-                    if let Some(suffix) = version_suffix {
-                        if let ComponentNameKind::Interface(iface) = implements.kind() {
-                            if let Err(e) = iface.version(Some(suffix)) {
-                                bail!(offset, "invalid interface version: {e}");
-                            }
-                        }
+                ComponentNameKind::Interface(iface) => {
+                    if let Err(e) = iface.version(version_suffix) {
+                        bail!(offset, "invalid interface version: {e}");
                     }
                 }
                 _ => bail!(offset, "name `{implements}` must be an interface"),
             }
-            Some(implements)
-        } else {
-            None
-        };
+        }
 
         if let Some(_) = external_id {
             require_feature::cm_implements(
