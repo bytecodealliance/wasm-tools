@@ -1,0 +1,5 @@
+error: failed to encode a component from modules
+
+Caused by:
+    0: failed to extract linking metadata from link-intrinsic-signature.wat
+    1: type mismatch for function `env.__wasm_get_stack_pointer`: required linker ABI `[] -> [I32]` but found `[I64] -> [I32]`

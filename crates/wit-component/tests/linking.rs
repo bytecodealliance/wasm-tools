@@ -147,6 +147,14 @@ world bar {
 }
 "#;
 
+const INTRINSIC_WIT: &str = r#"
+package test:test;
+
+world intrinsic {
+    export run: func();
+}
+"#;
+
 fn encode(wat: &str, wit: Option<&str>) -> Result<Vec<u8>> {
     let mut module = wat::parse_str(wat)?;
 
@@ -166,6 +174,202 @@ fn encode(wat: &str, wit: Option<&str>) -> Result<Vec<u8>> {
     wasmparser::validate(&module)?;
 
     Ok(module)
+}
+
+fn link_intrinsic_wat(wat: &str, validate: bool) -> Result<Vec<u8>> {
+    let module = encode(wat, Some(INTRINSIC_WIT))?;
+    let mut linker = wit_component::Linker::default();
+    linker.encoder().validate(validate);
+    linker.library("app.wasm", &module, false)?;
+    linker.encode()
+}
+
+fn link_intrinsic(namespace: &str, name: &str, signature: &str, validate: bool) -> Result<Vec<u8>> {
+    link_intrinsic_wat(
+        &format!(
+            r#"
+(module
+  (@dylink.0)
+  (import "{namespace}" "{name}" (func {signature}))
+  (func (export "run"))
+)
+"#,
+        ),
+        validate,
+    )
+}
+
+#[test]
+fn linker_intrinsic_signatures() -> Result<()> {
+    for (namespace, name, signature) in [
+        ("env", "__wasm_get_stack_pointer", "(result i32)"),
+        ("env", "__wasm_set_stack_pointer", "(param i32)"),
+        ("env", "__wasm_get_tls_base", "(result i32)"),
+        ("env", "__wasm_set_tls_base", "(param i32)"),
+        (
+            "$root",
+            "[thread-new-indirect-v0]",
+            "(param i32 i32) (result i32)",
+        ),
+    ] {
+        link_intrinsic(namespace, name, signature, true)
+            .with_context(|| format!("failed to link {namespace}.{name}"))?;
+    }
+    link_intrinsic_wat(
+        r#"
+(module
+  (@dylink.0)
+  (type (func))
+  (type (func (result i32)))
+  (import "env" "__wasm_get_stack_pointer" (func (type 1)))
+  (func (export "run") (type 0))
+)
+"#,
+        true,
+    )
+    .context("failed to link an intrinsic at a nonzero type index")?;
+    Ok(())
+}
+
+#[test]
+fn linker_intrinsic_signature_mismatches() {
+    for (namespace, name, signature, expected, actual, validate) in [
+        (
+            "env",
+            "__wasm_get_stack_pointer",
+            "(param i64) (result i32)",
+            "[] -> [I32]",
+            "[I64] -> [I32]",
+            false,
+        ),
+        (
+            "env",
+            "__wasm_set_stack_pointer",
+            "(param i64)",
+            "[I32] -> []",
+            "[I64] -> []",
+            true,
+        ),
+        (
+            "env",
+            "__wasm_get_tls_base",
+            "",
+            "[] -> [I32]",
+            "[] -> []",
+            false,
+        ),
+        (
+            "env",
+            "__wasm_set_tls_base",
+            "(param i32) (result i64)",
+            "[I32] -> []",
+            "[I32] -> [I64]",
+            false,
+        ),
+        (
+            "$root",
+            "[thread-new-indirect-v0]",
+            "(param i32) (result i32)",
+            "[I32, I32] -> [I32]",
+            "[I32] -> [I32]",
+            false,
+        ),
+        (
+            "env",
+            "__wasm_get_stack_pointer",
+            "(result i64)",
+            "[] -> [I32]",
+            "[] -> [I64]",
+            false,
+        ),
+        (
+            "$root",
+            "[thread-new-indirect-v0]",
+            "(param i32 i32 i32) (result i32)",
+            "[I32, I32] -> [I32]",
+            "[I32, I32, I32] -> [I32]",
+            false,
+        ),
+    ] {
+        let error = link_intrinsic(namespace, name, signature, validate).unwrap_err();
+        let error = format!("{error:#}");
+        assert!(error.contains("failed to extract linking metadata from app.wasm"));
+        assert!(error.contains(&format!("function `{namespace}.{name}`")));
+        assert!(
+            error.contains(&format!(
+                "required linker ABI `{expected}` but found `{actual}`"
+            )),
+            "{error}"
+        );
+    }
+}
+
+#[test]
+fn linker_intrinsic_rejects_wrong_kind_and_unsupported_type() {
+    let error = link_intrinsic_wat(
+        r#"
+(module
+  (@dylink.0)
+  (import "$root" "[thread-new-indirect-v0]" (global i32))
+  (func (export "run"))
+)
+"#,
+        false,
+    )
+    .unwrap_err();
+    assert!(
+        format!("{error:#}")
+            .contains("unexpected type for $root:[thread-new-indirect-v0]: Global(GlobalType")
+    );
+
+    let error =
+        link_intrinsic("env", "__wasm_set_stack_pointer", "(param v128)", false).unwrap_err();
+    let error = format!("{error:#}");
+    assert!(error.contains("failed to read function type for `env.__wasm_set_stack_pointer`"));
+    assert!(error.contains("V128 not yet supported"));
+}
+
+#[test]
+fn linker_intrinsic_rejects_invalid_type_index() {
+    use {
+        std::borrow::Cow,
+        wasm_encoder::{CustomSection, EntityType, ImportSection, Module, TypeSection},
+    };
+
+    let mut module = Module::new();
+    module.section(&CustomSection {
+        name: Cow::Borrowed("dylink.0"),
+        data: Cow::Borrowed(&[]),
+    });
+    let mut types = TypeSection::new();
+    types.ty().function([], []);
+    module.section(&types);
+    let mut imports = ImportSection::new();
+    imports.import("env", "__wasm_get_stack_pointer", EntityType::Function(1));
+    module.section(&imports);
+
+    let module = module.finish();
+    let mut linker = wit_component::Linker::default();
+    linker.library("app.wasm", &module, false).unwrap();
+    let error = linker.encode().unwrap_err();
+    assert!(
+        format!("{error:#}")
+            .contains("invalid function type index 1 for `env.__wasm_get_stack_pointer`")
+    );
+}
+
+#[test]
+fn linker_intrinsic_requires_matching_namespace() {
+    let error = link_intrinsic(
+        "other",
+        "__wasm_get_stack_pointer",
+        "(param i64) (result i32)",
+        false,
+    )
+    .unwrap_err();
+    let error = format!("{error:#}");
+    assert!(error.contains("module requires an import interface named `other`"));
+    assert!(!error.contains("required linker ABI"));
 }
 
 #[test]
