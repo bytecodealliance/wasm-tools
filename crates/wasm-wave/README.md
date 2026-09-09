@@ -52,8 +52,8 @@ Kebab-case labels are used for record fields, variant cases, enum cases, and fla
 
 - Labels consist of one or more hyphen-separated words.
   - `one`, `two-words`
-- Words consist of one ASCII letter followed by any number of ASCII alphanumeric characters.
-  - `q`, `abc123`
+- The first word must start with an ASCII letter, followed by any number of ASCII alphanumeric characters. Subsequent words (after a hyphen) may also start with a digit, and must consist of one or more ASCII alphanumeric characters.
+  - `q`, `abc123`, `item-2`
 - Each word can contain lowercase or uppercase characters but not both; each word in a label can use a different (single) case.
   - `HTTP3`, `method-GET`
 - Any label may be prefixed with `%`; this is not part of the label itself but allows for representing labels that would otherwise be parsed as keywords.
