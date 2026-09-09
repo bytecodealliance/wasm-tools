@@ -2,7 +2,6 @@ use bytesize::ByteSize;
 use std::io::Write;
 
 use anyhow::Result;
-use comfy_table::modifiers::UTF8_ROUND_CORNERS;
 use comfy_table::presets::UTF8_FULL;
 use comfy_table::{CellAlignment, ContentArrangement, Table};
 use termcolor::WriteColor;
@@ -280,8 +279,7 @@ fn write_summary_table(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result
     // Prepare a table and get the individual metadata
     let mut table = Table::new();
     table
-        .load_preset(UTF8_FULL)
-        .apply_modifier(UTF8_ROUND_CORNERS)
+        .load_style(UTF8_FULL.with_rounded_corners())
         .set_content_arrangement(ContentArrangement::Dynamic)
         .set_width(80)
         .set_header(vec!["KIND", "NAME", "SIZE", "SIZE%", "LANGUAGES", "PARENT"]);
@@ -394,8 +392,7 @@ fn write_details_table(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result
     // Prepare a table and get the individual metadata
     let mut table = Table::new();
     table
-        .load_preset(UTF8_FULL)
-        .apply_modifier(UTF8_ROUND_CORNERS)
+        .load_style(UTF8_FULL.with_rounded_corners())
         .set_content_arrangement(ContentArrangement::Dynamic)
         .set_width(80)
         .set_header(vec!["KIND", "VALUE"]);
