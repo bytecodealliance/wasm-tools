@@ -1,0 +1,25 @@
+(module
+  (type (;0;) (func (result i32)))
+  (type (;1;) (func))
+  (table (;0;) 1 1 funcref)
+  (export "init" (func 2))
+  (export "run" (func 3))
+  (elem (;0;) (table 0) (i32.const 0) funcref (ref.func $f))
+  (elem $e (;1;) funcref (ref.func $g))
+  (func $f (;0;) (type 0) (result i32)
+    i32.const 171
+  )
+  (func $g (;1;) (type 0) (result i32)
+    i32.const 205
+  )
+  (func (;2;) (type 1)
+    i32.const 0
+    i32.const 0
+    i32.const 1
+    table.init $e
+  )
+  (func (;3;) (type 0) (result i32)
+    i32.const 0
+    call_indirect (type 0)
+  )
+)

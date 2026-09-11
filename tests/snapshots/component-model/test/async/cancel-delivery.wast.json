@@ -1,0 +1,47 @@
+{
+  "source_filename": "tests/component-model/test/async/cancel-delivery.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 24,
+      "filename": "cancel-delivery.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 280,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 285,
+      "filename": "cancel-delivery.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 401,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    }
+  ]
+}

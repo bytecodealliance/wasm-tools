@@ -729,15 +729,29 @@
     },
     {
       "type": "assert_invalid",
-      "line": 235,
+      "line": 232,
       "filename": "return_call.13.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 241,
+      "filename": "return_call.14.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 253,
+      "filename": "return_call.15.wasm",
       "module_type": "binary",
       "text": "unknown function"
     },
     {
       "type": "assert_invalid",
-      "line": 239,
-      "filename": "return_call.14.wasm",
+      "line": 257,
+      "filename": "return_call.16.wasm",
       "module_type": "binary",
       "text": "unknown function"
     }

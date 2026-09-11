@@ -9,213 +9,248 @@
     },
     {
       "type": "assert_invalid",
-      "line": 17,
+      "line": 15,
       "filename": "kebab.1.wasm",
       "module_type": "binary",
       "text": "is not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 21,
+      "line": 19,
       "filename": "kebab.2.wasm",
       "module_type": "binary",
       "text": "is not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 25,
+      "line": 23,
       "filename": "kebab.3.wasm",
       "module_type": "binary",
       "text": "is not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 29,
+      "line": 27,
       "filename": "kebab.4.wasm",
       "module_type": "binary",
       "text": "is not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 33,
+      "line": 31,
       "filename": "kebab.5.wasm",
       "module_type": "binary",
       "text": "is not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 37,
+      "line": 35,
       "filename": "kebab.6.wasm",
       "module_type": "binary",
       "text": "`aBc` is not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 41,
+      "line": 39,
       "filename": "kebab.7.wasm",
       "module_type": "binary",
       "text": "is not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 45,
+      "line": 43,
       "filename": "kebab.8.wasm",
       "module_type": "binary",
       "text": "`TyPeS` is not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 49,
+      "line": 47,
       "filename": "kebab.9.wasm",
       "module_type": "binary",
       "text": "`WaSi` is not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 53,
+      "line": 51,
       "filename": "kebab.10.wasm",
       "module_type": "binary",
       "text": "`HtTp` is not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 57,
+      "line": 55,
       "filename": "kebab.11.wasm",
       "module_type": "binary",
       "text": "`wasi/http` is not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 61,
+      "line": 59,
       "filename": "kebab.12.wasm",
       "module_type": "binary",
       "text": "`` is not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 65,
+      "line": 63,
       "filename": "kebab.13.wasm",
       "module_type": "binary",
       "text": "`` is not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 69,
+      "line": 67,
       "filename": "kebab.14.wasm",
       "module_type": "binary",
       "text": "`` is not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 73,
+      "line": 71,
       "filename": "kebab.15.wasm",
       "module_type": "binary",
       "text": "is not a valid extern name"
     },
     {
       "type": "assert_invalid",
-      "line": 77,
+      "line": 75,
       "filename": "kebab.16.wasm",
       "module_type": "binary",
       "text": "is not a valid extern name"
     },
     {
       "type": "assert_invalid",
-      "line": 81,
+      "line": 79,
       "filename": "kebab.17.wasm",
       "module_type": "binary",
       "text": "is not a valid extern name"
     },
     {
       "type": "assert_invalid",
-      "line": 85,
+      "line": 83,
       "filename": "kebab.18.wasm",
       "module_type": "binary",
       "text": "is not a valid extern name"
     },
     {
       "type": "assert_invalid",
-      "line": 89,
+      "line": 87,
       "filename": "kebab.19.wasm",
       "module_type": "binary",
       "text": "is not a valid extern name"
     },
     {
       "type": "assert_invalid",
-      "line": 93,
+      "line": 91,
       "filename": "kebab.20.wasm",
       "module_type": "binary",
       "text": "is not a valid extern name"
     },
     {
       "type": "assert_invalid",
-      "line": 99,
+      "line": 97,
       "filename": "kebab.21.wasm",
       "module_type": "binary",
       "text": "`1` is not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 104,
+      "line": 102,
       "filename": "kebab.22.wasm",
       "module_type": "binary",
       "text": "`GonnA` is not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 108,
+      "line": 106,
       "filename": "kebab.23.wasm",
       "module_type": "binary",
       "text": "`NevEr` is not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 112,
+      "line": 110,
       "filename": "kebab.24.wasm",
       "module_type": "binary",
       "text": "`lET` is not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 116,
+      "line": 114,
       "filename": "kebab.25.wasm",
       "module_type": "binary",
       "text": "`DOWn` is not in kebab case"
     },
     {
       "type": "assert_invalid",
-      "line": 122,
+      "line": 120,
       "filename": "kebab.26.wasm",
       "module_type": "binary",
       "text": "export name `a` conflicts with previous name `a`"
     },
     {
       "type": "assert_invalid",
-      "line": 128,
+      "line": 126,
       "filename": "kebab.27.wasm",
       "module_type": "binary",
       "text": "export name `A` conflicts with previous name `a`"
     },
     {
       "type": "assert_invalid",
-      "line": 134,
+      "line": 132,
       "filename": "kebab.28.wasm",
       "module_type": "binary",
       "text": "import name `a` conflicts with previous name `A`"
     },
     {
       "type": "assert_invalid",
-      "line": 140,
+      "line": 138,
       "filename": "kebab.29.wasm",
       "module_type": "binary",
       "text": "export name `A` conflicts with previous name `a`"
     },
     {
       "type": "assert_invalid",
-      "line": 146,
+      "line": 144,
       "filename": "kebab.30.wasm",
       "module_type": "binary",
       "text": "export name `FOO-bar-BAZ` conflicts with previous name `foo-BAR-baz`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 150,
+      "filename": "kebab.31.wasm",
+      "module_type": "binary",
+      "text": "import name `foobar` conflicts with previous name `foo-bar`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 155,
+      "filename": "kebab.32.wasm",
+      "module_type": "binary",
+      "text": "import name `FOOBAR` conflicts with previous name `foo-bar`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 160,
+      "filename": "kebab.33.wasm",
+      "module_type": "binary",
+      "text": "import name `foob-ar` conflicts with previous name `foo-bar`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 165,
+      "filename": "kebab.34.wasm",
+      "module_type": "binary",
+      "text": "import name `[static]foo-bar.FO-ob-AR` conflicts with previous name `foo-bar`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 170,
+      "filename": "kebab.35.wasm",
+      "module_type": "binary",
+      "text": "import name `[method]foo-bar.foobar` conflicts with previous name `foo-bar`"
     }
   ]
 }

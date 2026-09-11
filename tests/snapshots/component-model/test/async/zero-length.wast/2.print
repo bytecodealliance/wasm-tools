@@ -1,0 +1,576 @@
+(component $Tester
+  (core module $Memory (;0;)
+    (memory (;0;) 1)
+    (export "mem" (memory 0))
+  )
+  (core instance $memory (;0;) (instantiate $Memory))
+  (core module $M (;1;)
+    (type (;0;) (func (param i32 i32)))
+    (type (;1;) (func (result i32)))
+    (type (;2;) (func (param i32 i32) (result i32)))
+    (type (;3;) (func (result i64)))
+    (type (;4;) (func (param i32 i32 i32) (result i32)))
+    (type (;5;) (func (param i32) (result i32)))
+    (type (;6;) (func))
+    (type (;7;) (func (param i32 i32 i32)))
+    (import "" "mem" (memory (;0;) 1))
+    (import "" "waitable.join" (func $waitable.join (;0;) (type 0) (param i32 i32)))
+    (import "" "waitable-set.new" (func $waitable-set.new (;1;) (type 1) (result i32)))
+    (import "" "waitable-set.poll" (func $waitable-set.poll (;2;) (type 2) (param i32 i32) (result i32)))
+    (import "" "stream.new" (func $stream.new (;3;) (type 3) (result i64)))
+    (import "" "stream.read" (func $stream.read (;4;) (type 4) (param i32 i32 i32) (result i32)))
+    (import "" "stream.write" (func $stream.write (;5;) (type 4) (param i32 i32 i32) (result i32)))
+    (import "" "stream.cancel-read" (func $stream.cancel-read (;6;) (type 5) (param i32) (result i32)))
+    (import "" "stream.cancel-write" (func $stream.cancel-write (;7;) (type 5) (param i32) (result i32)))
+    (global $ws (;0;) (mut i32) i32.const 0)
+    (global $rx (;1;) (mut i32) i32.const 0)
+    (global $tx (;2;) (mut i32) i32.const 0)
+    (export "zero-write-then-zero-read" (func 14))
+    (export "zero-read-then-zero-write" (func 15))
+    (export "zero-read-then-write" (func 16))
+    (export "zero-write-then-read" (func 17))
+    (export "write-then-zero-read" (func 18))
+    (export "read-then-zero-write" (func 19))
+    (export "reissue-zero-write" (func 20))
+    (export "reissue-zero-read" (func 21))
+    (export "zero-read-after-full-write" (func 22))
+    (export "zero-write-after-full-read" (func 23))
+    (export "zero-read-after-cancelled-read" (func 24))
+    (export "zero-write-after-cancelled-write" (func 25))
+    (start $start)
+    (func $start (;8;) (type 6)
+      call $waitable-set.new
+      global.set $ws
+    )
+    (func $new-stream (;9;) (type 6)
+      (local $ret64 i64)
+      call $stream.new
+      local.set $ret64
+      local.get $ret64
+      i32.wrap_i64
+      global.set $rx
+      local.get $ret64
+      i64.const 32
+      i64.shr_u
+      i32.wrap_i64
+      global.set $tx
+      global.get $rx
+      global.get $ws
+      call $waitable.join
+      global.get $tx
+      global.get $ws
+      call $waitable.join
+    )
+    (func $write (;10;) (type 5) (param $n i32) (result i32)
+      global.get $tx
+      i32.const 64
+      local.get $n
+      call $stream.write
+    )
+    (func $read (;11;) (type 5) (param $n i32) (result i32)
+      global.get $rx
+      i32.const 128
+      local.get $n
+      call $stream.read
+    )
+    (func $expect-event (;12;) (type 7) (param $code i32) (param $index i32) (param $payload i32)
+      global.get $ws
+      i32.const 0
+      call $waitable-set.poll
+      local.get $code
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 0
+      i32.load
+      local.get $index
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 4
+      i32.load
+      local.get $payload
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+    )
+    (func $expect-no-event (;13;) (type 6)
+      global.get $ws
+      i32.const 0
+      call $waitable-set.poll
+      i32.const 0
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+    )
+    (func (;14;) (type 1) (result i32)
+      call $new-stream
+      i32.const 0
+      call $write
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 0
+      call $read
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 3
+      global.get $tx
+      i32.const 0
+      call $expect-event
+      call $expect-no-event
+      i32.const 3
+      call $write
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 2
+      global.get $rx
+      i32.const 0
+      call $expect-event
+      i32.const 3
+      call $read
+      i32.const 48
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 3
+      global.get $tx
+      i32.const 48
+      call $expect-event
+      call $expect-no-event
+      i32.const 42
+    )
+    (func (;15;) (type 1) (result i32)
+      call $new-stream
+      i32.const 0
+      call $read
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 0
+      call $write
+      i32.const 0
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      call $expect-no-event
+      i32.const 42
+    )
+    (func (;16;) (type 1) (result i32)
+      call $new-stream
+      i32.const 0
+      call $read
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 2
+      call $write
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 2
+      global.get $rx
+      i32.const 0
+      call $expect-event
+      i32.const 3
+      call $read
+      i32.const 32
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 3
+      global.get $tx
+      i32.const 32
+      call $expect-event
+      call $expect-no-event
+      i32.const 42
+    )
+    (func (;17;) (type 1) (result i32)
+      call $new-stream
+      i32.const 0
+      call $write
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 2
+      call $read
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 3
+      global.get $tx
+      i32.const 0
+      call $expect-event
+      i32.const 3
+      call $write
+      i32.const 32
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 2
+      global.get $rx
+      i32.const 32
+      call $expect-event
+      call $expect-no-event
+      i32.const 42
+    )
+    (func (;18;) (type 1) (result i32)
+      call $new-stream
+      i32.const 2
+      call $write
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 0
+      call $read
+      i32.const 0
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      call $expect-no-event
+      i32.const 42
+    )
+    (func (;19;) (type 1) (result i32)
+      call $new-stream
+      i32.const 2
+      call $read
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 0
+      call $write
+      i32.const 0
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      call $expect-no-event
+      i32.const 42
+    )
+    (func (;20;) (type 1) (result i32)
+      call $new-stream
+      i32.const 0
+      call $write
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 3
+      call $read
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 3
+      global.get $tx
+      i32.const 0
+      call $expect-event
+      i32.const 0
+      call $write
+      i32.const 0
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      call $expect-no-event
+      i32.const 42
+    )
+    (func (;21;) (type 1) (result i32)
+      call $new-stream
+      i32.const 0
+      call $read
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 3
+      call $write
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 2
+      global.get $rx
+      i32.const 0
+      call $expect-event
+      i32.const 0
+      call $read
+      i32.const 0
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      call $expect-no-event
+      i32.const 42
+    )
+    (func (;22;) (type 1) (result i32)
+      call $new-stream
+      i32.const 2
+      call $write
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 2
+      call $read
+      i32.const 32
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 0
+      call $read
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 3
+      global.get $tx
+      i32.const 32
+      call $expect-event
+      call $expect-no-event
+      i32.const 1
+      call $write
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 2
+      global.get $rx
+      i32.const 0
+      call $expect-event
+      call $expect-no-event
+      i32.const 42
+    )
+    (func (;23;) (type 1) (result i32)
+      call $new-stream
+      i32.const 2
+      call $read
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 2
+      call $write
+      i32.const 32
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 0
+      call $write
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 2
+      global.get $rx
+      i32.const 32
+      call $expect-event
+      call $expect-no-event
+      i32.const 2
+      call $read
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 3
+      global.get $tx
+      i32.const 0
+      call $expect-event
+      call $expect-no-event
+      i32.const 42
+    )
+    (func (;24;) (type 1) (result i32)
+      call $new-stream
+      i32.const 0
+      call $write
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 4
+      call $read
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      global.get $rx
+      call $stream.cancel-read
+      i32.const 2
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 0
+      call $read
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 3
+      global.get $tx
+      i32.const 0
+      call $expect-event
+      call $expect-no-event
+      i32.const 42
+    )
+    (func (;25;) (type 1) (result i32)
+      call $new-stream
+      i32.const 0
+      call $read
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 4
+      call $write
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      global.get $tx
+      call $stream.cancel-write
+      i32.const 2
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 0
+      call $write
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 2
+      global.get $rx
+      i32.const 0
+      call $expect-event
+      call $expect-no-event
+      i32.const 42
+    )
+  )
+  (type $ST (;0;) (stream u8))
+  (core func $waitable.join (;0;) (canon waitable.join))
+  (core func $waitable-set.new (;1;) (canon waitable-set.new))
+  (alias core export $memory "mem" (core memory (;0;)))
+  (core func $waitable-set.poll (;2;) (canon waitable-set.poll (memory 0)))
+  (core func $stream.new (;3;) (canon stream.new $ST))
+  (alias core export $memory "mem" (core memory (;1;)))
+  (core func $stream.read (;4;) (canon stream.read $ST async (memory 1)))
+  (alias core export $memory "mem" (core memory (;2;)))
+  (core func $stream.write (;5;) (canon stream.write $ST async (memory 2)))
+  (core func $stream.cancel-read (;6;) (canon stream.cancel-read $ST async))
+  (core func $stream.cancel-write (;7;) (canon stream.cancel-write $ST async))
+  (alias core export $memory "mem" (core memory (;3;)))
+  (core instance (;1;)
+    (export "mem" (memory 3))
+    (export "waitable.join" (func $waitable.join))
+    (export "waitable-set.new" (func $waitable-set.new))
+    (export "waitable-set.poll" (func $waitable-set.poll))
+    (export "stream.new" (func $stream.new))
+    (export "stream.read" (func $stream.read))
+    (export "stream.write" (func $stream.write))
+    (export "stream.cancel-read" (func $stream.cancel-read))
+    (export "stream.cancel-write" (func $stream.cancel-write))
+  )
+  (core instance $m (;2;) (instantiate $M
+      (with "" (instance 1))
+    )
+  )
+  (type (;1;) (func (result u32)))
+  (alias core export $m "zero-write-then-zero-read" (core func (;8;)))
+  (func (;0;) (type 1) (canon lift (core func 8)))
+  (type (;2;) (func (result u32)))
+  (alias core export $m "zero-read-then-zero-write" (core func (;9;)))
+  (func (;1;) (type 2) (canon lift (core func 9)))
+  (type (;3;) (func (result u32)))
+  (alias core export $m "zero-read-then-write" (core func (;10;)))
+  (func (;2;) (type 3) (canon lift (core func 10)))
+  (type (;4;) (func (result u32)))
+  (alias core export $m "zero-write-then-read" (core func (;11;)))
+  (func (;3;) (type 4) (canon lift (core func 11)))
+  (type (;5;) (func (result u32)))
+  (alias core export $m "write-then-zero-read" (core func (;12;)))
+  (func (;4;) (type 5) (canon lift (core func 12)))
+  (type (;6;) (func (result u32)))
+  (alias core export $m "read-then-zero-write" (core func (;13;)))
+  (func (;5;) (type 6) (canon lift (core func 13)))
+  (type (;7;) (func (result u32)))
+  (alias core export $m "reissue-zero-write" (core func (;14;)))
+  (func (;6;) (type 7) (canon lift (core func 14)))
+  (type (;8;) (func (result u32)))
+  (alias core export $m "reissue-zero-read" (core func (;15;)))
+  (func (;7;) (type 8) (canon lift (core func 15)))
+  (type (;9;) (func (result u32)))
+  (alias core export $m "zero-read-after-full-write" (core func (;16;)))
+  (func (;8;) (type 9) (canon lift (core func 16)))
+  (type (;10;) (func (result u32)))
+  (alias core export $m "zero-write-after-full-read" (core func (;17;)))
+  (func (;9;) (type 10) (canon lift (core func 17)))
+  (type (;11;) (func (result u32)))
+  (alias core export $m "zero-read-after-cancelled-read" (core func (;18;)))
+  (func (;10;) (type 11) (canon lift (core func 18)))
+  (type (;12;) (func (result u32)))
+  (alias core export $m "zero-write-after-cancelled-write" (core func (;19;)))
+  (func (;11;) (type 12) (canon lift (core func 19)))
+  (export (;12;) "zero-write-then-zero-read" (func 0))
+  (export (;13;) "zero-read-then-zero-write" (func 1))
+  (export (;14;) "zero-read-then-write" (func 2))
+  (export (;15;) "zero-write-then-read" (func 3))
+  (export (;16;) "write-then-zero-read" (func 4))
+  (export (;17;) "read-then-zero-write" (func 5))
+  (export (;18;) "reissue-zero-write" (func 6))
+  (export (;19;) "reissue-zero-read" (func 7))
+  (export (;20;) "zero-read-after-full-write" (func 8))
+  (export (;21;) "zero-write-after-full-read" (func 9))
+  (export (;22;) "zero-read-after-cancelled-read" (func 10))
+  (export (;23;) "zero-write-after-cancelled-write" (func 11))
+)

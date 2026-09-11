@@ -1,0 +1,76 @@
+{
+  "source_filename": "tests/component-model/test/async/self-switch-traps.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 3,
+      "name": "Tester",
+      "filename": "self-switch-traps.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 45,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 46,
+      "action": {
+        "type": "invoke",
+        "field": "trap-if-suspend-then-resume-self",
+        "args": []
+      },
+      "text": "cannot resume thread which is not suspended"
+    },
+    {
+      "type": "module_instance",
+      "line": 47,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 48,
+      "action": {
+        "type": "invoke",
+        "field": "trap-if-yield-then-resume-self",
+        "args": []
+      },
+      "text": "cannot resume thread which is not suspended"
+    },
+    {
+      "type": "module_instance",
+      "line": 49,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 50,
+      "action": {
+        "type": "invoke",
+        "field": "trap-if-suspend-then-promote-self",
+        "args": []
+      },
+      "text": "cannot resume thread which is not suspended"
+    },
+    {
+      "type": "module_instance",
+      "line": 51,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 52,
+      "action": {
+        "type": "invoke",
+        "field": "trap-if-yield-then-promote-self",
+        "args": []
+      },
+      "text": "cannot resume thread which is not suspended"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+(module
+  (type (;0;) (func (result i32)))
+  (import "test"
+    (item "func->11i" (func (;0;) (type 0) (result i32)))
+    (item "unknown" (func (;1;) (type 0) (result i32)))
+  )
+)

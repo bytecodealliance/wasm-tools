@@ -424,6 +424,36 @@
       "filename": "data.64.wasm",
       "module_type": "binary",
       "text": "constant expression required"
+    },
+    {
+      "type": "module",
+      "line": 532,
+      "filename": "data.65.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "action",
+      "line": 542,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": []
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 543,
+      "action": {
+        "type": "invoke",
+        "field": "load",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "205"
+        }
+      ]
     }
   ]
 }

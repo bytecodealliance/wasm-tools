@@ -1,0 +1,8 @@
+(module
+  (import "m" "t" (table $t0 (;0;) 1 funcref))
+  (import "m" "m" (memory $m0 (;0;) 1))
+  (import "m" "g" (global $g0 (;0;) i32))
+  (table $t1 (;1;) 1 funcref)
+  (memory $m1 (;1;) 1)
+  (global $g1 (;1;) i32 i32.const 0)
+)

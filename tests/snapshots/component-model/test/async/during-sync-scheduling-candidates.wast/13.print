@@ -1,0 +1,90 @@
+(component $BlockedCallbackTester
+  (core module $Core (;0;)
+    (type (;0;) (func (param i32)))
+    (type (;1;) (func (result i32)))
+    (type (;2;) (func (param i32) (result i32)))
+    (type (;3;) (func (param i32 i32 i32) (result i32)))
+    (import "" "task.return" (func $task.return (;0;) (type 0) (param i32)))
+    (import "" "thread.index" (func $thread.index (;1;) (type 1) (result i32)))
+    (import "" "thread.suspend" (func $thread.suspend (;2;) (type 1) (result i32)))
+    (import "" "thread.resume-later" (func $thread.resume-later (;3;) (type 0) (param i32)))
+    (import "" "thread.yield" (func $thread.yield (;4;) (type 1) (result i32)))
+    (import "" "thread.yield-then-promote" (func $thread.yield-then-promote (;5;) (type 2) (param i32) (result i32)))
+    (global $setup-thread (;0;) (mut i32) i32.const 0)
+    (global $resumed (;1;) (mut i32) i32.const 0)
+    (export "setup" (func 6))
+    (export "setup-cb" (func 7))
+    (export "run" (func 8))
+    (export "run-promote" (func 9))
+    (func (;6;) (type 1) (result i32)
+      call $thread.index
+      global.set $setup-thread
+      i32.const 1
+      call $task.return
+      call $thread.suspend
+      drop
+      i32.const 1
+      global.set $resumed
+      i32.const 0
+    )
+    (func (;7;) (type 3) (param i32 i32 i32) (result i32)
+      unreachable
+    )
+    (func (;8;) (type 1) (result i32)
+      global.get $setup-thread
+      call $thread.resume-later
+      loop $again
+        call $thread.yield
+        drop
+        global.get $resumed
+        i32.eqz
+        br_if $again
+      end
+      i32.const 42
+    )
+    (func (;9;) (type 1) (result i32)
+      global.get $setup-thread
+      call $thread.resume-later
+      global.get $setup-thread
+      call $thread.yield-then-promote
+      drop
+      global.get $resumed
+      i32.eqz
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 42
+    )
+  )
+  (core func $task.return (;0;) (canon task.return (result u32)))
+  (core func $thread.index (;1;) (canon thread.index))
+  (core func $thread.suspend (;2;) (canon thread.suspend))
+  (core func $thread.resume-later (;3;) (canon thread.resume-later))
+  (core func $thread.yield (;4;) (canon thread.yield))
+  (core func $thread.yield-then-promote (;5;) (canon thread.yield-then-promote))
+  (core instance (;0;)
+    (export "task.return" (func $task.return))
+    (export "thread.index" (func $thread.index))
+    (export "thread.suspend" (func $thread.suspend))
+    (export "thread.resume-later" (func $thread.resume-later))
+    (export "thread.yield" (func $thread.yield))
+    (export "thread.yield-then-promote" (func $thread.yield-then-promote))
+  )
+  (core instance $core (;1;) (instantiate $Core
+      (with "" (instance 0))
+    )
+  )
+  (type (;0;) (func async (result u32)))
+  (alias core export $core "setup" (core func (;6;)))
+  (alias core export $core "setup-cb" (core func (;7;)))
+  (func (;0;) (type 0) (canon lift (core func 6) async (callback 7)))
+  (type (;1;) (func (result u32)))
+  (alias core export $core "run" (core func (;8;)))
+  (func (;1;) (type 1) (canon lift (core func 8)))
+  (type (;2;) (func (result u32)))
+  (alias core export $core "run-promote" (core func (;9;)))
+  (func (;2;) (type 2) (canon lift (core func 9)))
+  (export (;3;) "setup" (func 0))
+  (export (;4;) "run" (func 1))
+  (export (;5;) "run-promote" (func 2))
+)

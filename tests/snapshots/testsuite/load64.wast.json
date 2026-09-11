@@ -952,6 +952,13 @@
       "filename": "load64.59.wasm",
       "module_type": "binary",
       "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 572,
+      "filename": "load64.60.wasm",
+      "module_type": "binary",
+      "text": "offset out of range"
     }
   ]
 }

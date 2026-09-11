@@ -1,0 +1,150 @@
+{
+  "source_filename": "tests/component-model/test/async/switch-to-ready-callback.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 16,
+      "name": "Tester",
+      "filename": "switch-to-ready-callback.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 354,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 355,
+      "action": {
+        "type": "invoke",
+        "field": "trap-if-suspend-then-resume-yielded-callback",
+        "args": []
+      },
+      "text": "cannot resume thread which is not suspended"
+    },
+    {
+      "type": "module_instance",
+      "line": 356,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 357,
+      "action": {
+        "type": "invoke",
+        "field": "trap-if-yield-then-resume-yielded-callback",
+        "args": []
+      },
+      "text": "cannot resume thread which is not suspended"
+    },
+    {
+      "type": "module_instance",
+      "line": 358,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 359,
+      "action": {
+        "type": "invoke",
+        "field": "deadlock-if-suspend-then-promote-yielded-callback",
+        "args": []
+      },
+      "text": "deadlock detected: event loop cannot make further progress"
+    },
+    {
+      "type": "module_instance",
+      "line": 360,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 361,
+      "action": {
+        "type": "invoke",
+        "field": "yield-then-promote-yielded-callback-is-fine",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "44"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 362,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 363,
+      "action": {
+        "type": "invoke",
+        "field": "trap-if-suspend-then-resume-waiting-callback",
+        "args": []
+      },
+      "text": "cannot resume thread which is not suspended"
+    },
+    {
+      "type": "module_instance",
+      "line": 364,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 365,
+      "action": {
+        "type": "invoke",
+        "field": "trap-if-yield-then-resume-waiting-callback",
+        "args": []
+      },
+      "text": "cannot resume thread which is not suspended"
+    },
+    {
+      "type": "module_instance",
+      "line": 366,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 367,
+      "action": {
+        "type": "invoke",
+        "field": "deadlock-if-suspend-then-promote-waiting-callback",
+        "args": []
+      },
+      "text": "deadlock detected: event loop cannot make further progress"
+    },
+    {
+      "type": "module_instance",
+      "line": 368,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 369,
+      "action": {
+        "type": "invoke",
+        "field": "yield-then-promote-waiting-callback-is-fine",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "44"
+        }
+      ]
+    }
+  ]
+}

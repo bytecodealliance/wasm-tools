@@ -534,7 +534,7 @@ impl<'a> Dump<'a> {
                     self.print(c.data_offset())?;
                     match c.as_known() {
                         KnownCustom::Name(iter) => {
-                            self.print_subsections(iter, |me, item, pos| {
+                            self.print_subsections(iter.sections, |me, item, pos| {
                                 me.print_core_name(item, pos)
                             })?;
                         }
@@ -643,10 +643,14 @@ impl<'a> Dump<'a> {
     }
 
     fn print_name_map(&mut self, thing: &str, n: NameMap<'_>) -> Result<()> {
-        self.section(n, &format!("{thing} name"), |me, end, naming| {
-            write!(me.state, "{naming:?}")?;
-            me.print(end)
-        })
+        self.section(
+            n.names.into(),
+            &format!("{thing} name"),
+            |me, end, naming| {
+                write!(me.state, "{naming:?}")?;
+                me.print(end)
+            },
+        )
     }
 
     fn print_indirect_name_map(
@@ -655,7 +659,7 @@ impl<'a> Dump<'a> {
         thing_b: &str,
         n: IndirectNameMap<'_>,
     ) -> Result<()> {
-        self.section(n, thing_b, |me, _end, naming| {
+        self.section(n.names.into(), thing_b, |me, _end, naming| {
             write!(me.state, "{} {} ", thing_a, naming.index)?;
             me.print_name_map(thing_b, naming.names)
         })

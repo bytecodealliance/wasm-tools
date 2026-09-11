@@ -1,0 +1,150 @@
+(component $SyncLiftedTester
+  (component $I (;0;)
+    (core module $Core (;0;)
+      (type (;0;) (func (result i32)))
+      (type (;1;) (func (param i32)))
+      (type (;2;) (func (param i32) (result i32)))
+      (type (;3;) (func))
+      (import "" "thread.index" (func $thread.index (;0;) (type 0) (result i32)))
+      (import "" "thread.suspend" (func $thread.suspend (;1;) (type 0) (result i32)))
+      (import "" "thread.resume-later" (func $thread.resume-later (;2;) (type 1) (param i32)))
+      (import "" "thread.yield" (func $thread.yield (;3;) (type 0) (result i32)))
+      (import "" "thread.yield-then-promote" (func $thread.yield-then-promote (;4;) (type 2) (param i32) (result i32)))
+      (global $f-started (;0;) (mut i32) i32.const 0)
+      (global $f-thread (;1;) (mut i32) i32.const 0)
+      (global $resumed (;2;) (mut i32) i32.const 0)
+      (export "f" (func 5))
+      (export "run" (func 6))
+      (export "run-promote" (func 7))
+      (func (;5;) (type 3)
+        i32.const 1
+        global.set $f-started
+        call $thread.index
+        global.set $f-thread
+        call $thread.suspend
+        drop
+        i32.const 1
+        global.set $resumed
+      )
+      (func (;6;) (type 0) (result i32)
+        global.get $f-started
+        i32.eqz
+        if ;; label = @1
+          unreachable
+        end
+        global.get $f-thread
+        call $thread.resume-later
+        loop $again
+          call $thread.yield
+          drop
+          global.get $resumed
+          i32.eqz
+          br_if $again
+        end
+        i32.const 42
+      )
+      (func (;7;) (type 0) (result i32)
+        global.get $f-started
+        i32.eqz
+        if ;; label = @1
+          unreachable
+        end
+        global.get $f-thread
+        call $thread.resume-later
+        global.get $f-thread
+        call $thread.yield-then-promote
+        drop
+        global.get $resumed
+        i32.eqz
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 42
+      )
+    )
+    (core func $thread.index (;0;) (canon thread.index))
+    (core func $thread.suspend (;1;) (canon thread.suspend))
+    (core func $thread.resume-later (;2;) (canon thread.resume-later))
+    (core func $thread.yield (;3;) (canon thread.yield))
+    (core func $thread.yield-then-promote (;4;) (canon thread.yield-then-promote))
+    (core instance (;0;)
+      (export "thread.index" (func $thread.index))
+      (export "thread.suspend" (func $thread.suspend))
+      (export "thread.resume-later" (func $thread.resume-later))
+      (export "thread.yield" (func $thread.yield))
+      (export "thread.yield-then-promote" (func $thread.yield-then-promote))
+    )
+    (core instance $core (;1;) (instantiate $Core
+        (with "" (instance 0))
+      )
+    )
+    (type (;0;) (func async))
+    (alias core export $core "f" (core func (;5;)))
+    (func (;0;) (type 0) (canon lift (core func 5)))
+    (type (;1;) (func (result u32)))
+    (alias core export $core "run" (core func (;6;)))
+    (func (;1;) (type 1) (canon lift (core func 6)))
+    (type (;2;) (func (result u32)))
+    (alias core export $core "run-promote" (core func (;7;)))
+    (func (;2;) (type 2) (canon lift (core func 7)))
+    (export (;3;) "f" (func 0))
+    (export (;4;) "run" (func 1))
+    (export (;5;) "run-promote" (func 2))
+  )
+  (component $D (;1;)
+    (type (;0;) (func async))
+    (import "f" (func $f (;0;) (type 0)))
+    (core module $Core (;0;)
+      (type (;0;) (func (param i32)))
+      (type (;1;) (func (result i32)))
+      (type (;2;) (func (param i32 i32 i32) (result i32)))
+      (import "" "task.return" (func $task.return (;0;) (type 0) (param i32)))
+      (import "" "f" (func $f (;1;) (type 1) (result i32)))
+      (export "setup" (func 2))
+      (export "setup-cb" (func 3))
+      (func (;2;) (type 1) (result i32)
+        call $f
+        i32.const 15
+        i32.and
+        i32.const 1
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 1
+        call $task.return
+        i32.const 0
+      )
+      (func (;3;) (type 2) (param i32 i32 i32) (result i32)
+        unreachable
+      )
+    )
+    (core func $task.return (;0;) (canon task.return (result u32)))
+    (core func $f' (;1;) (canon lower (func $f) async))
+    (core instance (;0;)
+      (export "task.return" (func $task.return))
+      (export "f" (func $f'))
+    )
+    (core instance $core (;1;) (instantiate $Core
+        (with "" (instance 0))
+      )
+    )
+    (type (;1;) (func async (result u32)))
+    (alias core export $core "setup" (core func (;2;)))
+    (alias core export $core "setup-cb" (core func (;3;)))
+    (func (;1;) (type 1) (canon lift (core func 2) async (callback 3)))
+    (export (;2;) "setup" (func 1))
+  )
+  (instance $i (;0;) (instantiate $I))
+  (alias export $i "f" (func (;0;)))
+  (instance $d (;1;) (instantiate $D
+      (with "f" (func 0))
+    )
+  )
+  (alias export $d "setup" (func (;1;)))
+  (alias export $i "run" (func (;2;)))
+  (alias export $i "run-promote" (func (;3;)))
+  (export (;4;) "setup" (func 1))
+  (export (;5;) "run" (func 2))
+  (export (;6;) "run-promote" (func 3))
+)

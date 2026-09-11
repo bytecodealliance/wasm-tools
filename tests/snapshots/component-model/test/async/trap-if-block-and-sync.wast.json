@@ -10,13 +10,13 @@
     },
     {
       "type": "module_instance",
-      "line": 286,
+      "line": 315,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_trap",
-      "line": 287,
+      "line": 316,
       "action": {
         "type": "invoke",
         "field": "trap-if-sync-call-async1",
@@ -26,13 +26,13 @@
     },
     {
       "type": "module_instance",
-      "line": 288,
+      "line": 317,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_trap",
-      "line": 289,
+      "line": 318,
       "action": {
         "type": "invoke",
         "field": "trap-if-sync-call-async2",
@@ -42,13 +42,13 @@
     },
     {
       "type": "module_instance",
-      "line": 290,
+      "line": 319,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_trap",
-      "line": 291,
+      "line": 320,
       "action": {
         "type": "invoke",
         "field": "trap-if-async-calls-sync-and-blocks",
@@ -58,13 +58,13 @@
     },
     {
       "type": "module_instance",
-      "line": 292,
+      "line": 321,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_trap",
-      "line": 293,
+      "line": 322,
       "action": {
         "type": "invoke",
         "field": "trap-if-suspend",
@@ -74,13 +74,13 @@
     },
     {
       "type": "module_instance",
-      "line": 294,
+      "line": 323,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_trap",
-      "line": 295,
+      "line": 324,
       "action": {
         "type": "invoke",
         "field": "trap-if-wait",
@@ -90,13 +90,13 @@
     },
     {
       "type": "module_instance",
-      "line": 296,
+      "line": 325,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_return",
-      "line": 297,
+      "line": 326,
       "action": {
         "type": "invoke",
         "field": "poll-is-fine",
@@ -111,13 +111,13 @@
     },
     {
       "type": "module_instance",
-      "line": 298,
+      "line": 327,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_trap",
-      "line": 299,
+      "line": 328,
       "action": {
         "type": "invoke",
         "field": "trap-if-invalid-callback-code",
@@ -132,13 +132,13 @@
     },
     {
       "type": "module_instance",
-      "line": 300,
+      "line": 329,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_trap",
-      "line": 301,
+      "line": 330,
       "action": {
         "type": "invoke",
         "field": "trap-if-invalid-callback-code",
@@ -153,13 +153,13 @@
     },
     {
       "type": "module_instance",
-      "line": 302,
+      "line": 331,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_trap",
-      "line": 303,
+      "line": 332,
       "action": {
         "type": "invoke",
         "field": "trap-if-invalid-callback-code",
@@ -174,13 +174,13 @@
     },
     {
       "type": "module_instance",
-      "line": 304,
+      "line": 333,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_return",
-      "line": 305,
+      "line": 334,
       "action": {
         "type": "invoke",
         "field": "yield-is-fine",
@@ -195,13 +195,13 @@
     },
     {
       "type": "module_instance",
-      "line": 306,
+      "line": 335,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_return",
-      "line": 307,
+      "line": 336,
       "action": {
         "type": "invoke",
         "field": "yield-is-fine-cb",
@@ -216,13 +216,13 @@
     },
     {
       "type": "module_instance",
-      "line": 308,
+      "line": 337,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_return",
-      "line": 309,
+      "line": 338,
       "action": {
         "type": "invoke",
         "field": "yield-then-resume-is-fine",
@@ -237,13 +237,13 @@
     },
     {
       "type": "module_instance",
-      "line": 310,
+      "line": 339,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_return",
-      "line": 311,
+      "line": 340,
       "action": {
         "type": "invoke",
         "field": "suspend-then-resume-is-fine",
@@ -258,13 +258,13 @@
     },
     {
       "type": "module_instance",
-      "line": 312,
+      "line": 341,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_return",
-      "line": 313,
+      "line": 342,
       "action": {
         "type": "invoke",
         "field": "resume-later-is-fine",
@@ -279,13 +279,92 @@
     },
     {
       "type": "module_instance",
-      "line": 314,
+      "line": 343,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 344,
+      "action": {
+        "type": "invoke",
+        "field": "yield-then-promote-ready-is-fine",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 345,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 346,
+      "action": {
+        "type": "invoke",
+        "field": "yield-then-promote-not-ready-is-fine",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 347,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 348,
+      "action": {
+        "type": "invoke",
+        "field": "suspend-then-promote-ready-is-fine",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 349,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_trap",
-      "line": 315,
+      "line": 350,
+      "action": {
+        "type": "invoke",
+        "field": "trap-if-suspend-then-promote-not-ready",
+        "args": []
+      },
+      "text": "cannot block a synchronous task before returning"
+    },
+    {
+      "type": "module_instance",
+      "line": 351,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 352,
       "action": {
         "type": "invoke",
         "field": "trap-if-sync-cancel",
@@ -295,13 +374,13 @@
     },
     {
       "type": "module_instance",
-      "line": 316,
+      "line": 353,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_trap",
-      "line": 317,
+      "line": 354,
       "action": {
         "type": "invoke",
         "field": "trap-if-sync-stream-read",
@@ -311,13 +390,13 @@
     },
     {
       "type": "module_instance",
-      "line": 318,
+      "line": 355,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_trap",
-      "line": 319,
+      "line": 356,
       "action": {
         "type": "invoke",
         "field": "trap-if-sync-stream-write",
@@ -327,13 +406,13 @@
     },
     {
       "type": "module_instance",
-      "line": 320,
+      "line": 357,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_trap",
-      "line": 321,
+      "line": 358,
       "action": {
         "type": "invoke",
         "field": "trap-if-sync-future-read",
@@ -343,13 +422,13 @@
     },
     {
       "type": "module_instance",
-      "line": 322,
+      "line": 359,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_trap",
-      "line": 323,
+      "line": 360,
       "action": {
         "type": "invoke",
         "field": "trap-if-sync-future-write",
@@ -359,67 +438,9 @@
     },
     {
       "type": "module_instance",
-      "line": 324,
+      "line": 361,
       "instance": "i",
       "module": "Tester"
-    },
-    {
-      "type": "assert_trap",
-      "line": 325,
-      "action": {
-        "type": "invoke",
-        "field": "trap-if-sync-stream-cancel-read",
-        "args": []
-      },
-      "text": "cannot block a synchronous task before returning"
-    },
-    {
-      "type": "module_instance",
-      "line": 326,
-      "instance": "i",
-      "module": "Tester"
-    },
-    {
-      "type": "assert_trap",
-      "line": 327,
-      "action": {
-        "type": "invoke",
-        "field": "trap-if-sync-stream-cancel-write",
-        "args": []
-      },
-      "text": "cannot block a synchronous task before returning"
-    },
-    {
-      "type": "module_instance",
-      "line": 328,
-      "instance": "i",
-      "module": "Tester"
-    },
-    {
-      "type": "assert_trap",
-      "line": 329,
-      "action": {
-        "type": "invoke",
-        "field": "trap-if-sync-future-cancel-read",
-        "args": []
-      },
-      "text": "cannot block a synchronous task before returning"
-    },
-    {
-      "type": "module_instance",
-      "line": 330,
-      "instance": "i",
-      "module": "Tester"
-    },
-    {
-      "type": "assert_trap",
-      "line": 331,
-      "action": {
-        "type": "invoke",
-        "field": "trap-if-sync-future-cancel-write",
-        "args": []
-      },
-      "text": "cannot block a synchronous task before returning"
     }
   ]
 }

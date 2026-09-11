@@ -1,0 +1,5 @@
+(module
+  (type (;0;) (func (param i32)))
+  (import "m" "f" (func (;0;) (type 0) (param $p i32)))
+  (func (;1;) (type 0) (param $q i32))
+)

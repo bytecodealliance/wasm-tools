@@ -284,6 +284,44 @@
         if ;; label = @1
           unreachable
         end
+        local.get $sr
+        i32.const 8
+        i32.const 4
+        call $stream.read
+        local.set $ret
+        i32.const -1
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        call $write4-and-drop
+        local.get $sr
+        call $stream.cancel-read
+        local.set $ret
+        i32.const 65
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 43981
+        i32.const 8
+        i32.load
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $sr
+        call $stream.drop-readable
+        call $start-stream
+        local.set $sr
+        i32.const 1
+        local.get $sr
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
         call $start-blocking-write
         local.get $sr
         i32.const 8

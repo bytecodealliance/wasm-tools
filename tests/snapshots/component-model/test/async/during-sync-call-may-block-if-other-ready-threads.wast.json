@@ -64,6 +64,42 @@
           "value": "43"
         }
       ]
+    },
+    {
+      "type": "module",
+      "line": 136,
+      "filename": "during-sync-call-may-block-if-other-ready-threads.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 206,
+      "action": {
+        "type": "invoke",
+        "field": "setup",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 207,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
     }
   ]
 }

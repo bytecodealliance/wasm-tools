@@ -1,0 +1,6 @@
+(module
+  (type (;0;) (func (param i32 i64)))
+  (func (;0;) (type 0) (param $p0 i32) (param $p1 i64)
+    (local $l0 f32) (local $l1 f64)
+  )
+)

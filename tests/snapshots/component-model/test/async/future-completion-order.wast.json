@@ -1,0 +1,54 @@
+{
+  "source_filename": "tests/component-model/test/async/future-completion-order.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 2,
+      "name": "Tester",
+      "filename": "future-completion-order.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 116,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 117,
+      "action": {
+        "type": "invoke",
+        "field": "writer-completes-inline",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 118,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 119,
+      "action": {
+        "type": "invoke",
+        "field": "reader-completes-inline",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+(module
+  (type (;0;) (func (result i32)))
+  (import "mixed" "f0" (func (;0;) (type 0) (result i32)))
+  (import "mixed" "f1" (func (;1;) (type 0) (result i32)))
+  (import "mixed"
+    (item "g2" (global (;0;) i32))
+    (item "f2" (func (;2;) (type 0) (result i32)))
+  )
+  (import "mixed"
+    (item "g0")
+    (item "g1")
+    (global i32)
+  )
+  (export "check" (func 3))
+  (func (;3;) (type 0) (result i32)
+    call 0
+    call 1
+    call 2
+    global.get 0
+    global.get 1
+    global.get 2
+    i32.add
+    i32.add
+    i32.add
+    i32.add
+    i32.add
+  )
+)
