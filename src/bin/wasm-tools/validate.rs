@@ -1,12 +1,10 @@
 use addr2line::LookupResult;
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use bitflags::Flags;
-use rayon::prelude::*;
 use std::fmt::Write;
-use std::mem;
 use std::time::Instant;
 use wasm_tools::addr2line::Addr2lineModules;
-use wasmparser::{FuncValidatorAllocations, Parser, ValidPayload, Validator, WasmFeatures};
+use wasmparser::WasmFeatures;
 
 /// Validate a WebAssembly binary
 ///
@@ -52,6 +50,10 @@ pub struct Opts {
 
     #[clap(flatten)]
     general: wasm_tools::GeneralOpts,
+
+    /// Opt-in to validating the contents of custom sections.
+    #[clap(long)]
+    validate_custom: bool,
 }
 
 // Helper structure extracted used to parse the feature flags for `validate`.
@@ -119,57 +121,7 @@ impl Opts {
     }
 
     fn validate(&self, wasm: &[u8]) -> Result<()> {
-        // Note that here we're copying the contents of
-        // `Validator::validate_all`, but the end is followed up with a parallel
-        // iteration over the functions to validate instead of a synchronous
-        // validation.
-        //
-        // The general idea here is that we're going to use `Parser::parse_all`
-        // to divvy up the input bytes into chunks. We'll maintain which
-        // `Validator` we're using as we navigate nested modules (the module
-        // linking proposal) and any functions found are deferred to get
-        // validated later.
-        let mut validator = Validator::new_with_features(self.features.features());
-        let mut functions_to_validate = Vec::new();
-
-        let start = Instant::now();
-        for payload in Parser::new(0).parse_all(&wasm) {
-            match validator.payload(&payload?)? {
-                ValidPayload::Ok | ValidPayload::Parser(_) | ValidPayload::End(_) => {}
-                ValidPayload::Func(validator, body) => {
-                    functions_to_validate.push((validator, body))
-                }
-            }
-        }
-        log::info!("module structure validated in {:?}", start.elapsed());
-
-        // After we've validate the entire wasm module we'll use `rayon` to
-        // iterate over all functions in parallel and perform parallel
-        // validation of the input wasm module.
-        //
-        // Note that validation results for each function are collected into a
-        // vector to ensure that in the case of multiple errors the first is
-        // always reported. Otherwise `rayon` does not guarantee the order that
-        // failures show up in.
-        let start = Instant::now();
-        functions_to_validate
-            .into_par_iter()
-            .map_init(
-                FuncValidatorAllocations::default,
-                |allocs, (to_validate, body)| -> Result<_> {
-                    let mut validator = to_validate.into_validator(mem::take(allocs));
-                    validator.validate(&body).with_context(|| {
-                        format!("func {} failed to validate", validator.index())
-                    })?;
-                    *allocs = validator.into_allocations();
-                    Ok(())
-                },
-            )
-            .collect::<Vec<_>>()
-            .into_iter()
-            .collect::<Result<Vec<_>>>()?;
-        log::info!("functions validated in {:?}", start.elapsed());
-        Ok(())
+        wasm_tools::validate(self.features.features(), self.validate_custom, wasm)
     }
 
     fn annotate_error_with_file_and_line(
