@@ -730,7 +730,7 @@ mod tests {
         let mut types = TypeSection::new();
         types.ty().subtype(&SubType {
             is_final: true,
-            supertype_idx: None,
+            supertype_idxs: Vec::new(),
             composite_type: CompositeType {
                 inner: CompositeInnerType::Func(FuncType::new([], [])),
                 shared: false,

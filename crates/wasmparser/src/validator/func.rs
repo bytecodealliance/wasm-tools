@@ -360,7 +360,7 @@ mod tests {
     impl Default for EmptyResources {
         fn default() -> Self {
             EmptyResources(crate::SubType {
-                supertype_idx: None,
+                supertype_idxs: Vec::new(),
                 is_final: true,
                 composite_type: crate::CompositeType {
                     inner: crate::CompositeInnerType::Func(crate::FuncType::new([], [])),
