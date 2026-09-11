@@ -1,0 +1,39 @@
+package local:demo;
+
+/// A shared point type at package scope.
+record point {
+  /// X coordinate
+  x: u32,
+  /// Y coordinate
+  y: u32,
+}
+
+/// Geometric shape using package-scope point.
+variant shape {
+  /// Unit circle case
+  circle,
+  /// Rectangle backed by a point
+  rect(point),
+}
+
+flags style {
+  /// Bold text
+  bold,
+  italic,
+}
+
+enum direction {
+  /// Facing north
+  north,
+  south,
+}
+
+interface api {
+  draw: func(s: shape, style: style);
+
+  heading: func() -> direction;
+}
+
+world w {
+  export api;
+}

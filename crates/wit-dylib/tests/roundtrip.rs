@@ -105,6 +105,7 @@ fn run_one(u: &mut Unstructured<'_>) -> Result<()> {
         },
         interfaces: Default::default(),
         worlds: Default::default(),
+        types: Default::default(),
         docs: Default::default(),
     });
 

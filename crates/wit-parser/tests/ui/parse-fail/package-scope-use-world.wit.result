@@ -1,0 +1,5 @@
+failed to resolve directory while parsing WIT for path [tests/ui/parse-fail/package-scope-use-world]: `point` is a world; top-level use expects an interface or type
+     --> tests/ui/parse-fail/package-scope-use-world/root.wit:3:17
+      |
+    3 | use local:types/point;
+      |                 ^----

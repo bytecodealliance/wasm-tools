@@ -1,6 +1,6 @@
 use anyhow::{Result, anyhow, bail};
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::Display;
 use std::mem;
 use std::ops::Deref;
@@ -68,8 +68,8 @@ impl<O: Output> WitPrinter<O> {
         pkg: PackageId,
         is_main: bool,
     ) -> Result<()> {
-        let pkg = &resolve.packages[pkg];
-        self.print_package_outer(pkg)?;
+        let package = &resolve.packages[pkg];
+        self.print_package_outer(package)?;
 
         if is_main {
             self.output.semicolon();
@@ -78,7 +78,21 @@ impl<O: Output> WitPrinter<O> {
             self.output.indent_start();
         }
 
-        for (name, id) in pkg.interfaces.iter() {
+        self.print_foreign_package_type_uses(resolve, pkg)?;
+
+        for (name, id) in package.types.iter() {
+            let ty = &resolve.types[*id];
+            self.print_docs(&ty.docs);
+            self.print_stability(&ty.stability);
+            self.print_external_id(ty.external_id.as_deref());
+            self.declare_type(resolve, &Type::Id(*id))?;
+            let _ = name;
+            if is_main {
+                self.output.newline();
+            }
+        }
+
+        for (name, id) in package.interfaces.iter() {
             self.print_interface_outer(resolve, *id, name)?;
             self.output.indent_start();
             self.print_interface(resolve, *id)?;
@@ -88,7 +102,7 @@ impl<O: Output> WitPrinter<O> {
             }
         }
 
-        for (name, id) in pkg.worlds.iter() {
+        for (name, id) in package.worlds.iter() {
             self.print_docs(&resolve.worlds[*id].docs);
             self.print_stability(&resolve.worlds[*id].stability);
             self.output.keyword("world");
@@ -100,6 +114,53 @@ impl<O: Output> WitPrinter<O> {
         }
         if !is_main {
             self.output.indent_end();
+        }
+        Ok(())
+    }
+
+    /// Emit toplevel `use ns:pkg/name;` for foreign package-scope types that
+    /// this package's types, interfaces, or worlds refer to.
+    fn print_foreign_package_type_uses(&mut self, resolve: &Resolve, pkg: PackageId) -> Result<()> {
+        let mut live = LiveTypes::default();
+        for (_, &id) in resolve.packages[pkg].types.iter() {
+            live.add_type_id(resolve, id);
+        }
+        for (_, &id) in resolve.packages[pkg].interfaces.iter() {
+            live.add_interface(resolve, id);
+        }
+        for (_, &id) in resolve.packages[pkg].worlds.iter() {
+            live.add_world(resolve, id);
+        }
+
+        // Sort for stable output: (package name string, type name).
+        let mut uses = BTreeMap::new();
+        for id in live.iter() {
+            let ty = &resolve.types[id];
+            let TypeOwner::Package(owner) = ty.owner else {
+                continue;
+            };
+            if owner == pkg {
+                continue;
+            }
+            let Some(name) = ty.name.as_deref() else {
+                continue;
+            };
+            uses.insert(
+                (
+                    resolve.packages[owner].name.to_string(),
+                    name.to_string(),
+                    owner,
+                ),
+                (),
+            );
+        }
+
+        for ((_, name, owner), _) in uses {
+            self.output.keyword("use");
+            self.output.str(" ");
+            self.print_path_to_package_type(resolve, owner, &name, pkg)?;
+            self.output.semicolon();
+            self.output.newline();
         }
         Ok(())
     }
@@ -241,6 +302,7 @@ impl<O: Output> WitPrinter<O> {
         let my_pkg = match owner {
             TypeOwner::Interface(id) => resolve.interfaces[id].package.unwrap(),
             TypeOwner::World(id) => resolve.worlds[id].package.unwrap(),
+            TypeOwner::Package(id) => id,
             TypeOwner::None => unreachable!(),
         };
         for (owner, ty, tys) in types_to_import {
@@ -249,29 +311,42 @@ impl<O: Output> WitPrinter<O> {
             self.print_external_id(ty.external_id.as_deref());
             self.output.keyword("use");
             self.output.str(" ");
-            let id = match owner {
-                TypeOwner::Interface(id) => id,
-                // it's only possible to import types from interfaces at
-                // this time.
+            match owner {
+                TypeOwner::Interface(id) => {
+                    self.print_path_to_interface(resolve, id, my_pkg)?;
+                    self.output.str(".{"); // Note: not changing the indentation.
+                    for (i, (my_name, other_name)) in tys.into_iter().enumerate() {
+                        if i > 0 {
+                            self.output.str(", ");
+                        }
+                        if my_name == other_name {
+                            self.print_name_type(my_name, TypeKind::TypeImport);
+                        } else {
+                            self.print_name_type(other_name, TypeKind::TypeImport);
+                            self.output.str(" ");
+                            self.output.keyword("as");
+                            self.output.str(" ");
+                            self.print_name_type(my_name, TypeKind::TypeAlias);
+                        }
+                    }
+                    self.output.str("}"); // Note: not changing the indentation.
+                }
+                TypeOwner::Package(pkg) => {
+                    // Package-scope types are imported with toplevel `use`.
+                    assert_eq!(tys.len(), 1);
+                    let (my_name, other_name) = tys[0];
+                    self.print_path_to_package_type(resolve, pkg, other_name, my_pkg)?;
+                    if my_name != other_name {
+                        self.output.str(" ");
+                        self.output.keyword("as");
+                        self.output.str(" ");
+                        self.print_name_type(my_name, TypeKind::TypeAlias);
+                    }
+                }
+                // it's only possible to import types from interfaces or
+                // packages at this time.
                 _ => unreachable!(),
-            };
-            self.print_path_to_interface(resolve, id, my_pkg)?;
-            self.output.str(".{"); // Note: not changing the indentation.
-            for (i, (my_name, other_name)) in tys.into_iter().enumerate() {
-                if i > 0 {
-                    self.output.str(", ");
-                }
-                if my_name == other_name {
-                    self.print_name_type(my_name, TypeKind::TypeImport);
-                } else {
-                    self.print_name_type(other_name, TypeKind::TypeImport);
-                    self.output.str(" ");
-                    self.output.keyword("as");
-                    self.output.str(" ");
-                    self.print_name_type(my_name, TypeKind::TypeAlias);
-                }
             }
-            self.output.str("}"); // Note: not changing the indentation.
             self.output.semicolon();
         }
 
@@ -549,6 +624,29 @@ impl<O: Output> WitPrinter<O> {
             self.print_name_type(&pkg.name, TypeKind::PackageNamePath);
             self.output.str("/");
             self.print_name_type(iface.name.as_ref().unwrap(), TypeKind::InterfacePath);
+            if let Some(version) = &pkg.version {
+                self.print_name_type(&format!("@{version}"), TypeKind::VersionPath);
+            }
+        }
+        Ok(())
+    }
+
+    fn print_path_to_package_type(
+        &mut self,
+        resolve: &Resolve,
+        package: PackageId,
+        type_name: &str,
+        cur_pkg: PackageId,
+    ) -> Result<()> {
+        if package == cur_pkg {
+            self.print_name_type(type_name, TypeKind::TypeImport);
+        } else {
+            let pkg = &resolve.packages[package].name;
+            self.print_name_type(&pkg.namespace, TypeKind::NamespacePath);
+            self.output.str(":");
+            self.print_name_type(&pkg.name, TypeKind::PackageNamePath);
+            self.output.str("/");
+            self.print_name_type(type_name, TypeKind::TypeImport);
             if let Some(version) = &pkg.version {
                 self.print_name_type(&format!("@{version}"), TypeKind::VersionPath);
             }

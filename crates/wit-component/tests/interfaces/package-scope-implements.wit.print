@@ -1,0 +1,28 @@
+package local:demo;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+interface store {
+  get: func(key: string) -> option<string>;
+
+  set: func(key: string, value: string);
+}
+
+interface api {
+  move-to: func(p: point);
+}
+
+world multi-import {
+  import primary: store;
+  import backup: store;
+  import move-to: func(p: point);
+}
+world mixed {
+  import store;
+  import cache: store;
+
+  export api;
+}

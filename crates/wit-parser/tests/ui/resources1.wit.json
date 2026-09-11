@@ -86,7 +86,8 @@
       "interfaces": {
         "resources1": 0
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }

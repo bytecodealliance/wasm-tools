@@ -1,0 +1,24 @@
+/// RUN: component wit %
+package local:demo;
+
+@external-id("pkg-point")
+record point {
+  x: u32,
+  y: u32,
+}
+
+@external-id("pkg-path")
+type path = list<point>;
+
+interface api {
+  @external-id("iface-move")
+  move-to: func(p: point);
+}
+
+world w {
+  @external-id("world-move")
+  import move-to: func(p: point);
+
+  @external-id("world-api")
+  export api;
+}

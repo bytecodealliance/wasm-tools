@@ -74,7 +74,7 @@ impl<'a> TypeEncodingMaps<'a> {
     }
 
     /// Inserts that `id` was encoded as `index`.
-    fn insert(&mut self, resolve: &'a Resolve, id: TypeId, index: u32) {
+    pub(crate) fn insert(&mut self, resolve: &'a Resolve, id: TypeId, index: u32) {
         // Always record the id=>index mapping.
         self.id_to_index.insert(id, index);
 
@@ -120,6 +120,15 @@ pub trait ValtypeEncoder<'a> {
     /// Imports `id` from a different interface, returning the index of the
     /// imported type into this index space.
     fn import_type(&mut self, interface: InterfaceId, id: TypeId) -> u32;
+
+    /// Imports the package-scope type `id`, returning the index of the imported
+    /// type into this index space.
+    ///
+    /// Returns `None` when this encoder defines package-scope types itself
+    /// rather than depending on them.
+    fn import_package_type(&mut self, _resolve: &'a Resolve, _id: TypeId) -> Result<Option<u32>> {
+        Ok(None)
+    }
 
     /// Returns the identifier of the interface that generation is for.
     fn interface(&self) -> Option<InterfaceId>;
@@ -193,72 +202,27 @@ pub trait ValtypeEncoder<'a> {
 
                 let ty = &resolve.types[id];
 
-                // If this type is imported from another interface then return
-                // it as it was bound here with an alias.
+                // If this type is imported from another interface, or from
+                // package scope, then return it as it was bound here with an
+                // alias.
                 log::trace!("encode type name={:?} {:?}", ty.name, &ty.kind);
-                if let Some(index) = self.maybe_import_type(resolve, id) {
+                if let Some(index) = self.maybe_import_type(resolve, id)? {
                     self.type_encoding_maps().insert(resolve, id, index);
                     return Ok(ComponentValType::Type(index));
                 }
 
+                // Resources are named by the export that creates them rather
+                // than by a structural definition, so they don't participate in
+                // the define-then-name dance below.
+                if let TypeDefKind::Resource = &ty.kind {
+                    let name = ty.name.as_ref().expect("resources must be named");
+                    let index = self.export_resource(extern_name(name, ty.external_id.as_deref()));
+                    self.type_encoding_maps().id_to_index.insert(id, index);
+                    return Ok(ComponentValType::Type(index));
+                }
+
                 // ... and failing all that insert the type export.
-                let mut encoded = match &ty.kind {
-                    TypeDefKind::Record(r) => self.encode_record(resolve, r)?,
-                    TypeDefKind::Tuple(t) => self.encode_tuple(resolve, t)?,
-                    TypeDefKind::Flags(r) => self.encode_flags(r)?,
-                    TypeDefKind::Variant(v) => self.encode_variant(resolve, v)?,
-                    TypeDefKind::Option(t) => self.encode_option(resolve, t)?,
-                    TypeDefKind::Result(r) => self.encode_result(resolve, r)?,
-                    TypeDefKind::Enum(e) => self.encode_enum(e)?,
-                    TypeDefKind::List(ty) => {
-                        let ty = self.encode_valtype(resolve, ty)?;
-                        let (index, encoder) = self.defined_type();
-                        encoder.list(ty);
-                        ComponentValType::Type(index)
-                    }
-                    TypeDefKind::Map(key_ty, value_ty) => {
-                        let key = self.encode_valtype(resolve, key_ty)?;
-                        let value = self.encode_valtype(resolve, value_ty)?;
-                        let (index, encoder) = self.defined_type();
-                        encoder.map(key, value);
-                        ComponentValType::Type(index)
-                    }
-                    TypeDefKind::FixedLengthList(ty, elements) => {
-                        let ty = self.encode_valtype(resolve, ty)?;
-                        let (index, encoder) = self.defined_type();
-                        encoder.fixed_length_list(ty, *elements);
-                        ComponentValType::Type(index)
-                    }
-                    TypeDefKind::Type(ty) => self.encode_valtype(resolve, ty)?,
-                    TypeDefKind::Future(ty) => self.encode_future(resolve, ty)?,
-                    TypeDefKind::Stream(ty) => self.encode_stream(resolve, ty)?,
-                    TypeDefKind::Unknown => unreachable!(),
-                    TypeDefKind::Resource => {
-                        let name = ty.name.as_ref().expect("resources must be named");
-                        let index =
-                            self.export_resource(extern_name(name, ty.external_id.as_deref()));
-                        self.type_encoding_maps().id_to_index.insert(id, index);
-                        return Ok(ComponentValType::Type(index));
-                    }
-                    TypeDefKind::Handle(Handle::Own(id)) => {
-                        let ty = match self.encode_valtype(resolve, &Type::Id(*id))? {
-                            ComponentValType::Type(index) => index,
-                            _ => panic!("must be an indexed type"),
-                        };
-                        let (index, encoder) = self.defined_type();
-                        encoder.own(ty);
-                        ComponentValType::Type(index)
-                    }
-                    TypeDefKind::Handle(Handle::Borrow(id)) => {
-                        let ty = match self.encode_valtype(resolve, &Type::Id(*id))? {
-                            ComponentValType::Type(index) => index,
-                            _ => panic!("must be an indexed type"),
-                        };
-                        let (index, encoder) = self.defined_type();
-                        encoder.borrow(ty);
-                        ComponentValType::Type(index)
-                    }
-                };
+                let mut encoded = self.encode_typedef_structure(resolve, id)?;
 
                 if let Some(name) = &ty.name {
                     let index = match encoded {
@@ -287,20 +251,83 @@ pub trait ValtypeEncoder<'a> {
         })
     }
 
-    /// Optionally imports `id` from a different interface, returning the index
-    /// of the imported type into this index space.
+    /// Encodes the structure of `id`'s definition into this index space.
+    ///
+    /// Unlike [`ValtypeEncoder::encode_valtype`] this never names the result, so
+    /// it's suitable for restating a definition that is going to be named some
+    /// other way, such as by the `import` that binds a package-scope type.
+    fn encode_typedef_structure(
+        &mut self,
+        resolve: &'a Resolve,
+        id: TypeId,
+    ) -> Result<ComponentValType> {
+        Ok(match &resolve.types[id].kind {
+            TypeDefKind::Record(r) => self.encode_record(resolve, r)?,
+            TypeDefKind::Tuple(t) => self.encode_tuple(resolve, t)?,
+            TypeDefKind::Flags(r) => self.encode_flags(r)?,
+            TypeDefKind::Variant(v) => self.encode_variant(resolve, v)?,
+            TypeDefKind::Option(t) => self.encode_option(resolve, t)?,
+            TypeDefKind::Result(r) => self.encode_result(resolve, r)?,
+            TypeDefKind::Enum(e) => self.encode_enum(e)?,
+            TypeDefKind::List(ty) => {
+                let ty = self.encode_valtype(resolve, ty)?;
+                let (index, encoder) = self.defined_type();
+                encoder.list(ty);
+                ComponentValType::Type(index)
+            }
+            TypeDefKind::Map(key_ty, value_ty) => {
+                let key = self.encode_valtype(resolve, key_ty)?;
+                let value = self.encode_valtype(resolve, value_ty)?;
+                let (index, encoder) = self.defined_type();
+                encoder.map(key, value);
+                ComponentValType::Type(index)
+            }
+            TypeDefKind::FixedLengthList(ty, elements) => {
+                let ty = self.encode_valtype(resolve, ty)?;
+                let (index, encoder) = self.defined_type();
+                encoder.fixed_length_list(ty, *elements);
+                ComponentValType::Type(index)
+            }
+            TypeDefKind::Type(ty) => self.encode_valtype(resolve, ty)?,
+            TypeDefKind::Future(ty) => self.encode_future(resolve, ty)?,
+            TypeDefKind::Stream(ty) => self.encode_stream(resolve, ty)?,
+            TypeDefKind::Handle(Handle::Own(id)) => {
+                let ty = match self.encode_valtype(resolve, &Type::Id(*id))? {
+                    ComponentValType::Type(index) => index,
+                    _ => panic!("must be an indexed type"),
+                };
+                let (index, encoder) = self.defined_type();
+                encoder.own(ty);
+                ComponentValType::Type(index)
+            }
+            TypeDefKind::Handle(Handle::Borrow(id)) => {
+                let ty = match self.encode_valtype(resolve, &Type::Id(*id))? {
+                    ComponentValType::Type(index) => index,
+                    _ => panic!("must be an indexed type"),
+                };
+                let (index, encoder) = self.defined_type();
+                encoder.borrow(ty);
+                ComponentValType::Type(index)
+            }
+            TypeDefKind::Resource => unreachable!("resources have no structure to encode"),
+            TypeDefKind::Unknown => unreachable!(),
+        })
+    }
+
+    /// Optionally imports `id` from a different interface or from package scope,
+    /// returning the index of the imported type into this index space.
     ///
     /// Returns `None` if `id` can't be imported.
-    fn maybe_import_type(&mut self, resolve: &Resolve, id: TypeId) -> Option<u32> {
-        let ty = &resolve.types[id];
-        let owner = match ty.owner {
+    fn maybe_import_type(&mut self, resolve: &'a Resolve, id: TypeId) -> Result<Option<u32>> {
+        let owner = match resolve.types[id].owner {
             TypeOwner::Interface(i) => i,
-            _ => return None,
+            TypeOwner::Package(_) => return self.import_package_type(resolve, id),
+            TypeOwner::World(_) | TypeOwner::None => return Ok(None),
         };
         if Some(owner) == self.interface() {
-            return None;
+            return Ok(None);
         }
-        Some(self.import_type(owner, id))
+        Ok(Some(self.import_type(owner, id)))
     }
 
     fn encode_optional_valtype(

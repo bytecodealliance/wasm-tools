@@ -71,21 +71,24 @@
       "interfaces": {
         "foo": 0
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "a:a@2.0.0",
       "interfaces": {
         "foo": 1
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "foo:versions",
       "interfaces": {
         "foo": 2
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }

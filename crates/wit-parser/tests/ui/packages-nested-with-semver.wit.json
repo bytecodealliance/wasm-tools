@@ -115,7 +115,8 @@
       },
       "worlds": {
         "w1": 0
-      }
+      },
+      "types": {}
     },
     {
       "name": "foo:name@1.0.1",
@@ -124,12 +125,14 @@
       },
       "worlds": {
         "w1": 1
-      }
+      },
+      "types": {}
     },
     {
       "name": "foo:root",
       "interfaces": {},
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }

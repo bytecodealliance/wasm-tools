@@ -1,0 +1,104 @@
+{
+  "worlds": [
+    {
+      "name": "w",
+      "imports": {},
+      "exports": {
+        "interface-0": {
+          "interface": {
+            "id": 0
+          }
+        }
+      },
+      "package": 0
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "api",
+      "types": {},
+      "functions": {
+        "f": {
+          "name": "f",
+          "kind": "freestanding",
+          "params": [
+            {
+              "name": "k",
+              "type": 0
+            }
+          ]
+        },
+        "g": {
+          "name": "g",
+          "kind": "freestanding",
+          "params": [
+            {
+              "name": "a",
+              "type": 1
+            }
+          ]
+        }
+      },
+      "package": 0
+    }
+  ],
+  "types": [
+    {
+      "name": "kept",
+      "kind": {
+        "record": {
+          "fields": [
+            {
+              "name": "x",
+              "type": "u32"
+            }
+          ]
+        }
+      },
+      "owner": {
+        "package": 0
+      },
+      "stability": {
+        "stable": {
+          "since": "0.2.0"
+        }
+      }
+    },
+    {
+      "name": "also-kept",
+      "kind": {
+        "record": {
+          "fields": [
+            {
+              "name": "x",
+              "type": "u32"
+            }
+          ]
+        }
+      },
+      "owner": {
+        "package": 0
+      },
+      "stability": {
+        "stable": {
+          "since": "1.0.0"
+        }
+      }
+    }
+  ],
+  "packages": [
+    {
+      "name": "local:demo@1.0.0",
+      "interfaces": {
+        "api": 0
+      },
+      "worlds": {
+        "w": 0
+      },
+      "types": {
+        "kept": 0,
+        "also-kept": 1
+      }
+    }
+  ]
+}

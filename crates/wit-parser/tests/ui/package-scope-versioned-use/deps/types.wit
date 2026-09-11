@@ -1,0 +1,9 @@
+package local:types@1.0.0;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+interface unused {
+}

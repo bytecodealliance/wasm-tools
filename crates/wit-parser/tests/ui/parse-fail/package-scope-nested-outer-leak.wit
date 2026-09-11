@@ -1,0 +1,17 @@
+package local:root;
+
+package local:nested {
+  record point {
+    x: u32,
+    y: u32,
+  }
+
+  interface api {
+    move-to: func(p: point);
+  }
+}
+
+interface outer {
+  // Nested package types must not leak into the outer package without a use.
+  bad: func(p: point);
+}

@@ -1,0 +1,4 @@
+package local:demo;
+
+resource r {
+}

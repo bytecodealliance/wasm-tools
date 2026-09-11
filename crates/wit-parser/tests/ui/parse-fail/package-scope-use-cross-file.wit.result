@@ -1,0 +1,5 @@
+failed to resolve directory while parsing WIT for path [tests/ui/parse-fail/package-scope-use-cross-file]: failed to parse package: tests/ui/parse-fail/package-scope-use-cross-file: name `point` does not exist
+     --> tests/ui/parse-fail/package-scope-use-cross-file/types.wit:6:6
+      |
+    6 |   p: point,
+      |      ^----

@@ -1,0 +1,6 @@
+package local:demo;
+
+world w {
+  import place: func(p: point);
+  export trail: func() -> list<point>;
+}

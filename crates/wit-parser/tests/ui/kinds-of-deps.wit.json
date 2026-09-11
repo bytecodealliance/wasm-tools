@@ -61,35 +61,40 @@
       "interfaces": {
         "d": 0
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "e:e",
       "interfaces": {
         "e": 1
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "b:b",
       "interfaces": {
         "b": 2
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "c:c",
       "interfaces": {
         "c": 3
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "a:a",
       "interfaces": {},
       "worlds": {
         "a": 0
-      }
+      },
+      "types": {}
     }
   ]
 }

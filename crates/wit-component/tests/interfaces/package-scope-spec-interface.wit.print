@@ -1,0 +1,11 @@
+package local:demo;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+interface api {
+  move-to: func(p: point);
+}
+

@@ -1,0 +1,20 @@
+// RUN: component embed % --dummy-names legacy | \
+//        component new | \
+//        validate -f cm-implements
+
+package local:demo;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+interface store {
+  get: func(key: string) -> option<string>;
+}
+
+world w {
+  import primary: store;
+  import backup: store;
+  import move-to: func(p: point);
+}

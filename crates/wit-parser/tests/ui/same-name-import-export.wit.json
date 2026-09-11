@@ -33,7 +33,8 @@
       "interfaces": {},
       "worlds": {
         "greeter": 0
-      }
+      },
+      "types": {}
     }
   ]
 }

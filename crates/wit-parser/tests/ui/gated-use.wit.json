@@ -21,14 +21,16 @@
       "interfaces": {
         "stable": 0
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "wasmtime:test",
       "interfaces": {
         "types": 1
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }

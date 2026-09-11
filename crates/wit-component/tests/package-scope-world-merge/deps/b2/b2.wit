@@ -1,0 +1,9 @@
+package a:b2;
+
+record r {
+  a: f32,
+}
+
+world w2 {
+  export f2: func() -> r;
+}

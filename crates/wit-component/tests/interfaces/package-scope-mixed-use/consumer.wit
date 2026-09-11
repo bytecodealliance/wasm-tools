@@ -1,0 +1,21 @@
+package local:consumer;
+
+use local:types/point;
+
+interface levels {
+  enum level {
+    info,
+    debug,
+  }
+}
+
+interface api {
+  use levels.{level};
+
+  move-to: func(p: point);
+  log: func(level: level, msg: string);
+}
+
+world w {
+  export api;
+}

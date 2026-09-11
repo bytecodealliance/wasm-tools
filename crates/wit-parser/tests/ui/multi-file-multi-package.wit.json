@@ -217,7 +217,8 @@
       },
       "worlds": {
         "w2": 0
-      }
+      },
+      "types": {}
     },
     {
       "name": "baz:name",
@@ -226,12 +227,14 @@
       },
       "worlds": {
         "w3": 1
-      }
+      },
+      "types": {}
     },
     {
       "name": "foo:main",
       "interfaces": {},
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "foo:name",
@@ -240,7 +243,8 @@
       },
       "worlds": {
         "w1": 2
-      }
+      },
+      "types": {}
     },
     {
       "name": "qux:name",
@@ -249,7 +253,8 @@
       },
       "worlds": {
         "w4": 3
-      }
+      },
+      "types": {}
     }
   ]
 }
