@@ -106,6 +106,10 @@ pub enum Name<'a> {
     Field(IndirectNameMap<'a>),
     /// The name is for tags.
     Tag(NameMap<'a>),
+    /// The name is for parameters of function types.
+    Parameter(IndirectNameMap<'a>),
+    /// The name is for parameters of tag types.
+    TagParameter(IndirectNameMap<'a>),
     /// An unknown [name subsection](https://webassembly.github.io/spec/core/appendix/custom.html#subsections).
     Unknown {
         /// The identifier for this subsection.
@@ -149,6 +153,8 @@ impl<'a> Subsection<'a> for Name<'a> {
             9 => Name::Data(NameMap::new(reader)?),
             10 => Name::Field(IndirectNameMap::new(reader)?),
             11 => Name::Tag(NameMap::new(reader)?),
+            12 => Name::Parameter(IndirectNameMap::new(reader)?),
+            13 => Name::TagParameter(IndirectNameMap::new(reader)?),
             ty => Name::Unknown {
                 ty,
                 data: reader.remaining_buffer(),

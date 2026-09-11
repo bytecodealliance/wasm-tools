@@ -2,7 +2,7 @@
   (type $check (;0;) (func (param i32 i32) (result i32)))
   (type $block-sig-1 (;1;) (func))
   (type $block-sig-2 (;2;) (func (result i32)))
-  (type $block-sig-3 (;3;) (func (param i32)))
+  (type $block-sig-3 (;3;) (func (param $x i32)))
   (type $block-sig-4 (;4;) (func (param i32 f64 i32) (result i32 f64 i32)))
   (type (;5;) (func (result i32 i64 i32)))
   (type (;6;) (func (param i32) (result i32)))

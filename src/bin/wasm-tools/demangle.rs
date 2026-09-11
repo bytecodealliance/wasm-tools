@@ -105,6 +105,10 @@ impl Opts {
                 Name::Label(names) => new_section.labels(&self.indirect_name_map(names)?),
                 Name::Field(names) => new_section.fields(&self.indirect_name_map(names)?),
                 Name::Tag(names) => new_section.tags(&self.name_map(names)?),
+                Name::Parameter(names) => new_section.parameters(&self.indirect_name_map(names)?),
+                Name::TagParameter(names) => {
+                    new_section.tag_parameters(&self.indirect_name_map(names)?)
+                }
                 Name::Unknown { .. } => bail!("unknown name section"),
             }
         }

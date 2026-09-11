@@ -254,7 +254,10 @@ impl<'a> Resolver<'a> {
             ModuleField::Tag(t) => {
                 match &mut t.ty {
                     TagType::Exception(ty) => {
-                        self.resolve_type_use(ty)?;
+                        let (_, inline) = self.resolve_type_use(ty)?;
+                        // Preserve the `inline` field since that's used for the
+                        // tag-parameter name subsection
+                        ty.inline = inline;
                     }
                 }
                 Ok(())
@@ -277,7 +280,8 @@ impl<'a> Resolver<'a> {
     fn resolve_item_sig(&self, item: &mut ItemSig<'a>) -> Result<(), Error> {
         match &mut item.kind {
             ItemKind::Func(t) | ItemKind::FuncExact(t) | ItemKind::Tag(TagType::Exception(t)) => {
-                self.resolve_type_use(t)?;
+                // The inline type is preserved for the local name subsection.
+                t.inline = self.resolve_type_use(t)?.1;
             }
             ItemKind::Global(t) => self.resolve_valtype(&mut t.ty)?,
             ItemKind::Table(t) => {

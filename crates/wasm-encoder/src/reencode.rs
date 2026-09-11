@@ -1892,6 +1892,12 @@ pub mod utils {
             wasmparser::Name::Field(map) => {
                 names.fields(&indirect_name_map(map, |i| reencoder.type_index(i))?);
             }
+            wasmparser::Name::Parameter(map) => {
+                names.parameters(&indirect_name_map(map, |i| reencoder.type_index(i))?);
+            }
+            wasmparser::Name::TagParameter(map) => {
+                names.tag_parameters(&indirect_name_map(map, |i| reencoder.tag_index(i))?);
+            }
             wasmparser::Name::Unknown { ty, data, .. } => {
                 names.raw(ty, data);
             }

@@ -1,6 +1,6 @@
 (module
   (type $t1 (;0;) (func (param f32 f32) (result f32)))
-  (type $t2 (;1;) (func (param f32 f32) (result f32)))
+  (type $t2 (;1;) (func (param $x f32) (param $y f32) (result f32)))
   (type (;2;) (func (param (ref $t1))))
   (type (;3;) (func (param (ref $t2))))
   (func $f1 (;0;) (type 2) (param $r (ref $t1))

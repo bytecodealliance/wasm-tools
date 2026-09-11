@@ -1,4 +1,4 @@
-use super::{Config, Print, PrintTermcolor, Printer, State};
+use super::{Config, ParameterNames, Print, PrintTermcolor, Printer, State};
 use anyhow::{Result, anyhow, bail};
 use termcolor::{Ansi, NoColor};
 use wasmparser::VisitSimdOperator;
@@ -171,7 +171,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
             BlockType::FuncType(idx) => {
                 self.push_str(" ")?;
                 self.printer
-                    .print_core_functype_idx(self.state, idx, None)?;
+                    .print_core_functype_idx(self.state, idx, ParameterNames::None)?;
             }
         }
         Ok(has_name)

@@ -59,8 +59,6 @@ mod names;
 mod producers;
 mod rewrite;
 
-pub(crate) mod utils;
-
 #[cfg(feature = "oci")]
 mod dependencies;
 #[cfg(feature = "oci")]
