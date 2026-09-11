@@ -818,12 +818,14 @@ impl<'a> Parse<'a> for StructType<'a> {
         while !parser.is_empty() {
             parser.parens(|parser| {
                 parser.parse::<kw::field>()?;
-                if parser.peek::<Id>()? {
-                    let field = StructField::parse(parser, true);
+                let id = parser.parse::<Option<Id<'a>>>()?;
+                let name = parser.parse::<Option<NameAnnotation<'a>>>()?;
+                if id.is_some() || name.is_some() {
+                    let field = StructField::parse(parser, id, name);
                     ret.fields.push(field?);
                 } else {
                     while !parser.is_empty() {
-                        let field = StructField::parse(parser, false);
+                        let field = StructField::parse(parser, None, None);
                         ret.fields.push(field?);
                     }
                 }
@@ -839,6 +841,8 @@ impl<'a> Parse<'a> for StructType<'a> {
 pub struct StructField<'a> {
     /// An optional identifier for name resolution.
     pub id: Option<Id<'a>>,
+    /// An optional name for this function stored in the custom `name` section.
+    pub name: Option<NameAnnotation<'a>>,
     /// Whether this field may be mutated or not.
     pub mutable: bool,
     /// The storage type stored in this field.
@@ -846,8 +850,11 @@ pub struct StructField<'a> {
 }
 
 impl<'a> StructField<'a> {
-    fn parse(parser: Parser<'a>, with_id: bool) -> Result<Self> {
-        let id = if with_id { parser.parse()? } else { None };
+    fn parse(
+        parser: Parser<'a>,
+        id: Option<Id<'a>>,
+        name: Option<NameAnnotation<'a>>,
+    ) -> Result<Self> {
         let (ty, mutable) = if parser.peek2::<kw::r#mut>()? {
             let ty = parser.parens(|parser| {
                 parser.parse::<kw::r#mut>()?;
@@ -857,7 +864,12 @@ impl<'a> StructField<'a> {
         } else {
             (parser.parse::<StorageType<'a>>()?, false)
         };
-        Ok(StructField { id, mutable, ty })
+        Ok(StructField {
+            id,
+            name,
+            mutable,
+            ty,
+        })
     }
 }
 

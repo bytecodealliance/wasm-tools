@@ -36,6 +36,18 @@
       "line": 23,
       "filename": "names.5.wasm",
       "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 26,
+      "filename": "names.6.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 40,
+      "filename": "names.7.wasm",
+      "module_type": "binary"
     }
   ]
 }
