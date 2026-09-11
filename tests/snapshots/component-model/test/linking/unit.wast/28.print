@@ -23,7 +23,7 @@
   (core module $M (;1;)
     (type (;0;) (func (param i32)))
     (type (;1;) (func))
-    (import "log" "append" (func $append (;0;) (type 0)))
+    (import "log" "append" (func $append (;0;) (type 0) (param i32)))
     (import "cfg" "id" (global $id (;0;) i32))
     (start $start)
     (func $start (;1;) (type 1)

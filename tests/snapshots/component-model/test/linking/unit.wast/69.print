@@ -30,7 +30,7 @@
     (core func $bump (;0;) (canon lower (func 0)))
     (core module $M (;0;)
       (type (;0;) (func (result i32)))
-      (import "svc" "bump" (func $bump (;0;) (type 0)))
+      (import "svc" "bump" (func $bump (;0;) (type 0) (result i32)))
       (export "go" (func 1))
       (func (;1;) (type 0) (result i32)
         call $bump

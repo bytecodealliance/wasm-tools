@@ -16,7 +16,7 @@
   (core module $B (;1;)
     (type (;0;) (func (result i32)))
     (type (;1;) (func))
-    (import "a" "foo" (func $a-foo (;0;) (type 0)))
+    (import "a" "foo" (func $a-foo (;0;) (type 0) (result i32)))
     (import "linkage" "table" (table $ftbl (;0;) 1 funcref))
     (import "linkage" "bar-index" (global $bar-index (;0;) (mut i32)))
     (export "bar" (func 2))

@@ -1,6 +1,6 @@
 (module $Nf
   (type (;0;) (func (result i32)))
-  (import "Mf" "call" (func $f (;0;) (type 0)))
+  (import "Mf" "call" (func $f (;0;) (type 0) (result i32)))
   (export "Mf.call" (func $f))
   (export "call Mf.call" (func 1))
   (export "call" (func 2))

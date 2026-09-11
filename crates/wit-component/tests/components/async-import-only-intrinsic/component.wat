@@ -8,7 +8,7 @@
   (import "a:b/types" (instance $a:b/types (;0;) (type $ty-a:b/types)))
   (core module $main (;0;)
     (type (;0;) (func (param i32) (result i32)))
-    (import "a:b/types" "[future-cancel-read-0][static]request.new" (func (;0;) (type 0)))
+    (import "a:b/types" "[future-cancel-read-0][static]request.new" (func (;0;) (type 0) (param i32) (result i32)))
     (memory (;0;) 17)
     (export "memory" (memory 0))
     (@producers

@@ -7,7 +7,7 @@
           (export "a" (func (type 0)))
           (export "b" (func (type 0)))
           (type (;1;) (func (param i32)))
-          (export "c" (func (type 1)))
+          (export "c" (func (type 1) (param i32)))
           (export "d" (func (type 0)))
           (export "e" (global i32))
           (export "f" (global (mut i32)))

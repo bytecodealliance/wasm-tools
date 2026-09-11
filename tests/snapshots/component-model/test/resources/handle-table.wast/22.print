@@ -5,7 +5,7 @@
     (core module $M (;0;)
       (type (;0;) (func (param i32) (result i32)))
       (type (;1;) (func))
-      (import "" "new" (func $new (;0;) (type 0)))
+      (import "" "new" (func $new (;0;) (type 0) (param i32) (result i32)))
       (start $start)
       (func $start (;1;) (type 1)
         i32.const 1
@@ -32,7 +32,7 @@
   (core module $PM (;0;)
     (type (;0;) (func (param i32)))
     (type (;1;) (func))
-    (import "" "drop" (func $drop (;0;) (type 0)))
+    (import "" "drop" (func $drop (;0;) (type 0) (param i32)))
     (export "drop-childs-index" (func 1))
     (func (;1;) (type 1)
       i32.const 1

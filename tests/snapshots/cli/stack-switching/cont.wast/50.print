@@ -5,7 +5,7 @@
   )
   (type (;2;) (func (param i32)))
   (type (;3;) (func (result i32)))
-  (import "spectest" "print_i32" (func $print-i32 (;0;) (type 2)))
+  (import "spectest" "print_i32" (func $print-i32 (;0;) (type 2) (param i32)))
   (tag $swap (;0;) (type 3) (result i32))
   (export "init" (func $init))
   (elem (;0;) declare func $f $g)

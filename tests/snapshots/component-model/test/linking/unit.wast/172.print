@@ -19,9 +19,9 @@
     (core type (;0;)
       (module
         (type (;0;) (func (param i32 i32)))
-        (export "poke" (func (type 0)))
+        (export "poke" (func (type 0) (param i32 i32)))
         (type (;1;) (func (param i32) (result i32)))
-        (export "peek" (func (type 1)))
+        (export "peek" (func (type 1) (param i32) (result i32)))
       )
     )
     (import "m" (core module $M (;0;) (type 0)))

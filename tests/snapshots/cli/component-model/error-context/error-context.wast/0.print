@@ -6,7 +6,7 @@
   (core instance $libc (;0;) (instantiate $libc))
   (core module $m (;1;)
     (type (;0;) (func (param i32 i32) (result i32)))
-    (import "" "error-context.new" (func $error-context-new (;0;) (type 0)))
+    (import "" "error-context.new" (func $error-context-new (;0;) (type 0) (param i32 i32) (result i32)))
   )
   (alias core export $libc "memory" (core memory (;0;)))
   (core func $error-context-new (;0;) (canon error-context.new (memory 0)))
