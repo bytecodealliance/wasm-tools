@@ -2708,7 +2708,7 @@ impl Module {
                             "Subtype {subtype:?} from `exports` Wasm is not final"
                         );
                         assert!(
-                            subtype.supertype_idx.is_none(),
+                            subtype.supertype_idxs.is_empty(),
                             "Subtype {subtype:?} from `exports` Wasm has non-empty supertype"
                         );
                         let func_type = Rc::new(FuncType {
@@ -3995,12 +3995,14 @@ impl TryFrom<wasmparser::SubType> for SubType {
     type Error = ();
 
     fn try_from(value: wasmparser::SubType) -> Result<Self, Self::Error> {
+        let supertype = match &value.supertype_idxs[..] {
+            [_, _, ..] => return Err(()),
+            [a] => Some(a.as_module_index().ok_or(())?),
+            [] => None,
+        };
         Ok(SubType {
             is_final: value.is_final,
-            supertype: value
-                .supertype_idx
-                .map(|idx| idx.as_module_index().ok_or(()))
-                .transpose()?,
+            supertype,
             composite_type: value.composite_type.try_into()?,
             // We cannot determine the depth of current subtype here, set it to 1
             // temporarily and fix it later.

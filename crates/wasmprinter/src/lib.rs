@@ -919,7 +919,7 @@ impl Printer<'_, '_> {
     }
 
     fn print_sub(&mut self, state: &State, ty: &SubType, ty_idx: u32) -> Result<u32> {
-        let r = if !ty.is_final || !ty.supertype_idx.is_none() {
+        let r = if !ty.is_final || !ty.supertype_idxs.is_empty() {
             self.start_group("sub")?;
             self.print_sub_type(state, ty)?;
             let r = self.print_composite(state, &ty.composite_type, ty_idx)?;
@@ -1099,7 +1099,7 @@ impl Printer<'_, '_> {
         if ty.is_final {
             self.result.write_str("final ")?;
         }
-        if let Some(idx) = ty.supertype_idx {
+        for idx in ty.supertype_idxs.iter() {
             self.print_idx(&state.core.type_names, idx.as_module_index().unwrap())?;
             self.result.write_str(" ")?;
         }

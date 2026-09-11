@@ -136,7 +136,7 @@ fn get_exports(features: WasmFeatures, module: &[u8]) -> Vec<(String, ExportType
                     EntityType::Func(core_id) => {
                         let sub_type = types.get(core_id).expect("Failed to lookup core id");
                         assert!(sub_type.is_final);
-                        assert!(sub_type.supertype_idx.is_none());
+                        assert!(sub_type.supertype_idxs.is_empty());
                         let CompositeType {
                             inner: wasmparser::CompositeInnerType::Func(func_type),
                             ..
@@ -159,7 +159,7 @@ fn get_exports(features: WasmFeatures, module: &[u8]) -> Vec<(String, ExportType
                     EntityType::Tag(core_id) => {
                         let sub_type = types.get(core_id).expect("Failed to lookup core id");
                         assert!(sub_type.is_final);
-                        assert!(sub_type.supertype_idx.is_none());
+                        assert!(sub_type.supertype_idxs.is_empty());
                         let CompositeType {
                             inner: wasmparser::CompositeInnerType::Func(func_type),
                             ..

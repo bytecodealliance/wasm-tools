@@ -9,7 +9,7 @@ pub struct SubType {
     pub is_final: bool,
     /// The list of supertype indexes. As of GC MVP, there can be at most one
     /// supertype.
-    pub supertype_idx: Option<u32>,
+    pub supertype_idxs: Vec<u32>,
     /// The composite type of the subtype.
     pub composite_type: CompositeType,
 }
@@ -666,7 +666,7 @@ impl<'a> CoreTypeEncoder<'a> {
         // We only need to emit a prefix byte before the actual composite type
         // when either the `sub` type is not final or it has a declared super
         // type (see notes on `push_prefix_if_component_core_type`).
-        if ty.supertype_idx.is_some() || !ty.is_final {
+        if !ty.supertype_idxs.is_empty() || !ty.is_final {
             if ty.is_final {
                 self.bytes.push(0x4f);
             } else {
@@ -675,7 +675,7 @@ impl<'a> CoreTypeEncoder<'a> {
                 }
                 self.bytes.push(0x50);
             }
-            ty.supertype_idx.encode(self.bytes);
+            ty.supertype_idxs.encode(self.bytes);
         }
         if ty.composite_type.shared {
             self.bytes.push(0x65);
@@ -730,7 +730,7 @@ mod tests {
         let mut types = TypeSection::new();
         types.ty().subtype(&SubType {
             is_final: true,
-            supertype_idx: None,
+            supertype_idxs: Vec::new(),
             composite_type: CompositeType {
                 inner: CompositeInnerType::Func(FuncType::new([], [])),
                 shared: false,
