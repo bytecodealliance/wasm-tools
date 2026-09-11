@@ -1522,7 +1522,7 @@ impl CoreTypeInterner {
             return Ok(*ret);
         }
         let ty = &types[id];
-        if !ty.is_final || ty.supertype_idx.is_some() || ty.composite_type.shared {
+        if !ty.is_final || !ty.supertype_idxs.is_empty() || ty.composite_type.shared {
             bail!("unsupported core type to translate")
         }
         let f = match &ty.composite_type.inner {

@@ -20,7 +20,7 @@
 //
 // See https://webassembly.github.io/spec/js-api/#limits for details.
 pub const MAX_WASM_TYPES: usize = 1_000_000;
-pub const MAX_WASM_SUPERTYPES: usize = 1;
+pub const MAX_WASM_SUPERTYPES: usize = 5;
 pub const MAX_WASM_FUNCTIONS: usize = 1_000_000;
 pub const MAX_WASM_IMPORTS: usize = 1_000_000;
 pub const MAX_WASM_EXPORTS: usize = 1_000_000;

@@ -131,7 +131,7 @@ pub(crate) trait InternRecGroup {
         offset: u64,
     ) -> Result<()> {
         let ty = &types[id];
-        if !ty.is_final || ty.supertype_idx.is_some() {
+        if !ty.is_final || !ty.supertype_idxs.is_empty() {
             require_feature::gc(
                 *self.features(),
                 "gc proposal must be enabled to use subtypes",
@@ -141,27 +141,29 @@ pub(crate) trait InternRecGroup {
 
         self.check_composite_type(&ty.composite_type, &types, offset)?;
 
-        let depth = if let Some(supertype_index) = ty.supertype_idx {
-            debug_assert!(supertype_index.is_canonical());
-            let sup_id = self.at_packed_index(types, rec_group, supertype_index, offset)?;
-            if types[sup_id].is_final {
-                bail!(offset, "sub type cannot have a final super type");
+        let depth = match &ty.supertype_idxs[..] {
+            [] => 0,
+            [supertype_index] => {
+                debug_assert!(supertype_index.is_canonical());
+                let sup_id = self.at_packed_index(types, rec_group, *supertype_index, offset)?;
+                if types[sup_id].is_final {
+                    bail!(offset, "sub type cannot have a final super type");
+                }
+                if !types.matches(id, sup_id) {
+                    bail!(offset, "sub type must match super type");
+                }
+                let depth = types.get_subtyping_depth(sup_id) + 1;
+                if usize::from(depth) > crate::limits::MAX_WASM_SUBTYPING_DEPTH {
+                    bail!(
+                        offset,
+                        "sub type hierarchy too deep: found depth {}, cannot exceed depth {}",
+                        depth,
+                        crate::limits::MAX_WASM_SUBTYPING_DEPTH,
+                    );
+                }
+                depth
             }
-            if !types.matches(id, sup_id) {
-                bail!(offset, "sub type must match super type");
-            }
-            let depth = types.get_subtyping_depth(sup_id) + 1;
-            if usize::from(depth) > crate::limits::MAX_WASM_SUBTYPING_DEPTH {
-                bail!(
-                    offset,
-                    "sub type hierarchy too deep: found depth {}, cannot exceed depth {}",
-                    depth,
-                    crate::limits::MAX_WASM_SUBTYPING_DEPTH,
-                );
-            }
-            depth
-        } else {
-            0
+            [_, _, ..] => bail!(offset, "multiple supertypes"),
         };
         types.set_subtyping_depth(id, depth);
 
@@ -212,13 +214,14 @@ pub(crate) trait InternRecGroup {
             None
         };
 
-        if let Some(supertype_index) = types[id].supertype_idx {
+        debug_assert!(types[id].supertype_idxs.len() <= 1);
+        if let Some(supertype_index) = types[id].supertype_idxs.get(0).copied() {
             debug_assert!(supertype_index.is_canonical());
             let sup_id = map_canonical(supertype_index)?;
             if let Some(descriptor_idx) = descriptor_idx {
                 if types[sup_id].composite_type.descriptor_idx.is_some()
-                    && (types[descriptor_idx].supertype_idx.is_none()
-                        || (map_canonical(types[descriptor_idx].supertype_idx.unwrap())?
+                    && (types[descriptor_idx].supertype_idxs.is_empty()
+                        || (map_canonical(types[descriptor_idx].supertype_idxs[0])?
                             != map_canonical(
                                 types[sup_id].composite_type.descriptor_idx.unwrap(),
                             )?))
@@ -240,8 +243,8 @@ pub(crate) trait InternRecGroup {
             ) {
                 (Some(a), Some(b)) => {
                     let a_id = self.at_packed_index(types, rec_group, a, offset)?;
-                    if types[a_id].supertype_idx.is_none()
-                        || (map_canonical(types[a_id].supertype_idx.unwrap())? != map_canonical(b)?)
+                    if types[a_id].supertype_idxs.is_empty()
+                        || (map_canonical(types[a_id].supertype_idxs[0])? != map_canonical(b)?)
                     {
                         bail!(offset, "supertype of descriptor does not match");
                     }
@@ -457,7 +460,7 @@ impl<'a> TypeCanonicalizer<'a> {
             let rec_group_local_index = u32::try_from(rec_group_local_index).unwrap();
             let type_index = self.rec_group_start + rec_group_local_index;
 
-            if let Some(sup) = ty.supertype_idx.as_mut() {
+            for sup in ty.supertype_idxs.iter_mut() {
                 if sup.as_module_index().map_or(false, |i| i >= type_index) {
                     bail!(self.offset, "supertypes must be defined before subtypes");
                 }

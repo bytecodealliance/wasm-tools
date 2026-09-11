@@ -843,7 +843,7 @@ pub(crate) trait ResolveCoreType<'a> {
     }
 
     fn resolve_type_def(&mut self, ty: &mut TypeDef<'a>) -> Result<(), Error> {
-        if let Some(parent) = &mut ty.parent {
+        for parent in ty.parents.iter_mut() {
             self.resolve_type_name(parent)?;
         }
         if let Some(descriptor) = &mut ty.descriptor {

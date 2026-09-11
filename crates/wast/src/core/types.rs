@@ -957,7 +957,7 @@ pub struct TypeDef<'a> {
     /// Whether the type is shared or not.
     pub shared: bool,
     /// The declared parent type of this definition.
-    pub parent: Option<Index<'a>>,
+    pub parents: Vec<Index<'a>>,
     /// The descriptor type.
     pub descriptor: Option<Index<'a>>,
     /// The descriptor for type.
@@ -1023,7 +1023,7 @@ impl<'a> Parse<'a> for TypeDef<'a> {
                 },
             )
         };
-        let (parent, (shared, descriptor, describes, kind), final_type) =
+        let (parents, (shared, descriptor, describes, kind), final_type) =
             if parser.peek::<kw::sub>()? {
                 parser.parse::<kw::sub>()?;
 
@@ -1034,21 +1034,20 @@ impl<'a> Parse<'a> for TypeDef<'a> {
                     Some(false)
                 };
 
-                let parent = if parser.peek::<Index<'a>>()? {
-                    parser.parse()?
-                } else {
-                    None
-                };
+                let mut parents = Vec::new();
+                while parser.peek::<Index<'a>>()? {
+                    parents.push(parser.parse()?);
+                }
                 let pair = parser.parens(parse_shared_and_kind)?;
-                (parent, pair, final_type)
+                (parents, pair, final_type)
             } else {
-                (None, parse_shared_and_kind(parser)?, None)
+                (Vec::new(), parse_shared_and_kind(parser)?, None)
             };
 
         Ok(TypeDef {
             kind,
             shared,
-            parent,
+            parents,
             descriptor,
             describes,
             final_type,
