@@ -23,7 +23,7 @@
     (core func $new (;1;) (canon resource.new $R))
     (core module $Maker (;1;)
       (type (;0;) (func (param i32) (result i32)))
-      (import "canon" "new" (func $new (;0;) (type 0)))
+      (import "canon" "new" (func $new (;0;) (type 0) (param i32) (result i32)))
       (export "make" (func 1))
       (func (;1;) (type 0) (param i32) (result i32)
         local.get 0
@@ -58,7 +58,7 @@
     (core func $drop (;0;) (canon resource.drop $R))
     (core module $M (;0;)
       (type (;0;) (func (param i32)))
-      (import "e" "drop" (func $drop (;0;) (type 0)))
+      (import "e" "drop" (func $drop (;0;) (type 0) (param i32)))
       (export "take" (func 1))
       (func (;1;) (type 0) (param i32)
         local.get 0
@@ -105,8 +105,8 @@
     (core module $M (;0;)
       (type (;0;) (func (param i32) (result i32)))
       (type (;1;) (func (param i32)))
-      (import "e" "make" (func $make (;0;) (type 0)))
-      (import "e" "take" (func $take (;1;) (type 1)))
+      (import "e" "make" (func $make (;0;) (type 0) (param i32) (result i32)))
+      (import "e" "take" (func $take (;1;) (type 1) (param i32)))
       (export "run" (func 2))
       (func (;2;) (type 1) (param i32)
         local.get 0

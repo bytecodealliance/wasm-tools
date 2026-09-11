@@ -32,7 +32,7 @@
     (core func $step_l (;0;) (canon lower (func $step)))
     (core module $M (;0;)
       (type (;0;) (func (result i32)))
-      (import "e" "step" (func $step (;0;) (type 0)))
+      (import "e" "step" (func $step (;0;) (type 0) (result i32)))
       (global $g (;0;) (mut i32) i32.const 0)
       (export "bump" (func 1))
       (func (;1;) (type 0) (result i32)

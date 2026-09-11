@@ -8,7 +8,7 @@
   (import "new" (instance $new (;0;) (type $ty-new)))
   (core module $main (;0;)
     (type (;0;) (func (param i32 i32)))
-    (import "old" "log" (func (;0;) (type 0)))
+    (import "old" "log" (func (;0;) (type 0) (param i32 i32)))
     (memory (;0;) 1)
     (export "memory" (memory 0))
     (@producers
@@ -18,7 +18,7 @@
   )
   (core module $wit-component:adapter:old (;1;)
     (type (;0;) (func (param i32 i32)))
-    (import "new" "log" (func $log (;0;) (type 0)))
+    (import "new" "log" (func $log (;0;) (type 0) (param i32 i32)))
     (export "log" (func $log))
   )
   (core module $wit-component-shim-module (;2;)
@@ -63,8 +63,8 @@
   )
   (core module $wit-component-fixup (;3;)
     (type (;0;) (func (param i32 i32)))
-    (import "actual" "0" (func $0 (;0;) (type 0)))
-    (import "actual" "1" (func $1 (;1;) (type 0)))
+    (import "actual" "0" (func $0 (;0;) (type 0) (param i32 i32)))
+    (import "actual" "1" (func $1 (;1;) (type 0) (param i32 i32)))
     (import "shim" "$imports" (table (;0;) 2 2 funcref))
     (elem (;0;) (i32.const 0) func $0 $1)
     (@producers

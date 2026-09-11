@@ -6,7 +6,7 @@
   (type $func-cont-func-func (;4;) (func (param (ref $func) (ref $cont-func))))
   (type $func-cont-func-cont (;5;) (cont $func-cont-func-func))
   (type (;6;) (func (param i32)))
-  (import "spectest" "print_i32" (func $log (;0;) (type 6)))
+  (import "spectest" "print_i32" (func $log (;0;) (type 6) (param i32)))
   (export "main" (func $main))
   (elem (;0;) declare func $main $thread1 $thread2 $thread3)
   (func $main (;1;) (type $func-cont-func-func) (param $yield (ref $func)) (param $fork (ref $cont-func))

@@ -43,9 +43,9 @@
       (mem-info (memory 0 4))
     )
     (type (;0;) (func (param i32) (result i32)))
-    (import "test:test/test" "foo" (func $import_foo (;0;) (type 0)))
-    (import "env" "foo" (func $import_foo2 (;1;) (type 0)))
-    (import "env" "bar" (func $import_bar (;2;) (type 0)))
+    (import "test:test/test" "foo" (func $import_foo (;0;) (type 0) (param i32) (result i32)))
+    (import "env" "foo" (func $import_foo2 (;1;) (type 0) (param i32) (result i32)))
+    (import "env" "bar" (func $import_bar (;2;) (type 0) (param i32) (result i32)))
     (export "test:test/test#foo" (func $foo))
     (func $foo (;3;) (type 0) (param i32) (result i32)
       unreachable

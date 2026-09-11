@@ -33,7 +33,7 @@
     (core module $Main (;1;)
       (type (;0;) (func (param i32 i32)))
       (type (;1;) (func))
-      (import "" "f" (func $f (;0;) (type 0)))
+      (import "" "f" (func $f (;0;) (type 0) (param i32 i32)))
       (export "run-ptr-oob" (func 1))
       (export "run-len-oob" (func 2))
       (func (;1;) (type 1)

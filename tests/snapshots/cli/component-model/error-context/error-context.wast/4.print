@@ -1,7 +1,7 @@
 (component
   (core module $m (;0;)
     (type (;0;) (func (param i32)))
-    (import "" "error-context.drop" (func $error-context-drop (;0;) (type 0)))
+    (import "" "error-context.drop" (func $error-context-drop (;0;) (type 0) (param i32)))
   )
   (core func $error-context-drop (;0;) (canon error-context.drop))
   (core instance (;0;)

@@ -8,7 +8,7 @@
   )
   (core module $B (;1;)
     (type (;0;) (func (result i32)))
-    (import "a" "one" (func $one (;0;) (type 0)))
+    (import "a" "one" (func $one (;0;) (type 0) (result i32)))
     (export "run" (func 1))
     (func (;1;) (type 0) (result i32)
       call $one

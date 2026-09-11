@@ -3,7 +3,7 @@
   (type $ct (;1;) (cont $ft))
   (type (;2;) (func (param i32)))
   (type (;3;) (func (result i32)))
-  (import "spectest" "print_i32" (func $print (;0;) (type 2)))
+  (import "spectest" "print_i32" (func $print (;0;) (type 2) (param i32)))
   (tag $h (;0;) (type $ft))
   (export "f" (func $f))
   (export "run" (func 2))

@@ -31,7 +31,7 @@
     (core module $M (;0;)
       (type (;0;) (func (result i32)))
       (type (;1;) (func))
-      (import "t" "next" (func $next (;0;) (type 0)))
+      (import "t" "next" (func $next (;0;) (type 0) (result i32)))
       (global $rank (;0;) (mut i32) i32.const 0)
       (export "rank" (func 2))
       (start $start)

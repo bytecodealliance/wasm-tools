@@ -41,8 +41,8 @@
     (core module $M (;0;)
       (type (;0;) (func (param i32)))
       (type (;1;) (func (result i32)))
-      (import "" "assert-true" (func $assert-true (;0;) (type 0)))
-      (import "" "assert-false" (func $assert-false (;1;) (type 0)))
+      (import "" "assert-true" (func $assert-true (;0;) (type 0) (param i32)))
+      (import "" "assert-false" (func $assert-false (;1;) (type 0) (param i32)))
       (export "run" (func 2))
       (func (;2;) (type 1) (result i32)
         i32.const 1

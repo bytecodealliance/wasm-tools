@@ -1293,7 +1293,7 @@ impl Printer<'_, '_> {
                     self.print_name(&state.core.func_names, state.core.funcs)?;
                     self.result.write_str(" ")?;
                 }
-                self.print_core_type_ref(state, *f)?;
+                self.print_core_functype_idx(state, *f, Some(state.core.funcs))?;
             }
             TypeRef::FuncExact(f) => {
                 self.start_group("func ")?;
@@ -1302,7 +1302,7 @@ impl Printer<'_, '_> {
                     self.result.write_str(" ")?;
                 }
                 self.start_group("exact ")?;
-                self.print_core_type_ref(state, *f)?;
+                self.print_core_functype_idx(state, *f, Some(state.core.funcs))?;
                 self.end_group()?;
             }
             TypeRef::Table(f) => self.print_table_type(state, f, index)?,

@@ -30,7 +30,7 @@
     (core func $next_l (;0;) (canon lower (func 0)))
     (core module $M (;0;)
       (type (;0;) (func (result i32)))
-      (import "e" "next" (func $next (;0;) (type 0)))
+      (import "e" "next" (func $next (;0;) (type 0) (result i32)))
       (export "run" (func 1))
       (func (;1;) (type 0) (result i32)
         call $next

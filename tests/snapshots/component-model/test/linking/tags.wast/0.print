@@ -20,7 +20,7 @@
     (type (;0;) (func (param i32)))
     (type (;1;) (func (param i32) (result i32)))
     (import "tag" "t" (tag $t (;0;) (type 0) (param i32)))
-    (import "thrower" "throw-if" (func $throw-if (;0;) (type 0)))
+    (import "thrower" "throw-if" (func $throw-if (;0;) (type 0) (param i32)))
     (export "run" (func 1))
     (func (;1;) (type 1) (param i32) (result i32)
       block $h (result i32)
