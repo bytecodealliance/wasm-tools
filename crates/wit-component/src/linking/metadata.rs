@@ -110,6 +110,32 @@ impl TryFrom<&FuncType> for FunctionType {
     }
 }
 
+fn validate_intrinsic_signature(
+    types: &[FuncType],
+    type_index: u32,
+    module: &str,
+    name: &str,
+    parameters: &[ValueType],
+    results: &[ValueType],
+) -> Result<()> {
+    let type_index = usize::try_from(type_index).context("function type index is too large")?;
+    let ty = types.get(type_index).with_context(|| {
+        format!("invalid function type index {type_index} for `{module}.{name}`")
+    })?;
+    let actual = FunctionType::try_from(ty)
+        .with_context(|| format!("failed to read function type for `{module}.{name}`"))?;
+    if actual.parameters.as_slice() != parameters || actual.results.as_slice() != results {
+        let expected = FunctionType {
+            parameters: parameters.to_vec(),
+            results: results.to_vec(),
+        };
+        bail!(
+            "type mismatch for function `{module}.{name}`: required linker ABI `{expected}` but found `{actual}`"
+        );
+    }
+    Ok(())
+}
+
 /// Represents a core Wasm global variable type
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct GlobalType {
@@ -458,9 +484,26 @@ impl<'a> Metadata<'a> {
                                 | self::GET_TLS_BASE
                                 | self::SET_TLS_BASE),
                             ) => {
-                                if !matches!(import.ty, TypeRef::Func(_)) {
+                                let TypeRef::Func(type_index) = import.ty else {
                                     return type_error();
-                                }
+                                };
+                                let (parameters, results) = match name {
+                                    self::GET_STACK_POINTER | self::GET_TLS_BASE => {
+                                        (&[][..], &[ValueType::I32][..])
+                                    }
+                                    self::SET_STACK_POINTER | self::SET_TLS_BASE => {
+                                        (&[ValueType::I32][..], &[][..])
+                                    }
+                                    _ => unreachable!(),
+                                };
+                                validate_intrinsic_signature(
+                                    &types,
+                                    type_index,
+                                    import.module,
+                                    name,
+                                    parameters,
+                                    results,
+                                )?;
                                 match name {
                                     self::GET_TLS_BASE => result.needs_get_tls_base = true,
                                     self::SET_TLS_BASE => result.needs_set_tls_base = true,
@@ -533,6 +576,17 @@ impl<'a> Metadata<'a> {
                                 }
                             }
                             (self::ROOT, self::THREAD_NEW_INDIRECT) => {
+                                let TypeRef::Func(type_index) = import.ty else {
+                                    return type_error();
+                                };
+                                validate_intrinsic_signature(
+                                    &types,
+                                    type_index,
+                                    import.module,
+                                    import.name,
+                                    &[ValueType::I32, ValueType::I32],
+                                    &[ValueType::I32],
+                                )?;
                                 result.uses_thread_new_indirect = true;
                             }
                             (module, name) if adapter_names.contains(module) => {
