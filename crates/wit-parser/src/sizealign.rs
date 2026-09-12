@@ -252,27 +252,32 @@ pub struct SizeAlign {
 }
 
 impl SizeAlign {
-    pub fn fill(&mut self, resolve: &Resolve) {
+    pub fn fill(&mut self, resolve: &Resolve) -> anyhow::Result<()> {
         self.map = Vec::new();
         for (_, ty) in resolve.types.iter() {
-            let pair = self.calculate(ty);
+            let pair = self.calculate(ty)?;
             self.map.push(pair);
         }
+        Ok(())
     }
 
-    fn calculate(&self, ty: &TypeDef) -> ElementInfo {
-        match &ty.kind {
+    fn calculate(&self, ty: &TypeDef) -> anyhow::Result<ElementInfo> {
+        Ok(match &ty.kind {
             TypeDefKind::Type(t) => ElementInfo::new(self.size(t), self.align(t)),
             TypeDefKind::FixedLengthList(t, size) => {
                 let field_align = self.align(t);
                 let field_size = self.size(t);
-                ElementInfo::new(
-                    ArchitectureSize::new(
-                        field_size.bytes.checked_mul(*size as usize).unwrap(),
-                        field_size.pointers.checked_mul(*size as usize).unwrap(),
-                    ),
-                    field_align,
-                )
+                let bytes = field_size.bytes.checked_mul(*size as usize).ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "size of fixed-length list of {size} elements overflows the target architecture's address space"
+                    )
+                })?;
+                let pointers = field_size.pointers.checked_mul(*size as usize).ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "size of fixed-length list of {size} elements overflows the target architecture's address space"
+                    )
+                })?;
+                ElementInfo::new(ArchitectureSize::new(bytes, pointers), field_align)
             }
             TypeDefKind::List(_) => {
                 ElementInfo::new(ArchitectureSize::new(0, 2), Alignment::Pointer)
@@ -308,7 +313,7 @@ impl SizeAlign {
                 Alignment::Bytes(NonZeroUsize::new(usize::MAX).unwrap()),
             ),
             TypeDefKind::Unknown => unreachable!(),
-        }
+        })
     }
 
     pub fn size(&self, ty: &Type) -> ArchitectureSize {
@@ -457,6 +462,7 @@ pub fn align_to_arch(val: ArchitectureSize, align: Alignment) -> ArchitectureSiz
 #[cfg(test)]
 mod test {
     use super::*;
+    use alloc::string::ToString;
     use alloc::vec;
 
     #[test]
@@ -558,15 +564,17 @@ mod test {
     fn resource_size() {
         // keep it identical to the old behavior
         let obj = SizeAlign::default();
-        let elem = obj.calculate(&TypeDef {
-            name: None,
-            kind: TypeDefKind::Resource,
-            owner: crate::TypeOwner::None,
-            docs: Default::default(),
-            stability: Default::default(),
-            span: Default::default(),
-            external_id: Default::default(),
-        });
+        let elem = obj
+            .calculate(&TypeDef {
+                name: None,
+                kind: TypeDefKind::Resource,
+                owner: crate::TypeOwner::None,
+                docs: Default::default(),
+                stability: Default::default(),
+                span: Default::default(),
+                external_id: Default::default(),
+            })
+            .unwrap();
         assert_eq!(elem.size, ArchitectureSize::new(usize::MAX, 0));
         assert_eq!(
             elem.align,
@@ -589,22 +597,72 @@ mod test {
             span: Default::default(),
             external_id: Default::default(),
         });
-        obj.fill(&resolve);
+        obj.fill(&resolve).unwrap();
         let my_result = crate::Result_ {
             ok: Some(Type::String),
             err: Some(Type::Id(id)),
         };
-        let elem = obj.calculate(&TypeDef {
+        let elem = obj
+            .calculate(&TypeDef {
+                name: None,
+                kind: TypeDefKind::Result(my_result),
+                owner: crate::TypeOwner::None,
+                docs: Default::default(),
+                stability: Default::default(),
+                span: Default::default(),
+                external_id: Default::default(),
+            })
+            .unwrap();
+        assert_eq!(elem.size, ArchitectureSize::new(8, 2));
+        assert_eq!(elem.align, Alignment::Pointer);
+    }
+
+    #[test]
+    fn fixed_length_list_size_overflow_returns_error_instead_of_panicking() {
+        // Regression test: a fixed-length list whose element-size * length
+        // overflows `usize` used to panic via `.unwrap()` on a `None` from
+        // `checked_mul`. It must now return an `Err` instead.
+        let mut obj = SizeAlign::default();
+        let mut resolve = Resolve::default();
+
+        // `type a = list<u64, 4294967295>;`
+        let a = resolve.types.alloc(TypeDef {
             name: None,
-            kind: TypeDefKind::Result(my_result),
+            kind: TypeDefKind::FixedLengthList(Type::U64, u32::MAX),
             owner: crate::TypeOwner::None,
             docs: Default::default(),
             stability: Default::default(),
             span: Default::default(),
             external_id: Default::default(),
         });
-        assert_eq!(elem.size, ArchitectureSize::new(8, 2));
-        assert_eq!(elem.align, Alignment::Pointer);
+        // `type b = list<a, 4294967295>;` -- `a`'s size (8 * u32::MAX) times
+        // `u32::MAX` again overflows `usize` on both 32- and 64-bit targets.
+        resolve.types.alloc(TypeDef {
+            name: None,
+            kind: TypeDefKind::FixedLengthList(Type::Id(a), u32::MAX),
+            owner: crate::TypeOwner::None,
+            docs: Default::default(),
+            stability: Default::default(),
+            span: Default::default(),
+            external_id: Default::default(),
+        });
+
+        let err = obj.fill(&resolve).unwrap_err();
+        assert!(err.to_string().contains("overflows"));
+
+        // A benign, non-overflowing fixed-length list still computes fine.
+        let mut obj = SizeAlign::default();
+        let mut resolve = Resolve::default();
+        resolve.types.alloc(TypeDef {
+            name: None,
+            kind: TypeDefKind::FixedLengthList(Type::U64, 2),
+            owner: crate::TypeOwner::None,
+            docs: Default::default(),
+            stability: Default::default(),
+            span: Default::default(),
+            external_id: Default::default(),
+        });
+        obj.fill(&resolve).unwrap();
     }
     #[test]
     fn result_ptr_64bit() {
@@ -625,15 +683,17 @@ mod test {
                 },
             ],
         };
-        let elem = obj.calculate(&TypeDef {
-            name: None,
-            kind: TypeDefKind::Record(my_record),
-            owner: crate::TypeOwner::None,
-            docs: Default::default(),
-            stability: Default::default(),
-            span: Default::default(),
-            external_id: Default::default(),
-        });
+        let elem = obj
+            .calculate(&TypeDef {
+                name: None,
+                kind: TypeDefKind::Record(my_record),
+                owner: crate::TypeOwner::None,
+                docs: Default::default(),
+                stability: Default::default(),
+                span: Default::default(),
+                external_id: Default::default(),
+            })
+            .unwrap();
         assert_eq!(elem.size, ArchitectureSize::new(8, 2));
         assert_eq!(elem.align, Alignment::Bytes(NonZeroUsize::new(8).unwrap()));
     }

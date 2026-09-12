@@ -17,8 +17,8 @@
   (core instance $b (;1;) (instantiate $B))
   (core module $Client (;2;)
     (type (;0;) (func (result i32)))
-    (import "env" "f" (func $f (;0;) (type 0)))
-    (import "env" "g" (func $g (;1;) (type 0)))
+    (import "env" "f" (func $f (;0;) (type 0) (result i32)))
+    (import "env" "g" (func $g (;1;) (type 0) (result i32)))
     (export "sum" (func 2))
     (func (;2;) (type 0) (result i32)
       call $f

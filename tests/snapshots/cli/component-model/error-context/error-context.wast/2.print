@@ -11,7 +11,7 @@
   (core instance $libc (;0;) (instantiate $libc))
   (core module $m (;1;)
     (type (;0;) (func (param i32 i32)))
-    (import "" "error-context.debug-message" (func $error-context-debug-message (;0;) (type 0)))
+    (import "" "error-context.debug-message" (func $error-context-debug-message (;0;) (type 0) (param i32 i32)))
   )
   (alias core export $libc "memory" (core memory (;0;)))
   (alias core export $libc "realloc" (core func (;0;)))

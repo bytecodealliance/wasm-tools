@@ -17,8 +17,9 @@ mod mutators;
 pub use error::*;
 
 use crate::mutators::{
-    Item, add_export::AddExportMutator, add_function::AddFunctionMutator, add_type::AddTypeMutator,
-    codemotion::CodemotionMutator, custom::AddCustomSectionMutator, custom::CustomSectionMutator,
+    Item, add_export::AddExportMutator, add_function::AddFunctionMutator,
+    add_global::AddGlobalMutator, add_type::AddTypeMutator, codemotion::CodemotionMutator,
+    custom::AddCustomSectionMutator, custom::CustomSectionMutator,
     custom::ReorderCustomSectionMutator, function_body_unreachable::FunctionBodyUnreachable,
     modify_const_exprs::ConstExpressionMutator, modify_data::ModifyDataMutator,
     peephole::PeepholeMutator, remove_export::RemoveExportMutator, remove_item::RemoveItemMutator,
@@ -222,6 +223,7 @@ impl<'wasm> WasmMutate<'wasm> {
                 max_results: 20,
             },
             &AddFunctionMutator,
+            &AddGlobalMutator,
             &RemoveSection::Custom,
             &RemoveSection::Empty,
             &ConstExpressionMutator::Global,

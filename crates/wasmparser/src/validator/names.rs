@@ -560,6 +560,11 @@ impl<'a> InterfaceName<'a> {
     }
 
     /// Returns the `1.2.3` in `a:b:c/d/e@1.2.3`
+    ///
+    /// The `suffix` provided here is the optionally specified `versionsuffix`
+    /// field in the binary format. This is appended to the version to form the
+    /// full version, if specified. If `None` then the name is required to have
+    /// a full version as-is.
     pub fn version(&self, suffix: Option<&str>) -> Result<Option<Version>, semver::Error> {
         let Some(prefix) = self.version_prefix() else {
             return Ok(None);

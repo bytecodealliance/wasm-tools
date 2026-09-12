@@ -7,9 +7,9 @@
   (type (;5;) (func (result (ref $cont) (ref $cont))))
   (import "lwt" "yield" (tag $yield (;0;) (type $func)))
   (import "lwt" "fork" (tag $fork (;1;) (type 2) (param (ref $cont))))
-  (import "queue" "queue-empty" (func $queue-empty (;0;) (type 3)))
-  (import "queue" "dequeue" (func $dequeue (;1;) (type 4)))
-  (import "queue" "enqueue" (func $enqueue (;2;) (type 2)))
+  (import "queue" "queue-empty" (func $queue-empty (;0;) (type 3) (result i32)))
+  (import "queue" "dequeue" (func $dequeue (;1;) (type 4) (result (ref null $cont))))
+  (import "queue" "enqueue" (func $enqueue (;2;) (type 2) (param (ref $cont))))
   (export "run" (func $run))
   (func $run (;3;) (type 2) (param $main (ref $cont))
     local.get $main

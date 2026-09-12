@@ -51,24 +51,28 @@ pub enum StackPointer {
     TaskContext,
 }
 
-pub fn create(resolve: &Resolve, world_id: WorldId, opts: Option<&mut DylibOpts>) -> Vec<u8> {
-    create_with_metadata(resolve, world_id, opts).0
+pub fn create(
+    resolve: &Resolve,
+    world_id: WorldId,
+    opts: Option<&mut DylibOpts>,
+) -> anyhow::Result<Vec<u8>> {
+    Ok(create_with_metadata(resolve, world_id, opts)?.0)
 }
 
 pub fn create_with_metadata(
     resolve: &Resolve,
     world_id: WorldId,
     mut opts: Option<&mut DylibOpts>,
-) -> (Vec<u8>, Metadata) {
+) -> anyhow::Result<(Vec<u8>, Metadata)> {
     let mut adapter = Adapter::default();
     if let Some(opts) = &mut opts {
         adapter.opts = opts.clone();
     }
-    let result = adapter.encode(resolve, world_id);
+    let result = adapter.encode(resolve, world_id)?;
     if let Some(opts) = &mut opts {
         **opts = adapter.opts;
     }
-    (result, adapter.metadata)
+    Ok((result, adapter.metadata))
 }
 
 #[derive(Default)]
@@ -154,8 +158,8 @@ struct PayloadData {
 }
 
 impl Adapter {
-    pub fn encode(&mut self, resolve: &Resolve, world_id: WorldId) -> Vec<u8> {
-        self.sizes.fill(resolve);
+    pub fn encode(&mut self, resolve: &Resolve, world_id: WorldId) -> anyhow::Result<Vec<u8>> {
+        self.sizes.fill(resolve)?;
 
         // First define all imports that will go into the wasm module since
         // they're required to be first in their index spaces anyway. This will
@@ -194,7 +198,7 @@ impl Adapter {
         let ty = self.define_ty([], []);
         self.define_func("__wasm_call_ctors", ty, ctor, true);
 
-        self.finish(&metadata)
+        Ok(self.finish(&metadata))
     }
 
     fn mangling(
@@ -1487,7 +1491,7 @@ world w {{
             )
             .unwrap();
         let world = resolve.select_world(&[package], None).unwrap();
-        let adapter = super::create(&resolve, world, None);
+        let adapter = super::create(&resolve, world, None).unwrap();
         for payload in Parser::new(0).parse_all(&adapter) {
             match payload.unwrap() {
                 Payload::CodeSectionEntry(body) => {

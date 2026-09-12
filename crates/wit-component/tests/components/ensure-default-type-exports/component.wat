@@ -13,7 +13,7 @@
   (core module $main (;0;)
     (type (;0;) (func (param i32)))
     (type (;1;) (func (param i32 i32 i32 i32) (result i32)))
-    (import "foo:foo/foo" "a" (func (;0;) (type 0)))
+    (import "foo:foo/foo" "a" (func (;0;) (type 0) (param i32)))
     (memory (;0;) 1)
     (export "memory" (memory 0))
     (export "cabi_realloc" (func 1))

@@ -16,7 +16,7 @@
     (module
       (alias outer $C $t1 (type (;0;)))
       (type (;1;) (func (result (ref 0))))
-      (import "x" "x" (func (type 1)))
+      (import "x" "x" (func (type 1) (result (ref 0))))
       (type (;2;) (struct (field (ref 0))))
       (type (;3;) (array (ref 2)))
       (type (;4;) (func (result (ref 3))))

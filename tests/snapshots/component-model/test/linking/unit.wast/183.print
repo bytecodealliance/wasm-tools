@@ -5,7 +5,7 @@
         (core type (;0;)
           (module
             (type (;0;) (func (result i32)))
-            (export "get" (func (type 0)))
+            (export "get" (func (type 0) (result i32)))
           )
         )
         (export (;0;) "m" (core module (type 0)))

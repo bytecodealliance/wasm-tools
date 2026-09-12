@@ -24,6 +24,7 @@
 
 pub mod add_export;
 pub mod add_function;
+pub mod add_global;
 pub mod add_type;
 pub mod codemotion;
 pub mod custom;

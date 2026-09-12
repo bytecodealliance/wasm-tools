@@ -11,7 +11,7 @@
   (import "async-await" "fulfill" (tag $fulfill (;1;) (type 5) (param i32 i32)))
   (import "async-await" "async" (tag $async (;2;) (type 6) (param (ref $i-cont)) (result i32)))
   (import "async-await" "await" (tag $await (;3;) (type 7) (param i32) (result i32)))
-  (import "spectest" "print_i32" (func $log (;0;) (type $i-func)))
+  (import "spectest" "print_i32" (func $log (;0;) (type $i-func) (param i32)))
   (export "run" (func $run))
   (elem (;0;) declare func $sum)
   (func $sum (;1;) (type $iii-fun) (param $i i32) (param $j i32) (param $p i32)

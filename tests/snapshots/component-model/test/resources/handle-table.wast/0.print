@@ -7,9 +7,9 @@
     (type (;0;) (func (param i32) (result i32)))
     (type (;1;) (func (param i32)))
     (type (;2;) (func (result i32)))
-    (import "" "new" (func $new (;0;) (type 0)))
-    (import "" "drop" (func $drop (;1;) (type 1)))
-    (import "" "rep" (func $rep (;2;) (type 0)))
+    (import "" "new" (func $new (;0;) (type 0) (param i32) (result i32)))
+    (import "" "drop" (func $drop (;1;) (type 1) (param i32)))
+    (import "" "rep" (func $rep (;2;) (type 0) (param i32) (result i32)))
     (export "run" (func 3))
     (func (;3;) (type 2) (result i32)
       i32.const 1

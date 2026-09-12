@@ -1,7 +1,7 @@
 (component
   (core module $m (;0;)
     (type (;0;) (func (param i32)))
-    (import "" "thread.resume-later" (func $thread.resume-later (;0;) (type 0)))
+    (import "" "thread.resume-later" (func $thread.resume-later (;0;) (type 0) (param i32)))
   )
   (core func $thread.resume-later (;0;) (canon thread.resume-later))
   (core instance (;0;)

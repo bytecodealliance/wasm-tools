@@ -31,7 +31,7 @@
     (core module $Main (;1;)
       (type (;0;) (func (param i32)))
       (type (;1;) (func))
-      (import "" "f" (func $f (;0;) (type 0)))
+      (import "" "f" (func $f (;0;) (type 0) (param i32)))
       (export "run" (func 1))
       (func (;1;) (type 1)
         i32.const 1

@@ -1,7 +1,7 @@
 (component
   (core module $m (;0;)
     (type (;0;) (func (param i32) (result i32)))
-    (import "" "" (func (;0;) (type 0)))
+    (import "" "" (func (;0;) (type 0) (param i32) (result i32)))
   )
   (core func $f (;0;) (canon thread.yield-then-resume))
   (core instance (;0;)

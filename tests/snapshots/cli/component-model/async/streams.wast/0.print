@@ -1,7 +1,7 @@
 (component
   (core module $m (;0;)
     (type (;0;) (func (result i64)))
-    (import "" "stream.new" (func $stream-new (;0;) (type 0)))
+    (import "" "stream.new" (func $stream-new (;0;) (type 0) (result i64)))
   )
   (type $stream-type (;0;) (stream u8))
   (core func $stream-new (;0;) (canon stream.new $stream-type))

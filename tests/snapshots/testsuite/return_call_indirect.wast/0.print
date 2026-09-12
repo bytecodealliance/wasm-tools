@@ -27,7 +27,7 @@
   (type (;25;) (func (param i64 i64) (result i64)))
   (type (;26;) (func (result (ref null $t))))
   (type (;27;) (func (result funcref)))
-  (import "spectest" "print_i32_f32" (func $print_i32_f32 (;0;) (type 18)))
+  (import "spectest" "print_i32_f32" (func $print_i32_f32 (;0;) (type 18) (param i32 f32)))
   (table (;0;) 20 20 funcref)
   (table $tab2 (;1;) 1 1 funcref)
   (table $tab3 (;2;) 1 1 funcref)

@@ -75,11 +75,11 @@ https://github.com/webassembly/wasi-sdk
     let mut roundtrip = None;
     let artifact_dir = if debug { "debug" } else { "release" };
     for target_name in targets {
-        if target_name.ends_with("_callee") {
+        if target_name.ends_with("-callee") {
             continue;
         }
-        let name = target_name.strip_suffix("_caller").unwrap();
-        let callee = format!("{name}_callee");
+        let name = target_name.strip_suffix("-caller").unwrap();
+        let callee = format!("{name}-callee");
         let caller = out_dir
             .join(target)
             .join(artifact_dir)

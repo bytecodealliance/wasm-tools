@@ -13,7 +13,7 @@
       (core func $get_l (;0;) (canon lower (func $get)))
       (core module $M (;0;)
         (type (;0;) (func (result i32)))
-        (import "inner" "get" (func $get (;0;) (type 0)))
+        (import "inner" "get" (func $get (;0;) (type 0) (result i32)))
         (export "get" (func 1))
         (func (;1;) (type 0) (result i32)
           call $get

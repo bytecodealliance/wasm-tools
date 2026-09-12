@@ -4,9 +4,7 @@ authors = ["Alex Crichton <alex@alexcrichton.com>"]
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-readme = "README.md"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wit-parser"
-homepage = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wit-parser"
 documentation = "https://docs.rs/wit-parser"
 description = """
 Tooling for parsing `*.wit` files and working with their contents.

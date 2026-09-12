@@ -21,7 +21,7 @@
     (core func $next_l (;0;) (canon lower (func $next)))
     (core module $M (;0;)
       (type (;0;) (func (param i32) (result i32)))
-      (import "e" "next" (func $next (;0;) (type 0)))
+      (import "e" "next" (func $next (;0;) (type 0) (param i32) (result i32)))
       (export "f" (func 1))
       (func (;1;) (type 0) (param i32) (result i32)
         local.get 0

@@ -3,8 +3,8 @@
     (type (;0;) (func (param i32)))
     (type (;1;) (func (param i32) (result i32)))
     (type (;2;) (func (result i32)))
-    (import "[export]foo:bar/a" "[resource-drop]r" (func (;0;) (type 0)))
-    (import "[export]foo:bar/a" "[resource-rep]r" (func (;1;) (type 1)))
+    (import "[export]foo:bar/a" "[resource-drop]r" (func (;0;) (type 0) (param i32)))
+    (import "[export]foo:bar/a" "[resource-rep]r" (func (;1;) (type 1) (param i32) (result i32)))
     (export "some-name#f" (func 2))
     (func (;2;) (type 2) (result i32)
       unreachable

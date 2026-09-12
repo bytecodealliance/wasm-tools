@@ -18,7 +18,7 @@
     (core module $M (;0;)
       (type (;0;) (func (param i32)))
       (type (;1;) (func))
-      (import "" "take" (func $take (;0;) (type 0)))
+      (import "" "take" (func $take (;0;) (type 0) (param i32)))
       (export "run-d800" (func 1))
       (export "run-dfff" (func 2))
       (export "run-too-big" (func 3))

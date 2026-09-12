@@ -24,8 +24,8 @@
         (core func $f2_l (;1;) (canon lower (func $f2)))
         (core module $M (;0;)
           (type (;0;) (func (result i32)))
-          (import "e" "f1" (func $f1 (;0;) (type 0)))
-          (import "e" "f2" (func $f2 (;1;) (type 0)))
+          (import "e" "f1" (func $f1 (;0;) (type 0) (result i32)))
+          (import "e" "f2" (func $f2 (;1;) (type 0) (result i32)))
           (export "run" (func 2))
           (func (;2;) (type 0) (result i32)
             call $f1

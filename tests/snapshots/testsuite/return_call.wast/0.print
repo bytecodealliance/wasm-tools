@@ -18,7 +18,7 @@
   (type (;16;) (func (param f64 i64) (result i32 f32)))
   (type (;17;) (func (result (ref null $t))))
   (type (;18;) (func (result funcref)))
-  (import "spectest" "print_i32_f32" (func $print_i32_f32 (;0;) (type 1)))
+  (import "spectest" "print_i32_f32" (func $print_i32_f32 (;0;) (type 1) (param i32 f32)))
   (export "type-i32" (func 13))
   (export "type-i64" (func 14))
   (export "type-f32" (func 15))

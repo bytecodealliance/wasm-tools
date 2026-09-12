@@ -1,7 +1,7 @@
 (component
   (core module $m (;0;)
     (type (;0;) (func (param i32) (result i32)))
-    (import "" "stream.cancel-read" (func $stream-cancel-read (;0;) (type 0)))
+    (import "" "stream.cancel-read" (func $stream-cancel-read (;0;) (type 0) (param i32) (result i32)))
   )
   (type $stream-type (;0;) (stream u8))
   (core func $stream-cancel-read (;0;) (canon stream.cancel-read $stream-type async))

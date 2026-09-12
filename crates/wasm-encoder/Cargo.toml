@@ -4,9 +4,7 @@ version.workspace = true
 authors = ["Nick Fitzgerald <fitzgen@gmail.com>"]
 edition.workspace = true
 license.workspace = true
-readme = "README.md"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-encoder"
-homepage = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-encoder"
 documentation = "https://docs.rs/wasm-encoder"
 description = """
 A low-level WebAssembly encoder.

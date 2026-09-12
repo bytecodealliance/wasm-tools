@@ -82,7 +82,7 @@ impl TestCase for MyInterpreter {
 
                 let mut rx = StreamReader::new(rx, vtable);
 
-                async_support::spawn(async move {
+                async_support::spawn_local(async move {
                     let mut chunk = Vec::with_capacity(1024);
                     loop {
                         let (status, buf) = rx.read(chunk).await;
@@ -121,7 +121,7 @@ impl TestCase for MyInterpreter {
 
                 let rx = unsafe { FutureReader::new(rx, vtable) };
 
-                async_support::spawn(async move { tx.write(rx.await).await.unwrap() });
+                async_support::spawn_local(async move { tx.write(rx.await).await.unwrap() });
 
                 Some(Val::Future(result.take_handle()))
             }
@@ -167,7 +167,7 @@ impl TestCase for MyInterpreter {
 
                 let mut rx = StreamReader::new(rx, vtable);
 
-                async_support::spawn(async move {
+                async_support::spawn_local(async move {
                     // Read only one item at a time, forcing the sender to
                     // retake ownership of any unwritten items.
                     let mut received_things = Vec::new();

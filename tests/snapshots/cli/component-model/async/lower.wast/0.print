@@ -10,7 +10,7 @@
   (core func $foo (;0;) (canon lower (func $foo) async (memory 0)))
   (core module $m (;1;)
     (type (;0;) (func (param i32 i32) (result i32)))
-    (import "" "foo" (func (;0;) (type 0)))
+    (import "" "foo" (func (;0;) (type 0) (param i32 i32) (result i32)))
   )
   (core instance (;1;)
     (export "foo" (func $foo))
