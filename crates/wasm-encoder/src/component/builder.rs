@@ -448,6 +448,23 @@ impl ComponentBuilder {
         self.instances.add(debug_name)
     }
 
+    /// Creates a new component instance from the `exports` provided.
+    ///
+    /// Returns the index of the component instance created.
+    pub fn instantiate_exports<'a, E, N>(
+        &mut self,
+        debug_name: Option<&str>,
+        exports: E,
+    ) -> u32
+    where
+        E: IntoIterator<Item = (N, ComponentExportKind, u32)>,
+        E::IntoIter: ExactSizeIterator,
+        N: Into<ComponentExternName<'a>>,
+    {
+        self.component_instances().export_items(exports);
+        self.instances.add(debug_name)
+    }
+
     /// Declares a new `resource.drop` intrinsic.
     pub fn resource_drop(&mut self, ty: u32) -> u32 {
         self.canonical_functions().resource_drop(ty);
