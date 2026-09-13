@@ -102,6 +102,13 @@ Options:
           
           [possible values: true, false]
 
+      --emit-canonical-names
+          Emits canonical interface names with version suffixes.
+          
+          When enabled, import/export names use canonical version prefixes
+          (e.g., `wasi:cli/exit@0.2` instead of `wasi:cli/exit@0.2.1`) and the
+          `version_suffix` field is populated in the binary.
+
       --reject-legacy-names
           Reject usage of the "legacy" naming scheme of `wit-component` and
           require the new naming scheme to be used.

@@ -156,6 +156,13 @@ Options:
           This flag enables all `@unstable` features in WIT documents where the
           items are otherwise hidden by default.
 
+      --emit-canonical-names
+          Emits canonical interface names with version suffixes.
+          
+          When enabled, import/export names use canonical version prefixes
+          (e.g., `wasi:cli/exit@0.2` instead of `wasi:cli/exit@0.2.1`) and the
+          `version_suffix` field is populated in the binary.
+
   -h, --help
           Print help (see a summary with '-h')
 

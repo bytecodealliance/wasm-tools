@@ -27,6 +27,8 @@ Options:
           The expected string encoding format for the component
   -w, --world <WORLD>
           The world that the component uses
+      --emit-canonical-names
+          Emits canonical interface names with version suffixes
       --dummy
           Don't read a core wasm module as input, instead generating a "dummy"
           module as a placeholder

@@ -6,7 +6,9 @@ use wit_component::*;
 use wit_parser::{LiftLowerAbi, ManglingAndAbi, PackageId, Resolve};
 
 pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
-    let wasm = u.arbitrary().and_then(|config| {
+    let canonical_names = u.arbitrary()?;
+    let wasm = u.arbitrary().and_then(|mut config: wit_smith::Config| {
+        config.canonical_names = canonical_names;
         log::debug!("config: {config:#?}");
         wit_smith::smith(&config, u)
     })?;
@@ -17,7 +19,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     };
     resolve.assert_valid();
 
-    roundtrip_through_printing("doc1", &resolve, pkg, &wasm);
+    roundtrip_through_printing("doc1", &resolve, pkg, &wasm, canonical_names);
 
     let (resolve2, pkg2) = match wit_component::decode(&wasm).unwrap() {
         DecodedWasm::WitPackage(resolve, pkgs) => (resolve, pkgs),
@@ -25,9 +27,10 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     };
     resolve2.assert_valid();
 
-    let wasm2 = wit_component::encode(&resolve2, pkg2).expect("failed to encode WIT document");
+    let wasm2 = wit_component::encode(&resolve2, pkg2, canonical_names)
+        .expect("failed to encode WIT document");
     write_file("doc2.wasm", &wasm2);
-    roundtrip_through_printing("doc2", &resolve2, pkg2, &wasm2);
+    roundtrip_through_printing("doc2", &resolve2, pkg2, &wasm2, canonical_names);
 
     if wasm != wasm2 {
         panic!("roundtrip wasm didn't match");
@@ -62,8 +65,14 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
                 dummy = dst.finish();
             }
         }
-        wit_component::embed_component_metadata(&mut dummy, &resolve, id, StringEncoding::UTF8)
-            .unwrap();
+        wit_component::embed_component_metadata(
+            &mut dummy,
+            &resolve,
+            id,
+            StringEncoding::UTF8,
+            canonical_names,
+        )
+        .unwrap();
         write_file("dummy.wasm", &dummy);
 
         log::debug!("... componentizing the world into a binary component");
@@ -153,7 +162,13 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     Ok(())
 }
 
-fn roundtrip_through_printing(file: &str, resolve: &Resolve, pkg: PackageId, wasm: &[u8]) {
+fn roundtrip_through_printing(
+    file: &str,
+    resolve: &Resolve,
+    pkg: PackageId,
+    wasm: &[u8],
+    canonical_names: bool,
+) {
     // Print to a single string, using nested `package ... { .. }` statements,
     // and then parse that in a new `Resolve`.
     let mut new_resolve = Resolve::default();
@@ -173,7 +188,7 @@ fn roundtrip_through_printing(file: &str, resolve: &Resolve, pkg: PackageId, was
 
     // Finally encode the `new_resolve` which should be the exact same as
     // before.
-    let wasm2 = wit_component::encode(&new_resolve, new_pkg).unwrap();
+    let wasm2 = wit_component::encode(&new_resolve, new_pkg, canonical_names).unwrap();
     write_file(&format!("{file}-reencoded.wasm"), &wasm2);
     if wasm != wasm2 {
         panic!("failed to roundtrip through text printing");

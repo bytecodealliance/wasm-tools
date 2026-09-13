@@ -274,39 +274,46 @@ impl PackageName {
     /// determine whether two imports can be merged together. This is
     /// additionally used when creating components to match up imports in
     /// core wasm to imports in worlds.
-    pub fn version_compat_track(version: &Version) -> Version {
+    pub fn version_compat_track(version: &Version) -> (Version, String) {
         let mut version = version.clone();
+        let build = if version.build.is_empty() {
+            String::new()
+        } else {
+            format!("+{}", version.build)
+        };
         version.build = semver::BuildMetadata::EMPTY;
         if !version.pre.is_empty() {
-            return version;
+            return (version, build);
         }
         if version.major != 0 {
+            let suffix = format!(".{}.{}{}", version.minor, version.patch, build);
             version.minor = 0;
             version.patch = 0;
-            return version;
+            return (version, suffix);
         }
         if version.minor != 0 {
+            let suffix = format!(".{}{}", version.patch, build);
             version.patch = 0;
-            return version;
+            return (version, suffix);
         }
-        version
+        (version, build)
     }
 
     /// Returns the string corresponding to
     /// [`PackageName::version_compat_track`]. This is done to match the
     /// component model's expected naming scheme of imports and exports.
-    pub fn version_compat_track_string(version: &Version) -> String {
-        let version = Self::version_compat_track(version);
+    pub fn version_compat_track_string(version: &Version) -> (String, String) {
+        let (version, suffix) = Self::version_compat_track(version);
         if !version.pre.is_empty() {
-            return version.to_string();
+            return (version.to_string(), suffix);
         }
         if version.major != 0 {
-            return format!("{}", version.major);
+            return (format!("{}", version.major), suffix);
         }
         if version.minor != 0 {
-            return format!("{}.{}", version.major, version.minor);
+            return (format!("{}.{}", version.major, version.minor), suffix);
         }
-        version.to_string()
+        (version.to_string(), suffix)
     }
 }
 
@@ -1571,5 +1578,58 @@ mod test {
         assert_eq!(t0, found[0]);
         assert_eq!(t1, found[1]);
         assert_eq!(t2, found[2]);
+    }
+
+    #[test]
+    fn test_canon_version_split() {
+        use semver::Version;
+
+        let v = Version::parse("1.2.3").unwrap();
+        assert_eq!(
+            PackageName::version_compat_track_string(&v),
+            ("1".to_string(), ".2.3".to_string())
+        );
+
+        let v = Version::parse("101.201.301").unwrap();
+        assert_eq!(
+            PackageName::version_compat_track_string(&v),
+            ("101".to_string(), ".201.301".to_string())
+        );
+
+        let v = Version::parse("0.2.6-rc.1").unwrap();
+        assert_eq!(
+            PackageName::version_compat_track_string(&v),
+            ("0.2.6-rc.1".to_string(), "".to_string())
+        );
+
+        let v = Version::parse("0.10.0+build.1").unwrap();
+        assert_eq!(
+            PackageName::version_compat_track_string(&v),
+            ("0.10".to_string(), ".0+build.1".to_string())
+        );
+
+        let v = Version::parse("0.0.1-alpha+build.1").unwrap();
+        assert_eq!(
+            PackageName::version_compat_track_string(&v),
+            ("0.0.1-alpha".to_string(), "+build.1".to_string())
+        );
+
+        let v = Version::parse("0.0.0").unwrap();
+        assert_eq!(
+            PackageName::version_compat_track_string(&v),
+            ("0.0.0".to_string(), "".to_string())
+        );
+
+        let v = Version::parse("1.0.0-beta.1").unwrap();
+        assert_eq!(
+            PackageName::version_compat_track_string(&v),
+            ("1.0.0-beta.1".to_string(), "".to_string())
+        );
+
+        let v = Version::parse("0.0.100+build.1").unwrap();
+        assert_eq!(
+            PackageName::version_compat_track_string(&v),
+            ("0.0.100".to_string(), "+build.1".to_string())
+        );
     }
 }
