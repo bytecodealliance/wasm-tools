@@ -112,12 +112,15 @@ impl TryFrom<&FuncType> for FunctionType {
 
 fn validate_intrinsic_signature(
     types: &[FuncType],
-    type_index: u32,
-    module: &str,
-    name: &str,
+    import: wasmparser::Import<'_>,
     parameters: &[ValueType],
     results: &[ValueType],
 ) -> Result<()> {
+    let module = import.module;
+    let name = import.name;
+    let TypeRef::Func(type_index) = import.ty else {
+        bail!("unexpected type for {module}:{name}: {:?}", import.ty);
+    };
     let type_index = usize::try_from(type_index).context("function type index is too large")?;
     let ty = types.get(type_index).with_context(|| {
         format!("invalid function type index {type_index} for `{module}.{name}`")
@@ -484,9 +487,6 @@ impl<'a> Metadata<'a> {
                                 | self::GET_TLS_BASE
                                 | self::SET_TLS_BASE),
                             ) => {
-                                let TypeRef::Func(type_index) = import.ty else {
-                                    return type_error();
-                                };
                                 let (parameters, results) = match name {
                                     self::GET_STACK_POINTER | self::GET_TLS_BASE => {
                                         (&[][..], &[ValueType::I32][..])
@@ -496,14 +496,7 @@ impl<'a> Metadata<'a> {
                                     }
                                     _ => unreachable!(),
                                 };
-                                validate_intrinsic_signature(
-                                    &types,
-                                    type_index,
-                                    import.module,
-                                    name,
-                                    parameters,
-                                    results,
-                                )?;
+                                validate_intrinsic_signature(&types, import, parameters, results)?;
                                 match name {
                                     self::GET_TLS_BASE => result.needs_get_tls_base = true,
                                     self::SET_TLS_BASE => result.needs_set_tls_base = true,
@@ -576,14 +569,9 @@ impl<'a> Metadata<'a> {
                                 }
                             }
                             (self::ROOT, self::THREAD_NEW_INDIRECT) => {
-                                let TypeRef::Func(type_index) = import.ty else {
-                                    return type_error();
-                                };
                                 validate_intrinsic_signature(
                                     &types,
-                                    type_index,
-                                    import.module,
-                                    import.name,
+                                    import,
                                     &[ValueType::I32, ValueType::I32],
                                     &[ValueType::I32],
                                 )?;
