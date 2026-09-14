@@ -2,7 +2,7 @@
   (type $sig (;0;) (func))
   (type $sig-1 (;1;) (func))
   (type $sig-2 (;2;) (func (result i32)))
-  (type $sig-3 (;3;) (func (param i32)))
+  (type $sig-3 (;3;) (func (param $x i32)))
   (type $sig-4 (;4;) (func (param i32 f64 i32) (result i32)))
   (type $forward (;5;) (func))
   (type (;6;) (func (param i32 f64 i64)))

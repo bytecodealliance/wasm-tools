@@ -1,6 +1,6 @@
 (module
   (type $t1 (;0;) (func (param f32 f32)))
-  (type $t2 (;1;) (func (param f32 f32)))
+  (type $t2 (;1;) (func (param $x f32) (param $y f32)))
   (type (;2;) (func))
   (table (;0;) 2 2 funcref)
   (export "run" (func 2))

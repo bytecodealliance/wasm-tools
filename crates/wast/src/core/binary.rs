@@ -1014,6 +1014,8 @@ struct Names<'a> {
     elems: Vec<(u32, &'a str)>,
     elem_idx: u32,
     fields: Vec<(u32, Vec<(u32, &'a str)>)>,
+    parameters: Vec<(u32, Vec<(u32, &'a str)>)>,
+    tag_parameters: Vec<(u32, Vec<(u32, &'a str)>)>,
 }
 
 fn find_names<'a>(
@@ -1045,7 +1047,9 @@ fn find_names<'a>(
 
     enum ExtraNames<'a, 'b> {
         Func(&'a Func<'b>),
+        FuncType(&'a FunctionType<'b>),
         Type(&'a Type<'b>),
+        Tag(&'a Tag<'b>),
     }
 
     let mut ret = Names::default();
@@ -1056,14 +1060,16 @@ fn find_names<'a>(
         let (kind, id, name) = match field {
             ModuleField::Import(imports) => {
                 for sig in imports.item_sigs() {
-                    let name = match sig.kind {
-                        ItemKind::Func(_) | ItemKind::FuncExact(_) => Name::Func,
-                        ItemKind::Table(_) => Name::Table,
-                        ItemKind::Memory(_) => Name::Memory,
-                        ItemKind::Global(_) => Name::Global,
-                        ItemKind::Tag(_) => Name::Tag,
+                    let (name, extra) = match &sig.kind {
+                        ItemKind::Func(f) | ItemKind::FuncExact(f) => {
+                            (Name::Func, f.inline.as_ref().map(ExtraNames::FuncType))
+                        }
+                        ItemKind::Table(_) => (Name::Table, None),
+                        ItemKind::Memory(_) => (Name::Memory, None),
+                        ItemKind::Global(_) => (Name::Global, None),
+                        ItemKind::Tag(_) => (Name::Tag, None),
                     };
-                    names.push((name, &sig.id, &sig.name, None));
+                    names.push((name, &sig.id, &sig.name, extra));
                 }
                 continue;
             }
@@ -1086,6 +1092,7 @@ fn find_names<'a>(
         let extra = match field {
             ModuleField::Func(f) => Some(ExtraNames::Func(f)),
             ModuleField::Type(t) => Some(ExtraNames::Type(t)),
+            ModuleField::Tag(t) => Some(ExtraNames::Tag(t)),
             _ => None,
         };
         names.push((kind, id, name, extra));
@@ -1183,11 +1190,31 @@ fn find_names<'a>(
                 }
             }
 
+            Some(ExtraNames::FuncType(ty)) => {
+                let mut local_names = Vec::new();
+                for (i, (id, name, _)) in ty.params.iter().enumerate() {
+                    if let Some(name) = get_name(id, name) {
+                        local_names.push((i as u32, name));
+                    }
+                }
+                if local_names.len() > 0 {
+                    ret.locals.push((*idx, local_names));
+                }
+            }
+
             // Handle struct fields separately from above
             Some(ExtraNames::Type(ty)) => {
                 let mut field_names = vec![];
+                let mut parameters = vec![];
                 match &ty.def.kind {
-                    InnerTypeKind::Func(_) | InnerTypeKind::Array(_) | InnerTypeKind::Cont(_) => {}
+                    InnerTypeKind::Func(f) => {
+                        for (i, (id, name, _)) in f.params.iter().enumerate() {
+                            if let Some(name) = get_name(id, name) {
+                                parameters.push((i as u32, name))
+                            }
+                        }
+                    }
+                    InnerTypeKind::Array(_) | InnerTypeKind::Cont(_) => {}
                     InnerTypeKind::Struct(ty_struct) => {
                         for (idx, field) in ty_struct.fields.iter().enumerate() {
                             if let Some(name) = get_name(&field.id, &field.name) {
@@ -1198,6 +1225,24 @@ fn find_names<'a>(
                 }
                 if field_names.len() > 0 {
                     ret.fields.push((*idx, field_names))
+                }
+                if parameters.len() > 0 {
+                    ret.parameters.push((*idx, parameters))
+                }
+            }
+
+            Some(ExtraNames::Tag(ty)) => {
+                let mut tag_parameters = vec![];
+                let TagType::Exception(ty) = &ty.ty;
+                if let Some(f) = &ty.inline {
+                    for (i, (id, name, _)) in f.params.iter().enumerate() {
+                        if let Some(name) = get_name(id, name) {
+                            tag_parameters.push((i as u32, name))
+                        }
+                    }
+                }
+                if tag_parameters.len() > 0 {
+                    ret.tag_parameters.push((*idx, tag_parameters))
                 }
             }
 
@@ -1224,6 +1269,8 @@ impl Names<'_> {
             && self.data.is_empty()
             && self.fields.is_empty()
             && self.tags.is_empty()
+            && self.parameters.is_empty()
+            && self.tag_parameters.is_empty()
     }
 }
 
@@ -1288,6 +1335,12 @@ impl Names<'_> {
         }
         if let Some(map) = name_map(&self.tags) {
             names.tags(&map);
+        }
+        if let Some(map) = indirect_name_map(&self.parameters) {
+            names.parameters(&map);
+        }
+        if let Some(map) = indirect_name_map(&self.tag_parameters) {
+            names.tag_parameters(&map);
         }
         names
     }

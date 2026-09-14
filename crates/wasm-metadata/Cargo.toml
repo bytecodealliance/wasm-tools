@@ -19,7 +19,7 @@ serde_derive = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 spdx = { workspace = true, optional = true }
 url = { workspace = true, optional = true }
-wasm-encoder = { workspace = true, features = ['std', 'component-model'] }
+wasm-encoder = { workspace = true, features = ['std', 'component-model', 'wasmparser'] }
 wasmparser = { workspace = true, features = ['std', 'component-model', 'hash-collections'] }
 auditable-serde = { version = "0.9.0", optional = true }
 flate2 = { version = "1.1.0", optional = true }

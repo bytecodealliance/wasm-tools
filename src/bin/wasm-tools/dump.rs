@@ -719,6 +719,8 @@ impl<'a> Dump<'a> {
             Name::Data(n) => self.print_name_map("data", n)?,
             Name::Field(n) => self.print_indirect_name_map("type", "field", n)?,
             Name::Tag(n) => self.print_name_map("tag", n)?,
+            Name::Parameter(n) => self.print_indirect_name_map("func", "param", n)?,
+            Name::TagParameter(n) => self.print_indirect_name_map("tag", "param", n)?,
             Name::Unknown { ty, range, .. } => {
                 write!(self.state, "unknown names: {ty}")?;
                 self.print(range.start)?;
