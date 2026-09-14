@@ -4663,7 +4663,7 @@ impl ComponentNameContext {
             }
         }
 
-        if let Some(_) = version_suffix {
+        if let Some(suffix) = version_suffix {
             require_feature::cm_canon_names(
                 *features,
                 "the `cm-canon-names` feature is not active",
@@ -4672,6 +4672,9 @@ impl ComponentNameContext {
             match ty {
                 ComponentEntityType::Instance(_) => {}
                 _ => bail!(offset, "only instances can have an `versionsuffix`"),
+            }
+            if suffix.is_empty() {
+                bail!(offset, "version suffix cannot be empty");
             }
         }
 

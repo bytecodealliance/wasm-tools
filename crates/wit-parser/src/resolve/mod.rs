@@ -1572,7 +1572,7 @@ impl Resolve {
         let pkg = self.interfaces[id].package?;
         let version = self.packages[pkg].name.version.as_ref()?;
         let (_, suffix) = PackageName::version_compat_track(version);
-        Some(suffix)
+        suffix
     }
 
     /// Returns the component model `version-suffix` value for the world import of
