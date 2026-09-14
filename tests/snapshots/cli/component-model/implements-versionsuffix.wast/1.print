@@ -1,0 +1,6 @@
+(component
+  (type (;0;)
+    (instance)
+  )
+  (import "my-label" (implements "a:b/c@1") (versionsuffix ".2.3") (instance (;0;) (type 0)))
+)

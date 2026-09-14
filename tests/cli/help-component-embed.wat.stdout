@@ -94,6 +94,13 @@ Options:
           such as `wasi:http/proxy` which can select a world from a WIT
           dependency as well.
 
+      --emit-canonical-names
+          Emits canonical interface names with version suffixes.
+          
+          When enabled, import/export names use canonical version prefixes
+          (e.g., `wasi:cli/exit@0.2` instead of `wasi:cli/exit@0.2.1`) and the
+          `version_suffix` field is populated in the binary.
+
       --dummy
           Don't read a core wasm module as input, instead generating a "dummy"
           module as a placeholder.

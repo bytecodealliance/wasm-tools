@@ -33,6 +33,8 @@ pub struct Config {
     pub world_include: bool,
     #[cfg_attr(feature = "clap", clap(long, default_value_t = Config::default().implements))]
     pub implements: bool,
+    #[cfg_attr(feature = "clap", clap(long, default_value_t = Config::default().canonical_names))]
+    pub canonical_names: bool,
 }
 
 impl Default for Config {
@@ -53,6 +55,7 @@ impl Default for Config {
             fixed_length_lists: false,
             world_include: false,
             implements: false,
+            canonical_names: false,
         }
     }
 }
@@ -75,6 +78,7 @@ impl Arbitrary<'_> for Config {
             fixed_length_lists: u.arbitrary()?,
             world_include: false,
             implements: u.arbitrary()?,
+            canonical_names: u.arbitrary()?,
         })
     }
 }

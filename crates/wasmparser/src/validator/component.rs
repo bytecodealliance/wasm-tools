@@ -4660,6 +4660,21 @@ impl ComponentNameContext {
             }
         }
 
+        if let Some(suffix) = version_suffix {
+            require_feature::cm_canon_names(
+                *features,
+                "the `cm-canon-names` feature is not active",
+                offset,
+            )?;
+            match ty {
+                ComponentEntityType::Instance(_) => {}
+                _ => bail!(offset, "only instances can have an `versionsuffix`"),
+            }
+            if suffix.is_empty() {
+                bail!(offset, "version suffix cannot be empty");
+            }
+        }
+
         if let Some(implements) = implements {
             require_feature::cm_implements(
                 *features,
@@ -4679,20 +4694,12 @@ impl ComponentNameContext {
             let implements = ComponentName::new_with_features(implements, offset, *features)
                 .with_context(|| format!("`{implements}` is not a valid name"))?;
             match implements.kind() {
-                ComponentNameKind::Interface(_) => {}
+                ComponentNameKind::Interface(iface) => {
+                    if let Err(e) = iface.version(version_suffix) {
+                        bail!(offset, "invalid interface version: {e}");
+                    }
+                }
                 _ => bail!(offset, "name `{implements}` must be an interface"),
-            }
-        }
-
-        if let Some(_) = version_suffix {
-            require_feature::cm_canon_names(
-                *features,
-                "the `cm-canon-names` feature is not active",
-                offset,
-            )?;
-            match ty {
-                ComponentEntityType::Instance(_) => {}
-                _ => bail!(offset, "only instances can have an `versionsuffix`"),
             }
         }
 

@@ -45,6 +45,10 @@ pub struct Opts {
 
     #[clap(flatten)]
     dylib_opts: wit_dylib::DylibOpts,
+
+    /// Emits canonical interface names with version suffixes.
+    #[clap(long)]
+    emit_canonical_names: bool,
 }
 
 impl Opts {
@@ -64,6 +68,7 @@ impl Opts {
             &resolve,
             world,
             self.encoding.unwrap_or(StringEncoding::UTF8),
+            self.emit_canonical_names,
         )?;
 
         if self.validate {

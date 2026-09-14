@@ -160,6 +160,7 @@ fn encode(wat: &str, wit: Option<&str>) -> Result<Vec<u8>> {
             &resolve,
             world,
             StringEncoding::UTF8,
+            true,
         )?;
     }
 
