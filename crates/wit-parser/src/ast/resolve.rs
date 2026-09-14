@@ -7,6 +7,7 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::{format, vec};
 use core::mem;
+use wasmparser::names::{ComponentName, ComponentNameKind};
 
 #[derive(Default)]
 pub struct Resolver<'a> {
@@ -623,9 +624,14 @@ impl<'a> Resolver<'a> {
             self.resolve_include(world_id, include)?;
         }
 
+        // The imports and exports of a world must each be strongly unique.
+        let mut import_names = NameScope::default();
+        let mut export_names = NameScope::default();
+
         for (name, (item, span)) in self.type_lookup.iter() {
             match *item {
                 TypeOrItem::Type(id) => {
+                    import_names.define(name, *span)?;
                     let prev = self.worlds[world_id].imports.insert(
                         WorldKey::Name(name.to_string()),
                         WorldItem::Type { id, span: *span },
@@ -666,7 +672,9 @@ impl<'a> Resolver<'a> {
                     ..
                 }) => {
                     for func in r.funcs.iter() {
+                        let span = func.named_func().name.span;
                         let func = self.resolve_resource_func(func, name)?;
+                        import_names.define(&func.name, span)?;
                         let prev = self.worlds[world_id]
                             .imports
                             .insert(WorldKey::Name(func.name.clone()), WorldItem::Function(func));
@@ -738,8 +746,25 @@ impl<'a> Resolver<'a> {
                     format!("{desc} `{name}` conflicts with prior {prev} of same name",),
                 ));
             }
+
+            // Check that names are strongly unique. This is somewhat redundant
+            // with the checks above, which are exact instead of using strong
+            // uniqueness, but it's nice to have WIT-oriented error messages
+            // for the most common kinds of name collisions.
+            if let WorldKey::Name(name) = &key {
+                let names = if desc == "import" {
+                    &mut import_names
+                } else {
+                    &mut export_names
+                };
+                names.define(name, kind.span())?;
+            }
         }
         self.type_lookup.clear();
+
+        // Getter/setter pairing is checked in `process_world_includes`, rather
+        // than here with all the other uniqueness etc. conditions, because
+        // includes need to be resolved first.
 
         Ok(world_id)
     }
@@ -795,18 +820,9 @@ impl<'a> Resolver<'a> {
                 })
             }
             ast::ExternKind::Func(name, func) => {
-                let func = self.resolve_function(
-                    docs,
-                    attrs,
-                    &name.name,
-                    name.span,
-                    func,
-                    if func.async_ {
-                        FunctionKind::AsyncFreestanding
-                    } else {
-                        FunctionKind::Freestanding
-                    },
-                )?;
+                let (mangled_name, kind) = freestanding_func(name.name, func);
+                let func =
+                    self.resolve_function(docs, attrs, &mangled_name, name.span, func, kind)?;
                 Ok(WorldItem::Function(func))
             }
         }
@@ -833,9 +849,13 @@ impl<'a> Resolver<'a> {
             }),
         )?;
 
-        for (name, (ty, _)) in self.type_lookup.iter() {
+        // All names in an interface must be strongly unique.
+        let mut names = NameScope::default();
+
+        for (name, (ty, span)) in self.type_lookup.iter() {
             match *ty {
                 TypeOrItem::Type(id) => {
+                    names.define(name, *span)?;
                     self.interfaces[interface_id]
                         .types
                         .insert(name.to_string(), id);
@@ -850,19 +870,22 @@ impl<'a> Resolver<'a> {
         for field in fields {
             match field {
                 ast::InterfaceItem::Func(f) => {
-                    self.define_interface_name(&f.name, TypeOrItem::Item("function"))?;
-                    funcs.push(self.resolve_function(
+                    // Record that this name is a function so that attempts to
+                    // reference it as a type produce a helpful error.
+                    self.type_lookup
+                        .entry(f.name.name)
+                        .or_insert((TypeOrItem::Item("function"), f.name.span));
+                    let (name, kind) = freestanding_func(f.name.name, &f.func);
+                    let func = self.resolve_function(
                         &f.docs,
                         &f.attributes,
-                        &f.name.name,
+                        &name,
                         f.name.span,
                         &f.func,
-                        if f.func.async_ {
-                            FunctionKind::AsyncFreestanding
-                        } else {
-                            FunctionKind::Freestanding
-                        },
-                    )?);
+                        kind,
+                    )?;
+                    names.define(&func.name, f.name.span)?;
+                    funcs.push(func);
                 }
                 ast::InterfaceItem::Use(_) => {}
                 ast::InterfaceItem::TypeDef(ast::TypeDef {
@@ -871,18 +894,23 @@ impl<'a> Resolver<'a> {
                     ..
                 }) => {
                     for func in r.funcs.iter() {
-                        funcs.push(self.resolve_resource_func(func, name)?);
+                        let span = func.named_func().name.span;
+                        let func = self.resolve_resource_func(func, name)?;
+                        names.define(&func.name, span)?;
+                        funcs.push(func);
                     }
                 }
                 ast::InterfaceItem::TypeDef(_) => {}
             }
         }
+        names.check_setters()?;
         for func in funcs {
             let prev = self.interfaces[interface_id]
                 .functions
                 .insert(func.name.clone(), func);
             assert!(prev.is_none());
         }
+        place_setters_after_getters(&mut self.interfaces[interface_id].functions, |f| Some(f));
 
         let lookup = mem::take(&mut self.type_lookup);
         self.interface_types[interface_id.index()] = lookup;
@@ -1055,22 +1083,46 @@ impl<'a> Resolver<'a> {
         let named_func = func.named_func();
         let async_ = named_func.func.async_;
         match func {
-            ast::ResourceFunc::Method(f) => {
-                name = format!("[method]{}.{}", resource.name, f.name.name);
-                kind = if async_ {
-                    FunctionKind::AsyncMethod(resource_id)
-                } else {
-                    FunctionKind::Method(resource_id)
-                };
-            }
-            ast::ResourceFunc::Static(f) => {
-                name = format!("[static]{}.{}", resource.name, f.name.name);
-                kind = if async_ {
-                    FunctionKind::AsyncStatic(resource_id)
-                } else {
-                    FunctionKind::Static(resource_id)
-                };
-            }
+            ast::ResourceFunc::Method(f) => match f.func.accessor {
+                None => {
+                    name = format!("[method]{}.{}", resource.name, f.name.name);
+                    kind = if async_ {
+                        FunctionKind::AsyncMethod(resource_id)
+                    } else {
+                        FunctionKind::Method(resource_id)
+                    };
+                }
+                Some(AccessorKind::Getter) => {
+                    assert!(!async_);
+                    name = format!("[method][get]{}.{}", resource.name, f.name.name);
+                    kind = FunctionKind::MethodGetter(resource_id);
+                }
+                Some(AccessorKind::Setter) => {
+                    assert!(!async_);
+                    name = format!("[method][set]{}.{}", resource.name, f.name.name);
+                    kind = FunctionKind::MethodSetter(resource_id);
+                }
+            },
+            ast::ResourceFunc::Static(f) => match f.func.accessor {
+                None => {
+                    name = format!("[static]{}.{}", resource.name, f.name.name);
+                    kind = if async_ {
+                        FunctionKind::AsyncStatic(resource_id)
+                    } else {
+                        FunctionKind::Static(resource_id)
+                    };
+                }
+                Some(AccessorKind::Getter) => {
+                    assert!(!async_);
+                    name = format!("[static][get]{}.{}", resource.name, f.name.name);
+                    kind = FunctionKind::StaticGetter(resource_id);
+                }
+                Some(AccessorKind::Setter) => {
+                    assert!(!async_);
+                    name = format!("[static][set]{}.{}", resource.name, f.name.name);
+                    kind = FunctionKind::StaticSetter(resource_id);
+                }
+            },
             ast::ResourceFunc::Constructor(_) => {
                 assert!(!async_); // should not be possible to parse
                 name = format!("[constructor]{}", resource.name);
@@ -1249,35 +1301,7 @@ impl<'a> Resolver<'a> {
                     Handle::Borrow(self.validate_resource(resource)?)
                 }
             }),
-            ast::Type::Resource(resource) => {
-                // Validate here that the resource doesn't have any duplicate-ly
-                // named methods and that there's at most one constructor.
-                let mut ctors = 0;
-                let mut names = HashSet::new();
-                for func in resource.funcs.iter() {
-                    match func {
-                        ast::ResourceFunc::Method(f) | ast::ResourceFunc::Static(f) => {
-                            if !names.insert(&f.name.name) {
-                                return Err(ParseError::new_syntax(
-                                    f.name.span,
-                                    format!("duplicate function name `{}`", f.name.name),
-                                ));
-                            }
-                        }
-                        ast::ResourceFunc::Constructor(f) => {
-                            ctors += 1;
-                            if ctors > 1 {
-                                return Err(ParseError::new_syntax(
-                                    f.name.span,
-                                    "duplicate constructors".to_owned(),
-                                ));
-                            }
-                        }
-                    }
-                }
-
-                TypeDefKind::Resource
-            }
+            ast::Type::Resource(_) => TypeDefKind::Resource,
             ast::Type::Record(record) => {
                 let fields = record
                     .fields
@@ -1701,11 +1725,18 @@ impl<'a> Resolver<'a> {
             | FunctionKind::AsyncFreestanding
             | FunctionKind::Constructor(_)
             | FunctionKind::Static(_)
-            | FunctionKind::AsyncStatic(_) => {}
+            | FunctionKind::AsyncStatic(_)
+            | FunctionKind::Getter
+            | FunctionKind::Setter
+            | FunctionKind::StaticGetter(_)
+            | FunctionKind::StaticSetter(_) => {}
 
             // Methods automatically get a `self` initial argument so insert
             // that here before processing the normal parameters.
-            FunctionKind::Method(id) | FunctionKind::AsyncMethod(id) => {
+            FunctionKind::Method(id)
+            | FunctionKind::AsyncMethod(id)
+            | FunctionKind::MethodGetter(id)
+            | FunctionKind::MethodSetter(id) => {
                 let kind = TypeDefKind::Handle(Handle::Borrow(id));
                 let stability = self.find_stability(&kind, &Stability::Unknown);
                 let shared = self.anon_type_def(TypeDef {
@@ -1724,6 +1755,27 @@ impl<'a> Resolver<'a> {
                 });
             }
         }
+
+        match kind.accessor() {
+            Some(AccessorKind::Getter) => {
+                if let Some((name, _)) = params.first() {
+                    return Err(ParseError::new_syntax(
+                        name.span,
+                        "getters cannot have parameters".to_owned(),
+                    ));
+                }
+            }
+            Some(AccessorKind::Setter) => {
+                if params.len() != 1 {
+                    return Err(ParseError::new_syntax(
+                        params.get(1).map(|(name, _)| name.span).unwrap_or(span),
+                        "setters must have exactly one parameter".to_owned(),
+                    ));
+                }
+            }
+            None => {}
+        }
+
         for (name, ty) in params {
             if ret.iter().any(|p| p.name == name.name) {
                 return Err(ParseError::new_syntax(
@@ -1744,7 +1796,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         result: &Option<ast::Type<'_>>,
         kind: &FunctionKind,
-        _span: Span,
+        span: Span,
     ) -> ParseResult<Option<Type>> {
         match *kind {
             // These kinds of methods don't have any adjustments to the return
@@ -1757,6 +1809,38 @@ impl<'a> Resolver<'a> {
             | FunctionKind::AsyncStatic(_) => match result {
                 Some(ty) => Ok(Some(self.resolve_type(ty, &Stability::Unknown)?)),
                 None => Ok(None),
+            },
+
+            // Getters must return a value.
+            FunctionKind::Getter
+            | FunctionKind::MethodGetter(_)
+            | FunctionKind::StaticGetter(_) => match result {
+                Some(ty) => Ok(Some(self.resolve_type(ty, &Stability::Unknown)?)),
+                None => Err(ParseError::new_syntax(
+                    span,
+                    "getters must return a value".to_owned(),
+                )),
+            },
+
+            // Setters must either return nothing or `result<_, error?>`.
+            FunctionKind::Setter
+            | FunctionKind::MethodSetter(_)
+            | FunctionKind::StaticSetter(_) => match result {
+                None => Ok(None),
+                Some(ty) => {
+                    let resolved = self.resolve_type(ty, &Stability::Unknown)?;
+                    if let Type::Id(id) = resolved
+                        && let TypeDefKind::Result(r) = &self.types[id].kind
+                        && r.ok.is_none()
+                    {
+                        Ok(Some(resolved))
+                    } else {
+                        Err(ParseError::new_syntax(
+                            ty.span(),
+                            "if a setter return type is declared it must be a `result` with no `ok` type".to_owned(),
+                        ))
+                    }
+                }
             },
 
             FunctionKind::Constructor(id) => match result {
@@ -1807,6 +1891,94 @@ impl<'a> Resolver<'a> {
                 ));
             }
         }
+    }
+}
+
+/// Computes the mangled name and [`FunctionKind`] of a function which is not
+/// attached to a resource.
+fn freestanding_func(name: &str, func: &ast::Func<'_>) -> (String, FunctionKind) {
+    match func.accessor {
+        None => (
+            name.to_string(),
+            if func.async_ {
+                FunctionKind::AsyncFreestanding
+            } else {
+                FunctionKind::Freestanding
+            },
+        ),
+        Some(AccessorKind::Getter) => {
+            assert!(!func.async_);
+            (format!("[get]{name}"), FunctionKind::Getter)
+        }
+        Some(AccessorKind::Setter) => {
+            assert!(!func.async_);
+            (format!("[set]{name}"), FunctionKind::Setter)
+        }
+    }
+}
+
+/// A container for names in a single scope of a component, used to check
+/// strong uniqueness. A scope in WIT is an interface, or a world's imports
+/// or exports.
+///
+/// Also used to check other naming-related conditions like a matching getter
+/// for every setter.
+#[derive(Default)]
+struct NameScope {
+    /// All names in this scope, keyed by their canonicalized form.
+    names: IndexMap<ComponentName, Span>,
+    /// All names in this scope exactly as written.
+    raw_names: HashSet<String>,
+}
+
+impl NameScope {
+    /// Defines an already-mangled component name in this scope. Returns an
+    /// error if `name` is not strongly unique with all other names already in
+    /// the scope.
+    fn define(&mut self, name: &str, span: Span) -> ParseResult<()> {
+        let component_name = crate::parse_component_name(name).map_err(|e| {
+            ParseError::new_syntax(
+                span,
+                format!(
+                    "name `{name}` is not a valid component name: {}",
+                    e.message()
+                ),
+            )
+        })?;
+        if let Some((prev, _)) = self.names.get_key_value(&component_name) {
+            return Err(ParseError::new_syntax(
+                span,
+                if prev.as_str() == name {
+                    format!("duplicate name `{name}`")
+                } else {
+                    format!("name `{name}` conflicts with previous name `{prev}`")
+                },
+            ));
+        }
+        self.names.insert(component_name, span);
+        self.raw_names.insert(name.to_string());
+        Ok(())
+    }
+
+    /// Validate that every setter in this scope has a corresponding getter.
+    fn check_setters(&self) -> ParseResult<()> {
+        use wasmparser::names::AccessorKind as AK;
+
+        for (name, span) in self.names.iter() {
+            let ComponentNameKind::Plain(plain) = name.kind() else {
+                continue;
+            };
+            if plain.accessor == Some(AK::Set) {
+                let getter = plain.getter_for_setter();
+                if !self.raw_names.contains(&getter) {
+                    return Err(ParseError::new_syntax(
+                        *span,
+                        format!("setter `{name}` has no corresponding getter `{getter}`"),
+                    ));
+                }
+            }
+        }
+        Ok(())
     }
 }
 

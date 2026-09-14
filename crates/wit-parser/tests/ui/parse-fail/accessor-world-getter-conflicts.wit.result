@@ -1,0 +1,5 @@
+name `[get]prop` conflicts with previous name `prop`
+     --> tests/ui/parse-fail/accessor-world-getter-conflicts.wit:7:10
+      |
+    7 |   import prop: get() -> u32;
+      |          ^---

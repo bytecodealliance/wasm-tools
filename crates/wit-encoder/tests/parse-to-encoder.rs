@@ -28,6 +28,10 @@ interface %interface {
     constructor();
     method: func(arg: list<u32>) -> char;
     static-method: static func(arg: tuple<u32, u32>) -> list<u32>;
+    position: get() -> u64;
+    position: set(value: u64);
+    max-size: static get() -> u64;
+    max-size: static set(value: u64) -> result<_, string>;
   }
   record some-record {
     optional: option<string>,
@@ -53,6 +57,8 @@ interface %interface {
     empty-case,
     valued-case(u32),
   }
+  prop: get() -> u32;
+  prop: set(value: u32);
   standalone-func: func(a: u32, b: s32) -> f32;
 }
 

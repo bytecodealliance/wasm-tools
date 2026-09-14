@@ -1,0 +1,10 @@
+// parse-fail
+
+package foo:foo;
+
+interface foo {
+  resource blob {
+    max-size: func() -> u64;
+    maxsize: get() -> u64;
+  }
+}

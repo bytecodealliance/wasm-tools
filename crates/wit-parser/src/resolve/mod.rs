@@ -3430,15 +3430,21 @@ fn apply_map<T>(map: &[Option<Id<T>>], id: Id<T>, desc: &str, span: Span) -> Res
 }
 
 fn rename(original_name: &str, include_name: &IncludeName) -> Option<String> {
-    if original_name == include_name.name {
-        return Some(include_name.as_.to_string());
+    // Strip all leading `[...]` annotations.
+    let mut prefix_len = 0;
+    while original_name[prefix_len..].starts_with('[') {
+        let close = original_name[prefix_len..].find(']')?;
+        prefix_len += close + 1;
     }
-    let (kind, rest) = original_name.split_once(']')?;
+    let (prefix, rest) = original_name.split_at(prefix_len);
+
     match rest.split_once('.') {
-        Some((name, rest)) if name == include_name.name => {
-            Some(format!("{kind}]{}.{rest}", include_name.as_))
+        // Rename just the resource portion.
+        Some((resource, func)) if resource == include_name.name => {
+            Some(format!("{prefix}{}.{func}", include_name.as_))
         }
-        _ if rest == include_name.name => Some(format!("{kind}]{}", include_name.as_)),
+        // Rename the whole label.
+        None if rest == include_name.name => Some(format!("{prefix}{}", include_name.as_)),
         _ => None,
     }
 }
@@ -4163,52 +4169,76 @@ impl Remap {
             )?;
         }
 
-        // Validate that there are no case-insensitive duplicate names in imports/exports
-        Self::validate_world_case_insensitive_names(resolve, id)?;
+        // Validate that all names in the imports/exports are still strongly unique.
+        Self::validate_world_strongly_unique_names(resolve, id)?;
+
+        // Every setter must have a corresponding getter. This is checked here
+        // rather than at parse time since it's possible for a getter to come
+        // from an included WIT world.
+        let world = &mut resolve.worlds[id];
+        place_setters_after_getters(&mut world.imports, world_item_func);
+        place_setters_after_getters(&mut world.exports, world_item_func);
+        for (items, item_type) in [(&world.imports, "import"), (&world.exports, "export")] {
+            for item in items.values() {
+                if let Some(f) = world_item_func(item)
+                    && f.kind.accessor() == Some(AccessorKind::Setter)
+                {
+                    let getter = f.name.replacen("[set]", "[get]", 1);
+                    if !items.contains_key(&WorldKey::Name(getter.clone())) {
+                        return Err(ResolveError::new_semantic(
+                            item.span(),
+                            format!(
+                                "{item_type} `{}` in world `{}` has no corresponding getter `{getter}`",
+                                f.name, world.name,
+                            ),
+                        ));
+                    }
+                }
+            }
+        }
 
         Ok(())
     }
 
-    /// Validates that a world's imports and exports don't have case-insensitive
-    /// duplicate names. Per the WIT specification, kebab-case identifiers are
-    /// case-insensitive within the same scope.
-    fn validate_world_case_insensitive_names(
+    /// Validates that a world's imports and exports are each strongly unique.
+    fn validate_world_strongly_unique_names(
         resolve: &Resolve,
         world_id: WorldId,
     ) -> ResolveResult<()> {
+        use wasmparser::names::ComponentName;
+
         let world = &resolve.worlds[world_id];
 
-        // Helper closure to check for case-insensitive duplicates in a map
         let validate_names =
             |items: &IndexMap<WorldKey, WorldItem>, item_type: &str| -> ResolveResult<()> {
-                let mut seen_lowercase: HashMap<String, String> = HashMap::new();
+                let mut seen: HashMap<ComponentName, &str> = HashMap::new();
 
                 for key in items.keys() {
-                    // Only WorldKey::Name variants can have case-insensitive conflicts
-                    if let WorldKey::Name(name) = key {
-                        let lowercase_name = name.to_lowercase();
+                    // Only `WorldKey::Name` variants can conflict with each
+                    // other here because interfaces are keyed by ID.
+                    let WorldKey::Name(name) = key else {
+                        continue;
+                    };
+                    let Ok(component_name) = crate::parse_component_name(name) else {
+                        continue;
+                    };
 
-                        if let Some(existing_name) = seen_lowercase.get(&lowercase_name) {
-                            // Only error on case-insensitive duplicates (e.g., "foo" vs "FOO").
-                            // Exact duplicates would have been caught earlier.
-                            if existing_name != name {
-                                // TODO: `WorldKey::Name` does not carry a `Span`, so we
-                                // cannot point at the conflicting item. Add a span to
-                                // `WorldKey::Name` to improve this error.
-                                return Err(ResolveError::new_semantic(
-                                    Span::default(),
-                                    format!(
-                                        "{item_type} `{name}` in world `{}` conflicts with \
-                                     {item_type} `{existing_name}` \
-                                     (kebab-case identifiers are case-insensitive)",
-                                        world.name,
-                                    ),
-                                ));
-                            }
-                        }
-
-                        seen_lowercase.insert(lowercase_name, name.clone());
+                    if let Some(existing_name) = seen.get(&component_name) {
+                        // TODO: `WorldKey::Name` does not carry a `Span`, so we
+                        // cannot point at the conflicting item. Add a span to
+                        // `WorldKey::Name` to improve this error.
+                        return Err(ResolveError::new_semantic(
+                            Span::default(),
+                            format!(
+                                "{item_type} `{name}` in world `{}` conflicts with \
+                                 {item_type} `{existing_name}` \
+                                 (names must be strongly unique)",
+                                world.name,
+                            ),
+                        ));
                     }
+
+                    seen.insert(component_name, name);
                 }
 
                 Ok(())
@@ -4635,11 +4665,17 @@ impl<'a> MergeMap<'a> {
         match (&from_func.kind, &into_func.kind) {
             (FunctionKind::Freestanding, FunctionKind::Freestanding) => {}
             (FunctionKind::AsyncFreestanding, FunctionKind::AsyncFreestanding) => {}
+            (FunctionKind::Getter, FunctionKind::Getter) => {}
+            (FunctionKind::Setter, FunctionKind::Setter) => {}
 
             (FunctionKind::Method(from), FunctionKind::Method(into))
             | (FunctionKind::Static(from), FunctionKind::Static(into))
             | (FunctionKind::AsyncMethod(from), FunctionKind::AsyncMethod(into))
             | (FunctionKind::AsyncStatic(from), FunctionKind::AsyncStatic(into))
+            | (FunctionKind::MethodGetter(from), FunctionKind::MethodGetter(into))
+            | (FunctionKind::MethodSetter(from), FunctionKind::MethodSetter(into))
+            | (FunctionKind::StaticGetter(from), FunctionKind::StaticGetter(into))
+            | (FunctionKind::StaticSetter(from), FunctionKind::StaticSetter(into))
             | (FunctionKind::Constructor(from), FunctionKind::Constructor(into)) => {
                 self.build_type_id(*from, *into)
                     .context("different function kind types")?;
@@ -4651,7 +4687,13 @@ impl<'a> MergeMap<'a> {
             | (FunctionKind::Freestanding, _)
             | (FunctionKind::AsyncFreestanding, _)
             | (FunctionKind::AsyncMethod(_), _)
-            | (FunctionKind::AsyncStatic(_), _) => {
+            | (FunctionKind::AsyncStatic(_), _)
+            | (FunctionKind::Getter, _)
+            | (FunctionKind::Setter, _)
+            | (FunctionKind::MethodGetter(_), _)
+            | (FunctionKind::MethodSetter(_), _)
+            | (FunctionKind::StaticGetter(_), _)
+            | (FunctionKind::StaticSetter(_), _) => {
                 bail!("different function kind types")
             }
         }
@@ -6073,6 +6115,55 @@ interface iface {
             );
         }
 
+        Ok(())
+    }
+
+    #[test]
+    fn include_with_renames_resource_accessors() -> Result<()> {
+        let mut resolve = Resolve::default();
+        let pkg = resolve.push_str(
+            "test.wit",
+            r#"
+                package foo:foo;
+
+                world base {
+                    resource r {
+                        p: get() -> u32;
+                        p: set(v: u32);
+                        s: static get() -> u32;
+                        s: static set(v: u32);
+                        m: func();
+                    }
+                }
+
+                world derived {
+                    include base with { r as r2 }
+                }
+            "#,
+        )?;
+
+        let world_id = resolve.packages[pkg].worlds["derived"];
+        let mut imports: Vec<String> = resolve.worlds[world_id]
+            .imports
+            .keys()
+            .map(|k| resolve.name_world_key(k))
+            .collect();
+        imports.sort();
+
+        let mut expected: Vec<String> = [
+            "r2",
+            "[method][get]r2.p",
+            "[method][set]r2.p",
+            "[static][get]r2.s",
+            "[static][set]r2.s",
+            "[method]r2.m",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        expected.sort();
+
+        assert_eq!(imports, expected);
         Ok(())
     }
 }

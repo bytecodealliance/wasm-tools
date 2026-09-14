@@ -67,6 +67,15 @@ pub fn validate_id(s: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Parses a component model name. [wasmparser::names::ComponentName::new]
+/// cannot be used on its own because any name-related features that are not
+/// yet default would be rejected.
+pub(crate) fn parse_component_name(
+    name: &str,
+) -> wasmparser::Result<wasmparser::names::ComponentName> {
+    wasmparser::names::ComponentName::new_with_features(name, 0, wasmparser::WasmFeatures::all())
+}
+
 /// Renders an [`anyhow::Error`] chain produced by this crate, substituting
 /// snippet-bearing output for any [`ResolveError`] or [`ParseError`] layers.
 ///
@@ -978,6 +987,25 @@ pub enum FunctionKind {
     /// ```
     AsyncFreestanding,
 
+    /// A getter function, which takes no parameters and returns a value.
+    ///
+    /// ```wit
+    /// interface foo {
+    ///     the-prop: get() -> u32;
+    /// }
+    /// ```
+    Getter,
+
+    /// A setter function, which takes one parameter and returns either nothing
+    /// or `result<_, error?>`.
+    ///
+    /// ```wit
+    /// interface foo {
+    ///     the-prop: set(value: u32);
+    /// }
+    /// ```
+    Setter,
+
     /// A resource method where the first parameter is implicitly
     /// `borrow<T>`.
     ///
@@ -1004,6 +1032,30 @@ pub enum FunctionKind {
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
     AsyncMethod(TypeId),
 
+    /// A resource getter where the first parameter is implicitly `borrow<T>`.
+    ///
+    /// ```wit
+    /// interface foo {
+    ///     resource r {
+    ///         the-prop: get() -> u32;
+    ///     }
+    /// }
+    /// ```
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
+    MethodGetter(TypeId),
+
+    /// A resource setter where the first parameter is implicitly `borrow<T>`.
+    ///
+    /// ```wit
+    /// interface foo {
+    ///     resource r {
+    ///         the-prop: set(value: u32);
+    ///     }
+    /// }
+    /// ```
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
+    MethodSetter(TypeId),
+
     /// A static resource method.
     ///
     /// ```wit
@@ -1028,6 +1080,30 @@ pub enum FunctionKind {
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
     AsyncStatic(TypeId),
 
+    /// A static resource getter.
+    ///
+    /// ```wit
+    /// interface foo {
+    ///     resource r {
+    ///         the-prop: static get() -> u32;
+    ///     }
+    /// }
+    /// ```
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
+    StaticGetter(TypeId),
+
+    /// A static resource setter.
+    ///
+    /// ```wit
+    /// interface foo {
+    ///     resource r {
+    ///         the-prop: static set(value: u32);
+    ///     }
+    /// }
+    /// ```
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
+    StaticSetter(TypeId),
+
     /// A resource constructor where the return value is implicitly `own<T>`.
     ///
     /// ```wit
@@ -1048,35 +1124,137 @@ impl FunctionKind {
             FunctionKind::Freestanding
             | FunctionKind::Method(_)
             | FunctionKind::Static(_)
-            | FunctionKind::Constructor(_) => false,
+            | FunctionKind::Constructor(_)
+            | FunctionKind::Getter
+            | FunctionKind::Setter
+            | FunctionKind::MethodGetter(_)
+            | FunctionKind::MethodSetter(_)
+            | FunctionKind::StaticGetter(_)
+            | FunctionKind::StaticSetter(_) => false,
             FunctionKind::AsyncFreestanding
             | FunctionKind::AsyncMethod(_)
             | FunctionKind::AsyncStatic(_) => true,
         }
     }
 
+    /// Returns whether this function is a getter or a setter.
+    pub fn accessor(&self) -> Option<AccessorKind> {
+        match self {
+            FunctionKind::Getter
+            | FunctionKind::MethodGetter(_)
+            | FunctionKind::StaticGetter(_) => Some(AccessorKind::Getter),
+            FunctionKind::Setter
+            | FunctionKind::MethodSetter(_)
+            | FunctionKind::StaticSetter(_) => Some(AccessorKind::Setter),
+            FunctionKind::Freestanding
+            | FunctionKind::AsyncFreestanding
+            | FunctionKind::Method(_)
+            | FunctionKind::AsyncMethod(_)
+            | FunctionKind::Static(_)
+            | FunctionKind::AsyncStatic(_)
+            | FunctionKind::Constructor(_) => None,
+        }
+    }
+
     /// Returns the resource, if present, that this function kind refers to.
     pub fn resource(&self) -> Option<TypeId> {
         match self {
-            FunctionKind::Freestanding | FunctionKind::AsyncFreestanding => None,
+            FunctionKind::Freestanding
+            | FunctionKind::AsyncFreestanding
+            | FunctionKind::Getter
+            | FunctionKind::Setter => None,
             FunctionKind::Method(id)
             | FunctionKind::Static(id)
             | FunctionKind::Constructor(id)
             | FunctionKind::AsyncMethod(id)
-            | FunctionKind::AsyncStatic(id) => Some(*id),
+            | FunctionKind::AsyncStatic(id)
+            | FunctionKind::MethodGetter(id)
+            | FunctionKind::MethodSetter(id)
+            | FunctionKind::StaticGetter(id)
+            | FunctionKind::StaticSetter(id) => Some(*id),
         }
     }
 
     /// Returns the resource, if present, that this function kind refers to.
     pub fn resource_mut(&mut self) -> Option<&mut TypeId> {
         match self {
-            FunctionKind::Freestanding | FunctionKind::AsyncFreestanding => None,
+            FunctionKind::Freestanding
+            | FunctionKind::AsyncFreestanding
+            | FunctionKind::Getter
+            | FunctionKind::Setter => None,
             FunctionKind::Method(id)
             | FunctionKind::Static(id)
             | FunctionKind::Constructor(id)
             | FunctionKind::AsyncMethod(id)
-            | FunctionKind::AsyncStatic(id) => Some(id),
+            | FunctionKind::AsyncStatic(id)
+            | FunctionKind::MethodGetter(id)
+            | FunctionKind::MethodSetter(id)
+            | FunctionKind::StaticGetter(id)
+            | FunctionKind::StaticSetter(id) => Some(id),
         }
+    }
+}
+
+/// Whether an accessor function is a getter or a setter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
+pub enum AccessorKind {
+    /// A `get` function, encoded with a `[get]` name.
+    Getter,
+    /// A `set` function, encoded with a `[set]` name.
+    Setter,
+}
+
+/// Reorders `items` so that every setter immediately follows its getter. (WIT
+/// allows functions to be declared in any order, but the component binary
+/// format requires getters to precede setters.)
+pub(crate) fn place_setters_after_getters<K, V>(
+    items: &mut IndexMap<K, V>,
+    func: impl for<'a> Fn(&'a V) -> Option<&'a Function>,
+) {
+    // This function basically does a very limited linear "sort" by moving
+    // setters forward if we haven't seen their getter yet. When we do this, we
+    // simply don't bump the loop index and then continue iterating from
+    // whatever item slid back into the setter's place. We will eventually see
+    // that same setter again but that's fine.
+
+    let mut getters_seen = HashSet::new();
+    let mut i = 0;
+    while let Some((_, item)) = items.get_index(i) {
+        match func(item) {
+            Some(f) => match f.kind.accessor() {
+                Some(AccessorKind::Getter) => {
+                    getters_seen.insert(f.name.clone());
+                }
+                Some(AccessorKind::Setter) => {
+                    let getter_name = f.name.replacen("[set]", "[get]", 1);
+                    if !getters_seen.contains(&getter_name) {
+                        // The getter, if present, is somewhere after `i`.
+                        let getter_index = (i + 1..items.len())
+                            .find(|&j| func(&items[j]).is_some_and(|g| g.name == getter_name));
+                        if let Some(g) = getter_index {
+                            // Moving the setter to follow the getter will move
+                            // the intermediate items back, so we continue here
+                            // without incrementing i.
+                            items.move_index(i, g);
+                            continue;
+                        }
+                    }
+                }
+                None => {}
+            },
+            None => {}
+        }
+        i += 1;
+    }
+}
+
+/// Helper for [`place_setters_after_getters`] over a world's imports/exports.
+pub(crate) fn world_item_func(item: &WorldItem) -> Option<&Function> {
+    match item {
+        WorldItem::Function(f) => Some(f),
+        _ => None,
     }
 }
 
@@ -1249,7 +1427,14 @@ impl Function {
             FunctionKind::Method(_)
             | FunctionKind::Static(_)
             | FunctionKind::AsyncMethod(_)
-            | FunctionKind::AsyncStatic(_) => &self.name[self.name.find('.').unwrap() + 1..],
+            | FunctionKind::AsyncStatic(_)
+            | FunctionKind::MethodGetter(_)
+            | FunctionKind::MethodSetter(_)
+            | FunctionKind::StaticGetter(_)
+            | FunctionKind::StaticSetter(_) => &self.name[self.name.find('.').unwrap() + 1..],
+            FunctionKind::Getter | FunctionKind::Setter => {
+                &self.name[self.name.find(']').unwrap() + 1..]
+            }
             FunctionKind::Constructor(_) => "constructor",
         }
     }
