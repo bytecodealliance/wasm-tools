@@ -1,0 +1,5 @@
+(module
+  (type (;0;) (func))
+  (import "m" "e" (tag (;0;) (type 0)))
+  (tag $t (;1;) (type 0))
+)

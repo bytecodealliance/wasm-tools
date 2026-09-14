@@ -1,0 +1,86 @@
+{
+  "source_filename": "tests/component-model/test/async/same-component-stream-future.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 5,
+      "name": "Tester",
+      "filename": "same-component-stream-future.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 252,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 253,
+      "action": {
+        "type": "invoke",
+        "field": "test-empty",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 254,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 255,
+      "action": {
+        "type": "invoke",
+        "field": "test-bytes",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "43"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 256,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 257,
+      "action": {
+        "type": "invoke",
+        "field": "test-no-read-char",
+        "args": []
+      },
+      "text": "cannot read from and write to intra-component future"
+    },
+    {
+      "type": "module_instance",
+      "line": 258,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 259,
+      "action": {
+        "type": "invoke",
+        "field": "test-no-write-char",
+        "args": []
+      },
+      "text": "cannot read from and write to intra-component future"
+    }
+  ]
+}

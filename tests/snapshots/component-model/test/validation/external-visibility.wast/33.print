@@ -1,0 +1,6 @@
+(component
+  (type $Rec (;0;) (record (field "x" u32)))
+  (import "rec" (type $Rec' (;1;) (eq $Rec)))
+  (type $Rec2 (;2;) (record (field "r" $Rec')))
+  (import "t" (type (;3;) (eq $Rec2)))
+)

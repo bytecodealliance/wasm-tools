@@ -578,16 +578,18 @@ impl<'a> OperatorsReader<'a> {
     pub(crate) fn skip_const_expr(&mut self) -> Result<()> {
         // TODO add skip_operator() method and/or validate ConstExpr operators.
         loop {
-            if let Operator::End = self.read()? {
-                if self.current_frame().is_some() {
-                    bail!(
-                        self.original_position(),
-                        "control frames remain at end of expression"
-                    );
-                }
-                return Ok(());
+            let is_end = self.visit_operator(&mut IsEndOperatorVisitor)?;
+            if is_end {
+                break;
             }
         }
+        if self.current_frame().is_some() {
+            bail!(
+                self.original_position(),
+                "control frames remain at end of expression"
+            );
+        }
+        Ok(())
     }
 
     /// Function that must be called after the last opcode has been processed.
@@ -1094,6 +1096,44 @@ impl<'a, T: VisitOperator<'a>> VisitOperator<'a> for SingleFrameAdapter<'_, T> {
     }
 
     crate::for_each_visit_operator!(define_passthrough_visit_operator);
+}
+
+/// Implements [`VisitOperator`] with [`bool`] output: `true` it's an [`Operator::End`]
+struct IsEndOperatorVisitor;
+
+macro_rules! define_visit_is_end_operator {
+    ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
+        $(
+            #[allow(unused)]
+            fn $visit(&mut self $($(,$arg: $argty)*)?) -> bool {
+                define_visit_is_end_operator!(@visit self $visit $($($arg,)*)?)
+            }
+        )*
+    };
+
+    (@visit $self:ident visit_end $($rest:tt)*) => {
+	    true
+    };
+
+    (@visit $self:ident $visit:ident $($rest:tt)*) => {
+	    false
+    };
+}
+
+impl<'a> VisitOperator<'a> for IsEndOperatorVisitor {
+    type Output = bool;
+
+    #[cfg(feature = "simd")]
+    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = Self::Output>> {
+        Some(self)
+    }
+
+    crate::for_each_visit_operator!(define_visit_is_end_operator);
+}
+
+#[cfg(feature = "simd")]
+impl<'a> VisitSimdOperator<'a> for IsEndOperatorVisitor {
+    crate::for_each_visit_simd_operator!(define_visit_is_end_operator);
 }
 
 impl<'a> BinaryReader<'a> {

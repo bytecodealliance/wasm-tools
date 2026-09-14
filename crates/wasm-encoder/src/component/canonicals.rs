@@ -455,9 +455,9 @@ impl CanonicalFunctionSection {
 
     /// Declare a new `waitable-set.wait` intrinsic, used to block on a
     /// `waitable-set`.
-    pub fn waitable_set_wait(&mut self, async_: bool, memory: u32) -> &mut Self {
+    pub fn waitable_set_wait(&mut self, memory: u32) -> &mut Self {
         self.bytes.push(0x20);
-        self.bytes.push(if async_ { 1 } else { 0 });
+        self.bytes.push(0);
         memory.encode(&mut self.bytes);
         self.num_added += 1;
         self
@@ -465,9 +465,9 @@ impl CanonicalFunctionSection {
 
     /// Declare a new `waitable-set.wait` intrinsic, used to check, without
     /// blocking, if anything in a `waitable-set` is ready.
-    pub fn waitable_set_poll(&mut self, async_: bool, memory: u32) -> &mut Self {
+    pub fn waitable_set_poll(&mut self, memory: u32) -> &mut Self {
         self.bytes.push(0x21);
-        self.bytes.push(if async_ { 1 } else { 0 });
+        self.bytes.push(0);
         memory.encode(&mut self.bytes);
         self.num_added += 1;
         self
@@ -515,49 +515,49 @@ impl CanonicalFunctionSection {
     }
 
     /// Declare a new `thread.suspend` intrinsic.
-    pub fn thread_suspend(&mut self, cancellable: bool) -> &mut Self {
+    pub fn thread_suspend(&mut self) -> &mut Self {
         self.bytes.push(0x29);
-        self.bytes.push(if cancellable { 1 } else { 0 });
+        self.bytes.push(0);
         self.num_added += 1;
         self
     }
 
     /// Declare a new `thread.yield` intrinsic.
-    pub fn thread_yield(&mut self, cancellable: bool) -> &mut Self {
+    pub fn thread_yield(&mut self) -> &mut Self {
         self.bytes.push(0x0c);
-        self.bytes.push(if cancellable { 1 } else { 0 });
+        self.bytes.push(0);
         self.num_added += 1;
         self
     }
 
     /// Declare a new `thread.suspend-then-resume` intrinsic.
-    pub fn thread_suspend_then_resume(&mut self, cancellable: bool) -> &mut Self {
+    pub fn thread_suspend_then_resume(&mut self) -> &mut Self {
         self.bytes.push(0x2a);
-        self.bytes.push(if cancellable { 1 } else { 0 });
+        self.bytes.push(0);
         self.num_added += 1;
         self
     }
 
     /// Declare a new `thread.yield-then-resume` intrinsic.
-    pub fn thread_yield_then_resume(&mut self, cancellable: bool) -> &mut Self {
+    pub fn thread_yield_then_resume(&mut self) -> &mut Self {
         self.bytes.push(0x2b);
-        self.bytes.push(if cancellable { 1 } else { 0 });
+        self.bytes.push(0);
         self.num_added += 1;
         self
     }
 
     /// Declare a new `thread.suspend-then-promote` intrinsic.
-    pub fn thread_suspend_then_promote(&mut self, cancellable: bool) -> &mut Self {
+    pub fn thread_suspend_then_promote(&mut self) -> &mut Self {
         self.bytes.push(0x2c);
-        self.bytes.push(if cancellable { 1 } else { 0 });
+        self.bytes.push(0);
         self.num_added += 1;
         self
     }
 
     /// Declare a new `thread.yield-then-promote` intrinsic.
-    pub fn thread_yield_then_promote(&mut self, cancellable: bool) -> &mut Self {
+    pub fn thread_yield_then_promote(&mut self) -> &mut Self {
         self.bytes.push(0x2d);
-        self.bytes.push(if cancellable { 1 } else { 0 });
+        self.bytes.push(0);
         self.num_added += 1;
         self
     }

@@ -1,0 +1,37 @@
+(component
+  (core module $P (;0;)
+    (memory (;0;) 1)
+    (export "mem" (memory 0))
+  )
+  (core module $M (;1;)
+    (type (;0;) (func (param i32 i32)))
+    (type (;1;) (func (param i32) (result i32)))
+    (import "p1" "mem" (memory $a (;0;) 1))
+    (import "p2" "mem" (memory $b (;1;) 1))
+    (export "poke-a" (func 0))
+    (export "peek-b" (func 1))
+    (func (;0;) (type 0) (param i32 i32)
+      local.get 0
+      local.get 1
+      i32.store8
+    )
+    (func (;1;) (type 1) (param i32) (result i32)
+      local.get 0
+      i32.load8_u $b
+    )
+  )
+  (core instance $p (;0;) (instantiate $P))
+  (core instance $m (;1;) (instantiate $M
+      (with "p1" (instance $p))
+      (with "p2" (instance $p))
+    )
+  )
+  (type (;0;) (func (param "addr" u32) (param "val" u32)))
+  (alias core export $m "poke-a" (core func (;0;)))
+  (func (;0;) (type 0) (canon lift (core func 0)))
+  (type (;1;) (func (param "addr" u32) (result u32)))
+  (alias core export $m "peek-b" (core func (;1;)))
+  (func (;1;) (type 1) (canon lift (core func 1)))
+  (export (;2;) "poke-a" (func 0))
+  (export (;3;) "peek-b" (func 1))
+)

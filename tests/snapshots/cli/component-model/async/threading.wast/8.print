@@ -9,7 +9,7 @@
   (core func $new-indirect (;0;) (canon thread.new-indirect $start 0))
   (core module $m (;1;)
     (type $new-indirect-ty (;0;) (func (param i32 i32) (result i32)))
-    (import "" "thread.new-indirect" (func (;0;) (type $new-indirect-ty)))
+    (import "" "thread.new-indirect" (func (;0;) (type $new-indirect-ty) (param i32 i32) (result i32)))
   )
   (core instance (;1;)
     (export "thread.new-indirect" (func $new-indirect))

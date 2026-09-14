@@ -1,0 +1,14 @@
+(component
+  (core module (;0;)
+    (import "i" "mem" (memory (;0;) 1))
+  )
+  (core module (;1;)
+    (memory (;0;) 1)
+    (export "mem" (memory 0))
+  )
+  (core instance (;0;) (instantiate 1))
+  (core instance (;1;) (instantiate 0
+      (with "i" (instance 0))
+    )
+  )
+)

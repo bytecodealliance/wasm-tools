@@ -1042,6 +1042,12 @@
           "value": "0"
         }
       ]
+    },
+    {
+      "type": "module",
+      "line": 980,
+      "filename": "type-subtyping.89.wasm",
+      "module_type": "binary"
     }
   ]
 }

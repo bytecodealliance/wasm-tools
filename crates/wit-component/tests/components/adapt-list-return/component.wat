@@ -9,7 +9,7 @@
   (import "new" (instance $new (;0;) (type $ty-new)))
   (core module $main (;0;)
     (type (;0;) (func (param i32 i32)))
-    (import "old" "read" (func (;0;) (type 0)))
+    (import "old" "read" (func (;0;) (type 0) (param i32 i32)))
     (memory (;0;) 1)
     (export "memory" (memory 0))
     (@producers
@@ -21,7 +21,7 @@
     (type (;0;) (func (param i32)))
     (type (;1;) (func (param i32 i32)))
     (type (;2;) (func (param i32 i32 i32 i32) (result i32)))
-    (import "new" "read" (func $read (;0;) (type 0)))
+    (import "new" "read" (func $read (;0;) (type 0) (param i32)))
     (export "read" (func 1))
     (export "cabi_import_realloc" (func 2))
     (func (;1;) (type 1) (param i32 i32)
@@ -76,8 +76,8 @@
   (core module $wit-component-fixup (;3;)
     (type (;0;) (func (param i32 i32)))
     (type (;1;) (func (param i32)))
-    (import "actual" "0" (func $0 (;0;) (type 0)))
-    (import "actual" "1" (func $1 (;1;) (type 1)))
+    (import "actual" "0" (func $0 (;0;) (type 0) (param i32 i32)))
+    (import "actual" "1" (func $1 (;1;) (type 1) (param i32)))
     (import "shim" "$imports" (table (;0;) 2 2 funcref))
     (elem (;0;) (i32.const 0) func $0 $1)
     (@producers

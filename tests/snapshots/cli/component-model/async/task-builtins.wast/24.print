@@ -1,7 +1,7 @@
 (component
   (core module $m (;0;)
     (type (;0;) (func (param i32)))
-    (import "" "subtask.drop" (func $subtask-drop (;0;) (type 0)))
+    (import "" "subtask.drop" (func $subtask-drop (;0;) (type 0) (param i32)))
   )
   (core func $subtask-drop (;0;) (canon subtask.drop))
   (core instance (;0;)

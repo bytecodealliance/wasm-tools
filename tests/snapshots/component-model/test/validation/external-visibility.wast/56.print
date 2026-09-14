@@ -1,0 +1,18 @@
+(component
+  (type $R (;0;) (resource (rep i32)))
+  (component $C (;0;)
+    (import "x" (type $X (;0;) (sub resource)))
+    (export (;1;) "y" (type $X))
+  )
+  (instance $c (;0;) (instantiate $C
+      (with "x" (type $R))
+    )
+  )
+  (export $c' (;1;) "c" (instance $c))
+  (alias export $c' "y" (type $R' (;1;)))
+  (core func $drop (;0;) (canon resource.drop $R'))
+  (type (;2;) (own $R'))
+  (type (;3;) (func (param "x" 2)))
+  (func $f (;0;) (type 3) (canon lift (core func $drop)))
+  (export (;1;) "f" (func $f))
+)

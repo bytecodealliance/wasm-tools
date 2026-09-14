@@ -1,0 +1,260 @@
+{
+  "source_filename": "tests/component-model/test/async/trap-if-done.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 15,
+      "name": "Tester",
+      "filename": "trap-if-done.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 445,
+      "instance": "i1",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 446,
+      "action": {
+        "type": "invoke",
+        "field": "trap-after-future-eager-write",
+        "args": []
+      },
+      "text": "cannot write to future after previous write succeeded"
+    },
+    {
+      "type": "module_instance",
+      "line": 447,
+      "instance": "i2",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 448,
+      "action": {
+        "type": "invoke",
+        "field": "trap-after-future-async-write",
+        "args": []
+      },
+      "text": "cannot write to future after previous write succeeded"
+    },
+    {
+      "type": "module_instance",
+      "line": 449,
+      "instance": "i3",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 450,
+      "action": {
+        "type": "invoke",
+        "field": "trap-after-future-reader-dropped",
+        "args": []
+      },
+      "text": "cannot write to future after previous write succeeded or readable end dropped"
+    },
+    {
+      "type": "module_instance",
+      "line": 451,
+      "instance": "i4.1",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 452,
+      "action": {
+        "type": "invoke",
+        "field": "trap-after-future-eager-read",
+        "args": [
+          {
+            "type": "bool",
+            "value": false
+          }
+        ]
+      },
+      "text": "cannot read from future after previous read succeeded"
+    },
+    {
+      "type": "module_instance",
+      "line": 453,
+      "instance": "i4.2",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 454,
+      "action": {
+        "type": "invoke",
+        "field": "trap-after-future-eager-read",
+        "args": [
+          {
+            "type": "bool",
+            "value": true
+          }
+        ]
+      },
+      "text": "cannot lift future after previous read succeeded"
+    },
+    {
+      "type": "module_instance",
+      "line": 455,
+      "instance": "i5.1",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 456,
+      "action": {
+        "type": "invoke",
+        "field": "trap-after-future-async-read",
+        "args": [
+          {
+            "type": "bool",
+            "value": false
+          }
+        ]
+      },
+      "text": "cannot read from future after previous read succeeded"
+    },
+    {
+      "type": "module_instance",
+      "line": 457,
+      "instance": "i5.2",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 458,
+      "action": {
+        "type": "invoke",
+        "field": "trap-after-future-async-read",
+        "args": [
+          {
+            "type": "bool",
+            "value": true
+          }
+        ]
+      },
+      "text": "cannot lift future after previous read succeeded"
+    },
+    {
+      "type": "module_instance",
+      "line": 459,
+      "instance": "i6",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 460,
+      "action": {
+        "type": "invoke",
+        "field": "trap-after-stream-reader-eager-dropped",
+        "args": []
+      },
+      "text": "cannot write to stream after being notified that the readable end dropped"
+    },
+    {
+      "type": "module_instance",
+      "line": 461,
+      "instance": "i7",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 462,
+      "action": {
+        "type": "invoke",
+        "field": "trap-after-stream-reader-async-dropped",
+        "args": []
+      },
+      "text": "cannot write to stream after being notified that the readable end dropped"
+    },
+    {
+      "type": "module_instance",
+      "line": 463,
+      "instance": "i8.1",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 464,
+      "action": {
+        "type": "invoke",
+        "field": "trap-after-stream-writer-eager-dropped",
+        "args": [
+          {
+            "type": "bool",
+            "value": false
+          }
+        ]
+      },
+      "text": "cannot read from stream after being notified that the writable end dropped"
+    },
+    {
+      "type": "module_instance",
+      "line": 465,
+      "instance": "i8.2",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 466,
+      "action": {
+        "type": "invoke",
+        "field": "trap-after-stream-writer-eager-dropped",
+        "args": [
+          {
+            "type": "bool",
+            "value": true
+          }
+        ]
+      },
+      "text": "cannot lift stream after being notified that the writable end dropped"
+    },
+    {
+      "type": "module_instance",
+      "line": 467,
+      "instance": "i9.1",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 468,
+      "action": {
+        "type": "invoke",
+        "field": "trap-after-stream-writer-async-dropped",
+        "args": [
+          {
+            "type": "bool",
+            "value": false
+          }
+        ]
+      },
+      "text": "cannot read from stream after being notified that the writable end dropped"
+    },
+    {
+      "type": "module_instance",
+      "line": 469,
+      "instance": "i9.2",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 470,
+      "action": {
+        "type": "invoke",
+        "field": "trap-after-stream-writer-async-dropped",
+        "args": [
+          {
+            "type": "bool",
+            "value": true
+          }
+        ]
+      },
+      "text": "cannot lift stream after being notified that the writable end dropped"
+    }
+  ]
+}

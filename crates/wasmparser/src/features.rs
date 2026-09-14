@@ -339,7 +339,7 @@ define_wasm_features! {
         ///
         /// Corresponds to the 🗺️ character in
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
-        pub cm_map: CM_MAP(1 << 38) = false;
+        pub cm_map: CM_MAP(1 << 38) = true;
 
         /// Support for 64-bit contexts in the component model proposal.
         ///
@@ -351,7 +351,7 @@ define_wasm_features! {
         ///
         /// Corresponds to the 🏷️ character in
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
-        pub cm_implements: CM_IMPLEMENTS(1 << 40) = false;
+        pub cm_implements: CM_IMPLEMENTS(1 << 40) = true;
 
         /// Support for the `(versionsuffix "...")` directive in the component model
         ///

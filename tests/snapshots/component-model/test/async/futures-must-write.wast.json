@@ -1,0 +1,36 @@
+{
+  "source_filename": "tests/component-model/test/async/futures-must-write.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 5,
+      "filename": "futures-must-write.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 117,
+      "action": {
+        "type": "invoke",
+        "field": "drop-readable-future-before-read",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 118,
+      "action": {
+        "type": "invoke",
+        "field": "drop-writable-future-before-write",
+        "args": []
+      },
+      "text": "cannot drop future write end without first writing a value"
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "source_filename": "tests/component-model/test/async/during-sync-call-may-block-if-other-ready-threads.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 12,
+      "name": "Tester",
+      "filename": "during-sync-call-may-block-if-other-ready-threads.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 110,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 111,
+      "action": {
+        "type": "invoke",
+        "field": "setup",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 112,
+      "action": {
+        "type": "invoke",
+        "field": "async-task-thread-caller",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "43"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 114,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 115,
+      "action": {
+        "type": "invoke",
+        "field": "sync-task-thread-caller",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "43"
+        }
+      ]
+    }
+  ]
+}

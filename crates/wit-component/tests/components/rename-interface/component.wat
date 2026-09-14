@@ -18,7 +18,7 @@
   (import "other-name" (instance $other-name (;1;) (type $ty-other-name)))
   (core module $main (;0;)
     (type (;0;) (func (result i32)))
-    (import "other-name" "a" (func (;0;) (type 0)))
+    (import "other-name" "a" (func (;0;) (type 0) (result i32)))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
       (processed-by "my-fake-bindgen" "123.45")

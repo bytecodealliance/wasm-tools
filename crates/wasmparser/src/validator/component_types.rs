@@ -2,6 +2,7 @@
 
 use super::component::ExternKind;
 use super::{CanonicalOptions, Concurrency};
+use crate::limits::MAX_WASM_VALUE_TYPE_BYTE_SIZE;
 use crate::validator::StringEncoding;
 use crate::validator::component::PtrSize;
 use crate::validator::names::KebabString;
@@ -754,6 +755,14 @@ impl ComponentValType {
         }
     }
 
+    /// Returns the Canonical ABI information for this value type.
+    pub(crate) fn abi(&self, types: &TypeList) -> AbiInfo {
+        match self {
+            Self::Primitive(ty) => AbiInfo::primitive(*ty),
+            Self::Type(id) => types[*id].abi(),
+        }
+    }
+
     fn lower_gc(
         &self,
         types: &TypeList,
@@ -1384,6 +1393,8 @@ pub struct VariantCase {
 pub struct RecordType {
     /// Metadata about this record type.
     pub(crate) info: TypeInfo,
+    /// Canonical ABI information about this record type.
+    pub(crate) abi: AbiInfo,
     /// The map of record fields.
     pub fields: IndexMap<KebabString, ComponentValType>,
 }
@@ -1414,6 +1425,8 @@ impl RecordType {
 pub struct VariantType {
     /// Metadata about this variant type.
     pub(crate) info: TypeInfo,
+    /// Canonical ABI information about this variant type.
+    pub(crate) abi: AbiInfo,
     /// The map of variant cases.
     pub cases: IndexMap<KebabString, VariantCase>,
 }
@@ -1461,6 +1474,8 @@ fn lower_gc_sum_type(
 pub struct TupleType {
     /// Metadata about this tuple type.
     pub(crate) info: TypeInfo,
+    /// Canonical ABI information about this tuple type.
+    pub(crate) abi: AbiInfo,
     /// The types of the tuple.
     pub types: Box<[ComponentValType]>,
 }
@@ -1501,6 +1516,8 @@ pub enum ComponentDefinedType {
         element: ComponentValType,
         /// Cached type information.
         info: TypeInfo,
+        /// Cached Canonical ABI information.
+        abi: AbiInfo,
     },
     /// The type is a map.
     Map {
@@ -1510,6 +1527,8 @@ pub enum ComponentDefinedType {
         value: ComponentValType,
         /// Cached type information.
         info: TypeInfo,
+        /// Cached Canonical ABI information.
+        abi: AbiInfo,
     },
     /// The type is a fixed-length list.
     FixedLengthList {
@@ -1519,6 +1538,8 @@ pub enum ComponentDefinedType {
         length: u32,
         /// Cached type information.
         info: TypeInfo,
+        /// Cached Canonical ABI information.
+        abi: AbiInfo,
     },
     /// The type is a tuple.
     Tuple(TupleType),
@@ -1532,6 +1553,8 @@ pub enum ComponentDefinedType {
         ty: ComponentValType,
         /// Cached type information.
         info: TypeInfo,
+        /// Cached Canonical ABI information.
+        abi: AbiInfo,
     },
     /// The type is a `result`.
     Result {
@@ -1541,6 +1564,8 @@ pub enum ComponentDefinedType {
         err: Option<ComponentValType>,
         /// Cached type information.
         info: TypeInfo,
+        /// Cached Canonical ABI information.
+        abi: AbiInfo,
     },
     /// The type is an owned handle to the specified resource.
     Own(AliasableResourceId),
@@ -1552,6 +1577,8 @@ pub enum ComponentDefinedType {
         ty: Option<ComponentValType>,
         /// Cached type information.
         info: TypeInfo,
+        /// Cached Canonical ABI information.
+        abi: AbiInfo,
     },
     /// A stream type with the specified payload type.
     Stream {
@@ -1559,6 +1586,8 @@ pub enum ComponentDefinedType {
         ty: Option<ComponentValType>,
         /// Cached type information.
         info: TypeInfo,
+        /// Cached Canonical ABI information.
+        abi: AbiInfo,
     },
 }
 
@@ -1567,8 +1596,11 @@ impl TypeData for ComponentDefinedType {
     const IS_CORE_SUB_TYPE: bool = false;
     fn type_info(&self, _types: &TypeList) -> TypeInfo {
         match self {
-            Self::Primitive(_) | Self::Flags(_) | Self::Enum(_) | Self::Own(_) => TypeInfo::new(),
-            Self::Borrow(_) => TypeInfo::borrow(),
+            Self::Primitive(_)
+            | Self::Flags(_)
+            | Self::Enum(_)
+            | Self::Own(_)
+            | Self::Borrow(_) => TypeInfo::new(),
             Self::Record(r) => r.info,
             Self::Variant(v) => v.info,
             Self::Tuple(t) => t.info,
@@ -1583,7 +1615,231 @@ impl TypeData for ComponentDefinedType {
     }
 }
 
+/// ABI information about defined value types in the component model.
+///
+/// This is packed into a single `u32` as it's stored on every defined type:
+///
+/// * bits 0..28 - `elem_size(t, 'i64')`, the number of bytes a value of this
+///   type takes up when stored in a 64-bit linear memory. Validation requires
+///   this to be less than `MAX_WASM_VALUE_TYPE_BYTE_SIZE`. Note that this only
+///   tracks 64-bit linear memory sizes because ABI information isn't needed in
+///   validation except for ensuring sizes are beneath a certain threshold.
+///
+/// * bits 28..30 - the base-2 logarithm of `alignment(t, 'i64')`, so 0, 1, 2,
+///   or 3 for an alignment of 1, 2, 4, or 8.
+///
+/// * bit 30 - whether or not this type transitively contains a `borrow`. For
+///   example `(borrow $t)` and `(list (borrow $t))` both do but `(list u32)`
+///   does not. Used to validate that component function results don't contain
+///   borrows.
+///
+/// * bit 31 - unused.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[doc(hidden)]
+pub struct AbiInfo(u32);
+
+impl AbiInfo {
+    const ELEM_SIZE_BITS: u32 = 28;
+    const ALIGN_LOG2_BITS: u32 = 2;
+    const CONTAINS_BORROW_BITS: u32 = 1;
+
+    const ELEM_SIZE_OFFSET: u32 = 0;
+    const ALIGN_LOG2_OFFSET: u32 = Self::ELEM_SIZE_OFFSET + Self::ELEM_SIZE_BITS;
+    const CONTAINS_BORROW_OFFSET: u32 = Self::ALIGN_LOG2_OFFSET + Self::ALIGN_LOG2_BITS;
+
+    const ELEM_SIZE_MASK: u32 = ((1 << Self::ELEM_SIZE_BITS) - 1) << Self::ELEM_SIZE_OFFSET;
+    const ALIGN_LOG2_MASK: u32 = ((1 << Self::ALIGN_LOG2_BITS) - 1) << Self::ALIGN_LOG2_OFFSET;
+    const CONTAINS_BORROW_MASK: u32 =
+        ((1 << Self::CONTAINS_BORROW_BITS) - 1) << Self::CONTAINS_BORROW_OFFSET;
+
+    const BOOL: AbiInfo = AbiInfo::new_unchecked(1, 1, false);
+    const U8: AbiInfo = AbiInfo::new_unchecked(1, 1, false);
+    const U16: AbiInfo = AbiInfo::new_unchecked(2, 2, false);
+    const U32: AbiInfo = AbiInfo::new_unchecked(4, 4, false);
+    const U64: AbiInfo = AbiInfo::new_unchecked(8, 8, false);
+    const S8: AbiInfo = AbiInfo::U8;
+    const S16: AbiInfo = AbiInfo::U16;
+    const S32: AbiInfo = AbiInfo::U32;
+    const S64: AbiInfo = AbiInfo::U64;
+    const F32: AbiInfo = AbiInfo::U32;
+    const F64: AbiInfo = AbiInfo::U64;
+    const CHAR: AbiInfo = AbiInfo::U32;
+    const ERROR_CONTEXT: AbiInfo = AbiInfo::U32;
+    const PTR_PAIR: AbiInfo = AbiInfo::new_unchecked(16, 8, false);
+    const HANDLE: AbiInfo = AbiInfo::new_unchecked(4, 4, false);
+    const BORROW: AbiInfo = AbiInfo::HANDLE.with_borrow(true);
+
+    pub(crate) fn primitive(ty: PrimitiveValType) -> AbiInfo {
+        match ty {
+            PrimitiveValType::Bool => AbiInfo::BOOL,
+            PrimitiveValType::S8 => AbiInfo::S8,
+            PrimitiveValType::U8 => AbiInfo::U8,
+            PrimitiveValType::S16 => AbiInfo::S16,
+            PrimitiveValType::U16 => AbiInfo::U16,
+            PrimitiveValType::S32 => AbiInfo::S32,
+            PrimitiveValType::U32 => AbiInfo::U32,
+            PrimitiveValType::S64 => AbiInfo::S64,
+            PrimitiveValType::U64 => AbiInfo::U64,
+            PrimitiveValType::F32 => AbiInfo::F32,
+            PrimitiveValType::F64 => AbiInfo::F64,
+            PrimitiveValType::Char => AbiInfo::CHAR,
+            PrimitiveValType::ErrorContext => AbiInfo::ERROR_CONTEXT,
+            PrimitiveValType::String => AbiInfo::PTR_PAIR,
+        }
+    }
+
+    pub(crate) fn flags(count: usize) -> AbiInfo {
+        if count <= 8 {
+            AbiInfo::U8
+        } else if count <= 16 {
+            AbiInfo::U16
+        } else {
+            AbiInfo::U32
+        }
+    }
+
+    pub(crate) fn discriminant(cases: usize) -> AbiInfo {
+        if cases <= 0x100 {
+            AbiInfo::U8
+        } else if cases <= 0x10000 {
+            AbiInfo::U16
+        } else {
+            AbiInfo::U32
+        }
+    }
+
+    pub(crate) fn record(fields: impl Iterator<Item = AbiInfo>, offset: u64) -> Result<AbiInfo> {
+        let mut size = 0;
+        let mut align = 1;
+        let mut contains_borrow = false;
+        for field in fields {
+            size = align_to(size, field.alignment()) + u64::from(field.elem_size());
+            align = align.max(field.alignment());
+            contains_borrow |= field.contains_borrow();
+        }
+        debug_assert!(size > 0);
+        AbiInfo::new(align_to(size, align), align, contains_borrow, offset)
+    }
+
+    pub(crate) fn variant(
+        payloads: impl ExactSizeIterator<Item = Option<AbiInfo>>,
+        offset: u64,
+    ) -> Result<AbiInfo> {
+        let discriminant = AbiInfo::discriminant(payloads.len());
+        let mut payload_size = 0;
+        let mut payload_align = 1;
+        let mut contains_borrow = false;
+        for payload in payloads.flatten() {
+            payload_size = payload_size.max(u64::from(payload.elem_size()));
+            payload_align = payload_align.max(payload.alignment());
+            contains_borrow |= payload.contains_borrow();
+        }
+        let align = discriminant.alignment().max(payload_align);
+        let size = align_to(u64::from(discriminant.elem_size()), payload_align) + payload_size;
+        AbiInfo::new(align_to(size, align), align, contains_borrow, offset)
+    }
+
+    pub(crate) fn list(element: AbiInfo) -> AbiInfo {
+        AbiInfo::PTR_PAIR.with_borrow(element.contains_borrow())
+    }
+
+    pub(crate) fn map(key: AbiInfo, value: AbiInfo) -> AbiInfo {
+        AbiInfo::PTR_PAIR.with_borrow(key.contains_borrow() || value.contains_borrow())
+    }
+
+    pub(crate) fn fixed_length_list(element: AbiInfo, length: u32, offset: u64) -> Result<AbiInfo> {
+        // Note that this multiplication cannot overflow since it's a 32x32-bit
+        // multiplication done in the 64-bit integer space.
+        let size = u64::from(element.elem_size()) * u64::from(length);
+        AbiInfo::new(size, element.alignment(), element.contains_borrow(), offset)
+    }
+
+    pub(crate) fn future_or_stream(payload: Option<AbiInfo>) -> AbiInfo {
+        AbiInfo::HANDLE.with_borrow(match payload {
+            Some(abi) => abi.contains_borrow(),
+            None => false,
+        })
+    }
+
+    /// Creates an `AbiInfo` of `size` bytes with an alignment of `align`, returning
+    /// an error if the size is at or above the component model's limit.
+    fn new(size: u64, align: u32, contains_borrow: bool, offset: u64) -> Result<AbiInfo> {
+        if size >= u64::from(MAX_WASM_VALUE_TYPE_BYTE_SIZE) {
+            bail!(
+                offset,
+                "value type's maximum in-memory size exceeds maximum byte size"
+            );
+        }
+        Ok(AbiInfo::new_unchecked(size as u32, align, contains_borrow))
+    }
+
+    /// Same as `new` but for sizes which are statically known to be in-bounds.
+    const fn new_unchecked(size: u32, align: u32, contains_borrow: bool) -> AbiInfo {
+        debug_assert!(size < MAX_WASM_VALUE_TYPE_BYTE_SIZE);
+        debug_assert!(align.is_power_of_two() && align <= 8);
+        AbiInfo(
+            (size << Self::ELEM_SIZE_OFFSET)
+                | (align.trailing_zeros() << Self::ALIGN_LOG2_OFFSET)
+                | ((contains_borrow as u32) << Self::CONTAINS_BORROW_OFFSET),
+        )
+    }
+
+    const fn with_borrow(&self, contains_borrow: bool) -> AbiInfo {
+        AbiInfo(
+            (self.0 & !Self::CONTAINS_BORROW_MASK)
+                | ((contains_borrow as u32) << Self::CONTAINS_BORROW_OFFSET),
+        )
+    }
+
+    /// The size of this value as it resides in a 64-bit linear memory.
+    fn elem_size(&self) -> u32 {
+        (self.0 & Self::ELEM_SIZE_MASK) >> Self::ELEM_SIZE_OFFSET
+    }
+
+    /// The alignment of this value as it resides in a 64-bit linear memory.
+    fn alignment(&self) -> u32 {
+        1 << ((self.0 & Self::ALIGN_LOG2_MASK) >> Self::ALIGN_LOG2_OFFSET)
+    }
+
+    /// Whether this type transitively contains a `borrow`.
+    pub(crate) fn contains_borrow(&self) -> bool {
+        (self.0 & Self::CONTAINS_BORROW_MASK) != 0
+    }
+}
+
+const _: () = {
+    assert!(1 << AbiInfo::ELEM_SIZE_BITS >= MAX_WASM_VALUE_TYPE_BYTE_SIZE);
+};
+
+/// The Canonical ABI's `align_to`.
+fn align_to(offset: u64, align: u32) -> u64 {
+    debug_assert!(align.is_power_of_two());
+    let align = u64::from(align);
+    (offset + (align - 1)) & !(align - 1)
+}
+
 impl ComponentDefinedType {
+    /// Returns the Canonical ABI information for this type.
+    pub(crate) fn abi(&self) -> AbiInfo {
+        match self {
+            Self::Primitive(ty) => AbiInfo::primitive(*ty),
+            Self::Flags(names) => AbiInfo::flags(names.len()),
+            Self::Enum(cases) => AbiInfo::discriminant(cases.len()),
+            Self::Own(_) => AbiInfo::HANDLE,
+            Self::Borrow(_) => AbiInfo::BORROW,
+            Self::Record(r) => r.abi,
+            Self::Variant(v) => v.abi,
+            Self::Tuple(t) => t.abi,
+            Self::List { abi, .. }
+            | Self::FixedLengthList { abi, .. }
+            | Self::Option { abi, .. }
+            | Self::Map { abi, .. }
+            | Self::Result { abi, .. }
+            | Self::Future { abi, .. }
+            | Self::Stream { abi, .. } => *abi,
+        }
+    }
+
     pub(crate) fn contains_ptr(&self, types: &TypeList) -> bool {
         match self {
             Self::Primitive(ty) => ty.contains_ptr(),

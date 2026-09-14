@@ -3,7 +3,7 @@
 use super::{
     check_max,
     component_types::{
-        Abi, AliasableResourceId, ComponentAnyTypeId, ComponentCoreInstanceTypeId,
+        Abi, AbiInfo, AliasableResourceId, ComponentAnyTypeId, ComponentCoreInstanceTypeId,
         ComponentCoreModuleTypeId, ComponentCoreTypeId, ComponentDefinedType,
         ComponentDefinedTypeId, ComponentEntityType, ComponentFuncType, ComponentFuncTypeId,
         ComponentInstanceType, ComponentInstanceTypeId, ComponentItem, ComponentType,
@@ -1281,14 +1281,12 @@ impl ComponentState {
             }
             CanonicalFunction::ErrorContextDrop => self.error_context_drop(types, offset),
             CanonicalFunction::WaitableSetNew => self.waitable_set_new(types, offset),
-            CanonicalFunction::WaitableSetWait {
-                cancellable: _,
-                memory,
-            } => self.waitable_set_wait(memory, types, offset),
-            CanonicalFunction::WaitableSetPoll {
-                cancellable: _,
-                memory,
-            } => self.waitable_set_poll(memory, types, offset),
+            CanonicalFunction::WaitableSetWait { memory } => {
+                self.waitable_set_wait(memory, types, offset)
+            }
+            CanonicalFunction::WaitableSetPoll { memory } => {
+                self.waitable_set_poll(memory, types, offset)
+            }
             CanonicalFunction::WaitableSetDrop => self.waitable_set_drop(types, offset),
             CanonicalFunction::WaitableJoin => self.waitable_join(types, offset),
             CanonicalFunction::ThreadIndex => self.thread_index(types, offset),
@@ -1297,21 +1295,19 @@ impl ComponentState {
                 table_index,
             } => self.thread_new_indirect(func_ty_index, table_index, types, offset),
             CanonicalFunction::ThreadResumeLater => self.thread_resume_later(types, offset),
-            CanonicalFunction::ThreadSuspend { cancellable } => {
-                self.thread_suspend(cancellable, types, offset)
+            CanonicalFunction::ThreadSuspend => self.thread_suspend(types, offset),
+            CanonicalFunction::ThreadYield => self.thread_yield(types, offset),
+            CanonicalFunction::ThreadSuspendThenResume => {
+                self.thread_suspend_then_resume(types, offset)
             }
-            CanonicalFunction::ThreadYield { cancellable: _ } => self.thread_yield(types, offset),
-            CanonicalFunction::ThreadSuspendThenResume { cancellable } => {
-                self.thread_suspend_then_resume(cancellable, types, offset)
+            CanonicalFunction::ThreadYieldThenResume => {
+                self.thread_yield_then_resume(types, offset)
             }
-            CanonicalFunction::ThreadYieldThenResume { cancellable } => {
-                self.thread_yield_then_resume(cancellable, types, offset)
+            CanonicalFunction::ThreadSuspendThenPromote => {
+                self.thread_suspend_then_promote(types, offset)
             }
-            CanonicalFunction::ThreadSuspendThenPromote { cancellable } => {
-                self.thread_suspend_then_promote(cancellable, types, offset)
-            }
-            CanonicalFunction::ThreadYieldThenPromote { cancellable } => {
-                self.thread_yield_then_promote(cancellable, types, offset)
+            CanonicalFunction::ThreadYieldThenPromote => {
+                self.thread_yield_then_promote(types, offset)
             }
         }
     }
@@ -2223,12 +2219,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn thread_suspend(
-        &mut self,
-        _cancellable: bool,
-        types: &mut TypeAlloc,
-        offset: u64,
-    ) -> Result<()> {
+    fn thread_suspend(&mut self, types: &mut TypeAlloc, offset: u64) -> Result<()> {
         require_feature::cm_threading(
             self.features,
             "`thread.suspend` requires the component model threading feature",
@@ -2251,12 +2242,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn thread_suspend_then_resume(
-        &mut self,
-        _cancellable: bool,
-        types: &mut TypeAlloc,
-        offset: u64,
-    ) -> Result<()> {
+    fn thread_suspend_then_resume(&mut self, types: &mut TypeAlloc, offset: u64) -> Result<()> {
         require_feature::cm_threading(
             self.features,
             "`thread.suspend-then-resume` requires the component model threading feature",
@@ -2268,12 +2254,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn thread_yield_then_resume(
-        &mut self,
-        _cancellable: bool,
-        types: &mut TypeAlloc,
-        offset: u64,
-    ) -> Result<()> {
+    fn thread_yield_then_resume(&mut self, types: &mut TypeAlloc, offset: u64) -> Result<()> {
         require_feature::cm_threading(
             self.features,
             "`thread.yield-then-resume` requires the component model threading feature",
@@ -2284,12 +2265,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn thread_suspend_then_promote(
-        &mut self,
-        _cancellable: bool,
-        types: &mut TypeAlloc,
-        offset: u64,
-    ) -> Result<()> {
+    fn thread_suspend_then_promote(&mut self, types: &mut TypeAlloc, offset: u64) -> Result<()> {
         require_feature::cm_threading(
             self.features,
             "`thread.suspend-then-promote` requires the component model threading feature",
@@ -2300,12 +2276,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn thread_yield_then_promote(
-        &mut self,
-        _cancellable: bool,
-        types: &mut TypeAlloc,
-        offset: u64,
-    ) -> Result<()> {
+    fn thread_yield_then_promote(&mut self, types: &mut TypeAlloc, offset: u64) -> Result<()> {
         require_feature::cm_threading(
             self.features,
             "`thread.yield-then-promote` requires the component model threading feature",
@@ -3148,8 +3119,7 @@ impl ComponentState {
             .result
             .map(|ty| {
                 let ty = self.create_component_val_type(ty, offset)?;
-                let ty_info = ty.info(types);
-                if ty_info.contains_borrow() {
+                if ty.abi(types).contains_borrow() {
                     bail!(offset, "function result cannot contain a `borrow` type");
                 }
                 info.combine(ty.info(types), offset)?;
@@ -3984,7 +3954,8 @@ impl ComponentState {
                 let element = self.create_component_val_type(ty, offset)?;
                 let mut info = TypeInfo::new();
                 info.combine(element.info(types), offset)?;
-                Ok(ComponentDefinedType::List { element, info })
+                let abi = AbiInfo::list(element.abi(types));
+                Ok(ComponentDefinedType::List { element, info, abi })
             }
             crate::ComponentDefinedType::Map(key, value) => {
                 require_feature::cm_map(
@@ -3997,7 +3968,13 @@ impl ComponentState {
                 let mut info = TypeInfo::new();
                 info.combine(key.info(types), offset)?;
                 info.combine(value.info(types), offset)?;
-                Ok(ComponentDefinedType::Map { key, value, info })
+                let abi = AbiInfo::map(key.abi(types), value.abi(types));
+                Ok(ComponentDefinedType::Map {
+                    key,
+                    value,
+                    info,
+                    abi,
+                })
             }
             crate::ComponentDefinedType::FixedLengthList(ty, elements) => {
                 require_feature::cm_fixed_length_lists(
@@ -4021,10 +3998,12 @@ impl ComponentState {
                 let element = self.create_component_val_type(ty, offset)?;
                 let mut info = TypeInfo::new();
                 info.combine(element.info(types), offset)?;
+                let abi = AbiInfo::fixed_length_list(element.abi(types), elements, offset)?;
                 Ok(ComponentDefinedType::FixedLengthList {
                     element,
                     length: elements,
                     info,
+                    abi,
                 })
             }
             crate::ComponentDefinedType::Tuple(tys) => {
@@ -4040,7 +4019,9 @@ impl ComponentState {
                 let ty = self.create_component_val_type(ty, offset)?;
                 let mut info = TypeInfo::new();
                 info.combine(ty.info(types), offset)?;
-                Ok(ComponentDefinedType::Option { ty, info })
+                let abis = [None, Some(ty.abi(types))];
+                let abi = AbiInfo::variant(abis.into_iter(), offset)?;
+                Ok(ComponentDefinedType::Option { ty, info, abi })
             }
             crate::ComponentDefinedType::Result { ok, err } => {
                 let ok = ok
@@ -4056,7 +4037,9 @@ impl ComponentState {
                 if let Some(ty) = &err {
                     info.combine(ty.info(types), offset)?;
                 }
-                Ok(ComponentDefinedType::Result { ok, err, info })
+                let abis = [ok.map(|ty| ty.abi(types)), err.map(|ty| ty.abi(types))];
+                let abi = AbiInfo::variant(abis.into_iter(), offset)?;
+                Ok(ComponentDefinedType::Result { ok, err, info, abi })
             }
             crate::ComponentDefinedType::Own(idx) => Ok(ComponentDefinedType::Own(
                 self.resource_at(idx, types, offset)?,
@@ -4077,7 +4060,8 @@ impl ComponentState {
                 if let Some(ty) = &ty {
                     info.combine(ty.info(types), offset)?;
                 }
-                Ok(ComponentDefinedType::Future { ty, info })
+                let abi = AbiInfo::future_or_stream(ty.map(|ty| ty.abi(types)));
+                Ok(ComponentDefinedType::Future { ty, info, abi })
             }
             crate::ComponentDefinedType::Stream(ty) => {
                 require_feature::cm_async(
@@ -4107,7 +4091,8 @@ impl ComponentState {
                 if let Some(ty) = &ty {
                     info.combine(ty.info(types), offset)?;
                 }
-                Ok(ComponentDefinedType::Stream { ty, info })
+                let abi = AbiInfo::future_or_stream(ty.map(|ty| ty.abi(types)));
+                Ok(ComponentDefinedType::Stream { ty, info, abi })
             }
         }
     }
@@ -4143,8 +4128,10 @@ impl ComponentState {
             }
         }
 
+        let abi = AbiInfo::record(field_map.values().map(|ty| ty.abi(types)), offset)?;
         Ok(ComponentDefinedType::Record(RecordType {
             info,
+            abi,
             fields: field_map,
         }))
     }
@@ -4194,8 +4181,13 @@ impl ComponentState {
             }
         }
 
+        let abi = AbiInfo::variant(
+            case_map.values().map(|c| c.ty.map(|ty| ty.abi(types))),
+            offset,
+        )?;
         Ok(ComponentDefinedType::Variant(VariantType {
             info,
+            abi,
             cases: case_map,
         }))
     }
@@ -4210,7 +4202,7 @@ impl ComponentState {
         if tys.is_empty() {
             bail!(offset, "tuple type must have at least one type");
         }
-        let types = tys
+        let tuple_types: Box<[_]> = tys
             .iter()
             .map(|ty| {
                 let ty = self.create_component_val_type(*ty, offset)?;
@@ -4219,7 +4211,12 @@ impl ComponentState {
             })
             .collect::<Result<_>>()?;
 
-        Ok(ComponentDefinedType::Tuple(TupleType { info, types }))
+        let abi = AbiInfo::record(tuple_types.iter().map(|ty| ty.abi(types)), offset)?;
+        Ok(ComponentDefinedType::Tuple(TupleType {
+            info,
+            abi,
+            types: tuple_types,
+        }))
     }
 
     fn create_flags_type(&self, names: &[&str], offset: u64) -> Result<ComponentDefinedType> {

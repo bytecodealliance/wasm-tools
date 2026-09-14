@@ -1,0 +1,23 @@
+(component $C
+  (type $T (;0;) (record (field "x" u32)))
+  (type (;1;)
+    (component
+      (alias outer $C $T (type (;0;)))
+      (type (;1;)
+        (component
+          (alias outer $C $T (type (;0;)))
+        )
+      )
+    )
+  )
+  (component (;0;)
+    (alias outer $C $T (type $parent (;0;)))
+  )
+  (component $D (;1;)
+    (alias outer $C $T (type $aD (;0;)))
+    (component (;0;)
+      (alias outer $D $aD (type $aE (;0;)))
+      (type $use (;1;) (tuple $aE $aE))
+    )
+  )
+)

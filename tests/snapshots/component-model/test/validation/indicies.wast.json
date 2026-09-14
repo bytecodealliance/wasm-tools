@@ -1,0 +1,107 @@
+{
+  "source_filename": "tests/component-model/test/validation/indicies.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 5,
+      "filename": "indicies.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 60,
+      "filename": "indicies.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 73,
+      "filename": "indicies.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 85,
+      "filename": "indicies.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 152,
+      "filename": "indicies.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 210,
+      "filename": "indicies.5.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 223,
+      "filename": "indicies.6.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 236,
+      "filename": "indicies.7.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 251,
+      "filename": "indicies.8.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 267,
+      "filename": "indicies.9.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 280,
+      "filename": "indicies.10.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 291,
+      "filename": "indicies.11.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 299,
+      "filename": "indicies.12.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 311,
+      "filename": "indicies.13.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 328,
+      "filename": "indicies.14.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 341,
+      "filename": "indicies.15.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 371,
+      "filename": "indicies.16.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

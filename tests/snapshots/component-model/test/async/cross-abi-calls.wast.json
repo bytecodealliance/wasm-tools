@@ -1,0 +1,516 @@
+{
+  "source_filename": "tests/component-model/test/async/cross-abi-calls.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 4,
+      "name": "C",
+      "filename": "cross-abi-calls.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 472,
+      "instance": "i",
+      "module": "C"
+    },
+    {
+      "type": "assert_return",
+      "line": 473,
+      "action": {
+        "type": "invoke",
+        "field": "sync-calls-sync-4-param",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "83"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 474,
+      "instance": "i",
+      "module": "C"
+    },
+    {
+      "type": "assert_return",
+      "line": 475,
+      "action": {
+        "type": "invoke",
+        "field": "sync-calls-async-4-param",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "83"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 476,
+      "instance": "i",
+      "module": "C"
+    },
+    {
+      "type": "assert_return",
+      "line": 477,
+      "action": {
+        "type": "invoke",
+        "field": "async-calls-sync-4-param",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "84"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 478,
+      "instance": "i",
+      "module": "C"
+    },
+    {
+      "type": "assert_return",
+      "line": 479,
+      "action": {
+        "type": "invoke",
+        "field": "async-calls-async-4-param",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "84"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 480,
+      "instance": "i",
+      "module": "C"
+    },
+    {
+      "type": "assert_return",
+      "line": 481,
+      "action": {
+        "type": "invoke",
+        "field": "sync-calls-sync-5-param",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "85"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 482,
+      "instance": "i",
+      "module": "C"
+    },
+    {
+      "type": "assert_return",
+      "line": 483,
+      "action": {
+        "type": "invoke",
+        "field": "sync-calls-async-5-param",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "85"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 484,
+      "instance": "i",
+      "module": "C"
+    },
+    {
+      "type": "assert_return",
+      "line": 485,
+      "action": {
+        "type": "invoke",
+        "field": "async-calls-sync-5-param",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "86"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 486,
+      "instance": "i",
+      "module": "C"
+    },
+    {
+      "type": "assert_return",
+      "line": 487,
+      "action": {
+        "type": "invoke",
+        "field": "async-calls-async-5-param",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "86"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 488,
+      "instance": "i",
+      "module": "C"
+    },
+    {
+      "type": "assert_return",
+      "line": 489,
+      "action": {
+        "type": "invoke",
+        "field": "sync-calls-sync-17-param",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "87"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 490,
+      "instance": "i",
+      "module": "C"
+    },
+    {
+      "type": "assert_return",
+      "line": 491,
+      "action": {
+        "type": "invoke",
+        "field": "sync-calls-async-17-param",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "87"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 492,
+      "instance": "i",
+      "module": "C"
+    },
+    {
+      "type": "assert_return",
+      "line": 493,
+      "action": {
+        "type": "invoke",
+        "field": "async-calls-sync-17-param",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "88"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 494,
+      "instance": "i",
+      "module": "C"
+    },
+    {
+      "type": "assert_return",
+      "line": 495,
+      "action": {
+        "type": "invoke",
+        "field": "async-calls-async-17-param",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "88"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 496,
+      "instance": "i",
+      "module": "C"
+    },
+    {
+      "type": "assert_return",
+      "line": 497,
+      "action": {
+        "type": "invoke",
+        "field": "sync-calls-sync-1-result",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "89"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 498,
+      "instance": "i",
+      "module": "C"
+    },
+    {
+      "type": "assert_return",
+      "line": 499,
+      "action": {
+        "type": "invoke",
+        "field": "sync-calls-async-1-result",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "89"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 500,
+      "instance": "i",
+      "module": "C"
+    },
+    {
+      "type": "assert_return",
+      "line": 501,
+      "action": {
+        "type": "invoke",
+        "field": "async-calls-sync-1-result",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "90"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 502,
+      "instance": "i",
+      "module": "C"
+    },
+    {
+      "type": "assert_return",
+      "line": 503,
+      "action": {
+        "type": "invoke",
+        "field": "async-calls-async-1-result",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "90"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 504,
+      "instance": "i",
+      "module": "C"
+    },
+    {
+      "type": "assert_return",
+      "line": 505,
+      "action": {
+        "type": "invoke",
+        "field": "sync-calls-sync-16-result",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "91"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 506,
+      "instance": "i",
+      "module": "C"
+    },
+    {
+      "type": "assert_return",
+      "line": 507,
+      "action": {
+        "type": "invoke",
+        "field": "sync-calls-async-16-result",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "91"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 508,
+      "instance": "i",
+      "module": "C"
+    },
+    {
+      "type": "assert_return",
+      "line": 509,
+      "action": {
+        "type": "invoke",
+        "field": "async-calls-sync-16-result",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "92"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 510,
+      "instance": "i",
+      "module": "C"
+    },
+    {
+      "type": "assert_return",
+      "line": 511,
+      "action": {
+        "type": "invoke",
+        "field": "async-calls-async-16-result",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "92"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 512,
+      "instance": "i",
+      "module": "C"
+    },
+    {
+      "type": "assert_return",
+      "line": 513,
+      "action": {
+        "type": "invoke",
+        "field": "sync-calls-sync-17-result",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "93"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 514,
+      "instance": "i",
+      "module": "C"
+    },
+    {
+      "type": "assert_return",
+      "line": 515,
+      "action": {
+        "type": "invoke",
+        "field": "sync-calls-async-17-result",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "93"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 516,
+      "instance": "i",
+      "module": "C"
+    },
+    {
+      "type": "assert_return",
+      "line": 517,
+      "action": {
+        "type": "invoke",
+        "field": "async-calls-sync-17-result",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "94"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 518,
+      "instance": "i",
+      "module": "C"
+    },
+    {
+      "type": "assert_return",
+      "line": 519,
+      "action": {
+        "type": "invoke",
+        "field": "async-calls-async-17-result",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "94"
+        }
+      ]
+    }
+  ]
+}

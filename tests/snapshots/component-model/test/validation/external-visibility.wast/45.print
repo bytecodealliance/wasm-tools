@@ -1,0 +1,7 @@
+(component
+  (type $Rec (;0;) (record (field "x" u32)))
+  (type $Rec2 (;1;) (record (field "r" $Rec)))
+  (instance (;0;)
+    (export "t" (type $Rec2))
+  )
+)

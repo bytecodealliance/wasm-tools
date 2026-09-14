@@ -9,7 +9,6 @@ description = "WebAssembly Value Encoding"
 documentation = "https://docs.rs/wasm-wave"
 categories = ["wasm", "encoding", "parser-implementations"]
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-wave"
-readme = "README.md"
 
 [lints]
 workspace = true
@@ -20,7 +19,7 @@ std = []
 wit = ["dep:wit-parser", "dep:anyhow", "std"]
 
 [dependencies]
-logos = { version = "0.14.2", default-features = false, features = ["export_derive", "forbid_unsafe"] }
+logos = { version = "0.15.0", default-features = false, features = ["export_derive", "forbid_unsafe"] }
 thiserror = { workspace = true }
 wit-parser = { workspace = true, optional = true }
 anyhow = { workspace = true, optional = true }

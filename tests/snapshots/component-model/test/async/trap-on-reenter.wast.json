@@ -1,0 +1,56 @@
+{
+  "source_filename": "tests/component-model/test/async/trap-on-reenter.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 4,
+      "name": "Parent",
+      "filename": "trap-on-reenter.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_trap",
+      "line": 65,
+      "action": {
+        "type": "invoke",
+        "field": "c",
+        "args": []
+      },
+      "text": "wasm trap: cannot enter component instance"
+    },
+    {
+      "type": "module",
+      "line": 68,
+      "name": "Parent",
+      "filename": "trap-on-reenter.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_trap",
+      "line": 86,
+      "action": {
+        "type": "invoke",
+        "field": "g",
+        "args": []
+      },
+      "text": "wasm trap: cannot enter component instance"
+    },
+    {
+      "type": "module",
+      "line": 89,
+      "name": "Parent",
+      "filename": "trap-on-reenter.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_trap",
+      "line": 110,
+      "action": {
+        "type": "invoke",
+        "field": "g",
+        "args": []
+      },
+      "text": "wasm trap: cannot enter component instance"
+    }
+  ]
+}

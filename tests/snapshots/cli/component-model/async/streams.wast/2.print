@@ -6,7 +6,7 @@
   (core instance $libc (;0;) (instantiate $libc))
   (core module $m (;1;)
     (type (;0;) (func (param i32 i32 i32) (result i32)))
-    (import "" "stream.read" (func $stream-read (;0;) (type 0)))
+    (import "" "stream.read" (func $stream-read (;0;) (type 0) (param i32 i32 i32) (result i32)))
   )
   (type $stream-type (;0;) (stream u8))
   (alias core export $libc "memory" (core memory (;0;)))

@@ -1,0 +1,13 @@
+(component
+  (core module (;0;)
+    (type (;0;) (func))
+    (export "f" (func 0))
+    (func (;0;) (type 0))
+  )
+  (core instance (;0;) (instantiate 0))
+  (alias core export 0 "f" (core func (;0;)))
+  (type (;0;) (func))
+  (func (;0;) (type 0) (canon lift (core func 0)))
+  (export (;1;) "e1" (func 0))
+  (export (;2;) "e2" (func 0) (func (type 0)))
+)

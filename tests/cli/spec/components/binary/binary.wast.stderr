@@ -1,0 +1,10 @@
+error: 1 test failures in tests/component-model/test/binary/binary.wast:
+
+--------------------------------
+
+failed directive on tests/component-model/test/binary/binary.wast:974:2
+
+Caused by:
+    0: failed testing wasm binary produced by `wast`
+    1: wasm isn't valid
+    2: invalid leading byte (0x1) for zero byte; this was historically accepted as `cancellable` until WebAssembly/component-model#716 (at offset 0x192)

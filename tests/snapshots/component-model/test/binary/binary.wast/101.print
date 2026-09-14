@@ -1,0 +1,6 @@
+(component
+  (type (;0;) (func))
+  (import "a" (func (;0;) (type 0)))
+  (import "b" (func (;1;) (type 0)))
+  (import "c" (func (;2;) (type 0)))
+)

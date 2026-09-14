@@ -1,0 +1,26 @@
+{
+  "source_filename": "tests/component-model/test/async/zero-length.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 7,
+      "filename": "zero-length.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 223,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    }
+  ]
+}

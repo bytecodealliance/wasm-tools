@@ -61,8 +61,39 @@ impl Module {
         }
 
         let mut section = wasm_encoder::ImportSection::new();
-        for im in &self.imports {
-            section.import(&im.module, &im.name, translate_entity_type(&im.entity_type));
+        for group in &self.imports {
+            match group {
+                crate::core::Imports::Single(im) => {
+                    section.imports(wasm_encoder::Imports::Single(wasm_encoder::Import {
+                        module: &im.module,
+                        name: &im.name,
+                        ty: translate_entity_type(&im.entity_type),
+                    }));
+                }
+                crate::core::Imports::Compact1 { module, items } => {
+                    section.imports(wasm_encoder::Imports::Compact1 {
+                        module,
+                        items: items
+                            .iter()
+                            .map(|im| wasm_encoder::ImportCompact {
+                                name: &im.name,
+                                ty: translate_entity_type(&im.entity_type),
+                            })
+                            .collect(),
+                    });
+                }
+                crate::core::Imports::Compact2 {
+                    module,
+                    entity_type,
+                    names,
+                } => {
+                    section.imports(wasm_encoder::Imports::Compact2 {
+                        module,
+                        ty: translate_entity_type(entity_type),
+                        names: names.iter().map(String::as_str).collect(),
+                    });
+                }
+            }
         }
         module.section(&section);
     }

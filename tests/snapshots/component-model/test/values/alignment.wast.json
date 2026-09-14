@@ -1,0 +1,198 @@
+{
+  "source_filename": "tests/component-model/test/values/alignment.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 5,
+      "name": "CalleeRetptr",
+      "filename": "alignment.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 26,
+      "instance": "i",
+      "module": "CalleeRetptr"
+    },
+    {
+      "type": "assert_trap",
+      "line": 27,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "text": "unaligned pointer"
+    },
+    {
+      "type": "module_definition",
+      "line": 30,
+      "name": "CallerRetptr",
+      "filename": "alignment.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 51,
+      "instance": "i",
+      "module": "CallerRetptr"
+    },
+    {
+      "type": "assert_trap",
+      "line": 52,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "text": "unaligned pointer"
+    },
+    {
+      "type": "module_definition",
+      "line": 56,
+      "name": "CalleeArgptr",
+      "filename": "alignment.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 81,
+      "instance": "i",
+      "module": "CalleeArgptr"
+    },
+    {
+      "type": "assert_trap",
+      "line": 82,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "text": "unaligned pointer"
+    },
+    {
+      "type": "module_definition",
+      "line": 85,
+      "name": "CallerArgptr",
+      "filename": "alignment.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 110,
+      "instance": "i",
+      "module": "CallerArgptr"
+    },
+    {
+      "type": "assert_trap",
+      "line": 111,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "text": "unaligned pointer"
+    },
+    {
+      "type": "module_definition",
+      "line": 114,
+      "name": "Utf16Src",
+      "filename": "alignment.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 138,
+      "instance": "i",
+      "module": "Utf16Src"
+    },
+    {
+      "type": "assert_trap",
+      "line": 139,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "text": "unaligned pointer"
+    },
+    {
+      "type": "module_definition",
+      "line": 143,
+      "name": "Latin1Utf16Src",
+      "filename": "alignment.5.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 170,
+      "instance": "i",
+      "module": "Latin1Utf16Src"
+    },
+    {
+      "type": "assert_trap",
+      "line": 171,
+      "action": {
+        "type": "invoke",
+        "field": "run-latin1",
+        "args": []
+      },
+      "text": "unaligned pointer"
+    },
+    {
+      "type": "module_instance",
+      "line": 172,
+      "instance": "i",
+      "module": "Latin1Utf16Src"
+    },
+    {
+      "type": "assert_trap",
+      "line": 173,
+      "action": {
+        "type": "invoke",
+        "field": "run-utf16",
+        "args": []
+      },
+      "text": "unaligned pointer"
+    },
+    {
+      "type": "module_definition",
+      "line": 177,
+      "name": "StringOOB",
+      "filename": "alignment.6.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 204,
+      "instance": "i",
+      "module": "StringOOB"
+    },
+    {
+      "type": "assert_trap",
+      "line": 205,
+      "action": {
+        "type": "invoke",
+        "field": "run-ptr-oob",
+        "args": []
+      },
+      "text": "string content out-of-bounds"
+    },
+    {
+      "type": "module_instance",
+      "line": 206,
+      "instance": "i",
+      "module": "StringOOB"
+    },
+    {
+      "type": "assert_trap",
+      "line": 207,
+      "action": {
+        "type": "invoke",
+        "field": "run-len-oob",
+        "args": []
+      },
+      "text": "string content out-of-bounds"
+    }
+  ]
+}

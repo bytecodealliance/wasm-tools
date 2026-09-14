@@ -62,11 +62,11 @@
       (instance)
     )
     (import "wasi" (instance $wasi (;0;) (type $Wasi)))
-    (alias outer 1 $B (component $B (;0;)))
-    (alias outer 1 $A (component $A (;1;)))
-    (instance $b (;1;) (instantiate $B
+    (alias outer 1 $B (component (;0;)))
+    (alias outer 1 $A (component (;1;)))
+    (instance $b (;1;) (instantiate 0
         (with "wasi" (instance $wasi))
-        (with "a1-x" (component $A))
+        (with "a1-x" (component 1))
       )
     )
     (alias export $b "b" (func (;0;)))
@@ -98,11 +98,11 @@
       (instance)
     )
     (import "wasi" (instance $wasi (;0;) (type $Wasi)))
-    (alias outer 1 $C (component $C (;0;)))
-    (alias outer 1 $B_wrap (component $B_wrap (;1;)))
-    (instance $c (;1;) (instantiate $C
+    (alias outer 1 $C (component (;0;)))
+    (alias outer 1 $B_wrap (component (;1;)))
+    (instance $c (;1;) (instantiate 0
         (with "wasi" (instance $wasi))
-        (with "b1-x" (component $B_wrap))
+        (with "b1-x" (component 1))
       )
     )
     (alias export $c "c" (func (;0;)))

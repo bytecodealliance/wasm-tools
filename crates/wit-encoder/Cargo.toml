@@ -27,7 +27,6 @@ from-parser = ["wit-parser", "id-arena"]
 
 [dependencies]
 id-arena = { workspace = true, optional = true }
-pretty_assertions = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true, optional = true, features = ["derive"] }
 wit-parser = { workspace = true, optional = true }
@@ -35,3 +34,4 @@ wit-parser = { workspace = true, optional = true }
 [dev-dependencies]
 anyhow = { workspace = true }
 indoc = { workspace = true }
+pretty_assertions = { workspace = true }

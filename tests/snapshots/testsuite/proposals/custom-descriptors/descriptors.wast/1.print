@@ -1,0 +1,10 @@
+(module
+  (rec
+    (type $a (;0;) (descriptor $b) (struct))
+    (type $b (;1;) (sub (describes $a) (struct)))
+  )
+  (rec
+    (type $x (;2;) (sub (descriptor $y) (struct)))
+    (type $y (;3;) (describes $x) (struct))
+  )
+)

@@ -1,0 +1,47 @@
+(component
+  (core module $P (;0;)
+    (type (;0;) (func))
+    (global (;0;) i32 i32.const 30)
+    (global $g64 (;1;) (mut i64) i64.const 7)
+    (export "gi" (global 0))
+    (export "g64" (global $g64))
+    (export "bump64" (func 0))
+    (func (;0;) (type 0)
+      global.get $g64
+      i64.const 1
+      i64.add
+      global.set $g64
+    )
+  )
+  (core instance $p (;0;) (instantiate $P))
+  (alias core export $p "gi" (core global $gi (;0;)))
+  (core module $User (;1;)
+    (type (;0;) (func (result i32)))
+    (import "env" "base" (global $base (;0;) i32))
+    (import "env" "big" (global $big (;1;) (mut i64)))
+    (export "read" (func 0))
+    (func (;0;) (type 0) (result i32)
+      global.get $base
+      global.get $big
+      i32.wrap_i64
+      i32.add
+    )
+  )
+  (alias core export $p "g64" (core global (;1;)))
+  (core instance (;1;)
+    (export "base" (global $gi))
+    (export "big" (global 1))
+  )
+  (core instance $u (;2;) (instantiate $User
+      (with "env" (instance 1))
+    )
+  )
+  (type (;0;) (func))
+  (alias core export $p "bump64" (core func (;0;)))
+  (func (;0;) (type 0) (canon lift (core func 0)))
+  (type (;1;) (func (result u32)))
+  (alias core export $u "read" (core func (;1;)))
+  (func (;1;) (type 1) (canon lift (core func 1)))
+  (export (;2;) "bump64" (func 0))
+  (export (;3;) "read" (func 1))
+)

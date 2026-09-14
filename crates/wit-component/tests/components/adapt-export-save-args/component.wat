@@ -2,7 +2,7 @@
   (core module $main (;0;)
     (type (;0;) (func (result i32)))
     (type (;1;) (func))
-    (import "old" "nargs" (func (;0;) (type 0)))
+    (import "old" "nargs" (func (;0;) (type 0) (result i32)))
     (export "the_entrypoint" (func 1))
     (func (;1;) (type 1))
     (@producers
@@ -59,7 +59,7 @@
   )
   (core module $wit-component-fixup (;3;)
     (type (;0;) (func (result i32)))
-    (import "actual" "0" (func $0 (;0;) (type 0)))
+    (import "actual" "0" (func $0 (;0;) (type 0) (result i32)))
     (import "shim" "$imports" (table (;0;) 1 1 funcref))
     (elem (;0;) (i32.const 0) func $0)
     (@producers

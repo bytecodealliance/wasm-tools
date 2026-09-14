@@ -1,0 +1,251 @@
+{
+  "source_filename": "tests/component-model/test/validation/annotated-names.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 8,
+      "filename": "annotated-names.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 18,
+      "filename": "annotated-names.1.wasm",
+      "module_type": "binary",
+      "text": "not in kebab case"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 22,
+      "filename": "annotated-names.2.wasm",
+      "module_type": "binary",
+      "text": "should return one value"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 26,
+      "filename": "annotated-names.3.wasm",
+      "module_type": "binary",
+      "text": "should return `(own $T)`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 30,
+      "filename": "annotated-names.4.wasm",
+      "module_type": "binary",
+      "text": "function does not match expected resource name `b`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 35,
+      "filename": "annotated-names.5.wasm",
+      "module_type": "binary",
+      "text": "function should return `(own $T)` or `(result (own $T))`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 40,
+      "filename": "annotated-names.6.wasm",
+      "module_type": "binary",
+      "text": "function should return `(own $T)` or `(result (own $T))`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 45,
+      "filename": "annotated-names.7.wasm",
+      "module_type": "binary",
+      "text": "function should return `(own $T)` or `(result (own $T))`"
+    },
+    {
+      "type": "module_definition",
+      "line": 53,
+      "filename": "annotated-names.8.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 57,
+      "filename": "annotated-names.9.wasm",
+      "module_type": "binary",
+      "text": "failed to find `.` character"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 61,
+      "filename": "annotated-names.10.wasm",
+      "module_type": "binary",
+      "text": "failed to find `.` character"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 65,
+      "filename": "annotated-names.11.wasm",
+      "module_type": "binary",
+      "text": "not in kebab case"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 69,
+      "filename": "annotated-names.12.wasm",
+      "module_type": "binary",
+      "text": "not in kebab case"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 73,
+      "filename": "annotated-names.13.wasm",
+      "module_type": "binary",
+      "text": "not in kebab case"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 77,
+      "filename": "annotated-names.14.wasm",
+      "module_type": "binary",
+      "text": "is not a func"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 81,
+      "filename": "annotated-names.15.wasm",
+      "module_type": "binary",
+      "text": "should have at least one argument"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 85,
+      "filename": "annotated-names.16.wasm",
+      "module_type": "binary",
+      "text": "should have a first argument called `self`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 89,
+      "filename": "annotated-names.17.wasm",
+      "module_type": "binary",
+      "text": "should take a first argument of `(borrow $T)`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 93,
+      "filename": "annotated-names.18.wasm",
+      "module_type": "binary",
+      "text": "does not match expected resource name"
+    },
+    {
+      "type": "module_definition",
+      "line": 101,
+      "filename": "annotated-names.19.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 105,
+      "filename": "annotated-names.20.wasm",
+      "module_type": "binary",
+      "text": "failed to find `.` character"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 109,
+      "filename": "annotated-names.21.wasm",
+      "module_type": "binary",
+      "text": "failed to find `.` character"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 113,
+      "filename": "annotated-names.22.wasm",
+      "module_type": "binary",
+      "text": "not in kebab case"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 117,
+      "filename": "annotated-names.23.wasm",
+      "module_type": "binary",
+      "text": "not in kebab case"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 121,
+      "filename": "annotated-names.24.wasm",
+      "module_type": "binary",
+      "text": "not in kebab case"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 125,
+      "filename": "annotated-names.25.wasm",
+      "module_type": "binary",
+      "text": "is not a func"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 129,
+      "filename": "annotated-names.26.wasm",
+      "module_type": "binary",
+      "text": "static resource name is not known in this context"
+    },
+    {
+      "type": "module",
+      "line": 137,
+      "filename": "annotated-names.27.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 144,
+      "filename": "annotated-names.28.wasm",
+      "module_type": "binary",
+      "text": "resource used in function does not have a name in this context"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 154,
+      "filename": "annotated-names.29.wasm",
+      "module_type": "binary",
+      "text": "resource used in function does not have a name in this context"
+    },
+    {
+      "type": "module",
+      "line": 164,
+      "filename": "annotated-names.30.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 171,
+      "filename": "annotated-names.31.wasm",
+      "module_type": "binary",
+      "text": "function does not match expected resource name `b`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 177,
+      "filename": "annotated-names.32.wasm",
+      "module_type": "binary",
+      "text": "resource used in function does not have a name in this context"
+    },
+    {
+      "type": "module_definition",
+      "line": 190,
+      "filename": "annotated-names.33.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 194,
+      "filename": "annotated-names.34.wasm",
+      "module_type": "binary",
+      "text": "import name `[method]a.a` conflicts with previous name `a`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 199,
+      "filename": "annotated-names.35.wasm",
+      "module_type": "binary",
+      "text": "import name `[static]a.a` conflicts with previous name `a`"
+    }
+  ]
+}

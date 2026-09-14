@@ -1,0 +1,21 @@
+(component
+  (core module (;0;)
+    (type (;0;) (func (param i32 i32) (result i32)))
+    (export "add" (func 0))
+    (func (;0;) (type 0) (param i32 i32) (result i32)
+      local.get 0
+      local.get 1
+      i32.add
+    )
+  )
+  (core type $MT (;0;)
+    (module
+      (type (;0;) (func))
+      (import "a" "b" (func (type 0)))
+      (import "a" "c" (func (type 0)))
+      (export "f" (func (type 0)))
+      (export "g" (func (type 0)))
+    )
+  )
+  (import "m" (core module (;1;) (type $MT)))
+)

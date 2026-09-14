@@ -42,15 +42,22 @@ impl<'a> Namespace<'a> {
     }
 
     pub fn resolve(&self, idx: &mut Index<'a>, desc: &str) -> Result<u32, Error> {
+        self.try_resolve(idx).ok_or_else(|| match idx {
+            Index::Num(..) => unreachable!(),
+            Index::Id(id) => resolve_error(*id, desc),
+        })
+    }
+
+    pub fn try_resolve(&self, idx: &mut Index<'a>) -> Option<u32> {
         let id = match idx {
-            Index::Num(n, _) => return Ok(*n),
+            Index::Num(n, _) => return Some(*n),
             Index::Id(id) => id,
         };
         if let Some(&n) = self.names.get(id) {
             *idx = Index::Num(n, id.span());
-            return Ok(n);
+            return Some(n);
         }
-        Err(resolve_error(*id, desc))
+        None
     }
 }
 

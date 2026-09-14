@@ -1,0 +1,49 @@
+{
+  "source_filename": "tests/component-model/test/resources/borrows.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 4,
+      "name": "BorrowTester",
+      "filename": "borrows.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 158,
+      "instance": "i",
+      "module": "BorrowTester"
+    },
+    {
+      "type": "assert_return",
+      "line": 159,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 161,
+      "instance": "i",
+      "module": "BorrowTester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 162,
+      "action": {
+        "type": "invoke",
+        "field": "lend-trap",
+        "args": []
+      },
+      "text": "cannot remove owned resource while borrowed"
+    }
+  ]
+}

@@ -5,7 +5,7 @@
   (type (;3;) (func (param i32)))
   (import "lwt" "yield" (tag $yield (;0;) (type $func)))
   (import "lwt" "fork" (tag $fork (;1;) (type 2) (param (ref $cont))))
-  (import "spectest" "print_i32" (func $log (;0;) (type 3)))
+  (import "spectest" "print_i32" (func $log (;0;) (type 3) (param i32)))
   (export "main" (func $main))
   (elem (;0;) declare func $thread1 $thread2 $thread3)
   (func $main (;1;) (type $func)

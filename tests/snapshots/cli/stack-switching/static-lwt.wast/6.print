@@ -5,9 +5,9 @@
   (type (;3;) (func (result (ref null $cont))))
   (type (;4;) (func (param (ref $cont))))
   (import "lwt" "yield" (tag $yield (;0;) (type $func)))
-  (import "queue" "queue-empty" (func $queue-empty (;0;) (type 2)))
-  (import "queue" "dequeue" (func $dequeue (;1;) (type 3)))
-  (import "queue" "enqueue" (func $enqueue (;2;) (type 4)))
+  (import "queue" "queue-empty" (func $queue-empty (;0;) (type 2) (result i32)))
+  (import "queue" "dequeue" (func $dequeue (;1;) (type 3) (result (ref null $cont))))
+  (import "queue" "enqueue" (func $enqueue (;2;) (type 4) (param (ref $cont))))
   (export "run" (func $run))
   (func $run (;3;) (type $func)
     loop $l

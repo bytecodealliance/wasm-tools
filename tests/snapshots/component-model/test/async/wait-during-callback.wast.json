@@ -1,0 +1,26 @@
+{
+  "source_filename": "tests/component-model/test/async/wait-during-callback.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 2,
+      "filename": "wait-during-callback.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 77,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    }
+  ]
+}

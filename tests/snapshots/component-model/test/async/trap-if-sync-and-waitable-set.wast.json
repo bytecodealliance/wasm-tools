@@ -1,0 +1,220 @@
+{
+  "source_filename": "tests/component-model/test/async/trap-if-sync-and-waitable-set.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 3,
+      "name": "Tester",
+      "filename": "trap-if-sync-and-waitable-set.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 280,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 281,
+      "action": {
+        "type": "invoke",
+        "field": "join-during-sync-future-read",
+        "args": []
+      },
+      "text": "waitable cannot be used synchronously while added to a waitable set"
+    },
+    {
+      "type": "module_instance",
+      "line": 282,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 283,
+      "action": {
+        "type": "invoke",
+        "field": "join-during-sync-future-write",
+        "args": []
+      },
+      "text": "waitable cannot be used synchronously while added to a waitable set"
+    },
+    {
+      "type": "module_instance",
+      "line": 284,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 285,
+      "action": {
+        "type": "invoke",
+        "field": "join-during-sync-stream-read",
+        "args": []
+      },
+      "text": "waitable cannot be used synchronously while added to a waitable set"
+    },
+    {
+      "type": "module_instance",
+      "line": 286,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 287,
+      "action": {
+        "type": "invoke",
+        "field": "join-during-sync-stream-write",
+        "args": []
+      },
+      "text": "waitable cannot be used synchronously while added to a waitable set"
+    },
+    {
+      "type": "module_instance",
+      "line": 288,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 289,
+      "action": {
+        "type": "invoke",
+        "field": "sync-future-read-when-in-set",
+        "args": []
+      },
+      "text": "waitable cannot be used synchronously while added to a waitable set"
+    },
+    {
+      "type": "module_instance",
+      "line": 290,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 291,
+      "action": {
+        "type": "invoke",
+        "field": "sync-future-write-when-in-set",
+        "args": []
+      },
+      "text": "waitable cannot be used synchronously while added to a waitable set"
+    },
+    {
+      "type": "module_instance",
+      "line": 292,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 293,
+      "action": {
+        "type": "invoke",
+        "field": "sync-stream-read-when-in-set",
+        "args": []
+      },
+      "text": "waitable cannot be used synchronously while added to a waitable set"
+    },
+    {
+      "type": "module_instance",
+      "line": 294,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 295,
+      "action": {
+        "type": "invoke",
+        "field": "sync-stream-write-when-in-set",
+        "args": []
+      },
+      "text": "waitable cannot be used synchronously while added to a waitable set"
+    },
+    {
+      "type": "module_instance",
+      "line": 296,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 297,
+      "action": {
+        "type": "invoke",
+        "field": "sync-future-cancel-read-when-in-set",
+        "args": []
+      },
+      "text": "waitable cannot be used synchronously while added to a waitable set"
+    },
+    {
+      "type": "module_instance",
+      "line": 298,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 299,
+      "action": {
+        "type": "invoke",
+        "field": "sync-future-cancel-write-when-in-set",
+        "args": []
+      },
+      "text": "waitable cannot be used synchronously while added to a waitable set"
+    },
+    {
+      "type": "module_instance",
+      "line": 300,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 301,
+      "action": {
+        "type": "invoke",
+        "field": "sync-stream-cancel-read-when-in-set",
+        "args": []
+      },
+      "text": "waitable cannot be used synchronously while added to a waitable set"
+    },
+    {
+      "type": "module_instance",
+      "line": 302,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 303,
+      "action": {
+        "type": "invoke",
+        "field": "sync-stream-cancel-write-when-in-set",
+        "args": []
+      },
+      "text": "waitable cannot be used synchronously while added to a waitable set"
+    },
+    {
+      "type": "module_instance",
+      "line": 304,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 305,
+      "action": {
+        "type": "invoke",
+        "field": "sync-subtask-cancel-when-in-set",
+        "args": []
+      },
+      "text": "waitable cannot be used synchronously while added to a waitable set"
+    }
+  ]
+}

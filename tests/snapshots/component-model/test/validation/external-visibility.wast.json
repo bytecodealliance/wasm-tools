@@ -1,0 +1,417 @@
+{
+  "source_filename": "tests/component-model/test/validation/external-visibility.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 5,
+      "filename": "external-visibility.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 20,
+      "filename": "external-visibility.1.wasm",
+      "module_type": "binary",
+      "text": "func not valid to be used as export"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 29,
+      "filename": "external-visibility.2.wasm",
+      "module_type": "binary",
+      "text": "func not valid to be used as export"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 39,
+      "filename": "external-visibility.3.wasm",
+      "module_type": "binary",
+      "text": "func not valid to be used as import"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 46,
+      "filename": "external-visibility.4.wasm",
+      "module_type": "binary",
+      "text": "func not valid to be used as import"
+    },
+    {
+      "type": "module_definition",
+      "line": 53,
+      "filename": "external-visibility.5.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 62,
+      "filename": "external-visibility.6.wasm",
+      "module_type": "binary",
+      "text": "func not valid to be used as export"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 71,
+      "filename": "external-visibility.7.wasm",
+      "module_type": "binary",
+      "text": "func not valid to be used as export"
+    },
+    {
+      "type": "module_definition",
+      "line": 80,
+      "filename": "external-visibility.8.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 91,
+      "filename": "external-visibility.9.wasm",
+      "module_type": "binary",
+      "text": "type not valid to be used as export"
+    },
+    {
+      "type": "module_definition",
+      "line": 103,
+      "filename": "external-visibility.10.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 112,
+      "filename": "external-visibility.11.wasm",
+      "module_type": "binary",
+      "text": "func not valid to be used as export"
+    },
+    {
+      "type": "module_definition",
+      "line": 122,
+      "filename": "external-visibility.12.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 131,
+      "filename": "external-visibility.13.wasm",
+      "module_type": "binary",
+      "text": "func not valid to be used as export"
+    },
+    {
+      "type": "module_definition",
+      "line": 141,
+      "filename": "external-visibility.14.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 150,
+      "filename": "external-visibility.15.wasm",
+      "module_type": "binary",
+      "text": "func not valid to be used as export"
+    },
+    {
+      "type": "module_definition",
+      "line": 160,
+      "filename": "external-visibility.16.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 168,
+      "filename": "external-visibility.17.wasm",
+      "module_type": "binary",
+      "text": "func not valid to be used as export"
+    },
+    {
+      "type": "module_definition",
+      "line": 176,
+      "filename": "external-visibility.18.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 185,
+      "filename": "external-visibility.19.wasm",
+      "module_type": "binary",
+      "text": "func not valid to be used as export"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 196,
+      "filename": "external-visibility.20.wasm",
+      "module_type": "binary",
+      "text": "func not valid to be used as export"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 209,
+      "filename": "external-visibility.21.wasm",
+      "module_type": "binary",
+      "text": "instance not valid to be used as export"
+    },
+    {
+      "type": "module_definition",
+      "line": 220,
+      "filename": "external-visibility.22.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 232,
+      "filename": "external-visibility.23.wasm",
+      "module_type": "binary",
+      "text": "type not valid to be used as export"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 239,
+      "filename": "external-visibility.24.wasm",
+      "module_type": "binary",
+      "text": "type not valid to be used as export"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 246,
+      "filename": "external-visibility.25.wasm",
+      "module_type": "binary",
+      "text": "type not valid to be used as export"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 253,
+      "filename": "external-visibility.26.wasm",
+      "module_type": "binary",
+      "text": "type not valid to be used as export"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 260,
+      "filename": "external-visibility.27.wasm",
+      "module_type": "binary",
+      "text": "type not valid to be used as export"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 267,
+      "filename": "external-visibility.28.wasm",
+      "module_type": "binary",
+      "text": "type not valid to be used as export"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 276,
+      "filename": "external-visibility.29.wasm",
+      "module_type": "binary",
+      "text": "type not valid to be used as export"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 283,
+      "filename": "external-visibility.30.wasm",
+      "module_type": "binary",
+      "text": "type not valid to be used as export"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 290,
+      "filename": "external-visibility.31.wasm",
+      "module_type": "binary",
+      "text": "type not valid to be used as export"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 297,
+      "filename": "external-visibility.32.wasm",
+      "module_type": "binary",
+      "text": "type not valid to be used as export"
+    },
+    {
+      "type": "module_definition",
+      "line": 306,
+      "filename": "external-visibility.33.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 313,
+      "filename": "external-visibility.34.wasm",
+      "module_type": "binary",
+      "text": "type not valid to be used as import"
+    },
+    {
+      "type": "module_definition",
+      "line": 322,
+      "filename": "external-visibility.35.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 329,
+      "filename": "external-visibility.36.wasm",
+      "module_type": "binary",
+      "text": "type not valid to be used as import"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 338,
+      "filename": "external-visibility.37.wasm",
+      "module_type": "binary",
+      "text": "type not valid to be used as export"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 347,
+      "filename": "external-visibility.38.wasm",
+      "module_type": "binary",
+      "text": "type not valid to be used as import"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 354,
+      "filename": "external-visibility.39.wasm",
+      "module_type": "binary",
+      "text": "type not valid to be used as export"
+    },
+    {
+      "type": "module_definition",
+      "line": 363,
+      "filename": "external-visibility.40.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 369,
+      "filename": "external-visibility.41.wasm",
+      "module_type": "binary",
+      "text": "instance not valid to be used as import"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 378,
+      "filename": "external-visibility.42.wasm",
+      "module_type": "binary",
+      "text": "func not valid to be used as export"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 385,
+      "filename": "external-visibility.43.wasm",
+      "module_type": "binary",
+      "text": "type not valid to be used as export"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 395,
+      "filename": "external-visibility.44.wasm",
+      "module_type": "binary",
+      "text": "func not valid to be used as import"
+    },
+    {
+      "type": "module_definition",
+      "line": 402,
+      "filename": "external-visibility.45.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_definition",
+      "line": 410,
+      "filename": "external-visibility.46.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_definition",
+      "line": 420,
+      "filename": "external-visibility.47.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 433,
+      "filename": "external-visibility.48.wasm",
+      "module_type": "binary",
+      "text": "func not valid to be used as export"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 444,
+      "filename": "external-visibility.49.wasm",
+      "module_type": "binary",
+      "text": "func not valid to be used as export"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 459,
+      "filename": "external-visibility.50.wasm",
+      "module_type": "binary",
+      "text": "instance not valid to be used as export"
+    },
+    {
+      "type": "module_definition",
+      "line": 475,
+      "filename": "external-visibility.51.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 490,
+      "filename": "external-visibility.52.wasm",
+      "module_type": "binary",
+      "text": "func not valid to be used as import"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 498,
+      "filename": "external-visibility.53.wasm",
+      "module_type": "binary",
+      "text": "func not valid to be used as export"
+    },
+    {
+      "type": "module_definition",
+      "line": 511,
+      "filename": "external-visibility.54.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_definition",
+      "line": 520,
+      "filename": "external-visibility.55.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_definition",
+      "line": 531,
+      "filename": "external-visibility.56.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_definition",
+      "line": 543,
+      "filename": "external-visibility.57.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_definition",
+      "line": 563,
+      "filename": "external-visibility.58.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_definition",
+      "line": 580,
+      "filename": "external-visibility.59.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 588,
+      "filename": "external-visibility.60.wasm",
+      "module_type": "binary",
+      "text": "ascribed type of export is not compatible"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 596,
+      "filename": "external-visibility.61.wasm",
+      "module_type": "binary",
+      "text": "missing expected export `f`"
+    }
+  ]
+}

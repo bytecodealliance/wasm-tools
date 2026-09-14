@@ -1,0 +1,832 @@
+{
+  "source_filename": "tests/component-model/test/binary/binary.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 7,
+      "filename": "binary.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 8,
+      "filename": "binary.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 9,
+      "name": "B1",
+      "filename": "binary.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 10,
+      "filename": "binary.3.wasm",
+      "module_type": "binary",
+      "text": ""
+    },
+    {
+      "type": "assert_malformed",
+      "line": 11,
+      "filename": "binary.4.wasm",
+      "module_type": "binary",
+      "text": ""
+    },
+    {
+      "type": "assert_malformed",
+      "line": 12,
+      "filename": "binary.5.wasm",
+      "module_type": "binary",
+      "text": ""
+    },
+    {
+      "type": "assert_malformed",
+      "line": 13,
+      "filename": "binary.6.wasm",
+      "module_type": "binary",
+      "text": ""
+    },
+    {
+      "type": "assert_malformed",
+      "line": 14,
+      "filename": "binary.7.wasm",
+      "module_type": "binary",
+      "text": ""
+    },
+    {
+      "type": "assert_malformed",
+      "line": 15,
+      "filename": "binary.8.wasm",
+      "module_type": "binary",
+      "text": ""
+    },
+    {
+      "type": "assert_malformed",
+      "line": 16,
+      "filename": "binary.9.wasm",
+      "module_type": "binary",
+      "text": ""
+    },
+    {
+      "type": "assert_malformed",
+      "line": 17,
+      "filename": "binary.10.wasm",
+      "module_type": "binary",
+      "text": ""
+    },
+    {
+      "type": "assert_malformed",
+      "line": 18,
+      "filename": "binary.11.wasm",
+      "module_type": "binary",
+      "text": ""
+    },
+    {
+      "type": "assert_malformed",
+      "line": 19,
+      "filename": "binary.12.wasm",
+      "module_type": "binary",
+      "text": ""
+    },
+    {
+      "type": "assert_malformed",
+      "line": 20,
+      "filename": "binary.13.wasm",
+      "module_type": "binary",
+      "text": ""
+    },
+    {
+      "type": "assert_malformed",
+      "line": 21,
+      "filename": "binary.14.wasm",
+      "module_type": "binary",
+      "text": ""
+    },
+    {
+      "type": "assert_malformed",
+      "line": 22,
+      "filename": "binary.15.wasm",
+      "module_type": "binary",
+      "text": ""
+    },
+    {
+      "type": "assert_malformed",
+      "line": 23,
+      "filename": "binary.16.wasm",
+      "module_type": "binary",
+      "text": ""
+    },
+    {
+      "type": "assert_malformed",
+      "line": 24,
+      "filename": "binary.17.wasm",
+      "module_type": "binary",
+      "text": ""
+    },
+    {
+      "type": "assert_malformed",
+      "line": 25,
+      "filename": "binary.18.wasm",
+      "module_type": "binary",
+      "text": ""
+    },
+    {
+      "type": "assert_malformed",
+      "line": 26,
+      "filename": "binary.19.wasm",
+      "module_type": "binary",
+      "text": ""
+    },
+    {
+      "type": "module",
+      "line": 30,
+      "filename": "binary.20.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 35,
+      "filename": "binary.21.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 45,
+      "filename": "binary.22.wasm",
+      "module_type": "binary",
+      "text": "unexpected end-of-file"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 53,
+      "filename": "binary.23.wasm",
+      "module_type": "binary",
+      "text": "malformed UTF-8 encoding"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 64,
+      "filename": "binary.24.wasm",
+      "module_type": "binary",
+      "text": "malformed section id"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 71,
+      "filename": "binary.25.wasm",
+      "module_type": "binary",
+      "text": "malformed section id"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 78,
+      "filename": "binary.26.wasm",
+      "module_type": "binary",
+      "text": "malformed section id"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 86,
+      "filename": "binary.27.wasm",
+      "module_type": "binary",
+      "text": "unexpected end-of-file"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 93,
+      "filename": "binary.28.wasm",
+      "module_type": "binary",
+      "text": "unexpected end-of-file"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 100,
+      "filename": "binary.29.wasm",
+      "module_type": "binary",
+      "text": "unexpected end-of-file"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 107,
+      "filename": "binary.30.wasm",
+      "module_type": "binary",
+      "text": "unexpected end-of-file"
+    },
+    {
+      "type": "module",
+      "line": 114,
+      "filename": "binary.31.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 119,
+      "filename": "binary.32.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 127,
+      "filename": "binary.33.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 145,
+      "filename": "binary.34.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 151,
+      "filename": "binary.35.wasm",
+      "module_type": "binary",
+      "text": "integer too large"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 159,
+      "filename": "binary.36.wasm",
+      "module_type": "binary",
+      "text": "unexpected end-of-file"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 168,
+      "filename": "binary.37.wasm",
+      "module_type": "binary",
+      "text": "unexpected end-of-file"
+    },
+    {
+      "type": "module",
+      "line": 179,
+      "filename": "binary.38.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 184,
+      "filename": "binary.39.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 200,
+      "filename": "binary.40.wasm",
+      "module_type": "binary",
+      "text": "section out of order"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 212,
+      "filename": "binary.41.wasm",
+      "module_type": "binary",
+      "text": "expected a version header for a module"
+    },
+    {
+      "type": "module",
+      "line": 222,
+      "filename": "binary.42.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 246,
+      "filename": "binary.43.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 270,
+      "filename": "binary.44.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x2) for core instance"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 281,
+      "filename": "binary.45.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x0) for instantiation arg kind"
+    },
+    {
+      "type": "module_definition",
+      "line": 301,
+      "filename": "binary.46.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 337,
+      "filename": "binary.47.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x2) for instance"
+    },
+    {
+      "type": "module",
+      "line": 348,
+      "filename": "binary.48.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 384,
+      "filename": "binary.49.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 404,
+      "filename": "binary.50.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 422,
+      "filename": "binary.51.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x3) for alias"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 434,
+      "filename": "binary.52.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x6) for component outer alias kind"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 443,
+      "filename": "binary.53.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x5) for component outer alias kind"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 452,
+      "filename": "binary.54.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x13) for component outer alias kind"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 462,
+      "filename": "binary.55.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x5) for component outer alias kind"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 474,
+      "filename": "binary.56.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x1) for component outer alias kind"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 484,
+      "filename": "binary.57.wasm",
+      "module_type": "binary",
+      "text": "invalid outer alias count of 1"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 496,
+      "filename": "binary.58.wasm",
+      "module_type": "binary",
+      "text": "invalid outer alias count of 2"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 508,
+      "filename": "binary.59.wasm",
+      "module_type": "binary",
+      "text": "instance 0 has no export named `t`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 521,
+      "filename": "binary.60.wasm",
+      "module_type": "binary",
+      "text": "core instance 0 has no export named `f`"
+    },
+    {
+      "type": "module",
+      "line": 538,
+      "filename": "binary.61.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 557,
+      "filename": "binary.62.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 597,
+      "filename": "binary.63.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x62) for component defined type"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 606,
+      "filename": "binary.64.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x44) for component defined type"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 615,
+      "filename": "binary.65.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x3e) for component defined type"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 625,
+      "filename": "binary.66.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x1) for zero byte required"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 638,
+      "filename": "binary.67.wasm",
+      "module_type": "binary",
+      "text": "record type must have at least one field"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 647,
+      "filename": "binary.68.wasm",
+      "module_type": "binary",
+      "text": "variant type must have at least one case"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 656,
+      "filename": "binary.69.wasm",
+      "module_type": "binary",
+      "text": "tuple type must have at least one type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 665,
+      "filename": "binary.70.wasm",
+      "module_type": "binary",
+      "text": "flags must have at least one entry"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 674,
+      "filename": "binary.71.wasm",
+      "module_type": "binary",
+      "text": "enum type must have at least one variant"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 683,
+      "filename": "binary.72.wasm",
+      "module_type": "binary",
+      "text": "cannot have more than 32 flags"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 725,
+      "filename": "binary.73.wasm",
+      "module_type": "binary",
+      "text": "type index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 734,
+      "filename": "binary.74.wasm",
+      "module_type": "binary",
+      "text": "type index 0 is not a resource type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 744,
+      "filename": "binary.75.wasm",
+      "module_type": "binary",
+      "text": "is not valid at this time"
+    },
+    {
+      "type": "module",
+      "line": 755,
+      "filename": "binary.76.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 767,
+      "filename": "binary.77.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x1) for number of results"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 777,
+      "filename": "binary.78.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x2) for component function results"
+    },
+    {
+      "type": "module",
+      "line": 789,
+      "filename": "binary.79.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 827,
+      "filename": "binary.80.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 841,
+      "filename": "binary.81.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 856,
+      "filename": "binary.82.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x5) for component or instance type declaration"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 866,
+      "filename": "binary.83.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x3) for component or instance type declaration"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 878,
+      "filename": "binary.84.wasm",
+      "module_type": "binary",
+      "text": "resources can only be defined within a concrete component"
+    },
+    {
+      "type": "module",
+      "line": 892,
+      "filename": "binary.85.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 916,
+      "filename": "binary.86.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x4) for type definition"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 926,
+      "filename": "binary.87.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x0) for outer alias kind"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 936,
+      "filename": "binary.88.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x0) for outer alias target"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 947,
+      "filename": "binary.89.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte"
+    },
+    {
+      "type": "module",
+      "line": 958,
+      "filename": "binary.90.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 965,
+      "filename": "binary.91.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 974,
+      "filename": "binary.92.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 1102,
+      "filename": "binary.93.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x7) for canonical function"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 1111,
+      "filename": "binary.94.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x2e) for canonical function"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 1120,
+      "filename": "binary.95.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x43) for canonical function"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 1130,
+      "filename": "binary.96.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x1) for canonical function lift"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 1139,
+      "filename": "binary.97.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x1) for canonical function lower"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 1149,
+      "filename": "binary.98.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0xa) for canonical option"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 1167,
+      "filename": "binary.99.wasm",
+      "module_type": "binary",
+      "text": "invalid boolean value"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 1176,
+      "filename": "binary.100.wasm",
+      "module_type": "binary",
+      "text": "invalid boolean value"
+    },
+    {
+      "type": "module_definition",
+      "line": 1187,
+      "filename": "binary.101.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_definition",
+      "line": 1206,
+      "filename": "binary.102.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_definition",
+      "line": 1227,
+      "filename": "binary.103.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 1256,
+      "filename": "binary.104.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 1271,
+      "filename": "binary.105.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x3) for component name"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 1282,
+      "filename": "binary.106.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x3) for name option"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 1296,
+      "filename": "binary.107.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x2) for type bound"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 1307,
+      "filename": "binary.108.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x6) for component external kind"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 1318,
+      "filename": "binary.109.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x0) for component external kind"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 1330,
+      "filename": "binary.110.wasm",
+      "module_type": "binary",
+      "text": "unexpected end-of-file"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 1340,
+      "filename": "binary.111.wasm",
+      "module_type": "binary",
+      "text": "malformed UTF-8 encoding"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1352,
+      "filename": "binary.112.wasm",
+      "module_type": "binary",
+      "text": "is not a valid extern name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1366,
+      "filename": "binary.113.wasm",
+      "module_type": "binary",
+      "text": "is not a valid extern name"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 1380,
+      "filename": "binary.114.wasm",
+      "module_type": "binary",
+      "text": "duplicate 'implements' option in name"
+    },
+    {
+      "type": "module",
+      "line": 1399,
+      "filename": "binary.115.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 1433,
+      "filename": "binary.116.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 1445,
+      "filename": "binary.117.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x2) for optional component export type"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 1478,
+      "filename": "binary.118.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x6) for component external kind"
+    },
+    {
+      "type": "module",
+      "line": 1513,
+      "filename": "binary.119.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 1518,
+      "filename": "binary.120.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 1529,
+      "filename": "binary.121.wasm",
+      "module_type": "binary",
+      "text": "unknown binary version"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 1537,
+      "filename": "binary.122.wasm",
+      "module_type": "binary",
+      "text": "expected a version header for a component"
+    }
+  ]
+}

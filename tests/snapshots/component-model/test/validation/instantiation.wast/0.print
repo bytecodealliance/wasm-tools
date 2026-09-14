@@ -1,0 +1,11 @@
+(component
+  (type $t (;0;) (tuple u32 u32))
+  (component $c (;0;)
+    (type $t (;0;) (tuple u32 u32))
+    (import "x" (type (;1;) (eq $t)))
+  )
+  (instance (;0;) (instantiate $c
+      (with "x" (type $t))
+    )
+  )
+)
