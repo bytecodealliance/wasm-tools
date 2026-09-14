@@ -1,5 +1,5 @@
 use crate::ast::error::ParseError;
-use crate::{ParseResult, UnresolvedPackage, UnresolvedPackageGroup};
+use crate::{AccessorKind, ParseResult, UnresolvedPackage, UnresolvedPackageGroup};
 use alloc::borrow::Cow;
 use alloc::boxed::Box;
 use alloc::format;
@@ -513,7 +513,11 @@ impl<'a> ExternKind<'a> {
         let id = parse_id(&mut clone)?;
         if clone.eat(Token::Colon)? {
             // import foo: async? func(...)
-            if clone.clone().eat(Token::Func)? || clone.clone().eat(Token::Async)? {
+            // import foo: get(...) / import foo: set(...)
+            if clone.clone().eat(Token::Func)?
+                || clone.clone().eat(Token::Async)?
+                || eat_accessor_token(&mut clone.clone())?.is_some()
+            {
                 *tokens = clone;
                 let ret = ExternKind::Func(id, Func::parse(tokens)?);
                 tokens.expect_semicolon()?;
@@ -867,6 +871,7 @@ impl<'a> ResourceFunc<'a> {
                     func: Func {
                         span,
                         async_: false,
+                        accessor: None,
                         params,
                         result,
                     },
@@ -998,6 +1003,7 @@ type ParamList<'a> = Vec<(Id<'a>, Type<'a>)>;
 struct Func<'a> {
     span: Span,
     async_: bool,
+    accessor: Option<AccessorKind>,
     params: ParamList<'a>,
     result: Option<Type<'a>>,
 }
@@ -1020,7 +1026,15 @@ impl<'a> Func<'a> {
         }
 
         let async_ = tokens.eat(Token::Async)?;
-        let span = tokens.expect(Token::Func)?;
+        let accessor = if async_ {
+            None
+        } else {
+            eat_accessor_token(tokens)?
+        };
+        let (span, accessor) = match accessor {
+            Some((span, accessor)) => (span, Some(accessor)),
+            None => (tokens.expect(Token::Func)?, None),
+        };
         let params = parse_params(tokens, true)?;
         let result = if tokens.eat(Token::RArrow)? {
             let ty = Type::parse(tokens)?;
@@ -1031,10 +1045,28 @@ impl<'a> Func<'a> {
         Ok(Func {
             span,
             async_,
+            accessor,
             params,
             result,
         })
     }
+}
+
+fn eat_accessor_token(tokens: &mut Tokenizer<'_>) -> ParseResult<Option<(Span, AccessorKind)>> {
+    let mut clone = tokens.clone();
+    let (span, accessor) = match clone.next()? {
+        Some((span, Token::Id)) => match clone.parse_id(span)? {
+            "get" => (span, AccessorKind::Getter),
+            "set" => (span, AccessorKind::Setter),
+            _ => return Ok(None),
+        },
+        _ => return Ok(None),
+    };
+    if !clone.eat(Token::LeftParen)? {
+        return Ok(None);
+    }
+    tokens.next()?; // consume "get" or "set" but not the paren
+    Ok(Some((span, accessor)))
 }
 
 impl<'a> InterfaceItem<'a> {

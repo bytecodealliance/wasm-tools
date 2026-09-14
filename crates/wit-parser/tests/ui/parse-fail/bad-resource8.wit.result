@@ -1,5 +1,5 @@
-duplicate function name `a`
-     --> tests/ui/parse-fail/bad-resource8.wit:6:5
+name `[method]a.a` conflicts with previous name `a`
+     --> tests/ui/parse-fail/bad-resource8.wit:5:5
       |
-    6 |     a: static func();
+    5 |     a: func();
       |     ^

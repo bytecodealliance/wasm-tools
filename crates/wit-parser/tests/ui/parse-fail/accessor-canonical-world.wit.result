@@ -1,0 +1,5 @@
+name `[get]foobar` conflicts with previous name `foo-bar`
+     --> tests/ui/parse-fail/accessor-canonical-world.wit:7:10
+      |
+    7 |   import foobar: get() -> u32;
+      |          ^-----

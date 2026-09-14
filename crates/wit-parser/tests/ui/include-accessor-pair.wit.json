@@ -1,0 +1,61 @@
+{
+  "worlds": [
+    {
+      "name": "base",
+      "imports": {
+        "[get]prop": {
+          "function": {
+            "name": "[get]prop",
+            "kind": "getter",
+            "params": [],
+            "result": "u32"
+          }
+        }
+      },
+      "exports": {},
+      "package": 0,
+      "docs": {
+        "contents": "Getters and setters must be validated after includes are processed."
+      }
+    },
+    {
+      "name": "derived",
+      "imports": {
+        "[get]prop": {
+          "function": {
+            "name": "[get]prop",
+            "kind": "getter",
+            "params": [],
+            "result": "u32"
+          }
+        },
+        "[set]prop": {
+          "function": {
+            "name": "[set]prop",
+            "kind": "setter",
+            "params": [
+              {
+                "name": "value",
+                "type": "u32"
+              }
+            ]
+          }
+        }
+      },
+      "exports": {},
+      "package": 0
+    }
+  ],
+  "interfaces": [],
+  "types": [],
+  "packages": [
+    {
+      "name": "foo:foo",
+      "interfaces": {},
+      "worlds": {
+        "base": 0,
+        "derived": 1
+      }
+    }
+  ]
+}
