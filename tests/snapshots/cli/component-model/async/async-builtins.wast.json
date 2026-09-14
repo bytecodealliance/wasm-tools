@@ -64,6 +64,46 @@
       "line": 101,
       "filename": "async-builtins.9.wasm",
       "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 111,
+      "filename": "async-builtins.10.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 122,
+      "filename": "async-builtins.11.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `stream.forward` of module instantiation argument ``"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 135,
+      "filename": "async-builtins.12.wasm",
+      "module_type": "binary",
+      "text": "`stream.forward` requires a stream type"
+    },
+    {
+      "type": "module",
+      "line": 142,
+      "filename": "async-builtins.13.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 153,
+      "filename": "async-builtins.14.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `future.forward` of module instantiation argument ``"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 166,
+      "filename": "async-builtins.15.wasm",
+      "module_type": "binary",
+      "text": "`future.forward` requires a future type"
     }
   ]
 }

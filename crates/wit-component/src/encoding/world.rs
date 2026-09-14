@@ -433,6 +433,7 @@ impl<'a> ComponentWorld<'a> {
                 Import::StreamNew(info)
                 | Import::StreamRead { info, async_: _ }
                 | Import::StreamWrite { info, async_: _ }
+                | Import::StreamForward(info)
                 | Import::StreamCancelRead { info, async_: _ }
                 | Import::StreamCancelWrite { info, async_: _ }
                 | Import::StreamDropReadable(info)
@@ -440,6 +441,7 @@ impl<'a> ComponentWorld<'a> {
                 | Import::FutureNew(info)
                 | Import::FutureRead { info, async_: _ }
                 | Import::FutureWrite { info, async_: _ }
+                | Import::FutureForward(info)
                 | Import::FutureCancelRead { info, async_: _ }
                 | Import::FutureCancelWrite { info, async_: _ }
                 | Import::FutureDropReadable(info)
