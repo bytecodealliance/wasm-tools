@@ -1,0 +1,23 @@
+package local:root;
+
+package local:nested {
+  record point {
+    x: u32,
+    y: u32,
+  }
+
+  interface unused {
+  }
+}
+
+package local:consumer {
+  use local:nested/point;
+
+  interface api {
+    move-to: func(p: point);
+  }
+
+  world w {
+    export api;
+  }
+}

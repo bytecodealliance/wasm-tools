@@ -1,0 +1,43 @@
+{
+  "worlds": [
+    {
+      "name": "w",
+      "imports": {},
+      "exports": {
+        "interface-0": {
+          "interface": {
+            "id": 0
+          }
+        }
+      },
+      "package": 0
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "api",
+      "types": {},
+      "functions": {
+        "ping": {
+          "name": "ping",
+          "kind": "freestanding",
+          "params": []
+        }
+      },
+      "package": 0
+    }
+  ],
+  "types": [],
+  "packages": [
+    {
+      "name": "local:demo",
+      "interfaces": {
+        "api": 0
+      },
+      "worlds": {
+        "w": 0
+      },
+      "types": {}
+    }
+  ]
+}

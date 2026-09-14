@@ -1,0 +1,15 @@
+package local:consumer;
+
+use local:types/point;
+
+record bin {
+  p: point,
+}
+
+interface api {
+  wrap: func(b: bin);
+}
+
+world w {
+  export api;
+}

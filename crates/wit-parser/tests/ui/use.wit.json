@@ -162,7 +162,8 @@
         "use-multiple": 5,
         "trailing-comma": 6
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }

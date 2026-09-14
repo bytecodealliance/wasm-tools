@@ -108,9 +108,9 @@ pub struct Resolve {
 
 /// A WIT package within a `Resolve`.
 ///
-/// A package is a collection of interfaces and worlds. Packages additionally
-/// have a unique identifier that affects generated components and uniquely
-/// identifiers this particular package.
+/// A package is a collection of interfaces, worlds, and package-scope types.
+/// Packages additionally have a unique identifier that affects generated
+/// components and uniquely identifiers this particular package.
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Package {
@@ -129,6 +129,13 @@ pub struct Package {
     /// All worlds contained in this package, keyed by the world's name.
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id_map"))]
     pub worlds: IndexMap<String, WorldId>,
+
+    /// Types declared at package scope, keyed by the type's kebab-name.
+    ///
+    /// These share the same top-level name space as [`Self::interfaces`] and
+    /// [`Self::worlds`].
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id_map"))]
+    pub types: IndexMap<String, TypeId>,
 }
 
 pub type PackageId = Id<Package>;
@@ -522,6 +529,7 @@ impl Resolve {
             world_map,
             interfaces_to_add,
             worlds_to_add,
+            types_to_add,
             ..
         } = map;
 
@@ -700,6 +708,9 @@ impl Resolve {
                     for (_, id) in pkg.worlds.iter_mut() {
                         *id = remap.map_world(*id, Default::default())?;
                     }
+                    for (_, id) in pkg.types.iter_mut() {
+                        *id = remap.map_type(*id, Default::default())?;
+                    }
                     self.packages.alloc(pkg)
                 }
             };
@@ -741,6 +752,7 @@ impl Resolve {
             match &mut self.types[id].owner {
                 TypeOwner::Interface(id) => *id = remap.map_interface(*id, Default::default())?,
                 TypeOwner::World(id) => *id = remap.map_world(*id, Default::default())?,
+                TypeOwner::Package(id) => *id = remap.packages[id.index()],
                 TypeOwner::None => {}
             }
         }
@@ -759,6 +771,12 @@ impl Resolve {
             let prev = self.packages[pkg]
                 .worlds
                 .insert(name, remap.map_world(world, Default::default())?);
+            assert!(prev.is_none());
+        }
+        for (name, pkg, ty) in types_to_add {
+            let prev = self.packages[pkg]
+                .types
+                .insert(name, remap.map_type(ty, Default::default())?);
             assert!(prev.is_none());
         }
 
@@ -1783,6 +1801,11 @@ impl Resolve {
                     assert!(self.worlds.get(id).is_some());
                     assert!(world_types[id.index()].contains(&ty_id));
                 }
+                TypeOwner::Package(id) => {
+                    assert!(self.packages.get(id).is_some());
+                    let name = ty.name.as_ref().expect("package type must be named");
+                    assert_eq!(self.packages[id].types.get(name), Some(&ty_id));
+                }
                 TypeOwner::None => {}
             }
         }
@@ -1938,6 +1961,11 @@ impl Resolve {
         visitor.visit_type_def(self, ty);
         for ty in visitor.1 {
             let ty = &self.types[ty];
+            // Package-scope types are visible without being imported into the
+            // world (they are not world-owned names).
+            if matches!(ty.owner, TypeOwner::Package(_)) {
+                continue;
+            }
             let Some(name) = ty.name.clone() else {
                 continue;
             };
@@ -3488,6 +3516,7 @@ impl Remap {
             docs: unresolved.docs.clone(),
             interfaces: Default::default(),
             worlds: Default::default(),
+            types: Default::default(),
         });
         assert!(
             !resolve.package_names.contains_key(&unresolved.name),
@@ -3500,6 +3529,7 @@ impl Remap {
         let foreign_types = self.types.len();
         let foreign_interfaces = self.interfaces.len();
         let foreign_worlds = self.worlds.len();
+        let package_types = unresolved.package_types.clone();
 
         // Copy over all types first, updating any intra-type references. Note
         // that types are sorted topologically which means this iteration
@@ -3514,6 +3544,11 @@ impl Remap {
             }
 
             self.update_typedef(resolve, &mut ty, span)?;
+            // Package-scope types are tracked on the unresolved package and get
+            // their owner rewritten here once PackageId is known.
+            if package_types.values().any(|tid| *tid == id) {
+                ty.owner = TypeOwner::Package(pkgid);
+            }
             let new_id = resolve.types.alloc(ty);
             assert_eq!(self.types.len(), id.index());
 
@@ -3567,7 +3602,7 @@ impl Remap {
                 TypeOwner::Interface(iface_id) => {
                     *iface_id = self.map_interface_for_type(*iface_id, span)?;
                 }
-                TypeOwner::World(_) | TypeOwner::None => {}
+                TypeOwner::World(_) | TypeOwner::Package(_) | TypeOwner::None => {}
             }
         }
 
@@ -3602,7 +3637,7 @@ impl Remap {
                 TypeOwner::World(world_id) => {
                     *world_id = self.map_world_for_type(*world_id, span)?;
                 }
-                TypeOwner::Interface(_) | TypeOwner::None => {}
+                TypeOwner::Interface(_) | TypeOwner::Package(_) | TypeOwner::None => {}
             }
         }
 
@@ -3657,6 +3692,13 @@ impl Remap {
                 .insert(world.name.clone(), id);
             assert!(prev.is_none());
         }
+        for (name, old_id) in package_types {
+            // Note that errors here mean the type was filtered by stability.
+            if let Ok(new_id) = self.map_type(old_id, Default::default()) {
+                let prev = resolve.packages[pkgid].types.insert(name, new_id);
+                assert!(prev.is_none());
+            }
+        }
         Ok(pkgid)
     }
 
@@ -3687,6 +3729,7 @@ impl Remap {
                         );
                         assert!(prev.is_none());
                     }
+                    AstItem::Type(_) => {}
                 }
             }
         }
@@ -3781,15 +3824,63 @@ impl Remap {
                 continue;
             }
 
-            let iface_id = pkg.interfaces.get(interface).copied().ok_or_else(|| {
-                ResolveError::from(ResolveErrorKind::InterfaceNotFound {
-                    span: iface_span,
-                    requested: interface.to_string(),
-                    package: pkg.name.clone(),
-                })
-            })?;
-            assert_eq!(self.interfaces.len(), unresolved_iface_id.index());
-            self.interfaces.push(Some(iface_id));
+            let key = (pkg_name.clone(), interface.clone());
+            let is_unknown = unresolved.foreign_unknown.contains_key(&key);
+
+            let iface_id = pkg.interfaces.get(interface).copied();
+            let type_id = pkg.types.get(interface).copied();
+            let world_id = pkg.worlds.get(interface).copied();
+
+            if is_unknown {
+                match (iface_id, type_id, world_id) {
+                    (Some(iface_id), None, None) => {
+                        assert_eq!(self.interfaces.len(), unresolved_iface_id.index());
+                        self.interfaces.push(Some(iface_id));
+                        // Type stub abandoned in process_foreign_types.
+                    }
+                    (None, Some(_), None) => {
+                        // Interface stub abandoned; type mapped in process_foreign_types.
+                        self.interfaces.push(None);
+                    }
+                    (None, None, Some(_)) => {
+                        return Err(ResolveError::new_semantic(
+                            iface_span,
+                            format!(
+                                "`{interface}` is a world; top-level use expects an interface or type"
+                            ),
+                        ));
+                    }
+                    (None, None, None) => {
+                        return Err(ResolveError::new_semantic(
+                            iface_span,
+                            format!(
+                                "interface or type `{interface}` not found in package `{}`",
+                                pkg.name
+                            ),
+                        ));
+                    }
+                    _ => unreachable!("provider package enforces a shared top-level name space"),
+                }
+            } else {
+                let iface_id = match iface_id {
+                    Some(id) => id,
+                    None if type_id.is_some() => {
+                        return Err(ResolveError::new_semantic(
+                            iface_span,
+                            format!("name `{interface}` is defined as a type, not an interface"),
+                        ));
+                    }
+                    None => {
+                        return Err(ResolveError::from(ResolveErrorKind::InterfaceNotFound {
+                            span: iface_span,
+                            requested: interface.to_string(),
+                            package: pkg.name.clone(),
+                        }));
+                    }
+                };
+                assert_eq!(self.interfaces.len(), unresolved_iface_id.index());
+                self.interfaces.push(Some(iface_id));
+            }
         }
         for (id, _) in unresolved.interfaces.iter().skip(self.interfaces.len()) {
             assert!(
@@ -3883,24 +3974,57 @@ impl Remap {
                 continue;
             }
 
-            let unresolved_iface_id = match unresolved_ty.owner {
-                TypeOwner::Interface(id) => id,
-                _ => unreachable!(),
-            };
-            let iface_id = self.map_interface(unresolved_iface_id, Default::default())?;
-            let name = unresolved_ty.name.as_ref().unwrap();
-            let span = unresolved.unknown_type_spans[unresolved_type_id.index()];
-            let type_id = *resolve.interfaces[iface_id]
-                .types
-                .get(name)
-                .ok_or_else(|| {
-                    ResolveError::new_semantic(
-                        span,
-                        format!("type `{name}` not defined in interface"),
-                    )
-                })?;
-            assert_eq!(self.types.len(), unresolved_type_id.index());
-            self.types.push(Some(type_id));
+            match unresolved_ty.owner {
+                TypeOwner::Interface(unresolved_iface_id) => {
+                    let iface_id = self.map_interface(unresolved_iface_id, Default::default())?;
+                    let name = unresolved_ty.name.as_ref().unwrap();
+                    let span = unresolved.unknown_type_spans[unresolved_type_id.index()];
+                    let type_id =
+                        *resolve.interfaces[iface_id]
+                            .types
+                            .get(name)
+                            .ok_or_else(|| {
+                                ResolveError::new_semantic(
+                                    span,
+                                    format!("type `{name}` not defined in interface"),
+                                )
+                            })?;
+                    assert_eq!(self.types.len(), unresolved_type_id.index());
+                    self.types.push(Some(type_id));
+                }
+                TypeOwner::None => {
+                    // Dual-stub Unknown types from toplevel `use` of a package-scope type.
+                    let name = unresolved_ty.name.as_ref().unwrap();
+                    let span = unresolved.unknown_type_spans[unresolved_type_id.index()];
+                    let mut mapped = None;
+                    for ((pkg_name, item_name), (_iface, ty_stub)) in
+                        unresolved.foreign_unknown.iter()
+                    {
+                        if *ty_stub != unresolved_type_id || item_name != name {
+                            continue;
+                        }
+                        let dep_pkg = resolve.package_names[pkg_name];
+                        if let Some(type_id) = resolve.packages[dep_pkg].types.get(name).copied() {
+                            mapped = Some(type_id);
+                        } else {
+                            // Resolved as an interface — abandon this type stub.
+                            mapped = None;
+                        }
+                        break;
+                    }
+                    assert_eq!(self.types.len(), unresolved_type_id.index());
+                    match mapped {
+                        Some(type_id) => self.types.push(Some(type_id)),
+                        None => {
+                            // Either abandoned (resolved as interface) or missing.
+                            // Missing is already reported when processing interfaces.
+                            self.types.push(None);
+                            let _ = span;
+                        }
+                    }
+                }
+                TypeOwner::World(_) | TypeOwner::Package(_) => unreachable!(),
+            }
         }
         for (_, ty) in unresolved.types.iter().skip(self.types.len()) {
             if let TypeDefKind::Unknown = ty.kind {
@@ -4468,6 +4592,7 @@ struct MergeMap<'a> {
     /// * The ID within `from` of the item being added.
     interfaces_to_add: Vec<(String, PackageId, InterfaceId)>,
     worlds_to_add: Vec<(String, PackageId, WorldId)>,
+    types_to_add: Vec<(String, PackageId, TypeId)>,
 
     /// Which `Resolve` is being merged from.
     from: &'a Resolve,
@@ -4485,6 +4610,7 @@ impl<'a> MergeMap<'a> {
             world_map: Default::default(),
             interfaces_to_add: Default::default(),
             worlds_to_add: Default::default(),
+            types_to_add: Default::default(),
             from,
             into,
         }
@@ -4527,6 +4653,12 @@ impl<'a> MergeMap<'a> {
             let into_interface_id = match into.interfaces.get(name) {
                 Some(id) => *id,
                 None => {
+                    if into.types.contains_key(name) || into.worlds.contains_key(name) {
+                        bail!(
+                            "failed to add interface `{name}`: package already has a \
+                             type or world with that name"
+                        );
+                    }
                     log::trace!("adding unique interface {name}");
                     self.interfaces_to_add
                         .push((name.clone(), into_id, *from_interface_id));
@@ -4543,6 +4675,12 @@ impl<'a> MergeMap<'a> {
             let into_world_id = match into.worlds.get(name) {
                 Some(id) => *id,
                 None => {
+                    if into.types.contains_key(name) || into.interfaces.contains_key(name) {
+                        bail!(
+                            "failed to add world `{name}`: package already has a \
+                             type or interface with that name"
+                        );
+                    }
                     log::trace!("adding unique world {name}");
                     self.worlds_to_add
                         .push((name.clone(), into_id, *from_world_id));
@@ -4553,6 +4691,30 @@ impl<'a> MergeMap<'a> {
             log::trace!("merging duplicate worlds {name}");
             self.build_world(*from_world_id, into_world_id)
                 .with_context(|| format!("failed to merge world `{name}`"))?;
+        }
+
+        for (name, from_type_id) in from.types.iter() {
+            let into_type_id = match into.types.get(name) {
+                Some(id) => *id,
+                None => {
+                    if into.interfaces.contains_key(name) || into.worlds.contains_key(name) {
+                        bail!(
+                            "failed to add package type `{name}`: package already has an \
+                             interface or world with that name"
+                        );
+                    }
+                    log::trace!("adding unique package type {name}");
+                    self.types_to_add
+                        .push((name.clone(), into_id, *from_type_id));
+                    continue;
+                }
+            };
+
+            log::trace!("merging duplicate package types {name}");
+            let prev = self.type_map.insert(*from_type_id, into_type_id);
+            assert!(prev.is_none());
+            self.build_type_id(*from_type_id, into_type_id)
+                .with_context(|| format!("failed to merge package type `{name}`"))?;
         }
 
         Ok(())

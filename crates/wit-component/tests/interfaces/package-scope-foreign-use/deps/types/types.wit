@@ -1,0 +1,10 @@
+package local:types;
+
+/// Shared package-scope point.
+record point {
+  x: u32,
+  y: u32,
+}
+
+interface unused {
+}

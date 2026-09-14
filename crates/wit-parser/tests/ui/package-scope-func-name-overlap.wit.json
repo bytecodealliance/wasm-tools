@@ -1,0 +1,68 @@
+{
+  "worlds": [
+    {
+      "name": "w",
+      "imports": {},
+      "exports": {
+        "interface-0": {
+          "interface": {
+            "id": 0
+          }
+        }
+      },
+      "package": 0
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "api",
+      "types": {},
+      "functions": {
+        "style": {
+          "name": "style",
+          "kind": "freestanding",
+          "params": [],
+          "result": 0,
+          "docs": {
+            "contents": "Function may share a name with a package-scope type; the return type\nstill resolves to the package type."
+          }
+        }
+      },
+      "package": 0
+    }
+  ],
+  "types": [
+    {
+      "name": "style",
+      "kind": {
+        "flags": {
+          "flags": [
+            {
+              "name": "bold"
+            },
+            {
+              "name": "italic"
+            }
+          ]
+        }
+      },
+      "owner": {
+        "package": 0
+      }
+    }
+  ],
+  "packages": [
+    {
+      "name": "local:demo",
+      "interfaces": {
+        "api": 0
+      },
+      "worlds": {
+        "w": 0
+      },
+      "types": {
+        "style": 0
+      }
+    }
+  ]
+}

@@ -295,7 +295,8 @@
       "worlds": {
         "ungated-world": 0,
         "mixed-world": 1
-      }
+      },
+      "types": {}
     }
   ]
 }

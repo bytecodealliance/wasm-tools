@@ -1,0 +1,94 @@
+{
+  "worlds": [
+    {
+      "name": "base",
+      "imports": {
+        "move-to": {
+          "function": {
+            "name": "move-to",
+            "kind": "freestanding",
+            "params": [
+              {
+                "name": "p",
+                "type": 0
+              }
+            ]
+          }
+        }
+      },
+      "exports": {},
+      "package": 0
+    },
+    {
+      "name": "w",
+      "imports": {
+        "place": {
+          "function": {
+            "name": "place",
+            "kind": "freestanding",
+            "params": [
+              {
+                "name": "p",
+                "type": 0
+              }
+            ]
+          }
+        }
+      },
+      "exports": {
+        "trail": {
+          "function": {
+            "name": "trail",
+            "kind": "freestanding",
+            "params": [],
+            "result": 1
+          }
+        }
+      },
+      "package": 0
+    }
+  ],
+  "interfaces": [],
+  "types": [
+    {
+      "name": "point",
+      "kind": {
+        "record": {
+          "fields": [
+            {
+              "name": "x",
+              "type": "u32"
+            },
+            {
+              "name": "y",
+              "type": "u32"
+            }
+          ]
+        }
+      },
+      "owner": {
+        "package": 0
+      }
+    },
+    {
+      "name": null,
+      "kind": {
+        "list": 0
+      },
+      "owner": null
+    }
+  ],
+  "packages": [
+    {
+      "name": "local:demo",
+      "interfaces": {},
+      "worlds": {
+        "base": 0,
+        "w": 1
+      },
+      "types": {
+        "point": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+resources cannot be declared at package scope
+     --> tests/ui/parse-fail/package-scope-resource.wit:3:1
+      |
+    3 | resource r {
+      | ^-------

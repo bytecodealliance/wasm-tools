@@ -1,0 +1,21 @@
+package local:demo;
+
+@external-id("pkg-point")
+record point {
+  x: u32,
+  y: u32,
+}
+
+interface store {
+  get: func(key: string) -> option<string>;
+}
+
+world w {
+  import primary: store;
+  import backup: store;
+
+  @external-id("world-move")
+  import move-to: func(p: point);
+
+  export place: func(p: point);
+}

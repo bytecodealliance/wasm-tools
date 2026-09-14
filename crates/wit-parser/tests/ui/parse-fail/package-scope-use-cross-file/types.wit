@@ -1,0 +1,11 @@
+package local:demo;
+
+// `point` was imported in uses.wit; toplevel use is file-scoped, so this
+// package-scope type must not see that alias.
+record bin {
+  p: point,
+}
+
+interface api {
+  wrap: func(b: bin);
+}
