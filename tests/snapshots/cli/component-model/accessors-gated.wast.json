@@ -1,0 +1,33 @@
+{
+  "source_filename": "tests/cli/component-model/accessors-gated.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 6,
+      "filename": "accessors-gated.0.wasm",
+      "module_type": "binary",
+      "text": "`[get]` and `[set]` names require the component model accessors feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 10,
+      "filename": "accessors-gated.1.wasm",
+      "module_type": "binary",
+      "text": "`[get]` and `[set]` names require the component model accessors feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 14,
+      "filename": "accessors-gated.2.wasm",
+      "module_type": "binary",
+      "text": "`[get]` and `[set]` names require the component model accessors feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 20,
+      "filename": "accessors-gated.3.wasm",
+      "module_type": "binary",
+      "text": "`[get]` and `[set]` names require the component model accessors feature"
+    }
+  ]
+}
