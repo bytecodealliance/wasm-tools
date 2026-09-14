@@ -13,8 +13,6 @@ use super::{
     core::{InternRecGroup, Module},
     types::{CoreTypeId, EntityType, TypeAlloc, TypeData, TypeInfo, TypeList},
 };
-use crate::collections::index_map::Entry;
-use crate::limits::*;
 use crate::prelude::*;
 use crate::validator::names::{ComponentName, ComponentNameKind, KebabStr, KebabString};
 use crate::{
@@ -23,6 +21,8 @@ use crate::{
     GlobalType, InstantiationArgKind, MemoryType, PackedIndex, RefType, Result, SubType, TableType,
     TypeBounds, ValType, WasmFeatures, require_feature,
 };
+use crate::{collections::index_map::Entry, names::ResourceFuncKind};
+use crate::{limits::*, names::AccessorKind};
 use core::mem;
 
 fn to_kebab_string<'a>(s: &'a str, desc: &str, offset: u64) -> Result<KebabString> {
@@ -4646,11 +4646,7 @@ impl ComponentNameContext {
 
         if let ExternKind::Export = kind {
             match kebab.kind() {
-                ComponentNameKind::Label(_)
-                | ComponentNameKind::Method(_)
-                | ComponentNameKind::Static(_)
-                | ComponentNameKind::Constructor(_)
-                | ComponentNameKind::Interface(_) => {}
+                ComponentNameKind::Plain(_) | ComponentNameKind::Interface(_) => {}
 
                 ComponentNameKind::Hash(_)
                 | ComponentNameKind::Url(_)
@@ -4667,7 +4663,7 @@ impl ComponentNameContext {
                 offset,
             )?;
             match kebab.kind() {
-                ComponentNameKind::Label(_) => {}
+                ComponentNameKind::Plain(p) if p.is_bare() => {}
                 _ => bail!(offset, "name `{name}` is not valid with `implements`",),
             }
 
@@ -4720,6 +4716,21 @@ impl ComponentNameContext {
             );
         }
 
+        // Setters must be preceded by a matching getter. This matching is
+        // stricter than strong uniqueness.
+        if let ComponentNameKind::Plain(plain) = kebab.kind()
+            && plain.accessor == Some(AccessorKind::Set)
+        {
+            let getter = plain.getter_for_setter();
+            if !items.contains_key(getter.as_str()) {
+                bail!(
+                    offset,
+                    "{kind} name `{kebab}` requires a preceding {kind} named `{getter}`",
+                    kind = kind.desc(),
+                );
+            }
+        }
+
         // Otherwise all strings must be unique, regardless of their name, so
         // consult the `items` set to ensure that we're not for example
         // importing the same interface ID twice.
@@ -4764,8 +4775,7 @@ impl ComponentNameContext {
 
         match name.kind() {
             // No validation necessary for these styles of names
-            ComponentNameKind::Label(_)
-            | ComponentNameKind::Url(_)
+            ComponentNameKind::Url(_)
             | ComponentNameKind::Hash(_)
             | ComponentNameKind::Dependency(_) => {}
 
@@ -4777,81 +4787,145 @@ impl ComponentNameContext {
                 }
             }
 
-            // Constructors must return `(own $resource)` or
-            // `(result (own $Tresource))` and the `$resource` must be named
-            // within this context to match `rname`.
-            ComponentNameKind::Constructor(rname) => {
-                let ty = func()?;
-                if ty.async_ {
-                    bail!(offset, "constructor function cannot be async");
-                }
-                let ty = match ty.result {
-                    Some(result) => result,
-                    None => bail!(offset, "function should return one value"),
-                };
-                let resource = match ty {
-                    ComponentValType::Primitive(_) => None,
-                    ComponentValType::Type(ty) => match &types[ty] {
-                        ComponentDefinedType::Own(id) => Some(id),
-                        ComponentDefinedType::Result {
-                            ok: Some(ComponentValType::Type(ok)),
-                            ..
-                        } => match &types[*ok] {
-                            ComponentDefinedType::Own(id) => Some(id),
-                            _ => None,
-                        },
-                        _ => None,
-                    },
-                };
-                let resource = match resource {
-                    Some(id) => id,
-                    None => bail!(
-                        offset,
-                        "function should return `(own $T)` or `(result (own $T))`"
-                    ),
-                };
-                self.validate_resource_name(*resource, rname, offset)?;
-            }
+            ComponentNameKind::Plain(name) => {
+                match name.resource_func {
+                    // Constructors must return `(own $resource)` or
+                    // `(result (own $Tresource))` and the `$resource` must be
+                    // named within this context to match `rname`.
+                    Some(ResourceFuncKind::Constructor) => {
+                        let ty = func()?;
+                        if ty.async_ {
+                            bail!(offset, "constructor function cannot be async");
+                        }
+                        let ty = match ty.result {
+                            Some(result) => result,
+                            None => bail!(offset, "function should return one value"),
+                        };
+                        let resource = match ty {
+                            ComponentValType::Primitive(_) => None,
+                            ComponentValType::Type(ty) => match &types[ty] {
+                                ComponentDefinedType::Own(id) => Some(id),
+                                ComponentDefinedType::Result {
+                                    ok: Some(ComponentValType::Type(ok)),
+                                    ..
+                                } => match &types[*ok] {
+                                    ComponentDefinedType::Own(id) => Some(id),
+                                    _ => None,
+                                },
+                                _ => None,
+                            },
+                        };
+                        let resource = match resource {
+                            Some(id) => id,
+                            None => bail!(
+                                offset,
+                                "function should return `(own $T)` or `(result (own $T))`"
+                            ),
+                        };
+                        self.validate_resource_name(*resource, name.resource().unwrap(), offset)?;
+                    }
 
-            // Methods must take `(param "self" (borrow $resource))` as the
-            // first argument where `$resources` matches the name `resource` as
-            // named in this context.
-            ComponentNameKind::Method(name) => {
-                let ty = func()?;
-                if ty.params.len() == 0 {
-                    bail!(offset, "function should have at least one argument");
-                }
-                let (pname, pty) = &ty.params[0];
-                if pname.as_str() != "self" {
-                    bail!(
-                        offset,
-                        "function should have a first argument called `self`",
-                    );
-                }
-                let id = match pty {
-                    ComponentValType::Primitive(_) => None,
-                    ComponentValType::Type(ty) => match &types[*ty] {
-                        ComponentDefinedType::Borrow(id) => Some(id),
-                        _ => None,
-                    },
-                };
-                let id = match id {
-                    Some(id) => id,
-                    None => bail!(
-                        offset,
-                        "function should take a first argument of `(borrow $T)`"
-                    ),
-                };
-                self.validate_resource_name(*id, name.resource(), offset)?;
-            }
+                    // Methods must take `(param "self" (borrow $resource))` as
+                    // the first argument where `$resources` matches the name
+                    // `resource` as named in this context.
+                    Some(ResourceFuncKind::Method) => {
+                        let ty = func()?;
+                        if ty.params.len() == 0 {
+                            bail!(offset, "function should have at least one argument");
+                        }
+                        let (pname, pty) = &ty.params[0];
+                        if pname.as_str() != "self" {
+                            bail!(
+                                offset,
+                                "function should have a first argument called `self`",
+                            );
+                        }
+                        let id = match pty {
+                            ComponentValType::Primitive(_) => None,
+                            ComponentValType::Type(ty) => match &types[*ty] {
+                                ComponentDefinedType::Borrow(id) => Some(id),
+                                _ => None,
+                            },
+                        };
+                        let id = match id {
+                            Some(id) => id,
+                            None => bail!(
+                                offset,
+                                "function should take a first argument of `(borrow $T)`"
+                            ),
+                        };
+                        self.validate_resource_name(*id, name.resource().unwrap(), offset)?;
+                    }
 
-            // Static methods don't have much validation beyond that they must
-            // be a function and the resource name referred to must already be
-            // in this context.
-            ComponentNameKind::Static(name) => {
-                func()?;
-                if !self.all_resource_names.contains(name.resource().as_str()) {
-                    bail!(offset, "static resource name is not known in this context");
+                    // Static methods don't have much validation beyond that they must
+                    // be a function and the resource name referred to must already be
+                    // in this context.
+                    Some(ResourceFuncKind::Static) => {
+                        func()?;
+                        if !self
+                            .all_resource_names
+                            .contains(name.resource().unwrap().as_str())
+                        {
+                            bail!(offset, "static resource name is not known in this context");
+                        }
+                    }
+
+                    None => {}
+                }
+
+                if let Some(accessor) = name.accessor {
+                    let ty = func()?;
+                    let desc = match accessor {
+                        AccessorKind::Get => "getter",
+                        AccessorKind::Set => "setter",
+                    };
+                    if ty.async_ {
+                        bail!(offset, "{desc} function cannot be async");
+                    }
+
+                    // Methods have a `self` parameter that we already validated above.
+                    let (num_own_params, besides_self) = match name.resource_func {
+                        Some(ResourceFuncKind::Method) => (ty.params.len() - 1, " besides `self`"),
+                        _ => (ty.params.len(), ""),
+                    };
+                    match accessor {
+                        // Getters take nothing and must return a value.
+                        AccessorKind::Get => {
+                            if num_own_params != 0 {
+                                bail!(
+                                    offset,
+                                    "getter function should have no parameters{besides_self}"
+                                );
+                            }
+                            if ty.result.is_none() {
+                                bail!(offset, "getter function should return a value");
+                            }
+                        }
+
+                        // Setters take one value and return either nothing or `(result (error $E)?)`.
+                        AccessorKind::Set => {
+                            if num_own_params != 1 {
+                                bail!(
+                                    offset,
+                                    "setter function should have exactly one parameter{besides_self}"
+                                );
+                            }
+                            let result_ok = match ty.result {
+                                None => true,
+                                Some(ComponentValType::Primitive(_)) => false,
+                                Some(ComponentValType::Type(id)) => matches!(
+                                    &types[id],
+                                    ComponentDefinedType::Result { ok: None, .. }
+                                ),
+                            };
+                            if !result_ok {
+                                bail!(
+                                    offset,
+                                    "setter function should return nothing or `(result (error $E)?)`"
+                                );
+                            }
+                        }
+                    }
                 }
             }
         }
