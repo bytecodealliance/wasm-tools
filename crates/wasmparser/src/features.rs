@@ -365,6 +365,12 @@ define_wasm_features! {
         /// Corresponds to the ➡️ character in
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
         pub cm_forward: CM_FORWARD(1 << 42) = false;
+
+        /// Support for `[get]` and `[set]` annotations on function names in the component model.
+        ///
+        /// Corresponds to the 📡 character in
+        /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
+        pub cm_accessors: CM_ACCESSORS(1 << 43) = false;
     }
 }
 
