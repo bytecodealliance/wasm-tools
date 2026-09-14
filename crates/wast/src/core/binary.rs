@@ -189,7 +189,7 @@ pub(crate) fn encode(
     e.typed_section(&data);
 
     e.custom_sections(AfterLast);
-    if !names.is_empty() {
+    if !names.is_empty() && !customs.iter().any(|c| c.name() == "name") {
         e.wasm.section(&names.to_name_section());
     }
     if let Some(dwarf) = &mut dwarf {
