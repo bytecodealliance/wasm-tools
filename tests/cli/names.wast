@@ -41,3 +41,10 @@
   (import "" "" (func (@name "foo")))
   (import "" "" (table (@name "foo") 1 funcref))
 )
+
+(module
+  (type $ty (func))
+  (import "m" "e" (tag (type $ty)))
+  (tag (type $ty))
+  (@custom "name" (after data) "\0b\04\01\01\01t")   ;; tag 1 = "t"
+)

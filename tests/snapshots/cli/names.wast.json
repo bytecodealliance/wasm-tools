@@ -48,6 +48,12 @@
       "line": 40,
       "filename": "names.7.wasm",
       "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 45,
+      "filename": "names.8.wasm",
+      "module_type": "binary"
     }
   ]
 }
