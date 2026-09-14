@@ -314,7 +314,7 @@ impl<'a> Parse<'a> for ItemSig<'a> {
             Ok(ItemSig {
                 span,
                 id: parser.parse()?,
-                name: None,
+                name: parser.parse()?,
                 kind: ItemKind::Table(parser.parse()?),
             })
         } else if l.peek::<kw::memory>()? {
@@ -322,7 +322,7 @@ impl<'a> Parse<'a> for ItemSig<'a> {
             Ok(ItemSig {
                 span,
                 id: parser.parse()?,
-                name: None,
+                name: parser.parse()?,
                 kind: ItemKind::Memory(parser.parse()?),
             })
         } else if l.peek::<kw::global>()? {
@@ -330,7 +330,7 @@ impl<'a> Parse<'a> for ItemSig<'a> {
             Ok(ItemSig {
                 span,
                 id: parser.parse()?,
-                name: None,
+                name: parser.parse()?,
                 kind: ItemKind::Global(parser.parse()?),
             })
         } else if l.peek::<kw::tag>()? {
@@ -338,7 +338,7 @@ impl<'a> Parse<'a> for ItemSig<'a> {
             Ok(ItemSig {
                 span,
                 id: parser.parse()?,
-                name: None,
+                name: parser.parse()?,
                 kind: ItemKind::Tag(parser.parse()?),
             })
         } else {
