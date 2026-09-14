@@ -3,6 +3,7 @@
 use super::Mutator;
 use crate::{Result, WasmMutate};
 use rand::RngExt;
+use wasm_encoder::reencode::{Reencode, RoundtripReencoder};
 use wasm_encoder::{ExportKind, ExportSection, Module, SectionId};
 use wasmparser::ExportSectionReader;
 
@@ -65,15 +66,7 @@ impl AddExportMutator {
         for export in reader {
             let export = export?;
             config.consume_fuel(1)?;
-            let kind = match export.kind {
-                wasmparser::ExternalKind::Func => ExportKind::Func,
-                wasmparser::ExternalKind::Table => ExportKind::Table,
-                wasmparser::ExternalKind::Memory => ExportKind::Memory,
-                wasmparser::ExternalKind::Global => ExportKind::Global,
-                wasmparser::ExternalKind::Tag => ExportKind::Tag,
-                wasmparser::ExternalKind::FuncExact => unreachable!(),
-            };
-            exports.export(export.name, kind, export.index);
+            RoundtripReencoder.parse_export(exports, export)?;
         }
 
         Ok(())
