@@ -448,6 +448,40 @@ impl ComponentBuilder {
         self.instances.add(debug_name)
     }
 
+    /// Emits a component start section, invoking `function_index`
+    /// at instantiation time with `args` (each an index into the
+    /// component value index space) and producing `results` new
+    /// values.
+    ///
+    /// Returns the index of the FIRST produced value in the
+    /// component value index space (subsequent produced values
+    /// occupy `first+1`, `first+2`, …, `first+results-1`). If
+    /// `results == 0` the return value is still the current
+    /// value-index cursor but no new values are added; callers
+    /// typically ignore it in that case.
+    ///
+    /// The Component Model spec permits at most one start section
+    /// per component. This helper does NOT enforce that; passing
+    /// the responsibility to the caller matches how the underlying
+    /// `ComponentStartSection` encoder behaves.
+    pub fn start(&mut self, function_index: u32, args: Vec<u32>, results: u32) -> u32 {
+        // Component start is a singleton section rather than an
+        // aggregating one, so we don't route it through the
+        // section-accessor macro. Flush any last section first so
+        // section ordering stays coherent.
+        self.flush();
+        self.component.section(&ComponentStartSection {
+            function_index,
+            args,
+            results,
+        });
+        let base = self.values.count;
+        for _ in 0..results {
+            self.values.add(None);
+        }
+        base
+    }
+
     /// Declares a new `resource.drop` intrinsic.
     pub fn resource_drop(&mut self, ty: u32) -> u32 {
         self.canonical_functions().resource_drop(ty);
