@@ -167,8 +167,12 @@ impl<'a> Parse<'a> for Imports<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::import>()?.0;
         let module = parser.parse()?;
-        if parser.peek::<LParen>()? {
-            let mut encoding = CompactImportEncoding::Unknown;
+        if parser.is_empty() || parser.peek::<LParen>()? {
+            let mut encoding = if parser.is_empty() {
+                CompactImportEncoding::Encoding1
+            } else {
+                CompactImportEncoding::Unknown
+            };
             let mut items = Vec::new();
             while parser.peek2::<kw::item>()? {
                 let item: ImportGroupItemCommon = parser.parens(|p| p.parse())?;
@@ -202,7 +206,6 @@ impl<'a> Parse<'a> for Imports<'a> {
             }
 
             match encoding {
-                CompactImportEncoding::Unknown => Err(parser.error("expected import items")),
                 CompactImportEncoding::Encoding1 => Ok(Imports {
                     span,
                     items: ImportItems::Group1 {
@@ -217,7 +220,7 @@ impl<'a> Parse<'a> for Imports<'a> {
                             .collect(),
                     },
                 }),
-                CompactImportEncoding::Encoding2 => {
+                CompactImportEncoding::Unknown | CompactImportEncoding::Encoding2 => {
                     let sig: ItemSig = parser.parens(|p| p.parse())?;
                     if let Some(id) = sig.id {
                         return Err(parser.error_at(id.span(), "identifier not allowed"));
