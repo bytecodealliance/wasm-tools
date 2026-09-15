@@ -255,6 +255,144 @@
       "filename": "naming.36.wasm",
       "module_type": "binary",
       "text": "conflicts with previous parameter name"
+    },
+    {
+      "type": "module",
+      "line": 217,
+      "filename": "naming.37.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 232,
+      "filename": "naming.38.wasm",
+      "module_type": "binary",
+      "text": "getter function should have no parameters"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 235,
+      "filename": "naming.39.wasm",
+      "module_type": "binary",
+      "text": "getter function should have no parameters besides `self`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 240,
+      "filename": "naming.40.wasm",
+      "module_type": "binary",
+      "text": "getter function should return a value"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 243,
+      "filename": "naming.41.wasm",
+      "module_type": "binary",
+      "text": "getter function cannot be async"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 249,
+      "filename": "naming.42.wasm",
+      "module_type": "binary",
+      "text": "setter function should have exactly one parameter"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 254,
+      "filename": "naming.43.wasm",
+      "module_type": "binary",
+      "text": "setter function should have exactly one parameter besides `self`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 260,
+      "filename": "naming.44.wasm",
+      "module_type": "binary",
+      "text": "setter function should return nothing or `(result (error $E)?)`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 265,
+      "filename": "naming.45.wasm",
+      "module_type": "binary",
+      "text": "setter function should return nothing or `(result (error $E)?)`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 270,
+      "filename": "naming.46.wasm",
+      "module_type": "binary",
+      "text": "setter function cannot be async"
+    },
+    {
+      "type": "module",
+      "line": 277,
+      "filename": "naming.47.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 287,
+      "filename": "naming.48.wasm",
+      "module_type": "binary",
+      "text": "import name `[set]a` requires a preceding import named `[get]a`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 290,
+      "filename": "naming.49.wasm",
+      "module_type": "binary",
+      "text": "import name `[set]a` requires a preceding import named `[get]a`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 295,
+      "filename": "naming.50.wasm",
+      "module_type": "binary",
+      "text": "import name `[set]ab` requires a preceding import named `[get]ab`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 300,
+      "filename": "naming.51.wasm",
+      "module_type": "binary",
+      "text": "import name `[method][set]r.p` requires a preceding import named `[method][get]r.p`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 306,
+      "filename": "naming.52.wasm",
+      "module_type": "binary",
+      "text": "export name `[set]a` requires a preceding export named `[get]a`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 314,
+      "filename": "naming.53.wasm",
+      "module_type": "binary",
+      "text": "import name `[get]a` conflicts with previous name `a`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 317,
+      "filename": "naming.54.wasm",
+      "module_type": "binary",
+      "text": "import name `a` conflicts with previous name `[get]a`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 320,
+      "filename": "naming.55.wasm",
+      "module_type": "binary",
+      "text": "import name `[set]A` conflicts with previous name `[set]a`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 326,
+      "filename": "naming.56.wasm",
+      "module_type": "binary",
+      "text": "import name `[static]r.P` conflicts with previous name `[method][get]r.p`"
     }
   ]
 }

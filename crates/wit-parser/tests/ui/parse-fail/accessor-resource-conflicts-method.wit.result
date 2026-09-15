@@ -1,0 +1,5 @@
+name `[method][get]blob.position` conflicts with previous name `[method]blob.position`
+     --> tests/ui/parse-fail/accessor-resource-conflicts-method.wit:8:5
+      |
+    8 |     position: get() -> u64;
+      |     ^-------

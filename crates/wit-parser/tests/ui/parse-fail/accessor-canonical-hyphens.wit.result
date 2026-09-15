@@ -1,0 +1,5 @@
+name `[get]maxsize` conflicts with previous name `max-size`
+     --> tests/ui/parse-fail/accessor-canonical-hyphens.wit:7:3
+      |
+    7 |   maxsize: get() -> u32;
+      |   ^------

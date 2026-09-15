@@ -1,0 +1,12 @@
+// parse-fail
+
+package foo:foo;
+
+world base {
+  import other: func();
+}
+
+world derived {
+  import prop: set(value: u32);
+  include base;
+}

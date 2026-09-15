@@ -1,7 +1,7 @@
 use crate::{
-    Enum, Flags, Ident, Interface, InterfaceItem, Package, PackageName, Params, Record, Resource,
-    ResourceFunc, Result_, StandaloneFunc, Tuple, Type, TypeDef, TypeDefKind, Variant, World,
-    WorldItem,
+    Accessor, Enum, Flags, Ident, Interface, InterfaceItem, Package, PackageName, Params, Record,
+    Resource, ResourceFunc, Result_, StandaloneFunc, Tuple, Type, TypeDef, TypeDefKind, Variant,
+    World, WorldItem,
 };
 use id_arena::Id;
 use wit_parser::PackageId;
@@ -407,23 +407,35 @@ impl<'a> Converter<'a> {
         let mut with_returns = true;
         let mut method = match func.kind {
             wit_parser::FunctionKind::Freestanding
-            | wit_parser::FunctionKind::AsyncFreestanding => return None,
-            wit_parser::FunctionKind::Method(id) | wit_parser::FunctionKind::AsyncMethod(id) => {
+            | wit_parser::FunctionKind::AsyncFreestanding
+            | wit_parser::FunctionKind::Getter
+            | wit_parser::FunctionKind::Setter => return None,
+            wit_parser::FunctionKind::Method(id)
+            | wit_parser::FunctionKind::AsyncMethod(id)
+            | wit_parser::FunctionKind::MethodGetter(id)
+            | wit_parser::FunctionKind::MethodSetter(id) => {
                 if id != resource_id {
                     return None;
                 }
                 skip_first_param = true;
                 let name = clean_func_name(resource_name, &func.name);
                 let async_ = matches!(func.kind, wit_parser::FunctionKind::AsyncMethod(_));
-                ResourceFunc::method(name, async_)
+                let mut method = ResourceFunc::method(name, async_);
+                method.set_accessor(convert_accessor(&func.kind));
+                method
             }
-            wit_parser::FunctionKind::Static(id) | wit_parser::FunctionKind::AsyncStatic(id) => {
+            wit_parser::FunctionKind::Static(id)
+            | wit_parser::FunctionKind::AsyncStatic(id)
+            | wit_parser::FunctionKind::StaticGetter(id)
+            | wit_parser::FunctionKind::StaticSetter(id) => {
                 if id != resource_id {
                     return None;
                 }
                 let name = clean_func_name(resource_name, &func.name);
                 let async_ = matches!(func.kind, wit_parser::FunctionKind::AsyncStatic(_));
-                ResourceFunc::static_(name, async_)
+                let mut static_ = ResourceFunc::static_(name, async_);
+                static_.set_accessor(convert_accessor(&func.kind));
+                static_
             }
             wit_parser::FunctionKind::Constructor(id) => {
                 if id != resource_id {
@@ -450,13 +462,20 @@ impl<'a> Converter<'a> {
         match func.kind {
             wit_parser::FunctionKind::Method(_)
             | wit_parser::FunctionKind::AsyncMethod(_)
+            | wit_parser::FunctionKind::MethodGetter(_)
+            | wit_parser::FunctionKind::MethodSetter(_)
             | wit_parser::FunctionKind::Static(_)
             | wit_parser::FunctionKind::AsyncStatic(_)
+            | wit_parser::FunctionKind::StaticGetter(_)
+            | wit_parser::FunctionKind::StaticSetter(_)
             | wit_parser::FunctionKind::Constructor(_) => None,
             wit_parser::FunctionKind::Freestanding
-            | wit_parser::FunctionKind::AsyncFreestanding => {
+            | wit_parser::FunctionKind::AsyncFreestanding
+            | wit_parser::FunctionKind::Getter
+            | wit_parser::FunctionKind::Setter => {
                 let async_ = matches!(func.kind, wit_parser::FunctionKind::AsyncFreestanding);
-                let mut output = StandaloneFunc::new(func.name.clone(), async_);
+                let mut output = StandaloneFunc::new(func.item_name().to_string(), async_);
+                output.set_accessor(convert_accessor(&func.kind));
 
                 output.set_params(self.convert_params(&func.params));
                 output.set_result(func.result.map(|ty| self.convert_type(&ty)));
@@ -580,17 +599,24 @@ impl<'a> Converter<'a> {
     }
 }
 
+/// Takes a mangled resource func name (e.g. `[method]foo.bar`) and returns
+/// just the base name (e.g. `bar`).
 fn clean_func_name(resource_name: &str, method_name: &str) -> String {
-    const METHOD_PREFIX: &str = "[method]";
-    const STATIC_PREFIX: &str = "[static]";
+    const PREFIXES: [&str; 4] = ["[method]", "[static]", "[get]", "[set]"];
 
-    let method_name = method_name
-        .strip_prefix(METHOD_PREFIX)
-        .unwrap_or(method_name);
-    let method_name = method_name
-        .strip_prefix(STATIC_PREFIX)
-        .unwrap_or(method_name);
+    let mut method_name = method_name;
+    for prefix in PREFIXES {
+        method_name = method_name.strip_prefix(prefix).unwrap_or(method_name);
+    }
     let method_name = method_name.strip_prefix(resource_name).unwrap();
     let method_name = method_name.strip_prefix(".").unwrap();
     method_name.to_string()
+}
+
+/// Converts `wit-parser`'s notion of a getter/setter into `wit-encoder`'s.
+fn convert_accessor(kind: &wit_parser::FunctionKind) -> Option<Accessor> {
+    match kind.accessor()? {
+        wit_parser::AccessorKind::Getter => Some(Accessor::Get),
+        wit_parser::AccessorKind::Setter => Some(Accessor::Set),
+    }
 }

@@ -1,0 +1,5 @@
+name `[static][set]blob.position` conflicts with previous name `[method][set]blob.position`
+     --> tests/ui/parse-fail/accessor-resource-duplicate-setter.wit:9:5
+      |
+    9 |     position: static set(value: u64);
+      |     ^-------

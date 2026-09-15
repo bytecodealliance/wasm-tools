@@ -1,0 +1,9 @@
+// parse-fail
+
+package foo:foo;
+
+interface foo {
+  // Getters and setters must have EXACTLY the same name (not just strongly-unique).
+  max-size: get() -> u64;
+  maxsize: set(value: u64);
+}

@@ -1,0 +1,8 @@
+// parse-fail
+
+package foo:foo;
+
+interface foo {
+  prop: get() -> u32;
+  prop: get() -> u32;
+}

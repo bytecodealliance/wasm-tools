@@ -25,7 +25,7 @@ serde = { workspace = true, optional = true }
 serde_derive = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 unicode-ident = "1.0.24"
-wasmparser = { workspace = true, optional = true, features = ['std', 'validate', 'component-model', 'features'] }
+wasmparser = { workspace = true, features = ['validate', 'component-model', 'features'] }
 wat = { workspace = true, optional = true, features = ['component-model'] }
 
 [features]
@@ -40,7 +40,7 @@ serde = ['dep:serde', 'dep:serde_derive', 'indexmap/serde', 'serde_json']
 
 # Enables support for decoding WIT from WebAssembly. This can be done to support
 # decoding a WIT package encoded as wasm automatically.
-decoding = ['std', 'dep:wasmparser']
+decoding = ['std', 'wasmparser/std']
 
 # Enables support for parsing the wasm text format in conjunction with the
 # `decoding` feature.

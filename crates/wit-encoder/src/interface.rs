@@ -125,10 +125,10 @@ impl Render for InterfaceItems {
                     if let Some(docs) = &func.docs {
                         docs.render(f, opts)?;
                     }
-                    let opt_async = if func.async_ { "async " } else { "" };
+                    let keyword = crate::function::func_keyword(func.async_, func.accessor);
                     write!(
                         f,
-                        "{}{}: {opt_async}func({})",
+                        "{}{}: {keyword}({})",
                         opts.spaces(),
                         func.name,
                         func.params,
