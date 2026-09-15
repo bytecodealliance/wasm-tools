@@ -1,0 +1,3 @@
+(module
+  (import "not-test")
+)
