@@ -85,7 +85,7 @@ mod component_limits {
     pub const MAX_WASM_START_ARGS: usize = 1000;
     pub const MAX_WASM_MODULES: usize = 1_000;
     pub const MAX_WASM_COMPONENTS: usize = 1_000;
-    pub const MAX_WASM_INSTANCES: usize = 1_000;
+    pub const MAX_WASM_INSTANCES: usize = 4_096;
     pub const MAX_WASM_VALUES: usize = 1_000;
 
     /// Core items in components such as globals/memories/tables don't actually
