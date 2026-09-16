@@ -106,10 +106,7 @@ impl Mutator for AddFunctionMutator {
                         added_func = true;
                     }
 
-                    if !added_code
-                        && sec_id >= wasm_encoder::SectionId::Code as u8
-                        && sec_id != wasm_encoder::SectionId::DataCount as u8
-                    {
+                    if !added_code && sec_id == wasm_encoder::SectionId::Data as u8 {
                         module.section(&code_sec_enc);
                         added_code = true;
                     }
@@ -184,6 +181,26 @@ mod tests {
                         i64.const 0
                         f64.const 0.0
                     )
+                )
+            "#,
+        );
+    }
+
+    #[test]
+    fn test_add_function_before_tag() {
+        crate::mutators::match_mutation(
+            r#"
+                (module
+                    (type (;0;) (func))
+                    (tag (;0;) (type 0))
+                )
+            "#,
+            AddFunctionMutator,
+            r#"
+                (module
+                    (type (;0;) (func))
+                    (tag (;0;) (type 0))
+                    (func (;0;) (type 0))
                 )
             "#,
         );
