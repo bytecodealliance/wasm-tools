@@ -19,7 +19,7 @@ const PAGE_SIZE: i32 = 64 * 1024;
 /// This internally performs a "gc" pass after removing exports to ensure that
 /// the resulting module imports the minimal set of functions necessary.
 ///
-/// If `memory_page_size_log2` is `Some`, any memory imported as `env::memory`
+/// If `memory_page_size_log2` is `Some`, any imported memory
 /// will have its page size overridden to match the main module's memory.
 pub fn run(
     wasm: &[u8],
@@ -33,6 +33,8 @@ pub fn run(
     module.parse(wasm)?;
 
     if let Some(page_size_log2) = memory_page_size_log2 {
+        // The page size override is safe, because the adapter code doesn't
+        // allocate memory nor assume alignment.
         module.override_memory_import_page_size(page_size_log2);
     }
 
