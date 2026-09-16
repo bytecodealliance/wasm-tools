@@ -1,4 +1,4 @@
 (module
-  (import "old" "thunk" (func))
-  (memory (export "memory") 65536 (pagesize 0x1))
+  (import "old" "get_sum" (func (result i32)))
+  (memory (export "memory") 65536 (pagesize 1))
 )
