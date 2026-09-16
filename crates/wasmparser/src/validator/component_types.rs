@@ -1848,7 +1848,7 @@ impl ComponentDefinedType {
                 .cases
                 .values()
                 .any(|case| case.ty.map(|ty| ty.contains_ptr(types)).unwrap_or(false)),
-            Self::List { .. } | Self::Map { .. } => true,
+            Self::List { .. } | Self::Map { .. } | Self::FixedLengthList { .. } => true,
             Self::Tuple(t) => t.types.iter().any(|ty| ty.contains_ptr(types)),
             Self::Flags(_)
             | Self::Enum(_)
@@ -1856,9 +1856,7 @@ impl ComponentDefinedType {
             | Self::Borrow(_)
             | Self::Future { .. }
             | Self::Stream { .. } => false,
-            Self::Option { ty, .. } | Self::FixedLengthList { element: ty, .. } => {
-                ty.contains_ptr(types)
-            }
+            Self::Option { ty, .. } => ty.contains_ptr(types),
             Self::Result { ok, err, .. } => {
                 ok.map(|ty| ty.contains_ptr(types)).unwrap_or(false)
                     || err.map(|ty| ty.contains_ptr(types)).unwrap_or(false)
@@ -1888,11 +1886,7 @@ impl ComponentDefinedType {
                 lowered_types.try_push(ptr_size.core_type())
                     && lowered_types.try_push(ptr_size.core_type())
             }
-            Self::FixedLengthList {
-                element: ty,
-                length,
-                ..
-            } => (0..*length).all(|_n| ty.push_wasm_types(ptr_size, types, lowered_types)),
+            Self::FixedLengthList { .. } => lowered_types.try_push(ptr_size.core_type()),
             Self::Tuple(t) => t
                 .types
                 .iter()
