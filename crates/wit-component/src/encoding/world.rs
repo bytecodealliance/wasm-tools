@@ -117,6 +117,7 @@ impl<'a> ComponentWorld<'a> {
     fn process_adapters(&mut self) -> Result<()> {
         let resolve = &self.encoder.metadata.resolve;
         let world = self.encoder.metadata.world;
+        let memory_page_size_log2 = get_memory_page_size_log2(&self.encoder.module, &self.info)?;
         for (
             name,
             Adapter {
@@ -199,6 +200,7 @@ impl<'a> ComponentWorld<'a> {
                         } else {
                             self.info.exports.realloc_to_import_into_adapter()
                         },
+                        memory_page_size_log2,
                     )
                     .context("failed to reduce input adapter module to its minimal size")?,
                 )
@@ -603,4 +605,21 @@ impl ImportedInterface {
             assert!(prev.is_none());
         }
     }
+}
+
+/// Returns the non-default `page_size_log2` of the main module's memory, if
+/// any. This checks both imported and locally-defined memories.
+fn get_memory_page_size_log2(module_bytes: &[u8], info: &ValidatedModule) -> Result<Option<u32>> {
+    if let Some(ty) = info.imports.imported_memory() {
+        return Ok(ty.page_size_log2);
+    }
+    for payload in wasmparser::Parser::new(0).parse_all(module_bytes) {
+        if let wasmparser::Payload::MemorySection(s) = payload? {
+            for mem in s {
+                let mem = mem?;
+                return Ok(mem.page_size_log2);
+            }
+        }
+    }
+    Ok(None)
 }

@@ -18,15 +18,23 @@ const PAGE_SIZE: i32 = 64 * 1024;
 ///
 /// This internally performs a "gc" pass after removing exports to ensure that
 /// the resulting module imports the minimal set of functions necessary.
+///
+/// If `memory_page_size_log2` is `Some`, any memory imported as `env::memory`
+/// will have its page size overridden to match the main module's memory.
 pub fn run(
     wasm: &[u8],
     required: &IndexSet<String>,
     main_module_realloc: Option<&str>,
+    memory_page_size_log2: Option<u32>,
 ) -> Result<Vec<u8>> {
     assert!(!required.is_empty());
 
     let mut module = Module::default();
     module.parse(wasm)?;
+
+    if let Some(page_size_log2) = memory_page_size_log2 {
+        module.override_memory_import_page_size(page_size_log2);
+    }
 
     // Make sure that all required names are present in the module, and then
     // remove all names that are not required.
@@ -332,6 +340,14 @@ impl<'a> Module<'a> {
         }
 
         Ok(())
+    }
+
+    fn override_memory_import_page_size(&mut self, page_size_log2: u32) {
+        for mem in &mut self.memories {
+            if let Definition::Import(..) = &mem.def {
+                mem.ty.page_size_log2 = Some(page_size_log2);
+            }
+        }
     }
 
     fn parse_name_section(&mut self, section: NameSectionReader<'a>) -> Result<()> {
