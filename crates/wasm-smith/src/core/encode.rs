@@ -38,14 +38,14 @@ impl Module {
                 let ty = &self.types[group.start];
                 section.ty().subtype(&wasm_encoder::SubType {
                     is_final: ty.is_final,
-                    supertype_idx: ty.supertype,
+                    supertype_idxs: ty.supertype.into_iter().collect(),
                     composite_type: (&ty.composite_type).into(),
                 });
             } else {
                 section.ty().rec(self.types[group.clone()].iter().map(|ty| {
                     wasm_encoder::SubType {
                         is_final: ty.is_final,
-                        supertype_idx: ty.supertype,
+                        supertype_idxs: ty.supertype.into_iter().collect(),
                         composite_type: (&ty.composite_type).into(),
                     }
                 }));

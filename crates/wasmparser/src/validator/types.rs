@@ -931,8 +931,9 @@ impl TypeList {
             debug_assert_eq!(self.core_types.len(), self.core_type_to_supertype.len());
             debug_assert_eq!(self.core_types.len(), self.core_type_to_rec_group.len());
 
+            debug_assert!(ty.supertype_idxs.len() <= 2);
             self.core_type_to_supertype
-                .push(ty.supertype_idx.and_then(|idx| match idx.unpack() {
+                .push(ty.supertype_idxs.get(0).and_then(|idx| match idx.unpack() {
                     UnpackedIndex::RecGroup(offset) => {
                         Some(CoreTypeId::from_index(start.index + offset))
                     }

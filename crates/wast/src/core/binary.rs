@@ -407,7 +407,7 @@ impl TypeDef<'_> {
         wasm_encoder::SubType {
             composite_type,
             is_final: self.final_type.unwrap_or(true),
-            supertype_idx: self.parent.map(|i| i.unwrap_u32()),
+            supertype_idxs: self.parents.iter().map(|i| i.unwrap_u32()).collect(),
         }
     }
 }

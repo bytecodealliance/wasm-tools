@@ -6,6 +6,13 @@
       "line": 5,
       "filename": "gc-subtypes.0.wasm",
       "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 125,
+      "filename": "gc-subtypes.1.wasm",
+      "module_type": "binary",
+      "text": "multiple supertypes"
     }
   ]
 }

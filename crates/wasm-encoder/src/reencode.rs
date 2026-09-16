@@ -1149,10 +1149,11 @@ pub mod utils {
     ) -> Result<crate::SubType, Error<T::Error>> {
         Ok(crate::SubType {
             is_final: sub_ty.is_final,
-            supertype_idx: sub_ty
-                .supertype_idx
+            supertype_idxs: sub_ty
+                .supertype_idxs
+                .iter()
                 .map(|i| reencoder.type_index_unpacked(i.unpack()))
-                .transpose()?,
+                .collect::<Result<Vec<_>, _>>()?,
             composite_type: reencoder.composite_type(sub_ty.composite_type)?,
         })
     }
