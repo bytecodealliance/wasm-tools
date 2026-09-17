@@ -53,6 +53,7 @@ mod component;
 #[cfg(feature = "component-model")]
 pub mod component_types;
 mod core;
+mod custom;
 mod func;
 #[cfg(feature = "component-model")]
 pub mod names;
@@ -64,6 +65,7 @@ use self::component::*;
 pub use self::core::ValidatorResources;
 use self::core::*;
 use self::types::{TypeAlloc, Types, TypesRef};
+pub use custom::*;
 pub use func::{FuncToValidate, FuncValidator, FuncValidatorAllocations};
 pub use operators::Frame;
 

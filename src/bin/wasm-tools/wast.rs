@@ -208,7 +208,7 @@ impl Opts {
                 if let Err(e) = parse_binary_wasm(parser, &bytes, is_custom) {
                     self.assert_error_matches(test, &format!("{e:?}"), message)?;
 
-                    match (is_custom, self.test_wasm_valid(test, &bytes)) {
+                    match (is_custom, self.test_wasm_valid(test, &bytes, false)) {
                         // Malformed custom sections should still validate
                         (true, Ok(_)) => {}
                         // Malformed modules should not validate
@@ -286,6 +286,11 @@ impl Opts {
                 mut module,
                 message,
                 span: _,
+            }
+            | WastDirective::AssertInvalidCustom {
+                mut module,
+                message,
+                span: _,
             } => {
                 // ensure module parses successfully
                 let binary_wasm = module.encode()?;
@@ -299,36 +304,17 @@ impl Opts {
                 self.test_wasm_roundtrip(
                     &test_path,
                     &binary_wasm,
-                    expect_binary_roundtrip(&module),
+                    !is_custom && expect_binary_roundtrip(&module),
                     false,
                 )?;
 
                 // now, ensure that module is invalid
-                match self.test_wasm_valid(test, &binary_wasm) {
+                match self.test_wasm_valid(test, &binary_wasm, is_custom) {
                     Ok(_) => bail!(
                         "encoded and validated successfully but should have failed with: {message}",
                     ),
                     Err(e) => self.assert_error_matches(test, &format!("{e:?}"), message)?,
                 }
-            }
-
-            WastDirective::AssertInvalidCustom {
-                mut module,
-                message: _,
-                span: _,
-            } => {
-                let binary_wasm = module.encode()?;
-                let mut test_path = test.to_path_buf();
-                test_path.push(idx.to_string());
-                // Don't try to roundtrip binaries with invalid custom sections
-                // because if the `name` section for example is invalid it just
-                // won't roundtrip or will roundtrip differently.
-                let roundtrip_binary = false;
-                self.test_wasm(&test_path, &binary_wasm, roundtrip_binary)?;
-
-                // NB: validity of custom sections is deferred to runtimes for
-                // now so this doesn't actually test anything about the custom
-                // section.
             }
 
             WastDirective::Thread(thread) => {
@@ -389,7 +375,7 @@ impl Opts {
     /// If `roundtrip_binary` is `false` then it will not try to compare the
     /// original binary with the result of roundtripping through wasmprinter->wast.
     fn test_wasm(&self, test: &Path, contents: &[u8], roundtrip_binary: bool) -> Result<()> {
-        self.test_wasm_valid(test, contents)
+        self.test_wasm_valid(test, contents, false)
             .context("wasm isn't valid")?;
         self.test_wasm_roundtrip(test, contents, roundtrip_binary, true)
             .context("wasm did not roundtrip")
@@ -493,10 +479,8 @@ impl Opts {
 
     /// Tests that `contents` is valid wasm binary with respect to
     /// `self.features`.
-    fn test_wasm_valid(&self, _test: &Path, contents: &[u8]) -> Result<()> {
-        let mut validator = wasmparser::Validator::new_with_features(self.features.features());
-        validator.validate_all(contents)?;
-        Ok(())
+    fn test_wasm_valid(&self, _test: &Path, contents: &[u8], validate_custom: bool) -> Result<()> {
+        wasm_tools::validate(self.features.features(), validate_custom, contents)
     }
 
     /// Test that the `wasmprinter`-printed bytes have "pretty" whitespace

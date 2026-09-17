@@ -638,3 +638,92 @@ pub fn parse_binary_wasm(
         }
     }
 }
+
+#[cfg(feature = "validate")]
+pub fn validate(
+    features: wasmparser::WasmFeatures,
+    validate_custom: bool,
+    wasm: &[u8],
+) -> Result<()> {
+    use rayon::prelude::*;
+    use std::mem;
+    use std::time::Instant;
+    use wasmparser::{
+        CustomSectionValidator, FuncValidatorAllocations, Parser, ValidPayload, Validator,
+    };
+
+    // Note that here we're mostly copying the contents of
+    // `Validator::validate_all`, but there are currently two divergences:
+    //
+    // * The end of module validation is followed up with a parallel iteration
+    //   over the functions to validate instead of a synchronous validation.
+    // * Custom sections are optionally validated depending on the
+    //   `validate_custom` parameter to this function.
+    //
+    // The general idea here is that we're going to use `Parser::parse_all`
+    // to divvy up the input bytes into chunks. Each chunk is fed serially into
+    // a validator which optionally produces functions to validate later. At the
+    // end all functions are processed in parallel.
+    let mut validator = Validator::new_with_features(features);
+    let mut custom_section_validator = if validate_custom {
+        Some(CustomSectionValidator::new())
+    } else {
+        None
+    };
+
+    let mut functions_to_validate = Vec::new();
+
+    let start = Instant::now();
+    let mut parser = Parser::new(0);
+    parser.set_features(features);
+    for payload in parser.parse_all(&wasm) {
+        let payload = payload?;
+        match validator.payload(&payload)? {
+            ValidPayload::Ok | ValidPayload::Parser(_) | ValidPayload::End(_) => {}
+            ValidPayload::Func(validator, body) => {
+                let module_id = custom_section_validator
+                    .as_ref()
+                    .map(|c| c.current_module_id());
+                functions_to_validate.push((validator, body, module_id))
+            }
+        }
+        if let Some(custom) = &mut custom_section_validator {
+            custom.payload(&payload, &validator)?;
+        }
+    }
+    log::info!("module structure validated in {:?}", start.elapsed());
+
+    // After we've validate the entire wasm module we'll use `rayon` to
+    // iterate over all functions in parallel and perform parallel
+    // validation of the input wasm module.
+    //
+    // Note that validation results for each function are collected into a
+    // vector to ensure that in the case of multiple errors the first is
+    // always reported. Otherwise `rayon` does not guarantee the order that
+    // failures show up in.
+    let start = Instant::now();
+    functions_to_validate
+        .into_par_iter()
+        .map_init(
+            FuncValidatorAllocations::default,
+            |allocs, (to_validate, body, module_id)| -> Result<_> {
+                let index = to_validate.index;
+                let mut validator = to_validate.into_validator(mem::take(allocs));
+                validator
+                    .validate(&body)
+                    .with_context(|| format!("func {} failed to validate", validator.index()))?;
+                if let Some(custom) = &custom_section_validator {
+                    if let Some(module_id) = module_id {
+                        custom.code_section_entry(module_id, index, &body)?;
+                    }
+                }
+                *allocs = validator.into_allocations();
+                Ok(())
+            },
+        )
+        .collect::<Vec<_>>()
+        .into_iter()
+        .collect::<Result<Vec<_>>>()?;
+    log::info!("functions validated in {:?}", start.elapsed());
+    Ok(())
+}
