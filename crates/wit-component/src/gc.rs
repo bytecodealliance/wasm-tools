@@ -18,15 +18,25 @@ const PAGE_SIZE: i32 = 64 * 1024;
 ///
 /// This internally performs a "gc" pass after removing exports to ensure that
 /// the resulting module imports the minimal set of functions necessary.
+///
+/// If `memory_page_size_log2` is `Some`, any imported memory
+/// will have its page size overridden to match the main module's memory.
 pub fn run(
     wasm: &[u8],
     required: &IndexSet<String>,
     main_module_realloc: Option<&str>,
+    memory_page_size_log2: Option<u32>,
 ) -> Result<Vec<u8>> {
     assert!(!required.is_empty());
 
     let mut module = Module::default();
     module.parse(wasm)?;
+
+    if let Some(page_size_log2) = memory_page_size_log2 {
+        // The page size override is safe, because the adapter code doesn't
+        // allocate memory nor assume alignment.
+        module.override_memory_import_page_size(page_size_log2);
+    }
 
     // Make sure that all required names are present in the module, and then
     // remove all names that are not required.
@@ -46,12 +56,12 @@ pub fn run(
     }
     assert!(!module.exports.is_empty());
     module.liveness()?;
-    module.encode(main_module_realloc)
+    module.encode(main_module_realloc, memory_page_size_log2.unwrap_or(16))
 }
 
 /// This function generates a Wasm function body which implements `cabi_realloc` in terms of `memory.grow`.  It
 /// only accepts new, page-sized allocations.
-fn realloc_via_memory_grow() -> wasm_encoder::Function {
+fn realloc_via_memory_grow(page_size_log2: u32) -> wasm_encoder::Function {
     let mut func = wasm_encoder::Function::new([(1, wasm_encoder::ValType::I32)]);
 
     // Assert `old_ptr` is null.
@@ -79,8 +89,10 @@ fn realloc_via_memory_grow() -> wasm_encoder::Function {
     func.instructions().unreachable();
     func.instructions().end();
 
-    // Grow the memory by 1 page.
-    func.instructions().i32_const(1);
+    // Grow the memory by enough pages to get PAGE_SIZE bytes.
+    // With default 64KiB pages this is 1; with page-size-1 this is 65536.
+    let grow_pages = PAGE_SIZE >> page_size_log2;
+    func.instructions().i32_const(grow_pages);
     func.instructions().memory_grow(0);
     func.instructions().local_tee(4);
 
@@ -91,9 +103,12 @@ fn realloc_via_memory_grow() -> wasm_encoder::Function {
     func.instructions().unreachable();
     func.instructions().end();
 
+    // Convert the page index returned by memory.grow to a byte offset.
     func.instructions().local_get(4);
-    func.instructions().i32_const(16);
-    func.instructions().i32_shl();
+    if page_size_log2 > 0 {
+        func.instructions().i32_const(page_size_log2 as i32);
+        func.instructions().i32_shl();
+    }
     func.instructions().end();
 
     func
@@ -334,6 +349,14 @@ impl<'a> Module<'a> {
         Ok(())
     }
 
+    fn override_memory_import_page_size(&mut self, page_size_log2: u32) {
+        for mem in &mut self.memories {
+            if let Definition::Import(..) = &mem.def {
+                mem.ty.page_size_log2 = Some(page_size_log2);
+            }
+        }
+    }
+
     fn parse_name_section(&mut self, section: NameSectionReader<'a>) -> Result<()> {
         for s in section {
             match s? {
@@ -505,7 +528,11 @@ impl<'a> Module<'a> {
 
     /// Encodes this `Module` to a new wasm module which is gc'd and only
     /// contains the items that are live as calculated by the `liveness` pass.
-    fn encode(&mut self, main_module_realloc: Option<&str>) -> Result<Vec<u8>> {
+    fn encode(
+        &mut self,
+        main_module_realloc: Option<&str>,
+        page_size_log2: u32,
+    ) -> Result<Vec<u8>> {
         // Data structure used to track the mapping of old index to new index
         // for all live items.
         let mut map = Encoder::default();
@@ -668,7 +695,7 @@ impl<'a> Module<'a> {
                     // exporting it.  In this case, we need to define a local function it can call instead.
                     realloc_index = Some(num_func_imports + funcs.len());
                     funcs.function(ty);
-                    code.function(&realloc_via_memory_grow());
+                    code.function(&realloc_via_memory_grow(page_size_log2));
                 }
                 Definition::Local(_) => {
                     funcs.function(ty);
@@ -739,7 +766,7 @@ impl<'a> Module<'a> {
             // allocation because we have no way to short-circuit reentrance, so we'll use `memory.grow` instead.
             realloc_index = Some(num_func_imports + funcs.len());
             funcs.function(add_realloc_type(&mut types));
-            code.function(&realloc_via_memory_grow());
+            code.function(&realloc_via_memory_grow(page_size_log2));
         }
 
         // Inject a start function to initialize the stack pointer which will be local to this module. This only
