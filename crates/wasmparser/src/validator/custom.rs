@@ -4,6 +4,7 @@ use crate::{
     BranchHintSectionReader, CompositeInnerType, FunctionBody, IndirectNameMap, KnownCustom, Name,
     NameMap, NameSectionReader, Operator, Payload, Result, Validator,
 };
+use alloc::vec;
 use alloc::vec::Vec;
 
 /// A validator for the contents of custom sections.
