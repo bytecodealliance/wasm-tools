@@ -1,0 +1,196 @@
+(component
+  (core module $Wiring (;0;)
+    (type $ft (;0;) (func (result i32)))
+    (table (;0;) 1 1 funcref)
+    (export "tbl" (table 0))
+    (export "to-mid" (func 0))
+    (func (;0;) (type $ft) (result i32)
+      i32.const 0
+      call_indirect (type $ft)
+    )
+  )
+  (core instance $wiring (;0;) (instantiate $Wiring))
+  (type (;0;) (func (result u32)))
+  (alias core export $wiring "to-mid" (core func (;0;)))
+  (func $to-mid (;0;) (type 0) (canon lift (core func 0)))
+  (component $A (;0;)
+    (type (;0;) (func (result u32)))
+    (import "mid" (func $mid (;0;) (type 0)))
+    (core func $mid' (;0;) (canon lower (func $mid)))
+    (core module $Table (;0;)
+      (table (;0;) 1 1 funcref)
+      (export "tbl" (table 0))
+    )
+    (core instance $table (;0;) (instantiate $Table))
+    (core type $start-func-ty (;0;) (func (param i32)))
+    (alias core export $table "tbl" (core table $tbl (;0;)))
+    (core func $thread.new-indirect (;1;) (canon thread.new-indirect $start-func-ty $tbl))
+    (core func $thread.index (;2;) (canon thread.index))
+    (core func $thread.suspend-then-resume (;3;) (canon thread.suspend-then-resume))
+    (core func $thread.yield-then-resume (;4;) (canon thread.yield-then-resume))
+    (core func $thread.yield-then-promote (;5;) (canon thread.yield-then-promote))
+    (core module $AM (;1;)
+      (type (;0;) (func (result i32)))
+      (type (;1;) (func (param i32 i32) (result i32)))
+      (type (;2;) (func (param i32) (result i32)))
+      (type (;3;) (func (param i32)))
+      (import "" "tbl" (table $tbl (;0;) 1 1 funcref))
+      (import "" "mid" (func $mid (;0;) (type 0) (result i32)))
+      (import "" "thread.index" (func $thread.index (;1;) (type 0) (result i32)))
+      (import "" "thread.new-indirect" (func $thread.new-indirect (;2;) (type 1) (param i32 i32) (result i32)))
+      (import "" "thread.suspend-then-resume" (func $thread.suspend-then-resume (;3;) (type 2) (param i32) (result i32)))
+      (import "" "thread.yield-then-resume" (func $thread.yield-then-resume (;4;) (type 2) (param i32) (result i32)))
+      (import "" "thread.yield-then-promote" (func $thread.yield-then-promote (;5;) (type 2) (param i32) (result i32)))
+      (global $outer-thread (;0;) (mut i32) i32.const 0)
+      (global $explicit-thread (;1;) (mut i32) i32.const 0)
+      (global $phase (;2;) (mut i32) i32.const 0)
+      (export "run" (func 7))
+      (export "inner" (func 8))
+      (elem (;0;) (table $tbl) (i32.const 0) func $explicit)
+      (func $explicit (;6;) (type 3) (param i32)
+        global.get $phase
+        i32.const 0
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        call $mid
+        i32.const 43
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        global.get $phase
+        i32.const 3
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+      )
+      (func (;7;) (type 0) (result i32)
+        call $thread.index
+        global.set $outer-thread
+        i32.const 0
+        i32.const 0
+        call $thread.new-indirect
+        global.set $explicit-thread
+        global.get $explicit-thread
+        call $thread.suspend-then-resume
+        if ;; label = @1
+          unreachable
+        end
+        global.get $phase
+        i32.const 1
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 2
+        global.set $phase
+        i32.const 42
+      )
+      (func (;8;) (type 0) (result i32)
+        global.get $phase
+        i32.const 0
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        global.get $explicit-thread
+        call $thread.yield-then-promote
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 1
+        global.set $phase
+        global.get $outer-thread
+        call $thread.yield-then-resume
+        if ;; label = @1
+          unreachable
+        end
+        global.get $phase
+        i32.const 2
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 3
+        global.set $phase
+        i32.const 43
+      )
+    )
+    (core instance (;1;)
+      (export "tbl" (table $tbl))
+      (export "mid" (func $mid'))
+      (export "thread.index" (func $thread.index))
+      (export "thread.new-indirect" (func $thread.new-indirect))
+      (export "thread.suspend-then-resume" (func $thread.suspend-then-resume))
+      (export "thread.yield-then-resume" (func $thread.yield-then-resume))
+      (export "thread.yield-then-promote" (func $thread.yield-then-promote))
+    )
+    (core instance $am (;2;) (instantiate $AM
+        (with "" (instance 1))
+      )
+    )
+    (type (;1;) (func (result u32)))
+    (alias core export $am "run" (core func (;6;)))
+    (func (;1;) (type 1) (canon lift (core func 6)))
+    (type (;2;) (func (result u32)))
+    (alias core export $am "inner" (core func (;7;)))
+    (func (;2;) (type 2) (canon lift (core func 7)))
+    (export (;3;) "run" (func 1))
+    (export (;4;) "inner" (func 2))
+  )
+  (instance $a (;0;) (instantiate $A
+      (with "mid" (func $to-mid))
+    )
+  )
+  (component $B (;1;)
+    (type (;0;) (func (result u32)))
+    (import "inner" (func $inner (;0;) (type 0)))
+    (core func $inner' (;0;) (canon lower (func $inner)))
+    (core module $BM (;0;)
+      (type (;0;) (func (result i32)))
+      (import "" "inner" (func $inner (;0;) (type 0) (result i32)))
+      (export "mid" (func 1))
+      (func (;1;) (type 0) (result i32)
+        call $inner
+      )
+    )
+    (core instance (;0;)
+      (export "inner" (func $inner'))
+    )
+    (core instance $bm (;1;) (instantiate $BM
+        (with "" (instance 0))
+      )
+    )
+    (type (;1;) (func (result u32)))
+    (alias core export $bm "mid" (core func (;1;)))
+    (func (;1;) (type 1) (canon lift (core func 1)))
+    (export (;2;) "mid" (func 1))
+  )
+  (alias export $a "inner" (func (;1;)))
+  (instance $b (;1;) (instantiate $B
+      (with "inner" (func 1))
+    )
+  )
+  (alias export $b "mid" (func (;2;)))
+  (core func $mid' (;1;) (canon lower (func 2)))
+  (core module $Elem (;1;)
+    (type (;0;) (func (result i32)))
+    (import "" "tbl" (table (;0;) 1 1 funcref))
+    (import "" "mid" (func $mid (;0;) (type 0) (result i32)))
+    (elem (;0;) (i32.const 0) func $mid)
+  )
+  (alias core export $wiring "tbl" (core table (;0;)))
+  (core instance (;1;)
+    (export "tbl" (table 0))
+    (export "mid" (func $mid'))
+  )
+  (core instance $elem (;2;) (instantiate $Elem
+      (with "" (instance 1))
+    )
+  )
+  (alias export $a "run" (func (;3;)))
+  (export (;4;) "run" (func 3))
+)

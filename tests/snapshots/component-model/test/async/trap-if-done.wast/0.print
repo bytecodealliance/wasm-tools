@@ -276,6 +276,7 @@
       (export "trap-after-stream-reader-async-dropped" (func $trap-after-stream-reader-async-dropped))
       (export "trap-after-stream-writer-eager-dropped" (func $trap-after-stream-writer-eager-dropped))
       (export "trap-after-stream-writer-async-dropped" (func $trap-after-stream-writer-async-dropped))
+      (export "trap-after-stream-writer-dropped-after-write" (func $trap-after-stream-writer-dropped-after-write))
       (func $trap-after-future-eager-write (;15;) (type 5)
         (local $ret i32) (local $fr i32)
         call $start-future
@@ -623,6 +624,80 @@
         end
         unreachable
       )
+      (func $trap-after-stream-writer-dropped-after-write (;24;) (type 6) (param $bool i32) (result i32)
+        (local $ret i32) (local $ws i32) (local $sr i32)
+        call $start-stream
+        local.set $sr
+        local.get $sr
+        i32.const 16
+        i32.const 1
+        call $stream.read
+        local.set $ret
+        i32.const -1
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        call $stream-write
+        local.set $ret
+        i32.const 16
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 42
+        i32.const 16
+        i32.load8_u
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        call $stream-drop-writable
+        call $waitable-set.new
+        local.set $ws
+        local.get $sr
+        local.get $ws
+        call $waitable.join
+        local.get $ws
+        i32.const 0
+        call $waitable-set.wait
+        local.set $ret
+        i32.const 2
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $sr
+        i32.const 0
+        i32.load
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 17
+        i32.const 4
+        i32.load
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $bool
+        i32.eqz
+        if ;; label = @1
+          local.get $sr
+          i32.const 16
+          i32.const 1
+          call $stream.read
+          drop
+        else
+          local.get $sr
+          return
+        end
+        unreachable
+      )
     )
     (type $FT (;1;) (future u8))
     (type $ST (;2;) (stream u8))
@@ -706,15 +781,19 @@
     (type (;11;) (func async (param "bool" bool) (result $ST)))
     (alias core export $core "trap-after-stream-writer-async-dropped" (core func (;25;)))
     (func (;16;) (type 11) (canon lift (core func 25)))
-    (export (;17;) "trap-after-future-eager-write" (func 8))
-    (export (;18;) "trap-after-future-async-write" (func 9))
-    (export (;19;) "trap-after-future-reader-dropped" (func 10))
-    (export (;20;) "trap-after-future-eager-read" (func 11))
-    (export (;21;) "trap-after-future-async-read" (func 12))
-    (export (;22;) "trap-after-stream-reader-eager-dropped" (func 13))
-    (export (;23;) "trap-after-stream-reader-async-dropped" (func 14))
-    (export (;24;) "trap-after-stream-writer-eager-dropped" (func 15))
-    (export (;25;) "trap-after-stream-writer-async-dropped" (func 16))
+    (type (;12;) (func async (param "bool" bool) (result $ST)))
+    (alias core export $core "trap-after-stream-writer-dropped-after-write" (core func (;26;)))
+    (func (;17;) (type 12) (canon lift (core func 26)))
+    (export (;18;) "trap-after-future-eager-write" (func 8))
+    (export (;19;) "trap-after-future-async-write" (func 9))
+    (export (;20;) "trap-after-future-reader-dropped" (func 10))
+    (export (;21;) "trap-after-future-eager-read" (func 11))
+    (export (;22;) "trap-after-future-async-read" (func 12))
+    (export (;23;) "trap-after-stream-reader-eager-dropped" (func 13))
+    (export (;24;) "trap-after-stream-reader-async-dropped" (func 14))
+    (export (;25;) "trap-after-stream-writer-eager-dropped" (func 15))
+    (export (;26;) "trap-after-stream-writer-async-dropped" (func 16))
+    (export (;27;) "trap-after-stream-writer-dropped-after-write" (func 17))
   )
   (instance $c (;0;) (instantiate $C))
   (instance $d (;1;) (instantiate $D
@@ -730,13 +809,15 @@
   (alias export $d "trap-after-stream-reader-async-dropped" (func (;6;)))
   (alias export $d "trap-after-stream-writer-eager-dropped" (func (;7;)))
   (alias export $d "trap-after-stream-writer-async-dropped" (func (;8;)))
-  (export (;9;) "trap-after-future-eager-write" (func 0))
-  (export (;10;) "trap-after-future-async-write" (func 1))
-  (export (;11;) "trap-after-future-reader-dropped" (func 2))
-  (export (;12;) "trap-after-future-eager-read" (func 3))
-  (export (;13;) "trap-after-future-async-read" (func 4))
-  (export (;14;) "trap-after-stream-reader-eager-dropped" (func 5))
-  (export (;15;) "trap-after-stream-reader-async-dropped" (func 6))
-  (export (;16;) "trap-after-stream-writer-eager-dropped" (func 7))
-  (export (;17;) "trap-after-stream-writer-async-dropped" (func 8))
+  (alias export $d "trap-after-stream-writer-dropped-after-write" (func (;9;)))
+  (export (;10;) "trap-after-future-eager-write" (func 0))
+  (export (;11;) "trap-after-future-async-write" (func 1))
+  (export (;12;) "trap-after-future-reader-dropped" (func 2))
+  (export (;13;) "trap-after-future-eager-read" (func 3))
+  (export (;14;) "trap-after-future-async-read" (func 4))
+  (export (;15;) "trap-after-stream-reader-eager-dropped" (func 5))
+  (export (;16;) "trap-after-stream-reader-async-dropped" (func 6))
+  (export (;17;) "trap-after-stream-writer-eager-dropped" (func 7))
+  (export (;18;) "trap-after-stream-writer-async-dropped" (func 8))
+  (export (;19;) "trap-after-stream-writer-dropped-after-write" (func 9))
 )

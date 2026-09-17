@@ -1,0 +1,113 @@
+(component
+  (core module $M1 (;0;)
+    (type $ft (;0;) (func (param i32) (result i32)))
+    (table (;0;) 1 1 funcref)
+    (export "tbl" (table 0))
+    (export "fwd" (func 0))
+    (func (;0;) (type $ft) (param i32) (result i32)
+      local.get 0
+      i32.const 0
+      call_indirect (type $ft)
+    )
+  )
+  (core instance $m1 (;0;) (instantiate $M1))
+  (type (;0;) (func (param "n" u32) (result u32)))
+  (alias core export $m1 "fwd" (core func (;0;)))
+  (func $fwd (;0;) (type 0) (canon lift (core func 0)))
+  (component $C2 (;0;)
+    (type (;0;) (func (param "n" u32) (result u32)))
+    (import "fwd" (func $fwd (;0;) (type 0)))
+    (core func $fwd' (;0;) (canon lower (func $fwd)))
+    (core module $M (;0;)
+      (type (;0;) (func (param i32) (result i32)))
+      (import "" "fwd" (func $fwd (;0;) (type 0) (param i32) (result i32)))
+      (export "g" (func 1))
+      (func (;1;) (type 0) (param i32) (result i32)
+        local.get 0
+        call $fwd
+      )
+    )
+    (core instance (;0;)
+      (export "fwd" (func $fwd'))
+    )
+    (core instance $m (;1;) (instantiate $M
+        (with "" (instance 0))
+      )
+    )
+    (type (;1;) (func (param "n" u32) (result u32)))
+    (alias core export $m "g" (core func (;1;)))
+    (func (;1;) (type 1) (canon lift (core func 1)))
+    (export (;2;) "g" (func 1))
+  )
+  (instance $c2 (;0;) (instantiate $C2
+      (with "fwd" (func $fwd))
+    )
+  )
+  (component $C1 (;1;)
+    (type (;0;) (func (param "n" u32) (result u32)))
+    (import "g" (func $g (;0;) (type 0)))
+    (core func $g' (;0;) (canon lower (func $g)))
+    (core module $M (;0;)
+      (type (;0;) (func (param i32) (result i32)))
+      (import "" "g" (func $g (;0;) (type 0) (param i32) (result i32)))
+      (export "f" (func 1))
+      (func (;1;) (type 0) (param i32) (result i32)
+        local.get 0
+        i32.eqz
+        if (result i32) ;; label = @1
+          i32.const 100
+        else
+          local.get 0
+          i32.const 1
+          i32.sub
+          call $g
+          i32.const 1
+          i32.add
+        end
+      )
+    )
+    (core instance (;0;)
+      (export "g" (func $g'))
+    )
+    (core instance $m (;1;) (instantiate $M
+        (with "" (instance 0))
+      )
+    )
+    (type (;1;) (func (param "n" u32) (result u32)))
+    (alias core export $m "f" (core func (;1;)))
+    (func (;1;) (type 1) (canon lift (core func 1)))
+    (export (;2;) "f" (func 1))
+  )
+  (alias export $c2 "g" (func (;1;)))
+  (instance $c1 (;1;) (instantiate $C1
+      (with "g" (func 1))
+    )
+  )
+  (alias export $c1 "f" (func (;2;)))
+  (core func $f' (;1;) (canon lower (func 2)))
+  (core module $M2 (;1;)
+    (type (;0;) (func (param i32) (result i32)))
+    (import "" "tbl" (table (;0;) 1 1 funcref))
+    (import "" "f" (func $f (;0;) (type 0) (param i32) (result i32)))
+    (export "run" (func 1))
+    (elem (;0;) (i32.const 0) func $f)
+    (func (;1;) (type 0) (param i32) (result i32)
+      local.get 0
+      call $f
+    )
+  )
+  (alias core export $m1 "tbl" (core table (;0;)))
+  (core instance (;1;)
+    (export "tbl" (table 0))
+    (export "f" (func $f'))
+  )
+  (core instance $m2 (;2;) (instantiate $M2
+      (with "" (instance 1))
+    )
+  )
+  (type (;1;) (func (param "n" u32) (result u32)))
+  (alias core export $m2 "run" (core func (;2;)))
+  (func (;3;) (type 1) (canon lift (core func 2)))
+  (export (;4;) "fwd" (func $fwd))
+  (export (;5;) "run" (func 3))
+)

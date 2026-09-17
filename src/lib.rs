@@ -177,7 +177,7 @@ pub enum Output<'a> {
 impl InputOutput {
     pub fn parse_input_wasm(&self, generate_dwarf: Option<&GenerateDwarfArg>) -> Result<Vec<u8>> {
         let ret = self.get_input_wasm(generate_dwarf)?;
-        parse_binary_wasm(wasmparser::Parser::new(0), &ret)?;
+        parse_binary_wasm(wasmparser::Parser::new(0), &ret, false)?;
         Ok(ret)
     }
 
@@ -314,42 +314,42 @@ impl OutputArg {
     }
 }
 
-pub fn parse_binary_wasm(parser: wasmparser::Parser, bytes: &[u8]) -> Result<()> {
+pub fn parse_binary_wasm(
+    parser: wasmparser::Parser,
+    bytes: &[u8],
+    parse_custom: bool,
+) -> Result<()> {
     for payload in parser.parse_all(&bytes) {
         match payload? {
-            wasmparser::Payload::TypeSection(s) => parse_section(s)?,
-            wasmparser::Payload::ImportSection(s) => parse_section(s)?,
-            wasmparser::Payload::FunctionSection(s) => parse_section(s)?,
-            wasmparser::Payload::TableSection(s) => parse_section(s)?,
-            wasmparser::Payload::MemorySection(s) => parse_section(s)?,
-            wasmparser::Payload::TagSection(s) => parse_section(s)?,
-            wasmparser::Payload::GlobalSection(s) => parse_section(s)?,
-            wasmparser::Payload::ExportSection(s) => parse_section(s)?,
-            wasmparser::Payload::ElementSection(s) => parse_section(s)?,
-            wasmparser::Payload::DataSection(s) => parse_section(s)?,
-            wasmparser::Payload::CodeSectionEntry(body) => {
-                let mut locals = body.get_locals_reader()?.into_iter();
-                for item in locals.by_ref() {
-                    let _ = item?;
-                }
-                let mut ops = locals.into_operators_reader();
-                while !ops.eof() {
-                    ops.read()?;
-                }
-                ops.finish()?;
-            }
+            wasmparser::Payload::TypeSection(s) => s.parse()?,
+            wasmparser::Payload::ImportSection(s) => s.parse()?,
+            wasmparser::Payload::FunctionSection(s) => s.parse()?,
+            wasmparser::Payload::TableSection(s) => s.parse()?,
+            wasmparser::Payload::MemorySection(s) => s.parse()?,
+            wasmparser::Payload::TagSection(s) => s.parse()?,
+            wasmparser::Payload::GlobalSection(s) => s.parse()?,
+            wasmparser::Payload::ExportSection(s) => s.parse()?,
+            wasmparser::Payload::ElementSection(s) => s.parse()?,
+            wasmparser::Payload::DataSection(s) => s.parse()?,
+            wasmparser::Payload::CodeSectionEntry(body) => body.parse()?,
 
-            wasmparser::Payload::InstanceSection(s) => parse_section(s)?,
-            wasmparser::Payload::CoreTypeSection(s) => parse_section(s)?,
-            wasmparser::Payload::ComponentInstanceSection(s) => parse_section(s)?,
-            wasmparser::Payload::ComponentAliasSection(s) => parse_section(s)?,
-            wasmparser::Payload::ComponentTypeSection(s) => parse_section(s)?,
-            wasmparser::Payload::ComponentCanonicalSection(s) => parse_section(s)?,
-            wasmparser::Payload::ComponentImportSection(s) => parse_section(s)?,
-            wasmparser::Payload::ComponentExportSection(s) => parse_section(s)?,
+            wasmparser::Payload::InstanceSection(s) => s.parse()?,
+            wasmparser::Payload::CoreTypeSection(s) => s.parse()?,
+            wasmparser::Payload::ComponentInstanceSection(s) => s.parse()?,
+            wasmparser::Payload::ComponentAliasSection(s) => s.parse()?,
+            wasmparser::Payload::ComponentTypeSection(s) => s.parse()?,
+            wasmparser::Payload::ComponentCanonicalSection(s) => s.parse()?,
+            wasmparser::Payload::ComponentImportSection(s) => s.parse()?,
+            wasmparser::Payload::ComponentExportSection(s) => s.parse()?,
 
             wasmparser::Payload::UnknownSection { id, .. } => {
                 bail!("malformed section id: {id}")
+            }
+
+            wasmparser::Payload::CustomSection(s) => {
+                if parse_custom {
+                    s.parse()?
+                }
             }
 
             _ => (),
@@ -357,13 +357,284 @@ pub fn parse_binary_wasm(parser: wasmparser::Parser, bytes: &[u8]) -> Result<()>
     }
     return Ok(());
 
-    fn parse_section<'a, T>(s: wasmparser::SectionLimited<'a, T>) -> Result<()>
+    trait Parse {
+        fn parse(self) -> Result<()>;
+    }
+
+    impl<'a, T> Parse for wasmparser::SectionLimited<'a, T>
     where
-        T: wasmparser::FromReader<'a>,
+        T: Parse + wasmparser::FromReader<'a>,
     {
-        for item in s {
-            let _ = item?;
+        fn parse(self) -> Result<()> {
+            for item in self {
+                item?.parse()?;
+            }
+            Ok(())
         }
-        Ok(())
+    }
+
+    macro_rules! noop {
+        ($($t:ty,)*) => ($(
+            impl Parse for $t {
+                fn parse(self) -> Result<()> {
+                    Ok(())
+                }
+            }
+        )*)
+    }
+
+    noop! {
+        u32,
+        &str,
+        wasmparser::RecGroup,
+        wasmparser::MemoryType,
+        wasmparser::TagType,
+        wasmparser::Export<'_>,
+        wasmparser::Instance<'_>,
+        wasmparser::CoreType<'_>,
+        wasmparser::ComponentInstance<'_>,
+        wasmparser::ComponentAlias<'_>,
+        wasmparser::ComponentType<'_>,
+        wasmparser::CanonicalFunction,
+        wasmparser::ComponentImport<'_>,
+        wasmparser::ComponentExport<'_>,
+        wasmparser::ImportItemCompact<'_>,
+        wasmparser::CoreDumpSection<'_>,
+        wasmparser::CoreDumpStackSection<'_>,
+        wasmparser::CoreDumpInstancesSection,
+        wasmparser::CoreDumpModulesSection<'_>,
+        wasmparser::Naming<'_>,
+        wasmparser::BranchHint,
+        wasmparser::ProducersFieldValue<'_>,
+        wasmparser::Dylink0Subsection<'_>,
+        wasmparser::Segment<'_>,
+        wasmparser::InitFunc,
+        wasmparser::SymbolInfo<'_>,
+        wasmparser::ComdatSymbol,
+        wasmparser::RelocationEntry,
+    }
+
+    impl Parse for wasmparser::Imports<'_> {
+        fn parse(self) -> Result<()> {
+            match self {
+                wasmparser::Imports::Single(..) => Ok(()),
+                wasmparser::Imports::Compact1 { items, .. } => items.parse(),
+                wasmparser::Imports::Compact2 { names, .. } => names.parse(),
+            }
+        }
+    }
+    impl Parse for wasmparser::Table<'_> {
+        fn parse(self) -> Result<()> {
+            self.init.parse()
+        }
+    }
+    impl Parse for wasmparser::Global<'_> {
+        fn parse(self) -> Result<()> {
+            self.init_expr.parse()
+        }
+    }
+    impl Parse for wasmparser::Element<'_> {
+        fn parse(self) -> Result<()> {
+            self.kind.parse()?;
+            self.items.parse()?;
+            Ok(())
+        }
+    }
+    impl Parse for wasmparser::Data<'_> {
+        fn parse(self) -> Result<()> {
+            self.kind.parse()
+        }
+    }
+    impl Parse for wasmparser::FunctionBody<'_> {
+        fn parse(self) -> Result<()> {
+            let mut locals = self.get_locals_reader()?.into_iter();
+            for item in locals.by_ref() {
+                let _ = item?;
+            }
+            let mut ops = locals.into_operators_reader();
+            while !ops.eof() {
+                ops.read()?;
+            }
+            ops.finish()?;
+            Ok(())
+        }
+    }
+    impl Parse for wasmparser::TableInit<'_> {
+        fn parse(self) -> Result<()> {
+            match self {
+                wasmparser::TableInit::RefNull => Ok(()),
+                wasmparser::TableInit::Expr(e) => e.parse(),
+            }
+        }
+    }
+    impl Parse for wasmparser::ConstExpr<'_> {
+        fn parse(self) -> Result<()> {
+            let mut ops = self.get_operators_reader();
+            while !ops.eof() {
+                ops.read()?;
+            }
+            ops.finish()?;
+            Ok(())
+        }
+    }
+    impl Parse for wasmparser::ElementKind<'_> {
+        fn parse(self) -> Result<()> {
+            match self {
+                wasmparser::ElementKind::Passive | wasmparser::ElementKind::Declared => Ok(()),
+                wasmparser::ElementKind::Active { offset_expr, .. } => offset_expr.parse(),
+            }
+        }
+    }
+    impl Parse for wasmparser::ElementItems<'_> {
+        fn parse(self) -> Result<()> {
+            match self {
+                wasmparser::ElementItems::Functions(f) => f.parse(),
+                wasmparser::ElementItems::Expressions(_, f) => f.parse(),
+            }
+        }
+    }
+    impl Parse for wasmparser::DataKind<'_> {
+        fn parse(self) -> Result<()> {
+            match self {
+                wasmparser::DataKind::Passive => Ok(()),
+                wasmparser::DataKind::Active { offset_expr, .. } => offset_expr.parse(),
+            }
+        }
+    }
+    impl Parse for wasmparser::CustomSectionReader<'_> {
+        fn parse(self) -> Result<()> {
+            match self.as_known() {
+                wasmparser::KnownCustom::Name(s) => s.parse(),
+                wasmparser::KnownCustom::ComponentName(s) => s.parse(),
+                wasmparser::KnownCustom::BranchHints(s) => s.parse(),
+                wasmparser::KnownCustom::Producers(s) => s.parse(),
+                wasmparser::KnownCustom::Dylink0(s) => s.parse(),
+                wasmparser::KnownCustom::CoreDump(s) => s.parse(),
+                wasmparser::KnownCustom::CoreDumpStack(s) => s.parse(),
+                wasmparser::KnownCustom::CoreDumpInstances(s) => s.parse(),
+                wasmparser::KnownCustom::CoreDumpModules(s) => s.parse(),
+                wasmparser::KnownCustom::Linking(s) => s.parse(),
+                wasmparser::KnownCustom::Reloc(s) => s.parse(),
+                _ => Ok(()),
+            }
+        }
+    }
+    impl<'a, T> Parse for wasmparser::Subsections<'a, T>
+    where
+        T: Parse + wasmparser::Subsection<'a>,
+    {
+        fn parse(self) -> Result<()> {
+            for s in self {
+                s?.parse()?;
+            }
+            Ok(())
+        }
+    }
+    impl Parse for wasmparser::NameSectionReader<'_> {
+        fn parse(self) -> Result<()> {
+            for section in self {
+                section?.parse()?;
+            }
+            Ok(())
+        }
+    }
+    impl Parse for wasmparser::Name<'_> {
+        fn parse(self) -> Result<()> {
+            match self {
+                wasmparser::Name::Module { .. } => Ok(()),
+                wasmparser::Name::Function(n) => n.parse(),
+                wasmparser::Name::Local(n) => n.parse(),
+                wasmparser::Name::Label(n) => n.parse(),
+                wasmparser::Name::Type(n) => n.parse(),
+                wasmparser::Name::Table(n) => n.parse(),
+                wasmparser::Name::Memory(n) => n.parse(),
+                wasmparser::Name::Global(n) => n.parse(),
+                wasmparser::Name::Element(n) => n.parse(),
+                wasmparser::Name::Data(n) => n.parse(),
+                wasmparser::Name::Field(n) => n.parse(),
+                wasmparser::Name::Tag(n) => n.parse(),
+                wasmparser::Name::Parameter(n) => n.parse(),
+                wasmparser::Name::TagParameter(n) => n.parse(),
+                wasmparser::Name::Unknown { .. } => Ok(()),
+            }
+        }
+    }
+    impl Parse for wasmparser::IndirectNameMap<'_> {
+        fn parse(self) -> Result<()> {
+            for item in self {
+                item?.parse()?;
+            }
+            Ok(())
+        }
+    }
+    impl Parse for wasmparser::IndirectNaming<'_> {
+        fn parse(self) -> Result<()> {
+            self.names.parse()
+        }
+    }
+    impl Parse for wasmparser::NameMap<'_> {
+        fn parse(self) -> Result<()> {
+            for item in self {
+                item?.parse()?;
+            }
+            Ok(())
+        }
+    }
+    impl Parse for wasmparser::ComponentName<'_> {
+        fn parse(self) -> Result<()> {
+            match self {
+                Self::Component { .. } => Ok(()),
+                Self::CoreFuncs(s) => s.parse(),
+                Self::CoreGlobals(s) => s.parse(),
+                Self::CoreMemories(s) => s.parse(),
+                Self::CoreTables(s) => s.parse(),
+                Self::CoreTags(s) => s.parse(),
+                Self::CoreModules(s) => s.parse(),
+                Self::CoreInstances(s) => s.parse(),
+                Self::CoreTypes(s) => s.parse(),
+                Self::Types(s) => s.parse(),
+                Self::Instances(s) => s.parse(),
+                Self::Components(s) => s.parse(),
+                Self::Funcs(s) => s.parse(),
+                Self::Values(s) => s.parse(),
+                Self::Unknown { .. } => Ok(()),
+            }
+        }
+    }
+    impl Parse for wasmparser::BranchHintFunction<'_> {
+        fn parse(self) -> Result<()> {
+            self.hints.parse()
+        }
+    }
+    impl Parse for wasmparser::ProducersField<'_> {
+        fn parse(self) -> Result<()> {
+            self.values.parse()
+        }
+    }
+    impl Parse for wasmparser::LinkingSectionReader<'_> {
+        fn parse(self) -> Result<()> {
+            self.subsections().parse()
+        }
+    }
+    impl Parse for wasmparser::Linking<'_> {
+        fn parse(self) -> Result<()> {
+            match self {
+                Self::SegmentInfo(s) => s.parse(),
+                Self::InitFuncs(s) => s.parse(),
+                Self::ComdatInfo(s) => s.parse(),
+                Self::SymbolTable(s) => s.parse(),
+                Self::Unknown { .. } => Ok(()),
+            }
+        }
+    }
+    impl Parse for wasmparser::Comdat<'_> {
+        fn parse(self) -> Result<()> {
+            self.symbols.parse()
+        }
+    }
+    impl Parse for wasmparser::RelocSectionReader<'_> {
+        fn parse(self) -> Result<()> {
+            self.entries().parse()
+        }
     }
 }

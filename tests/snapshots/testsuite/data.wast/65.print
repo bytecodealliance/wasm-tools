@@ -1,0 +1,19 @@
+(module
+  (type (;0;) (func))
+  (type (;1;) (func (result i32)))
+  (memory (;0;) 1 1)
+  (export "init" (func 0))
+  (export "load" (func 1))
+  (func (;0;) (type 0)
+    i32.const 0
+    i32.const 0
+    i32.const 1
+    memory.init $d
+  )
+  (func (;1;) (type 1) (result i32)
+    i32.const 0
+    i32.load8_u
+  )
+  (data (;0;) (i32.const 0) "\ab")
+  (data $d (;1;) "\cd")
+)

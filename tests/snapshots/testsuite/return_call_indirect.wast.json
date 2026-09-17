@@ -1127,29 +1127,43 @@
     },
     {
       "type": "assert_invalid",
-      "line": 572,
+      "line": 570,
       "filename": "return_call_indirect.27.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 583,
+      "line": 581,
       "filename": "return_call_indirect.28.wasm",
       "module_type": "binary",
-      "text": "unknown type"
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 590,
+      "line": 594,
       "filename": "return_call_indirect.29.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 605,
+      "filename": "return_call_indirect.30.wasm",
       "module_type": "binary",
       "text": "unknown type"
     },
     {
       "type": "assert_invalid",
-      "line": 601,
-      "filename": "return_call_indirect.30.wasm",
+      "line": 612,
+      "filename": "return_call_indirect.31.wasm",
+      "module_type": "binary",
+      "text": "unknown type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 623,
+      "filename": "return_call_indirect.32.wasm",
       "module_type": "binary",
       "text": "unknown function 0"
     }

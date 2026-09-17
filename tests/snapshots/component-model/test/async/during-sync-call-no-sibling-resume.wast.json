@@ -61,7 +61,7 @@
         "field": "sync-block",
         "args": []
       },
-      "text": "deadlock detected: event loop cannot make further progress"
+      "text": "cannot block a synchronous task before returning"
     }
   ]
 }

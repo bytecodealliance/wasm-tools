@@ -1,0 +1,27 @@
+(module
+  (type (;0;) (func (param i32)))
+  (type (;1;) (func (result i32)))
+  (import "test-pairs"
+    (item "e1")
+    (item "e2")
+    (tag (type 0) (param i32))
+  )
+  (export "throw-1" (func 0))
+  (export "throw-2" (func 1))
+  (func (;0;) (type 1) (result i32)
+    block $h (result i32)
+      try_table (result i32) (catch 0 $h) ;; label = @2
+        i32.const 5
+        throw 0
+      end
+    end
+  )
+  (func (;1;) (type 1) (result i32)
+    block $h (result i32)
+      try_table (result i32) (catch 1 $h) ;; label = @2
+        i32.const 50
+        throw 1
+      end
+    end
+  )
+)

@@ -1,0 +1,4 @@
+(module
+  (import "m" "g" (global (;0;) i32))
+  (global $g (;1;) i32 i32.const 0)
+)

@@ -1,0 +1,12 @@
+(module
+  (type (;0;) (func))
+  (table $t (;0;) 1 1 funcref)
+  (memory $m (;0;) 1 1)
+  (global $g (;0;) i32 i32.const 0)
+  (export "t" (table $t))
+  (export "m" (memory $m))
+  (export "g" (global $g))
+  (elem (;0;) (table $t) (i32.const 0) func $f)
+  (func $f (;0;) (type 0))
+  (data (;0;) (i32.const 0) "hello")
+)

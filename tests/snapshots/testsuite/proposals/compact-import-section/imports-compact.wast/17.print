@@ -1,0 +1,23 @@
+(module
+  (type (;0;) (func (result i32)))
+  (import "test")
+  (import "test"
+    (func (type 0) (result i32))
+  )
+  (import "test"
+    (item "func->11i" (func (;0;) (type 0) (result i32)))
+  )
+  (import "test"
+    (global i32)
+  )
+  (import "test"
+    (item "global->20")
+    (global i32)
+  )
+  (export "check" (func 1))
+  (func (;1;) (type 0) (result i32)
+    call 0
+    global.get 0
+    i32.add
+  )
+)

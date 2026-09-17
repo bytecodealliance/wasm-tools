@@ -1,0 +1,70 @@
+(component
+  (core module $Core (;0;)
+    (type (;0;) (func (param i32)))
+    (type (;1;) (func (result i32)))
+    (type (;2;) (func (param i32 i32 i32) (result i32)))
+    (import "" "task.return" (func $task.return (;0;) (type 0) (param i32)))
+    (import "" "thread.index" (func $thread.index (;1;) (type 1) (result i32)))
+    (import "" "thread.suspend" (func $thread.suspend (;2;) (type 1) (result i32)))
+    (import "" "thread.resume-later" (func $thread.resume-later (;3;) (type 0) (param i32)))
+    (global $sync-thread-index (;0;) (mut i32) i32.const 57005)
+    (global $pinged (;1;) (mut i32) i32.const 0)
+    (export "arm" (func 4))
+    (export "ping-cb" (func 5))
+    (export "sync-block" (func 6))
+    (func (;4;) (type 1) (result i32)
+      i32.const 1
+      call $task.return
+      i32.const 1
+    )
+    (func (;5;) (type 2) (param i32 i32 i32) (result i32)
+      global.get $sync-thread-index
+      i32.const 57005
+      i32.eq
+      if ;; label = @1
+        i32.const 1
+        return
+      end
+      i32.const 1
+      global.set $pinged
+      global.get $sync-thread-index
+      call $thread.resume-later
+      i32.const 0
+    )
+    (func (;6;) (type 1) (result i32)
+      call $thread.index
+      global.set $sync-thread-index
+      call $thread.suspend
+      drop
+      global.get $pinged
+      i32.eqz
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 42
+    )
+  )
+  (core func $task.return (;0;) (canon task.return (result u32)))
+  (core func $thread.index (;1;) (canon thread.index))
+  (core func $thread.suspend (;2;) (canon thread.suspend))
+  (core func $thread.resume-later (;3;) (canon thread.resume-later))
+  (core instance (;0;)
+    (export "task.return" (func $task.return))
+    (export "thread.index" (func $thread.index))
+    (export "thread.suspend" (func $thread.suspend))
+    (export "thread.resume-later" (func $thread.resume-later))
+  )
+  (core instance $core (;1;) (instantiate $Core
+      (with "" (instance 0))
+    )
+  )
+  (type (;0;) (func async (result u32)))
+  (alias core export $core "arm" (core func (;4;)))
+  (alias core export $core "ping-cb" (core func (;5;)))
+  (func (;0;) (type 0) (canon lift (core func 4) async (callback 5)))
+  (type (;1;) (func (result u32)))
+  (alias core export $core "sync-block" (core func (;6;)))
+  (func (;1;) (type 1) (canon lift (core func 6)))
+  (export (;2;) "arm" (func 0))
+  (export (;3;) "sync-block" (func 1))
+)

@@ -1,0 +1,5 @@
+(module
+  (type (;0;) (func))
+  (func $a (;0;) (type 0))
+  (func $"#func1 a" (@name "a") (;1;) (type 0))
+)

@@ -1,0 +1,7 @@
+(module
+  (type (;0;) (func (param $x i32) (param $y i64)))
+  (rec
+    (type (;1;) (func (param $p (ref null $r))))
+    (type $r (;2;) (func))
+  )
+)

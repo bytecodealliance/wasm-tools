@@ -10,13 +10,13 @@
     },
     {
       "type": "module_instance",
-      "line": 823,
+      "line": 850,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_return",
-      "line": 825,
+      "line": 852,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -31,7 +31,7 @@
     },
     {
       "type": "assert_return",
-      "line": 828,
+      "line": 855,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -97,7 +97,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 837,
+      "line": 864,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -133,13 +133,13 @@
     },
     {
       "type": "module_instance",
-      "line": 842,
+      "line": 869,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_return",
-      "line": 845,
+      "line": 872,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -287,7 +287,7 @@
     },
     {
       "type": "assert_return",
-      "line": 857,
+      "line": 884,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -333,7 +333,7 @@
     },
     {
       "type": "assert_return",
-      "line": 864,
+      "line": 891,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -424,7 +424,7 @@
     },
     {
       "type": "assert_return",
-      "line": 874,
+      "line": 901,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -562,7 +562,7 @@
     },
     {
       "type": "assert_return",
-      "line": 885,
+      "line": 912,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -680,7 +680,7 @@
     },
     {
       "type": "assert_return",
-      "line": 897,
+      "line": 924,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -756,7 +756,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 907,
+      "line": 934,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -792,13 +792,13 @@
     },
     {
       "type": "module_instance",
-      "line": 912,
+      "line": 939,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_return",
-      "line": 915,
+      "line": 942,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -1078,7 +1078,7 @@
     },
     {
       "type": "assert_return",
-      "line": 935,
+      "line": 962,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -1248,7 +1248,7 @@
     },
     {
       "type": "assert_return",
-      "line": 947,
+      "line": 974,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -1471,7 +1471,7 @@
     },
     {
       "type": "assert_return",
-      "line": 965,
+      "line": 992,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -2543,7 +2543,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1025,
+      "line": 1052,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -2934,7 +2934,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1059,
+      "line": 1086,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -3652,7 +3652,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1105,
+      "line": 1132,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -3938,7 +3938,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1133,
+      "line": 1160,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -4422,7 +4422,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1161,
+      "line": 1188,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -5230,7 +5230,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1207,
+      "line": 1234,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -5999,7 +5999,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1257,
+      "line": 1284,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -6503,7 +6503,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1289,
+      "line": 1316,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -7257,7 +7257,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1345,
+      "line": 1372,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -8221,7 +8221,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1393,
+      "line": 1420,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -8404,13 +8404,13 @@
     },
     {
       "type": "module_instance",
-      "line": 1406,
+      "line": 1433,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_trap",
-      "line": 1408,
+      "line": 1435,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -8496,13 +8496,13 @@
     },
     {
       "type": "module_instance",
-      "line": 1415,
+      "line": 1442,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_return",
-      "line": 1418,
+      "line": 1445,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -8593,7 +8593,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1428,
+      "line": 1455,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -8706,13 +8706,13 @@
     },
     {
       "type": "module_instance",
-      "line": 1437,
+      "line": 1464,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_trap",
-      "line": 1439,
+      "line": 1466,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -8783,13 +8783,13 @@
     },
     {
       "type": "module_instance",
-      "line": 1446,
+      "line": 1473,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_return",
-      "line": 1449,
+      "line": 1476,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -8870,7 +8870,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1458,
+      "line": 1485,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -9018,7 +9018,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1470,
+      "line": 1497,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -9166,7 +9166,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1482,
+      "line": 1509,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -9279,7 +9279,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1492,
+      "line": 1519,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -9459,7 +9459,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1505,
+      "line": 1532,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -9662,7 +9662,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1521,
+      "line": 1548,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -9798,7 +9798,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1534,
+      "line": 1561,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -9899,7 +9899,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1545,
+      "line": 1572,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -10000,7 +10000,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1556,
+      "line": 1583,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -10136,7 +10136,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1569,
+      "line": 1596,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -10272,7 +10272,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1585,
+      "line": 1612,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -10303,30 +10303,25 @@
               {
                 "type": "variant",
                 "value": {
-                  "case": "subtask-cancel",
+                  "case": "subtask-cancel-await",
                   "payload": {
-                    "type": "u8",
-                    "value": "0"
-                  }
-                }
-              },
-              {
-                "type": "variant",
-                "value": {
-                  "case": "expect-code",
-                  "payload": {
-                    "type": "s32",
-                    "value": "4"
-                  }
-                }
-              },
-              {
-                "type": "variant",
-                "value": {
-                  "case": "subtask-drop",
-                  "payload": {
-                    "type": "u8",
-                    "value": "0"
+                    "type": "record",
+                    "value": [
+                      [
+                        "sub",
+                        {
+                          "type": "u8",
+                          "value": "0"
+                        }
+                      ],
+                      [
+                        "state",
+                        {
+                          "type": "u8",
+                          "value": "4"
+                        }
+                      ]
+                    ]
                   }
                 }
               }
@@ -10338,13 +10333,13 @@
     },
     {
       "type": "module_instance",
-      "line": 1593,
+      "line": 1618,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_trap",
-      "line": 1595,
+      "line": 1620,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -10390,13 +10385,13 @@
     },
     {
       "type": "module_instance",
-      "line": 1601,
+      "line": 1626,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_return",
-      "line": 1604,
+      "line": 1629,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -10512,7 +10507,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1615,
+      "line": 1640,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -10583,90 +10578,75 @@
               {
                 "type": "variant",
                 "value": {
-                  "case": "subtask-cancel",
+                  "case": "subtask-cancel-await",
                   "payload": {
-                    "type": "u8",
-                    "value": "2"
+                    "type": "record",
+                    "value": [
+                      [
+                        "sub",
+                        {
+                          "type": "u8",
+                          "value": "2"
+                        }
+                      ],
+                      [
+                        "state",
+                        {
+                          "type": "u8",
+                          "value": "4"
+                        }
+                      ]
+                    ]
                   }
                 }
               },
               {
                 "type": "variant",
                 "value": {
-                  "case": "expect-code",
+                  "case": "subtask-cancel-await",
                   "payload": {
-                    "type": "s32",
-                    "value": "4"
+                    "type": "record",
+                    "value": [
+                      [
+                        "sub",
+                        {
+                          "type": "u8",
+                          "value": "0"
+                        }
+                      ],
+                      [
+                        "state",
+                        {
+                          "type": "u8",
+                          "value": "4"
+                        }
+                      ]
+                    ]
                   }
                 }
               },
               {
                 "type": "variant",
                 "value": {
-                  "case": "subtask-cancel",
+                  "case": "subtask-cancel-await",
                   "payload": {
-                    "type": "u8",
-                    "value": "0"
-                  }
-                }
-              },
-              {
-                "type": "variant",
-                "value": {
-                  "case": "expect-code",
-                  "payload": {
-                    "type": "s32",
-                    "value": "4"
-                  }
-                }
-              },
-              {
-                "type": "variant",
-                "value": {
-                  "case": "subtask-cancel",
-                  "payload": {
-                    "type": "u8",
-                    "value": "1"
-                  }
-                }
-              },
-              {
-                "type": "variant",
-                "value": {
-                  "case": "expect-code",
-                  "payload": {
-                    "type": "s32",
-                    "value": "4"
-                  }
-                }
-              },
-              {
-                "type": "variant",
-                "value": {
-                  "case": "subtask-drop",
-                  "payload": {
-                    "type": "u8",
-                    "value": "0"
-                  }
-                }
-              },
-              {
-                "type": "variant",
-                "value": {
-                  "case": "subtask-drop",
-                  "payload": {
-                    "type": "u8",
-                    "value": "1"
-                  }
-                }
-              },
-              {
-                "type": "variant",
-                "value": {
-                  "case": "subtask-drop",
-                  "payload": {
-                    "type": "u8",
-                    "value": "2"
+                    "type": "record",
+                    "value": [
+                      [
+                        "sub",
+                        {
+                          "type": "u8",
+                          "value": "1"
+                        }
+                      ],
+                      [
+                        "state",
+                        {
+                          "type": "u8",
+                          "value": "4"
+                        }
+                      ]
+                    ]
                   }
                 }
               }
@@ -10678,7 +10658,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1634,
+      "line": 1653,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -10756,7 +10736,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1645,
+      "line": 1664,
       "action": {
         "type": "invoke",
         "field": "run",

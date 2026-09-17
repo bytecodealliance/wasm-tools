@@ -1,0 +1,28 @@
+error: 2 test failures in tests/testsuite/proposals/extended-name-section/custom/name.wast:
+
+--------------------------------
+
+failed directive on tests/testsuite/proposals/extended-name-section/custom/name.wast:126:2
+
+Caused by:
+    0: failed testing wasm binary produced by `wast`
+    1: wasm did not roundtrip
+    2: failed to compare original binary with roundtrip through wasmparser->wasmprinter->wat
+    3: error: actual wasm differs by being too small from expected wasm
+       
+       
+       -   0x0 | 00 61 73 6d | version 1 (Module)
+       +  0x0 | 00 61 73 6d | version 1 (Module)
+       -       | 01 00 00 00
+       +      | 01 00 00 00
+       
+
+--------------------------------
+
+failed directive on tests/testsuite/proposals/extended-name-section/custom/name.wast:129:2
+
+Caused by:
+    0: failed testing wasm binary produced by `wast`
+    1: wasm did not roundtrip
+    2: failed to compare original binary with roundtrip through wasmparser->wasmprinter->wat
+    3: error: actual wasm differs by being too small from expected wasm

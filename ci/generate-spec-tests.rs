@@ -20,11 +20,12 @@ fn main() {
 
 fn spec_features(path: &Path) -> &str {
     return match find_proposal(path) {
-        None => "wasm3",
+        None | Some("extended-name-section") => "wasm3",
         Some("threads") => "wasm1,threads",
         Some("custom-page-sizes") => "wasm3,custom-page-sizes",
         Some("wide-arithmetic") => "wasm3,wide-arithmetic",
         Some("custom-descriptors") => "wasm3,custom-descriptors",
+        Some("compact-import-section") => "wasm3,compact-imports",
         Some(proposal) => panic!("unsupported proposal: {}", proposal),
     };
 
@@ -88,12 +89,11 @@ fn copy_test(src: &Path, dst: &Path, features: fn(&Path) -> &str) {
         // Disable tests by doing something like:
         // Some("exact-func-import.wast") => "FAIL",
 
-        // Temporary exception until WebAssembly/component-model#704 lands
-        Some("kebab.wast") => "FAIL",
-
-        // Temporary until WebAssembly/component-model#716 lands
-        Some("cancellable.wast") => "FAIL",
-        Some("binary.wast") if dst.ends_with("components/binary/binary.wast") => "FAIL",
+        // Skip this test for now since the tests mentioned in
+        // https://github.com/WebAssembly/extended-name-section/pull/11/changes#r4008526172
+        // don't round-trip. Can probably find a way to work around that and
+        // still run the test but for now wait for that discussion.
+        Some("name.wast") if dst.ends_with("extended-name-section/custom/name.wast") => "FAIL",
 
         Some(_) | None => "RUN",
     };

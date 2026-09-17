@@ -1,0 +1,72 @@
+(component $Tester
+  (core module $Core (;0;)
+    (type (;0;) (func (result i32)))
+    (type (;1;) (func (param i32) (result i32)))
+    (type (;2;) (func))
+    (import "" "thread.index" (func $thread-index (;0;) (type 0) (result i32)))
+    (import "" "thread.suspend-then-resume" (func $thread.suspend-then-resume (;1;) (type 1) (param i32) (result i32)))
+    (import "" "thread.yield-then-resume" (func $thread.yield-then-resume (;2;) (type 1) (param i32) (result i32)))
+    (import "" "thread.suspend-then-promote" (func $thread.suspend-then-promote (;3;) (type 1) (param i32) (result i32)))
+    (import "" "thread.yield-then-promote" (func $thread.yield-then-promote (;4;) (type 1) (param i32) (result i32)))
+    (export "trap-if-suspend-then-resume-self" (func 5))
+    (export "trap-if-yield-then-resume-self" (func 6))
+    (export "trap-if-suspend-then-promote-self" (func 7))
+    (export "trap-if-yield-then-promote-self" (func 8))
+    (func (;5;) (type 2)
+      call $thread-index
+      call $thread.suspend-then-resume
+      drop
+      unreachable
+    )
+    (func (;6;) (type 2)
+      call $thread-index
+      call $thread.yield-then-resume
+      drop
+      unreachable
+    )
+    (func (;7;) (type 2)
+      call $thread-index
+      call $thread.suspend-then-promote
+      drop
+      unreachable
+    )
+    (func (;8;) (type 2)
+      call $thread-index
+      call $thread.yield-then-promote
+      drop
+      unreachable
+    )
+  )
+  (core func $thread.index (;0;) (canon thread.index))
+  (core func $thread.suspend-then-resume (;1;) (canon thread.suspend-then-resume))
+  (core func $thread.yield-then-resume (;2;) (canon thread.yield-then-resume))
+  (core func $thread.suspend-then-promote (;3;) (canon thread.suspend-then-promote))
+  (core func $thread.yield-then-promote (;4;) (canon thread.yield-then-promote))
+  (core instance (;0;)
+    (export "thread.index" (func $thread.index))
+    (export "thread.suspend-then-resume" (func $thread.suspend-then-resume))
+    (export "thread.yield-then-resume" (func $thread.yield-then-resume))
+    (export "thread.suspend-then-promote" (func $thread.suspend-then-promote))
+    (export "thread.yield-then-promote" (func $thread.yield-then-promote))
+  )
+  (core instance $core (;1;) (instantiate $Core
+      (with "" (instance 0))
+    )
+  )
+  (type (;0;) (func))
+  (alias core export $core "trap-if-suspend-then-resume-self" (core func (;5;)))
+  (func (;0;) (type 0) (canon lift (core func 5)))
+  (type (;1;) (func))
+  (alias core export $core "trap-if-yield-then-resume-self" (core func (;6;)))
+  (func (;1;) (type 1) (canon lift (core func 6)))
+  (type (;2;) (func))
+  (alias core export $core "trap-if-suspend-then-promote-self" (core func (;7;)))
+  (func (;2;) (type 2) (canon lift (core func 7)))
+  (type (;3;) (func))
+  (alias core export $core "trap-if-yield-then-promote-self" (core func (;8;)))
+  (func (;3;) (type 3) (canon lift (core func 8)))
+  (export (;4;) "trap-if-suspend-then-resume-self" (func 0))
+  (export (;5;) "trap-if-yield-then-resume-self" (func 1))
+  (export (;6;) "trap-if-suspend-then-promote-self" (func 2))
+  (export (;7;) "trap-if-yield-then-promote-self" (func 3))
+)

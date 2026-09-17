@@ -1,0 +1,91 @@
+(component
+  (core module $Indirect (;0;)
+    (type $FT (;0;) (func (param i32)))
+    (table (;0;) 1 funcref)
+    (export "ftbl" (table 0))
+    (export "R-dtor" (func 0))
+    (func (;0;) (type $FT) (param i32)
+      local.get 0
+      i32.const 0
+      call_indirect (type $FT)
+    )
+  )
+  (core instance $indirect (;0;) (instantiate $Indirect))
+  (alias core export $indirect "R-dtor" (core func (;0;)))
+  (type $R (;0;) (resource (rep i32) (dtor 0)))
+  (core func $resource.new (;1;) (canon resource.new $R))
+  (component $D (;0;)
+    (import "r" (type $R (;0;) (sub resource)))
+    (core func $resource.drop (;0;) (canon resource.drop $R))
+    (core module $DM (;0;)
+      (type (;0;) (func (param i32)))
+      (import "" "resource.drop" (func $resource.drop (;0;) (type 0) (param i32)))
+      (export "drop-it" (func 1))
+      (func (;1;) (type 0) (param i32)
+        local.get 0
+        call $resource.drop
+      )
+    )
+    (core instance (;0;)
+      (export "resource.drop" (func $resource.drop))
+    )
+    (core instance $dm (;1;) (instantiate $DM
+        (with "" (instance 0))
+      )
+    )
+    (type (;1;) (own $R))
+    (type (;2;) (func (param "r" 1)))
+    (alias core export $dm "drop-it" (core func (;1;)))
+    (func (;0;) (type 2) (canon lift (core func 1)))
+    (export (;1;) "drop-it" (func 0))
+  )
+  (instance $d (;0;) (instantiate $D
+      (with "r" (type $R))
+    )
+  )
+  (alias export $d "drop-it" (func (;0;)))
+  (core func $drop-it' (;2;) (canon lower (func 0)))
+  (core module $CM (;1;)
+    (type (;0;) (func (param i32) (result i32)))
+    (type (;1;) (func (param i32)))
+    (type (;2;) (func (result i32)))
+    (import "" "ftbl" (table (;0;) 1 funcref))
+    (import "" "resource.new" (func $resource.new (;0;) (type 0) (param i32) (result i32)))
+    (import "" "drop-it" (func $drop-it (;1;) (type 1) (param i32)))
+    (global $dropped (;0;) (mut i32) i32.const 0)
+    (export "run" (func 3))
+    (elem (;0;) (i32.const 0) func $dtor)
+    (func $dtor (;2;) (type 1) (param $rep i32)
+      local.get $rep
+      i32.const 7
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      global.get $dropped
+      i32.const 1
+      i32.add
+      global.set $dropped
+    )
+    (func (;3;) (type 2) (result i32)
+      i32.const 7
+      call $resource.new
+      call $drop-it
+      global.get $dropped
+    )
+  )
+  (alias core export $indirect "ftbl" (core table (;0;)))
+  (core instance (;1;)
+    (export "ftbl" (table 0))
+    (export "resource.new" (func $resource.new))
+    (export "drop-it" (func $drop-it'))
+  )
+  (core instance $cm (;2;) (instantiate $CM
+      (with "" (instance 1))
+    )
+  )
+  (type (;1;) (func (result u32)))
+  (alias core export $cm "run" (core func (;3;)))
+  (func (;1;) (type 1) (canon lift (core func 3)))
+  (export (;2;) "run" (func 1))
+)

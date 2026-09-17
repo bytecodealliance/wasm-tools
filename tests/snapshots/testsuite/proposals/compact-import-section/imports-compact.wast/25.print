@@ -1,0 +1,16 @@
+(module
+  (type (;0;) (func (result i32)))
+  (type (;1;) (func (param i32)))
+  (table (;0;) 30 funcref)
+  (memory (;0;) 1)
+  (tag (;0;) (type 1) (param i32))
+  (global (;0;) i32 i32.const 700)
+  (export "f" (func 0))
+  (export "t" (table 0))
+  (export "m" (memory 0))
+  (export "g" (global 0))
+  (export "e" (tag 0))
+  (func (;0;) (type 0) (result i32)
+    i32.const 1000
+  )
+)

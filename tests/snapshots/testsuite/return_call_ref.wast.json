@@ -723,6 +723,20 @@
       "filename": "return_call_ref.15.wasm",
       "module_type": "binary",
       "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 399,
+      "filename": "return_call_ref.16.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 409,
+      "filename": "return_call_ref.17.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
     }
   ]
 }

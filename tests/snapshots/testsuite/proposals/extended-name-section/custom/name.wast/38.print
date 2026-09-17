@@ -1,0 +1,4 @@
+(module
+  (import "m" "m" (memory (;0;) 1))
+  (memory $m (;1;) 1)
+)

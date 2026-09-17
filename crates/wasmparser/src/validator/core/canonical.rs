@@ -161,6 +161,14 @@ pub(crate) trait InternRecGroup {
                         crate::limits::MAX_WASM_SUBTYPING_DEPTH,
                     );
                 }
+                if ty.composite_type.descriptor_idx.is_some()
+                    && !types[sup_id].composite_type.descriptor_idx.is_some()
+                {
+                    bail!(
+                        offset,
+                        "sub type with descriptor must have super type with descriptor"
+                    );
+                }
                 depth
             }
             [_, _, ..] => bail!(offset, "multiple supertypes"),
@@ -281,6 +289,15 @@ pub(crate) trait InternRecGroup {
             };
             if descriptor_idx.is_none() || id != descriptor_idx.unwrap() {
                 bail!(offset, "describes with no matching descriptor",);
+            }
+        }
+
+        if let Some(descriptor_idx) = descriptor_idx {
+            if types[id].is_final != types[descriptor_idx].is_final {
+                bail!(
+                    offset,
+                    "descriptor and described type must have the same finality",
+                );
             }
         }
         Ok(())
