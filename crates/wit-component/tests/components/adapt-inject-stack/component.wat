@@ -48,7 +48,7 @@
       local.get 0
       global.set $__stack_pointer
     )
-    (func $realloc_via_memory_grow (;2;) (type 2) (param i32 i32 i32 i32) (result i32)
+    (func (;2;) (type 2) (param i32 i32 i32 i32) (result i32)
       (local i32)
       i32.const 0
       local.get 0
@@ -85,7 +85,7 @@
       i32.const 0
       i32.const 8
       i32.const 65536
-      call $realloc_via_memory_grow
+      call 2
       i32.const 65536
       i32.add
       global.set $__stack_pointer
