@@ -1635,6 +1635,7 @@ impl Resolve {
         } else {
             match other.owner {
                 TypeOwner::Interface(id) => Some(id),
+                TypeOwner::Package(_) => None,
                 _ => unreachable!(),
             }
         }
