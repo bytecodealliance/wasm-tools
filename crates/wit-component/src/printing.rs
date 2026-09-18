@@ -266,6 +266,14 @@ impl<O: Output> WitPrinter<O> {
                 match other.owner {
                     TypeOwner::None => {}
 
+                    // A package-scope type is visible by name throughout its
+                    // own package, so an interface- or world-local alias of one
+                    // is printed as a `type` declaration. The toplevel `use`
+                    // form below is only valid at package scope: an interface
+                    // body requires the `path.{..}` form, so printing a `use`
+                    // here would emit WIT that cannot be reparsed.
+                    TypeOwner::Package(_) if !matches!(owner, TypeOwner::Package(_)) => {}
+
                     // `use` is only applicable when the owner of the current
                     // set of types is different than the owner of `other`. Once
                     // this is detected `types_to_import` is going to get
