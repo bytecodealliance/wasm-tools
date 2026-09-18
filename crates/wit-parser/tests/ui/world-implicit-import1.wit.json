@@ -75,7 +75,8 @@
       },
       "worlds": {
         "the-world": 0
-      }
+      },
+      "types": {}
     }
   ]
 }

@@ -76,14 +76,16 @@
       "interfaces": {
         "foo": 0
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "foo:bar",
       "interfaces": {
         "foo": 1
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }

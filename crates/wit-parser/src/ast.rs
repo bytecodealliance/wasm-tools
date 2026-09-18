@@ -1,6 +1,6 @@
 use crate::ast::error::ParseError;
 use crate::{ParseResult, UnresolvedPackage, UnresolvedPackageGroup};
-use alloc::borrow::Cow;
+use alloc::borrow::{Cow, ToOwned};
 use alloc::boxed::Box;
 use alloc::format;
 use alloc::string::{String, ToString};
@@ -259,6 +259,9 @@ impl<'a> DeclList<'a> {
                     )?;
                 }
 
+                // Package-scope types only reference names, not package paths.
+                AstItem::Type(_) => {}
+
                 AstItem::Package(pkg) => pkg.decl_list.for_each_path(f)?,
             }
         }
@@ -271,6 +274,7 @@ enum AstItem<'a> {
     World(World<'a>),
     Use(ToplevelUse<'a>),
     Package(PackageFile<'a>),
+    Type(TypeDef<'a>),
 }
 
 impl<'a> AstItem<'a> {
@@ -285,7 +289,29 @@ impl<'a> AstItem<'a> {
             Some((_span, Token::Package)) => {
                 PackageFile::parse_nested(tokens, docs, attributes, depth).map(Self::Package)
             }
-            other => Err(err_expected(tokens, "`world`, `interface` or `use`", other).into()),
+            Some((_span, Token::Type)) => TypeDef::parse(tokens, docs, attributes).map(Self::Type),
+            Some((_span, Token::Flags)) => {
+                TypeDef::parse_flags(tokens, docs, attributes).map(Self::Type)
+            }
+            Some((_span, Token::Record)) => {
+                TypeDef::parse_record(tokens, docs, attributes).map(Self::Type)
+            }
+            Some((_span, Token::Variant)) => {
+                TypeDef::parse_variant(tokens, docs, attributes).map(Self::Type)
+            }
+            Some((_span, Token::Enum)) => {
+                TypeDef::parse_enum(tokens, docs, attributes).map(Self::Type)
+            }
+            Some((span, Token::Resource)) => Err(ParseError::new_syntax(
+                span,
+                "resources cannot be declared at package scope".to_owned(),
+            )),
+            other => Err(err_expected(
+                tokens,
+                "`world`, `interface`, `use`, or type definition",
+                other,
+            )
+            .into()),
         }
     }
 }

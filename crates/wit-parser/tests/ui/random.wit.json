@@ -50,7 +50,8 @@
       "interfaces": {
         "random": 0
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }

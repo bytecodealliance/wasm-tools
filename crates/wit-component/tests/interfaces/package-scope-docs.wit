@@ -1,0 +1,16 @@
+package local:demo;
+
+/// A shared point type at package scope.
+record point {
+  x: u32,
+  y: u32,
+}
+
+interface api {
+  /// Move to a package-scope point.
+  move-to: func(p: point);
+}
+
+world w {
+  export api;
+}

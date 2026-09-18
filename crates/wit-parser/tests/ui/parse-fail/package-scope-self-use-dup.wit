@@ -1,0 +1,14 @@
+package local:demo;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+// Package type `point` already occupies this file's namespace, so a plain
+// self-use without `as` is a duplicate name (use `as` to alias instead).
+use local:demo/point;
+
+interface api {
+  move-to: func(p: point);
+}

@@ -37,9 +37,22 @@ pub struct Resolver<'a> {
     /// handling things like `use` at the top level.
     ast_items: Vec<IndexMap<&'a str, AstItem>>,
 
+    /// Per-file aliases from toplevel `use` that resolve (or may resolve) to
+    /// package-scope types.
+    ast_type_items: Vec<IndexMap<&'a str, TypeId>>,
+
     /// A map for the entire package being created of all names defined within,
     /// along with the ID they're mapping to.
     package_items: IndexMap<&'a str, AstItem>,
+
+    /// Package-scope types keyed by name. Owners are [`TypeOwner::None`] until
+    /// merge into a [`Resolve`].
+    package_types: IndexMap<&'a str, TypeId>,
+
+    /// Names of package-scope types discovered before they are allocated.
+    /// Used so top-level `use` of those names can be deferred until after
+    /// `resolve_package_types`.
+    pending_package_type_names: HashSet<&'a str>,
 
     /// A per-interface map of name to item-in-the-interface. This is the same
     /// length as `self.types` and is pushed to whenever `self.types` is pushed
@@ -53,6 +66,10 @@ pub struct Resolver<'a> {
     /// dependency, and a Vector of the Stability attributes associated with each
     /// of its imports.
     foreign_deps: IndexMap<PackageName, IndexMap<&'a str, (AstItem, Vec<Stability>)>>,
+
+    /// Dual stubs for toplevel `use ns:pkg/name` whose target may be an
+    /// interface or a package-scope type.
+    foreign_unknown: IndexMap<(PackageName, String), (InterfaceId, TypeId)>,
 
     /// All interfaces that are present within `self.foreign_deps`.
     foreign_interfaces: HashSet<InterfaceId>,
@@ -174,8 +191,14 @@ impl<'a> Resolver<'a> {
         // all interfaces in the package to visit.
         let decl_lists = mem::take(&mut self.decl_lists);
         self.populate_foreign_deps(&decl_lists);
-        let (iface_order, world_order) = self.populate_ast_items(&decl_lists)?;
+        let (iface_order, world_order, mut ids) = self.populate_ast_items(&decl_lists)?;
+        // File namespaces for interfaces/worlds must exist before foreign type
+        // stubs are created (resolve_ast_item_path). Package-scope types are
+        // registered afterwards so Unknown stubs stay a prefix of the arena.
+        self.finish_ast_items(&decl_lists, &ids)?;
         self.populate_foreign_types(&decl_lists)?;
+        self.resolve_package_types(&decl_lists, &mut ids)?;
+        self.register_package_types_in_ns(&decl_lists, &ids)?;
 
         // Use the topological ordering of all interfaces to resolve all
         // interfaces in-order. Note that a reverse-mapping from ID to AST is
@@ -188,18 +211,18 @@ impl<'a> Resolver<'a> {
                     ast::AstItem::Interface(iface) => {
                         let id = match self.ast_items[i][iface.name.name] {
                             AstItem::Interface(id) => id,
-                            AstItem::World(_) => unreachable!(),
+                            AstItem::World(_) | AstItem::Type(_) => unreachable!(),
                         };
                         iface_id_to_ast.insert(id, (iface, i));
                     }
                     ast::AstItem::World(world) => {
                         let id = match self.ast_items[i][world.name.name] {
                             AstItem::World(id) => id,
-                            AstItem::Interface(_) => unreachable!(),
+                            AstItem::Interface(_) | AstItem::Type(_) => unreachable!(),
                         };
                         world_id_to_ast.insert(id, (world, i));
                     }
-                    ast::AstItem::Use(_) => {}
+                    ast::AstItem::Use(_) | ast::AstItem::Type(_) => {}
                     ast::AstItem::Package(_) => unreachable!(),
                 }
             }
@@ -225,6 +248,12 @@ impl<'a> Resolver<'a> {
             worlds: mem::take(&mut self.worlds),
             types: mem::take(&mut self.types),
             interfaces: mem::take(&mut self.interfaces),
+            package_types: self
+                .package_types
+                .iter()
+                .map(|(name, id)| (name.to_string(), *id))
+                .collect(),
+            foreign_unknown: mem::take(&mut self.foreign_unknown),
             foreign_deps: self
                 .foreign_deps
                 .iter()
@@ -253,6 +282,8 @@ impl<'a> Resolver<'a> {
         let mut foreign_deps = mem::take(&mut self.foreign_deps);
         let mut foreign_interfaces = mem::take(&mut self.foreign_interfaces);
         let mut foreign_worlds = mem::take(&mut self.foreign_worlds);
+        let mut foreign_unknown = mem::take(&mut self.foreign_unknown);
+        let self_pkg = self.package_name.as_ref().map(|(n, _)| n.clone());
         for decl_list in decl_lists {
             decl_list
                 .for_each_path(&mut |_, attrs, path, _names, world_or_iface| {
@@ -261,41 +292,74 @@ impl<'a> Resolver<'a> {
                         _ => return Ok(()),
                     };
 
-                    let stability = self.stability(attrs)?;
+                    // Same-package toplevel `use` of a name that may be a
+                    // package-scope type is resolved locally later. Interface
+                    // and world package paths still register (including self)
+                    // so dependency cycles are detected.
+                    if self_pkg.as_ref() == Some(&id.package_name())
+                        && matches!(world_or_iface, WorldOrInterface::Unknown)
+                    {
+                        return Ok(());
+                    }
 
-                    let deps = foreign_deps.entry(id.package_name()).or_insert_with(|| {
+                    let stability = self.stability(attrs)?;
+                    let pkg_name = id.package_name();
+
+                    let deps = foreign_deps.entry(pkg_name.clone()).or_insert_with(|| {
                         self.foreign_dep_spans.push(id.span);
                         IndexMap::default()
                     });
-                    let (id, stabilities) = deps.entry(name.name).or_insert_with(|| {
-                        let id = match world_or_iface {
+                    let (ast_item, stabilities) = deps.entry(name.name).or_insert_with(|| {
+                        let ast_item = match world_or_iface {
                             WorldOrInterface::World => {
                                 log::trace!(
                                     "creating a world for foreign dep: {}/{}",
-                                    id.package_name(),
+                                    pkg_name,
                                     name.name
                                 );
                                 AstItem::World(self.alloc_world(name.span))
                             }
-                            WorldOrInterface::Interface | WorldOrInterface::Unknown => {
-                                // Currently top-level `use` always assumes an interface, so the
-                                // `Unknown` case is the same as `Interface`.
+                            WorldOrInterface::Interface => {
                                 log::trace!(
                                     "creating an interface for foreign dep: {}/{}",
-                                    id.package_name(),
+                                    pkg_name,
                                     name.name
                                 );
                                 AstItem::Interface(self.alloc_interface(name.span))
                             }
+                            WorldOrInterface::Unknown => {
+                                // Dual stubs: may resolve to either an interface
+                                // or a package-scope type once the dep is known.
+                                log::trace!(
+                                    "creating dual stubs for foreign dep: {}/{}",
+                                    pkg_name,
+                                    name.name
+                                );
+                                let iface = self.alloc_interface(name.span);
+                                let ty = self.types.alloc(TypeDef {
+                                    docs: Docs::default(),
+                                    stability: Stability::Unknown,
+                                    kind: TypeDefKind::Unknown,
+                                    name: Some(name.name.to_string()),
+                                    owner: TypeOwner::None,
+                                    span: name.span,
+                                    external_id: None,
+                                });
+                                self.unknown_type_spans.push(name.span);
+                                foreign_unknown
+                                    .insert((pkg_name.clone(), name.name.to_string()), (iface, ty));
+                                AstItem::Interface(iface)
+                            }
                         };
-                        (id, Vec::new())
+                        (ast_item, Vec::new())
                     });
 
                     stabilities.push(stability);
 
-                    let _ = match *id {
+                    let _ = match *ast_item {
                         AstItem::Interface(id) => foreign_interfaces.insert(id),
                         AstItem::World(id) => foreign_worlds.insert(id),
+                        AstItem::Type(_) => false,
                     };
 
                     Ok(())
@@ -305,6 +369,7 @@ impl<'a> Resolver<'a> {
         self.foreign_deps = foreign_deps;
         self.foreign_interfaces = foreign_interfaces;
         self.foreign_worlds = foreign_worlds;
+        self.foreign_unknown = foreign_unknown;
     }
 
     fn alloc_interface(&mut self, span: Span) -> InterfaceId {
@@ -340,7 +405,7 @@ impl<'a> Resolver<'a> {
     fn populate_ast_items(
         &mut self,
         decl_lists: &[ast::DeclList<'a>],
-    ) -> ParseResult<(Vec<InterfaceId>, Vec<WorldId>)> {
+    ) -> ParseResult<(Vec<InterfaceId>, Vec<WorldId>, IndexMap<&'a str, AstItem>)> {
         let mut package_items = IndexMap::default();
 
         // Validate that all worlds and interfaces have unique names within this
@@ -380,6 +445,21 @@ impl<'a> Resolver<'a> {
                         let prev = names.insert(w.name.name, item);
                         assert!(prev.is_none());
                     }
+                    ast::AstItem::Type(t) => {
+                        if package_items.insert(t.name.name, t.name.span).is_some() {
+                            return Err(ParseError::new_syntax(
+                                t.name.span,
+                                format!("duplicate item named `{}`", t.name.name),
+                            ));
+                        }
+                        let prev = decl_list_ns.insert(t.name.name, ());
+                        assert!(prev.is_none());
+                        // Package-scope types are not part of the iface/world
+                        // dependency order graph.
+                        let prev = names.insert(t.name.name, item);
+                        assert!(prev.is_none());
+                        self.pending_package_type_names.insert(t.name.name);
+                    }
                     // These are processed down below.
                     ast::AstItem::Use(_) => {}
 
@@ -416,6 +496,7 @@ impl<'a> Resolver<'a> {
                     }
                     ast::AstItem::Interface(i) => (&i.name, ItemSource::Local(i.name.clone())),
                     ast::AstItem::World(w) => (&w.name, ItemSource::Local(w.name.clone())),
+                    ast::AstItem::Type(t) => (&t.name, ItemSource::Local(t.name.clone())),
                     ast::AstItem::Package(_) => unreachable!(),
                 };
                 if decl_list_ns.insert(name.name, (name.span, src)).is_some() {
@@ -443,10 +524,16 @@ impl<'a> Resolver<'a> {
                 match decl_list_ns.get(used_name.name) {
                     Some((_, ItemSource::Foreign)) => return Ok(()),
                     Some((_, ItemSource::Local(id))) => {
+                        if matches!(names.get(id.name), Some(ast::AstItem::Type(_))) {
+                            return Ok(());
+                        }
                         order[iface.name].push(id.clone());
                     }
                     None => match package_items.get(used_name.name) {
                         Some(_) => {
+                            if matches!(names.get(used_name.name), Some(ast::AstItem::Type(_))) {
+                                return Ok(());
+                            }
                             order[iface.name].push(used_name.clone());
                         }
                         None => {
@@ -488,11 +575,23 @@ impl<'a> Resolver<'a> {
                     assert!(prev.is_none());
                     world_id_order.push(id);
                 }
-                ast::AstItem::Use(_) | ast::AstItem::Package(_) => unreachable!(),
+                ast::AstItem::Type(_) | ast::AstItem::Use(_) | ast::AstItem::Package(_) => {
+                    unreachable!()
+                }
             };
         }
+        Ok((iface_id_order, world_id_order, ids))
+    }
+
+    fn finish_ast_items(
+        &mut self,
+        decl_lists: &[ast::DeclList<'a>],
+        ids: &IndexMap<&'a str, AstItem>,
+    ) -> ParseResult<()> {
+        let self_pkg = self.package_name.as_ref().map(|(n, _)| n.clone());
         for decl_list in decl_lists {
             let mut items = IndexMap::default();
+            let mut type_items = IndexMap::default();
             for item in decl_list.items.iter() {
                 let (name, ast_item) = match item {
                     ast::AstItem::Use(u) => {
@@ -502,21 +601,63 @@ impl<'a> Resolver<'a> {
                                 format!("attributes not allowed on top-level use"),
                             ));
                         }
-                        let name = u.as_.as_ref().unwrap_or(u.item.name());
+                        let alias = u.as_.as_ref().unwrap_or(u.item.name());
                         let item = match &u.item {
-                            ast::UsePath::Id(name) => *ids.get(name.name).ok_or_else(|| {
-                                ParseError::from(ParseErrorKind::ItemNotFound {
-                                    span: name.span,
-                                    name: name.name.to_string(),
-                                    kind: "interface or world".to_owned(),
-                                    hint: None,
-                                })
-                            })?,
+                            ast::UsePath::Id(name) => {
+                                match ids.get(name.name) {
+                                    Some(item) => *item,
+                                    None if self.pending_package_type_names.contains(name.name) => {
+                                        // Package-scope type; registered after
+                                        // resolve_package_types.
+                                        continue;
+                                    }
+                                    None => {
+                                        return Err(ParseError::from(
+                                            ParseErrorKind::ItemNotFound {
+                                                span: name.span,
+                                                name: name.name.to_string(),
+                                                kind: "interface, world, or type".to_owned(),
+                                                hint: None,
+                                            },
+                                        ));
+                                    }
+                                }
+                            }
                             ast::UsePath::Package { id, name } => {
-                                self.foreign_deps[&id.package_name()][name.name].0
+                                if self_pkg.as_ref() == Some(&id.package_name()) {
+                                    match ids.get(name.name) {
+                                        Some(item) => *item,
+                                        None if self
+                                            .pending_package_type_names
+                                            .contains(name.name) =>
+                                        {
+                                            continue;
+                                        }
+                                        None => {
+                                            return Err(ParseError::from(
+                                                ParseErrorKind::ItemNotFound {
+                                                    span: name.span,
+                                                    name: name.name.to_string(),
+                                                    kind: "interface, world, or type".to_owned(),
+                                                    hint: None,
+                                                },
+                                            ));
+                                        }
+                                    }
+                                } else {
+                                    let pkg = id.package_name();
+                                    let key = (pkg.clone(), name.name.to_string());
+                                    if let Some((_iface, ty)) = self.foreign_unknown.get(&key) {
+                                        type_items.insert(alias.name, *ty);
+                                    }
+                                    self.foreign_deps[&pkg][name.name].0
+                                }
                             }
                         };
-                        (name.name, item)
+                        if let AstItem::Type(ty) = item {
+                            type_items.insert(alias.name, ty);
+                        }
+                        (alias.name, item)
                     }
                     ast::AstItem::Interface(i) => {
                         let iface_item = ids[i.name.name];
@@ -528,6 +669,7 @@ impl<'a> Resolver<'a> {
                         assert!(matches!(world_item, AstItem::World(_)));
                         (w.name.name, world_item)
                     }
+                    ast::AstItem::Type(_) => continue,
                     ast::AstItem::Package(_) => unreachable!(),
                 };
                 let prev = items.insert(name, ast_item);
@@ -541,8 +683,144 @@ impl<'a> Resolver<'a> {
                 }
             }
             self.ast_items.push(items);
+            self.ast_type_items.push(type_items);
         }
-        Ok((iface_id_order, world_id_order))
+        Ok(())
+    }
+
+    /// Resolve all package-scope typedefs into `self.types` / `self.package_types`.
+    fn resolve_package_types(
+        &mut self,
+        decl_lists: &[ast::DeclList<'a>],
+        ids: &mut IndexMap<&'a str, AstItem>,
+    ) -> ParseResult<()> {
+        let mut type_defs = IndexMap::default();
+        let mut type_files = IndexMap::default();
+        for (i, decl_list) in decl_lists.iter().enumerate() {
+            for item in decl_list.items.iter() {
+                let ast::AstItem::Type(t) = item else {
+                    continue;
+                };
+                let prev = type_defs.insert(t.name.name, t);
+                assert!(prev.is_none());
+                type_files.insert(t.name.name, i);
+            }
+        }
+
+        let mut type_deps = IndexMap::default();
+        for (name, def) in type_defs.iter() {
+            let mut deps = Vec::new();
+            collect_deps(&def.ty, &mut deps);
+            // Only other package-scope types participate in topo ordering.
+            // Same-file foreign `use` aliases are already allocated stubs and
+            // are resolved via `ast_type_items` with `cur_ast_index` set below.
+            deps.retain(|d| type_defs.contains_key(d.name));
+            type_deps.insert(*name, deps);
+        }
+
+        let order = toposort("type", &type_deps)?;
+        for name in order {
+            // Allow same-file toplevel `use` aliases (e.g. foreign package
+            // types). Cross-file uses remain invisible because `use` is
+            // file-scoped.
+            self.cur_ast_index = type_files[name];
+            let def = type_defs[name];
+            let docs = self.docs(&def.docs);
+            let stability = self.stability(&def.attributes)?;
+            let external_id = self.external_id(&def.attributes)?;
+            let kind = self.resolve_type_def(&def.ty, &stability)?;
+            let id = self.types.alloc(TypeDef {
+                docs,
+                stability,
+                kind,
+                name: Some(def.name.name.to_string()),
+                owner: TypeOwner::None,
+                span: def.name.span,
+                external_id,
+            });
+            let prev = self.package_types.insert(def.name.name, id);
+            assert!(prev.is_none());
+            let prev = ids.insert(def.name.name, AstItem::Type(id));
+            assert!(prev.is_none());
+        }
+        Ok(())
+    }
+
+    /// After package-scope types are allocated, register them in package and
+    /// per-file namespaces, and finish deferred top-level `use` aliases.
+    fn register_package_types_in_ns(
+        &mut self,
+        decl_lists: &[ast::DeclList<'a>],
+        ids: &IndexMap<&'a str, AstItem>,
+    ) -> ParseResult<()> {
+        let self_pkg = self.package_name.as_ref().map(|(n, _)| n.clone());
+        for (i, decl_list) in decl_lists.iter().enumerate() {
+            for item in decl_list.items.iter() {
+                match item {
+                    ast::AstItem::Type(t) => {
+                        let type_item = ids[t.name.name];
+                        assert!(matches!(type_item, AstItem::Type(_)));
+                        if let AstItem::Type(ty) = type_item {
+                            self.ast_type_items[i].insert(t.name.name, ty);
+                        }
+                        let prev = self.ast_items[i].insert(t.name.name, type_item);
+                        assert!(prev.is_none());
+                        let prev = self.package_items.insert(t.name.name, type_item);
+                        assert!(prev.is_none());
+                    }
+                    ast::AstItem::Use(u) => {
+                        let alias = u.as_.as_ref().unwrap_or(u.item.name());
+                        if self.ast_items[i].contains_key(alias.name) {
+                            continue;
+                        }
+                        let item = match &u.item {
+                            ast::UsePath::Id(name) => match ids.get(name.name) {
+                                Some(AstItem::Type(ty)) => {
+                                    self.ast_type_items[i].insert(alias.name, *ty);
+                                    AstItem::Type(*ty)
+                                }
+                                Some(_) => continue,
+                                None => {
+                                    return Err(ParseError::from(ParseErrorKind::ItemNotFound {
+                                        span: name.span,
+                                        name: name.name.to_string(),
+                                        kind: "interface, world, or type".to_owned(),
+                                        hint: None,
+                                    }));
+                                }
+                            },
+                            ast::UsePath::Package { id, name } => {
+                                if self_pkg.as_ref() != Some(&id.package_name()) {
+                                    continue;
+                                }
+                                match ids.get(name.name) {
+                                    Some(AstItem::Type(ty)) => {
+                                        self.ast_type_items[i].insert(alias.name, *ty);
+                                        AstItem::Type(*ty)
+                                    }
+                                    Some(_) => continue,
+                                    None => {
+                                        return Err(ParseError::from(
+                                            ParseErrorKind::ItemNotFound {
+                                                span: name.span,
+                                                name: name.name.to_string(),
+                                                kind: "interface, world, or type".to_owned(),
+                                                hint: None,
+                                            },
+                                        ));
+                                    }
+                                }
+                            }
+                        };
+                        let prev = self.ast_items[i].insert(alias.name, item);
+                        assert!(prev.is_none());
+                    }
+                    _ => {}
+                }
+            }
+        }
+        self.pending_package_type_names.clear();
+        Ok(())
     }
 
     /// Generate a `Type::Unknown` entry for all types imported from foreign
@@ -850,8 +1128,10 @@ impl<'a> Resolver<'a> {
         for field in fields {
             match field {
                 ast::InterfaceItem::Func(f) => {
-                    self.define_interface_name(&f.name, TypeOrItem::Item("function"))?;
-                    funcs.push(self.resolve_function(
+                    // Resolve the signature before reserving the function name so
+                    // package-scope (and local) types with the same name remain
+                    // visible to params/results.
+                    let func = self.resolve_function(
                         &f.docs,
                         &f.attributes,
                         &f.name.name,
@@ -862,7 +1142,9 @@ impl<'a> Resolver<'a> {
                         } else {
                             FunctionKind::Freestanding
                         },
-                    )?);
+                    )?;
+                    self.define_interface_name(&f.name, TypeOrItem::Item("function"))?;
+                    funcs.push(func);
                 }
                 ast::InterfaceItem::Use(_) => {}
                 ast::InterfaceItem::TypeDef(ast::TypeDef {
@@ -939,6 +1221,32 @@ impl<'a> Resolver<'a> {
                 }
             }
         }
+
+        // Package-scope and file-level type aliases are visible without being
+        // in `type_lookup`. Add phantom entries so toposort does not fail when
+        // local defs reference them.
+        let mut phantoms = Vec::new();
+        for deps in type_deps.values() {
+            for dep in deps {
+                if type_deps.contains_key(dep.name) {
+                    continue;
+                }
+                let is_package = self.package_types.contains_key(dep.name);
+                let is_file = self
+                    .ast_type_items
+                    .get(self.cur_ast_index)
+                    .map(|m| m.contains_key(dep.name))
+                    .unwrap_or(false);
+                if is_package || is_file {
+                    phantoms.push(dep.name);
+                }
+            }
+        }
+        for name in phantoms {
+            type_deps.insert(name, Vec::new());
+            type_defs.insert(name, None);
+        }
+
         let order = toposort("type", &type_deps).map_err(attach_old_float_type_context)?;
         for ty in order {
             let def = match type_defs.swap_remove(&ty).unwrap() {
@@ -1124,21 +1432,41 @@ impl<'a> Resolver<'a> {
                     .or_else(|| self.package_items.get(id.name));
                 match item {
                     Some(item) => Ok((*item, id.name.into(), id.span)),
-                    None => {
-                        return Err(ParseError::from(ParseErrorKind::ItemNotFound {
-                            span: id.span,
-                            name: id.name.to_string(),
-                            kind: "interface or world".to_owned(),
-                            hint: None,
-                        }));
+                    None if self.pending_package_type_names.contains(id.name) => {
+                        Err(ParseError::new_syntax(
+                            id.span,
+                            format!("name `{}` is defined as a type, not an interface", id.name),
+                        ))
                     }
+                    None => Err(ParseError::from(ParseErrorKind::ItemNotFound {
+                        span: id.span,
+                        name: id.name.to_string(),
+                        kind: "interface or world".to_owned(),
+                        hint: None,
+                    })),
                 }
             }
-            ast::UsePath::Package { id, name } => Ok((
-                self.foreign_deps[&id.package_name()][name.name].0,
-                name.name.into(),
-                name.span,
-            )),
+            ast::UsePath::Package { id, name } => {
+                let pkg = id.package_name();
+                if let Some((item, _)) = self
+                    .foreign_deps
+                    .get(&pkg)
+                    .and_then(|deps| deps.get(name.name))
+                {
+                    return Ok((*item, name.name.into(), name.span));
+                }
+                if self.package_name.as_ref().map(|(n, _)| n) == Some(&pkg) {
+                    if let Some(item) = self.package_items.get(name.name) {
+                        return Ok((*item, name.name.into(), name.span));
+                    }
+                }
+                Err(ParseError::from(ParseErrorKind::ItemNotFound {
+                    span: name.span,
+                    name: name.name.to_string(),
+                    kind: "interface, world, or type".to_owned(),
+                    hint: None,
+                }))
+            }
         }
     }
 
@@ -1156,6 +1484,12 @@ impl<'a> Resolver<'a> {
                     format!("name `{name}` is defined as a world, not an interface"),
                 ));
             }
+            AstItem::Type(_) => {
+                return Err(ParseError::new_syntax(
+                    span,
+                    format!("name `{name}` is defined as a type, not an interface"),
+                ));
+            }
         }
     }
 
@@ -1171,6 +1505,12 @@ impl<'a> Resolver<'a> {
                 return Err(ParseError::new_syntax(
                     span,
                     format!("name `{name}` is defined as an interface, not a world"),
+                ));
+            }
+            AstItem::Type(_) => {
+                return Err(ParseError::new_syntax(
+                    span,
+                    format!("name `{name}` is defined as a type, not a world"),
                 ));
             }
         }
@@ -1375,6 +1715,16 @@ impl<'a> Resolver<'a> {
                 ));
             }
             None => {
+                if let Some(id) = self.package_types.get(name.name) {
+                    return Ok(*id);
+                }
+                if let Some(id) = self
+                    .ast_type_items
+                    .get(self.cur_ast_index)
+                    .and_then(|m| m.get(name.name))
+                {
+                    return Ok(*id);
+                }
                 return Err(ParseError::from(ParseErrorKind::ItemNotFound {
                     span: name.span,
                     name: name.name.to_string(),

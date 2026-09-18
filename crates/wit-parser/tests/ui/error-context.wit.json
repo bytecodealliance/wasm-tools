@@ -53,7 +53,8 @@
       "interfaces": {
         "error-contexts": 0
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }

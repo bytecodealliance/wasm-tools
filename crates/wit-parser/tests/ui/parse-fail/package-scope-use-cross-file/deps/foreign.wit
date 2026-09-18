@@ -1,0 +1,9 @@
+package local:foreign;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+interface unused {
+}
