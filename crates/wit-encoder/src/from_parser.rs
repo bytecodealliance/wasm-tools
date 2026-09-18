@@ -198,7 +198,14 @@ impl<'a> Converter<'a> {
             let type_def = self.resolve.types.get(*type_id).unwrap();
             let underlying_type_def = self.underlying_type_def(&type_def);
 
-            if underlying_type_def.owner == owner {
+            // A package-scope type is in scope by name for every interface in
+            // its own package, so an alias of one is declared locally. The
+            // `use` branch below can only name a type owned by another
+            // interface.
+            let declare_locally = underlying_type_def.owner == owner
+                || matches!(underlying_type_def.owner, wit_parser::TypeOwner::Package(_));
+
+            if declare_locally {
                 if let Some(type_def) = self.convert_type_def(type_def, *type_id) {
                     output.item(InterfaceItem::TypeDef(type_def));
                 }

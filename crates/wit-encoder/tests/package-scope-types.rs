@@ -300,3 +300,47 @@ world w {
             .to_string()
     );
 }
+
+/// An interface-local alias of a package-scope type is declared in place. The
+/// `use` form cannot name it, because a package-scope type has no owning
+/// interface to name it from.
+#[test]
+fn interface_alias_of_package_scope_type() {
+    const ALIAS_WIT: &str = r#"package local:demo;
+
+record point {
+  x: u32,
+}
+
+type indirect = point;
+
+interface api {
+  type pt = point;
+  type chained = indirect;
+  get: func() -> pt;
+  get-chained: func() -> chained;
+}
+
+world w {
+  export api;
+}
+"#;
+
+    let mut resolve = wit_parser::Resolve::new();
+    resolve.push_str("demo.wit", ALIAS_WIT).unwrap();
+    let packages = packages_from_parsed(&resolve);
+    let rendered = packages[0].to_string();
+    assert!(
+        rendered.contains("type pt = point"),
+        "expected a local declaration rather than a `use`:\n{rendered}"
+    );
+    assert!(
+        rendered.contains("type chained = indirect"),
+        "expected the alias chain to resolve to its package-scope link:\n{rendered}"
+    );
+
+    let mut resolve2 = wit_parser::Resolve::new();
+    resolve2.push_str("demo.wit", &rendered).unwrap();
+    let packages2 = packages_from_parsed(&resolve2);
+    assert_eq!(packages[0].to_string(), packages2[0].to_string());
+}
