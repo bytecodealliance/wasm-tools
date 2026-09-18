@@ -1,0 +1,287 @@
+{
+  "worlds": [
+    {
+      "name": "w",
+      "imports": {
+        "[get]prop": {
+          "function": {
+            "name": "[get]prop",
+            "kind": "getter",
+            "params": [],
+            "result": "u64"
+          }
+        },
+        "[set]prop": {
+          "function": {
+            "name": "[set]prop",
+            "kind": "setter",
+            "params": [
+              {
+                "name": "value",
+                "type": "u64"
+              }
+            ]
+          }
+        }
+      },
+      "exports": {
+        "[get]other": {
+          "function": {
+            "name": "[get]other",
+            "kind": "getter",
+            "params": [],
+            "result": "u64"
+          }
+        },
+        "[set]other": {
+          "function": {
+            "name": "[set]other",
+            "kind": "setter",
+            "params": [
+              {
+                "name": "value",
+                "type": "u64"
+              }
+            ]
+          }
+        }
+      },
+      "package": 0
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "i",
+      "types": {
+        "blob": 0
+      },
+      "functions": {
+        "[get]prop": {
+          "name": "[get]prop",
+          "kind": "getter",
+          "params": [],
+          "result": "u64",
+          "docs": {
+            "contents": "A getter and setter pair for the same property."
+          }
+        },
+        "[set]prop": {
+          "name": "[set]prop",
+          "kind": "setter",
+          "params": [
+            {
+              "name": "value",
+              "type": "u64"
+            }
+          ]
+        },
+        "[get]read-only": {
+          "name": "[get]read-only",
+          "kind": "getter",
+          "params": [],
+          "result": "string",
+          "docs": {
+            "contents": "Getters don't require a setter."
+          }
+        },
+        "[get]fallible": {
+          "name": "[get]fallible",
+          "kind": "getter",
+          "params": [],
+          "result": "u32",
+          "docs": {
+            "contents": "Setters may return a `result` with no `ok` type."
+          }
+        },
+        "[set]fallible": {
+          "name": "[set]fallible",
+          "kind": "setter",
+          "params": [
+            {
+              "name": "value",
+              "type": "u32"
+            }
+          ],
+          "result": 1
+        },
+        "get": {
+          "name": "get",
+          "kind": "freestanding",
+          "params": [],
+          "docs": {
+            "contents": "Neither `get` nor `set` is a keyword."
+          }
+        },
+        "set": {
+          "name": "set",
+          "kind": "freestanding",
+          "params": [
+            {
+              "name": "value",
+              "type": "u32"
+            }
+          ]
+        },
+        "[get]getter": {
+          "name": "[get]getter",
+          "kind": "getter",
+          "params": [],
+          "result": "bool"
+        },
+        "[set]getter": {
+          "name": "[set]getter",
+          "kind": "setter",
+          "params": [
+            {
+              "name": "value",
+              "type": "bool"
+            }
+          ]
+        },
+        "[constructor]blob": {
+          "name": "[constructor]blob",
+          "kind": {
+            "constructor": 0
+          },
+          "params": [
+            {
+              "name": "init",
+              "type": 2
+            }
+          ],
+          "result": 4
+        },
+        "[method]blob.write": {
+          "name": "[method]blob.write",
+          "kind": {
+            "method": 0
+          },
+          "params": [
+            {
+              "name": "self",
+              "type": 3
+            },
+            {
+              "name": "bytes",
+              "type": 2
+            }
+          ]
+        },
+        "[method][get]blob.position": {
+          "name": "[method][get]blob.position",
+          "kind": {
+            "method-getter": 0
+          },
+          "params": [
+            {
+              "name": "self",
+              "type": 3
+            }
+          ],
+          "result": "u64"
+        },
+        "[method][set]blob.position": {
+          "name": "[method][set]blob.position",
+          "kind": {
+            "method-setter": 0
+          },
+          "params": [
+            {
+              "name": "self",
+              "type": 3
+            },
+            {
+              "name": "value",
+              "type": "u64"
+            }
+          ]
+        },
+        "[static][get]blob.max-size": {
+          "name": "[static][get]blob.max-size",
+          "kind": {
+            "static-getter": 0
+          },
+          "params": [],
+          "result": "u64"
+        },
+        "[static][set]blob.max-size": {
+          "name": "[static][set]blob.max-size",
+          "kind": {
+            "static-setter": 0
+          },
+          "params": [
+            {
+              "name": "value",
+              "type": "u64"
+            }
+          ],
+          "result": 1
+        },
+        "[static][get]blob.read-only": {
+          "name": "[static][get]blob.read-only",
+          "kind": {
+            "static-getter": 0
+          },
+          "params": [],
+          "result": "string"
+        }
+      },
+      "package": 0
+    }
+  ],
+  "types": [
+    {
+      "name": "blob",
+      "kind": "resource",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "name": null,
+      "kind": {
+        "result": {
+          "ok": null,
+          "err": "string"
+        }
+      },
+      "owner": null
+    },
+    {
+      "name": null,
+      "kind": {
+        "list": "u8"
+      },
+      "owner": null
+    },
+    {
+      "name": null,
+      "kind": {
+        "handle": {
+          "borrow": 0
+        }
+      },
+      "owner": null
+    },
+    {
+      "name": null,
+      "kind": {
+        "handle": {
+          "own": 0
+        }
+      },
+      "owner": null
+    }
+  ],
+  "packages": [
+    {
+      "name": "foo:bar",
+      "interfaces": {
+        "i": 0
+      },
+      "worlds": {
+        "w": 0
+      }
+    }
+  ]
+}

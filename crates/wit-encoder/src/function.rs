@@ -66,6 +66,29 @@ impl Params {
     }
 }
 
+/// Whether a function is a property getter or setter, declared in WIT with
+/// `get` or `set` instead of `func`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
+pub enum Accessor {
+    /// `name: get() -> T;`
+    Get,
+    /// `name: set(value: T);`
+    Set,
+}
+
+/// Returns the keyword(s) used to declare a function with the given
+/// properties, e.g. `func`, `async func`, `get`, or `set`.
+pub(crate) fn func_keyword(async_: bool, accessor: Option<Accessor>) -> &'static str {
+    match (accessor, async_) {
+        (Some(Accessor::Get), _) => "get",
+        (Some(Accessor::Set), _) => "set",
+        (None, true) => "async func",
+        (None, false) => "func",
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
@@ -77,6 +100,7 @@ pub struct StandaloneFunc {
     #[cfg_attr(feature = "serde", serde(default))]
     #[cfg_attr(feature = "serde", serde(rename = "async"))]
     pub(crate) async_: bool,
+    pub(crate) accessor: Option<Accessor>,
 }
 
 impl StandaloneFunc {
@@ -87,7 +111,31 @@ impl StandaloneFunc {
             result: None,
             docs: None,
             async_,
+            accessor: None,
         }
+    }
+
+    pub fn getter(name: impl Into<Ident>) -> Self {
+        let mut func = Self::new(name, false);
+        func.accessor = Some(Accessor::Get);
+        func
+    }
+
+    pub fn setter(name: impl Into<Ident>) -> Self {
+        let mut func = Self::new(name, false);
+        func.accessor = Some(Accessor::Set);
+        func
+    }
+
+    pub fn set_accessor(&mut self, accessor: Option<Accessor>) {
+        if accessor.is_some() {
+            assert!(!self.async_);
+        }
+        self.accessor = accessor;
+    }
+
+    pub fn accessor(&self) -> Option<Accessor> {
+        self.accessor
     }
 
     pub fn set_name(&self) -> &Ident {

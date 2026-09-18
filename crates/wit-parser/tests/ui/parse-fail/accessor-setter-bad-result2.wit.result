@@ -1,0 +1,5 @@
+if a setter return type is declared it must be a `result` with no `ok` type
+     --> tests/ui/parse-fail/accessor-setter-bad-result2.wit:7:28
+      |
+    7 |   prop: set(value: u32) -> result<u32, string>;
+      |                            ^-----

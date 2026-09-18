@@ -1,0 +1,5 @@
+name `[static]blob.foobar` conflicts with previous name `[method][get]blob.foo-bar`
+     --> tests/ui/parse-fail/accessor-resource-canonical-static.wit:8:5
+      |
+    8 |     foobar: static func() -> u64;
+      |     ^-----

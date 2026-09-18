@@ -1,0 +1,10 @@
+// parse-fail
+
+package foo:foo;
+
+world foo {
+  resource blob {
+    position: static get() -> u64;
+    position: set(value: u64);
+  }
+}
