@@ -11,13 +11,15 @@ use semver::Version;
 
 /// Represents a kebab string slice used in validation.
 ///
-/// This is a wrapper around `str` that ensures the slice is
-/// a valid kebab case string according to the component model
-/// specification.
+/// This is a wrapper around `str` that can ensure the slice is a valid
+/// kebab-case string according to the component model specification (a
+/// `label`, generally). Despite the name, it may contain other symbols, e.g.
+/// `foo-bar.baz` for method names or `a:b` for interface names, if constructed
+/// with [KebabStr::new_unchecked].
 ///
-/// It also provides an equality and hashing implementation which performs the
-/// component model's canonicalization of a `label` when determining whether
-/// names are "strongly-unique".
+/// It also provides an equality and hashing implementation based on the
+/// component models' rules for "strong uniqueness", under which e.g.
+/// `foo-bar` and `fo-OB-ar` are considered equal.
 #[derive(Debug, Eq, Clone, Copy)]
 #[repr(transparent)]
 pub struct KebabStr<'a>(&'a str);
@@ -36,8 +38,16 @@ impl<'a> KebabStr<'a> {
     }
 
     /// Gets the underlying string slice.
-    pub fn as_str(&self) -> &str {
-        &self.0
+    pub fn as_str(&self) -> &'a str {
+        self.0
+    }
+
+    /// Takes a slice of the underlying string as a new KebabStr.
+    pub fn slice<I>(&self, index: I) -> KebabStr<'a>
+    where
+        I: core::slice::SliceIndex<str, Output = str>,
+    {
+        KebabStr(&self.0[index])
     }
 
     /// Converts the slice to an owned string.
@@ -45,8 +55,10 @@ impl<'a> KebabStr<'a> {
         KebabString(self.to_string())
     }
 
-    /// Returns the characters of this `label` as canonicalized when determining
-    /// whether two names are "strongly-unique".
+    /// Returns the characters of this `label` as canonicalized when
+    /// determining whether two names are "strongly-unique". Effectively
+    /// implements only step 1 of the canonicalization process, and leaves
+    /// annotations alone.
     fn canonical_chars(&self) -> impl Iterator<Item = char> + '_ {
         self.chars()
             .filter(|c| *c != '-')
@@ -130,13 +142,15 @@ impl fmt::Display for KebabStr<'_> {
 
 /// Represents an owned kebab string for validation.
 ///
-/// This is a wrapper around `String` that ensures the string is
-/// a valid kebab case string according to the component model
-/// specification.
+/// This is a wrapper around `String` that can ensure the slice is a valid
+/// kebab-case string according to the component model specification (a
+/// `label`, generally). Despite the name, it may contain other symbols, e.g.
+/// `foo-bar.baz` for method names or `a:b` for interface names, if constructed
+/// with [KebabString::new_unchecked].
 ///
-/// It also provides an equality and hashing implementation which performs the
-/// component model's canonicalization of a `label` when determining whether
-/// names are "strongly-unique".
+/// It also provides an equality and hashing implementation based on the
+/// component models' rules for "strong uniqueness", under which e.g.
+/// `foo-bar` and `fo-OB-ar` are considered equal.
 #[derive(Debug, Clone, Eq)]
 pub struct KebabString(String);
 
@@ -151,6 +165,11 @@ impl KebabString {
         } else {
             None
         }
+    }
+
+    /// Creates a new kebab string without verifying its kebab-ness.
+    pub fn new_unchecked(s: impl Into<String>) -> Self {
+        Self(s.into())
     }
 
     /// Gets the underlying string.
@@ -482,8 +501,7 @@ impl Hash for ResourceFunc<'_> {
 #[derive(Debug, Clone)]
 pub struct PlainName<'a> {
     /// Stores only the part after the annotations, if any.
-    raw: &'a str,
-    canonicalized: String,
+    unannotated: KebabStr<'a>,
 
     /// The type of resource function, if any.
     pub resource_func: Option<ResourceFuncKind>,
@@ -493,88 +511,77 @@ pub struct PlainName<'a> {
 
 impl<'a> PlainName<'a> {
     /// Constructs a new PlainName with a canonicalized form and associated
-    /// [ResourceFuncKind] and [AccessorKind].
+    /// [ResourceFuncKind] and [AccessorKind]. `raw` should be the full text
+    /// of the name, including annotations, and should already be well-formed
+    /// (see [ComponentNameParser]).
     pub fn new(raw: &'a str) -> PlainName<'a> {
         use AccessorKind as AK;
         use ResourceFuncKind as RF;
 
-        let mut name = raw;
+        let mut raw_unannotated = raw;
 
         let rf;
-        if name.starts_with(CONSTRUCTOR) {
+        if raw_unannotated.starts_with(CONSTRUCTOR) {
             rf = Some(RF::Constructor);
-            name = &name[CONSTRUCTOR.len()..];
+            raw_unannotated = &raw_unannotated[CONSTRUCTOR.len()..];
         } else if raw.starts_with(METHOD) {
             rf = Some(RF::Method);
-            name = &name[METHOD.len()..];
+            raw_unannotated = &raw_unannotated[METHOD.len()..];
         } else if raw.starts_with(STATIC) {
             rf = Some(RF::Static);
-            name = &name[STATIC.len()..];
+            raw_unannotated = &raw_unannotated[STATIC.len()..];
         } else {
             rf = None;
         }
 
         let ak;
-        if name.starts_with(GET) {
+        if raw_unannotated.starts_with(GET) {
             ak = Some(AK::Get);
-            name = &name[GET.len()..];
-        } else if name.starts_with(SET) {
+            raw_unannotated = &raw_unannotated[GET.len()..];
+        } else if raw_unannotated.starts_with(SET) {
             ak = Some(AK::Set);
-            name = &name[SET.len()..];
+            raw_unannotated = &raw_unannotated[SET.len()..];
         } else {
             ak = None;
         }
 
         PlainName {
-            raw: name,
-            canonicalized: PlainName::canonicalize(name, rf, ak),
+            unannotated: KebabStr::new_unchecked(raw_unannotated),
             resource_func: rf,
             accessor: ak,
         }
     }
 
-    fn canonicalize(
-        raw: &'a str,
-        resource_func_kind: Option<ResourceFuncKind>,
-        accessor_kind: Option<AccessorKind>,
-    ) -> String {
+    fn canonicalized(&self) -> KebabString {
         // Step 1: Lowercase and de-hyphenate the name.
-        let lower: String = raw
-            .chars()
-            .filter(|&c| c != '-')
-            .map(|c| c.to_ascii_lowercase())
-            .collect();
+        let lower: String = self.unannotated.canonical_chars().collect();
 
         // Step 2: If the name is of the form [...]foo.foo, immediately return
         // foo.
         if let Some(dot) = lower.find('.') {
             if lower[..dot] == lower[dot + 1..] {
-                return lower[..dot].to_string();
+                return KebabString::new_unchecked(&lower[..dot]);
             }
         }
 
         // Step 3: Strip all annotations except [constructor] and [set].
         // (Really we have to add back those annotations because there's
         // nothing in `raw` to strip.)
-        if resource_func_kind == Some(ResourceFuncKind::Constructor) {
-            format!("{CONSTRUCTOR}{lower}")
-        } else if accessor_kind == Some(AccessorKind::Set) {
-            format!("{SET}{lower}")
-        } else {
-            lower
-        }
+        KebabString::new_unchecked(
+            if self.resource_func == Some(ResourceFuncKind::Constructor) {
+                format!("{CONSTRUCTOR}{lower}")
+            } else if self.accessor == Some(AccessorKind::Set) {
+                format!("{SET}{lower}")
+            } else {
+                lower
+            },
+        )
     }
 
     /// Returns the underlying string as `a-b` (or `a-b.c-d` if `[method]` or
     /// `[static]`).
     pub fn as_str(&self) -> &'a str {
-        self.raw
-    }
-
-    /// Returns the "canonicalized" form of the name that can be compared to
-    /// other names for strong uniqueness.
-    pub fn canonicalized(&self) -> &String {
-        &self.canonicalized
+        self.unannotated.0
     }
 
     /// If the name is associated with a resource type, returns the resource
@@ -582,10 +589,10 @@ impl<'a> PlainName<'a> {
     pub fn resource(&self) -> Option<KebabStr<'a>> {
         use ResourceFuncKind as RF;
         match self.resource_func {
-            Some(RF::Constructor) => Some(KebabStr::new_unchecked(self.raw)),
+            Some(RF::Constructor) => Some(self.unannotated),
             Some(RF::Method) | Some(RF::Static) => {
-                let dot = self.raw.find('.').unwrap();
-                Some(KebabStr::new_unchecked(&self.raw[..dot]))
+                let dot = self.unannotated.find('.').unwrap();
+                Some(self.unannotated.slice(..dot))
             }
             None => None,
         }
@@ -601,11 +608,11 @@ impl<'a> PlainName<'a> {
     /// - `[static][get]a-b.c-d` => `c-d`
     ///
     pub fn name(&self) -> KebabStr<'a> {
-        let after_dot = match self.raw.find('.') {
+        let after_dot = match self.unannotated.find('.') {
             Some(dot) => dot + 1,
             None => 0,
         };
-        KebabStr::new_unchecked(&self.raw[after_dot..])
+        self.unannotated.slice(after_dot..)
     }
 
     /// Returns true if the name has no annotations.
@@ -623,13 +630,13 @@ impl<'a> PlainName<'a> {
             None => "",
             _ => unreachable!(),
         };
-        format!("{prefix}{GET}{}", self.raw)
+        format!("{prefix}{GET}{}", self.unannotated)
     }
 }
 
 impl Ord for PlainName<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.canonicalized.cmp(&other.canonicalized)
+        self.canonicalized().cmp(&other.canonicalized())
     }
 }
 
@@ -649,7 +656,7 @@ impl Eq for PlainName<'_> {}
 
 impl Hash for PlainName<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.canonicalized.hash(state);
+        self.canonicalized().hash(state);
     }
 }
 

@@ -4717,17 +4717,46 @@ impl ComponentNameContext {
         }
 
         // Setters must be preceded by a matching getter. This matching is
-        // stricter than strong uniqueness.
+        // stricter than strong uniqueness. The setter's param type must also
+        // match the getter's return type.
         if let ComponentNameKind::Plain(plain) = kebab.kind()
             && plain.accessor == Some(AccessorKind::Set)
         {
-            let getter = plain.getter_for_setter();
-            if !items.contains_key(getter.as_str()) {
-                bail!(
+            let getter_name = plain.getter_for_setter();
+            match items.get(getter_name.as_str()) {
+                None => bail!(
                     offset,
-                    "{kind} name `{kebab}` requires a preceding {kind} named `{getter}`",
+                    "{kind} name `{kebab}` requires a preceding {kind} named `{getter_name}`",
                     kind = kind.desc(),
-                );
+                ),
+                Some(getter) => {
+                    let ComponentEntityType::Func(setter_id) = *ty else {
+                        unreachable!()
+                    };
+                    let ComponentEntityType::Func(getter_id) = getter.ty else {
+                        unreachable!()
+                    };
+
+                    let setter_pty = &types[setter_id].params.last().unwrap().1;
+
+                    // Get the getter's "property type" by unwrapping any result<T>'s.
+                    let getter_rty = &types[getter_id].result.unwrap();
+                    let getter_property_type: &ComponentValType = match getter_rty {
+                        ComponentValType::Primitive(_) => getter_rty,
+                        ComponentValType::Type(ty) => match &types[*ty] {
+                            ComponentDefinedType::Result { ok, .. } => &ok.unwrap(),
+                            _ => getter_rty,
+                        },
+                    };
+
+                    if !ComponentValType::eq(setter_pty, getter_property_type, types, offset) {
+                        bail!(
+                            offset,
+                            "{kind} `{kebab}`'s parameter type must match the return type of `{getter_name}`",
+                            kind = kind.desc(),
+                        )
+                    }
+                }
             }
         }
 
@@ -4897,8 +4926,18 @@ impl ComponentNameContext {
                                     "getter function should have no parameters{besides_self}"
                                 );
                             }
-                            if ty.result.is_none() {
-                                bail!(offset, "getter function should return a value");
+                            match ty.result {
+                                None => bail!(offset, "getter function should return a value"),
+                                Some(ComponentValType::Primitive(_)) => {}
+                                Some(ComponentValType::Type(rty)) => match &types[rty] {
+                                    ComponentDefinedType::Result { ok, .. } if ok.is_none() => {
+                                        bail!(
+                                            offset,
+                                            "if a getter function returns a result, that result must have a value type"
+                                        )
+                                    }
+                                    _ => {}
+                                },
                             }
                         }
 

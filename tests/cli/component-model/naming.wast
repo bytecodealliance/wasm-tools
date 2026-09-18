@@ -215,9 +215,19 @@
 
 ;; Getters and setters
 (component
+  (import "r" (type $r (sub resource)))
+  (import "r2" (type $r2 (eq $r)))
+  (type $t u32)
+  (import "t2" (type $t2 (eq $t)))
+
   (import "[get]a" (func (result u32)))
   (import "[set]a" (func (param "v" u32)))
-  (import "r" (type $r (sub resource)))
+  (import "[get]b" (func (result (result u32))))
+  (import "[set]b" (func (param "v" u32)))
+  (import "[get]c" (func (result (own $r))))
+  (import "[set]c" (func (param "v" (own $r2))))
+  (import "[get]d" (func (result $t)))
+  (import "[set]d" (func (param "v" $t2)))
   (import "[method][get]r.p" (func (param "self" (borrow $r)) (result u32)))
   (import "[method][set]r.p" (func (param "self" (borrow $r)) (param "v" u32)))
   (import "[static][get]r.q" (func (result u32)))
@@ -240,11 +250,15 @@
   (component (import "[get]a" (func)))
   "getter function should return a value")
 (assert_invalid
+  (component (import "[get]a" (func (result (result)))))
+  "if a getter function returns a result, that result must have a value type")
+(assert_invalid
   (component (import "[get]a" (func async (result u32))))
   "getter function cannot be async")
 
-;; Setters take exactly one thing (besides `self`), return nothing or
-;; `(result (error $E)?)`, and aren't async.
+;; Setters take exactly one thing (besides `self`) which must match the
+;; getter's return type, return nothing or `(result (error $E)?)`, and aren't
+;; async.
 (assert_invalid
   (component
     (import "[get]a" (func (result u32)))
@@ -271,6 +285,23 @@
     (import "[get]a" (func (result u32)))
     (import "[set]a" (func async (param "v" u32))))
   "setter function cannot be async")
+(assert_invalid
+  (component
+    (import "[get]a" (func (result u32)))
+    (import "[set]a" (func (param "v" f32))))
+  "import `[set]a`'s parameter type must match the return type of `[get]a`")
+(assert_invalid
+  (component
+    (import "[get]a" (func (result (result u32))))
+    (import "[set]a" (func (param "v" (result u32)))))
+  "import `[set]a`'s parameter type must match the return type of `[get]a`")
+(assert_invalid
+  (component
+    (import "R1" (type $R1 (sub resource)))
+    (import "R2" (type $R2 (sub resource)))
+    (import "[get]a" (func (result (own $R1))))
+    (import "[set]a" (func (param "v" (own $R2)))))
+  "import `[set]a`'s parameter type must match the return type of `[get]a`")
 
 ;; Setters require their exact getter to precede them in the same scope (but
 ;; not to immediately precede).
