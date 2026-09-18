@@ -1,0 +1,13 @@
+(component
+  (type $a (;0;) string)
+  (component (;0;)
+    (type (;0;)
+      (instance
+        (alias outer 2 $a (type (;0;)))
+        (export (;1;) "a" (type (eq 0)))
+      )
+    )
+    (alias outer 1 $a (type (;1;)))
+    (type $b (;2;) (record (field "x" 1)))
+  )
+)

@@ -1,0 +1,26 @@
+(component
+  (type (;0;)
+    (instance
+      (type (;0;)
+        (instance)
+      )
+      (export (;0;) "e" (external-id "supplied-id") (instance (type 0)))
+    )
+  )
+  (import "s" (instance $s (;0;) (type 0)))
+  (component $c (;0;)
+    (type (;0;)
+      (instance
+        (type (;0;)
+          (instance)
+        )
+        (export (;0;) "e" (external-id "inner-id") (instance (type 0)))
+      )
+    )
+    (import "i" (external-id "child-id") (instance (;0;) (type 0)))
+  )
+  (instance (;1;) (instantiate $c
+      (with "i" (instance $s))
+    )
+  )
+)

@@ -45,6 +45,10 @@ pub struct Opts {
 
     #[clap(flatten)]
     dylib_opts: wit_dylib::DylibOpts,
+
+    /// Emits canonical interface names with version suffixes.
+    #[clap(long)]
+    emit_canonical_names: bool,
 }
 
 impl Opts {
@@ -56,7 +60,7 @@ impl Opts {
         let (resolve, pkg_id) = self.resolve.load()?;
         let world = resolve.select_world(&[pkg_id], self.world.as_deref())?;
 
-        let mut wasm = wit_dylib::create(&resolve, world, Some(&mut self.dylib_opts));
+        let mut wasm = wit_dylib::create(&resolve, world, Some(&mut self.dylib_opts))?;
         self.dylib_opts.async_.ensure_all_used()?;
 
         embed_component_metadata(
@@ -64,6 +68,7 @@ impl Opts {
             &resolve,
             world,
             self.encoding.unwrap_or(StringEncoding::UTF8),
+            self.emit_canonical_names,
         )?;
 
         if self.validate {

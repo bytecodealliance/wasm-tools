@@ -1,0 +1,5 @@
+(module
+  (type (;0;) (func))
+  (import "" "" (func $foo (;0;) (type 0)))
+  (import "" "" (table $foo (;0;) 1 funcref))
+)

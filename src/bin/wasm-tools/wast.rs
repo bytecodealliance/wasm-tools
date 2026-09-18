@@ -157,6 +157,10 @@ impl Opts {
     }
 
     fn test_wast_directive(&self, test: &Path, directive: WastDirective, idx: usize) -> Result<()> {
+        let is_custom = matches!(
+            directive,
+            WastDirective::AssertInvalidCustom { .. } | WastDirective::AssertMalformedCustom { .. }
+        );
         match directive {
             WastDirective::Module(mut module) | WastDirective::ModuleDefinition(mut module) => {
                 let actual = module.encode()?;
@@ -182,6 +186,11 @@ impl Opts {
                 span,
                 mut module,
                 message,
+            }
+            | WastDirective::AssertMalformedCustom {
+                span,
+                mut module,
+                message,
             } => {
                 // For `assert_malformed` it means that either converting this
                 // test case to binary should fail, or that parsing the binary
@@ -196,13 +205,19 @@ impl Opts {
                 };
                 let mut parser = wasmparser::Parser::new(0);
                 parser.set_features(self.features.features());
-                if let Err(e) = parse_binary_wasm(parser, &bytes) {
+                if let Err(e) = parse_binary_wasm(parser, &bytes, is_custom) {
                     self.assert_error_matches(test, &format!("{e:?}"), message)?;
 
-                    // Make sure validator also rejects the module (not necessarily
-                    // with same error).
-                    if self.test_wasm_valid(test, &bytes).is_ok() {
-                        bail!("validator thought malformed example was valid")
+                    match (is_custom, self.test_wasm_valid(test, &bytes, false)) {
+                        // Malformed custom sections should still validate
+                        (true, Ok(_)) => {}
+                        // Malformed modules should not validate
+                        (false, Err(_)) => {}
+                        // Malformed custom sections that cause validation to
+                        // fail should not happen
+                        (true, Err(_)) => bail!("invalid custom section caused validation to fail"),
+                        // Malformed modules which validate should not happen
+                        (false, Ok(_)) => bail!("validator thought malformed module was valid"),
                     }
                     return Ok(());
                 }
@@ -267,21 +282,12 @@ impl Opts {
                 bail!("encoded and parsed successfully but should have failed with: {message:?}",)
             }
 
-            WastDirective::AssertMalformedCustom {
-                span: _,
+            WastDirective::AssertInvalid {
                 mut module,
                 message,
-            } => match module.encode() {
-                Ok(_) => {
-                    bail!(
-                        "expected module to have a malformed custom section but parsed successfully"
-                    )
-                }
-                Err(e) => {
-                    self.assert_error_matches(test, &e.to_string(), message)?;
-                }
-            },
-            WastDirective::AssertInvalid {
+                span: _,
+            }
+            | WastDirective::AssertInvalidCustom {
                 mut module,
                 message,
                 span: _,
@@ -290,7 +296,7 @@ impl Opts {
                 let binary_wasm = module.encode()?;
                 let mut parser = wasmparser::Parser::new(0);
                 parser.set_features(self.features.features());
-                parse_binary_wasm(parser, &binary_wasm)?;
+                parse_binary_wasm(parser, &binary_wasm, true)?;
 
                 // ensure module round-trips successfully (but don't snapshot it)
                 let mut test_path = test.to_path_buf();
@@ -298,32 +304,17 @@ impl Opts {
                 self.test_wasm_roundtrip(
                     &test_path,
                     &binary_wasm,
-                    expect_binary_roundtrip(&module),
+                    !is_custom && expect_binary_roundtrip(&module),
                     false,
                 )?;
 
                 // now, ensure that module is invalid
-                match self.test_wasm_valid(test, &binary_wasm) {
+                match self.test_wasm_valid(test, &binary_wasm, is_custom) {
                     Ok(_) => bail!(
                         "encoded and validated successfully but should have failed with: {message}",
                     ),
                     Err(e) => self.assert_error_matches(test, &format!("{e:?}"), message)?,
                 }
-            }
-
-            WastDirective::AssertInvalidCustom {
-                mut module,
-                message: _,
-                span: _,
-            } => {
-                let binary_wasm = module.encode()?;
-                let mut test_path = test.to_path_buf();
-                test_path.push(idx.to_string());
-                self.test_wasm(&test_path, &binary_wasm, true)?;
-
-                // NB: validity of custom sections is deferred to runtimes for
-                // now so this doesn't actually test anything about the custom
-                // section.
             }
 
             WastDirective::Thread(thread) => {
@@ -384,7 +375,7 @@ impl Opts {
     /// If `roundtrip_binary` is `false` then it will not try to compare the
     /// original binary with the result of roundtripping through wasmprinter->wast.
     fn test_wasm(&self, test: &Path, contents: &[u8], roundtrip_binary: bool) -> Result<()> {
-        self.test_wasm_valid(test, contents)
+        self.test_wasm_valid(test, contents, false)
             .context("wasm isn't valid")?;
         self.test_wasm_roundtrip(test, contents, roundtrip_binary, true)
             .context("wasm did not roundtrip")
@@ -488,10 +479,8 @@ impl Opts {
 
     /// Tests that `contents` is valid wasm binary with respect to
     /// `self.features`.
-    fn test_wasm_valid(&self, _test: &Path, contents: &[u8]) -> Result<()> {
-        let mut validator = wasmparser::Validator::new_with_features(self.features.features());
-        validator.validate_all(contents)?;
-        Ok(())
+    fn test_wasm_valid(&self, _test: &Path, contents: &[u8], validate_custom: bool) -> Result<()> {
+        wasm_tools::validate(self.features.features(), validate_custom, contents)
     }
 
     /// Test that the `wasmprinter`-printed bytes have "pretty" whitespace

@@ -3,7 +3,7 @@
     (type (;0;) (func))
     (type (;1;) (func (param i32)))
     (type (;2;) (func (param i32 i32 i32 i32) (result i32)))
-    (import "wasi:cli/environment@0.2.0" "get-environment" (func $get-environment (;0;) (type 1)))
+    (import "wasi:cli/environment@0.2.0" "get-environment" (func $get-environment (;0;) (type 1) (param i32)))
     (memory (;0;) 1)
     (export "cabi_realloc" (func $realloc))
     (export "memory" (memory 0))
@@ -51,7 +51,7 @@
   (core instance $"#core-instance3 wasi:cli/environment@0.2.0" (@name "wasi:cli/environment@0.2.0") (;3;) (instantiate $wit-component:adapter:wasi:cli/environment@0.2.0))
   (core module $wit-component-fixup (;3;)
     (type (;0;) (func (param i32)))
-    (import "actual" "0" (func $0 (;0;) (type 0)))
+    (import "actual" "0" (func $0 (;0;) (type 0) (param i32)))
     (import "shim" "$imports" (table (;0;) 1 1 funcref))
     (elem (;0;) (i32.const 0) func $0)
     (@producers

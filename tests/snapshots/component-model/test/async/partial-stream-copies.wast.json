@@ -1,0 +1,96 @@
+{
+  "source_filename": "tests/component-model/test/async/partial-stream-copies.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 7,
+      "filename": "partial-stream-copies.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 238,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_definition",
+      "line": 242,
+      "name": "Tester",
+      "filename": "partial-stream-copies.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 365,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 366,
+      "action": {
+        "type": "invoke",
+        "field": "writer-buffer-pending",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 367,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 368,
+      "action": {
+        "type": "invoke",
+        "field": "drop-folds-into-full-progress",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 369,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 370,
+      "action": {
+        "type": "invoke",
+        "field": "drop-folds-into-partial-progress",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    }
+  ]
+}

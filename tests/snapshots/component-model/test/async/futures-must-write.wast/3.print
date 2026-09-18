@@ -1,0 +1,232 @@
+(component $Tester
+  (core module $Memory (;0;)
+    (memory (;0;) 1)
+    (export "mem" (memory 0))
+  )
+  (core instance $memory (;0;) (instantiate $Memory))
+  (core module $M (;1;)
+    (type (;0;) (func (result i64)))
+    (type (;1;) (func (param i32 i32) (result i32)))
+    (type (;2;) (func (param i32) (result i32)))
+    (type (;3;) (func (param i32)))
+    (type (;4;) (func))
+    (type (;5;) (func (result i32)))
+    (import "" "mem" (memory (;0;) 1))
+    (import "" "future.new" (func $future.new (;0;) (type 0) (result i64)))
+    (import "" "future.read" (func $future.read (;1;) (type 1) (param i32 i32) (result i32)))
+    (import "" "future.write" (func $future.write (;2;) (type 1) (param i32 i32) (result i32)))
+    (import "" "future.cancel-read" (func $future.cancel-read (;3;) (type 2) (param i32) (result i32)))
+    (import "" "future.cancel-write" (func $future.cancel-write (;4;) (type 2) (param i32) (result i32)))
+    (import "" "future.drop-readable" (func $future.drop-readable (;5;) (type 3) (param i32)))
+    (import "" "future.drop-writable" (func $future.drop-writable (;6;) (type 3) (param i32)))
+    (global $rx (;0;) (mut i32) i32.const 0)
+    (global $tx (;1;) (mut i32) i32.const 0)
+    (export "cancel-write-after-completion" (func 8))
+    (export "cancel-read-after-completion" (func 9))
+    (export "cancel-write-with-nothing-written" (func 10))
+    (export "drop-writable-after-cancelled-write" (func 11))
+    (export "cancel-write-after-readable-dropped" (func 12))
+    (func $new-future (;7;) (type 4)
+      (local $r i64)
+      call $future.new
+      local.set $r
+      local.get $r
+      i32.wrap_i64
+      global.set $rx
+      local.get $r
+      i64.const 32
+      i64.shr_u
+      i32.wrap_i64
+      global.set $tx
+    )
+    (func (;8;) (type 5) (result i32)
+      call $new-future
+      i32.const 64
+      i32.const 7
+      i32.store8
+      global.get $tx
+      i32.const 64
+      call $future.write
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      global.get $rx
+      i32.const 128
+      call $future.read
+      i32.const 0
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      global.get $tx
+      call $future.cancel-write
+      i32.const 0
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 128
+      i32.load8_u
+      i32.const 7
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      global.get $tx
+      call $future.drop-writable
+      global.get $rx
+      call $future.drop-readable
+      i32.const 42
+    )
+    (func (;9;) (type 5) (result i32)
+      call $new-future
+      global.get $rx
+      i32.const 128
+      call $future.read
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 64
+      i32.const 7
+      i32.store8
+      global.get $tx
+      i32.const 64
+      call $future.write
+      i32.const 0
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      global.get $rx
+      call $future.cancel-read
+      i32.const 0
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 128
+      i32.load8_u
+      i32.const 7
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      global.get $rx
+      call $future.drop-readable
+      global.get $tx
+      call $future.drop-writable
+      i32.const 42
+    )
+    (func (;10;) (type 5) (result i32)
+      call $new-future
+      global.get $tx
+      i32.const 64
+      call $future.write
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      global.get $tx
+      call $future.cancel-write
+      i32.const 2
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 42
+    )
+    (func (;11;) (type 4)
+      call $new-future
+      global.get $tx
+      i32.const 64
+      call $future.write
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      global.get $tx
+      call $future.cancel-write
+      i32.const 2
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      global.get $tx
+      call $future.drop-writable
+    )
+    (func (;12;) (type 5) (result i32)
+      call $new-future
+      global.get $tx
+      i32.const 64
+      call $future.write
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      global.get $rx
+      call $future.drop-readable
+      global.get $tx
+      call $future.cancel-write
+      i32.const 1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      global.get $tx
+      call $future.drop-writable
+      i32.const 42
+    )
+  )
+  (type $FT (;0;) (future u8))
+  (core func $future.new (;0;) (canon future.new $FT))
+  (alias core export $memory "mem" (core memory (;0;)))
+  (core func $future.read (;1;) (canon future.read $FT async (memory 0)))
+  (alias core export $memory "mem" (core memory (;1;)))
+  (core func $future.write (;2;) (canon future.write $FT async (memory 1)))
+  (core func $future.cancel-read (;3;) (canon future.cancel-read $FT async))
+  (core func $future.cancel-write (;4;) (canon future.cancel-write $FT async))
+  (core func $future.drop-readable (;5;) (canon future.drop-readable $FT))
+  (core func $future.drop-writable (;6;) (canon future.drop-writable $FT))
+  (alias core export $memory "mem" (core memory (;2;)))
+  (core instance (;1;)
+    (export "mem" (memory 2))
+    (export "future.new" (func $future.new))
+    (export "future.read" (func $future.read))
+    (export "future.write" (func $future.write))
+    (export "future.cancel-read" (func $future.cancel-read))
+    (export "future.cancel-write" (func $future.cancel-write))
+    (export "future.drop-readable" (func $future.drop-readable))
+    (export "future.drop-writable" (func $future.drop-writable))
+  )
+  (core instance $m (;2;) (instantiate $M
+      (with "" (instance 1))
+    )
+  )
+  (type (;1;) (func (result u32)))
+  (alias core export $m "cancel-write-after-completion" (core func (;7;)))
+  (func (;0;) (type 1) (canon lift (core func 7)))
+  (type (;2;) (func (result u32)))
+  (alias core export $m "cancel-read-after-completion" (core func (;8;)))
+  (func (;1;) (type 2) (canon lift (core func 8)))
+  (type (;3;) (func (result u32)))
+  (alias core export $m "cancel-write-with-nothing-written" (core func (;9;)))
+  (func (;2;) (type 3) (canon lift (core func 9)))
+  (type (;4;) (func))
+  (alias core export $m "drop-writable-after-cancelled-write" (core func (;10;)))
+  (func (;3;) (type 4) (canon lift (core func 10)))
+  (type (;5;) (func (result u32)))
+  (alias core export $m "cancel-write-after-readable-dropped" (core func (;11;)))
+  (func (;4;) (type 5) (canon lift (core func 11)))
+  (export (;5;) "cancel-write-after-completion" (func 0))
+  (export (;6;) "cancel-read-after-completion" (func 1))
+  (export (;7;) "cancel-write-with-nothing-written" (func 2))
+  (export (;8;) "drop-writable-after-cancelled-write" (func 3))
+  (export (;9;) "cancel-write-after-readable-dropped" (func 4))
+)

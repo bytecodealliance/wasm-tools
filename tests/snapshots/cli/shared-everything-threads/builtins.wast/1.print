@@ -10,7 +10,7 @@
   (core func $spawn-indirect (;1;) (canon thread.spawn-indirect $start 0))
   (core func $parallelism (;2;) (canon thread.available_parallelism))
   (core module $m (;1;)
-    (type $spawned_func_ty (;0;) (shared (func (param i32))))
+    (type $spawned_func_ty (;0;) (shared (func (param $context i32))))
     (type $spawn_ref_ty (;1;) (shared (func (param (ref null $spawned_func_ty) i32) (result i32))))
     (type $spawn_indirect_ty (;2;) (shared (func (param i32 i32) (result i32))))
     (type $parallelism_ty (;3;) (shared (func (result i32))))

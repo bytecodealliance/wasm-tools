@@ -818,12 +818,14 @@ impl<'a> Parse<'a> for StructType<'a> {
         while !parser.is_empty() {
             parser.parens(|parser| {
                 parser.parse::<kw::field>()?;
-                if parser.peek::<Id>()? {
-                    let field = StructField::parse(parser, true);
+                let id = parser.parse::<Option<Id<'a>>>()?;
+                let name = parser.parse::<Option<NameAnnotation<'a>>>()?;
+                if id.is_some() || name.is_some() {
+                    let field = StructField::parse(parser, id, name);
                     ret.fields.push(field?);
                 } else {
                     while !parser.is_empty() {
-                        let field = StructField::parse(parser, false);
+                        let field = StructField::parse(parser, None, None);
                         ret.fields.push(field?);
                     }
                 }
@@ -839,6 +841,8 @@ impl<'a> Parse<'a> for StructType<'a> {
 pub struct StructField<'a> {
     /// An optional identifier for name resolution.
     pub id: Option<Id<'a>>,
+    /// An optional name for this function stored in the custom `name` section.
+    pub name: Option<NameAnnotation<'a>>,
     /// Whether this field may be mutated or not.
     pub mutable: bool,
     /// The storage type stored in this field.
@@ -846,8 +850,11 @@ pub struct StructField<'a> {
 }
 
 impl<'a> StructField<'a> {
-    fn parse(parser: Parser<'a>, with_id: bool) -> Result<Self> {
-        let id = if with_id { parser.parse()? } else { None };
+    fn parse(
+        parser: Parser<'a>,
+        id: Option<Id<'a>>,
+        name: Option<NameAnnotation<'a>>,
+    ) -> Result<Self> {
         let (ty, mutable) = if parser.peek2::<kw::r#mut>()? {
             let ty = parser.parens(|parser| {
                 parser.parse::<kw::r#mut>()?;
@@ -857,7 +864,12 @@ impl<'a> StructField<'a> {
         } else {
             (parser.parse::<StorageType<'a>>()?, false)
         };
-        Ok(StructField { id, mutable, ty })
+        Ok(StructField {
+            id,
+            name,
+            mutable,
+            ty,
+        })
     }
 }
 
@@ -957,7 +969,7 @@ pub struct TypeDef<'a> {
     /// Whether the type is shared or not.
     pub shared: bool,
     /// The declared parent type of this definition.
-    pub parent: Option<Index<'a>>,
+    pub parents: Vec<Index<'a>>,
     /// The descriptor type.
     pub descriptor: Option<Index<'a>>,
     /// The descriptor for type.
@@ -1023,7 +1035,7 @@ impl<'a> Parse<'a> for TypeDef<'a> {
                 },
             )
         };
-        let (parent, (shared, descriptor, describes, kind), final_type) =
+        let (parents, (shared, descriptor, describes, kind), final_type) =
             if parser.peek::<kw::sub>()? {
                 parser.parse::<kw::sub>()?;
 
@@ -1034,21 +1046,20 @@ impl<'a> Parse<'a> for TypeDef<'a> {
                     Some(false)
                 };
 
-                let parent = if parser.peek::<Index<'a>>()? {
-                    parser.parse()?
-                } else {
-                    None
-                };
+                let mut parents = Vec::new();
+                while parser.peek::<Index<'a>>()? {
+                    parents.push(parser.parse()?);
+                }
                 let pair = parser.parens(parse_shared_and_kind)?;
-                (parent, pair, final_type)
+                (parents, pair, final_type)
             } else {
-                (None, parse_shared_and_kind(parser)?, None)
+                (Vec::new(), parse_shared_and_kind(parser)?, None)
             };
 
         Ok(TypeDef {
             kind,
             shared,
-            parent,
+            parents,
             descriptor,
             describes,
             final_type,

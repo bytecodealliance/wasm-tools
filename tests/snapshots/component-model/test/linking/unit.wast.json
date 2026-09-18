@@ -1,0 +1,3216 @@
+{
+  "source_filename": "tests/component-model/test/linking/unit.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 7,
+      "filename": "unit.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 19,
+      "action": {
+        "type": "invoke",
+        "field": "bump-a",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 20,
+      "action": {
+        "type": "invoke",
+        "field": "bump-a",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 21,
+      "action": {
+        "type": "invoke",
+        "field": "bump-b",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 22,
+      "action": {
+        "type": "invoke",
+        "field": "bump-a",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 26,
+      "filename": "unit.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 43,
+      "action": {
+        "type": "invoke",
+        "field": "poke-a",
+        "args": [
+          {
+            "type": "u32",
+            "value": "10"
+          },
+          {
+            "type": "u32",
+            "value": "42"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 44,
+      "action": {
+        "type": "invoke",
+        "field": "peek-a",
+        "args": [
+          {
+            "type": "u32",
+            "value": "10"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 45,
+      "action": {
+        "type": "invoke",
+        "field": "peek-b",
+        "args": [
+          {
+            "type": "u32",
+            "value": "10"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 50,
+      "filename": "unit.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 69,
+      "action": {
+        "type": "invoke",
+        "field": "call-a",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "10"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 70,
+      "action": {
+        "type": "invoke",
+        "field": "call-b",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "10"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 71,
+      "action": {
+        "type": "invoke",
+        "field": "set-twenty-a",
+        "args": []
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 72,
+      "action": {
+        "type": "invoke",
+        "field": "call-a",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "20"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 73,
+      "action": {
+        "type": "invoke",
+        "field": "call-b",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "10"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 78,
+      "filename": "unit.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 94,
+      "action": {
+        "type": "invoke",
+        "field": "go-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 95,
+      "action": {
+        "type": "invoke",
+        "field": "go-2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 96,
+      "action": {
+        "type": "invoke",
+        "field": "go-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 101,
+      "filename": "unit.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 118,
+      "action": {
+        "type": "invoke",
+        "field": "add-10",
+        "args": [
+          {
+            "type": "u32",
+            "value": "5"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "15"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 119,
+      "action": {
+        "type": "invoke",
+        "field": "add-20",
+        "args": [
+          {
+            "type": "u32",
+            "value": "5"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "25"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 124,
+      "filename": "unit.5.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 137,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 142,
+      "filename": "unit.6.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 154,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 159,
+      "filename": "unit.7.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 175,
+      "action": {
+        "type": "invoke",
+        "field": "sum",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "123"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 179,
+      "filename": "unit.8.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 212,
+      "action": {
+        "type": "invoke",
+        "field": "log-at",
+        "args": [
+          {
+            "type": "u32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 213,
+      "action": {
+        "type": "invoke",
+        "field": "log-at",
+        "args": [
+          {
+            "type": "u32",
+            "value": "1"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 214,
+      "action": {
+        "type": "invoke",
+        "field": "log-at",
+        "args": [
+          {
+            "type": "u32",
+            "value": "2"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 215,
+      "action": {
+        "type": "invoke",
+        "field": "log-at",
+        "args": [
+          {
+            "type": "u32",
+            "value": "3"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 220,
+      "filename": "unit.9.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 255,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "22"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 256,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "44"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 261,
+      "filename": "unit.10.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 295,
+      "action": {
+        "type": "invoke",
+        "field": "poke-first-1",
+        "args": [
+          {
+            "type": "u32",
+            "value": "7"
+          },
+          {
+            "type": "u32",
+            "value": "1"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 296,
+      "action": {
+        "type": "invoke",
+        "field": "poke-second-1",
+        "args": [
+          {
+            "type": "u32",
+            "value": "7"
+          },
+          {
+            "type": "u32",
+            "value": "2"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 297,
+      "action": {
+        "type": "invoke",
+        "field": "poke-first-2",
+        "args": [
+          {
+            "type": "u32",
+            "value": "7"
+          },
+          {
+            "type": "u32",
+            "value": "3"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 298,
+      "action": {
+        "type": "invoke",
+        "field": "poke-second-2",
+        "args": [
+          {
+            "type": "u32",
+            "value": "7"
+          },
+          {
+            "type": "u32",
+            "value": "4"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 299,
+      "action": {
+        "type": "invoke",
+        "field": "peek-first-1",
+        "args": [
+          {
+            "type": "u32",
+            "value": "7"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 300,
+      "action": {
+        "type": "invoke",
+        "field": "peek-second-1",
+        "args": [
+          {
+            "type": "u32",
+            "value": "7"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 301,
+      "action": {
+        "type": "invoke",
+        "field": "peek-first-2",
+        "args": [
+          {
+            "type": "u32",
+            "value": "7"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 302,
+      "action": {
+        "type": "invoke",
+        "field": "peek-second-2",
+        "args": [
+          {
+            "type": "u32",
+            "value": "7"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 308,
+      "filename": "unit.11.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 344,
+      "action": {
+        "type": "invoke",
+        "field": "sum-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "51"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 345,
+      "action": {
+        "type": "invoke",
+        "field": "sum-2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "51"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 346,
+      "action": {
+        "type": "invoke",
+        "field": "poke-first-1",
+        "args": [
+          {
+            "type": "u32",
+            "value": "1"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 347,
+      "action": {
+        "type": "invoke",
+        "field": "sum-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "35"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 348,
+      "action": {
+        "type": "invoke",
+        "field": "sum-2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "51"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 349,
+      "action": {
+        "type": "invoke",
+        "field": "poke-second-2",
+        "args": [
+          {
+            "type": "u32",
+            "value": "2"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 350,
+      "action": {
+        "type": "invoke",
+        "field": "sum-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "35"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 351,
+      "action": {
+        "type": "invoke",
+        "field": "sum-2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "19"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 355,
+      "filename": "unit.12.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 374,
+      "action": {
+        "type": "invoke",
+        "field": "poke-a",
+        "args": [
+          {
+            "type": "u32",
+            "value": "5"
+          },
+          {
+            "type": "u32",
+            "value": "77"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 375,
+      "action": {
+        "type": "invoke",
+        "field": "peek-b",
+        "args": [
+          {
+            "type": "u32",
+            "value": "5"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "77"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 379,
+      "filename": "unit.13.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 397,
+      "action": {
+        "type": "invoke",
+        "field": "poke-a",
+        "args": [
+          {
+            "type": "u32",
+            "value": "9"
+          },
+          {
+            "type": "u32",
+            "value": "33"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 398,
+      "action": {
+        "type": "invoke",
+        "field": "peek-b",
+        "args": [
+          {
+            "type": "u32",
+            "value": "9"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "33"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 403,
+      "filename": "unit.14.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 422,
+      "action": {
+        "type": "invoke",
+        "field": "get-a",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "hello"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 423,
+      "action": {
+        "type": "invoke",
+        "field": "get-b",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "world"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 427,
+      "filename": "unit.15.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 443,
+      "action": {
+        "type": "invoke",
+        "field": "get",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "right"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 447,
+      "filename": "unit.16.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 462,
+      "action": {
+        "type": "invoke",
+        "field": "bump-a",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 463,
+      "action": {
+        "type": "invoke",
+        "field": "bump-b",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 464,
+      "action": {
+        "type": "invoke",
+        "field": "bump-a",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 469,
+      "filename": "unit.17.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 495,
+      "action": {
+        "type": "invoke",
+        "field": "go-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 496,
+      "action": {
+        "type": "invoke",
+        "field": "go-2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 497,
+      "action": {
+        "type": "invoke",
+        "field": "go-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 501,
+      "filename": "unit.18.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 525,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 529,
+      "filename": "unit.19.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 548,
+      "action": {
+        "type": "invoke",
+        "field": "bump-direct",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 549,
+      "action": {
+        "type": "invoke",
+        "field": "bump-forwarded",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 550,
+      "action": {
+        "type": "invoke",
+        "field": "bump-direct",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 556,
+      "filename": "unit.20.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 582,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 588,
+      "filename": "unit.21.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 608,
+      "action": {
+        "type": "invoke",
+        "field": "bump-direct",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 609,
+      "action": {
+        "type": "invoke",
+        "field": "bump-wrapped",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 610,
+      "action": {
+        "type": "invoke",
+        "field": "bump-direct",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 611,
+      "action": {
+        "type": "invoke",
+        "field": "bump-wrapped",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 616,
+      "filename": "unit.22.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 646,
+      "action": {
+        "type": "invoke",
+        "field": "rank-a",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 647,
+      "action": {
+        "type": "invoke",
+        "field": "rank-b",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 648,
+      "action": {
+        "type": "invoke",
+        "field": "rank-c",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 655,
+      "filename": "unit.23.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 725,
+      "action": {
+        "type": "invoke",
+        "field": "run-1",
+        "args": [
+          {
+            "type": "u32",
+            "value": "10"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 726,
+      "action": {
+        "type": "invoke",
+        "field": "run-2",
+        "args": [
+          {
+            "type": "u32",
+            "value": "40"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 727,
+      "action": {
+        "type": "invoke",
+        "field": "count1-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "10"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 728,
+      "action": {
+        "type": "invoke",
+        "field": "count2-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "23"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 729,
+      "action": {
+        "type": "invoke",
+        "field": "count1-2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "40"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 730,
+      "action": {
+        "type": "invoke",
+        "field": "count2-2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "83"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 736,
+      "filename": "unit.24.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 788,
+      "action": {
+        "type": "invoke",
+        "field": "run-1",
+        "args": [
+          {
+            "type": "u32",
+            "value": "7"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 789,
+      "action": {
+        "type": "invoke",
+        "field": "run-2",
+        "args": [
+          {
+            "type": "u32",
+            "value": "20"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 790,
+      "action": {
+        "type": "invoke",
+        "field": "log-at-1",
+        "args": [
+          {
+            "type": "u32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "9"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 791,
+      "action": {
+        "type": "invoke",
+        "field": "log-at-1",
+        "args": [
+          {
+            "type": "u32",
+            "value": "1"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "7"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 792,
+      "action": {
+        "type": "invoke",
+        "field": "log-at-2",
+        "args": [
+          {
+            "type": "u32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "22"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 793,
+      "action": {
+        "type": "invoke",
+        "field": "log-at-2",
+        "args": [
+          {
+            "type": "u32",
+            "value": "1"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "20"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 800,
+      "filename": "unit.25.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 864,
+      "action": {
+        "type": "invoke",
+        "field": "run-1",
+        "args": [
+          {
+            "type": "u32",
+            "value": "41"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 865,
+      "action": {
+        "type": "invoke",
+        "field": "run-2",
+        "args": [
+          {
+            "type": "u32",
+            "value": "58"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 866,
+      "action": {
+        "type": "invoke",
+        "field": "count-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "41"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 867,
+      "action": {
+        "type": "invoke",
+        "field": "count-2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "58"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 873,
+      "filename": "unit.26.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 931,
+      "action": {
+        "type": "invoke",
+        "field": "run-1",
+        "args": [
+          {
+            "type": "u32",
+            "value": "13"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "26"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 932,
+      "action": {
+        "type": "invoke",
+        "field": "run-2",
+        "args": [
+          {
+            "type": "u32",
+            "value": "30"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "60"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 933,
+      "action": {
+        "type": "invoke",
+        "field": "count-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "13"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 934,
+      "action": {
+        "type": "invoke",
+        "field": "count-2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "30"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 940,
+      "filename": "unit.27.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 995,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": [
+          {
+            "type": "u32",
+            "value": "5"
+          },
+          {
+            "type": "u32",
+            "value": "100"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 996,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": [
+          {
+            "type": "u32",
+            "value": "3"
+          },
+          {
+            "type": "u32",
+            "value": "200"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 997,
+      "action": {
+        "type": "invoke",
+        "field": "count-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "8"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 998,
+      "action": {
+        "type": "invoke",
+        "field": "count-2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "300"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1003,
+      "filename": "unit.28.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1019,
+      "action": {
+        "type": "invoke",
+        "field": "make-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1020,
+      "action": {
+        "type": "invoke",
+        "field": "make-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1021,
+      "action": {
+        "type": "invoke",
+        "field": "make-2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1022,
+      "action": {
+        "type": "invoke",
+        "field": "make-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1023,
+      "action": {
+        "type": "invoke",
+        "field": "make-2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1030,
+      "filename": "unit.29.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1094,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": [
+          {
+            "type": "u32",
+            "value": "9"
+          },
+          {
+            "type": "u32",
+            "value": "12"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 1095,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": [
+          {
+            "type": "u32",
+            "value": "4"
+          },
+          {
+            "type": "u32",
+            "value": "30"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 1096,
+      "action": {
+        "type": "invoke",
+        "field": "count-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "13"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1097,
+      "action": {
+        "type": "invoke",
+        "field": "count-2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1103,
+      "filename": "unit.30.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1161,
+      "action": {
+        "type": "invoke",
+        "field": "run-1",
+        "args": [
+          {
+            "type": "u32",
+            "value": "4"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 1162,
+      "action": {
+        "type": "invoke",
+        "field": "run-2",
+        "args": [
+          {
+            "type": "u32",
+            "value": "6"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 1163,
+      "action": {
+        "type": "invoke",
+        "field": "count-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1164,
+      "action": {
+        "type": "invoke",
+        "field": "count-2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "6"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1165,
+      "action": {
+        "type": "invoke",
+        "field": "run-1",
+        "args": [
+          {
+            "type": "u32",
+            "value": "10"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 1166,
+      "action": {
+        "type": "invoke",
+        "field": "run-1",
+        "args": [
+          {
+            "type": "u32",
+            "value": "20"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 1167,
+      "action": {
+        "type": "invoke",
+        "field": "count-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "34"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1168,
+      "action": {
+        "type": "invoke",
+        "field": "count-2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "6"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1173,
+      "filename": "unit.31.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1187,
+      "action": {
+        "type": "invoke",
+        "field": "get-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "111"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1188,
+      "action": {
+        "type": "invoke",
+        "field": "get-2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "222"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1192,
+      "filename": "unit.32.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1223,
+      "action": {
+        "type": "invoke",
+        "field": "get-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "71"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1224,
+      "action": {
+        "type": "invoke",
+        "field": "get-2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "81"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1230,
+      "filename": "unit.33.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1261,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "310"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1267,
+      "filename": "unit.34.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1308,
+      "action": {
+        "type": "invoke",
+        "field": "bump-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1309,
+      "action": {
+        "type": "invoke",
+        "field": "bump-2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "10"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1310,
+      "action": {
+        "type": "invoke",
+        "field": "bump-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1311,
+      "action": {
+        "type": "invoke",
+        "field": "bump-2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "20"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1318,
+      "filename": "unit.35.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1350,
+      "action": {
+        "type": "invoke",
+        "field": "run-11",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "11"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1351,
+      "action": {
+        "type": "invoke",
+        "field": "run-11",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "22"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1352,
+      "action": {
+        "type": "invoke",
+        "field": "run-12",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "11"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1353,
+      "action": {
+        "type": "invoke",
+        "field": "run-21",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "11"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1354,
+      "action": {
+        "type": "invoke",
+        "field": "run-22",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "11"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1355,
+      "action": {
+        "type": "invoke",
+        "field": "run-22",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "22"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1362,
+      "filename": "unit.36.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1406,
+      "action": {
+        "type": "invoke",
+        "field": "run-11",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "11"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1407,
+      "action": {
+        "type": "invoke",
+        "field": "run-11",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "22"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1408,
+      "action": {
+        "type": "invoke",
+        "field": "run-12",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "11"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1409,
+      "action": {
+        "type": "invoke",
+        "field": "run-21",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "11"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1410,
+      "action": {
+        "type": "invoke",
+        "field": "run-22",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "11"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1411,
+      "action": {
+        "type": "invoke",
+        "field": "run-22",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "22"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1418,
+      "filename": "unit.37.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1460,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1461,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "8"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1468,
+      "filename": "unit.38.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1529,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "4"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1530,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "8"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1535,
+      "filename": "unit.39.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1559,
+      "action": {
+        "type": "invoke",
+        "field": "poke-1",
+        "args": [
+          {
+            "type": "u32",
+            "value": "3"
+          },
+          {
+            "type": "u32",
+            "value": "66"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 1560,
+      "action": {
+        "type": "invoke",
+        "field": "peek-1",
+        "args": [
+          {
+            "type": "u32",
+            "value": "3"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "66"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1561,
+      "action": {
+        "type": "invoke",
+        "field": "peek-2",
+        "args": [
+          {
+            "type": "u32",
+            "value": "3"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1562,
+      "action": {
+        "type": "invoke",
+        "field": "poke-2",
+        "args": [
+          {
+            "type": "u32",
+            "value": "3"
+          },
+          {
+            "type": "u32",
+            "value": "99"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 1563,
+      "action": {
+        "type": "invoke",
+        "field": "peek-1",
+        "args": [
+          {
+            "type": "u32",
+            "value": "3"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "66"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1564,
+      "action": {
+        "type": "invoke",
+        "field": "peek-2",
+        "args": [
+          {
+            "type": "u32",
+            "value": "3"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "99"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1569,
+      "filename": "unit.40.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1588,
+      "action": {
+        "type": "invoke",
+        "field": "bump-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1589,
+      "action": {
+        "type": "invoke",
+        "field": "bump-2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1590,
+      "action": {
+        "type": "invoke",
+        "field": "bump-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1595,
+      "filename": "unit.41.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1608,
+      "action": {
+        "type": "invoke",
+        "field": "get",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "123"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1613,
+      "filename": "unit.42.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1634,
+      "action": {
+        "type": "invoke",
+        "field": "get",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "5"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1639,
+      "name": "Top",
+      "filename": "unit.43.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1656,
+      "action": {
+        "type": "invoke",
+        "field": "get",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "50"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1661,
+      "filename": "unit.44.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1688,
+      "action": {
+        "type": "invoke",
+        "field": "f",
+        "args": [
+          {
+            "type": "u32",
+            "value": "5"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "46"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1693,
+      "filename": "unit.45.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1725,
+      "action": {
+        "type": "invoke",
+        "field": "go",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1726,
+      "action": {
+        "type": "invoke",
+        "field": "bump-direct",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1727,
+      "action": {
+        "type": "invoke",
+        "field": "go",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1733,
+      "filename": "unit.46.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1781,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "303"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1782,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "307"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1787,
+      "filename": "unit.47.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1823,
+      "action": {
+        "type": "invoke",
+        "field": "go",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1824,
+      "action": {
+        "type": "invoke",
+        "field": "bump-direct",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1825,
+      "action": {
+        "type": "invoke",
+        "field": "go",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1830,
+      "filename": "unit.48.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1841,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "64"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1846,
+      "filename": "unit.49.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1863,
+      "action": {
+        "type": "invoke",
+        "field": "one",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1864,
+      "action": {
+        "type": "invoke",
+        "field": "two",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1865,
+      "action": {
+        "type": "invoke",
+        "field": "three",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1869,
+      "filename": "unit.50.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1880,
+      "action": {
+        "type": "invoke",
+        "field": "lift-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1881,
+      "action": {
+        "type": "invoke",
+        "field": "lift-2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1882,
+      "action": {
+        "type": "invoke",
+        "field": "lift-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1887,
+      "filename": "unit.51.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1914,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "12"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1915,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "34"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1920,
+      "filename": "unit.52.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1945,
+      "action": {
+        "type": "invoke",
+        "field": "direct",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1946,
+      "action": {
+        "type": "invoke",
+        "field": "wrapped",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1947,
+      "action": {
+        "type": "invoke",
+        "field": "direct",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1953,
+      "filename": "unit.53.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 1981,
+      "action": {
+        "type": "invoke",
+        "field": "call-a",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "40"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1982,
+      "action": {
+        "type": "invoke",
+        "field": "call-b",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "50"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1983,
+      "action": {
+        "type": "invoke",
+        "field": "set-sixty-a",
+        "args": []
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 1984,
+      "action": {
+        "type": "invoke",
+        "field": "call-a",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "60"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1985,
+      "action": {
+        "type": "invoke",
+        "field": "call-b",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "50"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 1990,
+      "filename": "unit.54.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 2011,
+      "action": {
+        "type": "invoke",
+        "field": "read",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "37"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 2012,
+      "action": {
+        "type": "invoke",
+        "field": "bump64",
+        "args": []
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 2013,
+      "action": {
+        "type": "invoke",
+        "field": "read",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "38"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 2018,
+      "filename": "unit.55.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 2044,
+      "action": {
+        "type": "invoke",
+        "field": "sum",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "345"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 2050,
+      "filename": "unit.56.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 2069,
+      "action": {
+        "type": "invoke",
+        "field": "get-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "410"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 2070,
+      "action": {
+        "type": "invoke",
+        "field": "get-2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "420"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 2076,
+      "filename": "unit.57.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 2112,
+      "action": {
+        "type": "invoke",
+        "field": "run-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1112"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 2113,
+      "action": {
+        "type": "invoke",
+        "field": "run-2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1134"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 2114,
+      "action": {
+        "type": "invoke",
+        "field": "run-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1156"
+        }
+      ]
+    }
+  ]
+}

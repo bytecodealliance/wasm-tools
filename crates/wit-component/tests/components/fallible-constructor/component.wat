@@ -11,8 +11,8 @@
   (import "foo" (instance $foo (;0;) (type $ty-foo)))
   (core module $main (;0;)
     (type (;0;) (func (param i32)))
-    (import "foo" "[constructor]a" (func (;0;) (type 0)))
-    (import "foo" "[resource-drop]a" (func (;1;) (type 0)))
+    (import "foo" "[constructor]a" (func (;0;) (type 0) (param i32)))
+    (import "foo" "[resource-drop]a" (func (;1;) (type 0) (param i32)))
     (memory (;0;) 1)
     (export "memory" (memory 0))
     (@producers
@@ -49,7 +49,7 @@
   (alias core export $main "memory" (core memory $memory (;0;)))
   (core module $wit-component-fixup (;2;)
     (type (;0;) (func (param i32)))
-    (import "actual" "0" (func $0 (;0;) (type 0)))
+    (import "actual" "0" (func $0 (;0;) (type 0) (param i32)))
     (import "shim" "$imports" (table (;0;) 1 1 funcref))
     (elem (;0;) (i32.const 0) func $0)
     (@producers

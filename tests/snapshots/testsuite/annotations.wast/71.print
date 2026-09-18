@@ -1,5 +1,5 @@
 (module $m2
-  (type $T (;0;) (func (param i32 i64 i32) (result i32)))
+  (type $T (;0;) (func (param i32 i64) (param $x i32) (result i32)))
   (type (;1;) (func))
   (table $t (;0;) 10 20 funcref)
   (memory $m (;0;) 1 2)

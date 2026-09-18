@@ -112,7 +112,7 @@ fn run_test_directive(
     exe: &Path,
     tempdir: &TempDir,
 ) -> Result<()> {
-    let mut cmd = new_command(exe);
+    let mut cmd = new_command(exe, should_fail);
     let mut stdin = None;
     let mut saw_subcommand = false;
     for arg in line.split_whitespace() {
@@ -120,7 +120,7 @@ fn run_test_directive(
         if arg == "|" {
             let output = execute(&mut cmd, stdin.as_deref(), false)?;
             stdin = Some(output.stdout);
-            cmd = new_command(exe);
+            cmd = new_command(exe, should_fail);
             saw_subcommand = false;
         } else if !saw_subcommand
             && arg
@@ -168,7 +168,7 @@ fn run_test_directive(
     Ok(())
 }
 
-fn new_command(exe: &Path) -> Command {
+fn new_command(exe: &Path, should_fail: bool) -> Command {
     let mut cmd = Command::new(exe);
     // This test suite runs in strict component-model index syntax mode by
     // default to ensure that all tests are ready for when strictness becomes
@@ -178,6 +178,12 @@ fn new_command(exe: &Path) -> Command {
     // results don't depend on the environment variables of the shell that
     // spawned the test suite.
     cmd.env("WAST_STRICT_COMPONENT_INDICES", "1");
+
+    // When a test should fail we don't want to insert backtraces into blessed
+    // output so forcibly remove this env var.
+    if should_fail {
+        cmd.env_remove("RUST_BACKTRACE");
+    }
     cmd
 }
 

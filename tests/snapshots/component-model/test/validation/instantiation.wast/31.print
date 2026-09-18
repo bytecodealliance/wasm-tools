@@ -1,0 +1,19 @@
+(component
+  (core module $m (;0;)
+    (import "" "g" (global (;0;) i32))
+  )
+  (component $c (;0;)
+    (core type (;0;)
+      (module
+        (import "" "g" (global i32))
+        (type (;0;) (func))
+        (import "" "f" (func (type 0)))
+      )
+    )
+    (import "m" (core module (;0;) (type 0)))
+  )
+  (instance (;0;) (instantiate $c
+      (with "m" (core module $m))
+    )
+  )
+)

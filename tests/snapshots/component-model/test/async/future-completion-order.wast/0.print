@@ -1,0 +1,200 @@
+(component $Tester
+  (core module $Memory (;0;)
+    (memory (;0;) 1)
+    (export "mem" (memory 0))
+  )
+  (core instance $memory (;0;) (instantiate $Memory))
+  (core module $M (;1;)
+    (type (;0;) (func (param i32 i32)))
+    (type (;1;) (func (result i32)))
+    (type (;2;) (func (param i32 i32) (result i32)))
+    (type (;3;) (func (result i64)))
+    (type (;4;) (func (param i32)))
+    (type (;5;) (func))
+    (type (;6;) (func (param i32 i32 i32)))
+    (import "" "mem" (memory (;0;) 1))
+    (import "" "waitable.join" (func $waitable.join (;0;) (type 0) (param i32 i32)))
+    (import "" "waitable-set.new" (func $waitable-set.new (;1;) (type 1) (result i32)))
+    (import "" "waitable-set.poll" (func $waitable-set.poll (;2;) (type 2) (param i32 i32) (result i32)))
+    (import "" "future.new" (func $future.new (;3;) (type 3) (result i64)))
+    (import "" "future.read" (func $future.read (;4;) (type 2) (param i32 i32) (result i32)))
+    (import "" "future.write" (func $future.write (;5;) (type 2) (param i32 i32) (result i32)))
+    (import "" "future.drop-readable" (func $future.drop-readable (;6;) (type 4) (param i32)))
+    (import "" "future.drop-writable" (func $future.drop-writable (;7;) (type 4) (param i32)))
+    (global $ws (;0;) (mut i32) i32.const 0)
+    (global $rx (;1;) (mut i32) i32.const 0)
+    (global $tx (;2;) (mut i32) i32.const 0)
+    (export "writer-completes-inline" (func 12))
+    (export "reader-completes-inline" (func 13))
+    (start $start)
+    (func $start (;8;) (type 5)
+      call $waitable-set.new
+      global.set $ws
+      i32.const 64
+      i32.const 1
+      i32.store8
+    )
+    (func $expect-event (;9;) (type 6) (param $code i32) (param $index i32) (param $payload i32)
+      global.get $ws
+      i32.const 0
+      call $waitable-set.poll
+      local.get $code
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 0
+      i32.load
+      local.get $index
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 4
+      i32.load
+      local.get $payload
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+    )
+    (func $expect-no-event (;10;) (type 5)
+      global.get $ws
+      i32.const 0
+      call $waitable-set.poll
+      i32.const 0
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+    )
+    (func $new-future (;11;) (type 5)
+      (local $ret64 i64)
+      call $future.new
+      local.set $ret64
+      local.get $ret64
+      i32.wrap_i64
+      global.set $rx
+      local.get $ret64
+      i64.const 32
+      i64.shr_u
+      i32.wrap_i64
+      global.set $tx
+    )
+    (func (;12;) (type 1) (result i32)
+      call $new-future
+      global.get $rx
+      global.get $ws
+      call $waitable.join
+      global.get $rx
+      i32.const 128
+      call $future.read
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      global.get $tx
+      i32.const 64
+      call $future.write
+      i32.const 0
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      global.get $tx
+      call $future.drop-writable
+      i32.const 4
+      global.get $rx
+      i32.const 0
+      call $expect-event
+      call $expect-no-event
+      i32.const 128
+      i32.load8_u
+      i32.const 1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 42
+    )
+    (func (;13;) (type 1) (result i32)
+      call $new-future
+      global.get $tx
+      global.get $ws
+      call $waitable.join
+      global.get $tx
+      i32.const 64
+      call $future.write
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      global.get $rx
+      i32.const 128
+      call $future.read
+      i32.const 0
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      global.get $rx
+      call $future.drop-readable
+      i32.const 5
+      global.get $tx
+      i32.const 0
+      call $expect-event
+      call $expect-no-event
+      global.get $tx
+      i32.const 0
+      call $waitable.join
+      global.get $tx
+      call $future.drop-writable
+      i32.const 128
+      i32.load8_u
+      i32.const 1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 42
+    )
+  )
+  (type $FT (;0;) (future u8))
+  (core func $waitable.join (;0;) (canon waitable.join))
+  (core func $waitable-set.new (;1;) (canon waitable-set.new))
+  (alias core export $memory "mem" (core memory (;0;)))
+  (core func $waitable-set.poll (;2;) (canon waitable-set.poll (memory 0)))
+  (core func $future.new (;3;) (canon future.new $FT))
+  (alias core export $memory "mem" (core memory (;1;)))
+  (core func $future.read (;4;) (canon future.read $FT async (memory 1)))
+  (alias core export $memory "mem" (core memory (;2;)))
+  (core func $future.write (;5;) (canon future.write $FT async (memory 2)))
+  (core func $future.drop-readable (;6;) (canon future.drop-readable $FT))
+  (core func $future.drop-writable (;7;) (canon future.drop-writable $FT))
+  (alias core export $memory "mem" (core memory (;3;)))
+  (core instance (;1;)
+    (export "mem" (memory 3))
+    (export "waitable.join" (func $waitable.join))
+    (export "waitable-set.new" (func $waitable-set.new))
+    (export "waitable-set.poll" (func $waitable-set.poll))
+    (export "future.new" (func $future.new))
+    (export "future.read" (func $future.read))
+    (export "future.write" (func $future.write))
+    (export "future.drop-readable" (func $future.drop-readable))
+    (export "future.drop-writable" (func $future.drop-writable))
+  )
+  (core instance $m (;2;) (instantiate $M
+      (with "" (instance 1))
+    )
+  )
+  (type (;1;) (func (result u32)))
+  (alias core export $m "writer-completes-inline" (core func (;8;)))
+  (func (;0;) (type 1) (canon lift (core func 8)))
+  (type (;2;) (func (result u32)))
+  (alias core export $m "reader-completes-inline" (core func (;9;)))
+  (func (;1;) (type 2) (canon lift (core func 9)))
+  (export (;2;) "writer-completes-inline" (func 0))
+  (export (;3;) "reader-completes-inline" (func 1))
+)

@@ -1,0 +1,16 @@
+(component
+  (type $Rec (;0;) (record (field "x" u32)))
+  (import "t" (type $Rec' (;1;) (eq $Rec)))
+  (component $C (;0;)
+    (type $Rec (;0;) (record (field "x" u32)))
+    (import "t" (type $Rec' (;1;) (eq $Rec)))
+    (type $Rec2 (;2;) (record (field "r" $Rec')))
+    (export (;3;) "t2" (type $Rec2))
+  )
+  (instance $c (;0;) (instantiate $C
+      (with "t" (type $Rec'))
+    )
+  )
+  (alias export $c "t2" (type (;2;)))
+  (export (;3;) "t2" (type 2))
+)

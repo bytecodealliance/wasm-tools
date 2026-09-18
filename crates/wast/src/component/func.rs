@@ -87,12 +87,12 @@ pub enum CoreFuncKind<'a> {
     ThreadIndex,
     ThreadNewIndirect(CanonThreadNewIndirect<'a>),
     ThreadResumeLater,
-    ThreadSuspend(CanonThreadSuspend),
-    ThreadYield(CanonThreadYield),
-    ThreadSuspendThenResume(CanonThreadSuspendThenResume),
-    ThreadYieldThenResume(CanonThreadYieldThenResume),
-    ThreadSuspendThenPromote(CanonThreadSuspendThenPromote),
-    ThreadYieldThenPromote(CanonThreadYieldThenPromote),
+    ThreadSuspend,
+    ThreadYield,
+    ThreadSuspendThenResume,
+    ThreadYieldThenResume,
+    ThreadSuspendThenPromote,
+    ThreadYieldThenPromote,
 }
 
 impl<'a> Parse<'a> for CoreFuncKind<'a> {
@@ -208,17 +208,29 @@ impl<'a> CoreFuncKind<'a> {
             parser.parse::<kw::thread_resume_later>()?;
             Ok(CoreFuncKind::ThreadResumeLater)
         } else if l.peek::<kw::thread_suspend>()? {
-            Ok(CoreFuncKind::ThreadSuspend(parser.parse()?))
+            parser.parse::<kw::thread_suspend>()?;
+            error_on_legacy_cancellable(parser)?;
+            Ok(CoreFuncKind::ThreadSuspend)
         } else if l.peek::<kw::thread_yield>()? {
-            Ok(CoreFuncKind::ThreadYield(parser.parse()?))
+            parser.parse::<kw::thread_yield>()?;
+            error_on_legacy_cancellable(parser)?;
+            Ok(CoreFuncKind::ThreadYield)
         } else if l.peek::<kw::thread_suspend_then_resume>()? {
-            Ok(CoreFuncKind::ThreadSuspendThenResume(parser.parse()?))
+            parser.parse::<kw::thread_suspend_then_resume>()?;
+            error_on_legacy_cancellable(parser)?;
+            Ok(CoreFuncKind::ThreadSuspendThenResume)
         } else if l.peek::<kw::thread_yield_then_resume>()? {
-            Ok(CoreFuncKind::ThreadYieldThenResume(parser.parse()?))
+            parser.parse::<kw::thread_yield_then_resume>()?;
+            error_on_legacy_cancellable(parser)?;
+            Ok(CoreFuncKind::ThreadYieldThenResume)
         } else if l.peek::<kw::thread_suspend_then_promote>()? {
-            Ok(CoreFuncKind::ThreadSuspendThenPromote(parser.parse()?))
+            parser.parse::<kw::thread_suspend_then_promote>()?;
+            error_on_legacy_cancellable(parser)?;
+            Ok(CoreFuncKind::ThreadSuspendThenPromote)
         } else if l.peek::<kw::thread_yield_then_promote>()? {
-            Ok(CoreFuncKind::ThreadYieldThenPromote(parser.parse()?))
+            parser.parse::<kw::thread_yield_then_promote>()?;
+            error_on_legacy_cancellable(parser)?;
+            Ok(CoreFuncKind::ThreadYieldThenPromote)
         } else {
             Err(l.error())
         }
@@ -583,12 +595,19 @@ impl<'a> Parse<'a> for CanonTaskReturn<'a> {
     }
 }
 
+fn error_on_legacy_cancellable(parser: Parser<'_>) -> Result<()> {
+    if parser.parse::<Option<kw::cancellable>>()?.is_some() {
+        return Err(parser.error(
+            "the `cancellable` option is no longer \
+             supported after WebAssembly/component-model#716",
+        ));
+    }
+    Ok(())
+}
+
 /// Information relating to the `waitable-set.wait` intrinsic.
 #[derive(Debug)]
 pub struct CanonWaitableSetWait<'a> {
-    /// If true, the component instance may be reentered during a call to this
-    /// intrinsic.
-    pub async_: bool,
     /// The memory to use when returning an event to the caller.
     pub memory: CoreItemRef<'a, kw::memory>,
 }
@@ -596,22 +615,19 @@ pub struct CanonWaitableSetWait<'a> {
 impl<'a> Parse<'a> for CanonWaitableSetWait<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::waitable_set_wait>()?;
-        let async_ = parser.parse::<Option<kw::cancellable>>()?.is_some();
+        error_on_legacy_cancellable(parser)?;
         let memory = parser.parens(|p| {
             let kind = p.parse::<kw::memory>()?;
             parse_core_prefixed_contents(p, kind)
         })?;
 
-        Ok(Self { async_, memory })
+        Ok(Self { memory })
     }
 }
 
 /// Information relating to the `waitable-set.poll` intrinsic.
 #[derive(Debug)]
 pub struct CanonWaitableSetPoll<'a> {
-    /// If true, the component instance may be reentered during a call to this
-    /// intrinsic.
-    pub async_: bool,
     /// The memory to use when returning an event to the caller.
     pub memory: CoreItemRef<'a, kw::memory>,
 }
@@ -619,30 +635,13 @@ pub struct CanonWaitableSetPoll<'a> {
 impl<'a> Parse<'a> for CanonWaitableSetPoll<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::waitable_set_poll>()?;
-        let async_ = parser.parse::<Option<kw::cancellable>>()?.is_some();
+        error_on_legacy_cancellable(parser)?;
         let memory = parser.parens(|p| {
             let kind = p.parse::<kw::memory>()?;
             parse_core_prefixed_contents(p, kind)
         })?;
 
-        Ok(Self { async_, memory })
-    }
-}
-
-/// Information relating to the `thread.yield` intrinsic.
-#[derive(Debug)]
-pub struct CanonThreadYield {
-    /// If true, the component instance may be reentered during a call to this
-    /// intrinsic.
-    pub cancellable: bool,
-}
-
-impl<'a> Parse<'a> for CanonThreadYield {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::thread_yield>()?;
-        let cancellable = parser.parse::<Option<kw::cancellable>>()?.is_some();
-
-        Ok(Self { cancellable })
+        Ok(Self { memory })
     }
 }
 
@@ -978,76 +977,6 @@ impl<'a> Parse<'a> for CanonThreadNewIndirect<'a> {
         let ty = parser.parse::<CorePrefixedRef<'_, _, false>>()?.0;
         let table = parser.parse::<CorePrefixedRef<'_, _, true>>()?.0;
         Ok(Self { ty, table })
-    }
-}
-
-/// Information relating to the `thread.suspend` intrinsic.
-#[derive(Debug)]
-pub struct CanonThreadSuspend {
-    /// Whether the thread can be cancelled while suspended at this point.
-    pub cancellable: bool,
-}
-impl<'a> Parse<'a> for CanonThreadSuspend {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::thread_suspend>()?;
-        let cancellable = parser.parse::<Option<kw::cancellable>>()?.is_some();
-        Ok(Self { cancellable })
-    }
-}
-
-/// Information relating to the `thread.suspend-then-resume` intrinsic.
-#[derive(Debug)]
-pub struct CanonThreadSuspendThenResume {
-    /// Whether the thread can be cancelled while suspended at this point.
-    pub cancellable: bool,
-}
-impl<'a> Parse<'a> for CanonThreadSuspendThenResume {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::thread_suspend_then_resume>()?;
-        let cancellable = parser.parse::<Option<kw::cancellable>>()?.is_some();
-        Ok(Self { cancellable })
-    }
-}
-
-/// Information relating to the `thread.yield-then-resume` intrinsic.
-#[derive(Debug)]
-pub struct CanonThreadYieldThenResume {
-    /// Whether the thread can be cancelled while yielded at this point.
-    pub cancellable: bool,
-}
-impl<'a> Parse<'a> for CanonThreadYieldThenResume {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::thread_yield_then_resume>()?;
-        let cancellable = parser.parse::<Option<kw::cancellable>>()?.is_some();
-        Ok(Self { cancellable })
-    }
-}
-
-/// Information relating to the `thread.suspend-then-resume` intrinsic.
-#[derive(Debug)]
-pub struct CanonThreadSuspendThenPromote {
-    /// Whether the thread can be cancelled while suspended at this point.
-    pub cancellable: bool,
-}
-impl<'a> Parse<'a> for CanonThreadSuspendThenPromote {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::thread_suspend_then_promote>()?;
-        let cancellable = parser.parse::<Option<kw::cancellable>>()?.is_some();
-        Ok(Self { cancellable })
-    }
-}
-
-/// Information relating to the `thread.yield-then-promote` intrinsic.
-#[derive(Debug)]
-pub struct CanonThreadYieldThenPromote {
-    /// Whether the thread can be cancelled while yielded at this point.
-    pub cancellable: bool,
-}
-impl<'a> Parse<'a> for CanonThreadYieldThenPromote {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::thread_yield_then_promote>()?;
-        let cancellable = parser.parse::<Option<kw::cancellable>>()?.is_some();
-        Ok(Self { cancellable })
     }
 }
 

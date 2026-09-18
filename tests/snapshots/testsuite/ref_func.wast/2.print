@@ -2,7 +2,7 @@
   (type (;0;) (func (param i32) (result i32)))
   (type (;1;) (func))
   (type (;2;) (func (result i32)))
-  (import "M" "f" (func $f (;0;) (type 0)))
+  (import "M" "f" (func $f (;0;) (type 0) (param i32) (result i32)))
   (table $t (;0;) 1 funcref)
   (global (;0;) funcref ref.func $f)
   (global (;1;) funcref ref.func $g)

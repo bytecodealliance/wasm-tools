@@ -1,0 +1,159 @@
+{
+  "source_filename": "tests/component-model/test/async/cancel-stream.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 7,
+      "filename": "cancel-stream.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 222,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_definition",
+      "line": 227,
+      "name": "Tester",
+      "filename": "cancel-stream.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 384,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 385,
+      "action": {
+        "type": "invoke",
+        "field": "cancel-write-after-completion",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 386,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 387,
+      "action": {
+        "type": "invoke",
+        "field": "cancel-read-after-completion",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 388,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 389,
+      "action": {
+        "type": "invoke",
+        "field": "cancel-write-after-zero-length-completion",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 390,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 391,
+      "action": {
+        "type": "invoke",
+        "field": "cancel-read-after-zero-length-completion",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 392,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 393,
+      "action": {
+        "type": "invoke",
+        "field": "cancel-write-after-partial-then-drop",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 394,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 395,
+      "action": {
+        "type": "invoke",
+        "field": "cancel-write-after-drop",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    }
+  ]
+}

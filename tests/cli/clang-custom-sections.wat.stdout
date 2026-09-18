@@ -3,7 +3,7 @@
   (type (;1;) (func (param i32)))
   (import "env" "__linear_memory" (memory (;0;) 0))
   (import "env" "__stack_pointer" (global (;0;) (mut i32)))
-  (import "env" "foo" (func (;0;) (type 1)))
+  (import "env" "foo" (func (;0;) (type 1) (param i32)))
   (import "env" "__stack_chk_fail" (func (;1;) (type 0)))
   (func (;2;) (type 0)
     (local i32)

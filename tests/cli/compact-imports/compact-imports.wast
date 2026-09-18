@@ -41,3 +41,7 @@
 )
 (assert_return (invoke "testFuncs") (i32.const 579))
 (assert_return (invoke "testGlobals") (i32.const 4321))
+
+;; Zero-length groups
+(module (import "not-test")) ;; encoding 1
+(module (import "not-test" (func))) ;; encoding 2

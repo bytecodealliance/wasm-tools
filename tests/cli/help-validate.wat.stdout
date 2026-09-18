@@ -66,6 +66,9 @@ Options:
           
           [default: auto]
 
+      --validate-custom
+          Opt-in to validating the contents of custom sections
+
   -h, --help
           Print help (see a summary with '-h')
 

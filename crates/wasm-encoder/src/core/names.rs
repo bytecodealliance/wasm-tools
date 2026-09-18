@@ -45,6 +45,8 @@ enum Subsection {
     Global = 7,
     Element = 8,
     Data = 9,
+    Parameter = 12,
+    TagParameter = 13,
 
     // https://github.com/WebAssembly/gc/issues/193
     Field = 10,
@@ -178,6 +180,18 @@ impl NameSection {
     /// This section should come after the field name subsection (if present).
     pub fn tags(&mut self, names: &NameMap) {
         self.subsection_header(Subsection::Tag, names.size());
+        names.encode(&mut self.bytes);
+    }
+
+    /// Appends a subsection for the names of parameters within function types.
+    pub fn parameters(&mut self, names: &IndirectNameMap) {
+        self.subsection_header(Subsection::Parameter, names.size());
+        names.encode(&mut self.bytes);
+    }
+
+    /// Appends a subsection for the names of parameters within tag types.
+    pub fn tag_parameters(&mut self, names: &IndirectNameMap) {
+        self.subsection_header(Subsection::TagParameter, names.size());
         names.encode(&mut self.bytes);
     }
 

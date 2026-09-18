@@ -4,7 +4,7 @@
   (type (;2;) (func (param i32) (result i32)))
   (type (;3;) (func (result i32)))
   (type (;4;) (func (param i32 i32)))
-  (import "spectest" "print_i32" (func $log (;0;) (type 0)))
+  (import "spectest" "print_i32" (func $log (;0;) (type 0) (param i32)))
   (memory (;0;) 1)
   (tag $too-many-mailboxes (;0;) (type 1))
   (tag $too-many-messages (;1;) (type 1))

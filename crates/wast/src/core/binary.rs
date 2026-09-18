@@ -189,7 +189,7 @@ pub(crate) fn encode(
     e.typed_section(&data);
 
     e.custom_sections(AfterLast);
-    if !names.is_empty() {
+    if !names.is_empty() && !customs.iter().any(|c| c.name() == "name") {
         e.wasm.section(&names.to_name_section());
     }
     if let Some(dwarf) = &mut dwarf {
@@ -407,7 +407,7 @@ impl TypeDef<'_> {
         wasm_encoder::SubType {
             composite_type,
             is_final: self.final_type.unwrap_or(true),
-            supertype_idx: self.parent.map(|i| i.unwrap_u32()),
+            supertype_idxs: self.parents.iter().map(|i| i.unwrap_u32()).collect(),
         }
     }
 }
@@ -1014,6 +1014,8 @@ struct Names<'a> {
     elems: Vec<(u32, &'a str)>,
     elem_idx: u32,
     fields: Vec<(u32, Vec<(u32, &'a str)>)>,
+    parameters: Vec<(u32, Vec<(u32, &'a str)>)>,
+    tag_parameters: Vec<(u32, Vec<(u32, &'a str)>)>,
 }
 
 fn find_names<'a>(
@@ -1043,6 +1045,13 @@ fn find_names<'a>(
         Data,
     }
 
+    enum ExtraNames<'a, 'b> {
+        Func(&'a Func<'b>),
+        FuncType(&'a FunctionType<'b>),
+        Type(&'a Type<'b>),
+        Tag(&'a Tag<'b>),
+    }
+
     let mut ret = Names::default();
     ret.module = get_name(module_id, module_name);
     let mut names = Vec::new();
@@ -1051,14 +1060,16 @@ fn find_names<'a>(
         let (kind, id, name) = match field {
             ModuleField::Import(imports) => {
                 for sig in imports.item_sigs() {
-                    let name = match sig.kind {
-                        ItemKind::Func(_) | ItemKind::FuncExact(_) => Name::Func,
-                        ItemKind::Table(_) => Name::Table,
-                        ItemKind::Memory(_) => Name::Memory,
-                        ItemKind::Global(_) => Name::Global,
-                        ItemKind::Tag(_) => Name::Tag,
+                    let (name, extra) = match &sig.kind {
+                        ItemKind::Func(f) | ItemKind::FuncExact(f) => {
+                            (Name::Func, f.inline.as_ref().map(ExtraNames::FuncType))
+                        }
+                        ItemKind::Table(_) => (Name::Table, None),
+                        ItemKind::Memory(_) => (Name::Memory, None),
+                        ItemKind::Global(_) => (Name::Global, None),
+                        ItemKind::Tag(_) => (Name::Tag, None),
                     };
-                    names.push((name, &sig.id, &sig.name, field));
+                    names.push((name, &sig.id, &sig.name, extra));
                 }
                 continue;
             }
@@ -1069,7 +1080,7 @@ fn find_names<'a>(
             ModuleField::Type(t) => (Name::Type, &t.id, &t.name),
             ModuleField::Rec(r) => {
                 for ty in &r.types {
-                    names.push((Name::Type, &ty.id, &ty.name, field));
+                    names.push((Name::Type, &ty.id, &ty.name, Some(ExtraNames::Type(ty))));
                 }
                 continue;
             }
@@ -1078,10 +1089,16 @@ fn find_names<'a>(
             ModuleField::Func(f) => (Name::Func, &f.id, &f.name),
             ModuleField::Export(_) | ModuleField::Start(_) | ModuleField::Custom(_) => continue,
         };
-        names.push((kind, id, name, field));
+        let extra = match field {
+            ModuleField::Func(f) => Some(ExtraNames::Func(f)),
+            ModuleField::Type(t) => Some(ExtraNames::Type(t)),
+            ModuleField::Tag(t) => Some(ExtraNames::Tag(t)),
+            _ => None,
+        };
+        names.push((kind, id, name, extra));
     }
 
-    for (kind, id, name, field) in names {
+    for (kind, id, name, extra) in names {
         // .. and using the kind we can figure out where to place this name
         let (list, idx) = match kind {
             Name::Func => (&mut ret.funcs, &mut ret.func_idx),
@@ -1098,96 +1115,138 @@ fn find_names<'a>(
         }
 
         // Handle module locals separately from above
-        if let ModuleField::Func(f) = field {
-            let mut local_names = Vec::new();
-            let mut label_names = Vec::new();
-            let mut local_idx = 0;
-            let mut label_idx = 0;
-            let mut discard_locals = false;
+        match extra {
+            Some(ExtraNames::Func(f)) => {
+                let mut local_names = Vec::new();
+                let mut label_names = Vec::new();
+                let mut local_idx = 0;
+                let mut label_idx = 0;
+                let mut discard_locals = false;
 
-            if let Some(ty) = &f.ty.inline {
-                // Consult the inline type listed for local names of parameters.
-                // This is specifically preserved during the name resolution
-                // pass, but only for functions, so here we can look at the
-                // original source's names.
-                for (id, name, _) in ty.params.iter() {
-                    if let Some(name) = get_name(id, name) {
-                        local_names.push((local_idx, name));
+                if let Some(ty) = &f.ty.inline {
+                    // Consult the inline type listed for local names of parameters.
+                    // This is specifically preserved during the name resolution
+                    // pass, but only for functions, so here we can look at the
+                    // original source's names.
+                    for (id, name, _) in ty.params.iter() {
+                        if let Some(name) = get_name(id, name) {
+                            local_names.push((local_idx, name));
+                        }
+                        local_idx += 1;
                     }
-                    local_idx += 1;
-                }
-            } else {
-                // If the inline type isn't listed then it's either not present
-                // (e.g. no params or results) or it was referenced by index.
-                // Either way we've got the index here, so look it up in the
-                // list of types and see how many parameters this function's
-                // type has.
-                let index = match f.ty.index.as_ref().unwrap() {
-                    Index::Num(n, _) => *n,
-                    _ => unreachable!(),
-                };
+                } else {
+                    // If the inline type isn't listed then it's either not present
+                    // (e.g. no params or results) or it was referenced by index.
+                    // Either way we've got the index here, so look it up in the
+                    // list of types and see how many parameters this function's
+                    // type has.
+                    let index = match f.ty.index.as_ref().unwrap() {
+                        Index::Num(n, _) => *n,
+                        _ => unreachable!(),
+                    };
 
-                match func_type(types, index) {
-                    Some(ft) => local_idx = ft.params.len() as u32,
-                    // If the function type index is invalid then skip
-                    // preserving names since we don't know how many parameters
-                    // this function will have so we don't know where to start
-                    // indexing at.
-                    None => discard_locals = true,
-                }
-            }
-
-            if let FuncKind::Inline {
-                locals, expression, ..
-            } = &f.kind
-            {
-                for local in locals.iter() {
-                    if let Some(name) = get_name(&local.id, &local.name) {
-                        local_names.push((local_idx, name));
+                    match func_type(types, index) {
+                        Some(ft) => local_idx = ft.params.len() as u32,
+                        // If the function type index is invalid then skip
+                        // preserving names since we don't know how many parameters
+                        // this function will have so we don't know where to start
+                        // indexing at.
+                        None => discard_locals = true,
                     }
-                    local_idx += 1;
                 }
 
-                for i in expression.instrs.iter() {
-                    match i {
-                        Instruction::If(block)
-                        | Instruction::Block(block)
-                        | Instruction::Loop(block)
-                        | Instruction::Try(block)
-                        | Instruction::TryTable(TryTable { block, .. }) => {
-                            if let Some(name) = get_name(&block.label, &block.label_name) {
-                                label_names.push((label_idx, name));
+                if let FuncKind::Inline {
+                    locals, expression, ..
+                } = &f.kind
+                {
+                    for local in locals.iter() {
+                        if let Some(name) = get_name(&local.id, &local.name) {
+                            local_names.push((local_idx, name));
+                        }
+                        local_idx += 1;
+                    }
+
+                    for i in expression.instrs.iter() {
+                        match i {
+                            Instruction::If(block)
+                            | Instruction::Block(block)
+                            | Instruction::Loop(block)
+                            | Instruction::Try(block)
+                            | Instruction::TryTable(TryTable { block, .. }) => {
+                                if let Some(name) = get_name(&block.label, &block.label_name) {
+                                    label_names.push((label_idx, name));
+                                }
+                                label_idx += 1;
                             }
-                            label_idx += 1;
+                            _ => {}
                         }
-                        _ => {}
                     }
                 }
+                if !discard_locals && local_names.len() > 0 {
+                    ret.locals.push((*idx, local_names));
+                }
+                if label_names.len() > 0 {
+                    ret.labels.push((*idx, label_names));
+                }
             }
-            if !discard_locals && local_names.len() > 0 {
-                ret.locals.push((*idx, local_names));
-            }
-            if label_names.len() > 0 {
-                ret.labels.push((*idx, label_names));
-            }
-        }
 
-        // Handle struct fields separately from above
-        if let ModuleField::Type(ty) = field {
-            let mut field_names = vec![];
-            match &ty.def.kind {
-                InnerTypeKind::Func(_) | InnerTypeKind::Array(_) | InnerTypeKind::Cont(_) => {}
-                InnerTypeKind::Struct(ty_struct) => {
-                    for (idx, field) in ty_struct.fields.iter().enumerate() {
-                        if let Some(name) = get_name(&field.id, &None) {
-                            field_names.push((idx as u32, name))
+            Some(ExtraNames::FuncType(ty)) => {
+                let mut local_names = Vec::new();
+                for (i, (id, name, _)) in ty.params.iter().enumerate() {
+                    if let Some(name) = get_name(id, name) {
+                        local_names.push((i as u32, name));
+                    }
+                }
+                if local_names.len() > 0 {
+                    ret.locals.push((*idx, local_names));
+                }
+            }
+
+            // Handle struct fields separately from above
+            Some(ExtraNames::Type(ty)) => {
+                let mut field_names = vec![];
+                let mut parameters = vec![];
+                match &ty.def.kind {
+                    InnerTypeKind::Func(f) => {
+                        for (i, (id, name, _)) in f.params.iter().enumerate() {
+                            if let Some(name) = get_name(id, name) {
+                                parameters.push((i as u32, name))
+                            }
+                        }
+                    }
+                    InnerTypeKind::Array(_) | InnerTypeKind::Cont(_) => {}
+                    InnerTypeKind::Struct(ty_struct) => {
+                        for (idx, field) in ty_struct.fields.iter().enumerate() {
+                            if let Some(name) = get_name(&field.id, &field.name) {
+                                field_names.push((idx as u32, name))
+                            }
                         }
                     }
                 }
+                if field_names.len() > 0 {
+                    ret.fields.push((*idx, field_names))
+                }
+                if parameters.len() > 0 {
+                    ret.parameters.push((*idx, parameters))
+                }
             }
-            if field_names.len() > 0 {
-                ret.fields.push((*idx, field_names))
+
+            Some(ExtraNames::Tag(ty)) => {
+                let mut tag_parameters = vec![];
+                let TagType::Exception(ty) = &ty.ty;
+                if let Some(f) = &ty.inline {
+                    for (i, (id, name, _)) in f.params.iter().enumerate() {
+                        if let Some(name) = get_name(id, name) {
+                            tag_parameters.push((i as u32, name))
+                        }
+                    }
+                }
+                if tag_parameters.len() > 0 {
+                    ret.tag_parameters.push((*idx, tag_parameters))
+                }
             }
+
+            None => {}
         }
 
         *idx += 1;
@@ -1210,6 +1269,8 @@ impl Names<'_> {
             && self.data.is_empty()
             && self.fields.is_empty()
             && self.tags.is_empty()
+            && self.parameters.is_empty()
+            && self.tag_parameters.is_empty()
     }
 }
 
@@ -1274,6 +1335,12 @@ impl Names<'_> {
         }
         if let Some(map) = name_map(&self.tags) {
             names.tags(&map);
+        }
+        if let Some(map) = indirect_name_map(&self.parameters) {
+            names.parameters(&map);
+        }
+        if let Some(map) = indirect_name_map(&self.tag_parameters) {
+            names.tag_parameters(&map);
         }
         names
     }

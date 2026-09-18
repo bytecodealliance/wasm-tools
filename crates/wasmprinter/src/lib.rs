@@ -115,6 +115,8 @@ struct CoreState {
     global_names: NamingMap<u32, NameGlobal>,
     element_names: NamingMap<u32, NameElem>,
     data_names: NamingMap<u32, NameData>,
+    parameter_names: NamingMap<(u32, u32), NameField>,
+    tag_parameter_names: NamingMap<(u32, u32), NameField>,
     #[cfg(feature = "component-model")]
     module_names: NamingMap<u32, NameModule>,
     #[cfg(feature = "component-model")]
@@ -837,7 +839,7 @@ impl Printer<'_, '_> {
                 let mut used = match name {
                     // labels can be shadowed, so maintaining the used names is not useful.
                     "label" => None,
-                    "local" | "field" => Some(HashSet::new()),
+                    "local" | "field" | "parameter" | "tag parameter" => Some(HashSet::new()),
                     _ => unimplemented!("{name} is an unknown type of indirect names"),
                 };
                 for naming in indirect.names {
@@ -868,6 +870,12 @@ impl Printer<'_, '_> {
                 Name::Data(n) => name_map(&mut state.core.data_names, n, "data")?,
                 Name::Field(n) => indirect_name_map(&mut state.core.field_names, n, "field")?,
                 Name::Tag(n) => name_map(&mut state.core.tag_names, n, "tag")?,
+                Name::Parameter(n) => {
+                    indirect_name_map(&mut state.core.parameter_names, n, "parameter")?
+                }
+                Name::TagParameter(n) => {
+                    indirect_name_map(&mut state.core.tag_parameter_names, n, "tag parameter")?
+                }
                 Name::Unknown { .. } => (),
             }
         }
@@ -919,7 +927,7 @@ impl Printer<'_, '_> {
     }
 
     fn print_sub(&mut self, state: &State, ty: &SubType, ty_idx: u32) -> Result<u32> {
-        let r = if !ty.is_final || !ty.supertype_idx.is_none() {
+        let r = if !ty.is_final || !ty.supertype_idxs.is_empty() {
             self.start_group("sub")?;
             self.print_sub_type(state, ty)?;
             let r = self.print_composite(state, &ty.composite_type, ty_idx)?;
@@ -953,7 +961,7 @@ impl Printer<'_, '_> {
         let r = match &ty.inner {
             CompositeInnerType::Func(ty) => {
                 self.start_group("func")?;
-                let r = self.print_func_type(state, ty, None)?;
+                let r = self.print_func_type(state, ty, ParameterNames::Type(ty_idx))?;
                 self.end_group()?; // `func`
                 r
             }
@@ -995,7 +1003,7 @@ impl Printer<'_, '_> {
         &mut self,
         state: &State,
         idx: u32,
-        names_for: Option<u32>,
+        names_for: ParameterNames,
     ) -> Result<Option<u32>> {
         self.print_core_type_ref(state, idx)?;
 
@@ -1020,7 +1028,7 @@ impl Printer<'_, '_> {
         &mut self,
         state: &State,
         ty: &FuncType,
-        names_for: Option<u32>,
+        names_for: ParameterNames,
     ) -> Result<u32> {
         if !ty.params().is_empty() {
             self.result.write_str(" ")?;
@@ -1099,7 +1107,7 @@ impl Printer<'_, '_> {
         if ty.is_final {
             self.result.write_str("final ")?;
         }
-        if let Some(idx) = ty.supertype_idx {
+        for idx in ty.supertype_idxs.iter() {
             self.print_idx(&state.core.type_names, idx.as_module_index().unwrap())?;
             self.result.write_str(" ")?;
         }
@@ -1293,7 +1301,7 @@ impl Printer<'_, '_> {
                     self.print_name(&state.core.func_names, state.core.funcs)?;
                     self.result.write_str(" ")?;
                 }
-                self.print_core_type_ref(state, *f)?;
+                self.print_core_functype_idx(state, *f, ParameterNames::Locals(state.core.funcs))?;
             }
             TypeRef::FuncExact(f) => {
                 self.start_group("func ")?;
@@ -1302,7 +1310,7 @@ impl Printer<'_, '_> {
                     self.result.write_str(" ")?;
                 }
                 self.start_group("exact ")?;
-                self.print_core_type_ref(state, *f)?;
+                self.print_core_functype_idx(state, *f, ParameterNames::Locals(state.core.funcs))?;
                 self.end_group()?;
             }
             TypeRef::Table(f) => self.print_table_type(state, f, index)?,
@@ -1364,7 +1372,12 @@ impl Printer<'_, '_> {
             self.print_name(&state.core.tag_names, state.core.tags)?;
             self.result.write_str(" ")?;
         }
-        self.print_core_functype_idx(state, ty.func_type_idx, None)?;
+        let names = if index {
+            ParameterNames::Tag(state.core.tags)
+        } else {
+            ParameterNames::None
+        };
+        self.print_core_functype_idx(state, ty.func_type_idx, names)?;
         Ok(())
     }
 
@@ -1474,7 +1487,7 @@ impl Printer<'_, '_> {
             _ => panic!("invalid function type"),
         };
         let params = self
-            .print_core_functype_idx(state, ty, Some(func_idx))?
+            .print_core_functype_idx(state, ty, ParameterNames::Locals(func_idx))?
             .unwrap_or(0);
 
         // Hints are stored on `self` in reverse order of function index so
@@ -1530,7 +1543,12 @@ impl Printer<'_, '_> {
                     self.newline(offset)?;
                     first = false;
                 }
-                locals.start_local(Some(func_idx), params + local_idx, self, state)?;
+                locals.start_local(
+                    ParameterNames::Locals(func_idx),
+                    params + local_idx,
+                    self,
+                    state,
+                )?;
                 self.print_valtype(state, ty)?;
                 locals.end_local(self)?;
                 local_idx += 1;
@@ -1981,7 +1999,8 @@ impl Printer<'_, '_> {
 
             // These are parsed during `read_names` and are part of
             // printing elsewhere, so don't print them.
-            KnownCustom::Name(_) | KnownCustom::BranchHints(_) => Ok(true),
+            KnownCustom::Name(_) => Ok(true),
+            KnownCustom::BranchHints(_) => Ok(true),
             #[cfg(feature = "component-model")]
             KnownCustom::ComponentName(_) => Ok(true),
 
@@ -2160,6 +2179,14 @@ struct NamedLocalPrinter {
     first: bool,
 }
 
+#[derive(Copy, Clone)]
+enum ParameterNames {
+    Type(u32),
+    Tag(u32),
+    Locals(u32),
+    None,
+}
+
 impl NamedLocalPrinter {
     fn new(group_name: &'static str) -> NamedLocalPrinter {
         NamedLocalPrinter {
@@ -2172,16 +2199,23 @@ impl NamedLocalPrinter {
 
     fn start_local(
         &mut self,
-        func: Option<u32>,
+        names_for: ParameterNames,
         local: u32,
         dst: &mut Printer,
         state: &State,
     ) -> Result<()> {
-        let name = state
-            .core
-            .local_names
-            .index_to_name
-            .get(&(func.unwrap_or(u32::MAX), local));
+        let name = match names_for {
+            ParameterNames::Type(ty) => state.core.parameter_names.index_to_name.get(&(ty, local)),
+            ParameterNames::Tag(ty) => state
+                .core
+                .tag_parameter_names
+                .index_to_name
+                .get(&(ty, local)),
+            ParameterNames::Locals(func) => {
+                state.core.local_names.index_to_name.get(&(func, local))
+            }
+            ParameterNames::None => None,
+        };
 
         // Named locals must be in their own group, so if we have a name we need
         // to terminate the previous group.
@@ -2211,7 +2245,7 @@ impl NamedLocalPrinter {
                 dst.result.write_str(" ")?;
                 self.end_group_after_local = true;
             }
-            None if dst.config.name_unnamed && func.is_some() => {
+            None if dst.config.name_unnamed && matches!(names_for, ParameterNames::Locals(_)) => {
                 write!(dst.result, "$#local{local} ")?;
                 self.end_group_after_local = true;
             }

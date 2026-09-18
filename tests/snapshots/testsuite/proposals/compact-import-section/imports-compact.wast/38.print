@@ -1,0 +1,14 @@
+(module
+  (type (;0;) (func (result i32)))
+  (import "test-pairs"
+    (item "g1")
+    (item "g2")
+    (global i32)
+  )
+  (export "sum" (func 0))
+  (func (;0;) (type 0) (result i32)
+    global.get 0
+    global.get 1
+    i32.add
+  )
+)

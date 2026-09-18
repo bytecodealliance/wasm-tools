@@ -10,7 +10,7 @@
   (import "actor" "spawn" (tag $spawn (;1;) (type 5) (param (ref $cont)) (result i32)))
   (import "actor" "send" (tag $send (;2;) (type 6) (param i32 i32)))
   (import "actor" "recv" (tag $recv (;3;) (type 4) (result i32)))
-  (import "spectest" "print_i32" (func $log (;0;) (type $i-func)))
+  (import "spectest" "print_i32" (func $log (;0;) (type $i-func) (param i32)))
   (export "chain" (func $chain))
   (elem (;0;) declare func $next)
   (func $next (;1;) (type $i-func) (param $p i32)

@@ -1,0 +1,71 @@
+{
+  "source_filename": "tests/component-model/test/async/builtin-trap-poisons-instance.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 3,
+      "name": "Unreachable",
+      "filename": "builtin-trap-poisons-instance.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 8,
+      "instance": "i",
+      "module": "Unreachable"
+    },
+    {
+      "type": "assert_trap",
+      "line": 9,
+      "action": {
+        "type": "invoke",
+        "field": "f",
+        "args": []
+      },
+      "text": "wasm trap: wasm `unreachable` instruction executed"
+    },
+    {
+      "type": "assert_trap",
+      "line": 10,
+      "action": {
+        "type": "invoke",
+        "field": "f",
+        "args": []
+      },
+      "text": "cannot enter component instance"
+    },
+    {
+      "type": "module_definition",
+      "line": 12,
+      "name": "BuiltinTrap",
+      "filename": "builtin-trap-poisons-instance.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 37,
+      "instance": "j",
+      "module": "BuiltinTrap"
+    },
+    {
+      "type": "assert_trap",
+      "line": 38,
+      "action": {
+        "type": "invoke",
+        "field": "f",
+        "args": []
+      },
+      "text": "cannot drop busy stream"
+    },
+    {
+      "type": "assert_trap",
+      "line": 39,
+      "action": {
+        "type": "invoke",
+        "field": "f",
+        "args": []
+      },
+      "text": "cannot enter component instance"
+    }
+  ]
+}

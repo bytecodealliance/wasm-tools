@@ -1,0 +1,247 @@
+{
+  "source_filename": "tests/component-model/test/resources/handle-table.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 7,
+      "filename": "handle-table.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 49,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 53,
+      "filename": "handle-table.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 106,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "43"
+        }
+      ]
+    },
+    {
+      "type": "module_definition",
+      "line": 110,
+      "name": "Traps",
+      "filename": "handle-table.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 200,
+      "instance": "i",
+      "module": "Traps"
+    },
+    {
+      "type": "assert_trap",
+      "line": 201,
+      "action": {
+        "type": "invoke",
+        "field": "drop-never-allocated",
+        "args": []
+      },
+      "text": "unknown handle index 5"
+    },
+    {
+      "type": "module_instance",
+      "line": 202,
+      "instance": "i",
+      "module": "Traps"
+    },
+    {
+      "type": "assert_trap",
+      "line": 203,
+      "action": {
+        "type": "invoke",
+        "field": "rep-never-allocated",
+        "args": []
+      },
+      "text": "unknown handle index 5"
+    },
+    {
+      "type": "module_instance",
+      "line": 204,
+      "instance": "i",
+      "module": "Traps"
+    },
+    {
+      "type": "assert_trap",
+      "line": 205,
+      "action": {
+        "type": "invoke",
+        "field": "double-drop",
+        "args": []
+      },
+      "text": "unknown handle index 1"
+    },
+    {
+      "type": "module_instance",
+      "line": 206,
+      "instance": "i",
+      "module": "Traps"
+    },
+    {
+      "type": "assert_trap",
+      "line": 207,
+      "action": {
+        "type": "invoke",
+        "field": "drop-zero",
+        "args": []
+      },
+      "text": "unknown handle index 0"
+    },
+    {
+      "type": "module_instance",
+      "line": 208,
+      "instance": "i",
+      "module": "Traps"
+    },
+    {
+      "type": "assert_trap",
+      "line": 209,
+      "action": {
+        "type": "invoke",
+        "field": "drop-max",
+        "args": []
+      },
+      "text": "unknown handle index 4294967295"
+    },
+    {
+      "type": "module_instance",
+      "line": 210,
+      "instance": "i",
+      "module": "Traps"
+    },
+    {
+      "type": "assert_trap",
+      "line": 211,
+      "action": {
+        "type": "invoke",
+        "field": "own-use-after-drop",
+        "args": []
+      },
+      "text": "unknown handle index 1"
+    },
+    {
+      "type": "module_instance",
+      "line": 212,
+      "instance": "i",
+      "module": "Traps"
+    },
+    {
+      "type": "assert_trap",
+      "line": 213,
+      "action": {
+        "type": "invoke",
+        "field": "borrow-never-valid",
+        "args": []
+      },
+      "text": "unknown handle index 3"
+    },
+    {
+      "type": "module",
+      "line": 217,
+      "filename": "handle-table.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 260,
+      "action": {
+        "type": "invoke",
+        "field": "alloc-in1",
+        "args": []
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_trap",
+      "line": 261,
+      "action": {
+        "type": "invoke",
+        "field": "dealloc-in2",
+        "args": []
+      },
+      "text": "unknown handle index 1"
+    },
+    {
+      "type": "module",
+      "line": 265,
+      "filename": "handle-table.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_trap",
+      "line": 293,
+      "action": {
+        "type": "invoke",
+        "field": "drop-childs-index",
+        "args": []
+      },
+      "text": "unknown handle index 1"
+    },
+    {
+      "type": "module_definition",
+      "line": 297,
+      "name": "WrongType",
+      "filename": "handle-table.5.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 321,
+      "instance": "i",
+      "module": "WrongType"
+    },
+    {
+      "type": "assert_trap",
+      "line": 322,
+      "action": {
+        "type": "invoke",
+        "field": "drop-R1-as-R2",
+        "args": []
+      },
+      "text": "handle index 1 used with the wrong type, expected guest-defined resource but found a different guest-defined resource"
+    },
+    {
+      "type": "module_instance",
+      "line": 323,
+      "instance": "i",
+      "module": "WrongType"
+    },
+    {
+      "type": "assert_trap",
+      "line": 324,
+      "action": {
+        "type": "invoke",
+        "field": "return-R1-as-R2",
+        "args": []
+      },
+      "text": "handle index 1 used with the wrong type, expected guest-defined resource but found a different guest-defined resource"
+    }
+  ]
+}

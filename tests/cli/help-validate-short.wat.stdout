@@ -19,6 +19,8 @@ Options:
       --color <COLOR>
           Configuration over whether terminal colors are used in output
           [default: auto]
+      --validate-custom
+          Opt-in to validating the contents of custom sections
   -h, --help
           Print help (see more with '--help')
 

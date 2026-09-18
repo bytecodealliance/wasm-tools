@@ -2,9 +2,8 @@ use std::fmt::{self, Debug};
 
 use anyhow::Result;
 use wasm_encoder::Encode;
+use wasm_encoder::reencode::{ReencodeComponent, RoundtripReencoder};
 use wasmparser::{BinaryReader, ComponentNameSectionReader};
-
-use crate::utils::name_map;
 
 /// Helper for rewriting a component's component-name section with a new component name.
 pub struct ComponentNames<'a> {
@@ -75,25 +74,7 @@ impl<'a> ComponentNames<'a> {
             section.component(&component_name);
         }
         for n in self.names.iter() {
-            match n {
-                wasmparser::ComponentName::Component { .. } => unreachable!(),
-                wasmparser::ComponentName::CoreFuncs(m) => section.core_funcs(&name_map(&m)?),
-                wasmparser::ComponentName::CoreGlobals(m) => section.core_globals(&name_map(&m)?),
-                wasmparser::ComponentName::CoreMemories(m) => section.core_memories(&name_map(&m)?),
-                wasmparser::ComponentName::CoreTables(m) => section.core_tables(&name_map(&m)?),
-                wasmparser::ComponentName::CoreTags(m) => section.core_tags(&name_map(&m)?),
-                wasmparser::ComponentName::CoreModules(m) => section.core_modules(&name_map(&m)?),
-                wasmparser::ComponentName::CoreInstances(m) => {
-                    section.core_instances(&name_map(&m)?)
-                }
-                wasmparser::ComponentName::CoreTypes(m) => section.core_types(&name_map(&m)?),
-                wasmparser::ComponentName::Types(m) => section.types(&name_map(&m)?),
-                wasmparser::ComponentName::Instances(m) => section.instances(&name_map(&m)?),
-                wasmparser::ComponentName::Components(m) => section.components(&name_map(&m)?),
-                wasmparser::ComponentName::Funcs(m) => section.funcs(&name_map(&m)?),
-                wasmparser::ComponentName::Values(m) => section.values(&name_map(&m)?),
-                wasmparser::ComponentName::Unknown { .. } => {} // wasm-encoder doesn't support it
-            }
+            RoundtripReencoder.parse_custom_component_name_subsection(&mut section, n.clone())?;
         }
         Ok(section)
     }

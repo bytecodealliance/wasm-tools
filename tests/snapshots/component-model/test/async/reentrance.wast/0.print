@@ -1,0 +1,83 @@
+(component
+  (core module $M1 (;0;)
+    (type (;0;) (func (result i32)))
+    (global $entered (;0;) (mut i32) i32.const 0)
+    (export "entered" (global $entered))
+    (export "back" (func 0))
+    (func (;0;) (type 0) (result i32)
+      global.get $entered
+      i32.const 1
+      i32.add
+      global.set $entered
+      i32.const 5
+    )
+  )
+  (core instance $m1 (;0;) (instantiate $M1))
+  (type (;0;) (func (result u32)))
+  (alias core export $m1 "back" (core func (;0;)))
+  (func $back (;0;) (type 0) (canon lift (core func 0)))
+  (component $C (;0;)
+    (type (;0;) (func (result u32)))
+    (import "back" (func $back (;0;) (type 0)))
+    (core func $back' (;0;) (canon lower (func $back)))
+    (core module $MC (;0;)
+      (type (;0;) (func (result i32)))
+      (import "" "back" (func $back (;0;) (type 0) (result i32)))
+      (export "go" (func 1))
+      (func (;1;) (type 0) (result i32)
+        call $back
+        i32.const 1
+        i32.add
+      )
+    )
+    (core instance (;0;)
+      (export "back" (func $back'))
+    )
+    (core instance $mc (;1;) (instantiate $MC
+        (with "" (instance 0))
+      )
+    )
+    (type (;1;) (func (result u32)))
+    (alias core export $mc "go" (core func (;1;)))
+    (func (;1;) (type 1) (canon lift (core func 1)))
+    (export (;2;) "go" (func 1))
+  )
+  (instance $c (;0;) (instantiate $C
+      (with "back" (func $back))
+    )
+  )
+  (alias export $c "go" (func (;1;)))
+  (core func $go' (;1;) (canon lower (func 1)))
+  (core module $M2 (;1;)
+    (type (;0;) (func (result i32)))
+    (import "" "go" (func $go (;0;) (type 0) (result i32)))
+    (import "" "entered" (global $entered (;0;) (mut i32)))
+    (export "run" (func 1))
+    (func (;1;) (type 0) (result i32)
+      (local $r i32)
+      call $go
+      local.set $r
+      global.get $entered
+      i32.const 1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      local.get $r
+    )
+  )
+  (alias core export $m1 "entered" (core global (;0;)))
+  (core instance (;1;)
+    (export "go" (func $go'))
+    (export "entered" (global 0))
+  )
+  (core instance $m2 (;2;) (instantiate $M2
+      (with "" (instance 1))
+    )
+  )
+  (type (;1;) (func (result u32)))
+  (alias core export $m2 "run" (core func (;2;)))
+  (func (;2;) (type 1) (canon lift (core func 2)))
+  (export (;3;) "back" (func $back))
+  (export (;4;) "run" (func 2))
+)

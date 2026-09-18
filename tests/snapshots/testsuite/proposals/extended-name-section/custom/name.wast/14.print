@@ -1,0 +1,16 @@
+(module $M
+  (type $T0 (;0;) (struct (field $fld i32)))
+  (type $T1 (;1;) (func (param $x i32)))
+  (type (;2;) (func))
+  (table $t (;0;) 1 funcref)
+  (memory $m (;0;) 1)
+  (tag $tag (;0;) (type $T1) (param $c i32))
+  (global $g (;0;) i32 i32.const 0)
+  (elem $e (;0;) (i32.const 0) func $f)
+  (func $f (;0;) (type 2)
+    (local $l i32)
+    block $a
+    end
+  )
+  (data $d (;0;) (i32.const 0) "x")
+)

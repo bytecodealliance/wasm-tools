@@ -20,7 +20,7 @@
 //
 // See https://webassembly.github.io/spec/js-api/#limits for details.
 pub const MAX_WASM_TYPES: usize = 1_000_000;
-pub const MAX_WASM_SUPERTYPES: usize = 1;
+pub const MAX_WASM_SUPERTYPES: usize = 5;
 pub const MAX_WASM_FUNCTIONS: usize = 1_000_000;
 pub const MAX_WASM_IMPORTS: usize = 1_000_000;
 pub const MAX_WASM_EXPORTS: usize = 1_000_000;
@@ -78,13 +78,14 @@ mod component_limits {
     pub const MAX_WASM_FLAG_NAMES: usize = 1_000;
     pub const MAX_WASM_ENUM_CASES: usize = 10_000;
     pub const MAX_WASM_COMPONENT_TYPE_DEPTH: u32 = 100;
+    pub const MAX_WASM_VALUE_TYPE_BYTE_SIZE: u32 = 1 << 28;
     pub const MAX_WASM_INSTANTIATION_EXPORTS: usize = 100_000;
     pub const MAX_WASM_CANONICAL_OPTIONS: usize = 10;
     pub const MAX_WASM_INSTANTIATION_ARGS: usize = 100_000;
     pub const MAX_WASM_START_ARGS: usize = 1000;
     pub const MAX_WASM_MODULES: usize = 1_000;
     pub const MAX_WASM_COMPONENTS: usize = 1_000;
-    pub const MAX_WASM_INSTANCES: usize = 1_000;
+    pub const MAX_WASM_INSTANCES: usize = 4_096;
     pub const MAX_WASM_VALUES: usize = 1_000;
 
     /// Core items in components such as globals/memories/tables don't actually

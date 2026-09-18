@@ -1,0 +1,7 @@
+(module
+  (type $t (;0;) (func))
+  (import "m" "f" (func $f (;0;) (type $t)))
+  (import "m" "g" (func $g (;1;) (type $t)))
+  (func $"\u{3bb}" (;2;) (type $t))
+  (func $"#func3 \u{3bb}" (@name "\u{3bb}") (;3;) (type $t))
+)

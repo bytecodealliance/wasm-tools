@@ -192,7 +192,15 @@ struct ComponentEncoderOpts {
     )]
     validate: Option<Option<bool>>,
 
-    /// Use memory.grow to realloc memory and stack allocation.
+    /// Use memory.grow to realloc memory and stack allocation in adapters.
+    ///
+    /// This only affects adapter modules passed with `--adapt`. It makes an
+    /// adapter allocate with `memory.grow` instead of importing `cabi_realloc`
+    /// from the main module, which is the default. It does not synthesize a
+    /// `cabi_realloc` for a main module that doesn't export one.
+    ///
+    /// This can be useful if `cabi_realloc` cannot be called before the host
+    /// runtime is initialized.
     #[clap(long)]
     realloc_via_memory_grow: bool,
 
@@ -202,6 +210,14 @@ struct ComponentEncoderOpts {
     /// This is enabled by default.
     #[arg(long, require_equals = true, value_name = "true|false")]
     merge_imports_based_on_semver: Option<Option<bool>>,
+
+    /// Emits canonical interface names with version suffixes.
+    ///
+    /// When enabled, import/export names use canonical version prefixes (e.g.,
+    /// `wasi:cli/exit@0.2` instead of `wasi:cli/exit@0.2.1`) and the
+    /// `version_suffix` field is populated in the binary.
+    #[clap(long)]
+    emit_canonical_names: bool,
 
     /// Reject usage of the "legacy" naming scheme of `wit-component` and
     /// require the new naming scheme to be used.
@@ -267,9 +283,10 @@ impl ComponentEncoderOpts {
             .shim_return_call_ref(optional_flag_with_default(self.return_call_ref, false))
             .merge_imports_based_on_semver(optional_flag_with_default(
                 self.merge_imports_based_on_semver,
-                false,
+                true,
             ))
-            .realloc_via_memory_grow(self.realloc_via_memory_grow);
+            .realloc_via_memory_grow(self.realloc_via_memory_grow)
+            .emit_canonical_names(self.emit_canonical_names);
         for (name, wasm) in self.adapters.iter() {
             encoder.adapter(name, wasm)?;
         }
@@ -385,6 +402,14 @@ pub struct EmbedOpts {
     #[clap(short, long)]
     world: Option<String>,
 
+    /// Emits canonical interface names with version suffixes.
+    ///
+    /// When enabled, import/export names use canonical version prefixes (e.g.,
+    /// `wasi:cli/exit@0.2` instead of `wasi:cli/exit@0.2.1`) and the
+    /// `version_suffix` field is populated in the binary.
+    #[clap(long)]
+    emit_canonical_names: bool,
+
     /// Don't read a core wasm module as input, instead generating a "dummy"
     /// module as a placeholder.
     ///
@@ -458,6 +483,7 @@ impl EmbedOpts {
                 world,
                 self.encoding.unwrap_or(StringEncoding::UTF8),
                 None,
+                self.emit_canonical_names,
             )?;
 
             self.io.output_wasm(&encoded, false)?;
@@ -500,6 +526,7 @@ impl EmbedOpts {
             &resolve,
             world,
             self.encoding.unwrap_or(StringEncoding::UTF8),
+            self.emit_canonical_names,
         )?;
 
         self.io.output_wasm(&wasm, self.wat)?;
@@ -937,6 +964,14 @@ pub struct WitOpts {
     /// items are otherwise hidden by default.
     #[clap(long)]
     all_features: bool,
+
+    /// Emits canonical interface names with version suffixes.
+    ///
+    /// When enabled, import/export names use canonical version prefixes (e.g.,
+    /// `wasi:cli/exit@0.2` instead of `wasi:cli/exit@0.2.1`) and the
+    /// `version_suffix` field is populated in the binary.
+    #[clap(long)]
+    emit_canonical_names: bool,
 }
 
 impl WitOpts {
@@ -997,7 +1032,7 @@ impl WitOpts {
         if self.json {
             self.emit_json(&decoded)?;
         } else if self.wasm || self.wat {
-            self.emit_wasm(&decoded)?;
+            self.emit_wasm(&decoded, self.emit_canonical_names)?;
         } else {
             self.emit_wit(&decoded)?;
         }
@@ -1176,12 +1211,12 @@ impl WitOpts {
         Ok(())
     }
 
-    fn emit_wasm(&self, decoded: &DecodedWasm) -> Result<()> {
+    fn emit_wasm(&self, decoded: &DecodedWasm, canonical_names: bool) -> Result<()> {
         assert!(self.wasm || self.wat);
         assert!(self.out_dir.is_none());
 
         let decoded_package = decoded.package();
-        let bytes = wit_component::encode(decoded.resolve(), decoded_package)?;
+        let bytes = wit_component::encode(decoded.resolve(), decoded_package, canonical_names)?;
         if !self.skip_validation {
             wasmparser::Validator::new_with_features(WasmFeatures::all()).validate_all(&bytes)?;
         }
@@ -1299,6 +1334,10 @@ pub struct TargetsOpts {
 
     #[clap(flatten)]
     input: wasm_tools::InputArg,
+
+    /// Emits canonical interface names with version suffixes.
+    #[clap(long)]
+    emit_canonical_names: bool,
 }
 
 impl TargetsOpts {
@@ -1312,7 +1351,12 @@ impl TargetsOpts {
         let world = resolve.select_world(&[pkg_id], self.world.as_deref())?;
         let component_to_test = self.input.get_binary_wasm(None)?;
 
-        wit_component::targets(&resolve, world, &component_to_test)?;
+        wit_component::targets(
+            &resolve,
+            world,
+            &component_to_test,
+            self.emit_canonical_names,
+        )?;
 
         Ok(())
     }
@@ -1514,7 +1558,7 @@ impl CoreTypeInterner {
             return Ok(*ret);
         }
         let ty = &types[id];
-        if !ty.is_final || ty.supertype_idx.is_some() || ty.composite_type.shared {
+        if !ty.is_final || !ty.supertype_idxs.is_empty() || ty.composite_type.shared {
             bail!("unsupported core type to translate")
         }
         let f = match &ty.composite_type.inner {

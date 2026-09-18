@@ -4,7 +4,6 @@ version.workspace = true
 authors = ["Yury Delendik <ydelendik@mozilla.com>"]
 license.workspace = true
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasmparser"
-homepage = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasmparser"
 keywords = ["parser", "WebAssembly", "wasm"]
 description = """
 A simple event-driven library for parsing WebAssembly binary files.

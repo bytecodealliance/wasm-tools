@@ -869,10 +869,11 @@ impl<'a> Module<'a> {
             global_names.push((map.globals.remap(i), *name));
         }
         let mut section = Vec::new();
-        let mut encode_subsection = |code: u8, names: &[(u32, &str)]| {
+        let mut encode_subsection = |code: u8, names: &mut [(u32, &str)]| {
             if names.is_empty() {
                 return;
             }
+            names.sort_by_key(|(i, _)| *i);
             let mut subsection = Vec::new();
             names.len().encode(&mut subsection);
             for (i, name) in names {
@@ -882,17 +883,11 @@ impl<'a> Module<'a> {
             section.push(code);
             subsection.encode(&mut section);
         };
-        if let (Some(realloc_index), true) = (
-            realloc_index,
-            main_module_realloc.is_none() || allocation_state.is_none(),
-        ) {
-            func_names.push((realloc_index, "realloc_via_memory_grow"));
-        }
         if let Some(lazy_stack_init_index) = lazy_stack_init_index {
             func_names.push((lazy_stack_init_index, "allocate_stack"));
         }
-        encode_subsection(0x01, &func_names);
-        encode_subsection(0x07, &global_names);
+        encode_subsection(0x01, &mut func_names);
+        encode_subsection(0x07, &mut global_names);
         if !section.is_empty() {
             ret.section(&wasm_encoder::CustomSection {
                 name: "name".into(),

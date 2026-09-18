@@ -1,0 +1,446 @@
+{
+  "source_filename": "tests/component-model/test/async/trap-if-block-and-sync.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 5,
+      "name": "Tester",
+      "filename": "trap-if-block-and-sync.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 315,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 316,
+      "action": {
+        "type": "invoke",
+        "field": "trap-if-sync-call-async1",
+        "args": []
+      },
+      "text": "cannot block a synchronous task before returning"
+    },
+    {
+      "type": "module_instance",
+      "line": 317,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 318,
+      "action": {
+        "type": "invoke",
+        "field": "trap-if-sync-call-async2",
+        "args": []
+      },
+      "text": "cannot block a synchronous task before returning"
+    },
+    {
+      "type": "module_instance",
+      "line": 319,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 320,
+      "action": {
+        "type": "invoke",
+        "field": "trap-if-async-calls-sync-and-blocks",
+        "args": []
+      },
+      "text": "cannot block a synchronous task before returning"
+    },
+    {
+      "type": "module_instance",
+      "line": 321,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 322,
+      "action": {
+        "type": "invoke",
+        "field": "trap-if-suspend",
+        "args": []
+      },
+      "text": "cannot block a synchronous task before returning"
+    },
+    {
+      "type": "module_instance",
+      "line": 323,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 324,
+      "action": {
+        "type": "invoke",
+        "field": "trap-if-wait",
+        "args": []
+      },
+      "text": "cannot block a synchronous task before returning"
+    },
+    {
+      "type": "module_instance",
+      "line": 325,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 326,
+      "action": {
+        "type": "invoke",
+        "field": "poll-is-fine",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 327,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 328,
+      "action": {
+        "type": "invoke",
+        "field": "trap-if-invalid-callback-code",
+        "args": [
+          {
+            "type": "u32",
+            "value": "3"
+          }
+        ]
+      },
+      "text": "unsupported callback code"
+    },
+    {
+      "type": "module_instance",
+      "line": 329,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 330,
+      "action": {
+        "type": "invoke",
+        "field": "trap-if-invalid-callback-code",
+        "args": [
+          {
+            "type": "u32",
+            "value": "4"
+          }
+        ]
+      },
+      "text": "unsupported callback code"
+    },
+    {
+      "type": "module_instance",
+      "line": 331,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 332,
+      "action": {
+        "type": "invoke",
+        "field": "trap-if-invalid-callback-code",
+        "args": [
+          {
+            "type": "u32",
+            "value": "15"
+          }
+        ]
+      },
+      "text": "unsupported callback code"
+    },
+    {
+      "type": "module_instance",
+      "line": 333,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 334,
+      "action": {
+        "type": "invoke",
+        "field": "yield-is-fine",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 335,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 336,
+      "action": {
+        "type": "invoke",
+        "field": "yield-is-fine-cb",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 337,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 338,
+      "action": {
+        "type": "invoke",
+        "field": "yield-then-resume-is-fine",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 339,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 340,
+      "action": {
+        "type": "invoke",
+        "field": "suspend-then-resume-is-fine",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 341,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 342,
+      "action": {
+        "type": "invoke",
+        "field": "resume-later-is-fine",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 343,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 344,
+      "action": {
+        "type": "invoke",
+        "field": "yield-then-promote-ready-is-fine",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 345,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 346,
+      "action": {
+        "type": "invoke",
+        "field": "yield-then-promote-not-ready-is-fine",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 347,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 348,
+      "action": {
+        "type": "invoke",
+        "field": "suspend-then-promote-ready-is-fine",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 349,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 350,
+      "action": {
+        "type": "invoke",
+        "field": "trap-if-suspend-then-promote-not-ready",
+        "args": []
+      },
+      "text": "cannot block a synchronous task before returning"
+    },
+    {
+      "type": "module_instance",
+      "line": 351,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 352,
+      "action": {
+        "type": "invoke",
+        "field": "trap-if-sync-cancel",
+        "args": []
+      },
+      "text": "cannot block a synchronous task before returning"
+    },
+    {
+      "type": "module_instance",
+      "line": 353,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 354,
+      "action": {
+        "type": "invoke",
+        "field": "trap-if-sync-stream-read",
+        "args": []
+      },
+      "text": "cannot block a synchronous task before returning"
+    },
+    {
+      "type": "module_instance",
+      "line": 355,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 356,
+      "action": {
+        "type": "invoke",
+        "field": "trap-if-sync-stream-write",
+        "args": []
+      },
+      "text": "cannot block a synchronous task before returning"
+    },
+    {
+      "type": "module_instance",
+      "line": 357,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 358,
+      "action": {
+        "type": "invoke",
+        "field": "trap-if-sync-future-read",
+        "args": []
+      },
+      "text": "cannot block a synchronous task before returning"
+    },
+    {
+      "type": "module_instance",
+      "line": 359,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 360,
+      "action": {
+        "type": "invoke",
+        "field": "trap-if-sync-future-write",
+        "args": []
+      },
+      "text": "cannot block a synchronous task before returning"
+    },
+    {
+      "type": "module_instance",
+      "line": 361,
+      "instance": "i",
+      "module": "Tester"
+    }
+  ]
+}

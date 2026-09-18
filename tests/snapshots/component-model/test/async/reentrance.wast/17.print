@@ -1,0 +1,148 @@
+(component
+  (core func $subtask.cancel-async (;0;) (canon subtask.cancel async))
+  (core func $subtask.drop (;1;) (canon subtask.drop))
+  (core module $Canceller (;0;)
+    (type (;0;) (func (param i32) (result i32)))
+    (type (;1;) (func (result i32)))
+    (import "" "subtask.cancel-async" (func $subtask.cancel-async (;0;) (type 0) (param i32) (result i32)))
+    (global $parked-subtask (;0;) (mut i32) i32.const 0)
+    (export "parked-subtask" (global $parked-subtask))
+    (export "cancel-parked" (func 1))
+    (func (;1;) (type 1) (result i32)
+      global.get $parked-subtask
+      call $subtask.cancel-async
+    )
+  )
+  (core instance (;0;)
+    (export "subtask.cancel-async" (func $subtask.cancel-async))
+  )
+  (core instance $canceller (;1;) (instantiate $Canceller
+      (with "" (instance 0))
+    )
+  )
+  (type (;0;) (func (result u32)))
+  (alias core export $canceller "cancel-parked" (core func (;2;)))
+  (func $cancel-parked (;0;) (type 0) (canon lift (core func 2)))
+  (component $Callee (;0;)
+    (type (;0;) (func (result u32)))
+    (import "cancel-parked" (func $cancel-parked (;0;) (type 0)))
+    (core func $cancel-parked' (;0;) (canon lower (func $cancel-parked)))
+    (core func $task.cancel (;1;) (canon task.cancel))
+    (core func $waitable-set.new (;2;) (canon waitable-set.new))
+    (core module $CalleeModule (;0;)
+      (type (;0;) (func (result i32)))
+      (type (;1;) (func))
+      (type (;2;) (func (param i32 i32 i32) (result i32)))
+      (import "" "cancel-parked" (func $cancel-parked (;0;) (type 0) (result i32)))
+      (import "" "task.cancel" (func $task.cancel (;1;) (type 1)))
+      (import "" "waitable-set.new" (func $waitable-set.new (;2;) (type 0) (result i32)))
+      (global $never-signalled (;0;) (mut i32) i32.const 0)
+      (export "park" (func 4))
+      (export "park-cb" (func 5))
+      (export "reenter" (func 6))
+      (start $start)
+      (func $start (;3;) (type 1)
+        call $waitable-set.new
+        global.set $never-signalled
+      )
+      (func (;4;) (type 0) (result i32)
+        i32.const 2
+        global.get $never-signalled
+        i32.const 4
+        i32.shl
+        i32.or
+      )
+      (func (;5;) (type 2) (param $event i32) (param i32 i32) (result i32)
+        local.get $event
+        i32.const 6
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        call $task.cancel
+        i32.const 0
+      )
+      (func (;6;) (type 0) (result i32)
+        call $cancel-parked
+      )
+    )
+    (core instance (;0;)
+      (export "cancel-parked" (func $cancel-parked'))
+      (export "task.cancel" (func $task.cancel))
+      (export "waitable-set.new" (func $waitable-set.new))
+    )
+    (core instance $callee (;1;) (instantiate $CalleeModule
+        (with "" (instance 0))
+      )
+    )
+    (type (;1;) (func async))
+    (alias core export $callee "park" (core func (;3;)))
+    (alias core export $callee "park-cb" (core func (;4;)))
+    (func (;1;) (type 1) (canon lift (core func 3) async (callback 4)))
+    (type (;2;) (func (result u32)))
+    (alias core export $callee "reenter" (core func (;5;)))
+    (func (;2;) (type 2) (canon lift (core func 5)))
+    (export (;3;) "park" (func 1))
+    (export (;4;) "reenter" (func 2))
+  )
+  (instance $c (;0;) (instantiate $Callee
+      (with "cancel-parked" (func $cancel-parked))
+    )
+  )
+  (alias export $c "park" (func (;1;)))
+  (core func $park' (;3;) (canon lower (func 1) async))
+  (alias export $c "reenter" (func (;2;)))
+  (core func $reenter' (;4;) (canon lower (func 2)))
+  (core module $Main (;1;)
+    (type (;0;) (func (result i32)))
+    (type (;1;) (func (param i32)))
+    (import "" "park" (func $park (;0;) (type 0) (result i32)))
+    (import "" "reenter" (func $reenter (;1;) (type 0) (result i32)))
+    (import "" "parked-subtask" (global $parked-subtask (;0;) (mut i32)))
+    (import "" "subtask.drop" (func $subtask.drop (;2;) (type 1) (param i32)))
+    (export "run" (func 3))
+    (func (;3;) (type 0) (result i32)
+      (local $packed i32) (local $state i32)
+      call $park
+      local.set $packed
+      local.get $packed
+      i32.const 15
+      i32.and
+      i32.const 1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      local.get $packed
+      i32.const 4
+      i32.shr_u
+      global.set $parked-subtask
+      call $reenter
+      local.set $state
+      local.get $state
+      i32.const 4
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      global.get $parked-subtask
+      call $subtask.drop
+      i32.const 42
+    )
+  )
+  (alias core export $canceller "parked-subtask" (core global (;0;)))
+  (core instance (;2;)
+    (export "park" (func $park'))
+    (export "reenter" (func $reenter'))
+    (export "parked-subtask" (global 0))
+    (export "subtask.drop" (func $subtask.drop))
+  )
+  (core instance $main (;3;) (instantiate $Main
+      (with "" (instance 2))
+    )
+  )
+  (type (;1;) (func async (result u32)))
+  (alias core export $main "run" (core func (;5;)))
+  (func (;3;) (type 1) (canon lift (core func 5)))
+  (export (;4;) "run" (func 3))
+)

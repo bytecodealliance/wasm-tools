@@ -1,0 +1,222 @@
+{
+  "source_filename": "tests/component-model/test/validation/outer-alias.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 7,
+      "name": "C",
+      "filename": "outer-alias.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_definition",
+      "line": 26,
+      "name": "C",
+      "filename": "outer-alias.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 40,
+      "filename": "outer-alias.2.wasm",
+      "module_type": "binary",
+      "text": "transitively refers to resources"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 47,
+      "filename": "outer-alias.3.wasm",
+      "module_type": "binary",
+      "text": "transitively refers to resources"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 55,
+      "filename": "outer-alias.4.wasm",
+      "module_type": "binary",
+      "text": "transitively refers to resources"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 63,
+      "filename": "outer-alias.5.wasm",
+      "module_type": "binary",
+      "text": "transitively refers to resources"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 70,
+      "filename": "outer-alias.6.wasm",
+      "module_type": "binary",
+      "text": "transitively refers to resources"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 82,
+      "filename": "outer-alias.7.wasm",
+      "module_type": "binary",
+      "text": "transitively refers to resources"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 90,
+      "filename": "outer-alias.8.wasm",
+      "module_type": "binary",
+      "text": "transitively refers to resources"
+    },
+    {
+      "type": "module_definition",
+      "line": 98,
+      "name": "C",
+      "filename": "outer-alias.9.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_definition",
+      "line": 106,
+      "name": "C",
+      "filename": "outer-alias.10.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_definition",
+      "line": 121,
+      "name": "C",
+      "filename": "outer-alias.11.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_definition",
+      "line": 132,
+      "name": "C",
+      "filename": "outer-alias.12.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_definition",
+      "line": 156,
+      "name": "C",
+      "filename": "outer-alias.13.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 174,
+      "filename": "outer-alias.14.wasm",
+      "module_type": "binary",
+      "text": "may only refer to types or instances"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 183,
+      "filename": "outer-alias.15.wasm",
+      "module_type": "binary",
+      "text": "may only refer to types or instances"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 190,
+      "filename": "outer-alias.16.wasm",
+      "module_type": "binary",
+      "text": "may only refer to types or instances"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 197,
+      "filename": "outer-alias.17.wasm",
+      "module_type": "binary",
+      "text": "may only refer to types or instances"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 206,
+      "filename": "outer-alias.18.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 213,
+      "filename": "outer-alias.19.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 220,
+      "filename": "outer-alias.20.wasm",
+      "module_type": "binary",
+      "text": "invalid outer alias count"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 227,
+      "filename": "outer-alias.21.wasm",
+      "module_type": "binary",
+      "text": "invalid outer alias count"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 231,
+      "filename": "outer-alias.22.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 240,
+      "filename": "outer-alias.23.wasm",
+      "module_type": "binary",
+      "text": "invalid outer alias count"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 244,
+      "filename": "outer-alias.24.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 248,
+      "filename": "outer-alias.25.wasm",
+      "module_type": "binary",
+      "text": "invalid outer alias count"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 252,
+      "filename": "outer-alias.26.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 256,
+      "filename": "outer-alias.27.wasm",
+      "module_type": "binary",
+      "text": "invalid outer alias count"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 260,
+      "filename": "outer-alias.28.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "module_definition",
+      "line": 265,
+      "name": "C",
+      "filename": "outer-alias.29.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 282,
+      "filename": "outer-alias.30.wat",
+      "module_type": "text",
+      "text": "outer item `x` is not a module, type, or component"
+    }
+  ]
+}

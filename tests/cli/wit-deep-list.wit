@@ -4,14 +4,14 @@
 package a:b;
 
 world lists {
-  type t = list<t2, 16>;
-  type t2 = list<t3, 16>;
-  type t3 = list<t4, 16>;
-  type t4 = list<t5, 16>;
-  type t5 = list<t6, 16>;
-  type t6 = list<t7, 16>;
-  type t7 = list<t8, 16>;
-  type t8 = list<u8, 16>;
+  type t = list<t2, 8>;
+  type t2 = list<t3, 8>;
+  type t3 = list<t4, 8>;
+  type t4 = list<t5, 8>;
+  type t5 = list<t6, 8>;
+  type t6 = list<t7, 8>;
+  type t7 = list<t8, 8>;
+  type t8 = list<u8, 8>;
 
   import x: func(t: t);
 }

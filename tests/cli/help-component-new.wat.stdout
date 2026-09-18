@@ -84,7 +84,15 @@ Options:
           [possible values: true, false]
 
       --realloc-via-memory-grow
-          Use memory.grow to realloc memory and stack allocation
+          Use memory.grow to realloc memory and stack allocation in adapters.
+          
+          This only affects adapter modules passed with `--adapt`. It makes an
+          adapter allocate with `memory.grow` instead of importing
+          `cabi_realloc` from the main module, which is the default. It does not
+          synthesize a `cabi_realloc` for a main module that doesn't export one.
+          
+          This can be useful if `cabi_realloc` cannot be called before the host
+          runtime is initialized.
 
       --merge-imports-based-on-semver[=<true|false>]
           Indicates whether imports into the final component are merged based on
@@ -93,6 +101,13 @@ Options:
           This is enabled by default.
           
           [possible values: true, false]
+
+      --emit-canonical-names
+          Emits canonical interface names with version suffixes.
+          
+          When enabled, import/export names use canonical version prefixes
+          (e.g., `wasi:cli/exit@0.2` instead of `wasi:cli/exit@0.2.1`) and the
+          `version_suffix` field is populated in the binary.
 
       --reject-legacy-names
           Reject usage of the "legacy" naming scheme of `wit-component` and

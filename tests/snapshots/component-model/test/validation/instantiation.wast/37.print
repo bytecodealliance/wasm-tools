@@ -1,0 +1,20 @@
+(component
+  (core module $m (;0;)
+    (import "" "t" (table (;0;) 1 funcref))
+    (table (;1;) 2 funcref)
+    (export "x" (table 1))
+  )
+  (component $c (;0;)
+    (core type (;0;)
+      (module
+        (import "" "t" (table 2 funcref))
+        (export "x" (table 1 funcref))
+      )
+    )
+    (import "m" (core module (;0;) (type 0)))
+  )
+  (instance (;0;) (instantiate $c
+      (with "m" (core module $m))
+    )
+  )
+)

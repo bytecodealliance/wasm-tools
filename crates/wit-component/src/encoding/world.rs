@@ -49,7 +49,7 @@ pub struct ComponentWorld<'a> {
 pub struct ImportedInterface {
     pub lowerings: IndexMap<(String, AbiVariant), Lowering>,
     pub interface: Option<InterfaceId>,
-    pub implements: Option<String>,
+    pub implements: Option<InterfaceId>,
     pub external_id: Option<String>,
 }
 
@@ -92,17 +92,20 @@ impl<'a> ComponentWorld<'a> {
         Ok(ret)
     }
 
-    /// Returns whether any module in this component may spawn a thread, and
-    /// thus whether the program is using cooperative threading.
+    /// Returns whether the component encoding process should use context slot 1
+    /// in tasks, generally reserved for TLS.
     ///
     /// This is a heuristic which should go away once component-model-threading
     /// has been stable for awhile and the return value of this function should
     /// be const-propagated as `true`.
-    pub fn uses_cooperative_threading(&self) -> bool {
+    pub fn can_use_context_slot_1(&self) -> bool {
         let uses = |info: &ValidatedModule| {
-            info.imports
-                .imports()
-                .any(|(_, _, import)| matches!(import, Import::ThreadNewIndirect))
+            info.imports.imports().any(|(_, _, import)| match import {
+                Import::ThreadNewIndirect
+                | Import::ContextGet { slot: 1, .. }
+                | Import::ContextSet { slot: 1, .. } => true,
+                _ => false,
+            })
         };
         uses(&self.info) || self.adapters.values().any(|a| uses(&a.info))
     }
@@ -290,7 +293,7 @@ impl<'a> ComponentWorld<'a> {
                 WorldItem::Function(_) | WorldItem::Type { .. } => None,
                 WorldItem::Interface { id, .. } => Some(*id),
             };
-            let implements = resolve.implements_value(key, item);
+            let implements = resolve.implements_interface(key, item);
             // Note that `external_id` is only tracked for interface imports
             // here. World-level functions and types all share the `None` entry
             // in `import_map` but each item can have its own `external-id`
@@ -304,7 +307,7 @@ impl<'a> ComponentWorld<'a> {
                 .or_insert_with(|| ImportedInterface {
                     interface: interface_id,
                     lowerings: Default::default(),
-                    implements: implements.clone(),
+                    implements,
                     external_id: external_id.clone(),
                 });
             assert_eq!(interface.interface, interface_id);

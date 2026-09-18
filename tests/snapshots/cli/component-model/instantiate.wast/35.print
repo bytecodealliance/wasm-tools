@@ -14,7 +14,7 @@
   (core instance $b (;0;) (instantiate $sub))
   (core module $final (;1;)
     (type (;0;) (func (result i32)))
-    (import "" "" (func $b (;0;) (type 0)))
+    (import "" "" (func $b (;0;) (type 0) (result i32)))
     (export "get" (func 1))
     (func (;1;) (type 0) (result i32)
       call $b

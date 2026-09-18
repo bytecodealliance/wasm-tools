@@ -1,0 +1,44 @@
+{
+  "source_filename": "tests/component-model/test/async/trap-if-transfer-in-waitable-set.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 6,
+      "name": "Tester",
+      "filename": "trap-if-transfer-in-waitable-set.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 48,
+      "instance": "i1",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 49,
+      "action": {
+        "type": "invoke",
+        "field": "return-future-in-set",
+        "args": []
+      },
+      "text": "cannot lift future while it's in a waitable set"
+    },
+    {
+      "type": "module_instance",
+      "line": 50,
+      "instance": "i2",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 51,
+      "action": {
+        "type": "invoke",
+        "field": "return-stream-in-set",
+        "args": []
+      },
+      "text": "cannot lift stream while it's in a waitable set"
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+(module
+  (type (;0;) (func (param i32)))
+  (tag (;0;) (type 0) (param $c i32))
+)

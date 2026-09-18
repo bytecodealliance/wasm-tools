@@ -265,7 +265,7 @@ impl<'a> TypeKey<'a> for FuncKey<'a> {
                 results: self.1.clone(),
             }),
             shared,
-            parent: None,
+            parents: Vec::new(),
             descriptor: None,
             describes: None,
             final_type: None,

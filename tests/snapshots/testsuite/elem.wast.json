@@ -1315,6 +1315,36 @@
         ]
       },
       "text": "uninitialized element"
+    },
+    {
+      "type": "module",
+      "line": 1113,
+      "filename": "elem.114.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "action",
+      "line": 1125,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": []
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1126,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "205"
+        }
+      ]
     }
   ]
 }

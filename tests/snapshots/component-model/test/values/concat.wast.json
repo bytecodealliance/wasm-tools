@@ -1,0 +1,1958 @@
+{
+  "source_filename": "tests/component-model/test/values/concat.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "concat.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 356,
+      "action": {
+        "type": "invoke",
+        "field": "prims",
+        "args": [
+          {
+            "type": "bool",
+            "value": true
+          },
+          {
+            "type": "u8",
+            "value": "7"
+          },
+          {
+            "type": "s8",
+            "value": "-8"
+          },
+          {
+            "type": "u16",
+            "value": "9"
+          },
+          {
+            "type": "s16",
+            "value": "-10"
+          },
+          {
+            "type": "u32",
+            "value": "11"
+          },
+          {
+            "type": "s32",
+            "value": "-12"
+          },
+          {
+            "type": "u64",
+            "value": "13"
+          },
+          {
+            "type": "s64",
+            "value": "-14"
+          },
+          {
+            "type": "char",
+            "value": "Z"
+          },
+          {
+            "type": "string",
+            "value": "!"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "true7-89-1011-1213-14Z!"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 363,
+      "action": {
+        "type": "invoke",
+        "field": "list",
+        "args": [
+          {
+            "type": "list",
+            "value": [
+              {
+                "type": "string",
+                "value": "foo"
+              },
+              {
+                "type": "string",
+                "value": "bar"
+              },
+              {
+                "type": "string",
+                "value": "baz"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "foobarbaz"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 365,
+      "action": {
+        "type": "invoke",
+        "field": "list",
+        "args": [
+          {
+            "type": "list",
+            "value": []
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 368,
+      "action": {
+        "type": "invoke",
+        "field": "tuple",
+        "args": [
+          {
+            "type": "tuple",
+            "value": [
+              {
+                "type": "string",
+                "value": "x="
+              },
+              {
+                "type": "u32",
+                "value": "42"
+              },
+              {
+                "type": "bool",
+                "value": true
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "x=42true"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 372,
+      "action": {
+        "type": "invoke",
+        "field": "record",
+        "args": [
+          {
+            "type": "record",
+            "value": [
+              [
+                "s",
+                {
+                  "type": "string",
+                  "value": "v="
+                }
+              ],
+              [
+                "n",
+                {
+                  "type": "u32",
+                  "value": "7"
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "v=7"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 375,
+      "action": {
+        "type": "invoke",
+        "field": "variant",
+        "args": [
+          {
+            "type": "variant",
+            "value": {
+              "case": "s",
+              "payload": {
+                "type": "string",
+                "value": "hi"
+              }
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "hi"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 376,
+      "action": {
+        "type": "invoke",
+        "field": "variant",
+        "args": [
+          {
+            "type": "variant",
+            "value": {
+              "case": "n",
+              "payload": {
+                "type": "u32",
+                "value": "99"
+              }
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "99"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 378,
+      "action": {
+        "type": "invoke",
+        "field": "enum",
+        "args": [
+          {
+            "type": "enum",
+            "value": "red"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "red"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 379,
+      "action": {
+        "type": "invoke",
+        "field": "enum",
+        "args": [
+          {
+            "type": "enum",
+            "value": "green"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "green"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 380,
+      "action": {
+        "type": "invoke",
+        "field": "enum",
+        "args": [
+          {
+            "type": "enum",
+            "value": "blue"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "blue"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 382,
+      "action": {
+        "type": "invoke",
+        "field": "flags",
+        "args": [
+          {
+            "type": "flags",
+            "value": [
+              "a",
+              "c"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "ac"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 383,
+      "action": {
+        "type": "invoke",
+        "field": "flags",
+        "args": [
+          {
+            "type": "flags",
+            "value": []
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 384,
+      "action": {
+        "type": "invoke",
+        "field": "flags",
+        "args": [
+          {
+            "type": "flags",
+            "value": [
+              "a",
+              "b",
+              "c"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "abc"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 386,
+      "action": {
+        "type": "invoke",
+        "field": "option",
+        "args": [
+          {
+            "type": "option",
+            "value": {
+              "type": "u32",
+              "value": "5"
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "some5"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 387,
+      "action": {
+        "type": "invoke",
+        "field": "option",
+        "args": [
+          {
+            "type": "option",
+            "value": null
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "none"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 389,
+      "action": {
+        "type": "invoke",
+        "field": "result",
+        "args": [
+          {
+            "type": "result",
+            "value": {
+              "Ok": {
+                "type": "string",
+                "value": "yo"
+              }
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "okyo"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 390,
+      "action": {
+        "type": "invoke",
+        "field": "result",
+        "args": [
+          {
+            "type": "result",
+            "value": {
+              "Err": {
+                "type": "u32",
+                "value": "404"
+              }
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "err404"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 393,
+      "action": {
+        "type": "invoke",
+        "field": "nested-list",
+        "args": [
+          {
+            "type": "list",
+            "value": [
+              {
+                "type": "list",
+                "value": [
+                  {
+                    "type": "string",
+                    "value": "a"
+                  },
+                  {
+                    "type": "string",
+                    "value": "b"
+                  }
+                ]
+              },
+              {
+                "type": "list",
+                "value": []
+              },
+              {
+                "type": "list",
+                "value": [
+                  {
+                    "type": "string",
+                    "value": "c"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "abc"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 401,
+      "action": {
+        "type": "invoke",
+        "field": "profile",
+        "args": [
+          {
+            "type": "record",
+            "value": [
+              [
+                "name",
+                {
+                  "type": "string",
+                  "value": "p:"
+                }
+              ],
+              [
+                "scores",
+                {
+                  "type": "list",
+                  "value": [
+                    {
+                      "type": "u32",
+                      "value": "10"
+                    },
+                    {
+                      "type": "u32",
+                      "value": "20"
+                    },
+                    {
+                      "type": "u32",
+                      "value": "30"
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "p:102030"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 406,
+      "action": {
+        "type": "invoke",
+        "field": "maybe-pair",
+        "args": [
+          {
+            "type": "option",
+            "value": {
+              "type": "tuple",
+              "value": [
+                {
+                  "type": "string",
+                  "value": "n="
+                },
+                {
+                  "type": "u32",
+                  "value": "7"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "n=7"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 408,
+      "action": {
+        "type": "invoke",
+        "field": "maybe-pair",
+        "args": [
+          {
+            "type": "option",
+            "value": null
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "none"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 411,
+      "action": {
+        "type": "invoke",
+        "field": "entries",
+        "args": [
+          {
+            "type": "list",
+            "value": [
+              {
+                "type": "record",
+                "value": [
+                  [
+                    "k",
+                    {
+                      "type": "string",
+                      "value": "a"
+                    }
+                  ],
+                  [
+                    "v",
+                    {
+                      "type": "u32",
+                      "value": "1"
+                    }
+                  ]
+                ]
+              },
+              {
+                "type": "record",
+                "value": [
+                  [
+                    "k",
+                    {
+                      "type": "string",
+                      "value": "b"
+                    }
+                  ],
+                  [
+                    "v",
+                    {
+                      "type": "u32",
+                      "value": "2"
+                    }
+                  ]
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "a1b2"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 418,
+      "action": {
+        "type": "invoke",
+        "field": "deep",
+        "args": [
+          {
+            "type": "list",
+            "value": [
+              {
+                "type": "option",
+                "value": {
+                  "type": "tuple",
+                  "value": [
+                    {
+                      "type": "string",
+                      "value": "x"
+                    },
+                    {
+                      "type": "list",
+                      "value": [
+                        {
+                          "type": "u32",
+                          "value": "1"
+                        },
+                        {
+                          "type": "u32",
+                          "value": "2"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "option",
+                "value": null
+              },
+              {
+                "type": "option",
+                "value": {
+                  "type": "tuple",
+                  "value": [
+                    {
+                      "type": "string",
+                      "value": "y"
+                    },
+                    {
+                      "type": "list",
+                      "value": [
+                        {
+                          "type": "u32",
+                          "value": "3"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "x12noney3"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 426,
+      "action": {
+        "type": "invoke",
+        "field": "concat-u32s",
+        "args": [
+          {
+            "type": "list",
+            "value": [
+              {
+                "type": "u32",
+                "value": "0"
+              },
+              {
+                "type": "u32",
+                "value": "1"
+              },
+              {
+                "type": "u32",
+                "value": "2"
+              },
+              {
+                "type": "u32",
+                "value": "3"
+              },
+              {
+                "type": "u32",
+                "value": "4"
+              },
+              {
+                "type": "u32",
+                "value": "5"
+              },
+              {
+                "type": "u32",
+                "value": "6"
+              },
+              {
+                "type": "u32",
+                "value": "7"
+              },
+              {
+                "type": "u32",
+                "value": "8"
+              },
+              {
+                "type": "u32",
+                "value": "9"
+              },
+              {
+                "type": "u32",
+                "value": "10"
+              },
+              {
+                "type": "u32",
+                "value": "11"
+              },
+              {
+                "type": "u32",
+                "value": "12"
+              },
+              {
+                "type": "u32",
+                "value": "13"
+              },
+              {
+                "type": "u32",
+                "value": "14"
+              },
+              {
+                "type": "u32",
+                "value": "15"
+              },
+              {
+                "type": "u32",
+                "value": "16"
+              },
+              {
+                "type": "u32",
+                "value": "17"
+              },
+              {
+                "type": "u32",
+                "value": "18"
+              },
+              {
+                "type": "u32",
+                "value": "19"
+              },
+              {
+                "type": "u32",
+                "value": "20"
+              },
+              {
+                "type": "u32",
+                "value": "21"
+              },
+              {
+                "type": "u32",
+                "value": "22"
+              },
+              {
+                "type": "u32",
+                "value": "23"
+              },
+              {
+                "type": "u32",
+                "value": "24"
+              },
+              {
+                "type": "u32",
+                "value": "25"
+              },
+              {
+                "type": "u32",
+                "value": "26"
+              },
+              {
+                "type": "u32",
+                "value": "27"
+              },
+              {
+                "type": "u32",
+                "value": "28"
+              },
+              {
+                "type": "u32",
+                "value": "29"
+              },
+              {
+                "type": "u32",
+                "value": "30"
+              },
+              {
+                "type": "u32",
+                "value": "31"
+              },
+              {
+                "type": "u32",
+                "value": "32"
+              },
+              {
+                "type": "u32",
+                "value": "33"
+              },
+              {
+                "type": "u32",
+                "value": "34"
+              },
+              {
+                "type": "u32",
+                "value": "35"
+              },
+              {
+                "type": "u32",
+                "value": "36"
+              },
+              {
+                "type": "u32",
+                "value": "37"
+              },
+              {
+                "type": "u32",
+                "value": "38"
+              },
+              {
+                "type": "u32",
+                "value": "39"
+              },
+              {
+                "type": "u32",
+                "value": "40"
+              },
+              {
+                "type": "u32",
+                "value": "41"
+              },
+              {
+                "type": "u32",
+                "value": "42"
+              },
+              {
+                "type": "u32",
+                "value": "43"
+              },
+              {
+                "type": "u32",
+                "value": "44"
+              },
+              {
+                "type": "u32",
+                "value": "45"
+              },
+              {
+                "type": "u32",
+                "value": "46"
+              },
+              {
+                "type": "u32",
+                "value": "47"
+              },
+              {
+                "type": "u32",
+                "value": "48"
+              },
+              {
+                "type": "u32",
+                "value": "49"
+              },
+              {
+                "type": "u32",
+                "value": "50"
+              },
+              {
+                "type": "u32",
+                "value": "51"
+              },
+              {
+                "type": "u32",
+                "value": "52"
+              },
+              {
+                "type": "u32",
+                "value": "53"
+              },
+              {
+                "type": "u32",
+                "value": "54"
+              },
+              {
+                "type": "u32",
+                "value": "55"
+              },
+              {
+                "type": "u32",
+                "value": "56"
+              },
+              {
+                "type": "u32",
+                "value": "57"
+              },
+              {
+                "type": "u32",
+                "value": "58"
+              },
+              {
+                "type": "u32",
+                "value": "59"
+              },
+              {
+                "type": "u32",
+                "value": "60"
+              },
+              {
+                "type": "u32",
+                "value": "61"
+              },
+              {
+                "type": "u32",
+                "value": "62"
+              },
+              {
+                "type": "u32",
+                "value": "63"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "0123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 431,
+      "action": {
+        "type": "invoke",
+        "field": "echo",
+        "args": [
+          {
+            "type": "string",
+            "value": "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 434,
+      "action": {
+        "type": "invoke",
+        "field": "bignum",
+        "args": [
+          {
+            "type": "u64",
+            "value": "18446744073709551615"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "18446744073709551615"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 436,
+      "action": {
+        "type": "invoke",
+        "field": "flat-mix",
+        "args": [
+          {
+            "type": "variant",
+            "value": {
+              "case": "a",
+              "payload": {
+                "type": "u32",
+                "value": "42"
+              }
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 437,
+      "action": {
+        "type": "invoke",
+        "field": "flat-mix",
+        "args": [
+          {
+            "type": "variant",
+            "value": {
+              "case": "b",
+              "payload": {
+                "type": "f32",
+                "value": "1084227584"
+              }
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "5"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 438,
+      "action": {
+        "type": "invoke",
+        "field": "flat-mix",
+        "args": [
+          {
+            "type": "variant",
+            "value": {
+              "case": "c",
+              "payload": {
+                "type": "u64",
+                "value": "18446744073709551615"
+              }
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "18446744073709551615"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 439,
+      "action": {
+        "type": "invoke",
+        "field": "flat-mix",
+        "args": [
+          {
+            "type": "variant",
+            "value": {
+              "case": "d",
+              "payload": {
+                "type": "f64",
+                "value": "4621256167635550208"
+              }
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "9"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 440,
+      "action": {
+        "type": "invoke",
+        "field": "flat-pad",
+        "args": [
+          {
+            "type": "variant",
+            "value": {
+              "case": "p",
+              "payload": {
+                "type": "tuple",
+                "value": [
+                  {
+                    "type": "f32",
+                    "value": "1073741824"
+                  },
+                  {
+                    "type": "f32",
+                    "value": "1077936128"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "23"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 441,
+      "action": {
+        "type": "invoke",
+        "field": "flat-pad",
+        "args": [
+          {
+            "type": "variant",
+            "value": {
+              "case": "q",
+              "payload": {
+                "type": "u32",
+                "value": "42"
+              }
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 444,
+      "action": {
+        "type": "invoke",
+        "field": "list-variant",
+        "args": [
+          {
+            "type": "list",
+            "value": [
+              {
+                "type": "variant",
+                "value": {
+                  "case": "n",
+                  "payload": {
+                    "type": "u32",
+                    "value": "1"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "s",
+                  "payload": {
+                    "type": "string",
+                    "value": "two"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "n",
+                  "payload": {
+                    "type": "u32",
+                    "value": "3"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "s",
+                  "payload": {
+                    "type": "string",
+                    "value": "!"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "1two3!"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 451,
+      "action": {
+        "type": "invoke",
+        "field": "list-variant",
+        "args": [
+          {
+            "type": "list",
+            "value": []
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 453,
+      "action": {
+        "type": "invoke",
+        "field": "list-variant2",
+        "args": [
+          {
+            "type": "list",
+            "value": [
+              {
+                "type": "variant",
+                "value": {
+                  "case": "b",
+                  "payload": {
+                    "type": "u8",
+                    "value": "7"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "w",
+                  "payload": {
+                    "type": "u64",
+                    "value": "18446744073709551615"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "b",
+                  "payload": {
+                    "type": "u8",
+                    "value": "255"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "718446744073709551615255"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 463,
+      "filename": "concat.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 723,
+      "action": {
+        "type": "invoke",
+        "field": "map-str-u32",
+        "args": [
+          {
+            "type": "list",
+            "value": [
+              {
+                "type": "tuple",
+                "value": [
+                  {
+                    "type": "string",
+                    "value": "a"
+                  },
+                  {
+                    "type": "u32",
+                    "value": "1"
+                  }
+                ]
+              },
+              {
+                "type": "tuple",
+                "value": [
+                  {
+                    "type": "string",
+                    "value": "b"
+                  },
+                  {
+                    "type": "u32",
+                    "value": "2"
+                  }
+                ]
+              },
+              {
+                "type": "tuple",
+                "value": [
+                  {
+                    "type": "string",
+                    "value": "c"
+                  },
+                  {
+                    "type": "u32",
+                    "value": "3"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "a1b2c3"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 729,
+      "action": {
+        "type": "invoke",
+        "field": "map-str-u32",
+        "args": [
+          {
+            "type": "list",
+            "value": []
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 732,
+      "action": {
+        "type": "invoke",
+        "field": "map-str-u32",
+        "args": [
+          {
+            "type": "list",
+            "value": [
+              {
+                "type": "tuple",
+                "value": [
+                  {
+                    "type": "string",
+                    "value": "z"
+                  },
+                  {
+                    "type": "u32",
+                    "value": "26"
+                  }
+                ]
+              },
+              {
+                "type": "tuple",
+                "value": [
+                  {
+                    "type": "string",
+                    "value": "k"
+                  },
+                  {
+                    "type": "u32",
+                    "value": "1"
+                  }
+                ]
+              },
+              {
+                "type": "tuple",
+                "value": [
+                  {
+                    "type": "string",
+                    "value": "k"
+                  },
+                  {
+                    "type": "u32",
+                    "value": "2"
+                  }
+                ]
+              },
+              {
+                "type": "tuple",
+                "value": [
+                  {
+                    "type": "string",
+                    "value": "a"
+                  },
+                  {
+                    "type": "u32",
+                    "value": "0"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "z26k1k2a0"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 741,
+      "action": {
+        "type": "invoke",
+        "field": "map-u32-str",
+        "args": [
+          {
+            "type": "list",
+            "value": [
+              {
+                "type": "tuple",
+                "value": [
+                  {
+                    "type": "u32",
+                    "value": "10"
+                  },
+                  {
+                    "type": "string",
+                    "value": "x"
+                  }
+                ]
+              },
+              {
+                "type": "tuple",
+                "value": [
+                  {
+                    "type": "u32",
+                    "value": "20"
+                  },
+                  {
+                    "type": "string",
+                    "value": "y"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "10x20y"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 748,
+      "action": {
+        "type": "invoke",
+        "field": "map-char-bool",
+        "args": [
+          {
+            "type": "list",
+            "value": [
+              {
+                "type": "tuple",
+                "value": [
+                  {
+                    "type": "char",
+                    "value": "A"
+                  },
+                  {
+                    "type": "bool",
+                    "value": true
+                  }
+                ]
+              },
+              {
+                "type": "tuple",
+                "value": [
+                  {
+                    "type": "char",
+                    "value": "z"
+                  },
+                  {
+                    "type": "bool",
+                    "value": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "Atruezfalse"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 755,
+      "action": {
+        "type": "invoke",
+        "field": "map-u8-u64",
+        "args": [
+          {
+            "type": "list",
+            "value": [
+              {
+                "type": "tuple",
+                "value": [
+                  {
+                    "type": "u8",
+                    "value": "255"
+                  },
+                  {
+                    "type": "u64",
+                    "value": "18446744073709551615"
+                  }
+                ]
+              },
+              {
+                "type": "tuple",
+                "value": [
+                  {
+                    "type": "u8",
+                    "value": "0"
+                  },
+                  {
+                    "type": "u64",
+                    "value": "7"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "2551844674407370955161507"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 762,
+      "action": {
+        "type": "invoke",
+        "field": "map-str-list",
+        "args": [
+          {
+            "type": "list",
+            "value": [
+              {
+                "type": "tuple",
+                "value": [
+                  {
+                    "type": "string",
+                    "value": "p"
+                  },
+                  {
+                    "type": "list",
+                    "value": [
+                      {
+                        "type": "u32",
+                        "value": "1"
+                      },
+                      {
+                        "type": "u32",
+                        "value": "2"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tuple",
+                "value": [
+                  {
+                    "type": "string",
+                    "value": "q"
+                  },
+                  {
+                    "type": "list",
+                    "value": []
+                  }
+                ]
+              },
+              {
+                "type": "tuple",
+                "value": [
+                  {
+                    "type": "string",
+                    "value": "r"
+                  },
+                  {
+                    "type": "list",
+                    "value": [
+                      {
+                        "type": "u32",
+                        "value": "3"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "p12qr3"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 770,
+      "action": {
+        "type": "invoke",
+        "field": "map-str-map",
+        "args": [
+          {
+            "type": "list",
+            "value": [
+              {
+                "type": "tuple",
+                "value": [
+                  {
+                    "type": "string",
+                    "value": "a"
+                  },
+                  {
+                    "type": "list",
+                    "value": [
+                      {
+                        "type": "tuple",
+                        "value": [
+                          {
+                            "type": "string",
+                            "value": "x"
+                          },
+                          {
+                            "type": "list",
+                            "value": [
+                              {
+                                "type": "u8",
+                                "value": "1"
+                              },
+                              {
+                                "type": "u8",
+                                "value": "2"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "tuple",
+                        "value": [
+                          {
+                            "type": "string",
+                            "value": "y"
+                          },
+                          {
+                            "type": "list",
+                            "value": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tuple",
+                "value": [
+                  {
+                    "type": "string",
+                    "value": "b"
+                  },
+                  {
+                    "type": "list",
+                    "value": []
+                  }
+                ]
+              },
+              {
+                "type": "tuple",
+                "value": [
+                  {
+                    "type": "string",
+                    "value": "c"
+                  },
+                  {
+                    "type": "list",
+                    "value": [
+                      {
+                        "type": "tuple",
+                        "value": [
+                          {
+                            "type": "string",
+                            "value": "z"
+                          },
+                          {
+                            "type": "list",
+                            "value": [
+                              {
+                                "type": "u8",
+                                "value": "255"
+                              },
+                              {
+                                "type": "u8",
+                                "value": "0"
+                              },
+                              {
+                                "type": "u8",
+                                "value": "7"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tuple",
+                "value": [
+                  {
+                    "type": "string",
+                    "value": "k"
+                  },
+                  {
+                    "type": "list",
+                    "value": [
+                      {
+                        "type": "tuple",
+                        "value": [
+                          {
+                            "type": "string",
+                            "value": "d"
+                          },
+                          {
+                            "type": "list",
+                            "value": [
+                              {
+                                "type": "u8",
+                                "value": "0"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tuple",
+                "value": [
+                  {
+                    "type": "string",
+                    "value": "k"
+                  },
+                  {
+                    "type": "list",
+                    "value": [
+                      {
+                        "type": "tuple",
+                        "value": [
+                          {
+                            "type": "string",
+                            "value": "d"
+                          },
+                          {
+                            "type": "list",
+                            "value": [
+                              {
+                                "type": "u8",
+                                "value": "7"
+                              },
+                              {
+                                "type": "u8",
+                                "value": "8"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "tuple",
+                        "value": [
+                          {
+                            "type": "string",
+                            "value": "d"
+                          },
+                          {
+                            "type": "list",
+                            "value": [
+                              {
+                                "type": "u8",
+                                "value": "9"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": "ax12ybcz25507kd0kd78d9"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 788,
+      "action": {
+        "type": "invoke",
+        "field": "map-str-map",
+        "args": [
+          {
+            "type": "list",
+            "value": []
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "string",
+          "value": ""
+        }
+      ]
+    }
+  ]
+}

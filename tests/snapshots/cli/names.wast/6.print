@@ -1,0 +1,10 @@
+(module
+  (type $T (;0;) (func))
+  (type $"#type1 T" (@name "T") (;1;) (func (param i32)))
+  (type $S (;2;) (struct))
+  (rec
+    (type $R1 (;3;) (struct (field $f i32) (field $g (ref null $R2))))
+    (type $R2 (;4;) (array (mut i8)))
+  )
+  (type $"#type5 R2" (@name "R2") (;5;) (struct (field $f i32)))
+)

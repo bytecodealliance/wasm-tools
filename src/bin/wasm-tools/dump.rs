@@ -111,7 +111,7 @@ impl<'a> Dump<'a> {
                         if explicit {
                             me.print(offset)?;
                         }
-                        write!(me.state, "[type {}] {ty:?}", inc(&mut i.core_types))?;
+                        write!(me.state, "[type {}] {ty}", inc(&mut i.core_types))?;
                     }
                     me.print(end)
                 })?,
@@ -534,7 +534,7 @@ impl<'a> Dump<'a> {
                     self.print(c.data_offset())?;
                     match c.as_known() {
                         KnownCustom::Name(iter) => {
-                            self.print_subsections(iter, |me, item, pos| {
+                            self.print_subsections(iter.sections, |me, item, pos| {
                                 me.print_core_name(item, pos)
                             })?;
                         }
@@ -643,10 +643,14 @@ impl<'a> Dump<'a> {
     }
 
     fn print_name_map(&mut self, thing: &str, n: NameMap<'_>) -> Result<()> {
-        self.section(n, &format!("{thing} name"), |me, end, naming| {
-            write!(me.state, "{naming:?}")?;
-            me.print(end)
-        })
+        self.section(
+            n.names.into(),
+            &format!("{thing} name"),
+            |me, end, naming| {
+                write!(me.state, "{naming:?}")?;
+                me.print(end)
+            },
+        )
     }
 
     fn print_indirect_name_map(
@@ -655,7 +659,7 @@ impl<'a> Dump<'a> {
         thing_b: &str,
         n: IndirectNameMap<'_>,
     ) -> Result<()> {
-        self.section(n, thing_b, |me, _end, naming| {
+        self.section(n.names.into(), thing_b, |me, _end, naming| {
             write!(me.state, "{} {} ", thing_a, naming.index)?;
             me.print_name_map(thing_b, naming.names)
         })
@@ -719,6 +723,8 @@ impl<'a> Dump<'a> {
             Name::Data(n) => self.print_name_map("data", n)?,
             Name::Field(n) => self.print_indirect_name_map("type", "field", n)?,
             Name::Tag(n) => self.print_name_map("tag", n)?,
+            Name::Parameter(n) => self.print_indirect_name_map("func", "param", n)?,
+            Name::TagParameter(n) => self.print_indirect_name_map("tag", "param", n)?,
             Name::Unknown { ty, range, .. } => {
                 write!(self.state, "unknown names: {ty}")?;
                 self.print(range.start)?;

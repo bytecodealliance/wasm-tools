@@ -22,7 +22,7 @@ fn same_local_type_name_keeps_qualified_imports() -> Result<()> {
     let w2 = resolve.packages[pkg2].worlds["w2"];
     resolve.merge_worlds(w2, w1, &mut CloneMaps::default())?;
 
-    let wasm = wit_component::encode(&resolve, pkg1)?;
+    let wasm = wit_component::encode(&resolve, pkg1, true)?;
     wasmparser::Validator::new_with_features(WasmFeatures::all()).validate_all(&wasm)?;
     let wat = wasmprinter::print_bytes(&wasm)?;
     assert!(

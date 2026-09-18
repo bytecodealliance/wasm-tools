@@ -1,0 +1,142 @@
+(component
+  (core func $waitable-set.new (;0;) (canon waitable-set.new))
+  (core func $waitable.join (;1;) (canon waitable.join))
+  (core func $subtask.cancel (;2;) (canon subtask.cancel))
+  (core module $M1 (;0;)
+    (type (;0;) (func (result i32)))
+    (type (;1;) (func (param i32 i32)))
+    (type (;2;) (func))
+    (import "" "waitable-set.new" (func $waitable-set.new (;0;) (type 0) (result i32)))
+    (import "" "waitable.join" (func $waitable.join (;1;) (type 1) (param i32 i32)))
+    (global $ws (;0;) (mut i32) i32.const 0)
+    (global $sub (;1;) (mut i32) i32.const 0)
+    (export "sub" (global $sub))
+    (export "back" (func 3))
+    (start $start)
+    (func $start (;2;) (type 2)
+      call $waitable-set.new
+      global.set $ws
+    )
+    (func (;3;) (type 2)
+      global.get $sub
+      global.get $ws
+      call $waitable.join
+      unreachable
+    )
+  )
+  (core instance (;0;)
+    (export "waitable-set.new" (func $waitable-set.new))
+    (export "waitable.join" (func $waitable.join))
+  )
+  (core instance $m1 (;1;) (instantiate $M1
+      (with "" (instance 0))
+    )
+  )
+  (type (;0;) (func))
+  (alias core export $m1 "back" (core func (;3;)))
+  (func $back (;0;) (type 0) (canon lift (core func 3)))
+  (component $C (;0;)
+    (type (;0;) (func))
+    (import "back" (func $back (;0;) (type 0)))
+    (core func $back' (;0;) (canon lower (func $back)))
+    (core func $task.cancel (;1;) (canon task.cancel))
+    (core func $waitable-set.new (;2;) (canon waitable-set.new))
+    (core module $CM (;0;)
+      (type (;0;) (func))
+      (type (;1;) (func (result i32)))
+      (type (;2;) (func (param i32 i32 i32) (result i32)))
+      (import "" "back" (func $back (;0;) (type 0)))
+      (import "" "task.cancel" (func $task.cancel (;1;) (type 0)))
+      (import "" "waitable-set.new" (func $waitable-set.new (;2;) (type 1) (result i32)))
+      (global $ws (;0;) (mut i32) i32.const 0)
+      (export "f" (func 4))
+      (export "f-cb" (func 5))
+      (start $start)
+      (func $start (;3;) (type 0)
+        call $waitable-set.new
+        global.set $ws
+      )
+      (func (;4;) (type 1) (result i32)
+        i32.const 2
+        global.get $ws
+        i32.const 4
+        i32.shl
+        i32.or
+      )
+      (func (;5;) (type 2) (param i32 i32 i32) (result i32)
+        local.get 0
+        i32.const 6
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        call $task.cancel
+        call $back
+        unreachable
+      )
+    )
+    (core instance (;0;)
+      (export "back" (func $back'))
+      (export "task.cancel" (func $task.cancel))
+      (export "waitable-set.new" (func $waitable-set.new))
+    )
+    (core instance $cm (;1;) (instantiate $CM
+        (with "" (instance 0))
+      )
+    )
+    (type (;1;) (func async))
+    (alias core export $cm "f" (core func (;3;)))
+    (alias core export $cm "f-cb" (core func (;4;)))
+    (func (;1;) (type 1) (canon lift (core func 3) async (callback 4)))
+    (export (;2;) "f" (func 1))
+  )
+  (instance $c (;0;) (instantiate $C
+      (with "back" (func $back))
+    )
+  )
+  (alias export $c "f" (func (;1;)))
+  (core func $f' (;4;) (canon lower (func 1) async))
+  (core module $M2 (;1;)
+    (type (;0;) (func (result i32)))
+    (type (;1;) (func (param i32) (result i32)))
+    (import "" "f" (func $f (;0;) (type 0) (result i32)))
+    (import "" "subtask.cancel" (func $subtask.cancel (;1;) (type 1) (param i32) (result i32)))
+    (import "" "sub" (global $sub (;0;) (mut i32)))
+    (export "run" (func 2))
+    (func (;2;) (type 0) (result i32)
+      (local $p i32)
+      call $f
+      local.set $p
+      local.get $p
+      i32.const 15
+      i32.and
+      i32.const 1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      local.get $p
+      i32.const 4
+      i32.shr_u
+      global.set $sub
+      global.get $sub
+      call $subtask.cancel
+      drop
+      unreachable
+    )
+  )
+  (alias core export $m1 "sub" (core global (;0;)))
+  (core instance (;2;)
+    (export "f" (func $f'))
+    (export "subtask.cancel" (func $subtask.cancel))
+    (export "sub" (global 0))
+  )
+  (core instance $m2 (;3;) (instantiate $M2
+      (with "" (instance 2))
+    )
+  )
+  (type (;1;) (func (result u32)))
+  (alias core export $m2 "run" (core func (;5;)))
+  (func (;2;) (type 1) (canon lift (core func 5)))
+  (export (;3;) "run" (func 2))
+)

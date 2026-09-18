@@ -1,0 +1,163 @@
+{
+  "source_filename": "tests/component-model/test/linking/tags.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 7,
+      "filename": "tags.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 31,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": [
+          {
+            "type": "u32",
+            "value": "42"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 32,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": [
+          {
+            "type": "u32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "99"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 36,
+      "filename": "tags.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 60,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": [
+          {
+            "type": "u32",
+            "value": "7"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "7"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 64,
+      "filename": "tags.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 89,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": [
+          {
+            "type": "u32",
+            "value": "13"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "13"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 93,
+      "filename": "tags.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 133,
+      "action": {
+        "type": "invoke",
+        "field": "run-a",
+        "args": [
+          {
+            "type": "u32",
+            "value": "42"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 134,
+      "action": {
+        "type": "invoke",
+        "field": "run-b",
+        "args": [
+          {
+            "type": "u32",
+            "value": "42"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "77"
+        }
+      ]
+    },
+    {
+      "type": "assert_invalid",
+      "line": 138,
+      "filename": "tags.4.wasm",
+      "module_type": "binary",
+      "text": "export `f` for core instance 0 is not a tag"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 146,
+      "filename": "tags.5.wasm",
+      "module_type": "binary",
+      "text": "unknown tag 0: tag index out of bounds"
+    }
+  ]
+}

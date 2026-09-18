@@ -58,6 +58,8 @@ Options:
           Features to enable when parsing the `wit` option
       --all-features
           Enable all features when parsing the `wit` option
+      --emit-canonical-names
+          Emits canonical interface names with version suffixes
   -h, --help
           Print help (see more with '--help')
 

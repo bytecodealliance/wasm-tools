@@ -13,11 +13,49 @@
  * limitations under the License.
  */
 
-use crate::{BinaryReader, Error, FromReader, Result, SectionLimited, Subsection, Subsections};
+use crate::{
+    BinaryReader, Error, FromReader, Result, SectionLimited, SectionLimitedIntoIter, Subsection,
+    Subsections,
+};
 use core::ops::Range;
 
 /// Represents a name map from the names custom section.
-pub type NameMap<'a> = SectionLimited<'a, Naming<'a>>;
+#[derive(Debug, Clone)]
+pub struct NameMap<'a> {
+    /// The raw section that's being read.
+    pub names: SectionLimitedIntoIter<'a, Naming<'a>>,
+    last_index: Option<u32>,
+}
+
+impl<'a> NameMap<'a> {
+    /// Creates a new name map parser from the given data.
+    pub fn new(data: BinaryReader<'a>) -> Result<Self> {
+        let names = SectionLimited::new(data)?;
+        Ok(NameMap {
+            names: names.into_iter(),
+            last_index: None,
+        })
+    }
+}
+
+impl<'a> Iterator for NameMap<'a> {
+    type Item = Result<Naming<'a>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let start = self.names.original_position();
+        let name = self.names.next()?;
+        if let Ok(name) = &name {
+            let index = name.index;
+            if let Some(prev) = self.last_index {
+                if index <= prev {
+                    return Some(Err(Error::new("names out of order", start)));
+                }
+            }
+            self.last_index = Some(index);
+        }
+        Some(name)
+    }
+}
 
 /// Represents a name for an index from the names section.
 #[derive(Debug, Copy, Clone)]
@@ -40,7 +78,42 @@ impl<'a> FromReader<'a> for Naming<'a> {
 }
 
 /// Represents a reader for indirect names from the names custom section.
-pub type IndirectNameMap<'a> = SectionLimited<'a, IndirectNaming<'a>>;
+#[derive(Clone)]
+pub struct IndirectNameMap<'a> {
+    /// The names that are being iterated over.
+    pub names: SectionLimitedIntoIter<'a, IndirectNaming<'a>>,
+    last_index: Option<u32>,
+}
+
+impl<'a> IndirectNameMap<'a> {
+    /// Creates a new `IndirectNameMap` from the given data.
+    pub fn new(data: BinaryReader<'a>) -> Result<Self> {
+        let names = SectionLimited::new(data)?.into_iter();
+        Ok(IndirectNameMap {
+            names,
+            last_index: None,
+        })
+    }
+}
+
+impl<'a> Iterator for IndirectNameMap<'a> {
+    type Item = Result<IndirectNaming<'a>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let start = self.names.original_position();
+        let name = self.names.next()?;
+        if let Ok(name) = &name {
+            let index = name.index;
+            if let Some(prev) = self.last_index {
+                if index <= prev {
+                    return Some(Err(Error::new("indirect names out of order", start)));
+                }
+            }
+            self.last_index = Some(index);
+        }
+        Some(name)
+    }
+}
 
 /// Represents an indirect name in the names custom section.
 #[derive(Debug, Clone)]
@@ -106,6 +179,10 @@ pub enum Name<'a> {
     Field(IndirectNameMap<'a>),
     /// The name is for tags.
     Tag(NameMap<'a>),
+    /// The name is for parameters of function types.
+    Parameter(IndirectNameMap<'a>),
+    /// The name is for parameters of tag types.
+    TagParameter(IndirectNameMap<'a>),
     /// An unknown [name subsection](https://webassembly.github.io/spec/core/appendix/custom.html#subsections).
     Unknown {
         /// The identifier for this subsection.
@@ -118,8 +195,64 @@ pub enum Name<'a> {
     },
 }
 
+impl Name<'_> {
+    fn id(&self) -> u8 {
+        match self {
+            Name::Module { .. } => 0,
+            Name::Function(_) => 1,
+            Name::Local(_) => 2,
+            Name::Label(_) => 3,
+            Name::Type(_) => 4,
+            Name::Table(_) => 5,
+            Name::Memory(_) => 6,
+            Name::Global(_) => 7,
+            Name::Element(_) => 8,
+            Name::Data(_) => 9,
+            Name::Field(_) => 10,
+            Name::Tag(_) => 11,
+            Name::Parameter(_) => 12,
+            Name::TagParameter(_) => 13,
+            Name::Unknown { ty, .. } => *ty,
+        }
+    }
+}
+
 /// A reader for the name custom section of a WebAssembly module.
-pub type NameSectionReader<'a> = Subsections<'a, Name<'a>>;
+#[derive(Clone)]
+pub struct NameSectionReader<'a> {
+    /// The raw list of sections that are being parsed.
+    pub sections: Subsections<'a, Name<'a>>,
+    last_id: Option<u8>,
+}
+
+impl<'a> NameSectionReader<'a> {
+    /// Creates a new `NameSectionReader` from the given data.
+    pub fn new(data: BinaryReader<'a>) -> Self {
+        NameSectionReader {
+            sections: Subsections::new(data),
+            last_id: None,
+        }
+    }
+}
+
+impl<'a> Iterator for NameSectionReader<'a> {
+    type Item = Result<Name<'a>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let start = self.sections.original_position();
+        let section = self.sections.next()?;
+        if let Ok(section) = &section {
+            let id = section.id();
+            if let Some(prev) = self.last_id {
+                if id <= prev {
+                    return Some(Err(Error::new("name subsection out of order", start)));
+                }
+            }
+            self.last_id = Some(id);
+        }
+        Some(section)
+    }
+}
 
 impl<'a> Subsection<'a> for Name<'a> {
     fn from_reader(id: u8, mut reader: BinaryReader<'a>) -> Result<Self> {
@@ -149,6 +282,8 @@ impl<'a> Subsection<'a> for Name<'a> {
             9 => Name::Data(NameMap::new(reader)?),
             10 => Name::Field(IndirectNameMap::new(reader)?),
             11 => Name::Tag(NameMap::new(reader)?),
+            12 => Name::Parameter(IndirectNameMap::new(reader)?),
+            13 => Name::TagParameter(IndirectNameMap::new(reader)?),
             ty => Name::Unknown {
                 ty,
                 data: reader.remaining_buffer(),

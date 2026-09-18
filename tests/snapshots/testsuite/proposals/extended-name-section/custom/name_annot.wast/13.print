@@ -1,0 +1,23 @@
+(module
+  (type (;0;) (func))
+  (func (;0;) (type 0)
+    block $a
+    end
+    block ;; label = @1
+    end
+    loop $b
+    end
+    i32.const 1
+    if $c
+      block $d
+      end
+    else
+      block $e
+      end
+    end
+    block $f
+      try_table $g (catch_all $f)
+      end
+    end
+  )
+)

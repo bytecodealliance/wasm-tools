@@ -4,9 +4,7 @@ version.workspace = true
 edition.workspace = true
 authors = ["Peter Huene <peter@huene.dev>"]
 license.workspace = true
-readme = "README.md"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-compose"
-homepage = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-compose"
 documentation = "https://docs.rs/wasm-compose"
 description = "A library for composing WebAssembly components."
 rust-version.workspace = true
@@ -16,7 +14,6 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-heck = "0.5.0"
 indexmap = { workspace = true, features = ["std"] }
 log = { workspace = true }
 petgraph = "0.6.2"

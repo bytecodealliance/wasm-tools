@@ -9,7 +9,7 @@
     (type (;2;) (func (param i32 i32) (result i32)))
     (type (;3;) (func (param i32 i32 i32 i32) (result i32)))
     (import "$root" "foo" (func (;0;) (type 0)))
-    (import "$root" "bar" (func (;1;) (type 1)))
+    (import "$root" "bar" (func (;1;) (type 1) (param i32)))
     (memory (;0;) 1)
     (export "baz" (func 2))
     (export "foo2" (func 3))
@@ -59,7 +59,7 @@
   (alias core export $main "memory" (core memory $memory (;0;)))
   (core module $wit-component-fixup (;2;)
     (type (;0;) (func (param i32)))
-    (import "actual" "0" (func $0 (;0;) (type 0)))
+    (import "actual" "0" (func $0 (;0;) (type 0) (param i32)))
     (import "shim" "$imports" (table (;0;) 1 1 funcref))
     (elem (;0;) (i32.const 0) func $0)
     (@producers

@@ -1,0 +1,13 @@
+(component
+  (type $R (;0;) (resource (rep i32)))
+  (instance $bag (;0;)
+    (export "r" (type $R))
+  )
+  (export $bag' (;1;) "i" (instance $bag))
+  (alias export $bag' "r" (type $R' (;1;)))
+  (core func $drop (;0;) (canon resource.drop $R'))
+  (type (;2;) (own $R'))
+  (type (;3;) (func (param "x" 2)))
+  (func $f (;0;) (type 3) (canon lift (core func $drop)))
+  (export (;1;) "f" (func $f))
+)

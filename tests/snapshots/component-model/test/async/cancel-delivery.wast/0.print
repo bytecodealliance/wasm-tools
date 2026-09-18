@@ -1,0 +1,392 @@
+(component
+  (component $C (;0;)
+    (core module $Memory (;0;)
+      (memory (;0;) 1)
+      (export "mem" (memory 0))
+    )
+    (core instance $memory (;0;) (instantiate $Memory))
+    (core module $CM (;1;)
+      (type (;0;) (func))
+      (type (;1;) (func (param i32 i32) (result i32)))
+      (type (;2;) (func (result i32)))
+      (type (;3;) (func (param i32 i32 i32) (result i32)))
+      (type (;4;) (func (param i32) (result i32)))
+      (import "" "mem" (memory (;0;) 1))
+      (import "" "task.cancel" (func $task.cancel (;0;) (type 0)))
+      (import "" "future.read" (func $future.read (;1;) (type 1) (param i32 i32) (result i32)))
+      (import "" "waitable-set.new" (func $waitable-set.new (;2;) (type 2) (result i32)))
+      (import "" "waitable-set.poll" (func $waitable-set.poll (;3;) (type 1) (param i32 i32) (result i32)))
+      (import "" "thread.yield" (func $thread.yield (;4;) (type 2) (result i32)))
+      (global $cancelled (;0;) (mut i32) i32.const 0)
+      (export "yield-until-cancel" (func $yield-until-cancel))
+      (export "yield-until-cancel_cb" (func $yield-until-cancel_cb))
+      (export "deferred" (func $deferred))
+      (export "expect-cancelled_cb" (func $expect-cancelled_cb))
+      (export "pending-survives" (func $pending-survives))
+      (func $yield-until-cancel (;5;) (type 2) (result i32)
+        i32.const 1
+      )
+      (func $yield-until-cancel_cb (;6;) (type 3) (param $event_code i32) (param $index i32) (param $payload i32) (result i32)
+        local.get $event_code
+        i32.const 6
+        i32.eq
+        if ;; label = @1
+          global.get $cancelled
+          if ;; label = @2
+            unreachable
+          end
+          i32.const 1
+          global.set $cancelled
+          i32.const 1
+          return
+        end
+        local.get $event_code
+        i32.const 0
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        global.get $cancelled
+        i32.eqz
+        if ;; label = @1
+          i32.const 1
+          return
+        end
+        call $task.cancel
+        i32.const 0
+      )
+      (func $deferred (;7;) (type 4) (param $futr i32) (result i32)
+        local.get $futr
+        i32.const 0
+        call $future.read
+        i32.const 0
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 2
+        call $waitable-set.new
+        i32.const 4
+        i32.shl
+        i32.or
+      )
+      (func $expect-cancelled_cb (;8;) (type 3) (param $event_code i32) (param $index i32) (param $payload i32) (result i32)
+        local.get $event_code
+        i32.const 6
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        call $task.cancel
+        i32.const 0
+      )
+      (func $pending-survives (;9;) (type 4) (param $futr i32) (result i32)
+        (local $ws i32)
+        local.get $futr
+        i32.const 0
+        call $future.read
+        i32.const 0
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        call $thread.yield
+        i32.const 0
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        call $waitable-set.new
+        local.set $ws
+        local.get $ws
+        i32.const 0
+        call $waitable-set.poll
+        i32.const 0
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 2
+        local.get $ws
+        i32.const 4
+        i32.shl
+        i32.or
+      )
+    )
+    (type $FT (;0;) (future))
+    (core func $task.cancel (;0;) (canon task.cancel))
+    (alias core export $memory "mem" (core memory (;0;)))
+    (core func $future.read (;1;) (canon future.read $FT (memory 0)))
+    (core func $waitable-set.new (;2;) (canon waitable-set.new))
+    (alias core export $memory "mem" (core memory (;1;)))
+    (core func $waitable-set.poll (;3;) (canon waitable-set.poll (memory 1)))
+    (core func $thread.yield (;4;) (canon thread.yield))
+    (alias core export $memory "mem" (core memory (;2;)))
+    (core instance (;1;)
+      (export "mem" (memory 2))
+      (export "task.cancel" (func $task.cancel))
+      (export "future.read" (func $future.read))
+      (export "waitable-set.new" (func $waitable-set.new))
+      (export "waitable-set.poll" (func $waitable-set.poll))
+      (export "thread.yield" (func $thread.yield))
+    )
+    (core instance $cm (;2;) (instantiate $CM
+        (with "" (instance 1))
+      )
+    )
+    (type (;1;) (func async))
+    (alias core export $cm "yield-until-cancel" (core func (;5;)))
+    (alias core export $cm "yield-until-cancel_cb" (core func (;6;)))
+    (func (;0;) (type 1) (canon lift (core func 5) async (callback 6)))
+    (type (;2;) (func async (param "fut" $FT)))
+    (alias core export $cm "deferred" (core func (;7;)))
+    (alias core export $cm "expect-cancelled_cb" (core func (;8;)))
+    (func (;1;) (type 2) (canon lift (core func 7) async (callback 8)))
+    (type (;3;) (func async (param "fut" $FT)))
+    (alias core export $cm "pending-survives" (core func (;9;)))
+    (alias core export $cm "expect-cancelled_cb" (core func (;10;)))
+    (func (;2;) (type 3) (canon lift (core func 9) async (callback 10)))
+    (export (;3;) "yield-until-cancel" (func 0))
+    (export (;4;) "deferred" (func 1))
+    (export (;5;) "pending-survives" (func 2))
+  )
+  (component $D (;1;)
+    (type $FT (;0;) (future))
+    (type (;1;) (func async))
+    (import "yield-until-cancel" (func $yield-until-cancel (;0;) (type 1)))
+    (type (;2;) (func async (param "fut" $FT)))
+    (import "deferred" (func $deferred (;1;) (type 2)))
+    (type (;3;) (func async (param "fut" $FT)))
+    (import "pending-survives" (func $pending-survives (;2;) (type 3)))
+    (core module $Memory (;0;)
+      (memory (;0;) 1)
+      (export "mem" (memory 0))
+    )
+    (core instance $memory (;0;) (instantiate $Memory))
+    (core module $DM (;1;)
+      (type (;0;) (func (param i32) (result i32)))
+      (type (;1;) (func (param i32)))
+      (type (;2;) (func (result i64)))
+      (type (;3;) (func (param i32 i32) (result i32)))
+      (type (;4;) (func (param i32 i32)))
+      (type (;5;) (func (result i32)))
+      (import "" "mem" (memory (;0;) 1))
+      (import "" "subtask.cancel" (func $subtask.cancel (;0;) (type 0) (param i32) (result i32)))
+      (import "" "subtask.drop" (func $subtask.drop (;1;) (type 1) (param i32)))
+      (import "" "future.new" (func $future.new (;2;) (type 2) (result i64)))
+      (import "" "future.write" (func $future.write (;3;) (type 3) (param i32 i32) (result i32)))
+      (import "" "waitable.join" (func $waitable.join (;4;) (type 4) (param i32 i32)))
+      (import "" "waitable-set.new" (func $waitable-set.new (;5;) (type 5) (result i32)))
+      (import "" "waitable-set.wait" (func $waitable-set.wait (;6;) (type 3) (param i32 i32) (result i32)))
+      (import "" "yield-until-cancel" (func $yield-until-cancel (;7;) (type 5) (result i32)))
+      (import "" "deferred" (func $deferred (;8;) (type 0) (param i32) (result i32)))
+      (import "" "pending-survives" (func $pending-survives (;9;) (type 0) (param i32) (result i32)))
+      (export "run" (func $run))
+      (func $await-cancelled (;10;) (type 1) (param $sub i32)
+        (local $ws i32)
+        call $waitable-set.new
+        local.set $ws
+        local.get $sub
+        local.get $ws
+        call $waitable.join
+        local.get $ws
+        i32.const 8
+        call $waitable-set.wait
+        i32.const 1
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 8
+        i32.load
+        local.get $sub
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 12
+        i32.load
+        i32.const 4
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $sub
+        i32.const 0
+        call $waitable.join
+        local.get $sub
+        call $subtask.drop
+      )
+      (func $run (;11;) (type 5) (result i32)
+        (local $ret i32) (local $ret64 i64) (local $subtask i32) (local $futr i32) (local $futw i32)
+        call $yield-until-cancel
+        local.set $ret
+        i32.const 1
+        local.get $ret
+        i32.const 15
+        i32.and
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $ret
+        i32.const 4
+        i32.shr_u
+        local.set $subtask
+        local.get $subtask
+        call $subtask.cancel
+        local.set $ret
+        local.get $ret
+        i32.const -1
+        i32.eq
+        if ;; label = @1
+          local.get $subtask
+          call $await-cancelled
+        else
+          local.get $ret
+          i32.const 4
+          i32.ne
+          if ;; label = @2
+            unreachable
+          end
+          local.get $subtask
+          call $subtask.drop
+        end
+        call $future.new
+        local.set $ret64
+        local.get $ret64
+        i32.wrap_i64
+        local.set $futr
+        local.get $ret64
+        i64.const 32
+        i64.shr_u
+        i32.wrap_i64
+        local.set $futw
+        local.get $futr
+        call $deferred
+        local.set $ret
+        i32.const 1
+        local.get $ret
+        i32.const 15
+        i32.and
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $ret
+        i32.const 4
+        i32.shr_u
+        local.set $subtask
+        local.get $subtask
+        call $subtask.cancel
+        i32.const -1
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $futw
+        i32.const 0
+        call $future.write
+        i32.const 0
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $subtask
+        call $await-cancelled
+        call $future.new
+        local.set $ret64
+        local.get $ret64
+        i32.wrap_i64
+        local.set $futr
+        local.get $ret64
+        i64.const 32
+        i64.shr_u
+        i32.wrap_i64
+        local.set $futw
+        local.get $futr
+        call $pending-survives
+        local.set $ret
+        i32.const 1
+        local.get $ret
+        i32.const 15
+        i32.and
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $ret
+        i32.const 4
+        i32.shr_u
+        local.set $subtask
+        local.get $subtask
+        call $subtask.cancel
+        i32.const -1
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $futw
+        i32.const 0
+        call $future.write
+        i32.const 0
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $subtask
+        call $await-cancelled
+        i32.const 42
+      )
+    )
+    (core func $subtask.cancel (;0;) (canon subtask.cancel async))
+    (core func $subtask.drop (;1;) (canon subtask.drop))
+    (core func $future.new (;2;) (canon future.new $FT))
+    (alias core export $memory "mem" (core memory (;0;)))
+    (core func $future.write (;3;) (canon future.write $FT async (memory 0)))
+    (core func $waitable.join (;4;) (canon waitable.join))
+    (core func $waitable-set.new (;5;) (canon waitable-set.new))
+    (alias core export $memory "mem" (core memory (;1;)))
+    (core func $waitable-set.wait (;6;) (canon waitable-set.wait (memory 1)))
+    (alias core export $memory "mem" (core memory (;2;)))
+    (core func $yield-until-cancel' (;7;) (canon lower (func $yield-until-cancel) async (memory 2)))
+    (alias core export $memory "mem" (core memory (;3;)))
+    (core func $deferred' (;8;) (canon lower (func $deferred) async (memory 3)))
+    (alias core export $memory "mem" (core memory (;4;)))
+    (core func $pending-survives' (;9;) (canon lower (func $pending-survives) async (memory 4)))
+    (alias core export $memory "mem" (core memory (;5;)))
+    (core instance (;1;)
+      (export "mem" (memory 5))
+      (export "subtask.cancel" (func $subtask.cancel))
+      (export "subtask.drop" (func $subtask.drop))
+      (export "future.new" (func $future.new))
+      (export "future.write" (func $future.write))
+      (export "waitable.join" (func $waitable.join))
+      (export "waitable-set.new" (func $waitable-set.new))
+      (export "waitable-set.wait" (func $waitable-set.wait))
+      (export "yield-until-cancel" (func $yield-until-cancel'))
+      (export "deferred" (func $deferred'))
+      (export "pending-survives" (func $pending-survives'))
+    )
+    (core instance $dm (;2;) (instantiate $DM
+        (with "" (instance 1))
+      )
+    )
+    (type (;4;) (func async (result u32)))
+    (alias core export $dm "run" (core func (;10;)))
+    (func (;3;) (type 4) (canon lift (core func 10)))
+    (export (;4;) "run" (func 3))
+  )
+  (instance $c (;0;) (instantiate $C))
+  (alias export $c "yield-until-cancel" (func (;0;)))
+  (alias export $c "deferred" (func (;1;)))
+  (alias export $c "pending-survives" (func (;2;)))
+  (instance $d (;1;) (instantiate $D
+      (with "yield-until-cancel" (func 0))
+      (with "deferred" (func 1))
+      (with "pending-survives" (func 2))
+    )
+  )
+  (alias export $d "run" (func (;3;)))
+  (export (;4;) "run" (func 3))
+)

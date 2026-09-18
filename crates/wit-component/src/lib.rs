@@ -95,8 +95,9 @@ pub fn embed_component_metadata(
     wit_resolver: &Resolve,
     world: WorldId,
     encoding: StringEncoding,
+    canonical_names: bool,
 ) -> Result<()> {
-    let encoded = metadata::encode(&wit_resolver, world, encoding, None)?;
+    let encoded = metadata::encode(&wit_resolver, world, encoding, None, canonical_names)?;
 
     let section = wasm_encoder::CustomSection {
         name: "component-type".into(),
@@ -151,7 +152,7 @@ world test-world {}
         let world = resolver.select_world(&[pkg], Some("test-world"))?;
 
         // Embed component metadata
-        embed_component_metadata(&mut bytes, &resolver, world, StringEncoding::UTF8)?;
+        embed_component_metadata(&mut bytes, &resolver, world, StringEncoding::UTF8, true)?;
 
         // Re-retrieve custom section count, and search for the component-type custom section along the way
         let mut found_component_section = false;
@@ -209,7 +210,7 @@ world w {
 "#,
         )?;
 
-        let wasm = encode(&resolve, pkg)?;
+        let wasm = encode(&resolve, pkg, true)?;
         let wat = wasmprinter::print_bytes(&wasm)?;
         // The definition is restated locally and the import names where it came
         // from, just as it is for a type projected out of a foreign interface.
@@ -286,7 +287,7 @@ world w {
             "expected func to reference the foreign type:\n{printed}"
         );
 
-        let wasm = encode(&resolve, pkg)?;
+        let wasm = encode(&resolve, pkg, true)?;
         wasmparser::Validator::new_with_features(WasmFeatures::all()).validate_all(&wasm)?;
         Ok(())
     }
@@ -322,7 +323,7 @@ package local:nested {
             .map(|(_, id)| id)
             .expect("nested package");
 
-        let wasm = encode(&resolve, nested)?;
+        let wasm = encode(&resolve, nested, true)?;
         let wat = wasmprinter::print_bytes(&wasm)?;
         assert!(
             wat.contains("(export (;1;) \"point\" (type 0))"),
@@ -365,7 +366,7 @@ type point-list = list<point>;
 "#,
         )?;
 
-        let wasm = encode(&resolve, pkg)?;
+        let wasm = encode(&resolve, pkg, true)?;
         let wat = wasmprinter::print_bytes(&wasm)?;
         // `point` is exported first as a record and, since this package has
         // no interfaces or worlds, re-imported under its fully-qualified name
@@ -408,7 +409,7 @@ type path = list<point>;
 "#,
         )?;
 
-        let wasm = encode(&resolve, pkg)?;
+        let wasm = encode(&resolve, pkg, true)?;
         wasmparser::Validator::new_with_features(WasmFeatures::all()).validate_all(&wasm)?;
 
         let wat = wasmprinter::print_bytes(&wasm)?;
@@ -463,7 +464,7 @@ record bin {
 "#,
         )?;
 
-        let wasm = encode(&resolve, pkg)?;
+        let wasm = encode(&resolve, pkg, true)?;
         wasmparser::Validator::new_with_features(WasmFeatures::all()).validate_all(&wasm)?;
 
         let decoded = crate::decode(&wasm)?;
@@ -519,7 +520,7 @@ interface api {
 "#,
         )?;
 
-        let wasm = encode(&resolve, pkg)?;
+        let wasm = encode(&resolve, pkg, true)?;
         let wat = wasmprinter::print_bytes(&wasm)?;
         assert!(
             wat.contains("(import \"local:types/point\" (type"),
@@ -579,7 +580,7 @@ world w {
 "#,
         )?;
 
-        let wasm = encode(&resolve, pkg)?;
+        let wasm = encode(&resolve, pkg, true)?;
         let wat = wasmprinter::print_bytes(&wasm)?;
         assert!(
             wat.contains("local:types/point@1.2.3"),
@@ -668,7 +669,7 @@ world w {
         let world = resolve.select_world(&[pkg], Some("w"))?;
 
         let mut module = dummy_module(&resolve, world, ManglingAndAbi::Standard32);
-        embed_component_metadata(&mut module, &resolve, world, StringEncoding::UTF8)?;
+        embed_component_metadata(&mut module, &resolve, world, StringEncoding::UTF8, true)?;
         let component = ComponentEncoder::default()
             .module(&module)?
             .validate(true)

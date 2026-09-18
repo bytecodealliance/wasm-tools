@@ -72,6 +72,7 @@
 //! component model.
 
 use crate::StringEncoding;
+use crate::encoding::wit::component_extern_name;
 use crate::metadata::{self, Bindgen, ModuleMetadata};
 use crate::validation::{
     Export, ExportMap, Import, ImportInstance, ImportMap, PayloadInfo, PayloadType,
@@ -609,15 +610,40 @@ impl<'a> EncodingState<'a> {
         let instance_type_idx = self
             .component
             .type_instance(Some(&format!("ty-{name}")), &ty);
-        let instance_idx = self.component.import(
+
+        // TODO: refactor extern_name into a helper function
+        let extern_name = if self.info.encoder.emit_canonical_names {
+            let name = resolve
+                .canonicalized_id_of(interface_id)
+                .unwrap_or_else(|| name.to_string());
+            let implements = info
+                .implements
+                .map(|id| resolve.canonicalized_id_of(id).unwrap());
+            let suffix_id = if let Some(id) = info.implements {
+                id
+            } else {
+                interface_id
+            };
             wasm_encoder::ComponentExternName {
                 name: name.into(),
-                implements: info.implements.as_deref().map(|s| s.into()),
+                implements: implements.map(|s| s.into()),
+                external_id: info.external_id.as_deref().map(|s| s.into()),
+                version_suffix: resolve.version_suffix_of(suffix_id).map(|s| s.into()),
+            }
+        } else {
+            wasm_encoder::ComponentExternName {
+                name: name.into(),
+                implements: info
+                    .implements
+                    .as_ref()
+                    .map(|s| resolve.id_of(*s).unwrap().into()),
                 external_id: info.external_id.as_deref().map(|s| s.into()),
                 version_suffix: None,
-            },
-            ComponentTypeRef::Instance(instance_type_idx),
-        );
+            }
+        };
+        let instance_idx = self
+            .component
+            .import(extern_name, ComponentTypeRef::Instance(instance_type_idx));
         let prev = self.instances.insert(interface_id, instance_idx);
         assert!(prev.is_none());
         Ok(())
@@ -762,7 +788,11 @@ impl<'a> EncodingState<'a> {
         let world = &resolve.worlds[self.info.encoder.metadata.world];
 
         for export_name in exports {
-            let export_string = resolve.name_world_key(export_name);
+            let export_string = if self.info.encoder.emit_canonical_names {
+                resolve.name_canonicalized_world_key(export_name)
+            } else {
+                resolve.name_world_key(export_name)
+            };
             match &world.exports[export_name] {
                 WorldItem::Function(func) => {
                     let ty = self
@@ -993,13 +1023,10 @@ impl<'a> EncodingState<'a> {
             component_index,
             imports,
         );
+        let extern_name =
+            component_extern_name(resolve, key, item, self.info.encoder.emit_canonical_names);
         let idx = self.component.export(
-            wasm_encoder::ComponentExternName {
-                name: export_name.into(),
-                implements: resolve.implements_value(key, item).map(|s| s.into()),
-                external_id: resolve.external_id_value(key, item).map(|s| s.into()),
-                version_suffix: None,
-            },
+            extern_name,
             ComponentExportKind::Instance,
             instance_index,
             None,
@@ -1104,19 +1131,9 @@ impl<'a> EncodingState<'a> {
     ) -> Result<u32> {
         let resolve = &self.info.encoder.metadata.resolve;
         let metadata = self.info.module_metadata_for(module);
-        let instance_index = self.instance_for(module);
-        let imported_instance = module.to_imported_instance();
 
-        let core_alias_export = |me: &mut Self, core_name: &str| {
-            // If a hook was generated for this function, use that, otherwise
-            // use the original export.
-            let key = (imported_instance.clone(), core_name.to_string());
-            if let Some(&wrapper_idx) = me.export_task_initialization_wrappers.get(&key) {
-                wrapper_idx
-            } else {
-                me.core_alias_export(Some(core_name), instance_index, core_name, ExportKind::Func)
-            }
-        };
+        let core_alias_export =
+            |me: &mut Self, core_name: &str| me.hooked_core_alias_export(module, core_name);
 
         let core_func_index = core_alias_export(self, core_name);
         let exports = self.info.exports_for(module);
@@ -1135,9 +1152,9 @@ impl<'a> EncodingState<'a> {
             .unwrap();
         let exports = self.info.exports_for(module);
         let realloc_index = if options.contains(RequiredOptions::REALLOC) {
-            exports
-                .export_realloc_for(key, &func.name)
-                .map(|name| core_alias_export(self, name))
+            let realloc = exports.export_realloc_for(key, &func.name);
+            resolve_realloc(self.info, module, realloc)
+                .map(|(module, name)| self.hooked_core_alias_export(module, name))
         } else {
             None
         };
@@ -1178,7 +1195,7 @@ impl<'a> EncodingState<'a> {
 
         // Determine if a TLS global needs to be synthesized here by seeing if
         // it was imported into any module.
-        let tls_base_global_type = if self.info.uses_cooperative_threading() {
+        let tls_base_global_type = if self.info.can_use_context_slot_1() {
             None
         } else {
             let infos = [&self.info.info]
@@ -1500,12 +1517,12 @@ impl<'a> EncodingState<'a> {
                 ReallocSite::AfterInstantiation,
             )?,
 
-            ShimKind::WaitableSetWait { cancellable } => self
-                .component
-                .waitable_set_wait(*cancellable, self.memory_index.unwrap()),
-            ShimKind::WaitableSetPoll { cancellable } => self
-                .component
-                .waitable_set_poll(*cancellable, self.memory_index.unwrap()),
+            ShimKind::WaitableSetWait => {
+                self.component.waitable_set_wait(self.memory_index.unwrap())
+            }
+            ShimKind::WaitableSetPoll => {
+                self.component.waitable_set_poll(self.memory_index.unwrap())
+            }
             ShimKind::ErrorContextNew { encoding } => self
                 .component
                 .error_context_new(shim.options.into_iter(*encoding, self.memory_index, None)?),
@@ -1975,29 +1992,19 @@ impl<'a> EncodingState<'a> {
                 let index = self.component.backpressure_dec();
                 Ok((ExportKind::Func, index))
             }
-            Import::WaitableSetWait { cancellable } => {
+            Import::WaitableSetWait => {
                 if let Some(memory) = self.memory_index {
-                    let index = self.component.waitable_set_wait(*cancellable, memory);
+                    let index = self.component.waitable_set_wait(memory);
                     return Ok((ExportKind::Func, index));
                 }
-                Ok(self.materialize_shim_import(
-                    shims,
-                    &ShimKind::WaitableSetWait {
-                        cancellable: *cancellable,
-                    },
-                ))
+                Ok(self.materialize_shim_import(shims, &ShimKind::WaitableSetWait))
             }
-            Import::WaitableSetPoll { cancellable } => {
+            Import::WaitableSetPoll => {
                 if let Some(memory) = self.memory_index {
-                    let index = self.component.waitable_set_poll(*cancellable, memory);
+                    let index = self.component.waitable_set_poll(memory);
                     return Ok((ExportKind::Func, index));
                 }
-                Ok(self.materialize_shim_import(
-                    shims,
-                    &ShimKind::WaitableSetPoll {
-                        cancellable: *cancellable,
-                    },
-                ))
+                Ok(self.materialize_shim_import(shims, &ShimKind::WaitableSetPoll))
             }
             Import::SubtaskDrop => {
                 let index = self.component.subtask_drop();
@@ -2169,28 +2176,28 @@ impl<'a> EncodingState<'a> {
                 let index = self.component.thread_resume_later();
                 Ok((ExportKind::Func, index))
             }
-            Import::ThreadSuspend { cancellable } => {
-                let index = self.component.thread_suspend(*cancellable);
+            Import::ThreadSuspend => {
+                let index = self.component.thread_suspend();
                 Ok((ExportKind::Func, index))
             }
-            Import::ThreadYield { cancellable } => {
-                let index = self.component.thread_yield(*cancellable);
+            Import::ThreadYield => {
+                let index = self.component.thread_yield();
                 Ok((ExportKind::Func, index))
             }
-            Import::ThreadSuspendThenResume { cancellable } => {
-                let index = self.component.thread_suspend_then_resume(*cancellable);
+            Import::ThreadSuspendThenResume => {
+                let index = self.component.thread_suspend_then_resume();
                 Ok((ExportKind::Func, index))
             }
-            Import::ThreadYieldThenResume { cancellable } => {
-                let index = self.component.thread_yield_then_resume(*cancellable);
+            Import::ThreadYieldThenResume => {
+                let index = self.component.thread_yield_then_resume();
                 Ok((ExportKind::Func, index))
             }
-            Import::ThreadSuspendThenPromote { cancellable } => {
-                let index = self.component.thread_suspend_then_promote(*cancellable);
+            Import::ThreadSuspendThenPromote => {
+                let index = self.component.thread_suspend_then_promote();
                 Ok((ExportKind::Func, index))
             }
-            Import::ThreadYieldThenPromote { cancellable } => {
-                let index = self.component.thread_yield_then_promote(*cancellable);
+            Import::ThreadYieldThenPromote => {
+                let index = self.component.thread_yield_then_promote();
                 Ok((ExportKind::Func, index))
             }
         }
@@ -2200,7 +2207,7 @@ impl<'a> EncodingState<'a> {
     ///
     /// For more information on this see WebAssembly/wasi-libc#857
     fn materialize_tls_base_import(&mut self, set: bool, ty: ValType) -> u32 {
-        if self.info.uses_cooperative_threading() {
+        if self.info.can_use_context_slot_1() {
             if set {
                 self.component.context_set(ty, 1)
             } else {
@@ -2349,7 +2356,7 @@ impl<'a> EncodingState<'a> {
         if !options.contains(RequiredOptions::REALLOC) {
             return None;
         }
-        let export = export?;
+        let (module, export) = resolve_realloc(self.info, module, export)?;
 
         if !realloc_needs_shim(self.info, site) {
             let instance = self.instance_for(module);
@@ -2373,6 +2380,16 @@ impl<'a> EncodingState<'a> {
             &shim.name,
             ExportKind::Func,
         ))
+    }
+
+    fn hooked_core_alias_export(&mut self, module: CustomModule<'_>, core_name: &str) -> u32 {
+        let key = (module.to_imported_instance(), core_name.to_string());
+        if let Some(&wrapper_idx) = self.export_task_initialization_wrappers.get(&key) {
+            wrapper_idx
+        } else {
+            let instance = self.instance_for(module);
+            self.core_alias_export(Some(core_name), instance, core_name, ExportKind::Func)
+        }
     }
 
     /// Convenience function to go from `CustomModule` to the instance index
@@ -2515,11 +2532,11 @@ enum ShimKind<'a> {
     /// A shim used for the `waitable-set.wait` built-in function, which must
     /// refer to the core module instance's memory to which results will be
     /// written.
-    WaitableSetWait { cancellable: bool },
+    WaitableSetWait,
     /// A shim used for the `waitable-set.poll` built-in function, which must
     /// refer to the core module instance's memory to which results will be
     /// written.
-    WaitableSetPoll { cancellable: bool },
+    WaitableSetPoll,
     /// Shim for `task.return` to handle a reference to a `memory` which may
     TaskReturn {
         /// The interface (optional) that owns `func` below. If `None` then it's
@@ -2766,7 +2783,7 @@ impl<'a> Shims<'a> {
                     );
                 }
 
-                Import::WaitableSetWait { cancellable } => {
+                Import::WaitableSetWait => {
                     if memory_available {
                         continue;
                     }
@@ -2775,9 +2792,7 @@ impl<'a> Shims<'a> {
                         name,
                         debug_name: "waitable-set.wait".to_string(),
                         options: RequiredOptions::empty(),
-                        kind: ShimKind::WaitableSetWait {
-                            cancellable: *cancellable,
-                        },
+                        kind: ShimKind::WaitableSetWait,
                         sig: WasmSignature {
                             params: vec![WasmType::I32; 2],
                             results: vec![WasmType::I32],
@@ -2787,7 +2802,7 @@ impl<'a> Shims<'a> {
                     });
                 }
 
-                Import::WaitableSetPoll { cancellable } => {
+                Import::WaitableSetPoll => {
                     if memory_available {
                         continue;
                     }
@@ -2796,9 +2811,7 @@ impl<'a> Shims<'a> {
                         name,
                         debug_name: "waitable-set.poll".to_string(),
                         options: RequiredOptions::empty(),
-                        kind: ShimKind::WaitableSetPoll {
-                            cancellable: *cancellable,
-                        },
+                        kind: ShimKind::WaitableSetPoll,
                         sig: WasmSignature {
                             params: vec![WasmType::I32; 2],
                             results: vec![WasmType::I32],
@@ -3104,7 +3117,9 @@ impl<'a> Shims<'a> {
         if !options.contains(RequiredOptions::REALLOC) {
             return;
         }
-        let Some(export) = export else { return };
+        let Some((for_module, export)) = resolve_realloc(world, for_module, export) else {
+            return;
+        };
         if !realloc_needs_shim(world, site) {
             return;
         }
@@ -3132,6 +3147,34 @@ impl<'a> Shims<'a> {
         // it.
         if !self.shims.contains_key(&shim.kind) {
             self.shims.insert(shim.kind.clone(), shim);
+        }
+    }
+}
+
+/// Resolves which module, and which export of it, provides the `realloc`
+/// canonical option for `module`, where `export` is `module`'s own realloc
+/// export if it has one.
+///
+/// Libraries in a shared-everything link which don't export a realloc of their
+/// own fall back to the one shared by the rest of the link
+fn resolve_realloc<'a>(
+    world: &'a ComponentWorld<'a>,
+    module: CustomModule<'a>,
+    export: Option<&'a str>,
+) -> Option<(CustomModule<'a>, &'a str)> {
+    if let Some(export) = export {
+        return Some((module, export));
+    }
+    match module {
+        // If the main module doesn't have a realloc, then there's nothing to
+        // use.
+        CustomModule::Main => None,
+
+        // For libraries fallback to the realloc in the main module, if present.
+        CustomModule::Adapter(name) => {
+            let _info = world.adapters[name].library_info.as_ref()?;
+            let main_realloc = world.info.exports.general_purpose_realloc()?;
+            Some((CustomModule::Main, main_realloc))
         }
     }
 }
@@ -3260,6 +3303,7 @@ pub struct ComponentEncoder {
     pub(super) reject_legacy_names: bool,
     debug_names: bool,
     shim_return_call_ref: bool,
+    emit_canonical_names: bool,
 }
 
 impl ComponentEncoder {
@@ -3324,6 +3368,18 @@ impl ComponentEncoder {
     /// This is enabled by default.
     pub fn merge_imports_based_on_semver(&mut self, merge: bool) -> &mut Self {
         self.merge_imports_based_on_semver = Some(merge);
+        self
+    }
+
+    /// Sets whether to emit canonical interface names in the component binary.
+    ///
+    /// When enabled, import/export names use canonical version prefixes (e.g.,
+    /// `wasi:cli/exit@0.2` instead of `wasi:cli/exit@0.2.1`) and the
+    /// `version_suffix` field is populated.
+    ///
+    /// This is disabled by default.
+    pub fn emit_canonical_names(&mut self, emit: bool) -> &mut Self {
+        self.emit_canonical_names = emit;
         self
     }
 
@@ -3436,10 +3492,16 @@ impl ComponentEncoder {
         Ok(self)
     }
 
-    /// True if the realloc and stack allocation should use memory.grow
-    /// The default is to use the main module realloc
-    /// Can be useful if cabi_realloc cannot be called before the host
+    /// Whether adapters use `memory.grow` for realloc and stack allocation.
+    ///
+    /// By default an adapter imports `cabi_realloc` from the main module.
+    /// Setting this to `true` makes it allocate with `memory.grow` instead,
+    /// which can be useful if `cabi_realloc` cannot be called before the host
     /// runtime is initialized.
+    ///
+    /// This only affects modules added with [`ComponentEncoder::adapter`]. It
+    /// has no effect on the main module and does not synthesize a
+    /// `cabi_realloc` for a module that doesn't export one.
     pub fn realloc_via_memory_grow(&mut self, value: bool) -> &mut Self {
         self.realloc_via_memory_grow = value;
         self
@@ -3635,7 +3697,7 @@ world test {
 
         let mut module = dummy_module(&resolve, world, ManglingAndAbi::Standard32);
 
-        embed_component_metadata(&mut module, &resolve, world, StringEncoding::UTF8).unwrap();
+        embed_component_metadata(&mut module, &resolve, world, StringEncoding::UTF8, true).unwrap();
 
         let encoded = ComponentEncoder::default()
             .import_name_map(HashMap::from([

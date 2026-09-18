@@ -1,5 +1,5 @@
-use crate::Adapter;
 use crate::metadata;
+use crate::{Adapter, ImportedStackPointer};
 use std::collections::HashMap;
 use std::slice;
 use wasm_encoder::{BlockType, Function, InstructionSink, MemArg, ValType};
@@ -331,12 +331,11 @@ pub fn export(
         // into the stack-local memory. This also stores the dynamic number of lists
         // to deallocate if that was generated during this function.
 
-        let sp = c.adapter.stack_pointer();
-        c.ins().global_get(sp);
+        c.get_sp();
         c.ins().i32_const(8);
         c.ins().i32_sub();
         let l_scratch = c.local_tee_new_tmp(ValType::I32);
-        c.ins().global_set(sp);
+        c.set_sp();
 
         let l_ctx = c.ctx.take().unwrap();
         c.ins().local_get(l_scratch.idx);
@@ -366,9 +365,8 @@ pub fn post_return(
     let sig = resolve.wasm_signature(abi, func);
     let mut c = FunctionCompiler::new(adapter, resolve, sig.results.len() as u32);
     let frame = c.stack_frame(func, &sig, abi);
-    let sp = c.adapter.stack_pointer();
 
-    c.ins().global_get(sp);
+    c.get_sp();
     let l_sp = c.local_set_new_tmp(ValType::I32);
 
     // Load the `ctx` pointer for the export allocated during the originally
@@ -387,7 +385,7 @@ pub fn post_return(
     c.free_temp_local(l_sp);
     c.ins().i32_const(8);
     c.ins().i32_add();
-    c.ins().global_set(sp);
+    c.set_sp();
 
     // Tell the interpreter that the export has now finished.
     let export_finish = c.adapter.intrinsics().export_finish;
@@ -400,7 +398,7 @@ pub fn post_return(
 
     // And finally deallocate the stack frame, if present.
     if frame.size > 0 {
-        c.ins().global_get(sp);
+        c.get_sp();
         c.fp = Some(c.local_set_new_tmp(ValType::I32));
         c.deallocate_stack_frame(&frame);
     }
@@ -603,11 +601,10 @@ impl<'a> FunctionCompiler<'a> {
         }
         let fp = self.fp.take().unwrap();
         self.stack_temp_offset = None;
-        let sp = self.adapter.stack_pointer();
         self.ins().local_get(fp.idx);
         self.ins().i32_const(frame.size as i32);
         self.ins().i32_add();
-        self.ins().global_set(sp);
+        self.set_sp();
         self.free_temp_local(fp);
     }
 
@@ -699,13 +696,12 @@ impl<'a> FunctionCompiler<'a> {
         }
         // CABI for wasm is 16-byte alignment for stack at all times.
         assert!(frame.size % 16 == 0);
-        let sp = self.adapter.stack_pointer();
-        self.ins().global_get(sp);
+        self.get_sp();
         self.ins().i32_const(frame.size as i32);
         self.ins().i32_sub();
         self.fp = Some(self.local_tee_new_tmp(ValType::I32));
         self.stack_temp_offset = frame.stack_temp_offset;
-        self.ins().global_set(sp);
+        self.set_sp();
     }
 
     fn lower_import_params(
@@ -1957,6 +1953,28 @@ impl<'a> FunctionCompiler<'a> {
             self.ins().call(dealloc_bytes);
         }
         self.ins().end();
+    }
+
+    fn get_sp(&mut self) {
+        match self.adapter.stack_pointer.unwrap() {
+            ImportedStackPointer::Global(g) => {
+                self.ins().global_get(g);
+            }
+            ImportedStackPointer::TaskContext { get, .. } => {
+                self.ins().call(get);
+            }
+        }
+    }
+
+    fn set_sp(&mut self) {
+        match self.adapter.stack_pointer.unwrap() {
+            ImportedStackPointer::Global(g) => {
+                self.ins().global_set(g);
+            }
+            ImportedStackPointer::TaskContext { set, .. } => {
+                self.ins().call(set);
+            }
+        }
     }
 }
 

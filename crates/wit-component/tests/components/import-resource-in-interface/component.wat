@@ -12,9 +12,9 @@
   (core module $main (;0;)
     (type (;0;) (func (result i32)))
     (type (;1;) (func (param i32)))
-    (import "foo" "[constructor]a" (func (;0;) (type 0)))
-    (import "foo" "[static]a.other-new" (func (;1;) (type 0)))
-    (import "foo" "[resource-drop]a" (func (;2;) (type 1)))
+    (import "foo" "[constructor]a" (func (;0;) (type 0) (result i32)))
+    (import "foo" "[static]a.other-new" (func (;1;) (type 0) (result i32)))
+    (import "foo" "[resource-drop]a" (func (;2;) (type 1) (param i32)))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
       (processed-by "my-fake-bindgen" "123.45")

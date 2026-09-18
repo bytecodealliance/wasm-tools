@@ -1,0 +1,86 @@
+(component
+  (core module $Table (;0;)
+    (table (;0;) 1 funcref)
+    (export "__indirect_function_table" (table 0))
+  )
+  (core instance $table (;0;) (instantiate $Table))
+  (core module $Core (;1;)
+    (type (;0;) (func (param i32 i32) (result i32)))
+    (type (;1;) (func (param i32)))
+    (type (;2;) (func (result i32)))
+    (type (;3;) (func (param i32) (result i32)))
+    (type (;4;) (func))
+    (import "" "thread.new-indirect" (func $thread.new-indirect (;0;) (type 0) (param i32 i32) (result i32)))
+    (import "" "thread.resume-later" (func $thread.resume-later (;1;) (type 1) (param i32)))
+    (import "" "thread.yield" (func $thread.yield (;2;) (type 2) (result i32)))
+    (import "" "thread.yield-then-promote" (func $thread.yield-then-promote (;3;) (type 3) (param i32) (result i32)))
+    (import "" "__indirect_function_table" (table $tbl (;0;) 1 funcref))
+    (global $worker-ran (;0;) (mut i32) i32.const 0)
+    (global $worker-thread (;1;) (mut i32) i32.const 0)
+    (export "run" (func 6))
+    (export "run-promote" (func 7))
+    (elem (;0;) (table $tbl) (i32.const 0) func $worker)
+    (func $worker (;4;) (type 1) (param i32)
+      i32.const 1
+      global.set $worker-ran
+    )
+    (func $spawn-worker (;5;) (type 4)
+      i32.const 0
+      global.set $worker-ran
+      i32.const 0
+      i32.const 0
+      call $thread.new-indirect
+      global.set $worker-thread
+      global.get $worker-thread
+      call $thread.resume-later
+    )
+    (func (;6;) (type 2) (result i32)
+      call $spawn-worker
+      loop $again
+        call $thread.yield
+        drop
+        global.get $worker-ran
+        i32.eqz
+        br_if $again
+      end
+      i32.const 42
+    )
+    (func (;7;) (type 2) (result i32)
+      call $spawn-worker
+      global.get $worker-thread
+      call $thread.yield-then-promote
+      drop
+      global.get $worker-ran
+      i32.eqz
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 42
+    )
+  )
+  (core type $start-func-ty (;0;) (func (param i32)))
+  (alias core export $table "__indirect_function_table" (core table $indirect-function-table (;0;)))
+  (core func $thread.new-indirect (;0;) (canon thread.new-indirect $start-func-ty $indirect-function-table))
+  (core func $thread.resume-later (;1;) (canon thread.resume-later))
+  (core func $thread.yield (;2;) (canon thread.yield))
+  (core func $thread.yield-then-promote (;3;) (canon thread.yield-then-promote))
+  (core instance (;1;)
+    (export "thread.new-indirect" (func $thread.new-indirect))
+    (export "thread.resume-later" (func $thread.resume-later))
+    (export "thread.yield" (func $thread.yield))
+    (export "thread.yield-then-promote" (func $thread.yield-then-promote))
+    (export "__indirect_function_table" (table $indirect-function-table))
+  )
+  (core instance $core (;2;) (instantiate $Core
+      (with "" (instance 1))
+    )
+  )
+  (type (;0;) (func (result u32)))
+  (alias core export $core "run" (core func (;4;)))
+  (func (;0;) (type 0) (canon lift (core func 4)))
+  (type (;1;) (func (result u32)))
+  (alias core export $core "run-promote" (core func (;5;)))
+  (func (;1;) (type 1) (canon lift (core func 5)))
+  (export (;2;) "run" (func 0))
+  (export (;3;) "run-promote" (func 1))
+)

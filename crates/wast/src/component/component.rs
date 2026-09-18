@@ -53,6 +53,9 @@ impl<'a> Component<'a> {
     /// If an error happens during resolution, such a name resolution error or
     /// items are found in the wrong order, then an error is returned.
     pub fn resolve(&mut self) -> std::result::Result<(), crate::Error> {
+        // Ensure that each resolution of a component is deterministic in the names
+        // that it generates by resetting our thread-local symbol generator.
+        crate::gensym::reset();
         match &mut self.kind {
             ComponentKind::Text(fields) => {
                 crate::component::expand::expand(fields);

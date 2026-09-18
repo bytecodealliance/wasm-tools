@@ -26,31 +26,53 @@ pub const C_HEADER: &'static str = include_str!("../wit_dylib.h");
 pub struct DylibOpts {
     /// The interpreter name to insert into the `WASM_DYLINK_NEEDED` section
     /// encoded as `dylink.0`.
-    #[cfg_attr(feature = "clap", clap(long))]
+    #[cfg_attr(feature = "clap", clap(long, value_name = "name"))]
     pub interpreter: Option<String>,
 
     #[cfg_attr(feature = "clap", clap(flatten))]
     pub async_: AsyncFilterSet,
+
+    /// Where the stack pointer is located in the ABI of the generated dylib.
+    ///
+    /// For WASIp2-and-prior the `global` option should be used, and for
+    /// WASIp3-and-later the `task-context` option should be used.
+    #[cfg_attr(
+        feature = "clap",
+        clap(long, value_name = "loc", default_value = "global")
+    )]
+    pub stack_pointer: StackPointer,
 }
 
-pub fn create(resolve: &Resolve, world_id: WorldId, opts: Option<&mut DylibOpts>) -> Vec<u8> {
-    create_with_metadata(resolve, world_id, opts).0
+#[derive(Default, Clone, Debug)]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
+pub enum StackPointer {
+    #[default]
+    Global,
+    TaskContext,
+}
+
+pub fn create(
+    resolve: &Resolve,
+    world_id: WorldId,
+    opts: Option<&mut DylibOpts>,
+) -> anyhow::Result<Vec<u8>> {
+    Ok(create_with_metadata(resolve, world_id, opts)?.0)
 }
 
 pub fn create_with_metadata(
     resolve: &Resolve,
     world_id: WorldId,
     mut opts: Option<&mut DylibOpts>,
-) -> (Vec<u8>, Metadata) {
+) -> anyhow::Result<(Vec<u8>, Metadata)> {
     let mut adapter = Adapter::default();
     if let Some(opts) = &mut opts {
         adapter.opts = opts.clone();
     }
-    let result = adapter.encode(resolve, world_id);
+    let result = adapter.encode(resolve, world_id)?;
     if let Some(opts) = &mut opts {
         **opts = adapter.opts;
     }
-    (result, adapter.metadata)
+    Ok((result, adapter.metadata))
 }
 
 #[derive(Default)]
@@ -62,7 +84,7 @@ struct Adapter {
     global_index: u32,
     table_base: Option<u32>,
     memory_base: Option<u32>,
-    stack_pointer: Option<u32>,
+    stack_pointer: Option<ImportedStackPointer>,
     func_index: u32,
     functions: FunctionSection,
     exports: ExportSection,
@@ -83,6 +105,12 @@ struct Adapter {
     /// Elements of this list are function indices in this module which will be
     /// placed into the element segment.
     elem_segment: Vec<u32>,
+}
+
+#[derive(Copy, Clone)]
+enum ImportedStackPointer {
+    Global(u32),
+    TaskContext { get: u32, set: u32 },
 }
 
 #[derive(Default)]
@@ -130,8 +158,8 @@ struct PayloadData {
 }
 
 impl Adapter {
-    pub fn encode(&mut self, resolve: &Resolve, world_id: WorldId) -> Vec<u8> {
-        self.sizes.fill(resolve);
+    pub fn encode(&mut self, resolve: &Resolve, world_id: WorldId) -> anyhow::Result<Vec<u8>> {
+        self.sizes.fill(resolve)?;
 
         // First define all imports that will go into the wasm module since
         // they're required to be first in their index spaces anyway. This will
@@ -170,7 +198,7 @@ impl Adapter {
         let ty = self.define_ty([], []);
         self.define_func("__wasm_call_ctors", ty, ctor, true);
 
-        self.finish(&metadata)
+        Ok(self.finish(&metadata))
     }
 
     fn mangling(
@@ -401,7 +429,21 @@ impl Adapter {
 
         self.table_base = Some(self.import_global("env", "__table_base", const_i32_global));
         self.memory_base = Some(self.import_global("env", "__memory_base", const_i32_global));
-        self.stack_pointer = Some(self.import_global("env", "__stack_pointer", mut_i32_global));
+        self.stack_pointer = Some(match self.opts.stack_pointer {
+            StackPointer::Global => ImportedStackPointer::Global(self.import_global(
+                "env",
+                "__stack_pointer",
+                mut_i32_global,
+            )),
+            StackPointer::TaskContext => {
+                let get_ty = self.define_ty([], [ValType::I32]);
+                let set_ty = self.define_ty([ValType::I32], []);
+                ImportedStackPointer::TaskContext {
+                    get: self.import_func("$root", "[context-get-0]", get_ty),
+                    set: self.import_func("$root", "[context-set-0]", set_ty),
+                }
+            }
+        });
 
         self.imports.import(
             "env",
@@ -1202,10 +1244,6 @@ impl Adapter {
         self.intrinsics.as_ref().unwrap()
     }
 
-    fn stack_pointer(&self) -> u32 {
-        self.stack_pointer.unwrap()
-    }
-
     fn memory_base(&self) -> u32 {
         self.memory_base.unwrap()
     }
@@ -1453,7 +1491,7 @@ world w {{
             )
             .unwrap();
         let world = resolve.select_world(&[package], None).unwrap();
-        let adapter = super::create(&resolve, world, None);
+        let adapter = super::create(&resolve, world, None).unwrap();
         for payload in Parser::new(0).parse_all(&adapter) {
             match payload.unwrap() {
                 Payload::CodeSectionEntry(body) => {

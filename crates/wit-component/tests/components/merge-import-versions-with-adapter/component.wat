@@ -16,9 +16,9 @@
     (type (;2;) (func (param i32)))
     (type (;3;) (func (param i32 i32)))
     (import "old" "f" (func (;0;) (type 0)))
-    (import "a:b/c@0.1.0" "[constructor]r" (func (;1;) (type 1)))
-    (import "a:b/c@0.1.0" "[resource-drop]r" (func (;2;) (type 2)))
-    (import "a:b/c@0.1.0" "x" (func (;3;) (type 3)))
+    (import "a:b/c@0.1.0" "[constructor]r" (func (;1;) (type 1) (result i32)))
+    (import "a:b/c@0.1.0" "[resource-drop]r" (func (;2;) (type 2) (param i32)))
+    (import "a:b/c@0.1.0" "x" (func (;3;) (type 3) (param i32 i32)))
     (memory (;0;) 1)
     (export "memory" (memory 0))
     (@producers
@@ -78,7 +78,7 @@
     (type (;0;) (func))
     (type (;1;) (func (param i32 i32)))
     (import "actual" "0" (func $0 (;0;) (type 0)))
-    (import "actual" "1" (func $1 (;1;) (type 1)))
+    (import "actual" "1" (func $1 (;1;) (type 1) (param i32 i32)))
     (import "shim" "$imports" (table (;0;) 2 2 funcref))
     (elem (;0;) (i32.const 0) func $0 $1)
     (@producers

@@ -1,0 +1,7 @@
+package root:component;
+
+world root {
+  import a:b/c@0.1.1;
+
+  export a:b/c@0.1.0;
+}

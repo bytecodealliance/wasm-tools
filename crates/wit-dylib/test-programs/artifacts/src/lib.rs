@@ -42,7 +42,7 @@ fn create_component(
     resolve: &Resolve,
     wasm: (&Path, WorldId),
 ) -> Result<(Vec<u8>, PathBuf)> {
-    let mut adapter = wit_dylib::create(resolve, wasm.1, None);
+    let mut adapter = wit_dylib::create(resolve, wasm.1, None)?;
     let name = &resolve.worlds[wasm.1].name;
 
     wit_component::embed_component_metadata(
@@ -50,6 +50,7 @@ fn create_component(
         resolve,
         wasm.1,
         wit_component::StringEncoding::UTF8,
+        true,
     )?;
 
     let adapter_file = tempdir.path().join(format!("{name}_adapter.wasm"));

@@ -7,9 +7,9 @@
   (core module $main (;0;)
     (type (;0;) (func (result i32)))
     (type (;1;) (func (param i32)))
-    (import "$root" "[constructor]a" (func (;0;) (type 0)))
-    (import "$root" "[static]a.other-new" (func (;1;) (type 0)))
-    (import "$root" "[resource-drop]a" (func (;2;) (type 1)))
+    (import "$root" "[constructor]a" (func (;0;) (type 0) (result i32)))
+    (import "$root" "[static]a.other-new" (func (;1;) (type 0) (result i32)))
+    (import "$root" "[resource-drop]a" (func (;2;) (type 1) (param i32)))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
       (processed-by "my-fake-bindgen" "123.45")
