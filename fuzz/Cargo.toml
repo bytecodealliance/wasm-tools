@@ -15,7 +15,6 @@ anyhow = { workspace = true }
 arbitrary = { workspace = true }
 env_logger = { workspace = true }
 log = { workspace = true }
-tempfile = { workspace = true }
 wasm-encoder = { workspace = true }
 wasm-mutate = { workspace = true }
 wasm-smith = { workspace = true, features = ['component-model', 'wasmparser'] }

@@ -1314,15 +1314,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "itertools"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b4baf93f58d4425749ca49a51c50ebab072c5df6994d08fed93541c331481dc"
-dependencies = [
- "either",
-]
-
-[[package]]
 name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2466,13 +2457,10 @@ dependencies = [
  "arbitrary",
  "clap",
  "env_logger",
- "itertools 0.15.0",
  "log",
- "num_cpus",
  "rand",
  "wasm-mutate",
  "wasmparser 0.259.0",
- "wasmprinter 0.259.0",
  "wasmtime",
 ]
 
@@ -2561,11 +2549,8 @@ name = "wasm-tools-c-api"
 version = "0.0.0"
 dependencies = [
  "arbitrary",
- "wasm-mutate",
- "wasm-shrink",
  "wasm-smith",
  "wasmparser 0.259.0",
- "wasmprinter 0.259.0",
  "wast",
  "wat",
 ]
@@ -2580,7 +2565,6 @@ dependencies = [
  "libfuzzer-sys",
  "log",
  "rand",
- "tempfile",
  "wasm-encoder 0.259.0",
  "wasm-mutate",
  "wasm-smith",
@@ -3225,7 +3209,6 @@ dependencies = [
  "env_logger",
  "libfuzzer-sys",
  "log",
- "wasmprinter 0.259.0",
  "wit-parser 0.259.0",
 ]
 
