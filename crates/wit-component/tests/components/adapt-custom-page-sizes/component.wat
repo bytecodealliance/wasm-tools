@@ -28,7 +28,7 @@
     (global $allocation_state (;1;) (mut i32) i32.const 0)
     (export "get_sum" (func 2))
     (start $allocate_stack)
-    (func $realloc_via_memory_grow (;1;) (type 1) (param i32 i32 i32 i32) (result i32)
+    (func $cabi_realloc (;1;) (type 1) (param i32 i32 i32 i32) (result i32)
       (local i32)
       i32.const 0
       local.get 0
@@ -70,7 +70,7 @@
       i32.const 0
       i32.const 8
       i32.const 65536
-      call $realloc_via_memory_grow
+      call $cabi_realloc
       local.set 0
       local.get 0
       i32.const 42
@@ -102,7 +102,7 @@
         i32.const 0
         i32.const 8
         i32.const 65536
-        call $realloc_via_memory_grow
+        call $cabi_realloc
         i32.const 65536
         i32.add
         global.set $__stack_pointer
