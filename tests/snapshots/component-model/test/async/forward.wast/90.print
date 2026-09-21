@@ -1,0 +1,449 @@
+(component $PingPongTester
+  (component $C (;0;)
+    (core module $Memory (;0;)
+      (memory (;0;) 1)
+      (export "mem" (memory 0))
+    )
+    (core instance $memory (;0;) (instantiate $Memory))
+    (core module $CM (;1;)
+      (type (;0;) (func (result i64)))
+      (type (;1;) (func (param i32 i32 i32) (result i32)))
+      (type (;2;) (func (param i32 i32)))
+      (type (;3;) (func (param i32)))
+      (type (;4;) (func (param i32) (result i32)))
+      (type (;5;) (func (result i32)))
+      (type (;6;) (func))
+      (import "" "mem" (memory (;0;) 1))
+      (import "" "stream.new" (func $stream.new (;0;) (type 0) (result i64)))
+      (import "" "stream.read" (func $stream.read (;1;) (type 1) (param i32 i32 i32) (result i32)))
+      (import "" "stream.write" (func $stream.write (;2;) (type 1) (param i32 i32 i32) (result i32)))
+      (import "" "stream.forward" (func $stream.forward (;3;) (type 2) (param i32 i32)))
+      (import "" "stream.drop-writable" (func $stream.drop-writable (;4;) (type 3) (param i32)))
+      (global $r (;0;) (mut i32) i32.const 0)
+      (global $w (;1;) (mut i32) i32.const 0)
+      (export "splice" (func 5))
+      (export "read4" (func 6))
+      (export "hand-back" (func 7))
+      (export "fresh" (func 8))
+      (export "write4" (func 9))
+      (export "drop-writer" (func 10))
+      (func (;5;) (type 3) (param $in i32)
+        (local $ret64 i64)
+        call $stream.new
+        local.set $ret64
+        local.get $ret64
+        i32.wrap_i64
+        global.set $r
+        local.get $in
+        local.get $ret64
+        i64.const 32
+        i64.shr_u
+        i32.wrap_i64
+        call $stream.forward
+      )
+      (func (;6;) (type 4) (param $expected i32) (result i32)
+        (local $ret i32)
+        global.get $r
+        i32.const 8
+        i32.const 4
+        call $stream.read
+        local.set $ret
+        i32.const 64
+        local.get $ret
+        i32.eq
+        if ;; label = @1
+          i32.const 8
+          i32.load
+          local.get $expected
+          i32.ne
+          if ;; label = @2
+            unreachable
+          end
+        end
+        local.get $ret
+      )
+      (func (;7;) (type 5) (result i32)
+        global.get $r
+      )
+      (func (;8;) (type 5) (result i32)
+        (local $ret64 i64)
+        call $stream.new
+        local.set $ret64
+        local.get $ret64
+        i64.const 32
+        i64.shr_u
+        i32.wrap_i64
+        global.set $w
+        local.get $ret64
+        i32.wrap_i64
+      )
+      (func (;9;) (type 4) (param $val i32) (result i32)
+        i32.const 0
+        local.get $val
+        i32.store
+        global.get $w
+        i32.const 0
+        i32.const 4
+        call $stream.write
+      )
+      (func (;10;) (type 6)
+        global.get $w
+        call $stream.drop-writable
+      )
+    )
+    (type $ST (;0;) (stream u8))
+    (core func $stream.new (;0;) (canon stream.new $ST))
+    (alias core export $memory "mem" (core memory (;0;)))
+    (core func $stream.read (;1;) (canon stream.read $ST async (memory 0)))
+    (alias core export $memory "mem" (core memory (;1;)))
+    (core func $stream.write (;2;) (canon stream.write $ST async (memory 1)))
+    (core func $stream.forward (;3;) (canon stream.forward $ST))
+    (core func $stream.drop-writable (;4;) (canon stream.drop-writable $ST))
+    (alias core export $memory "mem" (core memory (;2;)))
+    (core instance (;1;)
+      (export "mem" (memory 2))
+      (export "stream.new" (func $stream.new))
+      (export "stream.read" (func $stream.read))
+      (export "stream.write" (func $stream.write))
+      (export "stream.forward" (func $stream.forward))
+      (export "stream.drop-writable" (func $stream.drop-writable))
+    )
+    (core instance $cm (;2;) (instantiate $CM
+        (with "" (instance 1))
+      )
+    )
+    (type (;1;) (stream u8))
+    (type (;2;) (func (param "in" 1)))
+    (alias core export $cm "splice" (core func (;5;)))
+    (func (;0;) (type 2) (canon lift (core func 5)))
+    (type (;3;) (func (param "expected" u32) (result s32)))
+    (alias core export $cm "read4" (core func (;6;)))
+    (func (;1;) (type 3) (canon lift (core func 6)))
+    (type (;4;) (stream u8))
+    (type (;5;) (func (result 4)))
+    (alias core export $cm "hand-back" (core func (;7;)))
+    (func (;2;) (type 5) (canon lift (core func 7)))
+    (type (;6;) (stream u8))
+    (type (;7;) (func (result 6)))
+    (alias core export $cm "fresh" (core func (;8;)))
+    (func (;3;) (type 7) (canon lift (core func 8)))
+    (type (;8;) (func (param "val" u32) (result s32)))
+    (alias core export $cm "write4" (core func (;9;)))
+    (func (;4;) (type 8) (canon lift (core func 9)))
+    (type (;9;) (func))
+    (alias core export $cm "drop-writer" (core func (;10;)))
+    (func (;5;) (type 9) (canon lift (core func 10)))
+    (export (;6;) "splice" (func 0))
+    (export (;7;) "read4" (func 1))
+    (export (;8;) "hand-back" (func 2))
+    (export (;9;) "fresh" (func 3))
+    (export (;10;) "write4" (func 4))
+    (export (;11;) "drop-writer" (func 5))
+  )
+  (component $D (;1;)
+    (type (;0;)
+      (instance
+        (type (;0;) (stream u8))
+        (type (;1;) (func (param "in" 0)))
+        (export (;0;) "splice" (func (type 1)))
+        (type (;2;) (func (param "expected" u32) (result s32)))
+        (export (;1;) "read4" (func (type 2)))
+        (type (;3;) (stream u8))
+        (type (;4;) (func (result 3)))
+        (export (;2;) "hand-back" (func (type 4)))
+        (type (;5;) (stream u8))
+        (type (;6;) (func (result 5)))
+        (export (;3;) "fresh" (func (type 6)))
+        (type (;7;) (func (param "val" u32) (result s32)))
+        (export (;4;) "write4" (func (type 7)))
+        (type (;8;) (func))
+        (export (;5;) "drop-writer" (func (type 8)))
+      )
+    )
+    (import "c" (instance $c (;0;) (type 0)))
+    (core module $Memory (;0;)
+      (memory (;0;) 1)
+      (export "mem" (memory 0))
+    )
+    (core instance $memory (;0;) (instantiate $Memory))
+    (core module $DM (;1;)
+      (type (;0;) (func (param i32)))
+      (type (;1;) (func (param i32) (result i32)))
+      (type (;2;) (func (result i32)))
+      (type (;3;) (func))
+      (type (;4;) (func (result i64)))
+      (type (;5;) (func (param i32 i32 i32) (result i32)))
+      (type (;6;) (func (param i32 i32)))
+      (type (;7;) (func (param i32 i32) (result i32)))
+      (type (;8;) (func (param i32 i32 i32)))
+      (import "" "mem" (memory (;0;) 1))
+      (import "" "c-splice" (func $c-splice (;0;) (type 0) (param i32)))
+      (import "" "c-read4" (func $c-read4 (;1;) (type 1) (param i32) (result i32)))
+      (import "" "c-hand-back" (func $c-hand-back (;2;) (type 2) (result i32)))
+      (import "" "c-fresh" (func $c-fresh (;3;) (type 2) (result i32)))
+      (import "" "c-write4" (func $c-write4 (;4;) (type 1) (param i32) (result i32)))
+      (import "" "c-drop-writer" (func $c-drop-writer (;5;) (type 3)))
+      (import "" "stream.new" (func $stream.new (;6;) (type 4) (result i64)))
+      (import "" "stream.read" (func $stream.read (;7;) (type 5) (param i32 i32 i32) (result i32)))
+      (import "" "stream.write" (func $stream.write (;8;) (type 5) (param i32 i32 i32) (result i32)))
+      (import "" "stream.forward" (func $stream.forward (;9;) (type 6) (param i32 i32)))
+      (import "" "stream.drop-readable" (func $stream.drop-readable (;10;) (type 0) (param i32)))
+      (import "" "waitable-set.new" (func $waitable-set.new (;11;) (type 2) (result i32)))
+      (import "" "waitable-set.poll" (func $waitable-set.poll (;12;) (type 7) (param i32 i32) (result i32)))
+      (import "" "waitable-set.drop" (func $waitable-set.drop (;13;) (type 0) (param i32)))
+      (import "" "waitable.join" (func $waitable.join (;14;) (type 6) (param i32 i32)))
+      (global $r (;0;) (mut i32) i32.const 0)
+      (global $w (;1;) (mut i32) i32.const 0)
+      (export "run" (func 20))
+      (func $d-splice (;15;) (type 0) (param $in i32)
+        (local $ret64 i64)
+        call $stream.new
+        local.set $ret64
+        local.get $ret64
+        i32.wrap_i64
+        global.set $r
+        local.get $in
+        local.get $ret64
+        i64.const 32
+        i64.shr_u
+        i32.wrap_i64
+        call $stream.forward
+      )
+      (func $d-write4 (;16;) (type 0) (param $val i32)
+        (local $ret i32)
+        i32.const 0
+        local.get $val
+        i32.store
+        global.get $w
+        i32.const 0
+        i32.const 4
+        call $stream.write
+        local.set $ret
+        i32.const -1
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+      )
+      (func $d-read4 (;17;) (type 0) (param $expected i32)
+        (local $ret i32)
+        global.get $r
+        i32.const 8
+        i32.const 4
+        call $stream.read
+        local.set $ret
+        i32.const 64
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 8
+        i32.load
+        local.get $expected
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+      )
+      (func $expect-c-read4 (;18;) (type 0) (param $expected i32)
+        i32.const 64
+        local.get $expected
+        call $c-read4
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+      )
+      (func $poll (;19;) (type 8) (param $waitable i32) (param $event i32) (param $payload i32)
+        (local $ws i32)
+        call $waitable-set.new
+        local.set $ws
+        local.get $waitable
+        local.get $ws
+        call $waitable.join
+        local.get $event
+        local.get $ws
+        i32.const 32
+        call $waitable-set.poll
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $waitable
+        i32.const 32
+        i32.load
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $payload
+        i32.const 36
+        i32.load
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        local.get $waitable
+        i32.const 0
+        call $waitable.join
+        local.get $ws
+        call $waitable-set.drop
+      )
+      (func (;20;) (type 2) (result i32)
+        (local $ret i32) (local $ret64 i64)
+        call $stream.new
+        local.set $ret64
+        local.get $ret64
+        i32.wrap_i64
+        global.set $r
+        local.get $ret64
+        i64.const 32
+        i64.shr_u
+        i32.wrap_i64
+        global.set $w
+        global.get $r
+        call $c-splice
+        i32.const 286331153
+        call $d-write4
+        i32.const 286331153
+        call $expect-c-read4
+        global.get $w
+        i32.const 3
+        i32.const 64
+        call $poll
+        call $c-hand-back
+        call $d-splice
+        i32.const 572662306
+        call $d-write4
+        i32.const 572662306
+        call $d-read4
+        global.get $w
+        i32.const 3
+        i32.const 64
+        call $poll
+        global.get $r
+        call $c-splice
+        i32.const 858993459
+        call $d-write4
+        i32.const 858993459
+        call $expect-c-read4
+        global.get $w
+        i32.const 3
+        i32.const 64
+        call $poll
+        call $c-hand-back
+        call $d-splice
+        i32.const 1145324612
+        call $d-write4
+        i32.const 1145324612
+        call $d-read4
+        global.get $w
+        i32.const 3
+        i32.const 64
+        call $poll
+        call $c-fresh
+        global.get $w
+        call $stream.forward
+        global.get $r
+        i32.const 8
+        i32.const 4
+        call $stream.read
+        local.set $ret
+        i32.const -1
+        local.get $ret
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 64
+        i32.const 1431655765
+        call $c-write4
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        global.get $r
+        i32.const 2
+        i32.const 64
+        call $poll
+        i32.const 8
+        i32.load
+        i32.const 1431655765
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        global.get $r
+        call $stream.drop-readable
+        call $c-drop-writer
+        i32.const 42
+      )
+    )
+    (type $ST (;1;) (stream u8))
+    (alias export $c "splice" (func (;0;)))
+    (alias core export $memory "mem" (core memory (;0;)))
+    (core func $c-splice (;0;) (canon lower (func 0) (memory 0)))
+    (alias export $c "read4" (func (;1;)))
+    (alias core export $memory "mem" (core memory (;1;)))
+    (core func $c-read4 (;1;) (canon lower (func 1) (memory 1)))
+    (alias export $c "hand-back" (func (;2;)))
+    (alias core export $memory "mem" (core memory (;2;)))
+    (core func $c-hand-back (;2;) (canon lower (func 2) (memory 2)))
+    (alias export $c "fresh" (func (;3;)))
+    (alias core export $memory "mem" (core memory (;3;)))
+    (core func $c-fresh (;3;) (canon lower (func 3) (memory 3)))
+    (alias export $c "write4" (func (;4;)))
+    (alias core export $memory "mem" (core memory (;4;)))
+    (core func $c-write4 (;4;) (canon lower (func 4) (memory 4)))
+    (alias export $c "drop-writer" (func (;5;)))
+    (core func $c-drop-writer (;5;) (canon lower (func 5)))
+    (core func $stream.new (;6;) (canon stream.new $ST))
+    (alias core export $memory "mem" (core memory (;5;)))
+    (core func $stream.read (;7;) (canon stream.read $ST async (memory 5)))
+    (alias core export $memory "mem" (core memory (;6;)))
+    (core func $stream.write (;8;) (canon stream.write $ST async (memory 6)))
+    (core func $stream.forward (;9;) (canon stream.forward $ST))
+    (core func $stream.drop-readable (;10;) (canon stream.drop-readable $ST))
+    (core func $waitable-set.new (;11;) (canon waitable-set.new))
+    (alias core export $memory "mem" (core memory (;7;)))
+    (core func $waitable-set.poll (;12;) (canon waitable-set.poll (memory 7)))
+    (core func $waitable-set.drop (;13;) (canon waitable-set.drop))
+    (core func $waitable.join (;14;) (canon waitable.join))
+    (alias core export $memory "mem" (core memory (;8;)))
+    (core instance (;1;)
+      (export "mem" (memory 8))
+      (export "c-splice" (func $c-splice))
+      (export "c-read4" (func $c-read4))
+      (export "c-hand-back" (func $c-hand-back))
+      (export "c-fresh" (func $c-fresh))
+      (export "c-write4" (func $c-write4))
+      (export "c-drop-writer" (func $c-drop-writer))
+      (export "stream.new" (func $stream.new))
+      (export "stream.read" (func $stream.read))
+      (export "stream.write" (func $stream.write))
+      (export "stream.forward" (func $stream.forward))
+      (export "stream.drop-readable" (func $stream.drop-readable))
+      (export "waitable-set.new" (func $waitable-set.new))
+      (export "waitable-set.poll" (func $waitable-set.poll))
+      (export "waitable-set.drop" (func $waitable-set.drop))
+      (export "waitable.join" (func $waitable.join))
+    )
+    (core instance $dm (;2;) (instantiate $DM
+        (with "" (instance 1))
+      )
+    )
+    (type (;2;) (func (result u32)))
+    (alias core export $dm "run" (core func (;15;)))
+    (func (;6;) (type 2) (canon lift (core func 15)))
+    (export (;7;) "run" (func 6))
+  )
+  (instance $c (;0;) (instantiate $C))
+  (instance $d (;1;) (instantiate $D
+      (with "c" (instance $c))
+    )
+  )
+  (alias export $d "run" (func (;0;)))
+  (export (;1;) "run" (func 0))
+)

@@ -2763,6 +2763,10 @@ impl Resolve {
                         FutureIntrinsic::Write => {
                             (if async_ { "[async-lower]" } else { "" }, "write")
                         }
+                        FutureIntrinsic::Forward => {
+                            assert!(!async_, "future.forward cannot be async-lowered");
+                            ("", "forward")
+                        }
                         FutureIntrinsic::CancelRead => {
                             (if async_ { "[async-lower]" } else { "" }, "cancel-read")
                         }
@@ -2820,6 +2824,10 @@ impl Resolve {
                         }
                         StreamIntrinsic::Write => {
                             (if async_ { "[async-lower]" } else { "" }, "write")
+                        }
+                        StreamIntrinsic::Forward => {
+                            assert!(!async_, "stream.forward cannot be async-lowered");
+                            ("", "forward")
                         }
                         StreamIntrinsic::CancelRead => {
                             (if async_ { "[async-lower]" } else { "" }, "cancel-read")
@@ -3349,6 +3357,7 @@ pub enum FutureIntrinsic {
     New,
     Read,
     Write,
+    Forward,
     CancelRead,
     CancelWrite,
     DropReadable,
@@ -3362,6 +3371,7 @@ pub enum StreamIntrinsic {
     New,
     Read,
     Write,
+    Forward,
     CancelRead,
     CancelWrite,
     DropReadable,
@@ -5005,6 +5015,34 @@ mod tests {
         );
         assert_eq!(module, "$root");
         assert_eq!(name, "[async-lower][future-read-1]import-func");
+
+        let (module, name) = resolve.wasm_import_name(
+            mangling,
+            WasmImport::FutureIntrinsic {
+                interface: None,
+                func: import_func,
+                ty: Some(import_types[1]),
+                intrinsic: FutureIntrinsic::Forward,
+                exported: false,
+                async_: false,
+            },
+        );
+        assert_eq!(module, "$root");
+        assert_eq!(name, "[future-forward-1]import-func");
+
+        let (module, name) = resolve.wasm_import_name(
+            mangling,
+            WasmImport::StreamIntrinsic {
+                interface: None,
+                func: import_func,
+                ty: Some(import_types[2]),
+                intrinsic: StreamIntrinsic::Forward,
+                exported: false,
+                async_: false,
+            },
+        );
+        assert_eq!(module, "$root");
+        assert_eq!(name, "[stream-forward-2]import-func");
 
         let (module, name) = resolve.wasm_import_name(
             mangling,
