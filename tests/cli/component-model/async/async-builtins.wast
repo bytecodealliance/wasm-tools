@@ -1,4 +1,4 @@
-;; RUN: wast --assert default --snapshot tests/snapshots % -f cm-async,cm-more-async-builtins
+;; RUN: wast --assert default --snapshot tests/snapshots % -f cm-async,cm-more-async-builtins,cm-forward
 
 ;; stream.cancel-read
 (component

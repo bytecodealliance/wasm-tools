@@ -1732,9 +1732,9 @@ impl ComponentState {
             "`stream.forward` requires the component model async feature",
             offset,
         )?;
-        require_feature::cm_more_async_builtins(
+        require_feature::cm_forward(
             self.features,
-            "`stream.forward` requires the component model more async builtins feature",
+            "`stream.forward` requires the component model forward feature",
             offset,
         )?;
 
@@ -1943,9 +1943,9 @@ impl ComponentState {
             "`future.forward` requires the component model async feature",
             offset,
         )?;
-        require_feature::cm_more_async_builtins(
+        require_feature::cm_forward(
             self.features,
-            "`future.forward` requires the component model more async builtins feature",
+            "`future.forward` requires the component model forward feature",
             offset,
         )?;
 

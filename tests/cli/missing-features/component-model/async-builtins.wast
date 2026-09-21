@@ -60,10 +60,10 @@
   (component
     (type $t (stream))
     (core func (canon stream.forward $t)))
-  "requires the component model more async builtins feature")
+  "requires the component model forward feature")
 
 (assert_invalid
   (component
     (type $t (future))
     (core func (canon future.forward $t)))
-  "requires the component model more async builtins feature")
+  "requires the component model forward feature")
