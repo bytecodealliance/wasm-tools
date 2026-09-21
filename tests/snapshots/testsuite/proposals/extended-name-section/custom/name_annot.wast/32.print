@@ -1,0 +1,8 @@
+(module
+  (type $t (;0;) (func (param i32)))
+  (type (;1;) (func (param i32 i64)))
+  (import "m" "e" (tag $e (;0;) (type $t) (param i32)))
+  (tag $"\u{3b8}" (;1;) (type $t) (param i32))
+  (tag $"#tag2 \u{3b8}" (@name "\u{3b8}") (;2;) (type $t) (param i32))
+  (tag $exn (;3;) (type 1) (param $code i32) (param $extra i64))
+)

@@ -1,0 +1,230 @@
+(component
+  (component $C (;0;)
+    (core module $Memory (;0;)
+      (memory (;0;) 1)
+      (export "mem" (memory 0))
+    )
+    (core instance $memory (;0;) (instantiate $Memory))
+    (core module $CM (;1;)
+      (type (;0;) (func (param i32)))
+      (type (;1;) (func (param i32 i32) (result i32)))
+      (type (;2;) (func (param i32 i32)))
+      (type (;3;) (func (result i32)))
+      (type (;4;) (func))
+      (import "" "mem" (memory (;0;) 1))
+      (import "" "task.return" (func $task.return (;0;) (type 0) (param i32)))
+      (import "" "future.read" (func $future.read (;1;) (type 1) (param i32 i32) (result i32)))
+      (import "" "waitable.join" (func $waitable.join (;2;) (type 2) (param i32 i32)))
+      (import "" "waitable-set.new" (func $waitable-set.new (;3;) (type 3) (result i32)))
+      (import "" "waitable-set.wait" (func $waitable-set.wait (;4;) (type 1) (param i32 i32) (result i32)))
+      (global $futr (;0;) (mut i32) i32.const 0)
+      (export "stash-fut" (func 5))
+      (export "stackful" (func 6))
+      (func (;5;) (type 0) (param $f i32)
+        local.get $f
+        global.set $futr
+      )
+      (func (;6;) (type 4)
+        (local $ws i32)
+        global.get $futr
+        i32.const 0
+        call $future.read
+        i32.const -1
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        call $waitable-set.new
+        local.set $ws
+        global.get $futr
+        local.get $ws
+        call $waitable.join
+        local.get $ws
+        i32.const 8
+        call $waitable-set.wait
+        i32.const 4
+        i32.ne
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 42
+        call $task.return
+      )
+    )
+    (type $FT (;0;) (future))
+    (core func $task.return (;0;) (canon task.return (result u32)))
+    (alias core export $memory "mem" (core memory (;0;)))
+    (core func $future.read (;1;) (canon future.read $FT async (memory 0)))
+    (core func $waitable.join (;2;) (canon waitable.join))
+    (core func $waitable-set.new (;3;) (canon waitable-set.new))
+    (alias core export $memory "mem" (core memory (;1;)))
+    (core func $waitable-set.wait (;4;) (canon waitable-set.wait (memory 1)))
+    (alias core export $memory "mem" (core memory (;2;)))
+    (core instance (;1;)
+      (export "mem" (memory 2))
+      (export "task.return" (func $task.return))
+      (export "future.read" (func $future.read))
+      (export "waitable.join" (func $waitable.join))
+      (export "waitable-set.new" (func $waitable-set.new))
+      (export "waitable-set.wait" (func $waitable-set.wait))
+    )
+    (core instance $cm (;2;) (instantiate $CM
+        (with "" (instance 1))
+      )
+    )
+    (type (;1;) (func (param "fut" $FT)))
+    (alias core export $cm "stash-fut" (core func (;5;)))
+    (func (;0;) (type 1) (canon lift (core func 5)))
+    (type (;2;) (func async (result u32)))
+    (alias core export $cm "stackful" (core func (;6;)))
+    (func (;1;) (type 2) (canon lift (core func 6) async))
+    (export (;2;) "stash-fut" (func 0))
+    (export (;3;) "stackful" (func 1))
+  )
+  (instance $c (;0;) (instantiate $C))
+  (core module $Memory (;0;)
+    (memory (;0;) 1)
+    (export "mem" (memory 0))
+  )
+  (core instance $memory (;0;) (instantiate $Memory))
+  (type $FT (;0;) (future))
+  (core func $future.new (;0;) (canon future.new $FT))
+  (alias core export $memory "mem" (core memory (;0;)))
+  (core func $future.write (;1;) (canon future.write $FT (memory 0)))
+  (alias export $c "stash-fut" (func (;0;)))
+  (core func $stash-fut' (;2;) (canon lower (func 0)))
+  (alias export $c "stackful" (func (;1;)))
+  (alias core export $memory "mem" (core memory (;1;)))
+  (core func $stackful' (;3;) (canon lower (func 1) async (memory 1)))
+  (core func $subtask.cancel-async (;4;) (canon subtask.cancel async))
+  (core func $subtask.drop (;5;) (canon subtask.drop))
+  (core func $waitable.join (;6;) (canon waitable.join))
+  (core func $waitable-set.new (;7;) (canon waitable-set.new))
+  (alias core export $memory "mem" (core memory (;2;)))
+  (core func $waitable-set.wait (;8;) (canon waitable-set.wait (memory 2)))
+  (core module $Main (;1;)
+    (type (;0;) (func (result i64)))
+    (type (;1;) (func (param i32 i32) (result i32)))
+    (type (;2;) (func (param i32)))
+    (type (;3;) (func (param i32) (result i32)))
+    (type (;4;) (func (param i32 i32)))
+    (type (;5;) (func (result i32)))
+    (import "" "mem" (memory (;0;) 1))
+    (import "" "future.new" (func $future.new (;0;) (type 0) (result i64)))
+    (import "" "future.write" (func $future.write (;1;) (type 1) (param i32 i32) (result i32)))
+    (import "" "stash-fut" (func $stash-fut (;2;) (type 2) (param i32)))
+    (import "" "stackful" (func $stackful (;3;) (type 3) (param i32) (result i32)))
+    (import "" "subtask.cancel-async" (func $subtask.cancel-async (;4;) (type 3) (param i32) (result i32)))
+    (import "" "subtask.drop" (func $subtask.drop (;5;) (type 2) (param i32)))
+    (import "" "waitable.join" (func $waitable.join (;6;) (type 4) (param i32 i32)))
+    (import "" "waitable-set.new" (func $waitable-set.new (;7;) (type 5) (result i32)))
+    (import "" "waitable-set.wait" (func $waitable-set.wait (;8;) (type 1) (param i32 i32) (result i32)))
+    (export "run" (func 9))
+    (func (;9;) (type 5) (result i32)
+      (local $ret64 i64) (local $futr i32) (local $futw i32) (local $packed i32) (local $sub i32) (local $ws i32)
+      call $future.new
+      local.set $ret64
+      local.get $ret64
+      i32.wrap_i64
+      local.set $futr
+      local.get $ret64
+      i64.const 32
+      i64.shr_u
+      i32.wrap_i64
+      local.set $futw
+      local.get $futr
+      call $stash-fut
+      i32.const 24
+      call $stackful
+      local.set $packed
+      local.get $packed
+      i32.const 15
+      i32.and
+      i32.const 1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      local.get $packed
+      i32.const 4
+      i32.shr_u
+      local.set $sub
+      local.get $sub
+      call $subtask.cancel-async
+      i32.const -1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      local.get $futw
+      i32.const 16
+      call $future.write
+      i32.const 0
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      call $waitable-set.new
+      local.set $ws
+      local.get $sub
+      local.get $ws
+      call $waitable.join
+      local.get $ws
+      i32.const 0
+      call $waitable-set.wait
+      i32.const 1
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 0
+      i32.load
+      local.get $sub
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 4
+      i32.load
+      i32.const 2
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 24
+      i32.load
+      i32.const 42
+      i32.ne
+      if ;; label = @1
+        unreachable
+      end
+      local.get $sub
+      i32.const 0
+      call $waitable.join
+      local.get $sub
+      call $subtask.drop
+      i32.const 42
+    )
+  )
+  (alias core export $memory "mem" (core memory (;3;)))
+  (core instance (;1;)
+    (export "mem" (memory 3))
+    (export "future.new" (func $future.new))
+    (export "future.write" (func $future.write))
+    (export "stash-fut" (func $stash-fut'))
+    (export "stackful" (func $stackful'))
+    (export "subtask.cancel-async" (func $subtask.cancel-async))
+    (export "subtask.drop" (func $subtask.drop))
+    (export "waitable.join" (func $waitable.join))
+    (export "waitable-set.new" (func $waitable-set.new))
+    (export "waitable-set.wait" (func $waitable-set.wait))
+  )
+  (core instance $main (;2;) (instantiate $Main
+      (with "" (instance 1))
+    )
+  )
+  (type (;1;) (func async (result u32)))
+  (alias core export $main "run" (core func (;9;)))
+  (func (;2;) (type 1) (canon lift (core func 9)))
+  (export (;3;) "run" (func 2))
+)

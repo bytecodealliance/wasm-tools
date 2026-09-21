@@ -1,0 +1,26 @@
+{
+  "source_filename": "tests/component-model/test/async/cancel-instance-wide-resume.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 12,
+      "filename": "cancel-instance-wide-resume.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 185,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    }
+  ]
+}

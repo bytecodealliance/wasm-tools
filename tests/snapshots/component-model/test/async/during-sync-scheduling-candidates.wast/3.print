@@ -1,0 +1,88 @@
+(component
+  (core module $Core (;0;)
+    (type (;0;) (func (param i32)))
+    (type (;1;) (func (result i32)))
+    (type (;2;) (func (param i32) (result i32)))
+    (type (;3;) (func))
+    (import "" "task.return" (func $task.return (;0;) (type 0) (param i32)))
+    (import "" "thread.index" (func $thread.index (;1;) (type 1) (result i32)))
+    (import "" "thread.yield" (func $thread.yield (;2;) (type 1) (result i32)))
+    (import "" "thread.yield-then-promote" (func $thread.yield-then-promote (;3;) (type 2) (param i32) (result i32)))
+    (global $finished (;0;) (mut i32) i32.const 0)
+    (global $may-finish (;1;) (mut i32) i32.const 0)
+    (global $setup-thread (;2;) (mut i32) i32.const 0)
+    (export "setup" (func 4))
+    (export "run" (func 5))
+    (export "run-promote" (func 6))
+    (func (;4;) (type 3)
+      i32.const 0
+      global.set $finished
+      i32.const 0
+      global.set $may-finish
+      call $thread.index
+      global.set $setup-thread
+      i32.const 1
+      call $task.return
+      loop $again
+        call $thread.yield
+        drop
+        global.get $may-finish
+        i32.eqz
+        br_if $again
+      end
+      i32.const 1
+      global.set $finished
+    )
+    (func (;5;) (type 1) (result i32)
+      i32.const 1
+      global.set $may-finish
+      loop $again
+        call $thread.yield
+        drop
+        global.get $finished
+        i32.eqz
+        br_if $again
+      end
+      i32.const 42
+    )
+    (func (;6;) (type 1) (result i32)
+      i32.const 1
+      global.set $may-finish
+      global.get $setup-thread
+      call $thread.yield-then-promote
+      drop
+      global.get $finished
+      i32.eqz
+      if ;; label = @1
+        unreachable
+      end
+      i32.const 42
+    )
+  )
+  (core func $task.return (;0;) (canon task.return (result u32)))
+  (core func $thread.index (;1;) (canon thread.index))
+  (core func $thread.yield (;2;) (canon thread.yield))
+  (core func $thread.yield-then-promote (;3;) (canon thread.yield-then-promote))
+  (core instance (;0;)
+    (export "task.return" (func $task.return))
+    (export "thread.index" (func $thread.index))
+    (export "thread.yield" (func $thread.yield))
+    (export "thread.yield-then-promote" (func $thread.yield-then-promote))
+  )
+  (core instance $core (;1;) (instantiate $Core
+      (with "" (instance 0))
+    )
+  )
+  (type (;0;) (func async (result u32)))
+  (alias core export $core "setup" (core func (;4;)))
+  (func (;0;) (type 0) (canon lift (core func 4) async))
+  (type (;1;) (func (result u32)))
+  (alias core export $core "run" (core func (;5;)))
+  (func (;1;) (type 1) (canon lift (core func 5)))
+  (type (;2;) (func (result u32)))
+  (alias core export $core "run-promote" (core func (;6;)))
+  (func (;2;) (type 2) (canon lift (core func 6)))
+  (export (;3;) "setup" (func 0))
+  (export (;4;) "run" (func 1))
+  (export (;5;) "run-promote" (func 2))
+)

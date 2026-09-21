@@ -1,0 +1,418 @@
+{
+  "source_filename": "tests/testsuite/proposals/extended-name-section/custom/name_annot.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "name_annot.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 5,
+      "name": "moduel",
+      "filename": "name_annot.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 8,
+      "filename": "name_annot.2.wat",
+      "module_type": "text",
+      "text": "@name annotation: multiple module"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 13,
+      "filename": "name_annot.3.wat",
+      "module_type": "text",
+      "text": "misplaced @name annotation"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 18,
+      "filename": "name_annot.4.wat",
+      "module_type": "text",
+      "text": "misplaced @name annotation"
+    },
+    {
+      "type": "module_definition",
+      "line": 25,
+      "filename": "name_annot.5.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_definition",
+      "line": 33,
+      "filename": "name_annot.6.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 40,
+      "filename": "name_annot.7.wat",
+      "module_type": "text",
+      "text": "@name annotation: multiple function names"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 47,
+      "filename": "name_annot.8.wat",
+      "module_type": "text",
+      "text": "misplaced @name annotation"
+    },
+    {
+      "type": "module",
+      "line": 54,
+      "filename": "name_annot.9.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_definition",
+      "line": 61,
+      "filename": "name_annot.10.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 66,
+      "filename": "name_annot.11.wat",
+      "module_type": "text",
+      "text": "@name annotation: multiple local names"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 73,
+      "filename": "name_annot.12.wat",
+      "module_type": "text",
+      "text": "@name annotation: multiple locals declared"
+    },
+    {
+      "type": "module",
+      "line": 80,
+      "filename": "name_annot.13.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 98,
+      "filename": "name_annot.14.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 108,
+      "filename": "name_annot.15.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 119,
+      "filename": "name_annot.16.wat",
+      "module_type": "text",
+      "text": "@name annotation: multiple label names"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 127,
+      "filename": "name_annot.17.wat",
+      "module_type": "text",
+      "text": "misplaced @name annotation"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 133,
+      "filename": "name_annot.18.wat",
+      "module_type": "text",
+      "text": "misplaced @name annotation"
+    },
+    {
+      "type": "module",
+      "line": 140,
+      "filename": "name_annot.19.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 154,
+      "filename": "name_annot.20.wat",
+      "module_type": "text",
+      "text": "@name annotation: multiple type names"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 159,
+      "filename": "name_annot.21.wat",
+      "module_type": "text",
+      "text": "@name annotation: multiple field names"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 166,
+      "filename": "name_annot.22.wat",
+      "module_type": "text",
+      "text": "@name annotation: multiple fields declared"
+    },
+    {
+      "type": "module_definition",
+      "line": 173,
+      "filename": "name_annot.23.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 182,
+      "filename": "name_annot.24.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 190,
+      "filename": "name_annot.25.wat",
+      "module_type": "text",
+      "text": "@name annotation: multiple table names"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 195,
+      "filename": "name_annot.26.wat",
+      "module_type": "text",
+      "text": "@name annotation: multiple memory names"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 200,
+      "filename": "name_annot.27.wat",
+      "module_type": "text",
+      "text": "@name annotation: multiple global names"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 207,
+      "filename": "name_annot.28.wat",
+      "module_type": "text",
+      "text": "misplaced @name annotation"
+    },
+    {
+      "type": "module",
+      "line": 214,
+      "filename": "name_annot.29.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 226,
+      "filename": "name_annot.30.wat",
+      "module_type": "text",
+      "text": "@name annotation: multiple elem names"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 233,
+      "filename": "name_annot.31.wat",
+      "module_type": "text",
+      "text": "@name annotation: multiple data names"
+    },
+    {
+      "type": "module_definition",
+      "line": 240,
+      "filename": "name_annot.32.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 249,
+      "filename": "name_annot.33.wat",
+      "module_type": "text",
+      "text": "@name annotation: multiple tag names"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 256,
+      "filename": "name_annot.34.wat",
+      "module_type": "text",
+      "text": "@name annotation: multiple tag param names"
+    },
+    {
+      "type": "module",
+      "line": 265,
+      "filename": "name_annot.35.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 274,
+      "filename": "name_annot.36.wat",
+      "module_type": "text",
+      "text": "@name annotation: multiple param names"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 281,
+      "filename": "name_annot.37.wat",
+      "module_type": "text",
+      "text": "@name annotation: multiple params declared"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 286,
+      "filename": "name_annot.38.wat",
+      "module_type": "text",
+      "text": "@name annotation: param names not allowed here"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 294,
+      "filename": "name_annot.39.wat",
+      "module_type": "text",
+      "text": "@name annotation: param names not allowed here"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 306,
+      "filename": "name_annot.40.wat",
+      "module_type": "text",
+      "text": "misplaced @name annotation"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 310,
+      "filename": "name_annot.41.wat",
+      "module_type": "text",
+      "text": "misplaced @name annotation"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 314,
+      "filename": "name_annot.42.wat",
+      "module_type": "text",
+      "text": "misplaced @name annotation"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 318,
+      "filename": "name_annot.43.wat",
+      "module_type": "text",
+      "text": "misplaced @name annotation"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 322,
+      "filename": "name_annot.44.wat",
+      "module_type": "text",
+      "text": "misplaced @name annotation"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 328,
+      "filename": "name_annot.45.wat",
+      "module_type": "text",
+      "text": "misplaced @name annotation"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 332,
+      "filename": "name_annot.46.wat",
+      "module_type": "text",
+      "text": "misplaced @name annotation"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 336,
+      "filename": "name_annot.47.wat",
+      "module_type": "text",
+      "text": "misplaced @name annotation"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 342,
+      "filename": "name_annot.48.wat",
+      "module_type": "text",
+      "text": "misplaced @name annotation"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 346,
+      "filename": "name_annot.49.wat",
+      "module_type": "text",
+      "text": "misplaced @name annotation"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 350,
+      "filename": "name_annot.50.wat",
+      "module_type": "text",
+      "text": "misplaced @name annotation"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 356,
+      "filename": "name_annot.51.wat",
+      "module_type": "text",
+      "text": "misplaced @name annotation"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 360,
+      "filename": "name_annot.52.wat",
+      "module_type": "text",
+      "text": "misplaced @name annotation"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 364,
+      "filename": "name_annot.53.wat",
+      "module_type": "text",
+      "text": "misplaced @name annotation"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 368,
+      "filename": "name_annot.54.wat",
+      "module_type": "text",
+      "text": "misplaced @name annotation"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 372,
+      "filename": "name_annot.55.wat",
+      "module_type": "text",
+      "text": "misplaced @name annotation"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 376,
+      "filename": "name_annot.56.wat",
+      "module_type": "text",
+      "text": "misplaced @name annotation"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 384,
+      "filename": "name_annot.57.wat",
+      "module_type": "text",
+      "text": "@name annotation: string expected"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 389,
+      "filename": "name_annot.58.wat",
+      "module_type": "text",
+      "text": "@name annotation: string expected"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 394,
+      "filename": "name_annot.59.wat",
+      "module_type": "text",
+      "text": "@name annotation: unexpected token"
+    },
+    {
+      "type": "assert_malformed_custom",
+      "line": 399,
+      "filename": "name_annot.60.wat",
+      "module_type": "text",
+      "text": "malformed UTF-8 encoding"
+    }
+  ]
+}

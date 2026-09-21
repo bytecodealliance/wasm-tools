@@ -1,0 +1,5 @@
+(module
+  (type $t (;0;) (func))
+  (import "m" "f" (func $f (;0;) (type $t)))
+  (import "m" "g" (func $g (;1;) (type $t)))
+)

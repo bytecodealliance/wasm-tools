@@ -1,0 +1,6 @@
+(module
+  (type (;0;) (func))
+  (import "not-test"
+    (func (type 0))
+  )
+)

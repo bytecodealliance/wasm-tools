@@ -948,14 +948,21 @@
       "text": "sub type"
     },
     {
-      "type": "module",
-      "line": 954,
+      "type": "assert_invalid",
+      "line": 955,
       "filename": "type-subtyping.88.wasm",
+      "module_type": "binary",
+      "text": "multiple supertypes"
+    },
+    {
+      "type": "module",
+      "line": 963,
+      "filename": "type-subtyping.89.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_return",
-      "line": 971,
+      "line": 980,
       "action": {
         "type": "invoke",
         "field": "f1",
@@ -970,7 +977,7 @@
     },
     {
       "type": "assert_return",
-      "line": 972,
+      "line": 981,
       "action": {
         "type": "invoke",
         "field": "f2",
@@ -985,7 +992,7 @@
     },
     {
       "type": "assert_return",
-      "line": 973,
+      "line": 982,
       "action": {
         "type": "invoke",
         "field": "f3",
@@ -1000,7 +1007,7 @@
     },
     {
       "type": "assert_return",
-      "line": 974,
+      "line": 983,
       "action": {
         "type": "invoke",
         "field": "f4",
@@ -1015,7 +1022,7 @@
     },
     {
       "type": "assert_return",
-      "line": 975,
+      "line": 984,
       "action": {
         "type": "invoke",
         "field": "f5",
@@ -1030,7 +1037,7 @@
     },
     {
       "type": "assert_return",
-      "line": 976,
+      "line": 985,
       "action": {
         "type": "invoke",
         "field": "f6",
@@ -1045,8 +1052,8 @@
     },
     {
       "type": "module",
-      "line": 980,
-      "filename": "type-subtyping.89.wasm",
+      "line": 989,
+      "filename": "type-subtyping.90.wasm",
       "module_type": "binary"
     }
   ]

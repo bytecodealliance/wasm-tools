@@ -71,7 +71,7 @@
         i32.const 4
         call $stream.read
         local.set $ret
-        i32.const 65
+        i32.const 64
         local.get $ret
         i32.ne
         if ;; label = @1
@@ -208,7 +208,7 @@
         local.get $rx
         call $set
         local.set $ret
-        i32.const 1
+        i32.const 0
         local.get $ret
         i32.const 15
         i32.and
@@ -230,7 +230,7 @@
         i32.const 4
         call $stream.write
         local.set $ret
-        i32.const 64
+        i32.const 65
         local.get $ret
         i32.ne
         if ;; label = @1
@@ -277,7 +277,7 @@
     (alias core export $memory "mem" (core memory (;0;)))
     (core func $stream.read (;1;) (canon stream.read $ST async (memory 0)))
     (alias core export $memory "mem" (core memory (;1;)))
-    (core func $stream.write (;2;) (canon stream.write $ST async (memory 1)))
+    (core func $stream.write (;2;) (canon stream.write $ST (memory 1)))
     (core func $stream.drop-readable (;3;) (canon stream.drop-readable $ST))
     (core func $stream.drop-writable (;4;) (canon stream.drop-writable $ST))
     (core func $waitable-set.new (;5;) (canon waitable-set.new))

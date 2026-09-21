@@ -1,0 +1,377 @@
+{
+  "source_filename": "tests/component-model/test/async/idle-drop.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 7,
+      "name": "Tester",
+      "filename": "idle-drop.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_definition",
+      "line": 294,
+      "name": "TransferTester",
+      "filename": "idle-drop.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 535,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 536,
+      "action": {
+        "type": "invoke",
+        "field": "reader-parked-poll",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 537,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 538,
+      "action": {
+        "type": "invoke",
+        "field": "reader-parked-wait",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 539,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 540,
+      "action": {
+        "type": "invoke",
+        "field": "writer-parked",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 541,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 542,
+      "action": {
+        "type": "invoke",
+        "field": "future-writer-parked",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 543,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 544,
+      "action": {
+        "type": "invoke",
+        "field": "both-ends-in-set",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 545,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 546,
+      "action": {
+        "type": "invoke",
+        "field": "drop-before-join",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 547,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 548,
+      "action": {
+        "type": "invoke",
+        "field": "sync-read-consumes-notification",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 549,
+      "instance": "i",
+      "module": "TransferTester"
+    },
+    {
+      "type": "assert_return",
+      "line": 550,
+      "action": {
+        "type": "invoke",
+        "field": "transfer-as-param",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 551,
+      "instance": "i",
+      "module": "TransferTester"
+    },
+    {
+      "type": "assert_return",
+      "line": 552,
+      "action": {
+        "type": "invoke",
+        "field": "transfer-as-result",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 553,
+      "instance": "i",
+      "module": "TransferTester"
+    },
+    {
+      "type": "assert_return",
+      "line": 554,
+      "action": {
+        "type": "invoke",
+        "field": "transfer-then-park",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 555,
+      "instance": "i",
+      "module": "TransferTester"
+    },
+    {
+      "type": "assert_return",
+      "line": 556,
+      "action": {
+        "type": "invoke",
+        "field": "notify-writer-in-other-component",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 557,
+      "instance": "i",
+      "module": "TransferTester"
+    },
+    {
+      "type": "assert_return",
+      "line": 558,
+      "action": {
+        "type": "invoke",
+        "field": "notify-reader-in-other-component",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 561,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 562,
+      "action": {
+        "type": "invoke",
+        "field": "read-consumes-notification",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 563,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 564,
+      "action": {
+        "type": "invoke",
+        "field": "future-drop-writable-after-notification",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 565,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 566,
+      "action": {
+        "type": "invoke",
+        "field": "trap-read-after-notification",
+        "args": []
+      },
+      "text": "cannot read from stream after being notified that the writable end dropped"
+    },
+    {
+      "type": "module_instance",
+      "line": 567,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 568,
+      "action": {
+        "type": "invoke",
+        "field": "trap-write-after-notification",
+        "args": []
+      },
+      "text": "cannot write to stream after being notified that the readable end dropped"
+    },
+    {
+      "type": "module_instance",
+      "line": 569,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 570,
+      "action": {
+        "type": "invoke",
+        "field": "trap-future-write-after-notification",
+        "args": []
+      },
+      "text": "cannot write to future after previous write succeeded or readable end dropped"
+    },
+    {
+      "type": "module_instance",
+      "line": 571,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 572,
+      "action": {
+        "type": "invoke",
+        "field": "trap-lift-after-notification",
+        "args": []
+      },
+      "text": "cannot lift stream after being notified that the writable end dropped"
+    }
+  ]
+}

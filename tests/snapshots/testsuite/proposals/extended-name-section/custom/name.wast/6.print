@@ -1,0 +1,3 @@
+(module
+  (memory $m (;0;) 1)
+)

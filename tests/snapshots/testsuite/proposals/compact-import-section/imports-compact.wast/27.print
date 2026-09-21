@@ -1,0 +1,31 @@
+(module
+  (type (;0;) (func (result i32)))
+  (type (;1;) (func (param i32)))
+  (type (;2;) (func (param i32) (result i32)))
+  (import "test-all"
+    (item "f" (func (;0;) (type 0) (result i32)))
+    (item "t" (table (;0;) 3 funcref))
+    (item "m" (memory (;0;) 1))
+    (item "g" (global (;0;) i32))
+    (item "e" (tag (;0;) (type 1) (param i32)))
+  )
+  (export "check" (func 1))
+  (export "throw-and-catch" (func 2))
+  (func (;1;) (type 0) (result i32)
+    call 0
+    table.size 0
+    memory.size
+    global.get 0
+    i32.add
+    i32.add
+    i32.add
+  )
+  (func (;2;) (type 2) (param i32) (result i32)
+    block $h (result i32)
+      try_table (result i32) (catch 0 $h) ;; label = @2
+        local.get 0
+        throw 0
+      end
+    end
+  )
+)

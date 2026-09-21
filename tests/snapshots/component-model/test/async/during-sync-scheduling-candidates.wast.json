@@ -1,0 +1,382 @@
+{
+  "source_filename": "tests/component-model/test/async/during-sync-scheduling-candidates.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 19,
+      "filename": "during-sync-scheduling-candidates.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 74,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 75,
+      "action": {
+        "type": "invoke",
+        "field": "run-promote",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 78,
+      "filename": "during-sync-scheduling-candidates.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 132,
+      "action": {
+        "type": "invoke",
+        "field": "setup",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 133,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 134,
+      "action": {
+        "type": "invoke",
+        "field": "setup",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 135,
+      "action": {
+        "type": "invoke",
+        "field": "run-promote",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 144,
+      "filename": "during-sync-scheduling-candidates.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 234,
+      "action": {
+        "type": "invoke",
+        "field": "setup",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 235,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 236,
+      "action": {
+        "type": "invoke",
+        "field": "driver",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 237,
+      "action": {
+        "type": "invoke",
+        "field": "run-promote",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_definition",
+      "line": 245,
+      "name": "BlockedCallbackTester",
+      "filename": "during-sync-scheduling-candidates.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 303,
+      "instance": "i",
+      "module": "BlockedCallbackTester"
+    },
+    {
+      "type": "assert_return",
+      "line": 304,
+      "action": {
+        "type": "invoke",
+        "field": "setup",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 305,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 307,
+      "instance": "i",
+      "module": "BlockedCallbackTester"
+    },
+    {
+      "type": "assert_return",
+      "line": 308,
+      "action": {
+        "type": "invoke",
+        "field": "setup",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 309,
+      "action": {
+        "type": "invoke",
+        "field": "run-promote",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_definition",
+      "line": 315,
+      "name": "SyncLiftedTester",
+      "filename": "during-sync-scheduling-candidates.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 403,
+      "instance": "i",
+      "module": "SyncLiftedTester"
+    },
+    {
+      "type": "assert_return",
+      "line": 404,
+      "action": {
+        "type": "invoke",
+        "field": "setup",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 405,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 407,
+      "instance": "i",
+      "module": "SyncLiftedTester"
+    },
+    {
+      "type": "assert_return",
+      "line": 408,
+      "action": {
+        "type": "invoke",
+        "field": "setup",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 409,
+      "action": {
+        "type": "invoke",
+        "field": "run-promote",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 414,
+      "filename": "during-sync-scheduling-candidates.5.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 482,
+      "action": {
+        "type": "invoke",
+        "field": "setup",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 483,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 484,
+      "action": {
+        "type": "invoke",
+        "field": "run-promote",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    }
+  ]
+}

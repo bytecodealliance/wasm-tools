@@ -1,0 +1,16 @@
+(module
+  (type (;0;) (func (result i32)))
+  (import "test" "func->11i" (func $f11i (;0;) (type 0) (result i32)))
+  (import "test"
+    (item "global->1" (global $g1 (;0;) i32))
+    (item "global->20" (global $g20 (;1;) i32))
+  )
+  (export "sum" (func 1))
+  (func (;1;) (type 0) (result i32)
+    call $f11i
+    global.get $g1
+    global.get $g20
+    i32.add
+    i32.add
+  )
+)

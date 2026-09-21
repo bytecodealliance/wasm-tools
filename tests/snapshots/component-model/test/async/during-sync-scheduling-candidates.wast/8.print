@@ -1,0 +1,146 @@
+(component
+  (component $C (;0;)
+    (core module $Core (;0;)
+      (type (;0;) (func (param i32)))
+      (type (;1;) (func (result i32)))
+      (type (;2;) (func (param i32) (result i32)))
+      (type (;3;) (func (param i32 i32 i32) (result i32)))
+      (import "" "task.return" (func $task.return (;0;) (type 0) (param i32)))
+      (import "" "thread.index" (func $thread.index (;1;) (type 1) (result i32)))
+      (import "" "thread.yield" (func $thread.yield (;2;) (type 1) (result i32)))
+      (import "" "thread.yield-then-promote" (func $thread.yield-then-promote (;3;) (type 2) (param i32) (result i32)))
+      (global $setup-thread (;0;) (mut i32) i32.const 0)
+      (global $in-sync-call (;1;) (mut i32) i32.const 0)
+      (global $cb-ran (;2;) (mut i32) i32.const 0)
+      (export "setup" (func 4))
+      (export "setup-cb" (func 5))
+      (export "run" (func 6))
+      (export "run-promote" (func 7))
+      (func (;4;) (type 1) (result i32)
+        call $thread.index
+        global.set $setup-thread
+        i32.const 1
+        call $task.return
+        i32.const 1
+      )
+      (func (;5;) (type 3) (param i32 i32 i32) (result i32)
+        global.get $in-sync-call
+        if ;; label = @1
+          i32.const 1
+          global.set $cb-ran
+        end
+        i32.const 1
+      )
+      (func (;6;) (type 1) (result i32)
+        i32.const 0
+        global.set $cb-ran
+        i32.const 1
+        global.set $in-sync-call
+        loop $again
+          call $thread.yield
+          drop
+          global.get $cb-ran
+          i32.eqz
+          br_if $again
+        end
+        i32.const 0
+        global.set $in-sync-call
+        i32.const 42
+      )
+      (func (;7;) (type 1) (result i32)
+        i32.const 0
+        global.set $cb-ran
+        i32.const 1
+        global.set $in-sync-call
+        global.get $setup-thread
+        call $thread.yield-then-promote
+        drop
+        global.get $cb-ran
+        i32.eqz
+        if ;; label = @1
+          unreachable
+        end
+        i32.const 0
+        global.set $in-sync-call
+        i32.const 42
+      )
+    )
+    (core func $task.return (;0;) (canon task.return (result u32)))
+    (core func $thread.index (;1;) (canon thread.index))
+    (core func $thread.yield (;2;) (canon thread.yield))
+    (core func $thread.yield-then-promote (;3;) (canon thread.yield-then-promote))
+    (core instance (;0;)
+      (export "task.return" (func $task.return))
+      (export "thread.index" (func $thread.index))
+      (export "thread.yield" (func $thread.yield))
+      (export "thread.yield-then-promote" (func $thread.yield-then-promote))
+    )
+    (core instance $core (;1;) (instantiate $Core
+        (with "" (instance 0))
+      )
+    )
+    (type (;0;) (func async (result u32)))
+    (alias core export $core "setup" (core func (;4;)))
+    (alias core export $core "setup-cb" (core func (;5;)))
+    (func (;0;) (type 0) (canon lift (core func 4) async (callback 5)))
+    (type (;1;) (func (result u32)))
+    (alias core export $core "run" (core func (;6;)))
+    (func (;1;) (type 1) (canon lift (core func 6)))
+    (type (;2;) (func (result u32)))
+    (alias core export $core "run-promote" (core func (;7;)))
+    (func (;2;) (type 2) (canon lift (core func 7)))
+    (export (;3;) "setup" (func 0))
+    (export (;4;) "run" (func 1))
+    (export (;5;) "run-promote" (func 2))
+  )
+  (component $D (;1;)
+    (type (;0;) (func (result u32)))
+    (import "run" (func $run (;0;) (type 0)))
+    (core module $Core (;0;)
+      (type (;0;) (func (param i32)))
+      (type (;1;) (func (result i32)))
+      (type (;2;) (func (param i32 i32 i32) (result i32)))
+      (import "" "task.return" (func $task.return (;0;) (type 0) (param i32)))
+      (import "" "run" (func $run (;1;) (type 1) (result i32)))
+      (export "driver" (func 2))
+      (export "driver-cb" (func 3))
+      (func (;2;) (type 1) (result i32)
+        call $run
+        call $task.return
+        i32.const 0
+      )
+      (func (;3;) (type 2) (param i32 i32 i32) (result i32)
+        unreachable
+      )
+    )
+    (core func $task.return (;0;) (canon task.return (result u32)))
+    (core func $run' (;1;) (canon lower (func $run)))
+    (core instance (;0;)
+      (export "task.return" (func $task.return))
+      (export "run" (func $run'))
+    )
+    (core instance $core (;1;) (instantiate $Core
+        (with "" (instance 0))
+      )
+    )
+    (type (;1;) (func async (result u32)))
+    (alias core export $core "driver" (core func (;2;)))
+    (alias core export $core "driver-cb" (core func (;3;)))
+    (func (;1;) (type 1) (canon lift (core func 2) async (callback 3)))
+    (export (;2;) "driver" (func 1))
+  )
+  (instance $c (;0;) (instantiate $C))
+  (alias export $c "run" (func (;0;)))
+  (instance $d (;1;) (instantiate $D
+      (with "run" (func 0))
+    )
+  )
+  (alias export $c "setup" (func (;1;)))
+  (alias export $c "run" (func (;2;)))
+  (alias export $c "run-promote" (func (;3;)))
+  (alias export $d "driver" (func (;4;)))
+  (export (;5;) "setup" (func 1))
+  (export (;6;) "run" (func 2))
+  (export (;7;) "run-promote" (func 3))
+  (export (;8;) "driver" (func 4))
+)

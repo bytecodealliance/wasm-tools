@@ -174,6 +174,7 @@ where
 ///
 /// This is created via the [`IntoIterator`] `impl` for the [`SectionLimited`]
 /// type.
+#[derive(Debug, Clone)]
 pub struct SectionLimitedIntoIter<'a, T> {
     section: SectionLimited<'a, T>,
     remaining: u32,
@@ -220,6 +221,12 @@ where
 }
 
 impl<'a, T> ExactSizeIterator for SectionLimitedIntoIter<'a, T> where T: FromReader<'a> {}
+
+impl<'a, T> From<SectionLimitedIntoIter<'a, T>> for SectionLimited<'a, T> {
+    fn from(iter: SectionLimitedIntoIter<'a, T>) -> Self {
+        iter.section
+    }
+}
 
 /// An iterator over a limited section iterator.
 pub struct SectionLimitedIntoIterWithOffsets<'a, T> {
