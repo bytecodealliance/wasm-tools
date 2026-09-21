@@ -1,0 +1,15 @@
+package local:demo;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+enum direction {
+  north,
+  south,
+  east,
+  west,
+}
+
+type path = list<point>;

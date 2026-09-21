@@ -1,0 +1,22 @@
+package local:demo;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+interface types {
+  enum level {
+    info,
+    debug,
+  }
+}
+
+interface api {
+  use types.{level};
+
+  move-to: func(p: point);
+
+  log: func(level: level, msg: string);
+}
+

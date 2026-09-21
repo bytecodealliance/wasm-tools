@@ -1,0 +1,16 @@
+package local:demo;
+
+type pair = tuple<u32, u32>;
+type maybe = option<pair>;
+type either = result<pair, string>;
+type pipe = stream<u8>;
+type job = future<pair>;
+type table = map<string, pair>;
+
+interface api {
+  f: func() -> tuple<maybe, either, pipe, job, table>;
+}
+
+world w {
+  export api;
+}

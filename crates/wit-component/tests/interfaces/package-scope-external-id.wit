@@ -1,0 +1,19 @@
+package local:demo;
+
+@external-id("pkg-point")
+record point {
+  x: u32,
+  y: u32,
+}
+
+@external-id("pkg-path")
+type path = list<point>;
+
+interface api {
+  move-to: func(p: point);
+  trail: func() -> path;
+}
+
+world w {
+  export api;
+}
