@@ -18,25 +18,15 @@ const PAGE_SIZE: i32 = 64 * 1024;
 ///
 /// This internally performs a "gc" pass after removing exports to ensure that
 /// the resulting module imports the minimal set of functions necessary.
-///
-/// If `memory_page_size_log2` is `Some`, any imported memory
-/// will have its page size overridden to match the main module's memory.
 pub fn run(
     wasm: &[u8],
     required: &IndexSet<String>,
     main_module_realloc: Option<&str>,
-    memory_page_size_log2: Option<u32>,
 ) -> Result<Vec<u8>> {
     assert!(!required.is_empty());
 
     let mut module = Module::default();
     module.parse(wasm)?;
-
-    if let Some(page_size_log2) = memory_page_size_log2 {
-        // The page size override is safe, because the adapter code doesn't
-        // allocate memory nor assume alignment.
-        module.override_memory_import_page_size(page_size_log2);
-    }
 
     // Make sure that all required names are present in the module, and then
     // remove all names that are not required.
@@ -56,7 +46,7 @@ pub fn run(
     }
     assert!(!module.exports.is_empty());
     module.liveness()?;
-    module.encode(main_module_realloc, memory_page_size_log2.unwrap_or(16))
+    module.encode(main_module_realloc)
 }
 
 /// This function generates a Wasm function body which implements `cabi_realloc` in terms of `memory.grow`.  It
@@ -232,7 +222,7 @@ enum Definition<'a, T> {
 impl<'a> Module<'a> {
     fn parse(&mut self, wasm: &'a [u8]) -> Result<()> {
         let mut next_code_index = 0;
-        let mut validator = Validator::new();
+        let mut validator = Validator::new_with_features(WasmFeatures::all());
         for payload in Parser::new(0).parse_all(wasm) {
             let payload = payload?;
             validator.payload(&payload)?;
@@ -349,12 +339,13 @@ impl<'a> Module<'a> {
         Ok(())
     }
 
-    fn override_memory_import_page_size(&mut self, page_size_log2: u32) {
-        for mem in &mut self.memories {
+    fn imported_memory_page_size_log2(&self) -> u32 {
+        for mem in &self.memories {
             if let Definition::Import(..) = &mem.def {
-                mem.ty.page_size_log2 = Some(page_size_log2);
+                return mem.ty.page_size_log2.unwrap_or(16);
             }
         }
+        16
     }
 
     fn parse_name_section(&mut self, section: NameSectionReader<'a>) -> Result<()> {
@@ -528,11 +519,8 @@ impl<'a> Module<'a> {
 
     /// Encodes this `Module` to a new wasm module which is gc'd and only
     /// contains the items that are live as calculated by the `liveness` pass.
-    fn encode(
-        &mut self,
-        main_module_realloc: Option<&str>,
-        page_size_log2: u32,
-    ) -> Result<Vec<u8>> {
+    fn encode(&mut self, main_module_realloc: Option<&str>) -> Result<Vec<u8>> {
+        let page_size_log2 = self.imported_memory_page_size_log2();
         // Data structure used to track the mapping of old index to new index
         // for all live items.
         let mut map = Encoder::default();

@@ -2,7 +2,7 @@ use super::{Adapter, ComponentEncoder, LibraryInfo, RequiredOptions};
 use crate::validation::{
     Import, ImportMap, PayloadType, ValidatedModule, validate_adapter_module, validate_module,
 };
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use indexmap::{IndexMap, IndexSet};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
@@ -117,7 +117,7 @@ impl<'a> ComponentWorld<'a> {
     fn process_adapters(&mut self) -> Result<()> {
         let resolve = &self.encoder.metadata.resolve;
         let world = self.encoder.metadata.world;
-        let memory_page_size_log2 = get_memory_page_size_log2(&self.encoder.module, &self.info)?;
+        let main_page_size_log2 = get_memory_page_size_log2(&self.encoder.module)?.unwrap_or(16);
         for (
             name,
             Adapter {
@@ -128,6 +128,13 @@ impl<'a> ComponentWorld<'a> {
             },
         ) in self.encoder.adapters.iter()
         {
+            let adapter_page_size_log2 = get_memory_page_size_log2(wasm)?.unwrap_or(16);
+            if main_page_size_log2 != adapter_page_size_log2 {
+                bail!(
+                    "adapter module `{name}` memory page size (2^{adapter_page_size_log2}) \
+                     does not match main module's memory page size (2^{main_page_size_log2})"
+                );
+            }
             let required_by_import = self.info.imports.required_from_adapter(name.as_str());
             let no_required_by_import = || required_by_import.is_empty();
             let no_required_exports = || {
@@ -200,7 +207,6 @@ impl<'a> ComponentWorld<'a> {
                         } else {
                             self.info.exports.realloc_to_import_into_adapter()
                         },
-                        memory_page_size_log2,
                     )
                     .context("failed to reduce input adapter module to its minimal size")?,
                 )
@@ -607,19 +613,25 @@ impl ImportedInterface {
     }
 }
 
-/// Returns the non-default `page_size_log2` of the main module's memory, if
-/// any. This checks both imported and locally-defined memories.
-fn get_memory_page_size_log2(module_bytes: &[u8], info: &ValidatedModule) -> Result<Option<u32>> {
+/// Returns the `page_size_log2` of the first memory in a module, whether
+/// imported or locally defined. Returns `None` if the module has no memory.
+fn get_memory_page_size_log2(module_bytes: &[u8]) -> Result<Option<u32>> {
     for payload in wasmparser::Parser::new(0).parse_all(module_bytes) {
-        if let wasmparser::Payload::MemorySection(s) = payload? {
-            for mem in s {
-                let mem = mem?;
-                return Ok(mem.page_size_log2);
+        match payload? {
+            wasmparser::Payload::ImportSection(s) => {
+                for import in s.into_imports() {
+                    if let wasmparser::TypeRef::Memory(mem) = import?.ty {
+                        return Ok(mem.page_size_log2);
+                    }
+                }
             }
+            wasmparser::Payload::MemorySection(s) => {
+                for mem in s {
+                    return Ok(mem?.page_size_log2);
+                }
+            }
+            _ => {}
         }
-    }
-    if let Some(ty) = info.imports.imported_memory() {
-        return Ok(ty.page_size_log2);
     }
     Ok(None)
 }

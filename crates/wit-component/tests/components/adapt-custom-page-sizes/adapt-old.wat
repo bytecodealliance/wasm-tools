@@ -3,7 +3,7 @@
 (module
   (import "new" "get-two" (func $get_two (param i32)))
   (import "__main_module__" "cabi_realloc" (func $cabi_realloc (param i32 i32 i32 i32) (result i32)))
-  (import "env" "memory" (memory 0))
+  (import "env" "memory" (memory 0 (pagesize 1)))
 
   (global $__stack_pointer (mut i32) i32.const 0)
   (global $allocation_state (mut i32) i32.const 0)
