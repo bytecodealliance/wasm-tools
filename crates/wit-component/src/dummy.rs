@@ -200,6 +200,7 @@ fn push_imported_future_and_stream_intrinsics(
                 let cancel_write = intrinsic_name(FutureIntrinsic::CancelWrite, false);
                 let drop_readable = intrinsic_name(FutureIntrinsic::DropReadable, false);
                 let drop_writable = intrinsic_name(FutureIntrinsic::DropWritable, false);
+                let forward = intrinsic_name(FutureIntrinsic::Forward, false);
                 let async_read = intrinsic_name(FutureIntrinsic::Read, true);
                 let async_write = intrinsic_name(FutureIntrinsic::Write, true);
                 let async_cancel_read = intrinsic_name(FutureIntrinsic::CancelRead, true);
@@ -213,6 +214,7 @@ fn push_imported_future_and_stream_intrinsics(
 (import {module:?} {cancel_write:?} (func (param i32) (result i32)))
 (import {module:?} {drop_readable:?} (func (param i32)))
 (import {module:?} {drop_writable:?} (func (param i32)))
+(import {module:?} {forward:?} (func (param i32 i32)))
 (import {module:?} {async_read:?} (func (param i32 i32) (result i32)))
 (import {module:?} {async_write:?} (func (param i32 i32) (result i32)))
 
@@ -253,6 +255,7 @@ fn push_imported_future_and_stream_intrinsics(
                 let cancel_write = intrinsic_name(StreamIntrinsic::CancelWrite, false);
                 let drop_readable = intrinsic_name(StreamIntrinsic::DropReadable, false);
                 let drop_writable = intrinsic_name(StreamIntrinsic::DropWritable, false);
+                let forward = intrinsic_name(StreamIntrinsic::Forward, false);
                 let async_read = intrinsic_name(StreamIntrinsic::Read, true);
                 let async_write = intrinsic_name(StreamIntrinsic::Write, true);
                 let async_cancel_read = intrinsic_name(StreamIntrinsic::CancelRead, true);
@@ -266,6 +269,7 @@ fn push_imported_future_and_stream_intrinsics(
 (import {module:?} {cancel_write:?} (func (param i32) (result i32)))
 (import {module:?} {drop_readable:?} (func (param i32)))
 (import {module:?} {drop_writable:?} (func (param i32)))
+(import {module:?} {forward:?} (func (param i32 i32)))
 (import {module:?} {async_read:?} (func (param i32 i32 i32) (result i32)))
 (import {module:?} {async_write:?} (func (param i32 i32 i32) (result i32)))
 
