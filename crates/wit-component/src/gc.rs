@@ -22,6 +22,7 @@ pub fn run(
     wasm: &[u8],
     required: &IndexSet<String>,
     main_module_realloc: Option<&str>,
+    page_size_log2: u32,
 ) -> Result<Vec<u8>> {
     assert!(!required.is_empty());
 
@@ -46,7 +47,7 @@ pub fn run(
     }
     assert!(!module.exports.is_empty());
     module.liveness()?;
-    module.encode(main_module_realloc)
+    module.encode(main_module_realloc, page_size_log2)
 }
 
 /// This function generates a Wasm function body which implements `cabi_realloc` in terms of `memory.grow`.  It
@@ -339,15 +340,6 @@ impl<'a> Module<'a> {
         Ok(())
     }
 
-    fn imported_memory_page_size_log2(&self) -> u32 {
-        for mem in &self.memories {
-            if let Definition::Import(..) = &mem.def {
-                return mem.ty.page_size_log2.unwrap_or(16);
-            }
-        }
-        16
-    }
-
     fn parse_name_section(&mut self, section: NameSectionReader<'a>) -> Result<()> {
         for s in section {
             match s? {
@@ -519,8 +511,11 @@ impl<'a> Module<'a> {
 
     /// Encodes this `Module` to a new wasm module which is gc'd and only
     /// contains the items that are live as calculated by the `liveness` pass.
-    fn encode(&mut self, main_module_realloc: Option<&str>) -> Result<Vec<u8>> {
-        let page_size_log2 = self.imported_memory_page_size_log2();
+    fn encode(
+        &mut self,
+        main_module_realloc: Option<&str>,
+        page_size_log2: u32,
+    ) -> Result<Vec<u8>> {
         // Data structure used to track the mapping of old index to new index
         // for all live items.
         let mut map = Encoder::default();

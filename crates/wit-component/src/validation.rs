@@ -1124,7 +1124,7 @@ pub enum Export {
     ResourceDtor(TypeId),
 
     /// Memory, typically for an adapter.
-    Memory,
+    Memory(MemoryType),
 
     /// `cabi_realloc`
     GeneralPurposeRealloc,
@@ -1225,7 +1225,7 @@ impl ExportMap {
             ExternalKind::Func => {}
             ExternalKind::Memory => {
                 if name == names.export_memory() {
-                    return Ok(Some(Export::Memory));
+                    return Ok(Some(Export::Memory(types.memory_at(export.index))));
                 }
                 return Ok(None);
             }
@@ -1420,9 +1420,12 @@ impl ExportMap {
         })
     }
 
-    /// Returns the memory, if exported, for this module.
-    pub fn memory(&self) -> Option<&str> {
-        self.find(|m| matches!(m, Export::Memory))
+    /// Returns the exported memory name and type, if present.
+    pub fn memory(&self) -> Option<(&str, MemoryType)> {
+        self.names.iter().find_map(|(name, m)| match m {
+            Export::Memory(ty) => Some((name.as_str(), *ty)),
+            _ => None,
+        })
     }
 
     /// Returns the indirect function table, if exported, for this module.
@@ -1468,7 +1471,7 @@ impl ExportMap {
         if self
             .names
             .values()
-            .filter(|m| matches!(m, Export::Memory))
+            .filter(|m| matches!(m, Export::Memory(_)))
             .count()
             > 1
         {
