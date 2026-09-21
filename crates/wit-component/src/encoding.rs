@@ -774,7 +774,7 @@ impl<'a> EncodingState<'a> {
                 | Export::WorldFuncPostReturn(..)
                 | Export::InterfaceFuncPostReturn(..)
                 | Export::ResourceDtor(..)
-                | Export::Memory
+                | Export::Memory(_)
                 | Export::GeneralPurposeRealloc
                 | Export::GeneralPurposeExportRealloc
                 | Export::GeneralPurposeImportRealloc
@@ -1767,7 +1767,7 @@ impl<'a> EncodingState<'a> {
         // If memory hasn't been defined yet then it's provided by the main
         // module here.
         if self.memory_index.is_none() {
-            if let Some(memory) = self.info.info.exports.memory() {
+            if let Some((memory, _)) = self.info.info.exports.memory() {
                 self.memory_index = Some(self.core_alias_export(
                     Some("memory"),
                     instance_index,

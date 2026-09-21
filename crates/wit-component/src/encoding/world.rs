@@ -2,7 +2,7 @@ use super::{Adapter, ComponentEncoder, LibraryInfo, RequiredOptions};
 use crate::validation::{
     Import, ImportMap, PayloadType, ValidatedModule, validate_adapter_module, validate_module,
 };
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use indexmap::{IndexMap, IndexSet};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
@@ -117,6 +117,12 @@ impl<'a> ComponentWorld<'a> {
     fn process_adapters(&mut self) -> Result<()> {
         let resolve = &self.encoder.metadata.resolve;
         let world = self.encoder.metadata.world;
+        let main_memory_page_size = self
+            .info
+            .exports
+            .memory()
+            .map(|(_, ty)| ty.page_size())
+            .unwrap_or(65536);
         for (
             name,
             Adapter {
@@ -189,6 +195,11 @@ impl<'a> ComponentWorld<'a> {
                 for (name, _export) in info.exports.iter() {
                     required.insert(name.to_string());
                 }
+                let page_size_log2 = info
+                    .imports
+                    .imported_memory()
+                    .and_then(|ty| ty.page_size_log2)
+                    .unwrap_or(16);
 
                 Cow::Owned(
                     crate::gc::run(
@@ -199,6 +210,7 @@ impl<'a> ComponentWorld<'a> {
                         } else {
                             self.info.exports.realloc_to_import_into_adapter()
                         },
+                        page_size_log2,
                     )
                     .context("failed to reduce input adapter module to its minimal size")?,
                 )
@@ -213,6 +225,15 @@ impl<'a> ComponentWorld<'a> {
             .with_context(|| {
                 format!("failed to validate the imports of the minimized adapter module `{name}`")
             })?;
+            if let Some(adapter_memory) = info.imports.imported_memory() {
+                let adapter_page_size = adapter_memory.page_size();
+                if main_memory_page_size != adapter_page_size {
+                    bail!(
+                        "adapter module `{name}` memory page size ({adapter_page_size}) \
+                         does not match main module's memory page size ({main_memory_page_size})"
+                    );
+                }
+            }
             self.adapters.insert(
                 name,
                 WorldAdapter {
