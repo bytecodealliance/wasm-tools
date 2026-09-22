@@ -48,7 +48,6 @@ interface coverage-iface {
 ///     multi-line block
 interface other-comment-forms {
   /// one doc line
-  /// non-doc in the middle
   /// another doc line
   multiple-lines-split: func();
 

@@ -1,7 +1,6 @@
 package foo:maps-test;
 
 interface maps-interface {
-  /// Test all primitive key types
   type bool-map = map<bool, string>;
 
   type u8-map = map<u8, string>;
@@ -24,7 +23,6 @@ interface maps-interface {
 
   type string-map = map<string, u32>;
 
-  /// Test all value types
   type string-to-bool = map<string, bool>;
 
   type string-to-list = map<string, list<u8>>;
@@ -35,14 +33,12 @@ interface maps-interface {
 
   type string-to-tuple = map<string, tuple<u32, string>>;
 
-  /// Nested structures
   type map-of-maps = map<string, map<string, u32>>;
 
   type list-of-maps = list<map<string, u32>>;
 
   type option-of-map = option<map<string, u32>>;
 
-  /// Functions
   map-param: func(x: map<string, u32>);
 
   map-result: func() -> map<string, u32>;
