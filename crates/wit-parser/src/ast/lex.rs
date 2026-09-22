@@ -92,7 +92,14 @@ impl Span {
 #[derive(Eq, PartialEq, Debug, Copy, Clone)]
 pub enum Token {
     Whitespace,
+    /// A non-documentation comment: a line comment beginning with `//` (but
+    /// not `///`) or a block comment beginning with `/*` (but not `/**`).
     Comment,
+    /// A documentation comment: a line comment beginning with `///` or a
+    /// block comment beginning with `/**` (matching Rust's rustdoc rules,
+    /// so `////`-prefixed lines and `/**/` are treated as non-doc
+    /// [`Token::Comment`]s instead).
+    DocComment,
 
     Equals,
     Comma,
@@ -234,7 +241,9 @@ impl<'a> Tokenizer<'a> {
     pub fn next(&mut self) -> Result<Option<(Span, Token)>, Error> {
         loop {
             match self.next_raw()? {
-                Some((_, Token::Whitespace)) | Some((_, Token::Comment)) => {}
+                Some((_, Token::Whitespace))
+                | Some((_, Token::Comment))
+                | Some((_, Token::DocComment)) => {}
                 other => break Ok(other),
             }
         }
@@ -258,14 +267,50 @@ impl<'a> Tokenizer<'a> {
             '/' => {
                 // Eat a line comment if it's `//...`
                 if self.eatc('/') {
+                    // Distinguish doc line comments (`///...`) from regular
+                    // line comments (`//...`) and from `////...` which
+                    // rustdoc also treats as non-doc.
+                    let is_doc = {
+                        let mut peek = self.chars.clone();
+                        match (peek.next(), peek.next()) {
+                            (Some((_, '/')), Some((_, ch2))) if ch2 != '/' => true,
+                            (Some((_, '/')), None) => true,
+                            _ => false,
+                        }
+                    };
+                    if is_doc {
+                        // consume the third `/`
+                        self.chars.next();
+                    }
                     for (_, ch) in &mut self.chars {
                         if ch == '\n' {
                             break;
                         }
                     }
-                    Comment
+                    if is_doc { DocComment } else { Comment }
                 // eat a block comment if it's `/*...`
                 } else if self.eatc('*') {
+                    // Distinguish doc block comments (`/** ... */`) from
+                    // regular block comments. Following rustdoc: `/**/`,
+                    // `/***/` (and `/*** ... */` where after the first two
+                    // `*`s the next char is `*` or `/`) are treated as
+                    // non-doc.
+                    let is_doc = {
+                        let mut peek = self.chars.clone();
+                        match peek.next() {
+                            Some((_, '*')) => {
+                                // Look at the char after `/**`; if it is
+                                // `/` we have the empty `/**/` block, and
+                                // if it is `*` we have `/***...` which is
+                                // not a doc block.
+                                match peek.next() {
+                                    Some((_, '/')) | Some((_, '*')) => false,
+                                    _ => true,
+                                }
+                            }
+                            _ => false,
+                        }
+                    };
                     let mut depth = 1;
                     while depth > 0 {
                         let (_, ch) = match self.chars.next() {
@@ -278,7 +323,7 @@ impl<'a> Tokenizer<'a> {
                             _ => {}
                         }
                     }
-                    Comment
+                    if is_doc { DocComment } else { Comment }
                 } else {
                     Slash
                 }
@@ -681,6 +726,7 @@ impl Token {
         match self {
             Whitespace => "whitespace",
             Comment => "a comment",
+            DocComment => "a doc comment",
             Equals => "'='",
             Comma => "','",
             Colon => "':'",
@@ -980,6 +1026,47 @@ fn test_tokenizer() {
     assert!(collect("\u{b}").is_err(), "control code");
     assert!(collect("\u{c}").is_err(), "control code");
     assert!(collect("\u{85}").is_err(), "control code");
+}
+
+#[test]
+fn test_comment_kinds() {
+    fn collect_raw(s: &str) -> Result<Vec<Token>, Error> {
+        let mut t = Tokenizer::new(s, 0)?;
+        let mut tokens = Vec::new();
+        while let Some((_, token)) = t.next_raw()? {
+            match token {
+                Token::Whitespace => continue,
+                _ => tokens.push(token),
+            }
+        }
+        Ok(tokens)
+    }
+
+    // Line comments: `//` is non-doc, `///` is doc, `////`+ is non-doc.
+    assert_eq!(collect_raw("//\n").unwrap(), vec![Token::Comment]);
+    assert_eq!(collect_raw("// hi\n").unwrap(), vec![Token::Comment]);
+    assert_eq!(collect_raw("///\n").unwrap(), vec![Token::DocComment]);
+    assert_eq!(collect_raw("/// doc\n").unwrap(), vec![Token::DocComment]);
+    assert_eq!(collect_raw("////\n").unwrap(), vec![Token::Comment]);
+    assert_eq!(collect_raw("//// not-doc\n").unwrap(), vec![Token::Comment]);
+    assert_eq!(collect_raw("///////\n").unwrap(), vec![Token::Comment]);
+
+    // Block comments: `/* */` is non-doc, `/** */` is doc,
+    // `/**/` and `/*** */` are non-doc.
+    assert_eq!(collect_raw("/* hi */").unwrap(), vec![Token::Comment]);
+    assert_eq!(collect_raw("/** hi */").unwrap(), vec![Token::DocComment]);
+    assert_eq!(collect_raw("/**/").unwrap(), vec![Token::Comment]);
+    assert_eq!(collect_raw("/***/").unwrap(), vec![Token::Comment]);
+    assert_eq!(collect_raw("/*** hi */").unwrap(), vec![Token::Comment]);
+    assert_eq!(
+        collect_raw("/** /* nested */ */").unwrap(),
+        vec![Token::DocComment]
+    );
+
+    // `next` (as opposed to `next_raw`) skips both comment kinds.
+    let mut t = Tokenizer::new("// non-doc\n/// doc\ntype", 0).unwrap();
+    assert!(matches!(t.next().unwrap(), Some((_, Token::Type))));
+    assert!(t.next().unwrap().is_none());
 }
 
 #[test]

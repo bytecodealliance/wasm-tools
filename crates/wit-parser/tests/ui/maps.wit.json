@@ -46,10 +46,7 @@
               "type": "string"
             }
           ],
-          "result": 11,
-          "docs": {
-            "contents": "Functions using maps"
-          }
+          "result": 11
         },
         "set-value": {
           "name": "set-value",
@@ -100,9 +97,6 @@
       },
       "owner": {
         "interface": 0
-      },
-      "docs": {
-        "contents": "Basic maps"
       }
     },
     {
@@ -137,9 +131,6 @@
       },
       "owner": {
         "interface": 0
-      },
-      "docs": {
-        "contents": "Nested maps"
       }
     },
     {
@@ -160,9 +151,6 @@
       },
       "owner": {
         "interface": 0
-      },
-      "docs": {
-        "contents": "Maps with complex types"
       }
     },
     {
@@ -201,9 +189,6 @@
       },
       "owner": {
         "interface": 0
-      },
-      "docs": {
-        "contents": "Maps with tuples, lists, options"
       }
     },
     {
@@ -216,9 +201,6 @@
       },
       "owner": {
         "interface": 0
-      },
-      "docs": {
-        "contents": "Map with various key types"
       }
     },
     {

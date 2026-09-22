@@ -367,10 +367,7 @@
       "name": "test-only-stable-with-in-active-feature",
       "imports": {},
       "exports": {},
-      "package": 6,
-      "docs": {
-        "contents": "in test this results in world with nothing"
-      }
+      "package": 6
     }
   ],
   "interfaces": [

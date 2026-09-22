@@ -1379,8 +1379,12 @@ fn parse_docs<'a>(tokens: &mut Tokenizer<'a>) -> Result<Docs<'a>, lex::Error> {
     let mut started = false;
     while let Some((span, token)) = clone.next_raw()? {
         match token {
-            Token::Whitespace => {}
-            Token::Comment => {
+            // Whitespace and non-doc comments are transparent for the
+            // purposes of collecting doc comments: they neither contribute
+            // to `docs` nor stop us from attaching a later `///`/`/** */`
+            // block to the following item.
+            Token::Whitespace | Token::Comment => {}
+            Token::DocComment => {
                 let comment = tokens.get_span(span);
                 if !started {
                     docs.span.set_start(span.start());

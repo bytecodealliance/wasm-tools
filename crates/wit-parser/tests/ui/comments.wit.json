@@ -5,11 +5,32 @@
       "name": "foo",
       "types": {
         "x": 0,
-        "bar": 1
+        "bar": 1,
+        "docd": 2,
+        "undocd": 3,
+        "also-undocd": 4
       },
       "functions": {},
       "docs": {
-        "contents": " hello\n world\n why, yes\n this is a comment\n* this too */\n* is a comment */\n* this /* is /* a */ nested */ comment */"
+        "contents": "doc comment for `foo`\nsecond doc line"
+      },
+      "package": 0
+    },
+    {
+      "name": "bar",
+      "types": {},
+      "functions": {
+        "the-fn": {
+          "name": "the-fn",
+          "kind": "freestanding",
+          "params": [],
+          "docs": {
+            "contents": "docs for the-fn"
+          }
+        }
+      },
+      "docs": {
+        "contents": "docs for bar interface"
       },
       "package": 0
     }
@@ -32,13 +53,44 @@
       "owner": {
         "interface": 0
       }
+    },
+    {
+      "name": "docd",
+      "kind": {
+        "type": "u32"
+      },
+      "owner": {
+        "interface": 0
+      },
+      "docs": {
+        "contents": "doc comment for `docd`\ndoc block for `docd`, continued"
+      }
+    },
+    {
+      "name": "undocd",
+      "kind": {
+        "type": "u32"
+      },
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "name": "also-undocd",
+      "kind": {
+        "type": "u32"
+      },
+      "owner": {
+        "interface": 0
+      }
     }
   ],
   "packages": [
     {
       "name": "foo:comments",
       "interfaces": {
-        "foo": 0
+        "foo": 0,
+        "bar": 1
       },
       "worlds": {}
     }
