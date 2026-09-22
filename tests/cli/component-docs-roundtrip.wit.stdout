@@ -1,4 +1,3 @@
-/// RUN: component wit % --wasm | component wit
 package foo:docs-test;
 
 /// The interface.

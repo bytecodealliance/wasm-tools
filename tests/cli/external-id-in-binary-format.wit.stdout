@@ -1,4 +1,3 @@
-/// RUN: component wit % --wasm | component wit
 package a:b;
 
 interface foo {

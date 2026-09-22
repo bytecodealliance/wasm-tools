@@ -89,9 +89,6 @@
   "packages": [
     {
       "name": "a:b",
-      "docs": {
-        "contents": "RUN: component wit --generate-nominal-type-ids foo % --json"
-      },
       "interfaces": {
         "x": 0
       },
