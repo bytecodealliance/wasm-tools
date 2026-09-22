@@ -146,7 +146,7 @@ impl fmt::Display for KebabStr<'_> {
 /// kebab-case string according to the component model specification (a
 /// `label`, generally). Despite the name, it may contain other symbols, e.g.
 /// `foo-bar.baz` for method names or `a:b` for interface names, if constructed
-/// with [KebabString::new_unchecked].
+/// with `new_unchecked`.
 ///
 /// It also provides an equality and hashing implementation based on the
 /// component models' rules for "strong uniqueness", under which e.g.
@@ -513,7 +513,7 @@ impl<'a> PlainName<'a> {
     /// Constructs a new PlainName with a canonicalized form and associated
     /// [ResourceFuncKind] and [AccessorKind]. `raw` should be the full text
     /// of the name, including annotations, and should already be well-formed
-    /// (see [ComponentNameParser]).
+    /// (see `ComponentNameParser`).
     pub fn new(raw: &'a str) -> PlainName<'a> {
         use AccessorKind as AK;
         use ResourceFuncKind as RF;
