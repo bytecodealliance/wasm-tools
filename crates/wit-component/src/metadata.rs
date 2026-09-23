@@ -275,6 +275,20 @@ pub fn encode(
     extra_producers: Option<&Producers>,
     canonical_names: bool,
 ) -> Result<Vec<u8>> {
+    // Semver-compatible interfaces share a canonical name, so, like
+    // `ComponentEncoder`, merge such imports and reject such exports to avoid
+    // emitting duplicate names.
+    let merged;
+    let resolve = if canonical_names {
+        crate::encoding::validate_canonical_export_names(resolve, world)?;
+        let mut resolve = resolve.clone();
+        resolve.merge_world_imports_based_on_semver(world)?;
+        merged = resolve;
+        &merged
+    } else {
+        resolve
+    };
+
     let ty = crate::encoding::encode_world(resolve, world, canonical_names)?;
 
     let world = &resolve.worlds[world];

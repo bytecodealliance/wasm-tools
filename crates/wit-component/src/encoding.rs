@@ -88,7 +88,7 @@ use wasm_encoder::*;
 use wasmparser::{Validator, WasmFeatures};
 use wit_parser::{
     Function, FunctionKind, InterfaceId, LiveTypes, Param, Resolve, Stability, Type, TypeDefKind,
-    TypeId, TypeOwner, WorldItem, WorldKey,
+    TypeId, TypeOwner, WorldId, WorldItem, WorldKey,
     abi::{AbiVariant, WasmSignature, WasmType},
 };
 
@@ -3559,6 +3559,10 @@ impl ComponentEncoder {
                 .merge_world_imports_based_on_semver(self.metadata.world)?;
         }
 
+        if self.emit_canonical_names {
+            validate_canonical_export_names(&self.metadata.resolve, self.metadata.world)?;
+        }
+
         self.finalize_resolve_with_nominal_ids();
 
         let world = ComponentWorld::new(self).context("failed to decode world from module")?;
@@ -3681,6 +3685,29 @@ impl ComponentWorld<'_> {
             CustomModule::Adapter(name) => &self.encoder.adapters[name].metadata,
         }
     }
+}
+
+/// Verifies that no two exports of the world share the same canonical name.
+pub(crate) fn validate_canonical_export_names(resolve: &Resolve, world: WorldId) -> Result<()> {
+    let world = &resolve.worlds[world];
+    let mut names = HashMap::new();
+    for key in world.exports.keys() {
+        let WorldKey::Interface(id) = key else {
+            continue;
+        };
+        let canonical = resolve.canonicalized_id_of(*id).unwrap();
+        if let Some(prev) = names.insert(canonical.clone(), *id) {
+            bail!(
+                "export `{}` and export `{}` both have the canonical name \
+                 `{canonical}`; semver-compatible versions of the same \
+                 interface cannot both be exported when emitting canonical \
+                 names",
+                resolve.id_of(prev).unwrap(),
+                resolve.id_of(*id).unwrap(),
+            );
+        }
+    }
+    Ok(())
 }
 
 #[cfg(all(test, feature = "dummy-module"))]
