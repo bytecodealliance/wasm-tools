@@ -2,7 +2,7 @@
 //! component model.
 
 use crate::prelude::*;
-use crate::{Result, WasmFeatures};
+use crate::{Result, WasmFeatures, require_feature};
 use core::cmp::Ordering;
 use core::fmt;
 use core::hash::{Hash, Hasher};
@@ -11,13 +11,15 @@ use semver::Version;
 
 /// Represents a kebab string slice used in validation.
 ///
-/// This is a wrapper around `str` that ensures the slice is
-/// a valid kebab case string according to the component model
-/// specification.
+/// This is a wrapper around `str` that can ensure the slice is a valid
+/// kebab-case string according to the component model specification (a
+/// `label`, generally). Despite the name, it may contain other symbols, e.g.
+/// `foo-bar.baz` for method names or `a:b` for interface names, if constructed
+/// with `new_unchecked`.
 ///
-/// It also provides an equality and hashing implementation which performs the
-/// component model's canonicalization of a `label` when determining whether
-/// names are "strongly-unique".
+/// It also provides an equality and hashing implementation based on the
+/// component models' rules for "strong uniqueness", under which e.g.
+/// `foo-bar` and `fo-OB-ar` are considered equal.
 #[derive(Debug, Eq, Clone, Copy)]
 #[repr(transparent)]
 pub struct KebabStr<'a>(&'a str);
@@ -36,8 +38,16 @@ impl<'a> KebabStr<'a> {
     }
 
     /// Gets the underlying string slice.
-    pub fn as_str(&self) -> &str {
-        &self.0
+    pub fn as_str(&self) -> &'a str {
+        self.0
+    }
+
+    /// Takes a slice of the underlying string as a new KebabStr.
+    pub fn slice<I>(&self, index: I) -> KebabStr<'a>
+    where
+        I: core::slice::SliceIndex<str, Output = str>,
+    {
+        KebabStr(&self.0[index])
     }
 
     /// Converts the slice to an owned string.
@@ -45,8 +55,10 @@ impl<'a> KebabStr<'a> {
         KebabString(self.to_string())
     }
 
-    /// Returns the characters of this `label` as canonicalized when determining
-    /// whether two names are "strongly-unique".
+    /// Returns the characters of this `label` as canonicalized when
+    /// determining whether two names are "strongly-unique". Effectively
+    /// implements only step 1 of the canonicalization process, and leaves
+    /// annotations alone.
     fn canonical_chars(&self) -> impl Iterator<Item = char> + '_ {
         self.chars()
             .filter(|c| *c != '-')
@@ -130,13 +142,15 @@ impl fmt::Display for KebabStr<'_> {
 
 /// Represents an owned kebab string for validation.
 ///
-/// This is a wrapper around `String` that ensures the string is
-/// a valid kebab case string according to the component model
-/// specification.
+/// This is a wrapper around `String` that can ensure the slice is a valid
+/// kebab-case string according to the component model specification (a
+/// `label`, generally). Despite the name, it may contain other symbols, e.g.
+/// `foo-bar.baz` for method names or `a:b` for interface names, if constructed
+/// with `new_unchecked`.
 ///
-/// It also provides an equality and hashing implementation which performs the
-/// component model's canonicalization of a `label` when determining whether
-/// names are "strongly-unique".
+/// It also provides an equality and hashing implementation based on the
+/// component models' rules for "strong uniqueness", under which e.g.
+/// `foo-bar` and `fo-OB-ar` are considered equal.
 #[derive(Debug, Clone, Eq)]
 pub struct KebabString(String);
 
@@ -151,6 +165,11 @@ impl KebabString {
         } else {
             None
         }
+    }
+
+    /// Creates a new kebab string without verifying its kebab-ness.
+    pub fn new_unchecked(s: impl Into<String>) -> Self {
+        Self(s.into())
     }
 
     /// Gets the underlying string.
@@ -219,8 +238,11 @@ impl From<KebabString> for String {
 /// This name can be either:
 ///
 /// * a plain label or "kebab string": `a-b-c`
-/// * a plain method name : `[method]a-b.c-d`
-/// * a plain static method name : `[static]a-b.c-d`
+/// * a plain method name: `[method]a-b.c-d`
+/// * a plain static method name: `[static]a-b.c-d`
+/// * a getter or setter version of all of the above: `[get]a-b-c` or
+///   `[set]a-b-c`, `[method][get]a-b.c-d` or `[method][set]a-b.c-d`,
+///   `[static][get]a-b.c-d` or `[static][set]a-b.c-d`
 /// * a plain constructor: `[constructor]a-b`
 /// * an interface name: `wasi:cli/reactor@0.1.0`
 /// * a dependency name: `locked-dep=foo:bar/baz`
@@ -229,9 +251,11 @@ impl From<KebabString> for String {
 ///
 /// # Equality and hashing
 ///
-/// Note that this type the `[method]...` and `[static]...` variants are
-/// considered equal and hash to the same value. This enables disallowing
-/// clashes between the two where method name overlap cannot happen.
+/// Equality and hashing of plain names uses the component model's definition
+/// of "strongly-unique", which is an equivalence relation (and trivially so,
+/// because it basically string equality on "canonicalized" names). This means
+/// that, for example, `[method]foo.bar-baz` and `[static]FOO.ba-RB-az` are
+/// considered equal and will hash to the same value.
 #[derive(Clone)]
 pub struct ComponentName {
     raw: String,
@@ -240,10 +264,7 @@ pub struct ComponentName {
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 enum ParsedComponentNameKind {
-    Label,
-    Constructor,
-    Method,
-    Static,
+    Plain,
     Interface,
     Dependency,
     Url,
@@ -253,16 +274,9 @@ enum ParsedComponentNameKind {
 /// Created via [`ComponentName::kind`] and classifies a name.
 #[derive(Debug, Clone)]
 pub enum ComponentNameKind<'a> {
-    /// `a-b-c`
-    Label(KebabStr<'a>),
-    /// `[constructor]a-b`
-    Constructor(KebabStr<'a>),
-    /// `[method]a-b.c-d`
-    #[allow(missing_docs)]
-    Method(ResourceFunc<'a>),
-    /// `[static]a-b.c-d`
-    #[allow(missing_docs)]
-    Static(ResourceFunc<'a>),
+    /// `a-b-c`, `[constructor]a-b`, `[method]a-b.c-d`, `[static]a-b.c-d`, and
+    /// variants with `[get]` and `[set]`
+    Plain(PlainName<'a>),
     /// `wasi:http/types@2.0`
     #[allow(missing_docs)]
     Interface(InterfaceName<'a>),
@@ -280,6 +294,8 @@ pub enum ComponentNameKind<'a> {
 const CONSTRUCTOR: &str = "[constructor]";
 const METHOD: &str = "[method]";
 const STATIC: &str = "[static]";
+const GET: &str = "[get]";
+const SET: &str = "[set]";
 
 impl ComponentName {
     /// Attempts to parse `name` as a valid component name, returning `Err` if
@@ -314,10 +330,7 @@ impl ComponentName {
         use ComponentNameKind::*;
         use ParsedComponentNameKind as PK;
         match self.kind {
-            PK::Label => Label(KebabStr::new_unchecked(&self.raw)),
-            PK::Constructor => Constructor(KebabStr::new_unchecked(&self.raw[CONSTRUCTOR.len()..])),
-            PK::Method => Method(ResourceFunc(&self.raw[METHOD.len()..])),
-            PK::Static => Static(ResourceFunc(&self.raw[STATIC.len()..])),
+            PK::Plain => Plain(PlainName::new(&self.raw)),
             PK::Interface => Interface(InterfaceName(&self.raw)),
             PK::Dependency => Dependency(DependencyName(&self.raw)),
             PK::Url => Url(UrlName(&self.raw)),
@@ -379,10 +392,7 @@ impl ComponentNameKind<'_> {
     /// Returns the [`ParsedComponentNameKind`] of the [`ComponentNameKind`].
     fn kind(&self) -> ParsedComponentNameKind {
         match self {
-            Self::Label(_) => ParsedComponentNameKind::Label,
-            Self::Constructor(_) => ParsedComponentNameKind::Constructor,
-            Self::Method(_) => ParsedComponentNameKind::Method,
-            Self::Static(_) => ParsedComponentNameKind::Static,
+            Self::Plain(_) => ParsedComponentNameKind::Plain,
             Self::Interface(_) => ParsedComponentNameKind::Interface,
             Self::Dependency(_) => ParsedComponentNameKind::Dependency,
             Self::Url(_) => ParsedComponentNameKind::Url,
@@ -396,31 +406,15 @@ impl Ord for ComponentNameKind<'_> {
         use ComponentNameKind::*;
 
         match (self, other) {
-            (Label(lhs), Label(rhs)) => lhs.cmp(rhs),
-            (Constructor(lhs), Constructor(rhs)) => lhs.cmp(rhs),
-            (Method(lhs) | Static(lhs), Method(rhs) | Static(rhs)) => lhs.cmp(rhs),
-
-            // `[..]l.l` is equivalent to `l`
-            (Label(plain), Method(method) | Static(method))
-            | (Method(method) | Static(method), Label(plain))
-                if *plain == method.resource() && *plain == method.method() =>
-            {
-                Ordering::Equal
-            }
-
+            (Plain(lhs), Plain(rhs)) => lhs.cmp(rhs),
             (Interface(lhs), Interface(rhs)) => lhs.cmp(rhs),
             (Dependency(lhs), Dependency(rhs)) => lhs.cmp(rhs),
             (Url(lhs), Url(rhs)) => lhs.cmp(rhs),
             (Hash(lhs), Hash(rhs)) => lhs.cmp(rhs),
 
-            (Label(_), _)
-            | (Constructor(_), _)
-            | (Method(_), _)
-            | (Static(_), _)
-            | (Interface(_), _)
-            | (Dependency(_), _)
-            | (Url(_), _)
-            | (Hash(_), _) => self.kind().cmp(&other.kind()),
+            (Plain(_), _) | (Interface(_), _) | (Dependency(_), _) | (Url(_), _) | (Hash(_), _) => {
+                self.kind().cmp(&other.kind())
+            }
         }
     }
 }
@@ -435,24 +429,11 @@ impl Hash for ComponentNameKind<'_> {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         use ComponentNameKind::*;
         match self {
-            Label(name) => (0u8, name).hash(hasher),
-            Constructor(name) => (1u8, name).hash(hasher),
-
-            Method(name) | Static(name) => {
-                // `l.l` hashes the same as `l` since they're equal above,
-                // otherwise everything is hashed as `a.b` with a unique
-                // prefix.
-                if name.resource() == name.method() {
-                    (0u8, name.resource()).hash(hasher)
-                } else {
-                    (2u8, name).hash(hasher)
-                }
-            }
-
-            Interface(name) => (3u8, name).hash(hasher),
-            Dependency(name) => (4u8, name).hash(hasher),
-            Url(name) => (5u8, name).hash(hasher),
-            Hash(name) => (6u8, name).hash(hasher),
+            Plain(name) => (0u8, name).hash(hasher),
+            Interface(name) => (1u8, name).hash(hasher),
+            Dependency(name) => (2u8, name).hash(hasher),
+            Url(name) => (3u8, name).hash(hasher),
+            Hash(name) => (4u8, name).hash(hasher),
         }
     }
 }
@@ -513,6 +494,190 @@ impl Hash for ResourceFunc<'_> {
         self.resource().hash(state);
         self.method().hash(state);
     }
+}
+
+/// A plain name, possibly with resource func annotations like `[constructor]`
+/// or `[method]` and with accessor annotations like `[get]` or `[set]`.
+#[derive(Debug, Clone)]
+pub struct PlainName<'a> {
+    /// Stores only the part after the annotations, if any.
+    unannotated: KebabStr<'a>,
+
+    /// The type of resource function, if any.
+    pub resource_func: Option<ResourceFuncKind>,
+    /// The type of accessor, if any.
+    pub accessor: Option<AccessorKind>,
+}
+
+impl<'a> PlainName<'a> {
+    /// Constructs a new PlainName with a canonicalized form and associated
+    /// [ResourceFuncKind] and [AccessorKind]. `raw` should be the full text
+    /// of the name, including annotations, and should already be well-formed
+    /// (see `ComponentNameParser`).
+    pub fn new(raw: &'a str) -> PlainName<'a> {
+        use AccessorKind as AK;
+        use ResourceFuncKind as RF;
+
+        let mut raw_unannotated = raw;
+
+        let rf;
+        if raw_unannotated.starts_with(CONSTRUCTOR) {
+            rf = Some(RF::Constructor);
+            raw_unannotated = &raw_unannotated[CONSTRUCTOR.len()..];
+        } else if raw.starts_with(METHOD) {
+            rf = Some(RF::Method);
+            raw_unannotated = &raw_unannotated[METHOD.len()..];
+        } else if raw.starts_with(STATIC) {
+            rf = Some(RF::Static);
+            raw_unannotated = &raw_unannotated[STATIC.len()..];
+        } else {
+            rf = None;
+        }
+
+        let ak;
+        if raw_unannotated.starts_with(GET) {
+            ak = Some(AK::Get);
+            raw_unannotated = &raw_unannotated[GET.len()..];
+        } else if raw_unannotated.starts_with(SET) {
+            ak = Some(AK::Set);
+            raw_unannotated = &raw_unannotated[SET.len()..];
+        } else {
+            ak = None;
+        }
+
+        PlainName {
+            unannotated: KebabStr::new_unchecked(raw_unannotated),
+            resource_func: rf,
+            accessor: ak,
+        }
+    }
+
+    fn canonicalized(&self) -> KebabString {
+        // Step 1: Lowercase and de-hyphenate the name.
+        let lower: String = self.unannotated.canonical_chars().collect();
+
+        // Step 2: If the name is of the form [...]foo.foo, immediately return
+        // foo.
+        if let Some(dot) = lower.find('.') {
+            if lower[..dot] == lower[dot + 1..] {
+                return KebabString::new_unchecked(&lower[..dot]);
+            }
+        }
+
+        // Step 3: Strip all annotations except [constructor] and [set].
+        // (Really we have to add back those annotations because there's
+        // nothing in `raw` to strip.)
+        KebabString::new_unchecked(
+            if self.resource_func == Some(ResourceFuncKind::Constructor) {
+                format!("{CONSTRUCTOR}{lower}")
+            } else if self.accessor == Some(AccessorKind::Set) {
+                format!("{SET}{lower}")
+            } else {
+                lower
+            },
+        )
+    }
+
+    /// Returns the underlying string as `a-b` (or `a-b.c-d` if `[method]` or
+    /// `[static]`).
+    pub fn as_str(&self) -> &'a str {
+        self.unannotated.0
+    }
+
+    /// If the name is associated with a resource type, returns the resource
+    /// name.
+    pub fn resource(&self) -> Option<KebabStr<'a>> {
+        use ResourceFuncKind as RF;
+        match self.resource_func {
+            Some(RF::Constructor) => Some(self.unannotated),
+            Some(RF::Method) | Some(RF::Static) => {
+                let dot = self.unannotated.find('.').unwrap();
+                Some(self.unannotated.slice(..dot))
+            }
+            None => None,
+        }
+    }
+
+    /// Returns the main part of the name, i.e. the entire name (for bare names
+    /// and `[constructor]`) or the part after the dot for `[method]` and
+    /// `[static]`.
+    ///
+    /// - `a-b` => `a-b`
+    /// - `[constructor]a-b` => `a-b`
+    /// - `[method]a-b.c-d` => `c-d`
+    /// - `[static][get]a-b.c-d` => `c-d`
+    ///
+    pub fn name(&self) -> KebabStr<'a> {
+        let after_dot = match self.unannotated.find('.') {
+            Some(dot) => dot + 1,
+            None => 0,
+        };
+        self.unannotated.slice(after_dot..)
+    }
+
+    /// Returns true if the name has no annotations.
+    pub fn is_bare(&self) -> bool {
+        self.resource_func.is_none() && self.accessor.is_none()
+    }
+
+    /// If this name is a setter (`[set]`), returns the name of the expected
+    /// matching getter. Panics if this name is not a setter.
+    pub fn getter_for_setter(&self) -> String {
+        assert!(self.accessor == Some(AccessorKind::Set));
+        let prefix = match self.resource_func {
+            Some(ResourceFuncKind::Method) => METHOD,
+            Some(ResourceFuncKind::Static) => STATIC,
+            None => "",
+            _ => unreachable!(),
+        };
+        format!("{prefix}{GET}{}", self.unannotated)
+    }
+}
+
+impl Ord for PlainName<'_> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.canonicalized().cmp(&other.canonicalized())
+    }
+}
+
+impl PartialOrd for PlainName<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for PlainName<'_> {
+    fn eq(&self, other: &PlainName<'_>) -> bool {
+        self.cmp(other) == Ordering::Equal
+    }
+}
+
+impl Eq for PlainName<'_> {}
+
+impl Hash for PlainName<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.canonicalized().hash(state);
+    }
+}
+
+/// The type of a func associated with a resource type.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum ResourceFuncKind {
+    /// `[constructor]`
+    Constructor,
+    /// `[method]`
+    Method,
+    /// `[static]`
+    Static,
+}
+
+/// The type of accessor associated with a given func.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum AccessorKind {
+    /// `[get]`
+    Get,
+    /// `[set]`
+    Set,
 }
 
 /// An interface name, stored as `a:b/c@1.2.3`
@@ -695,23 +860,6 @@ struct ComponentNameParser<'a> {
 
 impl<'a> ComponentNameParser<'a> {
     fn parse(&mut self) -> Result<ParsedComponentNameKind> {
-        if self.eat_str(CONSTRUCTOR) {
-            self.expect_kebab()?;
-            return Ok(ParsedComponentNameKind::Constructor);
-        }
-        if self.eat_str(METHOD) {
-            let resource = self.take_until('.')?;
-            self.kebab(resource)?;
-            self.expect_kebab()?;
-            return Ok(ParsedComponentNameKind::Method);
-        }
-        if self.eat_str(STATIC) {
-            let resource = self.take_until('.')?;
-            self.kebab(resource)?;
-            self.expect_kebab()?;
-            return Ok(ParsedComponentNameKind::Static);
-        }
-
         // 'unlocked-dep=<' <pkgnamequery> '>'
         if self.eat_str("unlocked-dep=") {
             self.expect_str("<")?;
@@ -751,11 +899,55 @@ impl<'a> ComponentNameParser<'a> {
 
         if self.next.contains(':') {
             self.pkg_name(true)?;
-            Ok(ParsedComponentNameKind::Interface)
-        } else {
-            self.expect_kebab()?;
-            Ok(ParsedComponentNameKind::Label)
+            return Ok(ParsedComponentNameKind::Interface);
         }
+
+        let resource_func_kind;
+        if self.eat_str(CONSTRUCTOR) {
+            resource_func_kind = Some(ResourceFuncKind::Constructor);
+        } else if self.eat_str(METHOD) {
+            resource_func_kind = Some(ResourceFuncKind::Method);
+        } else if self.eat_str(STATIC) {
+            resource_func_kind = Some(ResourceFuncKind::Static);
+        } else {
+            resource_func_kind = None;
+        }
+
+        let accessor_kind;
+        if self.eat_str(GET) {
+            accessor_kind = Some(AccessorKind::Get);
+        } else if self.eat_str(SET) {
+            accessor_kind = Some(AccessorKind::Set);
+        } else {
+            accessor_kind = None;
+        }
+
+        if accessor_kind.is_some() {
+            require_feature::cm_accessors(
+                self.features,
+                "`[get]` and `[set]` names require the component model accessors feature",
+                self.offset,
+            )?;
+        }
+
+        match resource_func_kind {
+            Some(ResourceFuncKind::Constructor) => {
+                if accessor_kind.is_some() {
+                    bail!(
+                        self.offset,
+                        "names with [constructor] cannot contain [get] or [set]"
+                    );
+                }
+            }
+            Some(ResourceFuncKind::Method) | Some(ResourceFuncKind::Static) => {
+                let resource = self.take_until('.')?;
+                self.kebab(resource)?;
+            }
+            None => {}
+        }
+
+        self.expect_kebab()?;
+        Ok(ParsedComponentNameKind::Plain)
     }
 
     // pkgnamequery ::= <pkgpath> <verrange>?
@@ -1026,11 +1218,28 @@ fn is_base64(s: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use alloc::borrow::ToOwned;
+
     use super::*;
     use std::collections::HashSet;
 
     fn parse_kebab_name(s: &str) -> Option<ComponentName> {
-        ComponentName::new(s, 0).ok()
+        let features = WasmFeatures::default() | WasmFeatures::CM_ACCESSORS;
+        ComponentName::new_with_features(s, 0, features).ok()
+    }
+
+    #[test]
+    fn accessors_gated() {
+        fn parse_default(s: &str) -> Option<ComponentName> {
+            ComponentName::new(s, 0).ok()
+        }
+        assert!(parse_default("a").is_some());
+        assert!(parse_default("[get]a").is_none());
+        assert!(parse_default("[set]a").is_none());
+        assert!(parse_default("[method][get]a.b").is_none());
+        assert!(parse_default("[method][set]a.b").is_none());
+        assert!(parse_default("[static][get]a.b").is_none());
+        assert!(parse_default("[static][set]a.b").is_none());
     }
 
     #[test]
@@ -1054,14 +1263,24 @@ mod tests {
     #[test]
     fn name_smoke() {
         assert!(parse_kebab_name("a").is_some());
+        assert!(parse_kebab_name("[get]a").is_some());
+        assert!(parse_kebab_name("[set]a").is_some());
         assert!(parse_kebab_name("[foo]a").is_none());
         assert!(parse_kebab_name("[constructor]a").is_some());
+        assert!(parse_kebab_name("[constructor][get]a").is_none());
+        assert!(parse_kebab_name("[constructor][set]a").is_none());
         assert!(parse_kebab_name("[method]a").is_none());
         assert!(parse_kebab_name("[method]a.b").is_some());
         assert!(parse_kebab_name("[method]a-0.b-1").is_some());
         assert!(parse_kebab_name("[method]a.b.c").is_none());
-        assert!(parse_kebab_name("[static]a.b").is_some());
+        assert!(parse_kebab_name("[method][get]a.b").is_some());
+        assert!(parse_kebab_name("[method][set]a.b").is_some());
+        assert!(parse_kebab_name("[method][foo]a.b").is_none());
         assert!(parse_kebab_name("[static]a").is_none());
+        assert!(parse_kebab_name("[static]a.b").is_some());
+        assert!(parse_kebab_name("[static][get]a.b").is_some());
+        assert!(parse_kebab_name("[static][set]a.b").is_some());
+        assert!(parse_kebab_name("[static][foo]a.b").is_none());
     }
 
     #[test]
@@ -1107,11 +1326,101 @@ mod tests {
             parse_kebab_name("[static]a.b")
         );
 
-        let mut s = HashSet::new();
-        assert!(s.insert(parse_kebab_name("a")));
-        assert!(s.insert(parse_kebab_name("[constructor]a")));
-        assert!(s.insert(parse_kebab_name("[method]a.b")));
-        assert!(!s.insert(parse_kebab_name("[static]a.b")));
-        assert!(s.insert(parse_kebab_name("[static]b.b")));
+        {
+            let mut s = HashSet::new();
+            assert!(s.insert(parse_kebab_name("a")));
+            assert!(s.insert(parse_kebab_name("[constructor]a")));
+            assert!(s.insert(parse_kebab_name("[method]a.b")));
+            assert!(!s.insert(parse_kebab_name("[static]a.b")));
+            assert!(s.insert(parse_kebab_name("[static]b.b")));
+        }
+        {
+            let mut s: HashSet<ComponentName> = HashSet::new();
+            assert!(s.insert(parse_kebab_name("foo").unwrap()));
+            assert!(s.insert(parse_kebab_name("foo-bar").unwrap()));
+            assert!(s.insert(parse_kebab_name("[constructor]foo").unwrap()));
+            assert!(s.insert(parse_kebab_name("[method]foo.bar").unwrap()));
+            assert!(s.insert(parse_kebab_name("[static]foo.baz").unwrap()));
+            assert!(s.insert(parse_kebab_name("foo:bar/baz").unwrap()));
+            assert!(s.insert(parse_kebab_name("[get]prop").unwrap()));
+            assert!(s.insert(parse_kebab_name("[set]prop").unwrap()));
+            assert!(s.insert(parse_kebab_name("[method][get]foo.prop").unwrap()));
+            assert!(s.insert(parse_kebab_name("[method][set]foo.prop").unwrap()));
+            assert!(s.insert(parse_kebab_name("[static][get]foo.prop-2").unwrap()));
+            assert!(s.insert(parse_kebab_name("[static][set]foo.prop-2").unwrap()));
+            assert!(s.insert(parse_kebab_name("[method]foo.get-prop").unwrap()));
+            assert!(s.insert(parse_kebab_name("[method]foo.set-prop").unwrap()));
+
+            // Conflicts with `foo`
+            assert!(!s.insert(parse_kebab_name("foo").unwrap()));
+            assert!(!s.insert(parse_kebab_name("FOO").unwrap()));
+            assert!(!s.insert(parse_kebab_name("[method]foo.foo").unwrap()));
+            assert!(!s.insert(parse_kebab_name("[get]foo").unwrap()));
+            assert!(!s.insert(parse_kebab_name("[method][get]foo.foo").unwrap()));
+            assert!(!s.insert(parse_kebab_name("[static][set]foo.FOO").unwrap()));
+
+            // Conflicts with `foo-bar`
+            assert!(!s.insert(parse_kebab_name("foo-BAR").unwrap()));
+            assert!(!s.insert(parse_kebab_name("foobar").unwrap()));
+            assert!(!s.insert(parse_kebab_name("foob-ar").unwrap()));
+            assert!(!s.insert(parse_kebab_name("[static]foo-BAR.FOO-bar").unwrap()));
+
+            // Conflicts with `[constructor]foo`
+            assert!(!s.insert(parse_kebab_name("[constructor]FOO").unwrap()));
+
+            // Conflicts with `[method]foo.bar`
+            assert!(!s.insert(parse_kebab_name("[method]foo.BAR").unwrap()));
+            assert!(!s.insert(parse_kebab_name("[static]foo.bar").unwrap()));
+
+            // Conflicts with `[static]foo.baz`
+            assert!(!s.insert(parse_kebab_name("[method]foo.baz").unwrap()));
+
+            // Conflicts with `foo:bar/baz`
+            assert!(!s.insert(parse_kebab_name("foo:bar/BAZ").unwrap()));
+
+            // Conflicts with `[get]prop`
+            assert!(!s.insert(parse_kebab_name("prop").unwrap()));
+
+            // Conflicts with `[set]prop`
+            assert!(!s.insert(parse_kebab_name("[set]PROP").unwrap()));
+
+            // Conflicts with `[method][get]foo.prop`
+            assert!(!s.insert(parse_kebab_name("[method]foo.prop").unwrap()));
+            assert!(!s.insert(parse_kebab_name("[static]foo.PROP").unwrap()));
+            assert!(!s.insert(parse_kebab_name("[method][get]foo.PROP").unwrap()));
+            assert!(!s.insert(parse_kebab_name("[static][get]foo.prop").unwrap()));
+
+            // Conflicts with `[method][set]foo.prop`
+            assert!(!s.insert(parse_kebab_name("[method][set]foo.PROP").unwrap()));
+            assert!(!s.insert(parse_kebab_name("[static][set]foo.prop").unwrap()));
+        }
+    }
+
+    #[test]
+    fn getter_for_setter() {
+        fn getter(s: &str) -> String {
+            match parse_kebab_name(s).unwrap().kind() {
+                ComponentNameKind::Plain(p) if p.accessor == Some(AccessorKind::Set) => {
+                    p.getter_for_setter()
+                }
+                _ => "INVALID".to_owned(),
+            }
+        }
+
+        assert_eq!(getter("foo"), "INVALID");
+        assert_eq!(getter("[get]foo"), "INVALID");
+        assert_eq!(getter("[constructor]foo"), "INVALID");
+        assert_eq!(getter("[method]foo.bar"), "INVALID");
+        assert_eq!(getter("[method][get]foo.bar"), "INVALID");
+        assert_eq!(getter("[static][get]foo.bar"), "INVALID");
+        assert_eq!(getter("foo:bar/baz"), "INVALID");
+
+        assert_eq!(getter("[set]foo"), "[get]foo");
+        assert_eq!(getter("[set]foo-BAR"), "[get]foo-BAR");
+        assert_eq!(getter("[method][set]foo.bar"), "[method][get]foo.bar");
+        assert_eq!(
+            getter("[static][set]foo-a.bar-B"),
+            "[static][get]foo-a.bar-B"
+        );
     }
 }

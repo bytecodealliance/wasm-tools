@@ -1,0 +1,5 @@
+setters must have exactly one parameter
+     --> tests/ui/parse-fail/accessor-setter-no-params.wit:7:9
+      |
+    7 |   prop: set();
+      |         ^--

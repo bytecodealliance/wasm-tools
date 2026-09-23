@@ -313,17 +313,26 @@ impl<O: Output> WitPrinter<O> {
 
             match &func.kind {
                 FunctionKind::Constructor(_) => {}
-                FunctionKind::Method(_) | FunctionKind::AsyncMethod(_) => {
+                FunctionKind::Method(_)
+                | FunctionKind::AsyncMethod(_)
+                | FunctionKind::MethodGetter(_)
+                | FunctionKind::MethodSetter(_) => {
                     self.print_name_type(func.item_name(), TypeKind::FunctionMethod);
                     self.output.str(": ");
                 }
-                FunctionKind::Static(_) | FunctionKind::AsyncStatic(_) => {
+                FunctionKind::Static(_)
+                | FunctionKind::AsyncStatic(_)
+                | FunctionKind::StaticGetter(_)
+                | FunctionKind::StaticSetter(_) => {
                     self.print_name_type(func.item_name(), TypeKind::FunctionStatic);
                     self.output.str(": ");
                     self.output.keyword("static");
                     self.output.str(" ");
                 }
-                FunctionKind::Freestanding | FunctionKind::AsyncFreestanding => unreachable!(),
+                FunctionKind::Freestanding
+                | FunctionKind::AsyncFreestanding
+                | FunctionKind::Getter
+                | FunctionKind::Setter => unreachable!(),
             }
             self.print_function(resolve, func)?;
             self.output.semicolon();
@@ -345,10 +354,22 @@ impl<O: Output> WitPrinter<O> {
             _ => {}
         }
 
-        // Constructors are named slightly differently.
+        // Constructors, getters, and setters are named slightly differently.
         match &func.kind {
             FunctionKind::Constructor(_) => {
                 self.output.keyword("constructor");
+                self.output.str("(");
+            }
+            FunctionKind::Getter
+            | FunctionKind::MethodGetter(_)
+            | FunctionKind::StaticGetter(_) => {
+                self.output.keyword("get");
+                self.output.str("(");
+            }
+            FunctionKind::Setter
+            | FunctionKind::MethodSetter(_)
+            | FunctionKind::StaticSetter(_) => {
+                self.output.keyword("set");
                 self.output.str("(");
             }
             FunctionKind::Freestanding
@@ -364,7 +385,10 @@ impl<O: Output> WitPrinter<O> {
 
         // Methods don't print their `self` argument
         let params_to_skip = match &func.kind {
-            FunctionKind::Method(_) | FunctionKind::AsyncMethod(_) => 1,
+            FunctionKind::Method(_)
+            | FunctionKind::AsyncMethod(_)
+            | FunctionKind::MethodGetter(_)
+            | FunctionKind::MethodSetter(_) => 1,
             _ => 0,
         };
         for (i, param) in func.params.iter().skip(params_to_skip).enumerate() {
@@ -512,7 +536,9 @@ impl<O: Output> WitPrinter<O> {
                         }
                     }
                     WorldItem::Function(f) => {
-                        self.print_name_type(&f.name, TypeKind::Other);
+                        // Getters and setters are named `[get]foo` and
+                        // `[set]foo`, so print the unmangled name.
+                        self.print_name_type(f.item_name(), TypeKind::Other);
                         self.output.str(": ");
                         self.print_function(resolve, f)?;
                         self.output.semicolon();

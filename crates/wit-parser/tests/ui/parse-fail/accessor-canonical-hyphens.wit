@@ -1,0 +1,8 @@
+// parse-fail
+
+package foo:foo;
+
+interface foo {
+  max-size: func();
+  maxsize: get() -> u32;
+}

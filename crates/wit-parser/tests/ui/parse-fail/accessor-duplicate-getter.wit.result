@@ -1,0 +1,5 @@
+duplicate name `[get]prop`
+     --> tests/ui/parse-fail/accessor-duplicate-getter.wit:7:3
+      |
+    7 |   prop: get() -> u32;
+      |   ^---

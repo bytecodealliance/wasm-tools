@@ -136,14 +136,20 @@ fn import_func_name(f: &Function) -> String {
         // There's probably a better and more "formal" way to do this
         // but quick-and-dirty string manipulation should work well
         // enough for now hopefully.
-        FunctionKind::Method(_)
+        FunctionKind::Getter
+        | FunctionKind::Setter
+        | FunctionKind::Method(_)
+        | FunctionKind::MethodGetter(_)
+        | FunctionKind::MethodSetter(_)
         | FunctionKind::AsyncMethod(_)
         | FunctionKind::Static(_)
+        | FunctionKind::StaticGetter(_)
+        | FunctionKind::StaticSetter(_)
         | FunctionKind::AsyncStatic(_)
         | FunctionKind::Constructor(_) => {
             format!(
                 "import-{}",
-                f.name.replace('[', "").replace([']', '.', ' '], "-")
+                f.name.replace('[', "").replace([']', '.'], "-")
             )
         }
     }

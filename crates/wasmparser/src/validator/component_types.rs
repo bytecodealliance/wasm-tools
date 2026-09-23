@@ -776,6 +776,13 @@ impl ComponentValType {
             ComponentValType::Type(ty) => types[*ty].lower_gc(types, abi, options, offset, core),
         }
     }
+
+    pub(crate) fn eq(a: &Self, b: &Self, types: &TypeList, offset: u64) -> bool {
+        let cx = SubtypeCx::new(types, types);
+        let ab = cx.component_val_type(&a, &b, offset).is_ok();
+        let ba = cx.component_val_type(&b, &a, offset).is_ok();
+        ab && ba
+    }
 }
 
 trait ModuleImportKey {

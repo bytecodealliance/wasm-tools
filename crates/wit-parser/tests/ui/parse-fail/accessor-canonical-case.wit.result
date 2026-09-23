@@ -1,0 +1,5 @@
+name `[get]PROP` conflicts with previous name `prop`
+     --> tests/ui/parse-fail/accessor-canonical-case.wit:7:3
+      |
+    7 |   PROP: get() -> u32;
+      |   ^---
