@@ -429,8 +429,8 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
             self.result(),
             " {}",
             match ordering {
-                Ordering::SeqCst => "seq_cst",
-                Ordering::AcqRel => "acq_rel",
+                Ordering::SeqCst => "seqcst",
+                Ordering::AcqRel => "acqrel",
             }
         )?;
         Ok(())

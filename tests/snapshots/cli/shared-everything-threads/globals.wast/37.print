@@ -4,7 +4,7 @@
   (func (;0;) (type 0)
     ref.null eq
     ref.null eq
-    global.atomic.rmw.cmpxchg acq_rel $g
+    global.atomic.rmw.cmpxchg acqrel $g
     drop
   )
 )

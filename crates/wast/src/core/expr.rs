@@ -2131,14 +2131,14 @@ pub enum Ordering {
 
 impl<'a> Parse<'a> for Ordering {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek::<kw::seq_cst>()? {
-            parser.parse::<kw::seq_cst>()?;
+        if parser.peek::<kw::seqcst>()? {
+            parser.parse::<kw::seqcst>()?;
             Ok(Ordering::SeqCst)
-        } else if parser.peek::<kw::acq_rel>()? {
-            parser.parse::<kw::acq_rel>()?;
+        } else if parser.peek::<kw::acqrel>()? {
+            parser.parse::<kw::acqrel>()?;
             Ok(Ordering::AcqRel)
         } else {
-            Err(parser.error("expected a memory ordering: `seq_cst` or `acq_rel`"))
+            Err(parser.error("expected a memory ordering: `seqcst` or `acqrel`"))
         }
     }
 }
