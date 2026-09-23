@@ -3560,7 +3560,7 @@ impl ComponentEncoder {
         }
 
         if self.emit_canonical_names {
-            validate_canonical_export_names(&self.metadata.resolve, self.metadata.world)?;
+            check_duplicate_canonical_names(&self.metadata.resolve, self.metadata.world)?;
         }
 
         self.finalize_resolve_with_nominal_ids();
@@ -3687,10 +3687,27 @@ impl ComponentWorld<'_> {
     }
 }
 
-/// Verifies that no two exports of the world share the same canonical name.
-pub(crate) fn validate_canonical_export_names(resolve: &Resolve, world: WorldId) -> Result<()> {
+/// Verifies that no two imports, and no two exports, of the world share the
+/// same canonical name.
+pub(crate) fn check_duplicate_canonical_names(resolve: &Resolve, world: WorldId) -> Result<()> {
     let world = &resolve.worlds[world];
     let mut names = HashMap::new();
+    for key in world.imports.keys() {
+        let WorldKey::Interface(id) = key else {
+            continue;
+        };
+        let canonical = resolve.canonicalized_id_of(*id).unwrap();
+        if let Some(prev) = names.insert(canonical.clone(), *id) {
+            bail!(
+                "import `{}` and import `{}` both have the canonical name \
+                 `{canonical}`; semver-compatible imports must be merged \
+                 before emitting canonical names",
+                resolve.id_of(prev).unwrap(),
+                resolve.id_of(*id).unwrap(),
+            );
+        }
+    }
+    names.clear();
     for key in world.exports.keys() {
         let WorldKey::Interface(id) = key else {
             continue;

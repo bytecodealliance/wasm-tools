@@ -473,9 +473,13 @@ impl EmbedOpts {
 
     /// Executes the application.
     fn run(self) -> Result<()> {
-        let (resolve, pkg_id) = self.resolve.load()?;
+        let (mut resolve, pkg_id) = self.resolve.load()?;
 
         let world = resolve.select_world(&[pkg_id], self.world.as_deref())?;
+
+        if self.emit_canonical_names {
+            resolve.merge_world_imports_based_on_semver(world)?;
+        }
 
         if self.only_custom {
             let encoded = metadata::encode(
