@@ -106,7 +106,7 @@
   (module
     (type $s (shared (struct (field (ref (shared any))))))
     (func (param $s (ref $s)) (param $a (ref (shared any))) (result (ref (shared any)))
-      (struct.atomic.set seq_cst $s 0 (local.get $s) (local.get $a))
+      (struct.atomic.set seqcst $s 0 (local.get $s) (local.get $a))
     )
   )
   "field is immutable"
@@ -115,7 +115,7 @@
   (module
     (type $s (shared (struct (field i32))))
     (func (param $s (ref $s)) (result i32)
-      (struct.atomic.rmw.add seq_cst $s 0 (local.get $s) (i32.const 1))
+      (struct.atomic.rmw.add seqcst $s 0 (local.get $s) (i32.const 1))
     )
   )
   "field is immutable"
@@ -124,7 +124,7 @@
   (module
     (type $s (shared (struct (field i64))))
     (func (param $s (ref $s)) (result i64)
-      (struct.atomic.rmw.sub seq_cst $s 0 (local.get $s) (i64.const 1))
+      (struct.atomic.rmw.sub seqcst $s 0 (local.get $s) (i64.const 1))
     )
   )
   "field is immutable"
@@ -133,7 +133,7 @@
   (module
     (type $s (shared (struct (field i32))))
     (func (param $s (ref $s)) (result i32)
-      (struct.atomic.rmw.and acq_rel $s 0 (local.get $s) (i32.const 1))
+      (struct.atomic.rmw.and acqrel $s 0 (local.get $s) (i32.const 1))
     )
   )
   "field is immutable"
@@ -142,7 +142,7 @@
   (module
     (type $s (shared (struct (field i64))))
     (func (param $s (ref $s)) (result i64)
-      (struct.atomic.rmw.or acq_rel $s 0 (local.get $s) (i64.const 1))
+      (struct.atomic.rmw.or acqrel $s 0 (local.get $s) (i64.const 1))
     )
   )
   "field is immutable"
@@ -151,7 +151,7 @@
   (module
     (type $s (shared (struct (field i32))))
     (func (param $s (ref $s)) (result i32)
-      (struct.atomic.rmw.xor seq_cst $s 0 (local.get $s) (i32.const 1))
+      (struct.atomic.rmw.xor seqcst $s 0 (local.get $s) (i32.const 1))
     )
   )
   "field is immutable"
@@ -160,7 +160,7 @@
   (module
     (type $s (shared (struct (field (ref (shared any))))))
     (func (param $s (ref $s)) (param $a (ref (shared any))) (result (ref (shared any)))
-      (struct.atomic.rmw.xchg seq_cst $s 0 (local.get $s) (local.get $a))
+      (struct.atomic.rmw.xchg seqcst $s 0 (local.get $s) (local.get $a))
     )
   )
   "field is immutable"
@@ -169,7 +169,7 @@
   (module
     (type $s (shared (struct (field (ref (shared eq))))))
     (func (param $s (ref $s)) (param $e1 (ref (shared eq))) (param $e2 (ref (shared eq))) (result (ref (shared eq)))
-      (struct.atomic.rmw.cmpxchg acq_rel $s 0 (local.get $s) (local.get $e1) (local.get $e2))
+      (struct.atomic.rmw.cmpxchg acqrel $s 0 (local.get $s) (local.get $e1) (local.get $e2))
     )
   )
   "field is immutable"
@@ -184,222 +184,222 @@
     (field $i64 (mut i64))
     (field $anyref (mut (ref null (shared any))))
     (field $eqref (mut (ref null (shared eq)))))))
-  (func (export "struct-atomic-get-i32-seq_cst") (param $x (ref null $s)) (result i32)
+  (func (export "struct-atomic-get-i32-seqcst") (param $x (ref null $s)) (result i32)
     local.get $x
-    struct.atomic.get seq_cst $s $i32)
-  (func (export "struct-atomic-get-i64-seq_cst") (param $x (ref null $s)) (result i64)
+    struct.atomic.get seqcst $s $i32)
+  (func (export "struct-atomic-get-i64-seqcst") (param $x (ref null $s)) (result i64)
     local.get $x
-    struct.atomic.get seq_cst $s $i64)
-  (func (export "struct-atomic-get-anyref-seq_cst") (param $x (ref null $s)) (result (ref null (shared any)))
+    struct.atomic.get seqcst $s $i64)
+  (func (export "struct-atomic-get-anyref-seqcst") (param $x (ref null $s)) (result (ref null (shared any)))
     local.get $x
-    struct.atomic.get seq_cst $s $anyref)
-  (func (export "struct-atomic-get-i32-acq_rel") (param $x (ref null $s)) (result i32)
+    struct.atomic.get seqcst $s $anyref)
+  (func (export "struct-atomic-get-i32-acqrel") (param $x (ref null $s)) (result i32)
     local.get $x
-    struct.atomic.get acq_rel $s $i32)
-  (func (export "struct-atomic-get-i64-acq_rel") (param $x (ref null $s)) (result i64)
+    struct.atomic.get acqrel $s $i32)
+  (func (export "struct-atomic-get-i64-acqrel") (param $x (ref null $s)) (result i64)
     local.get $x
-    struct.atomic.get acq_rel $s $i64)
-  (func (export "struct-atomic-get-anyref-acq_rel") (param $x (ref null $s)) (result (ref null (shared any)))
+    struct.atomic.get acqrel $s $i64)
+  (func (export "struct-atomic-get-anyref-acqrel") (param $x (ref null $s)) (result (ref null (shared any)))
     local.get $x
-    struct.atomic.get acq_rel $s $anyref)
-  (func (export "struct-atomic-get_s-i8-seq_cst") (param $x (ref null $s)) (result i32)
+    struct.atomic.get acqrel $s $anyref)
+  (func (export "struct-atomic-get_s-i8-seqcst") (param $x (ref null $s)) (result i32)
     local.get $x
-    struct.atomic.get_s seq_cst $s $i8)
-  (func (export "struct-atomic-get_s-i16-seq_cst") (param $x (ref null $s)) (result i32)
+    struct.atomic.get_s seqcst $s $i8)
+  (func (export "struct-atomic-get_s-i16-seqcst") (param $x (ref null $s)) (result i32)
     local.get $x
-    struct.atomic.get_s seq_cst $s $i16)
-  (func (export "struct-atomic-get_s-i8-acq_rel") (param $x (ref null $s)) (result i32)
+    struct.atomic.get_s seqcst $s $i16)
+  (func (export "struct-atomic-get_s-i8-acqrel") (param $x (ref null $s)) (result i32)
     local.get $x
-    struct.atomic.get_s acq_rel $s $i8)
-  (func (export "struct-atomic-get_s-i16-acq_rel") (param $x (ref null $s)) (result i32)
+    struct.atomic.get_s acqrel $s $i8)
+  (func (export "struct-atomic-get_s-i16-acqrel") (param $x (ref null $s)) (result i32)
     local.get $x
-    struct.atomic.get_s acq_rel $s $i16)
-  (func (export "struct-atomic-get_u-i8-seq_cst") (param $x (ref null $s)) (result i32)
+    struct.atomic.get_s acqrel $s $i16)
+  (func (export "struct-atomic-get_u-i8-seqcst") (param $x (ref null $s)) (result i32)
     local.get $x
-    struct.atomic.get_u seq_cst $s $i8)
-  (func (export "struct-atomic-get_u-i16-seq_cst") (param $x (ref null $s)) (result i32)
+    struct.atomic.get_u seqcst $s $i8)
+  (func (export "struct-atomic-get_u-i16-seqcst") (param $x (ref null $s)) (result i32)
     local.get $x
-    struct.atomic.get_u seq_cst $s $i16)
-  (func (export "struct-atomic-get_u-i8-acq_rel") (param $x (ref null $s)) (result i32)
+    struct.atomic.get_u seqcst $s $i16)
+  (func (export "struct-atomic-get_u-i8-acqrel") (param $x (ref null $s)) (result i32)
     local.get $x
-    struct.atomic.get_u acq_rel $s $i8)
-  (func (export "struct-atomic-get_u-i16-acq_rel") (param $x (ref null $s)) (result i32)
+    struct.atomic.get_u acqrel $s $i8)
+  (func (export "struct-atomic-get_u-i16-acqrel") (param $x (ref null $s)) (result i32)
     local.get $x
-    struct.atomic.get_u acq_rel $s $i16)
-  (func (export "struct-atomic-set-i8-seq_cst") (param $x (ref null $s)) (param $y i32)
-    local.get $x
-    local.get $y
-    struct.atomic.set seq_cst $s $i8)
-  (func (export "struct-atomic-set-i16-seq_cst") (param $x (ref null $s)) (param $y i32)
+    struct.atomic.get_u acqrel $s $i16)
+  (func (export "struct-atomic-set-i8-seqcst") (param $x (ref null $s)) (param $y i32)
     local.get $x
     local.get $y
-    struct.atomic.set seq_cst $s $i16)
-  (func (export "struct-atomic-set-i32-seq_cst") (param $x (ref null $s)) (param $y i32)
+    struct.atomic.set seqcst $s $i8)
+  (func (export "struct-atomic-set-i16-seqcst") (param $x (ref null $s)) (param $y i32)
     local.get $x
     local.get $y
-    struct.atomic.set seq_cst $s $i32)
-  (func (export "struct-atomic-set-i64-seq_cst") (param $x (ref null $s)) (param $y i64)
+    struct.atomic.set seqcst $s $i16)
+  (func (export "struct-atomic-set-i32-seqcst") (param $x (ref null $s)) (param $y i32)
     local.get $x
     local.get $y
-    struct.atomic.set seq_cst $s $i64)
-  (func (export "struct-atomic-set-anyref-seq_cst") (param $x (ref null $s)) (param $y (ref null (shared any)))
+    struct.atomic.set seqcst $s $i32)
+  (func (export "struct-atomic-set-i64-seqcst") (param $x (ref null $s)) (param $y i64)
     local.get $x
     local.get $y
-    struct.atomic.set seq_cst $s $anyref)
-  (func (export "struct-atomic-set-i8-acq_rel") (param $x (ref null $s)) (param $y i32)
+    struct.atomic.set seqcst $s $i64)
+  (func (export "struct-atomic-set-anyref-seqcst") (param $x (ref null $s)) (param $y (ref null (shared any)))
     local.get $x
     local.get $y
-    struct.atomic.set acq_rel $s $i8)
-  (func (export "struct-atomic-set-i16-acq_rel") (param $x (ref null $s)) (param $y i32)
+    struct.atomic.set seqcst $s $anyref)
+  (func (export "struct-atomic-set-i8-acqrel") (param $x (ref null $s)) (param $y i32)
     local.get $x
     local.get $y
-    struct.atomic.set acq_rel $s $i16)
-  (func (export "struct-atomic-set-i32-acq_rel") (param $x (ref null $s)) (param $y i32)
+    struct.atomic.set acqrel $s $i8)
+  (func (export "struct-atomic-set-i16-acqrel") (param $x (ref null $s)) (param $y i32)
     local.get $x
     local.get $y
-    struct.atomic.set acq_rel $s $i32)
-  (func (export "struct-atomic-set-i64-acq_rel") (param $x (ref null $s)) (param $y i64)
+    struct.atomic.set acqrel $s $i16)
+  (func (export "struct-atomic-set-i32-acqrel") (param $x (ref null $s)) (param $y i32)
     local.get $x
     local.get $y
-    struct.atomic.set acq_rel $s $i64)
-  (func (export "struct-atomic-set-anyref-acq_rel") (param $x (ref null $s)) (param $y (ref null (shared any)))
+    struct.atomic.set acqrel $s $i32)
+  (func (export "struct-atomic-set-i64-acqrel") (param $x (ref null $s)) (param $y i64)
     local.get $x
     local.get $y
-    struct.atomic.set acq_rel $s $anyref)
-  (func (export "struct-atomic-rmw.add-i32-seq_cst") (param $x (ref null $s)) (param $y i32) (result i32)
+    struct.atomic.set acqrel $s $i64)
+  (func (export "struct-atomic-set-anyref-acqrel") (param $x (ref null $s)) (param $y (ref null (shared any)))
     local.get $x
     local.get $y
-    struct.atomic.rmw.add seq_cst $s $i32)
-  (func (export "struct-atomic-rmw.add-i64-seq_cst") (param $x (ref null $s)) (param $y i64) (result i64)
+    struct.atomic.set acqrel $s $anyref)
+  (func (export "struct-atomic-rmw.add-i32-seqcst") (param $x (ref null $s)) (param $y i32) (result i32)
     local.get $x
     local.get $y
-    struct.atomic.rmw.add seq_cst $s $i64)
-  (func (export "struct-atomic-rmw.add-i32-acq_rel") (param $x (ref null $s)) (param $y i32) (result i32)
+    struct.atomic.rmw.add seqcst $s $i32)
+  (func (export "struct-atomic-rmw.add-i64-seqcst") (param $x (ref null $s)) (param $y i64) (result i64)
     local.get $x
     local.get $y
-    struct.atomic.rmw.add acq_rel $s $i32)
-  (func (export "struct-atomic-rmw.add-i64-acq_rel") (param $x (ref null $s)) (param $y i64) (result i64)
+    struct.atomic.rmw.add seqcst $s $i64)
+  (func (export "struct-atomic-rmw.add-i32-acqrel") (param $x (ref null $s)) (param $y i32) (result i32)
     local.get $x
     local.get $y
-    struct.atomic.rmw.add acq_rel $s $i64)
-  (func (export "struct-atomic-rmw.sub-i32-seq_cst") (param $x (ref null $s)) (param $y i32) (result i32)
+    struct.atomic.rmw.add acqrel $s $i32)
+  (func (export "struct-atomic-rmw.add-i64-acqrel") (param $x (ref null $s)) (param $y i64) (result i64)
     local.get $x
     local.get $y
-    struct.atomic.rmw.sub seq_cst $s $i32)
-  (func (export "struct-atomic-rmw.sub-i64-seq_cst") (param $x (ref null $s)) (param $y i64) (result i64)
+    struct.atomic.rmw.add acqrel $s $i64)
+  (func (export "struct-atomic-rmw.sub-i32-seqcst") (param $x (ref null $s)) (param $y i32) (result i32)
     local.get $x
     local.get $y
-    struct.atomic.rmw.sub seq_cst $s $i64)
-  (func (export "struct-atomic-rmw.sub-i32-acq_rel") (param $x (ref null $s)) (param $y i32) (result i32)
+    struct.atomic.rmw.sub seqcst $s $i32)
+  (func (export "struct-atomic-rmw.sub-i64-seqcst") (param $x (ref null $s)) (param $y i64) (result i64)
     local.get $x
     local.get $y
-    struct.atomic.rmw.sub acq_rel $s $i32)
-  (func (export "struct-atomic-rmw.sub-i64-acq_rel") (param $x (ref null $s)) (param $y i64) (result i64)
+    struct.atomic.rmw.sub seqcst $s $i64)
+  (func (export "struct-atomic-rmw.sub-i32-acqrel") (param $x (ref null $s)) (param $y i32) (result i32)
     local.get $x
     local.get $y
-    struct.atomic.rmw.sub acq_rel $s $i64)
-  (func (export "struct-atomic-rmw.and-i32-seq_cst") (param $x (ref null $s)) (param $y i32) (result i32)
+    struct.atomic.rmw.sub acqrel $s $i32)
+  (func (export "struct-atomic-rmw.sub-i64-acqrel") (param $x (ref null $s)) (param $y i64) (result i64)
     local.get $x
     local.get $y
-    struct.atomic.rmw.and seq_cst $s $i32)
-  (func (export "struct-atomic-rmw.and-i64-seq_cst") (param $x (ref null $s)) (param $y i64) (result i64)
+    struct.atomic.rmw.sub acqrel $s $i64)
+  (func (export "struct-atomic-rmw.and-i32-seqcst") (param $x (ref null $s)) (param $y i32) (result i32)
     local.get $x
     local.get $y
-    struct.atomic.rmw.and seq_cst $s $i64)
-  (func (export "struct-atomic-rmw.and-i32-acq_rel") (param $x (ref null $s)) (param $y i32) (result i32)
+    struct.atomic.rmw.and seqcst $s $i32)
+  (func (export "struct-atomic-rmw.and-i64-seqcst") (param $x (ref null $s)) (param $y i64) (result i64)
     local.get $x
     local.get $y
-    struct.atomic.rmw.and acq_rel $s $i32)
-  (func (export "struct-atomic-rmw.and-i64-acq_rel") (param $x (ref null $s)) (param $y i64) (result i64)
+    struct.atomic.rmw.and seqcst $s $i64)
+  (func (export "struct-atomic-rmw.and-i32-acqrel") (param $x (ref null $s)) (param $y i32) (result i32)
     local.get $x
     local.get $y
-    struct.atomic.rmw.and acq_rel $s $i64)
-  (func (export "struct-atomic-rmw.or-i32-seq_cst") (param $x (ref null $s)) (param $y i32) (result i32)
+    struct.atomic.rmw.and acqrel $s $i32)
+  (func (export "struct-atomic-rmw.and-i64-acqrel") (param $x (ref null $s)) (param $y i64) (result i64)
     local.get $x
     local.get $y
-    struct.atomic.rmw.or seq_cst $s $i32)
-  (func (export "struct-atomic-rmw.or-i64-seq_cst") (param $x (ref null $s)) (param $y i64) (result i64)
+    struct.atomic.rmw.and acqrel $s $i64)
+  (func (export "struct-atomic-rmw.or-i32-seqcst") (param $x (ref null $s)) (param $y i32) (result i32)
     local.get $x
     local.get $y
-    struct.atomic.rmw.or seq_cst $s $i64)
-  (func (export "struct-atomic-rmw.or-i32-acq_rel") (param $x (ref null $s)) (param $y i32) (result i32)
+    struct.atomic.rmw.or seqcst $s $i32)
+  (func (export "struct-atomic-rmw.or-i64-seqcst") (param $x (ref null $s)) (param $y i64) (result i64)
     local.get $x
     local.get $y
-    struct.atomic.rmw.or acq_rel $s $i32)
-  (func (export "struct-atomic-rmw.or-i64-acq_rel") (param $x (ref null $s)) (param $y i64) (result i64)
+    struct.atomic.rmw.or seqcst $s $i64)
+  (func (export "struct-atomic-rmw.or-i32-acqrel") (param $x (ref null $s)) (param $y i32) (result i32)
     local.get $x
     local.get $y
-    struct.atomic.rmw.or acq_rel $s $i64)
-  (func (export "struct-atomic-rmw.xor-i32-seq_cst") (param $x (ref null $s)) (param $y i32) (result i32)
+    struct.atomic.rmw.or acqrel $s $i32)
+  (func (export "struct-atomic-rmw.or-i64-acqrel") (param $x (ref null $s)) (param $y i64) (result i64)
     local.get $x
     local.get $y
-    struct.atomic.rmw.xor seq_cst $s $i32)
-  (func (export "struct-atomic-rmw.xor-i64-seq_cst") (param $x (ref null $s)) (param $y i64) (result i64)
+    struct.atomic.rmw.or acqrel $s $i64)
+  (func (export "struct-atomic-rmw.xor-i32-seqcst") (param $x (ref null $s)) (param $y i32) (result i32)
     local.get $x
     local.get $y
-    struct.atomic.rmw.xor seq_cst $s $i64)
-  (func (export "struct-atomic-rmw.xor-i32-acq_rel") (param $x (ref null $s)) (param $y i32) (result i32)
+    struct.atomic.rmw.xor seqcst $s $i32)
+  (func (export "struct-atomic-rmw.xor-i64-seqcst") (param $x (ref null $s)) (param $y i64) (result i64)
     local.get $x
     local.get $y
-    struct.atomic.rmw.xor acq_rel $s $i32)
-  (func (export "struct-atomic-rmw.xor-i64-acq_rel") (param $x (ref null $s)) (param $y i64) (result i64)
+    struct.atomic.rmw.xor seqcst $s $i64)
+  (func (export "struct-atomic-rmw.xor-i32-acqrel") (param $x (ref null $s)) (param $y i32) (result i32)
     local.get $x
     local.get $y
-    struct.atomic.rmw.xor acq_rel $s $i64)
-  (func (export "struct-atomic-rmw.xchg-i32-seq_cst") (param $x (ref null $s)) (param $y i32) (result i32)
+    struct.atomic.rmw.xor acqrel $s $i32)
+  (func (export "struct-atomic-rmw.xor-i64-acqrel") (param $x (ref null $s)) (param $y i64) (result i64)
     local.get $x
     local.get $y
-    struct.atomic.rmw.xchg seq_cst $s $i32)
-  (func (export "struct-atomic-rmw.xchg-i64-seq_cst") (param $x (ref null $s)) (param $y i64) (result i64)
+    struct.atomic.rmw.xor acqrel $s $i64)
+  (func (export "struct-atomic-rmw.xchg-i32-seqcst") (param $x (ref null $s)) (param $y i32) (result i32)
     local.get $x
     local.get $y
-    struct.atomic.rmw.xchg seq_cst $s $i64)
-  (func (export "struct-atomic-rmw.xchg-anyref-seq_cst") (param $x (ref null $s)) (param $y (ref null (shared any))) (result (ref null (shared any)))
+    struct.atomic.rmw.xchg seqcst $s $i32)
+  (func (export "struct-atomic-rmw.xchg-i64-seqcst") (param $x (ref null $s)) (param $y i64) (result i64)
     local.get $x
     local.get $y
-    struct.atomic.rmw.xchg seq_cst $s $anyref)
-  (func (export "struct-atomic-rmw.xchg-i32-acq_rel") (param $x (ref null $s)) (param $y i32) (result i32)
+    struct.atomic.rmw.xchg seqcst $s $i64)
+  (func (export "struct-atomic-rmw.xchg-anyref-seqcst") (param $x (ref null $s)) (param $y (ref null (shared any))) (result (ref null (shared any)))
     local.get $x
     local.get $y
-    struct.atomic.rmw.xchg acq_rel $s $i32)
-  (func (export "struct-atomic-rmw.xchg-i64-acq_rel") (param $x (ref null $s)) (param $y i64) (result i64)
+    struct.atomic.rmw.xchg seqcst $s $anyref)
+  (func (export "struct-atomic-rmw.xchg-i32-acqrel") (param $x (ref null $s)) (param $y i32) (result i32)
     local.get $x
     local.get $y
-    struct.atomic.rmw.xchg acq_rel $s $i64)
-  (func (export "struct-atomic-rmw.xchg-anyref-acq_rel") (param $x (ref null $s)) (param $y (ref null (shared any))) (result (ref null (shared any)))
+    struct.atomic.rmw.xchg acqrel $s $i32)
+  (func (export "struct-atomic-rmw.xchg-i64-acqrel") (param $x (ref null $s)) (param $y i64) (result i64)
     local.get $x
     local.get $y
-    struct.atomic.rmw.xchg acq_rel $s $anyref)
-  (func (export "struct-atomic-rmw.cmpxchg-i32-seq_cst") (param $x (ref null $s)) (param $y i32) (param $z i32) (result i32)
+    struct.atomic.rmw.xchg acqrel $s $i64)
+  (func (export "struct-atomic-rmw.xchg-anyref-acqrel") (param $x (ref null $s)) (param $y (ref null (shared any))) (result (ref null (shared any)))
     local.get $x
     local.get $y
-    local.get $z
-    struct.atomic.rmw.cmpxchg seq_cst $s $i32)
-  (func (export "struct-atomic-rmw.cmpxchg-i64-seq_cst") (param $x (ref null $s)) (param $y i64) (param $z i64) (result i64)
+    struct.atomic.rmw.xchg acqrel $s $anyref)
+  (func (export "struct-atomic-rmw.cmpxchg-i32-seqcst") (param $x (ref null $s)) (param $y i32) (param $z i32) (result i32)
     local.get $x
     local.get $y
     local.get $z
-    struct.atomic.rmw.cmpxchg seq_cst $s $i64)
-  (func (export "struct-atomic-rmw.cmpxchg-eqref-seq_cst") (param $x (ref null $s)) (param $y (ref null (shared eq))) (param $z (ref null (shared eq))) (result (ref null (shared eq)))
+    struct.atomic.rmw.cmpxchg seqcst $s $i32)
+  (func (export "struct-atomic-rmw.cmpxchg-i64-seqcst") (param $x (ref null $s)) (param $y i64) (param $z i64) (result i64)
     local.get $x
     local.get $y
     local.get $z
-    struct.atomic.rmw.cmpxchg seq_cst $s $eqref)
-  (func (export "struct-atomic-rmw.cmpxchg-i32-acq_rel") (param $x (ref null $s)) (param $y i32) (param $z i32) (result i32)
+    struct.atomic.rmw.cmpxchg seqcst $s $i64)
+  (func (export "struct-atomic-rmw.cmpxchg-eqref-seqcst") (param $x (ref null $s)) (param $y (ref null (shared eq))) (param $z (ref null (shared eq))) (result (ref null (shared eq)))
     local.get $x
     local.get $y
     local.get $z
-    struct.atomic.rmw.cmpxchg acq_rel $s $i32)
-  (func (export "struct-atomic-rmw.cmpxchg-i64-acq_rel") (param $x (ref null $s)) (param $y i64) (param $z i64) (result i64)
+    struct.atomic.rmw.cmpxchg seqcst $s $eqref)
+  (func (export "struct-atomic-rmw.cmpxchg-i32-acqrel") (param $x (ref null $s)) (param $y i32) (param $z i32) (result i32)
     local.get $x
     local.get $y
     local.get $z
-    struct.atomic.rmw.cmpxchg acq_rel $s $i64)
-  (func (export "struct-atomic-rmw.cmpxchg-eqref-acq_rel") (param $x (ref null $s)) (param $y (ref null (shared eq))) (param $z (ref null (shared eq))) (result (ref null (shared eq)))
+    struct.atomic.rmw.cmpxchg acqrel $s $i32)
+  (func (export "struct-atomic-rmw.cmpxchg-i64-acqrel") (param $x (ref null $s)) (param $y i64) (param $z i64) (result i64)
     local.get $x
     local.get $y
     local.get $z
-    struct.atomic.rmw.cmpxchg acq_rel $s $eqref)
+    struct.atomic.rmw.cmpxchg acqrel $s $i64)
+  (func (export "struct-atomic-rmw.cmpxchg-eqref-acqrel") (param $x (ref null $s)) (param $y (ref null (shared eq))) (param $z (ref null (shared eq))) (result (ref null (shared eq)))
+    local.get $x
+    local.get $y
+    local.get $z
+    struct.atomic.rmw.cmpxchg acqrel $s $eqref)
 )
 
 (assert_invalid (; get, i8 ;)
@@ -407,7 +407,7 @@
     (type $s (shared (struct (field $i8 (mut i8)))))
   (func (param $x (ref null $s)) (result i32)
     local.get $x
-    struct.atomic.get seq_cst $s $i8)
+    struct.atomic.get seqcst $s $i8)
   )
   "non-packed storage type"
 )
@@ -416,7 +416,7 @@
     (type $s (shared (struct (field $i32 (mut i32)))))
   (func (param $x (ref null $s)) (result i32)
     local.get $x
-    struct.atomic.get_s seq_cst $s $i32)
+    struct.atomic.get_s seqcst $s $i32)
   )
   "non-packed storage types"
 )
@@ -425,7 +425,7 @@
     (type $s (shared (struct (field $anyref (mut (ref null (shared any)))))))
   (func (param $x (ref null $s)) (result (ref null (shared any)))
     local.get $x
-    struct.atomic.get_s seq_cst $s $anyref)
+    struct.atomic.get_s seqcst $s $anyref)
   )
   "non-packed storage types"
 )
@@ -434,7 +434,7 @@
     (type $s (shared (struct (field $i32 (mut i32)))))
   (func (param $x (ref null $s)) (result i32)
     local.get $x
-    struct.atomic.get_u seq_cst $s $i32)
+    struct.atomic.get_u seqcst $s $i32)
   )
   "non-packed storage types"
 )
@@ -443,7 +443,7 @@
     (type $s (shared (struct (field $anyref (mut (ref null (shared any)))))))
   (func (param $x (ref null $s)) (result (ref null (shared any)))
     local.get $x
-    struct.atomic.get_u seq_cst $s $anyref)
+    struct.atomic.get_u seqcst $s $anyref)
   )
   "non-packed storage types"
 )
@@ -453,7 +453,7 @@
   (func (param $x (ref null $s)) (param $y (ref null (shared any))) (result (ref null (shared any)))
     local.get $x
     local.get $y
-    struct.atomic.rmw.add seq_cst $s $anyref)
+    struct.atomic.rmw.add seqcst $s $anyref)
   )
   "invalid type"
 )
@@ -463,7 +463,7 @@
   (func (param $x (ref null $s)) (param $y (ref null (shared any))) (result (ref null (shared any)))
     local.get $x
     local.get $y
-    struct.atomic.rmw.sub seq_cst $s $anyref)
+    struct.atomic.rmw.sub seqcst $s $anyref)
   )
   "invalid type"
 )
@@ -473,7 +473,7 @@
   (func (param $x (ref null $s)) (param $y (ref null (shared any))) (result (ref null (shared any)))
     local.get $x
     local.get $y
-    struct.atomic.rmw.and seq_cst $s $anyref)
+    struct.atomic.rmw.and seqcst $s $anyref)
   )
   "invalid type"
 )
@@ -483,7 +483,7 @@
   (func (param $x (ref null $s)) (param $y (ref null (shared any))) (result (ref null (shared any)))
     local.get $x
     local.get $y
-    struct.atomic.rmw.or seq_cst $s $anyref)
+    struct.atomic.rmw.or seqcst $s $anyref)
   )
   "invalid type"
 )
@@ -493,7 +493,7 @@
   (func (param $x (ref null $s)) (param $y (ref null (shared any))) (result (ref null (shared any)))
     local.get $x
     local.get $y
-    struct.atomic.rmw.xor seq_cst $s $anyref)
+    struct.atomic.rmw.xor seqcst $s $anyref)
   )
   "invalid type"
 )
@@ -503,7 +503,7 @@
   (func (param $x (ref null $s)) (param $y i32) (result i32)
     local.get $x
     local.get $y
-    struct.atomic.rmw.xchg seq_cst $s $i8)
+    struct.atomic.rmw.xchg seqcst $s $i8)
   )
   "invalid type"
 )
@@ -514,7 +514,7 @@
     local.get $x
     local.get $y
     local.get $z
-    struct.atomic.rmw.cmpxchg seq_cst $s $i8)
+    struct.atomic.rmw.cmpxchg seqcst $s $i8)
   )
   "invalid type"
 )
@@ -525,7 +525,7 @@
     local.get $x
     local.get $y
     local.get $z
-    struct.atomic.rmw.cmpxchg seq_cst $s $anyref)
+    struct.atomic.rmw.cmpxchg seqcst $s $anyref)
   )
   "invalid type"
 )
@@ -535,7 +535,7 @@
     (type $s (shared (struct (field $f f32))))
     (func
       unreachable
-      struct.atomic.get seq_cst $s $f
+      struct.atomic.get seqcst $s $f
       drop
     ))
   "invalid type: `struct.atomic.get` only allows `i32`, `i64` and subtypes of `anyref`"
@@ -546,7 +546,7 @@
     (type $s (shared (struct (field $f (ref (shared func))))))
     (func
       unreachable
-      struct.atomic.get seq_cst $s $f
+      struct.atomic.get seqcst $s $f
       drop
     ))
   "invalid type: `struct.atomic.get` only allows `i32`, `i64` and subtypes of `anyref`"
@@ -557,7 +557,7 @@
     (type $s (shared (struct (field $f i8))))
     (func
       unreachable
-      struct.atomic.get seq_cst $s $f
+      struct.atomic.get seqcst $s $f
       drop
     ))
   "can only use struct `get` with non-packed storage types"
@@ -568,7 +568,7 @@
     (type $s (shared (struct (field $f (mut (ref (shared extern)))))))
     (func
       unreachable
-      struct.atomic.set seq_cst $s $f
+      struct.atomic.set seqcst $s $f
     ))
   "invalid type: `struct.atomic.set` only allows `i8`, `i16`, `i32`, `i64` and subtypes of `anyref`"
 )
