@@ -15,7 +15,7 @@ use semver::Version;
 /// kebab-case string according to the component model specification (a
 /// `label`, generally). Despite the name, it may contain other symbols, e.g.
 /// `foo-bar.baz` for method names or `a:b` for interface names, if constructed
-/// with [KebabStr::new_unchecked].
+/// with `new_unchecked`.
 ///
 /// It also provides an equality and hashing implementation based on the
 /// component models' rules for "strong uniqueness", under which e.g.
