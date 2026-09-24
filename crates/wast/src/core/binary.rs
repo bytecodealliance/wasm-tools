@@ -858,22 +858,24 @@ impl Expression<'_> {
 
 impl Encode for BlockType<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        // block types using an index are encoded as an sleb, not a uleb
-        if let Some(Index::Num(n, _)) = &self.ty.index {
-            return i64::from(*n).encode(e);
-        }
-        let ty = self
-            .ty
-            .inline
-            .as_ref()
-            .expect("function type not filled in");
-        if ty.params.is_empty() && ty.results.is_empty() {
-            return e.push(0x40);
-        }
-        if ty.params.is_empty() && ty.results.len() == 1 {
-            return ty.results[0].encode(e);
-        }
-        panic!("multi-value block types should have an index");
+        let blockty = match self.ty.index {
+            Some(Index::Num(n, _)) => wasm_encoder::BlockType::FunctionType(n),
+            _ => {
+                let ty = self
+                    .ty
+                    .inline
+                    .as_ref()
+                    .expect("function type not filled in");
+                if ty.params.is_empty() && ty.results.is_empty() {
+                    wasm_encoder::BlockType::Empty
+                } else if ty.params.is_empty() && ty.results.len() == 1 {
+                    wasm_encoder::BlockType::Result(ty.results[0].into())
+                } else {
+                    panic!("multi-value block types should have an index");
+                }
+            }
+        };
+        wasm_encoder::Encode::encode(&blockty, e)
     }
 }
 
@@ -885,27 +887,31 @@ impl Encode for LaneArg {
 
 impl Encode for MemArg<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        match &self.memory {
-            Index::Num(0, _) => {
-                self.align.trailing_zeros().encode(e);
-                self.offset.encode(e);
-            }
-            _ => {
-                (self.align.trailing_zeros() | (1 << 6)).encode(e);
-                self.memory.encode(e);
-                self.offset.encode(e);
-            }
-        }
+        let MemArg {
+            align,
+            memory,
+            offset,
+        } = self;
+        wasm_encoder::Encode::encode(
+            &wasm_encoder::MemArg {
+                align: align.trailing_zeros(),
+                memory_index: memory.unwrap_u32(),
+                offset: *offset,
+            },
+            e,
+        )
     }
 }
 
 impl Encode for Ordering {
     fn encode(&self, buf: &mut Vec<u8>) {
-        let flag: u8 = match self {
-            Ordering::SeqCst => 0,
-            Ordering::AcqRel => 1,
-        };
-        flag.encode(buf);
+        wasm_encoder::Encode::encode(
+            &match self {
+                Ordering::SeqCst => wasm_encoder::Ordering::SeqCst,
+                Ordering::AcqRel => wasm_encoder::Ordering::AcqRel,
+            },
+            buf,
+        )
     }
 }
 
@@ -1451,12 +1457,14 @@ impl Encode for I8x16Shuffle {
 
 impl<'a> Encode for SelectTypes<'a> {
     fn encode(&self, dst: &mut Vec<u8>) {
+        let mut sink = wasm_encoder::InstructionSink::new(dst);
         match &self.tys {
             Some(list) => {
-                dst.push(0x1c);
-                list.encode(dst);
+                sink.typed_select_multi(&list.iter().map(|t| (*t).into()).collect::<Vec<_>>());
             }
-            None => dst.push(0x1b),
+            None => {
+                sink.select();
+            }
         }
     }
 }
@@ -1605,103 +1613,73 @@ impl Encode for ArrayNewElem<'_> {
 
 impl Encode for RefTest<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        e.push(0xfb);
+        let mut sink = wasm_encoder::InstructionSink::new(e);
         if self.r#type.nullable {
-            e.push(0x15);
+            sink.ref_test_nullable(self.r#type.heap.into());
         } else {
-            e.push(0x14);
+            sink.ref_test_non_null(self.r#type.heap.into());
         }
-        self.r#type.heap.encode(e);
     }
 }
 
 impl Encode for RefCast<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        e.push(0xfb);
+        let mut sink = wasm_encoder::InstructionSink::new(e);
         if self.r#type.nullable {
-            e.push(0x17);
+            sink.ref_cast_nullable(self.r#type.heap.into());
         } else {
-            e.push(0x16);
+            sink.ref_cast_non_null(self.r#type.heap.into());
         }
-        self.r#type.heap.encode(e);
     }
-}
-
-fn br_on_cast_flags(from_nullable: bool, to_nullable: bool) -> u8 {
-    let mut flag = 0;
-    if from_nullable {
-        flag |= 1 << 0;
-    }
-    if to_nullable {
-        flag |= 1 << 1;
-    }
-    flag
 }
 
 impl Encode for BrOnCast<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        e.push(0xfb);
-        e.push(0x18);
-        e.push(br_on_cast_flags(
-            self.from_type.nullable,
-            self.to_type.nullable,
-        ));
-        self.label.encode(e);
-        self.from_type.heap.encode(e);
-        self.to_type.heap.encode(e);
+        wasm_encoder::InstructionSink::new(e).br_on_cast(
+            self.label.unwrap_u32(),
+            self.from_type.into(),
+            self.to_type.into(),
+        );
     }
 }
 
 impl Encode for BrOnCastFail<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        e.push(0xfb);
-        e.push(0x19);
-        e.push(br_on_cast_flags(
-            self.from_type.nullable,
-            self.to_type.nullable,
-        ));
-        self.label.encode(e);
-        self.from_type.heap.encode(e);
-        self.to_type.heap.encode(e);
+        wasm_encoder::InstructionSink::new(e).br_on_cast_fail(
+            self.label.unwrap_u32(),
+            self.from_type.into(),
+            self.to_type.into(),
+        );
     }
 }
 
 impl Encode for RefCastDescEq<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        e.push(0xfb);
+        let mut sink = wasm_encoder::InstructionSink::new(e);
         if self.r#type.nullable {
-            e.push(0x24);
+            sink.ref_cast_desc_eq_nullable(self.r#type.heap.into());
         } else {
-            e.push(0x23);
+            sink.ref_cast_desc_eq_non_null(self.r#type.heap.into());
         }
-        self.r#type.heap.encode(e);
     }
 }
 
 impl Encode for BrOnCastDescEq<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        e.push(0xfb);
-        e.push(0x25);
-        e.push(br_on_cast_flags(
-            self.from_type.nullable,
-            self.to_type.nullable,
-        ));
-        self.label.encode(e);
-        self.from_type.heap.encode(e);
-        self.to_type.heap.encode(e);
+        wasm_encoder::InstructionSink::new(e).br_on_cast_desc_eq(
+            self.label.unwrap_u32(),
+            self.from_type.into(),
+            self.to_type.into(),
+        );
     }
 }
 
 impl Encode for BrOnCastDescEqFail<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        e.push(0xfb);
-        e.push(0x26);
-        e.push(br_on_cast_flags(
-            self.from_type.nullable,
-            self.to_type.nullable,
-        ));
-        self.label.encode(e);
-        self.from_type.heap.encode(e);
-        self.to_type.heap.encode(e);
+        wasm_encoder::InstructionSink::new(e).br_on_cast_desc_eq_fail(
+            self.label.unwrap_u32(),
+            self.from_type.into(),
+            self.to_type.into(),
+        );
     }
 }
