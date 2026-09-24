@@ -256,16 +256,6 @@ impl Opts {
                     // due to the fact that wasmparser represents the AST
                     // differently.
                     "data count section required",
-                    // The upstream specification's tests have not been
-                    // adjusted for `shared-everything-threads` yet so some
-                    // flags which are valid with `shared-everything-threads`
-                    // are asserted as malformed. While we wait for upstream
-                    // tests to be adjusted to use a different flag bit in
-                    // their `assert_malformed` blocks this makes it easier to
-                    // implement validation in wasmparser. Effectively these
-                    // two error messages are swapped to `assert_invalid`.
-                    "malformed mutability",
-                    "integer too large",
                 ];
                 if self.assert(Assert::Permissive) && permissive_error_messages.contains(&message) {
                     return self.test_wast_directive(
