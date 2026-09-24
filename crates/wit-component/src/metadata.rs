@@ -275,6 +275,10 @@ pub fn encode(
     extra_producers: Option<&Producers>,
     canonical_names: bool,
 ) -> Result<Vec<u8>> {
+    if canonical_names {
+        crate::encoding::check_duplicate_canonical_names(resolve, world)?;
+    }
+
     let ty = crate::encoding::encode_world(resolve, world, canonical_names)?;
 
     let world = &resolve.worlds[world];
