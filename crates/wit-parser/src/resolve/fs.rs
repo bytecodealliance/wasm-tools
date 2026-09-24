@@ -120,14 +120,27 @@ impl Resolve {
         &mut self,
         path: impl AsRef<Path>,
     ) -> Result<(super::PackageId, PackageSourceMap)> {
-        self._push_dir(path.as_ref())
+        self._push_dir(path.as_ref(), &path.as_ref().join("deps"))
     }
 
-    fn _push_dir(&mut self, path: &Path) -> Result<(super::PackageId, PackageSourceMap)> {
+    /// Same as [`Resolve::push_dir`], but uses `deps` as the directory
+    /// containing WIT dependencies.
+    pub fn push_dir_with_deps(
+        &mut self,
+        path: impl AsRef<Path>,
+        deps: impl AsRef<Path>,
+    ) -> Result<(super::PackageId, PackageSourceMap)> {
+        self._push_dir(path.as_ref(), deps.as_ref())
+    }
+
+    fn _push_dir(
+        &mut self,
+        path: &Path,
+        deps: &Path,
+    ) -> Result<(super::PackageId, PackageSourceMap)> {
         let top_pkg = self
             .parse_dir(path)
             .with_context(|| format!("failed to parse package: {}", path.display()))?;
-        let deps = path.join("deps");
         let deps = self
             .parse_deps_dir(&deps)
             .with_context(|| format!("failed to parse dependency directory: {}", deps.display()))?;
