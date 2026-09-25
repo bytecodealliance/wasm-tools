@@ -380,7 +380,15 @@ impl Node {
     }
 
     fn to_wasm_flags<V: WasmValue>(&self, ty: &V::Type, src: &str) -> Result<V, ParserError> {
-        V::make_flags(ty, self.as_flags(src)?).map_err(|err| self.wasm_value_error(err))
+        // Like `to_wasm_record`, produce the type's declaration order rather
+        // than whatever order the flags were collected in.
+        let names = ty.flags_names().collect::<Vec<_>>();
+        let mut flags = self
+            .as_flags(src)?
+            .map(|flag| flag.strip_prefix('%').unwrap_or(flag))
+            .collect::<Vec<_>>();
+        flags.sort_by_key(|flag| names.iter().position(|name| name == flag));
+        V::make_flags(ty, flags).map_err(|err| self.wasm_value_error(err))
     }
 
     fn to_wasm_maybe_payload<V: WasmValue>(
