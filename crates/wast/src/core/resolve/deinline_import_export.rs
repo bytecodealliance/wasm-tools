@@ -86,9 +86,9 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                             kind: DataKind::Active {
                                 memory: Index::Id(id),
                                 offset: Expression::one(if is64 {
-                                    Instruction::I64Const(0)
+                                    Instruction::i64_const(0)
                                 } else {
-                                    Instruction::I32Const(0)
+                                    Instruction::i32_const(0)
                                 }),
                             },
                             data,
@@ -155,9 +155,9 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                             kind: ElemKind::Active {
                                 table: Some(Index::Id(id)),
                                 offset: Expression::one(if is64 {
-                                    Instruction::I64Const(0)
+                                    Instruction::i64_const(0)
                                 } else {
-                                    Instruction::I32Const(0)
+                                    Instruction::i32_const(0)
                                 }),
                             },
                             payload,
