@@ -69,6 +69,16 @@ impl Resolve {
         self._push_path(path.as_ref())
     }
 
+    /// Same as [`Resolve::push_path`], but uses `deps` as the directory
+    /// containing WIT dependencies.
+    pub fn push_path_with_deps(
+        &mut self,
+        path: impl AsRef<Path>,
+        deps: impl AsRef<Path>,
+    ) -> Result<(super::PackageId, PackageSourceMap)> {
+        self._push_path_with_deps(path.as_ref(), deps.as_ref())
+    }
+
     fn _push_path(&mut self, path: &Path) -> Result<(super::PackageId, PackageSourceMap)> {
         if path.is_dir() {
             self.push_dir(path).with_context(|| {
@@ -80,6 +90,23 @@ impl Resolve {
         } else {
             let id = self.push_file(path)?;
             Ok((id, PackageSourceMap::from_single_source(id, path)?))
+        }
+    }
+
+    fn _push_path_with_deps(
+        &mut self,
+        path: &Path,
+        deps: &Path,
+    ) -> Result<(super::PackageId, PackageSourceMap)> {
+        if path.is_dir() {
+            self.push_dir_with_deps(path, deps).with_context(|| {
+                format!(
+                    "failed to resolve directory while parsing WIT for path [{}]",
+                    path.display()
+                )
+            })
+        } else {
+            self.push_file_with_deps(path, deps)
         }
     }
 
@@ -222,6 +249,16 @@ impl Resolve {
         }
     }
 
+    /// Same as [`Resolve::push_file`], but uses `deps` as the directory
+    /// containing WIT dependencies.
+    pub fn push_file_with_deps(
+        &mut self,
+        path: impl AsRef<Path>,
+        deps: impl AsRef<Path>,
+    ) -> Result<(super::PackageId, PackageSourceMap)> {
+        self._push_file_with_deps(path.as_ref(), deps.as_ref())
+    }
+
     fn _push_file(&mut self, path: &Path) -> Result<ParsedFile> {
         let contents = std::fs::read(path)
             .with_context(|| format!("failed to read path for WIT [{}]", path.display()))?;
@@ -264,6 +301,27 @@ impl Resolve {
         let mut map = SourceMap::default();
         map.push(path, text);
         Ok(ParsedFile::Unresolved(self.parse_source_map(map)?))
+    }
+
+    fn _push_file_with_deps(
+        &mut self,
+        path: &Path,
+        deps: &Path,
+    ) -> Result<(super::PackageId, PackageSourceMap)> {
+        let top_pkg = match self._push_file(path)? {
+            #[cfg(feature = "decoding")]
+            ParsedFile::Package(id) => {
+                return Ok((id, PackageSourceMap::from_single_source(id, path)?));
+            }
+            ParsedFile::Unresolved(pkg) => pkg,
+        };
+
+        let deps = self
+            .parse_deps_dir(&deps)
+            .with_context(|| format!("failed to parse dependency directory: {}", deps.display()))?;
+
+        let (pkg_id, inner) = self.sort_unresolved_packages(top_pkg, deps)?;
+        Ok((pkg_id, PackageSourceMap::from_inner(inner)))
     }
 
     /// Parses `contents` as a WIT package and pushes it into this `Resolve`.
