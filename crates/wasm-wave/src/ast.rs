@@ -197,10 +197,7 @@ impl Node {
         src: &'src str,
     ) -> Result<impl Iterator<Item = &'src str> + 'this, ParserError> {
         self.ensure_type(NodeType::Flags)?;
-        Ok(self.children.iter().map(|node| {
-            debug_assert_eq!(node.ty, NodeType::Label);
-            node.slice(src)
-        }))
+        Ok(self.children.iter().map(|node| node.as_label(src).unwrap()))
     }
 
     fn as_label<'src>(&self, src: &'src str) -> Result<&'src str, ParserError> {
@@ -380,7 +377,12 @@ impl Node {
     }
 
     fn to_wasm_flags<V: WasmValue>(&self, ty: &V::Type, src: &str) -> Result<V, ParserError> {
-        V::make_flags(ty, self.as_flags(src)?).map_err(|err| self.wasm_value_error(err))
+        // Like `to_wasm_record`, produce the type's declaration order rather
+        // than whatever order the flags were collected in.
+        let names = ty.flags_names().collect::<Vec<_>>();
+        let mut flags = self.as_flags(src)?.collect::<Vec<_>>();
+        flags.sort_by_key(|flag| names.iter().position(|name| name == flag));
+        V::make_flags(ty, flags).map_err(|err| self.wasm_value_error(err))
     }
 
     fn to_wasm_maybe_payload<V: WasmValue>(
