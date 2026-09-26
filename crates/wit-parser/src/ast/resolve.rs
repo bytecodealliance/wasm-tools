@@ -1299,6 +1299,12 @@ impl<'a> Resolver<'a> {
             }),
             ast::Type::Resource(_) => TypeDefKind::Resource,
             ast::Type::Record(record) => {
+                if record.fields.is_empty() {
+                    return Err(ParseError::new_syntax(
+                        record.span,
+                        "empty record".to_owned(),
+                    ));
+                }
                 let fields = record
                     .fields
                     .iter()
@@ -1314,6 +1320,9 @@ impl<'a> Resolver<'a> {
                 TypeDefKind::Record(Record { fields })
             }
             ast::Type::Flags(flags) => {
+                if flags.flags.is_empty() {
+                    return Err(ParseError::new_syntax(flags.span, "empty flags".to_owned()));
+                }
                 let flags = flags
                     .flags
                     .iter()
