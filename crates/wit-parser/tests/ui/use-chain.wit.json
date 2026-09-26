@@ -23,7 +23,12 @@
       "name": "foo",
       "kind": {
         "record": {
-          "fields": []
+          "fields": [
+            {
+              "name": "a",
+              "type": "u32"
+            }
+          ]
         }
       },
       "owner": {
