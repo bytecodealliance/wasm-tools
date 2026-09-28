@@ -1,5 +1,7 @@
 interface only-from {
-  record r {}
+  record r {
+    a: u32,
+  }
 
   foo: func() -> r;
 }

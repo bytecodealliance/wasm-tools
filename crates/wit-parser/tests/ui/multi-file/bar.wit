@@ -1,7 +1,9 @@
 package foo:multi-file;
 
 interface irrelevant-name {
-  record a-name {}
+  record a-name {
+    a: u32,
+  }
 }
 
 interface depends-on-later-item {

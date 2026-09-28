@@ -21,37 +21,35 @@ interface types {
   type t16 = result<_, u32>;
   type t17 = result<u32>;
   type t18 = result;
-  record t20 {}
-  record t21 { a: u32 }
-  record t22 { a: u32, }
-  record t23 { a: u32, b: u64 }
-  record t24 { a: u32, b: u64, }
-  record t25 { x: u32 }
-  record %record {}
-  type t26 = tuple<>;
-  type t27 = tuple<u32>;
-  type t28 = tuple<u32,>;
-  type t29 = tuple<u32, u64>;
-  flags t30 {}
-  flags t31 { a, b, c }
-  flags t32 { a, b, c, }
-  variant t33 { a }
-  variant t34 { a, b }
-  variant t35 { a, b, }
-  variant t36 { a, b(u32), }
-  variant t37 { a, b(option<u32>), }
-  enum t41 { a, b, c }
-  enum t42 { a, b, c, }
-  type t43 = bool;
-  type t44 = string;
-  type t45 = list<list<list<t32>>>;
-  type t46 = t44;
-  type t47 = %t44;
-  type t48 = stream<u32>;
-  type t49 = future<u32>;
-  type t50 = future;
-  type t51a = list<u32, 4>;
-  type t51b = list<list<u32, 4>, 2>;
+  record t19 { a: u32 }
+  record t20 { a: u32, }
+  record t21 { a: u32, b: u64 }
+  record t22 { a: u32, b: u64, }
+  record t23 { x: u32 }
+  record %record { a: u32 }
+  type t24 = tuple<>;
+  type t25 = tuple<u32>;
+  type t26 = tuple<u32,>;
+  type t27 = tuple<u32, u64>;
+  flags t28 { a, b, c }
+  flags t29 { a, b, c, }
+  variant t30 { a }
+  variant t31 { a, b }
+  variant t32 { a, b, }
+  variant t33 { a, b(u32), }
+  variant t34 { a, b(option<u32>), }
+  enum t35 { a, b, c }
+  enum t36 { a, b, c, }
+  type t37 = bool;
+  type t38 = string;
+  type t39 = list<list<list<t32>>>;
+  type t40 = t44;
+  type t41 = %t44;
+  type t42 = stream<u32>;
+  type t43 = future<u32>;
+  type t44 = future;
+  type t45a = list<u32, 4>;
+  type t45b = list<list<u32, 4>, 2>;
 
   /// type order doesn't matter
   type foo = bar;
