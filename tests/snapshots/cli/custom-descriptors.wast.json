@@ -96,6 +96,13 @@
       "filename": "custom-descriptors.13.wasm",
       "module_type": "binary",
       "text": "describes with no matching descriptor"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 169,
+      "filename": "custom-descriptors.14.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
     }
   ]
 }

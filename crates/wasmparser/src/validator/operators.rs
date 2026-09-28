@@ -27,9 +27,10 @@ use crate::VisitSimdOperator;
 use crate::features::require_feature;
 use crate::{
     AbstractHeapType, BlockType, BrTable, Catch, ContType, Error, FieldType, FrameKind, FrameStack,
-    FuncType, GlobalType, Handle, HeapType, Ieee32, Ieee64, MemArg, ModuleArity, RefType, Result,
-    ResumeTable, StorageType, StructType, SubType, TableType, TryTable, UnpackedIndex, ValType,
-    VisitOperator, WasmFeatures, WasmModuleResources, limits::MAX_WASM_FUNCTION_LOCALS,
+    FuncType, GlobalType, Handle, HeapType, Ieee32, Ieee64, MemArg, ModuleArity, PackedIndex,
+    RefType, Result, ResumeTable, StorageType, StructType, SubType, TableType, TryTable,
+    UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources,
+    limits::MAX_WASM_FUNCTION_LOCALS,
 };
 use crate::{CompositeInnerType, Ordering, prelude::*};
 use core::ops::{Deref, DerefMut};
@@ -1490,7 +1491,7 @@ where
     }
 
     /// Common helper to check descriptor for the specified type.
-    fn check_descriptor(&self, heap_type: HeapType) -> Result<u32> {
+    fn check_descriptor(&self, heap_type: HeapType) -> Result<PackedIndex> {
         Ok(match heap_type {
             HeapType::Exact(idx) | HeapType::Concrete(idx) => {
                 if let Some(descriptor_idx) = self
@@ -1498,10 +1499,7 @@ where
                     .composite_type
                     .descriptor_idx
                 {
-                    u32::try_from(crate::validator::types::TypeIdentifier::index(
-                        &descriptor_idx.as_core_type_id().unwrap(),
-                    ))
-                    .unwrap()
+                    descriptor_idx
                 } else {
                     bail!(self.offset, "cast target must have descriptor")
                 }
@@ -1512,15 +1510,9 @@ where
 
     fn check_maybe_exact_descriptor_ref(&mut self, heap_type: HeapType) -> Result<bool> {
         let descriptor_idx = self.check_descriptor(heap_type)?;
-        let (ty, _is_exact) = self.pop_concrete_or_exact_ref(true, descriptor_idx)?;
+        let ty = self.pop_operand(Some(RefType::concrete(true, descriptor_idx).into()))?;
         let is_exact = if let HeapType::Exact(_) = heap_type {
-            let mut descriptor_ty = HeapType::Exact(UnpackedIndex::Module(descriptor_idx));
-            self.resources
-                .check_heap_type(&mut descriptor_ty, self.offset)?;
-            let descriptor_ty = ValType::Ref(
-                RefType::new(true, descriptor_ty)
-                    .expect("existing heap types should be within our limits"),
-            );
+            let descriptor_ty = ValType::Ref(RefType::exact(true, descriptor_idx));
 
             match ty {
                 MaybeType::Known(actual) if !self.resources.is_subtype(actual, descriptor_ty) => {
