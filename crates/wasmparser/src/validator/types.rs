@@ -234,10 +234,13 @@ impl TypeInfo {
     /// being an aggregate containing `other`.
     ///
     /// Returns an error if the type size would exceed this crate's static limit
-    /// of a type size.
+    /// of a type size, or if the nesting depth is too high.
     #[cfg(feature = "component-model")]
     pub(crate) fn combine(&mut self, other: TypeInfo, offset: u64) -> Result<()> {
         let depth = self.depth().max(other.depth().saturating_add(1));
+        if depth > crate::limits::MAX_WASM_COMPONENT_TYPE_DEPTH {
+            bail!(offset, "type nesting is too deep");
+        }
         let size = super::combine_type_sizes(self.size(), other.size(), offset)?;
         *self = TypeInfo::_new(size, depth);
         Ok(())

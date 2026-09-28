@@ -35,6 +35,41 @@
       "filename": "very-nested.4.wat",
       "module_type": "text",
       "text": "nesting too deep"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1958,
+      "filename": "very-nested.5.wasm",
+      "module_type": "binary",
+      "text": "type nesting is too deep"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2065,
+      "filename": "very-nested.6.wasm",
+      "module_type": "binary",
+      "text": "type nesting is too deep"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2172,
+      "filename": "very-nested.7.wasm",
+      "module_type": "binary",
+      "text": "type nesting is too deep"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2278,
+      "filename": "very-nested.8.wasm",
+      "module_type": "binary",
+      "text": "type nesting is too deep"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2384,
+      "filename": "very-nested.9.wasm",
+      "module_type": "binary",
+      "text": "type nesting is too deep"
     }
   ]
 }
