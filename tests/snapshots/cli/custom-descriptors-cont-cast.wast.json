@@ -1,0 +1,33 @@
+{
+  "source_filename": "tests/cli/custom-descriptors-cont-cast.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "custom-descriptors-cont-cast.0.wasm",
+      "module_type": "binary",
+      "text": "invalid cast: cannot cast to a continuation type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 16,
+      "filename": "custom-descriptors-cont-cast.1.wasm",
+      "module_type": "binary",
+      "text": "invalid cast: cannot cast to a continuation type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 26,
+      "filename": "custom-descriptors-cont-cast.2.wasm",
+      "module_type": "binary",
+      "text": "invalid cast: cannot cast to a continuation type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 35,
+      "filename": "custom-descriptors-cont-cast.3.wasm",
+      "module_type": "binary",
+      "text": "invalid cast: cannot cast to a continuation type"
+    }
+  ]
+}

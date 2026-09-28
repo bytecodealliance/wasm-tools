@@ -1459,6 +1459,8 @@ where
         from_ref_type: RefType,
         to_ref_type: RefType,
     ) -> Result<()> {
+        self.check_cast_to_allowed(to_ref_type.heap_type())?;
+
         if self.features.custom_descriptors() {
             // The constraint C |- rt_2 <: rt_1 on branching cast instructions
             // before the custom descriptors proposal is relaxed to the constraint
@@ -1474,8 +1476,6 @@ where
             }
             return Ok(());
         }
-
-        self.check_cast_to_allowed(to_ref_type.heap_type())?;
 
         if !self
             .resources
