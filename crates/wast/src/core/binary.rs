@@ -8,6 +8,7 @@ use std::borrow::Cow;
 use std::marker;
 #[cfg(feature = "dwarf")]
 use std::path::Path;
+use wasm_encoder::InstructionSink;
 
 /// Options that can be specified when encoding a component or a module to
 /// customize what the final binary looks like.
@@ -463,24 +464,6 @@ impl From<HeapType<'_>> for wasm_encoder::HeapType {
     }
 }
 
-impl Encode for Option<Id<'_>> {
-    fn encode(&self, _e: &mut Vec<u8>) {
-        // used for parameters in the tuple impl as well as instruction labels
-    }
-}
-
-impl<'a> Encode for ValType<'a> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        wasm_encoder::Encode::encode(&wasm_encoder::ValType::from(*self), e)
-    }
-}
-
-impl<'a> Encode for HeapType<'a> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        wasm_encoder::Encode::encode(&wasm_encoder::HeapType::from(*self), e)
-    }
-}
-
 impl From<StorageType<'_>> for wasm_encoder::StorageType {
     fn from(st: StorageType) -> Self {
         use wasm_encoder::StorageType::*;
@@ -606,12 +589,6 @@ impl SectionItem for FuncSectionTy<'_> {
 
     fn encode(&self, section: &mut wasm_encoder::FunctionSection) {
         section.function(self.0.unwrap_u32());
-    }
-}
-
-impl Encode for Index<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.unwrap_u32().encode(e)
     }
 }
 
@@ -839,7 +816,7 @@ impl Expression<'_> {
             }
 
             // Finally emit the instruction and move to the next.
-            instr.encode(&mut tmp);
+            instr.encode(&mut InstructionSink::new(&mut tmp));
         }
         func.raw(tmp.iter().copied());
         func.instructions().end();
@@ -849,23 +826,495 @@ impl Expression<'_> {
 
     fn to_const_expr(&self) -> wasm_encoder::ConstExpr {
         let mut tmp = Vec::new();
+        let mut sink = InstructionSink::new(&mut tmp);
         for instr in self.instrs.iter() {
-            instr.encode(&mut tmp);
+            instr.encode(&mut sink);
         }
         wasm_encoder::ConstExpr::raw(tmp)
     }
 }
 
-impl Encode for BlockType<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        let blockty = match self.ty.index {
+/// Encoders for instructions annotated with `#[custom_encode]` in the
+/// `instructions!` macro.
+pub(crate) mod custom_encoders {
+    use super::*;
+
+    // Labels on `else` and `end` aren't encoded.
+    pub(crate) fn else_(sink: &mut InstructionSink<'_>, _label: &Option<Id<'_>>) {
+        sink.else_();
+    }
+
+    pub(crate) fn end(sink: &mut InstructionSink<'_>, _label: &Option<Id<'_>>) {
+        sink.end();
+    }
+
+    pub(crate) fn i32_const(sink: &mut InstructionSink<'_>, x: &i32) {
+        sink.i32_const(*x);
+    }
+
+    pub(crate) fn i64_const(sink: &mut InstructionSink<'_>, x: &i64) {
+        sink.i64_const(*x);
+    }
+
+    pub(crate) fn select(sink: &mut InstructionSink<'_>, tys: &SelectTypes<'_>) {
+        match &tys.tys {
+            Some(tys) => {
+                let tys = tys.iter().map(|t| (*t).into()).collect::<Vec<_>>();
+                sink.typed_select_multi(&tys);
+            }
+            None => {
+                sink.select();
+            }
+        }
+    }
+
+    pub(crate) fn br_table(sink: &mut InstructionSink<'_>, br: &BrTableIndices<'_>) {
+        sink.br_table(
+            br.labels.iter().map(|l| l.unwrap_u32()),
+            br.default.unwrap_u32(),
+        );
+    }
+
+    pub(crate) fn call_indirect(sink: &mut InstructionSink<'_>, call: &CallIndirect<'_>) {
+        sink.call_indirect(call.table.unwrap_u32(), call.ty.unwrap_u32());
+    }
+
+    pub(crate) fn return_call_indirect(sink: &mut InstructionSink<'_>, call: &CallIndirect<'_>) {
+        sink.return_call_indirect(call.table.unwrap_u32(), call.ty.unwrap_u32());
+    }
+
+    pub(crate) fn memory_init(sink: &mut InstructionSink<'_>, init: &MemoryInit<'_>) {
+        sink.memory_init(init.mem.unwrap_u32(), init.data.unwrap_u32());
+    }
+
+    pub(crate) fn memory_copy(sink: &mut InstructionSink<'_>, copy: &MemoryCopy<'_>) {
+        sink.memory_copy(copy.dst.unwrap_u32(), copy.src.unwrap_u32());
+    }
+
+    pub(crate) fn table_init(sink: &mut InstructionSink<'_>, init: &TableInit<'_>) {
+        sink.table_init(init.table.unwrap_u32(), init.elem.unwrap_u32());
+    }
+
+    pub(crate) fn table_copy(sink: &mut InstructionSink<'_>, copy: &TableCopy<'_>) {
+        sink.table_copy(copy.dst.unwrap_u32(), copy.src.unwrap_u32());
+    }
+
+    pub(crate) fn struct_get(sink: &mut InstructionSink<'_>, access: &StructAccess<'_>) {
+        sink.struct_get(access.r#struct.unwrap_u32(), access.field.unwrap_u32());
+    }
+
+    pub(crate) fn struct_get_s(sink: &mut InstructionSink<'_>, access: &StructAccess<'_>) {
+        sink.struct_get_s(access.r#struct.unwrap_u32(), access.field.unwrap_u32());
+    }
+
+    pub(crate) fn struct_get_u(sink: &mut InstructionSink<'_>, access: &StructAccess<'_>) {
+        sink.struct_get_u(access.r#struct.unwrap_u32(), access.field.unwrap_u32());
+    }
+
+    pub(crate) fn struct_set(sink: &mut InstructionSink<'_>, access: &StructAccess<'_>) {
+        sink.struct_set(access.r#struct.unwrap_u32(), access.field.unwrap_u32());
+    }
+
+    pub(crate) fn array_new_fixed(sink: &mut InstructionSink<'_>, new: &ArrayNewFixed<'_>) {
+        sink.array_new_fixed(new.array.unwrap_u32(), new.length);
+    }
+
+    pub(crate) fn array_new_data(sink: &mut InstructionSink<'_>, new: &ArrayNewData<'_>) {
+        sink.array_new_data(new.array.unwrap_u32(), new.data_idx.unwrap_u32());
+    }
+
+    pub(crate) fn array_new_elem(sink: &mut InstructionSink<'_>, new: &ArrayNewElem<'_>) {
+        sink.array_new_elem(new.array.unwrap_u32(), new.elem_idx.unwrap_u32());
+    }
+
+    pub(crate) fn array_copy(sink: &mut InstructionSink<'_>, copy: &ArrayCopy<'_>) {
+        sink.array_copy(copy.dest_array.unwrap_u32(), copy.src_array.unwrap_u32());
+    }
+
+    pub(crate) fn array_init_data(sink: &mut InstructionSink<'_>, init: &ArrayInit<'_>) {
+        sink.array_init_data(init.array.unwrap_u32(), init.segment.unwrap_u32());
+    }
+
+    pub(crate) fn array_init_elem(sink: &mut InstructionSink<'_>, init: &ArrayInit<'_>) {
+        sink.array_init_elem(init.array.unwrap_u32(), init.segment.unwrap_u32());
+    }
+
+    pub(crate) fn ref_test(sink: &mut InstructionSink<'_>, test: &RefTest<'_>) {
+        if test.r#type.nullable {
+            sink.ref_test_nullable(test.r#type.heap.into());
+        } else {
+            sink.ref_test_non_null(test.r#type.heap.into());
+        }
+    }
+
+    pub(crate) fn ref_cast(sink: &mut InstructionSink<'_>, cast: &RefCast<'_>) {
+        if cast.r#type.nullable {
+            sink.ref_cast_nullable(cast.r#type.heap.into());
+        } else {
+            sink.ref_cast_non_null(cast.r#type.heap.into());
+        }
+    }
+
+    pub(crate) fn ref_cast_desc_eq(sink: &mut InstructionSink<'_>, cast: &RefCastDescEq<'_>) {
+        if cast.r#type.nullable {
+            sink.ref_cast_desc_eq_nullable(cast.r#type.heap.into());
+        } else {
+            sink.ref_cast_desc_eq_non_null(cast.r#type.heap.into());
+        }
+    }
+
+    pub(crate) fn br_on_cast(sink: &mut InstructionSink<'_>, br: &BrOnCast<'_>) {
+        sink.br_on_cast(
+            br.label.unwrap_u32(),
+            br.from_type.into(),
+            br.to_type.into(),
+        );
+    }
+
+    pub(crate) fn br_on_cast_fail(sink: &mut InstructionSink<'_>, br: &BrOnCastFail<'_>) {
+        sink.br_on_cast_fail(
+            br.label.unwrap_u32(),
+            br.from_type.into(),
+            br.to_type.into(),
+        );
+    }
+
+    pub(crate) fn br_on_cast_desc_eq(sink: &mut InstructionSink<'_>, br: &BrOnCastDescEq<'_>) {
+        sink.br_on_cast_desc_eq(
+            br.label.unwrap_u32(),
+            br.from_type.into(),
+            br.to_type.into(),
+        );
+    }
+
+    pub(crate) fn br_on_cast_desc_eq_fail(
+        sink: &mut InstructionSink<'_>,
+        br: &BrOnCastDescEqFail<'_>,
+    ) {
+        sink.br_on_cast_desc_eq_fail(
+            br.label.unwrap_u32(),
+            br.from_type.into(),
+            br.to_type.into(),
+        );
+    }
+
+    pub(crate) fn global_atomic_get(sink: &mut InstructionSink<'_>, i: &Ordered<Index<'_>>) {
+        sink.global_atomic_get((&i.ordering).into(), i.inner.unwrap_u32());
+    }
+
+    pub(crate) fn global_atomic_set(sink: &mut InstructionSink<'_>, i: &Ordered<Index<'_>>) {
+        sink.global_atomic_set((&i.ordering).into(), i.inner.unwrap_u32());
+    }
+
+    pub(crate) fn global_atomic_rmw_add(sink: &mut InstructionSink<'_>, i: &Ordered<Index<'_>>) {
+        sink.global_atomic_rmw_add((&i.ordering).into(), i.inner.unwrap_u32());
+    }
+
+    pub(crate) fn global_atomic_rmw_sub(sink: &mut InstructionSink<'_>, i: &Ordered<Index<'_>>) {
+        sink.global_atomic_rmw_sub((&i.ordering).into(), i.inner.unwrap_u32());
+    }
+
+    pub(crate) fn global_atomic_rmw_and(sink: &mut InstructionSink<'_>, i: &Ordered<Index<'_>>) {
+        sink.global_atomic_rmw_and((&i.ordering).into(), i.inner.unwrap_u32());
+    }
+
+    pub(crate) fn global_atomic_rmw_or(sink: &mut InstructionSink<'_>, i: &Ordered<Index<'_>>) {
+        sink.global_atomic_rmw_or((&i.ordering).into(), i.inner.unwrap_u32());
+    }
+
+    pub(crate) fn global_atomic_rmw_xor(sink: &mut InstructionSink<'_>, i: &Ordered<Index<'_>>) {
+        sink.global_atomic_rmw_xor((&i.ordering).into(), i.inner.unwrap_u32());
+    }
+
+    pub(crate) fn global_atomic_rmw_xchg(sink: &mut InstructionSink<'_>, i: &Ordered<Index<'_>>) {
+        sink.global_atomic_rmw_xchg((&i.ordering).into(), i.inner.unwrap_u32());
+    }
+
+    pub(crate) fn global_atomic_rmw_cmpxchg(
+        sink: &mut InstructionSink<'_>,
+        i: &Ordered<Index<'_>>,
+    ) {
+        sink.global_atomic_rmw_cmpxchg((&i.ordering).into(), i.inner.unwrap_u32());
+    }
+
+    pub(crate) fn table_atomic_get(sink: &mut InstructionSink<'_>, t: &Ordered<TableArg<'_>>) {
+        sink.table_atomic_get((&t.ordering).into(), t.inner.dst.unwrap_u32());
+    }
+
+    pub(crate) fn table_atomic_set(sink: &mut InstructionSink<'_>, t: &Ordered<TableArg<'_>>) {
+        sink.table_atomic_set((&t.ordering).into(), t.inner.dst.unwrap_u32());
+    }
+
+    pub(crate) fn table_atomic_rmw_xchg(sink: &mut InstructionSink<'_>, t: &Ordered<TableArg<'_>>) {
+        sink.table_atomic_rmw_xchg((&t.ordering).into(), t.inner.dst.unwrap_u32());
+    }
+
+    pub(crate) fn table_atomic_rmw_cmpxchg(
+        sink: &mut InstructionSink<'_>,
+        t: &Ordered<TableArg<'_>>,
+    ) {
+        sink.table_atomic_rmw_cmpxchg((&t.ordering).into(), t.inner.dst.unwrap_u32());
+    }
+
+    pub(crate) fn struct_atomic_get(sink: &mut InstructionSink<'_>, s: &Ordered<StructAccess<'_>>) {
+        sink.struct_atomic_get(
+            (&s.ordering).into(),
+            s.inner.r#struct.unwrap_u32(),
+            s.inner.field.unwrap_u32(),
+        );
+    }
+
+    pub(crate) fn struct_atomic_get_s(
+        sink: &mut InstructionSink<'_>,
+        s: &Ordered<StructAccess<'_>>,
+    ) {
+        sink.struct_atomic_get_s(
+            (&s.ordering).into(),
+            s.inner.r#struct.unwrap_u32(),
+            s.inner.field.unwrap_u32(),
+        );
+    }
+
+    pub(crate) fn struct_atomic_get_u(
+        sink: &mut InstructionSink<'_>,
+        s: &Ordered<StructAccess<'_>>,
+    ) {
+        sink.struct_atomic_get_u(
+            (&s.ordering).into(),
+            s.inner.r#struct.unwrap_u32(),
+            s.inner.field.unwrap_u32(),
+        );
+    }
+
+    pub(crate) fn struct_atomic_set(sink: &mut InstructionSink<'_>, s: &Ordered<StructAccess<'_>>) {
+        sink.struct_atomic_set(
+            (&s.ordering).into(),
+            s.inner.r#struct.unwrap_u32(),
+            s.inner.field.unwrap_u32(),
+        );
+    }
+
+    pub(crate) fn struct_atomic_rmw_add(
+        sink: &mut InstructionSink<'_>,
+        s: &Ordered<StructAccess<'_>>,
+    ) {
+        sink.struct_atomic_rmw_add(
+            (&s.ordering).into(),
+            s.inner.r#struct.unwrap_u32(),
+            s.inner.field.unwrap_u32(),
+        );
+    }
+
+    pub(crate) fn struct_atomic_rmw_sub(
+        sink: &mut InstructionSink<'_>,
+        s: &Ordered<StructAccess<'_>>,
+    ) {
+        sink.struct_atomic_rmw_sub(
+            (&s.ordering).into(),
+            s.inner.r#struct.unwrap_u32(),
+            s.inner.field.unwrap_u32(),
+        );
+    }
+
+    pub(crate) fn struct_atomic_rmw_and(
+        sink: &mut InstructionSink<'_>,
+        s: &Ordered<StructAccess<'_>>,
+    ) {
+        sink.struct_atomic_rmw_and(
+            (&s.ordering).into(),
+            s.inner.r#struct.unwrap_u32(),
+            s.inner.field.unwrap_u32(),
+        );
+    }
+
+    pub(crate) fn struct_atomic_rmw_or(
+        sink: &mut InstructionSink<'_>,
+        s: &Ordered<StructAccess<'_>>,
+    ) {
+        sink.struct_atomic_rmw_or(
+            (&s.ordering).into(),
+            s.inner.r#struct.unwrap_u32(),
+            s.inner.field.unwrap_u32(),
+        );
+    }
+
+    pub(crate) fn struct_atomic_rmw_xor(
+        sink: &mut InstructionSink<'_>,
+        s: &Ordered<StructAccess<'_>>,
+    ) {
+        sink.struct_atomic_rmw_xor(
+            (&s.ordering).into(),
+            s.inner.r#struct.unwrap_u32(),
+            s.inner.field.unwrap_u32(),
+        );
+    }
+
+    pub(crate) fn struct_atomic_rmw_xchg(
+        sink: &mut InstructionSink<'_>,
+        s: &Ordered<StructAccess<'_>>,
+    ) {
+        sink.struct_atomic_rmw_xchg(
+            (&s.ordering).into(),
+            s.inner.r#struct.unwrap_u32(),
+            s.inner.field.unwrap_u32(),
+        );
+    }
+
+    pub(crate) fn struct_atomic_rmw_cmpxchg(
+        sink: &mut InstructionSink<'_>,
+        s: &Ordered<StructAccess<'_>>,
+    ) {
+        sink.struct_atomic_rmw_cmpxchg(
+            (&s.ordering).into(),
+            s.inner.r#struct.unwrap_u32(),
+            s.inner.field.unwrap_u32(),
+        );
+    }
+
+    pub(crate) fn array_atomic_get(sink: &mut InstructionSink<'_>, i: &Ordered<Index<'_>>) {
+        sink.array_atomic_get((&i.ordering).into(), i.inner.unwrap_u32());
+    }
+
+    pub(crate) fn array_atomic_get_s(sink: &mut InstructionSink<'_>, i: &Ordered<Index<'_>>) {
+        sink.array_atomic_get_s((&i.ordering).into(), i.inner.unwrap_u32());
+    }
+
+    pub(crate) fn array_atomic_get_u(sink: &mut InstructionSink<'_>, i: &Ordered<Index<'_>>) {
+        sink.array_atomic_get_u((&i.ordering).into(), i.inner.unwrap_u32());
+    }
+
+    pub(crate) fn array_atomic_set(sink: &mut InstructionSink<'_>, i: &Ordered<Index<'_>>) {
+        sink.array_atomic_set((&i.ordering).into(), i.inner.unwrap_u32());
+    }
+
+    pub(crate) fn array_atomic_rmw_add(sink: &mut InstructionSink<'_>, i: &Ordered<Index<'_>>) {
+        sink.array_atomic_rmw_add((&i.ordering).into(), i.inner.unwrap_u32());
+    }
+
+    pub(crate) fn array_atomic_rmw_sub(sink: &mut InstructionSink<'_>, i: &Ordered<Index<'_>>) {
+        sink.array_atomic_rmw_sub((&i.ordering).into(), i.inner.unwrap_u32());
+    }
+
+    pub(crate) fn array_atomic_rmw_and(sink: &mut InstructionSink<'_>, i: &Ordered<Index<'_>>) {
+        sink.array_atomic_rmw_and((&i.ordering).into(), i.inner.unwrap_u32());
+    }
+
+    pub(crate) fn array_atomic_rmw_or(sink: &mut InstructionSink<'_>, i: &Ordered<Index<'_>>) {
+        sink.array_atomic_rmw_or((&i.ordering).into(), i.inner.unwrap_u32());
+    }
+
+    pub(crate) fn array_atomic_rmw_xor(sink: &mut InstructionSink<'_>, i: &Ordered<Index<'_>>) {
+        sink.array_atomic_rmw_xor((&i.ordering).into(), i.inner.unwrap_u32());
+    }
+
+    pub(crate) fn array_atomic_rmw_xchg(sink: &mut InstructionSink<'_>, i: &Ordered<Index<'_>>) {
+        sink.array_atomic_rmw_xchg((&i.ordering).into(), i.inner.unwrap_u32());
+    }
+
+    pub(crate) fn array_atomic_rmw_cmpxchg(sink: &mut InstructionSink<'_>, i: &Ordered<Index<'_>>) {
+        sink.array_atomic_rmw_cmpxchg((&i.ordering).into(), i.inner.unwrap_u32());
+    }
+
+    pub(crate) fn v128_load8_lane(sink: &mut InstructionSink<'_>, lane: &LoadOrStoreLane<'_>) {
+        sink.v128_load8_lane((&lane.memarg).into(), lane.lane.lane);
+    }
+
+    pub(crate) fn v128_load16_lane(sink: &mut InstructionSink<'_>, lane: &LoadOrStoreLane<'_>) {
+        sink.v128_load16_lane((&lane.memarg).into(), lane.lane.lane);
+    }
+
+    pub(crate) fn v128_load32_lane(sink: &mut InstructionSink<'_>, lane: &LoadOrStoreLane<'_>) {
+        sink.v128_load32_lane((&lane.memarg).into(), lane.lane.lane);
+    }
+
+    pub(crate) fn v128_load64_lane(sink: &mut InstructionSink<'_>, lane: &LoadOrStoreLane<'_>) {
+        sink.v128_load64_lane((&lane.memarg).into(), lane.lane.lane);
+    }
+
+    pub(crate) fn v128_store8_lane(sink: &mut InstructionSink<'_>, lane: &LoadOrStoreLane<'_>) {
+        sink.v128_store8_lane((&lane.memarg).into(), lane.lane.lane);
+    }
+
+    pub(crate) fn v128_store16_lane(sink: &mut InstructionSink<'_>, lane: &LoadOrStoreLane<'_>) {
+        sink.v128_store16_lane((&lane.memarg).into(), lane.lane.lane);
+    }
+
+    pub(crate) fn v128_store32_lane(sink: &mut InstructionSink<'_>, lane: &LoadOrStoreLane<'_>) {
+        sink.v128_store32_lane((&lane.memarg).into(), lane.lane.lane);
+    }
+
+    pub(crate) fn v128_store64_lane(sink: &mut InstructionSink<'_>, lane: &LoadOrStoreLane<'_>) {
+        sink.v128_store64_lane((&lane.memarg).into(), lane.lane.lane);
+    }
+
+    pub(crate) fn try_table(sink: &mut InstructionSink<'_>, table: &TryTable<'_>) {
+        sink.try_table(
+            (&*table.block).into(),
+            table.catches.iter().map(|c| c.into()),
+        );
+    }
+
+    pub(crate) fn cont_bind(sink: &mut InstructionSink<'_>, bind: &ContBind<'_>) {
+        sink.cont_bind(
+            bind.argument_index.unwrap_u32(),
+            bind.result_index.unwrap_u32(),
+        );
+    }
+
+    pub(crate) fn resume(sink: &mut InstructionSink<'_>, resume: &Resume<'_>) {
+        sink.resume(resume.type_index.unwrap_u32(), resume.table.handles());
+    }
+
+    pub(crate) fn resume_throw(sink: &mut InstructionSink<'_>, resume: &ResumeThrow<'_>) {
+        sink.resume_throw(
+            resume.type_index.unwrap_u32(),
+            resume.tag_index.unwrap_u32(),
+            resume.table.handles(),
+        );
+    }
+
+    pub(crate) fn resume_throw_ref(sink: &mut InstructionSink<'_>, resume: &ResumeThrowRef<'_>) {
+        sink.resume_throw_ref(resume.type_index.unwrap_u32(), resume.table.handles());
+    }
+
+    pub(crate) fn switch(sink: &mut InstructionSink<'_>, switch: &Switch<'_>) {
+        sink.switch(
+            switch.type_index.unwrap_u32(),
+            switch.tag_index.unwrap_u32(),
+        );
+    }
+}
+
+impl From<&Index<'_>> for u32 {
+    fn from(i: &Index<'_>) -> Self {
+        i.unwrap_u32()
+    }
+}
+
+impl From<&F32> for wasm_encoder::Ieee32 {
+    fn from(f: &F32) -> Self {
+        wasm_encoder::Ieee32::new(f.bits)
+    }
+}
+
+impl From<&F64> for wasm_encoder::Ieee64 {
+    fn from(f: &F64) -> Self {
+        wasm_encoder::Ieee64::new(f.bits)
+    }
+}
+
+impl From<&HeapType<'_>> for wasm_encoder::HeapType {
+    fn from(ty: &HeapType<'_>) -> Self {
+        (*ty).into()
+    }
+}
+
+impl From<&BlockType<'_>> for wasm_encoder::BlockType {
+    fn from(bt: &BlockType<'_>) -> Self {
+        match bt.ty.index {
             Some(Index::Num(n, _)) => wasm_encoder::BlockType::FunctionType(n),
             _ => {
-                let ty = self
-                    .ty
-                    .inline
-                    .as_ref()
-                    .expect("function type not filled in");
+                let ty = bt.ty.inline.as_ref().expect("function type not filled in");
                 if ty.params.is_empty() && ty.results.is_empty() {
                     wasm_encoder::BlockType::Empty
                 } else if ty.params.is_empty() && ty.results.len() == 1 {
@@ -874,127 +1323,106 @@ impl Encode for BlockType<'_> {
                     panic!("multi-value block types should have an index");
                 }
             }
-        };
-        wasm_encoder::Encode::encode(&blockty, e)
+        }
     }
 }
 
-impl Encode for LaneArg {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.lane.encode(e);
+impl From<&Box<BlockType<'_>>> for wasm_encoder::BlockType {
+    fn from(bt: &Box<BlockType<'_>>) -> Self {
+        (&**bt).into()
     }
 }
 
-impl Encode for MemArg<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        let MemArg {
-            align,
-            memory,
-            offset,
-        } = self;
-        wasm_encoder::Encode::encode(
-            &wasm_encoder::MemArg {
-                align: align.trailing_zeros(),
-                memory_index: memory.unwrap_u32(),
-                offset: *offset,
+impl From<&TableArg<'_>> for u32 {
+    fn from(t: &TableArg<'_>) -> Self {
+        t.dst.unwrap_u32()
+    }
+}
+
+impl From<&MemoryArg<'_>> for u32 {
+    fn from(m: &MemoryArg<'_>) -> Self {
+        m.mem.unwrap_u32()
+    }
+}
+
+impl From<&MemArg<'_>> for wasm_encoder::MemArg {
+    fn from(m: &MemArg<'_>) -> Self {
+        wasm_encoder::MemArg {
+            align: m.align.trailing_zeros(),
+            memory_index: m.memory.unwrap_u32(),
+            offset: m.offset,
+        }
+    }
+}
+
+impl From<&LaneArg> for u8 {
+    fn from(l: &LaneArg) -> Self {
+        l.lane
+    }
+}
+
+impl From<&ArrayFill<'_>> for u32 {
+    fn from(a: &ArrayFill<'_>) -> Self {
+        a.array.unwrap_u32()
+    }
+}
+
+impl From<&V128Const> for i128 {
+    fn from(v: &V128Const) -> Self {
+        i128::from_le_bytes(v.to_le_bytes())
+    }
+}
+
+impl From<&I8x16Shuffle> for [u8; 16] {
+    fn from(s: &I8x16Shuffle) -> Self {
+        s.lanes
+    }
+}
+
+impl From<&TryTableCatch<'_>> for wasm_encoder::Catch {
+    fn from(catch: &TryTableCatch<'_>) -> Self {
+        let label = catch.label.unwrap_u32();
+        match catch.kind {
+            TryTableCatchKind::Catch(tag) => wasm_encoder::Catch::One {
+                tag: tag.unwrap_u32(),
+                label,
             },
-            e,
-        )
-    }
-}
-
-impl Encode for Ordering {
-    fn encode(&self, buf: &mut Vec<u8>) {
-        wasm_encoder::Encode::encode(
-            &match self {
-                Ordering::SeqCst => wasm_encoder::Ordering::SeqCst,
-                Ordering::AcqRel => wasm_encoder::Ordering::AcqRel,
+            TryTableCatchKind::CatchRef(tag) => wasm_encoder::Catch::OneRef {
+                tag: tag.unwrap_u32(),
+                label,
             },
-            buf,
-        )
+            TryTableCatchKind::CatchAll => wasm_encoder::Catch::All { label },
+            TryTableCatchKind::CatchAllRef => wasm_encoder::Catch::AllRef { label },
+        }
     }
 }
 
-impl<T> Encode for Ordered<T>
-where
-    T: Encode,
-{
-    fn encode(&self, buf: &mut Vec<u8>) {
-        self.ordering.encode(buf);
-        self.inner.encode(buf);
+impl From<&Handle<'_>> for wasm_encoder::Handle {
+    fn from(handle: &Handle<'_>) -> Self {
+        match handle {
+            Handle::OnLabel { tag, label } => wasm_encoder::Handle::OnLabel {
+                tag: tag.unwrap_u32(),
+                label: label.unwrap_u32(),
+            },
+            Handle::OnSwitch { tag } => wasm_encoder::Handle::OnSwitch {
+                tag: tag.unwrap_u32(),
+            },
+        }
     }
 }
 
-impl Encode for LoadOrStoreLane<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.memarg.encode(e);
-        self.lane.encode(e);
+impl ResumeTable<'_> {
+    fn handles(&self) -> impl ExactSizeIterator<Item = wasm_encoder::Handle> + '_ {
+        self.handlers.iter().map(|h| h.into())
     }
 }
 
-impl Encode for CallIndirect<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.ty.unwrap_u32().encode(e);
-        self.table.encode(e);
-    }
-}
-
-impl Encode for TableInit<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.elem.encode(e);
-        self.table.encode(e);
-    }
-}
-
-impl Encode for TableCopy<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.dst.encode(e);
-        self.src.encode(e);
-    }
-}
-
-impl Encode for TableArg<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.dst.encode(e);
-    }
-}
-
-impl Encode for MemoryArg<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.mem.encode(e);
-    }
-}
-
-impl Encode for MemoryInit<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.data.encode(e);
-        self.mem.encode(e);
-    }
-}
-
-impl Encode for MemoryCopy<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.dst.encode(e);
-        self.src.encode(e);
-    }
-}
-
-impl Encode for BrTableIndices<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.labels.encode(e);
-        self.default.encode(e);
-    }
-}
-
-impl Encode for F32 {
-    fn encode(&self, e: &mut Vec<u8>) {
-        e.extend_from_slice(&self.bits.to_le_bytes());
-    }
-}
-
-impl Encode for F64 {
-    fn encode(&self, e: &mut Vec<u8>) {
-        e.extend_from_slice(&self.bits.to_le_bytes());
+impl From<&Ordering> for wasm_encoder::Ordering {
+    fn from(ordering: &Ordering) -> Self {
+        match ordering {
+            Ordering::SeqCst => wasm_encoder::Ordering::SeqCst,
+            Ordering::AcqRel => wasm_encoder::Ordering::AcqRel,
+        }
     }
 }
 
@@ -1174,11 +1602,11 @@ fn find_names<'a>(
 
                     for i in expression.instrs.iter() {
                         match i {
-                            Instruction::If(block)
-                            | Instruction::Block(block)
-                            | Instruction::Loop(block)
-                            | Instruction::Try(block)
-                            | Instruction::TryTable(TryTable { block, .. }) => {
+                            Instruction::if_(block)
+                            | Instruction::block(block)
+                            | Instruction::loop_(block)
+                            | Instruction::try_(block)
+                            | Instruction::try_table(TryTable { block, .. }) => {
                                 if let Some(name) = get_name(&block.label, &block.label_name) {
                                     label_names.push((label_idx, name));
                                 }
@@ -1352,123 +1780,6 @@ impl Names<'_> {
     }
 }
 
-impl Encode for Id<'_> {
-    fn encode(&self, dst: &mut Vec<u8>) {
-        assert!(!self.is_gensym());
-        self.name().encode(dst);
-    }
-}
-
-impl<'a> Encode for TryTable<'a> {
-    fn encode(&self, dst: &mut Vec<u8>) {
-        self.block.encode(dst);
-        self.catches.encode(dst);
-    }
-}
-
-impl<'a> Encode for TryTableCatch<'a> {
-    fn encode(&self, dst: &mut Vec<u8>) {
-        let flag_byte: u8 = match self.kind {
-            TryTableCatchKind::Catch(..) => 0,
-            TryTableCatchKind::CatchRef(..) => 1,
-            TryTableCatchKind::CatchAll => 2,
-            TryTableCatchKind::CatchAllRef => 3,
-        };
-        flag_byte.encode(dst);
-        match self.kind {
-            TryTableCatchKind::Catch(tag) | TryTableCatchKind::CatchRef(tag) => {
-                tag.encode(dst);
-            }
-            TryTableCatchKind::CatchAll | TryTableCatchKind::CatchAllRef => {}
-        }
-        self.label.encode(dst);
-    }
-}
-
-impl<'a> Encode for ContBind<'a> {
-    fn encode(&self, dst: &mut Vec<u8>) {
-        self.argument_index.encode(dst);
-        self.result_index.encode(dst);
-    }
-}
-
-impl<'a> Encode for Resume<'a> {
-    fn encode(&self, dst: &mut Vec<u8>) {
-        self.type_index.encode(dst);
-        self.table.encode(dst);
-    }
-}
-
-impl<'a> Encode for ResumeThrow<'a> {
-    fn encode(&self, dst: &mut Vec<u8>) {
-        self.type_index.encode(dst);
-        self.tag_index.encode(dst);
-        self.table.encode(dst);
-    }
-}
-
-impl<'a> Encode for ResumeThrowRef<'a> {
-    fn encode(&self, dst: &mut Vec<u8>) {
-        self.type_index.encode(dst);
-        self.table.encode(dst);
-    }
-}
-
-impl<'a> Encode for ResumeTable<'a> {
-    fn encode(&self, dst: &mut Vec<u8>) {
-        self.handlers.encode(dst);
-    }
-}
-
-impl<'a> Encode for Handle<'a> {
-    fn encode(&self, dst: &mut Vec<u8>) {
-        match self {
-            Handle::OnLabel { tag, label } => {
-                dst.push(0x00);
-                tag.encode(dst);
-                label.encode(dst);
-            }
-            Handle::OnSwitch { tag } => {
-                dst.push(0x01);
-                tag.encode(dst);
-            }
-        }
-    }
-}
-
-impl<'a> Encode for Switch<'a> {
-    fn encode(&self, dst: &mut Vec<u8>) {
-        self.type_index.encode(dst);
-        self.tag_index.encode(dst);
-    }
-}
-
-impl Encode for V128Const {
-    fn encode(&self, dst: &mut Vec<u8>) {
-        dst.extend_from_slice(&self.to_le_bytes());
-    }
-}
-
-impl Encode for I8x16Shuffle {
-    fn encode(&self, dst: &mut Vec<u8>) {
-        dst.extend_from_slice(&self.lanes);
-    }
-}
-
-impl<'a> Encode for SelectTypes<'a> {
-    fn encode(&self, dst: &mut Vec<u8>) {
-        let mut sink = wasm_encoder::InstructionSink::new(dst);
-        match &self.tys {
-            Some(list) => {
-                sink.typed_select_multi(&list.iter().map(|t| (*t).into()).collect::<Vec<_>>());
-            }
-            None => {
-                sink.select();
-            }
-        }
-    }
-}
-
 impl Custom<'_> {
     fn encode(&self, module: &mut wasm_encoder::Module) {
         match self {
@@ -1560,126 +1871,5 @@ impl SectionItem for Tag<'_> {
             TagKind::Inline() => {}
             _ => panic!("TagKind should be inline during encoding"),
         }
-    }
-}
-
-impl Encode for StructAccess<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.r#struct.encode(e);
-        self.field.encode(e);
-    }
-}
-
-impl Encode for ArrayFill<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.array.encode(e);
-    }
-}
-
-impl Encode for ArrayCopy<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.dest_array.encode(e);
-        self.src_array.encode(e);
-    }
-}
-
-impl Encode for ArrayInit<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.array.encode(e);
-        self.segment.encode(e);
-    }
-}
-
-impl Encode for ArrayNewFixed<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.array.encode(e);
-        self.length.encode(e);
-    }
-}
-
-impl Encode for ArrayNewData<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.array.encode(e);
-        self.data_idx.encode(e);
-    }
-}
-
-impl Encode for ArrayNewElem<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.array.encode(e);
-        self.elem_idx.encode(e);
-    }
-}
-
-impl Encode for RefTest<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        let mut sink = wasm_encoder::InstructionSink::new(e);
-        if self.r#type.nullable {
-            sink.ref_test_nullable(self.r#type.heap.into());
-        } else {
-            sink.ref_test_non_null(self.r#type.heap.into());
-        }
-    }
-}
-
-impl Encode for RefCast<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        let mut sink = wasm_encoder::InstructionSink::new(e);
-        if self.r#type.nullable {
-            sink.ref_cast_nullable(self.r#type.heap.into());
-        } else {
-            sink.ref_cast_non_null(self.r#type.heap.into());
-        }
-    }
-}
-
-impl Encode for BrOnCast<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        wasm_encoder::InstructionSink::new(e).br_on_cast(
-            self.label.unwrap_u32(),
-            self.from_type.into(),
-            self.to_type.into(),
-        );
-    }
-}
-
-impl Encode for BrOnCastFail<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        wasm_encoder::InstructionSink::new(e).br_on_cast_fail(
-            self.label.unwrap_u32(),
-            self.from_type.into(),
-            self.to_type.into(),
-        );
-    }
-}
-
-impl Encode for RefCastDescEq<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        let mut sink = wasm_encoder::InstructionSink::new(e);
-        if self.r#type.nullable {
-            sink.ref_cast_desc_eq_nullable(self.r#type.heap.into());
-        } else {
-            sink.ref_cast_desc_eq_non_null(self.r#type.heap.into());
-        }
-    }
-}
-
-impl Encode for BrOnCastDescEq<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        wasm_encoder::InstructionSink::new(e).br_on_cast_desc_eq(
-            self.label.unwrap_u32(),
-            self.from_type.into(),
-            self.to_type.into(),
-        );
-    }
-}
-
-impl Encode for BrOnCastDescEqFail<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        wasm_encoder::InstructionSink::new(e).br_on_cast_desc_eq_fail(
-            self.label.unwrap_u32(),
-            self.from_type.into(),
-            self.to_type.into(),
-        );
     }
 }

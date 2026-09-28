@@ -1,6 +1,5 @@
 use crate::annotation;
 use crate::core::*;
-use crate::encode::Encode;
 use crate::kw;
 use crate::lexer::{Lexer, Token, TokenKind};
 use crate::parser::{Parse, Parser, Result};
@@ -257,12 +256,12 @@ impl<'a> ExpressionParser<'a> {
                         // push an `end` instruction whenever the `)` token is
                         // seen. The head instruction is pushed immediately, so
                         // the hint is recorded now.
-                        i @ Instruction::Block(_)
-                        | i @ Instruction::Loop(_)
-                        | i @ Instruction::TryTable(_) => {
+                        i @ Instruction::block(_)
+                        | i @ Instruction::loop_(_)
+                        | i @ Instruction::try_table(_) => {
                             self.push_instr_with_hint(i, span, hint);
                             self.stack
-                                .push(Level::EndWith(Instruction::End(None), None, None));
+                                .push(Level::EndWith(Instruction::end(None), None, None));
                         }
 
                         // Parsing an `if` instruction is super tricky, so we
@@ -270,7 +269,7 @@ impl<'a> ExpressionParser<'a> {
                         // parsing handle the remaining items. The `if`
                         // instruction is pushed only once `(then` is reached, so
                         // stash the pending hint until then.
-                        i @ Instruction::If(_) => {
+                        i @ Instruction::if_(_) => {
                             self.stack.push(Level::If(If::Clause(i, span), hint));
                         }
 
@@ -308,7 +307,7 @@ impl<'a> ExpressionParser<'a> {
                             return Err(parser.error("previous `if` had no `then`"));
                         }
                         Level::If(_, _) => {
-                            self.push_instr(Instruction::End(None), span);
+                            self.push_instr(Instruction::end(None), span);
                         }
                     }
                 }
@@ -397,7 +396,7 @@ impl<'a> ExpressionParser<'a> {
                     return Err(Self::hint_placement_error(parser));
                 }
                 parser.parse::<kw::then>()?;
-                let instr = mem::replace(if_instr, Instruction::End(None));
+                let instr = mem::replace(if_instr, Instruction::end(None));
                 let span = *if_instr_span;
                 let hint = pending.take();
                 *i = If::Then;
@@ -411,7 +410,7 @@ impl<'a> ExpressionParser<'a> {
             If::Then => {
                 let span = parser.parse::<kw::r#else>()?.0;
                 *i = If::Else;
-                self.push_instr(Instruction::Else(None), span);
+                self.push_instr(Instruction::else_(None), span);
                 self.stack.push(Level::IfArm);
                 Ok(true)
             }
@@ -484,22 +483,20 @@ impl<'a> ExpressionParser<'a> {
 macro_rules! instructions {
     (pub enum Instruction<'a> {
         $(
-            $(#[$doc:meta])*
-            $name:ident $(($($arg:tt)*))? : [$($binary:tt)*] : $instr:tt $( | $deprecated:tt )?,
+            $(#[$custom:ident])?
+            $name:ident $(($($arg:tt)*))? : $instr:tt $( | $deprecated:tt )?,
         )*
     }) => (
         /// A listing of all WebAssembly instructions that can be in a module
         /// that this crate currently parses.
         #[derive(Debug, Clone)]
-        #[allow(missing_docs)]
+        #[allow(missing_docs, non_camel_case_types)]
         pub enum Instruction<'a> {
             $(
-                $(#[$doc])*
                 $name $(( instructions!(@ty $($arg)*) ))?,
             )*
         }
 
-        #[allow(non_snake_case)]
         impl<'a> Parse<'a> for Instruction<'a> {
             fn parse(parser: Parser<'a>) -> Result<Self> {
                 $(
@@ -523,27 +520,20 @@ macro_rules! instructions {
             }
         }
 
-        impl Encode for Instruction<'_> {
-            #[allow(non_snake_case, unused_lifetimes)]
-            fn encode(&self, v: &mut Vec<u8>) {
+        impl<'a> Instruction<'a> {
+            pub(crate) fn encode(&self, sink: &mut wasm_encoder::InstructionSink<'_>) {
                 match self {
                     $(
                         Instruction::$name $((instructions!(@first x $($arg)*)))? => {
-                            fn encode<'a>($(arg: &instructions!(@ty $($arg)*),)? v: &mut Vec<u8>) {
-                                instructions!(@encode v $($binary)*);
-                                $(<instructions!(@ty $($arg)*) as Encode>::encode(arg, v);)?
-                            }
-                            encode($( instructions!(@first x $($arg)*), )? v)
+                            instructions!(@encode sink x $name $(($($arg)*))? $(#[$custom])?)
                         }
                     )*
                 }
             }
-        }
 
-        impl<'a> Instruction<'a> {
             /// Returns the associated [`MemArg`] if one is available for this
             /// instruction.
-            #[allow(unused_variables, non_snake_case)]
+            #[allow(unused_variables)]
             pub fn memarg_mut(&mut self) -> Option<&mut MemArg<'a>> {
                 match self {
                     $(
@@ -568,12 +558,17 @@ macro_rules! instructions {
     (@parse $parser:ident LoadOrStoreLane) => (compile_error!("must specify `LoadOrStoreLane` default"));
     (@parse $parser:ident $other:ty) => ($parser.parse::<$other>());
 
-    // simd opcodes prefixed with `0xfd` get a varuint32 encoding for their payload
-    (@encode $dst:ident 0xfd, $simd:tt) => ({
-        $dst.push(0xfd);
-        <u32 as Encode>::encode(&$simd, $dst);
+    // Instructions call the `InstructionSink` method of the same name, with
+    // the payload, if any, converted via `Into` into the single argument of
+    // the method. Instructions annotated with `#[custom_encode]` are instead
+    // encoded by the function of the same name in
+    // `crate::core::binary::custom_encoders`.
+    (@encode $sink:ident $x:ident $method:ident $(($($arg:tt)*))?) => ({
+        $sink.$method($(instructions!(@first $x $($arg)*).into())?);
     });
-    (@encode $dst:ident $($bytes:tt)*) => ($dst.extend_from_slice(&[$($bytes)*]););
+    (@encode $sink:ident $x:ident $method:ident ($($arg:tt)*) #[custom_encode]) => ({
+        crate::core::binary::custom_encoders::$method($sink, $x);
+    });
 
     (@get_memarg $name:ident MemArg<$amt:tt>) => (Some($name));
     (@get_memarg $name:ident LoadOrStoreLane<$amt:tt>) => (Some(&mut $name.memarg));
@@ -586,713 +581,791 @@ macro_rules! instructions {
 
 instructions! {
     pub enum Instruction<'a> {
-        Block(Box<BlockType<'a>>) : [0x02] : "block",
-        If(Box<BlockType<'a>>) : [0x04] : "if",
-        Else(Option<Id<'a>>) : [0x05] : "else",
-        Loop(Box<BlockType<'a>>) : [0x03] : "loop",
-        End(Option<Id<'a>>) : [0x0b] : "end",
+        block(Box<BlockType<'a>>) : "block",
+        if_(Box<BlockType<'a>>) : "if",
+        #[custom_encode]
+        else_(Option<Id<'a>>) : "else",
+        loop_(Box<BlockType<'a>>) : "loop",
+        #[custom_encode]
+        end(Option<Id<'a>>) : "end",
 
-        Unreachable : [0x00] : "unreachable",
-        Nop : [0x01] : "nop",
-        Br(Index<'a>) : [0x0c] : "br",
-        BrIf(Index<'a>) : [0x0d] : "br_if",
-        BrTable(BrTableIndices<'a>) : [0x0e] : "br_table",
-        Return : [0x0f] : "return",
-        Call(Index<'a>) : [0x10] : "call",
-        CallIndirect(Box<CallIndirect<'a>>) : [0x11] : "call_indirect",
+        unreachable : "unreachable",
+        nop : "nop",
+        br(Index<'a>) : "br",
+        br_if(Index<'a>) : "br_if",
+        #[custom_encode]
+        br_table(BrTableIndices<'a>) : "br_table",
+        return_ : "return",
+        call(Index<'a>) : "call",
+        #[custom_encode]
+        call_indirect(Box<CallIndirect<'a>>) : "call_indirect",
 
         // tail-call proposal
-        ReturnCall(Index<'a>) : [0x12] : "return_call",
-        ReturnCallIndirect(Box<CallIndirect<'a>>) : [0x13] : "return_call_indirect",
+        return_call(Index<'a>) : "return_call",
+        #[custom_encode]
+        return_call_indirect(Box<CallIndirect<'a>>) : "return_call_indirect",
 
         // function-references proposal
-        CallRef(Index<'a>) : [0x14] : "call_ref",
-        ReturnCallRef(Index<'a>) : [0x15] : "return_call_ref",
+        call_ref(Index<'a>) : "call_ref",
+        return_call_ref(Index<'a>) : "return_call_ref",
 
-        Drop : [0x1a] : "drop",
-        Select(SelectTypes<'a>) : [] : "select",
-        LocalGet(Index<'a>) : [0x20] : "local.get",
-        LocalSet(Index<'a>) : [0x21] : "local.set",
-        LocalTee(Index<'a>) : [0x22] : "local.tee",
-        GlobalGet(Index<'a>) : [0x23] : "global.get",
-        GlobalSet(Index<'a>) : [0x24] : "global.set",
+        drop : "drop",
+        #[custom_encode]
+        select(SelectTypes<'a>) : "select",
+        local_get(Index<'a>) : "local.get",
+        local_set(Index<'a>) : "local.set",
+        local_tee(Index<'a>) : "local.tee",
+        global_get(Index<'a>) : "global.get",
+        global_set(Index<'a>) : "global.set",
 
-        TableGet(TableArg<'a>) : [0x25] : "table.get",
-        TableSet(TableArg<'a>) : [0x26] : "table.set",
+        table_get(TableArg<'a>) : "table.get",
+        table_set(TableArg<'a>) : "table.set",
 
-        I32Load(MemArg<4>) : [0x28] : "i32.load",
-        I64Load(MemArg<8>) : [0x29] : "i64.load",
-        F32Load(MemArg<4>) : [0x2a] : "f32.load",
-        F64Load(MemArg<8>) : [0x2b] : "f64.load",
-        I32Load8s(MemArg<1>) : [0x2c] : "i32.load8_s",
-        I32Load8u(MemArg<1>) : [0x2d] : "i32.load8_u",
-        I32Load16s(MemArg<2>) : [0x2e] : "i32.load16_s",
-        I32Load16u(MemArg<2>) : [0x2f] : "i32.load16_u",
-        I64Load8s(MemArg<1>) : [0x30] : "i64.load8_s",
-        I64Load8u(MemArg<1>) : [0x31] : "i64.load8_u",
-        I64Load16s(MemArg<2>) : [0x32] : "i64.load16_s",
-        I64Load16u(MemArg<2>) : [0x33] : "i64.load16_u",
-        I64Load32s(MemArg<4>) : [0x34] : "i64.load32_s",
-        I64Load32u(MemArg<4>) : [0x35] : "i64.load32_u",
-        I32Store(MemArg<4>) : [0x36] : "i32.store",
-        I64Store(MemArg<8>) : [0x37] : "i64.store",
-        F32Store(MemArg<4>) : [0x38] : "f32.store",
-        F64Store(MemArg<8>) : [0x39] : "f64.store",
-        I32Store8(MemArg<1>) : [0x3a] : "i32.store8",
-        I32Store16(MemArg<2>) : [0x3b] : "i32.store16",
-        I64Store8(MemArg<1>) : [0x3c] : "i64.store8",
-        I64Store16(MemArg<2>) : [0x3d] : "i64.store16",
-        I64Store32(MemArg<4>) : [0x3e] : "i64.store32",
+        i32_load(MemArg<4>) : "i32.load",
+        i64_load(MemArg<8>) : "i64.load",
+        f32_load(MemArg<4>) : "f32.load",
+        f64_load(MemArg<8>) : "f64.load",
+        i32_load8_s(MemArg<1>) : "i32.load8_s",
+        i32_load8_u(MemArg<1>) : "i32.load8_u",
+        i32_load16_s(MemArg<2>) : "i32.load16_s",
+        i32_load16_u(MemArg<2>) : "i32.load16_u",
+        i64_load8_s(MemArg<1>) : "i64.load8_s",
+        i64_load8_u(MemArg<1>) : "i64.load8_u",
+        i64_load16_s(MemArg<2>) : "i64.load16_s",
+        i64_load16_u(MemArg<2>) : "i64.load16_u",
+        i64_load32_s(MemArg<4>) : "i64.load32_s",
+        i64_load32_u(MemArg<4>) : "i64.load32_u",
+        i32_store(MemArg<4>) : "i32.store",
+        i64_store(MemArg<8>) : "i64.store",
+        f32_store(MemArg<4>) : "f32.store",
+        f64_store(MemArg<8>) : "f64.store",
+        i32_store8(MemArg<1>) : "i32.store8",
+        i32_store16(MemArg<2>) : "i32.store16",
+        i64_store8(MemArg<1>) : "i64.store8",
+        i64_store16(MemArg<2>) : "i64.store16",
+        i64_store32(MemArg<4>) : "i64.store32",
 
         // Lots of bulk memory proposal here as well
-        MemorySize(MemoryArg<'a>) : [0x3f] : "memory.size",
-        MemoryGrow(MemoryArg<'a>) : [0x40] : "memory.grow",
-        MemoryInit(MemoryInit<'a>) : [0xfc, 0x08] : "memory.init",
-        MemoryCopy(MemoryCopy<'a>) : [0xfc, 0x0a] : "memory.copy",
-        MemoryFill(MemoryArg<'a>) : [0xfc, 0x0b] : "memory.fill",
-        MemoryDiscard(MemoryArg<'a>) : [0xfc, 0x12] : "memory.discard",
-        DataDrop(Index<'a>) : [0xfc, 0x09] : "data.drop",
-        ElemDrop(Index<'a>) : [0xfc, 0x0d] : "elem.drop",
-        TableInit(TableInit<'a>) : [0xfc, 0x0c] : "table.init",
-        TableCopy(TableCopy<'a>) : [0xfc, 0x0e] : "table.copy",
-        TableFill(TableArg<'a>) : [0xfc, 0x11] : "table.fill",
-        TableSize(TableArg<'a>) : [0xfc, 0x10] : "table.size",
-        TableGrow(TableArg<'a>) : [0xfc, 0x0f] : "table.grow",
+        memory_size(MemoryArg<'a>) : "memory.size",
+        memory_grow(MemoryArg<'a>) : "memory.grow",
+        #[custom_encode]
+        memory_init(MemoryInit<'a>) : "memory.init",
+        #[custom_encode]
+        memory_copy(MemoryCopy<'a>) : "memory.copy",
+        memory_fill(MemoryArg<'a>) : "memory.fill",
+        memory_discard(MemoryArg<'a>) : "memory.discard",
+        data_drop(Index<'a>) : "data.drop",
+        elem_drop(Index<'a>) : "elem.drop",
+        #[custom_encode]
+        table_init(TableInit<'a>) : "table.init",
+        #[custom_encode]
+        table_copy(TableCopy<'a>) : "table.copy",
+        table_fill(TableArg<'a>) : "table.fill",
+        table_size(TableArg<'a>) : "table.size",
+        table_grow(TableArg<'a>) : "table.grow",
 
-        RefNull(HeapType<'a>) : [0xd0] : "ref.null",
-        RefIsNull : [0xd1] : "ref.is_null",
-        RefFunc(Index<'a>) : [0xd2] : "ref.func",
+        ref_null(HeapType<'a>) : "ref.null",
+        ref_is_null : "ref.is_null",
+        ref_func(Index<'a>) : "ref.func",
 
         // function-references proposal
-        RefAsNonNull : [0xd4] : "ref.as_non_null",
-        BrOnNull(Index<'a>) : [0xd5] : "br_on_null",
-        BrOnNonNull(Index<'a>) : [0xd6] : "br_on_non_null",
+        ref_as_non_null : "ref.as_non_null",
+        br_on_null(Index<'a>) : "br_on_null",
+        br_on_non_null(Index<'a>) : "br_on_non_null",
 
         // gc proposal: eqref
-        RefEq : [0xd3] : "ref.eq",
+        ref_eq : "ref.eq",
 
         // gc proposal: struct
-        StructNew(Index<'a>) : [0xfb, 0x00] : "struct.new",
-        StructNewDefault(Index<'a>) : [0xfb, 0x01] : "struct.new_default",
-        StructGet(StructAccess<'a>) : [0xfb, 0x02] : "struct.get",
-        StructGetS(StructAccess<'a>) : [0xfb, 0x03] : "struct.get_s",
-        StructGetU(StructAccess<'a>) : [0xfb, 0x04] : "struct.get_u",
-        StructSet(StructAccess<'a>) : [0xfb, 0x05] : "struct.set",
+        struct_new(Index<'a>) : "struct.new",
+        struct_new_default(Index<'a>) : "struct.new_default",
+        #[custom_encode]
+        struct_get(StructAccess<'a>) : "struct.get",
+        #[custom_encode]
+        struct_get_s(StructAccess<'a>) : "struct.get_s",
+        #[custom_encode]
+        struct_get_u(StructAccess<'a>) : "struct.get_u",
+        #[custom_encode]
+        struct_set(StructAccess<'a>) : "struct.set",
 
         // gc proposal: array
-        ArrayNew(Index<'a>) : [0xfb, 0x06] : "array.new",
-        ArrayNewDefault(Index<'a>) : [0xfb, 0x07] : "array.new_default",
-        ArrayNewFixed(ArrayNewFixed<'a>) : [0xfb, 0x08] : "array.new_fixed",
-        ArrayNewData(ArrayNewData<'a>) : [0xfb, 0x09] : "array.new_data",
-        ArrayNewElem(ArrayNewElem<'a>) : [0xfb, 0x0a] : "array.new_elem",
-        ArrayGet(Index<'a>) : [0xfb, 0x0b] : "array.get",
-        ArrayGetS(Index<'a>) : [0xfb, 0x0c] : "array.get_s",
-        ArrayGetU(Index<'a>) : [0xfb, 0x0d] : "array.get_u",
-        ArraySet(Index<'a>) : [0xfb, 0x0e] : "array.set",
-        ArrayLen : [0xfb, 0x0f] : "array.len",
-        ArrayFill(ArrayFill<'a>) : [0xfb, 0x10] : "array.fill",
-        ArrayCopy(ArrayCopy<'a>) : [0xfb, 0x11] : "array.copy",
-        ArrayInitData(ArrayInit<'a>) : [0xfb, 0x12] : "array.init_data",
-        ArrayInitElem(ArrayInit<'a>) : [0xfb, 0x13] : "array.init_elem",
+        array_new(Index<'a>) : "array.new",
+        array_new_default(Index<'a>) : "array.new_default",
+        #[custom_encode]
+        array_new_fixed(ArrayNewFixed<'a>) : "array.new_fixed",
+        #[custom_encode]
+        array_new_data(ArrayNewData<'a>) : "array.new_data",
+        #[custom_encode]
+        array_new_elem(ArrayNewElem<'a>) : "array.new_elem",
+        array_get(Index<'a>) : "array.get",
+        array_get_s(Index<'a>) : "array.get_s",
+        array_get_u(Index<'a>) : "array.get_u",
+        array_set(Index<'a>) : "array.set",
+        array_len : "array.len",
+        array_fill(ArrayFill<'a>) : "array.fill",
+        #[custom_encode]
+        array_copy(ArrayCopy<'a>) : "array.copy",
+        #[custom_encode]
+        array_init_data(ArrayInit<'a>) : "array.init_data",
+        #[custom_encode]
+        array_init_elem(ArrayInit<'a>) : "array.init_elem",
 
         // gc proposal, i31
-        RefI31 : [0xfb, 0x1c] : "ref.i31",
-        I31GetS : [0xfb, 0x1d] : "i31.get_s",
-        I31GetU : [0xfb, 0x1e] : "i31.get_u",
+        ref_i31 : "ref.i31",
+        i31_get_s : "i31.get_s",
+        i31_get_u : "i31.get_u",
 
         // gc proposal, concrete casting
-        RefTest(RefTest<'a>) : [] : "ref.test",
-        RefCast(RefCast<'a>) : [] : "ref.cast",
-        BrOnCast(Box<BrOnCast<'a>>) : [] : "br_on_cast",
-        BrOnCastFail(Box<BrOnCastFail<'a>>) : [] : "br_on_cast_fail",
+        #[custom_encode]
+        ref_test(RefTest<'a>) : "ref.test",
+        #[custom_encode]
+        ref_cast(RefCast<'a>) : "ref.cast",
+        #[custom_encode]
+        br_on_cast(Box<BrOnCast<'a>>) : "br_on_cast",
+        #[custom_encode]
+        br_on_cast_fail(Box<BrOnCastFail<'a>>) : "br_on_cast_fail",
 
         // gc proposal extern/any coercion operations
-        AnyConvertExtern : [0xfb, 0x1a] : "any.convert_extern",
-        ExternConvertAny : [0xfb, 0x1b] : "extern.convert_any",
+        any_convert_extern : "any.convert_extern",
+        extern_convert_any : "extern.convert_any",
 
-        I32Const(i32) : [0x41] : "i32.const",
-        I64Const(i64) : [0x42] : "i64.const",
-        F32Const(F32) : [0x43] : "f32.const",
-        F64Const(F64) : [0x44] : "f64.const",
+        #[custom_encode]
+        i32_const(i32) : "i32.const",
+        #[custom_encode]
+        i64_const(i64) : "i64.const",
+        f32_const(F32) : "f32.const",
+        f64_const(F64) : "f64.const",
 
-        I32Clz : [0x67] : "i32.clz",
-        I32Ctz : [0x68] : "i32.ctz",
-        I32Popcnt : [0x69] : "i32.popcnt",
-        I32Add : [0x6a] : "i32.add",
-        I32Sub : [0x6b] : "i32.sub",
-        I32Mul : [0x6c] : "i32.mul",
-        I32DivS : [0x6d] : "i32.div_s",
-        I32DivU : [0x6e] : "i32.div_u",
-        I32RemS : [0x6f] : "i32.rem_s",
-        I32RemU : [0x70] : "i32.rem_u",
-        I32And : [0x71] : "i32.and",
-        I32Or : [0x72] : "i32.or",
-        I32Xor : [0x73] : "i32.xor",
-        I32Shl : [0x74] : "i32.shl",
-        I32ShrS : [0x75] : "i32.shr_s",
-        I32ShrU : [0x76] : "i32.shr_u",
-        I32Rotl : [0x77] : "i32.rotl",
-        I32Rotr : [0x78] : "i32.rotr",
+        i32_clz : "i32.clz",
+        i32_ctz : "i32.ctz",
+        i32_popcnt : "i32.popcnt",
+        i32_add : "i32.add",
+        i32_sub : "i32.sub",
+        i32_mul : "i32.mul",
+        i32_div_s : "i32.div_s",
+        i32_div_u : "i32.div_u",
+        i32_rem_s : "i32.rem_s",
+        i32_rem_u : "i32.rem_u",
+        i32_and : "i32.and",
+        i32_or : "i32.or",
+        i32_xor : "i32.xor",
+        i32_shl : "i32.shl",
+        i32_shr_s : "i32.shr_s",
+        i32_shr_u : "i32.shr_u",
+        i32_rotl : "i32.rotl",
+        i32_rotr : "i32.rotr",
 
-        I64Clz : [0x79] : "i64.clz",
-        I64Ctz : [0x7a] : "i64.ctz",
-        I64Popcnt : [0x7b] : "i64.popcnt",
-        I64Add : [0x7c] : "i64.add",
-        I64Sub : [0x7d] : "i64.sub",
-        I64Mul : [0x7e] : "i64.mul",
-        I64DivS : [0x7f] : "i64.div_s",
-        I64DivU : [0x80] : "i64.div_u",
-        I64RemS : [0x81] : "i64.rem_s",
-        I64RemU : [0x82] : "i64.rem_u",
-        I64And : [0x83] : "i64.and",
-        I64Or : [0x84] : "i64.or",
-        I64Xor : [0x85] : "i64.xor",
-        I64Shl : [0x86] : "i64.shl",
-        I64ShrS : [0x87] : "i64.shr_s",
-        I64ShrU : [0x88] : "i64.shr_u",
-        I64Rotl : [0x89] : "i64.rotl",
-        I64Rotr : [0x8a] : "i64.rotr",
+        i64_clz : "i64.clz",
+        i64_ctz : "i64.ctz",
+        i64_popcnt : "i64.popcnt",
+        i64_add : "i64.add",
+        i64_sub : "i64.sub",
+        i64_mul : "i64.mul",
+        i64_div_s : "i64.div_s",
+        i64_div_u : "i64.div_u",
+        i64_rem_s : "i64.rem_s",
+        i64_rem_u : "i64.rem_u",
+        i64_and : "i64.and",
+        i64_or : "i64.or",
+        i64_xor : "i64.xor",
+        i64_shl : "i64.shl",
+        i64_shr_s : "i64.shr_s",
+        i64_shr_u : "i64.shr_u",
+        i64_rotl : "i64.rotl",
+        i64_rotr : "i64.rotr",
 
-        F32Abs : [0x8b] : "f32.abs",
-        F32Neg : [0x8c] : "f32.neg",
-        F32Ceil : [0x8d] : "f32.ceil",
-        F32Floor : [0x8e] : "f32.floor",
-        F32Trunc : [0x8f] : "f32.trunc",
-        F32Nearest : [0x90] : "f32.nearest",
-        F32Sqrt : [0x91] : "f32.sqrt",
-        F32Add : [0x92] : "f32.add",
-        F32Sub : [0x93] : "f32.sub",
-        F32Mul : [0x94] : "f32.mul",
-        F32Div : [0x95] : "f32.div",
-        F32Min : [0x96] : "f32.min",
-        F32Max : [0x97] : "f32.max",
-        F32Copysign : [0x98] : "f32.copysign",
+        f32_abs : "f32.abs",
+        f32_neg : "f32.neg",
+        f32_ceil : "f32.ceil",
+        f32_floor : "f32.floor",
+        f32_trunc : "f32.trunc",
+        f32_nearest : "f32.nearest",
+        f32_sqrt : "f32.sqrt",
+        f32_add : "f32.add",
+        f32_sub : "f32.sub",
+        f32_mul : "f32.mul",
+        f32_div : "f32.div",
+        f32_min : "f32.min",
+        f32_max : "f32.max",
+        f32_copysign : "f32.copysign",
 
-        F64Abs : [0x99] : "f64.abs",
-        F64Neg : [0x9a] : "f64.neg",
-        F64Ceil : [0x9b] : "f64.ceil",
-        F64Floor : [0x9c] : "f64.floor",
-        F64Trunc : [0x9d] : "f64.trunc",
-        F64Nearest : [0x9e] : "f64.nearest",
-        F64Sqrt : [0x9f] : "f64.sqrt",
-        F64Add : [0xa0] : "f64.add",
-        F64Sub : [0xa1] : "f64.sub",
-        F64Mul : [0xa2] : "f64.mul",
-        F64Div : [0xa3] : "f64.div",
-        F64Min : [0xa4] : "f64.min",
-        F64Max : [0xa5] : "f64.max",
-        F64Copysign : [0xa6] : "f64.copysign",
+        f64_abs : "f64.abs",
+        f64_neg : "f64.neg",
+        f64_ceil : "f64.ceil",
+        f64_floor : "f64.floor",
+        f64_trunc : "f64.trunc",
+        f64_nearest : "f64.nearest",
+        f64_sqrt : "f64.sqrt",
+        f64_add : "f64.add",
+        f64_sub : "f64.sub",
+        f64_mul : "f64.mul",
+        f64_div : "f64.div",
+        f64_min : "f64.min",
+        f64_max : "f64.max",
+        f64_copysign : "f64.copysign",
 
-        I32Eqz : [0x45] : "i32.eqz",
-        I32Eq : [0x46] : "i32.eq",
-        I32Ne : [0x47] : "i32.ne",
-        I32LtS : [0x48] : "i32.lt_s",
-        I32LtU : [0x49] : "i32.lt_u",
-        I32GtS : [0x4a] : "i32.gt_s",
-        I32GtU : [0x4b] : "i32.gt_u",
-        I32LeS : [0x4c] : "i32.le_s",
-        I32LeU : [0x4d] : "i32.le_u",
-        I32GeS : [0x4e] : "i32.ge_s",
-        I32GeU : [0x4f] : "i32.ge_u",
+        i32_eqz : "i32.eqz",
+        i32_eq : "i32.eq",
+        i32_ne : "i32.ne",
+        i32_lt_s : "i32.lt_s",
+        i32_lt_u : "i32.lt_u",
+        i32_gt_s : "i32.gt_s",
+        i32_gt_u : "i32.gt_u",
+        i32_le_s : "i32.le_s",
+        i32_le_u : "i32.le_u",
+        i32_ge_s : "i32.ge_s",
+        i32_ge_u : "i32.ge_u",
 
-        I64Eqz : [0x50] : "i64.eqz",
-        I64Eq : [0x51] : "i64.eq",
-        I64Ne : [0x52] : "i64.ne",
-        I64LtS : [0x53] : "i64.lt_s",
-        I64LtU : [0x54] : "i64.lt_u",
-        I64GtS : [0x55] : "i64.gt_s",
-        I64GtU : [0x56] : "i64.gt_u",
-        I64LeS : [0x57] : "i64.le_s",
-        I64LeU : [0x58] : "i64.le_u",
-        I64GeS : [0x59] : "i64.ge_s",
-        I64GeU : [0x5a] : "i64.ge_u",
+        i64_eqz : "i64.eqz",
+        i64_eq : "i64.eq",
+        i64_ne : "i64.ne",
+        i64_lt_s : "i64.lt_s",
+        i64_lt_u : "i64.lt_u",
+        i64_gt_s : "i64.gt_s",
+        i64_gt_u : "i64.gt_u",
+        i64_le_s : "i64.le_s",
+        i64_le_u : "i64.le_u",
+        i64_ge_s : "i64.ge_s",
+        i64_ge_u : "i64.ge_u",
 
-        F32Eq : [0x5b] : "f32.eq",
-        F32Ne : [0x5c] : "f32.ne",
-        F32Lt : [0x5d] : "f32.lt",
-        F32Gt : [0x5e] : "f32.gt",
-        F32Le : [0x5f] : "f32.le",
-        F32Ge : [0x60] : "f32.ge",
+        f32_eq : "f32.eq",
+        f32_ne : "f32.ne",
+        f32_lt : "f32.lt",
+        f32_gt : "f32.gt",
+        f32_le : "f32.le",
+        f32_ge : "f32.ge",
 
-        F64Eq : [0x61] : "f64.eq",
-        F64Ne : [0x62] : "f64.ne",
-        F64Lt : [0x63] : "f64.lt",
-        F64Gt : [0x64] : "f64.gt",
-        F64Le : [0x65] : "f64.le",
-        F64Ge : [0x66] : "f64.ge",
+        f64_eq : "f64.eq",
+        f64_ne : "f64.ne",
+        f64_lt : "f64.lt",
+        f64_gt : "f64.gt",
+        f64_le : "f64.le",
+        f64_ge : "f64.ge",
 
-        I32WrapI64 : [0xa7] : "i32.wrap_i64",
-        I32TruncF32S : [0xa8] : "i32.trunc_f32_s",
-        I32TruncF32U : [0xa9] : "i32.trunc_f32_u",
-        I32TruncF64S : [0xaa] : "i32.trunc_f64_s",
-        I32TruncF64U : [0xab] : "i32.trunc_f64_u",
-        I64ExtendI32S : [0xac] : "i64.extend_i32_s",
-        I64ExtendI32U : [0xad] : "i64.extend_i32_u",
-        I64TruncF32S : [0xae] : "i64.trunc_f32_s",
-        I64TruncF32U : [0xaf] : "i64.trunc_f32_u",
-        I64TruncF64S : [0xb0] : "i64.trunc_f64_s",
-        I64TruncF64U : [0xb1] : "i64.trunc_f64_u",
-        F32ConvertI32S : [0xb2] : "f32.convert_i32_s",
-        F32ConvertI32U : [0xb3] : "f32.convert_i32_u",
-        F32ConvertI64S : [0xb4] : "f32.convert_i64_s",
-        F32ConvertI64U : [0xb5] : "f32.convert_i64_u",
-        F32DemoteF64 : [0xb6] : "f32.demote_f64",
-        F64ConvertI32S : [0xb7] : "f64.convert_i32_s",
-        F64ConvertI32U : [0xb8] : "f64.convert_i32_u",
-        F64ConvertI64S : [0xb9] : "f64.convert_i64_s",
-        F64ConvertI64U : [0xba] : "f64.convert_i64_u",
-        F64PromoteF32 : [0xbb] : "f64.promote_f32",
-        I32ReinterpretF32 : [0xbc] : "i32.reinterpret_f32",
-        I64ReinterpretF64 : [0xbd] : "i64.reinterpret_f64",
-        F32ReinterpretI32 : [0xbe] : "f32.reinterpret_i32",
-        F64ReinterpretI64 : [0xbf] : "f64.reinterpret_i64",
+        i32_wrap_i64 : "i32.wrap_i64",
+        i32_trunc_f32_s : "i32.trunc_f32_s",
+        i32_trunc_f32_u : "i32.trunc_f32_u",
+        i32_trunc_f64_s : "i32.trunc_f64_s",
+        i32_trunc_f64_u : "i32.trunc_f64_u",
+        i64_extend_i32_s : "i64.extend_i32_s",
+        i64_extend_i32_u : "i64.extend_i32_u",
+        i64_trunc_f32_s : "i64.trunc_f32_s",
+        i64_trunc_f32_u : "i64.trunc_f32_u",
+        i64_trunc_f64_s : "i64.trunc_f64_s",
+        i64_trunc_f64_u : "i64.trunc_f64_u",
+        f32_convert_i32_s : "f32.convert_i32_s",
+        f32_convert_i32_u : "f32.convert_i32_u",
+        f32_convert_i64_s : "f32.convert_i64_s",
+        f32_convert_i64_u : "f32.convert_i64_u",
+        f32_demote_f64 : "f32.demote_f64",
+        f64_convert_i32_s : "f64.convert_i32_s",
+        f64_convert_i32_u : "f64.convert_i32_u",
+        f64_convert_i64_s : "f64.convert_i64_s",
+        f64_convert_i64_u : "f64.convert_i64_u",
+        f64_promote_f32 : "f64.promote_f32",
+        i32_reinterpret_f32 : "i32.reinterpret_f32",
+        i64_reinterpret_f64 : "i64.reinterpret_f64",
+        f32_reinterpret_i32 : "f32.reinterpret_i32",
+        f64_reinterpret_i64 : "f64.reinterpret_i64",
 
         // non-trapping float to int
-        I32TruncSatF32S : [0xfc, 0x00] : "i32.trunc_sat_f32_s",
-        I32TruncSatF32U : [0xfc, 0x01] : "i32.trunc_sat_f32_u",
-        I32TruncSatF64S : [0xfc, 0x02] : "i32.trunc_sat_f64_s",
-        I32TruncSatF64U : [0xfc, 0x03] : "i32.trunc_sat_f64_u",
-        I64TruncSatF32S : [0xfc, 0x04] : "i64.trunc_sat_f32_s",
-        I64TruncSatF32U : [0xfc, 0x05] : "i64.trunc_sat_f32_u",
-        I64TruncSatF64S : [0xfc, 0x06] : "i64.trunc_sat_f64_s",
-        I64TruncSatF64U : [0xfc, 0x07] : "i64.trunc_sat_f64_u",
+        i32_trunc_sat_f32_s : "i32.trunc_sat_f32_s",
+        i32_trunc_sat_f32_u : "i32.trunc_sat_f32_u",
+        i32_trunc_sat_f64_s : "i32.trunc_sat_f64_s",
+        i32_trunc_sat_f64_u : "i32.trunc_sat_f64_u",
+        i64_trunc_sat_f32_s : "i64.trunc_sat_f32_s",
+        i64_trunc_sat_f32_u : "i64.trunc_sat_f32_u",
+        i64_trunc_sat_f64_s : "i64.trunc_sat_f64_s",
+        i64_trunc_sat_f64_u : "i64.trunc_sat_f64_u",
 
         // sign extension proposal
-        I32Extend8S : [0xc0] : "i32.extend8_s",
-        I32Extend16S : [0xc1] : "i32.extend16_s",
-        I64Extend8S : [0xc2] : "i64.extend8_s",
-        I64Extend16S : [0xc3] : "i64.extend16_s",
-        I64Extend32S : [0xc4] : "i64.extend32_s",
+        i32_extend8_s : "i32.extend8_s",
+        i32_extend16_s : "i32.extend16_s",
+        i64_extend8_s : "i64.extend8_s",
+        i64_extend16_s : "i64.extend16_s",
+        i64_extend32_s : "i64.extend32_s",
 
         // atomics proposal
-        MemoryAtomicNotify(MemArg<4>) : [0xfe, 0x00] : "memory.atomic.notify",
-        MemoryAtomicWait32(MemArg<4>) : [0xfe, 0x01] : "memory.atomic.wait32",
-        MemoryAtomicWait64(MemArg<8>) : [0xfe, 0x02] : "memory.atomic.wait64",
-        AtomicFence : [0xfe, 0x03, 0x00] : "atomic.fence",
+        memory_atomic_notify(MemArg<4>) : "memory.atomic.notify",
+        memory_atomic_wait32(MemArg<4>) : "memory.atomic.wait32",
+        memory_atomic_wait64(MemArg<8>) : "memory.atomic.wait64",
+        atomic_fence : "atomic.fence",
 
-        I32AtomicLoad(MemArg<4>) : [0xfe, 0x10] : "i32.atomic.load",
-        I64AtomicLoad(MemArg<8>) : [0xfe, 0x11] : "i64.atomic.load",
-        I32AtomicLoad8u(MemArg<1>) : [0xfe, 0x12] : "i32.atomic.load8_u",
-        I32AtomicLoad16u(MemArg<2>) : [0xfe, 0x13] : "i32.atomic.load16_u",
-        I64AtomicLoad8u(MemArg<1>) : [0xfe, 0x14] : "i64.atomic.load8_u",
-        I64AtomicLoad16u(MemArg<2>) : [0xfe, 0x15] : "i64.atomic.load16_u",
-        I64AtomicLoad32u(MemArg<4>) : [0xfe, 0x16] : "i64.atomic.load32_u",
-        I32AtomicStore(MemArg<4>) : [0xfe, 0x17] : "i32.atomic.store",
-        I64AtomicStore(MemArg<8>) : [0xfe, 0x18] : "i64.atomic.store",
-        I32AtomicStore8(MemArg<1>) : [0xfe, 0x19] : "i32.atomic.store8",
-        I32AtomicStore16(MemArg<2>) : [0xfe, 0x1a] : "i32.atomic.store16",
-        I64AtomicStore8(MemArg<1>) : [0xfe, 0x1b] : "i64.atomic.store8",
-        I64AtomicStore16(MemArg<2>) : [0xfe, 0x1c] : "i64.atomic.store16",
-        I64AtomicStore32(MemArg<4>) : [0xfe, 0x1d] : "i64.atomic.store32",
+        i32_atomic_load(MemArg<4>) : "i32.atomic.load",
+        i64_atomic_load(MemArg<8>) : "i64.atomic.load",
+        i32_atomic_load8_u(MemArg<1>) : "i32.atomic.load8_u",
+        i32_atomic_load16_u(MemArg<2>) : "i32.atomic.load16_u",
+        i64_atomic_load8_u(MemArg<1>) : "i64.atomic.load8_u",
+        i64_atomic_load16_u(MemArg<2>) : "i64.atomic.load16_u",
+        i64_atomic_load32_u(MemArg<4>) : "i64.atomic.load32_u",
+        i32_atomic_store(MemArg<4>) : "i32.atomic.store",
+        i64_atomic_store(MemArg<8>) : "i64.atomic.store",
+        i32_atomic_store8(MemArg<1>) : "i32.atomic.store8",
+        i32_atomic_store16(MemArg<2>) : "i32.atomic.store16",
+        i64_atomic_store8(MemArg<1>) : "i64.atomic.store8",
+        i64_atomic_store16(MemArg<2>) : "i64.atomic.store16",
+        i64_atomic_store32(MemArg<4>) : "i64.atomic.store32",
 
-        I32AtomicRmwAdd(MemArg<4>) : [0xfe, 0x1e] : "i32.atomic.rmw.add",
-        I64AtomicRmwAdd(MemArg<8>) : [0xfe, 0x1f] : "i64.atomic.rmw.add",
-        I32AtomicRmw8AddU(MemArg<1>) : [0xfe, 0x20] : "i32.atomic.rmw8.add_u",
-        I32AtomicRmw16AddU(MemArg<2>) : [0xfe, 0x21] : "i32.atomic.rmw16.add_u",
-        I64AtomicRmw8AddU(MemArg<1>) : [0xfe, 0x22] : "i64.atomic.rmw8.add_u",
-        I64AtomicRmw16AddU(MemArg<2>) : [0xfe, 0x23] : "i64.atomic.rmw16.add_u",
-        I64AtomicRmw32AddU(MemArg<4>) : [0xfe, 0x24] : "i64.atomic.rmw32.add_u",
+        i32_atomic_rmw_add(MemArg<4>) : "i32.atomic.rmw.add",
+        i64_atomic_rmw_add(MemArg<8>) : "i64.atomic.rmw.add",
+        i32_atomic_rmw8_add_u(MemArg<1>) : "i32.atomic.rmw8.add_u",
+        i32_atomic_rmw16_add_u(MemArg<2>) : "i32.atomic.rmw16.add_u",
+        i64_atomic_rmw8_add_u(MemArg<1>) : "i64.atomic.rmw8.add_u",
+        i64_atomic_rmw16_add_u(MemArg<2>) : "i64.atomic.rmw16.add_u",
+        i64_atomic_rmw32_add_u(MemArg<4>) : "i64.atomic.rmw32.add_u",
 
-        I32AtomicRmwSub(MemArg<4>) : [0xfe, 0x25] : "i32.atomic.rmw.sub",
-        I64AtomicRmwSub(MemArg<8>) : [0xfe, 0x26] : "i64.atomic.rmw.sub",
-        I32AtomicRmw8SubU(MemArg<1>) : [0xfe, 0x27] : "i32.atomic.rmw8.sub_u",
-        I32AtomicRmw16SubU(MemArg<2>) : [0xfe, 0x28] : "i32.atomic.rmw16.sub_u",
-        I64AtomicRmw8SubU(MemArg<1>) : [0xfe, 0x29] : "i64.atomic.rmw8.sub_u",
-        I64AtomicRmw16SubU(MemArg<2>) : [0xfe, 0x2a] : "i64.atomic.rmw16.sub_u",
-        I64AtomicRmw32SubU(MemArg<4>) : [0xfe, 0x2b] : "i64.atomic.rmw32.sub_u",
+        i32_atomic_rmw_sub(MemArg<4>) : "i32.atomic.rmw.sub",
+        i64_atomic_rmw_sub(MemArg<8>) : "i64.atomic.rmw.sub",
+        i32_atomic_rmw8_sub_u(MemArg<1>) : "i32.atomic.rmw8.sub_u",
+        i32_atomic_rmw16_sub_u(MemArg<2>) : "i32.atomic.rmw16.sub_u",
+        i64_atomic_rmw8_sub_u(MemArg<1>) : "i64.atomic.rmw8.sub_u",
+        i64_atomic_rmw16_sub_u(MemArg<2>) : "i64.atomic.rmw16.sub_u",
+        i64_atomic_rmw32_sub_u(MemArg<4>) : "i64.atomic.rmw32.sub_u",
 
-        I32AtomicRmwAnd(MemArg<4>) : [0xfe, 0x2c] : "i32.atomic.rmw.and",
-        I64AtomicRmwAnd(MemArg<8>) : [0xfe, 0x2d] : "i64.atomic.rmw.and",
-        I32AtomicRmw8AndU(MemArg<1>) : [0xfe, 0x2e] : "i32.atomic.rmw8.and_u",
-        I32AtomicRmw16AndU(MemArg<2>) : [0xfe, 0x2f] : "i32.atomic.rmw16.and_u",
-        I64AtomicRmw8AndU(MemArg<1>) : [0xfe, 0x30] : "i64.atomic.rmw8.and_u",
-        I64AtomicRmw16AndU(MemArg<2>) : [0xfe, 0x31] : "i64.atomic.rmw16.and_u",
-        I64AtomicRmw32AndU(MemArg<4>) : [0xfe, 0x32] : "i64.atomic.rmw32.and_u",
+        i32_atomic_rmw_and(MemArg<4>) : "i32.atomic.rmw.and",
+        i64_atomic_rmw_and(MemArg<8>) : "i64.atomic.rmw.and",
+        i32_atomic_rmw8_and_u(MemArg<1>) : "i32.atomic.rmw8.and_u",
+        i32_atomic_rmw16_and_u(MemArg<2>) : "i32.atomic.rmw16.and_u",
+        i64_atomic_rmw8_and_u(MemArg<1>) : "i64.atomic.rmw8.and_u",
+        i64_atomic_rmw16_and_u(MemArg<2>) : "i64.atomic.rmw16.and_u",
+        i64_atomic_rmw32_and_u(MemArg<4>) : "i64.atomic.rmw32.and_u",
 
-        I32AtomicRmwOr(MemArg<4>) : [0xfe, 0x33] : "i32.atomic.rmw.or",
-        I64AtomicRmwOr(MemArg<8>) : [0xfe, 0x34] : "i64.atomic.rmw.or",
-        I32AtomicRmw8OrU(MemArg<1>) : [0xfe, 0x35] : "i32.atomic.rmw8.or_u",
-        I32AtomicRmw16OrU(MemArg<2>) : [0xfe, 0x36] : "i32.atomic.rmw16.or_u",
-        I64AtomicRmw8OrU(MemArg<1>) : [0xfe, 0x37] : "i64.atomic.rmw8.or_u",
-        I64AtomicRmw16OrU(MemArg<2>) : [0xfe, 0x38] : "i64.atomic.rmw16.or_u",
-        I64AtomicRmw32OrU(MemArg<4>) : [0xfe, 0x39] : "i64.atomic.rmw32.or_u",
+        i32_atomic_rmw_or(MemArg<4>) : "i32.atomic.rmw.or",
+        i64_atomic_rmw_or(MemArg<8>) : "i64.atomic.rmw.or",
+        i32_atomic_rmw8_or_u(MemArg<1>) : "i32.atomic.rmw8.or_u",
+        i32_atomic_rmw16_or_u(MemArg<2>) : "i32.atomic.rmw16.or_u",
+        i64_atomic_rmw8_or_u(MemArg<1>) : "i64.atomic.rmw8.or_u",
+        i64_atomic_rmw16_or_u(MemArg<2>) : "i64.atomic.rmw16.or_u",
+        i64_atomic_rmw32_or_u(MemArg<4>) : "i64.atomic.rmw32.or_u",
 
-        I32AtomicRmwXor(MemArg<4>) : [0xfe, 0x3a] : "i32.atomic.rmw.xor",
-        I64AtomicRmwXor(MemArg<8>) : [0xfe, 0x3b] : "i64.atomic.rmw.xor",
-        I32AtomicRmw8XorU(MemArg<1>) : [0xfe, 0x3c] : "i32.atomic.rmw8.xor_u",
-        I32AtomicRmw16XorU(MemArg<2>) : [0xfe, 0x3d] : "i32.atomic.rmw16.xor_u",
-        I64AtomicRmw8XorU(MemArg<1>) : [0xfe, 0x3e] : "i64.atomic.rmw8.xor_u",
-        I64AtomicRmw16XorU(MemArg<2>) : [0xfe, 0x3f] : "i64.atomic.rmw16.xor_u",
-        I64AtomicRmw32XorU(MemArg<4>) : [0xfe, 0x40] : "i64.atomic.rmw32.xor_u",
+        i32_atomic_rmw_xor(MemArg<4>) : "i32.atomic.rmw.xor",
+        i64_atomic_rmw_xor(MemArg<8>) : "i64.atomic.rmw.xor",
+        i32_atomic_rmw8_xor_u(MemArg<1>) : "i32.atomic.rmw8.xor_u",
+        i32_atomic_rmw16_xor_u(MemArg<2>) : "i32.atomic.rmw16.xor_u",
+        i64_atomic_rmw8_xor_u(MemArg<1>) : "i64.atomic.rmw8.xor_u",
+        i64_atomic_rmw16_xor_u(MemArg<2>) : "i64.atomic.rmw16.xor_u",
+        i64_atomic_rmw32_xor_u(MemArg<4>) : "i64.atomic.rmw32.xor_u",
 
-        I32AtomicRmwXchg(MemArg<4>) : [0xfe, 0x41] : "i32.atomic.rmw.xchg",
-        I64AtomicRmwXchg(MemArg<8>) : [0xfe, 0x42] : "i64.atomic.rmw.xchg",
-        I32AtomicRmw8XchgU(MemArg<1>) : [0xfe, 0x43] : "i32.atomic.rmw8.xchg_u",
-        I32AtomicRmw16XchgU(MemArg<2>) : [0xfe, 0x44] : "i32.atomic.rmw16.xchg_u",
-        I64AtomicRmw8XchgU(MemArg<1>) : [0xfe, 0x45] : "i64.atomic.rmw8.xchg_u",
-        I64AtomicRmw16XchgU(MemArg<2>) : [0xfe, 0x46] : "i64.atomic.rmw16.xchg_u",
-        I64AtomicRmw32XchgU(MemArg<4>) : [0xfe, 0x47] : "i64.atomic.rmw32.xchg_u",
+        i32_atomic_rmw_xchg(MemArg<4>) : "i32.atomic.rmw.xchg",
+        i64_atomic_rmw_xchg(MemArg<8>) : "i64.atomic.rmw.xchg",
+        i32_atomic_rmw8_xchg_u(MemArg<1>) : "i32.atomic.rmw8.xchg_u",
+        i32_atomic_rmw16_xchg_u(MemArg<2>) : "i32.atomic.rmw16.xchg_u",
+        i64_atomic_rmw8_xchg_u(MemArg<1>) : "i64.atomic.rmw8.xchg_u",
+        i64_atomic_rmw16_xchg_u(MemArg<2>) : "i64.atomic.rmw16.xchg_u",
+        i64_atomic_rmw32_xchg_u(MemArg<4>) : "i64.atomic.rmw32.xchg_u",
 
-        I32AtomicRmwCmpxchg(MemArg<4>) : [0xfe, 0x48] : "i32.atomic.rmw.cmpxchg",
-        I64AtomicRmwCmpxchg(MemArg<8>) : [0xfe, 0x49] : "i64.atomic.rmw.cmpxchg",
-        I32AtomicRmw8CmpxchgU(MemArg<1>) : [0xfe, 0x4a] : "i32.atomic.rmw8.cmpxchg_u",
-        I32AtomicRmw16CmpxchgU(MemArg<2>) : [0xfe, 0x4b] : "i32.atomic.rmw16.cmpxchg_u",
-        I64AtomicRmw8CmpxchgU(MemArg<1>) : [0xfe, 0x4c] : "i64.atomic.rmw8.cmpxchg_u",
-        I64AtomicRmw16CmpxchgU(MemArg<2>) : [0xfe, 0x4d] : "i64.atomic.rmw16.cmpxchg_u",
-        I64AtomicRmw32CmpxchgU(MemArg<4>) : [0xfe, 0x4e] : "i64.atomic.rmw32.cmpxchg_u",
+        i32_atomic_rmw_cmpxchg(MemArg<4>) : "i32.atomic.rmw.cmpxchg",
+        i64_atomic_rmw_cmpxchg(MemArg<8>) : "i64.atomic.rmw.cmpxchg",
+        i32_atomic_rmw8_cmpxchg_u(MemArg<1>) : "i32.atomic.rmw8.cmpxchg_u",
+        i32_atomic_rmw16_cmpxchg_u(MemArg<2>) : "i32.atomic.rmw16.cmpxchg_u",
+        i64_atomic_rmw8_cmpxchg_u(MemArg<1>) : "i64.atomic.rmw8.cmpxchg_u",
+        i64_atomic_rmw16_cmpxchg_u(MemArg<2>) : "i64.atomic.rmw16.cmpxchg_u",
+        i64_atomic_rmw32_cmpxchg_u(MemArg<4>) : "i64.atomic.rmw32.cmpxchg_u",
 
         // proposal: shared-everything-threads
-        GlobalAtomicGet(Ordered<Index<'a>>) : [0xfe, 0x4f] : "global.atomic.get",
-        GlobalAtomicSet(Ordered<Index<'a>>) : [0xfe, 0x50] : "global.atomic.set",
-        GlobalAtomicRmwAdd(Ordered<Index<'a>>) : [0xfe, 0x51] : "global.atomic.rmw.add",
-        GlobalAtomicRmwSub(Ordered<Index<'a>>) : [0xfe, 0x52] : "global.atomic.rmw.sub",
-        GlobalAtomicRmwAnd(Ordered<Index<'a>>) : [0xfe, 0x53] : "global.atomic.rmw.and",
-        GlobalAtomicRmwOr(Ordered<Index<'a>>) : [0xfe, 0x54] : "global.atomic.rmw.or",
-        GlobalAtomicRmwXor(Ordered<Index<'a>>) : [0xfe, 0x55] : "global.atomic.rmw.xor",
-        GlobalAtomicRmwXchg(Ordered<Index<'a>>) : [0xfe, 0x56] : "global.atomic.rmw.xchg",
-        GlobalAtomicRmwCmpxchg(Ordered<Index<'a>>) : [0xfe, 0x57] : "global.atomic.rmw.cmpxchg",
-        TableAtomicGet(Ordered<TableArg<'a>>) : [0xfe, 0x58] : "table.atomic.get",
-        TableAtomicSet(Ordered<TableArg<'a>>) : [0xfe, 0x59] : "table.atomic.set",
-        TableAtomicRmwXchg(Ordered<TableArg<'a>>) : [0xfe, 0x5a] : "table.atomic.rmw.xchg",
-        TableAtomicRmwCmpxchg(Ordered<TableArg<'a>>) : [0xfe, 0x5b] : "table.atomic.rmw.cmpxchg",
-        StructAtomicGet(Ordered<StructAccess<'a>>) : [0xfe, 0x5c] : "struct.atomic.get",
-        StructAtomicGetS(Ordered<StructAccess<'a>>) : [0xfe, 0x5d] : "struct.atomic.get_s",
-        StructAtomicGetU(Ordered<StructAccess<'a>>) : [0xfe, 0x5e] : "struct.atomic.get_u",
-        StructAtomicSet(Ordered<StructAccess<'a>>) : [0xfe, 0x5f] : "struct.atomic.set",
-        StructAtomicRmwAdd(Ordered<StructAccess<'a>>) : [0xfe, 0x60] : "struct.atomic.rmw.add",
-        StructAtomicRmwSub(Ordered<StructAccess<'a>>) : [0xfe, 0x61] : "struct.atomic.rmw.sub",
-        StructAtomicRmwAnd(Ordered<StructAccess<'a>>) : [0xfe, 0x62] : "struct.atomic.rmw.and",
-        StructAtomicRmwOr(Ordered<StructAccess<'a>>) : [0xfe, 0x63] : "struct.atomic.rmw.or",
-        StructAtomicRmwXor(Ordered<StructAccess<'a>>) : [0xfe, 0x64] : "struct.atomic.rmw.xor",
-        StructAtomicRmwXchg(Ordered<StructAccess<'a>>) : [0xfe, 0x65] : "struct.atomic.rmw.xchg",
-        StructAtomicRmwCmpxchg(Ordered<StructAccess<'a>>) : [0xfe, 0x66] : "struct.atomic.rmw.cmpxchg",
-        ArrayAtomicGet(Ordered<Index<'a>>) : [0xfe, 0x67] : "array.atomic.get",
-        ArrayAtomicGetS(Ordered<Index<'a>>) : [0xfe, 0x68] : "array.atomic.get_s",
-        ArrayAtomicGetU(Ordered<Index<'a>>) : [0xfe, 0x69] : "array.atomic.get_u",
-        ArrayAtomicSet(Ordered<Index<'a>>) : [0xfe, 0x6a] : "array.atomic.set",
-        ArrayAtomicRmwAdd(Ordered<Index<'a>>) : [0xfe, 0x6b] : "array.atomic.rmw.add",
-        ArrayAtomicRmwSub(Ordered<Index<'a>>) : [0xfe, 0x6c] : "array.atomic.rmw.sub",
-        ArrayAtomicRmwAnd(Ordered<Index<'a>>) : [0xfe, 0x6d] : "array.atomic.rmw.and",
-        ArrayAtomicRmwOr(Ordered<Index<'a>>) : [0xfe, 0x6e] : "array.atomic.rmw.or",
-        ArrayAtomicRmwXor(Ordered<Index<'a>>) : [0xfe, 0x6f] : "array.atomic.rmw.xor",
-        ArrayAtomicRmwXchg(Ordered<Index<'a>>) : [0xfe, 0x70] : "array.atomic.rmw.xchg",
-        ArrayAtomicRmwCmpxchg(Ordered<Index<'a>>) : [0xfe, 0x71] : "array.atomic.rmw.cmpxchg",
-        RefI31Shared : [0xfe, 0x72] : "ref.i31_shared",
+        #[custom_encode]
+        global_atomic_get(Ordered<Index<'a>>) : "global.atomic.get",
+        #[custom_encode]
+        global_atomic_set(Ordered<Index<'a>>) : "global.atomic.set",
+        #[custom_encode]
+        global_atomic_rmw_add(Ordered<Index<'a>>) : "global.atomic.rmw.add",
+        #[custom_encode]
+        global_atomic_rmw_sub(Ordered<Index<'a>>) : "global.atomic.rmw.sub",
+        #[custom_encode]
+        global_atomic_rmw_and(Ordered<Index<'a>>) : "global.atomic.rmw.and",
+        #[custom_encode]
+        global_atomic_rmw_or(Ordered<Index<'a>>) : "global.atomic.rmw.or",
+        #[custom_encode]
+        global_atomic_rmw_xor(Ordered<Index<'a>>) : "global.atomic.rmw.xor",
+        #[custom_encode]
+        global_atomic_rmw_xchg(Ordered<Index<'a>>) : "global.atomic.rmw.xchg",
+        #[custom_encode]
+        global_atomic_rmw_cmpxchg(Ordered<Index<'a>>) : "global.atomic.rmw.cmpxchg",
+        #[custom_encode]
+        table_atomic_get(Ordered<TableArg<'a>>) : "table.atomic.get",
+        #[custom_encode]
+        table_atomic_set(Ordered<TableArg<'a>>) : "table.atomic.set",
+        #[custom_encode]
+        table_atomic_rmw_xchg(Ordered<TableArg<'a>>) : "table.atomic.rmw.xchg",
+        #[custom_encode]
+        table_atomic_rmw_cmpxchg(Ordered<TableArg<'a>>) : "table.atomic.rmw.cmpxchg",
+        #[custom_encode]
+        struct_atomic_get(Ordered<StructAccess<'a>>) : "struct.atomic.get",
+        #[custom_encode]
+        struct_atomic_get_s(Ordered<StructAccess<'a>>) : "struct.atomic.get_s",
+        #[custom_encode]
+        struct_atomic_get_u(Ordered<StructAccess<'a>>) : "struct.atomic.get_u",
+        #[custom_encode]
+        struct_atomic_set(Ordered<StructAccess<'a>>) : "struct.atomic.set",
+        #[custom_encode]
+        struct_atomic_rmw_add(Ordered<StructAccess<'a>>) : "struct.atomic.rmw.add",
+        #[custom_encode]
+        struct_atomic_rmw_sub(Ordered<StructAccess<'a>>) : "struct.atomic.rmw.sub",
+        #[custom_encode]
+        struct_atomic_rmw_and(Ordered<StructAccess<'a>>) : "struct.atomic.rmw.and",
+        #[custom_encode]
+        struct_atomic_rmw_or(Ordered<StructAccess<'a>>) : "struct.atomic.rmw.or",
+        #[custom_encode]
+        struct_atomic_rmw_xor(Ordered<StructAccess<'a>>) : "struct.atomic.rmw.xor",
+        #[custom_encode]
+        struct_atomic_rmw_xchg(Ordered<StructAccess<'a>>) : "struct.atomic.rmw.xchg",
+        #[custom_encode]
+        struct_atomic_rmw_cmpxchg(Ordered<StructAccess<'a>>) : "struct.atomic.rmw.cmpxchg",
+        #[custom_encode]
+        array_atomic_get(Ordered<Index<'a>>) : "array.atomic.get",
+        #[custom_encode]
+        array_atomic_get_s(Ordered<Index<'a>>) : "array.atomic.get_s",
+        #[custom_encode]
+        array_atomic_get_u(Ordered<Index<'a>>) : "array.atomic.get_u",
+        #[custom_encode]
+        array_atomic_set(Ordered<Index<'a>>) : "array.atomic.set",
+        #[custom_encode]
+        array_atomic_rmw_add(Ordered<Index<'a>>) : "array.atomic.rmw.add",
+        #[custom_encode]
+        array_atomic_rmw_sub(Ordered<Index<'a>>) : "array.atomic.rmw.sub",
+        #[custom_encode]
+        array_atomic_rmw_and(Ordered<Index<'a>>) : "array.atomic.rmw.and",
+        #[custom_encode]
+        array_atomic_rmw_or(Ordered<Index<'a>>) : "array.atomic.rmw.or",
+        #[custom_encode]
+        array_atomic_rmw_xor(Ordered<Index<'a>>) : "array.atomic.rmw.xor",
+        #[custom_encode]
+        array_atomic_rmw_xchg(Ordered<Index<'a>>) : "array.atomic.rmw.xchg",
+        #[custom_encode]
+        array_atomic_rmw_cmpxchg(Ordered<Index<'a>>) : "array.atomic.rmw.cmpxchg",
+        ref_i31_shared : "ref.i31_shared",
 
         // proposal: simd
         //
         // https://webassembly.github.io/simd/core/binary/instructions.html
-        V128Load(MemArg<16>) : [0xfd, 0] : "v128.load",
-        V128Load8x8S(MemArg<8>) : [0xfd, 1] : "v128.load8x8_s",
-        V128Load8x8U(MemArg<8>) : [0xfd, 2] : "v128.load8x8_u",
-        V128Load16x4S(MemArg<8>) : [0xfd, 3] : "v128.load16x4_s",
-        V128Load16x4U(MemArg<8>) : [0xfd, 4] : "v128.load16x4_u",
-        V128Load32x2S(MemArg<8>) : [0xfd, 5] : "v128.load32x2_s",
-        V128Load32x2U(MemArg<8>) : [0xfd, 6] : "v128.load32x2_u",
-        V128Load8Splat(MemArg<1>) : [0xfd, 7] : "v128.load8_splat",
-        V128Load16Splat(MemArg<2>) : [0xfd, 8] : "v128.load16_splat",
-        V128Load32Splat(MemArg<4>) : [0xfd, 9] : "v128.load32_splat",
-        V128Load64Splat(MemArg<8>) : [0xfd, 10] : "v128.load64_splat",
-        V128Load32Zero(MemArg<4>) : [0xfd, 92] : "v128.load32_zero",
-        V128Load64Zero(MemArg<8>) : [0xfd, 93] : "v128.load64_zero",
-        V128Store(MemArg<16>) : [0xfd, 11] : "v128.store",
+        v128_load(MemArg<16>) : "v128.load",
+        v128_load8x8_s(MemArg<8>) : "v128.load8x8_s",
+        v128_load8x8_u(MemArg<8>) : "v128.load8x8_u",
+        v128_load16x4_s(MemArg<8>) : "v128.load16x4_s",
+        v128_load16x4_u(MemArg<8>) : "v128.load16x4_u",
+        v128_load32x2_s(MemArg<8>) : "v128.load32x2_s",
+        v128_load32x2_u(MemArg<8>) : "v128.load32x2_u",
+        v128_load8_splat(MemArg<1>) : "v128.load8_splat",
+        v128_load16_splat(MemArg<2>) : "v128.load16_splat",
+        v128_load32_splat(MemArg<4>) : "v128.load32_splat",
+        v128_load64_splat(MemArg<8>) : "v128.load64_splat",
+        v128_load32_zero(MemArg<4>) : "v128.load32_zero",
+        v128_load64_zero(MemArg<8>) : "v128.load64_zero",
+        v128_store(MemArg<16>) : "v128.store",
 
-        V128Load8Lane(LoadOrStoreLane<1>) : [0xfd, 84] : "v128.load8_lane",
-        V128Load16Lane(LoadOrStoreLane<2>) : [0xfd, 85] : "v128.load16_lane",
-        V128Load32Lane(LoadOrStoreLane<4>) : [0xfd, 86] : "v128.load32_lane",
-        V128Load64Lane(LoadOrStoreLane<8>): [0xfd, 87] : "v128.load64_lane",
-        V128Store8Lane(LoadOrStoreLane<1>) : [0xfd, 88] : "v128.store8_lane",
-        V128Store16Lane(LoadOrStoreLane<2>) : [0xfd, 89] : "v128.store16_lane",
-        V128Store32Lane(LoadOrStoreLane<4>) : [0xfd, 90] : "v128.store32_lane",
-        V128Store64Lane(LoadOrStoreLane<8>) : [0xfd, 91] : "v128.store64_lane",
+        #[custom_encode]
+        v128_load8_lane(LoadOrStoreLane<1>) : "v128.load8_lane",
+        #[custom_encode]
+        v128_load16_lane(LoadOrStoreLane<2>) : "v128.load16_lane",
+        #[custom_encode]
+        v128_load32_lane(LoadOrStoreLane<4>) : "v128.load32_lane",
+        #[custom_encode]
+        v128_load64_lane(LoadOrStoreLane<8>) : "v128.load64_lane",
+        #[custom_encode]
+        v128_store8_lane(LoadOrStoreLane<1>) : "v128.store8_lane",
+        #[custom_encode]
+        v128_store16_lane(LoadOrStoreLane<2>) : "v128.store16_lane",
+        #[custom_encode]
+        v128_store32_lane(LoadOrStoreLane<4>) : "v128.store32_lane",
+        #[custom_encode]
+        v128_store64_lane(LoadOrStoreLane<8>) : "v128.store64_lane",
 
-        V128Const(V128Const) : [0xfd, 12] : "v128.const",
-        I8x16Shuffle(I8x16Shuffle) : [0xfd, 13] : "i8x16.shuffle",
+        v128_const(V128Const) : "v128.const",
+        i8x16_shuffle(I8x16Shuffle) : "i8x16.shuffle",
 
-        I8x16ExtractLaneS(LaneArg) : [0xfd, 21] : "i8x16.extract_lane_s",
-        I8x16ExtractLaneU(LaneArg) : [0xfd, 22] : "i8x16.extract_lane_u",
-        I8x16ReplaceLane(LaneArg) : [0xfd, 23] : "i8x16.replace_lane",
-        I16x8ExtractLaneS(LaneArg) : [0xfd, 24] : "i16x8.extract_lane_s",
-        I16x8ExtractLaneU(LaneArg) : [0xfd, 25] : "i16x8.extract_lane_u",
-        I16x8ReplaceLane(LaneArg) : [0xfd, 26] : "i16x8.replace_lane",
-        I32x4ExtractLane(LaneArg) : [0xfd, 27] : "i32x4.extract_lane",
-        I32x4ReplaceLane(LaneArg) : [0xfd, 28] : "i32x4.replace_lane",
-        I64x2ExtractLane(LaneArg) : [0xfd, 29] : "i64x2.extract_lane",
-        I64x2ReplaceLane(LaneArg) : [0xfd, 30] : "i64x2.replace_lane",
-        F32x4ExtractLane(LaneArg) : [0xfd, 31] : "f32x4.extract_lane",
-        F32x4ReplaceLane(LaneArg) : [0xfd, 32] : "f32x4.replace_lane",
-        F64x2ExtractLane(LaneArg) : [0xfd, 33] : "f64x2.extract_lane",
-        F64x2ReplaceLane(LaneArg) : [0xfd, 34] : "f64x2.replace_lane",
+        i8x16_extract_lane_s(LaneArg) : "i8x16.extract_lane_s",
+        i8x16_extract_lane_u(LaneArg) : "i8x16.extract_lane_u",
+        i8x16_replace_lane(LaneArg) : "i8x16.replace_lane",
+        i16x8_extract_lane_s(LaneArg) : "i16x8.extract_lane_s",
+        i16x8_extract_lane_u(LaneArg) : "i16x8.extract_lane_u",
+        i16x8_replace_lane(LaneArg) : "i16x8.replace_lane",
+        i32x4_extract_lane(LaneArg) : "i32x4.extract_lane",
+        i32x4_replace_lane(LaneArg) : "i32x4.replace_lane",
+        i64x2_extract_lane(LaneArg) : "i64x2.extract_lane",
+        i64x2_replace_lane(LaneArg) : "i64x2.replace_lane",
+        f32x4_extract_lane(LaneArg) : "f32x4.extract_lane",
+        f32x4_replace_lane(LaneArg) : "f32x4.replace_lane",
+        f64x2_extract_lane(LaneArg) : "f64x2.extract_lane",
+        f64x2_replace_lane(LaneArg) : "f64x2.replace_lane",
 
-        I8x16Swizzle : [0xfd, 14] : "i8x16.swizzle",
-        I8x16Splat : [0xfd, 15] : "i8x16.splat",
-        I16x8Splat : [0xfd, 16] : "i16x8.splat",
-        I32x4Splat : [0xfd, 17] : "i32x4.splat",
-        I64x2Splat : [0xfd, 18] : "i64x2.splat",
-        F32x4Splat : [0xfd, 19] : "f32x4.splat",
-        F64x2Splat : [0xfd, 20] : "f64x2.splat",
+        i8x16_swizzle : "i8x16.swizzle",
+        i8x16_splat : "i8x16.splat",
+        i16x8_splat : "i16x8.splat",
+        i32x4_splat : "i32x4.splat",
+        i64x2_splat : "i64x2.splat",
+        f32x4_splat : "f32x4.splat",
+        f64x2_splat : "f64x2.splat",
 
-        I8x16Eq : [0xfd, 35] : "i8x16.eq",
-        I8x16Ne : [0xfd, 36] : "i8x16.ne",
-        I8x16LtS : [0xfd, 37] : "i8x16.lt_s",
-        I8x16LtU : [0xfd, 38] : "i8x16.lt_u",
-        I8x16GtS : [0xfd, 39] : "i8x16.gt_s",
-        I8x16GtU : [0xfd, 40] : "i8x16.gt_u",
-        I8x16LeS : [0xfd, 41] : "i8x16.le_s",
-        I8x16LeU : [0xfd, 42] : "i8x16.le_u",
-        I8x16GeS : [0xfd, 43] : "i8x16.ge_s",
-        I8x16GeU : [0xfd, 44] : "i8x16.ge_u",
+        i8x16_eq : "i8x16.eq",
+        i8x16_ne : "i8x16.ne",
+        i8x16_lt_s : "i8x16.lt_s",
+        i8x16_lt_u : "i8x16.lt_u",
+        i8x16_gt_s : "i8x16.gt_s",
+        i8x16_gt_u : "i8x16.gt_u",
+        i8x16_le_s : "i8x16.le_s",
+        i8x16_le_u : "i8x16.le_u",
+        i8x16_ge_s : "i8x16.ge_s",
+        i8x16_ge_u : "i8x16.ge_u",
 
-        I16x8Eq : [0xfd, 45] : "i16x8.eq",
-        I16x8Ne : [0xfd, 46] : "i16x8.ne",
-        I16x8LtS : [0xfd, 47] : "i16x8.lt_s",
-        I16x8LtU : [0xfd, 48] : "i16x8.lt_u",
-        I16x8GtS : [0xfd, 49] : "i16x8.gt_s",
-        I16x8GtU : [0xfd, 50] : "i16x8.gt_u",
-        I16x8LeS : [0xfd, 51] : "i16x8.le_s",
-        I16x8LeU : [0xfd, 52] : "i16x8.le_u",
-        I16x8GeS : [0xfd, 53] : "i16x8.ge_s",
-        I16x8GeU : [0xfd, 54] : "i16x8.ge_u",
+        i16x8_eq : "i16x8.eq",
+        i16x8_ne : "i16x8.ne",
+        i16x8_lt_s : "i16x8.lt_s",
+        i16x8_lt_u : "i16x8.lt_u",
+        i16x8_gt_s : "i16x8.gt_s",
+        i16x8_gt_u : "i16x8.gt_u",
+        i16x8_le_s : "i16x8.le_s",
+        i16x8_le_u : "i16x8.le_u",
+        i16x8_ge_s : "i16x8.ge_s",
+        i16x8_ge_u : "i16x8.ge_u",
 
-        I32x4Eq : [0xfd, 55] : "i32x4.eq",
-        I32x4Ne : [0xfd, 56] : "i32x4.ne",
-        I32x4LtS : [0xfd, 57] : "i32x4.lt_s",
-        I32x4LtU : [0xfd, 58] : "i32x4.lt_u",
-        I32x4GtS : [0xfd, 59] : "i32x4.gt_s",
-        I32x4GtU : [0xfd, 60] : "i32x4.gt_u",
-        I32x4LeS : [0xfd, 61] : "i32x4.le_s",
-        I32x4LeU : [0xfd, 62] : "i32x4.le_u",
-        I32x4GeS : [0xfd, 63] : "i32x4.ge_s",
-        I32x4GeU : [0xfd, 64] : "i32x4.ge_u",
+        i32x4_eq : "i32x4.eq",
+        i32x4_ne : "i32x4.ne",
+        i32x4_lt_s : "i32x4.lt_s",
+        i32x4_lt_u : "i32x4.lt_u",
+        i32x4_gt_s : "i32x4.gt_s",
+        i32x4_gt_u : "i32x4.gt_u",
+        i32x4_le_s : "i32x4.le_s",
+        i32x4_le_u : "i32x4.le_u",
+        i32x4_ge_s : "i32x4.ge_s",
+        i32x4_ge_u : "i32x4.ge_u",
 
-        I64x2Eq : [0xfd, 214] : "i64x2.eq",
-        I64x2Ne : [0xfd, 215] : "i64x2.ne",
-        I64x2LtS : [0xfd, 216] : "i64x2.lt_s",
-        I64x2GtS : [0xfd, 217] : "i64x2.gt_s",
-        I64x2LeS : [0xfd, 218] : "i64x2.le_s",
-        I64x2GeS : [0xfd, 219] : "i64x2.ge_s",
+        i64x2_eq : "i64x2.eq",
+        i64x2_ne : "i64x2.ne",
+        i64x2_lt_s : "i64x2.lt_s",
+        i64x2_gt_s : "i64x2.gt_s",
+        i64x2_le_s : "i64x2.le_s",
+        i64x2_ge_s : "i64x2.ge_s",
 
-        F32x4Eq : [0xfd, 65] : "f32x4.eq",
-        F32x4Ne : [0xfd, 66] : "f32x4.ne",
-        F32x4Lt : [0xfd, 67] : "f32x4.lt",
-        F32x4Gt : [0xfd, 68] : "f32x4.gt",
-        F32x4Le : [0xfd, 69] : "f32x4.le",
-        F32x4Ge : [0xfd, 70] : "f32x4.ge",
+        f32x4_eq : "f32x4.eq",
+        f32x4_ne : "f32x4.ne",
+        f32x4_lt : "f32x4.lt",
+        f32x4_gt : "f32x4.gt",
+        f32x4_le : "f32x4.le",
+        f32x4_ge : "f32x4.ge",
 
-        F64x2Eq : [0xfd, 71] : "f64x2.eq",
-        F64x2Ne : [0xfd, 72] : "f64x2.ne",
-        F64x2Lt : [0xfd, 73] : "f64x2.lt",
-        F64x2Gt : [0xfd, 74] : "f64x2.gt",
-        F64x2Le : [0xfd, 75] : "f64x2.le",
-        F64x2Ge : [0xfd, 76] : "f64x2.ge",
+        f64x2_eq : "f64x2.eq",
+        f64x2_ne : "f64x2.ne",
+        f64x2_lt : "f64x2.lt",
+        f64x2_gt : "f64x2.gt",
+        f64x2_le : "f64x2.le",
+        f64x2_ge : "f64x2.ge",
 
-        V128Not : [0xfd, 77] : "v128.not",
-        V128And : [0xfd, 78] : "v128.and",
-        V128Andnot : [0xfd, 79] : "v128.andnot",
-        V128Or : [0xfd, 80] : "v128.or",
-        V128Xor : [0xfd, 81] : "v128.xor",
-        V128Bitselect : [0xfd, 82] : "v128.bitselect",
-        V128AnyTrue : [0xfd, 83] : "v128.any_true",
+        v128_not : "v128.not",
+        v128_and : "v128.and",
+        v128_andnot : "v128.andnot",
+        v128_or : "v128.or",
+        v128_xor : "v128.xor",
+        v128_bitselect : "v128.bitselect",
+        v128_any_true : "v128.any_true",
 
-        I8x16Abs : [0xfd, 96] : "i8x16.abs",
-        I8x16Neg : [0xfd, 97] : "i8x16.neg",
-        I8x16Popcnt : [0xfd, 98] : "i8x16.popcnt",
-        I8x16AllTrue : [0xfd, 99] : "i8x16.all_true",
-        I8x16Bitmask : [0xfd, 100] : "i8x16.bitmask",
-        I8x16NarrowI16x8S : [0xfd, 101] : "i8x16.narrow_i16x8_s",
-        I8x16NarrowI16x8U : [0xfd, 102] : "i8x16.narrow_i16x8_u",
-        I8x16Shl : [0xfd, 107] : "i8x16.shl",
-        I8x16ShrS : [0xfd, 108] : "i8x16.shr_s",
-        I8x16ShrU : [0xfd, 109] : "i8x16.shr_u",
-        I8x16Add : [0xfd, 110] : "i8x16.add",
-        I8x16AddSatS : [0xfd, 111] : "i8x16.add_sat_s",
-        I8x16AddSatU : [0xfd, 112] : "i8x16.add_sat_u",
-        I8x16Sub : [0xfd, 113] : "i8x16.sub",
-        I8x16SubSatS : [0xfd, 114] : "i8x16.sub_sat_s",
-        I8x16SubSatU : [0xfd, 115] : "i8x16.sub_sat_u",
-        I8x16MinS : [0xfd, 118] : "i8x16.min_s",
-        I8x16MinU : [0xfd, 119] : "i8x16.min_u",
-        I8x16MaxS : [0xfd, 120] : "i8x16.max_s",
-        I8x16MaxU : [0xfd, 121] : "i8x16.max_u",
-        I8x16AvgrU : [0xfd, 123] : "i8x16.avgr_u",
+        i8x16_abs : "i8x16.abs",
+        i8x16_neg : "i8x16.neg",
+        i8x16_popcnt : "i8x16.popcnt",
+        i8x16_all_true : "i8x16.all_true",
+        i8x16_bitmask : "i8x16.bitmask",
+        i8x16_narrow_i16x8_s : "i8x16.narrow_i16x8_s",
+        i8x16_narrow_i16x8_u : "i8x16.narrow_i16x8_u",
+        i8x16_shl : "i8x16.shl",
+        i8x16_shr_s : "i8x16.shr_s",
+        i8x16_shr_u : "i8x16.shr_u",
+        i8x16_add : "i8x16.add",
+        i8x16_add_sat_s : "i8x16.add_sat_s",
+        i8x16_add_sat_u : "i8x16.add_sat_u",
+        i8x16_sub : "i8x16.sub",
+        i8x16_sub_sat_s : "i8x16.sub_sat_s",
+        i8x16_sub_sat_u : "i8x16.sub_sat_u",
+        i8x16_min_s : "i8x16.min_s",
+        i8x16_min_u : "i8x16.min_u",
+        i8x16_max_s : "i8x16.max_s",
+        i8x16_max_u : "i8x16.max_u",
+        i8x16_avgr_u : "i8x16.avgr_u",
 
-        I16x8ExtAddPairwiseI8x16S : [0xfd, 124] : "i16x8.extadd_pairwise_i8x16_s",
-        I16x8ExtAddPairwiseI8x16U : [0xfd, 125] : "i16x8.extadd_pairwise_i8x16_u",
-        I16x8Abs : [0xfd, 128] : "i16x8.abs",
-        I16x8Neg : [0xfd, 129] : "i16x8.neg",
-        I16x8Q15MulrSatS : [0xfd, 130] : "i16x8.q15mulr_sat_s",
-        I16x8AllTrue : [0xfd, 131] : "i16x8.all_true",
-        I16x8Bitmask : [0xfd, 132] : "i16x8.bitmask",
-        I16x8NarrowI32x4S : [0xfd, 133] : "i16x8.narrow_i32x4_s",
-        I16x8NarrowI32x4U : [0xfd, 134] : "i16x8.narrow_i32x4_u",
-        I16x8ExtendLowI8x16S : [0xfd, 135] : "i16x8.extend_low_i8x16_s",
-        I16x8ExtendHighI8x16S : [0xfd, 136] : "i16x8.extend_high_i8x16_s",
-        I16x8ExtendLowI8x16U : [0xfd, 137] : "i16x8.extend_low_i8x16_u",
-        I16x8ExtendHighI8x16u : [0xfd, 138] : "i16x8.extend_high_i8x16_u",
-        I16x8Shl : [0xfd, 139] : "i16x8.shl",
-        I16x8ShrS : [0xfd, 140] : "i16x8.shr_s",
-        I16x8ShrU : [0xfd, 141] : "i16x8.shr_u",
-        I16x8Add : [0xfd, 142] : "i16x8.add",
-        I16x8AddSatS : [0xfd, 143] : "i16x8.add_sat_s",
-        I16x8AddSatU : [0xfd, 144] : "i16x8.add_sat_u",
-        I16x8Sub : [0xfd, 145] : "i16x8.sub",
-        I16x8SubSatS : [0xfd, 146] : "i16x8.sub_sat_s",
-        I16x8SubSatU : [0xfd, 147] : "i16x8.sub_sat_u",
-        I16x8Mul : [0xfd, 149] : "i16x8.mul",
-        I16x8MinS : [0xfd, 150] : "i16x8.min_s",
-        I16x8MinU : [0xfd, 151] : "i16x8.min_u",
-        I16x8MaxS : [0xfd, 152] : "i16x8.max_s",
-        I16x8MaxU : [0xfd, 153] : "i16x8.max_u",
-        I16x8AvgrU : [0xfd, 155] : "i16x8.avgr_u",
-        I16x8ExtMulLowI8x16S : [0xfd, 156] : "i16x8.extmul_low_i8x16_s",
-        I16x8ExtMulHighI8x16S : [0xfd, 157] : "i16x8.extmul_high_i8x16_s",
-        I16x8ExtMulLowI8x16U : [0xfd, 158] : "i16x8.extmul_low_i8x16_u",
-        I16x8ExtMulHighI8x16U : [0xfd, 159] : "i16x8.extmul_high_i8x16_u",
+        i16x8_extadd_pairwise_i8x16_s : "i16x8.extadd_pairwise_i8x16_s",
+        i16x8_extadd_pairwise_i8x16_u : "i16x8.extadd_pairwise_i8x16_u",
+        i16x8_abs : "i16x8.abs",
+        i16x8_neg : "i16x8.neg",
+        i16x8_q15mulr_sat_s : "i16x8.q15mulr_sat_s",
+        i16x8_all_true : "i16x8.all_true",
+        i16x8_bitmask : "i16x8.bitmask",
+        i16x8_narrow_i32x4_s : "i16x8.narrow_i32x4_s",
+        i16x8_narrow_i32x4_u : "i16x8.narrow_i32x4_u",
+        i16x8_extend_low_i8x16_s : "i16x8.extend_low_i8x16_s",
+        i16x8_extend_high_i8x16_s : "i16x8.extend_high_i8x16_s",
+        i16x8_extend_low_i8x16_u : "i16x8.extend_low_i8x16_u",
+        i16x8_extend_high_i8x16_u : "i16x8.extend_high_i8x16_u",
+        i16x8_shl : "i16x8.shl",
+        i16x8_shr_s : "i16x8.shr_s",
+        i16x8_shr_u : "i16x8.shr_u",
+        i16x8_add : "i16x8.add",
+        i16x8_add_sat_s : "i16x8.add_sat_s",
+        i16x8_add_sat_u : "i16x8.add_sat_u",
+        i16x8_sub : "i16x8.sub",
+        i16x8_sub_sat_s : "i16x8.sub_sat_s",
+        i16x8_sub_sat_u : "i16x8.sub_sat_u",
+        i16x8_mul : "i16x8.mul",
+        i16x8_min_s : "i16x8.min_s",
+        i16x8_min_u : "i16x8.min_u",
+        i16x8_max_s : "i16x8.max_s",
+        i16x8_max_u : "i16x8.max_u",
+        i16x8_avgr_u : "i16x8.avgr_u",
+        i16x8_extmul_low_i8x16_s : "i16x8.extmul_low_i8x16_s",
+        i16x8_extmul_high_i8x16_s : "i16x8.extmul_high_i8x16_s",
+        i16x8_extmul_low_i8x16_u : "i16x8.extmul_low_i8x16_u",
+        i16x8_extmul_high_i8x16_u : "i16x8.extmul_high_i8x16_u",
 
-        I32x4ExtAddPairwiseI16x8S : [0xfd, 126] : "i32x4.extadd_pairwise_i16x8_s",
-        I32x4ExtAddPairwiseI16x8U : [0xfd, 127] : "i32x4.extadd_pairwise_i16x8_u",
-        I32x4Abs : [0xfd, 160] : "i32x4.abs",
-        I32x4Neg : [0xfd, 161] : "i32x4.neg",
-        I32x4AllTrue : [0xfd, 163] : "i32x4.all_true",
-        I32x4Bitmask : [0xfd, 164] : "i32x4.bitmask",
-        I32x4ExtendLowI16x8S : [0xfd, 167] : "i32x4.extend_low_i16x8_s",
-        I32x4ExtendHighI16x8S : [0xfd, 168] : "i32x4.extend_high_i16x8_s",
-        I32x4ExtendLowI16x8U : [0xfd, 169] : "i32x4.extend_low_i16x8_u",
-        I32x4ExtendHighI16x8U : [0xfd, 170] : "i32x4.extend_high_i16x8_u",
-        I32x4Shl : [0xfd, 171] : "i32x4.shl",
-        I32x4ShrS : [0xfd, 172] : "i32x4.shr_s",
-        I32x4ShrU : [0xfd, 173] : "i32x4.shr_u",
-        I32x4Add : [0xfd, 174] : "i32x4.add",
-        I32x4Sub : [0xfd, 177] : "i32x4.sub",
-        I32x4Mul : [0xfd, 181] : "i32x4.mul",
-        I32x4MinS : [0xfd, 182] : "i32x4.min_s",
-        I32x4MinU : [0xfd, 183] : "i32x4.min_u",
-        I32x4MaxS : [0xfd, 184] : "i32x4.max_s",
-        I32x4MaxU : [0xfd, 185] : "i32x4.max_u",
-        I32x4DotI16x8S : [0xfd, 186] : "i32x4.dot_i16x8_s",
-        I32x4ExtMulLowI16x8S : [0xfd, 188] : "i32x4.extmul_low_i16x8_s",
-        I32x4ExtMulHighI16x8S : [0xfd, 189] : "i32x4.extmul_high_i16x8_s",
-        I32x4ExtMulLowI16x8U : [0xfd, 190] : "i32x4.extmul_low_i16x8_u",
-        I32x4ExtMulHighI16x8U : [0xfd, 191] : "i32x4.extmul_high_i16x8_u",
+        i32x4_extadd_pairwise_i16x8_s : "i32x4.extadd_pairwise_i16x8_s",
+        i32x4_extadd_pairwise_i16x8_u : "i32x4.extadd_pairwise_i16x8_u",
+        i32x4_abs : "i32x4.abs",
+        i32x4_neg : "i32x4.neg",
+        i32x4_all_true : "i32x4.all_true",
+        i32x4_bitmask : "i32x4.bitmask",
+        i32x4_extend_low_i16x8_s : "i32x4.extend_low_i16x8_s",
+        i32x4_extend_high_i16x8_s : "i32x4.extend_high_i16x8_s",
+        i32x4_extend_low_i16x8_u : "i32x4.extend_low_i16x8_u",
+        i32x4_extend_high_i16x8_u : "i32x4.extend_high_i16x8_u",
+        i32x4_shl : "i32x4.shl",
+        i32x4_shr_s : "i32x4.shr_s",
+        i32x4_shr_u : "i32x4.shr_u",
+        i32x4_add : "i32x4.add",
+        i32x4_sub : "i32x4.sub",
+        i32x4_mul : "i32x4.mul",
+        i32x4_min_s : "i32x4.min_s",
+        i32x4_min_u : "i32x4.min_u",
+        i32x4_max_s : "i32x4.max_s",
+        i32x4_max_u : "i32x4.max_u",
+        i32x4_dot_i16x8_s : "i32x4.dot_i16x8_s",
+        i32x4_extmul_low_i16x8_s : "i32x4.extmul_low_i16x8_s",
+        i32x4_extmul_high_i16x8_s : "i32x4.extmul_high_i16x8_s",
+        i32x4_extmul_low_i16x8_u : "i32x4.extmul_low_i16x8_u",
+        i32x4_extmul_high_i16x8_u : "i32x4.extmul_high_i16x8_u",
 
-        I64x2Abs : [0xfd, 192] : "i64x2.abs",
-        I64x2Neg : [0xfd, 193] : "i64x2.neg",
-        I64x2AllTrue : [0xfd, 195] : "i64x2.all_true",
-        I64x2Bitmask : [0xfd, 196] : "i64x2.bitmask",
-        I64x2ExtendLowI32x4S : [0xfd, 199] : "i64x2.extend_low_i32x4_s",
-        I64x2ExtendHighI32x4S : [0xfd, 200] : "i64x2.extend_high_i32x4_s",
-        I64x2ExtendLowI32x4U : [0xfd, 201] : "i64x2.extend_low_i32x4_u",
-        I64x2ExtendHighI32x4U : [0xfd, 202] : "i64x2.extend_high_i32x4_u",
-        I64x2Shl : [0xfd, 203] : "i64x2.shl",
-        I64x2ShrS : [0xfd, 204] : "i64x2.shr_s",
-        I64x2ShrU : [0xfd, 205] : "i64x2.shr_u",
-        I64x2Add : [0xfd, 206] : "i64x2.add",
-        I64x2Sub : [0xfd, 209] : "i64x2.sub",
-        I64x2Mul : [0xfd, 213] : "i64x2.mul",
-        I64x2ExtMulLowI32x4S : [0xfd, 220] : "i64x2.extmul_low_i32x4_s",
-        I64x2ExtMulHighI32x4S : [0xfd, 221] : "i64x2.extmul_high_i32x4_s",
-        I64x2ExtMulLowI32x4U : [0xfd, 222] : "i64x2.extmul_low_i32x4_u",
-        I64x2ExtMulHighI32x4U : [0xfd, 223] : "i64x2.extmul_high_i32x4_u",
+        i64x2_abs : "i64x2.abs",
+        i64x2_neg : "i64x2.neg",
+        i64x2_all_true : "i64x2.all_true",
+        i64x2_bitmask : "i64x2.bitmask",
+        i64x2_extend_low_i32x4_s : "i64x2.extend_low_i32x4_s",
+        i64x2_extend_high_i32x4_s : "i64x2.extend_high_i32x4_s",
+        i64x2_extend_low_i32x4_u : "i64x2.extend_low_i32x4_u",
+        i64x2_extend_high_i32x4_u : "i64x2.extend_high_i32x4_u",
+        i64x2_shl : "i64x2.shl",
+        i64x2_shr_s : "i64x2.shr_s",
+        i64x2_shr_u : "i64x2.shr_u",
+        i64x2_add : "i64x2.add",
+        i64x2_sub : "i64x2.sub",
+        i64x2_mul : "i64x2.mul",
+        i64x2_extmul_low_i32x4_s : "i64x2.extmul_low_i32x4_s",
+        i64x2_extmul_high_i32x4_s : "i64x2.extmul_high_i32x4_s",
+        i64x2_extmul_low_i32x4_u : "i64x2.extmul_low_i32x4_u",
+        i64x2_extmul_high_i32x4_u : "i64x2.extmul_high_i32x4_u",
 
-        F32x4Ceil : [0xfd, 103] : "f32x4.ceil",
-        F32x4Floor : [0xfd, 104] : "f32x4.floor",
-        F32x4Trunc : [0xfd, 105] : "f32x4.trunc",
-        F32x4Nearest : [0xfd, 106] : "f32x4.nearest",
-        F32x4Abs : [0xfd, 224] : "f32x4.abs",
-        F32x4Neg : [0xfd, 225] : "f32x4.neg",
-        F32x4Sqrt : [0xfd, 227] : "f32x4.sqrt",
-        F32x4Add : [0xfd, 228] : "f32x4.add",
-        F32x4Sub : [0xfd, 229] : "f32x4.sub",
-        F32x4Mul : [0xfd, 230] : "f32x4.mul",
-        F32x4Div : [0xfd, 231] : "f32x4.div",
-        F32x4Min : [0xfd, 232] : "f32x4.min",
-        F32x4Max : [0xfd, 233] : "f32x4.max",
-        F32x4PMin : [0xfd, 234] : "f32x4.pmin",
-        F32x4PMax : [0xfd, 235] : "f32x4.pmax",
+        f32x4_ceil : "f32x4.ceil",
+        f32x4_floor : "f32x4.floor",
+        f32x4_trunc : "f32x4.trunc",
+        f32x4_nearest : "f32x4.nearest",
+        f32x4_abs : "f32x4.abs",
+        f32x4_neg : "f32x4.neg",
+        f32x4_sqrt : "f32x4.sqrt",
+        f32x4_add : "f32x4.add",
+        f32x4_sub : "f32x4.sub",
+        f32x4_mul : "f32x4.mul",
+        f32x4_div : "f32x4.div",
+        f32x4_min : "f32x4.min",
+        f32x4_max : "f32x4.max",
+        f32x4_pmin : "f32x4.pmin",
+        f32x4_pmax : "f32x4.pmax",
 
-        F64x2Ceil : [0xfd, 116] : "f64x2.ceil",
-        F64x2Floor : [0xfd, 117] : "f64x2.floor",
-        F64x2Trunc : [0xfd, 122] : "f64x2.trunc",
-        F64x2Nearest : [0xfd, 148] : "f64x2.nearest",
-        F64x2Abs : [0xfd, 236] : "f64x2.abs",
-        F64x2Neg : [0xfd, 237] : "f64x2.neg",
-        F64x2Sqrt : [0xfd, 239] : "f64x2.sqrt",
-        F64x2Add : [0xfd, 240] : "f64x2.add",
-        F64x2Sub : [0xfd, 241] : "f64x2.sub",
-        F64x2Mul : [0xfd, 242] : "f64x2.mul",
-        F64x2Div : [0xfd, 243] : "f64x2.div",
-        F64x2Min : [0xfd, 244] : "f64x2.min",
-        F64x2Max : [0xfd, 245] : "f64x2.max",
-        F64x2PMin : [0xfd, 246] : "f64x2.pmin",
-        F64x2PMax : [0xfd, 247] : "f64x2.pmax",
+        f64x2_ceil : "f64x2.ceil",
+        f64x2_floor : "f64x2.floor",
+        f64x2_trunc : "f64x2.trunc",
+        f64x2_nearest : "f64x2.nearest",
+        f64x2_abs : "f64x2.abs",
+        f64x2_neg : "f64x2.neg",
+        f64x2_sqrt : "f64x2.sqrt",
+        f64x2_add : "f64x2.add",
+        f64x2_sub : "f64x2.sub",
+        f64x2_mul : "f64x2.mul",
+        f64x2_div : "f64x2.div",
+        f64x2_min : "f64x2.min",
+        f64x2_max : "f64x2.max",
+        f64x2_pmin : "f64x2.pmin",
+        f64x2_pmax : "f64x2.pmax",
 
-        I32x4TruncSatF32x4S : [0xfd, 248] : "i32x4.trunc_sat_f32x4_s",
-        I32x4TruncSatF32x4U : [0xfd, 249] : "i32x4.trunc_sat_f32x4_u",
-        F32x4ConvertI32x4S : [0xfd, 250] : "f32x4.convert_i32x4_s",
-        F32x4ConvertI32x4U : [0xfd, 251] : "f32x4.convert_i32x4_u",
-        I32x4TruncSatF64x2SZero : [0xfd, 252] : "i32x4.trunc_sat_f64x2_s_zero",
-        I32x4TruncSatF64x2UZero : [0xfd, 253] : "i32x4.trunc_sat_f64x2_u_zero",
-        F64x2ConvertLowI32x4S : [0xfd, 254] : "f64x2.convert_low_i32x4_s",
-        F64x2ConvertLowI32x4U : [0xfd, 255] : "f64x2.convert_low_i32x4_u",
-        F32x4DemoteF64x2Zero : [0xfd, 94] : "f32x4.demote_f64x2_zero",
-        F64x2PromoteLowF32x4 : [0xfd, 95] : "f64x2.promote_low_f32x4",
+        i32x4_trunc_sat_f32x4_s : "i32x4.trunc_sat_f32x4_s",
+        i32x4_trunc_sat_f32x4_u : "i32x4.trunc_sat_f32x4_u",
+        f32x4_convert_i32x4_s : "f32x4.convert_i32x4_s",
+        f32x4_convert_i32x4_u : "f32x4.convert_i32x4_u",
+        i32x4_trunc_sat_f64x2_s_zero : "i32x4.trunc_sat_f64x2_s_zero",
+        i32x4_trunc_sat_f64x2_u_zero : "i32x4.trunc_sat_f64x2_u_zero",
+        f64x2_convert_low_i32x4_s : "f64x2.convert_low_i32x4_s",
+        f64x2_convert_low_i32x4_u : "f64x2.convert_low_i32x4_u",
+        f32x4_demote_f64x2_zero : "f32x4.demote_f64x2_zero",
+        f64x2_promote_low_f32x4 : "f64x2.promote_low_f32x4",
 
         // Exception handling proposal
-        ThrowRef : [0x0a] : "throw_ref",
-        TryTable(TryTable<'a>) : [0x1f] : "try_table",
-        Throw(Index<'a>) : [0x08] : "throw",
+        throw_ref : "throw_ref",
+        #[custom_encode]
+        try_table(TryTable<'a>) : "try_table",
+        throw(Index<'a>) : "throw",
 
         // Deprecated exception handling opcodes
-        Try(Box<BlockType<'a>>) : [0x06] : "try",
-        Catch(Index<'a>) : [0x07] : "catch",
-        Rethrow(Index<'a>) : [0x09] : "rethrow",
-        Delegate(Index<'a>) : [0x18] : "delegate",
-        CatchAll : [0x19] : "catch_all",
+        try_(Box<BlockType<'a>>) : "try",
+        catch(Index<'a>) : "catch",
+        rethrow(Index<'a>) : "rethrow",
+        delegate(Index<'a>) : "delegate",
+        catch_all : "catch_all",
 
         // Relaxed SIMD proposal
-        I8x16RelaxedSwizzle : [0xfd, 0x100]: "i8x16.relaxed_swizzle",
-        I32x4RelaxedTruncF32x4S : [0xfd, 0x101]: "i32x4.relaxed_trunc_f32x4_s",
-        I32x4RelaxedTruncF32x4U : [0xfd, 0x102]: "i32x4.relaxed_trunc_f32x4_u",
-        I32x4RelaxedTruncF64x2SZero : [0xfd, 0x103]: "i32x4.relaxed_trunc_f64x2_s_zero",
-        I32x4RelaxedTruncF64x2UZero : [0xfd, 0x104]: "i32x4.relaxed_trunc_f64x2_u_zero",
-        F32x4RelaxedMadd : [0xfd, 0x105]: "f32x4.relaxed_madd",
-        F32x4RelaxedNmadd : [0xfd, 0x106]: "f32x4.relaxed_nmadd",
-        F64x2RelaxedMadd : [0xfd, 0x107]: "f64x2.relaxed_madd",
-        F64x2RelaxedNmadd : [0xfd, 0x108]: "f64x2.relaxed_nmadd",
-        I8x16RelaxedLaneselect : [0xfd, 0x109]: "i8x16.relaxed_laneselect",
-        I16x8RelaxedLaneselect : [0xfd, 0x10A]: "i16x8.relaxed_laneselect",
-        I32x4RelaxedLaneselect : [0xfd, 0x10B]: "i32x4.relaxed_laneselect",
-        I64x2RelaxedLaneselect : [0xfd, 0x10C]: "i64x2.relaxed_laneselect",
-        F32x4RelaxedMin : [0xfd, 0x10D]: "f32x4.relaxed_min",
-        F32x4RelaxedMax : [0xfd, 0x10E]: "f32x4.relaxed_max",
-        F64x2RelaxedMin : [0xfd, 0x10F]: "f64x2.relaxed_min",
-        F64x2RelaxedMax : [0xfd, 0x110]: "f64x2.relaxed_max",
-        I16x8RelaxedQ15mulrS: [0xfd, 0x111]: "i16x8.relaxed_q15mulr_s",
-        I16x8RelaxedDotI8x16I7x16S: [0xfd, 0x112]: "i16x8.relaxed_dot_i8x16_i7x16_s",
-        I32x4RelaxedDotI8x16I7x16AddS: [0xfd, 0x113]: "i32x4.relaxed_dot_i8x16_i7x16_add_s",
+        i8x16_relaxed_swizzle : "i8x16.relaxed_swizzle",
+        i32x4_relaxed_trunc_f32x4_s : "i32x4.relaxed_trunc_f32x4_s",
+        i32x4_relaxed_trunc_f32x4_u : "i32x4.relaxed_trunc_f32x4_u",
+        i32x4_relaxed_trunc_f64x2_s_zero : "i32x4.relaxed_trunc_f64x2_s_zero",
+        i32x4_relaxed_trunc_f64x2_u_zero : "i32x4.relaxed_trunc_f64x2_u_zero",
+        f32x4_relaxed_madd : "f32x4.relaxed_madd",
+        f32x4_relaxed_nmadd : "f32x4.relaxed_nmadd",
+        f64x2_relaxed_madd : "f64x2.relaxed_madd",
+        f64x2_relaxed_nmadd : "f64x2.relaxed_nmadd",
+        i8x16_relaxed_laneselect : "i8x16.relaxed_laneselect",
+        i16x8_relaxed_laneselect : "i16x8.relaxed_laneselect",
+        i32x4_relaxed_laneselect : "i32x4.relaxed_laneselect",
+        i64x2_relaxed_laneselect : "i64x2.relaxed_laneselect",
+        f32x4_relaxed_min : "f32x4.relaxed_min",
+        f32x4_relaxed_max : "f32x4.relaxed_max",
+        f64x2_relaxed_min : "f64x2.relaxed_min",
+        f64x2_relaxed_max : "f64x2.relaxed_max",
+        i16x8_relaxed_q15mulr_s : "i16x8.relaxed_q15mulr_s",
+        i16x8_relaxed_dot_i8x16_i7x16_s : "i16x8.relaxed_dot_i8x16_i7x16_s",
+        i32x4_relaxed_dot_i8x16_i7x16_add_s : "i32x4.relaxed_dot_i8x16_i7x16_add_s",
 
         // Stack switching proposal
-        ContNew(Index<'a>)             : [0xe0] : "cont.new",
-        ContBind(ContBind<'a>)         : [0xe1] : "cont.bind",
-        Suspend(Index<'a>)             : [0xe2] : "suspend",
-        Resume(Resume<'a>)             : [0xe3] : "resume",
-        ResumeThrow(ResumeThrow<'a>)   : [0xe4] : "resume_throw",
-        ResumeThrowRef(ResumeThrowRef<'a>) : [0xe5] : "resume_throw_ref",
-        Switch(Switch<'a>)             : [0xe6] : "switch",
+        cont_new(Index<'a>) : "cont.new",
+        #[custom_encode]
+        cont_bind(ContBind<'a>) : "cont.bind",
+        suspend(Index<'a>) : "suspend",
+        #[custom_encode]
+        resume(Resume<'a>) : "resume",
+        #[custom_encode]
+        resume_throw(ResumeThrow<'a>) : "resume_throw",
+        #[custom_encode]
+        resume_throw_ref(ResumeThrowRef<'a>) : "resume_throw_ref",
+        #[custom_encode]
+        switch(Switch<'a>) : "switch",
 
         // Wide arithmetic proposal
-        I64Add128   : [0xfc, 19] : "i64.add128",
-        I64Sub128   : [0xfc, 20] : "i64.sub128",
-        I64MulWideS : [0xfc, 21] : "i64.mul_wide_s",
-        I64MulWideU : [0xfc, 22] : "i64.mul_wide_u",
+        i64_add128 : "i64.add128",
+        i64_sub128 : "i64.sub128",
+        i64_mul_wide_s : "i64.mul_wide_s",
+        i64_mul_wide_u : "i64.mul_wide_u",
 
         // Custom descriptors
-        StructNewDesc(Index<'a>) : [0xfb, 32] : "struct.new_desc",
-        StructNewDefaultDesc(Index<'a>) : [0xfb, 33] : "struct.new_default_desc",
-        RefGetDesc(Index<'a>): [0xfb, 34] : "ref.get_desc",
-        RefCastDescEq(RefCastDescEq<'a>) : [] : "ref.cast_desc_eq",
-        BrOnCastDescEq(Box<BrOnCastDescEq<'a>>) : [] : "br_on_cast_desc_eq",
-        BrOnCastDescEqFail(Box<BrOnCastDescEqFail<'a>>) : [] : "br_on_cast_desc_eq_fail",
+        struct_new_desc(Index<'a>) : "struct.new_desc",
+        struct_new_default_desc(Index<'a>) : "struct.new_default_desc",
+        ref_get_desc(Index<'a>) : "ref.get_desc",
+        #[custom_encode]
+        ref_cast_desc_eq(RefCastDescEq<'a>) : "ref.cast_desc_eq",
+        #[custom_encode]
+        br_on_cast_desc_eq(Box<BrOnCastDescEq<'a>>) : "br_on_cast_desc_eq",
+        #[custom_encode]
+        br_on_cast_desc_eq_fail(Box<BrOnCastDescEqFail<'a>>) : "br_on_cast_desc_eq_fail",
     }
 }
 
@@ -1310,10 +1383,10 @@ fn assert_instruction_not_too_large() {
 impl<'a> Instruction<'a> {
     pub(crate) fn needs_data_count(&self) -> bool {
         match self {
-            Instruction::MemoryInit(_)
-            | Instruction::DataDrop(_)
-            | Instruction::ArrayNewData(_)
-            | Instruction::ArrayInitData(_) => true,
+            Instruction::memory_init(_)
+            | Instruction::data_drop(_)
+            | Instruction::array_new_data(_)
+            | Instruction::array_init_data(_) => true,
             _ => false,
         }
     }
