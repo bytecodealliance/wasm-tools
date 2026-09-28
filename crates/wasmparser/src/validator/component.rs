@@ -4715,6 +4715,14 @@ impl ComponentNameContext {
             if suffix.is_empty() {
                 bail!(offset, "version suffix cannot be empty");
             }
+            // Without `implements` the version suffix applies to `name`, so
+            // it must be an interface name. Its version is validated below.
+            if implements.is_none() && !matches!(kebab.kind(), ComponentNameKind::Interface(_)) {
+                bail!(
+                    offset,
+                    "`versionsuffix` requires an interface name or `implements`"
+                );
+            }
         }
 
         if let Some(implements) = implements {

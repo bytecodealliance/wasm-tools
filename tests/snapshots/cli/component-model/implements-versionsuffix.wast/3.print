@@ -1,0 +1,10 @@
+(component
+  (type (;0;)
+    (instance)
+  )
+  (import "a" (implements "a:b/c@0.0.1") (versionsuffix "+b") (instance (;0;) (type 0)))
+  (type (;1;)
+    (instance)
+  )
+  (import "b" (implements "a:b/c@1.0.0-rc1") (versionsuffix "+b") (instance (;1;) (type 1)))
+)

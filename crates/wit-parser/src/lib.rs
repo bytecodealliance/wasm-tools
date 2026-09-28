@@ -285,46 +285,31 @@ impl PackageName {
     /// additionally used when creating components to match up imports in
     /// core wasm to imports in worlds.
     pub fn version_compat_track(version: &Version) -> (Version, Option<String>) {
+        let (_, suffix) = Self::version_compat_track_string(version);
         let mut version = version.clone();
-        let build = if version.build.is_empty() {
-            None
-        } else {
-            Some(format!("+{}", version.build))
-        };
-        let build_string = build.clone().unwrap_or_default();
         version.build = semver::BuildMetadata::EMPTY;
-        if !version.pre.is_empty() {
-            return (version, build);
+        if version.pre.is_empty() {
+            if version.major != 0 {
+                version.minor = 0;
+                version.patch = 0;
+            } else if version.minor != 0 {
+                version.patch = 0;
+            }
         }
-        if version.major != 0 {
-            let suffix = format!(".{}.{}{}", version.minor, version.patch, build_string);
-            version.minor = 0;
-            version.patch = 0;
-            return (version, Some(suffix));
-        }
-        if version.minor != 0 {
-            let suffix = format!(".{}{}", version.patch, build_string);
-            version.patch = 0;
-            return (version, Some(suffix));
-        }
-        (version, build)
+        (version, suffix)
     }
 
     /// Returns the string corresponding to
     /// [`PackageName::version_compat_track`]. This is done to match the
     /// component model's expected naming scheme of imports and exports.
+    ///
+    /// See [`wasmparser::names::split_canonical_version`] for more
+    /// information.
     pub fn version_compat_track_string(version: &Version) -> (String, Option<String>) {
-        let (version, suffix) = Self::version_compat_track(version);
-        if !version.pre.is_empty() {
-            return (version.to_string(), suffix);
-        }
-        if version.major != 0 {
-            return (format!("{}", version.major), suffix);
-        }
-        if version.minor != 0 {
-            return (format!("{}.{}", version.major, version.minor), suffix);
-        }
-        (version.to_string(), suffix)
+        let version = version.to_string();
+        let (track, suffix) = wasmparser::names::split_canonical_version(&version)
+            .expect("a `Version` should always display as a valid version");
+        (track.to_string(), suffix.map(|s| s.to_string()))
     }
 }
 

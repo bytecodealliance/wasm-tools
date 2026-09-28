@@ -12,6 +12,7 @@ use crate::validator::types::{
 };
 use crate::{AbstractHeapType, CompositeInnerType, HeapType, RefType, StorageType, prelude::*};
 use crate::{Error, FuncType, MemoryType, PrimitiveValType, Result, TableType, ValType};
+use alloc::borrow::Cow;
 use core::fmt;
 use core::ops::Index;
 use core::sync::atomic::{AtomicUsize, Ordering};
@@ -1052,6 +1053,18 @@ pub struct ComponentItem {
     pub version_suffix: Option<String>,
     /// The optional `(external_id "...")` metadata, if specified.
     pub external_id: Option<String>,
+}
+
+impl ComponentItem {
+    /// Returns the full name of the interface in `implements`, if specified.
+    ///
+    /// See [`ComponentExternName::full_implements`] for more information.
+    pub fn full_implements(&self) -> Option<Cow<'_, str>> {
+        Some(crate::with_version_suffix(
+            self.implements.as_ref()?,
+            self.version_suffix.as_deref(),
+        ))
+    }
 }
 
 impl TypeData for ComponentType {
