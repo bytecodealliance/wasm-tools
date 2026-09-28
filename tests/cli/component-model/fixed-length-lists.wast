@@ -14,7 +14,7 @@
 
 (component
   (core module $m
-    (func (export "param-list") (param i32 i32 i32 i32) unreachable)
+    (func (export "param-list") (param i32) unreachable)
   )
   (core instance $i (instantiate $m))
 
