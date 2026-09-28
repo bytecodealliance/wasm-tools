@@ -128,3 +128,14 @@
     (type $child (sub $parent1 $parent2 (struct))))
   "multiple supertypes"
 )
+
+(assert_invalid
+  (module
+    (type $parent1 (sub (struct)))
+    (type $parent2 (sub (struct)))
+    (type $parent3 (sub (struct)))
+    (type $parent4 (sub (struct)))
+    (type $parent5 (sub (struct)))
+    (type $child (sub $parent1 $parent2 $parent3 $parent4 $parent5 (struct))))
+  "multiple supertypes"
+)
