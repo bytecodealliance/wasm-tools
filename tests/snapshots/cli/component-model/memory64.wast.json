@@ -33,6 +33,20 @@
       "filename": "memory64.4.wasm",
       "module_type": "binary",
       "text": "64-bit memories require the `cm64` feature to be enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 57,
+      "filename": "memory64.5.wasm",
+      "module_type": "binary",
+      "text": "mismatch in index type used for tables"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 66,
+      "filename": "memory64.6.wasm",
+      "module_type": "binary",
+      "text": "mismatch in index type used for tables"
     }
   ]
 }
