@@ -3933,6 +3933,7 @@ where
             // breaks out immediately since there's nothing else to remove.
             let frame = self.control.last().unwrap();
             if self.operands.len() == frame.height && frame.unreachable {
+                let _ = i;
                 assert_eq!(self.pop_operand(Some(elem_ty))?, MaybeType::Bottom);
                 #[cfg(debug_assertions)]
                 {
