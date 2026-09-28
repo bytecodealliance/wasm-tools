@@ -289,6 +289,13 @@ impl CanonicalOptions {
         Ok(self)
     }
 
+    pub(crate) fn ptr_type(&self) -> ValType {
+        match self.memory {
+            Some((_, ptr_size)) => ptr_size.core_type(),
+            None => ValType::I32,
+        }
+    }
+
     pub(crate) fn require_memory(&self, offset: u64) -> Result<&Self> {
         if self.memory.is_none() {
             bail!(offset, "canonical option `memory` is required");
@@ -1666,6 +1673,7 @@ impl ComponentState {
         };
 
         let options = self.check_options(types, options, offset)?;
+        let ptr = options.ptr_type();
         if options.concurrency.is_sync() {
             require_feature::cm_more_async_builtins(
                 self.features,
@@ -1679,7 +1687,7 @@ impl ComponentState {
             .check_lower(offset)?
             .check_core_type(
                 types,
-                FuncType::new([ValType::I32; 3], [ValType::I32]),
+                FuncType::new([ValType::I32, ptr, ptr], [ptr]),
                 offset,
             )?;
 
@@ -1706,6 +1714,7 @@ impl ComponentState {
         };
 
         let options = self.check_options(types, options, offset)?;
+        let ptr = options.ptr_type();
         if options.concurrency.is_sync() {
             require_feature::cm_more_async_builtins(
                 self.features,
@@ -1718,7 +1727,7 @@ impl ComponentState {
             .check_lower(offset)?
             .check_core_type(
                 types,
-                FuncType::new([ValType::I32; 3], [ValType::I32]),
+                FuncType::new([ValType::I32, ptr, ptr], [ptr]),
                 offset,
             )?;
 
@@ -1878,6 +1887,7 @@ impl ComponentState {
         };
 
         let options = self.check_options(types, options, offset)?;
+        let ptr = options.ptr_type();
         if options.concurrency.is_sync() {
             require_feature::cm_more_async_builtins(
                 self.features,
@@ -1891,7 +1901,7 @@ impl ComponentState {
             .check_lower(offset)?
             .check_core_type(
                 types,
-                FuncType::new([ValType::I32; 2], [ValType::I32]),
+                FuncType::new([ValType::I32, ptr], [ValType::I32]),
                 offset,
             )?;
 
@@ -1918,6 +1928,7 @@ impl ComponentState {
         };
 
         let options = self.check_options(types, &options, offset)?;
+        let ptr = options.ptr_type();
         if options.concurrency.is_sync() {
             require_feature::cm_more_async_builtins(
                 self.features,
@@ -1929,7 +1940,7 @@ impl ComponentState {
             .require_memory_if(offset, || elem_ty.is_some())?
             .check_core_type(
                 types,
-                FuncType::new([ValType::I32; 2], [ValType::I32]),
+                FuncType::new([ValType::I32, ptr], [ValType::I32]),
                 offset,
             )?;
 
@@ -2065,16 +2076,13 @@ impl ComponentState {
             offset,
         )?;
 
-        let ty_id = self
-            .check_options(types, &options, offset)?
+        let options = self.check_options(types, &options, offset)?;
+        let ptr = options.ptr_type();
+        let ty_id = options
             .require_memory(offset)?
             .require_sync(offset, "error-context.new")?
             .check_lower(offset)?
-            .check_core_type(
-                types,
-                FuncType::new([ValType::I32; 2], [ValType::I32]),
-                offset,
-            )?;
+            .check_core_type(types, FuncType::new([ptr; 2], [ValType::I32]), offset)?;
 
         self.core_funcs.push(ty_id);
         Ok(())
@@ -2092,13 +2100,14 @@ impl ComponentState {
             offset,
         )?;
 
-        let ty_id = self
-            .check_options(types, &options, offset)?
+        let options = self.check_options(types, &options, offset)?;
+        let ptr = options.ptr_type();
+        let ty_id = options
             .require_memory(offset)?
             .require_realloc(offset)?
             .require_sync(offset, "error-context.debug-message")?
             .check_lower(offset)?
-            .check_core_type(types, FuncType::new([ValType::I32; 2], []), offset)?;
+            .check_core_type(types, FuncType::new([ValType::I32, ptr], []), offset)?;
 
         self.core_funcs.push(ty_id);
         Ok(())

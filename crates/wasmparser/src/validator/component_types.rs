@@ -1313,7 +1313,7 @@ impl ComponentFuncType {
             (Abi::Lower, Concurrency::Async { callback: _ }) => {
                 if self.result.is_some() {
                     sig.params.max = MAX_LOWERED_TYPES;
-                    sig.params.assert_push(ValType::I32);
+                    sig.params.assert_push(ptr_size.core_type());
                     options.require_memory(offset)?;
                 }
                 sig.results.assert_push(ValType::I32);
