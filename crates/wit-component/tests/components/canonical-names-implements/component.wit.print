@@ -1,7 +1,0 @@
-package root:component;
-
-world root {
-  import foo: a:b/c@0.1.1;
-
-  export bar: a:b/c@0.1.1;
-}
