@@ -449,7 +449,7 @@ impl CanonicalOptions {
 
             Ok(declared_id)
         } else {
-            Ok(types.intern_func_type(actual, offset))
+            types.intern_func_type(actual, offset)
         }
     }
 }
@@ -1331,7 +1331,7 @@ impl ComponentState {
         options.check_lift(types, self, core_ty_id, offset)?;
         options.check_asyncness(ty, offset)?;
         let func_ty = ty.lower(types, &options, Abi::Lift, offset)?;
-        let lowered_core_ty_id = func_ty.intern(types, offset);
+        let lowered_core_ty_id = func_ty.intern(types, offset)?;
 
         if core_ty_id == lowered_core_ty_id {
             self.funcs
@@ -1389,7 +1389,7 @@ impl ComponentState {
         options.check_asyncness(ty, offset)?;
 
         let func_ty = ty.lower(types, &options, Abi::Lower, offset)?;
-        let ty_id = func_ty.intern(types, offset);
+        let ty_id = func_ty.intern(types, offset)?;
 
         self.core_funcs.push(ty_id);
         Ok(())
@@ -1397,21 +1397,21 @@ impl ComponentState {
 
     fn resource_new(&mut self, resource: u32, types: &mut TypeAlloc, offset: u64) -> Result<()> {
         let rep = self.check_local_resource(resource, types, offset)?;
-        let id = types.intern_func_type(FuncType::new([rep], [ValType::I32]), offset);
+        let id = types.intern_func_type(FuncType::new([rep], [ValType::I32]), offset)?;
         self.core_funcs.push(id);
         Ok(())
     }
 
     fn resource_drop(&mut self, resource: u32, types: &mut TypeAlloc, offset: u64) -> Result<()> {
         self.resource_at(resource, types, offset)?;
-        let id = types.intern_func_type(FuncType::new([ValType::I32], []), offset);
+        let id = types.intern_func_type(FuncType::new([ValType::I32], []), offset)?;
         self.core_funcs.push(id);
         Ok(())
     }
 
     fn resource_rep(&mut self, resource: u32, types: &mut TypeAlloc, offset: u64) -> Result<()> {
         let rep = self.check_local_resource(resource, types, offset)?;
-        let id = types.intern_func_type(FuncType::new([ValType::I32], [rep]), offset);
+        let id = types.intern_func_type(FuncType::new([ValType::I32], [rep]), offset)?;
         self.core_funcs.push(id);
         Ok(())
     }
@@ -1424,7 +1424,7 @@ impl ComponentState {
         )?;
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([], []), offset));
+            .push(types.intern_func_type(FuncType::new([], []), offset)?);
         Ok(())
     }
 
@@ -1436,7 +1436,7 @@ impl ComponentState {
         )?;
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([], []), offset));
+            .push(types.intern_func_type(FuncType::new([], []), offset)?);
         Ok(())
     }
 
@@ -1489,7 +1489,7 @@ impl ComponentState {
         options.require_sync(offset, "task.return")?;
 
         let func_ty = func_ty.lower(types, &options, Abi::Lower, offset)?;
-        let ty_id = func_ty.intern(types, offset);
+        let ty_id = func_ty.intern(types, offset)?;
 
         self.core_funcs.push(ty_id);
         Ok(())
@@ -1503,7 +1503,7 @@ impl ComponentState {
         )?;
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([], []), offset));
+            .push(types.intern_func_type(FuncType::new([], []), offset)?);
         Ok(())
     }
 
@@ -1545,7 +1545,7 @@ impl ComponentState {
         self.validate_context_immediate(i, "context.get", offset)?;
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([], [ty]), offset));
+            .push(types.intern_func_type(FuncType::new([], [ty]), offset)?);
         Ok(())
     }
 
@@ -1565,7 +1565,7 @@ impl ComponentState {
         self.validate_context_immediate(i, "context.set", offset)?;
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ty], []), offset));
+            .push(types.intern_func_type(FuncType::new([ty], []), offset)?);
         Ok(())
     }
 
@@ -1607,7 +1607,7 @@ impl ComponentState {
         )?;
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset));
+            .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset)?);
         Ok(())
     }
 
@@ -1626,7 +1626,7 @@ impl ComponentState {
         }
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset));
+            .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset)?);
         Ok(())
     }
 
@@ -1643,7 +1643,7 @@ impl ComponentState {
         };
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([], [ValType::I64]), offset));
+            .push(types.intern_func_type(FuncType::new([], [ValType::I64]), offset)?);
         Ok(())
     }
 
@@ -1744,7 +1744,7 @@ impl ComponentState {
         };
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32; 2], []), offset));
+            .push(types.intern_func_type(FuncType::new([ValType::I32; 2], []), offset)?);
         Ok(())
     }
 
@@ -1774,7 +1774,7 @@ impl ComponentState {
         };
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset));
+            .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset)?);
         Ok(())
     }
 
@@ -1804,7 +1804,7 @@ impl ComponentState {
         };
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset));
+            .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset)?);
         Ok(())
     }
 
@@ -1821,7 +1821,7 @@ impl ComponentState {
         };
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset));
+            .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset)?);
         Ok(())
     }
 
@@ -1838,7 +1838,7 @@ impl ComponentState {
         };
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset));
+            .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset)?);
         Ok(())
     }
 
@@ -1855,7 +1855,7 @@ impl ComponentState {
         };
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([], [ValType::I64]), offset));
+            .push(types.intern_func_type(FuncType::new([], [ValType::I64]), offset)?);
         Ok(())
     }
 
@@ -1955,7 +1955,7 @@ impl ComponentState {
         };
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32; 2], []), offset));
+            .push(types.intern_func_type(FuncType::new([ValType::I32; 2], []), offset)?);
         Ok(())
     }
 
@@ -1985,7 +1985,7 @@ impl ComponentState {
         };
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset));
+            .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset)?);
         Ok(())
     }
 
@@ -2015,7 +2015,7 @@ impl ComponentState {
         };
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset));
+            .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset)?);
         Ok(())
     }
 
@@ -2032,7 +2032,7 @@ impl ComponentState {
         };
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset));
+            .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset)?);
         Ok(())
     }
 
@@ -2049,7 +2049,7 @@ impl ComponentState {
         };
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset));
+            .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset)?);
         Ok(())
     }
 
@@ -2112,7 +2112,7 @@ impl ComponentState {
         )?;
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset));
+            .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset)?);
         Ok(())
     }
 
@@ -2124,7 +2124,7 @@ impl ComponentState {
         )?;
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([], [ValType::I32]), offset));
+            .push(types.intern_func_type(FuncType::new([], [ValType::I32]), offset)?);
         Ok(())
     }
 
@@ -2139,7 +2139,7 @@ impl ComponentState {
         let memory64 = self.memory_at(memory, offset)?.memory64;
         let ty = if memory64 { ValType::I64 } else { ValType::I32 };
         self.core_funcs.push(
-            types.intern_func_type(FuncType::new([ValType::I32, ty], [ValType::I32]), offset),
+            types.intern_func_type(FuncType::new([ValType::I32, ty], [ValType::I32]), offset)?,
         );
         Ok(())
     }
@@ -2155,7 +2155,7 @@ impl ComponentState {
         let memory64 = self.memory_at(memory, offset)?.memory64;
         let ty = if memory64 { ValType::I64 } else { ValType::I32 };
         self.core_funcs.push(
-            types.intern_func_type(FuncType::new([ValType::I32, ty], [ValType::I32]), offset),
+            types.intern_func_type(FuncType::new([ValType::I32, ty], [ValType::I32]), offset)?,
         );
         Ok(())
     }
@@ -2168,7 +2168,7 @@ impl ComponentState {
         )?;
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset));
+            .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset)?);
         Ok(())
     }
 
@@ -2180,7 +2180,7 @@ impl ComponentState {
         )?;
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32; 2], []), offset));
+            .push(types.intern_func_type(FuncType::new([ValType::I32; 2], []), offset)?);
         Ok(())
     }
 
@@ -2192,7 +2192,7 @@ impl ComponentState {
         )?;
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([], [ValType::I32]), offset));
+            .push(types.intern_func_type(FuncType::new([], [ValType::I32]), offset)?);
         Ok(())
     }
 
@@ -2250,7 +2250,7 @@ impl ComponentState {
         self.core_funcs.push(types.intern_func_type(
             FuncType::new([ValType::I32, ValType::I32], [ValType::I32]),
             offset,
-        ));
+        )?);
         Ok(())
     }
 
@@ -2261,7 +2261,7 @@ impl ComponentState {
             offset,
         )?;
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset));
+            .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset)?);
         Ok(())
     }
 
@@ -2272,7 +2272,7 @@ impl ComponentState {
             offset,
         )?;
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([], [ValType::I32]), offset));
+            .push(types.intern_func_type(FuncType::new([], [ValType::I32]), offset)?);
         Ok(())
     }
 
@@ -2284,7 +2284,7 @@ impl ComponentState {
         )?;
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([], [ValType::I32]), offset));
+            .push(types.intern_func_type(FuncType::new([], [ValType::I32]), offset)?);
         Ok(())
     }
 
@@ -2296,7 +2296,7 @@ impl ComponentState {
         )?;
 
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset));
+            .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset)?);
         Ok(())
     }
 
@@ -2307,7 +2307,7 @@ impl ComponentState {
             offset,
         )?;
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset));
+            .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset)?);
         Ok(())
     }
 
@@ -2318,7 +2318,7 @@ impl ComponentState {
             offset,
         )?;
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset));
+            .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset)?);
         Ok(())
     }
 
@@ -2329,7 +2329,7 @@ impl ComponentState {
             offset,
         )?;
         self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset));
+            .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset)?);
         Ok(())
     }
 
@@ -2377,7 +2377,7 @@ impl ComponentState {
         let start_func_ref = RefType::concrete(true, packed_index);
         let func_ty = FuncType::new([ValType::Ref(start_func_ref), ValType::I32], [ValType::I32]);
         let core_ty = SubType::func(func_ty, true);
-        let id = types.intern_sub_type(core_ty, offset);
+        let id = types.intern_sub_type(core_ty, offset)?;
         self.core_funcs.push(id);
 
         Ok(())
@@ -2425,7 +2425,7 @@ impl ComponentState {
         // Insert the core function.
         let func_ty = FuncType::new([ValType::I32, ValType::I32], [ValType::I32]);
         let core_ty = SubType::func(func_ty, true);
-        let id = types.intern_sub_type(core_ty, offset);
+        let id = types.intern_sub_type(core_ty, offset)?;
         self.core_funcs.push(id);
 
         Ok(())
@@ -2477,7 +2477,7 @@ impl ComponentState {
 
         let func_ty = FuncType::new([], [ValType::I32]);
         let core_ty = SubType::func(func_ty, true);
-        let id = types.intern_sub_type(core_ty, offset);
+        let id = types.intern_sub_type(core_ty, offset)?;
         self.core_funcs.push(id);
 
         Ok(())

@@ -103,8 +103,11 @@ pub(crate) trait InternRecGroup {
         if self.features().needs_type_canonicalization() {
             TypeCanonicalizer::new(self, offset).canonicalize_rec_group(&mut rec_group)?;
         }
-        let (is_new, rec_group_id) = types
-            .intern_canonical_rec_group(self.features().needs_type_canonicalization(), rec_group);
+        let (is_new, rec_group_id) = types.intern_canonical_rec_group(
+            self.features().needs_type_canonicalization(),
+            rec_group,
+            offset,
+        )?;
         let range = &types[rec_group_id];
         let start = range.start.index();
         let end = range.end.index();
