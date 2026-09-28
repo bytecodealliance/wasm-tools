@@ -4269,8 +4269,7 @@ impl<'a> SubtypeCx<'a> {
                     created: actual, ..
                 },
             ) => {
-                let prev = type_map.insert(expected, actual);
-                assert!(prev.is_none());
+                type_map.insert(expected, actual);
             }
             (ComponentEntityType::Instance(expected), ComponentEntityType::Instance(actual)) => {
                 let actual = &self.a[actual];

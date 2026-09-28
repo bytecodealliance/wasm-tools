@@ -510,6 +510,30 @@
       "line": 345,
       "filename": "import.73.wasm",
       "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 361,
+      "filename": "import.74.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 375,
+      "filename": "import.75.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 388,
+      "filename": "import.76.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 412,
+      "filename": "import.77.wasm",
+      "module_type": "binary"
     }
   ]
 }

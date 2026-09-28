@@ -1,0 +1,21 @@
+(component
+  (component $c (;0;)
+    (type $t (;0;)
+      (instance
+        (type (;0;) u32)
+        (export (;1;) "t" (type (eq 0)))
+      )
+    )
+    (import "a" (instance (;0;) (type $t)))
+    (import "b" (instance (;1;) (type $t)))
+  )
+  (type $u (;0;) u32)
+  (instance $i (;0;)
+    (export "t" (type $u))
+  )
+  (instance (;1;) (instantiate $c
+      (with "a" (instance $i))
+      (with "b" (instance $i))
+    )
+  )
+)
