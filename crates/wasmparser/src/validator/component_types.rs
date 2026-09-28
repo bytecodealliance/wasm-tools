@@ -3974,7 +3974,16 @@ impl<'a> SubtypeCx<'a> {
     }
 
     pub(crate) fn table_type(a: &TableType, b: &TableType, offset: u64) -> Result<()> {
-        if a.element_type != b.element_type {
+        let TableType {
+            element_type,
+            shared,
+            table64,
+
+            // checked via `limits_match!` below.
+            initial: _,
+            maximum: _,
+        } = *a;
+        if element_type != b.element_type {
             bail!(
                 offset,
                 "expected table element type {}, found {}",
@@ -3982,8 +3991,11 @@ impl<'a> SubtypeCx<'a> {
                 a.element_type,
             )
         }
-        if a.shared != b.shared {
+        if shared != b.shared {
             bail!(offset, "mismatch in the shared flag for tables")
+        }
+        if table64 != b.table64 {
+            bail!(offset, "mismatch in index type used for tables")
         }
         if limits_match!(a, b) {
             Ok(())
@@ -3993,10 +4005,21 @@ impl<'a> SubtypeCx<'a> {
     }
 
     pub(crate) fn memory_type(a: &MemoryType, b: &MemoryType, offset: u64) -> Result<()> {
-        if a.shared != b.shared {
+        let MemoryType {
+            shared,
+            memory64,
+
+            // checked manually below to handle the default
+            page_size_log2: _,
+
+            // checked via `limits_match!` below.
+            initial: _,
+            maximum: _,
+        } = *a;
+        if shared != b.shared {
             bail!(offset, "mismatch in the shared flag for memories")
         }
-        if a.memory64 != b.memory64 {
+        if memory64 != b.memory64 {
             bail!(offset, "mismatch in index type used for memories")
         }
         if a.page_size_log2() != b.page_size_log2() {
