@@ -104,6 +104,27 @@
       "filename": "async-builtins.15.wasm",
       "module_type": "binary",
       "text": "`future.forward` requires a future type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 175,
+      "filename": "async-builtins.16.wasm",
+      "module_type": "binary",
+      "text": "canonical option `post-return` cannot be specified for lowerings"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 189,
+      "filename": "async-builtins.17.wasm",
+      "module_type": "binary",
+      "text": "canonical option `post-return` cannot be specified for lowerings"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 203,
+      "filename": "async-builtins.18.wasm",
+      "module_type": "binary",
+      "text": "canonical option `callback` cannot be specified for lowerings"
     }
   ]
 }

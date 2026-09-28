@@ -101,6 +101,13 @@
       "filename": "core-type.14.wasm",
       "module_type": "binary",
       "text": "type mismatch for export `b` of module instantiation argument `a`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 223,
+      "filename": "core-type.15.wasm",
+      "module_type": "binary",
+      "text": "cannot specify `gc` without also specifying a `core-type` for lowerings"
     }
   ]
 }
