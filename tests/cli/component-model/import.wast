@@ -357,3 +357,69 @@
   "\01a"            ;; name = "a"
   "\01\00"          ;; type = func ($type 0)
 )
+
+(component
+  (component $c
+    (type $t (instance (type $u u32) (export "t" (type (eq $u)))))
+    (import "a" (instance (type $t)))
+    (import "b" (instance (type $t)))
+  )
+  (type $u u32)
+  (instance $i (export "t" (type $u)))
+  (instance (instantiate $c
+    (with "a" (instance $i))
+    (with "b" (instance $i))
+  ))
+)
+
+(component
+  (component $c
+    (type $inner (instance (type $u u32) (export "t" (type (eq $u)))))
+    (type $outer (instance
+      (export "a" (instance (type $inner)))
+      (export "b" (instance (type $inner)))))
+    (import "x" (instance (type $outer))))
+  (type $u u32)
+  (instance $i (export "t" (type $u)))
+  (instance $o (export "a" (instance $i)) (export "b" (instance $i)))
+  (instance (instantiate $c (with "x" (instance $o))))
+)
+
+(component
+  (component $c
+    (type $t (instance (type $u u32) (export "t" (type (eq $u)))))
+    (import "a" (instance $a (type $t)))
+    (import "b" (instance $b (type $t)))
+    (alias export $a "t" (type $ta))
+    (alias export $b "t" (type $tb))
+    (export "ta" (type $ta))
+    (export "tb" (type $tb))
+    (type $la (list $ta))
+    (type $lb (list $tb))
+    (export "la" (type $la))
+    (export "lb" (type $lb)))
+  (type $u1 u32)
+  (type $u2 u32)
+  (instance $i1 (export "t" (type $u1)))
+  (instance $i2 (export "t" (type $u2)))
+  (instance $r (instantiate $c
+    (with "a" (instance $i1))
+    (with "b" (instance $i2))
+  ))
+  (export "r" (instance $r))
+)
+
+(component
+  (type $t (instance (type $u u32) (export "t" (type (eq $u)))))
+  (type $ct (component
+    (import "a" (instance (type $t)))
+    (import "b" (instance (type $t))))
+  )
+  (import "c" (component $c (type $ct)))
+  (type $u u32)
+  (instance $i (export "t" (type $u)))
+  (instance (instantiate $c
+    (with "a" (instance $i))
+    (with "b" (instance $i))
+  ))
+)
