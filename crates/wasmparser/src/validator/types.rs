@@ -947,7 +947,9 @@ impl TypeList {
             debug_assert_eq!(self.core_types.len(), self.core_type_to_supertype.len());
             debug_assert_eq!(self.core_types.len(), self.core_type_to_rec_group.len());
 
-            debug_assert!(ty.supertype_idxs.len() <= 2);
+            // Multiple supertypes aren't implemented here and are invalid
+            // anyway. That validity predicate should be checked already.
+            debug_assert!(ty.supertype_idxs.len() <= 1);
             self.core_type_to_supertype
                 .push(ty.supertype_idxs.get(0).and_then(|idx| match idx.unpack() {
                     UnpackedIndex::RecGroup(offset) => {
