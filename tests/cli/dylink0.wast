@@ -48,6 +48,7 @@
     (import-info "a" "a" 0)
     (import-info "b" "b" 1)
     (runtime-path "a" "b")
+    (target-arch "wasm32")
   )
 )
 
@@ -69,5 +70,12 @@
     (export-info "a" 0xffffffff)
     (export-info "a" binding-local)
     (export-info "a" 2 binding-local binding-weak 0 undefined)
+  )
+)
+
+(module
+  (@dylink.0
+    (mem-info (memory 1 1))
+    (target-arch "wasm64")
   )
 )

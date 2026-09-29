@@ -1,0 +1,6 @@
+(module
+  (@dylink.0
+    (mem-info (memory 1 1))
+    (target-arch "wasm64")
+  )
+)

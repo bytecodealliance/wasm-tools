@@ -8,5 +8,6 @@
     (import-info "a" "a" 0)
     (export-info "a" 2 binding-local binding-weak 0 undefined)
     (runtime-path "a" "b")
+    (target-arch "wasm32")
   )
 )

@@ -562,6 +562,7 @@ pub mod kw {
     custom_keyword!(export_info = "export-info");
     custom_keyword!(import_info = "import-info");
     custom_keyword!(runtime_path = "runtime-path");
+    custom_keyword!(target_arch = "target-arch");
     custom_keyword!(thread);
     custom_keyword!(thread_spawn_ref = "thread.spawn-ref");
     custom_keyword!(thread_spawn_indirect = "thread.spawn-indirect");

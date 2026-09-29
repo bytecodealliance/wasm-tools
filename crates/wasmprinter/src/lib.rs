@@ -2115,6 +2115,12 @@ impl Printer<'_, '_> {
                     }
                     self.end_group()?;
                 }
+                Dylink0Subsection::TargetArch(arch) => {
+                    self.newline(start)?;
+                    self.start_group("target-arch ")?;
+                    self.print_str(arch)?;
+                    self.end_group()?;
+                }
                 Dylink0Subsection::Unknown { ty, .. } => {
                     bail!("don't know how to print dylink.0 subsection id {ty}");
                 }

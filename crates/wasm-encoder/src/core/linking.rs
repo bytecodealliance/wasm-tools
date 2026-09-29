@@ -62,6 +62,15 @@ impl LinkingSection {
         symbol_table.encode(&mut self.bytes);
         self
     }
+
+    /// Add a target architecture subsection, e.g. `"wasm32"` or `"wasm64"`.
+    pub fn target_arch(&mut self, arch: &str) -> &mut Self {
+        self.bytes.push(WASM_TARGET_ARCH);
+        let mut subsection = Vec::new();
+        arch.encode(&mut subsection);
+        subsection.as_slice().encode(&mut self.bytes);
+        self
+    }
 }
 
 impl Default for LinkingSection {
@@ -95,6 +104,7 @@ const WASM_INIT_FUNCS: u8 = 6;
 #[allow(unused)]
 const WASM_COMDAT_INFO: u8 = 7;
 const WASM_SYMBOL_TABLE: u8 = 8;
+const WASM_TARGET_ARCH: u8 = 9;
 
 /// A subsection of the [linking custom section][crate::LinkingSection] that
 /// provides extra information about the symbols present in this Wasm object

@@ -387,6 +387,11 @@ impl<'a> Metadata<'a> {
                                 Dylink0Subsection::RuntimePath(runtime_path) => {
                                     result.runtime_path.extend(runtime_path.iter());
                                 }
+                                Dylink0Subsection::TargetArch(arch) => {
+                                    if arch != "wasm32" {
+                                        bail!("unsupported `dylink.0` target architecture: {arch}")
+                                    }
+                                }
                                 Dylink0Subsection::Unknown { ty, .. } => {
                                     bail!("unrecognized `dylink.0` subsection: {ty}")
                                 }
