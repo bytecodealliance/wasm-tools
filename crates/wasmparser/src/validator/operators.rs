@@ -75,6 +75,10 @@ pub(crate) struct OperatorValidator {
     #[cfg(debug_assertions)]
     pub(crate) pop_push_log: Vec<bool>,
 
+    /// The number of pops skipped entirely because of unreachable code.
+    #[cfg(debug_assertions)]
+    pub(crate) elided_bottom_pops: u32,
+
     /// When "try-op" validation of an operator is pending, this is a trace
     /// of discarded info that can restore the OperatorValidator to its
     /// pre-operator state if necessary.
@@ -375,6 +379,8 @@ impl OperatorValidator {
             shared: false,
             #[cfg(debug_assertions)]
             pop_push_log: vec![],
+            #[cfg(debug_assertions)]
+            elided_bottom_pops: 0,
             transaction: Transaction::new(rollback_log),
         }
     }
@@ -3908,7 +3914,25 @@ where
     fn visit_array_new_fixed(&mut self, type_index: u32, n: u32) -> Self::Output {
         let array_ty = self.array_type_at(type_index)?;
         let elem_ty = array_ty.element_type.unpack();
-        for _ in 0..n {
+        for i in 0..n {
+            // Generally speaking this loop is `O(n)`, but for most modules that
+            // requires doing `O(n)` work to create the operand stack so that's
+            // not really a huge problem. This is a problem for unreachable
+            // code, however, where `array.new_fixed HUGE` is valid and
+            // executing this loop would be `O(HUGE)` for just a single
+            // instruction. To help counteract that this breaks out as soon as
+            // the control stack is empty and unreachable and instead just
+            // breaks out immediately since there's nothing else to remove.
+            let frame = self.control.last().unwrap();
+            if self.operands.len() == frame.height && frame.unreachable {
+                let _ = i;
+                assert_eq!(self.pop_operand(Some(elem_ty))?, MaybeType::Bottom);
+                #[cfg(debug_assertions)]
+                {
+                    self.elided_bottom_pops += n - i - 1;
+                }
+                break;
+            }
             self.pop_operand(Some(elem_ty))?;
         }
         self.push_exact_ref_if_available(false, type_index)

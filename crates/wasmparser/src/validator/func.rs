@@ -132,6 +132,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
                 let _ = self.op(reader.original_position(), &op);
                 self.validator.rollback();
                 self.validator.pop_push_log.clear();
+                self.validator.elided_bottom_pops = 0;
                 assert!(self.validator == snapshot);
             }
 
@@ -166,6 +167,8 @@ impl<T: WasmModuleResources> FuncValidator<T> {
                         false => pop_count += 1,
                     }
                 }
+                pop_count += self.validator.elided_bottom_pops;
+                self.validator.elided_bottom_pops = 0;
 
                 if pop_count != params || push_count != results {
                     panic!(
