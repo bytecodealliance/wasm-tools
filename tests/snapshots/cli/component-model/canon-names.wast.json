@@ -60,7 +60,7 @@
       "line": 52,
       "filename": "canon-names.8.wasm",
       "module_type": "binary",
-      "text": "expected `0.0.1` with no version suffix"
+      "text": "is not the canonical version of `0.0.1`"
     },
     {
       "type": "assert_invalid",

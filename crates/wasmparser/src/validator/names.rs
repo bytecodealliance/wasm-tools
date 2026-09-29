@@ -2,7 +2,7 @@
 //! component model.
 
 use crate::prelude::*;
-use crate::{Result, WasmFeatures, require_feature};
+use crate::{Error, Result, WasmFeatures, require_feature};
 use core::cmp::Ordering;
 use core::fmt;
 use core::hash::{Hash, Hasher};
@@ -734,20 +734,23 @@ impl<'a> InterfaceName<'a> {
     /// field in the binary format. This is appended to the version to form the
     /// full version, if specified. If `None` then the name is required to have
     /// a full version as-is.
-    pub fn version(&self, suffix: Option<&str>) -> Result<Option<Version>, VersionError> {
-        let invalid = |e| VersionError(VersionErrorKind::Invalid(e));
+    pub fn version(&self, suffix: Option<&str>) -> Result<Option<Version>> {
+        let invalid = |e: &str| Error::new(e, 0);
         match (self.version_prefix(), suffix) {
             (None, None) => Ok(None),
-            (None, Some(_)) => Err(VersionError(VersionErrorKind::SuffixWithoutVersion)),
-            (Some(prefix), None) => Ok(Some(Version::parse(prefix).map_err(invalid)?)),
+            (None, Some(_)) => Err(invalid(
+                "a version suffix requires the name to have a version",
+            )),
+            (Some(prefix), None) => Ok(Some(
+                Version::parse(prefix).map_err(|e| invalid(&e.to_string()))?,
+            )),
             (Some(prefix), Some(suffix)) => {
                 let full = format!("{prefix}{suffix}");
-                let version = Version::parse(&full).map_err(invalid)?;
+                let version = Version::parse(&full).map_err(|e| invalid(&e.to_string()))?;
                 if split_canonical_version(&full) != Some((prefix, Some(suffix))) {
-                    return Err(VersionError(VersionErrorKind::NotCanonical {
-                        prefix_len: prefix.len(),
-                        version: full,
-                    }));
+                    return Err(invalid(&format!(
+                        "`{prefix}` is not the canonical version of `{full}`"
+                    )));
                 }
                 Ok(Some(version))
             }
@@ -822,55 +825,6 @@ impl Hash for InterfaceName<'_> {
         }
     }
 }
-
-/// An error returned from [`InterfaceName::version`] for an invalid version,
-/// or version suffix, of an interface name.
-#[derive(Debug)]
-pub struct VersionError(VersionErrorKind);
-
-#[derive(Debug)]
-enum VersionErrorKind {
-    /// The full version isn't a valid version.
-    Invalid(semver::Error),
-    /// A version suffix was specified for a name without a version.
-    SuffixWithoutVersion,
-    /// The first `prefix_len` bytes of the full `version`, the version in the
-    /// name, aren't its canonical version.
-    NotCanonical { version: String, prefix_len: usize },
-}
-
-impl fmt::Display for VersionError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.0 {
-            VersionErrorKind::Invalid(e) => e.fmt(f),
-            VersionErrorKind::SuffixWithoutVersion => {
-                f.write_str("a version suffix requires the name to have a version")
-            }
-            VersionErrorKind::NotCanonical {
-                version,
-                prefix_len,
-            } => {
-                let (prefix, suffix) = version.split_at(*prefix_len);
-                write!(
-                    f,
-                    "`{prefix}` with version suffix `{suffix}` is not the \
-                     canonical version of `{version}`: "
-                )?;
-                match split_canonical_version(version) {
-                    Some((canonical, Some(rest))) => {
-                        write!(f, "expected `{canonical}` with version suffix `{rest}`")
-                    }
-                    Some((canonical, None)) => {
-                        write!(f, "expected `{canonical}` with no version suffix")
-                    }
-                    None => unreachable!(),
-                }
-            }
-        }
-    }
-}
-
-impl core::error::Error for VersionError {}
 
 /// Splits the full `version` into its canonical version and the remaining
 /// version suffix, as used by canonical interface names in the component

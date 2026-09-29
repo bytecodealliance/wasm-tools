@@ -50,7 +50,7 @@
 
 (assert_invalid
   (component (import "a:b/c@0.0" (versionsuffix ".1") (instance)))
-  "expected `0.0.1` with no version suffix")
+  "is not the canonical version of `0.0.1`")
 
 (assert_invalid
   (component (import "a:b/c@1.0.0" (versionsuffix "-rc1") (instance)))

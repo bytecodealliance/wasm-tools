@@ -4745,9 +4745,9 @@ impl ComponentNameContext {
                 .with_context(|| format!("`{implements}` is not a valid name"))?;
             match implements.kind() {
                 ComponentNameKind::Interface(iface) => {
-                    if let Err(e) = iface.version(version_suffix) {
-                        bail!(offset, "invalid interface version: {e}");
-                    }
+                    iface.version(version_suffix).map_err(|e| {
+                        format_err!(offset, "invalid interface version: {}", e.message())
+                    })?;
                 }
                 _ => bail!(offset, "name `{implements}` must be an interface"),
             }
@@ -4872,9 +4872,9 @@ impl ComponentNameContext {
             // Validate the `version_suffix` field in the context of interface
             // names.
             ComponentNameKind::Interface(name) => {
-                if let Err(e) = name.version(version_suffix) {
-                    bail!(offset, "invalid interface version: {e}");
-                }
+                name.version(version_suffix).map_err(|e| {
+                    format_err!(offset, "invalid interface version: {}", e.message())
+                })?;
             }
 
             ComponentNameKind::Plain(name) => {
