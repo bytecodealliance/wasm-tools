@@ -113,15 +113,15 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            rust: stable
+            rust: 1.97.1
           - os: ubuntu-latest
-            rust: beta
+            rust: beta-2026-07-19
           - os: ubuntu-latest
             rust: nightly-2026-01-20
           - os: macos-latest
-            rust: stable
+            rust: 1.97.1
           - os: windows-latest
-            rust: stable
+            rust: 1.97.1
           - os: ubuntu-latest
             rust: msrv
             # skip testing crates that require wasmtime since wasmtime has a
@@ -134,12 +134,12 @@ jobs:
           # test that if `RUST_BACKTRACE=1` is set in the environment that all
           # tests with blessed error messages still pass.
           - os: ubuntu-latest
-            rust: stable
+            rust: 1.97.1
             env:
               RUST_BACKTRACE: 1
           # test the 'try_op' feature
           - os: ubuntu-latest
-            rust: stable
+            rust: 1.97.1
             env:
               RUSTFLAGS: --cfg=debug_check_try_op
             flags: -F wasmparser/try-op
@@ -244,7 +244,7 @@ jobs:
         submodules: true
     - uses: ./.github/actions/install-rust
       with:
-        toolchain: nightly
+        toolchain: nightly-2026-01-20
     - run: cargo install cargo-fuzz
     - run: cargo fuzz build --dev -s none
     - run: cargo fuzz build --dev --features wasmtime -s none
