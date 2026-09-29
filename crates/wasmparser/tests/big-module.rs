@@ -123,3 +123,62 @@ fn deeply_nested_component_types() {
     assert!(validate(&nested_instance_types(5000)).is_err());
     assert!(validate(&nested_instance_types(50000)).is_err());
 }
+
+#[test]
+fn too_many_core_types_across_modules() {
+    use wasmparser::{Validator, WasmFeatures};
+
+    fn rec_group_module(n: u32, inner: impl Fn() -> CompositeInnerType) -> Module {
+        let mut types = TypeSection::new();
+        types.ty().rec((0..n).map(|_| SubType {
+            is_final: true,
+            supertype_idxs: Vec::new(),
+            composite_type: CompositeType {
+                inner: inner(),
+                shared: false,
+                descriptor: None,
+                describes: None,
+            },
+        }));
+        let mut module = Module::new();
+        module.section(&types);
+        module
+    }
+
+    fn validate(wasm: &[u8]) -> wasmparser::Result<()> {
+        Validator::new_with_features(WasmFeatures::all())
+            .validate_all(wasm)
+            .map(|_| ())
+    }
+
+    // Each module is within the per-module type limit and validates on its
+    // own ...
+    const N: u32 = 600_000;
+    let a = rec_group_module(N, || {
+        CompositeInnerType::Struct(StructType {
+            fields: Box::new([]),
+        })
+    });
+    let mut b = rec_group_module(N, || CompositeInnerType::Func(FuncType::new([], [])));
+    let mut funcs = FunctionSection::new();
+    funcs.function(0);
+    b.section(&funcs);
+    let mut code = CodeSection::new();
+    let mut body = Function::new([]);
+    body.instructions()
+        .ref_null(HeapType::Concrete(N - 1))
+        .drop()
+        .end();
+    code.function(&body);
+    b.section(&code);
+    let x = a.clone().finish();
+    validate(&x).unwrap();
+    validate(&b.clone().finish()).unwrap();
+
+    // ... but right now they can't validate together within the same component
+    // so this should at least not panic.
+    let mut component = Component::new();
+    component.section(&ModuleSection(&a));
+    component.section(&ModuleSection(&b));
+    assert!(validate(&component.finish()).is_err());
+}

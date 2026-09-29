@@ -1216,10 +1216,10 @@ pub(crate) enum LoweredFuncType {
 }
 
 impl LoweredFuncType {
-    pub(crate) fn intern(self, types: &mut TypeAlloc, offset: u64) -> CoreTypeId {
+    pub(crate) fn intern(self, types: &mut TypeAlloc, offset: u64) -> Result<CoreTypeId> {
         match self {
             LoweredFuncType::New(ty) => types.intern_func_type(ty, offset),
-            LoweredFuncType::Existing(id) => id,
+            LoweredFuncType::Existing(id) => Ok(id),
         }
     }
 }
