@@ -11,7 +11,7 @@ use super::{
         RecordType, Remap, Remapping, ResourceId, SubtypeCx, TupleType, VariantCase, VariantType,
     },
     core::{InternRecGroup, Module},
-    types::{CoreTypeId, EntityType, TypeAlloc, TypeData, TypeInfo, TypeList},
+    types::{CoreTypeId, EntityType, TypeAlloc, TypeInfo, TypeList},
 };
 use crate::prelude::*;
 use crate::validator::names::{ComponentName, ComponentNameKind, KebabStr, KebabString};
@@ -592,10 +592,6 @@ impl ComponentState {
         let id = match ty {
             crate::ComponentType::Defined(ty) => {
                 let ty = current(components).create_defined_type(ty, types, offset)?;
-                let depth = ty.type_info(types).depth();
-                if depth > MAX_WASM_COMPONENT_TYPE_DEPTH {
-                    bail!(offset, "type nesting is too deep");
-                }
                 types.push(ty).into()
             }
             crate::ComponentType::Func(ty) => {
