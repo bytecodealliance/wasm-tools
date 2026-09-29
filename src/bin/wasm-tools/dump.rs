@@ -784,6 +784,10 @@ impl<'a> Dump<'a> {
                 write!(me.state, "{item:?}")?;
                 me.print(pos)
             }),
+            Linking::TargetArch(arch) => {
+                write!(self.state, "target arch: {arch:?}")?;
+                self.print(end)
+            }
             Linking::Unknown { ty, range, .. } => {
                 write!(self.state, "unknown subsection: {ty}")?;
                 self.print(range.start)?;

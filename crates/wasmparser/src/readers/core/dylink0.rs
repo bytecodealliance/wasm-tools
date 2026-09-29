@@ -13,6 +13,7 @@ const WASM_DYLINK_NEEDED: u8 = 2;
 const WASM_DYLINK_EXPORT_INFO: u8 = 3;
 const WASM_DYLINK_IMPORT_INFO: u8 = 4;
 const WASM_DYLINK_RUNTIME_PATH: u8 = 5;
+const WASM_DYLINK_TARGET_ARCH: u8 = 6;
 
 /// Represents a `WASM_DYLINK_MEM_INFO` field
 #[derive(Debug, Copy, Clone)]
@@ -58,6 +59,7 @@ pub enum Dylink0Subsection<'a> {
     ExportInfo(Vec<ExportInfo<'a>>),
     ImportInfo(Vec<ImportInfo<'a>>),
     RuntimePath(Vec<&'a str>),
+    TargetArch(&'a str),
     Unknown {
         ty: u8,
         data: &'a [u8],
@@ -105,6 +107,7 @@ impl<'a> Subsection<'a> for Dylink0Subsection<'a> {
                     .map(|_| reader.read_unlimited_string())
                     .collect::<Result<_, _>>()?,
             ),
+            WASM_DYLINK_TARGET_ARCH => Self::TargetArch(reader.read_unlimited_string()?),
             ty => Self::Unknown {
                 ty,
                 data: reader.remaining_buffer(),
