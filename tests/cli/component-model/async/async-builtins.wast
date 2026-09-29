@@ -168,3 +168,50 @@
     (core func (canon future.forward $stream-type)))
   "`future.forward` requires a future type"
 )
+
+;; future.write can't use some canonical options that only make sense for
+;; lifting
+(assert_invalid
+  (component
+    (core module $libc (memory (export "memory") 1) (func (export "p")))
+    (core instance $libc (instantiate $libc))
+    (type $future-type (future u8))
+    (core func $future-write
+      (canon future.write $future-type
+        (memory (core memory $libc "memory"))
+        (post-return (core func $libc "p"))
+      )
+    )
+  )
+  "canonical option `post-return` cannot be specified for lowerings"
+)
+(assert_invalid
+  (component
+    (core module $libc (memory (export "memory") 1))
+    (core instance $libc (instantiate $libc))
+    (type $future-type (future u8))
+    (core func $future-write
+      (canon future.write $future-type
+        (memory (core memory $libc "memory"))
+        (post-return (core func 9999))
+      )
+    )
+  )
+  "canonical option `post-return` cannot be specified for lowerings"
+)
+(assert_invalid
+  (component
+    (core module $libc (memory (export "memory") 1))
+    (core instance $libc (instantiate $libc))
+    (type $future-type (future u8))
+    (core func $future-write
+      (canon future.write $future-type
+        async
+        (memory (core memory $libc "memory"))
+        (callback (core func 9999))
+      )
+    )
+  )
+  "canonical option `callback` cannot be specified for lowerings"
+)
+

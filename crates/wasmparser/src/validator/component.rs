@@ -1938,6 +1938,7 @@ impl ComponentState {
         }
         let ty_id = options
             .require_memory_if(offset, || elem_ty.is_some())?
+            .check_lower(offset)?
             .check_core_type(
                 types,
                 FuncType::new([ValType::I32, ptr], [ValType::I32]),
