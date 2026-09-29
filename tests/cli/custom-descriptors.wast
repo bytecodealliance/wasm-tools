@@ -164,3 +164,16 @@
   )
   "describes with no matching descriptor"
 )
+
+(assert_invalid
+  (module
+    (type $f (func))
+    (type $g (func))
+    (rec
+      (type $A (descriptor $A.desc) (struct))
+      (type $A.desc (describes $A) (struct)))
+    (func (param anyref) (param (ref null $A)) (result (ref null $A))
+      local.get 0
+      local.get 1
+      ref.cast_desc_eq (ref null $A)))
+  "type mismatch")
