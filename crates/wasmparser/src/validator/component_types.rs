@@ -1057,8 +1057,6 @@ pub struct ComponentItem {
 
 impl ComponentItem {
     /// Returns the full name of the interface in `implements`, if specified.
-    ///
-    /// See [`ComponentExternName::full_implements`] for more information.
     pub fn full_implements(&self) -> Option<Cow<'_, str>> {
         Some(crate::with_version_suffix(
             self.implements.as_ref()?,

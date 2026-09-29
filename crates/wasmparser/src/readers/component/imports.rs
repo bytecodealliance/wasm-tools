@@ -148,8 +148,9 @@ impl<'a> ComponentExternName<'a> {
 /// Appends `version_suffix` to `name` if it's an interface name with a
 /// version, such as `a:b/c@0.2`, and otherwise returns `name` as-is.
 pub(crate) fn with_version_suffix<'a>(name: &'a str, version_suffix: Option<&str>) -> Cow<'a, str> {
+    use crate::prelude::ToString;
     match version_suffix {
-        Some(suffix) if name.contains('@') => Cow::Owned(format!("{name}{suffix}")),
+        Some(suffix) if name.contains('@') => Cow::Owned(name.to_string() + suffix),
         _ => Cow::Borrowed(name),
     }
 }

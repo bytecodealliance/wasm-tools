@@ -950,7 +950,6 @@ pub fn split_canonical_version(version: &str) -> Option<(&str, Option<&str>)> {
 
 /// Returns whether `version` is a canonical version, such as the `0.2` in the
 /// canonical interface name `a:b/c@0.2`.
-/// ```
 pub fn is_canonical_version(version: &str) -> bool {
     match version.split_once('.') {
         None => version != "0" && is_version_number(version),
