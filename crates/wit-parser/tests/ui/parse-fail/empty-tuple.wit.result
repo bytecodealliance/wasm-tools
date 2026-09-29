@@ -1,0 +1,5 @@
+empty tuple
+     --> tests/ui/parse-fail/empty-tuple.wit:5:12
+      |
+    5 |   type t = tuple<>;
+      |            ^----

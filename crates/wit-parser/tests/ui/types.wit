@@ -27,7 +27,6 @@ interface types {
   record t22 { a: u32, b: u64, }
   record t23 { x: u32 }
   record %record { a: u32 }
-  type t24 = tuple<>;
   type t25 = tuple<u32>;
   type t26 = tuple<u32,>;
   type t27 = tuple<u32, u64>;

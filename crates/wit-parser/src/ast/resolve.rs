@@ -1335,6 +1335,9 @@ impl<'a> Resolver<'a> {
                 TypeDefKind::Flags(Flags { flags })
             }
             ast::Type::Tuple(t) => {
+                if t.types.is_empty() {
+                    return Err(ParseError::new_syntax(t.span, "empty tuple".to_owned()));
+                }
                 let types = t
                     .types
                     .iter()
