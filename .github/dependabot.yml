@@ -15,4 +15,4 @@ updates:
       - "alexcrichton"
     ignore:
       - dependency-name: "*"
-        update-types: ["version-update:semver-minor"]
+        update-types: ["version-update:semver-patch"]
