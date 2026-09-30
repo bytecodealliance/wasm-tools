@@ -1,0 +1,126 @@
+{
+  "worlds": [],
+  "interfaces": [
+    {
+      "name": "distinct-names",
+      "types": {
+        "r": 0,
+        "f": 1,
+        "v": 2,
+        "e": 3
+      },
+      "functions": {
+        "g": {
+          "name": "g",
+          "kind": "freestanding",
+          "params": [
+            {
+              "name": "p1",
+              "type": "u32"
+            },
+            {
+              "name": "p2",
+              "type": "u32"
+            }
+          ]
+        }
+      },
+      "package": 0
+    }
+  ],
+  "types": [
+    {
+      "name": "r",
+      "kind": {
+        "record": {
+          "fields": [
+            {
+              "name": "a1",
+              "type": "u32"
+            },
+            {
+              "name": "a2",
+              "type": "u32"
+            },
+            {
+              "name": "a-b1",
+              "type": "u32"
+            },
+            {
+              "name": "a-b2",
+              "type": "u32"
+            }
+          ]
+        }
+      },
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "name": "f",
+      "kind": {
+        "flags": {
+          "flags": [
+            {
+              "name": "f1"
+            },
+            {
+              "name": "f2"
+            }
+          ]
+        }
+      },
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "name": "v",
+      "kind": {
+        "variant": {
+          "cases": [
+            {
+              "name": "c1",
+              "type": "u32"
+            },
+            {
+              "name": "c2",
+              "type": null
+            }
+          ]
+        }
+      },
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "name": "e",
+      "kind": {
+        "enum": {
+          "cases": [
+            {
+              "name": "e1"
+            },
+            {
+              "name": "e2"
+            }
+          ]
+        }
+      },
+      "owner": {
+        "interface": 0
+      }
+    }
+  ],
+  "packages": [
+    {
+      "name": "foo:foo",
+      "interfaces": {
+        "distinct-names": 0
+      },
+      "worlds": {}
+    }
+  ]
+}

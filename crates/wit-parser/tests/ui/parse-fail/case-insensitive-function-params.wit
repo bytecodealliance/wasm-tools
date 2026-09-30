@@ -1,0 +1,6 @@
+// parse-fail
+package foo:foo;
+
+interface foo {
+  f: func(foo: u32, FOO: u64);
+}

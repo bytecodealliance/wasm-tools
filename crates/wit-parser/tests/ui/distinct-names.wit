@@ -1,0 +1,9 @@
+package foo:foo;
+
+interface distinct-names {
+  record r { a1: u32, a2: u32, a-b1: u32, a-b2: u32 }
+  flags f { f1, f2 }
+  variant v { c1(u32), c2 }
+  enum e { e1, e2 }
+  g: func(p1: u32, p2: u32);
+}
