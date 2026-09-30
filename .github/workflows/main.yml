@@ -91,7 +91,7 @@ jobs:
     - run: rustup target add $CARGO_BUILD_TARGET
     - run: ./ci/build-release-artifacts.sh
     - run: ./ci/build-tarballs.sh "${{ matrix.build }}"
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       with:
         name: bins-${{ matrix.build }}
         path: dist
