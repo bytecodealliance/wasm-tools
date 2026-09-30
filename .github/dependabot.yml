@@ -10,4 +10,5 @@ updates:
     schedule:
       interval: "weekly"
     allow:
-      - update-types: "version-update:semver-major"
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
