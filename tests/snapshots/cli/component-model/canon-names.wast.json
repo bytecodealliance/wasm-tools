@@ -8,25 +8,94 @@
       "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
-      "line": 15,
+      "type": "module",
+      "line": 19,
       "filename": "canon-names.1.wasm",
-      "module_type": "binary",
-      "text": "invalid interface version"
+      "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 19,
+      "line": 26,
       "filename": "canon-names.2.wasm",
       "module_type": "binary",
       "text": "invalid interface version"
     },
     {
       "type": "assert_invalid",
-      "line": 23,
+      "line": 30,
       "filename": "canon-names.3.wasm",
       "module_type": "binary",
+      "text": "invalid interface version"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 34,
+      "filename": "canon-names.4.wasm",
+      "module_type": "binary",
       "text": "only instances can have"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 40,
+      "filename": "canon-names.5.wasm",
+      "module_type": "binary",
+      "text": "is not the canonical version of `1.2.3`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 44,
+      "filename": "canon-names.6.wasm",
+      "module_type": "binary",
+      "text": "is not the canonical version of `1.2.3`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 48,
+      "filename": "canon-names.7.wasm",
+      "module_type": "binary",
+      "text": "is not the canonical version of `0.2.1+b`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 52,
+      "filename": "canon-names.8.wasm",
+      "module_type": "binary",
+      "text": "is not the canonical version of `0.0.1`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 56,
+      "filename": "canon-names.9.wasm",
+      "module_type": "binary",
+      "text": "is not the canonical version of `1.0.0-rc1`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 60,
+      "filename": "canon-names.10.wasm",
+      "module_type": "binary",
+      "text": "invalid interface version"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 64,
+      "filename": "canon-names.11.wasm",
+      "module_type": "binary",
+      "text": "is not the canonical version of `1.2.3`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 71,
+      "filename": "canon-names.12.wasm",
+      "module_type": "binary",
+      "text": "a version suffix requires the name to have a version"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 76,
+      "filename": "canon-names.13.wasm",
+      "module_type": "binary",
+      "text": "`versionsuffix` requires an interface name or `implements`"
     }
   ]
 }

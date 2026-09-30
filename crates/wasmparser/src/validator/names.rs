@@ -2,7 +2,7 @@
 //! component model.
 
 use crate::prelude::*;
-use crate::{Result, WasmFeatures, require_feature};
+use crate::{Error, Result, WasmFeatures, require_feature};
 use core::cmp::Ordering;
 use core::fmt;
 use core::hash::{Hash, Hasher};
@@ -724,23 +724,36 @@ impl<'a> InterfaceName<'a> {
         KebabStr::new_unchecked(&self.0[slash + 1..at])
     }
 
-    /// Returns the `1.2.3` in `a:b:c/d/e@1.2.3`
+    /// Validate the version from the interface name and the provided suffix
+    /// is well-formed, and returns the full version.
+    /// For example `a:b/c@0.2` with a suffix of `.1` returns `0.2.1`,
+    /// but `a:b/c@1.2` with a suffix of `.3` returns an error, since
+    /// the canonical version of `1.2.3` is `1`.
     ///
     /// The `suffix` provided here is the optionally specified `versionsuffix`
     /// field in the binary format. This is appended to the version to form the
     /// full version, if specified. If `None` then the name is required to have
     /// a full version as-is.
-    pub fn version(&self, suffix: Option<&str>) -> Result<Option<Version>, semver::Error> {
-        let Some(prefix) = self.version_prefix() else {
-            return Ok(None);
-        };
-        match suffix {
-            // FIXME: this should perform full validation of the version
-            // suffix/prefix, notably that "prefix" is indeed the "semver track"
-            // that is expected. For example "1.2.3" means that prefix must be
-            // "1", nothing else. This validation is deferred to a future PR.
-            Some(suffix) => Ok(Some(Version::parse(&format!("{prefix}{suffix}"))?)),
-            None => Ok(Some(Version::parse(prefix)?)),
+    pub fn version(&self, suffix: Option<&str>) -> Result<Option<Version>> {
+        let invalid = |e: &str| Error::new(e, 0);
+        match (self.version_prefix(), suffix) {
+            (None, None) => Ok(None),
+            (None, Some(_)) => Err(invalid(
+                "a version suffix requires the name to have a version",
+            )),
+            (Some(prefix), None) => Ok(Some(
+                Version::parse(prefix).map_err(|e| invalid(&e.to_string()))?,
+            )),
+            (Some(prefix), Some(suffix)) => {
+                let full = format!("{prefix}{suffix}");
+                let version = Version::parse(&full).map_err(|e| invalid(&e.to_string()))?;
+                if split_canonical_version(&full) != Some((prefix, Some(suffix))) {
+                    return Err(invalid(&format!(
+                        "`{prefix}` is not the canonical version of `{full}`"
+                    )));
+                }
+                Ok(Some(version))
+            }
         }
     }
 
@@ -811,6 +824,98 @@ impl Hash for InterfaceName<'_> {
             component.hash(state);
         }
     }
+}
+
+/// Splits the full `version` into its canonical version and the remaining
+/// version suffix, as used by canonical interface names in the component
+/// model.
+///
+/// The returned canonical version and version suffix are subslices of
+/// `version` whose concatenation is `version`. In a canonical interface name
+/// the canonical version is the version in the name, e.g. the `0.2` in
+/// `a:b/c@0.2`, and the version suffix, if any, is its `versionsuffix`. With
+/// `version` of the form `major.minor.patch(-pre)(+build)` the canonical
+/// version is:
+///
+/// * `major`, if there's no `-pre` and `major` isn't 0.
+/// * `0.minor`, if there's no `-pre` and `minor` isn't 0.
+/// * `version` without `+build` otherwise, i.e. for `0.0.patch` or when there's
+///   a `-pre`.
+///
+/// The version suffix is the rest of `version`, which always includes the
+/// `+build`, or `None` if that's empty.
+///
+/// Returns `None` if `version` isn't a valid semantic version.
+///
+/// # Examples
+///
+/// ```
+/// use wasmparser::names::split_canonical_version;
+///
+/// assert_eq!(split_canonical_version("1.2.3+abc"), Some(("1", Some(".2.3+abc"))));
+/// assert_eq!(split_canonical_version("0.2.1"), Some(("0.2", Some(".1"))));
+/// assert_eq!(split_canonical_version("0.0.1"), Some(("0.0.1", None)));
+/// assert_eq!(split_canonical_version("0.0.1+b"), Some(("0.0.1", Some("+b"))));
+/// assert_eq!(split_canonical_version("1.0.0-rc1"), Some(("1.0.0-rc1", None)));
+/// assert_eq!(split_canonical_version("1.2"), None);
+/// ```
+pub fn split_canonical_version(version: &str) -> Option<(&str, Option<&str>)> {
+    let is_identifier =
+        |s: &str| !s.is_empty() && s.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-');
+    let (without_build, build) = match version.split_once('+') {
+        Some((a, b)) => (a, Some(b)),
+        None => (version, None),
+    };
+    if build.is_some_and(|b| !b.split('.').all(is_identifier)) {
+        return None;
+    }
+    let (core, pre) = match without_build.split_once('-') {
+        Some((a, b)) => (a, Some(b)),
+        None => (without_build, None),
+    };
+    if pre.is_some_and(|p| !p.split('.').all(is_identifier)) {
+        return None;
+    }
+    let mut numbers = core.split('.');
+    let (Some(major), Some(minor), Some(patch), None) = (
+        numbers.next(),
+        numbers.next(),
+        numbers.next(),
+        numbers.next(),
+    ) else {
+        return None;
+    };
+    if ![major, minor, patch].into_iter().all(is_version_number) {
+        return None;
+    }
+
+    let split = if pre.is_none() && major != "0" {
+        major.len()
+    } else if pre.is_none() && minor != "0" {
+        major.len() + 1 + minor.len()
+    } else {
+        without_build.len()
+    };
+    match version.split_at(split) {
+        (canonical, "") => Some((canonical, None)),
+        (canonical, suffix) => Some((canonical, Some(suffix))),
+    }
+}
+
+/// Returns whether `version` is a canonical version, such as the `0.2` in the
+/// canonical interface name `a:b/c@0.2`.
+pub fn is_canonical_version(version: &str) -> bool {
+    match version.split_once('.') {
+        None => version != "0" && is_version_number(version),
+        Some(("0", minor)) if minor != "0" && is_version_number(minor) => true,
+        _ => split_canonical_version(version) == Some((version, None)),
+    }
+}
+
+/// Returns whether `s` is a valid `major`, `minor`, or `patch` number of a
+/// version.
+fn is_version_number(s: &str) -> bool {
+    !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()) && (s == "0" || !s.starts_with('0'))
 }
 
 /// A dependency on an implementation either as `locked-dep=...` or
@@ -1422,5 +1527,24 @@ mod tests {
             getter("[static][set]foo-a.bar-B"),
             "[static][get]foo-a.bar-B"
         );
+    }
+
+    #[test]
+    fn test_split_canonical_version() {
+        let split = split_canonical_version;
+        assert_eq!(split("1.2.3"), Some(("1", Some(".2.3"))));
+        assert_eq!(split("1.0.0"), Some(("1", Some(".0.0"))));
+        assert_eq!(split("101.201.301"), Some(("101", Some(".201.301"))));
+        assert_eq!(split("1.2.3+abc"), Some(("1", Some(".2.3+abc"))));
+        assert_eq!(split("0.2.1"), Some(("0.2", Some(".1"))));
+        assert_eq!(split("0.10.0+b.1"), Some(("0.10", Some(".0+b.1"))));
+        assert_eq!(split("0.0.1"), Some(("0.0.1", None)));
+        assert_eq!(split("0.0.0"), Some(("0.0.0", None)));
+        assert_eq!(split("0.0.1+b"), Some(("0.0.1", Some("+b"))));
+        assert_eq!(split("1.0.0-rc1"), Some(("1.0.0-rc1", None)));
+        assert_eq!(split("0.2.6-rc.1"), Some(("0.2.6-rc.1", None)));
+        assert_eq!(split("1.0.0-rc1+b"), Some(("1.0.0-rc1", Some("+b"))));
+        assert_eq!(split("1.0.0-a-b+c-d"), Some(("1.0.0-a-b", Some("+c-d"))));
+        assert_eq!(split("0.1.0-a+b-c+d"), None);
     }
 }

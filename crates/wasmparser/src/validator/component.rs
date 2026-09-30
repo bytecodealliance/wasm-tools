@@ -4721,6 +4721,14 @@ impl ComponentNameContext {
             if suffix.is_empty() {
                 bail!(offset, "version suffix cannot be empty");
             }
+            // Without `implements` the version suffix applies to `name`, so
+            // it must be an interface name. Its version is validated below.
+            if implements.is_none() && !matches!(kebab.kind(), ComponentNameKind::Interface(_)) {
+                bail!(
+                    offset,
+                    "`versionsuffix` requires an interface name or `implements`"
+                );
+            }
         }
 
         if let Some(implements) = implements {
@@ -4743,9 +4751,9 @@ impl ComponentNameContext {
                 .with_context(|| format!("`{implements}` is not a valid name"))?;
             match implements.kind() {
                 ComponentNameKind::Interface(iface) => {
-                    if let Err(e) = iface.version(version_suffix) {
-                        bail!(offset, "invalid interface version: {e}");
-                    }
+                    iface.version(version_suffix).map_err(|e| {
+                        format_err!(offset, "invalid interface version: {}", e.message())
+                    })?;
                 }
                 _ => bail!(offset, "name `{implements}` must be an interface"),
             }
@@ -4870,9 +4878,9 @@ impl ComponentNameContext {
             // Validate the `version_suffix` field in the context of interface
             // names.
             ComponentNameKind::Interface(name) => {
-                if let Err(e) = name.version(version_suffix) {
-                    bail!(offset, "invalid interface version: {e}");
-                }
+                name.version(version_suffix).map_err(|e| {
+                    format_err!(offset, "invalid interface version: {}", e.message())
+                })?;
             }
 
             ComponentNameKind::Plain(name) => {

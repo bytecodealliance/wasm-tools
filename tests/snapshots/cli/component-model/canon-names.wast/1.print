@@ -1,0 +1,5 @@
+(component
+  (instance $i (;0;))
+  (export (;1;) "a:b/c@1" (versionsuffix ".2.3") (instance $i))
+  (export (;2;) "a:b/c@0.2" (versionsuffix ".1") (instance $i))
+)

@@ -1,6 +1,7 @@
 use crate::{
     BinaryReader, ComponentExternalKind, ComponentValType, FromReader, Result, SectionLimited,
 };
+use alloc::borrow::Cow;
 
 /// Represents the type bounds for imports and exports.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -117,6 +118,41 @@ pub struct ComponentExternName<'a> {
     pub implements: Option<&'a str>,
     pub version_suffix: Option<&'a str>,
     pub external_id: Option<&'a str>,
+}
+
+impl<'a> ComponentExternName<'a> {
+    /// Returns the full name of this import or export, which is `name` with
+    /// the `version_suffix` appended if it applies to `name`.
+    ///
+    /// For example `a:b/c@0.2` with a version suffix of `.1` has a full name of
+    /// `a:b/c@0.2.1`. If `implements` is specified then the version suffix
+    /// applies to the implements instead, and `name` is returned as-is. See
+    /// [`ComponentExternName::full_implements`].
+    pub fn full_name(&self) -> Cow<'a, str> {
+        match self.implements {
+            Some(_) => Cow::Borrowed(self.name),
+            None => with_version_suffix(self.name, self.version_suffix),
+        }
+    }
+
+    /// Returns the full name of the interface in `implements`, if specified,
+    /// which is `implements` with the `version_suffix` appended.
+    ///
+    /// For example `(implements "a:b/c@1")` with a version suffix of `.2.3`
+    /// has a full name of `a:b/c@1.2.3`.
+    pub fn full_implements(&self) -> Option<Cow<'a, str>> {
+        Some(with_version_suffix(self.implements?, self.version_suffix))
+    }
+}
+
+/// Appends `version_suffix` to `name` if it's an interface name with a
+/// version, such as `a:b/c@0.2`, and otherwise returns `name` as-is.
+pub(crate) fn with_version_suffix<'a>(name: &'a str, version_suffix: Option<&str>) -> Cow<'a, str> {
+    use crate::prelude::ToString;
+    match version_suffix {
+        Some(suffix) if name.contains('@') => Cow::Owned(name.to_string() + suffix),
+        _ => Cow::Borrowed(name),
+    }
 }
 
 impl<'a> FromReader<'a> for ComponentExternName<'a> {

@@ -1575,18 +1575,6 @@ impl Resolve {
         suffix
     }
 
-    /// Returns the component model `version-suffix` value for the world import of
-    /// `key` and `item`.
-    ///
-    /// See the component model explainer and 🔗 for more information on this feature.
-    pub fn version_suffix_value(&self, key: &WorldKey, item: &WorldItem) -> Option<String> {
-        let interface_id = match key {
-            WorldKey::Interface(id) => *id,
-            WorldKey::Name(_) => self.implements_interface(key, item)?,
-        };
-        self.version_suffix_of(interface_id)
-    }
-
     /// Returns the component model `external-id` value for the world import of
     /// `key` and `item`.
     ///

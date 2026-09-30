@@ -72,7 +72,7 @@
 //! component model.
 
 use crate::StringEncoding;
-use crate::encoding::wit::component_extern_name;
+use crate::encoding::wit::{component_extern_name, interface_extern_name};
 use crate::metadata::{self, Bindgen, ModuleMetadata};
 use crate::validation::{
     Export, ExportMap, Import, ImportInstance, ImportMap, PayloadInfo, PayloadType,
@@ -617,36 +617,17 @@ impl<'a> EncodingState<'a> {
             .component
             .type_instance(Some(&format!("ty-{name}")), &ty);
 
-        // TODO: refactor extern_name into a helper function
-        let extern_name = if self.info.encoder.emit_canonical_names {
-            let name = resolve
-                .canonicalized_id_of(interface_id)
-                .unwrap_or_else(|| name.to_string());
-            let implements = info
-                .implements
-                .map(|id| resolve.canonicalized_id_of(id).unwrap());
-            let suffix_id = if let Some(id) = info.implements {
-                id
-            } else {
-                interface_id
-            };
-            wasm_encoder::ComponentExternName {
-                name: name.into(),
-                implements: implements.map(|s| s.into()),
-                external_id: info.external_id.as_deref().map(|s| s.into()),
-                version_suffix: resolve.version_suffix_of(suffix_id).map(|s| s.into()),
-            }
-        } else {
-            wasm_encoder::ComponentExternName {
-                name: name.into(),
-                implements: info
-                    .implements
-                    .as_ref()
-                    .map(|s| resolve.id_of(*s).unwrap().into()),
-                external_id: info.external_id.as_deref().map(|s| s.into()),
-                version_suffix: None,
-            }
-        };
+        // `name` is the interface's name unless it's a plain name, which is the
+        // case for imports with `implements` and of anonymous interfaces.
+        let is_interface_name = info.implements.is_none() && interface.name.is_some();
+        let extern_name = interface_extern_name(
+            resolve,
+            name,
+            is_interface_name.then_some(interface_id),
+            info.implements,
+            info.external_id.clone(),
+            self.info.encoder.emit_canonical_names,
+        );
         let instance_idx = self
             .component
             .import(extern_name, ComponentTypeRef::Instance(instance_type_idx));
