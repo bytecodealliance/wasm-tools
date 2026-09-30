@@ -11,7 +11,7 @@ pub type Lexer<'source> = logos::Lexer<'source, Token>;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, logos::Logos)]
 #[logos(error = Option<Span>)]
 #[logos(skip r"[ \t\n\r]+")]
-#[logos(skip r"//[^\n]*")]
+#[logos(skip(r"//", skip_comment))]
 #[logos(subpattern first_label_word = r"[a-z][a-z0-9]*|[A-Z][A-Z0-9]*")]
 #[logos(subpattern label_word = r"[a-z0-9]+|[A-Z0-9]+")]
 #[logos(subpattern char_escape = r#"\\['"tnr\\]|\\u\{[0-9a-fA-F]{1,6}\}"#)]
@@ -71,6 +71,11 @@ impl Display for Token {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{self:?}")
     }
+}
+
+fn skip_comment(lex: &mut Lexer) {
+    let comment = lex.remainder().split_inclusive('\n').next().unwrap();
+    lex.bump(comment.len());
 }
 
 fn validate_char(lex: &mut Lexer) -> Result<(), Option<Span>> {

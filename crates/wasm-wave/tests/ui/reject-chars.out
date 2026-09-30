@@ -2,26 +2,26 @@
 invalid token at 5..6
 invalid token at 5..9
 invalid token at 5..13
-invalid token at 5..6
+invalid token at 5..8
 // Invalid escapes
-invalid token at 5..6
-invalid token at 5..6
-invalid token at 5..6
-invalid token at 5..10
-invalid token at 5..6
-invalid token at 5..6
-invalid token at 5..6
-invalid token at 5..10
+invalid token at 5..7
+invalid token at 5..7
+invalid token at 5..8
+invalid token at 5..11
+invalid token at 5..8
+invalid token at 5..9
+invalid token at 5..9
+invalid token at 5..15
 // Out of range
 invalid character escape at 5..17
 // Unpaired surrogates
 invalid character escape at 5..15
 invalid character escape at 5..15
 // Invalid delimiters
-invalid token at 5..6
-invalid token at 6..7
 invalid token at 5..7
+invalid token at 6..8
+invalid token at 5..8
 // Missing mandatory escapes
-invalid token at 5..6
+invalid token at 5..8
 invalid token at 5..6
 invalid token at 5..6
