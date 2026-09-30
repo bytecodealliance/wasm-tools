@@ -1,0 +1,5 @@
+duplicate field `a`
+     --> tests/ui/parse-fail/duplicate-record-fields.wit:5:30
+      |
+    5 |   record r { a: u32, b: u32, a: u32 }
+      |                              ^

@@ -1,0 +1,5 @@
+case `ab` conflicts with previous case `a-b`
+     --> tests/ui/parse-fail/duplicate-variant-cases.wit:5:25
+      |
+    5 |   variant v { a-b(u32), ab }
+      |                         ^-

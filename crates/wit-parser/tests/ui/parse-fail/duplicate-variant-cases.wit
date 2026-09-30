@@ -1,0 +1,6 @@
+// parse-fail
+package foo:foo;
+
+interface foo {
+  variant v { a-b(u32), ab }
+}

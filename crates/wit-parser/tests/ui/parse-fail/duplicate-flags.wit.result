@@ -1,0 +1,5 @@
+flag `A` conflicts with previous flag `a`
+     --> tests/ui/parse-fail/duplicate-flags.wit:5:19
+      |
+    5 |   flags f { a, b, A }
+      |                   ^

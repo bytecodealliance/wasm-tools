@@ -7,7 +7,7 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::{format, vec};
 use core::mem;
-use wasmparser::names::{ComponentName, ComponentNameKind};
+use wasmparser::names::{ComponentName, ComponentNameKind, KebabStr};
 
 #[derive(Default)]
 pub struct Resolver<'a> {
@@ -1305,6 +1305,7 @@ impl<'a> Resolver<'a> {
                         "empty record".to_owned(),
                     ));
                 }
+                check_unique_names("field", record.fields.iter().map(|f| &f.name))?;
                 let fields = record
                     .fields
                     .iter()
@@ -1323,6 +1324,7 @@ impl<'a> Resolver<'a> {
                 if flags.flags.is_empty() {
                     return Err(ParseError::new_syntax(flags.span, "empty flags".to_owned()));
                 }
+                check_unique_names("flag", flags.flags.iter().map(|f| &f.name))?;
                 let flags = flags
                     .flags
                     .iter()
@@ -1352,6 +1354,7 @@ impl<'a> Resolver<'a> {
                         "empty variant".to_owned(),
                     ));
                 }
+                check_unique_names("case", variant.cases.iter().map(|c| &c.name))?;
                 let cases = variant
                     .cases
                     .iter()
@@ -1370,6 +1373,7 @@ impl<'a> Resolver<'a> {
                 if e.cases.is_empty() {
                     return Err(ParseError::new_syntax(e.span, "empty enum".to_owned()));
                 }
+                check_unique_names("case", e.cases.iter().map(|c| &c.name))?;
                 let cases = e
                     .cases
                     .iter()
@@ -1785,7 +1789,10 @@ impl<'a> Resolver<'a> {
         }
 
         for (name, ty) in params {
-            if ret.iter().any(|p| p.name == name.name) {
+            if ret
+                .iter()
+                .any(|p| KebabStr::new(&p.name) == KebabStr::new(name.name))
+            {
                 return Err(ParseError::new_syntax(
                     name.span,
                     format!("param `{}` is defined more than once", name.name),
@@ -1923,6 +1930,34 @@ fn freestanding_func(name: &str, func: &ast::Func<'_>) -> (String, FunctionKind)
             (format!("[set]{name}"), FunctionKind::Setter)
         }
     }
+}
+
+/// Checks that `names` are strongly unique, which the component model
+/// requires of record fields, flags and cases.
+fn check_unique_names<'b, 'a: 'b>(
+    desc: &str,
+    names: impl Iterator<Item = &'b ast::Id<'a>>,
+) -> ParseResult<()> {
+    let mut seen = HashMap::new();
+    for name in names {
+        let Some(kebab) = KebabStr::new(name.name) else {
+            continue;
+        };
+        if let Some(prev) = seen.insert(kebab, name.name) {
+            return Err(ParseError::new_syntax(
+                name.span,
+                if prev == name.name {
+                    format!("duplicate {desc} `{prev}`")
+                } else {
+                    format!(
+                        "{desc} `{}` conflicts with previous {desc} `{prev}`",
+                        name.name
+                    )
+                },
+            ));
+        }
+    }
+    Ok(())
 }
 
 /// A container for names in a single scope of a component, used to check
