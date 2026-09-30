@@ -127,14 +127,46 @@ fn validate_intrinsic_signature(
     })?;
     let actual = FunctionType::try_from(ty)
         .with_context(|| format!("failed to read function type for `{module}.{name}`"))?;
+    ensure_linker_abi(
+        &format!("function `{module}.{name}`"),
+        &actual,
+        parameters,
+        results,
+    )
+}
+
+/// Checks an export that the linker's generated start function calls, such as
+/// `__wasm_call_ctors`, against the `[] -> []` type it is called with.
+///
+/// `_initialize` and `_start` aren't checked here: the component encoder
+/// already rejects those with the wrong type when it classifies the exports.
+fn validate_linker_called_export(
+    types: &[FuncType],
+    function_types: &[usize],
+    export: wasmparser::Export<'_>,
+) -> Result<()> {
+    let name = export.name;
+    if export.kind != ExternalKind::Func {
+        bail!("unexpected kind for export `{name}`: {:?}", export.kind);
+    }
+    let actual =
+        FunctionType::try_from(&types[function_types[usize::try_from(export.index).unwrap()]])
+            .with_context(|| format!("failed to read function type for export `{name}`"))?;
+    ensure_linker_abi(&format!("export `{name}`"), &actual, &[], &[])
+}
+
+fn ensure_linker_abi(
+    what: &str,
+    actual: &FunctionType,
+    parameters: &[ValueType],
+    results: &[ValueType],
+) -> Result<()> {
     if actual.parameters.as_slice() != parameters || actual.results.as_slice() != results {
         let expected = FunctionType {
             parameters: parameters.to_vec(),
             results: results.to_vec(),
         };
-        bail!(
-            "type mismatch for function `{module}.{name}`: required linker ABI `{expected}` but found `{actual}`"
-        );
+        bail!("type mismatch for {what}: required linker ABI `{expected}` but found `{actual}`");
     }
     Ok(())
 }
@@ -644,8 +676,14 @@ impl<'a> Metadata<'a> {
                         let export = export?;
 
                         match export.name {
-                            self::APPLY_DATA_RELOCS => result.has_data_relocs = true,
-                            self::CALL_CTORS => result.has_ctors = true,
+                            self::APPLY_DATA_RELOCS => {
+                                validate_linker_called_export(&types, &function_types, export)?;
+                                result.has_data_relocs = true;
+                            }
+                            self::CALL_CTORS => {
+                                validate_linker_called_export(&types, &function_types, export)?;
+                                result.has_ctors = true;
+                            }
                             self::INITIALIZE => result.has_initialize = true,
                             self::START => result.has_wasi_start = true,
                             self::LIBRARY_TLS_INFO => result.has_library_tls_info = true,
