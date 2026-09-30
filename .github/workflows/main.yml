@@ -84,7 +84,7 @@ jobs:
             CARGO_BUILD_TARGET: wasm32-wasip1
     env: ${{ matrix.env }}
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         submodules: true
     - uses: ./.github/actions/install-rust
@@ -100,7 +100,7 @@ jobs:
     name: Test (no-hash-maps)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: true
       - uses: ./.github/actions/install-rust
@@ -147,7 +147,7 @@ jobs:
             flags: -F wasmparser/try-op
     env: ${{ matrix.env || fromJSON('{}') }}
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         submodules: true
     - uses: ./.github/actions/install-rust
@@ -159,7 +159,7 @@ jobs:
     name: Test with extra Cargo features
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         submodules: true
     - uses: ./.github/actions/install-rust
@@ -180,7 +180,7 @@ jobs:
           - os: macos-latest
           - os: windows-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         submodules: true
     - uses: ./.github/actions/install-rust
@@ -191,7 +191,7 @@ jobs:
     name: Test libdl.so
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         submodules: true
     - uses: ./.github/actions/install-rust
@@ -204,7 +204,7 @@ jobs:
     name: Test on WebAssembly
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         submodules: true
     - uses: ./.github/actions/install-rust
@@ -228,7 +228,7 @@ jobs:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - uses: ./.github/actions/install-rust
     - run: rustup component add rustfmt
     - run: printf "\n" > playground/component/src/bindings.rs
@@ -241,7 +241,7 @@ jobs:
     name: Fuzz
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         submodules: true
     - uses: ./.github/actions/install-rust
@@ -254,7 +254,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/install-rust
       - run: rustup target add x86_64-unknown-none
       - run: cargo check --benches -p wasm-smith
@@ -342,7 +342,7 @@ jobs:
     name: Check generated files are up-to-date
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: true
       - uses: ./.github/actions/install-rust
@@ -355,14 +355,14 @@ jobs:
   doc:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/install-rust
       - run: RUSTDOCFLAGS="-Dwarnings" cargo doc --all
 
   clippy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/install-rust
       - run: rustup component add clippy
       - run: cargo clippy --workspace --all-targets --exclude dl --exclude component
@@ -371,7 +371,7 @@ jobs:
     if: github.repository_owner == 'bytecodealliance'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         submodules: true
     - uses: ./.github/actions/install-rust
@@ -429,7 +429,7 @@ jobs:
       && github.event_name == 'push'
       && startsWith(github.ref, 'refs/heads/release-')
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         submodules: true
         fetch-depth: 0
