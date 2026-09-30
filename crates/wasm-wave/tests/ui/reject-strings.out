@@ -6,11 +6,11 @@ invalid character escape at 8..9
 invalid character escape at 8..9
 // Reject invalid values.
 invalid character escape at 8..9
-invalid character escape at 8..9
-invalid character escape at 8..9
+invalid token at 7..17
+invalid token at 7..17
 // Reject invalid syntax.
-invalid token at 7..8
-invalid token at 7..8
+invalid token at 7..11
+invalid token at 7..11
 // Missing mandatory escapes
 invalid token at 7..10
 invalid token at 7..11
