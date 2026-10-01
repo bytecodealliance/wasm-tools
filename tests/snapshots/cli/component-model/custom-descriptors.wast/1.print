@@ -1,0 +1,16 @@
+(component
+  (core module $A (;0;)
+    (type $f (;0;) (func))
+    (export "f" (func 0))
+    (func (;0;) (type $f))
+  )
+  (core module $B (;1;)
+    (type $f (;0;) (func))
+    (import "a" "f" (func (;0;) (exact (type $f))))
+  )
+  (core instance $a (;0;) (instantiate $A))
+  (core instance $b (;1;) (instantiate $B
+      (with "a" (instance $a))
+    )
+  )
+)

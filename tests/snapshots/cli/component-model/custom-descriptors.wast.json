@@ -1,0 +1,43 @@
+{
+  "source_filename": "tests/cli/component-model/custom-descriptors.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 4,
+      "filename": "custom-descriptors.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 20,
+      "filename": "custom-descriptors.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 32,
+      "filename": "custom-descriptors.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 50,
+      "filename": "custom-descriptors.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 63,
+      "filename": "custom-descriptors.4.wasm",
+      "module_type": "binary",
+      "text": "expected func_exact, found func"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 82,
+      "filename": "custom-descriptors.5.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+(component
+  (core type $mt (;0;)
+    (module
+      (type (;0;) (func))
+      (export "f" (func (exact (type 0))))
+    )
+  )
+  (import "m" (core module $m (;0;) (type $mt)))
+  (core instance $i (;0;) (instantiate $m))
+  (alias core export $i "f" (core func $f (;0;)))
+  (core module $n (;1;)
+    (type (;0;) (func))
+    (import "" "f" (func (;0;) (type 0)))
+  )
+  (core instance (;1;)
+    (export "f" (func $f))
+  )
+  (core instance (;2;) (instantiate $n
+      (with "" (instance 1))
+    )
+  )
+)
