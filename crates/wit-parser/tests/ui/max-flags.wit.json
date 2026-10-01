@@ -1,0 +1,132 @@
+{
+  "worlds": [],
+  "interfaces": [
+    {
+      "name": "foo",
+      "types": {
+        "f": 0
+      },
+      "functions": {},
+      "package": 0
+    }
+  ],
+  "types": [
+    {
+      "name": "f",
+      "kind": {
+        "flags": {
+          "flags": [
+            {
+              "name": "b0"
+            },
+            {
+              "name": "b1"
+            },
+            {
+              "name": "b2"
+            },
+            {
+              "name": "b3"
+            },
+            {
+              "name": "b4"
+            },
+            {
+              "name": "b5"
+            },
+            {
+              "name": "b6"
+            },
+            {
+              "name": "b7"
+            },
+            {
+              "name": "b8"
+            },
+            {
+              "name": "b9"
+            },
+            {
+              "name": "b10"
+            },
+            {
+              "name": "b11"
+            },
+            {
+              "name": "b12"
+            },
+            {
+              "name": "b13"
+            },
+            {
+              "name": "b14"
+            },
+            {
+              "name": "b15"
+            },
+            {
+              "name": "b16"
+            },
+            {
+              "name": "b17"
+            },
+            {
+              "name": "b18"
+            },
+            {
+              "name": "b19"
+            },
+            {
+              "name": "b20"
+            },
+            {
+              "name": "b21"
+            },
+            {
+              "name": "b22"
+            },
+            {
+              "name": "b23"
+            },
+            {
+              "name": "b24"
+            },
+            {
+              "name": "b25"
+            },
+            {
+              "name": "b26"
+            },
+            {
+              "name": "b27"
+            },
+            {
+              "name": "b28"
+            },
+            {
+              "name": "b29"
+            },
+            {
+              "name": "b30"
+            },
+            {
+              "name": "b31"
+            }
+          ]
+        }
+      },
+      "owner": {
+        "interface": 0
+      }
+    }
+  ],
+  "packages": [
+    {
+      "name": "foo:foo",
+      "interfaces": {
+        "foo": 0
+      },
+      "worlds": {}
+    }
+  ]
+}
