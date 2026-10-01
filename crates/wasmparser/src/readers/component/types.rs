@@ -136,12 +136,21 @@ pub enum ComponentValType {
 
 impl<'a> FromReader<'a> for ComponentValType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        if let Some(ty) = PrimitiveValType::from_byte(reader.peek()?) {
+        let offset = reader.original_position();
+        let byte = reader.peek()?;
+        if let Some(ty) = PrimitiveValType::from_byte(byte) {
             reader.read_u8()?;
             return Ok(ComponentValType::Primitive(ty));
         }
 
-        Ok(ComponentValType::Type(reader.read_var_s33()? as u32))
+        match u32::try_from(reader.read_var_s33()?) {
+            Ok(idx) => Ok(ComponentValType::Type(idx)),
+            Err(_) => Err(BinaryReader::invalid_leading_byte_error(
+                byte,
+                "component value type",
+                offset,
+            )),
+        }
     }
 }
 
