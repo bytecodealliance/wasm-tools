@@ -25,6 +25,27 @@
       "line": 40,
       "filename": "nested-modules.3.wasm",
       "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 54,
+      "filename": "nested-modules.4.wasm",
+      "module_type": "binary",
+      "text": "unexpected end"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 62,
+      "filename": "nested-modules.5.wasm",
+      "module_type": "binary",
+      "text": "unexpected end"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 70,
+      "filename": "nested-modules.6.wasm",
+      "module_type": "binary",
+      "text": "unexpected end"
     }
   ]
 }

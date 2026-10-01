@@ -48,3 +48,28 @@
   (import "b" (instance (export "a" (core module))))
   (alias export 0 "a" (core module))
 )
+
+;; module section claims 100 bytes, only an 8-byte module header follows
+(assert_malformed
+  (component binary
+    "\00asm\0d\00\01\00"
+    "\01\64"              ;; core module section, size 100
+    "\00asm\01\00\00\00") ;; ... but only 8 bytes present
+  "unexpected end")
+
+;; same for a nested component section
+(assert_malformed
+  (component binary
+    "\00asm\0d\00\01\00"
+    "\04\64"              ;; component section, size 100
+    "\00asm\0d\00\01\00") ;; ... but only 8 bytes present
+  "unexpected end")
+
+;; same, but with valid sections in the nested module
+(assert_malformed
+  (component binary
+    "\00asm\0d\00\01\00"
+    "\01\64"                    ;; core module section, size 100
+    "\00asm\01\00\00\00"
+    "\01\04\01\60\00\00")       ;; type section: (func)
+  "unexpected end")
