@@ -220,3 +220,35 @@ fn too_many_modules_and_components() {
     assert!(validate(&deeply_nested_components(100)).is_ok());
     assert!(validate(&deeply_nested_components(1000)).is_err());
 }
+
+#[test]
+fn too_many_core_types_in_component_rec_group() {
+    use wasmparser::{Validator, WasmFeatures};
+
+    // A single core type followed by a rec group of `MAX_WASM_TYPES` types,
+    // meaning the component's core type index space exceeds the limit.
+    let mut component = Component::new();
+    let mut types = CoreTypeSection::new();
+    types.ty().core().struct_([]);
+    component.section(&types);
+    let mut types = CoreTypeSection::new();
+    types.ty().core().rec((0..1_000_000).map(|_| SubType {
+        is_final: true,
+        supertype_idxs: Vec::new(),
+        composite_type: CompositeType {
+            inner: CompositeInnerType::Struct(StructType {
+                fields: Box::new([]),
+            }),
+            shared: false,
+            descriptor: None,
+            describes: None,
+        },
+    }));
+    component.section(&types);
+
+    let err = Validator::new_with_features(WasmFeatures::all())
+        .validate_all(&component.finish())
+        .map(|_| ())
+        .unwrap_err();
+    assert!(err.message().contains("types count exceeds limit"), "{err}");
+}
