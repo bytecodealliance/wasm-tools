@@ -3750,9 +3750,9 @@ impl ComponentState {
         offset: u64,
     ) -> Result<()> {
         macro_rules! push_module_export {
-            ($expected:path, $collection:ident, $ty:literal) => {{
+            ($($expected:path)|+, $collection:ident, $ty:literal) => {{
                 match self.core_instance_export(instance_index, name, types, offset)? {
-                    $expected(ty) => {
+                    $($expected(ty))|+ => {
                         self.$collection.push(*ty);
                     }
                     _ => {
@@ -3775,7 +3775,11 @@ impl ComponentState {
                     "functions",
                     offset,
                 )?;
-                push_module_export!(EntityType::Func, core_funcs, "function");
+                push_module_export!(
+                    EntityType::Func | EntityType::FuncExact,
+                    core_funcs,
+                    "function"
+                );
             }
             ExternalKind::Table => {
                 check_max(

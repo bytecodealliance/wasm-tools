@@ -508,6 +508,25 @@ impl Module {
         }
     }
 
+    /// Returns whether the function at `idx` has an exact type, meaning it's
+    /// either defined in this module or imported with an exact type.
+    fn is_function_exact(&self, idx: u32) -> bool {
+        idx >= self.num_imported_functions || self.exact_function_imports.contains(&idx)
+    }
+
+    /// Returns the type of the function at `idx` when it's exported, or `None`
+    /// if `idx` is out of bounds.
+    pub(crate) fn exported_function_type(&self, idx: u32) -> Option<EntityType> {
+        let ty = self.types[*self.functions.get(idx as usize)? as usize];
+        Some(
+            if self.features.custom_descriptors() && self.is_function_exact(idx) {
+                EntityType::FuncExact(ty)
+            } else {
+                EntityType::Func(ty)
+            },
+        )
+    }
+
     pub(crate) fn add_types(
         &mut self,
         rec_group: RecGroup,
@@ -941,7 +960,7 @@ impl Module {
             ExternalKind::Func | ExternalKind::FuncExact => {
                 check("function", export.index, self.functions.len())?;
                 self.function_references.insert(export.index);
-                EntityType::Func(self.types[self.functions[export.index as usize] as usize])
+                self.exported_function_type(export.index).unwrap()
             }
             ExternalKind::Table => {
                 check("table", export.index, self.tables.len())?;
@@ -1103,11 +1122,7 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
     }
 
     fn has_function_exact_type(&self, idx: u32) -> bool {
-        if idx >= self.module.num_imported_functions {
-            true
-        } else {
-            self.module.exact_function_imports.contains(&idx)
-        }
+        self.module.is_function_exact(idx)
     }
 }
 
@@ -1191,11 +1206,7 @@ impl WasmModuleResources for ValidatorResources {
     }
 
     fn has_function_exact_type(&self, idx: u32) -> bool {
-        if idx >= self.0.num_imported_functions {
-            true
-        } else {
-            self.0.exact_function_imports.contains(&idx)
-        }
+        self.0.is_function_exact(idx)
     }
 }
 
