@@ -1,0 +1,10 @@
+(module
+  (type (;0;) (func (param i32)))
+  (func $f (;0;) (type 0) (param $x i32)
+    (local $y i64)
+    block $l1
+      loop $l2
+      end
+    end
+  )
+)

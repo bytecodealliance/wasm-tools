@@ -1,8 +1,8 @@
 use crate::types::EntityType;
 use crate::validator::TypesRef;
 use crate::{
-    BranchHintSectionReader, CompositeInnerType, FunctionBody, IndirectNameMap, KnownCustom, Name,
-    NameMap, NameSectionReader, Operator, Payload, Result, Validator,
+    BranchHintSectionReader, CompositeInnerType, Encoding, FunctionBody, IndirectNameMap,
+    KnownCustom, Name, NameMap, NameSectionReader, Operator, Payload, Result, Validator,
 };
 use alloc::vec;
 use alloc::vec::Vec;
@@ -25,12 +25,19 @@ use alloc::vec::Vec;
 /// custom sections referring to contents of function bodies.
 #[derive(Default)]
 pub struct CustomSectionValidator {
+    /// State for every module and component seen so far, indexed by the ids
+    /// returned from `current_module_id`.
     states: Vec<State>,
+    /// Stack of indices into `states` for modules/components which are
+    /// currently being parsed, with the innermost one last.
+    active: Vec<usize>,
 }
 
 #[derive(Default)]
 struct State {
+    is_component: bool,
     seen_name: bool,
+    seen_branch_hints: bool,
     num_data: u32,
     name_local_max_per_function: Vec<NameMax>,
     params_per_function: Vec<u32>,
@@ -60,13 +67,19 @@ impl CustomSectionValidator {
     /// validated with the `validator` provided.
     pub fn payload(&mut self, payload: &Payload<'_>, validator: &Validator) -> Result<()> {
         match payload {
-            Payload::Version { .. } => {
-                self.states.push(State::default());
+            Payload::Version { encoding, .. } => {
+                self.active.push(self.states.len());
+                self.states.push(State {
+                    is_component: *encoding == Encoding::Component,
+                    ..State::default()
+                });
             }
-            Payload::End(_) => {}
+            Payload::End(_) => {
+                self.active.pop();
+            }
             other => {
-                if let Some(state) = self.states.last_mut() {
-                    state.payload(other, validator)?;
+                if let Some(i) = self.active.last() {
+                    self.states[*i].payload(other, validator)?;
                 }
             }
         }
@@ -77,7 +90,7 @@ impl CustomSectionValidator {
     /// [`CustomSectionValidator::code_section_entry`] when the function
     /// contents are ready to be validated.
     pub fn current_module_id(&self) -> usize {
-        self.states.len() - 1
+        *self.active.last().unwrap()
     }
 
     /// Validates the contents of `body` w.r.t. custom sections.
@@ -109,6 +122,9 @@ impl State {
                         bail!(range.start, "name section must come last");
                     }
                 }
+                if let Payload::DataSection(s) = payload {
+                    self.num_data = s.count();
+                }
             }
         }
         Ok(())
@@ -121,12 +137,18 @@ impl State {
     ) -> Result<()> {
         match section {
             KnownCustom::Name(name) => self.name_section(name, validator),
-            KnownCustom::BranchHints(hints) => self.branch_hint_section(hints),
+            KnownCustom::BranchHints(hints) => self.branch_hint_section(hints, validator),
             _ => Ok(()),
         }
     }
 
     fn name_section(&mut self, names: NameSectionReader<'_>, validator: &Validator) -> Result<()> {
+        if self.is_component {
+            bail!(
+                names.sections.range().start,
+                "core module `name` section in a component"
+            );
+        }
         if self.seen_name {
             bail!(names.sections.range().start, "duplicate name section");
         }
@@ -246,7 +268,24 @@ impl State {
         Ok(())
     }
 
-    fn branch_hint_section(&mut self, hints: BranchHintSectionReader<'_>) -> Result<()> {
+    fn branch_hint_section(
+        &mut self,
+        hints: BranchHintSectionReader<'_>,
+        validator: &Validator,
+    ) -> Result<()> {
+        if self.is_component {
+            bail!(
+                hints.range().start,
+                "core module branch hint section in a component"
+            );
+        }
+        if self.seen_branch_hints {
+            bail!(hints.range().start, "duplicate branch hint section");
+        }
+        self.seen_branch_hints = true;
+        let types = validator.types(0).unwrap();
+        let num_imported = u32::try_from(num_imported_functions(types)).unwrap();
+        let num_funcs = types.function_count();
         let mut prev = None;
         for func in hints.into_iter_with_offsets() {
             let (offset, func) = func?;
@@ -257,11 +296,21 @@ impl State {
             }
             prev = Some(func.func);
 
+            // Branch hints can only be specified for defined functions, and
+            // only those known so far in the module.
+            if func.func < num_imported || func.func >= num_funcs {
+                bail!(
+                    offset,
+                    "invalid function index {} in branch hint section",
+                    func.func
+                );
+            }
+
             while self.per_function_hints.len() <= func.func as usize {
                 self.per_function_hints.push(Vec::new());
             }
 
-            let hints = self.per_function_hints.last_mut().unwrap();
+            let hints = &mut self.per_function_hints[func.func as usize];
             let mut prev = None;
             for hint in func.hints.into_iter_with_offsets() {
                 let (offset, hint) = hint?;
@@ -307,7 +356,7 @@ impl State {
                 u32::try_from(ops.original_position() - body.range().start).unwrap();
             let branch_hint_offset = match hints.first() {
                 Some(&(func_offset, hint_offset)) => {
-                    if func_offset < cur_func_offset {
+                    if func_offset > cur_func_offset {
                         None
                     } else if func_offset == cur_func_offset {
                         hints = &hints[1..];
@@ -398,7 +447,6 @@ fn indirect_name_map(
     desc: &str,
     item_desc: &str,
 ) -> Result<Vec<NameMax>> {
-    let mut named = vec![false; items as usize];
     let mut max = vec![NameMax::None; items as usize];
     loop {
         let offset = names.names.original_position();
@@ -409,14 +457,6 @@ fn indirect_name_map(
         if naming.index >= items {
             bail!(offset, "invalid {desc} naming index {}", naming.index);
         }
-        if named[naming.index as usize] {
-            bail!(
-                offset,
-                "invalid {desc} naming index {} named twice",
-                naming.index
-            );
-        }
-        named[naming.index as usize] = true;
 
         max[naming.index as usize] = match name_map(naming.names, u32::MAX, item_desc)? {
             Some((i, offset)) => NameMax::Index {
@@ -432,7 +472,6 @@ fn indirect_name_map(
 }
 
 fn name_map(mut names: NameMap<'_>, items: u32, desc: &str) -> Result<Option<(u32, u64)>> {
-    let mut named = vec![false; items as usize];
     let mut max = None;
     loop {
         let offset = names.names.original_position();
@@ -443,14 +482,6 @@ fn name_map(mut names: NameMap<'_>, items: u32, desc: &str) -> Result<Option<(u3
         if naming.index >= items {
             bail!(offset, "invalid {desc} naming index {}", naming.index);
         }
-        if named[naming.index as usize] {
-            bail!(
-                offset,
-                "invalid {desc} naming index {} named twice",
-                naming.index
-            );
-        }
-        named[naming.index as usize] = true;
         max = Some((naming.index, offset));
     }
     Ok(max)
@@ -460,7 +491,7 @@ fn num_imported_functions(types: TypesRef<'_>) -> usize {
     types
         .core_imports()
         .map(|i| {
-            i.filter(|(_, _, i)| matches!(i, EntityType::Func(_)))
+            i.filter(|(_, _, i)| matches!(i, EntityType::Func(_) | EntityType::FuncExact(_)))
                 .count()
         })
         .unwrap_or(0)

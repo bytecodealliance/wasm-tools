@@ -1,0 +1,99 @@
+{
+  "source_filename": "tests/cli/validate-custom.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "validate-custom.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid_custom",
+      "line": 35,
+      "filename": "validate-custom.1.wasm",
+      "module_type": "binary",
+      "text": "invalid function index 5 in branch hint section"
+    },
+    {
+      "type": "assert_invalid_custom",
+      "line": 42,
+      "filename": "validate-custom.2.wasm",
+      "module_type": "binary",
+      "text": "invalid function index 4294967295 in branch hint section"
+    },
+    {
+      "type": "assert_invalid_custom",
+      "line": 49,
+      "filename": "validate-custom.3.wasm",
+      "module_type": "binary",
+      "text": "invalid function index 0 in branch hint section"
+    },
+    {
+      "type": "assert_invalid_custom",
+      "line": 59,
+      "filename": "validate-custom.4.wasm",
+      "module_type": "binary",
+      "text": "branch hint for bytes between instructions"
+    },
+    {
+      "type": "assert_invalid_custom",
+      "line": 69,
+      "filename": "validate-custom.5.wasm",
+      "module_type": "binary",
+      "text": "duplicate branch hint section"
+    },
+    {
+      "type": "module",
+      "line": 76,
+      "filename": "validate-custom.6.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid_custom",
+      "line": 84,
+      "filename": "validate-custom.7.wasm",
+      "module_type": "binary",
+      "text": "invalid data naming index 1"
+    },
+    {
+      "type": "module",
+      "line": 91,
+      "filename": "validate-custom.8.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid_custom",
+      "line": 101,
+      "filename": "validate-custom.9.wasm",
+      "module_type": "binary",
+      "text": "invalid local name index 5"
+    },
+    {
+      "type": "module",
+      "line": 109,
+      "filename": "validate-custom.10.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid_custom",
+      "line": 119,
+      "filename": "validate-custom.11.wasm",
+      "module_type": "binary",
+      "text": "invalid local index 5"
+    },
+    {
+      "type": "assert_invalid_custom",
+      "line": 131,
+      "filename": "validate-custom.12.wasm",
+      "module_type": "binary",
+      "text": "core module `name` section in a component"
+    },
+    {
+      "type": "assert_invalid_custom",
+      "line": 137,
+      "filename": "validate-custom.13.wasm",
+      "module_type": "binary",
+      "text": "core module branch hint section in a component"
+    }
+  ]
+}

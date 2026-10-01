@@ -365,7 +365,7 @@ impl Opts {
     /// If `roundtrip_binary` is `false` then it will not try to compare the
     /// original binary with the result of roundtripping through wasmprinter->wast.
     fn test_wasm(&self, test: &Path, contents: &[u8], roundtrip_binary: bool) -> Result<()> {
-        self.test_wasm_valid(test, contents, false)
+        self.test_wasm_valid(test, contents, true)
             .context("wasm isn't valid")?;
         self.test_wasm_roundtrip(test, contents, roundtrip_binary, true)
             .context("wasm did not roundtrip")
