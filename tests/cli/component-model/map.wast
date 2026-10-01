@@ -69,3 +69,31 @@
   )
   "type mismatch for import `x`")
 
+
+;; map keys are restricted to bool, integers, char and string
+(component
+  (type (map bool u32))
+  (type (map s8 u32))
+  (type (map u8 u32))
+  (type (map s16 u32))
+  (type (map u16 u32))
+  (type (map s32 u32))
+  (type (map u32 u32))
+  (type (map s64 u32))
+  (type (map u64 u32))
+  (type (map char u32))
+  (type (map string u32))
+  (type $s string)
+  (type (map $s u32))
+)
+(assert_invalid (component (type (map f32 u32))) "invalid map key type")
+(assert_invalid (component (type (map f64 u32))) "invalid map key type")
+(assert_invalid (component (type $l (list u8)) (type (map $l u32))) "invalid map key type")
+(assert_invalid (component (type $r (record (field "a" u32))) (type (map $r u32))) "invalid map key type")
+(assert_invalid (component (type $o (option u32)) (type (map $o u32))) "invalid map key type")
+(assert_invalid
+  (component
+    (type $res (resource (rep i32)))
+    (type $own (own $res))
+    (type (map $own u32)))
+  "invalid map key type")
