@@ -724,6 +724,14 @@ impl Parser {
                 // that means we reached the end of the data since it's
                 // just a bunch of sections concatenated after the header.
                 if eof && reader.bytes_remaining() == 0 {
+                    // If this is a nested module or component then the end of
+                    // the input must coincide with the end of the enclosing
+                    // section, otherwise the input was truncated.
+                    if let Some(max) = self.max_offset {
+                        if reader.original_position() < max {
+                            bail!(reader.original_position(), "unexpected end-of-file");
+                        }
+                    }
                     self.check_function_code_counts(reader.original_position())?;
                     self.check_data_count(reader.original_position())?;
                     return Ok(Payload::End(reader.original_position()));
