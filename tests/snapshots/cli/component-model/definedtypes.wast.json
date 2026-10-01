@@ -140,6 +140,20 @@
       "filename": "definedtypes.19.wasm",
       "module_type": "binary",
       "text": "variant type must have at least one case"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 127,
+      "filename": "definedtypes.20.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x80) for component value type"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 136,
+      "filename": "definedtypes.21.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x40) for component value type"
     }
   ]
 }
