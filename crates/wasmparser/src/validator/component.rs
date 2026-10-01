@@ -4016,6 +4016,36 @@ impl ComponentState {
                     offset,
                 )?;
                 let key = self.create_component_val_type(key, offset)?;
+                // Map keys are restricted to the `<keytype>` grammar
+                // production of primitive types.
+                let key_prim = match key {
+                    ComponentValType::Primitive(p) => Some(p),
+                    ComponentValType::Type(id) => match &types[id] {
+                        ComponentDefinedType::Primitive(p) => Some(*p),
+                        _ => None,
+                    },
+                };
+                {
+                    use crate::PrimitiveValType as P;
+                    match key_prim {
+                        Some(
+                            P::Bool
+                            | P::S8
+                            | P::U8
+                            | P::S16
+                            | P::U16
+                            | P::S32
+                            | P::U32
+                            | P::S64
+                            | P::U64
+                            | P::Char
+                            | P::String,
+                        ) => {}
+                        Some(P::F32 | P::F64 | P::ErrorContext) | None => {
+                            bail!(offset, "invalid map key type")
+                        }
+                    }
+                }
                 let value = self.create_component_val_type(value, offset)?;
                 let mut info = TypeInfo::new();
                 info.combine(key.info(types), offset)?;
