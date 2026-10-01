@@ -1464,14 +1464,7 @@ impl ComponentState {
                 .map(|ty| {
                     Ok((
                         KebabString::new("v").unwrap(),
-                        match ty {
-                            crate::ComponentValType::Primitive(ty) => {
-                                ComponentValType::Primitive(*ty)
-                            }
-                            crate::ComponentValType::Type(index) => {
-                                ComponentValType::Type(self.defined_type_at(*index, offset)?)
-                            }
-                        },
+                        self.create_component_val_type(*ty, offset)?,
                     ))
                 })
                 .collect::<Result<_>>()?,
@@ -2883,13 +2876,7 @@ impl ComponentState {
             }
             ComponentTypeRef::Value(ty) => {
                 self.check_value_support(offset)?;
-                let ty = match ty {
-                    crate::ComponentValType::Primitive(ty) => ComponentValType::Primitive(*ty),
-                    crate::ComponentValType::Type(index) => {
-                        ComponentValType::Type(self.defined_type_at(*index, offset)?)
-                    }
-                };
-                ComponentEntityType::Value(ty)
+                ComponentEntityType::Value(self.create_component_val_type(*ty, offset)?)
             }
             ComponentTypeRef::Type(TypeBounds::Eq(index)) => {
                 let referenced = self.component_type_at(*index, offset)?;

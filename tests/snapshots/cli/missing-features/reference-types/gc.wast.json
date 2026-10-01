@@ -86,14 +86,14 @@
       "text": "function references required for index"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 42,
       "filename": "gc.12.wasm",
       "module_type": "binary",
       "text": "gc proposal must be enabled"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 46,
       "filename": "gc.13.wasm",
       "module_type": "binary",

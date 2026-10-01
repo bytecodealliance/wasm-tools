@@ -38,10 +38,10 @@
   (module (type $t (func (param (ref $t)))))
   "function references required for index")
 
-(assert_invalid
+(assert_malformed
   (module (type $t (sub (func))))
   "gc proposal must be enabled")
 
-(assert_invalid
+(assert_malformed
   (module (type $t (func)) (type (sub $t (func))))
   "gc proposal must be enabled")

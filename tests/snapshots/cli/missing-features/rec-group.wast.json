@@ -30,14 +30,14 @@
       "text": "reference types support is not enabled"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 20,
       "filename": "rec-group.4.wasm",
       "module_type": "binary",
       "text": "gc proposal must be enabled"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 24,
       "filename": "rec-group.5.wasm",
       "module_type": "binary",

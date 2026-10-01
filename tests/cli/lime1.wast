@@ -45,10 +45,10 @@
   "bulk memory must be enabled")
 (assert_invalid
   (module (func data.drop 0))
-  "bulk memory support is not enabled")
+  "data count section requires the bulk-memory proposal")
 (assert_invalid
   (module (func memory.init 0))
-  "bulk memory support is not enabled")
+  "data count section requires the bulk-memory proposal")
 (assert_invalid
   (module (func table.init 0))
   "bulk memory support is not enabled")
@@ -97,7 +97,7 @@
   (global i32 (i32.add (i32.const 0) (i32.const 1))))
 
 ;; GC is not allowed
-(assert_invalid
+(assert_malformed
   (module (type (sub (func))))
   "gc proposal must be enabled to use subtypes")
 

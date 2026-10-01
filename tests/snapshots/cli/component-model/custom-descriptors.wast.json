@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/cli/component-model/custom-descriptors.wast",
+  "commands": [
+    {
+      "type": "assert_malformed",
+      "line": 5,
+      "filename": "custom-descriptors.0.wasm",
+      "module_type": "binary",
+      "text": "exact type is not allowed in core export aliases"
+    }
+  ]
+}
