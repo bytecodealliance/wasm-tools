@@ -225,3 +225,22 @@
   (component (type (func (param "x" (stream char)))))
   "`stream<char>` is not valid at this time, use `stream<u8>` with a defined by encoding instead for now"
 )
+
+;; stream payloads cannot transitively contain a `borrow`
+(assert_invalid
+  (component
+    (type $r (resource (rep i32)))
+    (type $b (borrow $r))
+    (type (stream $b)))
+  "`stream` payload cannot contain a `borrow` type")
+(assert_invalid
+  (component
+    (type $r (resource (rep i32)))
+    (type $b (borrow $r))
+    (type $l (list $b))
+    (type (stream $l)))
+  "`stream` payload cannot contain a `borrow` type")
+(component
+  (type $r (resource (rep i32)))
+  (type $o (own $r))
+  (type (stream $o)))
