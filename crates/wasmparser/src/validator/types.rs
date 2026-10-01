@@ -582,9 +582,9 @@ impl<'a> TypesRef<'a> {
     pub fn entity_type_from_export(&self, export: &Export) -> Option<EntityType> {
         match &self.kind {
             TypesRefKind::Module(module) => Some(match export.kind {
-                ExternalKind::Func | ExternalKind::FuncExact => EntityType::Func(
-                    module.types[*module.functions.get(export.index as usize)? as usize],
-                ),
+                ExternalKind::Func | ExternalKind::FuncExact => {
+                    module.exported_function_type(export.index)?
+                }
                 ExternalKind::Table => {
                     EntityType::Table(*module.tables.get(export.index as usize)?)
                 }
