@@ -2220,29 +2220,39 @@ impl ComponentState {
             ComponentCoreTypeId::Module(_) => bail!(offset, "expected a core function type"),
         };
         let sub_ty = &types[core_type_id];
-        match &sub_ty.composite_type.inner {
+        let closure_ty = match &sub_ty.composite_type.inner {
             CompositeInnerType::Func(func_ty) => {
-                if func_ty.params() != [ValType::I32] {
-                    bail!(
+                let closure_ty = match func_ty.params() {
+                    [ValType::I32] => ValType::I32,
+                    [ValType::I64] if self.features.cm64() => ValType::I64,
+                    _ => bail!(
                         offset,
                         "start function must take a single `i32` argument (currently)"
-                    );
-                }
+                    ),
+                };
                 if func_ty.results() != [] {
                     bail!(offset, "start function must not return any values");
                 }
+                closure_ty
             }
             _ => bail!(offset, "start type must be a function"),
-        }
+        };
 
         let table = self.table_at(table_index, offset)?;
 
+        if table.table64 {
+            require_feature::cm64(
+                self.features,
+                "64-bit tables require the component model 64-bit feature",
+                offset,
+            )?;
+        }
         SubtypeCx::table_type(
             table,
             &TableType {
                 initial: 0,
                 maximum: None,
-                table64: false,
+                table64: table.table64,
                 shared: false,
                 element_type: RefType::FUNCREF,
             },
@@ -2254,7 +2264,7 @@ impl ComponentState {
         })?;
 
         self.core_funcs.push(types.intern_func_type(
-            FuncType::new([ValType::I32, ValType::I32], [ValType::I32]),
+            FuncType::new([table.index_type(), closure_ty], [ValType::I32]),
             offset,
         )?);
         Ok(())
