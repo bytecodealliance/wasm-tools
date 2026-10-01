@@ -1324,6 +1324,12 @@ impl<'a> Resolver<'a> {
                 if flags.flags.is_empty() {
                     return Err(ParseError::new_syntax(flags.span, "empty flags".to_owned()));
                 }
+                if let Some(flag) = flags.flags.get(32) {
+                    return Err(ParseError::new_syntax(
+                        flag.name.span,
+                        "cannot have more than 32 flags".to_owned(),
+                    ));
+                }
                 check_unique_names("flag", flags.flags.iter().map(|f| &f.name))?;
                 let flags = flags
                     .flags
