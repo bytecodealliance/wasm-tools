@@ -936,16 +936,14 @@ impl Parser {
                     ),
                     #[cfg(feature = "component-model")]
                     (Encoding::Component, COMPONENT_START_SECTION) => {
-                        match self.counts.component_start_sections {
-                            false => self.counts.component_start_sections = true,
-                            true => {
-                                bail!(
-                                    reader.original_position(),
-                                    "component cannot have more than one start function"
-                                )
-                            }
+                        if self.counts.component_start_sections {
+                            bail!(
+                                reader.original_position(),
+                                "component cannot have more than one start function"
+                            )
                         }
                         let (start, range) = single_item(reader, section_end, "component start")?;
+                        self.counts.component_start_sections = true;
                         Ok(ComponentStartSection { start, range })
                     }
                     #[cfg(feature = "component-model")]
@@ -1903,6 +1901,29 @@ mod tests {
                 consumed: 0,
                 payload: Payload::End(18),
             }),
+        );
+    }
+
+    #[test]
+    fn component_start_section_needs_more_data() {
+        let mut p = parser_after_component_header();
+
+        // Partial section
+        assert_matches!(p.parse(&[9, 3, 0], false), Ok(Chunk::NeedMoreData(_)));
+
+        // Complete section
+        assert_matches!(
+            p.parse(&[9, 3, 0, 0, 0], false),
+            Ok(Chunk::Parsed {
+                consumed: 5,
+                payload: Payload::ComponentStartSection { .. },
+            }),
+        );
+
+        // Duplicate disallowed
+        assert_eq!(
+            p.parse(&[9, 3, 0, 0, 0], false).unwrap_err().message(),
+            "component cannot have more than one start function",
         );
     }
 
