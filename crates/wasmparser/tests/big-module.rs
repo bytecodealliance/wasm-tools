@@ -182,3 +182,41 @@ fn too_many_core_types_across_modules() {
     component.section(&ModuleSection(&b));
     assert!(validate(&component.finish()).is_err());
 }
+
+#[test]
+fn too_many_modules_and_components() {
+    use wasmparser::Validator;
+
+    fn many_nested_modules(components: usize, modules: usize) -> Vec<u8> {
+        let mut inner = Component::new();
+        for _ in 0..modules {
+            inner.section(&ModuleSection(&Module::new()));
+        }
+        let mut outer = Component::new();
+        for _ in 0..components {
+            outer.section(&NestedComponentSection(&inner));
+        }
+        outer.finish()
+    }
+
+    fn deeply_nested_components(depth: usize) -> Vec<u8> {
+        let mut component = Component::new();
+        for _ in 0..depth {
+            let mut outer = Component::new();
+            outer.section(&NestedComponentSection(&component));
+            component = outer;
+        }
+        component.finish()
+    }
+
+    fn validate(wasm: &[u8]) -> wasmparser::Result<()> {
+        Validator::default().validate_all(wasm).map(|_| ())
+    }
+
+    // 3x300 = 900, ok, 300x300 = 90_000, bad
+    assert!(validate(&many_nested_modules(3, 300)).is_ok());
+    assert!(validate(&many_nested_modules(300, 300)).is_err());
+
+    assert!(validate(&deeply_nested_components(100)).is_ok());
+    assert!(validate(&deeply_nested_components(1000)).is_err());
+}

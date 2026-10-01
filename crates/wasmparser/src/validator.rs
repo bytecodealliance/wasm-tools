@@ -155,6 +155,10 @@ pub struct Validator {
     #[cfg(feature = "component-model")]
     components: Vec<ComponentState>,
 
+    /// The total number of modules and components, including nested ones,
+    /// seen so far in this validation.
+    modules_and_components: usize,
+
     /// Enabled WebAssembly feature flags, dictating what's valid and what
     /// isn't.
     features: WasmFeatures,
@@ -467,6 +471,7 @@ impl Validator {
             module,
             #[cfg(feature = "component-model")]
             components,
+            modules_and_components,
         } = self;
 
         assert!(
@@ -478,6 +483,7 @@ impl Validator {
         assert!(components.is_empty());
 
         *state = State::default();
+        *modules_and_components = 0;
     }
 
     /// Get this validator's unique identifier.
@@ -669,6 +675,15 @@ impl Validator {
                 return Err(Error::new("wasm version header out of order", range.start));
             }
         }
+
+        check_max(
+            self.modules_and_components,
+            1,
+            MAX_WASM_MODULES_AND_COMPONENTS,
+            "modules and components",
+            range.start,
+        )?;
+        self.modules_and_components += 1;
 
         self.state = match encoding {
             Encoding::Module => {
