@@ -393,7 +393,7 @@ impl CanonicalOptions {
                 callback: Some(idx),
             } => {
                 let func_ty = types[state.core_function_at(idx, offset)?].unwrap_func();
-                if func_ty.params() != [ValType::I32; 3] && func_ty.params() != [ValType::I32] {
+                if func_ty.params() != [ValType::I32; 3] || func_ty.results() != [ValType::I32] {
                     return Err(Error::new(
                         "canonical option `callback` uses a core function with an incorrect signature",
                         offset,
