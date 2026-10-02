@@ -26,6 +26,26 @@
       "filename": "tags.3.wasm",
       "module_type": "binary",
       "text": "unknown tag 0"
+    },
+    {
+      "type": "module",
+      "line": 33,
+      "filename": "tags.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 45,
+      "filename": "tags.5.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 61,
+      "filename": "tags.6.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
     }
   ]
 }

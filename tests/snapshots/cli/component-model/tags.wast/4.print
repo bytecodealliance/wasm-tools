@@ -1,0 +1,18 @@
+(component
+  (core module $a (;0;)
+    (type $t (;0;) (struct))
+    (type (;1;) (func (param (ref $t))))
+    (tag (;0;) (type 1) (param (ref $t)))
+    (export "e" (tag 0))
+  )
+  (core module $b (;1;)
+    (type $t (;0;) (struct))
+    (type (;1;) (func (param (ref $t))))
+    (import "a" "e" (tag (;0;) (type 1) (param (ref $t))))
+  )
+  (core instance $a (;0;) (instantiate $a))
+  (core instance $b (;1;) (instantiate $b
+      (with "a" (instance $a))
+    )
+  )
+)
