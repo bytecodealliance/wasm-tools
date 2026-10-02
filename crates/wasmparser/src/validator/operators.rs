@@ -762,8 +762,8 @@ where
                 })?;
                 self.resources.is_subtype(rt.into(), expected.into())
             }
-            MaybeType::Bottom => true,
-            _ => false,
+            MaybeType::Bottom | MaybeType::UnknownRef(None) => true,
+            MaybeType::UnknownRef(Some(_)) | MaybeType::Known(_) => false,
         };
         Ok((ty, is_exact))
     }
