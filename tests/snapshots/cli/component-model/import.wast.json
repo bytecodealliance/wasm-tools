@@ -230,309 +230,110 @@
       "module_type": "binary"
     },
     {
-      "type": "module_definition",
-      "line": 186,
+      "type": "assert_invalid",
+      "line": 190,
       "filename": "import.33.wasm",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "import name `unlocked-dep=<a:b>` is not a valid extern name"
     },
     {
       "type": "assert_invalid",
-      "line": 198,
+      "line": 193,
       "filename": "import.34.wasm",
       "module_type": "binary",
-      "text": "expected `<` at ``"
+      "text": "not a valid extern name"
     },
     {
       "type": "assert_invalid",
-      "line": 201,
+      "line": 196,
       "filename": "import.35.wasm",
       "module_type": "binary",
-      "text": "`` is not in kebab case"
+      "text": "import name `locked-dep=<a:b@1.2.3>` is not a valid extern name"
     },
     {
       "type": "assert_invalid",
-      "line": 204,
+      "line": 199,
       "filename": "import.36.wasm",
       "module_type": "binary",
-      "text": "`` is not in kebab case"
+      "text": "not a valid extern name"
     },
     {
       "type": "assert_invalid",
-      "line": 207,
+      "line": 202,
       "filename": "import.37.wasm",
       "module_type": "binary",
-      "text": "`` is not in kebab case"
+      "text": "import name `url=<a>` is not a valid extern name"
     },
     {
       "type": "assert_invalid",
-      "line": 210,
+      "line": 205,
       "filename": "import.38.wasm",
       "module_type": "binary",
-      "text": "`` is not in kebab case"
+      "text": "not a valid extern name"
     },
     {
       "type": "assert_invalid",
-      "line": 213,
+      "line": 208,
       "filename": "import.39.wasm",
       "module_type": "binary",
-      "text": "`` is not in kebab case"
+      "text": "import name `integrity=<sha256-a>` is not a valid extern name"
     },
     {
       "type": "assert_invalid",
-      "line": 216,
+      "line": 212,
       "filename": "import.40.wasm",
       "module_type": "binary",
-      "text": "expected `{` at `>`"
+      "text": "not a valid extern name"
     },
     {
       "type": "assert_invalid",
-      "line": 219,
+      "line": 220,
       "filename": "import.41.wasm",
       "module_type": "binary",
-      "text": "expected `>=` or `<` at start of version range"
+      "text": "not a valid extern name"
     },
     {
       "type": "assert_invalid",
-      "line": 222,
+      "line": 223,
       "filename": "import.42.wasm",
       "module_type": "binary",
-      "text": "`xyz` is not a valid semver"
+      "text": "not a valid extern name"
     },
     {
       "type": "assert_invalid",
-      "line": 225,
+      "line": 226,
       "filename": "import.43.wasm",
       "module_type": "binary",
-      "text": "`1.2.3 >=2.3.4` is not a valid semver"
+      "text": "not a valid extern name"
     },
     {
       "type": "module_definition",
-      "line": 228,
+      "line": 234,
       "filename": "import.44.wasm",
       "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
-      "line": 236,
+      "type": "module",
+      "line": 250,
       "filename": "import.45.wasm",
-      "module_type": "binary",
-      "text": "expected `<` at ``"
+      "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
-      "line": 239,
+      "type": "module",
+      "line": 264,
       "filename": "import.46.wasm",
-      "module_type": "binary",
-      "text": "`` is not in kebab case"
+      "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
-      "line": 242,
+      "type": "module",
+      "line": 277,
       "filename": "import.47.wasm",
-      "module_type": "binary",
-      "text": "`` is not in kebab case"
+      "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
-      "line": 245,
+      "type": "module",
+      "line": 301,
       "filename": "import.48.wasm",
-      "module_type": "binary",
-      "text": "`` is not in kebab case"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 248,
-      "filename": "import.49.wasm",
-      "module_type": "binary",
-      "text": "`` is not in kebab case"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 251,
-      "filename": "import.50.wasm",
-      "module_type": "binary",
-      "text": "`` is not in kebab case"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 254,
-      "filename": "import.51.wasm",
-      "module_type": "binary",
-      "text": "expected `>` at ``"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 257,
-      "filename": "import.52.wasm",
-      "module_type": "binary",
-      "text": "is not a valid semver"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 260,
-      "filename": "import.53.wasm",
-      "module_type": "binary",
-      "text": "expected `>` at ``"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 263,
-      "filename": "import.54.wasm",
-      "module_type": "binary",
-      "text": "expected `integrity=<`"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 266,
-      "filename": "import.55.wasm",
-      "module_type": "binary",
-      "text": "trailing characters found: `x`"
-    },
-    {
-      "type": "module_definition",
-      "line": 269,
-      "filename": "import.56.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 276,
-      "filename": "import.57.wasm",
-      "module_type": "binary",
-      "text": "expected `<` at ``"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 279,
-      "filename": "import.58.wasm",
-      "module_type": "binary",
-      "text": "failed to find `>`"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 282,
-      "filename": "import.59.wasm",
-      "module_type": "binary",
-      "text": "url cannot contain `<`"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 286,
-      "filename": "import.60.wasm",
-      "module_type": "binary",
-      "text": "not a valid extern name"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 294,
-      "filename": "import.61.wasm",
-      "module_type": "binary",
-      "text": "not a valid extern name"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 297,
-      "filename": "import.62.wasm",
-      "module_type": "binary",
-      "text": "not a valid extern name"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 300,
-      "filename": "import.63.wasm",
-      "module_type": "binary",
-      "text": "not a valid extern name"
-    },
-    {
-      "type": "module_definition",
-      "line": 303,
-      "filename": "import.64.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 316,
-      "filename": "import.65.wasm",
-      "module_type": "binary",
-      "text": "integrity hash cannot be empty"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 319,
-      "filename": "import.66.wasm",
-      "module_type": "binary",
-      "text": "expected `-` after hash algorithm"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 322,
-      "filename": "import.67.wasm",
-      "module_type": "binary",
-      "text": "not valid base64"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 325,
-      "filename": "import.68.wasm",
-      "module_type": "binary",
-      "text": "not valid base64"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 328,
-      "filename": "import.69.wasm",
-      "module_type": "binary",
-      "text": "not valid base64"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 331,
-      "filename": "import.70.wasm",
-      "module_type": "binary",
-      "text": "not valid base64"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 334,
-      "filename": "import.71.wasm",
-      "module_type": "binary",
-      "text": "not valid base64"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 337,
-      "filename": "import.72.wasm",
-      "module_type": "binary",
-      "text": "unrecognized hash algorithm"
-    },
-    {
-      "type": "module_definition",
-      "line": 345,
-      "filename": "import.73.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "module",
-      "line": 361,
-      "filename": "import.74.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "module",
-      "line": 375,
-      "filename": "import.75.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "module",
-      "line": 388,
-      "filename": "import.76.wasm",
-      "module_type": "binary"
-    },
-    {
-      "type": "module",
-      "line": 412,
-      "filename": "import.77.wasm",
       "module_type": "binary"
     }
   ]
