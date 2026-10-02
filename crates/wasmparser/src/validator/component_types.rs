@@ -3705,7 +3705,12 @@ impl<'a> SubtypeCx<'a> {
                 }
             }
             (EntityType::Global(_), b) => bail!(offset, "expected {}, found global", b.desc()),
-            (EntityType::Tag(a), EntityType::Tag(b)) => self.core_func_type(*a, *b, offset),
+            // Tag matching has to match both ways, see
+            // https://webassembly.github.io/spec/core/valid/matching.html#tag-types
+            (EntityType::Tag(a), EntityType::Tag(b)) => {
+                self.core_func_type(*b, *a, offset)?;
+                self.core_func_type(*a, *b, offset)
+            }
             (EntityType::Tag(_), b) => bail!(offset, "expected {}, found tag", b.desc()),
         }
     }

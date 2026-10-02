@@ -45,6 +45,26 @@
   "canonical option `callback` uses a core function with an incorrect signature"
 )
 
+;; async lift; with even more incorrectly-typed callback
+;;
+;; See
+;; https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-32h6-97mm-8q3c
+;; for further details.
+(assert_invalid
+  (component
+    (core module $m
+      (func (export "run") (result i32) unreachable)
+      (func (export "cb") (param i32 i32 i32)
+        (result i64 i64 i64 i64 i64 i64 i64 i64
+                i64 i64 i64 i64 i64 i64 i64 i64)
+        unreachable))
+    (core instance $i (instantiate $m))
+    (func (export "run") async
+      (canon lift (core func $i "run") async (callback (core func $i "cb"))))
+  )
+  "canonical option `callback` uses a core function with an incorrect signature"
+)
+
 ;; async lift; with callback and post-return
 (assert_invalid
   (component
