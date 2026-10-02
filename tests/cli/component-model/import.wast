@@ -183,104 +183,30 @@
   )
 )
 
-(component definition
-  (import "unlocked-dep=<a:b>" (func))
-  (import "unlocked-dep=<a:b@*>" (func))
-  (import "unlocked-dep=<a:b@{>=1.2.3}>" (func))
-  (import "unlocked-dep=<a:b@{>=1.2.3-rc}>" (func))
-  (import "unlocked-dep=<a:b@{<1.2.3}>" (func))
-  (import "unlocked-dep=<a:b@{<1.2.3-rc}>" (func))
-  (import "unlocked-dep=<a:b@{>=1.2.3 <1.2.3}>" (func))
-  (import "unlocked-dep=<a:b@{>=1.2.3-rc <1.2.3}>" (func))
-)
-
+;; The `depname`, `urlname` and `hashname` forms of `externname` were removed
+;; from the component model in WebAssembly/component-model#672 in favor of the
+;; `external-id` attribute, so these are no longer valid names.
 (assert_invalid
-  (component (import "unlocked-dep=" (func)))
-  "expected `<` at ``")
+  (component (import "unlocked-dep=<a:b>" (func)))
+  "import name `unlocked-dep=<a:b>` is not a valid extern name")
 (assert_invalid
-  (component (import "unlocked-dep=<" (func)))
-  "`` is not in kebab case")
+  (component (import "unlocked-dep=<a:b@{>=1.2.3 <1.2.3}>" (func)))
+  "not a valid extern name")
 (assert_invalid
-  (component (import "unlocked-dep=<>" (func)))
-  "`` is not in kebab case")
+  (component (import "locked-dep=<a:b@1.2.3>" (func)))
+  "import name `locked-dep=<a:b@1.2.3>` is not a valid extern name")
 (assert_invalid
-  (component (import "unlocked-dep=<:>" (func)))
-  "`` is not in kebab case")
+  (component (import "locked-dep=<a:b@1.2.3>,integrity=<sha256-a>" (func)))
+  "not a valid extern name")
 (assert_invalid
-  (component (import "unlocked-dep=<a:>" (func)))
-  "`` is not in kebab case")
+  (component (import "url=<a>" (func)))
+  "import name `url=<a>` is not a valid extern name")
 (assert_invalid
-  (component (import "unlocked-dep=<:a>" (func)))
-  "`` is not in kebab case")
+  (component (import "url=<a>,integrity=<sha256-a>" (func)))
+  "not a valid extern name")
 (assert_invalid
-  (component (import "unlocked-dep=<a:a@>" (func)))
-  "expected `{` at `>`")
-(assert_invalid
-  (component (import "unlocked-dep=<a:a@{xyz}>" (func)))
-  "expected `>=` or `<` at start of version range")
-(assert_invalid
-  (component (import "unlocked-dep=<a:a@{<xyz}>" (func)))
-  "`xyz` is not a valid semver")
-(assert_invalid
-  (component (import "unlocked-dep=<a:a@{<1.2.3 >=2.3.4}>" (func)))
-  "`1.2.3 >=2.3.4` is not a valid semver")
-
-(component definition
-  (import "locked-dep=<a:b>" (func))
-  (import "locked-dep=<a:b@1.2.3>" (func))
-  (import "locked-dep=<a:b>,integrity=<sha256-a>" (func))
-  (import "locked-dep=<a:b@1.2.3>,integrity=<sha256-a>" (func))
-)
-
-(assert_invalid
-  (component (import "locked-dep=" (func)))
-  "expected `<` at ``")
-(assert_invalid
-  (component (import "locked-dep=<" (func)))
-  "`` is not in kebab case")
-(assert_invalid
-  (component (import "locked-dep=<:" (func)))
-  "`` is not in kebab case")
-(assert_invalid
-  (component (import "locked-dep=<:>" (func)))
-  "`` is not in kebab case")
-(assert_invalid
-  (component (import "locked-dep=<a:>" (func)))
-  "`` is not in kebab case")
-(assert_invalid
-  (component (import "locked-dep=<:a>" (func)))
-  "`` is not in kebab case")
-(assert_invalid
-  (component (import "locked-dep=<a:a" (func)))
-  "expected `>` at ``")
-(assert_invalid
-  (component (import "locked-dep=<a:a@>" (func)))
-  "is not a valid semver")
-(assert_invalid
-  (component (import "locked-dep=<a:a@1.2.3" (func)))
-  "expected `>` at ``")
-(assert_invalid
-  (component (import "locked-dep=<a:a@1.2.3>," (func)))
-  "expected `integrity=<`")
-(assert_invalid
-  (component (import "locked-dep=<a:a@1.2.3>x" (func)))
-  "trailing characters found: `x`")
-
-(component definition
-  (import "url=<>" (func))
-  (import "url=<a>" (func))
-  (import "url=<a>,integrity=<sha256-a>" (func))
-)
-
-(assert_invalid
-  (component (import "url=" (func)))
-  "expected `<` at ``")
-(assert_invalid
-  (component (import "url=<" (func)))
-  "failed to find `>`")
-(assert_invalid
-  (component (import "url=<<>" (func)))
-  "url cannot contain `<`")
+  (component (import "integrity=<sha256-a>" (func)))
+  "import name `integrity=<sha256-a>` is not a valid extern name")
 
 (assert_invalid
   (component
@@ -299,43 +225,6 @@
 (assert_invalid
   (component (import "relative-url=<<>" (func)))
   "not a valid extern name")
-
-(component definition
-  (import "integrity=<sha256-a>" (func))
-  (import "integrity=<sha384-a>" (func))
-  (import "integrity=<sha512-a>" (func))
-  (import "integrity=<sha512-a sha256-b>" (func))
-  (import "integrity=< sha512-a sha256-b >" (func))
-  (import "integrity=<  sha512-a?abcd  >" (func))
-  (import "integrity=<sha256-abcdefghijklmnopqrstuvwxyz>" (func))
-  (import "integrity=<sha256-ABCDEFGHIJKLMNOPQRSTUVWXYZ>" (func))
-  (import "integrity=<sha256-++++++++++++++++++++==>" (func))
-  (import "integrity=<sha256-////////////////////==>" (func))
-)
-(assert_invalid
-  (component (import "integrity=<>" (func)))
-  "integrity hash cannot be empty")
-(assert_invalid
-  (component (import "integrity=<sha256>" (func)))
-  "expected `-` after hash algorithm")
-(assert_invalid
-  (component (import "integrity=<sha256->" (func)))
-  "not valid base64")
-(assert_invalid
-  (component (import "integrity=<sha256-^^^^>" (func)))
-  "not valid base64")
-(assert_invalid
-  (component (import "integrity=<sha256-=========>" (func)))
-  "not valid base64")
-(assert_invalid
-  (component (import "integrity=<sha256-=>" (func)))
-  "not valid base64")
-(assert_invalid
-  (component (import "integrity=<sha256-==>" (func)))
-  "not valid base64")
-(assert_invalid
-  (component (import "integrity=<md5-ABC>" (func)))
-  "unrecognized hash algorithm")
 
 ;; Prior to WebAssembly/component-model#263 this was a valid component.
 ;; Specifically the 0x01 prefix byte on the import was valid. Nowadays that's

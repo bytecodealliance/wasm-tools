@@ -3511,8 +3511,8 @@ impl ComponentEncoder {
     /// This is used to rename instance imports in the final component.
     ///
     /// For example, if there is an instance import `foo:bar/baz` and it is
-    /// desired that the import actually be an `unlocked-dep` name, then
-    /// `foo:bar/baz` can be mapped to `unlocked-dep=<a:b/c@{>=x.y.z}>`.
+    /// desired that the import actually be named `a:b/c@x.y.z`, then
+    /// `foo:bar/baz` can be mapped to `a:b/c@x.y.z`.
     ///
     /// Note: the replacement names are not validated during encoding unless
     /// the `validate` option is set to true.
@@ -3744,14 +3744,8 @@ world test {
 
         let encoded = ComponentEncoder::default()
             .import_name_map(HashMap::from([
-                (
-                    "foo".to_string(),
-                    "unlocked-dep=<foo:bar/foo@{>=1.0.0 <1.1.0}>".to_string(),
-                ),
-                (
-                    "test:wit/i".to_string(),
-                    "locked-dep=<foo:bar/i@1.2.3>".to_string(),
-                ),
+                ("foo".to_string(), "foo:bar/foo@1.0.0".to_string()),
+                ("test:wit/i".to_string(), "foo:bar/i@1.2.3".to_string()),
             ]))
             .module(&module)
             .unwrap()
@@ -3760,7 +3754,9 @@ world test {
             .unwrap();
 
         let wat = wasmprinter::print_bytes(encoded).unwrap();
-        assert!(wat.contains("unlocked-dep=<foo:bar/foo@{>=1.0.0 <1.1.0}>"));
-        assert!(wat.contains("locked-dep=<foo:bar/i@1.2.3>"));
+        assert!(wat.contains("(import \"foo:bar/foo@1.0.0\""));
+        assert!(wat.contains("(import \"foo:bar/i@1.2.3\""));
+        assert!(!wat.contains("(import \"foo\""));
+        assert!(!wat.contains("(import \"test:wit/i\""));
     }
 }
