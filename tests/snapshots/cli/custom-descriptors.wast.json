@@ -103,6 +103,12 @@
       "filename": "custom-descriptors.14.wasm",
       "module_type": "binary",
       "text": "type mismatch"
+    },
+    {
+      "type": "module",
+      "line": 184,
+      "filename": "custom-descriptors.15.wasm",
+      "module_type": "binary"
     }
   ]
 }

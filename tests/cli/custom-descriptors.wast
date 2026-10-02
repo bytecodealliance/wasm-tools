@@ -177,3 +177,30 @@
       local.get 1
       ref.cast_desc_eq (ref null $A)))
   "type mismatch")
+
+;; `ref.get_desc` on a bottom operand in unreachable code produces an exact
+;; descriptor reference, including when the operand is `(ref bot)` as produced
+;; by `ref.as_non_null` or `br_on_null`.
+(module
+  (rec
+    (type $t (descriptor $d) (struct))
+    (type $d (describes $t) (struct)))
+
+  (func (result (ref (exact $d)))
+    unreachable
+    ref.get_desc $t)
+
+  (func (result (ref (exact $d)))
+    unreachable
+    ref.as_non_null
+    ref.get_desc $t)
+
+  (func (result (ref (exact $d)))
+    block
+      unreachable
+      br_on_null 0
+      ref.get_desc $t
+      return
+    end
+    unreachable)
+)
