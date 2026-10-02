@@ -89,6 +89,34 @@
       "line": 111,
       "filename": "values.13.wasm",
       "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 143,
+      "filename": "values.14.wasm",
+      "module_type": "binary",
+      "text": "exported value type cannot contain a `borrow` type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 150,
+      "filename": "values.15.wasm",
+      "module_type": "binary",
+      "text": "exported value type cannot contain a `borrow` type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 158,
+      "filename": "values.16.wasm",
+      "module_type": "binary",
+      "text": "exported value type cannot contain a `borrow` type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 165,
+      "filename": "values.17.wasm",
+      "module_type": "binary",
+      "text": "exported value type cannot contain a `borrow` type"
     }
   ]
 }

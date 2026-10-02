@@ -132,6 +132,26 @@
       "filename": "streams.19.wasm",
       "module_type": "binary",
       "text": "`stream<char>` is not valid at this time, use `stream<u8>` with a defined by encoding instead for now"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 231,
+      "filename": "streams.20.wasm",
+      "module_type": "binary",
+      "text": "`stream` payload cannot contain a `borrow` type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 237,
+      "filename": "streams.21.wasm",
+      "module_type": "binary",
+      "text": "`stream` payload cannot contain a `borrow` type"
+    },
+    {
+      "type": "module",
+      "line": 243,
+      "filename": "streams.22.wasm",
+      "module_type": "binary"
     }
   ]
 }

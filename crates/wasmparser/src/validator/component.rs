@@ -729,6 +729,9 @@ impl ComponentState {
                     Some(ExternKind::Import) | None => false,
                     Some(ExternKind::Export) => true,
                 };
+                if value_used && ty.abi(types).contains_borrow() {
+                    bail!(offset, "exported value type cannot contain a `borrow` type");
+                }
                 self.values.push((*ty, value_used));
                 (self.values.len(), MAX_WASM_VALUES, "values")
             }
@@ -3565,7 +3568,11 @@ impl ComponentState {
                 }
                 ComponentExternalKind::Value => {
                     self.check_value_support(offset)?;
-                    ComponentEntityType::Value(*self.value_at(export.index, offset)?)
+                    let ty = *self.value_at(export.index, offset)?;
+                    if ty.abi(types).contains_borrow() {
+                        bail!(offset, "exported value type cannot contain a `borrow` type");
+                    }
+                    ComponentEntityType::Value(ty)
                 }
                 ComponentExternalKind::Type => {
                     let ty = self.component_type_at(export.index, offset)?;
@@ -4125,6 +4132,9 @@ impl ComponentState {
                 let ty = ty
                     .map(|ty| self.create_component_val_type(ty, offset))
                     .transpose()?;
+                if ty.is_some_and(|ty| ty.abi(types).contains_borrow()) {
+                    bail!(offset, "`future` payload cannot contain a `borrow` type");
+                }
                 let mut info = TypeInfo::new();
                 if let Some(ty) = &ty {
                     info.combine(ty.info(types), offset)?;
@@ -4155,6 +4165,9 @@ impl ComponentState {
                         "`stream<char>` is not valid at this time, use `stream<u8>` \
                          with a defined by encoding instead for now"
                     )
+                }
+                if ty.is_some_and(|ty| ty.abi(types).contains_borrow()) {
+                    bail!(offset, "`stream` payload cannot contain a `borrow` type");
                 }
                 let mut info = TypeInfo::new();
                 if let Some(ty) = &ty {
