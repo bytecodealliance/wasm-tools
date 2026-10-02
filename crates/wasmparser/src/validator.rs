@@ -959,6 +959,13 @@ impl Validator {
 
         let state = self.module.as_mut().unwrap();
 
+        if !self.features.bulk_memory() {
+            bail!(
+                offset,
+                "data count section requires the bulk-memory proposal"
+            );
+        }
+
         if count > MAX_WASM_DATA_SEGMENTS as u32 {
             return Err(Error::new(
                 "data count section specifies too many data segments",

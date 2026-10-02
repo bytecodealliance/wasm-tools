@@ -670,6 +670,11 @@ impl Module {
                 EntityType::Func(self.types[*type_index as usize])
             }
             TypeRef::FuncExact(type_index) => {
+                require_feature::custom_descriptors(
+                    self.features,
+                    "custom descriptors required for exact function imports",
+                    offset,
+                )?;
                 self.func_type_at(*type_index, types, offset)?;
                 EntityType::FuncExact(self.types[*type_index as usize])
             }

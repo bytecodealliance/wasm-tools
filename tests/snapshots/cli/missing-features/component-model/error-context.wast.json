@@ -35,6 +35,13 @@
       "filename": "error-context.4.wasm",
       "module_type": "binary",
       "text": "requires the component model error-context feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 61,
+      "filename": "error-context.5.wasm",
+      "module_type": "binary",
+      "text": "requires the component model error-context feature"
     }
   ]
 }

@@ -1415,18 +1415,24 @@ where
 
     /// Common helper for `ref.test` and `ref.cast` downcasting/checking
     /// instructions. Returns the given `heap_type` as a `ValType`.
-    fn check_downcast(&mut self, nullable: bool, mut heap_type: HeapType) -> Result<RefType> {
-        self.resources
-            .check_heap_type(&mut heap_type, self.offset)?;
-
-        let sub_ty = RefType::new(nullable, heap_type)
+    fn check_downcast(&mut self, nullable: bool, heap_type: HeapType) -> Result<RefType> {
+        let mut sub_ty = RefType::new(nullable, heap_type)
             .ok_or_else(|| Error::new("implementation limit: type index too large", self.offset))?;
+        self.check_ref_type(&mut sub_ty)?;
+        let heap_type = sub_ty.heap_type();
         let top = self.resources.top_type(&heap_type);
         self.check_cast_to_allowed(top)?;
         let sup_ty = RefType::new(true, top).expect("can't panic with non-concrete heap types");
 
         self.pop_ref(Some(sup_ty))?;
         Ok(sub_ty)
+    }
+
+    /// Validates that `ty` is valid in this module under the enabled
+    /// features, and canonicalizes it.
+    fn check_ref_type(&self, ty: &mut RefType) -> Result<()> {
+        self.features.check_ref_type(*ty, self.offset)?;
+        self.resources.check_ref_type(ty, self.offset)
     }
 
     fn check_cast_to_allowed(&self, ty: HeapType) -> Result<()> {
@@ -4293,10 +4299,8 @@ where
         mut from_ref_type: RefType,
         mut to_ref_type: RefType,
     ) -> Self::Output {
-        self.resources
-            .check_ref_type(&mut from_ref_type, self.offset)?;
-        self.resources
-            .check_ref_type(&mut to_ref_type, self.offset)?;
+        self.check_ref_type(&mut from_ref_type)?;
+        self.check_ref_type(&mut to_ref_type)?;
 
         self.check_br_on_cast_type_hierarchy(from_ref_type, to_ref_type)?;
 
@@ -4329,10 +4333,8 @@ where
         mut from_ref_type: RefType,
         mut to_ref_type: RefType,
     ) -> Self::Output {
-        self.resources
-            .check_ref_type(&mut from_ref_type, self.offset)?;
-        self.resources
-            .check_ref_type(&mut to_ref_type, self.offset)?;
+        self.check_ref_type(&mut from_ref_type)?;
+        self.check_ref_type(&mut to_ref_type)?;
 
         self.check_br_on_cast_type_hierarchy(from_ref_type, to_ref_type)?;
 
@@ -4627,10 +4629,8 @@ where
     ) -> Self::Output {
         let described_ty = to_ref_type.heap_type();
 
-        self.resources
-            .check_ref_type(&mut from_ref_type, self.offset)?;
-        self.resources
-            .check_ref_type(&mut to_ref_type, self.offset)?;
+        self.check_ref_type(&mut from_ref_type)?;
+        self.check_ref_type(&mut to_ref_type)?;
 
         self.check_br_on_cast_type_hierarchy(from_ref_type, to_ref_type)?;
 
@@ -4667,10 +4667,8 @@ where
     ) -> Self::Output {
         let described_ty = to_ref_type.heap_type();
 
-        self.resources
-            .check_ref_type(&mut from_ref_type, self.offset)?;
-        self.resources
-            .check_ref_type(&mut to_ref_type, self.offset)?;
+        self.check_ref_type(&mut from_ref_type)?;
+        self.check_ref_type(&mut to_ref_type)?;
 
         self.check_br_on_cast_type_hierarchy(from_ref_type, to_ref_type)?;
 
