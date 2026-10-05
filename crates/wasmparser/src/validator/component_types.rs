@@ -11,7 +11,9 @@ use crate::validator::types::{
     Types, TypesKind, TypesRef, TypesRefKind,
 };
 use crate::{AbstractHeapType, CompositeInnerType, HeapType, RefType, StorageType, prelude::*};
-use crate::{Error, FuncType, MemoryType, PrimitiveValType, Result, TableType, ValType};
+use crate::{
+    Error, FuncType, GlobalType, MemoryType, PrimitiveValType, Result, TableType, ValType,
+};
 use alloc::borrow::Cow;
 use core::fmt;
 use core::ops::Index;
@@ -3963,21 +3965,7 @@ impl<'a> SubtypeCx<'a> {
             (EntityType::Table(_), b) => bail!(offset, "expected {}, found table", b.desc()),
             (EntityType::Memory(a), EntityType::Memory(b)) => Self::memory_type(a, b, offset),
             (EntityType::Memory(_), b) => bail!(offset, "expected {}, found memory", b.desc()),
-            (EntityType::Global(a), EntityType::Global(b)) => {
-                if a.mutable != b.mutable {
-                    bail!(offset, "global types differ in mutability")
-                }
-                if a.content_type == b.content_type {
-                    Ok(())
-                } else {
-                    bail!(
-                        offset,
-                        "expected global type {}, found {}",
-                        b.content_type,
-                        a.content_type,
-                    )
-                }
-            }
+            (EntityType::Global(a), EntityType::Global(b)) => self.global_type(a, b, offset),
             (EntityType::Global(_), b) => bail!(offset, "expected {}, found global", b.desc()),
             // Tag matching has to match both ways, see
             // https://webassembly.github.io/spec/core/valid/matching.html#tag-types
@@ -4045,6 +4033,39 @@ impl<'a> SubtypeCx<'a> {
             Ok(())
         } else {
             bail!(offset, "mismatch in memory limits")
+        }
+    }
+
+    fn global_type(&self, a: &GlobalType, b: &GlobalType, offset: u64) -> Result<()> {
+        let GlobalType {
+            content_type,
+            mutable,
+            shared,
+        } = *a;
+        if mutable != b.mutable {
+            bail!(offset, "global types differ in mutability")
+        }
+        if shared != b.shared {
+            bail!(offset, "mismatch in the shared flag for globals")
+        }
+        // Mutable globals are invariant in their content type while immutable
+        // globals are covariant, see
+        // https://webassembly.github.io/spec/core/valid/matching.html#global-types
+        let ok = if mutable {
+            self.a.valtype_is_subtype(content_type, b.content_type)
+                && self.a.valtype_is_subtype(b.content_type, content_type)
+        } else {
+            self.a.valtype_is_subtype(content_type, b.content_type)
+        };
+        if ok {
+            Ok(())
+        } else {
+            bail!(
+                offset,
+                "expected global type {}, found {}",
+                b.content_type,
+                content_type,
+            )
         }
     }
 
@@ -4369,6 +4390,13 @@ impl<'a> SubtypeArena<'a> {
             debug_assert!(b.index() < CoreTypeId::list(self.types).len());
             self.types.id_is_subtype(a, b)
         }
+    }
+
+    /// Is `a` a subtype of `b`?
+    fn valtype_is_subtype(&self, a: ValType, b: ValType) -> bool {
+        // NB: like `id_is_subtype` above core types are never in `self.list`
+        // so this can defer to `self.types` directly.
+        self.types.valtype_is_subtype(a, b)
     }
 }
 

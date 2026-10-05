@@ -1,0 +1,14 @@
+(component
+  (core module $A (;0;)
+    (global (;0;) (mut funcref) ref.null func)
+    (export "g" (global 0))
+  )
+  (core instance $a (;0;) (instantiate $A))
+  (core module $B (;1;)
+    (import "A" "g" (global (;0;) (mut funcref)))
+  )
+  (core instance (;1;) (instantiate $B
+      (with "A" (instance $a))
+    )
+  )
+)
