@@ -7,6 +7,44 @@
       "filename": "custom-descriptors.0.wasm",
       "module_type": "binary",
       "text": "exact type is not allowed in core export aliases"
+    },
+    {
+      "type": "module",
+      "line": 19,
+      "filename": "custom-descriptors.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 35,
+      "filename": "custom-descriptors.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 47,
+      "filename": "custom-descriptors.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 65,
+      "filename": "custom-descriptors.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 78,
+      "filename": "custom-descriptors.5.wasm",
+      "module_type": "binary",
+      "text": "expected func_exact, found func"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 97,
+      "filename": "custom-descriptors.6.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
     }
   ]
 }
