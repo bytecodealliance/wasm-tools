@@ -1128,9 +1128,7 @@ impl Validator {
                 Ok(())
             },
             |components, types, _features, ty, offset| {
-                ComponentState::add_core_type(
-                    components, ty, types, offset, false, /* checked above */
-                )
+                ComponentState::add_core_type(components, ty, types, offset)
             },
         )
     }

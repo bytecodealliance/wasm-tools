@@ -513,12 +513,13 @@ impl ComponentState {
         ty: crate::CoreType,
         types: &mut TypeAlloc,
         offset: u64,
-        check_limit: bool,
     ) -> Result<()> {
         let current = components.last_mut().unwrap();
-        if check_limit {
-            check_max(current.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
-        }
+        let count = match &ty {
+            crate::CoreType::Rec(rec) => rec.types().len() as u32,
+            crate::CoreType::Module(_) => 1,
+        };
+        check_max(current.type_count(), count, MAX_WASM_TYPES, "types", offset)?;
         match ty {
             crate::CoreType::Rec(rec) => {
                 current.canonicalize_and_intern_rec_group(types, rec, offset)?;
@@ -3045,7 +3046,7 @@ impl ComponentState {
         for decl in decls {
             match decl {
                 crate::ComponentTypeDeclaration::CoreType(ty) => {
-                    Self::add_core_type(components, ty, types, offset, true)?;
+                    Self::add_core_type(components, ty, types, offset)?;
                 }
                 crate::ComponentTypeDeclaration::Type(ty) => {
                     Self::add_type(components, ty, types, offset, true)?;
@@ -3082,7 +3083,7 @@ impl ComponentState {
         for decl in decls {
             match decl {
                 crate::InstanceTypeDeclaration::CoreType(ty) => {
-                    Self::add_core_type(components, ty, types, offset, true)?;
+                    Self::add_core_type(components, ty, types, offset)?;
                 }
                 crate::InstanceTypeDeclaration::Type(ty) => {
                     Self::add_type(components, ty, types, offset, true)?;
