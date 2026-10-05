@@ -2951,6 +2951,12 @@ impl ComponentState {
             None => return Ok(actual),
         };
 
+        // FIXME(#2731) this is not correct when `ascribed` has fresh resource
+        // types in it. Fixing that is a bit complicated at this time and the
+        // consequence otherwise is that if `ascribed` has fresh resources
+        // within it then it'll never pass this typecheck. So this is a
+        // conservative failure for now, but one that should be fixed in the
+        // future.
         SubtypeCx::new(types, types)
             .component_entity_type(&actual, &ascribed, offset)
             .with_context(|| "ascribed type of export is not compatible with item's type")?;
