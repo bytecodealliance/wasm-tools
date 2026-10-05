@@ -4732,18 +4732,6 @@ impl ComponentNameContext {
                 format!("{} name `{name}` is not a valid extern name", kind.desc(),)
             })?;
 
-        if let ExternKind::Export = kind {
-            match kebab.kind() {
-                ComponentNameKind::Plain(_) | ComponentNameKind::Interface(_) => {}
-
-                ComponentNameKind::Hash(_)
-                | ComponentNameKind::Url(_)
-                | ComponentNameKind::Dependency(_) => {
-                    bail!(offset, "name `{name}` is not a valid export name")
-                }
-            }
-        }
-
         if let Some(suffix) = version_suffix {
             require_feature::cm_canon_names(
                 *features,
@@ -4906,11 +4894,6 @@ impl ComponentNameContext {
         };
 
         match name.kind() {
-            // No validation necessary for these styles of names
-            ComponentNameKind::Url(_)
-            | ComponentNameKind::Hash(_)
-            | ComponentNameKind::Dependency(_) => {}
-
             // Validate the `version_suffix` field in the context of interface
             // names.
             ComponentNameKind::Interface(name) => {

@@ -1,4 +1,0 @@
-(component
-  (type (;0;) (func))
-  (import "a" (func (;0;) (type 0)))
-)

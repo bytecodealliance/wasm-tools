@@ -245,9 +245,6 @@ impl From<KebabString> for String {
 ///   `[static][get]a-b.c-d` or `[static][set]a-b.c-d`
 /// * a plain constructor: `[constructor]a-b`
 /// * an interface name: `wasi:cli/reactor@0.1.0`
-/// * a dependency name: `locked-dep=foo:bar/baz`
-/// * a URL name: `url=https://..`
-/// * a hash name: `integrity=sha256:...`
 ///
 /// # Equality and hashing
 ///
@@ -266,9 +263,6 @@ pub struct ComponentName {
 enum ParsedComponentNameKind {
     Plain,
     Interface,
-    Dependency,
-    Url,
-    Hash,
 }
 
 /// Created via [`ComponentName::kind`] and classifies a name.
@@ -280,15 +274,6 @@ pub enum ComponentNameKind<'a> {
     /// `wasi:http/types@2.0`
     #[allow(missing_docs)]
     Interface(InterfaceName<'a>),
-    /// `locked-dep=foo:bar/baz`
-    #[allow(missing_docs)]
-    Dependency(DependencyName<'a>),
-    /// `url=https://...`
-    #[allow(missing_docs)]
-    Url(UrlName<'a>),
-    /// `integrity=sha256:...`
-    #[allow(missing_docs)]
-    Hash(HashName<'a>),
 }
 
 const CONSTRUCTOR: &str = "[constructor]";
@@ -332,9 +317,6 @@ impl ComponentName {
         match self.kind {
             PK::Plain => Plain(PlainName::new(&self.raw)),
             PK::Interface => Interface(InterfaceName(&self.raw)),
-            PK::Dependency => Dependency(DependencyName(&self.raw)),
-            PK::Url => Url(UrlName(&self.raw)),
-            PK::Hash => Hash(HashName(&self.raw)),
         }
     }
 
@@ -394,9 +376,6 @@ impl ComponentNameKind<'_> {
         match self {
             Self::Plain(_) => ParsedComponentNameKind::Plain,
             Self::Interface(_) => ParsedComponentNameKind::Interface,
-            Self::Dependency(_) => ParsedComponentNameKind::Dependency,
-            Self::Url(_) => ParsedComponentNameKind::Url,
-            Self::Hash(_) => ParsedComponentNameKind::Hash,
         }
     }
 }
@@ -408,13 +387,8 @@ impl Ord for ComponentNameKind<'_> {
         match (self, other) {
             (Plain(lhs), Plain(rhs)) => lhs.cmp(rhs),
             (Interface(lhs), Interface(rhs)) => lhs.cmp(rhs),
-            (Dependency(lhs), Dependency(rhs)) => lhs.cmp(rhs),
-            (Url(lhs), Url(rhs)) => lhs.cmp(rhs),
-            (Hash(lhs), Hash(rhs)) => lhs.cmp(rhs),
 
-            (Plain(_), _) | (Interface(_), _) | (Dependency(_), _) | (Url(_), _) | (Hash(_), _) => {
-                self.kind().cmp(&other.kind())
-            }
+            (Plain(_), _) | (Interface(_), _) => self.kind().cmp(&other.kind()),
         }
     }
 }
@@ -431,9 +405,6 @@ impl Hash for ComponentNameKind<'_> {
         match self {
             Plain(name) => (0u8, name).hash(hasher),
             Interface(name) => (1u8, name).hash(hasher),
-            Dependency(name) => (2u8, name).hash(hasher),
-            Url(name) => (3u8, name).hash(hasher),
-            Hash(name) => (4u8, name).hash(hasher),
         }
     }
 }
@@ -918,40 +889,6 @@ fn is_version_number(s: &str) -> bool {
     !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()) && (s == "0" || !s.starts_with('0'))
 }
 
-/// A dependency on an implementation either as `locked-dep=...` or
-/// `unlocked-dep=...`
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-pub struct DependencyName<'a>(&'a str);
-
-impl<'a> DependencyName<'a> {
-    /// Returns entire underlying import string
-    pub fn as_str(&self) -> &'a str {
-        self.0
-    }
-}
-
-/// A dependency on an implementation either as `url=...`
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-pub struct UrlName<'a>(&'a str);
-
-impl<'a> UrlName<'a> {
-    /// Returns entire underlying import string
-    pub fn as_str(&self) -> &'a str {
-        self.0
-    }
-}
-
-/// A dependency on an implementation either as `integrity=...`.
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-pub struct HashName<'a>(&'a str);
-
-impl<'a> HashName<'a> {
-    /// Returns entire underlying import string.
-    pub fn as_str(&self) -> &'a str {
-        self.0
-    }
-}
-
 // A small helper structure to parse `self.next` which is an import or export
 // name.
 //
@@ -965,45 +902,8 @@ struct ComponentNameParser<'a> {
 
 impl<'a> ComponentNameParser<'a> {
     fn parse(&mut self) -> Result<ParsedComponentNameKind> {
-        // 'unlocked-dep=<' <pkgnamequery> '>'
-        if self.eat_str("unlocked-dep=") {
-            self.expect_str("<")?;
-            self.pkg_name_query()?;
-            self.expect_str(">")?;
-            return Ok(ParsedComponentNameKind::Dependency);
-        }
-
-        // 'locked-dep=<' <pkgname> '>' ( ',' <hashname> )?
-        if self.eat_str("locked-dep=") {
-            self.expect_str("<")?;
-            self.pkg_name(false)?;
-            self.expect_str(">")?;
-            self.eat_optional_hash()?;
-            return Ok(ParsedComponentNameKind::Dependency);
-        }
-
-        // 'url=<' <nonbrackets> '>' (',' <hashname>)?
-        if self.eat_str("url=") {
-            self.expect_str("<")?;
-            let url = self.take_up_to('>')?;
-            if url.contains('<') {
-                bail!(self.offset, "url cannot contain `<`");
-            }
-            self.expect_str(">")?;
-            self.eat_optional_hash()?;
-            return Ok(ParsedComponentNameKind::Url);
-        }
-
-        // 'integrity=<' <integrity-metadata> '>'
-        if self.eat_str("integrity=") {
-            self.expect_str("<")?;
-            let _hash = self.parse_hash()?;
-            self.expect_str(">")?;
-            return Ok(ParsedComponentNameKind::Hash);
-        }
-
         if self.next.contains(':') {
-            self.pkg_name(true)?;
+            self.interface_name()?;
             return Ok(ParsedComponentNameKind::Interface);
         }
 
@@ -1055,46 +955,21 @@ impl<'a> ComponentNameParser<'a> {
         Ok(ParsedComponentNameKind::Plain)
     }
 
-    // pkgnamequery ::= <pkgpath> <verrange>?
-    fn pkg_name_query(&mut self) -> Result<()> {
-        self.pkg_path(false)?;
+    // interfacename ::= <pkgpath> <version>?
+    fn interface_name(&mut self) -> Result<()> {
+        self.pkg_path()?;
 
+        // Validation of the semver of interface names is deferred to full
+        // component validation with access to the `version_suffix` field.
         if self.eat_str("@") {
-            if self.eat_str("*") {
-                return Ok(());
-            }
-
-            self.expect_str("{")?;
-            let range = self.take_up_to('}')?;
-            self.expect_str("}")?;
-            self.semver_range(range)?;
-        }
-
-        Ok(())
-    }
-
-    // pkgname ::= <pkgpath> <version>?
-    fn pkg_name(&mut self, is_interface_name: bool) -> Result<()> {
-        self.pkg_path(is_interface_name)?;
-
-        if self.eat_str("@") {
-            let version = match self.eat_up_to('>') {
-                Some(version) => version,
-                None => self.take_rest(),
-            };
-
-            // Validation of the semver of interface names is deferred to full
-            // component validation with access to the `version_suffix` field.
-            if !is_interface_name {
-                self.semver(version)?;
-            }
+            self.take_rest();
         }
 
         Ok(())
     }
 
     // pkgpath ::= <namespace>+ <label> <projection>*
-    fn pkg_path(&mut self, require_projection: bool) -> Result<()> {
+    fn pkg_path(&mut self) -> Result<()> {
         // There must be at least one package namespace
         self.take_lowercase_kebab()?;
         self.expect_str(":")?;
@@ -1119,93 +994,11 @@ impl<'a> ComponentNameParser<'a> {
                     self.take_kebab()?;
                 }
             }
-        } else if require_projection {
+        } else {
             bail!(self.offset, "expected `/` after package name");
         }
 
         Ok(())
-    }
-
-    // verrange ::= '@*'
-    //            | '@{' <verlower> '}'
-    //            | '@{' <verupper> '}'
-    //            | '@{' <verlower> ' ' <verupper> '}'
-    // verlower ::= '>=' <valid semver>
-    // verupper ::= '<' <valid semver>
-    fn semver_range(&self, range: &str) -> Result<()> {
-        if range == "*" {
-            return Ok(());
-        }
-
-        if let Some(range) = range.strip_prefix(">=") {
-            let (lower, upper) = range
-                .split_once(' ')
-                .map(|(l, u)| (l, Some(u)))
-                .unwrap_or((range, None));
-            self.semver(lower)?;
-
-            if let Some(upper) = upper {
-                match upper.strip_prefix('<') {
-                    Some(upper) => {
-                        self.semver(upper)?;
-                    }
-                    None => bail!(
-                        self.offset,
-                        "expected `<` at start of version range upper bounds"
-                    ),
-                }
-            }
-        } else if let Some(upper) = range.strip_prefix('<') {
-            self.semver(upper)?;
-        } else {
-            bail!(
-                self.offset,
-                "expected `>=` or `<` at start of version range"
-            );
-        }
-
-        Ok(())
-    }
-
-    fn parse_hash(&mut self) -> Result<&'a str> {
-        let integrity = self.take_up_to('>')?;
-        let mut any = false;
-        for hash in integrity.split_whitespace() {
-            any = true;
-            let rest = hash
-                .strip_prefix("sha256")
-                .or_else(|| hash.strip_prefix("sha384"))
-                .or_else(|| hash.strip_prefix("sha512"));
-            let rest = match rest {
-                Some(s) => s,
-                None => bail!(self.offset, "unrecognized hash algorithm: `{hash}`"),
-            };
-            let rest = match rest.strip_prefix('-') {
-                Some(s) => s,
-                None => bail!(self.offset, "expected `-` after hash algorithm: {hash}"),
-            };
-            let (base64, _options) = match rest.find('?') {
-                Some(i) => (&rest[..i], Some(&rest[i + 1..])),
-                None => (rest, None),
-            };
-            if !is_base64(base64) {
-                bail!(self.offset, "not valid base64: `{base64}`");
-            }
-        }
-        if !any {
-            bail!(self.offset, "integrity hash cannot be empty");
-        }
-        Ok(integrity)
-    }
-
-    fn eat_optional_hash(&mut self) -> Result<Option<&'a str>> {
-        if !self.eat_str(",") {
-            return Ok(None);
-        }
-        self.expect_str("integrity=<")?;
-        let ret = self.parse_hash()?;
-        self.expect_str(">")?;
-        Ok(Some(ret))
     }
 
     fn eat_str(&mut self, prefix: &str) -> bool {
@@ -1248,22 +1041,8 @@ impl<'a> ComponentNameParser<'a> {
         }
     }
 
-    fn semver(&self, s: &str) -> Result<Version> {
-        match Version::parse(s) {
-            Ok(v) => Ok(v),
-            Err(e) => bail!(self.offset, "`{s}` is not a valid semver: {e}"),
-        }
-    }
-
     fn take_until(&mut self, c: char) -> Result<&'a str> {
         match self.eat_until(c) {
-            Some(s) => Ok(s),
-            None => bail!(self.offset, "failed to find `{c}` character"),
-        }
-    }
-
-    fn take_up_to(&mut self, c: char) -> Result<&'a str> {
-        match self.eat_up_to(c) {
             Some(s) => Ok(s),
             None => bail!(self.offset, "failed to find `{c}` character"),
         }
@@ -1304,21 +1083,6 @@ impl<'a> ComponentNameParser<'a> {
         let s = self.take_rest();
         self.kebab(s)
     }
-}
-
-fn is_base64(s: &str) -> bool {
-    if s.is_empty() {
-        return false;
-    }
-    let mut equals = 0;
-    for (i, byte) in s.as_bytes().iter().enumerate() {
-        match byte {
-            b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z' | b'+' | b'/' if equals == 0 => {}
-            b'=' if i > 0 && equals < 2 => equals += 1,
-            _ => return false,
-        }
-    }
-    true
 }
 
 #[cfg(test)]

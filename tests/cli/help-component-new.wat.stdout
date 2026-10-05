@@ -26,9 +26,8 @@ Options:
           
           This may be used to rename instance imports in the final component.
           
-          For example, `--import-name "a:b/c=unlocked-dep=<d:e/f>"` will rename
-          the instance import `a:b/c` such that it becomes an `unlocked-dep`
-          name.
+          For example, `--import-name "a:b/c=d:e/f"` will rename the instance
+          import `a:b/c` such that it becomes `d:e/f`.
           
           If the old import name is not found, it is ignored.
 
@@ -158,18 +157,12 @@ Examples:
     wasi_snapshot_preview1=some_adapter.wasm -o foo.component.wasm
 
     # In the output component, replace any imports of "wasi:io/error@0.2.0" with
-    # an import of "unlocked-dep=<wasi:io/error>". This has the effect of
-    changing
-    # the dependency on `wasi:io/error` from an exact version to one of a set of
-    # possible versions of this dependency.
-    # (For more on locked vs. unlocked dependencies, see
-    #
-    https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md#import-and-export-definitions)
+    # an import of "wasi:io/error@0.2.1".
     # Also use the adapter contained in the file `wasm_snapshot_preview1.wasm`
     # in the current directory, and save the output to the file
     foo.component.wasm.
     $ wasm-tools component new foo.wasm --import-name
-    "wasi:io/error@0.2.0=unlocked-dep=<wasi:io/error>" --adapt
+    "wasi:io/error@0.2.0=wasi:io/error@0.2.1" --adapt
     wasi_snapshot_preview1.wasm -o foo.component.wasm
 
     # Create a component and print it to stdout in in text format, skipping
