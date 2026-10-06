@@ -3554,6 +3554,11 @@ impl<'a> SubtypeCx<'a> {
         let mut import_mapping =
             self.open_instance_type(&b_imports, a, ExternKind::Import, offset)?;
         self.swap();
+        // Only the resource mappings from the above are used to remap A's
+        // exports, and otherwise the type renamings in `import_mapping` map
+        // from types in A's arena to types in B's arena, so they're not valid
+        // to apply to A's exports in A's arena.
+        import_mapping.reset_type_cache();
         self.with_checkpoint(|this| {
             let mut a_exports = this.a[a]
                 .exports
