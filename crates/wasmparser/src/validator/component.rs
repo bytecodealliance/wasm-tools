@@ -1,7 +1,7 @@
 //! State relating to validating a WebAssembly component.
 
 use super::{
-    check_max,
+    check_max, combine_type_sizes,
     component_types::{
         Abi, AbiInfo, AliasableResourceId, ComponentAnyTypeId, ComponentCoreInstanceTypeId,
         ComponentCoreModuleTypeId, ComponentCoreTypeId, ComponentDefinedType,
@@ -68,6 +68,13 @@ pub(crate) struct ComponentState {
 
     has_start: bool,
     type_info: TypeInfo,
+
+    /// The total size of all types which have been outer-aliased into this
+    /// component from an enclosing component.
+    ///
+    /// Such aliases require a walk over the aliased type to check it for
+    /// resources, so this is used to bound the total amount of work done.
+    outer_alias_type_size: u32,
 
     /// A mapping of imported resources in this component.
     ///
@@ -485,6 +492,7 @@ impl ComponentState {
             export_names: Default::default(),
             has_start: Default::default(),
             type_info: TypeInfo::new(),
+            outer_alias_type_size: 0,
             imported_resources: Default::default(),
             defined_resources: Default::default(),
             explicit_resources: Default::default(),
@@ -3968,9 +3976,18 @@ impl ComponentState {
         // the target is either a type or a component, both of which are valid
         // (as aliases can reach the enclosing component and have as many free
         // variables as they want).
+        //
+        // Note that the free variables check is proportional to the size of
+        // `ty`, so the size of `ty` is charged to the component that the
+        // alias crosses into to bound the total amount of work done.
         let pos_after_component = components.len() - (count as usize);
-        if let Some(component) = components.get(pos_after_component) {
+        if let Some(component) = components.get_mut(pos_after_component) {
             if component.kind == ComponentKind::Component {
+                component.outer_alias_type_size = combine_type_sizes(
+                    component.outer_alias_type_size,
+                    ty.info(types).size(),
+                    offset,
+                )?;
                 let mut free = IndexSet::default();
                 types.free_variables_any_type_id(ty, &mut free);
                 if !free.is_empty() {
