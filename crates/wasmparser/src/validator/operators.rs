@@ -79,6 +79,12 @@ pub(crate) struct OperatorValidator {
     #[cfg(debug_assertions)]
     pub(crate) elided_bottom_pops: u32,
 
+    /// Whether `pop_push_log` and `elided_bottom_pops` are recorded, which is
+    /// only enabled by `FuncValidator::validate` while it's checking the
+    /// arity of each operator.
+    #[cfg(debug_assertions)]
+    pub(crate) check_arity: bool,
+
     /// When "try-op" validation of an operator is pending, this is a trace
     /// of discarded info that can restore the OperatorValidator to its
     /// pre-operator state if necessary.
@@ -381,6 +387,8 @@ impl OperatorValidator {
             pop_push_log: vec![],
             #[cfg(debug_assertions)]
             elided_bottom_pops: 0,
+            #[cfg(debug_assertions)]
+            check_arity: false,
             transaction: Transaction::new(rollback_log),
         }
     }
@@ -579,7 +587,7 @@ impl OperatorValidator {
     // records any pop, including a Bottom synthesized from an empty polymorphic operand stack
     fn record_any_pop(&mut self) {
         #[cfg(debug_assertions)]
-        {
+        if self.check_arity {
             self.pop_push_log.push(false);
         }
     }
@@ -587,7 +595,7 @@ impl OperatorValidator {
     fn record_push(&mut self) {
         self.transaction.map(|log| log.record_push());
         #[cfg(debug_assertions)]
-        {
+        if self.check_arity {
             self.pop_push_log.push(true);
         }
     }
@@ -3934,7 +3942,7 @@ where
                 let _ = i;
                 assert_eq!(self.pop_operand(Some(elem_ty))?, MaybeType::Bottom);
                 #[cfg(debug_assertions)]
-                {
+                if self.check_arity {
                     self.elided_bottom_pops += n - i - 1;
                 }
                 break;
