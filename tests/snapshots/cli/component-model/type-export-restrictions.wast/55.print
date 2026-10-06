@@ -1,0 +1,5 @@
+(component
+  (type $r (;0;) (record (field "x" u32)))
+  (export $b (;1;) "b" (type $r))
+  (import "c" (type $c (;2;) (eq $r)))
+)

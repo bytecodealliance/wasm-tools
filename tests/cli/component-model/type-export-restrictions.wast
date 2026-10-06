@@ -502,3 +502,68 @@
   (instance (instantiate 0 (with "demo:component/types" (instance 0))))
   (export   (interface "demo:component/types") (instance 1 "demo:component/types"))
 )
+
+;; Types exported from within an instance type are named within that instance
+;; type, so the instance type itself is valid to import or export.
+(component
+  (type $it (instance
+    (export "r" (type $r (sub resource)))
+    (export "f" (func (param "x" (own $r))))))
+  (export "it" (type $it)))
+(component
+  (type $it (instance
+    (export "r" (type $r (sub resource)))
+    (export "f" (func (param "x" (own $r))))))
+  (import "it" (type (eq $it))))
+(component
+  (type $it (instance
+    (type $rec (record (field "a" u32)))
+    (export "rec" (type $rec2 (eq $rec)))
+    (export "f" (func (param "x" $rec2)))))
+  (export "it" (type $it)))
+(component
+  (type $it (instance
+    (type $rec (record (field "a" u32)))
+    (export "rec" (type $rec2 (eq $rec)))
+    (export "f" (func (param "x" $rec2)))))
+  (import "it" (type (eq $it))))
+
+;; ... but types used by an instance type still need a name.
+(assert_invalid
+  (component
+    (type $rec (record (field "a" u32)))
+    (type $it (instance
+      (export "f" (func (param "x" $rec)))))
+    (export "it" (type $it)))
+  "type not valid to be used as export")
+
+;; Imported types cannot refer to the names introduced by exports.
+(assert_invalid
+  (component
+    (type (component
+      (import "a" (type $a (sub resource)))
+      (export "b" (type $b (eq $a)))
+      (import "c" (type $c (eq $b))))))
+  "type not valid to be used as import")
+(assert_invalid
+  (component
+    (type $r (record (field "x" u32)))
+    (export $b "b" (type $r))
+    (import "c" (type $c (eq $b))))
+  "type not valid to be used as import")
+(assert_invalid
+  (component
+    (import "a" (type $a (sub resource)))
+    (export $b "b" (type $a))
+    (import "c" (type $c (eq $b))))
+  "type not valid to be used as import")
+
+;; Referring to the original type, however, is ok.
+(component
+  (type $r (record (field "x" u32)))
+  (export $b "b" (type $r))
+  (import "c" (type $c (eq $r))))
+(component
+  (import "a" (type $a (sub resource)))
+  (export $b "b" (type $a))
+  (import "c" (type $c (eq $a))))

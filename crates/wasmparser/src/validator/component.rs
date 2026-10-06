@@ -847,8 +847,8 @@ impl ComponentState {
             ComponentKind::InstanceType => return true,
         }
         let set = match kind {
-            ExternKind::Import => &self.imported_types,
-            ExternKind::Export => &self.exported_types,
+            ExternKind::Import => &mut self.imported_types,
+            ExternKind::Export => &mut self.exported_types,
         };
         match ty {
             // When a type is imported or exported than any recursive type
@@ -861,7 +861,20 @@ impl ComponentState {
                 created,
                 referenced,
             } => {
-                if !self.all_valtypes_named(types, *referenced, set) {
+                // Imported types cannot refer to the externally-visible names
+                // introduced by exports. Note that imported types are also
+                // present in `exported_types`, hence the check for both.
+                if matches!(kind, ExternKind::Import)
+                    && self.exported_types.contains(referenced)
+                    && !self.imported_types.contains(referenced)
+                {
+                    return false;
+                }
+                let set = match kind {
+                    ExternKind::Import => &mut self.imported_types,
+                    ExternKind::Export => &mut self.exported_types,
+                };
+                if !Self::all_valtypes_named(types, *referenced, set) {
                     return false;
                 }
                 match kind {
@@ -896,7 +909,7 @@ impl ComponentState {
             }),
 
             // All types referred to by a function must be named.
-            ComponentEntityType::Func(id) => self.all_valtypes_named_in_func(types, *id, set),
+            ComponentEntityType::Func(id) => Self::all_valtypes_named_in_func(types, *id, set),
 
             ComponentEntityType::Value(ty) => types.type_named_valtype(ty, set),
 
@@ -907,10 +920,9 @@ impl ComponentState {
     }
 
     fn all_valtypes_named(
-        &self,
         types: &TypeAlloc,
         id: ComponentAnyTypeId,
-        set: &Set<ComponentAnyTypeId>,
+        set: &mut Set<ComponentAnyTypeId>,
     ) -> bool {
         match id {
             // Resource types, in isolation, are always valid to import or
@@ -925,39 +937,53 @@ impl ComponentState {
             // already been constructed.
             ComponentAnyTypeId::Component(_) => true,
 
-            ComponentAnyTypeId::Defined(id) => self.all_valtypes_named_in_defined(types, id, set),
-            ComponentAnyTypeId::Func(id) => self.all_valtypes_named_in_func(types, id, set),
-            ComponentAnyTypeId::Instance(id) => self.all_valtypes_named_in_instance(types, id, set),
+            ComponentAnyTypeId::Defined(id) => Self::all_valtypes_named_in_defined(types, id, set),
+            ComponentAnyTypeId::Func(id) => Self::all_valtypes_named_in_func(types, id, set),
+            ComponentAnyTypeId::Instance(id) => {
+                Self::all_valtypes_named_in_instance(types, id, set)
+            }
         }
     }
 
     fn all_valtypes_named_in_instance(
-        &self,
         types: &TypeAlloc,
         id: ComponentInstanceTypeId,
-        set: &Set<ComponentAnyTypeId>,
+        set: &mut Set<ComponentAnyTypeId>,
     ) -> bool {
         // Instances must recursively have all referenced types named.
+        //
+        // Types exported from an instance type are named within that instance
+        // type, so they're temporarily added to `set` while the instance type
+        // is validated. Afterwards they're removed as they're not named in the
+        // enclosing component.
+        let mut added = Vec::new();
         let ty = &types[id];
-        ty.exports.values().all(|ty| match ty.ty {
+        let ret = ty.exports.values().all(|ty| match ty.ty {
             ComponentEntityType::Module(_) => true,
-            ComponentEntityType::Func(id) => self.all_valtypes_named_in_func(types, id, set),
+            ComponentEntityType::Func(id) => Self::all_valtypes_named_in_func(types, id, set),
             ComponentEntityType::Type { created: id, .. } => {
-                self.all_valtypes_named(types, id, set)
+                let named = Self::all_valtypes_named(types, id, set);
+                if named && set.insert(id) {
+                    added.push(id);
+                }
+                named
             }
             ComponentEntityType::Value(ComponentValType::Type(id)) => {
-                self.all_valtypes_named_in_defined(types, id, set)
+                Self::all_valtypes_named_in_defined(types, id, set)
             }
             ComponentEntityType::Instance(id) => {
-                self.all_valtypes_named_in_instance(types, id, set)
+                Self::all_valtypes_named_in_instance(types, id, set)
             }
             ComponentEntityType::Component(_)
             | ComponentEntityType::Value(ComponentValType::Primitive(_)) => return true,
-        })
+        });
+        for id in added {
+            set.remove(&id);
+        }
+        ret
     }
 
     fn all_valtypes_named_in_defined(
-        &self,
         types: &TypeAlloc,
         id: ComponentDefinedTypeId,
         set: &Set<ComponentAnyTypeId>,
@@ -1012,7 +1038,6 @@ impl ComponentState {
     }
 
     fn all_valtypes_named_in_func(
-        &self,
         types: &TypeAlloc,
         id: ComponentFuncTypeId,
         set: &Set<ComponentAnyTypeId>,
