@@ -1499,10 +1499,16 @@ impl ComponentState {
             params: result
                 .iter()
                 .map(|ty| {
-                    Ok((
-                        KebabString::new("v").unwrap(),
-                        self.create_component_val_type(*ty, offset)?,
-                    ))
+                    let ty = self.create_component_val_type(*ty, offset)?;
+                    // Like function results, the result of `task.return` may
+                    // not contain a `borrow`.
+                    if ty.abi(types).contains_borrow() {
+                        bail!(
+                            offset,
+                            "`task.return` result cannot contain a `borrow` type"
+                        );
+                    }
+                    Ok((KebabString::new("v").unwrap(), ty))
                 })
                 .collect::<Result<_>>()?,
             result: None,
