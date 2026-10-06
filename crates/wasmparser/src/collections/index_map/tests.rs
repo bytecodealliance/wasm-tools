@@ -181,3 +181,49 @@ fn entry_works_vacant() {
         assert_get(&mut map, key, (index, value));
     }
 }
+
+#[test]
+fn eq_ignores_insertion_order() {
+    let a: TestMap = [('a', 0), ('b', 1)].into_iter().collect();
+    let b: TestMap = [('b', 1), ('a', 0)].into_iter().collect();
+    let c: TestMap = [('b', 1), ('a', 2)].into_iter().collect();
+    let d: TestMap = [('a', 0)].into_iter().collect();
+    assert_eq!(a, b);
+    assert_ne!(a, c);
+    assert_ne!(a, d);
+    assert_ne!(d, a);
+}
+
+#[test]
+fn insert_does_not_update_key() {
+    use core::cmp::Ordering;
+
+    /// A key where only `.0` participates in comparisons.
+    #[derive(Debug, Clone)]
+    struct Key(u32, &'static str);
+    impl PartialEq for Key {
+        fn eq(&self, other: &Self) -> bool {
+            self.0 == other.0
+        }
+    }
+    impl Eq for Key {}
+    impl PartialOrd for Key {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+            Some(self.cmp(other))
+        }
+    }
+    impl Ord for Key {
+        fn cmp(&self, other: &Self) -> Ordering {
+            self.0.cmp(&other.0)
+        }
+    }
+
+    let mut map = IndexMap::new();
+    assert_eq!(map.insert(Key(1, "old"), 10), None);
+    assert_eq!(map.insert(Key(1, "new"), 20), Some(10));
+    assert_eq!(map.len(), 1);
+    let (key, value) = map.get_index(0).unwrap();
+    assert_eq!((key.1, *value), ("old", 20));
+    let (key, value) = map.get_key_value(&Key(1, "")).unwrap();
+    assert_eq!((key.1, *value), ("old", 20));
+}
