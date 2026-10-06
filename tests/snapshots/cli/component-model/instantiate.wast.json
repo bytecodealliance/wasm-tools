@@ -611,6 +611,48 @@
       "filename": "instantiate.89.wasm",
       "module_type": "binary",
       "text": "expected err type, but found none"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 981,
+      "filename": "instantiate.90.wasm",
+      "module_type": "binary",
+      "text": "expected parameter named `foobar`, found `foo-bar`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 992,
+      "filename": "instantiate.91.wasm",
+      "module_type": "binary",
+      "text": "expected parameter named `a`, found `A`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1003,
+      "filename": "instantiate.92.wasm",
+      "module_type": "binary",
+      "text": "expected field name `ab`, found `a-b`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1015,
+      "filename": "instantiate.93.wasm",
+      "module_type": "binary",
+      "text": "expected case named `XY`, found `x-y`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1027,
+      "filename": "instantiate.94.wasm",
+      "module_type": "binary",
+      "text": "mismatch in flags elements"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1039,
+      "filename": "instantiate.95.wasm",
+      "module_type": "binary",
+      "text": "mismatch in enum elements"
     }
   ]
 }
