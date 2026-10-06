@@ -3664,7 +3664,7 @@ impl<'a> SubtypeCx<'a> {
             );
         }
         for ((an, a), (bn, b)) in a.params.iter().zip(b.params.iter()) {
-            if an != bn {
+            if an.as_str() != bn.as_str() {
                 bail!(offset, "expected parameter named `{bn}`, found `{an}`");
             }
             self.component_val_type(a, b, offset)
@@ -4136,7 +4136,7 @@ impl<'a> SubtypeCx<'a> {
                 }
 
                 for ((aname, a), (bname, b)) in a.fields.iter().zip(b.fields.iter()) {
-                    if aname != bname {
+                    if aname.as_str() != bname.as_str() {
                         bail!(offset, "expected field name `{bname}`, found `{aname}`");
                     }
                     self.component_val_type(a, b, offset)
@@ -4155,7 +4155,7 @@ impl<'a> SubtypeCx<'a> {
                     );
                 }
                 for ((aname, a), (bname, b)) in a.cases.iter().zip(b.cases.iter()) {
-                    if aname != bname {
+                    if aname.as_str() != bname.as_str() {
                         bail!(offset, "expected case named `{bname}`, found `{aname}`");
                     }
                     match (&a.ty, &b.ty) {
@@ -4230,7 +4230,11 @@ impl<'a> SubtypeCx<'a> {
                     Flags(_) => "flags",
                     _ => "enum",
                 };
-                if a.len() == b.len() && a.iter().eq(b.iter()) {
+                if a.len() == b.len()
+                    && a.iter()
+                        .map(|s| s.as_str())
+                        .eq(b.iter().map(|s| s.as_str()))
+                {
                     Ok(())
                 } else {
                     bail!(offset, "mismatch in {desc} elements")

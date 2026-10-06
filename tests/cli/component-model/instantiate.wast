@@ -974,3 +974,75 @@
     (instance (instantiate $c (with "x" (type $x))))
   )
   "expected err type, but found none")
+
+;; Labels in types are compared exactly, not with the canonicalization used
+;; for "strongly-unique" name checks.
+(assert_invalid
+  (component
+    (import "x" (func $x (param "foo-bar" u32)))
+    (import "y" (component $c
+      (import "x" (func (param "foobar" u32)))
+    ))
+
+    (instance (instantiate $c (with "x" (func $x))))
+  )
+  "expected parameter named `foobar`, found `foo-bar`")
+
+(assert_invalid
+  (component
+    (import "x" (func $x (param "A" u32)))
+    (import "y" (component $c
+      (import "x" (func (param "a" u32)))
+    ))
+
+    (instance (instantiate $c (with "x" (func $x))))
+  )
+  "expected parameter named `a`, found `A`")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (record (field "ab" u32)))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (record (field "a-b" u32)))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "expected field name `ab`, found `a-b`")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (variant (case "XY" u32)))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (variant (case "x-y" u32)))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "expected case named `XY`, found `x-y`")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (flags "AB"))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (flags "a-b"))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "mismatch in flags elements")
+
+(assert_invalid
+  (component
+    (import "y" (component $c
+      (type $t (enum "a-b"))
+      (import "x" (type (eq $t)))
+    ))
+
+    (type $x (enum "ab"))
+    (instance (instantiate $c (with "x" (type $x))))
+  )
+  "mismatch in enum elements")
