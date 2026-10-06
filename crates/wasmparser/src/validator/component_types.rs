@@ -3435,6 +3435,15 @@ impl<'a> SubtypeCx<'a> {
         mem::swap(&mut self.a, &mut self.b);
     }
 
+    /// Executes the closure `f` with the type lists swapped, swapping them
+    /// back afterwards.
+    fn swapped<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.swap();
+        let result = f(self);
+        self.swap();
+        result
+    }
+
     /// Executes the closure `f`, resetting the internal arenas to their
     /// original size after the closure finishes.
     ///
@@ -3550,10 +3559,8 @@ impl<'a> SubtypeCx<'a> {
             .iter()
             .map(|(name, ty)| (name.clone(), ty.ty))
             .collect();
-        self.swap();
-        let mut import_mapping =
-            self.open_instance_type(&b_imports, a, ExternKind::Import, offset)?;
-        self.swap();
+        let mut import_mapping = self
+            .swapped(|this| this.open_instance_type(&b_imports, a, ExternKind::Import, offset))?;
         // Only the resource mappings from the above are used to remap A's
         // exports, and otherwise the type renamings in `import_mapping` map
         // from types in A's arena to types in B's arena, so they're not valid
@@ -3702,18 +3709,19 @@ impl<'a> SubtypeCx<'a> {
         // can export *more* than what this module type needs).
         // However, for imports, the check is reversed (i.e. it is okay
         // to import *less* than what this module type needs).
-        self.swap();
-        let a_imports = &self.b[a].imports;
-        let b_imports = &self.a[b].imports;
-        for (k, a) in a_imports {
-            match b_imports.get(k) {
-                Some(b) => self
-                    .entity_type(b, a, offset)
-                    .with_context(|| format!("type mismatch in import `{}::{}`", k.0, k.1))?,
-                None => bail!(offset, "missing expected import `{}::{}`", k.0, k.1),
+        self.swapped(|this| {
+            let a_imports = &this.b[a].imports;
+            let b_imports = &this.a[b].imports;
+            for (k, a) in a_imports {
+                match b_imports.get(k) {
+                    Some(b) => this
+                        .entity_type(b, a, offset)
+                        .with_context(|| format!("type mismatch in import `{}::{}`", k.0, k.1))?,
+                    None => bail!(offset, "missing expected import `{}::{}`", k.0, k.1),
+                }
             }
-        }
-        self.swap();
+            Ok(())
+        })?;
         let a = &self.a[a];
         let b = &self.b[b];
         for (k, b) in b.exports.iter() {

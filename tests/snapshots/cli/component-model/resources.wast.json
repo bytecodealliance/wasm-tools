@@ -821,6 +821,20 @@
       "filename": "resources.123.wasm",
       "module_type": "binary",
       "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1302,
+      "filename": "resources.124.wasm",
+      "module_type": "binary",
+      "text": "missing import named `y`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1319,
+      "filename": "resources.125.wasm",
+      "module_type": "binary",
+      "text": "missing expected import `a::b`"
     }
   ]
 }
