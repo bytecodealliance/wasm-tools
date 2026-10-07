@@ -145,7 +145,16 @@ impl<T: WasmModuleResources> FuncValidator<T> {
                 (reader.clone(), arity)
             };
 
-            reader.visit_operator(&mut self.visitor(reader.original_position()))??;
+            #[cfg(debug_assertions)]
+            {
+                self.validator.check_arity = true;
+            }
+            let result = reader.visit_operator(&mut self.visitor(reader.original_position()));
+            #[cfg(debug_assertions)]
+            {
+                self.validator.check_arity = false;
+            }
+            result??;
 
             #[cfg(debug_assertions)]
             {
