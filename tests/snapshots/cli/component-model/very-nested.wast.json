@@ -70,6 +70,20 @@
       "filename": "very-nested.9.wasm",
       "module_type": "binary",
       "text": "type nesting is too deep"
+    },
+    {
+      "type": "module",
+      "line": 2522,
+      "name": "c",
+      "filename": "very-nested.10.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2545,
+      "filename": "very-nested.11.wasm",
+      "module_type": "binary",
+      "text": "effective type size exceeds the limit"
     }
   ]
 }
