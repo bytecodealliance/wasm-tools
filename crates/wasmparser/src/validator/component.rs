@@ -135,14 +135,6 @@ pub(crate) struct ComponentState {
     /// expected to succeed to it's declared as append-only.
     defined_resources: IndexMapAppendOnly<ResourceId, Option<ValType>>,
 
-    /// A mapping of explicitly exported resources from this component in
-    /// addition to the path that they're exported at.
-    ///
-    /// For more information on the path here see the documentation for
-    /// `imported_resources`. Note that the indexes here index into the
-    /// list of exports of this component.
-    explicit_resources: IndexMap<ResourceId, Vec<usize>>,
-
     /// The set of types which are considered "exported" from this component.
     ///
     /// This is added to whenever a type export is found, or an instance export
@@ -487,7 +479,6 @@ impl ComponentState {
             type_info: TypeInfo::new(),
             imported_resources: Default::default(),
             defined_resources: Default::default(),
-            explicit_resources: Default::default(),
             exported_types: Default::default(),
             imported_types: Default::default(),
             toplevel_exported_resources: Default::default(),
@@ -773,13 +764,6 @@ impl ComponentState {
                             if created == referenced {
                                 self.defined_resources.insert(id.resource(), None);
                             }
-
-                            // If this is a type export of a resource type then
-                            // update the `explicit_resources` list. A new
-                            // export path is about to be created for this
-                            // resource and this keeps track of that.
-                            self.explicit_resources
-                                .insert(id.resource(), vec![self.exports.len()]);
                         }
 
                         None => {}
@@ -1073,14 +1057,20 @@ impl ComponentState {
             return;
         }
 
+        // Find the path within this instance at which each of its defined
+        // resources is exported. Each defined resource is guaranteed to be
+        // exported somewhere (see `create_instance_type`) and these paths are
+        // used to describe where the resource is imported from below.
+        let paths =
+            types.explicit_resource_paths(&ty.exports, ty.defined_resources.iter().copied());
+
         let mut new_ty = ComponentInstanceType {
             // Copied from the input verbatim
             info: ty.info,
 
-            // Copied over as temporary storage for now, and both of these are
-            // filled out and expanded below.
+            // Copied over as temporary storage for now, and this is filled out
+            // and expanded below.
             exports: ty.exports.clone(),
-            explicit_resources: ty.explicit_resources.clone(),
 
             // Explicitly discard this field since the
             // defined resources are lifted into `self`
@@ -1105,18 +1095,14 @@ impl ComponentState {
             assert!(prev.is_none());
 
             let mut base = vec![self.imports.len()];
-            base.extend(ty.explicit_resources[old].iter().copied());
+            base.extend(&paths[old]);
             self.imported_resources.insert(new.resource(), base);
         }
 
         // Using the old-to-new resource mapping perform a substitution on
-        // the `exports` and `explicit_resources` fields of `new_ty`
+        // the `exports` field of `new_ty`
         for ty in new_ty.exports.values_mut() {
             types.remap_component_entity(&mut ty.ty, &mut mapping);
-        }
-        for (id, path) in mem::take(&mut new_ty.explicit_resources) {
-            let id = *mapping.resources.get(&id).unwrap_or(&id);
-            new_ty.explicit_resources.insert(id, path);
         }
 
         // Now that `new_ty` is complete finish its registration and then
@@ -1168,24 +1154,7 @@ impl ComponentState {
             for ty in new_ty.exports.values_mut() {
                 types.remap_component_entity(&mut ty.ty, &mut mapping);
             }
-            for (id, path) in mem::take(&mut new_ty.explicit_resources) {
-                let id = mapping.resources.get(&id).copied().unwrap_or(id);
-                new_ty.explicit_resources.insert(id, path);
-            }
             *id = types.push_ty(new_ty);
-        }
-
-        // Any explicit resources in the instance are now additionally explicit
-        // in this component since it's exported.
-        //
-        // The path to each explicit resources gets one element prepended which
-        // is `self.next_export_index`, the index of the export about to be
-        // generated.
-        let ty = &types[*id];
-        for (id, path) in ty.explicit_resources.iter() {
-            let mut new_path = vec![self.exports.len()];
-            new_path.extend(path);
-            self.explicit_resources.insert(*id, new_path);
         }
     }
 
@@ -3132,14 +3101,15 @@ impl ComponentState {
             info: state.type_info,
 
             // The defined resources for this instance type are those listed on
-            // the component state. The path to each defined resource is
-            // guaranteed to live within the `explicit_resources` map since,
-            // when in the type context, the introduction of any defined
-            // resource must have been done with `(export "x" (type (sub
-            // resource)))` which, in a sense, "fuses" the introduction of the
-            // variable with the export. This means that all defined resources,
-            // if any, should be guaranteed to have an `explicit_resources` path
-            // listed.
+            // the component state. Each defined resource is guaranteed to be
+            // explicitly exported from this instance type, as found by
+            // `TypeAlloc::explicit_resource_paths`, since, when in the type
+            // context, the introduction of any defined resource must have been
+            // done with `(export "x" (type (sub resource)))` which, in a sense,
+            // "fuses" the introduction of the variable with the export. The
+            // other way to introduce defined resources is to export an
+            // instance of a type which itself has defined resources, and
+            // those resources are then exported as part of that instance.
             defined_resources: mem::take(&mut state.defined_resources)
                 .into_iter()
                 .map(|(id, rep)| {
@@ -3147,10 +3117,6 @@ impl ComponentState {
                     id
                 })
                 .collect(),
-
-            // The map of what resources are explicitly exported and where
-            // they're exported is plumbed through as-is.
-            explicit_resources: mem::take(&mut state.explicit_resources),
 
             exports: mem::take(&mut state.exports),
         })
@@ -3483,9 +3449,7 @@ impl ComponentState {
         }
 
         // Perform the remapping operation over all the exports that will be
-        // listed for the final instance type. Note that this is performed
-        // both for all the export types in addition to the explicitly exported
-        // resources list.
+        // listed for the final instance type.
         //
         // Note that this is a crucial step of the instantiation process which
         // is intentionally transforming the type of a component based on the
@@ -3495,17 +3459,6 @@ impl ComponentState {
         for entity in exports.values_mut() {
             types.remap_component_entity(&mut entity.ty, &mut mapping);
         }
-        let component_type = &types[component_type_id];
-        let explicit_resources = component_type
-            .explicit_resources
-            .iter()
-            .map(|(id, path)| {
-                (
-                    mapping.resources.get(id).copied().unwrap_or(*id),
-                    path.clone(),
-                )
-            })
-            .collect::<IndexMap<_, _>>();
 
         // Technically in the last formalism that was consulted in writing this
         // implementation there are two further steps that are part of the
@@ -3532,9 +3485,9 @@ impl ComponentState {
                 types.free_variables_component_entity(&ty.ty, &mut free);
             }
             assert!(fresh_defined_resources.is_subset(&free));
-            for resource in fresh_defined_resources.iter() {
-                assert!(explicit_resources.contains_key(resource));
-            }
+            let explicit =
+                types.explicit_resource_paths(&exports, fresh_defined_resources.iter().copied());
+            assert_eq!(explicit.len(), fresh_defined_resources.len());
         }
 
         // And as the final step of the instantiation process all of the
@@ -3548,10 +3501,7 @@ impl ComponentState {
         // to the component.
         //
         // All defined resources here have no known representation, so they're
-        // all listed with `None`. Also note that none of the resources were
-        // exported yet so `self.explicit_resources` is not updated yet. If
-        // this instance is exported, however, it'll consult the type's
-        // `explicit_resources` array and use that appropriately.
+        // all listed with `None`.
         for resource in fresh_defined_resources {
             self.defined_resources.insert(resource, None);
         }
@@ -3559,7 +3509,6 @@ impl ComponentState {
         Ok(types.push_ty(ComponentInstanceType {
             info,
             defined_resources: Default::default(),
-            explicit_resources,
             exports,
         }))
     }
@@ -3572,7 +3521,6 @@ impl ComponentState {
     ) -> Result<ComponentInstanceTypeId> {
         let mut info = TypeInfo::new();
         let mut inst_exports = IndexMap::default();
-        let mut explicit_resources = IndexMap::default();
         let mut export_names = IndexSet::default();
 
         // NB: It's intentional that this context is empty since no indices are
@@ -3590,20 +3538,7 @@ impl ComponentState {
                     ComponentEntityType::Component(self.component_at(export.index, offset)?)
                 }
                 ComponentExternalKind::Instance => {
-                    let ty = self.instance_at(export.index, offset)?;
-
-                    // When an instance is exported from an instance then
-                    // all explicitly exported resources on the sub-instance are
-                    // now also listed as exported resources on the outer
-                    // instance, just with one more element in their path.
-                    explicit_resources.extend(types[ty].explicit_resources.iter().map(
-                        |(id, path)| {
-                            let mut new_path = vec![inst_exports.len()];
-                            new_path.extend(path);
-                            (*id, new_path)
-                        },
-                    ));
-                    ComponentEntityType::Instance(ty)
+                    ComponentEntityType::Instance(self.instance_at(export.index, offset)?)
                 }
                 ComponentExternalKind::Func => {
                     ComponentEntityType::Func(self.function_at(export.index, offset)?)
@@ -3618,13 +3553,6 @@ impl ComponentState {
                 }
                 ComponentExternalKind::Type => {
                     let ty = self.component_type_at(export.index, offset)?;
-                    // If this is an export of a resource type be sure to
-                    // record that in the explicit list with the appropriate
-                    // path because if this instance ends up getting used
-                    // it'll count towards the "explicit in" check.
-                    if let ComponentAnyTypeId::Resource(id) = ty {
-                        explicit_resources.insert(id.resource(), vec![inst_exports.len()]);
-                    }
                     ComponentEntityType::Type {
                         referenced: ty,
                         // The created type index here isn't used anywhere
@@ -3652,7 +3580,6 @@ impl ComponentState {
 
         Ok(types.push_ty(ComponentInstanceType {
             info,
-            explicit_resources,
             exports: inst_exports,
 
             // NB: the list of defined resources for this instance itself
@@ -4615,7 +4542,6 @@ impl ComponentState {
             imported_resources: mem::take(&mut self.imported_resources)
                 .into_iter()
                 .collect(),
-            explicit_resources: mem::take(&mut self.explicit_resources),
         };
 
         // Collect all "free variables", or resources, from the imports of this
@@ -4651,26 +4577,27 @@ impl ComponentState {
         // the free variables.
         //
         // Note that at the same time all defined resources must be exported,
-        // somehow, transitively from this component. The `explicit_resources`
-        // map is consulted for this purpose which lists all explicitly
-        // exported resources in the component, regardless from whence they
-        // came. If not present in this map then it's not exported and an error
-        // is returned.
+        // somehow, transitively from this component. The exports of this
+        // component are searched for where each defined resource is
+        // explicitly exported, regardless from whence it came. If a resource
+        // isn't found then it's not exported and an error is returned.
         //
         // NB: the "types are exported" check is probably sufficient nowadays
-        // that the check of the `explicit_resources` map is probably not
-        // necessary, but it's left here for completeness and out of an
-        // abundance of caution.
+        // that the check for explicit exports is probably not necessary, but
+        // it's left here for completeness and out of an abundance of caution.
         free.clear();
         for ty in ty.exports.values() {
             types.free_variables_component_entity(&ty.ty, &mut free);
         }
-        for (id, _rep) in mem::take(&mut self.defined_resources) {
-            if !free.contains(&id) {
-                continue;
-            }
-
-            let path = match ty.explicit_resources.get(&id).cloned() {
+        let defined_resources = mem::take(&mut self.defined_resources)
+            .into_iter()
+            .map(|(id, _rep)| id)
+            .filter(|id| free.contains(id))
+            .collect::<Vec<_>>();
+        let mut paths =
+            types.explicit_resource_paths(&ty.exports, defined_resources.iter().copied());
+        for id in defined_resources {
+            let path = match paths.remove(&id) {
                 Some(path) => path,
                 // FIXME: this error message is quite opaque and doesn't
                 // indicate more contextual information such as:
