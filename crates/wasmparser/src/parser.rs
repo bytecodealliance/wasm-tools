@@ -222,7 +222,10 @@ pub enum Payload<'a> {
         count: u32,
         /// The range of bytes that represent this section, specified in
         /// offsets relative to the start of the byte stream.
-        range: Range<u64>,
+        ///
+        /// Note that, to better support streaming parsing and validation, the
+        /// validator does *not* check that this range is in bounds.
+        unchecked_range: Range<u64>,
         /// The size, in bytes, of the remaining contents of this section.
         ///
         /// This can be used in combination with [`Parser::skip_section`]
@@ -750,6 +753,16 @@ impl Parser {
                             reader.original_position(),
                         ));
                     }
+                    // If there's not enough data to tell whether this is the
+                    // magic number then request more data to keep the result
+                    // here consistent regardless of how the input is split up.
+                    Err(e)
+                        if !eof
+                            && !reader.remaining_buffer().is_empty()
+                            && WASM_MAGIC_NUMBER.starts_with(reader.remaining_buffer()) =>
+                    {
+                        return Err(e);
+                    }
                     _ => {}
                 }
 
@@ -837,7 +850,7 @@ impl Parser {
                         };
                         Ok(CodeSectionStart {
                             count,
-                            range,
+                            unchecked_range: range,
                             size: len,
                         })
                     }
@@ -1360,7 +1373,10 @@ impl Payload<'_> {
             DataSection(s) => Some((DATA_SECTION, s.range())),
             StartSection { range, .. } => Some((START_SECTION, range.clone())),
             DataCountSection { range, .. } => Some((DATA_COUNT_SECTION, range.clone())),
-            CodeSectionStart { range, .. } => Some((CODE_SECTION, range.clone())),
+            CodeSectionStart {
+                unchecked_range: range,
+                ..
+            } => Some((CODE_SECTION, range.clone())),
             CodeSectionEntry(_) => None,
 
             #[cfg(feature = "component-model")]
@@ -1437,10 +1453,14 @@ impl fmt::Debug for Payload<'_> {
                 .field("count", count)
                 .field("range", range)
                 .finish(),
-            CodeSectionStart { count, range, size } => f
+            CodeSectionStart {
+                count,
+                unchecked_range,
+                size,
+            } => f
                 .debug_struct("CodeSectionStart")
                 .field("count", count)
-                .field("range", range)
+                .field("unchecked_range", unchecked_range)
                 .field("size", size)
                 .finish(),
             CodeSectionEntry(_) => f.debug_tuple("CodeSectionEntry").field(&"...").finish(),
