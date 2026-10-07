@@ -1208,7 +1208,7 @@ impl Parser {
     ///
     ///             // Print the range of the code section we see, but don't
     ///             // actually iterate over each individual function.
-    ///             CodeSectionStart { range, size, .. } => {
+    ///             CodeSectionStart { unchecked_range: range, size, .. } => {
     ///                 print_range("code section", &range);
     ///                 parser.skip_section();
     ///                 wasm = &wasm[size as usize..];
