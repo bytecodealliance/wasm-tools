@@ -1,11 +1,11 @@
 (component
   (core module $m (;0;)
-    (type (;0;) (func (result i32)))
-    (import "" "thread.yield" (func $thread.yield (;0;) (type 0) (result i32)))
+    (type (;0;) (func (param i32) (result i32)))
+    (import "" "subtask.cancel" (func $subtask-cancel (;0;) (type 0) (param i32) (result i32)))
   )
-  (core func $thread.yield (;0;) (canon thread.yield))
+  (core func $subtask-cancel (;0;) (canon subtask.cancel))
   (core instance (;0;)
-    (export "thread.yield" (func $thread.yield))
+    (export "subtask.cancel" (func $subtask-cancel))
   )
   (core instance $i (;1;) (instantiate $m
       (with "" (instance 0))

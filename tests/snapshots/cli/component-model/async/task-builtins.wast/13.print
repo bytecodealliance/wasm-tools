@@ -1,0 +1,5 @@
+(component
+  (type $r (;0;) (resource (rep i32)))
+  (type (;1;) (own $r))
+  (core func (;0;) (canon task.return (result 1)))
+)
