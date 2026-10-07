@@ -43,9 +43,11 @@ impl<'a> Addr2lineModules<'a> {
                         cur.custom_sections.insert(s.name(), s.data());
                     }
                 }
-                Payload::CodeSectionStart { range, .. } => {
+                Payload::CodeSectionStart {
+                    unchecked_range, ..
+                } => {
                     assert!(cur_module.is_some());
-                    cur_module.as_mut().unwrap().code_start = Some(range.start);
+                    cur_module.as_mut().unwrap().code_start = Some(unchecked_range.start);
                 }
 
                 Payload::End(offset) => {

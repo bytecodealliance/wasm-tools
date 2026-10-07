@@ -79,14 +79,14 @@ impl<'a> ModuleInfo<'a> {
             match payload {
                 Payload::CodeSectionStart {
                     count: _,
-                    range,
+                    unchecked_range,
                     size: _,
                 } => {
                     info.code = Some(info.raw_sections.len());
-                    info.section(SectionId::Code.into(), get_input_data(&range));
+                    info.section(SectionId::Code.into(), get_input_data(&unchecked_range));
                     parser.skip_section();
                     // update slice, bypass the section
-                    wasm = &wasm[(range.end - offset) as usize..];
+                    wasm = &wasm[(unchecked_range.end - offset) as usize..];
 
                     continue;
                 }

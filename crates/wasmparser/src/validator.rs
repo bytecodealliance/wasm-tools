@@ -599,9 +599,9 @@ impl Validator {
             DataCountSection { count, range } => self.data_count_section(*count, range)?,
             CodeSectionStart {
                 count: _,
-                range,
+                unchecked_range,
                 size: _,
-            } => self.code_section_start(range)?,
+            } => self.code_section_start(unchecked_range)?,
             CodeSectionEntry(body) => {
                 let func_validator = self.code_section_entry(body)?;
                 return Ok(ValidPayload::Func(func_validator, body.clone()));

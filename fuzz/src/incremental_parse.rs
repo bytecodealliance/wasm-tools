@@ -125,12 +125,12 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
             (
                 CodeSectionStart {
                     count: a,
-                    range: ar,
+                    unchecked_range: ar,
                     size: asz,
                 },
                 CodeSectionStart {
                     count: b,
-                    range: br,
+                    unchecked_range: br,
                     size: bsz,
                 },
             ) => {
