@@ -68,22 +68,9 @@ pub(crate) struct OperatorValidator {
     /// Whether validation is happening in a shared context.
     shared: bool,
 
-    /// A trace of all operand push/pop operations performed while validating an
-    /// opcode. This is then compared to the arity that we report to double
-    /// check that arity report's correctness. `true` is "push" and `false` is
-    /// "pop".
+    /// A count of operands popped from or pushed to the operand stack.
     #[cfg(debug_assertions)]
-    pub(crate) pop_push_log: Vec<bool>,
-
-    /// The number of pops skipped entirely because of unreachable code.
-    #[cfg(debug_assertions)]
-    pub(crate) elided_bottom_pops: u32,
-
-    /// Whether `pop_push_log` and `elided_bottom_pops` are recorded, which is
-    /// only enabled by `FuncValidator::validate` while it's checking the
-    /// arity of each operator.
-    #[cfg(debug_assertions)]
-    pub(crate) check_arity: bool,
+    pub(crate) pop_push_count: (u64, u64),
 
     /// When "try-op" validation of an operator is pending, this is a trace
     /// of discarded info that can restore the OperatorValidator to its
@@ -384,11 +371,7 @@ impl OperatorValidator {
             control,
             shared: false,
             #[cfg(debug_assertions)]
-            pop_push_log: vec![],
-            #[cfg(debug_assertions)]
-            elided_bottom_pops: 0,
-            #[cfg(debug_assertions)]
-            check_arity: false,
+            pop_push_count: (0, 0),
             transaction: Transaction::new(rollback_log),
         }
     }
@@ -581,22 +564,31 @@ impl OperatorValidator {
     // records a pop that mutated the operand stack
     fn record_pop(&mut self, ty: MaybeType) {
         self.transaction.map(|log| log.record_pop(ty));
-        self.record_any_pop();
+        self.record_any_pop(1);
     }
 
-    // records any pop, including a Bottom synthesized from an empty polymorphic operand stack
-    fn record_any_pop(&mut self) {
+    // records any pops, including a Bottom synthesized from an empty polymorphic operand stack.
+    // Hides the fact that we might push and then pop a temporary while validating an
+    // instruction, which shouldn't be visible from the outside.
+    fn record_any_pop(&mut self, _count: u32) {
         #[cfg(debug_assertions)]
-        if self.check_arity {
-            self.pop_push_log.push(false);
+        {
+            let mut count = _count as u64;
+            let (pop_count, push_count) = &mut self.pop_push_count;
+            if *push_count > 0 {
+                let internal_pushes = u64::min(count, *push_count);
+                *push_count -= internal_pushes;
+                count -= internal_pushes;
+            }
+            *pop_count += count;
         }
     }
 
     fn record_push(&mut self) {
         self.transaction.map(|log| log.record_push());
         #[cfg(debug_assertions)]
-        if self.check_arity {
-            self.pop_push_log.push(true);
+        {
+            self.pop_push_count.1 += 1;
         }
     }
 
@@ -851,7 +843,7 @@ where
         self.operands.extend(popped);
         let control = self.control.last().unwrap();
         let actual = if self.operands.len() == control.height && control.unreachable {
-            self.record_any_pop();
+            self.record_any_pop(1);
             MaybeType::Bottom
         } else {
             if self.operands.len() == control.height {
@@ -3942,8 +3934,8 @@ where
                 let _ = i;
                 assert_eq!(self.pop_operand(Some(elem_ty))?, MaybeType::Bottom);
                 #[cfg(debug_assertions)]
-                if self.check_arity {
-                    self.elided_bottom_pops += n - i - 1;
+                {
+                    self.record_any_pop(n - i - 1);
                 }
                 break;
             }
