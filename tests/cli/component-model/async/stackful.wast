@@ -115,7 +115,7 @@
   (core module $m6
     (memory (export "memory") 1)
     (func (export "realloc") (param i32 i32 i32 i32) (result i32) unreachable)
-    (func (export "f") (param i32 i32 i32 i32 i32 i32 i32 i32) unreachable))
+    (func (export "f") (param i32) unreachable))
   (core instance $m6 (instantiate $m6))
   (func async (param "x" (list string 4))
     (canon lift (core func $m6 "f") async
