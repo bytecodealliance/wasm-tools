@@ -52,11 +52,14 @@ pub fn targets(
     // (2) Encode the world to a component type and embed a new component which
     // imports the encoded component type.
     let test_component_idx = {
-        if semver_compatible {
-            // Check duplicate imports/exports in the target world
-            check_duplicate_canonical_names(resolve, world)?;
-        }
-        let component_ty = encode_world(resolve, world, semver_compatible)?;
+        let component_ty = if semver_compatible {
+            let mut resolve = resolve.clone();
+            resolve.merge_world_imports_based_on_semver(world)?;
+            check_duplicate_canonical_names(&resolve, world)?;
+            encode_world(&resolve, world, true)?
+        } else {
+            encode_world(resolve, world, false)?
+        };
         let mut component = ComponentBuilder::default();
         let component_ty_idx = component.type_component(None, &component_ty);
         component.import(
