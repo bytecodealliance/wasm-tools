@@ -1947,18 +1947,13 @@ where
         (p1, r1): (&[ValType], &[ValType]),
         (p2, r2): (&[ValType], &[ValType]),
     ) -> bool {
-        // Note that the order of params/results is intentionally swapped
-        // and matches the variance needed for this subtyping check.
-        p1.len() == p2.len()
-            && p1
-                .iter()
-                .zip(p2.iter())
-                .all(|(t1, t2)| self.resources.is_subtype(*t2, *t1))
-            && r1.len() == r2.len()
-            && r1
-                .iter()
-                .zip(r2.iter())
-                .all(|(r1, r2)| self.resources.is_subtype(*r1, *r2))
+        crate::func_signature_matches(
+            p1.iter().copied(),
+            r1.iter().copied(),
+            p2.iter().copied(),
+            r2.iter().copied(),
+            |a, b| self.resources.is_subtype(a, b),
+        )
     }
 
     fn check_binop128(&mut self) -> Result<()> {
