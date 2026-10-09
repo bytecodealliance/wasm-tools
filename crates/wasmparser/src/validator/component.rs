@@ -3892,16 +3892,17 @@ impl ComponentState {
         if let ComponentExternalKind::Value = kind {
             self.check_value_support(offset)?;
         }
-        let mut ty = match types[self.instance_at(instance_index, offset)?]
+        let item = match types[self.instance_at(instance_index, offset)?]
             .exports
             .get(name)
         {
-            Some(ty) => ty.ty,
+            Some(item) => item,
             None => bail!(
                 offset,
                 "instance {instance_index} has no export named `{name}`"
             ),
         };
+        let mut ty = item.ty;
 
         let ok = match (ty, kind) {
             (ComponentEntityType::Module(_), ComponentExternalKind::Module) => true,
@@ -3920,7 +3921,8 @@ impl ComponentState {
         if !ok {
             bail!(
                 offset,
-                "export `{name}` for instance {instance_index} is not a {}",
+                "export `{}` for instance {instance_index} is not a {}",
+                item.full_name(name),
                 kind.desc(),
             );
         }
@@ -4860,13 +4862,18 @@ impl ComponentNameContext {
             .with_context(|| format!("{} name `{kebab}` is not valid", kind.desc()))?;
 
         // Top-level kebab-names must all be unique, even between both imports
-        // and exports ot a component. For those names consult the `kebab_names`
+        // and exports of a component. For those names consult the `kebab_names`
         // set.
         if let Some(prev) = kind_names.replace(kebab.clone()) {
+            let prev_suffix = items
+                .get(prev.as_str())
+                .and_then(|item| item.version_suffix.as_deref());
             bail!(
                 offset,
-                "{} name `{kebab}` conflicts with previous name `{prev}`",
-                kind.desc()
+                "{} name `{}` conflicts with previous name `{}`",
+                kind.desc(),
+                crate::with_version_suffix(name, version_suffix),
+                crate::with_version_suffix(prev.as_str(), prev_suffix),
             );
         }
 
@@ -4923,7 +4930,8 @@ impl ComponentNameContext {
                     offset,
                     "{kind} name `{name}` conflicts with previous name `{prev}`",
                     kind = kind.desc(),
-                    prev = e.key(),
+                    name = crate::with_version_suffix(name, version_suffix),
+                    prev = e.get().full_name(e.key()),
                 );
             }
             Entry::Vacant(e) => {
