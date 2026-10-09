@@ -29,7 +29,7 @@ use core::hash::{Hash, Hasher};
 #[cfg(feature = "validate")]
 mod matches;
 #[cfg(feature = "validate")]
-pub(crate) use self::matches::{Matches, WithRecGroup};
+pub(crate) use self::matches::{Matches, WithRecGroup, func_signature_matches};
 
 /// A packed representation of a type index.
 ///
