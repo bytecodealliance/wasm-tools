@@ -1339,9 +1339,11 @@ pub struct TargetsOpts {
     #[clap(flatten)]
     input: wasm_tools::InputArg,
 
-    /// Emits canonical interface names with version suffixes.
+    /// Matches interfaces by their canonical names, so semver-compatible
+    /// versions (e.g. `wasi:cli@0.2.3` and `wasi:cli@0.2.0`) are type-checked
+    /// against each other.
     #[clap(long)]
-    emit_canonical_names: bool,
+    semver_compatible: bool,
 }
 
 impl TargetsOpts {
@@ -1359,7 +1361,7 @@ impl TargetsOpts {
             &resolve,
             world,
             &component_to_test,
-            self.emit_canonical_names,
+            self.semver_compatible,
         )?;
 
         Ok(())

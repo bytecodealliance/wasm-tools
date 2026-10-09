@@ -19,6 +19,10 @@ use wit_parser::{Resolve, WorldId};
 /// component constructed for testing is a invalid component encoding.
 /// NOTE: an invalid encoding here indicates that the targets check has failed.
 ///
+/// Tests are run both with and without `semver_compatible`, except tests with
+/// `semver` in their name which are only run with `semver_compatible`. The
+/// `error.txt` expectation is for the run with `semver_compatible`.
+///
 /// Run the test with the environment variable `BLESS` set to update `error.txt`.
 ///
 /// Each test is effectively executing as:
@@ -40,6 +44,17 @@ fn targets() -> Result<()> {
 
         let component = wat::parse_file(path.join("test.wat"))
             .with_context(|| "failed to parse component WAT".to_string())?;
+
+        // Tests with `semver` in their name rely on matching semver-compatible
+        // versions, so they're only run with `semver_compatible`.
+        if !test_case.contains("semver") {
+            let result = wit_component::targets(&resolve, world, &component, false);
+            assert_eq!(
+                result.is_err(),
+                test_case.starts_with("error-"),
+                "unexpected result without semver_compatible: {result:?}"
+            );
+        }
 
         match wit_component::targets(&resolve, world, &component, true) {
             Ok(_) => {

@@ -1,0 +1,12 @@
+package test:root;
+
+world foobar {
+    import test:foo/foo@0.2.0;
+}
+
+package test:foo@0.2.0 {
+    interface foo {
+        f: func();
+        g: func();
+    }
+}
