@@ -1,7 +1,6 @@
-use crate::encoding::{check_duplicate_canonical_names, encode_world};
+use crate::encoding::encode_world;
 use anyhow::{Context, Result, bail};
 use wasm_encoder::{ComponentBuilder, ComponentExportKind, ComponentTypeRef};
-use wasmparser::names::has_canonical_names;
 use wasmparser::{ComponentTypeRef as ImportTypeRef, Parser, Payload, Validator, WasmFeatures};
 use wit_parser::decoding::{DecodedWasm, decode};
 use wit_parser::{Resolve, WorldId};
@@ -23,11 +22,10 @@ pub fn targets(
     let mut root_component = ComponentBuilder::default();
 
     // (1) Embed the component to test. With `semver_compatible`, the names in
-    // the component itself may not be canonical, in which case we decode
-    // its world, merge semver-compatible imports, and import a component whose
-    // type is that world encoded with canonical names.
-    let reencode = semver_compatible && !has_canonical_names(component_to_test)?;
-    let component_to_test_idx = if reencode {
+    // the component itself may not be canonical, so we decode its world,
+    // merge semver-compatible imports, and import a component whose type is
+    // that world encoded with canonical names.
+    let component_to_test_idx = if semver_compatible {
         check_imports_are_wit(component_to_test)?;
         let (mut test_resolve, test_world) = match decode(component_to_test)
             .context("failed to decode the WIT world of the component to test")?
@@ -36,9 +34,6 @@ pub fn targets(
             DecodedWasm::WitPackage(..) => bail!("expected a component, found a WIT package"),
         };
         test_resolve.merge_world_imports_based_on_semver(test_world)?;
-        // The merge above already ensures imports have unique canonical names,
-        // so this mainly catches semver-compatible duplicate exports.
-        check_duplicate_canonical_names(&test_resolve, test_world)?;
         let component_ty = encode_world(&test_resolve, test_world, true)?;
         let component_ty_idx = root_component.type_component(None, &component_ty);
         root_component.import(
@@ -55,7 +50,6 @@ pub fn targets(
         let component_ty = if semver_compatible {
             let mut resolve = resolve.clone();
             resolve.merge_world_imports_based_on_semver(world)?;
-            check_duplicate_canonical_names(&resolve, world)?;
             encode_world(&resolve, world, true)?
         } else {
             encode_world(resolve, world, false)?

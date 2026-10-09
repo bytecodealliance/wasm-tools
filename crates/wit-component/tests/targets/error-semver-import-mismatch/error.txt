@@ -1,3 +1,3 @@
 failed to validate encoded bytes: type mismatch for import `foobar`
-type mismatch for import `test:foo/foo@0.2`
+type mismatch for import `test:foo/foo@0.2.4`
 missing expected export `h` (at offset 0xa0)

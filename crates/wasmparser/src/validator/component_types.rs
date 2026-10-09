@@ -1056,6 +1056,12 @@ pub struct ComponentItem {
 }
 
 impl ComponentItem {
+    /// Returns `name`, which this item is keyed by, with the version suffix
+    /// appended if it applies to `name`.
+    pub fn full_name<'a>(&self, name: &'a str) -> Cow<'a, str> {
+        crate::with_version_suffix(name, self.version_suffix.as_deref())
+    }
+
     /// Returns the full name of the interface in `implements`, if specified.
     pub fn full_implements(&self) -> Option<Cow<'_, str>> {
         Some(crate::with_version_suffix(
@@ -3586,7 +3592,7 @@ impl<'a> SubtypeCx<'a> {
         for (k, b) in b.exports.iter() {
             match a.exports.get(k) {
                 Some(a) => exports.push((a.ty, b.ty)),
-                None => bail!(offset, "missing expected export `{k}`"),
+                None => bail!(offset, "missing expected export `{}`", b.full_name(k)),
             }
         }
         for (i, (a, b)) in exports.iter().enumerate() {
@@ -3596,8 +3602,13 @@ impl<'a> SubtypeCx<'a> {
             };
             // On failure attach the name of this export as context to
             // the error message to leave a breadcrumb trail.
-            let (name, _) = self.b[b_id].exports.get_index(i).unwrap();
-            return Err(err.with_context(|| format!("type mismatch in instance export `{name}`")));
+            let (name, item) = self.b[b_id].exports.get_index(i).unwrap();
+            return Err(err.with_context(|| {
+                format!(
+                    "type mismatch in instance export `{}`",
+                    item.full_name(name)
+                )
+            }));
         }
         Ok(())
     }
@@ -3907,7 +3918,12 @@ impl<'a> SubtypeCx<'a> {
         for (name, expected) in entities.iter() {
             match a.get(name) {
                 Some(arg) => to_typecheck.push((*arg, expected.ty)),
-                None => bail!(offset, "missing {} named `{name}`", kind.desc()),
+                None => bail!(
+                    offset,
+                    "missing {} named `{}`",
+                    kind.desc(),
+                    expected.full_name(name)
+                ),
             }
         }
         let mut type_map = Map::default();
@@ -3938,8 +3954,14 @@ impl<'a> SubtypeCx<'a> {
                 ExternKind::Import => &component_type.imports,
                 ExternKind::Export => &component_type.exports,
             };
-            let (name, _) = entities.get_index(i).unwrap();
-            return Err(err.with_context(|| format!("type mismatch for {} `{name}`", kind.desc())));
+            let (name, item) = entities.get_index(i).unwrap();
+            return Err(err.with_context(|| {
+                format!(
+                    "type mismatch for {} `{}`",
+                    kind.desc(),
+                    item.full_name(name)
+                )
+            }));
         }
         mapping.types = type_map;
         Ok(mapping)

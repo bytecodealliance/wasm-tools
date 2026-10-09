@@ -2,7 +2,7 @@
 //! component model.
 
 use crate::prelude::*;
-use crate::{ComponentExternName, Error, Parser, Payload, Result, WasmFeatures, require_feature};
+use crate::{Error, Result, WasmFeatures, require_feature};
 use core::cmp::Ordering;
 use core::fmt;
 use core::hash::{Hash, Hasher};
@@ -910,61 +910,6 @@ pub fn is_canonical_version(version: &str) -> bool {
         Some(("0", minor)) if minor != "0" && is_version_number(minor) => true,
         _ => split_canonical_version(version) == Some((version, None)),
     }
-}
-
-/// Returns whether the import or export `name` is in canonical form.
-///
-/// A name is canonical if it has a `versionsuffix`, which requires the version
-/// in the name to be canonical, or if the name (or its `implements`, if
-/// present) isn't an interface name with a non-canonical version. For example
-/// `a:b/c`, `a:b/c@0.2` with a version suffix of `.1`, and `a:b/c@1` are
-/// canonical, but `a:b/c@0.2.1` is not.
-pub fn is_canonical_extern_name(name: &ComponentExternName<'_>) -> bool {
-    if name.version_suffix.is_some() {
-        return true;
-    }
-    let Ok(name) = ComponentName::new(name.implements.unwrap_or(name.name), 0) else {
-        return false;
-    };
-    match name.kind() {
-        ComponentNameKind::Interface(iface) => match iface.as_str().split_once('@') {
-            Some((_, version)) => is_canonical_version(version),
-            None => true,
-        },
-        _ => true,
-    }
-}
-
-/// Returns whether all top-level imports and exports of the component
-/// `bytes` have canonical names, as determined by
-/// [`is_canonical_extern_name`].
-///
-/// Imports and exports of nested modules and components are not considered.
-/// This does not validate `bytes`.
-pub fn has_canonical_names(bytes: &[u8]) -> Result<bool> {
-    let mut depth = 0;
-    for payload in Parser::new(0).parse_all(bytes) {
-        match payload? {
-            Payload::ModuleSection { .. } | Payload::ComponentSection { .. } => depth += 1,
-            Payload::End(_) => depth -= 1,
-            Payload::ComponentImportSection(imports) if depth == 0 => {
-                for import in imports {
-                    if !is_canonical_extern_name(&import?.name) {
-                        return Ok(false);
-                    }
-                }
-            }
-            Payload::ComponentExportSection(exports) if depth == 0 => {
-                for export in exports {
-                    if !is_canonical_extern_name(&export?.name) {
-                        return Ok(false);
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-    Ok(true)
 }
 
 /// Returns whether `s` is a valid `major`, `minor`, or `patch` number of a
