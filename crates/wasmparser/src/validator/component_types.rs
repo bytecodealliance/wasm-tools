@@ -1031,16 +1031,6 @@ pub struct ComponentType {
     /// create fresh new versions of all of these resources. The path here is
     /// within the `exports` array.
     pub defined_resources: Vec<(ResourceId, Vec<usize>)>,
-
-    /// The set of all resources which are explicitly exported by this
-    /// component, and where they're exported.
-    ///
-    /// This mapping is stored separately from `defined_resources` to ensure
-    /// that it contains all exported resources, not just those which are
-    /// defined. That means that this can cover reexports of imported
-    /// resources, exports of local resources, or exports of closed-over
-    /// resources for example.
-    pub explicit_resources: IndexMap<ResourceId, Vec<usize>>,
 }
 
 /// Either an import or an export within [`ComponentType`] or
@@ -1119,10 +1109,6 @@ pub struct ComponentInstanceType {
     /// instance then this list is always empty. For concrete instances
     /// defined resources are tracked in the component state or component type.
     pub defined_resources: Vec<ResourceId>,
-
-    /// The list of all resources that are explicitly exported from this
-    /// instance type along with the path they're exported at.
-    pub explicit_resources: IndexMap<ResourceId, Vec<usize>>,
 }
 
 impl TypeData for ComponentInstanceType {
@@ -2979,6 +2965,83 @@ impl TypeAlloc {
         }
     }
 
+    /// Searches `exports` for where each of `resources` is explicitly
+    /// exported, returning the path to each resource that is found.
+    ///
+    /// A resource is explicitly exported when it's exported as a type, either
+    /// directly within `exports` or transitively within an exported instance.
+    /// Each path is a list of indices where the first indexes into `exports`
+    /// and each subsequent index indexes into the exports of the instance
+    /// found at the previous index. This is the same representation as the
+    /// paths in [`ComponentType::imported_resources`], for example.
+    ///
+    /// Resources which aren't explicitly exported are absent from the returned
+    /// map. If a resource is exported at multiple paths then the first one
+    /// found is returned.
+    ///
+    /// Note that paths are computed here on demand, as opposed to being stored
+    /// in each instance or component type, because storing them would copy
+    /// each path every time an instance is exported or instantiated, which can
+    /// use an amount of memory super-linear in the size of the input.
+    pub(crate) fn explicit_resource_paths(
+        &self,
+        exports: &IndexMap<String, ComponentItem>,
+        resources: impl IntoIterator<Item = ResourceId>,
+    ) -> Map<ResourceId, Vec<usize>> {
+        let mut remaining = resources.into_iter().collect::<Set<_>>();
+        let mut paths = Map::default();
+        self.search_explicit_resources(
+            exports,
+            &mut Vec::new(),
+            &mut Set::default(),
+            &mut remaining,
+            &mut paths,
+        );
+        paths
+    }
+
+    fn search_explicit_resources(
+        &self,
+        exports: &IndexMap<String, ComponentItem>,
+        path: &mut Vec<usize>,
+        visited: &mut Set<ComponentInstanceTypeId>,
+        remaining: &mut Set<ResourceId>,
+        paths: &mut Map<ResourceId, Vec<usize>>,
+    ) {
+        for (i, export) in exports.values().enumerate() {
+            if remaining.is_empty() {
+                return;
+            }
+            path.push(i);
+            match export.ty {
+                ComponentEntityType::Type {
+                    created: ComponentAnyTypeId::Resource(id),
+                    ..
+                } => {
+                    if remaining.remove(&id.resource()) {
+                        paths.insert(id.resource(), path.clone());
+                    }
+                }
+
+                // Each instance type is only searched once. Instance types may
+                // be referenced many times, for example the same instance
+                // exported under many names, and all resources within one are
+                // found during the first search of it, so later searches
+                // would find nothing new. This keeps the search linear in the
+                // number of distinct types rather than exponential.
+                ComponentEntityType::Instance(id) => {
+                    if visited.insert(id) {
+                        let exports = &self[id].exports;
+                        self.search_explicit_resources(exports, path, visited, remaining, paths);
+                    }
+                }
+
+                _ => {}
+            }
+            path.pop();
+        }
+    }
+
     /// Returns whether the type `id` is "named" where named types are presented
     /// via the provided `set`.
     ///
@@ -3067,25 +3130,6 @@ where
     where
         T: TypeData;
 
-    /// Apply `map` to the keys of `tmp`, setting `*any_changed = true` if any
-    /// keys were remapped.
-    fn map_map(
-        tmp: &mut IndexMap<ResourceId, Vec<usize>>,
-        any_changed: &mut bool,
-        map: &Remapping,
-    ) {
-        for (id, path) in mem::take(tmp) {
-            let id = match map.resources.get(&id) {
-                Some(id) => {
-                    *any_changed = true;
-                    *id
-                }
-                None => id,
-            };
-            tmp.insert(id, path);
-        }
-    }
-
     /// If `any_changed` is true, push `ty`, update `map` to point `id` to the
     /// new type ID, set `id` equal to the new type ID, and return `true`.
     /// Otherwise, update `map` to point `id` to itself and return `false`.
@@ -3163,7 +3207,6 @@ where
                 any_changed = true;
             }
         }
-        Self::map_map(&mut ty.explicit_resources, &mut any_changed, map);
         self.insert_if_any_changed(map, any_changed, id, ty)
     }
 
@@ -3254,7 +3297,6 @@ where
                 any_changed = true;
             }
         }
-        Self::map_map(&mut tmp.explicit_resources, &mut any_changed, map);
         self.insert_if_any_changed(map, any_changed, id, tmp)
     }
 
