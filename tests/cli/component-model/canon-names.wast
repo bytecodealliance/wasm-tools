@@ -75,3 +75,55 @@
 (assert_invalid
   (component (import "a" (versionsuffix ".1") (instance)))
   "`versionsuffix` requires an interface name or `implements`")
+
+(assert_invalid
+  (component
+    (import "a:b/c@0.2" (versionsuffix ".0") (instance))
+    (import "a:b/c@0.2" (versionsuffix ".1") (instance)))
+  "import name `a:b/c@0.2.1` conflicts with previous name `a:b/c@0.2.0`")
+
+(assert_invalid
+  (component
+    (instance $i)
+    (export "a:b/c@0.2" (versionsuffix ".0") (instance $i))
+    (export "a:b/c@0.2" (versionsuffix ".1") (instance $i)))
+  "export name `a:b/c@0.2.1` conflicts with previous name `a:b/c@0.2.0`")
+
+;; Subtyping and alias errors include version suffixes.
+(assert_invalid
+  (component
+    (component $c (import "a:b/c@0.2" (versionsuffix ".1") (instance)))
+    (instance (instantiate $c)))
+  "missing import named `a:b/c@0.2.1`")
+
+(assert_invalid
+  (component
+    (component $c
+      (import "a:b/c@0.2" (versionsuffix ".1") (instance (export "f" (func)))))
+    (instance $i)
+    (instance (instantiate $c (with "a:b/c@0.2" (instance $i)))))
+  "type mismatch for import `a:b/c@0.2.1`")
+
+(assert_invalid
+  (component
+    (component $c
+      (import "i" (instance (export "a:b/c@0.2" (versionsuffix ".1") (instance)))))
+    (instance $i)
+    (instance (instantiate $c (with "i" (instance $i)))))
+  "missing expected export `a:b/c@0.2.1`")
+
+(assert_invalid
+  (component
+    (component $c
+      (import "i" (instance
+        (export "a:b/c@0.2" (versionsuffix ".1") (instance (export "f" (func)))))))
+    (instance $inner)
+    (instance $i (export "a:b/c@0.2" (versionsuffix ".0") (instance $inner)))
+    (instance (instantiate $c (with "i" (instance $i)))))
+  "type mismatch in instance export `a:b/c@0.2.1`")
+
+(assert_invalid
+  (component
+    (import "i" (instance $i (export "a:b/c@0.2" (versionsuffix ".1") (instance))))
+    (alias export $i "a:b/c@0.2" (func)))
+  "export `a:b/c@0.2.1` for instance 0 is not a func")

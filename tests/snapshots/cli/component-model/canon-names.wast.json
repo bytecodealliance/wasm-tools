@@ -96,6 +96,55 @@
       "filename": "canon-names.13.wasm",
       "module_type": "binary",
       "text": "`versionsuffix` requires an interface name or `implements`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 80,
+      "filename": "canon-names.14.wasm",
+      "module_type": "binary",
+      "text": "import name `a:b/c@0.2.1` conflicts with previous name `a:b/c@0.2.0`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 86,
+      "filename": "canon-names.15.wasm",
+      "module_type": "binary",
+      "text": "export name `a:b/c@0.2.1` conflicts with previous name `a:b/c@0.2.0`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 94,
+      "filename": "canon-names.16.wasm",
+      "module_type": "binary",
+      "text": "missing import named `a:b/c@0.2.1`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 100,
+      "filename": "canon-names.17.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for import `a:b/c@0.2.1`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 108,
+      "filename": "canon-names.18.wasm",
+      "module_type": "binary",
+      "text": "missing expected export `a:b/c@0.2.1`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 116,
+      "filename": "canon-names.19.wasm",
+      "module_type": "binary",
+      "text": "type mismatch in instance export `a:b/c@0.2.1`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 126,
+      "filename": "canon-names.20.wasm",
+      "module_type": "binary",
+      "text": "export `a:b/c@0.2.1` for instance 0 is not a func"
     }
   ]
 }
