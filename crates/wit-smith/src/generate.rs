@@ -37,6 +37,9 @@ struct InterfaceGenerator<'a> {
 struct Type {
     name: String,
     size: usize,
+    /// The nesting depth of this type, as returned by `gen_type`, used to
+    /// ensure that types referring to this one don't nest too deeply.
+    depth: usize,
     is_resource: bool,
 }
 
@@ -991,6 +994,7 @@ impl<'a> InterfaceGenerator<'a> {
         part.push_str("%");
         part.push_str(&ty.name);
         let size = ty.size;
+        let depth = ty.depth;
         let is_resource = ty.is_resource;
         let name = if self.unique_names.contains(&ty.name) || u.arbitrary()? {
             part.push_str(" as %");
@@ -1012,6 +1016,7 @@ impl<'a> InterfaceGenerator<'a> {
         self.types_in_interface.push(Type {
             name,
             size,
+            depth,
             is_resource,
         });
         part.push_str("};");
@@ -1037,6 +1042,7 @@ impl<'a> InterfaceGenerator<'a> {
         let mut fuel = self.generator.config.max_type_size;
 
         let mut is_resource = false;
+        let mut depth = 1;
         match u.arbitrary()? {
             Kind::Record => {
                 ret.push_str("record %");
@@ -1046,7 +1052,7 @@ impl<'a> InterfaceGenerator<'a> {
                     ret.push_str("  %");
                     ret.push_str(&self.gen_unique_name(u)?);
                     ret.push_str(": ");
-                    self.gen_type(u, &mut fuel, 0, ret)?;
+                    depth = depth.max(1 + self.gen_type(u, &mut fuel, 1, ret)?);
                     ret.push_str(",\n");
                 }
                 ret.push_str("}");
@@ -1060,7 +1066,7 @@ impl<'a> InterfaceGenerator<'a> {
                     ret.push_str(&self.gen_unique_name(u)?);
                     if u.arbitrary()? {
                         ret.push_str("(");
-                        self.gen_type(u, &mut fuel, 0, ret)?;
+                        depth = depth.max(1 + self.gen_type(u, &mut fuel, 1, ret)?);
                         ret.push_str(")");
                     }
                     ret.push_str(",\n");
@@ -1093,7 +1099,7 @@ impl<'a> InterfaceGenerator<'a> {
                 ret.push_str("type %");
                 ret.push_str(name);
                 ret.push_str(" = ");
-                self.gen_type(u, &mut fuel, 0, ret)?;
+                depth = self.gen_type(u, &mut fuel, 0, ret)?;
                 ret.push_str(";");
             }
             Kind::Resource => {
@@ -1105,18 +1111,24 @@ impl<'a> InterfaceGenerator<'a> {
 
         Ok(Type {
             size: self.generator.config.max_type_size - fuel,
+            depth,
             is_resource,
             name: name.to_string(),
         })
     }
 
+    /// Generates a type into `dst` which is nested `depth` levels deep within
+    /// its enclosing type.
+    ///
+    /// Returns the nesting depth of the generated type itself, where leaf
+    /// types have a depth of 1.
     fn gen_type(
         &mut self,
         u: &mut Unstructured<'_>,
         fuel: &mut usize,
         depth: usize,
         dst: &mut String,
-    ) -> Result<()> {
+    ) -> Result<usize> {
         #[derive(Arbitrary)]
         enum Kind {
             Bool,
@@ -1150,16 +1162,17 @@ impl<'a> InterfaceGenerator<'a> {
         const MAX_DEPTH: usize = 50;
         if depth + 1 >= MAX_DEPTH {
             dst.push_str("bool");
-            return Ok(());
+            return Ok(1);
         }
 
         *fuel = match fuel.checked_sub(1) {
             Some(fuel) => fuel,
             None => {
                 dst.push_str("bool");
-                return Ok(());
+                return Ok(1);
             }
         };
+        let mut ty_depth = 1;
         loop {
             break match u.arbitrary()? {
                 Kind::Bool => dst.push_str("bool"),
@@ -1180,10 +1193,16 @@ impl<'a> InterfaceGenerator<'a> {
                         continue;
                     }
                     let ty = u.choose(&self.types_in_interface)?;
+                    // Named types may themselves be deeply nested, so avoid
+                    // referring to one here if that would nest too deeply.
+                    if depth + ty.depth + 1 >= MAX_DEPTH {
+                        continue;
+                    }
                     *fuel = match fuel.checked_sub(ty.size) {
                         Some(fuel) => fuel,
                         None => continue,
                     };
+                    ty_depth = ty.depth + 1;
                     let own_wrapper = if ty.is_resource && u.arbitrary()? {
                         dst.push_str("own<");
                         true
@@ -1207,7 +1226,7 @@ impl<'a> InterfaceGenerator<'a> {
                         if i > 0 {
                             dst.push_str(", ");
                         }
-                        self.gen_type(u, fuel, depth + 1, dst)?;
+                        ty_depth = ty_depth.max(1 + self.gen_type(u, fuel, depth + 1, dst)?);
                     }
                     dst.push_str(">");
                 }
@@ -1217,7 +1236,7 @@ impl<'a> InterfaceGenerator<'a> {
                         None => continue,
                     };
                     dst.push_str("option<");
-                    self.gen_type(u, fuel, depth + 1, dst)?;
+                    ty_depth = ty_depth.max(1 + self.gen_type(u, fuel, depth + 1, dst)?);
                     dst.push_str(">");
                 }
                 Kind::List => {
@@ -1226,7 +1245,7 @@ impl<'a> InterfaceGenerator<'a> {
                         None => continue,
                     };
                     dst.push_str("list<");
-                    self.gen_type(u, fuel, depth + 1, dst)?;
+                    ty_depth = ty_depth.max(1 + self.gen_type(u, fuel, depth + 1, dst)?);
                     dst.push_str(">");
                 }
                 Kind::FixedLengthList => {
@@ -1240,7 +1259,7 @@ impl<'a> InterfaceGenerator<'a> {
                     let elements =
                         u.int_in_range(1..=self.generator.config.max_type_parts as u32)?;
                     dst.push_str("list<");
-                    self.gen_type(u, fuel, depth + 1, dst)?;
+                    ty_depth = ty_depth.max(1 + self.gen_type(u, fuel, depth + 1, dst)?);
                     dst.push_str(&format!(", {elements}>"));
                 }
                 Kind::Result => {
@@ -1254,19 +1273,19 @@ impl<'a> InterfaceGenerator<'a> {
                     match (ok, err) {
                         (true, true) => {
                             dst.push_str("<");
-                            self.gen_type(u, fuel, depth + 1, dst)?;
+                            ty_depth = ty_depth.max(1 + self.gen_type(u, fuel, depth + 1, dst)?);
                             dst.push_str(", ");
-                            self.gen_type(u, fuel, depth + 1, dst)?;
+                            ty_depth = ty_depth.max(1 + self.gen_type(u, fuel, depth + 1, dst)?);
                             dst.push_str(">");
                         }
                         (true, false) => {
                             dst.push_str("<");
-                            self.gen_type(u, fuel, depth + 1, dst)?;
+                            ty_depth = ty_depth.max(1 + self.gen_type(u, fuel, depth + 1, dst)?);
                             dst.push_str(">");
                         }
                         (false, true) => {
                             dst.push_str("<_, ");
-                            self.gen_type(u, fuel, depth + 1, dst)?;
+                            ty_depth = ty_depth.max(1 + self.gen_type(u, fuel, depth + 1, dst)?);
                             dst.push_str(">");
                         }
                         (false, false) => {}
@@ -1281,7 +1300,7 @@ impl<'a> InterfaceGenerator<'a> {
                         None => continue,
                     };
                     dst.push_str("stream<");
-                    self.gen_type(u, fuel, depth + 1, dst)?;
+                    ty_depth = ty_depth.max(1 + self.gen_type(u, fuel, depth + 1, dst)?);
                     dst.push_str(">");
                 }
                 Kind::Future => {
@@ -1294,7 +1313,7 @@ impl<'a> InterfaceGenerator<'a> {
                     };
                     if u.arbitrary()? {
                         dst.push_str("future<");
-                        self.gen_type(u, fuel, depth + 1, dst)?;
+                        ty_depth = ty_depth.max(1 + self.gen_type(u, fuel, depth + 1, dst)?);
                         dst.push_str(">");
                     } else {
                         dst.push_str("future");
@@ -1309,7 +1328,7 @@ impl<'a> InterfaceGenerator<'a> {
             };
         }
 
-        Ok(())
+        Ok(ty_depth)
     }
 
     fn gen_func(&mut self, u: &mut Unstructured<'_>, ret: &mut String) -> Result<()> {
