@@ -252,3 +252,40 @@ fn too_many_core_types_in_component_rec_group() {
         .unwrap_err();
     assert!(err.message().contains("types count exceeds limit"), "{err}");
 }
+
+#[test]
+fn many_nested_instances_with_resources() {
+    use wasmparser::Validator;
+
+    const RESOURCES: u32 = 100_000;
+    const DEPTH: u32 = 90;
+    const COPIES: u32 = 4_000;
+
+    // Define `RESOURCES` resources and export them all from instance 0.
+    let mut types = ComponentTypeSection::new();
+    for _ in 0..RESOURCES {
+        types.resource(ValType::I32, None);
+    }
+    let mut instances = ComponentInstanceSection::new();
+    instances.export_items((0..RESOURCES).map(|i| (format!("r{i}"), ComponentExportKind::Type, i)));
+
+    // Nest instance 0 within `DEPTH` bag-of-exports instances, each one
+    // exporting the previous, and then export the outermost instance from
+    // `COPIES` more instances.
+    for i in 1..=DEPTH {
+        instances.export_items([("x", ComponentExportKind::Instance, i - 1)]);
+    }
+    for _ in 0..COPIES {
+        instances.export_items([("x", ComponentExportKind::Instance, DEPTH)]);
+    }
+
+    let mut component = Component::new();
+    component.section(&types);
+    component.section(&instances);
+
+    // This is a small component, so shouldn't need gigabytes of ram to
+    // validate...
+    Validator::default()
+        .validate_all(&component.finish())
+        .unwrap();
+}
