@@ -4732,7 +4732,7 @@ impl ComponentNameContext {
             )?;
             match ty {
                 ComponentEntityType::Instance(_) => {}
-                _ => bail!(offset, "only instances can have an `versionsuffix`"),
+                _ => bail!(offset, "only instances can have a `version-suffix`"),
             }
             if suffix.is_empty() {
                 bail!(offset, "version suffix cannot be empty");
@@ -4742,7 +4742,7 @@ impl ComponentNameContext {
             if implements.is_none() && !matches!(kebab.kind(), ComponentNameKind::Interface(_)) {
                 bail!(
                     offset,
-                    "`versionsuffix` requires an interface name or `implements`"
+                    "`version-suffix` requires an interface name or `implements`"
                 );
             }
         }

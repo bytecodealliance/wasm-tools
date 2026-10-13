@@ -7,7 +7,7 @@
       (export (;1;) "y" (func (type 1)))
     )
   )
-  (import "a:b/c@0.1" (versionsuffix ".1") (instance $a:b/c@0.1 (;0;) (type $ty-a:b/c@0.1.1)))
+  (import "a:b/c@0.1" (version-suffix ".1") (instance $a:b/c@0.1 (;0;) (type $ty-a:b/c@0.1.1)))
   (core module $main (;0;)
     (type (;0;) (func (param i32 i32)))
     (type (;1;) (func))
@@ -99,7 +99,7 @@
       (with "import-func-x" (func $"#func3 x"))
     )
   )
-  (export $"#instance2 a:b/c@0.1" (@name "a:b/c@0.1") (;2;) "a:b/c@0.1" (versionsuffix ".0") (instance $a:b/c@0.1-shim-instance))
+  (export $"#instance2 a:b/c@0.1" (@name "a:b/c@0.1") (;2;) "a:b/c@0.1" (version-suffix ".0") (instance $a:b/c@0.1-shim-instance))
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

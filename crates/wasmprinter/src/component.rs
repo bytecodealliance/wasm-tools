@@ -408,7 +408,7 @@ impl Printer<'_, '_> {
         }
         if let Some(version_suffix) = version_suffix {
             self.result.write_str(" ")?;
-            self.start_group("versionsuffix ")?;
+            self.start_group("version-suffix ")?;
             self.print_str(version_suffix)?;
             self.end_group()?;
         }
