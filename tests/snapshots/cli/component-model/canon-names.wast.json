@@ -95,7 +95,7 @@
       "line": 76,
       "filename": "canon-names.13.wasm",
       "module_type": "binary",
-      "text": "`versionsuffix` requires an interface name or `implements`"
+      "text": "`version-suffix` requires an interface name or `implements`"
     },
     {
       "type": "assert_invalid",

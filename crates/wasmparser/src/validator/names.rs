@@ -701,7 +701,7 @@ impl<'a> InterfaceName<'a> {
     /// but `a:b/c@1.2` with a suffix of `.3` returns an error, since
     /// the canonical version of `1.2.3` is `1`.
     ///
-    /// The `suffix` provided here is the optionally specified `versionsuffix`
+    /// The `suffix` provided here is the optionally specified `version-suffix`
     /// field in the binary format. This is appended to the version to form the
     /// full version, if specified. If `None` then the name is required to have
     /// a full version as-is.
@@ -804,7 +804,7 @@ impl Hash for InterfaceName<'_> {
 /// The returned canonical version and version suffix are subslices of
 /// `version` whose concatenation is `version`. In a canonical interface name
 /// the canonical version is the version in the name, e.g. the `0.2` in
-/// `a:b/c@0.2`, and the version suffix, if any, is its `versionsuffix`. With
+/// `a:b/c@0.2`, and the version suffix, if any, is its `version-suffix`. With
 /// `version` of the form `major.minor.patch(-pre)(+build)` the canonical
 /// version is:
 ///

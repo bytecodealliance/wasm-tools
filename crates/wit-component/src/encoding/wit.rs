@@ -158,7 +158,7 @@ pub(crate) fn component_extern_name(
 /// interface name, and `implements` is the interface that a plain `name`
 /// implements. With `canonical_names` these interfaces are named by their
 /// canonicalized interface names with the rest of their version in the
-/// `versionsuffix`.
+/// `version-suffix`.
 pub(crate) fn interface_extern_name(
     resolve: &Resolve,
     name: &str,

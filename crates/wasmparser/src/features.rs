@@ -353,7 +353,7 @@ define_wasm_features! {
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
         pub cm_implements: CM_IMPLEMENTS(1 << 40) = true;
 
-        /// Support for the `(versionsuffix "...")` directive in the component model
+        /// Support for the `(version-suffix "...")` directive in the component model
         ///
         /// Corresponds to the 🔗 character in
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.

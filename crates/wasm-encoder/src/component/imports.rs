@@ -165,7 +165,7 @@ pub struct ComponentExternName<'a> {
     /// An optional `(implements ...)` directive (See 🏷️ in the component model
     /// explainer).
     pub implements: Option<Cow<'a, str>>,
-    /// An optional `(versionsuffix ...)` directive (See 🔗 in the component
+    /// An optional `(version-suffix ...)` directive (See 🔗 in the component
     /// model explainer).
     pub version_suffix: Option<Cow<'a, str>>,
     /// An optional `(external-id ...)` directive (See 🏷️ in the component model

@@ -210,7 +210,7 @@ impl<'a> FromReader<'a> for ComponentExternName<'a> {
                     }
                     ComponentNameOpt::VersionSuffix(name) => {
                         if ret.version_suffix.is_some() {
-                            bail!(pos, "duplicate 'versionsuffix' option in name");
+                            bail!(pos, "duplicate 'version-suffix' option in name");
                         }
                         ret.version_suffix = Some(name);
                     }

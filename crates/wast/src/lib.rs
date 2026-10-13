@@ -616,7 +616,7 @@ pub mod kw {
     custom_keyword!(thread_suspend_then_promote = "thread.suspend-then-promote");
     custom_keyword!(thread_yield_then_promote = "thread.yield-then-promote");
     custom_keyword!(cancellable);
-    custom_keyword!(versionsuffix);
+    custom_keyword!(version_suffix = "version-suffix");
     custom_keyword!(external_id = "external-id");
 }
 
