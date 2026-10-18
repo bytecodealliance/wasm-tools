@@ -275,15 +275,6 @@ impl PeepholeMutator {
             "(i64.xor ?x (i64.xor ?y ?z))" <=> "(i64.xor (i64.xor ?x ?y) ?z)"
         );
 
-        rewrite!(
-            "i32.eq-associates";
-            "(i32.eq ?x (i32.eq ?y ?z))" <=> "(i32.eq (i32.eq ?x ?y) ?z)"
-        );
-        rewrite!(
-            "i64.eq-associates";
-            "(i64.eq ?x (i64.eq ?y ?z))" <=> "(i64.eq (i64.eq ?x ?y) ?z)"
-        );
-
         // Undoing `x * 2 ==> x << 1` strength reduction, etc...
         if !config.reduce {
             rewrite!("i32.mul-by-2"; "(i32.shl ?x i32.const.1)" <=> "(i32.mul ?x i32.const.2)");
