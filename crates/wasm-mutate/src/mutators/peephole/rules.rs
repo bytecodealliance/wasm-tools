@@ -3,7 +3,8 @@
 //! New rewriting rules should be declared inside the
 //! [`get_rules`](/src/wasm_mutate/mutators/peephole/rules.rs.html#17) function.
 
-use egg::{Id, Rewrite, Subst};
+use egg::{Id, Language, Rewrite, Subst};
+use std::collections::HashSet;
 
 use crate::{WasmMutate, module::PrimitiveTypeInfo};
 
@@ -33,13 +34,13 @@ impl PeepholeMutator {
         //// Various identities.
         if config.reduce {
             // NB: these only go one way when we are reducing.
-            rewrite!("i32.or--1"; "(i32.or ?x i32.const.-1)" => "i32.const.-1");
-            rewrite!("i64.or--1"; "(i64.or ?x i64.const.-1)" => "i64.const.-1");
+            rewrite!("i32.or--1"; "(i32.or ?x i32.const.-1)" => "i32.const.-1" if self.is_pure("?x"));
+            rewrite!("i64.or--1"; "(i64.or ?x i64.const.-1)" => "i64.const.-1" if self.is_pure("?x"));
             rewrite!("i32.or-x-x"; "(i32.or ?x ?x)" => "?x");
             rewrite!("i64.or-x-x"; "(i64.or ?x ?x)" => "?x");
             rewrite!("i32.and-x-x"; "(i32.and ?x ?x)" => "?x");
             rewrite!("i64.and-x-x"; "(i64.and ?x ?x)" => "?x");
-            rewrite!("select-same-branches"; "(select ?y ?y ?x)" => "?y");
+            rewrite!("select-same-branches"; "(select ?y ?y ?x)" => "?y" if self.is_pure("?x"));
             rewrite!("i32.sub-0"; "(i32.sub ?x i32.const.0)" => "?x");
             rewrite!("i64.sub-0"; "(i64.sub ?x i64.const.0)" => "?x");
             rewrite!("i32.mul-x-1"; "(i32.mul ?x i32.const.1)" => "?x");
@@ -61,32 +62,36 @@ impl PeepholeMutator {
             rewrite!("i32.shr_s-by-0"; "(i32.shr_s ?x i32.const.0)" => "?x");
             rewrite!("i64.shr_s-by-0"; "(i64.shr_s ?x i64.const.0)" => "?x");
         } else {
-            rewrite!("i32.or--1"; "(i32.or ?x i32.const.-1)" => "i32.const.-1");
-            rewrite!("i64.or--1"; "(i64.or ?x i64.const.-1)" => "i64.const.-1");
+            rewrite!("i32.or--1"; "(i32.or ?x i32.const.-1)" => "i32.const.-1" if self.is_pure("?x"));
+            rewrite!("i64.or--1"; "(i64.or ?x i64.const.-1)" => "i64.const.-1" if self.is_pure("?x"));
 
             rewrite!(
                 "i32.or-x-x";
                 "(i32.or ?x ?x)" <=> "?x"
                     if self.is_type("?x", PrimitiveTypeInfo::I32)
+                    if self.is_pure("?x")
             );
             rewrite!(
                 "i64.or-x-x";
                 "(i64.or ?x ?x)" <=> "?x"
                     if self.is_type("?x", PrimitiveTypeInfo::I64)
+                    if self.is_pure("?x")
             );
 
             rewrite!(
                 "i32.and-x-x";
                 "(i32.and ?x ?x)" <=> "?x"
                     if self.is_type("?x", PrimitiveTypeInfo::I32)
+                    if self.is_pure("?x")
             );
             rewrite!(
                 "i64.and-x-x";
                 "(i64.and ?x ?x)" <=> "?x"
                     if self.is_type("?x", PrimitiveTypeInfo::I64)
+                    if self.is_pure("?x")
             );
 
-            rewrite!("select-same-branches"; "(select ?y ?y ?x)" => "?y");
+            rewrite!("select-same-branches"; "(select ?y ?y ?x)" => "?y" if self.is_pure("?x"));
 
             rewrite!(
                 "i32.sub-0";
@@ -617,6 +622,12 @@ impl PeepholeMutator {
         Condition::Const(var.parse().unwrap())
     }
 
+    /// Condition that the expression bound to `var` has no side effects and
+    /// cannot trap, so it is safe to drop or duplicate it.
+    fn is_pure(&self, var: &str) -> Condition {
+        Condition::Pure(var.parse().unwrap())
+    }
+
     /// Condition that check for number of module globals
     fn global_count_less_than(&self, config: &WasmMutate, allowed: usize) -> Condition {
         let count = config.info().get_global_count();
@@ -681,6 +692,7 @@ impl PeepholeMutator {
 enum Condition {
     Type(egg::Var, PrimitiveTypeInfo),
     Const(egg::Var),
+    Pure(egg::Var),
     Bool(bool),
 }
 
@@ -709,7 +721,111 @@ impl egg::Condition<Lang, PeepholeMutationAnalysis> for Condition {
                     false
                 }
             }
+            Condition::Pure(var) => {
+                // Conservatively require that no node reachable from this
+                // e-class is impure.
+                let mut visited = HashSet::new();
+                let mut worklist = vec![subst[var]];
+                while let Some(id) = worklist.pop() {
+                    let eclass = &egraph[id];
+                    if !visited.insert(eclass.id) {
+                        continue;
+                    }
+                    for node in eclass.nodes.iter() {
+                        if may_trap_or_have_side_effects(node) {
+                            return false;
+                        }
+                        worklist.extend(node.children().iter().copied());
+                    }
+                }
+                true
+            }
             Condition::Bool(b) => b,
         }
     }
+}
+
+/// Returns whether evaluating `node` itself (not counting its operands) may
+/// trap or have side effects.
+fn may_trap_or_have_side_effects(node: &Lang) -> bool {
+    matches!(
+        node,
+        Lang::Call(..)
+            | Lang::LocalTee(..)
+            | Lang::LocalSet(..)
+            | Lang::GlobalSet(..)
+            | Lang::I32DivU(_)
+            | Lang::I64DivU(_)
+            | Lang::I32DivS(_)
+            | Lang::I64DivS(_)
+            | Lang::I32RemU(_)
+            | Lang::I64RemU(_)
+            | Lang::I32RemS(_)
+            | Lang::I64RemS(_)
+            | Lang::I32TruncF32S(_)
+            | Lang::I32TruncF32U(_)
+            | Lang::I32TruncF64S(_)
+            | Lang::I32TruncF64U(_)
+            | Lang::I64TruncF32S(_)
+            | Lang::I64TruncF32U(_)
+            | Lang::I64TruncF64S(_)
+            | Lang::I64TruncF64U(_)
+            | Lang::I32Load(..)
+            | Lang::I64Load(..)
+            | Lang::F32Load(..)
+            | Lang::F64Load(..)
+            | Lang::I32Load8S(..)
+            | Lang::I32Load8U(..)
+            | Lang::I32Load16S(..)
+            | Lang::I32Load16U(..)
+            | Lang::I64Load8S(..)
+            | Lang::I64Load8U(..)
+            | Lang::I64Load16S(..)
+            | Lang::I64Load16U(..)
+            | Lang::I64Load32S(..)
+            | Lang::I64Load32U(..)
+            | Lang::I32Store(..)
+            | Lang::I64Store(..)
+            | Lang::F32Store(..)
+            | Lang::F64Store(..)
+            | Lang::I32Store8(..)
+            | Lang::I32Store16(..)
+            | Lang::I64Store8(..)
+            | Lang::I64Store16(..)
+            | Lang::I64Store32(..)
+            | Lang::MemoryGrow(..)
+            | Lang::MemoryInit(..)
+            | Lang::DataDrop(..)
+            | Lang::MemoryCopy(..)
+            | Lang::MemoryFill(..)
+            | Lang::TableInit(..)
+            | Lang::ElemDrop(..)
+            | Lang::TableCopy(..)
+            | Lang::TableFill(..)
+            | Lang::TableGet(..)
+            | Lang::TableSet(..)
+            | Lang::TableGrow(..)
+            | Lang::V128Load(..)
+            | Lang::V128Load8x8S(..)
+            | Lang::V128Load8x8U(..)
+            | Lang::V128Load16x4S(..)
+            | Lang::V128Load16x4U(..)
+            | Lang::V128Load32x2S(..)
+            | Lang::V128Load32x2U(..)
+            | Lang::V128Load8Splat(..)
+            | Lang::V128Load16Splat(..)
+            | Lang::V128Load32Splat(..)
+            | Lang::V128Load64Splat(..)
+            | Lang::V128Load32Zero(..)
+            | Lang::V128Load64Zero(..)
+            | Lang::V128Store(..)
+            | Lang::V128Load8Lane(..)
+            | Lang::V128Load16Lane(..)
+            | Lang::V128Load32Lane(..)
+            | Lang::V128Load64Lane(..)
+            | Lang::V128Store8Lane(..)
+            | Lang::V128Store16Lane(..)
+            | Lang::V128Store32Lane(..)
+            | Lang::V128Store64Lane(..)
+    )
 }

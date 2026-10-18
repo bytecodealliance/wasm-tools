@@ -523,7 +523,7 @@ mod tests {
         module::PrimitiveTypeInfo,
         mutators::{Mutator, peephole::PeepholeMutator},
     };
-    use egg::{Id, Rewrite, Subst, rewrite};
+    use egg::{Id, RecExpr, Rewrite, Runner, Subst, rewrite};
     use rand::{SeedableRng, rngs::SmallRng};
 
     use super::{EG, PeepholeMutationAnalysis};
@@ -1591,6 +1591,111 @@ mod tests {
         let rules = mutator.get_rules(&config);
         mutator.rules = Some(rules);
         config.match_mutation(original, mutator, expected);
+    }
+
+    /// Applies only the default rule named `rule` to `expr`, with
+    /// `preserve_semantics` enabled, and returns whether `expr` became
+    /// equivalent to `rewritten`.
+    fn rule_rewrites(
+        module: &str,
+        locals: Vec<PrimitiveTypeInfo>,
+        rule: &str,
+        expr: &str,
+        rewritten: &str,
+    ) -> bool {
+        let wasm = wat::parse_str(module).unwrap();
+        let mut config = WasmMutate::default();
+        config.preserve_semantics(true);
+        config.setup(&wasm).unwrap();
+
+        let rules = PeepholeMutator::new(3)
+            .get_rules(&config)
+            .into_iter()
+            .filter(|r| r.name() == rule)
+            .collect::<Vec<_>>();
+        assert_eq!(rules.len(), 1, "no rule named {rule}");
+
+        let expr: RecExpr<Lang> = expr.parse().unwrap();
+        let rewritten: RecExpr<Lang> = rewritten.parse().unwrap();
+        let analysis = PeepholeMutationAnalysis::new(config.info(), locals);
+        let runner = Runner::<Lang, PeepholeMutationAnalysis, ()>::new(analysis)
+            .with_iter_limit(1)
+            .with_expr(&expr)
+            .run(&rules);
+        !runner.egraph.equivs(&expr, &rewritten).is_empty()
+    }
+
+    #[test]
+    fn preserve_semantics_does_not_drop_trap() {
+        let module = "(module)";
+        let locals = vec![PrimitiveTypeInfo::I32];
+        assert!(rule_rewrites(
+            module,
+            locals.clone(),
+            "i32.or--1",
+            "(i32.or local.get.0 i32.const.-1)",
+            "i32.const.-1",
+        ));
+        assert!(!rule_rewrites(
+            module,
+            locals.clone(),
+            "i32.or--1",
+            "(i32.or (i32.div_u i32.const.1 local.get.0) i32.const.-1)",
+            "i32.const.-1",
+        ));
+
+        assert!(rule_rewrites(
+            module,
+            locals.clone(),
+            "select-same-branches",
+            "(select local.get.0 local.get.0 local.get.0)",
+            "local.get.0",
+        ));
+        assert!(!rule_rewrites(
+            module,
+            locals,
+            "select-same-branches",
+            "(select local.get.0 local.get.0 (i32.div_u i32.const.1 local.get.0))",
+            "local.get.0",
+        ));
+    }
+
+    #[test]
+    fn preserve_semantics_does_not_duplicate_effects() {
+        let module = r#"
+            (module
+                (memory 1)
+                (func (result i32) i32.const 0))
+        "#;
+        let locals = vec![PrimitiveTypeInfo::I32];
+        assert!(rule_rewrites(
+            module,
+            locals.clone(),
+            "i32.and-x-x-rev",
+            "local.get.0",
+            "(i32.and local.get.0 local.get.0)",
+        ));
+        assert!(!rule_rewrites(
+            module,
+            locals.clone(),
+            "i32.and-x-x-rev",
+            "(memory.grow.0 i32.const.1)",
+            "(i32.and (memory.grow.0 i32.const.1) (memory.grow.0 i32.const.1))",
+        ));
+        assert!(rule_rewrites(
+            module,
+            locals.clone(),
+            "i32.or-x-x-rev",
+            "local.get.0",
+            "(i32.or local.get.0 local.get.0)",
+        ));
+        assert!(!rule_rewrites(
+            module,
+            locals,
+            "i32.or-x-x-rev",
+            "(call.0)",
+            "(i32.or (call.0) (call.0))",
+        ));
     }
 
     #[test]
