@@ -178,6 +178,21 @@ pub trait WasmValue: Clone + Sized {
     ) -> Result<Self, WasmValueError> {
         unimplemented!()
     }
+    /// Returns a new WasmValue of the given type.
+    ///
+    /// The key-value pairs provided by `entries` are in their encoded order,
+    /// which the callee should preserve if it can. When parsing, keys are
+    /// unique: duplicate keys have already been merged, keeping the last
+    /// value at the position where the key first appears.
+    ///
+    /// # Panics
+    /// Panics if the type is not implemented (the trait default).
+    fn make_map(
+        ty: &Self::Type,
+        entries: impl IntoIterator<Item = (Self, Self)>,
+    ) -> Result<Self, WasmValueError> {
+        unimplemented!()
+    }
 
     /// Returns the underlying value of the WasmValue, panicking if it's the wrong type.
     /// # Panics
@@ -313,6 +328,16 @@ pub trait WasmValue: Clone + Sized {
     /// # Panics
     /// Panics if `self` is not of the right type.
     fn unwrap_flags(&self) -> Box<dyn Iterator<Item = Cow<'_, str>> + '_> {
+        unimplemented!()
+    }
+    /// Returns an iterator of the key and value WasmValues of the map's
+    /// entries, in order.
+    ///
+    /// Entries may repeat keys; the writer merges them like parsing does.
+    ///
+    /// # Panics
+    /// Panics if `self` is not of the right type.
+    fn unwrap_map(&self) -> Box<dyn Iterator<Item = (Cow<'_, Self>, Cow<'_, Self>)> + '_> {
         unimplemented!()
     }
 }

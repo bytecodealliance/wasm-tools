@@ -1,0 +1,25 @@
+// An empty map is encoded as `{}`; `{:}` is accepted too
+map-string-u32({});
+map-string-u32({ });
+map-string-u32({:});
+map-string-u32({"a": 1});
+map-string-u32({"a":1,"b":2});
+map-string-u32({ "a" : 1 , "b" : 2 , });
+map-string-u32({"\u{1F44B}\t": 4294967295});
+map-string-u32({"""
+  multiline
+  """: 0});
+// Entry order is preserved
+map-string-u32({"b": 2, "a": 1});
+map-s32-string({-2147483648: "min", 0: "zero", 2147483647: "max"});
+map-char-option-u8({'x': 1, 'y': some(2), 'z': none, '\'': 3});
+map-bool-list-u8({true: [1, 2], false: []});
+map-u8-hand({0: left, 1: right});
+nested-maps({"a": {}, "b": {1: "one", 18446744073709551615: "max"}, "c": {0: ""}});
+// Comments are allowed between entries
+nested-maps({
+  // first
+  "a": {
+    1: "one", // trailing comment
+  },
+});

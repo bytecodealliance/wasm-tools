@@ -5,7 +5,9 @@ whitespace around the value, equivalent to the `value-ws` rule.
 
 > Note that Bool, Variant, Enum, Option and Result values are combined under
 > the `variant-case` rule because these cannot be distinguished without type
-> information.
+> information. Likewise, Record and Map values are combined under the
+> `record-or-map` rule, and `empty-braces` (`{}`) may be empty Flags or an
+> empty Map (`{:}` may also be an empty Map).
 
 ```ebnf
 value ::= number
@@ -15,8 +17,9 @@ value ::= number
         | variant-case
         | tuple
         | list
+        | empty-braces
         | flags
-        | record
+        | record-or-map
 
 value-ws ::= ws value ws
 ws ::= ([ \t\n\r] | comment)*
@@ -62,16 +65,22 @@ list ::= '[' ws ']'
 values-seq ::= value-ws
              | values-seq ',' value-ws
 
-flags ::= '{' ws '}'
-        | '{' flags-seq ','? ws '}'
+empty-braces ::= '{' ws '}'
+
+flags ::= '{' flags-seq ','? ws '}'
 flags-seq ::= ws label ws
             | flags-seq ',' ws label ws
 
-record ::= '{' ws ':' ws '}'
-         | '{' record-fields ','? ws '}'
-record-fields ::= ws record-field ws
-                | record-fields ',' ws record-field ws
-record-field ::= label ws ':' ws value
+record-or-map ::= '{' ws ':' ws '}'
+                | '{' entries ','? ws '}'
+entries ::= ws entry ws
+          | entries ',' ws entry ws
+entry ::= entry-key ws ':' ws value
+entry-key ::= label
+            | number
+            | char
+            | string
+            | multiline-string
 
 label ::= '%'? first-word ('-' word)*
 first-word ::= [a-z][a-z0-9]*

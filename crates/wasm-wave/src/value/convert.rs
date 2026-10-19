@@ -39,6 +39,10 @@ pub fn from_wasm_type(ty: &impl WasmType) -> Option<Type> {
             Type::result(from_optional_wasm_type(ok)?, from_optional_wasm_type(err)?)
         }
         WasmTypeKind::Flags => Type::flags(ty.flags_names())?,
+        WasmTypeKind::Map => {
+            let (key, value) = ty.map_key_value_types()?;
+            Type::map(from_wasm_type(&key)?, from_wasm_type(&value)?)?
+        }
         _ => return None,
     })
 }
@@ -238,6 +242,7 @@ mod tests {
             Type::option(Type::BOOL),
             Type::result(Some(Type::BOOL), None),
             Type::flags(["read", "write"]).unwrap(),
+            Type::map(Type::STRING, Type::list(Type::BOOL)).unwrap(),
         ] {
             let got = Type::from_wasm_type(&ty).unwrap();
             assert_eq!(got, ty);

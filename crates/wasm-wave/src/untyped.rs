@@ -162,21 +162,23 @@ fn fmt_node(f: &mut impl core::fmt::Write, node: &Node, src: &str) -> core::fmt:
         }
         Tuple => fmt_sequence(f, '(', ')', node.as_tuple()?, src),
         List => fmt_sequence(f, '[', ']', node.as_list()?, src),
-        Record => {
-            let fields = node.as_record(src)?;
-            if fields.len() == 0 {
+        TupleSet => {
+            let entries = node.as_map()?;
+            if entries.len() == 0 {
                 return f.write_str("{:}");
             }
             f.write_char('{')?;
-            for (idx, (name, value)) in node.as_record(src)?.enumerate() {
+            for (idx, (key, value)) in entries.enumerate() {
                 if idx != 0 {
                     f.write_str(", ")?;
                 }
-                write!(f, "{name}: ")?;
+                fmt_node(f, key, src)?;
+                f.write_str(": ")?;
                 fmt_node(f, value, src)?;
             }
             f.write_char('}')
         }
+        EmptySet => f.write_str("{}"),
         VariantWithPayload => {
             let (label, payload) = node.as_variant(src)?;
             if Keyword::decode(label).is_some() {
@@ -264,6 +266,8 @@ mod tests {
             "%inf(inf)",
             "%some",
             "%none(none)",
+            r#"{"a": 1, "b": {2: {true: '3'}}, "a": 4}"#,
+            "{-1: some(x), 0: none, 1: ok(y)}",
         ] {
             let val = UntypedValue::parse(src).unwrap();
             let encoded = val.to_string();

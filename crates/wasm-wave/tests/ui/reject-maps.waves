@@ -1,0 +1,32 @@
+// Wrong key type
+map-string-u32({1: 1});
+map-string-u32({'a': 1});
+map-string-u32({a: 1});
+map-s32-string({"0": "zero"});
+map-s32-string({2147483648: "too big"});
+map-s32-string({1.5: "float"});
+map-bool-list-u8({%true: []});
+// Keys must be labels, numbers, chars or strings
+map-bool-list-u8({some(true): []});
+// Wrong value type
+map-string-u32({"a": "b"});
+map-string-u32({"a": -1});
+map-u8-hand({0: up});
+nested-maps({"a": {"b": "c"}});
+// Not a map
+map-string-u32([]);
+map-string-u32({a});
+map-string-u32([("a", 1)]);
+// Map keys are not record fields
+basic-record({"required": 1});
+// Mixed flags and map entries
+map-string-u32({"a"});
+map-string-u32({"a": 1, b});
+map-string-u32({a, "b": 1});
+// Malformed entries
+map-string-u32({: 1});
+map-string-u32({"a":});
+map-string-u32({"a": 1: 2});
+map-string-u32({"a": 1,,});
+map-string-u32({"a" 1});
+map-string-u32({"a": 1]);

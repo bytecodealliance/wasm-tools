@@ -28,8 +28,8 @@ use crate::{
 };
 
 use self::ty::{
-    EnumType, FlagsType, ListType, OptionType, RecordType, ResultType, TupleType, TypeEnum,
-    VariantType,
+    EnumType, FlagsType, ListType, MapType, OptionType, RecordType, ResultType, TupleType,
+    TypeEnum, VariantType,
 };
 
 pub use self::func::FuncType;
@@ -62,6 +62,7 @@ pub(super) enum ValueEnum {
     Option(OptionValue),
     Result(ResultValue),
     Flags(Flags),
+    Map(Map),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -121,6 +122,13 @@ pub struct Flags {
     flags: Vec<usize>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+#[doc(hidden)]
+pub struct Map {
+    ty: Arc<MapType>,
+    entries: Vec<(Value, Value)>,
+}
+
 macro_rules! impl_primitives {
     ($Self:ident, $(($case:ident, $ty:ty, $make:ident, $unwrap:ident)),*) => {
         $(
@@ -161,6 +169,7 @@ impl WasmValue for Value {
             ValueEnum::Option(_) => WasmTypeKind::Option,
             ValueEnum::Result(_) => WasmTypeKind::Result,
             ValueEnum::Flags(_) => WasmTypeKind::Flags,
+            ValueEnum::Map(_) => WasmTypeKind::Map,
         }
     }
 
@@ -321,6 +330,19 @@ impl WasmValue for Value {
         Ok(Self(ValueEnum::Flags(Flags { ty, flags })))
     }
 
+    fn make_map(
+        ty: &Self::Type,
+        entries: impl IntoIterator<Item = (Self, Self)>,
+    ) -> Result<Self, WasmValueError> {
+        ensure_type_kind(ty, WasmTypeKind::Map)?;
+        let ty = maybe_unwrap_type!(&ty.0, TypeEnum::Map).unwrap().clone();
+        let entries = entries
+            .into_iter()
+            .map(|(key, value)| Ok((check_type(&ty.key, key)?, check_type(&ty.value, value)?)))
+            .collect::<Result<_, _>>()?;
+        Ok(Self(ValueEnum::Map(Map { ty, entries })))
+    }
+
     fn unwrap_f32(&self) -> f32 {
         let val = *unwrap_val!(&self.0, ValueEnum::F32, "f32");
         canonicalize_nan32(val)
@@ -383,6 +405,14 @@ impl WasmValue for Value {
                 .flags
                 .iter()
                 .map(|idx| cow(flags.ty.flags[*idx].as_ref())),
+        )
+    }
+    fn unwrap_map(&self) -> Box<dyn Iterator<Item = (Cow<'_, Self>, Cow<'_, Self>)> + '_> {
+        let map = unwrap_val!(&self.0, ValueEnum::Map, "map");
+        Box::new(
+            map.entries
+                .iter()
+                .map(|(key, value)| (cow(key), cow(value))),
         )
     }
 }
@@ -535,6 +565,19 @@ fn check_type2(expected: &Type, val: &Value) -> Result<(), WasmValueError> {
                     if *flag >= flags.ty.as_ref().flags.len() {
                         return wrong_value_type();
                     }
+                }
+            } else {
+                return wrong_value_type();
+            }
+        }
+        (ValueEnum::Map(map), _) => {
+            if let TypeEnum::Map(map_type) = &expected.0 {
+                if map.ty.as_ref() != map_type.as_ref() {
+                    return wrong_value_type();
+                }
+                for (key, value) in &map.entries {
+                    check_type2(&map_type.key, key)?;
+                    check_type2(&map_type.value, value)?;
                 }
             } else {
                 return wrong_value_type();
