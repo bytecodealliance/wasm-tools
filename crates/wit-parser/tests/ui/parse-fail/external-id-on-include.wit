@@ -1,0 +1,8 @@
+package a:b;
+
+world a {}
+
+world b {
+  @external-id("x")
+  include a;
+}

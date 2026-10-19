@@ -368,6 +368,7 @@ impl<'a> World<'a> {
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
     ) -> ParseResult<Self> {
+        Attribute::reject_external_id(&attributes, "world declarations")?;
         tokens.expect(Token::World)?;
         let name = parse_id(tokens)?;
         let items = Self::parse_items(tokens)?;
@@ -583,6 +584,7 @@ impl<'a> Interface<'a> {
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
     ) -> ParseResult<Self> {
+        Attribute::reject_external_id(&attributes, "interface declarations")?;
         tokens.expect(Token::Interface)?;
         let name = parse_id(tokens)?;
         let items = Self::parse_items(tokens)?;
@@ -717,6 +719,7 @@ struct IncludeName<'a> {
 
 impl<'a> Include<'a> {
     fn parse(tokens: &mut Tokenizer<'a>, attributes: Vec<Attribute<'a>>) -> ParseResult<Self> {
+        Attribute::reject_external_id(&attributes, "include statements")?;
         tokens.expect(Token::Include)?;
         let from = UsePath::parse(tokens)?;
 
@@ -1771,6 +1774,24 @@ impl<'a> Attribute<'a> {
             ret.push(attr);
         }
         Ok(ret)
+    }
+
+    /// Returns an error if `attrs` contains an `@external-id` attribute.
+    ///
+    /// This is used for items which accept other attributes, such as feature
+    /// gates, but have no place to record an `@external-id` in the resolved
+    /// representation of a package, so it would otherwise be silently
+    /// dropped.
+    fn reject_external_id(attrs: &[Attribute<'a>], what: &str) -> ParseResult<()> {
+        for attr in attrs {
+            if let Attribute::ExternalId { span, .. } = attr {
+                return Err(ParseError::new_syntax(
+                    *span,
+                    format!("@external-id is not allowed on {what}"),
+                ));
+            }
+        }
+        Ok(())
     }
 }
 

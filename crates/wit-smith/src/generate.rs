@@ -698,7 +698,8 @@ impl<'a> InterfaceGenerator<'a> {
                 part.push_str("\n");
             }
 
-            if u.arbitrary()? {
+            // Note that `@external-id` isn't allowed on `include` statements.
+            if u.arbitrary()? && !matches!(kind, ItemKind::Include) {
                 part.push_str("@external-id(\"hi\")\n");
             }
 
