@@ -370,11 +370,12 @@ type point-list = list<point>;
         let wat = wasmprinter::print_bytes(&wasm)?;
         // `point` is exported first as a record and, since this package has
         // no interfaces or worlds, re-imported under its fully-qualified name
-        // so the package name is recoverable...
+        // so the package name is recoverable. The import's `eq` names the
+        // record itself (type 0), not the alias the export introduces.
         assert!(
             wat.contains("(record (field \"x\" u32) (field \"y\" u32))")
                 && wat.contains("\"point\" (type 0)")
-                && wat.contains("(import \"local:demo/point\" (type (;2;) (eq 1)))"),
+                && wat.contains("(import \"local:demo/point\" (type (;2;) (eq 0)))"),
             "expected `point` to be exported and self-imported:\n{wat}"
         );
         // ...and `point-list` is a `list` of the imported `point`, exported

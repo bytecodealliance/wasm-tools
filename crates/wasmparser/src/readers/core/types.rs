@@ -29,7 +29,7 @@ use core::hash::{Hash, Hasher};
 #[cfg(feature = "validate")]
 mod matches;
 #[cfg(feature = "validate")]
-pub(crate) use self::matches::{Matches, WithRecGroup};
+pub(crate) use self::matches::{Matches, WithRecGroup, func_signature_matches};
 
 /// A packed representation of a type index.
 ///
@@ -2166,6 +2166,12 @@ impl<'a> FromReader<'a> for SubType {
         // interacts with other value encodings.
         Ok(match reader.read_u8()? {
             opcode @ (0x4f | 0x50) => {
+                if !reader.gc() {
+                    bail!(
+                        reader.original_position() - 1,
+                        "gc proposal must be enabled to use subtypes"
+                    );
+                }
                 let idx_iter = reader.read_iter(MAX_WASM_SUPERTYPES, "supertype idxs")?;
                 let idxs = idx_iter.collect::<Result<Vec<u32>>>()?;
                 let supertype_idxs = idxs

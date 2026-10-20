@@ -137,6 +137,26 @@
       "filename": "futures.20.wasm",
       "module_type": "binary",
       "text": "type mismatch for export `future.drop-writable` of module instantiation argument ``"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 262,
+      "filename": "futures.21.wasm",
+      "module_type": "binary",
+      "text": "`future` payload cannot contain a `borrow` type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 268,
+      "filename": "futures.22.wasm",
+      "module_type": "binary",
+      "text": "`future` payload cannot contain a `borrow` type"
+    },
+    {
+      "type": "module",
+      "line": 274,
+      "filename": "futures.23.wasm",
+      "module_type": "binary"
     }
   ]
 }

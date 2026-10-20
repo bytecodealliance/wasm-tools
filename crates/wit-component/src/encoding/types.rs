@@ -109,6 +109,14 @@ pub trait ValtypeEncoder<'a> {
     /// Creates an export item for the specified type index.
     fn export_type(&mut self, index: u32, name: ComponentExternName<'a>) -> Option<u32>;
 
+    /// Records that `id` was exported from the definition at `def_index`,
+    /// before any alias the export itself introduces.
+    ///
+    /// A self-describing package later imports that definition with `eq`. The
+    /// import has to name the definition rather than the export alias: an
+    /// import is not allowed to refer to a name introduced by an export.
+    fn note_exported_def(&mut self, _id: TypeId, _def_index: u32) {}
+
     /// Creates a new `(type (sub resource))` export with the given name,
     /// returning the type index that refers to the fresh type created.
     fn export_resource(&mut self, name: ComponentExternName<'a>) -> u32;
@@ -225,7 +233,7 @@ pub trait ValtypeEncoder<'a> {
                 let mut encoded = self.encode_typedef_structure(resolve, id)?;
 
                 if let Some(name) = &ty.name {
-                    let index = match encoded {
+                    let def_index = match encoded {
                         ComponentValType::Type(index) => index,
                         ComponentValType::Primitive(ty) => {
                             // Named primitive types need entries in the type
@@ -235,9 +243,10 @@ pub trait ValtypeEncoder<'a> {
                             index
                         }
                     };
+                    self.note_exported_def(id, def_index);
                     let index = self
-                        .export_type(index, extern_name(name, ty.external_id.as_deref()))
-                        .unwrap_or(index);
+                        .export_type(def_index, extern_name(name, ty.external_id.as_deref()))
+                        .unwrap_or(def_index);
 
                     encoded = ComponentValType::Type(index);
                 }

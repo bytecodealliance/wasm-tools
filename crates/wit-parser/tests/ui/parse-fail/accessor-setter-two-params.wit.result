@@ -1,0 +1,5 @@
+setters must have exactly one parameter
+     --> tests/ui/parse-fail/accessor-setter-two-params.wit:7:21
+      |
+    7 |   prop: set(a: u32, b: u32);
+      |                     ^

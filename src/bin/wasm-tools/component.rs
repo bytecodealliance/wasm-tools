@@ -94,14 +94,10 @@ Examples:
         -o foo.component.wasm
 
     # In the output component, replace any imports of \"wasi:io/error@0.2.0\" with
-    # an import of \"unlocked-dep=<wasi:io/error>\". This has the effect of changing
-    # the dependency on `wasi:io/error` from an exact version to one of a set of
-    # possible versions of this dependency.
-    # (For more on locked vs. unlocked dependencies, see
-    # https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md#import-and-export-definitions)
+    # an import of \"wasi:io/error@0.2.1\".
     # Also use the adapter contained in the file `wasm_snapshot_preview1.wasm`
     # in the current directory, and save the output to the file foo.component.wasm.
-    $ wasm-tools component new foo.wasm --import-name \"wasi:io/error@0.2.0=unlocked-dep=<wasi:io/error>\" \
+    $ wasm-tools component new foo.wasm --import-name \"wasi:io/error@0.2.0=wasi:io/error@0.2.1\" \
         --adapt wasi_snapshot_preview1.wasm -o foo.component.wasm
 
     # Create a component and print it to stdout in in text format, skipping validation of
@@ -119,9 +115,8 @@ pub struct NewOpts {
     ///
     /// This may be used to rename instance imports in the final component.
     ///
-    /// For example, `--import-name "a:b/c=unlocked-dep=<d:e/f>"` will
-    /// rename the instance import `a:b/c` such that it becomes an `unlocked-dep`
-    /// name.
+    /// For example, `--import-name "a:b/c=d:e/f"` will rename the instance
+    /// import `a:b/c` such that it becomes `d:e/f`.
     ///
     /// If the old import name is not found, it is ignored.
     #[clap(long = "import-name", value_name = "OLD=NEW", value_parser = parse_import_name)]
@@ -473,9 +468,13 @@ impl EmbedOpts {
 
     /// Executes the application.
     fn run(self) -> Result<()> {
-        let (resolve, pkg_id) = self.resolve.load()?;
+        let (mut resolve, pkg_id) = self.resolve.load()?;
 
         let world = resolve.select_world(&[pkg_id], self.world.as_deref())?;
+
+        if self.emit_canonical_names {
+            resolve.merge_world_imports_based_on_semver(world)?;
+        }
 
         if self.only_custom {
             let encoded = metadata::encode(
@@ -1335,9 +1334,11 @@ pub struct TargetsOpts {
     #[clap(flatten)]
     input: wasm_tools::InputArg,
 
-    /// Emits canonical interface names with version suffixes.
+    /// Matches interfaces by their canonical names, so semver-compatible
+    /// versions (e.g. `wasi:cli@0.2.3` and `wasi:cli@0.2.0`) are type-checked
+    /// against each other.
     #[clap(long)]
-    emit_canonical_names: bool,
+    semver_compatible: bool,
 }
 
 impl TargetsOpts {
@@ -1351,12 +1352,7 @@ impl TargetsOpts {
         let world = resolve.select_world(&[pkg_id], self.world.as_deref())?;
         let component_to_test = self.input.get_binary_wasm(None)?;
 
-        wit_component::targets(
-            &resolve,
-            world,
-            &component_to_test,
-            self.emit_canonical_names,
-        )?;
+        wit_component::targets(&resolve, world, &component_to_test, self.semver_compatible)?;
 
         Ok(())
     }

@@ -1,0 +1,9 @@
+// parse-fail
+
+package foo:foo;
+
+interface foo {
+  resource foo {
+    foo: func();
+  }
+}

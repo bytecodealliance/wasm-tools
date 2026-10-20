@@ -543,7 +543,6 @@ impl<'a> BinaryReader<'a> {
                         self.original_position() - 1,
                     ));
                 }
-                return Ok(result);
             }
             shift += 7;
             if (byte & 0x80) == 0 {
@@ -2065,5 +2064,22 @@ mod tests {
         assert!(BinaryReader::max_data_len(large_offset) > 1);
         let mut rdr = BinaryReader::new(&[10], large_offset);
         assert_matches!(rdr.read_u8(), Ok(10));
+    }
+
+    #[test]
+    fn read_var_s33() {
+        let s33 = |bytes: &[u8]| {
+            let mut rdr = BinaryReader::new(bytes, 0);
+            let ret = rdr.read_var_s33().unwrap();
+            assert!(rdr.eof());
+            ret
+        };
+        assert_eq!(s33(&[0x00]), 0);
+        assert_eq!(s33(&[0x7f]), -1);
+        assert_eq!(s33(&[0xc0, 0xff, 0xff, 0x7f]), -64);
+        assert_eq!(s33(&[0xff, 0xff, 0xff, 0xff, 0x7f]), -1);
+        assert_eq!(s33(&[0xff, 0xff, 0xff, 0xff, 0x0f]), (1 << 32) - 1);
+        assert_eq!(s33(&[0x80, 0x80, 0x80, 0x80, 0x70]), -(1 << 32));
+        assert_eq!(s33(&[0x80, 0x80, 0x80, 0x80, 0x00]), 0);
     }
 }

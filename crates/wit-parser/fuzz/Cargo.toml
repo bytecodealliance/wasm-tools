@@ -15,7 +15,6 @@ arbitrary = { workspace = true, features = ['derive'] }
 env_logger = { workspace = true }
 libfuzzer-sys = { workspace = true }
 log = { workspace = true }
-wasmprinter = { workspace = true }
 wit-parser = { workspace = true }
 
 [[bin]]

@@ -8,5 +8,7 @@ world foo {
 world bar {
     include foo;
 
-    record foo {}
+    record foo {
+        a: u32,
+    }
 }

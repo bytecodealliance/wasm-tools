@@ -1,4 +1,4 @@
-use crate::{Docs, Params, Type, ident::Ident};
+use crate::{Accessor, Docs, Params, Type, ident::Ident};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -32,6 +32,7 @@ pub struct ResourceFunc {
     pub(crate) kind: ResourceFuncKind,
     pub(crate) params: Params,
     pub(crate) docs: Option<Docs>,
+    pub(crate) accessor: Option<Accessor>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -49,6 +50,7 @@ impl ResourceFunc {
             kind: ResourceFuncKind::Method(name.into(), async_, None),
             params: Params::empty(),
             docs: None,
+            accessor: None,
         }
     }
 
@@ -57,6 +59,7 @@ impl ResourceFunc {
             kind: ResourceFuncKind::Static(name.into(), async_, None),
             params: Params::empty(),
             docs: None,
+            accessor: None,
         }
     }
 
@@ -65,7 +68,52 @@ impl ResourceFunc {
             kind: ResourceFuncKind::Constructor(None),
             params: Params::empty(),
             docs: None,
+            accessor: None,
         }
+    }
+
+    pub fn method_getter(name: impl Into<Ident>) -> Self {
+        let mut func = Self::method(name, false);
+        func.accessor = Some(Accessor::Get);
+        func
+    }
+
+    pub fn method_setter(name: impl Into<Ident>) -> Self {
+        let mut func = Self::method(name, false);
+        func.accessor = Some(Accessor::Set);
+        func
+    }
+
+    pub fn static_getter(name: impl Into<Ident>) -> Self {
+        let mut func = Self::static_(name, false);
+        func.accessor = Some(Accessor::Get);
+        func
+    }
+
+    pub fn static_setter(name: impl Into<Ident>) -> Self {
+        let mut func = Self::static_(name, false);
+        func.accessor = Some(Accessor::Set);
+        func
+    }
+
+    pub fn set_accessor(&mut self, accessor: Option<Accessor>) {
+        match &mut self.kind {
+            ResourceFuncKind::Method(_, async_, _) | ResourceFuncKind::Static(_, async_, _) => {
+                if accessor.is_some() {
+                    assert!(!*async_, "getters and setters cannot be async");
+                }
+            }
+            ResourceFuncKind::Constructor(..) => {
+                if accessor.is_some() {
+                    panic!("constructors cannot be getters or setters");
+                }
+            }
+        }
+        self.accessor = accessor;
+    }
+
+    pub fn accessor(&self) -> Option<Accessor> {
+        self.accessor
     }
 
     pub fn set_name(&mut self, name: impl Into<Ident>) {

@@ -2,6 +2,7 @@ package foo:bar;
 
 interface a {
   record x {
+    a: u32,
   }
 }
 

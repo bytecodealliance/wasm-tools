@@ -1,8 +1,0 @@
-(component
-  (type (;0;) (func))
-  (import "url=<>" (func (;0;) (type 0)))
-  (type (;1;) (func))
-  (import "url=<a>" (func (;1;) (type 1)))
-  (type (;2;) (func))
-  (import "url=<a>,integrity=<sha256-a>" (func (;2;) (type 2)))
-)

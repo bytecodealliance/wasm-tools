@@ -131,7 +131,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
                 self.validator.begin_try_op();
                 let _ = self.op(reader.original_position(), &op);
                 self.validator.rollback();
-                self.validator.pop_push_log.clear();
+                self.validator.pop_push_count = (0, 0);
                 assert!(self.validator == snapshot);
             }
 
@@ -153,21 +153,8 @@ impl<T: WasmModuleResources> FuncValidator<T> {
                     "could not calculate operator arity"
                 ))?;
 
-                // Analyze the log to determine the actual, externally visible
-                // pop/push count. This allows us to hide the fact that we might
-                // push and then pop a temporary while validating an
-                // instruction, which shouldn't be visible from the outside.
-                let mut pop_count = 0;
-                let mut push_count = 0;
-                for op in self.validator.pop_push_log.drain(..) {
-                    match op {
-                        true => push_count += 1,
-                        false if push_count > 0 => push_count -= 1,
-                        false => pop_count += 1,
-                    }
-                }
-
-                if pop_count != params || push_count != results {
+                let (pop_count, push_count) = self.validator.pop_push_count;
+                if pop_count != params.into() || push_count != results.into() {
                     panic!(
                         "\
 arity mismatch in validation
@@ -177,6 +164,7 @@ arity mismatch in validation
                         ops_before.peek_operator(&self.visitor(ops_before.original_position()))?,
                     );
                 }
+                self.validator.pop_push_count = (0, 0);
             }
         }
         reader.finish_expression(&self.visitor(reader.original_position()))

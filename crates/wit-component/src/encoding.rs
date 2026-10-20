@@ -72,7 +72,7 @@
 //! component model.
 
 use crate::StringEncoding;
-use crate::encoding::wit::component_extern_name;
+use crate::encoding::wit::{component_extern_name, interface_extern_name};
 use crate::metadata::{self, Bindgen, ModuleMetadata};
 use crate::validation::{
     Export, ExportMap, Import, ImportInstance, ImportMap, PayloadInfo, PayloadType,
@@ -88,7 +88,7 @@ use wasm_encoder::*;
 use wasmparser::{Validator, WasmFeatures};
 use wit_parser::{
     Function, FunctionKind, InterfaceId, LiveTypes, Param, Resolve, Stability, Type, TypeDefKind,
-    TypeId, TypeOwner, WorldItem, WorldKey,
+    TypeId, TypeOwner, WorldId, WorldItem, WorldKey,
     abi::{AbiVariant, WasmSignature, WasmType},
 };
 
@@ -136,14 +136,20 @@ fn import_func_name(f: &Function) -> String {
         // There's probably a better and more "formal" way to do this
         // but quick-and-dirty string manipulation should work well
         // enough for now hopefully.
-        FunctionKind::Method(_)
+        FunctionKind::Getter
+        | FunctionKind::Setter
+        | FunctionKind::Method(_)
+        | FunctionKind::MethodGetter(_)
+        | FunctionKind::MethodSetter(_)
         | FunctionKind::AsyncMethod(_)
         | FunctionKind::Static(_)
+        | FunctionKind::StaticGetter(_)
+        | FunctionKind::StaticSetter(_)
         | FunctionKind::AsyncStatic(_)
         | FunctionKind::Constructor(_) => {
             format!(
                 "import-{}",
-                f.name.replace('[', "").replace([']', '.', ' '], "-")
+                f.name.replace('[', "").replace([']', '.'], "-")
             )
         }
     }
@@ -611,36 +617,17 @@ impl<'a> EncodingState<'a> {
             .component
             .type_instance(Some(&format!("ty-{name}")), &ty);
 
-        // TODO: refactor extern_name into a helper function
-        let extern_name = if self.info.encoder.emit_canonical_names {
-            let name = resolve
-                .canonicalized_id_of(interface_id)
-                .unwrap_or_else(|| name.to_string());
-            let implements = info
-                .implements
-                .map(|id| resolve.canonicalized_id_of(id).unwrap());
-            let suffix_id = if let Some(id) = info.implements {
-                id
-            } else {
-                interface_id
-            };
-            wasm_encoder::ComponentExternName {
-                name: name.into(),
-                implements: implements.map(|s| s.into()),
-                external_id: info.external_id.as_deref().map(|s| s.into()),
-                version_suffix: resolve.version_suffix_of(suffix_id).map(|s| s.into()),
-            }
-        } else {
-            wasm_encoder::ComponentExternName {
-                name: name.into(),
-                implements: info
-                    .implements
-                    .as_ref()
-                    .map(|s| resolve.id_of(*s).unwrap().into()),
-                external_id: info.external_id.as_deref().map(|s| s.into()),
-                version_suffix: None,
-            }
-        };
+        // `name` is the interface's name unless it's a plain name, which is the
+        // case for imports with `implements` and of anonymous interfaces.
+        let is_interface_name = info.implements.is_none() && interface.name.is_some();
+        let extern_name = interface_extern_name(
+            resolve,
+            name,
+            is_interface_name.then_some(interface_id),
+            info.implements,
+            info.external_id.clone(),
+            self.info.encoder.emit_canonical_names,
+        );
         let instance_idx = self
             .component
             .import(extern_name, ComponentTypeRef::Instance(instance_type_idx));
@@ -774,7 +761,7 @@ impl<'a> EncodingState<'a> {
                 | Export::WorldFuncPostReturn(..)
                 | Export::InterfaceFuncPostReturn(..)
                 | Export::ResourceDtor(..)
-                | Export::Memory
+                | Export::Memory(_)
                 | Export::GeneralPurposeRealloc
                 | Export::GeneralPurposeExportRealloc
                 | Export::GeneralPurposeImportRealloc
@@ -1767,7 +1754,7 @@ impl<'a> EncodingState<'a> {
         // If memory hasn't been defined yet then it's provided by the main
         // module here.
         if self.memory_index.is_none() {
-            if let Some(memory) = self.info.info.exports.memory() {
+            if let Some((memory, _)) = self.info.info.exports.memory() {
                 self.memory_index = Some(self.core_alias_export(
                     Some("memory"),
                     instance_index,
@@ -2033,6 +2020,11 @@ impl<'a> EncodingState<'a> {
                 PayloadFuncKind::StreamWrite,
                 *async_,
             ),
+            Import::StreamForward(info) => {
+                let ty = self.payload_type_index(info)?;
+                let index = self.component.stream_forward(ty);
+                Ok((ExportKind::Func, index))
+            }
             Import::StreamCancelRead { info, async_ } => {
                 let ty = self.payload_type_index(info)?;
                 let index = self.component.stream_cancel_read(ty, *async_);
@@ -2072,6 +2064,11 @@ impl<'a> EncodingState<'a> {
                 PayloadFuncKind::FutureWrite,
                 *async_,
             ),
+            Import::FutureForward(info) => {
+                let ty = self.payload_type_index(info)?;
+                let index = self.component.future_forward(ty);
+                Ok((ExportKind::Func, index))
+            }
             Import::FutureCancelRead { info, async_ } => {
                 let ty = self.payload_type_index(info)?;
                 let index = self.component.future_cancel_read(ty, *async_);
@@ -2676,10 +2673,12 @@ impl<'a> Shims<'a> {
                 | Import::SubtaskCancel { .. }
                 | Import::FutureNew(..)
                 | Import::StreamNew(..)
+                | Import::FutureForward { .. }
                 | Import::FutureCancelRead { .. }
                 | Import::FutureCancelWrite { .. }
                 | Import::FutureDropWritable { .. }
                 | Import::FutureDropReadable { .. }
+                | Import::StreamForward { .. }
                 | Import::StreamCancelRead { .. }
                 | Import::StreamCancelWrite { .. }
                 | Import::StreamDropWritable { .. }
@@ -3512,8 +3511,8 @@ impl ComponentEncoder {
     /// This is used to rename instance imports in the final component.
     ///
     /// For example, if there is an instance import `foo:bar/baz` and it is
-    /// desired that the import actually be an `unlocked-dep` name, then
-    /// `foo:bar/baz` can be mapped to `unlocked-dep=<a:b/c@{>=x.y.z}>`.
+    /// desired that the import actually be named `a:b/c@x.y.z`, then
+    /// `foo:bar/baz` can be mapped to `a:b/c@x.y.z`.
     ///
     /// Note: the replacement names are not validated during encoding unless
     /// the `validate` option is set to true.
@@ -3539,6 +3538,10 @@ impl ComponentEncoder {
             self.metadata
                 .resolve
                 .merge_world_imports_based_on_semver(self.metadata.world)?;
+        }
+
+        if self.emit_canonical_names {
+            check_duplicate_canonical_names(&self.metadata.resolve, self.metadata.world)?;
         }
 
         self.finalize_resolve_with_nominal_ids();
@@ -3665,6 +3668,46 @@ impl ComponentWorld<'_> {
     }
 }
 
+/// Verifies that no two imports, and no two exports, of the world share the
+/// same canonical name.
+pub(crate) fn check_duplicate_canonical_names(resolve: &Resolve, world: WorldId) -> Result<()> {
+    let world = &resolve.worlds[world];
+    let mut names = HashMap::new();
+    for key in world.imports.keys() {
+        let WorldKey::Interface(id) = key else {
+            continue;
+        };
+        let canonical = resolve.canonicalized_id_of(*id).unwrap();
+        if let Some(prev) = names.insert(canonical.clone(), *id) {
+            bail!(
+                "import `{}` and import `{}` both have the canonical name \
+                 `{canonical}`; semver-compatible imports must be merged \
+                 before emitting canonical names",
+                resolve.id_of(prev).unwrap(),
+                resolve.id_of(*id).unwrap(),
+            );
+        }
+    }
+    names.clear();
+    for key in world.exports.keys() {
+        let WorldKey::Interface(id) = key else {
+            continue;
+        };
+        let canonical = resolve.canonicalized_id_of(*id).unwrap();
+        if let Some(prev) = names.insert(canonical.clone(), *id) {
+            bail!(
+                "export `{}` and export `{}` both have the canonical name \
+                 `{canonical}`; semver-compatible versions of the same \
+                 interface cannot both be exported when emitting canonical \
+                 names",
+                resolve.id_of(prev).unwrap(),
+                resolve.id_of(*id).unwrap(),
+            );
+        }
+    }
+    Ok(())
+}
+
 #[cfg(all(test, feature = "dummy-module"))]
 mod test {
     use super::*;
@@ -3701,14 +3744,8 @@ world test {
 
         let encoded = ComponentEncoder::default()
             .import_name_map(HashMap::from([
-                (
-                    "foo".to_string(),
-                    "unlocked-dep=<foo:bar/foo@{>=1.0.0 <1.1.0}>".to_string(),
-                ),
-                (
-                    "test:wit/i".to_string(),
-                    "locked-dep=<foo:bar/i@1.2.3>".to_string(),
-                ),
+                ("foo".to_string(), "foo:bar/foo@1.0.0".to_string()),
+                ("test:wit/i".to_string(), "foo:bar/i@1.2.3".to_string()),
             ]))
             .module(&module)
             .unwrap()
@@ -3717,7 +3754,9 @@ world test {
             .unwrap();
 
         let wat = wasmprinter::print_bytes(encoded).unwrap();
-        assert!(wat.contains("unlocked-dep=<foo:bar/foo@{>=1.0.0 <1.1.0}>"));
-        assert!(wat.contains("locked-dep=<foo:bar/i@1.2.3>"));
+        assert!(wat.contains("(import \"foo:bar/foo@1.0.0\""));
+        assert!(wat.contains("(import \"foo:bar/i@1.2.3\""));
+        assert!(!wat.contains("(import \"foo\""));
+        assert!(!wat.contains("(import \"test:wit/i\""));
     }
 }

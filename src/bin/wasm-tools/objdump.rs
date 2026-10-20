@@ -68,9 +68,11 @@ impl Opts {
                 ElementSection(s) => printer.section(s, "elements")?,
                 DataCountSection { range, .. } => printer.section_raw(range, 1, "data count")?,
                 DataSection(s) => printer.section(s, "data")?,
-                CodeSectionStart { range, count, .. } => {
-                    printer.section_raw(range, count, "code")?
-                }
+                CodeSectionStart {
+                    unchecked_range,
+                    count,
+                    ..
+                } => printer.section_raw(unchecked_range, count, "code")?,
                 CodeSectionEntry(_) => {}
 
                 ModuleSection {

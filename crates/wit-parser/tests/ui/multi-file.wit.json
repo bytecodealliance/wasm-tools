@@ -133,7 +133,12 @@
       "name": "a-name",
       "kind": {
         "record": {
-          "fields": []
+          "fields": [
+            {
+              "name": "a",
+              "type": "u32"
+            }
+          ]
         }
       },
       "owner": {

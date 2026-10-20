@@ -1,0 +1,12 @@
+package foo:foo;
+
+// Getters and setters must be validated after includes are processed.
+
+world base {
+  import prop: get() -> u32;
+}
+
+world derived {
+  import prop: set(value: u32);
+  include base;
+}

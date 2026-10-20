@@ -1,0 +1,5 @@
+getters must return a value
+     --> tests/ui/parse-fail/accessor-getter-no-result.wit:6:9
+      |
+    6 |   prop: get();
+      |         ^--

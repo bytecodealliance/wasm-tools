@@ -1,0 +1,36 @@
+package foo:accessors;
+
+interface accessors {
+  resource blob {
+    constructor(init: list<u8>);
+    write: func(bytes: list<u8>);
+    position: get() -> u64;
+    position: set(value: u64);
+    max-size: static get() -> u64;
+    max-size: static set(value: u64) -> result<_, string>;
+    name: static get() -> string;
+  }
+
+  prop: get() -> u64;
+
+  prop: set(value: u64);
+
+  read-only: get() -> string;
+
+  fallible: get() -> u32;
+
+  fallible: set(value: u32) -> result<_, string>;
+
+  reversed: get() -> bool;
+
+  reversed: set(value: bool);
+}
+
+world accessors-world {
+  import prop: get() -> u64;
+  import prop: set(value: u64);
+
+  export other: get() -> u64;
+  export other: set(value: u64);
+  export accessors;
+}

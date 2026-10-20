@@ -61,6 +61,7 @@ interface ui {
     flags permissions {
         read,
         write,
+        execute,
     }
     permission-flags: func(flgs: permissions);
 }

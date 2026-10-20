@@ -647,6 +647,35 @@ mod tests {
     }
 
     #[test]
+    fn parse_flags_in_type_order() {
+        // Keeps flags in the order `make_flags` gives them, like
+        // `wasmtime::component::Val` does, unlike `Value`, which sorts them.
+        #[derive(Clone)]
+        struct Flags(Vec<String>);
+
+        impl WasmValue for Flags {
+            type Type = Type;
+
+            fn kind(&self) -> crate::wasm::WasmTypeKind {
+                crate::wasm::WasmTypeKind::Flags
+            }
+
+            fn make_flags<'a>(
+                _ty: &Type,
+                names: impl IntoIterator<Item = &'a str>,
+            ) -> Result<Self, crate::wasm::WasmValueError> {
+                Ok(Self(names.into_iter().map(String::from).collect()))
+            }
+        }
+
+        let ty = Type::flags(["read", "write", "exec"]).unwrap();
+        for input in ["{write, exec}", "{exec, write}", "{%exec, write}"] {
+            let Flags(names) = Parser::new(input).parse_value(&ty).unwrap();
+            assert_eq!(names, ["write", "exec"], "for {input:?}");
+        }
+    }
+
+    #[test]
     fn parse_percent_identifiers() {
         let ty = Type::record([
             ("red", Type::S32),

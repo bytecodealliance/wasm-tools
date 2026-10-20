@@ -1,0 +1,8 @@
+(module
+  (type $a (;0;) (array i32))
+  (type (;1;) (func (result (ref $a))))
+  (func (;0;) (type 1) (result (ref $a))
+    unreachable
+    array.new_fixed $a 4294967295
+  )
+)

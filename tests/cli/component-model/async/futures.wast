@@ -256,3 +256,22 @@
   )
   "type mismatch for export `future.drop-writable` of module instantiation argument ``"
 )
+
+;; future payloads cannot transitively contain a `borrow`
+(assert_invalid
+  (component
+    (type $r (resource (rep i32)))
+    (type $b (borrow $r))
+    (type (future $b)))
+  "`future` payload cannot contain a `borrow` type")
+(assert_invalid
+  (component
+    (type $r (resource (rep i32)))
+    (type $b (borrow $r))
+    (type $t (tuple $b u32))
+    (type (future $t)))
+  "`future` payload cannot contain a `borrow` type")
+(component
+  (type $r (resource (rep i32)))
+  (type $o (own $r))
+  (type (future $o)))

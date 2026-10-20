@@ -1,0 +1,5 @@
+(component
+  (import "a" (type $a (;0;) (sub resource)))
+  (export $b (;1;) "b" (type $a))
+  (import "c" (type $c (;2;) (eq $a)))
+)

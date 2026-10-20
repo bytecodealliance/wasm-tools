@@ -30,7 +30,7 @@ pub struct ComponentExternName<'a> {
     pub name: &'a str,
     /// For imports, an optional `(implements "...")` directive.
     pub implements: Option<&'a str>,
-    /// For imports, an optional `(versionsuffix "...")` directive.
+    /// For imports, an optional `(version-suffix "...")` directive.
     pub version_suffix: Option<&'a str>,
     /// For imports, an optional `(external-id "...")` directive.
     pub external_id: Option<&'a str>,
@@ -60,9 +60,9 @@ impl<'a> Parse<'a> for ComponentExternName<'a> {
         } else {
             None
         };
-        let version_suffix = if parser.peek2::<kw::versionsuffix>()? {
+        let version_suffix = if parser.peek2::<kw::version_suffix>()? {
             Some(parser.parens(|p| {
-                p.parse::<kw::versionsuffix>()?;
+                p.parse::<kw::version_suffix>()?;
                 p.parse()
             })?)
         } else {

@@ -8,6 +8,6 @@
     (func (param $x (ref null $a)) (param $y i32) (result i32)
       local.get $x
       local.get $y
-      array.atomic.get seq_cst $a)
+      array.atomic.get seqcst $a)
   )
   "shared-everything-threads support is not enabled")

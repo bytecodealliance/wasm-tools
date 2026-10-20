@@ -1,0 +1,57 @@
+{
+  "source_filename": "tests/cli/component-model/memory64/async.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 4,
+      "filename": "async.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 16,
+      "filename": "async.1.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `f` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 30,
+      "filename": "async.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 55,
+      "filename": "async.3.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `stream.read` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 76,
+      "filename": "async.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 101,
+      "filename": "async.5.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `future.write` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 118,
+      "filename": "async.6.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 141,
+      "filename": "async.7.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for export `error-context.new` of module instantiation argument ``"
+    }
+  ]
+}

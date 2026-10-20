@@ -128,7 +128,7 @@ impl<K, V> Slot<K, V> {
 ///
 /// [`indexmap` crate]: https://crates.io/crates/indexmap
 /// [`wasmparser-nostd` crate]: https://crates.io/crates/wasmparser-nostd
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone)]
 pub struct IndexMap<K, V> {
     /// A mapping from keys to slot indices.
     key2slot: BTreeMap<K, SlotIndex>,
@@ -226,9 +226,8 @@ impl<K, V> IndexMap<K, V> {
             }
             btree_map::Entry::Occupied(entry) => {
                 let index = entry.get().index();
-                let new_slot = Slot::new(key, value);
-                let old_slot = replace(&mut self.slots[index], new_slot);
-                (index, Some(old_slot.value))
+                let old_value = replace(&mut self.slots[index].value, value);
+                (index, Some(old_value))
             }
         }
     }
@@ -438,6 +437,27 @@ impl<K, V> IndexMap<K, V> {
         self.key2slot.clear();
         self.slots.clear();
     }
+}
+
+/// Like the `indexmap` crate, equality is independent of insertion order.
+impl<K, V> PartialEq for IndexMap<K, V>
+where
+    K: Ord,
+    V: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.len() == other.len()
+            && self
+                .iter()
+                .all(|(key, value)| other.get(key).is_some_and(|v| *value == *v))
+    }
+}
+
+impl<K, V> Eq for IndexMap<K, V>
+where
+    K: Ord,
+    V: Eq,
+{
 }
 
 impl<'a, K, Q, V> Index<&'a Q> for IndexMap<K, V>

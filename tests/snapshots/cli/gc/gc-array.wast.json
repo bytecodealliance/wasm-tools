@@ -6,6 +6,25 @@
       "line": 5,
       "filename": "gc-array.0.wasm",
       "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 59,
+      "filename": "gc-array.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 66,
+      "filename": "gc-array.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 97,
+      "filename": "gc-array.3.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
     }
   ]
 }

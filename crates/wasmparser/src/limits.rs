@@ -34,7 +34,7 @@ pub const MAX_WASM_FUNCTION_PARAMS: usize = 1000;
 pub const MAX_WASM_FUNCTION_RETURNS: usize = 1000;
 pub const _MAX_WASM_TABLE_SIZE: usize = 10_000_000;
 pub const MAX_WASM_TABLE_ENTRIES: usize = 10_000_000;
-pub const MAX_WASM_TABLES: usize = 100;
+pub const MAX_WASM_TABLES: usize = 100_000;
 pub const MAX_WASM_MEMORIES: usize = 100;
 pub const MAX_WASM_TAGS: usize = 1_000_000;
 pub const MAX_WASM_BR_TABLE_SIZE: usize = MAX_WASM_FUNCTION_SIZE;
@@ -44,6 +44,7 @@ pub const MAX_WASM_SUBTYPING_DEPTH: usize = 63;
 pub const MAX_WASM_HANDLERS: usize = 10_000;
 pub const MAX_WASM_TYPE_SIZE: u32 = 1_000_000;
 pub const MAX_WASM_SELECT_RESULT_SIZE: usize = 10; // values other than 1 are currently invalid
+pub const MAX_WASM_MODULES_AND_COMPONENTS: usize = 1000;
 
 pub const DEFAULT_WASM_PAGE_SIZE: u64 = 1 << 16;
 

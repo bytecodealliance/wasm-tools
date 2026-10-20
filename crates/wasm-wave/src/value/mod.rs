@@ -12,7 +12,7 @@ mod wit;
 use alloc::{
     borrow::{Cow, ToOwned},
     boxed::Box,
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     sync::Arc,
     vec::Vec,
 };
@@ -303,20 +303,21 @@ impl WasmValue for Value {
         names: impl IntoIterator<Item = &'a str>,
     ) -> Result<Self, WasmValueError> {
         ensure_type_kind(ty, WasmTypeKind::Flags)?;
-        let flag_names = ty.flags_names().collect::<Vec<_>>();
-        let mut flags = names
-            .into_iter()
-            .map(|name| {
-                flag_names
-                    .iter()
-                    .position(|flag| flag == name)
-                    .ok_or_else(|| WasmValueError::UnknownCase(name.into()))
-            })
-            .collect::<Result<Vec<_>, WasmValueError>>()?;
-        // Flags values don't logically contain an ordering of the flags. Sort
-        // the flags values so that equivalent flags values compare equal.
-        flags.sort();
         let ty = maybe_unwrap_type!(&ty.0, TypeEnum::Flags).unwrap().clone();
+        let values = BTreeSet::from_iter(names);
+
+        let mut flags = Vec::with_capacity(values.len());
+        flags.extend(
+            ty.flags
+                .iter()
+                .enumerate()
+                .filter_map(|(idx, flag_name)| values.contains(flag_name.as_ref()).then_some(idx)),
+        );
+        if flags.len() < values.len() {
+            let flag_names = ty.flags.iter().map(|name| name.as_ref()).collect();
+            let unknown = values.difference(&flag_names).next().unwrap_or(&"");
+            return Err(WasmValueError::UnknownCase((*unknown).into()));
+        }
         Ok(Self(ValueEnum::Flags(Flags { ty, flags })))
     }
 

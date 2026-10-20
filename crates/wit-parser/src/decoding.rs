@@ -14,7 +14,9 @@ use wasmparser::{
         ComponentAnyTypeId, ComponentDefinedType, ComponentEntityType, ComponentItem,
         ComponentType, ComponentValType,
     },
-    names::{ComponentName, ComponentNameKind},
+    names::{
+        AccessorKind as ComponentAccessorKind, ComponentName, ComponentNameKind, ResourceFuncKind,
+    },
     types,
     types::Types,
 };
@@ -175,15 +177,17 @@ impl ComponentInfo {
         // strings for each component. The v1 format uses "<namespace>:<package>/wit" as the name
         // for the top-level exports, while the v2 format uses the unqualified name of the encoded
         // entity.
+        // Package-scope type imports can precede the first export, so the
+        // encoding version is read from an export rather than `externs[0]`.
         let (first_export, _) = self
             .externs
             .iter()
             .find(|(_, item)| matches!(item, Extern::Export(_)))?;
-        match ComponentName::new(first_export, 0).ok()?.kind() {
+        match crate::parse_component_name(first_export).ok()?.kind() {
             ComponentNameKind::Interface(name) if name.interface().as_str() == "wit" => {
                 Some(WitEncodingVersion::V1)
             }
-            ComponentNameKind::Label(_) => Some(WitEncodingVersion::V2),
+            ComponentNameKind::Plain(name) if name.is_bare() => Some(WitEncodingVersion::V2),
             _ => None,
         }
     }
@@ -200,7 +204,7 @@ impl ComponentInfo {
             if pkg.is_some() {
                 bail!("more than one top-level exported component type found");
             }
-            let name = ComponentName::new(name, 0).unwrap();
+            let name = crate::parse_component_name(name).unwrap();
             pkg = Some(
                 decoder
                     .decode_v1_package(&name, export)
@@ -264,10 +268,12 @@ impl ComponentInfo {
                     ..
                 } => {
                     let name = {
-                        let parsed = ComponentName::new(export_name, 0)
+                        let parsed = crate::parse_component_name(export_name)
                             .with_context(|| format!("invalid export name `{export_name}`"))?;
                         match parsed.kind() {
-                            ComponentNameKind::Label(label) => label.to_string(),
+                            ComponentNameKind::Plain(plain) if plain.is_bare() => {
+                                plain.as_str().to_string()
+                            }
                             _ => bail!(
                                 "package-scope type export `{export_name}` must be a kebab name"
                             ),
@@ -1115,7 +1121,7 @@ impl WitPackageDecoder<'_> {
         name_string: &str,
         item: &ComponentItem,
     ) -> Result<InterfaceId> {
-        let name = ComponentName::new(name_string, 0).unwrap();
+        let name = crate::parse_component_name(name_string).unwrap();
         let name = match name.kind() {
             ComponentNameKind::Interface(name) => name,
             _ => bail!("package name is not a valid id: {name_string}"),
@@ -1250,7 +1256,7 @@ impl WitPackageDecoder<'_> {
     }
 
     fn parse_component_name(&self, name: &str) -> Result<ComponentName> {
-        ComponentName::new(name, 0)
+        crate::parse_component_name(name)
             .with_context(|| format!("cannot extract item name from: {name}"))
     }
 
@@ -1258,7 +1264,7 @@ impl WitPackageDecoder<'_> {
         let component_name = self.parse_component_name(name)?;
         match component_name.kind() {
             ComponentNameKind::Interface(name) => Ok(Some(name.interface().to_string())),
-            ComponentNameKind::Label(_name) => Ok(None),
+            ComponentNameKind::Plain(name) if name.is_bare() => Ok(None),
             _ => bail!("cannot extract item name from: {name}"),
         }
     }
@@ -1330,6 +1336,12 @@ impl WitPackageDecoder<'_> {
                  more than once (for example, when an imported instance is \
                  re-exported under a new name)"
             );
+        }
+        // An import cannot refer to the alias an export introduces, so a
+        // self-describing package binds `eq` to the underlying definition.
+        // Remember that definition so the import still resolves to this type.
+        if referenced != created {
+            self.type_map.entry(referenced).or_insert(ty);
         }
         Ok(ty)
     }
@@ -1418,7 +1430,7 @@ impl WitPackageDecoder<'_> {
             ComponentEntityType::Func(i) => &self.types[i],
             _ => unreachable!(),
         };
-        let name = ComponentName::new(name, 0).unwrap();
+        let name = crate::parse_component_name(name).unwrap();
         let params = ty
             .params
             .iter()
@@ -1443,36 +1455,66 @@ impl WitPackageDecoder<'_> {
             stability: Default::default(),
             external_id: item.external_id.clone(),
             kind: match name.kind() {
-                ComponentNameKind::Label(_) => {
-                    if ty.async_ {
-                        FunctionKind::AsyncFreestanding
-                    } else {
-                        FunctionKind::Freestanding
+                ComponentNameKind::Plain(plain) => {
+                    if plain.accessor.is_some() && ty.async_ {
+                        panic!("function `{name}` is an async accessor (should be impossible)");
                     }
-                }
-                ComponentNameKind::Constructor(resource) => {
-                    FunctionKind::Constructor(self.resources[&owner][resource.as_str()])
-                }
-                ComponentNameKind::Method(name) => {
-                    if ty.async_ {
-                        FunctionKind::AsyncMethod(self.resources[&owner][name.resource().as_str()])
-                    } else {
-                        FunctionKind::Method(self.resources[&owner][name.resource().as_str()])
-                    }
-                }
-                ComponentNameKind::Static(name) => {
-                    if ty.async_ {
-                        FunctionKind::AsyncStatic(self.resources[&owner][name.resource().as_str()])
-                    } else {
-                        FunctionKind::Static(self.resources[&owner][name.resource().as_str()])
+
+                    let resource = plain
+                        .resource()
+                        .map(|resource| self.resources[&owner][resource.as_str()]);
+                    match (plain.resource_func, plain.accessor) {
+                        (None, None) => {
+                            if ty.async_ {
+                                FunctionKind::AsyncFreestanding
+                            } else {
+                                FunctionKind::Freestanding
+                            }
+                        }
+                        (None, Some(ComponentAccessorKind::Get)) => FunctionKind::Getter,
+                        (None, Some(ComponentAccessorKind::Set)) => FunctionKind::Setter,
+
+                        (Some(ResourceFuncKind::Constructor), None) => {
+                            FunctionKind::Constructor(resource.unwrap())
+                        }
+                        (Some(ResourceFuncKind::Constructor), Some(_)) => {
+                            panic!(
+                                "function `{name}` is a constructor with an accessor (should be impossible)"
+                            );
+                        }
+
+                        (Some(ResourceFuncKind::Method), None) => {
+                            if ty.async_ {
+                                FunctionKind::AsyncMethod(resource.unwrap())
+                            } else {
+                                FunctionKind::Method(resource.unwrap())
+                            }
+                        }
+                        (Some(ResourceFuncKind::Method), Some(ComponentAccessorKind::Get)) => {
+                            FunctionKind::MethodGetter(resource.unwrap())
+                        }
+                        (Some(ResourceFuncKind::Method), Some(ComponentAccessorKind::Set)) => {
+                            FunctionKind::MethodSetter(resource.unwrap())
+                        }
+
+                        (Some(ResourceFuncKind::Static), None) => {
+                            if ty.async_ {
+                                FunctionKind::AsyncStatic(resource.unwrap())
+                            } else {
+                                FunctionKind::Static(resource.unwrap())
+                            }
+                        }
+                        (Some(ResourceFuncKind::Static), Some(ComponentAccessorKind::Get)) => {
+                            FunctionKind::StaticGetter(resource.unwrap())
+                        }
+                        (Some(ResourceFuncKind::Static), Some(ComponentAccessorKind::Set)) => {
+                            FunctionKind::StaticSetter(resource.unwrap())
+                        }
                     }
                 }
 
                 // Functions shouldn't have ID-based names at this time.
-                ComponentNameKind::Interface(_)
-                | ComponentNameKind::Url(_)
-                | ComponentNameKind::Hash(_)
-                | ComponentNameKind::Dependency(_) => unreachable!(),
+                ComponentNameKind::Interface(_) => unreachable!(),
             },
 
             // Note that this name includes "name mangling" such as
@@ -2134,7 +2176,8 @@ impl InterfaceNameExt for wasmparser::names::InterfaceName<'_> {
 /// plain kebab name.
 fn is_qualified_name(name: &str) -> bool {
     matches!(
-        ComponentName::new(name, 0).map(|n| matches!(n.kind(), ComponentNameKind::Interface(_))),
+        crate::parse_component_name(name)
+            .map(|n| matches!(n.kind(), ComponentNameKind::Interface(_))),
         Ok(true)
     )
 }

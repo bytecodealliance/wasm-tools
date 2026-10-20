@@ -43,7 +43,7 @@ interface another-interface {
     constructor();
 
     @unstable(feature = foo)
-    x: static func();
+    z: static func();
 
     @unstable(feature = foo)
     y: func();

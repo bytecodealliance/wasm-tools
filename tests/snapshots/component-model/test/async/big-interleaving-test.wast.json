@@ -10,13 +10,13 @@
     },
     {
       "type": "module_instance",
-      "line": 850,
+      "line": 893,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_return",
-      "line": 852,
+      "line": 895,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -31,7 +31,7 @@
     },
     {
       "type": "assert_return",
-      "line": 855,
+      "line": 898,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -97,7 +97,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 864,
+      "line": 907,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -133,13 +133,13 @@
     },
     {
       "type": "module_instance",
-      "line": 869,
+      "line": 912,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_return",
-      "line": 872,
+      "line": 915,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -287,7 +287,7 @@
     },
     {
       "type": "assert_return",
-      "line": 884,
+      "line": 927,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -333,7 +333,7 @@
     },
     {
       "type": "assert_return",
-      "line": 891,
+      "line": 934,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -424,7 +424,7 @@
     },
     {
       "type": "assert_return",
-      "line": 901,
+      "line": 944,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -562,7 +562,7 @@
     },
     {
       "type": "assert_return",
-      "line": 912,
+      "line": 955,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -680,7 +680,7 @@
     },
     {
       "type": "assert_return",
-      "line": 924,
+      "line": 967,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -756,7 +756,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 934,
+      "line": 977,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -792,13 +792,13 @@
     },
     {
       "type": "module_instance",
-      "line": 939,
+      "line": 982,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_return",
-      "line": 942,
+      "line": 985,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -1078,7 +1078,7 @@
     },
     {
       "type": "assert_return",
-      "line": 962,
+      "line": 1005,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -1248,7 +1248,7 @@
     },
     {
       "type": "assert_return",
-      "line": 974,
+      "line": 1017,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -1471,7 +1471,7 @@
     },
     {
       "type": "assert_return",
-      "line": 992,
+      "line": 1035,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -2543,7 +2543,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1052,
+      "line": 1095,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -2934,7 +2934,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1086,
+      "line": 1129,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -3652,7 +3652,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1132,
+      "line": 1175,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -3938,7 +3938,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1160,
+      "line": 1203,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -4422,7 +4422,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1188,
+      "line": 1231,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -5230,7 +5230,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1234,
+      "line": 1277,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -5999,7 +5999,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1284,
+      "line": 1327,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -6503,7 +6503,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1316,
+      "line": 1359,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -7257,7 +7257,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1372,
+      "line": 1415,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -8221,7 +8221,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1420,
+      "line": 1463,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -8404,13 +8404,13 @@
     },
     {
       "type": "module_instance",
-      "line": 1433,
+      "line": 1476,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_trap",
-      "line": 1435,
+      "line": 1478,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -8496,13 +8496,13 @@
     },
     {
       "type": "module_instance",
-      "line": 1442,
+      "line": 1485,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_return",
-      "line": 1445,
+      "line": 1488,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -8593,7 +8593,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1455,
+      "line": 1498,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -8706,13 +8706,13 @@
     },
     {
       "type": "module_instance",
-      "line": 1464,
+      "line": 1507,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_trap",
-      "line": 1466,
+      "line": 1509,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -8783,13 +8783,13 @@
     },
     {
       "type": "module_instance",
-      "line": 1473,
+      "line": 1516,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_return",
-      "line": 1476,
+      "line": 1519,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -8870,7 +8870,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1485,
+      "line": 1528,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -9018,7 +9018,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1497,
+      "line": 1540,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -9166,7 +9166,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1509,
+      "line": 1552,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -9279,7 +9279,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1519,
+      "line": 1562,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -9459,7 +9459,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1532,
+      "line": 1575,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -9662,7 +9662,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1548,
+      "line": 1591,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -9798,7 +9798,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1561,
+      "line": 1604,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -9899,7 +9899,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1572,
+      "line": 1615,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -10000,7 +10000,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1583,
+      "line": 1626,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -10136,7 +10136,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1596,
+      "line": 1639,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -10272,7 +10272,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1612,
+      "line": 1655,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -10333,13 +10333,13 @@
     },
     {
       "type": "module_instance",
-      "line": 1618,
+      "line": 1661,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_trap",
-      "line": 1620,
+      "line": 1663,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -10385,13 +10385,13 @@
     },
     {
       "type": "module_instance",
-      "line": 1626,
+      "line": 1669,
       "instance": "i",
       "module": "Tester"
     },
     {
       "type": "assert_return",
-      "line": 1629,
+      "line": 1672,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -10507,7 +10507,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1640,
+      "line": 1683,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -10658,7 +10658,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1653,
+      "line": 1696,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -10736,7 +10736,7 @@
     },
     {
       "type": "assert_return",
-      "line": 1664,
+      "line": 1707,
       "action": {
         "type": "invoke",
         "field": "run",
@@ -10866,6 +10866,636 @@
                 "type": "variant",
                 "value": {
                   "case": "mock-bp-dec"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "module_instance",
+      "line": 1724,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 1727,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": [
+          {
+            "type": "list",
+            "value": [
+              {
+                "type": "variant",
+                "value": {
+                  "case": "stream-new",
+                  "payload": {
+                    "type": "u8",
+                    "value": "0"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "stream-new",
+                  "payload": {
+                    "type": "u8",
+                    "value": "1"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "future-new",
+                  "payload": {
+                    "type": "u8",
+                    "value": "2"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "future-new",
+                  "payload": {
+                    "type": "u8",
+                    "value": "3"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "stream-new",
+                  "payload": {
+                    "type": "u8",
+                    "value": "4"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "stream-new",
+                  "payload": {
+                    "type": "u8",
+                    "value": "5"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "future-new",
+                  "payload": {
+                    "type": "u8",
+                    "value": "6"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "future-new",
+                  "payload": {
+                    "type": "u8",
+                    "value": "7"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "stream-forward",
+                  "payload": {
+                    "type": "record",
+                    "value": [
+                      [
+                        "src",
+                        {
+                          "type": "u8",
+                          "value": "0"
+                        }
+                      ],
+                      [
+                        "dst",
+                        {
+                          "type": "u8",
+                          "value": "1"
+                        }
+                      ]
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "future-forward",
+                  "payload": {
+                    "type": "record",
+                    "value": [
+                      [
+                        "src",
+                        {
+                          "type": "u8",
+                          "value": "2"
+                        }
+                      ],
+                      [
+                        "dst",
+                        {
+                          "type": "u8",
+                          "value": "3"
+                        }
+                      ]
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "stream-forward",
+                  "payload": {
+                    "type": "record",
+                    "value": [
+                      [
+                        "src",
+                        {
+                          "type": "u8",
+                          "value": "4"
+                        }
+                      ],
+                      [
+                        "dst",
+                        {
+                          "type": "u8",
+                          "value": "5"
+                        }
+                      ]
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "future-forward",
+                  "payload": {
+                    "type": "record",
+                    "value": [
+                      [
+                        "src",
+                        {
+                          "type": "u8",
+                          "value": "6"
+                        }
+                      ],
+                      [
+                        "dst",
+                        {
+                          "type": "u8",
+                          "value": "7"
+                        }
+                      ]
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "testee-write",
+                  "payload": {
+                    "type": "record",
+                    "value": [
+                      [
+                        "handle",
+                        {
+                          "type": "u8",
+                          "value": "0"
+                        }
+                      ],
+                      [
+                        "bytes",
+                        {
+                          "type": "u32",
+                          "value": "4"
+                        }
+                      ]
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "expect-code",
+                  "payload": {
+                    "type": "s32",
+                    "value": "-1"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "future-write",
+                  "payload": {
+                    "type": "u8",
+                    "value": "2"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "expect-code",
+                  "payload": {
+                    "type": "s32",
+                    "value": "-1"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "testee-write",
+                  "payload": {
+                    "type": "record",
+                    "value": [
+                      [
+                        "handle",
+                        {
+                          "type": "u8",
+                          "value": "4"
+                        }
+                      ],
+                      [
+                        "bytes",
+                        {
+                          "type": "u32",
+                          "value": "4"
+                        }
+                      ]
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "expect-code",
+                  "payload": {
+                    "type": "s32",
+                    "value": "-1"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "future-write",
+                  "payload": {
+                    "type": "u8",
+                    "value": "6"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "expect-code",
+                  "payload": {
+                    "type": "s32",
+                    "value": "-1"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "future-read",
+                  "payload": {
+                    "type": "u8",
+                    "value": "7"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "expect-code",
+                  "payload": {
+                    "type": "s32",
+                    "value": "0"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "testee-read",
+                  "payload": {
+                    "type": "record",
+                    "value": [
+                      [
+                        "handle",
+                        {
+                          "type": "u8",
+                          "value": "1"
+                        }
+                      ],
+                      [
+                        "bytes",
+                        {
+                          "type": "u32",
+                          "value": "4"
+                        }
+                      ]
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "expect-code",
+                  "payload": {
+                    "type": "s32",
+                    "value": "64"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "future-read",
+                  "payload": {
+                    "type": "u8",
+                    "value": "3"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "expect-code",
+                  "payload": {
+                    "type": "s32",
+                    "value": "0"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "testee-read",
+                  "payload": {
+                    "type": "record",
+                    "value": [
+                      [
+                        "handle",
+                        {
+                          "type": "u8",
+                          "value": "5"
+                        }
+                      ],
+                      [
+                        "bytes",
+                        {
+                          "type": "u32",
+                          "value": "4"
+                        }
+                      ]
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "expect-code",
+                  "payload": {
+                    "type": "s32",
+                    "value": "64"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "poll",
+                  "payload": {
+                    "type": "record",
+                    "value": [
+                      [
+                        "slot",
+                        {
+                          "type": "u8",
+                          "value": "0"
+                        }
+                      ],
+                      [
+                        "event",
+                        {
+                          "type": "enum",
+                          "value": "stream-write"
+                        }
+                      ],
+                      [
+                        "payload",
+                        {
+                          "type": "u32",
+                          "value": "64"
+                        }
+                      ]
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "poll",
+                  "payload": {
+                    "type": "record",
+                    "value": [
+                      [
+                        "slot",
+                        {
+                          "type": "u8",
+                          "value": "2"
+                        }
+                      ],
+                      [
+                        "event",
+                        {
+                          "type": "enum",
+                          "value": "future-write"
+                        }
+                      ],
+                      [
+                        "payload",
+                        {
+                          "type": "u32",
+                          "value": "0"
+                        }
+                      ]
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "poll",
+                  "payload": {
+                    "type": "record",
+                    "value": [
+                      [
+                        "slot",
+                        {
+                          "type": "u8",
+                          "value": "4"
+                        }
+                      ],
+                      [
+                        "event",
+                        {
+                          "type": "enum",
+                          "value": "stream-write"
+                        }
+                      ],
+                      [
+                        "payload",
+                        {
+                          "type": "u32",
+                          "value": "64"
+                        }
+                      ]
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "poll",
+                  "payload": {
+                    "type": "record",
+                    "value": [
+                      [
+                        "slot",
+                        {
+                          "type": "u8",
+                          "value": "6"
+                        }
+                      ],
+                      [
+                        "event",
+                        {
+                          "type": "enum",
+                          "value": "future-write"
+                        }
+                      ],
+                      [
+                        "payload",
+                        {
+                          "type": "u32",
+                          "value": "0"
+                        }
+                      ]
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "drop-writable",
+                  "payload": {
+                    "type": "u8",
+                    "value": "0"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "drop-readable",
+                  "payload": {
+                    "type": "u8",
+                    "value": "1"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "future-drop-writable",
+                  "payload": {
+                    "type": "u8",
+                    "value": "2"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "future-drop-readable",
+                  "payload": {
+                    "type": "u8",
+                    "value": "3"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "drop-writable",
+                  "payload": {
+                    "type": "u8",
+                    "value": "4"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "drop-readable",
+                  "payload": {
+                    "type": "u8",
+                    "value": "5"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "future-drop-writable",
+                  "payload": {
+                    "type": "u8",
+                    "value": "6"
+                  }
+                }
+              },
+              {
+                "type": "variant",
+                "value": {
+                  "case": "future-drop-readable",
+                  "payload": {
+                    "type": "u8",
+                    "value": "7"
+                  }
                 }
               }
             ]

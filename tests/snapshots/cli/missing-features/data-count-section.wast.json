@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/cli/missing-features/data-count-section.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 5,
+      "filename": "data-count-section.0.wasm",
+      "module_type": "binary",
+      "text": "data count section requires the bulk-memory proposal"
+    }
+  ]
+}

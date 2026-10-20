@@ -1,5 +1,5 @@
 use crate::ast::error::ParseError;
-use crate::{ParseResult, UnresolvedPackage, UnresolvedPackageGroup};
+use crate::{AccessorKind, ParseResult, UnresolvedPackage, UnresolvedPackageGroup};
 use alloc::borrow::{Cow, ToOwned};
 use alloc::boxed::Box;
 use alloc::format;
@@ -394,6 +394,7 @@ impl<'a> World<'a> {
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
     ) -> ParseResult<Self> {
+        Attribute::reject_external_id(&attributes, "world declarations")?;
         tokens.expect(Token::World)?;
         let name = parse_id(tokens)?;
         let items = Self::parse_items(tokens)?;
@@ -539,7 +540,11 @@ impl<'a> ExternKind<'a> {
         let id = parse_id(&mut clone)?;
         if clone.eat(Token::Colon)? {
             // import foo: async? func(...)
-            if clone.clone().eat(Token::Func)? || clone.clone().eat(Token::Async)? {
+            // import foo: get(...) / import foo: set(...)
+            if clone.clone().eat(Token::Func)?
+                || clone.clone().eat(Token::Async)?
+                || eat_accessor_token(&mut clone.clone())?.is_some()
+            {
                 *tokens = clone;
                 let ret = ExternKind::Func(id, Func::parse(tokens)?);
                 tokens.expect_semicolon()?;
@@ -605,6 +610,7 @@ impl<'a> Interface<'a> {
         docs: Docs<'a>,
         attributes: Vec<Attribute<'a>>,
     ) -> ParseResult<Self> {
+        Attribute::reject_external_id(&attributes, "interface declarations")?;
         tokens.expect(Token::Interface)?;
         let name = parse_id(tokens)?;
         let items = Self::parse_items(tokens)?;
@@ -739,6 +745,7 @@ struct IncludeName<'a> {
 
 impl<'a> Include<'a> {
     fn parse(tokens: &mut Tokenizer<'a>, attributes: Vec<Attribute<'a>>) -> ParseResult<Self> {
+        Attribute::reject_external_id(&attributes, "include statements")?;
         tokens.expect(Token::Include)?;
         let from = UsePath::parse(tokens)?;
 
@@ -893,6 +900,7 @@ impl<'a> ResourceFunc<'a> {
                     func: Func {
                         span,
                         async_: false,
+                        accessor: None,
                         params,
                         result,
                     },
@@ -1024,6 +1032,7 @@ type ParamList<'a> = Vec<(Id<'a>, Type<'a>)>;
 struct Func<'a> {
     span: Span,
     async_: bool,
+    accessor: Option<AccessorKind>,
     params: ParamList<'a>,
     result: Option<Type<'a>>,
 }
@@ -1046,7 +1055,15 @@ impl<'a> Func<'a> {
         }
 
         let async_ = tokens.eat(Token::Async)?;
-        let span = tokens.expect(Token::Func)?;
+        let accessor = if async_ {
+            None
+        } else {
+            eat_accessor_token(tokens)?
+        };
+        let (span, accessor) = match accessor {
+            Some((span, accessor)) => (span, Some(accessor)),
+            None => (tokens.expect(Token::Func)?, None),
+        };
         let params = parse_params(tokens, true)?;
         let result = if tokens.eat(Token::RArrow)? {
             let ty = Type::parse(tokens)?;
@@ -1057,10 +1074,28 @@ impl<'a> Func<'a> {
         Ok(Func {
             span,
             async_,
+            accessor,
             params,
             result,
         })
     }
+}
+
+fn eat_accessor_token(tokens: &mut Tokenizer<'_>) -> ParseResult<Option<(Span, AccessorKind)>> {
+    let mut clone = tokens.clone();
+    let (span, accessor) = match clone.next()? {
+        Some((span, Token::Id)) => match clone.parse_id(span)? {
+            "get" => (span, AccessorKind::Getter),
+            "set" => (span, AccessorKind::Setter),
+            _ => return Ok(None),
+        },
+        _ => return Ok(None),
+    };
+    if !clone.eat(Token::LeftParen)? {
+        return Ok(None);
+    }
+    tokens.next()?; // consume "get" or "set" but not the paren
+    Ok(Some((span, accessor)))
 }
 
 impl<'a> InterfaceItem<'a> {
@@ -1765,6 +1800,24 @@ impl<'a> Attribute<'a> {
             ret.push(attr);
         }
         Ok(ret)
+    }
+
+    /// Returns an error if `attrs` contains an `@external-id` attribute.
+    ///
+    /// This is used for items which accept other attributes, such as feature
+    /// gates, but have no place to record an `@external-id` in the resolved
+    /// representation of a package, so it would otherwise be silently
+    /// dropped.
+    fn reject_external_id(attrs: &[Attribute<'a>], what: &str) -> ParseResult<()> {
+        for attr in attrs {
+            if let Attribute::ExternalId { span, .. } = attr {
+                return Err(ParseError::new_syntax(
+                    *span,
+                    format!("@external-id is not allowed on {what}"),
+                ));
+            }
+        }
+        Ok(())
     }
 }
 

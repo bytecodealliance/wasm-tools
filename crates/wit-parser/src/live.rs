@@ -103,17 +103,23 @@ pub trait TypeIdVisitor {
             // This resource is live as it's attached to a static method but
             // it's not guaranteed to be present in either params or results, so
             // be sure to attach it here.
-            FunctionKind::Static(id) | FunctionKind::AsyncStatic(id) => {
-                self.visit_type_id(resolve, id)
-            }
+            FunctionKind::Static(id)
+            | FunctionKind::AsyncStatic(id)
+            | FunctionKind::StaticGetter(id)
+            | FunctionKind::StaticSetter(id) => self.visit_type_id(resolve, id),
 
             // The resource these are attached to is in the params/results, so
             // no need to re-add it here.
             FunctionKind::Method(_)
             | FunctionKind::AsyncMethod(_)
+            | FunctionKind::MethodGetter(_)
+            | FunctionKind::MethodSetter(_)
             | FunctionKind::Constructor(_) => {}
 
-            FunctionKind::Freestanding | FunctionKind::AsyncFreestanding => {}
+            FunctionKind::Freestanding
+            | FunctionKind::AsyncFreestanding
+            | FunctionKind::Getter
+            | FunctionKind::Setter => {}
         }
 
         for param in func.params.iter() {

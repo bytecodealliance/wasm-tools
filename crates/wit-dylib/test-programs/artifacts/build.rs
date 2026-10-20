@@ -23,6 +23,7 @@ https://github.com/webassembly/wasi-sdk
         .arg(target)
         .arg("--package=test-programs")
         .env("CARGO_TARGET_DIR", &out_dir)
+        .env("CARGO_BUILD_BUILD_DIR", &out_dir)
         .env(
             format!("CARGO_TARGET_{upcase}_RUSTFLAGS"),
             "-Clink-self-contained=n \

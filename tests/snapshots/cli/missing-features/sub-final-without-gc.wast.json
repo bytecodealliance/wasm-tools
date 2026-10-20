@@ -1,0 +1,25 @@
+{
+  "source_filename": "tests/cli/missing-features/sub-final-without-gc.wast",
+  "commands": [
+    {
+      "type": "assert_malformed",
+      "line": 7,
+      "filename": "sub-final-without-gc.0.wasm",
+      "module_type": "binary",
+      "text": "gc proposal must be enabled to use subtypes"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 16,
+      "filename": "sub-final-without-gc.1.wasm",
+      "module_type": "binary",
+      "text": "gc proposal must be enabled to use subtypes"
+    },
+    {
+      "type": "module",
+      "line": 25,
+      "filename": "sub-final-without-gc.2.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

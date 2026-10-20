@@ -136,12 +136,21 @@ pub enum ComponentValType {
 
 impl<'a> FromReader<'a> for ComponentValType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        if let Some(ty) = PrimitiveValType::from_byte(reader.peek()?) {
+        let offset = reader.original_position();
+        let byte = reader.peek()?;
+        if let Some(ty) = PrimitiveValType::from_byte(byte) {
             reader.read_u8()?;
             return Ok(ComponentValType::Primitive(ty));
         }
 
-        Ok(ComponentValType::Type(reader.read_var_s33()? as u32))
+        match u32::try_from(reader.read_var_s33()?) {
+            Ok(idx) => Ok(ComponentValType::Type(idx)),
+            Err(_) => Err(BinaryReader::invalid_leading_byte_error(
+                byte,
+                "component value type",
+                offset,
+            )),
+        }
     }
 }
 
@@ -273,6 +282,12 @@ pub enum ComponentType<'a> {
 
 impl<'a> FromReader<'a> for ComponentType<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        Self::read_with_depth(reader, 0)
+    }
+}
+
+impl<'a> ComponentType<'a> {
+    fn read_with_depth(reader: &mut BinaryReader<'a>, depth: u32) -> Result<Self> {
         Ok(match reader.read_u8()? {
             0x3f => ComponentType::Resource {
                 rep: reader.read()?,
@@ -293,16 +308,20 @@ impl<'a> FromReader<'a> for ComponentType<'a> {
                     result,
                 })
             }
-            0x41 => ComponentType::Component(
-                reader
-                    .read_iter(MAX_WASM_COMPONENT_TYPE_DECLS, "component type declaration")?
-                    .collect::<Result<_>>()?,
-            ),
-            0x42 => ComponentType::Instance(
-                reader
-                    .read_iter(MAX_WASM_INSTANCE_TYPE_DECLS, "instance type declaration")?
-                    .collect::<Result<_>>()?,
-            ),
+            0x41 => ComponentType::Component(read_nested_decls(
+                reader,
+                depth,
+                MAX_WASM_COMPONENT_TYPE_DECLS,
+                "component type declaration",
+                ComponentTypeDeclaration::read_with_depth,
+            )?),
+            0x42 => ComponentType::Instance(read_nested_decls(
+                reader,
+                depth,
+                MAX_WASM_INSTANCE_TYPE_DECLS,
+                "instance type declaration",
+                InstanceTypeDeclaration::read_with_depth,
+            )?),
             x => {
                 if let Some(ty) = PrimitiveValType::from_byte(x) {
                     ComponentType::Defined(ComponentDefinedType::Primitive(ty))
@@ -336,6 +355,12 @@ pub enum ComponentTypeDeclaration<'a> {
 
 impl<'a> FromReader<'a> for ComponentTypeDeclaration<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        Self::read_with_depth(reader, 0)
+    }
+}
+
+impl<'a> ComponentTypeDeclaration<'a> {
+    fn read_with_depth(reader: &mut BinaryReader<'a>, depth: u32) -> Result<Self> {
         // Component types are effectively instance types with the additional
         // variant of imports; check for imports here or delegate to
         // `InstanceTypeDeclaration` with the appropriate conversions.
@@ -344,14 +369,16 @@ impl<'a> FromReader<'a> for ComponentTypeDeclaration<'a> {
             return Ok(ComponentTypeDeclaration::Import(reader.read()?));
         }
 
-        Ok(match reader.read()? {
-            InstanceTypeDeclaration::CoreType(t) => ComponentTypeDeclaration::CoreType(t),
-            InstanceTypeDeclaration::Type(t) => ComponentTypeDeclaration::Type(t),
-            InstanceTypeDeclaration::Alias(a) => ComponentTypeDeclaration::Alias(a),
-            InstanceTypeDeclaration::Export { name, ty } => {
-                ComponentTypeDeclaration::Export { name, ty }
-            }
-        })
+        Ok(
+            match InstanceTypeDeclaration::read_with_depth(reader, depth)? {
+                InstanceTypeDeclaration::CoreType(t) => ComponentTypeDeclaration::CoreType(t),
+                InstanceTypeDeclaration::Type(t) => ComponentTypeDeclaration::Type(t),
+                InstanceTypeDeclaration::Alias(a) => ComponentTypeDeclaration::Alias(a),
+                InstanceTypeDeclaration::Export { name, ty } => {
+                    ComponentTypeDeclaration::Export { name, ty }
+                }
+            },
+        )
     }
 }
 
@@ -375,9 +402,15 @@ pub enum InstanceTypeDeclaration<'a> {
 
 impl<'a> FromReader<'a> for InstanceTypeDeclaration<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        Self::read_with_depth(reader, 0)
+    }
+}
+
+impl<'a> InstanceTypeDeclaration<'a> {
+    fn read_with_depth(reader: &mut BinaryReader<'a>, depth: u32) -> Result<Self> {
         Ok(match reader.read_u8()? {
             0x00 => InstanceTypeDeclaration::CoreType(reader.read()?),
-            0x01 => InstanceTypeDeclaration::Type(reader.read()?),
+            0x01 => InstanceTypeDeclaration::Type(ComponentType::read_with_depth(reader, depth)?),
             0x02 => InstanceTypeDeclaration::Alias(reader.read()?),
             0x04 => InstanceTypeDeclaration::Export {
                 name: reader.read()?,
@@ -386,6 +419,27 @@ impl<'a> FromReader<'a> for InstanceTypeDeclaration<'a> {
             x => return reader.invalid_leading_byte(x, "component or instance type declaration"),
         })
     }
+}
+
+fn read_nested_decls<'a, T>(
+    reader: &mut BinaryReader<'a>,
+    depth: u32,
+    limit: usize,
+    desc: &str,
+    read: fn(&mut BinaryReader<'a>, u32) -> Result<T>,
+) -> Result<Box<[T]>> {
+    if depth >= MAX_WASM_COMPONENT_TYPE_DEPTH {
+        bail!(
+            reader.original_position(),
+            "component type nesting is too deep"
+        );
+    }
+    let count = reader.read_size(limit, desc)?;
+    let mut decls = Vec::new();
+    for _ in 0..count {
+        decls.push(read(reader, depth + 1)?);
+    }
+    Ok(decls.into())
 }
 
 /// Represents a type of a function in a WebAssembly component.

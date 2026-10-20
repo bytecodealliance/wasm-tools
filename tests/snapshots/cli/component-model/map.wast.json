@@ -50,6 +50,54 @@
       "filename": "map.7.wasm",
       "module_type": "binary",
       "text": "type mismatch for import `x`"
+    },
+    {
+      "type": "module",
+      "line": 74,
+      "filename": "map.8.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 89,
+      "filename": "map.9.wasm",
+      "module_type": "binary",
+      "text": "invalid map key type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 90,
+      "filename": "map.10.wasm",
+      "module_type": "binary",
+      "text": "invalid map key type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 91,
+      "filename": "map.11.wasm",
+      "module_type": "binary",
+      "text": "invalid map key type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 92,
+      "filename": "map.12.wasm",
+      "module_type": "binary",
+      "text": "invalid map key type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 93,
+      "filename": "map.13.wasm",
+      "module_type": "binary",
+      "text": "invalid map key type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 95,
+      "filename": "map.14.wasm",
+      "module_type": "binary",
+      "text": "invalid map key type"
     }
   ]
 }

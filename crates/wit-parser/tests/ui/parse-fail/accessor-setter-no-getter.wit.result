@@ -1,0 +1,5 @@
+setter `[set]prop` has no corresponding getter `[get]prop`
+     --> tests/ui/parse-fail/accessor-setter-no-getter.wit:6:3
+      |
+    6 |   prop: set(value: u32);
+      |   ^---

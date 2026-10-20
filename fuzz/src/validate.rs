@@ -78,7 +78,6 @@ fn validate_all(u: &mut Unstructured<'_>, mut validator: Validator, wasm: &[u8])
             ElementSection(s) => assert!(is_valid_range(s.range())),
             DataCountSection { range, .. } => assert!(is_valid_range(range)),
             DataSection(s) => assert!(is_valid_range(s.range())),
-            CodeSectionStart { range, .. } => assert!(is_valid_range(range)),
             CodeSectionEntry(body) => assert!(is_valid_range(body.range())),
             InstanceSection(s) => assert!(is_valid_range(s.range())),
             CoreTypeSection(s) => assert!(is_valid_range(s.range())),
@@ -100,6 +99,9 @@ fn validate_all(u: &mut Unstructured<'_>, mut validator: Validator, wasm: &[u8])
                 unchecked_range: _, ..
             }
             | ModuleSection {
+                unchecked_range: _, ..
+            }
+            | CodeSectionStart {
                 unchecked_range: _, ..
             } => {}
 

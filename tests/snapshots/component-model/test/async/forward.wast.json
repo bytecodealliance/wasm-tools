@@ -1,0 +1,910 @@
+{
+  "source_filename": "tests/component-model/test/async/forward.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 3,
+      "name": "Tester",
+      "filename": "forward.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 938,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 939,
+      "action": {
+        "type": "invoke",
+        "field": "forward-then-write-then-read",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 940,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 941,
+      "action": {
+        "type": "invoke",
+        "field": "forward-then-read-then-write",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 942,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 943,
+      "action": {
+        "type": "invoke",
+        "field": "read-then-forward-then-write",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 944,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 945,
+      "action": {
+        "type": "invoke",
+        "field": "rendezvous-during-forward",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 946,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 947,
+      "action": {
+        "type": "invoke",
+        "field": "pending-read-in-set-before-forward",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 948,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 949,
+      "action": {
+        "type": "invoke",
+        "field": "no-event-from-forward",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 950,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 951,
+      "action": {
+        "type": "invoke",
+        "field": "zero-length-read-carried-over",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 952,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 953,
+      "action": {
+        "type": "invoke",
+        "field": "zero-length-write-then-forward",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 954,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 955,
+      "action": {
+        "type": "invoke",
+        "field": "dest-reader-dropped-before-forward",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 956,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 957,
+      "action": {
+        "type": "invoke",
+        "field": "dest-reader-dropped-before-forward-blocked-writer",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 958,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 959,
+      "action": {
+        "type": "invoke",
+        "field": "dest-reader-dropped-after-forward",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 960,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 961,
+      "action": {
+        "type": "invoke",
+        "field": "src-writer-dropped-before-forward",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 962,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 963,
+      "action": {
+        "type": "invoke",
+        "field": "src-writer-dropped-after-forward",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 964,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 965,
+      "action": {
+        "type": "invoke",
+        "field": "cancel-carried-over-read",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 966,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 967,
+      "action": {
+        "type": "invoke",
+        "field": "self-forward",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 968,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 969,
+      "action": {
+        "type": "invoke",
+        "field": "forward-chain",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 970,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 971,
+      "action": {
+        "type": "invoke",
+        "field": "forward-cycle",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 972,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 973,
+      "action": {
+        "type": "invoke",
+        "field": "future-forward-then-write-then-read",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 974,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 975,
+      "action": {
+        "type": "invoke",
+        "field": "future-forward-read-then-write",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 976,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 977,
+      "action": {
+        "type": "invoke",
+        "field": "future-rendezvous-during-forward",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 978,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 979,
+      "action": {
+        "type": "invoke",
+        "field": "future-forward-dest-reader-dropped",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 980,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 981,
+      "action": {
+        "type": "invoke",
+        "field": "future-forward-dest-reader-dropped-blocked-writer",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 982,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 983,
+      "action": {
+        "type": "invoke",
+        "field": "future-forward-discards-unwritten-writer",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 984,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 985,
+      "action": {
+        "type": "invoke",
+        "field": "future-self-forward",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 986,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 987,
+      "action": {
+        "type": "invoke",
+        "field": "future-forward-chain",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 988,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_return",
+      "line": 989,
+      "action": {
+        "type": "invoke",
+        "field": "empty-element-type",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 990,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 991,
+      "action": {
+        "type": "invoke",
+        "field": "trap-swapped-args",
+        "args": []
+      },
+      "text": "handle index 2 used with the wrong type"
+    },
+    {
+      "type": "module_instance",
+      "line": 992,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 993,
+      "action": {
+        "type": "invoke",
+        "field": "trap-type-mismatch",
+        "args": []
+      },
+      "text": "handle index 1 used with the wrong type"
+    },
+    {
+      "type": "module_instance",
+      "line": 994,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 995,
+      "action": {
+        "type": "invoke",
+        "field": "trap-same-index",
+        "args": []
+      },
+      "text": "unknown handle index 1"
+    },
+    {
+      "type": "module_instance",
+      "line": 996,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 997,
+      "action": {
+        "type": "invoke",
+        "field": "trap-src-reader-copying",
+        "args": []
+      },
+      "text": "cannot forward busy stream"
+    },
+    {
+      "type": "module_instance",
+      "line": 998,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 999,
+      "action": {
+        "type": "invoke",
+        "field": "trap-dest-writer-copying",
+        "args": []
+      },
+      "text": "cannot forward busy stream"
+    },
+    {
+      "type": "module_instance",
+      "line": 1000,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1001,
+      "action": {
+        "type": "invoke",
+        "field": "trap-src-reader-in-set",
+        "args": []
+      },
+      "text": "cannot forward stream while it's in a waitable set"
+    },
+    {
+      "type": "module_instance",
+      "line": 1002,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1003,
+      "action": {
+        "type": "invoke",
+        "field": "trap-dest-writer-in-set",
+        "args": []
+      },
+      "text": "cannot forward stream while it's in a waitable set"
+    },
+    {
+      "type": "module_instance",
+      "line": 1004,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1005,
+      "action": {
+        "type": "invoke",
+        "field": "trap-src-reader-done",
+        "args": []
+      },
+      "text": "cannot forward stream after being notified that the writable end dropped"
+    },
+    {
+      "type": "module_instance",
+      "line": 1006,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1007,
+      "action": {
+        "type": "invoke",
+        "field": "trap-dest-writer-done",
+        "args": []
+      },
+      "text": "cannot forward stream after being notified that the readable end dropped"
+    },
+    {
+      "type": "module_instance",
+      "line": 1008,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1009,
+      "action": {
+        "type": "invoke",
+        "field": "trap-use-after-forward",
+        "args": []
+      },
+      "text": "unknown handle index 1"
+    },
+    {
+      "type": "module_instance",
+      "line": 1010,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1011,
+      "action": {
+        "type": "invoke",
+        "field": "trap-stream-forward-of-future-handles",
+        "args": []
+      },
+      "text": "handle index 1 used with the wrong type"
+    },
+    {
+      "type": "module_instance",
+      "line": 1012,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1013,
+      "action": {
+        "type": "invoke",
+        "field": "trap-future-swapped-args",
+        "args": []
+      },
+      "text": "handle index 2 used with the wrong type"
+    },
+    {
+      "type": "module_instance",
+      "line": 1014,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1015,
+      "action": {
+        "type": "invoke",
+        "field": "trap-future-reader-copying",
+        "args": []
+      },
+      "text": "cannot forward busy future"
+    },
+    {
+      "type": "module_instance",
+      "line": 1016,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1017,
+      "action": {
+        "type": "invoke",
+        "field": "trap-same-instance-rendezvous",
+        "args": []
+      },
+      "text": "cannot read from and write to intra-component future/stream with non-numeric payload"
+    },
+    {
+      "type": "module_instance",
+      "line": 1018,
+      "instance": "i",
+      "module": "Tester"
+    },
+    {
+      "type": "assert_trap",
+      "line": 1019,
+      "action": {
+        "type": "invoke",
+        "field": "trap-future-same-instance-rendezvous",
+        "args": []
+      },
+      "text": "cannot read from and write to intra-component future/stream with non-numeric payload"
+    },
+    {
+      "type": "module_definition",
+      "line": 1025,
+      "name": "ProxyTester",
+      "filename": "forward.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 1185,
+      "instance": "i",
+      "module": "ProxyTester"
+    },
+    {
+      "type": "assert_return",
+      "line": 1186,
+      "action": {
+        "type": "invoke",
+        "field": "proxy-read-then-write",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 1187,
+      "instance": "i",
+      "module": "ProxyTester"
+    },
+    {
+      "type": "assert_return",
+      "line": 1188,
+      "action": {
+        "type": "invoke",
+        "field": "proxy-write-then-read",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "43"
+        }
+      ]
+    },
+    {
+      "type": "module_instance",
+      "line": 1189,
+      "instance": "i",
+      "module": "ProxyTester"
+    },
+    {
+      "type": "assert_return",
+      "line": 1190,
+      "action": {
+        "type": "invoke",
+        "field": "proxy-drop-reader",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "44"
+        }
+      ]
+    },
+    {
+      "type": "module_definition",
+      "line": 1197,
+      "name": "PingPongTester",
+      "filename": "forward.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module_instance",
+      "line": 1440,
+      "instance": "i",
+      "module": "PingPongTester"
+    },
+    {
+      "type": "assert_return",
+      "line": 1441,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "u32",
+          "value": "42"
+        }
+      ]
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1445,
+      "filename": "forward.3.wasm",
+      "module_type": "binary",
+      "text": "`stream.forward` requires a stream type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1451,
+      "filename": "forward.4.wasm",
+      "module_type": "binary",
+      "text": "`future.forward` requires a future type"
+    }
+  ]
+}

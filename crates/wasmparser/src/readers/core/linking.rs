@@ -368,6 +368,8 @@ pub enum Linking<'a> {
     ComdatInfo(ComdatMap<'a>),
     /// Extra information about the symbols present in the module.
     SymbolTable(SymbolInfoMap<'a>),
+    /// The target architecture of this object file, e.g. `wasm32` or `wasm64`.
+    TargetArch(&'a str),
     /// An unknown [linking subsection](https://github.com/WebAssembly/tool-conventions/blob/main/Linking.md#linking-metadata-section).
     Unknown {
         /// The identifier for this subsection.
@@ -381,12 +383,13 @@ pub enum Linking<'a> {
 }
 
 impl<'a> Subsection<'a> for Linking<'a> {
-    fn from_reader(id: u8, reader: BinaryReader<'a>) -> Result<Self> {
+    fn from_reader(id: u8, mut reader: BinaryReader<'a>) -> Result<Self> {
         Ok(match id {
             5 => Self::SegmentInfo(SegmentMap::new(reader)?),
             6 => Self::InitFuncs(InitFuncMap::new(reader)?),
             7 => Self::ComdatInfo(ComdatMap::new(reader)?),
             8 => Self::SymbolTable(SymbolInfoMap::new(reader)?),
+            9 => Self::TargetArch(reader.read_string()?),
             ty => Self::Unknown {
                 ty,
                 data: reader.remaining_buffer(),

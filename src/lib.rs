@@ -623,6 +623,7 @@ pub fn parse_binary_wasm(
                 Self::InitFuncs(s) => s.parse(),
                 Self::ComdatInfo(s) => s.parse(),
                 Self::SymbolTable(s) => s.parse(),
+                Self::TargetArch(_) => Ok(()),
                 Self::Unknown { .. } => Ok(()),
             }
         }

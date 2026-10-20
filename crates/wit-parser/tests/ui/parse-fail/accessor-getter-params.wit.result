@@ -1,0 +1,5 @@
+getters cannot have parameters
+     --> tests/ui/parse-fail/accessor-getter-params.wit:6:13
+      |
+    6 |   prop: get(x: u32) -> u32;
+      |             ^

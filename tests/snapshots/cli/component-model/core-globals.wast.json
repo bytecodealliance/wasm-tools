@@ -1,0 +1,45 @@
+{
+  "source_filename": "tests/cli/component-model/core-globals.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 4,
+      "filename": "core-globals.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 16,
+      "filename": "core-globals.1.wasm",
+      "module_type": "binary",
+      "text": "expected global type (ref func), found funcref"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 27,
+      "filename": "core-globals.2.wasm",
+      "module_type": "binary",
+      "text": "expected global type funcref, found (ref func)"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 38,
+      "filename": "core-globals.3.wasm",
+      "module_type": "binary",
+      "text": "expected global type (ref func), found funcref"
+    },
+    {
+      "type": "module",
+      "line": 46,
+      "filename": "core-globals.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 56,
+      "filename": "core-globals.5.wasm",
+      "module_type": "binary",
+      "text": "global types differ in mutability"
+    }
+  ]
+}

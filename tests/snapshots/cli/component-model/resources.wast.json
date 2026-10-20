@@ -793,6 +793,48 @@
       "line": 1187,
       "filename": "resources.119.wasm",
       "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 1200,
+      "name": "Outer",
+      "filename": "resources.120.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1224,
+      "filename": "resources.121.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1250,
+      "filename": "resources.122.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1275,
+      "filename": "resources.123.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1302,
+      "filename": "resources.124.wasm",
+      "module_type": "binary",
+      "text": "missing import named `y`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1319,
+      "filename": "resources.125.wasm",
+      "module_type": "binary",
+      "text": "missing expected import `a::b`"
     }
   ]
 }

@@ -54,3 +54,50 @@
     array.copy $b $b
   )
 )
+
+;; Don't take a huge amount of time to validate this
+(module
+  (type $a (array i32))
+  (func (result (ref $a))
+    unreachable
+    array.new_fixed $a 0xffffffff))
+
+;; ... or this ...
+(module
+  (type $a (array i32))
+  (func (result (ref $a))
+    unreachable
+    array.new_fixed $a 0xffffffff
+    unreachable
+    array.new_fixed $a 0xffffffff
+    unreachable
+    array.new_fixed $a 0xffffffff
+    unreachable
+    array.new_fixed $a 0xffffffff
+    unreachable
+    array.new_fixed $a 0xffffffff
+    unreachable
+    array.new_fixed $a 0xffffffff
+    unreachable
+    array.new_fixed $a 0xffffffff
+    unreachable
+    array.new_fixed $a 0xffffffff
+    unreachable
+    array.new_fixed $a 0xffffffff
+    unreachable
+    array.new_fixed $a 0xffffffff
+    unreachable
+    array.new_fixed $a 0xffffffff
+  )
+)
+
+;; but do be sure to still validate present operands in the face of unreachable
+;; code
+(assert_invalid
+  (module
+    (type $a (array i32))
+    (func (result (ref $a))
+      unreachable
+      i64.const 0
+      array.new_fixed $a 0xffffffff))
+  "type mismatch")

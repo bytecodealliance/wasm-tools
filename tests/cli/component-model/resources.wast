@@ -1193,3 +1193,142 @@
   (core func (canon resource.rep $r))
   (canon resource.rep $r (core func))
 )
+
+;; Nested component subtyping where the expected component type has been
+;; remapped by a resource substitution.
+;; valid
+(component $Outer
+  (import "r" (type $R (sub resource)))
+  (import "actual" (component $actual
+    (alias outer $Outer $R (type $R2))
+    (import "r" (type $rr (eq $R2)))
+    (type $o (own $rr))
+    (import "t" (type $t (eq $o)))
+    (export "f" (func (param "x" $t)))
+  ))
+  (component $X
+    (import "r" (type $r (sub resource)))
+    (import "c" (component
+      (alias outer $X $r (type $r2))
+      (import "r" (type $rr (eq $r2)))
+      (type $o (own $rr))
+      (import "t" (type $t (eq $o)))
+      (export "f" (func (param "x" $t)))
+    ))
+  )
+  (instance (instantiate $X (with "r" (type $R)) (with "c" (component $actual))))
+)
+
+;; invalid: `actual` uses a different resource
+(assert_invalid
+  (component $Outer
+    (import "r" (type $R (sub resource)))
+    (import "r2" (type $Other (sub resource)))
+    (import "actual" (component $actual
+      (alias outer $Outer $Other (type $R2))
+      (import "r" (type $rr (eq $R2)))
+      (type $o (own $rr))
+      (import "t" (type $t (eq $o)))
+      (export "f" (func (param "x" $t)))
+    ))
+    (component $X
+      (import "r" (type $r (sub resource)))
+      (import "c" (component
+        (alias outer $X $r (type $r2))
+        (import "r" (type $rr (eq $r2)))
+        (type $o (own $rr))
+        (import "t" (type $t (eq $o)))
+        (export "f" (func (param "x" $t)))
+      ))
+    )
+    (instance (instantiate $X (with "r" (type $R)) (with "c" (component $actual))))
+  )
+  "type mismatch")
+
+;; invalid: `actual`'s export doesn't use the imported type
+(assert_invalid
+  (component $Outer
+    (import "r" (type $R (sub resource)))
+    (import "actual" (component $actual
+      (alias outer $Outer $R (type $R2))
+      (import "r" (type $rr (eq $R2)))
+      (type $o (own $rr))
+      (import "t" (type $t (eq $o)))
+      (export "f" (func (param "x" u32)))
+    ))
+    (component $X
+      (import "r" (type $r (sub resource)))
+      (import "c" (component
+        (alias outer $X $r (type $r2))
+        (import "r" (type $rr (eq $r2)))
+        (type $o (own $rr))
+        (import "t" (type $t (eq $o)))
+        (export "f" (func (param "x" $t)))
+      ))
+    )
+    (instance (instantiate $X (with "r" (type $R)) (with "c" (component $actual))))
+  )
+  "type mismatch")
+
+;; invalid: `actual` exports a borrow where an own is expected
+(assert_invalid
+  (component $Outer
+    (import "r" (type $R (sub resource)))
+    (import "actual" (component $actual
+      (alias outer $Outer $R (type $R2))
+      (import "r" (type $rr (eq $R2)))
+      (type $o (own $rr))
+      (import "t" (type $t (eq $o)))
+      (type $b (borrow $rr))
+      (export "f" (func (param "x" $b)))
+    ))
+    (component $X
+      (import "r" (type $r (sub resource)))
+      (import "c" (component
+        (alias outer $X $r (type $r2))
+        (import "r" (type $rr (eq $r2)))
+        (type $o (own $rr))
+        (import "t" (type $t (eq $o)))
+        (export "f" (func (param "x" $t)))
+      ))
+    )
+    (instance (instantiate $X (with "r" (type $R)) (with "c" (component $actual))))
+  )
+  "type mismatch")
+
+;; Errors in nested component and module subtyping, where the expected type
+;; has been remapped by a resource substitution, are reported as errors.
+(assert_invalid
+  (component
+    (import "R" (type $R (sub resource)))
+    (import "c" (instance $c
+      (export "f" (func (param "p" (own $R))))
+      (export "e" (component (import "y" (func))))
+    ))
+    (component $C
+      (import "r" (type $r (sub resource)))
+      (import "c" (instance
+        (export "f" (func (param "p" (own $r))))
+        (export "e" (component (import "z" (func))))
+      ))
+    )
+    (instance (instantiate $C (with "r" (type $R)) (with "c" (instance $c))))
+  )
+  "missing import named `y`")
+(assert_invalid
+  (component
+    (import "R" (type $R (sub resource)))
+    (import "c" (instance $c
+      (export "f" (func (param "p" (own $R))))
+      (export "m" (core module (import "a" "b" (func))))
+    ))
+    (component $C
+      (import "r" (type $r (sub resource)))
+      (import "c" (instance
+        (export "f" (func (param "p" (own $r))))
+        (export "m" (core module))
+      ))
+    )
+    (instance (instantiate $C (with "r" (type $R)) (with "c" (instance $c))))
+  )
+  "missing expected import `a::b`")

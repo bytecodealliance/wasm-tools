@@ -1,0 +1,5 @@
+setter `[set]maxsize` has no corresponding getter `[get]maxsize`
+     --> tests/ui/parse-fail/accessor-canonical-pair.wit:8:3
+      |
+    8 |   maxsize: set(value: u64);
+      |   ^------

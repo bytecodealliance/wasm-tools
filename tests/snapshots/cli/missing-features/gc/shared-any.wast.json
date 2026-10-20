@@ -7,6 +7,27 @@
       "filename": "shared-any.0.wasm",
       "module_type": "binary",
       "text": "shared reference types require the shared-everything-threads proposal"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 13,
+      "filename": "shared-any.1.wasm",
+      "module_type": "binary",
+      "text": "shared reference types require the shared-everything-threads proposal"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 19,
+      "filename": "shared-any.2.wasm",
+      "module_type": "binary",
+      "text": "shared reference types require the shared-everything-threads proposal"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 25,
+      "filename": "shared-any.3.wasm",
+      "module_type": "binary",
+      "text": "shared reference types require the shared-everything-threads proposal"
     }
   ]
 }

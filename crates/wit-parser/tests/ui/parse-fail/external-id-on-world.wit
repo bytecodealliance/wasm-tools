@@ -1,0 +1,4 @@
+package a:b;
+
+@external-id("x")
+world w {}

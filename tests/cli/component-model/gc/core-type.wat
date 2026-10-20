@@ -1,4 +1,4 @@
-;; RUN: wast --assert default --snapshot tests/snapshots % -f gc,cm-gc
+;; RUN: wast --assert default --snapshot tests/snapshots % -f gc,cm-gc,cm-async
 
 (assert_invalid
   (component
@@ -217,4 +217,14 @@
     (core instance (instantiate $m (with "a" (instance (export "b" (func $f))))))
   )
   "type mismatch for export `b` of module instantiation argument `a`"
+)
+
+(assert_invalid
+  (component
+    (core module $libc (memory (export "memory") 1))
+    (core instance $libc (instantiate $libc))
+    (type $future-type (future u8))
+    (core func (canon future.write $future-type async gc (memory (core memory $libc "memory"))))
+  )
+  "cannot specify `gc` without also specifying a `core-type` for lowerings"
 )

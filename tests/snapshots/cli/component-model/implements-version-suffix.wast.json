@@ -1,0 +1,51 @@
+{
+  "source_filename": "tests/cli/component-model/implements-version-suffix.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 5,
+      "filename": "implements-version-suffix.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 14,
+      "filename": "implements-version-suffix.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 17,
+      "filename": "implements-version-suffix.2.wasm",
+      "module_type": "binary",
+      "text": "invalid interface version"
+    },
+    {
+      "type": "module",
+      "line": 20,
+      "filename": "implements-version-suffix.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 28,
+      "filename": "implements-version-suffix.4.wasm",
+      "module_type": "binary",
+      "text": "is not the canonical version of `1.2.3`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 32,
+      "filename": "implements-version-suffix.5.wasm",
+      "module_type": "binary",
+      "text": "is not the canonical version of `0.2.1+b`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 36,
+      "filename": "implements-version-suffix.6.wasm",
+      "module_type": "binary",
+      "text": "a version suffix requires the name to have a version"
+    }
+  ]
+}

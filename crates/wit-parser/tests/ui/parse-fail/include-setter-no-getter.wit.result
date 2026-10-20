@@ -1,0 +1,5 @@
+import `[set]prop` in world `derived` has no corresponding getter `[get]prop`
+     --> tests/ui/parse-fail/include-setter-no-getter.wit:10:10
+      |
+   10 |   import prop: set(value: u32);
+      |          ^---

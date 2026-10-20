@@ -1,0 +1,26 @@
+(component
+  (type $t (;0;)
+    (instance
+      (type (;0;) u32)
+      (export (;1;) "t" (type (eq 0)))
+    )
+  )
+  (type $ct (;1;)
+    (component
+      (alias outer 1 $t (type (;0;)))
+      (import "a" (instance (;0;) (type 0)))
+      (alias outer 1 $t (type (;1;)))
+      (import "b" (instance (;1;) (type 1)))
+    )
+  )
+  (import "c" (component $c (;0;) (type $ct)))
+  (type $u (;2;) u32)
+  (instance $i (;0;)
+    (export "t" (type $u))
+  )
+  (instance (;1;) (instantiate $c
+      (with "a" (instance $i))
+      (with "b" (instance $i))
+    )
+  )
+)

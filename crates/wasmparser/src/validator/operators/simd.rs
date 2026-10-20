@@ -56,6 +56,12 @@ where
         Ok(())
     }
 
+    /// Checks a [`V128`] relaxed ternary float operator.
+    fn check_v128_fternary_op(&mut self) -> Result<()> {
+        self.check_floats_enabled()?;
+        self.check_v128_ternary_op()
+    }
+
     /// Checks a [`V128`] test operator.
     fn check_v128_bitmask_op(&mut self) -> Result<()> {
         self.pop_operand(Some(ValType::V128))?;
@@ -729,28 +735,28 @@ where
         Ok(())
     }
     fn visit_i32x4_relaxed_trunc_f32x4_s(&mut self) -> Self::Output {
-        self.check_v128_unary_op()
+        self.check_v128_funary_op()
     }
     fn visit_i32x4_relaxed_trunc_f32x4_u(&mut self) -> Self::Output {
-        self.check_v128_unary_op()
+        self.check_v128_funary_op()
     }
     fn visit_i32x4_relaxed_trunc_f64x2_s_zero(&mut self) -> Self::Output {
-        self.check_v128_unary_op()
+        self.check_v128_funary_op()
     }
     fn visit_i32x4_relaxed_trunc_f64x2_u_zero(&mut self) -> Self::Output {
-        self.check_v128_unary_op()
+        self.check_v128_funary_op()
     }
     fn visit_f32x4_relaxed_madd(&mut self) -> Self::Output {
-        self.check_v128_ternary_op()
+        self.check_v128_fternary_op()
     }
     fn visit_f32x4_relaxed_nmadd(&mut self) -> Self::Output {
-        self.check_v128_ternary_op()
+        self.check_v128_fternary_op()
     }
     fn visit_f64x2_relaxed_madd(&mut self) -> Self::Output {
-        self.check_v128_ternary_op()
+        self.check_v128_fternary_op()
     }
     fn visit_f64x2_relaxed_nmadd(&mut self) -> Self::Output {
-        self.check_v128_ternary_op()
+        self.check_v128_fternary_op()
     }
     fn visit_i8x16_relaxed_laneselect(&mut self) -> Self::Output {
         self.check_v128_ternary_op()
@@ -765,16 +771,16 @@ where
         self.check_v128_ternary_op()
     }
     fn visit_f32x4_relaxed_min(&mut self) -> Self::Output {
-        self.check_v128_binary_op()
+        self.check_v128_fbinary_op()
     }
     fn visit_f32x4_relaxed_max(&mut self) -> Self::Output {
-        self.check_v128_binary_op()
+        self.check_v128_fbinary_op()
     }
     fn visit_f64x2_relaxed_min(&mut self) -> Self::Output {
-        self.check_v128_binary_op()
+        self.check_v128_fbinary_op()
     }
     fn visit_f64x2_relaxed_max(&mut self) -> Self::Output {
-        self.check_v128_binary_op()
+        self.check_v128_fbinary_op()
     }
     fn visit_i16x8_relaxed_q15mulr_s(&mut self) -> Self::Output {
         self.check_v128_binary_op()

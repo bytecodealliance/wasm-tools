@@ -177,6 +177,20 @@
       "line": 266,
       "filename": "threading.26.wasm",
       "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 272,
+      "filename": "threading.27.wasm",
+      "module_type": "binary",
+      "text": "start function must take a single `i32` argument"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 283,
+      "filename": "threading.28.wasm",
+      "module_type": "binary",
+      "text": "64-bit tables require the component model 64-bit feature"
     }
   ]
 }

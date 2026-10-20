@@ -52,14 +52,14 @@
       "line": 50,
       "filename": "export.7.wasm",
       "module_type": "binary",
-      "text": "not a valid export name"
+      "text": "not a valid extern name"
     },
     {
       "type": "assert_invalid",
       "line": 53,
       "filename": "export.8.wasm",
       "module_type": "binary",
-      "text": "not a valid export name"
+      "text": "not a valid extern name"
     },
     {
       "type": "assert_invalid",
@@ -73,14 +73,14 @@
       "line": 59,
       "filename": "export.10.wasm",
       "module_type": "binary",
-      "text": "not a valid export name"
+      "text": "not a valid extern name"
     },
     {
       "type": "assert_invalid",
       "line": 62,
       "filename": "export.11.wasm",
       "module_type": "binary",
-      "text": "not a valid export name"
+      "text": "not a valid extern name"
     }
   ]
 }

@@ -1,0 +1,5 @@
+export `[set]prop` in world `foo` has no corresponding getter `[get]prop`
+     --> tests/ui/parse-fail/accessor-world-setter-no-getter.wit:7:10
+      |
+    7 |   export prop: set(value: u32);
+      |          ^---

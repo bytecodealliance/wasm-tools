@@ -1,0 +1,5 @@
+setter `[static][set]blob.position` has no corresponding getter `[static][get]blob.position`
+     --> tests/ui/parse-fail/accessor-resource-static-mismatch.wit:8:5
+      |
+    8 |     position: static set(value: u64);
+      |     ^-------

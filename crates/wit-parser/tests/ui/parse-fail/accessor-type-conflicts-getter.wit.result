@@ -1,0 +1,5 @@
+name `[get]prop` conflicts with previous name `prop`
+     --> tests/ui/parse-fail/accessor-type-conflicts-getter.wit:7:3
+      |
+    7 |   prop: get() -> u32;
+      |   ^---

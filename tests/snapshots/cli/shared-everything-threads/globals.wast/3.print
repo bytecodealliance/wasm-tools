@@ -10,17 +10,17 @@
   (export "get-d-acqrel" (func 2))
   (export "set-e-acqrel" (func 3))
   (func (;0;) (type 0) (result i32)
-    global.atomic.get seq_cst $a
+    global.atomic.get seqcst $a
   )
   (func (;1;) (type 1)
     i64.const 1
-    global.atomic.set seq_cst $b
+    global.atomic.set seqcst $b
   )
   (func (;2;) (type 0) (result i32)
-    global.atomic.get acq_rel $d
+    global.atomic.get acqrel $d
   )
   (func (;3;) (type 1)
     i64.const 2
-    global.atomic.set acq_rel $e
+    global.atomic.set acqrel $e
   )
 )

@@ -1,0 +1,5 @@
+(module
+  (memory (;0;) 1)
+  (data $a (;0;) (i32.const 0) "x")
+  (data $b (;1;) "y")
+)

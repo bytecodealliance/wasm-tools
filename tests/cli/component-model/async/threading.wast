@@ -266,3 +266,25 @@
 (component
   (canon task.return (result (stream u8)) (core func))
 )
+
+;; 64-bit closure parameters require cm64
+(assert_invalid
+  (component
+    (core type $start (func (param i64)))
+    (core module $libc (table (export "t") 1 funcref))
+    (core instance $libc (instantiate $libc))
+    (core func (canon thread.new-indirect $start (core table $libc "t")))
+  )
+  "start function must take a single `i32` argument"
+)
+
+;; 64-bit tables require cm64
+(assert_invalid
+  (component
+    (core type $start (func (param i32)))
+    (core module $libc (table (export "t") i64 1 funcref))
+    (core instance $libc (instantiate $libc))
+    (core func (canon thread.new-indirect $start (core table $libc "t")))
+  )
+  "64-bit tables require the component model 64-bit feature"
+)

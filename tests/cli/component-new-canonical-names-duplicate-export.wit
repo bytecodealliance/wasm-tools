@@ -1,0 +1,24 @@
+// FAIL: component embed % --dummy -w foo | component new --emit-canonical-names
+
+// Both exports have the canonical name `a:b/c@0.1`, so they would produce a
+// component with duplicate export names. This should be reported as an
+// encoding error instead of a validation failure of the output.
+
+package a:b;
+
+world foo {
+  export a:b/c@0.1.0;
+  export a:b/c@0.1.1;
+}
+
+package a:b@0.1.0 {
+  interface c {
+    f: func();
+  }
+}
+
+package a:b@0.1.1 {
+  interface c {
+    f: func();
+  }
+}

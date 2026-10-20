@@ -141,70 +141,76 @@ impl<'a> Matches for WithRecGroup<&'a CompositeType> {
 
 impl<'a> Matches for WithRecGroup<&'a FuncType> {
     fn matches(types: &TypeList, a: Self, b: Self) -> bool {
-        if a.params().len() != b.params().len() || a.results().len() != b.results().len() {
-            return false;
-        }
-
-        // A quick recap of covariance, contravariance, and how it applies to
-        // subtyping function types, because I (and almost everyone else, it
-        // seems) always need a reminder:
-        //
-        // *Covariance* is when `a <: b` and `a' <: b'`. That is, the subtyping
-        // checks on the nested things (`a'` and `b'`) goes the same way as the
-        // outer things (`a` and `b`).
-        //
-        // *Contravariance* is when `a <: b` and `b' <: a'`. That is, the
-        // subtyping on the nested things is reversed compared to the outer
-        // things.
-        //
-        // Now, when we are checking subtyping for function types, we have the
-        // following variance:
-        //
-        // * Parameters are contravariant: `(a -> c) <: (b -> c)` when `b <: a`.
-        //
-        //   For example, we can substitute a `Cat -> Cat` function with a
-        //   `Animal -> Cat` function because `Cat <: Animal` and so all
-        //   arguments that could be given to the function are still valid.
-        //
-        //   We can't do the opposite and replace an `Animal -> Cat` function
-        //   with a `Cat -> Cat` function. What would the `Cat -> Cat` function
-        //   do when given a `Dog`? It is unsound.
-        //
-        // * Results are covariant: `(a -> b) <: (a -> c)` when `b <: c`.
-        //
-        //   For example, we can substitute a `Cat -> Animal` function with a
-        //   `Cat -> Cat` function because callers expect to be returned an
-        //   `Animal` and all `Cat`s are `Animal`s. (Also: all `Cat`s are
-        //   `Beautiful`!)
-        //
-        //   We cannot do the opposite and substitute a `Cat -> Cat` function
-        //   with a `Cat -> Animal` function, since callers expect a `Cat` but
-        //   the new function could return a `Pig`.
-        //
-        // As always, Wikipedia is also helpful:
-        // https://en.wikipedia.org/wiki/Covariance_and_contravariance_(computer_science)
-
-        let params_match = a.params().iter().zip(b.params()).all(|(pa, pb)| {
-            // Parameters are contravariant.
-            Matches::matches(
-                types,
-                WithRecGroup::map(b, |_| *pb),
-                WithRecGroup::map(a, |_| *pa),
-            )
-        });
-        if !params_match {
-            return false;
-        }
-
-        a.results().iter().zip(b.results()).all(|(ra, rb)| {
-            // Results are covariant.
-            Matches::matches(
-                types,
-                WithRecGroup::map(a, |_| *ra),
-                WithRecGroup::map(b, |_| *rb),
-            )
-        })
+        func_signature_matches(
+            a.params().iter().map(|p| WithRecGroup::map(a, |_| *p)),
+            a.results().iter().map(|r| WithRecGroup::map(a, |_| *r)),
+            b.params().iter().map(|p| WithRecGroup::map(b, |_| *p)),
+            b.results().iter().map(|r| WithRecGroup::map(b, |_| *r)),
+            |x, y| Matches::matches(types, x, y),
+        )
     }
+}
+
+/// Is the function signature `[a_params] -> [a_results]` a subtype of
+/// `[b_params] -> [b_results]`?
+///
+/// `is_subtype(x, y)` decides `x <: y` for one value type. Each caller picks
+/// how its value types are represented, e.g. paired with the rec group they
+/// come from.
+pub(crate) fn func_signature_matches<T>(
+    a_params: impl ExactSizeIterator<Item = T>,
+    a_results: impl ExactSizeIterator<Item = T>,
+    b_params: impl ExactSizeIterator<Item = T>,
+    b_results: impl ExactSizeIterator<Item = T>,
+    mut is_subtype: impl FnMut(T, T) -> bool,
+) -> bool {
+    if a_params.len() != b_params.len() || a_results.len() != b_results.len() {
+        return false;
+    }
+
+    // A quick recap of covariance, contravariance, and how it applies to
+    // subtyping function types, because I (and almost everyone else, it
+    // seems) always need a reminder:
+    //
+    // *Covariance* is when `a <: b` and `a' <: b'`. That is, the subtyping
+    // checks on the nested things (`a'` and `b'`) goes the same way as the
+    // outer things (`a` and `b`).
+    //
+    // *Contravariance* is when `a <: b` and `b' <: a'`. That is, the
+    // subtyping on the nested things is reversed compared to the outer
+    // things.
+    //
+    // Now, when we are checking subtyping for function types, we have the
+    // following variance:
+    //
+    // * Parameters are contravariant: `(a -> c) <: (b -> c)` when `b <: a`.
+    //
+    //   For example, we can substitute a `Cat -> Cat` function with a
+    //   `Animal -> Cat` function because `Cat <: Animal` and so all
+    //   arguments that could be given to the function are still valid.
+    //
+    //   We can't do the opposite and replace an `Animal -> Cat` function
+    //   with a `Cat -> Cat` function. What would the `Cat -> Cat` function
+    //   do when given a `Dog`? It is unsound.
+    //
+    // * Results are covariant: `(a -> b) <: (a -> c)` when `b <: c`.
+    //
+    //   For example, we can substitute a `Cat -> Animal` function with a
+    //   `Cat -> Cat` function because callers expect to be returned an
+    //   `Animal` and all `Cat`s are `Animal`s. (Also: all `Cat`s are
+    //   `Beautiful`!)
+    //
+    //   We cannot do the opposite and substitute a `Cat -> Cat` function
+    //   with a `Cat -> Animal` function, since callers expect a `Cat` but
+    //   the new function could return a `Pig`.
+    //
+    // As always, Wikipedia is also helpful:
+    // https://en.wikipedia.org/wiki/Covariance_and_contravariance_(computer_science)
+
+    // Parameters are contravariant.
+    a_params.zip(b_params).all(|(pa, pb)| is_subtype(pb, pa))
+        // Results are covariant.
+        && a_results.zip(b_results).all(|(ra, rb)| is_subtype(ra, rb))
 }
 
 impl Matches for WithRecGroup<ArrayType> {

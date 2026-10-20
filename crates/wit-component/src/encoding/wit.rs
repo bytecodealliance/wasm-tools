@@ -138,21 +138,53 @@ pub(crate) fn component_extern_name(
     item: &WorldItem,
     canonical_names: bool,
 ) -> wasm_encoder::ComponentExternName<'static> {
-    let implements = resolve.implements_interface(key, item);
-    if canonical_names {
-        ComponentExternName {
-            name: resolve.name_canonicalized_world_key(key).into(),
-            implements: implements.map(|id| resolve.canonicalized_id_of(id).unwrap().into()),
-            external_id: resolve.external_id_value(key, item).map(|s| s.into()),
-            version_suffix: resolve.version_suffix_value(key, item).map(|s| s.into()),
-        }
+    let interface = match key {
+        WorldKey::Interface(id) => Some(*id),
+        WorldKey::Name(_) => None,
+    };
+    interface_extern_name(
+        resolve,
+        &resolve.name_world_key(key),
+        interface,
+        resolve.implements_interface(key, item),
+        resolve.external_id_value(key, item),
+        canonical_names,
+    )
+}
+
+/// Returns the name of an import or export named `name`.
+///
+/// `interface` is the interface that `name` refers to when `name` is an
+/// interface name, and `implements` is the interface that a plain `name`
+/// implements. With `canonical_names` these interfaces are named by their
+/// canonicalized interface names with the rest of their version in the
+/// `version-suffix`.
+pub(crate) fn interface_extern_name(
+    resolve: &Resolve,
+    name: &str,
+    interface: Option<InterfaceId>,
+    implements: Option<InterfaceId>,
+    external_id: Option<String>,
+    canonical_names: bool,
+) -> ComponentExternName<'static> {
+    let (name, implements, version_suffix) = if canonical_names {
+        let canonical = |id| resolve.canonicalized_id_of(id).unwrap();
+        (
+            interface.map_or_else(|| name.to_string(), canonical),
+            implements.map(canonical),
+            interface
+                .or(implements)
+                .and_then(|id| resolve.version_suffix_of(id)),
+        )
     } else {
-        ComponentExternName {
-            name: resolve.name_world_key(key).into(),
-            implements: implements.map(|id| resolve.id_of(id).unwrap().into()),
-            external_id: resolve.external_id_value(key, item).map(|s| s.into()),
-            version_suffix: None,
-        }
+        let implements = implements.map(|id| resolve.id_of(id).unwrap());
+        (name.to_string(), implements, None)
+    };
+    ComponentExternName {
+        name: name.into(),
+        implements: implements.map(|s| s.into()),
+        external_id: external_id.map(|s| s.into()),
+        version_suffix: version_suffix.map(|s| s.into()),
     }
 }
 
@@ -172,9 +204,11 @@ impl Encoder<'_> {
             // export inside an interface's or world's component type. A
             // package without either has no such export, so each of its types
             // is additionally bound with a self-referential `eq` import whose
-            // fully-qualified name carries the package name. Later types then
-            // reference the imported index so that every import stays valid
-            // per the component model's named-type rules.
+            // fully-qualified name carries the package name. The import names
+            // the definition that was exported, not the alias the export
+            // introduces, because an import cannot refer to an export. Later
+            // types then reference the imported index so that every import
+            // stays valid per the component model's named-type rules.
             let pkg = &self.resolve.packages[self.package];
             let self_describe = pkg.interfaces.is_empty() && pkg.worlds.is_empty();
 
@@ -182,6 +216,7 @@ impl Encoder<'_> {
                 component: &mut self.component,
                 package: self.package,
                 type_encoding_maps: Default::default(),
+                exported_defs: Default::default(),
                 foreign_type_maps: Default::default(),
                 foreign_declared: Default::default(),
             };
@@ -189,7 +224,7 @@ impl Encoder<'_> {
                 encoder.encode_valtype(self.resolve, &Type::Id(id))?;
 
                 if self_describe {
-                    let index = encoder.type_encoding_maps.id_to_index[&id];
+                    let def_index = encoder.exported_defs[&id];
                     let ty = &self.resolve.types[id];
                     let imported = encoder.component.import(
                         ComponentExternName {
@@ -198,7 +233,7 @@ impl Encoder<'_> {
                             version_suffix: None,
                             external_id: ty.external_id.clone().map(Into::into),
                         },
-                        ComponentTypeRef::Type(TypeBounds::Eq(index)),
+                        ComponentTypeRef::Type(TypeBounds::Eq(def_index)),
                     );
                     encoder.type_encoding_maps.id_to_index.insert(id, imported);
                 }
@@ -260,19 +295,14 @@ impl Encoder<'_> {
         for interface in interfaces {
             encoder.interface = Some(interface);
             let iface = &self.resolve.interfaces[interface];
-            // TODO: refactor extern_name into a helper function
-            let extern_name = if self.canonical_names {
-                let name = self.resolve.canonicalized_id_of(interface).unwrap();
-                let version_suffix = self.resolve.version_suffix_of(interface);
-                ComponentExternName {
-                    name: name.into(),
-                    implements: None,
-                    external_id: None,
-                    version_suffix: version_suffix.map(|s| s.into()),
-                }
-            } else {
-                ComponentExternName::from(self.resolve.id_of(interface).unwrap())
-            };
+            let extern_name = interface_extern_name(
+                self.resolve,
+                &self.resolve.id_of(interface).unwrap(),
+                Some(interface),
+                None,
+                None,
+                self.canonical_names,
+            );
             if interface == id {
                 let idx = encoder.encode_instance(interface)?;
                 log::trace!("exporting self as {idx}");
@@ -645,6 +675,9 @@ struct PackageTypeEncoder<'b, 'a> {
     component: &'b mut ComponentBuilder,
     package: PackageId,
     type_encoding_maps: TypeEncodingMaps<'a>,
+    /// Definition index each owned type was exported from, before the export
+    /// alias. Self-describing imports bind `eq` to this index.
+    exported_defs: HashMap<TypeId, u32>,
     /// Encoding maps for the definitions restated to bind imports of
     /// package-scope types from other packages, kept separate from the maps of
     /// the definitions this package exports.
@@ -664,6 +697,9 @@ impl<'a> ValtypeEncoder<'a> for PackageTypeEncoder<'_, 'a> {
             self.component
                 .export(name, ComponentExportKind::Type, index, None),
         )
+    }
+    fn note_exported_def(&mut self, id: TypeId, def_index: u32) {
+        self.exported_defs.insert(id, def_index);
     }
     fn export_resource(&mut self, _name: ComponentExternName<'a>) -> u32 {
         unreachable!("package-scope resources are not allowed")

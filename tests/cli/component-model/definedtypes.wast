@@ -121,3 +121,20 @@
 (assert_invalid
   (component (type (variant)))
   "variant type must have at least one case")
+
+;; A type index encoded as the s33 -2^32 is malformed.
+(assert_malformed
+  (component binary
+    "\00asm\0d\00\01\00"
+    "\07\09\02"
+    "\70\7d"                    ;; type 0: (list u8)
+    "\70\80\80\80\80\70")       ;; type 1: (list <typeidx -2^32>)
+  "invalid leading byte (0x80) for component value type")
+
+;; A negative s33 which isn't a primitive value type is malformed.
+(assert_malformed
+  (component binary
+    "\00asm\0d\00\01\00"
+    "\07\03\01"
+    "\70\40")                   ;; type 0: (list <-64>)
+  "invalid leading byte (0x40) for component value type")

@@ -11,7 +11,10 @@ use crate::validator::types::{
     Types, TypesKind, TypesRef, TypesRefKind,
 };
 use crate::{AbstractHeapType, CompositeInnerType, HeapType, RefType, StorageType, prelude::*};
-use crate::{Error, FuncType, MemoryType, PrimitiveValType, Result, TableType, ValType};
+use crate::{
+    Error, FuncType, GlobalType, MemoryType, PrimitiveValType, Result, TableType, ValType,
+};
+use alloc::borrow::Cow;
 use core::fmt;
 use core::ops::Index;
 use core::sync::atomic::{AtomicUsize, Ordering};
@@ -776,6 +779,13 @@ impl ComponentValType {
             ComponentValType::Type(ty) => types[*ty].lower_gc(types, abi, options, offset, core),
         }
     }
+
+    pub(crate) fn eq(a: &Self, b: &Self, types: &TypeList, offset: u64) -> bool {
+        let cx = SubtypeCx::new(types, types);
+        let ab = cx.component_val_type(&a, &b, offset).is_ok();
+        let ba = cx.component_val_type(&b, &a, offset).is_ok();
+        ab && ba
+    }
 }
 
 trait ModuleImportKey {
@@ -1021,16 +1031,6 @@ pub struct ComponentType {
     /// create fresh new versions of all of these resources. The path here is
     /// within the `exports` array.
     pub defined_resources: Vec<(ResourceId, Vec<usize>)>,
-
-    /// The set of all resources which are explicitly exported by this
-    /// component, and where they're exported.
-    ///
-    /// This mapping is stored separately from `defined_resources` to ensure
-    /// that it contains all exported resources, not just those which are
-    /// defined. That means that this can cover reexports of imported
-    /// resources, exports of local resources, or exports of closed-over
-    /// resources for example.
-    pub explicit_resources: IndexMap<ResourceId, Vec<usize>>,
 }
 
 /// Either an import or an export within [`ComponentType`] or
@@ -1041,10 +1041,26 @@ pub struct ComponentItem {
     pub ty: ComponentEntityType,
     /// The optional `(implements "...")` metadata, if specified.
     pub implements: Option<String>,
-    /// The optional `(versionsuffix "...")` metadata, if specified.
+    /// The optional `(version-suffix "...")` metadata, if specified.
     pub version_suffix: Option<String>,
     /// The optional `(external_id "...")` metadata, if specified.
     pub external_id: Option<String>,
+}
+
+impl ComponentItem {
+    /// Returns `name`, which this item is keyed by, with the version suffix
+    /// appended if it applies to `name`.
+    pub fn full_name<'a>(&self, name: &'a str) -> Cow<'a, str> {
+        crate::with_version_suffix(name, self.version_suffix.as_deref())
+    }
+
+    /// Returns the full name of the interface in `implements`, if specified.
+    pub fn full_implements(&self) -> Option<Cow<'_, str>> {
+        Some(crate::with_version_suffix(
+            self.implements.as_ref()?,
+            self.version_suffix.as_deref(),
+        ))
+    }
 }
 
 impl TypeData for ComponentType {
@@ -1099,10 +1115,6 @@ pub struct ComponentInstanceType {
     /// instance then this list is always empty. For concrete instances
     /// defined resources are tracked in the component state or component type.
     pub defined_resources: Vec<ResourceId>,
-
-    /// The list of all resources that are explicitly exported from this
-    /// instance type along with the path they're exported at.
-    pub explicit_resources: IndexMap<ResourceId, Vec<usize>>,
 }
 
 impl TypeData for ComponentInstanceType {
@@ -1209,10 +1221,10 @@ pub(crate) enum LoweredFuncType {
 }
 
 impl LoweredFuncType {
-    pub(crate) fn intern(self, types: &mut TypeAlloc, offset: u64) -> CoreTypeId {
+    pub(crate) fn intern(self, types: &mut TypeAlloc, offset: u64) -> Result<CoreTypeId> {
         match self {
             LoweredFuncType::New(ty) => types.intern_func_type(ty, offset),
-            LoweredFuncType::Existing(id) => id,
+            LoweredFuncType::Existing(id) => Ok(id),
         }
     }
 }
@@ -1306,7 +1318,7 @@ impl ComponentFuncType {
             (Abi::Lower, Concurrency::Async { callback: _ }) => {
                 if self.result.is_some() {
                     sig.params.max = MAX_LOWERED_TYPES;
-                    sig.params.assert_push(ValType::I32);
+                    sig.params.assert_push(ptr_size.core_type());
                     options.require_memory(offset)?;
                 }
                 sig.results.assert_push(ValType::I32);
@@ -2959,6 +2971,83 @@ impl TypeAlloc {
         }
     }
 
+    /// Searches `exports` for where each of `resources` is explicitly
+    /// exported, returning the path to each resource that is found.
+    ///
+    /// A resource is explicitly exported when it's exported as a type, either
+    /// directly within `exports` or transitively within an exported instance.
+    /// Each path is a list of indices where the first indexes into `exports`
+    /// and each subsequent index indexes into the exports of the instance
+    /// found at the previous index. This is the same representation as the
+    /// paths in [`ComponentType::imported_resources`], for example.
+    ///
+    /// Resources which aren't explicitly exported are absent from the returned
+    /// map. If a resource is exported at multiple paths then the first one
+    /// found is returned.
+    ///
+    /// Note that paths are computed here on demand, as opposed to being stored
+    /// in each instance or component type, because storing them would copy
+    /// each path every time an instance is exported or instantiated, which can
+    /// use an amount of memory super-linear in the size of the input.
+    pub(crate) fn explicit_resource_paths(
+        &self,
+        exports: &IndexMap<String, ComponentItem>,
+        resources: impl IntoIterator<Item = ResourceId>,
+    ) -> Map<ResourceId, Vec<usize>> {
+        let mut remaining = resources.into_iter().collect::<Set<_>>();
+        let mut paths = Map::default();
+        self.search_explicit_resources(
+            exports,
+            &mut Vec::new(),
+            &mut Set::default(),
+            &mut remaining,
+            &mut paths,
+        );
+        paths
+    }
+
+    fn search_explicit_resources(
+        &self,
+        exports: &IndexMap<String, ComponentItem>,
+        path: &mut Vec<usize>,
+        visited: &mut Set<ComponentInstanceTypeId>,
+        remaining: &mut Set<ResourceId>,
+        paths: &mut Map<ResourceId, Vec<usize>>,
+    ) {
+        for (i, export) in exports.values().enumerate() {
+            if remaining.is_empty() {
+                return;
+            }
+            path.push(i);
+            match export.ty {
+                ComponentEntityType::Type {
+                    created: ComponentAnyTypeId::Resource(id),
+                    ..
+                } => {
+                    if remaining.remove(&id.resource()) {
+                        paths.insert(id.resource(), path.clone());
+                    }
+                }
+
+                // Each instance type is only searched once. Instance types may
+                // be referenced many times, for example the same instance
+                // exported under many names, and all resources within one are
+                // found during the first search of it, so later searches
+                // would find nothing new. This keeps the search linear in the
+                // number of distinct types rather than exponential.
+                ComponentEntityType::Instance(id) => {
+                    if visited.insert(id) {
+                        let exports = &self[id].exports;
+                        self.search_explicit_resources(exports, path, visited, remaining, paths);
+                    }
+                }
+
+                _ => {}
+            }
+            path.pop();
+        }
+    }
+
     /// Returns whether the type `id` is "named" where named types are presented
     /// via the provided `set`.
     ///
@@ -3047,25 +3136,6 @@ where
     where
         T: TypeData;
 
-    /// Apply `map` to the keys of `tmp`, setting `*any_changed = true` if any
-    /// keys were remapped.
-    fn map_map(
-        tmp: &mut IndexMap<ResourceId, Vec<usize>>,
-        any_changed: &mut bool,
-        map: &Remapping,
-    ) {
-        for (id, path) in mem::take(tmp) {
-            let id = match map.resources.get(&id) {
-                Some(id) => {
-                    *any_changed = true;
-                    *id
-                }
-                None => id,
-            };
-            tmp.insert(id, path);
-        }
-    }
-
     /// If `any_changed` is true, push `ty`, update `map` to point `id` to the
     /// new type ID, set `id` equal to the new type ID, and return `true`.
     /// Otherwise, update `map` to point `id` to itself and return `false`.
@@ -3143,7 +3213,6 @@ where
                 any_changed = true;
             }
         }
-        Self::map_map(&mut ty.explicit_resources, &mut any_changed, map);
         self.insert_if_any_changed(map, any_changed, id, ty)
     }
 
@@ -3234,7 +3303,6 @@ where
                 any_changed = true;
             }
         }
-        Self::map_map(&mut tmp.explicit_resources, &mut any_changed, map);
         self.insert_if_any_changed(map, any_changed, id, tmp)
     }
 
@@ -3415,6 +3483,15 @@ impl<'a> SubtypeCx<'a> {
         mem::swap(&mut self.a, &mut self.b);
     }
 
+    /// Executes the closure `f` with the type lists swapped, swapping them
+    /// back afterwards.
+    fn swapped<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.swap();
+        let result = f(self);
+        self.swap();
+        result
+    }
+
     /// Executes the closure `f`, resetting the internal arenas to their
     /// original size after the closure finishes.
     ///
@@ -3530,10 +3607,13 @@ impl<'a> SubtypeCx<'a> {
             .iter()
             .map(|(name, ty)| (name.clone(), ty.ty))
             .collect();
-        self.swap();
-        let mut import_mapping =
-            self.open_instance_type(&b_imports, a, ExternKind::Import, offset)?;
-        self.swap();
+        let mut import_mapping = self
+            .swapped(|this| this.open_instance_type(&b_imports, a, ExternKind::Import, offset))?;
+        // Only the resource mappings from the above are used to remap A's
+        // exports, and otherwise the type renamings in `import_mapping` map
+        // from types in A's arena to types in B's arena, so they're not valid
+        // to apply to A's exports in A's arena.
+        import_mapping.reset_type_cache();
         self.with_checkpoint(|this| {
             let mut a_exports = this.a[a]
                 .exports
@@ -3568,7 +3648,7 @@ impl<'a> SubtypeCx<'a> {
         for (k, b) in b.exports.iter() {
             match a.exports.get(k) {
                 Some(a) => exports.push((a.ty, b.ty)),
-                None => bail!(offset, "missing expected export `{k}`"),
+                None => bail!(offset, "missing expected export `{}`", b.full_name(k)),
             }
         }
         for (i, (a, b)) in exports.iter().enumerate() {
@@ -3578,8 +3658,13 @@ impl<'a> SubtypeCx<'a> {
             };
             // On failure attach the name of this export as context to
             // the error message to leave a breadcrumb trail.
-            let (name, _) = self.b[b_id].exports.get_index(i).unwrap();
-            return Err(err.with_context(|| format!("type mismatch in instance export `{name}`")));
+            let (name, item) = self.b[b_id].exports.get_index(i).unwrap();
+            return Err(err.with_context(|| {
+                format!(
+                    "type mismatch in instance export `{}`",
+                    item.full_name(name)
+                )
+            }));
         }
         Ok(())
     }
@@ -3644,7 +3729,7 @@ impl<'a> SubtypeCx<'a> {
             );
         }
         for ((an, a), (bn, b)) in a.params.iter().zip(b.params.iter()) {
-            if an != bn {
+            if an.as_str() != bn.as_str() {
                 bail!(offset, "expected parameter named `{bn}`, found `{an}`");
             }
             self.component_val_type(a, b, offset)
@@ -3677,18 +3762,19 @@ impl<'a> SubtypeCx<'a> {
         // can export *more* than what this module type needs).
         // However, for imports, the check is reversed (i.e. it is okay
         // to import *less* than what this module type needs).
-        self.swap();
-        let a_imports = &self.b[a].imports;
-        let b_imports = &self.a[b].imports;
-        for (k, a) in a_imports {
-            match b_imports.get(k) {
-                Some(b) => self
-                    .entity_type(b, a, offset)
-                    .with_context(|| format!("type mismatch in import `{}::{}`", k.0, k.1))?,
-                None => bail!(offset, "missing expected import `{}::{}`", k.0, k.1),
+        self.swapped(|this| {
+            let a_imports = &this.b[a].imports;
+            let b_imports = &this.a[b].imports;
+            for (k, a) in a_imports {
+                match b_imports.get(k) {
+                    Some(b) => this
+                        .entity_type(b, a, offset)
+                        .with_context(|| format!("type mismatch in import `{}::{}`", k.0, k.1))?,
+                    None => bail!(offset, "missing expected import `{}::{}`", k.0, k.1),
+                }
             }
-        }
-        self.swap();
+            Ok(())
+        })?;
         let a = &self.a[a];
         let b = &self.b[b];
         for (k, b) in b.exports.iter() {
@@ -3889,7 +3975,12 @@ impl<'a> SubtypeCx<'a> {
         for (name, expected) in entities.iter() {
             match a.get(name) {
                 Some(arg) => to_typecheck.push((*arg, expected.ty)),
-                None => bail!(offset, "missing {} named `{name}`", kind.desc()),
+                None => bail!(
+                    offset,
+                    "missing {} named `{}`",
+                    kind.desc(),
+                    expected.full_name(name)
+                ),
             }
         }
         let mut type_map = Map::default();
@@ -3920,8 +4011,14 @@ impl<'a> SubtypeCx<'a> {
                 ExternKind::Import => &component_type.imports,
                 ExternKind::Export => &component_type.exports,
             };
-            let (name, _) = entities.get_index(i).unwrap();
-            return Err(err.with_context(|| format!("type mismatch for {} `{name}`", kind.desc())));
+            let (name, item) = entities.get_index(i).unwrap();
+            return Err(err.with_context(|| {
+                format!(
+                    "type mismatch for {} `{}`",
+                    kind.desc(),
+                    item.full_name(name)
+                )
+            }));
         }
         mapping.types = type_map;
         Ok(mapping)
@@ -3945,29 +4042,29 @@ impl<'a> SubtypeCx<'a> {
             (EntityType::Table(_), b) => bail!(offset, "expected {}, found table", b.desc()),
             (EntityType::Memory(a), EntityType::Memory(b)) => Self::memory_type(a, b, offset),
             (EntityType::Memory(_), b) => bail!(offset, "expected {}, found memory", b.desc()),
-            (EntityType::Global(a), EntityType::Global(b)) => {
-                if a.mutable != b.mutable {
-                    bail!(offset, "global types differ in mutability")
-                }
-                if a.content_type == b.content_type {
-                    Ok(())
-                } else {
-                    bail!(
-                        offset,
-                        "expected global type {}, found {}",
-                        b.content_type,
-                        a.content_type,
-                    )
-                }
-            }
+            (EntityType::Global(a), EntityType::Global(b)) => self.global_type(a, b, offset),
             (EntityType::Global(_), b) => bail!(offset, "expected {}, found global", b.desc()),
-            (EntityType::Tag(a), EntityType::Tag(b)) => self.core_func_type(*a, *b, offset),
+            // Tag matching has to match both ways, see
+            // https://webassembly.github.io/spec/core/valid/matching.html#tag-types
+            (EntityType::Tag(a), EntityType::Tag(b)) => {
+                self.core_func_type(*b, *a, offset)?;
+                self.core_func_type(*a, *b, offset)
+            }
             (EntityType::Tag(_), b) => bail!(offset, "expected {}, found tag", b.desc()),
         }
     }
 
     pub(crate) fn table_type(a: &TableType, b: &TableType, offset: u64) -> Result<()> {
-        if a.element_type != b.element_type {
+        let TableType {
+            element_type,
+            shared,
+            table64,
+
+            // checked via `limits_match!` below.
+            initial: _,
+            maximum: _,
+        } = *a;
+        if element_type != b.element_type {
             bail!(
                 offset,
                 "expected table element type {}, found {}",
@@ -3975,8 +4072,11 @@ impl<'a> SubtypeCx<'a> {
                 a.element_type,
             )
         }
-        if a.shared != b.shared {
+        if shared != b.shared {
             bail!(offset, "mismatch in the shared flag for tables")
+        }
+        if table64 != b.table64 {
+            bail!(offset, "mismatch in index type used for tables")
         }
         if limits_match!(a, b) {
             Ok(())
@@ -3986,10 +4086,21 @@ impl<'a> SubtypeCx<'a> {
     }
 
     pub(crate) fn memory_type(a: &MemoryType, b: &MemoryType, offset: u64) -> Result<()> {
-        if a.shared != b.shared {
+        let MemoryType {
+            shared,
+            memory64,
+
+            // checked manually below to handle the default
+            page_size_log2: _,
+
+            // checked via `limits_match!` below.
+            initial: _,
+            maximum: _,
+        } = *a;
+        if shared != b.shared {
             bail!(offset, "mismatch in the shared flag for memories")
         }
-        if a.memory64 != b.memory64 {
+        if memory64 != b.memory64 {
             bail!(offset, "mismatch in index type used for memories")
         }
         if a.page_size_log2() != b.page_size_log2() {
@@ -3999,6 +4110,39 @@ impl<'a> SubtypeCx<'a> {
             Ok(())
         } else {
             bail!(offset, "mismatch in memory limits")
+        }
+    }
+
+    fn global_type(&self, a: &GlobalType, b: &GlobalType, offset: u64) -> Result<()> {
+        let GlobalType {
+            content_type,
+            mutable,
+            shared,
+        } = *a;
+        if mutable != b.mutable {
+            bail!(offset, "global types differ in mutability")
+        }
+        if shared != b.shared {
+            bail!(offset, "mismatch in the shared flag for globals")
+        }
+        // Mutable globals are invariant in their content type while immutable
+        // globals are covariant, see
+        // https://webassembly.github.io/spec/core/valid/matching.html#global-types
+        let ok = if mutable {
+            self.a.valtype_is_subtype(content_type, b.content_type)
+                && self.a.valtype_is_subtype(b.content_type, content_type)
+        } else {
+            self.a.valtype_is_subtype(content_type, b.content_type)
+        };
+        if ok {
+            Ok(())
+        } else {
+            bail!(
+                offset,
+                "expected global type {}, found {}",
+                b.content_type,
+                content_type,
+            )
         }
     }
 
@@ -4069,7 +4213,7 @@ impl<'a> SubtypeCx<'a> {
                 }
 
                 for ((aname, a), (bname, b)) in a.fields.iter().zip(b.fields.iter()) {
-                    if aname != bname {
+                    if aname.as_str() != bname.as_str() {
                         bail!(offset, "expected field name `{bname}`, found `{aname}`");
                     }
                     self.component_val_type(a, b, offset)
@@ -4088,7 +4232,7 @@ impl<'a> SubtypeCx<'a> {
                     );
                 }
                 for ((aname, a), (bname, b)) in a.cases.iter().zip(b.cases.iter()) {
-                    if aname != bname {
+                    if aname.as_str() != bname.as_str() {
                         bail!(offset, "expected case named `{bname}`, found `{aname}`");
                     }
                     match (&a.ty, &b.ty) {
@@ -4163,7 +4307,11 @@ impl<'a> SubtypeCx<'a> {
                     Flags(_) => "flags",
                     _ => "enum",
                 };
-                if a.len() == b.len() && a.iter().eq(b.iter()) {
+                if a.len() == b.len()
+                    && a.iter()
+                        .map(|s| s.as_str())
+                        .eq(b.iter().map(|s| s.as_str()))
+                {
                     Ok(())
                 } else {
                     bail!(offset, "mismatch in {desc} elements")
@@ -4262,8 +4410,7 @@ impl<'a> SubtypeCx<'a> {
                     created: actual, ..
                 },
             ) => {
-                let prev = type_map.insert(expected, actual);
-                assert!(prev.is_none());
+                type_map.insert(expected, actual);
             }
             (ComponentEntityType::Instance(expected), ComponentEntityType::Instance(actual)) => {
                 let actual = &self.a[actual];
@@ -4324,6 +4471,13 @@ impl<'a> SubtypeArena<'a> {
             debug_assert!(b.index() < CoreTypeId::list(self.types).len());
             self.types.id_is_subtype(a, b)
         }
+    }
+
+    /// Is `a` a subtype of `b`?
+    fn valtype_is_subtype(&self, a: ValType, b: ValType) -> bool {
+        // NB: like `id_is_subtype` above core types are never in `self.list`
+        // so this can defer to `self.types` directly.
+        self.types.valtype_is_subtype(a, b)
     }
 }
 

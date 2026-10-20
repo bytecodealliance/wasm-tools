@@ -1,0 +1,10 @@
+// parse-fail
+
+package foo:foo;
+
+interface foo {
+  resource blob {
+    position: func() -> u64;
+    position: get() -> u64;
+  }
+}

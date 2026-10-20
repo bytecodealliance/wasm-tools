@@ -137,3 +137,34 @@
   (start $start (value $name) (result (value $greeting)))
   (export "greeting" (value $greeting))
 )
+
+;; exported value types cannot transitively contain a `borrow`
+(assert_invalid
+  (component
+    (type (component
+      (export "r" (type $r (sub resource)))
+      (type $b (borrow $r))
+      (export "v" (value (type $b))))))
+  "exported value type cannot contain a `borrow` type")
+(assert_invalid
+  (component
+    (type (instance
+      (export "r" (type $r (sub resource)))
+      (type $b (borrow $r))
+      (type $t (tuple $b))
+      (export "v" (value (type $t))))))
+  "exported value type cannot contain a `borrow` type")
+(assert_invalid
+  (component
+    (import "r" (type $r (sub resource)))
+    (type $b (borrow $r))
+    (import "v" (value $v (type $b)))
+    (export "v2" (value $v)))
+  "exported value type cannot contain a `borrow` type")
+(assert_invalid
+  (component
+    (import "r" (type $r (sub resource)))
+    (type $b (borrow $r))
+    (import "v" (value $v (type $b)))
+    (instance (export "v" (value $v))))
+  "exported value type cannot contain a `borrow` type")

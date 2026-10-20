@@ -126,8 +126,8 @@ impl Render for World {
             _opts: &RenderOpts,
             func: &StandaloneFunc,
         ) -> fmt::Result {
-            let opt_async = if func.async_ { "async " } else { "" };
-            write!(f, "{}: {opt_async}func({})", func.name, func.params)?;
+            let keyword = crate::function::func_keyword(func.async_, func.accessor);
+            write!(f, "{}: {keyword}({})", func.name, func.params)?;
             if let Some(ty) = &func.result {
                 write!(f, " -> {ty}")?;
             }

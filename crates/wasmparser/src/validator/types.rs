@@ -234,10 +234,13 @@ impl TypeInfo {
     /// being an aggregate containing `other`.
     ///
     /// Returns an error if the type size would exceed this crate's static limit
-    /// of a type size.
+    /// of a type size, or if the nesting depth is too high.
     #[cfg(feature = "component-model")]
     pub(crate) fn combine(&mut self, other: TypeInfo, offset: u64) -> Result<()> {
         let depth = self.depth().max(other.depth().saturating_add(1));
+        if depth > crate::limits::MAX_WASM_COMPONENT_TYPE_DEPTH {
+            bail!(offset, "type nesting is too deep");
+        }
         let size = super::combine_type_sizes(self.size(), other.size(), offset)?;
         *self = TypeInfo::_new(size, depth);
         Ok(())
@@ -579,9 +582,9 @@ impl<'a> TypesRef<'a> {
     pub fn entity_type_from_export(&self, export: &Export) -> Option<EntityType> {
         match &self.kind {
             TypesRefKind::Module(module) => Some(match export.kind {
-                ExternalKind::Func | ExternalKind::FuncExact => EntityType::Func(
-                    module.types[*module.functions.get(export.index as usize)? as usize],
-                ),
+                ExternalKind::Func | ExternalKind::FuncExact => {
+                    module.exported_function_type(export.index)?
+                }
                 ExternalKind::Table => {
                     EntityType::Table(*module.tables.get(export.index as usize)?)
                 }
@@ -901,14 +904,31 @@ impl TypeList {
     /// If the `needs_type_canonicalization` flag is `false` then it must be
     /// required that `RecGroup` doesn't have any rec-group-relative references
     /// and it will additionally not be intern'd.
+    ///
+    /// Returns an error if adding the types in `rec_group` would push the
+    /// total number of core types in this list beyond what wasmparser's
+    /// implementation can refer to.
     pub fn intern_canonical_rec_group(
         &mut self,
         needs_type_canonicalization: bool,
         mut rec_group: RecGroup,
-    ) -> (bool, RecGroupId) {
+        offset: u64,
+    ) -> Result<(bool, RecGroupId)> {
         let rec_group_id = self.rec_group_elements.len();
         let rec_group_id = u32::try_from(rec_group_id).unwrap();
         let rec_group_id = RecGroupId::from_index(rec_group_id);
+
+        // Ensure that every id allocated below is representable as a
+        // `PackedIndex` because otherwise the generated ids aren't actually
+        // valid to be stored in all locations they're expected to be stored in.
+        let start = self.core_types.len();
+        let start = u32::try_from(start).unwrap();
+        let start = CoreTypeId::from_index(start);
+        let end = start.index() + rec_group.types().len();
+        let end = u32::try_from(end).unwrap();
+        if end > 0 && PackedIndex::from_id(CoreTypeId::from_index(end - 1)).is_none() {
+            bail!(offset, "implementation limit: too many core types");
+        }
 
         if needs_type_canonicalization {
             let canonical_rec_groups = self
@@ -916,22 +936,20 @@ impl TypeList {
                 .as_mut()
                 .expect("cannot intern into a committed list");
             let entry = match canonical_rec_groups.entry(rec_group) {
-                Entry::Occupied(e) => return (false, *e.get()),
+                Entry::Occupied(e) => return Ok((false, *e.get())),
                 Entry::Vacant(e) => e,
             };
             rec_group = entry.key().clone();
             entry.insert(rec_group_id);
         }
 
-        let start = self.core_types.len();
-        let start = u32::try_from(start).unwrap();
-        let start = CoreTypeId::from_index(start);
-
         for mut ty in rec_group.into_types() {
             debug_assert_eq!(self.core_types.len(), self.core_type_to_supertype.len());
             debug_assert_eq!(self.core_types.len(), self.core_type_to_rec_group.len());
 
-            debug_assert!(ty.supertype_idxs.len() <= 2);
+            // Multiple supertypes aren't implemented here and are invalid
+            // anyway. That validity predicate should be checked already.
+            debug_assert!(ty.supertype_idxs.len() <= 1);
             self.core_type_to_supertype
                 .push(ty.supertype_idxs.get(0).and_then(|idx| match idx.unpack() {
                     UnpackedIndex::RecGroup(offset) => {
@@ -966,20 +984,20 @@ impl TypeList {
 
         self.rec_group_elements.push(range.clone());
 
-        return (true, rec_group_id);
+        Ok((true, rec_group_id))
     }
 
     /// Helper for interning a sub type as a rec group; see
     /// [`Self::intern_canonical_rec_group`].
-    pub fn intern_sub_type(&mut self, sub_ty: SubType, offset: u64) -> CoreTypeId {
+    pub fn intern_sub_type(&mut self, sub_ty: SubType, offset: u64) -> Result<CoreTypeId> {
         let (_is_new, group_id) =
-            self.intern_canonical_rec_group(true, RecGroup::implicit(offset, sub_ty));
-        self[group_id].start
+            self.intern_canonical_rec_group(true, RecGroup::implicit(offset, sub_ty), offset)?;
+        Ok(self[group_id].start)
     }
 
     /// Helper for interning a function type as a rec group; see
     /// [`Self::intern_sub_type`].
-    pub fn intern_func_type(&mut self, ty: FuncType, offset: u64) -> CoreTypeId {
+    pub fn intern_func_type(&mut self, ty: FuncType, offset: u64) -> Result<CoreTypeId> {
         self.intern_sub_type(SubType::func(ty, false), offset)
     }
 

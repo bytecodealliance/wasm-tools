@@ -1,4 +1,4 @@
-;; RUN: wast --assert default --snapshot tests/snapshots %
+;; RUN: wast --assert default --snapshot tests/snapshots % -f cm-accessors
 
 (component definition
   (func (import "a"))
@@ -212,3 +212,150 @@
 (assert_invalid
   (component (type (func (param "foo-bar" u8) (param "foobar" u8))))
   "conflicts with previous parameter name")
+
+;; Getters and setters
+(component
+  (import "r" (type $r (sub resource)))
+  (import "r2" (type $r2 (eq $r)))
+  (type $t u32)
+  (import "t2" (type $t2 (eq $t)))
+
+  (import "[get]a" (func (result u32)))
+  (import "[set]a" (func (param "v" u32)))
+  (import "[get]b" (func (result (result u32))))
+  (import "[set]b" (func (param "v" u32)))
+  (import "[get]c" (func (result (own $r))))
+  (import "[set]c" (func (param "v" (own $r2))))
+  (import "[get]d" (func (result $t)))
+  (import "[set]d" (func (param "v" $t2)))
+  (import "[method][get]r.p" (func (param "self" (borrow $r)) (result u32)))
+  (import "[method][set]r.p" (func (param "self" (borrow $r)) (param "v" u32)))
+  (import "[static][get]r.q" (func (result u32)))
+  (import "[static][set]r.q" (func (param "v" u32) (result (result (error string)))))
+  ;; Strongly unique from the getters and setters above for now.
+  (import "[method]r.get-p" (func (param "self" (borrow $r))))
+  (import "[method]r.set-p" (func (param "self" (borrow $r)) (param "v" u32)))
+)
+
+;; Getters take only `self` (if `[method]`), must return a value, and cannot be async.
+(assert_invalid
+  (component (import "[get]a" (func (param "x" u32) (result u32))))
+  "getter function should have no parameters")
+(assert_invalid
+  (component
+    (import "r" (type $r (sub resource)))
+    (import "[method][get]r.p" (func (param "self" (borrow $r)) (param "x" u32) (result u32))))
+  "getter function should have no parameters besides `self`")
+(assert_invalid
+  (component (import "[get]a" (func)))
+  "getter function should return a value")
+(assert_invalid
+  (component (import "[get]a" (func (result (result)))))
+  "if a getter function returns a result, that result must have a value type")
+(assert_invalid
+  (component (import "[get]a" (func async (result u32))))
+  "getter function cannot be async")
+
+;; Setters take exactly one thing (besides `self`) which must match the
+;; getter's return type, return nothing or `(result (error $E)?)`, and aren't
+;; async.
+(assert_invalid
+  (component
+    (import "[get]a" (func (result u32)))
+    (import "[set]a" (func)))
+  "setter function should have exactly one parameter")
+(assert_invalid
+  (component
+    (import "r" (type $r (sub resource)))
+    (import "[method][get]r.p" (func (param "self" (borrow $r)) (result u32)))
+    (import "[method][set]r.p" (func (param "self" (borrow $r)))))
+  "setter function should have exactly one parameter besides `self`")
+(assert_invalid
+  (component
+    (import "[get]a" (func (result u32)))
+    (import "[set]a" (func (param "v" u32) (result u32))))
+  "setter function should return nothing or `(result (error $E)?)`")
+(assert_invalid
+  (component
+    (import "[get]a" (func (result u32)))
+    (import "[set]a" (func (param "v" u32) (result (result u32)))))
+  "setter function should return nothing or `(result (error $E)?)`")
+(assert_invalid
+  (component
+    (import "[get]a" (func (result u32)))
+    (import "[set]a" (func async (param "v" u32))))
+  "setter function cannot be async")
+(assert_invalid
+  (component
+    (import "[get]a" (func (result u32)))
+    (import "[set]a" (func (param "v" f32))))
+  "import `[set]a`'s parameter type must match the return type of `[get]a`")
+(assert_invalid
+  (component
+    (import "[get]a" (func (result (result u32))))
+    (import "[set]a" (func (param "v" (result u32)))))
+  "import `[set]a`'s parameter type must match the return type of `[get]a`")
+(assert_invalid
+  (component
+    (import "R1" (type $R1 (sub resource)))
+    (import "R2" (type $R2 (sub resource)))
+    (import "[get]a" (func (result (own $R1))))
+    (import "[set]a" (func (param "v" (own $R2)))))
+  "import `[set]a`'s parameter type must match the return type of `[get]a`")
+
+;; Setters require their exact getter to precede them in the same scope (but
+;; not to immediately precede).
+(component
+  (import "r" (type $r (sub resource)))
+  (import "[get]a" (func (result u32)))
+  (import "[method][get]r.p" (func (param "self" (borrow $r)) (result u32)))
+  (import "[static][get]r.q" (func (result u32)))
+  (import "[set]a" (func (param "v" u32)))
+  (import "[method][set]r.p" (func (param "self" (borrow $r)) (param "v" u32)))
+  (import "[static][set]r.q" (func (param "v" u32) (result (result (error string)))))
+)
+(assert_invalid
+  (component (import "[set]a" (func (param "v" u32))))
+  "import name `[set]a` requires a preceding import named `[get]a`")
+(assert_invalid
+  (component
+    (import "[set]a" (func (param "v" u32)))
+    (import "[get]a" (func (result u32))))
+  "import name `[set]a` requires a preceding import named `[get]a`")
+(assert_invalid
+  (component
+    (import "[get]a-b" (func (result u32)))
+    (import "[set]ab" (func (param "v" u32))))
+  "import name `[set]ab` requires a preceding import named `[get]ab`")
+(assert_invalid
+  (component
+    (import "r" (type $r (sub resource)))
+    (import "[static][get]r.p" (func (result u32)))
+    (import "[method][set]r.p" (func (param "self" (borrow $r)) (param "v" u32))))
+  "import name `[method][set]r.p` requires a preceding import named `[method][get]r.p`")
+(assert_invalid
+  (component
+    (import "[get]a" (func (result u32)))
+    (import "b" (func (param "v" u32)))
+    (export "[set]a" (func 1)))
+  "export name `[set]a` requires a preceding export named `[get]a`")
+
+;; Strong uniqueness with `[get]` and `[set]`.
+(assert_invalid
+  (component (import "a" (func)) (import "[get]a" (func (result u32))))
+  "import name `[get]a` conflicts with previous name `a`")
+(assert_invalid
+  (component (import "[get]a" (func (result u32))) (import "a" (func)))
+  "import name `a` conflicts with previous name `[get]a`")
+(assert_invalid
+  (component
+    (import "[get]a" (func (result u32)))
+    (import "[set]a" (func (param "v" u32)))
+    (import "[set]A" (func (param "v" u32))))
+  "import name `[set]A` conflicts with previous name `[set]a`")
+(assert_invalid
+  (component
+    (import "r" (type $r (sub resource)))
+    (import "[method][get]r.p" (func (param "self" (borrow $r)) (result u32)))
+    (import "[static]r.P" (func)))
+  "import name `[static]r.P` conflicts with previous name `[method][get]r.p`")

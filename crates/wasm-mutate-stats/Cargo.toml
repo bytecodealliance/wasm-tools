@@ -12,13 +12,10 @@ anyhow = { workspace = true }
 arbitrary = { workspace = true }
 clap = { workspace = true }
 env_logger = { workspace = true }
-itertools = "0.15.0"
 log = { workspace = true }
-num_cpus = { workspace = true }
 rand = { workspace = true }
 wasm-mutate = { workspace = true }
 wasmparser = { workspace = true, features = ['std', 'validate'] }
-wasmprinter = { workspace = true }
 wasmtime = { workspace = true }
 
 [lib]

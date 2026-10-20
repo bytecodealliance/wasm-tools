@@ -1,0 +1,12 @@
+// parse-fail
+
+package foo:foo;
+
+world base {
+  import foo-bar: func();
+}
+
+world derived {
+  include base;
+  import foobar: func();
+}

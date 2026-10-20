@@ -285,11 +285,15 @@ impl<'a> Dump<'a> {
                     Ok(())
                 })?,
 
-                Payload::CodeSectionStart { count, range, size } => {
+                Payload::CodeSectionStart {
+                    count,
+                    unchecked_range,
+                    size,
+                } => {
                     write!(self.state, "code section")?;
-                    self.color_print(range.start)?;
+                    self.color_print(unchecked_range.start)?;
                     write!(self.state, "{count} count")?;
-                    self.print(range.end - size as u64)?;
+                    self.print(unchecked_range.end - size as u64)?;
                 }
 
                 Payload::CodeSectionEntry(body) => {
@@ -481,6 +485,7 @@ impl<'a> Dump<'a> {
                             | CanonicalFunction::StreamNew { .. }
                             | CanonicalFunction::StreamRead { .. }
                             | CanonicalFunction::StreamWrite { .. }
+                            | CanonicalFunction::StreamForward { .. }
                             | CanonicalFunction::StreamCancelRead { .. }
                             | CanonicalFunction::StreamCancelWrite { .. }
                             | CanonicalFunction::StreamDropReadable { .. }
@@ -488,6 +493,7 @@ impl<'a> Dump<'a> {
                             | CanonicalFunction::FutureNew { .. }
                             | CanonicalFunction::FutureRead { .. }
                             | CanonicalFunction::FutureWrite { .. }
+                            | CanonicalFunction::FutureForward { .. }
                             | CanonicalFunction::FutureCancelRead { .. }
                             | CanonicalFunction::FutureCancelWrite { .. }
                             | CanonicalFunction::FutureDropReadable { .. }
@@ -782,6 +788,10 @@ impl<'a> Dump<'a> {
                 write!(me.state, "{item:?}")?;
                 me.print(pos)
             }),
+            Linking::TargetArch(arch) => {
+                write!(self.state, "target arch: {arch:?}")?;
+                self.print(end)
+            }
             Linking::Unknown { ty, range, .. } => {
                 write!(self.state, "unknown subsection: {ty}")?;
                 self.print(range.start)?;

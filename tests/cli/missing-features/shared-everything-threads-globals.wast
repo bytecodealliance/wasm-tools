@@ -15,6 +15,6 @@
 (assert_invalid
   (module
     (global $a (import "spectest" "global_i32") i32)
-    (func (result i32) (global.atomic.get seq_cst $a))
+    (func (result i32) (global.atomic.get seqcst $a))
   )
   "shared-everything-threads support is not enabled")

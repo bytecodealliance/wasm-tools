@@ -4,10 +4,15 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    assignees:
+      - "alexcrichton"
 
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
       interval: "weekly"
-    allow:
-      - update-types: "version-update:semver-major"
+    assignees:
+      - "alexcrichton"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]

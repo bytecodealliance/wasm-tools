@@ -51,7 +51,8 @@ fn component_features(_path: &Path) -> &str {
         cm-async-stackful,\
         cm-threading,\
         cm-more-async-builtins,\
-        cm-fixed-length-lists"
+        cm-fixed-length-lists,\
+        cm-forward"
 }
 
 /// Recursively visit `src` and, for all test files, create a file in `dst` to

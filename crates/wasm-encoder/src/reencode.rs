@@ -833,7 +833,9 @@ pub mod utils {
                     reencoder.parse_data_section(&mut data, section)?;
                     module.section(&data);
                 }
-                wasmparser::Payload::CodeSectionStart { range, .. } => {
+                wasmparser::Payload::CodeSectionStart {
+                    unchecked_range, ..
+                } => {
                     handle_intersperse_section_hook(
                         reencoder,
                         module,
@@ -846,8 +848,8 @@ pub mod utils {
                     // does not give us here) and recurse with that. This means
                     // that users overriding `parse_code_section` always get
                     // that function called.
-                    let section = get_original_section(range.clone())?;
-                    let reader = wasmparser::BinaryReader::new(section, range.start);
+                    let section = get_original_section(unchecked_range.clone())?;
+                    let reader = wasmparser::BinaryReader::new(section, unchecked_range.start);
                     let section = wasmparser::CodeSectionReader::new(reader)?;
                     reencoder.parse_code_section(&mut codes, section)?;
                     module.section(&codes);

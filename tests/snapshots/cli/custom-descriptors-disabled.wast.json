@@ -21,6 +21,41 @@
       "filename": "custom-descriptors-disabled.2.wasm",
       "module_type": "binary",
       "text": "custom descriptors proposal must be enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 29,
+      "filename": "custom-descriptors-disabled.3.wasm",
+      "module_type": "binary",
+      "text": "custom descriptors required for exact function imports"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 35,
+      "filename": "custom-descriptors-disabled.4.wasm",
+      "module_type": "binary",
+      "text": "custom descriptors required for exact reference types"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 42,
+      "filename": "custom-descriptors-disabled.5.wasm",
+      "module_type": "binary",
+      "text": "custom descriptors required for exact reference types"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 49,
+      "filename": "custom-descriptors-disabled.6.wasm",
+      "module_type": "binary",
+      "text": "custom descriptors required for exact reference types"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 56,
+      "filename": "custom-descriptors-disabled.7.wasm",
+      "module_type": "binary",
+      "text": "custom descriptors required for exact reference types"
     }
   ]
 }

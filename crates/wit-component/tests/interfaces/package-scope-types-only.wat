@@ -1,13 +1,13 @@
 (component
   (type (;0;) (record (field "x" u32) (field "y" u32)))
   (export (;1;) "point" (type 0))
-  (import "local:demo/point" (type (;2;) (eq 1)))
+  (import "local:demo/point" (type (;2;) (eq 0)))
   (type (;3;) (enum "north" "south" "east" "west"))
   (export (;4;) "direction" (type 3))
-  (import "local:demo/direction" (type (;5;) (eq 4)))
+  (import "local:demo/direction" (type (;5;) (eq 3)))
   (type (;6;) (list 2))
   (export (;7;) "path" (type 6))
-  (import "local:demo/path" (type (;8;) (eq 7)))
+  (import "local:demo/path" (type (;8;) (eq 6)))
   (@custom "package-docs" "\01{}")
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")

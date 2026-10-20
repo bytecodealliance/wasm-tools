@@ -1,0 +1,5 @@
+(component
+  (type $r (;0;) (resource (rep i32)))
+  (type $o (;1;) (own $r))
+  (type (;2;) (future $o))
+)

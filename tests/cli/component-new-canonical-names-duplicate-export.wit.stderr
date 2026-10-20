@@ -1,0 +1,4 @@
+error: failed to encode a component from module
+
+Caused by:
+    0: export `a:b/c@0.1.0` and export `a:b/c@0.1.1` both have the canonical name `a:b/c@0.1`; semver-compatible versions of the same interface cannot both be exported when emitting canonical names

@@ -3,5 +3,5 @@
 ;;      --assert permissive \
 ;;      --snapshot tests/snapshots \
 ;;      --ignore-error-messages \
-;;      --features=wasm3,component-model,cm-map,cm-async,cm-implements,cm-async-stackful,cm-threading,cm-more-async-builtins,cm-fixed-length-lists \
+;;      --features=wasm3,component-model,cm-map,cm-async,cm-implements,cm-async-stackful,cm-threading,cm-more-async-builtins,cm-fixed-length-lists,cm-forward \
 ;;      tests/component-model/test/binary/binary.wast

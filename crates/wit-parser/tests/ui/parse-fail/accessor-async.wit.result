@@ -1,0 +1,5 @@
+expected keyword `func`, found an identifier
+     --> tests/ui/parse-fail/accessor-async.wit:6:15
+      |
+    6 |   prop: async get() -> u32;
+      |               ^

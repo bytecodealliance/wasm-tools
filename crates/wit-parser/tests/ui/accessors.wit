@@ -1,0 +1,37 @@
+package foo:bar;
+
+interface i {
+  // A getter and setter pair for the same property.
+  prop: get() -> u64;
+  prop: set(value: u64);
+
+  // Getters don't require a setter.
+  read-only: get() -> string;
+
+  // Setters may return a `result` with no `ok` type.
+  fallible: get() -> u32;
+  fallible: set(value: u32) -> result<_, string>;
+
+  // Neither `get` nor `set` is a keyword.
+  get: func();
+  set: func(value: u32);
+  getter: get() -> bool;
+  getter: set(value: bool);
+
+  resource blob {
+    constructor(init: list<u8>);
+    write: func(bytes: list<u8>);
+    position: get() -> u64;
+    position: set(value: u64);
+    max-size: static get() -> u64;
+    max-size: static set(value: u64) -> result<_, string>;
+    read-only: static get() -> string;
+  }
+}
+
+world w {
+  import prop: get() -> u64;
+  import prop: set(value: u64);
+  export other: get() -> u64;
+  export other: set(value: u64);
+}

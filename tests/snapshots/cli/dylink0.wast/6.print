@@ -6,5 +6,6 @@
     (import-info "a" "a")
     (import-info "b" "b" binding-weak)
     (runtime-path "a" "b")
+    (target-arch "wasm32")
   )
 )

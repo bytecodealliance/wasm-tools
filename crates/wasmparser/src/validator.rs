@@ -155,6 +155,10 @@ pub struct Validator {
     #[cfg(feature = "component-model")]
     components: Vec<ComponentState>,
 
+    /// The total number of modules and components, including nested ones,
+    /// seen so far in this validation.
+    modules_and_components: usize,
+
     /// Enabled WebAssembly feature flags, dictating what's valid and what
     /// isn't.
     features: WasmFeatures,
@@ -467,6 +471,7 @@ impl Validator {
             module,
             #[cfg(feature = "component-model")]
             components,
+            modules_and_components,
         } = self;
 
         assert!(
@@ -478,6 +483,7 @@ impl Validator {
         assert!(components.is_empty());
 
         *state = State::default();
+        *modules_and_components = 0;
     }
 
     /// Get this validator's unique identifier.
@@ -593,9 +599,9 @@ impl Validator {
             DataCountSection { count, range } => self.data_count_section(*count, range)?,
             CodeSectionStart {
                 count: _,
-                range,
+                unchecked_range,
                 size: _,
-            } => self.code_section_start(range)?,
+            } => self.code_section_start(unchecked_range)?,
             CodeSectionEntry(body) => {
                 let func_validator = self.code_section_entry(body)?;
                 return Ok(ValidPayload::Func(func_validator, body.clone()));
@@ -669,6 +675,15 @@ impl Validator {
                 return Err(Error::new("wasm version header out of order", range.start));
             }
         }
+
+        check_max(
+            self.modules_and_components,
+            1,
+            MAX_WASM_MODULES_AND_COMPONENTS,
+            "modules and components",
+            range.start,
+        )?;
+        self.modules_and_components += 1;
 
         self.state = match encoding {
             Encoding::Module => {
@@ -959,6 +974,13 @@ impl Validator {
 
         let state = self.module.as_mut().unwrap();
 
+        if !self.features.bulk_memory() {
+            bail!(
+                offset,
+                "data count section requires the bulk-memory proposal"
+            );
+        }
+
         if count > MAX_WASM_DATA_SEGMENTS as u32 {
             return Err(Error::new(
                 "data count section specifies too many data segments",
@@ -1106,9 +1128,7 @@ impl Validator {
                 Ok(())
             },
             |components, types, _features, ty, offset| {
-                ComponentState::add_core_type(
-                    components, ty, types, offset, false, /* checked above */
-                )
+                ComponentState::add_core_type(components, ty, types, offset)
             },
         )
     }
@@ -1456,7 +1476,9 @@ impl Validator {
 
 #[cfg(test)]
 mod tests {
-    use crate::{GlobalType, MemoryType, RefType, TableType, ValType, Validator, WasmFeatures};
+    use crate::{
+        GlobalType, MemoryType, RefType, TableType, ValType, ValidPayload, Validator, WasmFeatures,
+    };
     use anyhow::Result;
 
     #[test]
@@ -1640,5 +1662,43 @@ mod tests {
             panic!("should fail validation");
         };
         assert_eq!(err.missing_wasm_feature(), Some(WasmFeatures::EXCEPTIONS));
+    }
+
+    #[test]
+    fn validate_operators_individually() -> Result<()> {
+        let bytes = wat::parse_str(
+            r#"
+            (module
+                (type $a (array i32))
+                (func (result (ref $a))
+                    unreachable
+                    array.new_fixed $a 0xffffffff
+                    unreachable
+                    array.new_fixed $a 0xffffffff))
+        "#,
+        )?;
+
+        for use_visitor in [false, true] {
+            let mut validator = Validator::new();
+            for payload in crate::Parser::new(0).parse_all(&bytes) {
+                let ValidPayload::Func(func, body) = validator.payload(&payload?)? else {
+                    continue;
+                };
+                let mut func = func.into_validator(Default::default());
+                let mut reader = body.get_binary_reader();
+                func.read_locals(&mut reader)?;
+                let mut ops = crate::OperatorsReader::new(reader);
+                while !ops.eof() {
+                    let offset = ops.original_position();
+                    if use_visitor {
+                        ops.visit_operator(&mut func.visitor(offset))??;
+                    } else {
+                        func.op(offset, &ops.read()?)?;
+                    }
+                }
+                ops.finish()?;
+            }
+        }
+        Ok(())
     }
 }

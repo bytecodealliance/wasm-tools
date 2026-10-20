@@ -23,50 +23,57 @@
     },
     {
       "type": "assert_invalid",
-      "line": 50,
+      "line": 54,
       "filename": "lift.3.wasm",
+      "module_type": "binary",
+      "text": "canonical option `callback` uses a core function with an incorrect signature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 70,
+      "filename": "lift.4.wasm",
       "module_type": "binary",
       "text": "cannot specify post-return function in async"
     },
     {
       "type": "assert_invalid",
-      "line": 67,
-      "filename": "lift.4.wasm",
+      "line": 87,
+      "filename": "lift.5.wasm",
       "module_type": "binary",
       "text": "lowered parameter types `[I32]` do not match parameter types `[I32, I32]` of core function 0"
     },
     {
       "type": "assert_invalid",
-      "line": 83,
-      "filename": "lift.5.wasm",
+      "line": 103,
+      "filename": "lift.6.wasm",
       "module_type": "binary",
       "text": "core instance 0 has no export named `callback`"
     },
     {
       "type": "assert_invalid",
-      "line": 98,
-      "filename": "lift.6.wasm",
+      "line": 118,
+      "filename": "lift.7.wasm",
       "module_type": "binary",
       "text": "cannot specify callback without async"
     },
     {
       "type": "assert_invalid",
-      "line": 114,
-      "filename": "lift.7.wasm",
-      "module_type": "binary",
-      "text": "canonical option `memory` is required"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 130,
+      "line": 134,
       "filename": "lift.8.wasm",
       "module_type": "binary",
       "text": "canonical option `memory` is required"
     },
     {
       "type": "assert_invalid",
-      "line": 146,
+      "line": 150,
       "filename": "lift.9.wasm",
+      "module_type": "binary",
+      "text": "canonical option `memory` is required"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 166,
+      "filename": "lift.10.wasm",
       "module_type": "binary",
       "text": "the `async` canonical option requires an async function type"
     }

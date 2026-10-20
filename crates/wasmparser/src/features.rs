@@ -353,11 +353,24 @@ define_wasm_features! {
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
         pub cm_implements: CM_IMPLEMENTS(1 << 40) = true;
 
-        /// Support for the `(versionsuffix "...")` directive in the component model
+        /// Support for the `(version-suffix "...")` directive in the component model
         ///
         /// Corresponds to the 🔗 character in
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
         pub cm_canon_names: CM_CANON_NAMES(1 << 41) = false;
+
+        /// Support for the `stream.forward` and `future.forward` built-ins in
+        /// the component model async proposal.
+        ///
+        /// Corresponds to the ➡️ character in
+        /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
+        pub cm_forward: CM_FORWARD(1 << 42) = false;
+
+        /// Support for `[get]` and `[set]` annotations on function names in the component model.
+        ///
+        /// Corresponds to the 📡 character in
+        /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
+        pub cm_accessors: CM_ACCESSORS(1 << 43) = false;
     }
 }
 

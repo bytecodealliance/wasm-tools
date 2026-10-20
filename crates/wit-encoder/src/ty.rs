@@ -417,23 +417,18 @@ impl Render for TypeDef {
                     }
                     match &func.kind {
                         crate::ResourceFuncKind::Method(name, async_, result) => {
-                            let opt_async = if *async_ { "async " } else { "" };
-                            write!(
-                                f,
-                                "{}{name}: {opt_async}func({})",
-                                opts.spaces(),
-                                func.params
-                            )?;
+                            let keyword = crate::function::func_keyword(*async_, func.accessor);
+                            write!(f, "{}{name}: {keyword}({})", opts.spaces(), func.params)?;
                             if let Some(ty) = result {
                                 write!(f, " -> {ty}")?;
                             }
                             write!(f, ";\n")?;
                         }
                         crate::ResourceFuncKind::Static(name, async_, result) => {
-                            let opt_async = if *async_ { "async " } else { "" };
+                            let keyword = crate::function::func_keyword(*async_, func.accessor);
                             write!(
                                 f,
-                                "{}{name}: static {opt_async}func({})",
+                                "{}{name}: static {keyword}({})",
                                 opts.spaces(),
                                 func.params
                             )?;

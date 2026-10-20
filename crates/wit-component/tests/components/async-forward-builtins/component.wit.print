@@ -1,0 +1,5 @@
+package root:component;
+
+world root {
+  export foo: async func(x: future<u32>) -> stream<u32>;
+}

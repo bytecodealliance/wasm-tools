@@ -57,8 +57,12 @@ impl Opts {
     }
 
     pub fn run(mut self) -> Result<()> {
-        let (resolve, pkg_id) = self.resolve.load()?;
+        let (mut resolve, pkg_id) = self.resolve.load()?;
         let world = resolve.select_world(&[pkg_id], self.world.as_deref())?;
+
+        if self.emit_canonical_names {
+            resolve.merge_world_imports_based_on_semver(world)?;
+        }
 
         let mut wasm = wit_dylib::create(&resolve, world, Some(&mut self.dylib_opts))?;
         self.dylib_opts.async_.ensure_all_used()?;

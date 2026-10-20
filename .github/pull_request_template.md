@@ -1,0 +1,18 @@
+<!--
+Please make sure you include the following information:
+
+- If this work has been discussed elsewhere, please include a link to that
+  conversation. If it was discussed in an issue, just mention "issue #...".
+
+- Explain why this change is needed. If the details are in an issue already,
+  this can be brief.
+
+Our development process is documented at:
+https://github.com/bytecodealliance/wasm-tools/blob/main/CONTRIBUTING.md
+
+Please review the Bytecode Alliance's AI tool usage policy at
+https://github.com/bytecodealliance/governance/blob/main/AI_TOOL_POLICY.md
+
+Please ensure all communication follows the code of conduct:
+https://github.com/bytecodealliance/wasm-tools/blob/main/CODE_OF_CONDUCT.md
+-->

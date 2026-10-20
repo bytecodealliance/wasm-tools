@@ -1,7 +1,9 @@
 package foo:name;
 
 interface foo {
-  record foo {}
+  record foo {
+    a: u32,
+  }
 }
 
 use foo as bar;

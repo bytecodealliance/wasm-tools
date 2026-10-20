@@ -100,11 +100,21 @@ pub(crate) trait InternRecGroup {
                 offset,
             )?;
         }
+        // Interning relies on supertypes not existing, so validate here before
+        // that runs.
+        for ty in rec_group.types() {
+            if ty.supertype_idxs.len() > 1 {
+                bail!(offset, "multiple supertypes");
+            }
+        }
         if self.features().needs_type_canonicalization() {
             TypeCanonicalizer::new(self, offset).canonicalize_rec_group(&mut rec_group)?;
         }
-        let (is_new, rec_group_id) = types
-            .intern_canonical_rec_group(self.features().needs_type_canonicalization(), rec_group);
+        let (is_new, rec_group_id) = types.intern_canonical_rec_group(
+            self.features().needs_type_canonicalization(),
+            rec_group,
+            offset,
+        )?;
         let range = &types[rec_group_id];
         let start = range.start.index();
         let end = range.end.index();
@@ -171,7 +181,8 @@ pub(crate) trait InternRecGroup {
                 }
                 depth
             }
-            [_, _, ..] => bail!(offset, "multiple supertypes"),
+            // Should be rejected before this method runs.
+            [_, _, ..] => unreachable!(),
         };
         types.set_subtyping_depth(id, depth);
 

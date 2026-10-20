@@ -1,0 +1,5 @@
+@external-id is not allowed on include statements
+     --> tests/ui/parse-fail/external-id-on-include.wit:6:4
+      |
+    6 |   @external-id("x")
+      |    ^----------

@@ -56,3 +56,8 @@
   (component (type error-context))
   "requires the component model error-context feature"
 )
+
+(assert_invalid
+  (component (core func (canon task.return (result error-context))))
+  "requires the component model error-context feature"
+)

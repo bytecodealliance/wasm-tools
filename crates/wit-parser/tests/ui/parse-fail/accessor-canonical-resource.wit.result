@@ -1,0 +1,5 @@
+name `[method][get]blob.maxsize` conflicts with previous name `[method]blob.max-size`
+     --> tests/ui/parse-fail/accessor-canonical-resource.wit:8:5
+      |
+    8 |     maxsize: get() -> u64;
+      |     ^------

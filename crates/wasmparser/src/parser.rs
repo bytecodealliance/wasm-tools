@@ -222,7 +222,10 @@ pub enum Payload<'a> {
         count: u32,
         /// The range of bytes that represent this section, specified in
         /// offsets relative to the start of the byte stream.
-        range: Range<u64>,
+        ///
+        /// Note that, to better support streaming parsing and validation, the
+        /// validator does *not* check that this range is in bounds.
+        unchecked_range: Range<u64>,
         /// The size, in bytes, of the remaining contents of this section.
         ///
         /// This can be used in combination with [`Parser::skip_section`]
@@ -724,6 +727,14 @@ impl Parser {
                 // that means we reached the end of the data since it's
                 // just a bunch of sections concatenated after the header.
                 if eof && reader.bytes_remaining() == 0 {
+                    // If this is a nested module or component then the end of
+                    // the input must coincide with the end of the enclosing
+                    // section, otherwise the input was truncated.
+                    if let Some(max) = self.max_offset {
+                        if reader.original_position() < max {
+                            bail!(reader.original_position(), "unexpected end-of-file");
+                        }
+                    }
                     self.check_function_code_counts(reader.original_position())?;
                     self.check_data_count(reader.original_position())?;
                     return Ok(Payload::End(reader.original_position()));
@@ -741,6 +752,16 @@ impl Parser {
                             "expected section, got wasm magic number",
                             reader.original_position(),
                         ));
+                    }
+                    // If there's not enough data to tell whether this is the
+                    // magic number then request more data to keep the result
+                    // here consistent regardless of how the input is split up.
+                    Err(e)
+                        if !eof
+                            && !reader.remaining_buffer().is_empty()
+                            && WASM_MAGIC_NUMBER.starts_with(reader.remaining_buffer()) =>
+                    {
+                        return Err(e);
                     }
                     _ => {}
                 }
@@ -829,7 +850,7 @@ impl Parser {
                         };
                         Ok(CodeSectionStart {
                             count,
-                            range,
+                            unchecked_range: range,
                             size: len,
                         })
                     }
@@ -936,16 +957,14 @@ impl Parser {
                     ),
                     #[cfg(feature = "component-model")]
                     (Encoding::Component, COMPONENT_START_SECTION) => {
-                        match self.counts.component_start_sections {
-                            false => self.counts.component_start_sections = true,
-                            true => {
-                                bail!(
-                                    reader.original_position(),
-                                    "component cannot have more than one start function"
-                                )
-                            }
+                        if self.counts.component_start_sections {
+                            bail!(
+                                reader.original_position(),
+                                "component cannot have more than one start function"
+                            )
                         }
                         let (start, range) = single_item(reader, section_end, "component start")?;
+                        self.counts.component_start_sections = true;
                         Ok(ComponentStartSection { start, range })
                     }
                     #[cfg(feature = "component-model")]
@@ -1189,7 +1208,7 @@ impl Parser {
     ///
     ///             // Print the range of the code section we see, but don't
     ///             // actually iterate over each individual function.
-    ///             CodeSectionStart { range, size, .. } => {
+    ///             CodeSectionStart { unchecked_range: range, size, .. } => {
     ///                 print_range("code section", &range);
     ///                 parser.skip_section();
     ///                 wasm = &wasm[size as usize..];
@@ -1354,7 +1373,10 @@ impl Payload<'_> {
             DataSection(s) => Some((DATA_SECTION, s.range())),
             StartSection { range, .. } => Some((START_SECTION, range.clone())),
             DataCountSection { range, .. } => Some((DATA_COUNT_SECTION, range.clone())),
-            CodeSectionStart { range, .. } => Some((CODE_SECTION, range.clone())),
+            CodeSectionStart {
+                unchecked_range: range,
+                ..
+            } => Some((CODE_SECTION, range.clone())),
             CodeSectionEntry(_) => None,
 
             #[cfg(feature = "component-model")]
@@ -1431,10 +1453,14 @@ impl fmt::Debug for Payload<'_> {
                 .field("count", count)
                 .field("range", range)
                 .finish(),
-            CodeSectionStart { count, range, size } => f
+            CodeSectionStart {
+                count,
+                unchecked_range,
+                size,
+            } => f
                 .debug_struct("CodeSectionStart")
                 .field("count", count)
-                .field("range", range)
+                .field("unchecked_range", unchecked_range)
                 .field("size", size)
                 .finish(),
             CodeSectionEntry(_) => f.debug_tuple("CodeSectionEntry").field(&"...").finish(),
@@ -1903,6 +1929,29 @@ mod tests {
                 consumed: 0,
                 payload: Payload::End(18),
             }),
+        );
+    }
+
+    #[test]
+    fn component_start_section_needs_more_data() {
+        let mut p = parser_after_component_header();
+
+        // Partial section
+        assert_matches!(p.parse(&[9, 3, 0], false), Ok(Chunk::NeedMoreData(_)));
+
+        // Complete section
+        assert_matches!(
+            p.parse(&[9, 3, 0, 0, 0], false),
+            Ok(Chunk::Parsed {
+                consumed: 5,
+                payload: Payload::ComponentStartSection { .. },
+            }),
+        );
+
+        // Duplicate disallowed
+        assert_eq!(
+            p.parse(&[9, 3, 0, 0, 0], false).unwrap_err().message(),
+            "component cannot have more than one start function",
         );
     }
 
