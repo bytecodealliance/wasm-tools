@@ -44,12 +44,8 @@ impl PeepholeMutator {
             rewrite!("i64.sub-0"; "(i64.sub ?x i64.const.0)" => "?x");
             rewrite!("i32.mul-x-1"; "(i32.mul ?x i32.const.1)" => "?x");
             rewrite!("i64.mul-x-1"; "(i64.mul ?x i64.const.1)" => "?x");
-            rewrite!("f32.mul-x-1"; "(f32.mul ?x f32.const.1,0)" => "?x");
-            rewrite!("f64.mul-x-1"; "(f64.mul ?x f64.const.1,0)" => "?x");
             rewrite!("i32.add-x-0"; "(i32.add ?x i32.const.0)" => "?x");
             rewrite!("i64.add-x-0"; "(i64.add ?x i64.const.0)" => "?x");
-            rewrite!("f32-add-x-0"; "(f32.add ?x f32.const.0,0)" => "?x");
-            rewrite!("f64.add-x-0"; "(f64.add ?x f64.const.0,0)" => "?x");
             rewrite!("i32.xor-x-0"; "(i32.xor ?x i32.const.0)" => "?x");
             rewrite!("i64.xor-x-0"; "(i64.xor ?x i64.const.0)" => "?x");
             rewrite!("i32.eq-x-0"; "(i32.eq ?x i32.const.0)" => "(i32.eqz ?x)");
@@ -111,17 +107,6 @@ impl PeepholeMutator {
             );
 
             rewrite!(
-                "f32.mul-x-1";
-                "?x" <=> "(f32.mul ?x f32.const.1,0)"
-                    if self.is_type("?x", PrimitiveTypeInfo::F32)
-            );
-            rewrite!(
-                "f64.mul-x-1";
-                "?x" <=> "(f64.mul ?x f64.const.1,0)"
-                    if self.is_type("?x", PrimitiveTypeInfo::F64)
-            );
-
-            rewrite!(
                 "i32.add-x-0";
                 "?x" <=> "(i32.add ?x i32.const.0)"
                     if self.is_type("?x", PrimitiveTypeInfo::I32)
@@ -130,16 +115,6 @@ impl PeepholeMutator {
                 "i64.add-x-0";
                 "?x" <=> "(i64.add ?x i64.const.0)"
                     if self.is_type("?x", PrimitiveTypeInfo::I64)
-            );
-            rewrite!(
-                "f32-add-x-0";
-                "?x" <=> "(f32.add ?x f32.const.0,0)"
-                    if self.is_type("?x", PrimitiveTypeInfo::F32)
-            );
-            rewrite!(
-                "f64.add-x-0";
-                "?x" <=> "(f64.add ?x f64.const.0,0)"
-                    if self.is_type("?x", PrimitiveTypeInfo::F64)
             );
 
             rewrite!(
@@ -490,7 +465,36 @@ impl PeepholeMutator {
                 "(data.drop.1)" => "(container)"
             );
 
-            if !config.reduce {
+            // `x + 0.0` and `x * 1.0` are not identities for floats since
+            // `-0.0 + 0.0` is `+0.0` and multiplying a signaling NaN by `1.0`
+            // makes it quiet.
+            if config.reduce {
+                rewrite!("f32.mul-x-1"; "(f32.mul ?x f32.const.1,0)" => "?x");
+                rewrite!("f64.mul-x-1"; "(f64.mul ?x f64.const.1,0)" => "?x");
+                rewrite!("f32.add-x-0"; "(f32.add ?x f32.const.0,0)" => "?x");
+                rewrite!("f64.add-x-0"; "(f64.add ?x f64.const.0,0)" => "?x");
+            } else {
+                rewrite!(
+                    "f32.mul-x-1";
+                    "?x" <=> "(f32.mul ?x f32.const.1,0)"
+                        if self.is_type("?x", PrimitiveTypeInfo::F32)
+                );
+                rewrite!(
+                    "f64.mul-x-1";
+                    "?x" <=> "(f64.mul ?x f64.const.1,0)"
+                        if self.is_type("?x", PrimitiveTypeInfo::F64)
+                );
+                rewrite!(
+                    "f32.add-x-0";
+                    "?x" <=> "(f32.add ?x f32.const.0,0)"
+                        if self.is_type("?x", PrimitiveTypeInfo::F32)
+                );
+                rewrite!(
+                    "f64.add-x-0";
+                    "?x" <=> "(f64.add ?x f64.const.0,0)"
+                        if self.is_type("?x", PrimitiveTypeInfo::F64)
+                );
+
                 // `x <=> x + 1`
                 rewrite!(
                     "i32.add-1";
