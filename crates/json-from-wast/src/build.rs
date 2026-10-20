@@ -403,6 +403,11 @@ impl<'a> JsonBuilder<'a, '_> {
                     .map(|i| self.component_val(i))
                     .collect::<Result<_>>()?,
             ),
+            WastVal::Map(s) => crate::ComponentConst::Map(
+                s.into_iter()
+                    .map(|(k, v)| Ok((self.component_val(k)?, self.component_val(v)?)))
+                    .collect::<Result<_>>()?,
+            ),
             WastVal::Record(s) => crate::ComponentConst::Record(
                 s.into_iter()
                     .map(|(name, i)| Ok((name.into(), self.component_val(i)?)))

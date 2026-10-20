@@ -424,6 +424,7 @@ pub mod kw {
     custom_keyword!(dtor);
     custom_keyword!(elem);
     custom_keyword!(end);
+    custom_keyword!(entry);
     custom_keyword!(exact);
     custom_keyword!(tag);
     custom_keyword!(exn);

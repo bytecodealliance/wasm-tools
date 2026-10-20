@@ -604,6 +604,10 @@ pub enum ComponentConst<'a> {
     F64(IntString<u64>),
     #[serde(borrow)]
     List(Vec<ComponentConst<'a>>),
+    /// A `map<K, V>` value as an ordered list of `[key, value]` entries,
+    /// possibly with duplicate keys.
+    #[serde(borrow)]
+    Map(Vec<(ComponentConst<'a>, ComponentConst<'a>)>),
     #[serde(borrow)]
     Record(Vec<(Cow<'a, str>, ComponentConst<'a>)>),
     #[serde(borrow)]
