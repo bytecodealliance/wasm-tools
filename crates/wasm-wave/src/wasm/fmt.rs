@@ -95,6 +95,10 @@ impl<T: WasmType> Display for DisplayType<'_, T> {
 }
 
 /// Implements a WAVE-formatted [`Display`] for a [`WasmValue`].
+///
+/// Formatting fails with [`core::fmt::Error`] if the value can't be encoded as
+/// WAVE; use [`to_string`](crate::to_string) to get a
+/// [`WriterError`](crate::writer::WriterError) describing why instead.
 pub struct DisplayValue<'a, T: WasmValue>(pub &'a T);
 
 impl<T: WasmValue> Display for DisplayValue<'_, T> {

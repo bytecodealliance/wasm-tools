@@ -23,6 +23,10 @@ impl<W: Write> Writer<W> {
     }
 
     /// WAVE-encodes and writes the given [`WasmValue`] to the underlying writer.
+    ///
+    /// Returns [`WriterError::UnsupportedType`] if `val`, or any value nested
+    /// within it, has a type that WAVE cannot encode. Output written before the
+    /// error was encountered is left in the underlying writer.
     pub fn write_value<V>(&mut self, val: &V) -> Result<(), WriterError>
     where
         V: WasmValue,
@@ -168,7 +172,7 @@ impl<W: Write> Writer<W> {
                 self.write_str("}")?;
                 Ok(())
             }
-            WasmTypeKind::Unsupported => panic!("unsupported value type"),
+            WasmTypeKind::Unsupported => Err(WriterError::UnsupportedType),
         }
     }
 
@@ -207,4 +211,59 @@ pub enum WriterError {
     /// An error from the underlying writer
     #[error("write failed: {0}")]
     Io(#[from] core::fmt::Error),
+    /// The value (or a value nested within it) has a type that WAVE cannot
+    /// encode.
+    #[error("unsupported value type")]
+    UnsupportedType,
+}
+
+#[cfg(test)]
+mod tests {
+    use alloc::{borrow::Cow, boxed::Box, string::String, vec, vec::Vec};
+    use core::fmt::Write;
+
+    use super::WriterError;
+    use crate::{
+        value::Type,
+        wasm::{DisplayValue, WasmTypeKind, WasmValue},
+    };
+
+    /// A minimal [`WasmValue`] that can represent a value WAVE can't encode.
+    #[derive(Clone)]
+    enum TestValue {
+        List(Vec<TestValue>),
+        Unsupported,
+    }
+
+    impl WasmValue for TestValue {
+        type Type = Type;
+
+        fn kind(&self) -> WasmTypeKind {
+            match self {
+                TestValue::List(_) => WasmTypeKind::List,
+                TestValue::Unsupported => WasmTypeKind::Unsupported,
+            }
+        }
+
+        fn unwrap_list(&self) -> Box<dyn Iterator<Item = Cow<'_, Self>> + '_> {
+            match self {
+                TestValue::List(vals) => Box::new(vals.iter().map(Cow::Borrowed)),
+                TestValue::Unsupported => panic!("not a list"),
+            }
+        }
+    }
+
+    #[test]
+    fn unsupported_value_is_an_error() {
+        let err = crate::to_string(&TestValue::Unsupported).unwrap_err();
+        assert!(matches!(err, WriterError::UnsupportedType), "{err:?}");
+
+        let nested = TestValue::List(vec![TestValue::List(vec![]), TestValue::Unsupported]);
+        let err = crate::to_string(&nested).unwrap_err();
+        assert!(matches!(err, WriterError::UnsupportedType), "{err:?}");
+
+        // Through `Display` the error surfaces as a `fmt::Error`.
+        let mut buf = String::new();
+        assert!(write!(buf, "{}", DisplayValue(&nested)).is_err());
+    }
 }
