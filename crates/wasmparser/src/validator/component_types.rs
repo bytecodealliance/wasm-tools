@@ -859,6 +859,13 @@ pub struct ModuleType {
     pub imports: IndexMap<(String, String), EntityType>,
     /// The exports of the module type.
     pub exports: IndexMap<String, EntityType>,
+    /// The module type's private type index space.
+    ///
+    /// This is technically not part of the module type itself, but can be
+    /// useful for users to look at and inspect. All `EntityType`s within this
+    /// `ModuleType` will refer to these types for example. This reflects a
+    /// similar index space as core modules themselves.
+    pub types: Vec<CoreTypeId>,
 }
 
 impl TypeData for ModuleType {

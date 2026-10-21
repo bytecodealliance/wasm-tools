@@ -548,6 +548,7 @@ impl ComponentState {
             info: TypeInfo::core(module.type_size),
             imports,
             exports: module.exports.clone(),
+            types: module.types.clone(),
         };
 
         let mod_id = types.push_ty(mod_ty);
@@ -3039,6 +3040,7 @@ impl ComponentState {
             info: TypeInfo::core(state.type_size),
             imports,
             exports: state.exports,
+            types: state.types,
         })
     }
 
