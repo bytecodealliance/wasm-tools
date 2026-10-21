@@ -871,6 +871,20 @@
       "filename": "binary.126.wasm",
       "module_type": "binary",
       "text": "illegal opcode ff"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1238,
+      "filename": "binary.127.wasm",
+      "module_type": "binary",
+      "text": "unknown type"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 1247,
+      "filename": "binary.128.wasm",
+      "module_type": "binary",
+      "text": "integer representation"
     }
   ]
 }

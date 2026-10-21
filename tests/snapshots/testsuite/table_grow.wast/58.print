@@ -1,0 +1,15 @@
+(module
+  (type (;0;) (func (param i32) (result i32)))
+  (type (;1;) (func (result i32)))
+  (table (;0;) 1 funcref)
+  (export "grow" (func 0))
+  (export "size" (func 1))
+  (func (;0;) (type 0) (param i32) (result i32)
+    ref.null func
+    local.get 0
+    table.grow 0
+  )
+  (func (;1;) (type 1) (result i32)
+    table.size 0
+  )
+)

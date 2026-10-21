@@ -813,6 +813,100 @@
           "value": "0"
         }
       ]
+    },
+    {
+      "type": "module",
+      "line": 98,
+      "filename": "memory_grow64.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 103,
+      "action": {
+        "type": "invoke",
+        "field": "grow",
+        "args": [
+          {
+            "type": "i64",
+            "value": "281474976710656"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "-1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 104,
+      "action": {
+        "type": "invoke",
+        "field": "size",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 105,
+      "action": {
+        "type": "invoke",
+        "field": "grow",
+        "args": [
+          {
+            "type": "i64",
+            "value": "281474976710655"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "either",
+          "values": [
+            {
+              "type": "i64",
+              "value": "-1"
+            },
+            {
+              "type": "i64",
+              "value": "1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 108,
+      "action": {
+        "type": "invoke",
+        "field": "size",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "either",
+          "values": [
+            {
+              "type": "i64",
+              "value": "1"
+            },
+            {
+              "type": "i64",
+              "value": "281474976710656"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

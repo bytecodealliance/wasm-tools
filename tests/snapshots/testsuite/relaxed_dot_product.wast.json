@@ -252,7 +252,96 @@
     },
     {
       "type": "assert_return",
-      "line": 41,
+      "line": 53,
+      "action": {
+        "type": "invoke",
+        "field": "i16x8.relaxed_dot_i8x16_i7x16_s",
+        "args": [
+          {
+            "type": "v128",
+            "lane_type": "i8",
+            "value": [
+              "-128",
+              "-128",
+              "-128",
+              "-128",
+              "127",
+              "127",
+              "127",
+              "127",
+              "-128",
+              "-128",
+              "-128",
+              "-128",
+              "127",
+              "127",
+              "127",
+              "127"
+            ]
+          },
+          {
+            "type": "v128",
+            "lane_type": "i8",
+            "value": [
+              "-128",
+              "-128",
+              "-127",
+              "-127",
+              "-128",
+              "-128",
+              "-1",
+              "-1",
+              "-128",
+              "-128",
+              "-127",
+              "-127",
+              "-128",
+              "-128",
+              "-1",
+              "-1"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "either",
+          "values": [
+            {
+              "type": "v128",
+              "lane_type": "i16",
+              "value": [
+                "-32768",
+                "32512",
+                "-32512",
+                "-254",
+                "-32768",
+                "32512",
+                "-32512",
+                "-254"
+              ]
+            },
+            {
+              "type": "v128",
+              "lane_type": "i16",
+              "value": [
+                "-32768",
+                "-32768",
+                "32512",
+                "32767",
+                "-32768",
+                "-32768",
+                "32512",
+                "32767"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 61,
       "action": {
         "type": "invoke",
         "field": "i32x4.relaxed_dot_i8x16_i7x16_add_s",
@@ -328,7 +417,7 @@
     },
     {
       "type": "assert_return",
-      "line": 49,
+      "line": 69,
       "action": {
         "type": "invoke",
         "field": "i32x4.relaxed_dot_i8x16_i7x16_add_s",
@@ -404,7 +493,7 @@
     },
     {
       "type": "assert_return",
-      "line": 62,
+      "line": 82,
       "action": {
         "type": "invoke",
         "field": "i32x4.relaxed_dot_i8x16_i7x16_add_s",
@@ -515,7 +604,7 @@
     },
     {
       "type": "assert_return",
-      "line": 75,
+      "line": 95,
       "action": {
         "type": "invoke",
         "field": "i16x8.relaxed_dot_i8x16_i7x16_s_cmp",
@@ -585,7 +674,7 @@
     },
     {
       "type": "assert_return",
-      "line": 81,
+      "line": 101,
       "action": {
         "type": "invoke",
         "field": "i32x4.relaxed_dot_i8x16_i7x16_add_s_cmp",
@@ -661,7 +750,7 @@
     },
     {
       "type": "assert_return",
-      "line": 91,
+      "line": 111,
       "action": {
         "type": "invoke",
         "field": "i16x8.relaxed_dot_i8x16_i7x16_s_cmp",
@@ -731,7 +820,7 @@
     },
     {
       "type": "assert_return",
-      "line": 102,
+      "line": 122,
       "action": {
         "type": "invoke",
         "field": "i32x4.relaxed_dot_i8x16_i7x16_add_s_cmp",

@@ -888,14 +888,66 @@
       ]
     },
     {
+      "type": "assert_return",
+      "line": 192,
+      "action": {
+        "type": "invoke",
+        "field": "f32x4.relaxed_madd",
+        "args": [
+          {
+            "type": "v128",
+            "lane_type": "i32",
+            "value": [
+              "1072958014",
+              "1072958014",
+              "1072958014",
+              "1072958014"
+            ]
+          },
+          {
+            "type": "v128",
+            "lane_type": "i32",
+            "value": [
+              "1071732961",
+              "1071732961",
+              "1071732961",
+              "1071732961"
+            ]
+          },
+          {
+            "type": "v128",
+            "lane_type": "i32",
+            "value": [
+              "-1348404225",
+              "-1348404225",
+              "-1348404225",
+              "-1348404225"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "v128",
+          "lane_type": "i32",
+          "value": [
+            "1079431611",
+            "1079431611",
+            "1079431611",
+            "1079431611"
+          ]
+        }
+      ]
+    },
+    {
       "type": "module",
-      "line": 205,
+      "line": 214,
       "filename": "relaxed_madd_nmadd.1.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_return",
-      "line": 217,
+      "line": 226,
       "action": {
         "type": "invoke",
         "field": "test-consistent-nondeterminism",
