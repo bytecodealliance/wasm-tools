@@ -52,30 +52,22 @@ impl<'a> Parse<'a> for ComponentExternName<'a> {
         } else {
             parser.parse()?
         };
-        let implements = if parser.peek2::<kw::implements>()? {
-            Some(parser.parens(|p| {
-                p.parse::<kw::implements>()?;
-                p.parse()
-            })?)
-        } else {
-            None
-        };
-        let version_suffix = if parser.peek2::<kw::version_suffix>()? {
-            Some(parser.parens(|p| {
-                p.parse::<kw::version_suffix>()?;
-                p.parse()
-            })?)
-        } else {
-            None
-        };
-        let external_id = if parser.peek2::<kw::external_id>()? {
-            Some(parser.parens(|p| {
-                p.parse::<kw::external_id>()?;
-                p.parse()
-            })?)
-        } else {
-            None
-        };
+        // Attributes are an unordered list in the text format, so accept them
+        // in any order, but each kind may only be specified once.
+        let mut implements = None;
+        let mut version_suffix = None;
+        let mut external_id = None;
+        loop {
+            if parser.peek2::<kw::implements>()? {
+                parse_extern_name_attribute::<kw::implements>(parser, &mut implements)?;
+            } else if parser.peek2::<kw::version_suffix>()? {
+                parse_extern_name_attribute::<kw::version_suffix>(parser, &mut version_suffix)?;
+            } else if parser.peek2::<kw::external_id>()? {
+                parse_extern_name_attribute::<kw::external_id>(parser, &mut external_id)?;
+            } else {
+                break;
+            }
+        }
         Ok(ComponentExternName {
             name,
             implements,
@@ -83,6 +75,24 @@ impl<'a> Parse<'a> for ComponentExternName<'a> {
             external_id,
         })
     }
+}
+
+/// Parses a single `(<kw> "...")` attribute of a [`ComponentExternName`] into
+/// `slot`, returning an error if `slot` was already filled in by a previous
+/// attribute of the same kind.
+fn parse_extern_name_attribute<'a, K>(parser: Parser<'a>, slot: &mut Option<&'a str>) -> Result<()>
+where
+    K: Parse<'a> + Peek,
+{
+    parser.parens(|p| {
+        let span = p.cur_span();
+        p.parse::<K>()?;
+        if slot.is_some() {
+            return Err(p.error_at(span, format!("duplicate {} attribute", K::display())));
+        }
+        *slot = Some(p.parse()?);
+        Ok(())
+    })
 }
 
 /// An item signature for imported items.

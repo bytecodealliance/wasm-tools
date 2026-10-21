@@ -1,0 +1,7 @@
+(component
+  (instance $a (;0;))
+  (instance (;1;)
+    (export "a" (implements "a:b/c@1") (version-suffix ".2.3") (external-id "x") (instance $a))
+    (export "b" (implements "a:b/c") (external-id "x") (instance $a))
+  )
+)

@@ -1,0 +1,13 @@
+(component
+  (instance $i (;0;))
+  (export (;1;) "a" (implements "a:b/c@1") (version-suffix ".2.3") (external-id "x") (instance $i))
+  (export (;2;) "b" (implements "a:b/c@1") (version-suffix ".2.3") (external-id "x") (instance $i))
+  (export (;3;) "c" (implements "a:b/c@1") (version-suffix ".2.3") (external-id "x") (instance $i))
+  (export (;4;) "d" (implements "a:b/c@1") (version-suffix ".2.3") (external-id "x") (instance $i))
+  (export (;5;) "e" (implements "a:b/c@1") (version-suffix ".2.3") (external-id "x") (instance $i))
+  (export (;6;) "f" (implements "a:b/c@1") (version-suffix ".2.3") (external-id "x") (instance $i))
+  (type (;0;)
+    (instance)
+  )
+  (export $g (;7;) "g" (implements "a:b/c") (external-id "x") (instance $i) (instance (type 0)))
+)
