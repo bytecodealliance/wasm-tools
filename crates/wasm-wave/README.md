@@ -151,7 +151,7 @@ Maps are encoded as a curly-braced set of comma-separated map entries, like reco
 
 Keys are encoded like values of the map's key type, which can be `bool`, an integer type, `char`, or `string`. Whether braced entries are a record or a map depends on the type: `{true: 1}` is a record with a `true` field, or a `map<bool, u32>`.
 
-Entries are kept in the order they are encoded. As in the [component model](https://github.com/WebAssembly/component-model/blob/main/design/mvp/WIT.md), where a map behaves like a hash table that uses the last value of a duplicate key, duplicate keys are merged: the last value wins, at the position where its key first appears. Keys are compared by value, so `"a"` and `"\u{61}"` are the same key. This applies both when parsing and when writing a map value that contains duplicate keys.
+As in the [component model](https://github.com/WebAssembly/component-model/blob/main/design/mvp/WIT.md), where a map behaves like a hash table that uses the last value of a duplicate key, duplicate keys are merged: the last value wins. Keys are compared by value, so `"a"` and `"\u{61}"` are the same key. This applies both when parsing and when writing a map value that contains duplicate keys.
 
 `map<string, u32>` → `{}`, `{"one": 1, "two": 2,}`, `{"a": 1, "b": 2, "a": 3}` = `{"a": 3, "b": 2}`
 
