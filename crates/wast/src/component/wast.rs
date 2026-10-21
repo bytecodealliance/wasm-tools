@@ -21,6 +21,11 @@ pub enum WastVal<'a> {
     Char(char),
     String(&'a str),
     List(Vec<WastVal<'a>>),
+    /// A `map<K, V>` value as an ordered list of key/value entries.
+    ///
+    /// Entries are kept in the order they were written in and duplicate keys
+    /// are preserved.
+    Map(Vec<(WastVal<'a>, WastVal<'a>)>),
     Record(Vec<(&'a str, WastVal<'a>)>),
     Tuple(Vec<WastVal<'a>>),
     Variant(&'a str, Option<Box<WastVal<'a>>>),
@@ -74,6 +79,18 @@ static CASES: &[(&str, fn(Parser<'_>) -> Result<WastVal<'_>>)] = {
                 ret.push(p.parens(|p| p.parse())?);
             }
             Ok(List(ret))
+        }),
+        ("map.const", |p| {
+            let mut ret = Vec::new();
+            while !p.is_empty() {
+                ret.push(p.parens(|p| {
+                    p.parse::<kw::entry>()?;
+                    let key = p.parens(|p| p.parse())?;
+                    let value = p.parens(|p| p.parse())?;
+                    Ok((key, value))
+                })?);
+            }
+            Ok(Map(ret))
         }),
         ("record.const", |p| {
             let mut ret = Vec::new();

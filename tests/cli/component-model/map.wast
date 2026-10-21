@@ -97,3 +97,27 @@
     (type $own (own $res))
     (type (map $own u32)))
   "invalid map key type")
+
+;; map values in scripts: entries keep their order and duplicate keys
+(component
+  (core module $m
+    (memory (export "memory") 1)
+    (func (export "echo") (param i32 i32) (result i32) unreachable)
+    (func (export "realloc") (param i32 i32 i32 i32) (result i32) unreachable)
+  )
+  (core instance $i (instantiate $m))
+  (func (export "echo") (param "m" (map u32 string)) (result (map u32 string))
+    (canon lift (core func $i "echo") (memory (core memory $i "memory")) (realloc (core func $i "realloc")))
+  )
+)
+(assert_return (invoke "echo" (map.const)) (map.const))
+(assert_return
+  (invoke "echo"
+    (map.const
+      (entry (u32.const 2) (str.const "a"))
+      (entry (u32.const 1) (str.const "b"))
+      (entry (u32.const 2) (str.const "c"))))
+  (map.const
+    (entry (u32.const 2) (str.const "a"))
+    (entry (u32.const 1) (str.const "b"))
+    (entry (u32.const 2) (str.const "c"))))
