@@ -52,7 +52,8 @@
         "foo": 0,
         "name": 1
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }

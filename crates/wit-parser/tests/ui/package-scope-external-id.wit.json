@@ -1,0 +1,57 @@
+{
+  "worlds": [],
+  "interfaces": [
+    {
+      "name": "api",
+      "types": {},
+      "functions": {
+        "move-to": {
+          "name": "move-to",
+          "kind": "freestanding",
+          "params": [
+            {
+              "name": "p",
+              "type": 0
+            }
+          ]
+        }
+      },
+      "package": 0
+    }
+  ],
+  "types": [
+    {
+      "name": "point",
+      "kind": {
+        "record": {
+          "fields": [
+            {
+              "name": "x",
+              "type": "u32"
+            },
+            {
+              "name": "y",
+              "type": "u32"
+            }
+          ]
+        }
+      },
+      "owner": {
+        "package": 0
+      },
+      "external_id": "pkg-point"
+    }
+  ],
+  "packages": [
+    {
+      "name": "local:demo",
+      "interfaces": {
+        "api": 0
+      },
+      "worlds": {},
+      "types": {
+        "point": 0
+      }
+    }
+  ]
+}

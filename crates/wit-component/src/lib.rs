@@ -115,7 +115,7 @@ mod tests {
     use wasmparser::Payload;
     use wit_parser::Resolve;
 
-    use super::{StringEncoding, embed_component_metadata};
+    use super::{StringEncoding, WitPrinter, embed_component_metadata, encode};
 
     const MODULE_WAT: &str = r#"
 (module
@@ -173,6 +173,119 @@ world test-world {}
         assert!(original_len < bytes.len());
         assert_eq!(original_custom_section_count + 1, new_custom_section_count);
         assert!(found_component_section);
+
+        Ok(())
+    }
+
+    #[test]
+    fn package_scope_types_print_and_binary_encode_is_rejected() -> Result<()> {
+        let mut resolve = Resolve::new();
+        let pkg = resolve.push_str(
+            "demo.wit",
+            r#"
+package local:demo;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+interface shapes {
+  move-to: func(p: point);
+}
+
+interface other {
+  distance: func(a: point, b: point) -> u32;
+}
+"#,
+        )?;
+
+        let mut printer = WitPrinter::default();
+        printer.print(&resolve, pkg, &[])?;
+        let printed = printer.output.to_string();
+        let record = printed
+            .find("record point")
+            .expect("package-scope record should be printed");
+        let interface = printed
+            .find("interface shapes")
+            .expect("interface should be printed");
+        assert!(
+            record < interface,
+            "package-scope record should stay outside the interface:\n{printed}"
+        );
+
+        let mut reparsed = Resolve::new();
+        let reparsed_pkg = reparsed
+            .push_str("printed.wit", &printed)
+            .expect("printed package-scope WIT should parse");
+        assert!(
+            reparsed.packages[reparsed_pkg].types.contains_key("point"),
+            "reparsed package should keep `point` at package scope"
+        );
+
+        let err = encode(&resolve, pkg, true).unwrap_err().to_string();
+        assert!(
+            err.contains(
+                "encoding package-scope types to a WIT package binary is not yet supported"
+            ),
+            "unexpected encode error: {err}"
+        );
+
+        let mut foreign = Resolve::new();
+        foreign.push_str(
+            "types.wit",
+            r#"
+package local:types;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+interface unused {}
+"#,
+        )?;
+        let consumer = foreign.push_str(
+            "consumer.wit",
+            r#"
+package local:consumer;
+
+use local:types/point;
+
+interface api {
+  move-to: func(p: point);
+}
+"#,
+        )?;
+        let err = encode(&foreign, consumer, true).unwrap_err().to_string();
+        assert!(
+            err.contains(
+                "encoding package-scope types to a WIT package binary is not yet supported"
+            ),
+            "foreign use should be rejected: {err}"
+        );
+
+        let mut types_only = Resolve::new();
+        let types_pkg = types_only.push_str(
+            "types.wit",
+            r#"
+package local:types;
+
+record point {
+  x: u32,
+  y: u32,
+}
+"#,
+        )?;
+        let err = encode(&types_only, types_pkg, true)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err.contains(
+                "encoding package-scope types to a WIT package binary is not yet supported"
+            ),
+            "types-only package should be rejected: {err}"
+        );
 
         Ok(())
     }
