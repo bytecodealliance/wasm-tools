@@ -12,6 +12,7 @@ WAVE is a human-oriented text encoding of WebAssembly Component Model values. It
 |Strings|`"abc\t123"`
 |Tuples|`("abc", 123)`
 |Lists|`[1, 2, 3]`
+|Maps|`{"one": 1, "two": 2}`, `{}`
 |Records|`{field-a: 1, field-b: "two"}`
 |Variants|`days(30)`, `forever`
 |Enums|`south`, `west`
@@ -144,6 +145,20 @@ Lists are encoded as a square-braketed sequence of comma-separated values. Trail
 
 `list<char>` → `[]`, `['a', 'b', 'c']`
 
+### Maps
+
+Maps are encoded as a curly-braced set of comma-separated map entries, like records. Trailing commas are permitted. Each map entry consists of a key, a colon, and a value. An empty map is encoded as `{}`, like empty flags; `{:}`, the empty record form, is also accepted.
+
+Keys are encoded like values of the map's key type, which can be `bool`, an integer type, `char`, or `string`. Whether braced entries are a record or a map depends on the type: `{true: 1}` is a record with a `true` field, or a `map<bool, u32>`.
+
+As in the [component model](https://github.com/WebAssembly/component-model/blob/main/design/mvp/WIT.md), where a map behaves like a hash table that uses the last value of a duplicate key, duplicate keys are merged: the last value wins. Keys are compared by value, so `"a"` and `"\u{61}"` are the same key. This applies both when parsing and when writing a map value that contains duplicate keys.
+
+`map<string, u32>` → `{}`, `{"one": 1, "two": 2,}`, `{"a": 1, "b": 2, "a": 3}` = `{"a": 3, "b": 2}`
+
+`map<bool, list<u8>>` → `{true: [1, 2], false: []}`
+
+`map<u32, map<char, string>>` → `{0: {}, 1: {'a': "apple"}}`
+
 ### Records
 
 Records are encoded as curly-braced set of comma-separated record entries. Trailing commas are permitted. Each record entry consists of a field label, a colon, and a value. Fields may be present in any order. Record entries with the `option`-typed value `none` may be omitted; if all of a record's fields are omitted in this way the "empty" record must be encoded as `{:}` (to disambiguate from an empty `flags` value).
@@ -207,7 +222,7 @@ Results may be encoded in their variant form (e.g. `ok(...)`, `err("oops")`). An
 
 ### Flags
 
-Flags are encoded as a curly-braced set of comma-separated flag labels in any order. Trailing commas are permitted.
+Flags are encoded as a curly-braced set of comma-separated flag labels in any order. Trailing commas are permitted. Empty flags are encoded as `{}`, like an empty map.
 
 `flags perms { read, write, exec }` → `{write, read,}`
 

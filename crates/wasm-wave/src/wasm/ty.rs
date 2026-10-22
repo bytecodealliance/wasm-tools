@@ -28,6 +28,7 @@ pub enum WasmTypeKind {
     Option,
     Result,
     Flags,
+    Map,
     #[doc(hidden)]
     Unsupported,
 }
@@ -57,6 +58,7 @@ impl core::fmt::Display for WasmTypeKind {
             WasmTypeKind::Option => "option",
             WasmTypeKind::Result => "result",
             WasmTypeKind::Flags => "flags",
+            WasmTypeKind::Map => "map",
             WasmTypeKind::Unsupported => "<<UNSUPPORTED>>",
         })
     }
@@ -124,6 +126,13 @@ pub trait WasmType: Clone + Sized {
     /// # Panics
     /// Panics if the type is not implemented (the trait default).
     fn flags_names(&self) -> Box<dyn Iterator<Item = Cow<'_, str>> + '_> {
+        unimplemented!()
+    }
+    /// Returns the map's key and value Types or `None` if `self` is not a map
+    /// type.
+    /// # Panics
+    /// Panics if the type is not implemented (the trait default).
+    fn map_key_value_types(&self) -> Option<(Self, Self)> {
         unimplemented!()
     }
 }

@@ -1,0 +1,32 @@
+// Wrong key type
+invalid value type at 16..17
+invalid value type at 16..19
+invalid value type: expected a string key, found a label at 16..17
+invalid value type at 16..19
+invalid value at 16..26
+invalid value at 16..19
+invalid value type: expected a bool key, found a label at 18..23
+// Keys must be labels, numbers, chars or strings
+unexpected token: ParenOpen at 22..23
+// Wrong value type
+invalid value type at 21..24
+invalid value at 21..23
+error converting Wasm value: unknown case "up" at 16..18
+invalid value type at 19..22
+// Not a map
+invalid value type at 15..17
+invalid value type at 15..18
+invalid value type at 15..25
+// Map keys are not record fields
+invalid value type: expected a record field label at 14..24
+// Mixed flags and map entries
+unexpected token: BraceClose at 19..20
+unexpected token: BraceClose at 25..26
+unexpected token: String at 19..22
+// Malformed entries
+unexpected token: Number at 18..19
+unexpected token: BraceClose at 20..21
+unexpected token: Colon at 22..23
+unexpected token: Comma at 23..24
+unexpected token: Number at 20..21
+unexpected token: BracketClose at 22..23

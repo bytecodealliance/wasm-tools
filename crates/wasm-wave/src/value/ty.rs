@@ -18,6 +18,7 @@ pub(super) enum TypeEnum {
     Option(Arc<OptionType>),
     Result(Arc<ResultType>),
     Flags(Arc<FlagsType>),
+    Map(Arc<MapType>),
 }
 
 #[allow(missing_docs)]
@@ -135,6 +136,18 @@ impl Type {
         Some(Self(TypeEnum::Flags(Arc::new(FlagsType { flags }))))
     }
 
+    /// Returns a map type with the given key and value types. Returns None if
+    /// `key_type` is not a valid map key type (`bool`, an integer type, `char`,
+    /// or `string`).
+    pub fn map(key_type: impl Into<Self>, value_type: impl Into<Self>) -> Option<Self> {
+        let key = key_type.into();
+        if !is_map_key(key.kind()) {
+            return None;
+        }
+        let value = value_type.into();
+        Some(Self(TypeEnum::Map(Arc::new(MapType { key, value }))))
+    }
+
     /// Returns a [`Type`] matching the given [`WasmType`]. Returns None if the
     /// given type is unsupported or otherwise invalid.
     pub fn from_wasm_type(ty: &impl WasmType) -> Option<Self> {
@@ -150,6 +163,14 @@ const fn is_simple(kind: WasmTypeKind) -> bool {
     matches!(
         kind,
         Bool | S8 | S16 | S32 | S64 | U8 | U16 | U32 | U64 | F32 | F64 | Char | String
+    )
+}
+
+const fn is_map_key(kind: WasmTypeKind) -> bool {
+    use WasmTypeKind::*;
+    matches!(
+        kind,
+        Bool | S8 | S16 | S32 | S64 | U8 | U16 | U32 | U64 | Char | String
     )
 }
 
@@ -194,6 +215,12 @@ pub struct FlagsType {
     pub(super) flags: Box<[Box<str>]>,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct MapType {
+    pub(super) key: Type,
+    pub(super) value: Type,
+}
+
 impl WasmType for Type {
     fn kind(&self) -> WasmTypeKind {
         match self.0 {
@@ -207,6 +234,7 @@ impl WasmType for Type {
             TypeEnum::Option(_) => WasmTypeKind::Option,
             TypeEnum::Result(_) => WasmTypeKind::Result,
             TypeEnum::Flags(_) => WasmTypeKind::Flags,
+            TypeEnum::Map(_) => WasmTypeKind::Map,
         }
     }
 
@@ -268,6 +296,11 @@ impl WasmType for Type {
             return Box::new(core::iter::empty());
         };
         Box::new(flags.flags.iter().map(|name| name.as_ref().into()))
+    }
+
+    fn map_key_value_types(&self) -> Option<(Self, Self)> {
+        let map = maybe_unwrap_type!(&self.0, TypeEnum::Map)?;
+        Some((map.key.clone(), map.value.clone()))
     }
 }
 

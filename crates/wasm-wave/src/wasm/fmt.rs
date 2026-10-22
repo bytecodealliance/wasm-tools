@@ -89,6 +89,10 @@ impl<T: WasmType> Display for DisplayType<'_, T> {
                 }
                 f.write_str(" }")
             }
+            WasmTypeKind::Map => {
+                let (key, value) = ty.map_key_value_types().unwrap();
+                write!(f, "map<{}, {}>", DisplayType(&key), DisplayType(&value))
+            }
             simple => Display::fmt(&simple, f),
         }
     }
@@ -223,6 +227,18 @@ mod tests {
             (
                 Type::flags(["read", "write"]).unwrap(),
                 "flags { read, write }",
+            ),
+            (
+                Type::map(Type::STRING, Type::U32).unwrap(),
+                "map<string, u32>",
+            ),
+            (
+                Type::map(
+                    Type::CHAR,
+                    Type::map(Type::BOOL, Type::list(Type::U8)).unwrap(),
+                )
+                .unwrap(),
+                "map<char, map<bool, list<u8>>>",
             ),
         ] {
             assert_eq!(ty.to_string(), expected);

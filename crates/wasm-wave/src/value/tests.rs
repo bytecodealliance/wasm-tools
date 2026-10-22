@@ -118,6 +118,119 @@ fn flags_round_trips() {
     test_value_round_trip(Value::make_flags(&ty, ["read", "execute"]).unwrap());
 }
 
+#[test]
+fn map_round_trips() {
+    let ty = Type::map(Type::STRING, Type::U32).unwrap();
+    let entry = |key: &str, value: u32| (Value::make_string(key.into()), Value::make_u32(value));
+    test_value_round_trip(Value::make_map(&ty, []).unwrap());
+    test_value_round_trip(Value::make_map(&ty, [entry("a", 1)]).unwrap());
+    // Order is preserved
+    test_value_round_trip(Value::make_map(&ty, [entry("b", 2), entry("a", 1)]).unwrap());
+
+    // All kinds of key types
+    for (key_type, key) in [
+        (Type::BOOL, Value::make_bool(false)),
+        (Type::S8, Value::make_s8(i8::MIN)),
+        (Type::S16, Value::make_s16(i16::MIN)),
+        (Type::S32, Value::make_s32(i32::MIN)),
+        (Type::S64, Value::make_s64(i64::MIN)),
+        (Type::U8, Value::make_u8(u8::MAX)),
+        (Type::U16, Value::make_u16(u16::MAX)),
+        (Type::U32, Value::make_u32(u32::MAX)),
+        (Type::U64, Value::make_u64(u64::MAX)),
+        (Type::CHAR, Value::make_char('☃')),
+        (Type::STRING, Value::make_string("☃\n\"".into())),
+    ] {
+        let ty = Type::map(key_type, Type::BOOL).unwrap();
+        test_value_round_trip(Value::make_map(&ty, [(key, Value::make_bool(true))]).unwrap());
+    }
+
+    // Nested maps
+    let inner_ty = Type::map(Type::CHAR, Type::option(Type::U8)).unwrap();
+    let outer_ty = Type::map(Type::BOOL, inner_ty.clone()).unwrap();
+    let inner = Value::make_map(
+        &inner_ty,
+        [
+            (
+                Value::make_char('x'),
+                Value::make_option(&Type::option(Type::U8), None).unwrap(),
+            ),
+            (
+                Value::make_char('y'),
+                Value::make_option(&Type::option(Type::U8), Some(Value::make_u8(1))).unwrap(),
+            ),
+        ],
+    )
+    .unwrap();
+    let empty = Value::make_map(&inner_ty, []).unwrap();
+    let outer = Value::make_map(
+        &outer_ty,
+        [
+            (Value::make_bool(true), inner),
+            (Value::make_bool(false), empty),
+        ],
+    )
+    .unwrap();
+    assert_eq!(
+        crate::to_string(&outer).unwrap(),
+        "{true: {'x': none, 'y': some(1)}, false: {}}"
+    );
+    test_value_round_trip(outer);
+}
+
+#[test]
+fn map_duplicate_keys_are_merged() {
+    // The last value wins, at the position where its key first appears. Keys
+    // are compared by value.
+    let ty = Type::map(Type::STRING, Type::U32).unwrap();
+    let entry = |key: &str, value: u32| (Value::make_string(key.into()), Value::make_u32(value));
+    let parsed: Value = crate::from_str(&ty, r#"{"a": 1, "b": 2, "\u{61}": 3}"#).unwrap();
+    assert_eq!(
+        parsed,
+        Value::make_map(&ty, [entry("a", 3), entry("b", 2)]).unwrap()
+    );
+    let duplicates = Value::make_map(&ty, [entry("a", 1), entry("b", 2), entry("a", 3)]).unwrap();
+    assert_eq!(
+        crate::to_string(&duplicates).unwrap(),
+        r#"{"a": 3, "b": 2}"#
+    );
+}
+
+#[test]
+fn map_type_rejects_invalid_key_types() {
+    for key_type in [
+        Type::F32,
+        Type::F64,
+        Type::list(Type::U8),
+        Type::option(Type::U8),
+        Type::tuple([Type::U8]).unwrap(),
+        Type::map(Type::U8, Type::U8).unwrap(),
+    ] {
+        assert!(
+            Type::map(key_type.clone(), Type::U8).is_none(),
+            "{key_type}"
+        );
+    }
+}
+
+#[test]
+fn make_map_checks_types() {
+    let ty = Type::map(Type::STRING, Type::U32).unwrap();
+    // Wrong key type
+    Value::make_map(&ty, [(Value::make_u32(1), Value::make_u32(1))]).unwrap_err();
+    // Wrong value type
+    Value::make_map(
+        &ty,
+        [(
+            Value::make_string("a".into()),
+            Value::make_string("b".into()),
+        )],
+    )
+    .unwrap_err();
+    // Not a map type
+    Value::make_map(&Type::list(Type::U32), []).unwrap_err();
+}
+
 fn local_ty(val: &Value) -> Type {
     use crate::value::{TypeEnum, ValueEnum};
     match &val.0 {
@@ -142,6 +255,7 @@ fn local_ty(val: &Value) -> Type {
         ValueEnum::Option(inner) => Type(TypeEnum::Option(inner.ty.clone())),
         ValueEnum::Result(inner) => Type(TypeEnum::Result(inner.ty.clone())),
         ValueEnum::Flags(inner) => Type(TypeEnum::Flags(inner.ty.clone())),
+        ValueEnum::Map(inner) => Type(TypeEnum::Map(inner.ty.clone())),
     }
 }
 

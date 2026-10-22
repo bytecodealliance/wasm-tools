@@ -1,4 +1,4 @@
-use alloc::{string::String, vec::Vec};
+use alloc::{format, string::String, vec::Vec};
 use wit_parser::{
     Enum, Flags, Function, Param, Record, Resolve, Result_, Tuple, Type, TypeDefKind, TypeId,
     Variant,
@@ -72,6 +72,7 @@ impl<'a> TypeResolver<'a> {
             TypeDefKind::Option(some_type) => self.resolve_option(some_type),
             TypeDefKind::Result(result) => self.resolve_result(result),
             TypeDefKind::List(element_type) => self.resolve_list(element_type),
+            TypeDefKind::Map(key_type, value_type) => self.resolve_map(key_type, value_type),
             TypeDefKind::FixedLengthList(element_type, elements) => {
                 self.resolve_fixed_length_list(element_type, *elements)
             }
@@ -151,6 +152,14 @@ impl<'a> TypeResolver<'a> {
         Ok(value::Type::list(element_type))
     }
 
+    fn resolve_map(&self, key_type: &Type, value_type: &Type) -> ValueResult {
+        let key_type = self.resolve_type(*key_type)?;
+        let value_type = self.resolve_type(*value_type)?;
+        value::Type::map(key_type.clone(), value_type.clone()).ok_or_else(|| {
+            WasmValueError::UnsupportedType(format!("map<{key_type}, {value_type}>"))
+        })
+    }
+
     fn resolve_fixed_length_list(&self, element_type: &Type, elements: u32) -> ValueResult {
         let element_type = self.resolve_type(*element_type)?;
         Ok(value::Type::fixed_length_list(element_type, elements))
@@ -197,6 +206,7 @@ interface types {
     no-results: func(a: uint8, b: string);
     one-result: func(c: uint8, d: string) -> uint8;
     named-results: func(e: uint8, f: string) -> tuple<u8, string>;
+    maps: func(g: map<string, uint8>) -> map<u32, map<char, bool>>;
 }
                 "#,
             )
@@ -208,6 +218,10 @@ interface types {
             (
                 "named-results",
                 "func(e: u8, f: string) -> tuple<u8, string>",
+            ),
+            (
+                "maps",
+                "func(g: map<string, u8>) -> map<u32, map<char, bool>>",
             ),
         ] {
             let function = resolve
