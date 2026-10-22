@@ -1,0 +1,61 @@
+{
+  "source_filename": "tests/testsuite/cast.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "cast.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 21,
+      "action": {
+        "type": "invoke",
+        "field": "test",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 22,
+      "action": {
+        "type": "invoke",
+        "field": "cast",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 23,
+      "action": {
+        "type": "invoke",
+        "field": "global.set",
+        "args": []
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 24,
+      "action": {
+        "type": "invoke",
+        "field": "table.set",
+        "args": []
+      },
+      "expected": []
+    }
+  ]
+}

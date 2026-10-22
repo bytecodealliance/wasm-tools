@@ -1232,6 +1232,55 @@
       "filename": "utf8-invalid-encoding.175.wat",
       "module_type": "text",
       "text": "malformed UTF-8 encoding"
+    },
+    {
+      "type": "module",
+      "line": 179,
+      "filename": "utf8-invalid-encoding.176.wat",
+      "module_type": "text",
+      "binary_filename": "utf8-invalid-encoding.176.wasm"
+    },
+    {
+      "type": "module",
+      "line": 180,
+      "filename": "utf8-invalid-encoding.177.wat",
+      "module_type": "text",
+      "binary_filename": "utf8-invalid-encoding.177.wasm"
+    },
+    {
+      "type": "module",
+      "line": 181,
+      "filename": "utf8-invalid-encoding.178.wat",
+      "module_type": "text",
+      "binary_filename": "utf8-invalid-encoding.178.wasm"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 184,
+      "filename": "utf8-invalid-encoding.179.wat",
+      "module_type": "text",
+      "text": "malformed UTF-8 codepoint"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 188,
+      "filename": "utf8-invalid-encoding.180.wat",
+      "module_type": "text",
+      "text": "malformed UTF-8 codepoint"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 192,
+      "filename": "utf8-invalid-encoding.181.wat",
+      "module_type": "text",
+      "text": "malformed UTF-8 codepoint"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 196,
+      "filename": "utf8-invalid-encoding.182.wat",
+      "module_type": "text",
+      "text": "malformed UTF-8 codepoint"
     }
   ]
 }

@@ -398,6 +398,100 @@
         ]
       },
       "text": "out of bounds table access"
+    },
+    {
+      "type": "module",
+      "line": 37,
+      "filename": "table_grow64.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 44,
+      "action": {
+        "type": "invoke",
+        "field": "grow",
+        "args": [
+          {
+            "type": "i64",
+            "value": "-1"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "-1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 45,
+      "action": {
+        "type": "invoke",
+        "field": "size",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 46,
+      "action": {
+        "type": "invoke",
+        "field": "grow",
+        "args": [
+          {
+            "type": "i64",
+            "value": "-2"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "either",
+          "values": [
+            {
+              "type": "i64",
+              "value": "-1"
+            },
+            {
+              "type": "i64",
+              "value": "1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 49,
+      "action": {
+        "type": "invoke",
+        "field": "size",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "either",
+          "values": [
+            {
+              "type": "i64",
+              "value": "1"
+            },
+            {
+              "type": "i64",
+              "value": "-1"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

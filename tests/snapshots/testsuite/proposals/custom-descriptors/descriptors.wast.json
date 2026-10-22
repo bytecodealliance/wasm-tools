@@ -194,43 +194,42 @@
       "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
-      "line": 295,
+      "type": "module",
+      "line": 292,
       "filename": "descriptors.28.wasm",
-      "module_type": "binary",
-      "text": "sub type 1 does not match super type 0"
+      "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 305,
+      "line": 310,
       "filename": "descriptors.29.wasm",
       "module_type": "binary",
       "text": "sub type 1 does not match super type 0"
     },
     {
       "type": "assert_invalid",
-      "line": 319,
+      "line": 320,
       "filename": "descriptors.30.wasm",
       "module_type": "binary",
-      "text": "sub type 2 does not match super type 0"
+      "text": "sub type 1 does not match super type 0"
     },
     {
       "type": "assert_invalid",
-      "line": 329,
+      "line": 334,
       "filename": "descriptors.31.wasm",
       "module_type": "binary",
       "text": "sub type 2 does not match super type 0"
     },
     {
       "type": "assert_invalid",
-      "line": 345,
+      "line": 344,
       "filename": "descriptors.32.wasm",
       "module_type": "binary",
       "text": "sub type 2 does not match super type 0"
     },
     {
       "type": "assert_invalid",
-      "line": 355,
+      "line": 360,
       "filename": "descriptors.33.wasm",
       "module_type": "binary",
       "text": "sub type 2 does not match super type 0"
@@ -240,137 +239,137 @@
       "line": 370,
       "filename": "descriptors.34.wasm",
       "module_type": "binary",
-      "text": "sub type 2 does not match super type 1"
+      "text": "sub type 2 does not match super type 0"
     },
     {
       "type": "assert_invalid",
-      "line": 380,
+      "line": 385,
       "filename": "descriptors.35.wasm",
       "module_type": "binary",
       "text": "sub type 2 does not match super type 1"
     },
     {
       "type": "assert_invalid",
-      "line": 394,
+      "line": 395,
       "filename": "descriptors.36.wasm",
       "module_type": "binary",
-      "text": "descriptor type 3 does not match"
+      "text": "sub type 2 does not match super type 1"
     },
     {
       "type": "assert_invalid",
-      "line": 405,
+      "line": 409,
       "filename": "descriptors.37.wasm",
       "module_type": "binary",
       "text": "descriptor type 3 does not match"
     },
     {
       "type": "assert_invalid",
-      "line": 422,
+      "line": 420,
       "filename": "descriptors.38.wasm",
       "module_type": "binary",
-      "text": "described type 2 does not match"
+      "text": "descriptor type 3 does not match"
     },
     {
       "type": "assert_invalid",
-      "line": 433,
+      "line": 437,
       "filename": "descriptors.39.wasm",
       "module_type": "binary",
       "text": "described type 2 does not match"
     },
     {
       "type": "assert_invalid",
-      "line": 449,
+      "line": 448,
       "filename": "descriptors.40.wasm",
       "module_type": "binary",
-      "text": "sub type 2 does not match super type 0"
+      "text": "described type 2 does not match"
     },
     {
       "type": "assert_invalid",
-      "line": 460,
+      "line": 464,
       "filename": "descriptors.41.wasm",
       "module_type": "binary",
       "text": "sub type 2 does not match super type 0"
     },
     {
       "type": "assert_invalid",
-      "line": 473,
+      "line": 475,
       "filename": "descriptors.42.wasm",
       "module_type": "binary",
       "text": "sub type 2 does not match super type 0"
     },
     {
       "type": "assert_invalid",
-      "line": 491,
+      "line": 488,
       "filename": "descriptors.43.wasm",
       "module_type": "binary",
       "text": "sub type 2 does not match super type 0"
     },
     {
       "type": "assert_invalid",
-      "line": 502,
+      "line": 506,
       "filename": "descriptors.44.wasm",
       "module_type": "binary",
       "text": "sub type 2 does not match super type 0"
     },
     {
       "type": "assert_invalid",
-      "line": 515,
+      "line": 517,
       "filename": "descriptors.45.wasm",
       "module_type": "binary",
       "text": "sub type 2 does not match super type 0"
     },
     {
       "type": "assert_invalid",
-      "line": 532,
+      "line": 530,
       "filename": "descriptors.46.wasm",
       "module_type": "binary",
       "text": "sub type 2 does not match super type 0"
     },
     {
       "type": "assert_invalid",
-      "line": 543,
+      "line": 547,
       "filename": "descriptors.47.wasm",
       "module_type": "binary",
       "text": "sub type 2 does not match super type 0"
     },
     {
       "type": "assert_invalid",
-      "line": 559,
+      "line": 558,
       "filename": "descriptors.48.wasm",
       "module_type": "binary",
-      "text": "sub type 1 does not match super type 0"
+      "text": "sub type 2 does not match super type 0"
     },
     {
       "type": "assert_invalid",
-      "line": 569,
+      "line": 574,
       "filename": "descriptors.49.wasm",
       "module_type": "binary",
       "text": "sub type 1 does not match super type 0"
     },
     {
       "type": "assert_invalid",
-      "line": 583,
+      "line": 584,
       "filename": "descriptors.50.wasm",
       "module_type": "binary",
-      "text": "sub type 3 does not match super type 1"
+      "text": "sub type 1 does not match super type 0"
     },
     {
       "type": "assert_invalid",
-      "line": 594,
+      "line": 598,
       "filename": "descriptors.51.wasm",
       "module_type": "binary",
       "text": "sub type 3 does not match super type 1"
     },
     {
       "type": "assert_invalid",
-      "line": 610,
+      "line": 609,
       "filename": "descriptors.52.wasm",
       "module_type": "binary",
-      "text": "descriptor type 5 does not match"
+      "text": "sub type 3 does not match super type 1"
     },
     {
       "type": "assert_invalid",
-      "line": 623,
+      "line": 625,
       "filename": "descriptors.53.wasm",
       "module_type": "binary",
       "text": "descriptor type 5 does not match"
@@ -380,25 +379,25 @@
       "line": 638,
       "filename": "descriptors.54.wasm",
       "module_type": "binary",
-      "text": "sub type 5 does not match super type 2"
+      "text": "descriptor type 5 does not match"
     },
     {
       "type": "assert_invalid",
-      "line": 651,
+      "line": 653,
       "filename": "descriptors.55.wasm",
       "module_type": "binary",
       "text": "sub type 5 does not match super type 2"
     },
     {
       "type": "assert_invalid",
-      "line": 669,
+      "line": 666,
       "filename": "descriptors.56.wasm",
       "module_type": "binary",
-      "text": "described type 3 does not match"
+      "text": "sub type 5 does not match super type 2"
     },
     {
       "type": "assert_invalid",
-      "line": 682,
+      "line": 684,
       "filename": "descriptors.57.wasm",
       "module_type": "binary",
       "text": "described type 3 does not match"
@@ -408,12 +407,19 @@
       "line": 697,
       "filename": "descriptors.58.wasm",
       "module_type": "binary",
+      "text": "described type 3 does not match"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 712,
+      "filename": "descriptors.59.wasm",
+      "module_type": "binary",
       "text": "sub type 3 does not match super type 0"
     },
     {
       "type": "assert_invalid",
-      "line": 710,
-      "filename": "descriptors.59.wasm",
+      "line": 725,
+      "filename": "descriptors.60.wasm",
       "module_type": "binary",
       "text": "sub type 3 does not match super type 0"
     }

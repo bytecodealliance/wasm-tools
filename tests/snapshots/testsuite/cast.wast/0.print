@@ -1,0 +1,38 @@
+(module
+  (type (;0;) (func))
+  (type (;1;) (func (result exnref)))
+  (type (;2;) (func (result i32)))
+  (table $t (;0;) 1 exnref)
+  (tag $e (;0;) (type 0))
+  (global $g (;0;) (mut exnref) ref.null exn)
+  (export "test" (func 1))
+  (export "cast" (func 2))
+  (export "global.set" (func 3))
+  (export "table.set" (func 4))
+  (func $mkexn (;0;) (type 1) (result exnref)
+    block $h (result exnref)
+      try_table (catch_all_ref $h) ;; label = @2
+        throw $e
+      end
+      unreachable
+    end
+  )
+  (func (;1;) (type 2) (result i32)
+    call $mkexn
+    ref.test (ref exn)
+  )
+  (func (;2;) (type 2) (result i32)
+    call $mkexn
+    ref.cast (ref exn)
+    ref.is_null
+  )
+  (func (;3;) (type 0)
+    call $mkexn
+    global.set $g
+  )
+  (func (;4;) (type 0)
+    i32.const 0
+    call $mkexn
+    table.set $t
+  )
+)

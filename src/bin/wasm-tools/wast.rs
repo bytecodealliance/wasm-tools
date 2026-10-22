@@ -286,17 +286,32 @@ impl Opts {
                 let binary_wasm = module.encode()?;
                 let mut parser = wasmparser::Parser::new(0);
                 parser.set_features(self.features.features());
-                parse_binary_wasm(parser, &binary_wasm, true)?;
+
+                // For `assert_invalid` tests it should be the case that
+                // everything parses. If a wasmparser-specific
+                // implementation-limit is reached, however, then don't require
+                // a full parse and instead fall through to `test_wasm_valid`
+                // which will re-parse & validate. Otherwise though any parse
+                // error is a full failure of this test and propagates.
+                let mut test_roundtrip = true;
+                if let Err(e) = parse_binary_wasm(parser, &binary_wasm, true) {
+                    test_roundtrip = false;
+                    if !e.to_string().contains("implementation limit") {
+                        return Err(e);
+                    }
+                }
 
                 // ensure module round-trips successfully (but don't snapshot it)
-                let mut test_path = test.to_path_buf();
-                test_path.push(idx.to_string());
-                self.test_wasm_roundtrip(
-                    &test_path,
-                    &binary_wasm,
-                    !is_custom && expect_binary_roundtrip(&module),
-                    false,
-                )?;
+                if test_roundtrip {
+                    let mut test_path = test.to_path_buf();
+                    test_path.push(idx.to_string());
+                    self.test_wasm_roundtrip(
+                        &test_path,
+                        &binary_wasm,
+                        !is_custom && expect_binary_roundtrip(&module),
+                        false,
+                    )?;
+                }
 
                 // now, ensure that module is invalid
                 match self.test_wasm_valid(test, &binary_wasm, is_custom) {
