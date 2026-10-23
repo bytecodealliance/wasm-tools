@@ -14,6 +14,25 @@ fn no_oom() {
 }
 
 #[test]
+fn deeply_nested_folded_instructions() {
+    // A long chain of unary operators produces a deeply nested folded
+    // instruction which shouldn't overflow the stack when printed or dropped.
+    let mut s = String::new();
+    s.push_str("(module (func (result i32) i32.const 0\n");
+    for _ in 0..100_000 {
+        s.push_str("i32.eqz\n");
+    }
+    s.push_str("))");
+    let bytes = wat::parse_str(&s).unwrap();
+    let mut wat = String::new();
+    wasmprinter::Config::new()
+        .fold_instructions(true)
+        .print(&bytes, &mut wasmprinter::PrintFmtWrite(&mut wat))
+        .unwrap();
+    assert_eq!(wat.matches("(i32.eqz").count(), 100_000);
+}
+
+#[test]
 fn offsets_and_lines_smoke_test() {
     const MODULE: &str = r#"
         (;@0     ;) (module
