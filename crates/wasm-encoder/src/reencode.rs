@@ -693,7 +693,7 @@ pub mod utils {
             let data_range = start as usize..end;
             data.get(data_range).ok_or(Error::InvalidCodeSectionSize)
         };
-        for section in parser.parse_all(data) {
+        for section in parser.clone().parse_all(data) {
             match section? {
                 wasmparser::Payload::Version {
                     encoding: wasmparser::Encoding::Module,
@@ -849,7 +849,7 @@ pub mod utils {
                     // that users overriding `parse_code_section` always get
                     // that function called.
                     let section = get_original_section(unchecked_range.clone())?;
-                    let reader = wasmparser::BinaryReader::new(section, unchecked_range.start);
+                    let reader = parser.binary_reader(section, unchecked_range.start);
                     let section = wasmparser::CodeSectionReader::new(reader)?;
                     reencoder.parse_code_section(&mut codes, section)?;
                     module.section(&codes);

@@ -1,7 +1,7 @@
 use crate::{Config, PrintTermcolor, Printer};
 use wasmparser::{
     BinaryReader, Frame, OperatorsReader, Payload, Result, ValType, ValidPayload,
-    ValidatorResources, WasmFeatures,
+    ValidatorResources,
 };
 
 pub struct Validator {
@@ -10,9 +10,9 @@ pub struct Validator {
 }
 
 impl Validator {
-    pub fn new() -> Option<Validator> {
+    pub fn new(config: &Config) -> Option<Validator> {
         Some(Validator {
-            validator: wasmparser::Validator::new_with_features(WasmFeatures::all()),
+            validator: wasmparser::Validator::new_with_features(config.features),
             last_function: None,
         })
     }
