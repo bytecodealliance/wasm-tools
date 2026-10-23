@@ -2,8 +2,8 @@ use addr2line::LookupResult;
 use anyhow::Result;
 use std::fmt::Write;
 use std::time::Instant;
-use wasm_tools::addr2line::Addr2lineModules;
 use wasm_tools::CliFeatures;
+use wasm_tools::addr2line::Addr2lineModules;
 
 /// Validate a WebAssembly binary
 ///
@@ -136,4 +136,3 @@ impl Opts {
         }
     }
 }
-

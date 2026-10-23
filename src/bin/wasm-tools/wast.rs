@@ -1,4 +1,3 @@
-use wasm_tools::CliFeatures;
 use anyhow::{Context, Result, bail};
 use clap::Parser;
 use rayon::prelude::*;
@@ -9,6 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::str;
 use wasm_encoder::reencode::{Reencode, ReencodeComponent, RoundtripReencoder};
+use wasm_tools::CliFeatures;
 use wasm_tools::parse_binary_wasm;
 use wasmprinter::PrintFmtWrite;
 use wast::component::{Component, ComponentKind};
