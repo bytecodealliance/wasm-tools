@@ -643,6 +643,7 @@ impl<'a> DFGBuilder {
                 Operator::MemoryGrow { mem } => {
                     let arg = self.pop_operand(idx, false);
                     self.push_node(Lang::MemoryGrow(*mem, Id::from(arg)), idx);
+                    self.new_color();
                 }
                 Operator::MemorySize { mem } => {
                     self.push_node(Lang::MemorySize(*mem), idx);
@@ -654,6 +655,7 @@ impl<'a> DFGBuilder {
                         Lang::TableGrow(*table, [Id::from(size), Id::from(elem)]),
                         idx,
                     );
+                    self.new_color();
                 }
                 Operator::TableSize { table } => {
                     self.push_node(Lang::TableSize(*table), idx);
@@ -1265,6 +1267,56 @@ mod tests {
     use crate::mutators::OperatorAndByteOffset;
     use crate::{ModuleInfo, WasmMutate};
     use wasmparser::Parser;
+
+    /// Returns whether the subtree rooted at the `idx`-th operator of the only
+    /// function in `wat` may be mutated when preserving semantics.
+    fn is_consistent_at(wat: &str, idx: usize) -> bool {
+        let wasm = wat::parse_str(wat).unwrap();
+        let mut config = WasmMutate::default();
+        config.preserve_semantics(true);
+        for payload in Parser::new(0).parse_all(&wasm) {
+            if let wasmparser::Payload::CodeSectionEntry(reader) = payload.unwrap() {
+                let operators = reader
+                    .get_operators_reader()
+                    .unwrap()
+                    .into_iter_with_offsets()
+                    .collect::<wasmparser::Result<Vec<OperatorAndByteOffset>>>()
+                    .unwrap();
+                let bb = DFGBuilder::new(&config)
+                    .get_bb_from_operator(idx, &operators)
+                    .unwrap();
+                let dfg = DFGBuilder::new(&config)
+                    .get_dfg(&ModuleInfo::default(), &operators, &bb)
+                    .unwrap();
+                return dfg.is_subtree_consistent(dfg.map[&idx]);
+            }
+        }
+        unreachable!()
+    }
+
+    #[test]
+    fn test_dfg_grow_starts_new_color() {
+        // memory.size, i32.const, <op>, i32.add
+        let add = 3;
+        assert!(is_consistent_at(
+            r#"(module (memory 1)
+                (func (result i32)
+                    (i32.add (memory.size) (i32.load (i32.const 1)))))"#,
+            add,
+        ));
+        assert!(!is_consistent_at(
+            r#"(module (memory 1)
+                (func (result i32)
+                    (i32.add (memory.size) (memory.grow (i32.const 1)))))"#,
+            add,
+        ));
+        assert!(!is_consistent_at(
+            r#"(module (table 1 funcref)
+                (func (result i32)
+                    (i32.add (table.size) (table.grow (ref.null func) (i32.const 1)))))"#,
+            add + 1,
+        ));
+    }
 
     #[test]
     fn test_dfg_getsinglebb() {
