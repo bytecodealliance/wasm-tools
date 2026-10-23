@@ -1,0 +1,21 @@
+package root:component;
+
+world root {
+  import a:x/l;
+  import a:x/k;
+
+  export a:x/l;
+  export a:x/k;
+}
+package a:x {
+  interface k {
+    use l.{t};
+
+    f: func();
+
+    g: func(x: t);
+  }
+  interface l {
+    resource t;
+  }
+}

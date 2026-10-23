@@ -338,6 +338,7 @@ impl ComponentInfo {
                 }
             }
         }
+        decoder.order_world_interfaces(world)?;
 
         let (mut resolve, pkg) = decoder.finish(package);
         if let Some(package_metadata) = &self.package_metadata {
@@ -1239,9 +1240,44 @@ impl WitPackageDecoder<'_> {
             world.exports.insert(name, item);
         }
         let id = self.resolve.worlds.alloc(world);
+        self.order_world_interfaces(id)?;
         let prev = package.worlds.insert(name, id);
         assert!(prev.is_none());
         Ok(id)
+    }
+
+    /// Moves each interface that `world` imports or exports after the
+    /// interfaces it uses types from, importing those that are missing, as
+    /// WIT does when elaborating a world.
+    ///
+    /// An interface that's both imported and exported is decoded as one, so
+    /// the export can give the import dependencies that come after it or that
+    /// aren't imported at all.
+    fn order_world_interfaces(&mut self, world: WorldId) -> Result<()> {
+        let pending_imports = mem::take(&mut self.resolve.worlds[world].imports);
+        let pending_exports = mem::take(&mut self.resolve.worlds[world].exports);
+        let mut order = WorldOrder {
+            resolve: &self.resolve,
+            pending_imports,
+            pending_exports,
+            imports: IndexMap::default(),
+            exports: IndexMap::default(),
+            placed: HashSet::new(),
+            visiting: HashSet::new(),
+        };
+        while let Some((key, item)) = order.pending_imports.shift_remove_index(0) {
+            order.add(false, key, item)?;
+        }
+        while let Some((key, item)) = order.pending_exports.shift_remove_index(0) {
+            order.add(true, key, item)?;
+        }
+        let WorldOrder {
+            imports, exports, ..
+        } = order;
+        let world = &mut self.resolve.worlds[world];
+        world.imports = imports;
+        world.exports = exports;
+        Ok(())
     }
 
     fn convert_function(
@@ -1696,6 +1732,82 @@ impl WitPackageDecoder<'_> {
         }
 
         assert!(order.insert(idx));
+    }
+}
+
+/// Helper for `WitPackageDecoder::order_world_interfaces`.
+struct WorldOrder<'a> {
+    resolve: &'a Resolve,
+    pending_imports: IndexMap<WorldKey, WorldItem>,
+    pending_exports: IndexMap<WorldKey, WorldItem>,
+    imports: IndexMap<WorldKey, WorldItem>,
+    exports: IndexMap<WorldKey, WorldItem>,
+    /// Interfaces already imported or exported.
+    placed: HashSet<InterfaceId>,
+    /// Interfaces whose dependencies are being placed.
+    visiting: HashSet<InterfaceId>,
+}
+
+impl WorldOrder<'_> {
+    /// Adds `item` to the imports, or the exports if `export`, after the
+    /// interfaces it uses types from, moving those up from the pending items
+    /// if they're there and importing them otherwise.
+    fn add(&mut self, export: bool, key: WorldKey, item: WorldItem) -> Result<()> {
+        // An unnamed interface is never merged with another, so the
+        // interfaces it uses already come before it.
+        if let WorldItem::Interface { id, .. } = item
+            && self.resolve.interfaces[id].name.is_some()
+        {
+            let resolve = self.resolve;
+            self.visiting.insert(id);
+            for dep in resolve.interface_direct_deps(id) {
+                if self.visiting.contains(&dep) {
+                    let name = |i: InterfaceId| resolve.interfaces[i].name.as_deref();
+                    bail!(
+                        "cannot represent this component in WIT: interfaces `{}` and `{}` \
+                         use types from each other",
+                        name(id).unwrap_or_default(),
+                        name(dep).unwrap_or_default(),
+                    );
+                }
+                if self.placed.contains(&dep) {
+                    continue;
+                }
+                let pending = if export {
+                    &mut self.pending_exports
+                } else {
+                    &mut self.pending_imports
+                };
+                let pos = pending
+                    .values()
+                    .position(|item| matches!(item, WorldItem::Interface { id, .. } if *id == dep));
+                match pos {
+                    Some(pos) => {
+                        let (key, item) = pending.shift_remove_index(pos).unwrap();
+                        self.add(export, key, item)?;
+                    }
+                    None => {
+                        let item = WorldItem::Interface {
+                            id: dep,
+                            stability: Default::default(),
+                            docs: Default::default(),
+                            span: Default::default(),
+                            external_id: None,
+                        };
+                        self.add(false, WorldKey::Interface(dep), item)?;
+                    }
+                }
+            }
+            self.visiting.remove(&id);
+            self.placed.insert(id);
+        }
+        let items = if export {
+            &mut self.exports
+        } else {
+            &mut self.imports
+        };
+        items.insert(key, item);
+        Ok(())
     }
 }
 
