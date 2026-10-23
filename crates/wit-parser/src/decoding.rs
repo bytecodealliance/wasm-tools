@@ -886,8 +886,24 @@ impl WitPackageDecoder<'_> {
         for id in iface.types.values() {
             let ty = &resolve.types[*id];
             match ty.kind {
-                // A `use` is how another interface's type comes into scope.
-                TypeDefKind::Type(Type::Id(other)) if resolve.types[other].name.is_some() => {}
+                // A `use` is how another interface's type comes into scope,
+                // but only from a named interface.
+                TypeDefKind::Type(Type::Id(other)) if resolve.types[other].name.is_some() => {
+                    let used = &resolve.types[other];
+                    let named_interface = match used.owner {
+                        TypeOwner::Interface(i) => {
+                            i == interface || resolve.interfaces[i].name.is_some()
+                        }
+                        _ => false,
+                    };
+                    if !named_interface {
+                        bail!(
+                            "cannot represent this component in WIT: `{name}` uses type `{}`, \
+                             which isn't defined in a named interface",
+                            used.name.as_deref().unwrap(),
+                        );
+                    }
+                }
                 _ => named.visit_type_def(resolve, ty),
             }
         }
@@ -1099,6 +1115,12 @@ impl WitPackageDecoder<'_> {
             _ => unreachable!(),
         };
         let kind = match self.find_alias(referenced) {
+            // An anonymous type has no name to alias, so this is a copy of
+            // its definition.
+            Some(prev) if self.resolve.types[prev].name.is_none() => {
+                self.resolve.types[prev].kind.clone()
+            }
+
             // If this `TypeId` points to a type which has
             // previously been defined, meaning we're aliasing a
             // prior definition.
