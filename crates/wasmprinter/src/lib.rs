@@ -183,11 +183,13 @@ impl State {
     }
 }
 
+#[derive(Clone, PartialEq)]
 struct Naming {
     name: String,
     kind: NamingKind,
 }
 
+#[derive(Clone, PartialEq)]
 enum NamingKind {
     DollarName,
     DollarQuotedName,
@@ -531,6 +533,20 @@ impl Printer<'_, '_> {
                         if let Some(name) = state.name.as_ref() {
                             self.result.write_str(" ")?;
                             name.write(self)?;
+                        }
+                    }
+
+                    // Outer aliases refer to a nested component by the name
+                    // printed above, which its parent gives it.
+                    #[cfg(feature = "component-model")]
+                    if let [.., parent, state] = &mut states[..] {
+                        if state.encoding == Encoding::Component {
+                            state.name = parent
+                                .component
+                                .component_names
+                                .index_to_name
+                                .get(&parent.component.components)
+                                .cloned();
                         }
                     }
                 }
