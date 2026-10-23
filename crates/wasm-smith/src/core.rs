@@ -151,6 +151,33 @@ pub struct Module {
     /// or just after a memory size, etc...
     interesting_values32: Vec<u32>,
     interesting_values64: Vec<u64>,
+
+    /// The imports and exports that a component needs this module to have.
+    #[cfg(feature = "component-model")]
+    shape: Option<Shape>,
+}
+
+/// The imports and exports that a component needs a core module to have, so
+/// that it can instantiate the module and use its exports.
+#[cfg(feature = "component-model")]
+#[derive(Default)]
+pub(crate) struct Shape {
+    /// Function imports, which replace arbitrary imports.
+    pub(crate) imports: Vec<(String, String, Rc<FuncType>)>,
+    /// Function exports, in addition to arbitrary exports.
+    pub(crate) funcs: Vec<(String, Rc<FuncType>)>,
+    /// The name of an export of a 32-bit, unshared memory.
+    pub(crate) memory: Option<String>,
+}
+
+/// The type of a core module's import or export, as far as a component can
+/// match it.
+#[cfg(feature = "component-model")]
+pub(crate) enum ExternType<'a> {
+    /// A function, with its type if it is one that a component can match.
+    Func(Option<&'a Rc<FuncType>>),
+    Memory(&'a MemoryType),
+    Other(ExportKind),
 }
 
 impl<'a> Arbitrary<'a> for Module {
@@ -205,6 +232,160 @@ impl Module {
         Self::new_internal(config, u, DuplicateImportsBehavior::Allowed)
     }
 
+    /// Generates a module with `shape`'s imports and exports.
+    #[cfg(feature = "component-model")]
+    pub(crate) fn new_shaped(
+        config: Config,
+        u: &mut Unstructured<'_>,
+        shape: Shape,
+    ) -> Result<Self> {
+        let mut module = Module::empty(config, DuplicateImportsBehavior::Disallowed);
+        module.shape = Some(shape);
+        module.build(u)?;
+        Ok(module)
+    }
+
+    /// Returns the module and field names of this module's imports, and their
+    /// types.
+    #[cfg(feature = "component-model")]
+    pub(crate) fn import_types(&self) -> Vec<(&str, &str, ExternType<'_>)> {
+        let mut imports = Vec::new();
+        for group in &self.imports {
+            match group {
+                Imports::Single(import) => imports.push((
+                    &*import.module,
+                    &*import.name,
+                    self.extern_type(&import.entity_type),
+                )),
+                Imports::Compact1 { module, items } => {
+                    imports.extend(items.iter().map(|import| {
+                        let ty = self.extern_type(&import.entity_type);
+                        (&**module, &*import.name, ty)
+                    }));
+                }
+                Imports::Compact2 {
+                    module,
+                    entity_type,
+                    names,
+                } => imports.extend(
+                    names
+                        .iter()
+                        .map(|name| (&**module, &**name, self.extern_type(entity_type))),
+                ),
+            }
+        }
+        imports
+    }
+
+    /// Returns the names of this module's exports, and their types.
+    #[cfg(feature = "component-model")]
+    pub(crate) fn export_types(&self) -> Vec<(&str, ExternType<'_>)> {
+        self.exports
+            .iter()
+            .map(|(name, kind, idx)| {
+                let ty = match kind {
+                    ExportKind::Func => {
+                        let (ty, func_type) = &self.funcs[*idx as usize];
+                        ExternType::Func(self.is_canonical_func_type(*ty).then_some(func_type))
+                    }
+                    ExportKind::Memory => ExternType::Memory(&self.memories[*idx as usize]),
+                    kind => ExternType::Other(*kind),
+                };
+                (&**name, ty)
+            })
+            .collect()
+    }
+
+    #[cfg(feature = "component-model")]
+    fn extern_type<'a>(&'a self, ty: &'a EntityType) -> ExternType<'a> {
+        match ty {
+            EntityType::Func(idx, func_type) => {
+                ExternType::Func(self.is_canonical_func_type(*idx).then_some(func_type))
+            }
+            EntityType::Memory(ty) => ExternType::Memory(ty),
+            EntityType::Global(_) => ExternType::Other(ExportKind::Global),
+            EntityType::Table(_) => ExternType::Other(ExportKind::Table),
+            EntityType::Tag(_) => ExternType::Other(ExportKind::Tag),
+        }
+    }
+
+    /// Whether the type `idx` is a function type that a component can match:
+    /// final, without supertypes, and alone in its recursion group.
+    #[cfg(feature = "component-model")]
+    fn is_canonical_func_type(&self, idx: u32) -> bool {
+        let idx = idx as usize;
+        let ty = &self.types[idx];
+        ty.is_final
+            && ty.supertype.is_none()
+            && !ty.composite_type.shared
+            && ty.composite_type.descriptor.is_none()
+            && ty.composite_type.describes.is_none()
+            && self.rec_groups.contains(&(idx..idx + 1))
+    }
+
+    /// Adds a function type that a component can match.
+    #[cfg(feature = "component-model")]
+    fn add_canonical_func_type(&mut self, ty: Rc<FuncType>) -> u32 {
+        self.rec_groups.push(self.types.len()..self.types.len() + 1);
+        self.add_type(SubType {
+            is_final: true,
+            supertype: None,
+            composite_type: CompositeType::new_func(ty, false),
+            depth: 1,
+        })
+    }
+
+    #[cfg(feature = "component-model")]
+    fn add_shape_imports(
+        &mut self,
+        imports: Vec<(String, String, Rc<FuncType>)>,
+        u: &mut Unstructured,
+    ) -> Result<()> {
+        let mut new_imports = Vec::new();
+        for (module, name, ty) in imports {
+            let idx = self.add_canonical_func_type(Rc::clone(&ty));
+            self.funcs.push((idx, Rc::clone(&ty)));
+            self.num_imports += 1;
+            new_imports.push(Import {
+                module,
+                name,
+                entity_type: EntityType::Func(idx, ty),
+            });
+        }
+        self.push_arbitrary_import_groups(new_imports, u)
+    }
+
+    #[cfg(feature = "component-model")]
+    fn add_shape_exports(&mut self, shape: Shape, u: &mut Unstructured) -> Result<()> {
+        for (name, ty) in shape.funcs {
+            let idx = self.add_canonical_func_type(Rc::clone(&ty));
+            let func = self.funcs.len() as u32;
+            self.funcs.push((idx, ty));
+            self.num_defined_funcs += 1;
+            self.export_names.insert(name.clone());
+            self.exports.push((name, ExportKind::Func, func));
+        }
+        if let Some(name) = shape.memory {
+            let memory = self
+                .memories
+                .iter()
+                .position(|ty| !ty.memory64 && !ty.shared && ty.page_size_log2.is_none());
+            let memory = match memory {
+                Some(memory) => memory as u32,
+                None => self.add_arbitrary_memory_of_type(MemoryType {
+                    minimum: u.int_in_range(0..=1)?,
+                    maximum: None,
+                    memory64: false,
+                    shared: false,
+                    page_size_log2: None,
+                })?,
+            };
+            self.export_names.insert(name.clone());
+            self.exports.push((name, ExportKind::Memory, memory));
+        }
+        Ok(())
+    }
+
     pub(crate) fn new_internal(
         config: Config,
         u: &mut Unstructured<'_>,
@@ -253,6 +434,8 @@ impl Module {
             interesting_values32: Vec::new(),
             interesting_values64: Vec::new(),
             must_share: false,
+            #[cfg(feature = "component-model")]
+            shape: None,
         }
     }
 }
@@ -487,6 +670,11 @@ impl Module {
         if self.arbitrary_imports_from_available(u)? {
             generate_arbitrary_imports = false;
         }
+        #[cfg(feature = "component-model")]
+        if let Some(imports) = self.shape.as_mut().map(|s| mem::take(&mut s.imports)) {
+            self.add_shape_imports(imports, u)?;
+            generate_arbitrary_imports = false;
+        }
         self.arbitrary_types(u)?;
         if generate_arbitrary_imports {
             self.arbitrary_imports(u)?;
@@ -501,6 +689,10 @@ impl Module {
         self.arbitrary_globals(u)?;
         if self.required_exports(u)? {
             generate_arbitrary_exports = false;
+        }
+        #[cfg(feature = "component-model")]
+        if let Some(shape) = self.shape.take() {
+            self.add_shape_exports(shape, u)?;
         }
         if generate_arbitrary_exports {
             self.arbitrary_exports(u)?;
@@ -1970,7 +2162,7 @@ impl Module {
     ///
     /// If [`crate::Config::compact_imports_enabled`] is `false`,
     /// produces only single imports.
-    #[cfg(feature = "wasmparser")]
+    #[cfg(any(feature = "wasmparser", feature = "component-model"))]
     fn push_arbitrary_import_groups(
         &mut self,
         imports: Vec<Import>,
