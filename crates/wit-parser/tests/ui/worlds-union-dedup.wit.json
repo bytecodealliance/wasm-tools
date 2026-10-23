@@ -106,7 +106,8 @@
         "my-world-a": 0,
         "my-world-b": 1,
         "union-my-world": 2
-      }
+      },
+      "types": {}
     }
   ]
 }

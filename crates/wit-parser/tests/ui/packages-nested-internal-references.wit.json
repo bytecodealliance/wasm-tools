@@ -73,19 +73,22 @@
       "interfaces": {
         "i1": 0
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "bar:name",
       "interfaces": {},
       "worlds": {
         "w1": 0
-      }
+      },
+      "types": {}
     },
     {
       "name": "foo:root",
       "interfaces": {},
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }

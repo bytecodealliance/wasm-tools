@@ -1,0 +1,15 @@
+package local:demo;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+interface api {
+  type point = u64;
+  f: func(p: point);
+}
+
+world w {
+  export api;
+}

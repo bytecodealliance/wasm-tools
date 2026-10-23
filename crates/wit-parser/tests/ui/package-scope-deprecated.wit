@@ -1,0 +1,15 @@
+package local:demo@1.0.0;
+
+@since(version = 0.1.0)
+@deprecated(version = 0.9.0)
+record old {
+  x: u32,
+}
+
+interface api {
+  f: func(o: old);
+}
+
+world w {
+  export api;
+}

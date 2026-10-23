@@ -25,9 +25,30 @@ use wit_parser::*;
 /// The binary returned can be [`decode`d](crate::decode) to recover the WIT
 /// package provided.
 pub fn encode(resolve: &Resolve, package: PackageId, canonical_names: bool) -> Result<Vec<u8>> {
+    // Package-scope types parse, print, and decode, but this binary encoding
+    // still inlines them. Refuse that until the encoding keeps the shared type.
+    if package_scope_types_in_package(resolve, package) {
+        anyhow::bail!("encoding package-scope types to a WIT package binary is not yet supported");
+    }
     let mut component = encode_component(resolve, package, canonical_names)?;
     component.raw_custom_section(&crate::base_producers().raw_custom_section());
     Ok(component.finish())
+}
+
+fn package_scope_types_in_package(resolve: &Resolve, package: PackageId) -> bool {
+    let pkg = &resolve.packages[package];
+    if !pkg.types.is_empty() {
+        return true;
+    }
+    let mut live = LiveTypes::default();
+    for (_, &id) in pkg.interfaces.iter() {
+        live.add_interface(resolve, id);
+    }
+    for (_, &id) in pkg.worlds.iter() {
+        live.add_world(resolve, id);
+    }
+    live.iter()
+        .any(|id| matches!(resolve.types[id].owner, TypeOwner::Package(_)))
 }
 
 /// Encodes the given `package` within `resolve` to a binary WebAssembly

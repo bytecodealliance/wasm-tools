@@ -384,7 +384,9 @@ impl<'a> Converter<'a> {
             wit_parser::TypeOwner::Interface(id) => {
                 &self.resolve.interfaces.get(*id).unwrap().functions
             }
-            wit_parser::TypeOwner::None => panic!("Resource has to have an owner"),
+            wit_parser::TypeOwner::Package(_) | wit_parser::TypeOwner::None => {
+                panic!("Resource has to have an owner")
+            }
         };
 
         let mut output = Resource::empty();
