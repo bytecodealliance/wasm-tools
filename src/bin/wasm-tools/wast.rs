@@ -1,4 +1,4 @@
-use crate::validate::CliFeatures;
+use wasm_tools::CliFeatures;
 use anyhow::{Context, Result, bail};
 use clap::Parser;
 use rayon::prelude::*;
@@ -203,8 +203,7 @@ impl Opts {
                         return Ok(());
                     }
                 };
-                let mut parser = wasmparser::Parser::new(0);
-                parser.set_features(self.features.features());
+                let parser = self.parser();
                 if let Err(e) = parse_binary_wasm(parser, &bytes, is_custom) {
                     self.assert_error_matches(test, &format!("{e:?}"), message)?;
 
@@ -284,8 +283,7 @@ impl Opts {
             } => {
                 // ensure module parses successfully
                 let binary_wasm = module.encode()?;
-                let mut parser = wasmparser::Parser::new(0);
-                parser.set_features(self.features.features());
+                let parser = self.parser();
 
                 // For `assert_invalid` tests it should be the case that
                 // everything parses. If a wasmparser-specific
@@ -394,7 +392,7 @@ impl Opts {
         enable_snapshot: bool,
     ) -> Result<()> {
         // Test that we can print these bytes.
-        let text1 = wasmprinter::print_bytes(contents).context("failed to print wasm")?;
+        let text1 = self.print(contents, false)?;
         if enable_snapshot && self.assert(Assert::SnapshotPrint) {
             self.snapshot("print", test, &text1)
                 .context("failed to validate the `print` snapshot")?;
@@ -403,11 +401,7 @@ impl Opts {
         // Test that we can print these bytes with instructions in folded form.
         let mut text1_folded = String::new();
         if self.assert(Assert::TestFolded) {
-            let mut folding_printer = wasmprinter::Config::new();
-            folding_printer.fold_instructions(true);
-            folding_printer
-                .print(contents, &mut PrintFmtWrite(&mut text1_folded))
-                .context("failed to print wasm in folded form")?;
+            text1_folded = self.print(contents, true)?;
 
             if enable_snapshot && self.assert(Assert::SnapshotFolded) {
                 self.snapshot("print-folded", test, &text1_folded)
@@ -422,7 +416,7 @@ impl Opts {
 
         // Convert the text versions back to binary and compare to original
         let binary2 = wat::parse_str(&text1).context("failed to parse `wat` from `wasmprinter`")?;
-        let text2 = wasmprinter::print_bytes(&binary2).context("failed to print wasm")?;
+        let text2 = self.print(&binary2, false)?;
         if roundtrip_binary {
             self.binary_compare(&binary2, contents)
                 .context("failed to compare original binary with roundtrip through wasmparser->wasmprinter->wat")?;
@@ -436,18 +430,12 @@ impl Opts {
         if self.assert(Assert::TestFolded) {
             let binary2_from_folded = wat::parse_str(&text1_folded)
                 .context("failed to parse folded `wat` from `wasmprinter`")?;
-            let mut text2_folded = String::new();
-            let mut folding_printer = wasmprinter::Config::new();
-            folding_printer.fold_instructions(true);
-            folding_printer
-                .print(contents, &mut PrintFmtWrite(&mut text2_folded))
-                .context("failed to print wasm in folded form")?;
+            let text2_folded = self.print(contents, true)?;
             if roundtrip_binary {
                 self.binary_compare(&binary2_from_folded, contents)
                     .context("failed to compare original `wat` with roundtrip folded `wat`")?;
             }
-            let text3 =
-                wasmprinter::print_bytes(binary2_from_folded).context("failed to print wasm")?;
+            let text3 = self.print(&binary2_from_folded, false)?;
             if text1_folded != text2_folded {
                 anyhow::bail!(
                     "original folded print does not match roundtrip folded print\n{}",
@@ -466,20 +454,46 @@ impl Opts {
             if wasmparser::Parser::is_component(contents) {
                 let mut reencode = Default::default();
                 RoundtripReencoder
-                    .parse_component(&mut reencode, wasmparser::Parser::new(0), contents)
+                    .parse_component(&mut reencode, self.parser(), contents)
                     .context("failed to reencode module")?;
                 self.binary_compare(&reencode.finish(), contents)
                     .context("failed to compare reencoded module with original encoding")?;
             } else {
                 let mut reencode = Default::default();
                 RoundtripReencoder
-                    .parse_core_module(&mut reencode, wasmparser::Parser::new(0), contents)
+                    .parse_core_module(&mut reencode, self.parser(), contents)
                     .context("failed to reencode module")?;
                 self.binary_compare(&reencode.finish(), contents)
                     .context("failed to compare reencoded module with original encoding")?;
             }
         }
         Ok(())
+    }
+
+    /// Prints `contents` with `wasmprinter`, decoding it with respect to
+    /// `self.features`.
+    fn print(&self, contents: &[u8], fold_instructions: bool) -> Result<String> {
+        let mut config = wasmprinter::Config::new();
+        config.features(self.features.features());
+        config.fold_instructions(fold_instructions);
+        let mut text = String::new();
+        config
+            .print(contents, &mut PrintFmtWrite(&mut text))
+            .with_context(|| {
+                if fold_instructions {
+                    "failed to print wasm in folded form"
+                } else {
+                    "failed to print wasm"
+                }
+            })?;
+        Ok(text)
+    }
+
+    /// Creates a parser which decodes with respect to `self.features`.
+    fn parser(&self) -> wasmparser::Parser {
+        let mut parser = wasmparser::Parser::new(0);
+        parser.set_features(self.features.features());
+        parser
     }
 
     /// Tests that `contents` is valid wasm binary with respect to

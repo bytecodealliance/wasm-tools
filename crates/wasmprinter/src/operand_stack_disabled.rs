@@ -3,7 +3,7 @@ use wasmparser::{BinaryReader, OperatorsReader, Payload, Result};
 pub enum Validator {}
 
 impl Validator {
-    pub fn new() -> Option<Validator> {
+    pub fn new(_config: &crate::Config) -> Option<Validator> {
         None
     }
 

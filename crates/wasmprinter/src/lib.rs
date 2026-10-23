@@ -65,6 +65,8 @@ pub struct Config {
     fold_instructions: bool,
     indent_text: String,
     print_operand_stack: bool,
+    #[cfg(feature = "features")]
+    features: wasmparser::WasmFeatures,
 }
 
 impl Default for Config {
@@ -76,6 +78,8 @@ impl Default for Config {
             fold_instructions: false,
             indent_text: "  ".to_string(),
             print_operand_stack: false,
+            #[cfg(feature = "features")]
+            features: wasmparser::WasmFeatures::all(),
         }
     }
 }
@@ -285,6 +289,15 @@ impl Config {
         self
     }
 
+    /// Select the set of WebAssembly features used when decoding the input.
+    ///
+    /// The default setting is [`WasmFeatures::all`](wasmparser::WasmFeatures::all).
+    #[cfg(feature = "features")]
+    pub fn features(&mut self, features: wasmparser::WasmFeatures) -> &mut Self {
+        self.features = features;
+        self
+    }
+
     /// Print a WebAssembly binary.
     ///
     /// This function takes an entire `wasm` binary blob and prints it to the
@@ -441,11 +454,13 @@ impl Printer<'_, '_> {
         let mut expected = None;
         let mut states: Vec<State> = Vec::new();
         let mut parser = Parser::new(0);
+        #[cfg(feature = "features")]
+        parser.set_features(self.config.features);
         #[cfg(feature = "component-model")]
         let mut parsers = Vec::new();
 
         let mut validator = if self.config.print_operand_stack {
-            operand_stack::Validator::new()
+            operand_stack::Validator::new(self.config)
         } else {
             None
         };

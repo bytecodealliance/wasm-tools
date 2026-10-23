@@ -474,6 +474,29 @@ impl Parser {
         self.features = features;
     }
 
+    /// Creates a new [`BinaryReader`] for `data` which uses the same set of
+    /// wasm features as this parser.
+    ///
+    /// This is useful when parsing a range of the input, such as a section's
+    /// contents, outside of this parser while still respecting the features
+    /// configured with [`Parser::set_features`].
+    ///
+    /// For more information see [`BinaryReader::new`].
+    ///
+    /// # Panics
+    ///
+    /// Panics in the same situations as [`BinaryReader::new`].
+    pub fn binary_reader<'a>(&self, data: &'a [u8], original_offset: u64) -> BinaryReader<'a> {
+        #[cfg(feature = "features")]
+        {
+            BinaryReader::new_features(data, original_offset, self.features)
+        }
+        #[cfg(not(feature = "features"))]
+        {
+            BinaryReader::new(data, original_offset)
+        }
+    }
+
     /// Returns the original offset that this parser is currently at.
     pub fn offset(&self) -> u64 {
         self.offset
@@ -640,11 +663,7 @@ impl Parser {
         } else {
             (data, eof)
         };
-        let mut reader = BinaryReader::new(data, self.offset);
-        #[cfg(feature = "features")]
-        {
-            reader.set_features(self.features);
-        }
+        let mut reader = self.binary_reader(data, self.offset);
         match self.parse_reader(&mut reader, eof) {
             Ok(payload) => {
                 // Be sure to update our offset with how far we got in the reader

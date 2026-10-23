@@ -11,6 +11,9 @@ Options:
           files
   -g
           Shorthand for `--generate-dwarf full`
+      --features <FEATURES>
+          Comma-separated list of WebAssembly features to enable during parsing
+          and validation
   -o, --output <OUTPUT>
           Where to place output
   -v, --verbose...
