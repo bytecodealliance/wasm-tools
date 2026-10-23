@@ -1,0 +1,5 @@
+package local:demo;
+
+interface point {
+  get: func() -> u32;
+}

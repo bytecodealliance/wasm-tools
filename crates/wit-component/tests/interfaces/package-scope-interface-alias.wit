@@ -1,0 +1,19 @@
+package foo:foo;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+interface api {
+  type pt = point;
+
+  get: func() -> pt;
+}
+
+world w {
+  type wpt = point;
+
+  import api;
+  export run: func() -> wpt;
+}

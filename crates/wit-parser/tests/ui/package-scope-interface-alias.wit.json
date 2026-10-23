@@ -1,0 +1,99 @@
+{
+  "worlds": [
+    {
+      "name": "w",
+      "imports": {
+        "interface-0": {
+          "interface": {
+            "id": 0
+          }
+        },
+        "wpt": {
+          "type": 2
+        }
+      },
+      "exports": {
+        "run": {
+          "function": {
+            "name": "run",
+            "kind": "freestanding",
+            "params": [],
+            "result": 2
+          }
+        }
+      },
+      "package": 0
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "api",
+      "types": {
+        "pt": 1
+      },
+      "functions": {
+        "get": {
+          "name": "get",
+          "kind": "freestanding",
+          "params": [],
+          "result": 1
+        }
+      },
+      "package": 0
+    }
+  ],
+  "types": [
+    {
+      "name": "point",
+      "kind": {
+        "record": {
+          "fields": [
+            {
+              "name": "x",
+              "type": "u32"
+            },
+            {
+              "name": "y",
+              "type": "u32"
+            }
+          ]
+        }
+      },
+      "owner": {
+        "package": 0
+      }
+    },
+    {
+      "name": "pt",
+      "kind": {
+        "type": 0
+      },
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "name": "wpt",
+      "kind": {
+        "type": 0
+      },
+      "owner": {
+        "world": 0
+      }
+    }
+  ],
+  "packages": [
+    {
+      "name": "local:demo",
+      "interfaces": {
+        "api": 0
+      },
+      "worlds": {
+        "w": 0
+      },
+      "types": {
+        "point": 0
+      }
+    }
+  ]
+}

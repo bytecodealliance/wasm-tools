@@ -15,7 +15,8 @@
       "interfaces": {
         "x": 0
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }

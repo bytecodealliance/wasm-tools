@@ -1,0 +1,7 @@
+package local:consumer;
+
+use local:types/missing;
+
+interface api {
+  f: func();
+}

@@ -1,0 +1,5 @@
+name `point` does not exist
+     --> tests/ui/parse-fail/package-scope-nested-outer-leak.wit:16:16
+      |
+   16 |   bad: func(p: point);
+      |                ^----

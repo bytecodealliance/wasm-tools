@@ -1,0 +1,5 @@
+package local:types;
+
+world point {
+  import foo: interface {}
+}

@@ -171,7 +171,8 @@
       },
       "worlds": {
         "bar-a": 0
-      }
+      },
+      "types": {}
     },
     {
       "name": "foo:baz",
@@ -181,7 +182,8 @@
       },
       "worlds": {
         "baz-a": 1
-      }
+      },
+      "types": {}
     },
     {
       "name": "foo:root",
@@ -194,7 +196,8 @@
         "b": 3,
         "c": 4,
         "union-world": 5
-      }
+      },
+      "types": {}
     }
   ]
 }

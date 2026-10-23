@@ -1,0 +1,13 @@
+package local:demo;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+world w {
+  import move-to: func(p: point);
+
+  export place: func(p: point);
+  export trail: func() -> list<point>;
+}

@@ -1,0 +1,9 @@
+package local:demo;
+
+interface api {
+  move-to: func(p: point);
+}
+
+world w {
+  export api;
+}

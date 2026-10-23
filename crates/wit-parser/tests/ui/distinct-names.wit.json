@@ -120,7 +120,8 @@
       "interfaces": {
         "distinct-names": 0
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }
