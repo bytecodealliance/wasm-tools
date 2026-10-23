@@ -851,7 +851,64 @@ impl WitPackageDecoder<'_> {
             }
         }
 
+        self.check_types_in_scope(name, interface)?;
         Ok(interface)
+    }
+
+    /// Returns an error if the named `interface`, decoded from the instance
+    /// `name`, refers to a named type that it neither defines nor `use`s under
+    /// that name, which WIT can't express.
+    fn check_types_in_scope(&self, name: &str, interface: InterfaceId) -> Result<()> {
+        struct NamedTypes<'a>(&'a Resolve, Vec<TypeId>);
+
+        impl TypeIdVisitor for NamedTypes<'_> {
+            fn before_visit_type_id(&mut self, id: TypeId) -> bool {
+                // Recurse into unnamed types to find the named types they
+                // refer to.
+                if self.0.types[id].name.is_some() {
+                    self.1.push(id);
+                    return false;
+                }
+                true
+            }
+        }
+
+        let resolve = &self.resolve;
+        let iface = &resolve.interfaces[interface];
+
+        // An unnamed interface is never merged with another, so whatever it
+        // refers to comes before it and it can be encoded as it is.
+        if iface.name.is_none() {
+            return Ok(());
+        }
+
+        let mut named = NamedTypes(resolve, Vec::new());
+        for id in iface.types.values() {
+            let ty = &resolve.types[*id];
+            match ty.kind {
+                // A `use` is how another interface's type comes into scope.
+                TypeDefKind::Type(Type::Id(other)) if resolve.types[other].name.is_some() => {}
+                _ => named.visit_type_def(resolve, ty),
+            }
+        }
+        for func in iface.functions.values() {
+            named.visit_func(resolve, func);
+        }
+
+        for id in named.1 {
+            let ty_name = resolve.types[id].name.as_deref().unwrap();
+            let in_scope = iface.types.get(ty_name).is_some_and(|&local| {
+                local == id
+                    || matches!(resolve.types[local].kind, TypeDefKind::Type(Type::Id(t)) if t == id)
+            });
+            if !in_scope {
+                bail!(
+                    "cannot represent this component in WIT: `{name}` refers to type \
+                     `{ty_name}` without exporting it"
+                );
+            }
+        }
+        Ok(())
     }
 
     fn find_alias(&self, id: ComponentAnyTypeId) -> Option<TypeId> {
@@ -994,6 +1051,7 @@ impl WitPackageDecoder<'_> {
             };
         }
         let id = self.resolve.interfaces.alloc(interface);
+        self.check_types_in_scope(name, id)?;
         let key = match interface_name {
             // If this interface is named then it's part of the package, so
             // insert it. Additionally register it in `named_interfaces` so
