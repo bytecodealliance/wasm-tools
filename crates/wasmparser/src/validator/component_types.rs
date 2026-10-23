@@ -1652,7 +1652,9 @@ impl TypeData for ComponentDefinedType {
 ///   does not. Used to validate that component function results don't contain
 ///   borrows.
 ///
-/// * bit 31 - unused.
+/// * bit 31 - whether or not this type transitively contains a handle: an
+///   `own`, `borrow`, `future`, `stream` or `error-context`. Used to validate
+///   that map values don't contain handles.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[doc(hidden)]
 pub struct AbiInfo(u32);
@@ -1661,15 +1663,19 @@ impl AbiInfo {
     const ELEM_SIZE_BITS: u32 = 28;
     const ALIGN_LOG2_BITS: u32 = 2;
     const CONTAINS_BORROW_BITS: u32 = 1;
+    const CONTAINS_HANDLE_BITS: u32 = 1;
 
     const ELEM_SIZE_OFFSET: u32 = 0;
     const ALIGN_LOG2_OFFSET: u32 = Self::ELEM_SIZE_OFFSET + Self::ELEM_SIZE_BITS;
     const CONTAINS_BORROW_OFFSET: u32 = Self::ALIGN_LOG2_OFFSET + Self::ALIGN_LOG2_BITS;
+    const CONTAINS_HANDLE_OFFSET: u32 = Self::CONTAINS_BORROW_OFFSET + Self::CONTAINS_BORROW_BITS;
 
     const ELEM_SIZE_MASK: u32 = ((1 << Self::ELEM_SIZE_BITS) - 1) << Self::ELEM_SIZE_OFFSET;
     const ALIGN_LOG2_MASK: u32 = ((1 << Self::ALIGN_LOG2_BITS) - 1) << Self::ALIGN_LOG2_OFFSET;
     const CONTAINS_BORROW_MASK: u32 =
         ((1 << Self::CONTAINS_BORROW_BITS) - 1) << Self::CONTAINS_BORROW_OFFSET;
+    const CONTAINS_HANDLE_MASK: u32 =
+        ((1 << Self::CONTAINS_HANDLE_BITS) - 1) << Self::CONTAINS_HANDLE_OFFSET;
 
     const BOOL: AbiInfo = AbiInfo::new_unchecked(1, 1, false);
     const U8: AbiInfo = AbiInfo::new_unchecked(1, 1, false);
@@ -1683,9 +1689,9 @@ impl AbiInfo {
     const F32: AbiInfo = AbiInfo::U32;
     const F64: AbiInfo = AbiInfo::U64;
     const CHAR: AbiInfo = AbiInfo::U32;
-    const ERROR_CONTEXT: AbiInfo = AbiInfo::U32;
+    const ERROR_CONTEXT: AbiInfo = AbiInfo::U32.with_handle(true);
     const PTR_PAIR: AbiInfo = AbiInfo::new_unchecked(16, 8, false);
-    const HANDLE: AbiInfo = AbiInfo::new_unchecked(4, 4, false);
+    const HANDLE: AbiInfo = AbiInfo::new_unchecked(4, 4, false).with_handle(true);
     const BORROW: AbiInfo = AbiInfo::HANDLE.with_borrow(true);
 
     pub(crate) fn primitive(ty: PrimitiveValType) -> AbiInfo {
@@ -1731,13 +1737,18 @@ impl AbiInfo {
         let mut size = 0;
         let mut align = 1;
         let mut contains_borrow = false;
+        let mut contains_handle = false;
         for field in fields {
             size = align_to(size, field.alignment()) + u64::from(field.elem_size());
             align = align.max(field.alignment());
             contains_borrow |= field.contains_borrow();
+            contains_handle |= field.contains_handle();
         }
         debug_assert!(size > 0);
-        AbiInfo::new(align_to(size, align), align, contains_borrow, offset)
+        Ok(
+            AbiInfo::new(align_to(size, align), align, contains_borrow, offset)?
+                .with_handle(contains_handle),
+        )
     }
 
     pub(crate) fn variant(
@@ -1748,29 +1759,41 @@ impl AbiInfo {
         let mut payload_size = 0;
         let mut payload_align = 1;
         let mut contains_borrow = false;
+        let mut contains_handle = false;
         for payload in payloads.flatten() {
             payload_size = payload_size.max(u64::from(payload.elem_size()));
             payload_align = payload_align.max(payload.alignment());
             contains_borrow |= payload.contains_borrow();
+            contains_handle |= payload.contains_handle();
         }
         let align = discriminant.alignment().max(payload_align);
         let size = align_to(u64::from(discriminant.elem_size()), payload_align) + payload_size;
-        AbiInfo::new(align_to(size, align), align, contains_borrow, offset)
+        Ok(
+            AbiInfo::new(align_to(size, align), align, contains_borrow, offset)?
+                .with_handle(contains_handle),
+        )
     }
 
     pub(crate) fn list(element: AbiInfo) -> AbiInfo {
-        AbiInfo::PTR_PAIR.with_borrow(element.contains_borrow())
+        AbiInfo::PTR_PAIR
+            .with_borrow(element.contains_borrow())
+            .with_handle(element.contains_handle())
     }
 
     pub(crate) fn map(key: AbiInfo, value: AbiInfo) -> AbiInfo {
-        AbiInfo::PTR_PAIR.with_borrow(key.contains_borrow() || value.contains_borrow())
+        AbiInfo::PTR_PAIR
+            .with_borrow(key.contains_borrow() || value.contains_borrow())
+            .with_handle(key.contains_handle() || value.contains_handle())
     }
 
     pub(crate) fn fixed_length_list(element: AbiInfo, length: u32, offset: u64) -> Result<AbiInfo> {
         // Note that this multiplication cannot overflow since it's a 32x32-bit
         // multiplication done in the 64-bit integer space.
         let size = u64::from(element.elem_size()) * u64::from(length);
-        AbiInfo::new(size, element.alignment(), element.contains_borrow(), offset)
+        Ok(
+            AbiInfo::new(size, element.alignment(), element.contains_borrow(), offset)?
+                .with_handle(element.contains_handle()),
+        )
     }
 
     pub(crate) fn future_or_stream(payload: Option<AbiInfo>) -> AbiInfo {
@@ -1810,6 +1833,13 @@ impl AbiInfo {
         )
     }
 
+    const fn with_handle(&self, contains_handle: bool) -> AbiInfo {
+        AbiInfo(
+            (self.0 & !Self::CONTAINS_HANDLE_MASK)
+                | ((contains_handle as u32) << Self::CONTAINS_HANDLE_OFFSET),
+        )
+    }
+
     /// The size of this value as it resides in a 64-bit linear memory.
     fn elem_size(&self) -> u32 {
         (self.0 & Self::ELEM_SIZE_MASK) >> Self::ELEM_SIZE_OFFSET
@@ -1823,6 +1853,11 @@ impl AbiInfo {
     /// Whether this type transitively contains a `borrow`.
     pub(crate) fn contains_borrow(&self) -> bool {
         (self.0 & Self::CONTAINS_BORROW_MASK) != 0
+    }
+
+    /// Whether this type transitively contains a handle.
+    pub(crate) fn contains_handle(&self) -> bool {
+        (self.0 & Self::CONTAINS_HANDLE_MASK) != 0
     }
 }
 

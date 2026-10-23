@@ -1,4 +1,4 @@
-;; RUN: wast % --assert default --snapshot tests/snapshots -f cm-map
+;; RUN: wast % --assert default --snapshot tests/snapshots -f cm-map,cm-error-context
 
 (component
   (core module $m
@@ -97,6 +97,37 @@
     (type $own (own $res))
     (type (map $own u32)))
   "invalid map key type")
+
+;; map values can't contain handles
+(component
+  (type (stream (map string u32)))
+  (type (future (map string u32)))
+)
+(assert_invalid
+  (component
+    (type $r (resource (rep i32)))
+    (type (map u32 (own $r))))
+  "map value type cannot contain a handle")
+(assert_invalid
+  (component
+    (type $r (resource (rep i32)))
+    (type (map string (option (borrow $r)))))
+  "map value type cannot contain a handle")
+(assert_invalid
+  (component (type (map string (record (field "f" (future u8))))))
+  "map value type cannot contain a handle")
+(assert_invalid
+  (component (type (map u8 (list (stream u8)))))
+  "map value type cannot contain a handle")
+(assert_invalid
+  (component (type (map u8 (tuple u32 error-context))))
+  "map value type cannot contain a handle")
+(assert_invalid
+  (component
+    (import "r" (type $r (sub resource)))
+    (type $v (variant (case "a") (case "b" (own $r))))
+    (import "f" (func (param "m" (map string (map string $v))))))
+  "map value type cannot contain a handle")
 
 ;; map values in scripts: entries keep their order and duplicate keys
 (component

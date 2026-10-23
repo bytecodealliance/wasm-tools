@@ -4041,6 +4041,11 @@ impl ComponentState {
                     }
                 }
                 let value = self.create_component_val_type(value, offset)?;
+                // Bindings may drop the values of duplicate keys, so values
+                // can't contain handles that would need disposing.
+                if value.abi(types).contains_handle() {
+                    bail!(offset, "map value type cannot contain a handle")
+                }
                 let mut info = TypeInfo::new();
                 info.combine(key.info(types), offset)?;
                 info.combine(value.info(types), offset)?;
