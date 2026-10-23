@@ -865,6 +865,12 @@ impl From<&ComponentType<'_>> for wasm_encoder::ComponentType {
                 ComponentTypeDecl::CoreType(t) => {
                     encode_core_type(encoded.core_type(), &t.def);
                 }
+                ComponentTypeDecl::CoreRec(r) => {
+                    encoded
+                        .core_type()
+                        .core()
+                        .rec(r.types.iter().map(|t| t.to_subtype()));
+                }
                 ComponentTypeDecl::Type(t) => {
                     encode_type(encoded.ty(), &t.def);
                 }
@@ -892,6 +898,12 @@ impl From<&InstanceType<'_>> for wasm_encoder::InstanceType {
             match decl {
                 InstanceTypeDecl::CoreType(t) => {
                     encode_core_type(encoded.core_type(), &t.def);
+                }
+                InstanceTypeDecl::CoreRec(r) => {
+                    encoded
+                        .core_type()
+                        .core()
+                        .rec(r.types.iter().map(|t| t.to_subtype()));
                 }
                 InstanceTypeDecl::Type(t) => {
                     encode_type(encoded.ty(), &t.def);
