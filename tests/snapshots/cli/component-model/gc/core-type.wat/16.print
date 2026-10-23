@@ -1,0 +1,20 @@
+(component
+  (type (;0;)
+    (component
+      (core rec)
+      (core rec
+        (type (;0;) (func))
+        (type (;1;) (struct (field (ref null 0))))
+      )
+    )
+  )
+  (type (;1;)
+    (instance
+      (core type (;0;) (func))
+      (core rec
+        (type (;1;) (func))
+      )
+      (core type (;2;) (func (param (ref 1))))
+    )
+  )
+)
