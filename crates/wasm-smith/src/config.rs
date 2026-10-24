@@ -445,6 +445,19 @@ define_config! {
         /// Defaults to `true`.
         pub compact_imports_enabled: bool = true,
 
+        /// The percentage of a generated component's choices that are steered
+        /// toward a valid component, among those that the generator can steer.
+        /// Defaults to 90.
+        ///
+        /// At 0, components only follow the binary grammar, with indices in
+        /// bounds. At 100, every such choice is steered: indices refer to items
+        /// of the right kind, names to items that exist, instantiations pass
+        /// arguments that match the imports, and lifts, lowers and canonical
+        /// options match the types of core functions.
+        ///
+        /// Note that this is only relevant for components.
+        pub component_steering_percent: u8 = 90,
+
         /// Determines whether the custom descriptors proposal is enabled when
         /// generating a Wasm module.
         ///
@@ -666,6 +679,29 @@ define_config! {
         ///
         /// Defaults to `true`.
         pub multi_value_enabled: bool = true,
+
+        /// The percentage of a generated component's names that collide with
+        /// another name in the same scope and are kept rather than replaced,
+        /// which validation rejects. Names made up for a pool are also this
+        /// often a variant of a pooled name that differs only in case.
+        /// Defaults to 0.
+        ///
+        /// Note that this is only relevant for components.
+        pub name_collision_percent: u8 = 0,
+
+        /// The number of names in each of the pools that a generated component
+        /// draws names from: import and export names, core names and labels.
+        /// Defaults to 100.
+        ///
+        /// Note that this is only relevant for components.
+        pub name_pool_size: usize = 100,
+
+        /// The percentage of a generated component's names that are drawn from
+        /// a pool rather than made up, which makes references by name match
+        /// and names collide. Defaults to 75.
+        ///
+        /// Note that this is only relevant for components.
+        pub name_reuse_percent: u8 = 75,
 
         /// Determines whether the reference types proposal is enabled for
         /// generating instructions.
@@ -898,6 +934,10 @@ impl<'a> Arbitrary<'a> for Config {
             max_modules: 0,
             max_components: 0,
             max_values: 0,
+            component_steering_percent: 90,
+            name_collision_percent: 0,
+            name_pool_size: 100,
+            name_reuse_percent: 75,
             memory_offset_choices: MemoryOffsetChoices::default(),
             allow_start_export: true,
             max_type_size: 1000,
