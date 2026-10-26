@@ -450,7 +450,7 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
         let ty = &self.resolve.types[id];
         let Some(&instance) = self.import_map.get(&owner) else {
             bail!(
-                "type `{}` is used before its interface `{}` is imported",
+                "type `{}` is used before the world imports or exports its interface `{}`",
                 ty.name.as_deref().unwrap_or_default(),
                 self.resolve.id_of(owner).unwrap_or_default(),
             );
