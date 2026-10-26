@@ -946,6 +946,15 @@ pub mod utils {
             offset: arg.offset,
             align: arg.align.into(),
             memory_index: reencoder.memory_index(arg.memory)?,
+            ordering: match arg.ordering {
+                None => None,
+                Some(wasmparser::MemArgOrdering::Op(o)) => {
+                    Some(crate::MemArgOrdering::Op(reencoder.ordering(o)?))
+                }
+                Some(wasmparser::MemArgOrdering::Rmw(o)) => {
+                    Some(crate::MemArgOrdering::Rmw(reencoder.ordering(o)?))
+                }
+            },
         })
     }
 

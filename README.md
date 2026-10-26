@@ -211,6 +211,7 @@ they are disabled by default in validation and their implementation may change
 over time as the proposal evolves. Additionally the proposal may also have
 changed since these proposals were implemented, so there may be a mismatch too.
 
+* [x] [acquire-release-atomics](https://github.com/WebAssembly/acquire-release-atomics)
 * [x] [custom-page-sizes](https://github.com/WebAssembly/custom-page-sizes)
 * [x] [memory-control](https://github.com/WebAssembly/memory-control)
 * [x] [shared-everything-threads](https://github.com/WebAssembly/shared-everything-threads)

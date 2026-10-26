@@ -1,0 +1,15 @@
+(module
+  (type (;0;) (func))
+  (import "mem" "shared" (memory (;0;) 1 1 shared))
+  (export "run" (func 0))
+  (func (;0;) (type 0)
+    i32.const 8
+    i32.const 0
+    i32.atomic.load acqrel
+    i32.store
+    i32.const 12
+    i32.const 4
+    i32.atomic.load acqrel
+    i32.store
+  )
+)

@@ -848,6 +848,7 @@ impl Encoder {
                 align: 2,
                 memory_index: 0,
                 offset: u64::try_from(reloc.offset).unwrap(),
+                ordering: None,
             });
         }
         ins.end();

@@ -1,0 +1,5399 @@
+{
+  "source_filename": "tests/cli/acquire-release-atomics-basic.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 8,
+      "filename": "acquire-release-atomics-basic.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 208,
+      "filename": "acquire-release-atomics-basic.1.wat",
+      "module_type": "text",
+      "text": "unexpected token"
+    },
+    {
+      "type": "module",
+      "line": 213,
+      "filename": "acquire-release-atomics-basic.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 1662,
+      "filename": "acquire-release-atomics-basic.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "action",
+      "line": 1746,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "506097522914230528"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1748,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "50462976"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1749,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "4"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "117835012"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1751,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "506097522914230528"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1753,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.load8_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1754,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.load8_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "5"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "5"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1756,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.load16_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "256"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1757,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.load16_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "6"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1798"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1759,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load8_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1760,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load8_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "5"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "5"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1762,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load16_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "256"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1763,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load16_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "6"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1798"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1765,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load32_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "50462976"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1766,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load32_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "4"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "117835012"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1770,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1772,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.store",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "-1122868"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 1773,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "4293844428"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1775,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.store",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "81985529216486895"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 1776,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "81985529216486895"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1778,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.store8",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i32",
+            "value": "66"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 1779,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "81985529216451311"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1781,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.store16",
+        "args": [
+          {
+            "type": "i32",
+            "value": "4"
+          },
+          {
+            "type": "i32",
+            "value": "34884"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 1782,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "82059046171656943"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1784,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.store8",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "153"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 1785,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "82059046171679215"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1787,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.store16",
+        "args": [
+          {
+            "type": "i32",
+            "value": "4"
+          },
+          {
+            "type": "i64",
+            "value": "51966"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 1788,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "82132412803029487"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1790,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.store32",
+        "args": [
+          {
+            "type": "i32",
+            "value": "4"
+          },
+          {
+            "type": "i64",
+            "value": "3735928559"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 1791,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "-2401053090302420497"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1795,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1796,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw.add",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "305419896"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "286331153"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1797,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938552723337"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1799,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1800,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw.add",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "72340172854919682"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303441"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1801,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1302123111102223123"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1803,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1804,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw8.add_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "-842150451"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "17"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1805,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303646"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1807,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1808,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw16.add_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "-889271554"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "4369"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1809,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247355407"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1811,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1812,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw8.add_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "4774451407313060418"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "17"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1813,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303507"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1815,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1816,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw16.add_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "-4688318750159552785"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "4369"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1817,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247352320"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1819,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1820,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw32.add_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "-3838290751524198683"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "286331153"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1821,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782941648599030"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1825,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1826,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw.sub",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "305419896"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "286331153"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1827,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782942236850841"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1829,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1830,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw.sub",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "72340172854919682"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303441"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1831,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1157442765392383759"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1833,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1834,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw8.sub_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "-842150451"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "17"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1835,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303492"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1837,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1838,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw16.sub_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "-889271554"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "4369"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1839,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247317011"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1841,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1842,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw8.sub_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "4774451407313060418"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "17"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1843,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303631"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1845,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1846,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw16.sub_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "-4688318750159552785"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "4369"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1847,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247320098"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1849,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1850,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw32.sub_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "-3838290751524198683"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "286331153"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1851,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782939140975148"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1855,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1856,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw.and",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "305419896"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "286331153"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1857,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938230460432"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1859,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1860,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw.and",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "72340172854919682"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303441"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1861,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "72340172821233664"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1863,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1864,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw8.and_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "-842150451"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "17"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1865,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303425"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1867,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1868,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw16.and_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "-889271554"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "4369"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1869,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247299088"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1871,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1872,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw8.and_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "4774451407313060418"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "17"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1873,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303424"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1875,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1876,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw16.and_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "-4688318750159552785"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "4369"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1877,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303169"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1879,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1880,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw32.and_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "-3838290751524198683"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "286331153"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1881,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782937962086401"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1885,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1886,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw.or",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "305419896"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "286331153"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1887,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938283235193"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1889,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1890,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw.or",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "72340172854919682"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303441"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1891,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938280989459"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1893,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1894,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw8.or_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "-842150451"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "17"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1895,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303645"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1897,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1898,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw16.or_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "-889271554"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "4369"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1899,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247355391"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1901,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1902,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw8.or_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "4774451407313060418"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "17"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1903,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303507"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1905,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1906,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw16.or_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "-4688318750159552785"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "4369"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1907,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247348223"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1909,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1910,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw32.or_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "-3838290751524198683"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "286331153"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1911,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782941647484917"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1915,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1916,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw.xor",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "305419896"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "286331153"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1917,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938013747049"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1919,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1920,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw.xor",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "72340172854919682"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303441"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1921,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1157442765459755795"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1923,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1924,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw8.xor_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "-842150451"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "17"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1925,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303644"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1927,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1928,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw16.xor_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "-889271554"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "4369"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1929,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247355375"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1931,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1932,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw8.xor_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "4774451407313060418"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "17"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1933,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303507"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1935,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1936,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw16.xor_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "-4688318750159552785"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "4369"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1937,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247344126"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1939,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1940,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw32.xor_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "-3838290751524198683"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "286331153"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1941,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782941646370804"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1945,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1946,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw.xchg",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "305419896"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "286331153"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1947,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938266392184"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1949,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1950,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw.xchg",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "72340172854919682"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303441"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1951,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "72340172854919682"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1953,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1954,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw8.xchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "-842150451"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "17"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1955,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303629"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1957,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1958,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw16.xchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "-889271554"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "4369"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1959,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247351038"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1961,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1962,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw8.xchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "4774451407313060418"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "17"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1963,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303490"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1965,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1966,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw16.xchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "-4688318750159552785"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "4369"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1967,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247347951"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1969,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1970,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw32.xchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "-3838290751524198683"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "286331153"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1971,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782941362267877"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1975,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1976,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw.cmpxchg",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "305419896"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "286331153"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1977,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303441"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1979,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1980,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw.cmpxchg",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "72340172854919682"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303441"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1981,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303441"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1983,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1984,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw8.cmpxchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "-842150451"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "17"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1985,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303441"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1987,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1988,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw8.cmpxchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "286331153"
+          },
+          {
+            "type": "i32",
+            "value": "-842150451"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "17"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1989,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303629"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1991,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1992,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw16.cmpxchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "-889271554"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "4369"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1993,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303441"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1995,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 1996,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw16.cmpxchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "286331153"
+          },
+          {
+            "type": "i32",
+            "value": "-889271554"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "4369"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 1997,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247351038"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 1999,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 2000,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw8.cmpxchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "4774451407313060418"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "17"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 2001,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303441"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 2003,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 2004,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw8.cmpxchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          },
+          {
+            "type": "i64",
+            "value": "4774451407313060418"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "17"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 2005,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303490"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 2007,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 2008,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw16.cmpxchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "-4688318750159552785"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "4369"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 2009,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303441"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 2011,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 2012,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw16.cmpxchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          },
+          {
+            "type": "i64",
+            "value": "-4688318750159552785"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "4369"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 2013,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247347951"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 2015,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 2016,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw32.cmpxchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "-3838290751524198683"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "286331153"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 2017,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303441"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 2019,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 2020,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw32.cmpxchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          },
+          {
+            "type": "i64",
+            "value": "-3838290751524198683"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "286331153"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 2021,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782941362267877"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 2025,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 2026,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw.cmpxchg",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "286331153"
+          },
+          {
+            "type": "i32",
+            "value": "305419896"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "286331153"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 2027,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938266392184"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 2029,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 2030,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw.cmpxchg",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          },
+          {
+            "type": "i64",
+            "value": "72340172854919682"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303441"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 2031,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "72340172854919682"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 2033,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 2034,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw8.cmpxchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "17"
+          },
+          {
+            "type": "i32",
+            "value": "-842150451"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "17"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 2035,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303629"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 2037,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 2038,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw16.cmpxchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "4369"
+          },
+          {
+            "type": "i32",
+            "value": "-889271554"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "4369"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 2039,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247351038"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 2041,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 2042,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw8.cmpxchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "17"
+          },
+          {
+            "type": "i64",
+            "value": "4774451407313060418"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "17"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 2043,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247303490"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 2045,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 2046,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw16.cmpxchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "4369"
+          },
+          {
+            "type": "i64",
+            "value": "-4688318750159552785"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "4369"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 2047,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782938247347951"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 2049,
+      "action": {
+        "type": "invoke",
+        "field": "init",
+        "args": [
+          {
+            "type": "i64",
+            "value": "1229782938247303441"
+          }
+        ]
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 2050,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw32.cmpxchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "286331153"
+          },
+          {
+            "type": "i64",
+            "value": "-3838290751524198683"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "286331153"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 2051,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "1229782941362267877"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 2055,
+      "action": {
+        "type": "invoke",
+        "field": "atomic.fence",
+        "args": []
+      }
+    },
+    {
+      "type": "action",
+      "line": 2059,
+      "action": {
+        "type": "invoke",
+        "field": "pause",
+        "args": []
+      }
+    },
+    {
+      "type": "assert_trap",
+      "line": 2064,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2065,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2066,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.load16_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2067,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load16_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2068,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.load32_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2069,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.store",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2070,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.store",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2071,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.store16",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2072,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.store16",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2073,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.store32",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2074,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw.add",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2075,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw.add",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2076,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw16.add_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2077,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw16.add_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2078,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw32.add_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2079,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw.sub",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2080,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw.sub",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2081,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw16.sub_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2082,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw16.sub_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2083,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw32.sub_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2084,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw.and",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2085,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw.and",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2086,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw16.and_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2087,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw16.and_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2088,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw32.and_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2089,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw.or",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2090,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw.or",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2091,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw16.or_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2092,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw16.or_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2093,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw32.or_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2094,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw.xor",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2095,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw.xor",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2096,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw16.xor_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2097,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw16.xor_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2098,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw32.xor_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2099,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw.xchg",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2100,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw.xchg",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2101,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw16.xchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2102,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw16.xchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2103,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw32.xchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2104,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw.cmpxchg",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2105,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw.cmpxchg",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2106,
+      "action": {
+        "type": "invoke",
+        "field": "i32.atomic.rmw16.cmpxchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i32",
+            "value": "0"
+          },
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2107,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw16.cmpxchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "assert_trap",
+      "line": 2108,
+      "action": {
+        "type": "invoke",
+        "field": "i64.atomic.rmw32.cmpxchg_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          },
+          {
+            "type": "i64",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "unaligned atomic"
+    },
+    {
+      "type": "module",
+      "line": 2111,
+      "filename": "acquire-release-atomics-basic.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2161,
+      "filename": "acquire-release-atomics-basic.5.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2162,
+      "filename": "acquire-release-atomics-basic.6.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2163,
+      "filename": "acquire-release-atomics-basic.7.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2164,
+      "filename": "acquire-release-atomics-basic.8.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2165,
+      "filename": "acquire-release-atomics-basic.9.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2166,
+      "filename": "acquire-release-atomics-basic.10.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2167,
+      "filename": "acquire-release-atomics-basic.11.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2168,
+      "filename": "acquire-release-atomics-basic.12.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2169,
+      "filename": "acquire-release-atomics-basic.13.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2170,
+      "filename": "acquire-release-atomics-basic.14.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2171,
+      "filename": "acquire-release-atomics-basic.15.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2172,
+      "filename": "acquire-release-atomics-basic.16.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2173,
+      "filename": "acquire-release-atomics-basic.17.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2174,
+      "filename": "acquire-release-atomics-basic.18.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2175,
+      "filename": "acquire-release-atomics-basic.19.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2176,
+      "filename": "acquire-release-atomics-basic.20.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2177,
+      "filename": "acquire-release-atomics-basic.21.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2178,
+      "filename": "acquire-release-atomics-basic.22.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2179,
+      "filename": "acquire-release-atomics-basic.23.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2180,
+      "filename": "acquire-release-atomics-basic.24.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2181,
+      "filename": "acquire-release-atomics-basic.25.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2182,
+      "filename": "acquire-release-atomics-basic.26.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2183,
+      "filename": "acquire-release-atomics-basic.27.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2184,
+      "filename": "acquire-release-atomics-basic.28.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2185,
+      "filename": "acquire-release-atomics-basic.29.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2186,
+      "filename": "acquire-release-atomics-basic.30.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2187,
+      "filename": "acquire-release-atomics-basic.31.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2188,
+      "filename": "acquire-release-atomics-basic.32.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2189,
+      "filename": "acquire-release-atomics-basic.33.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2190,
+      "filename": "acquire-release-atomics-basic.34.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2191,
+      "filename": "acquire-release-atomics-basic.35.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2192,
+      "filename": "acquire-release-atomics-basic.36.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2193,
+      "filename": "acquire-release-atomics-basic.37.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2194,
+      "filename": "acquire-release-atomics-basic.38.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2195,
+      "filename": "acquire-release-atomics-basic.39.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2196,
+      "filename": "acquire-release-atomics-basic.40.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2197,
+      "filename": "acquire-release-atomics-basic.41.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2198,
+      "filename": "acquire-release-atomics-basic.42.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2199,
+      "filename": "acquire-release-atomics-basic.43.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2200,
+      "filename": "acquire-release-atomics-basic.44.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2201,
+      "filename": "acquire-release-atomics-basic.45.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2202,
+      "filename": "acquire-release-atomics-basic.46.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2203,
+      "filename": "acquire-release-atomics-basic.47.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2204,
+      "filename": "acquire-release-atomics-basic.48.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2205,
+      "filename": "acquire-release-atomics-basic.49.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    }
+  ]
+}

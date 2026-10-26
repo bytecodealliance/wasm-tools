@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 use wasm_encoder::{
     AbstractHeapType, ArrayType, BlockType, Catch, ConstExpr, ExportKind, FieldType, GlobalType,
-    HeapType, MemArg, RefType, StorageType, StructType,
+    HeapType, MemArg, MemArgOrdering, Ordering, RefType, StorageType, StructType,
 };
 mod no_traps;
 
@@ -662,6 +662,7 @@ instructions! {
     (Some(atomic_wait32_valid), atomic_wait32, MemoryInt),
     (Some(atomic_wait64_valid), atomic_wait64, MemoryInt),
     (Some(atomic_instruction_valid), atomic_fence, MemoryInt),
+    (Some(pause_valid), pause, MemoryInt),
 }
 
 pub(crate) struct CodeBuilderAllocations {
@@ -5431,6 +5432,7 @@ fn mem_arg(
         memory_index,
         offset,
         align,
+        ordering: None,
     })
 }
 
@@ -7477,7 +7479,8 @@ macro_rules! atomic_load {
             builder: &mut CodeBuilder,
             instructions: &mut Vec<Instruction>,
         ) -> Result<()> {
-            let memarg = mem_arg(u, module, builder, &[$($memarg_align),*])?;
+            let mut memarg = mem_arg(u, module, builder, &[$($memarg_align),*])?;
+            atomic_ordering(u, module, &mut memarg, MemArgOrdering::Op)?;
             builder.push_operands(&[ValType::$valtype]);
             instructions.push(Instruction::$instr(memarg));
             Ok(())
@@ -7494,7 +7497,8 @@ macro_rules! atomic_store {
             instructions: &mut Vec<Instruction>,
         ) -> Result<()> {
             builder.pop_operands(module, &[ValType::$valtype]);
-            let memarg = mem_arg(u, module, builder, &[$($memarg_align),*])?;
+            let mut memarg = mem_arg(u, module, builder, &[$($memarg_align),*])?;
+            atomic_ordering(u, module, &mut memarg, MemArgOrdering::Op)?;
             instructions.push(Instruction::$instr(memarg));
             Ok(())
         }
@@ -7510,7 +7514,8 @@ macro_rules! atomic_rmw_atop {
             instructions: &mut Vec<Instruction>,
         ) -> Result<()> {
             builder.pop_operands(module, &[ValType::$valtype]);
-            let memarg = mem_arg(u, module, builder, &[$($memarg_align),*])?;
+            let mut memarg = mem_arg(u, module, builder, &[$($memarg_align),*])?;
+            atomic_ordering(u, module, &mut memarg, MemArgOrdering::Rmw)?;
             builder.push_operands(&[ValType::$valtype]);
             instructions.push(Instruction::$instr(memarg));
             Ok(())
@@ -7527,7 +7532,8 @@ macro_rules! atomic_rmw_cmpxchg {
             instructions: &mut Vec<Instruction>,
         ) -> Result<()> {
             builder.pop_operands(module, &[ValType::$valtype, ValType::$valtype]);
-            let memarg = mem_arg(u, module, builder, &[$($memarg_align),*])?;
+            let mut memarg = mem_arg(u, module, builder, &[$($memarg_align),*])?;
+            atomic_ordering(u, module, &mut memarg, MemArgOrdering::Rmw)?;
             builder.push_operands(&[ValType::$valtype]);
             instructions.push(Instruction::$instr(memarg));
             Ok(())
@@ -7648,11 +7654,51 @@ fn atomic_wait64(
 }
 
 fn atomic_fence(
+    u: &mut Unstructured,
+    module: &Module,
+    _builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    let ordering = if module.config.acquire_release_atomics_enabled && u.arbitrary()? {
+        Ordering::AcqRel
+    } else {
+        Ordering::SeqCst
+    };
+    instructions.push(Instruction::AtomicFence(ordering));
+    Ok(())
+}
+
+/// Optionally adds an ordering immediate from the acquire-release-atomics
+/// proposal to the `memarg` of an atomic instruction.
+fn atomic_ordering(
+    u: &mut Unstructured,
+    module: &Module,
+    memarg: &mut MemArg,
+    mk: fn(Ordering) -> MemArgOrdering,
+) -> Result<()> {
+    if !module.config.acquire_release_atomics_enabled || !u.arbitrary()? {
+        return Ok(());
+    }
+    let ordering = if u.arbitrary()? {
+        Ordering::AcqRel
+    } else {
+        Ordering::SeqCst
+    };
+    memarg.ordering = Some(mk(ordering));
+    Ok(())
+}
+
+#[inline]
+fn pause_valid(module: &Module, _builder: &mut CodeBuilder) -> bool {
+    module.config.acquire_release_atomics_enabled
+}
+
+fn pause(
     _u: &mut Unstructured,
     _module: &Module,
     _builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    instructions.push(Instruction::AtomicFence);
+    instructions.push(Instruction::Pause);
     Ok(())
 }

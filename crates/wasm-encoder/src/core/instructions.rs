@@ -3619,10 +3619,17 @@ impl<'a> InstructionSink<'a> {
     }
 
     /// Encode [`Instruction::AtomicFence`].
-    pub fn atomic_fence(&mut self) -> &mut Self {
+    pub fn atomic_fence(&mut self, ordering: Ordering) -> &mut Self {
         self.sink.push(0xFE);
         self.sink.push(0x03);
-        self.sink.push(0x00);
+        ordering.encode(self.sink);
+        self
+    }
+
+    /// Encode [`Instruction::Pause`].
+    pub fn pause(&mut self) -> &mut Self {
+        self.sink.push(0xFE);
+        self.sink.push(0x04);
         self
     }
 

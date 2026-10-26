@@ -4,8 +4,8 @@ use termcolor::{Ansi, NoColor};
 use wasmparser::VisitSimdOperator;
 use wasmparser::{
     BlockType, BrTable, Catch, CompositeInnerType, ContType, FrameKind, FuncType, Handle, MemArg,
-    ModuleArity, Operator, OperatorsReader, Ordering, RefType, ResumeTable, SubType, TryTable,
-    VisitOperator,
+    MemArgOrdering, ModuleArity, Operator, OperatorsReader, Ordering, RefType, ResumeTable,
+    SubType, TryTable, VisitOperator,
 };
 
 pub struct OperatorState {
@@ -432,6 +432,11 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
             let align = 1_u64 << memarg.align;
             write!(self.result(), " align={align}")?;
         }
+        if let Some(MemArgOrdering::Op(ordering)) | Some(MemArgOrdering::Rmw(ordering)) =
+            memarg.ordering
+        {
+            self.ordering(ordering)?;
+        }
         Ok(())
     }
 
@@ -606,6 +611,11 @@ macro_rules! define_visit {
         if $src != 0 || $dst != 0 {
             $self.table_index($dst)?;
             $self.table_index($src)?;
+        }
+    );
+    (payload $self:ident AtomicFence $ordering:ident) => (
+        if $ordering != Ordering::SeqCst {
+            $self.ordering($ordering)?;
         }
     );
     (payload $self:ident MemoryGrow $mem:ident) => (
@@ -1019,6 +1029,7 @@ macro_rules! define_visit {
     (name MemoryAtomicWait32) => ("memory.atomic.wait32");
     (name MemoryAtomicWait64) => ("memory.atomic.wait64");
     (name AtomicFence) => ("atomic.fence");
+    (name Pause) => ("pause");
     (name I32AtomicLoad) => ("i32.atomic.load");
     (name I64AtomicLoad) => ("i64.atomic.load");
     (name I32AtomicLoad8U) => ("i32.atomic.load8_u");

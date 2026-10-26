@@ -582,6 +582,7 @@ impl FixupModule {
                                         offset: 0,
                                         align: 2,
                                         memory_index: *memory,
+                                        ordering: None,
                                     });
                             }
                             AddressDest::Global(global) => {

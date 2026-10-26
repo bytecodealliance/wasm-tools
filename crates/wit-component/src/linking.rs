@@ -664,6 +664,7 @@ fn make_env_module<'a>(
             offset: u64::from(slot * 4),
             align: 2,
             memory_index: 0,
+            ordering: None,
         };
 
         if metadata.needs_get_tls_base {

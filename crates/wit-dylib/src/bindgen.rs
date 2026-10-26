@@ -275,6 +275,13 @@ pub fn lift_async_import_results(
     c.finish()
 }
 
+const MEMARG_32: MemArg = MemArg {
+    memory_index: 0,
+    align: 2,
+    offset: 0,
+    ordering: None,
+};
+
 pub fn export(
     adapter: &mut Adapter,
     resolve: &Resolve,
@@ -340,11 +347,7 @@ pub fn export(
         let l_ctx = c.ctx.take().unwrap();
         c.ins().local_get(l_scratch.idx);
         c.ins().local_get(l_ctx.idx);
-        c.ins().i32_store(MemArg {
-            memory_index: 0,
-            align: 2,
-            offset: 0,
-        });
+        c.ins().i32_store(MEMARG_32);
         c.free_temp_local(l_ctx);
         c.free_temp_local(l_scratch);
         if let Some(fp) = c.fp.take() {
@@ -372,11 +375,7 @@ pub fn post_return(
     // Load the `ctx` pointer for the export allocated during the originally
     // invoked function.
     c.ins().local_get(l_sp.idx);
-    c.ins().i32_load(MemArg {
-        memory_index: 0,
-        align: 2,
-        offset: 0,
-    });
+    c.ins().i32_load(MEMARG_32);
     c.ctx = Some(c.local_set_new_tmp(ValType::I32));
 
     // Bump sp by 8 bytes to restore it to just before the end of the export
@@ -877,11 +876,7 @@ impl<'a> FunctionCompiler<'a> {
                 self.ins().call(pop_string);
                 self.store_scalar_from_top_of_stack(&dst_len, ValType::I32, 2);
                 self.local_get_stack_temp_addr();
-                self.ins().i32_load(MemArg {
-                    memory_index: 0,
-                    offset: 0,
-                    align: 2,
-                });
+                self.ins().i32_load(MEMARG_32);
                 self.store_scalar_from_top_of_stack(&dst_ptr, ValType::I32, 2);
             }
             Type::Id(id) => self.lower_id(id, dest),
@@ -988,11 +983,7 @@ impl<'a> FunctionCompiler<'a> {
                 self.ins().call(pop_list);
                 let l_len = self.local_set_new_tmp(ValType::I32);
                 self.local_get_stack_temp_addr();
-                self.ins().i32_load(MemArg {
-                    memory_index: 0,
-                    offset: 0,
-                    align: 2,
-                });
+                self.ins().i32_load(MEMARG_32);
                 let l_ptr = self.local_set_new_tmp(ValType::I32);
 
                 // If the pointer is null then the interpreter doesn't support
@@ -2078,7 +2069,7 @@ impl Memory {
         MemArg {
             offset: u64::from(self.offset),
             align,
-            memory_index: 0,
+            ..MEMARG_32
         }
     }
 

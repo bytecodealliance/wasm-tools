@@ -1,0 +1,25 @@
+{
+  "source_filename": "tests/cli/acquire-release-atomics-disabled.wast",
+  "commands": [
+    {
+      "type": "assert_malformed",
+      "line": 4,
+      "filename": "acquire-release-atomics-disabled.0.wasm",
+      "module_type": "binary",
+      "text": "nonzero byte after `atomic.fence`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 8,
+      "filename": "acquire-release-atomics-disabled.1.wasm",
+      "module_type": "binary",
+      "text": "acquire-release atomics support is not enabled"
+    },
+    {
+      "type": "module",
+      "line": 11,
+      "filename": "acquire-release-atomics-disabled.2.wasm",
+      "module_type": "binary"
+    }
+  ]
+}
