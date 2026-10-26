@@ -202,7 +202,7 @@ impl ComponentInfo {
         }
 
         let pkg = pkg.ok_or_else(|| anyhow!("no exported component type found"))?;
-        let (mut resolve, package) = decoder.finish(pkg);
+        let (mut resolve, package) = decoder.finish(pkg)?;
         if let Some(package_metadata) = &self.package_metadata {
             package_metadata.inject(&mut resolve, package)?;
         }
@@ -285,7 +285,7 @@ impl ComponentInfo {
             bail!("no exported component type found");
         };
 
-        let (mut resolve, package) = decoder.finish(pkg);
+        let (mut resolve, package) = decoder.finish(pkg)?;
         if let Some(package_metadata) = &self.package_metadata {
             package_metadata.inject(&mut resolve, package)?;
         }
@@ -338,9 +338,8 @@ impl ComponentInfo {
                 }
             }
         }
-        decoder.order_world_interfaces(world)?;
 
-        let (mut resolve, pkg) = decoder.finish(package);
+        let (mut resolve, pkg) = decoder.finish(package)?;
         if let Some(package_metadata) = &self.package_metadata {
             package_metadata.inject(&mut resolve, pkg)?;
         }
@@ -487,7 +486,7 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
         interfaces,
         worlds,
         docs: Default::default(),
-    });
+    })?;
     // The package decoded here should only have a single world so extract that
     // here to return.
     let world = *resolve.packages[pkg].worlds.iter().next().unwrap().1;
@@ -852,80 +851,7 @@ impl WitPackageDecoder<'_> {
             }
         }
 
-        self.check_types_in_scope(name, interface)?;
         Ok(interface)
-    }
-
-    /// Returns an error if the named `interface`, decoded from the instance
-    /// `name`, refers to a named type that it neither defines nor `use`s under
-    /// that name, which WIT can't express.
-    fn check_types_in_scope(&self, name: &str, interface: InterfaceId) -> Result<()> {
-        struct NamedTypes<'a>(&'a Resolve, Vec<TypeId>);
-
-        impl TypeIdVisitor for NamedTypes<'_> {
-            fn before_visit_type_id(&mut self, id: TypeId) -> bool {
-                // Recurse into unnamed types to find the named types they
-                // refer to.
-                if self.0.types[id].name.is_some() {
-                    self.1.push(id);
-                    return false;
-                }
-                true
-            }
-        }
-
-        let resolve = &self.resolve;
-        let iface = &resolve.interfaces[interface];
-
-        // An unnamed interface is never merged with another, so whatever it
-        // refers to comes before it and it can be encoded as it is.
-        if iface.name.is_none() {
-            return Ok(());
-        }
-
-        let mut named = NamedTypes(resolve, Vec::new());
-        for id in iface.types.values() {
-            let ty = &resolve.types[*id];
-            match ty.kind {
-                // A `use` is how another interface's type comes into scope,
-                // but only from a named interface.
-                TypeDefKind::Type(Type::Id(other)) if resolve.types[other].name.is_some() => {
-                    let used = &resolve.types[other];
-                    let named_interface = match used.owner {
-                        TypeOwner::Interface(i) => {
-                            i == interface || resolve.interfaces[i].name.is_some()
-                        }
-                        _ => false,
-                    };
-                    if !named_interface {
-                        bail!(
-                            "cannot represent this component in WIT: `{name}` uses type `{}`, \
-                             which isn't defined in a named interface",
-                            used.name.as_deref().unwrap(),
-                        );
-                    }
-                }
-                _ => named.visit_type_def(resolve, ty),
-            }
-        }
-        for func in iface.functions.values() {
-            named.visit_func(resolve, func);
-        }
-
-        for id in named.1 {
-            let ty_name = resolve.types[id].name.as_deref().unwrap();
-            let in_scope = iface.types.get(ty_name).is_some_and(|&local| {
-                local == id
-                    || matches!(resolve.types[local].kind, TypeDefKind::Type(Type::Id(t)) if t == id)
-            });
-            if !in_scope {
-                bail!(
-                    "cannot represent this component in WIT: `{name}` refers to type \
-                     `{ty_name}` without exporting it"
-                );
-            }
-        }
-        Ok(())
     }
 
     fn find_alias(&self, id: ComponentAnyTypeId) -> Option<TypeId> {
@@ -1068,7 +994,6 @@ impl WitPackageDecoder<'_> {
             };
         }
         let id = self.resolve.interfaces.alloc(interface);
-        self.check_types_in_scope(name, id)?;
         let key = match interface_name {
             // If this interface is named then it's part of the package, so
             // insert it. Additionally register it in `named_interfaces` so
@@ -1116,17 +1041,20 @@ impl WitPackageDecoder<'_> {
             _ => unreachable!(),
         };
         let kind = match self.find_alias(referenced) {
-            // An anonymous type has no name to alias, so this is a copy of
-            // its definition.
-            Some(prev) if self.resolve.types[prev].name.is_none() => {
-                self.resolve.types[prev].kind.clone()
-            }
-
             // If this `TypeId` points to a type which has
             // previously been defined, meaning we're aliasing a
             // prior definition.
             Some(prev) => {
                 log::debug!("type export for `{name}` is an alias");
+                // An interface can only `use` types from other interfaces.
+                if matches!(owner, TypeOwner::Interface(_))
+                    && !matches!(self.resolve.types[prev].owner, TypeOwner::Interface(_))
+                {
+                    bail!(
+                        "cannot represent this component in WIT: type `{name}` refers to a \
+                         type that isn't defined in an interface"
+                    );
+                }
                 TypeDefKind::Type(Type::Id(prev))
             }
 
@@ -1240,44 +1168,9 @@ impl WitPackageDecoder<'_> {
             world.exports.insert(name, item);
         }
         let id = self.resolve.worlds.alloc(world);
-        self.order_world_interfaces(id)?;
         let prev = package.worlds.insert(name, id);
         assert!(prev.is_none());
         Ok(id)
-    }
-
-    /// Moves each interface that `world` imports or exports after the
-    /// interfaces it uses types from, importing those that are missing, as
-    /// WIT does when elaborating a world.
-    ///
-    /// An interface that's both imported and exported is decoded as one, so
-    /// the export can give the import dependencies that come after it or that
-    /// aren't imported at all.
-    fn order_world_interfaces(&mut self, world: WorldId) -> Result<()> {
-        let pending_imports = mem::take(&mut self.resolve.worlds[world].imports);
-        let pending_exports = mem::take(&mut self.resolve.worlds[world].exports);
-        let mut order = WorldOrder {
-            resolve: &self.resolve,
-            pending_imports,
-            pending_exports,
-            imports: IndexMap::default(),
-            exports: IndexMap::default(),
-            placed: HashSet::new(),
-            visiting: HashSet::new(),
-        };
-        while let Some((key, item)) = order.pending_imports.shift_remove_index(0) {
-            order.add(false, key, item)?;
-        }
-        while let Some((key, item)) = order.pending_exports.shift_remove_index(0) {
-            order.add(true, key, item)?;
-        }
-        let WorldOrder {
-            imports, exports, ..
-        } = order;
-        let world = &mut self.resolve.worlds[world];
-        world.imports = imports;
-        world.exports = exports;
-        Ok(())
     }
 
     fn convert_function(
@@ -1609,12 +1502,13 @@ impl WitPackageDecoder<'_> {
     /// their topological ordering within the returned `Resolve`.
     ///
     /// Takes the root package as an argument to insert.
-    fn finish(mut self, package: Package) -> (Resolve, PackageId) {
+    fn finish(mut self, package: Package) -> Result<(Resolve, PackageId)> {
         // Build a topological ordering is then calculated by visiting all the
         // transitive dependencies of packages.
         let mut order = IndexSet::default();
+        let mut visiting = HashSet::new();
         for i in 0..self.foreign_packages.len() {
-            self.visit_package(i, &mut order);
+            self.visit_package(i, &mut order, &mut visiting)?;
         }
 
         // Using the topological ordering create a temporary map from
@@ -1645,7 +1539,7 @@ impl WitPackageDecoder<'_> {
                 .iter()
                 .all(|(_, i)| i.package.is_some())
         );
-        (self.resolve, id)
+        Ok((self.resolve, id))
     }
 
     fn insert_package(&mut self, package: Package) -> PackageId {
@@ -1704,12 +1598,22 @@ impl WitPackageDecoder<'_> {
         pkg
     }
 
-    fn visit_package(&self, idx: usize, order: &mut IndexSet<usize>) {
+    fn visit_package(
+        &self,
+        idx: usize,
+        order: &mut IndexSet<usize>,
+        visiting: &mut HashSet<usize>,
+    ) -> Result<()> {
         if order.contains(&idx) {
-            return;
+            return Ok(());
         }
 
-        let (_name, pkg) = self.foreign_packages.get_index(idx).unwrap();
+        let (name, pkg) = self.foreign_packages.get_index(idx).unwrap();
+        if !visiting.insert(idx) {
+            bail!(
+                "cannot represent this component in WIT: package `{name}` creates a dependency cycle"
+            );
+        }
         let interfaces = pkg.interfaces.values().copied().chain(
             pkg.worlds
                 .values()
@@ -1724,89 +1628,20 @@ impl WitPackageDecoder<'_> {
         );
         for iface in interfaces {
             for dep in self.resolve.interface_direct_deps(iface) {
-                let dep_idx = self.iface_to_package_index[&dep];
-                if dep_idx != idx {
-                    self.visit_package(dep_idx, order);
-                }
-            }
-        }
-
-        assert!(order.insert(idx));
-    }
-}
-
-/// Helper for `WitPackageDecoder::order_world_interfaces`.
-struct WorldOrder<'a> {
-    resolve: &'a Resolve,
-    pending_imports: IndexMap<WorldKey, WorldItem>,
-    pending_exports: IndexMap<WorldKey, WorldItem>,
-    imports: IndexMap<WorldKey, WorldItem>,
-    exports: IndexMap<WorldKey, WorldItem>,
-    /// Interfaces already imported or exported.
-    placed: HashSet<InterfaceId>,
-    /// Interfaces whose dependencies are being placed.
-    visiting: HashSet<InterfaceId>,
-}
-
-impl WorldOrder<'_> {
-    /// Adds `item` to the imports, or the exports if `export`, after the
-    /// interfaces it uses types from, moving those up from the pending items
-    /// if they're there and importing them otherwise.
-    fn add(&mut self, export: bool, key: WorldKey, item: WorldItem) -> Result<()> {
-        // An unnamed interface is never merged with another, so the
-        // interfaces it uses already come before it.
-        if let WorldItem::Interface { id, .. } = item
-            && self.resolve.interfaces[id].name.is_some()
-        {
-            let resolve = self.resolve;
-            self.visiting.insert(id);
-            for dep in resolve.interface_direct_deps(id) {
-                if self.visiting.contains(&dep) {
-                    let name = |i: InterfaceId| resolve.interfaces[i].name.as_deref();
+                let Some(&dep_idx) = self.iface_to_package_index.get(&dep) else {
                     bail!(
-                        "cannot represent this component in WIT: interfaces `{}` and `{}` \
-                         use types from each other",
-                        name(id).unwrap_or_default(),
-                        name(dep).unwrap_or_default(),
+                        "cannot represent this component in WIT: package `{name}` uses a type \
+                         from an interface it can't depend on"
                     );
-                }
-                if self.placed.contains(&dep) {
-                    continue;
-                }
-                let pending = if export {
-                    &mut self.pending_exports
-                } else {
-                    &mut self.pending_imports
                 };
-                let pos = pending
-                    .values()
-                    .position(|item| matches!(item, WorldItem::Interface { id, .. } if *id == dep));
-                match pos {
-                    Some(pos) => {
-                        let (key, item) = pending.shift_remove_index(pos).unwrap();
-                        self.add(export, key, item)?;
-                    }
-                    None => {
-                        let item = WorldItem::Interface {
-                            id: dep,
-                            stability: Default::default(),
-                            docs: Default::default(),
-                            span: Default::default(),
-                            external_id: None,
-                        };
-                        self.add(false, WorldKey::Interface(dep), item)?;
-                    }
+                if dep_idx != idx {
+                    self.visit_package(dep_idx, order, visiting)?;
                 }
             }
-            self.visiting.remove(&id);
-            self.placed.insert(id);
         }
-        let items = if export {
-            &mut self.exports
-        } else {
-            &mut self.imports
-        };
-        items.insert(key, item);
+
+        visiting.remove(&idx);
+        assert!(order.insert(idx));
         Ok(())
     }
 }

@@ -1,4 +1,4 @@
-;; FAIL: component wit %
+;; FAIL: component wit --wat %
 
 (component
   (type $pkg (component

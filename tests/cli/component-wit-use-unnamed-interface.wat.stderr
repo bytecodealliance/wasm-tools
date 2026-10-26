@@ -1,0 +1,1 @@
+error: cannot represent this component in WIT: package `a:x` uses a type from an interface it can't depend on

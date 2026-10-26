@@ -1,5 +1,5 @@
 use crate::encoding::types::{TypeEncodingMaps, ValtypeEncoder, extern_name};
-use anyhow::Result;
+use anyhow::{Result, bail};
 use indexmap::IndexSet;
 use std::collections::HashMap;
 use std::mem;
@@ -446,9 +446,15 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
     fn interface(&self) -> Option<InterfaceId> {
         self.interface
     }
-    fn import_type(&mut self, owner: InterfaceId, id: TypeId) -> u32 {
+    fn import_type(&mut self, owner: InterfaceId, id: TypeId) -> Result<u32> {
         let ty = &self.resolve.types[id];
-        let instance = self.import_map[&owner];
+        let Some(&instance) = self.import_map.get(&owner) else {
+            bail!(
+                "type `{}` is used before its interface `{}` is imported",
+                ty.name.as_deref().unwrap_or_default(),
+                self.resolve.id_of(owner).unwrap_or_default(),
+            );
+        };
         let outer_idx = *self.outer_type_map.entry(id).or_insert_with(|| {
             let ret = self.outer.type_count();
             self.outer.alias(Alias::InstanceExport {
@@ -466,9 +472,9 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
                     index: outer_idx,
                     kind: ComponentOuterAliasKind::Type,
                 });
-                ret
+                Ok(ret)
             }
-            None => outer_idx,
+            None => Ok(outer_idx),
         }
     }
 }

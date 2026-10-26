@@ -1084,7 +1084,7 @@ impl<'a> EncodingState<'a> {
                     ret
                 }
             }
-            fn import_type(&mut self, _: InterfaceId, _id: TypeId) -> u32 {
+            fn import_type(&mut self, _: InterfaceId, _id: TypeId) -> Result<u32> {
                 unreachable!()
             }
             fn type_encoding_maps(&mut self) -> &mut TypeEncodingMaps<'a> {

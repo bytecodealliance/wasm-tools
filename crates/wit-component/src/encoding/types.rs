@@ -119,7 +119,7 @@ pub trait ValtypeEncoder<'a> {
 
     /// Imports `id` from a different interface, returning the index of the
     /// imported type into this index space.
-    fn import_type(&mut self, interface: InterfaceId, id: TypeId) -> u32;
+    fn import_type(&mut self, interface: InterfaceId, id: TypeId) -> Result<u32>;
 
     /// Returns the identifier of the interface that generation is for.
     fn interface(&self) -> Option<InterfaceId>;
@@ -196,7 +196,7 @@ pub trait ValtypeEncoder<'a> {
                 // If this type is imported from another interface then return
                 // it as it was bound here with an alias.
                 log::trace!("encode type name={:?} {:?}", ty.name, &ty.kind);
-                if let Some(index) = self.maybe_import_type(resolve, id) {
+                if let Some(index) = self.maybe_import_type(resolve, id)? {
                     self.type_encoding_maps().insert(resolve, id, index);
                     return Ok(ComponentValType::Type(index));
                 }
@@ -291,16 +291,16 @@ pub trait ValtypeEncoder<'a> {
     /// of the imported type into this index space.
     ///
     /// Returns `None` if `id` can't be imported.
-    fn maybe_import_type(&mut self, resolve: &Resolve, id: TypeId) -> Option<u32> {
+    fn maybe_import_type(&mut self, resolve: &Resolve, id: TypeId) -> Result<Option<u32>> {
         let ty = &resolve.types[id];
         let owner = match ty.owner {
             TypeOwner::Interface(i) => i,
-            _ => return None,
+            _ => return Ok(None),
         };
         if Some(owner) == self.interface() {
-            return None;
+            return Ok(None);
         }
-        Some(self.import_type(owner, id))
+        self.import_type(owner, id).map(Some)
     }
 
     fn encode_optional_valtype(
@@ -487,8 +487,8 @@ impl<'a> ValtypeEncoder<'a> for RootTypeEncoder<'_, 'a> {
             .component
             .import(name, ComponentTypeRef::Type(TypeBounds::SubResource))
     }
-    fn import_type(&mut self, interface: InterfaceId, id: TypeId) -> u32 {
-        self.state.alias_instance_type_export(interface, id)
+    fn import_type(&mut self, interface: InterfaceId, id: TypeId) -> Result<u32> {
+        Ok(self.state.alias_instance_type_export(interface, id))
     }
     fn type_encoding_maps(&mut self) -> &mut TypeEncodingMaps<'a> {
         &mut self.state.type_encoding_maps
@@ -527,12 +527,12 @@ impl<'a> ValtypeEncoder<'a> for InstanceTypeEncoder<'_, 'a> {
     fn interface(&self) -> Option<InterfaceId> {
         Some(self.interface)
     }
-    fn import_type(&mut self, interface: InterfaceId, id: TypeId) -> u32 {
+    fn import_type(&mut self, interface: InterfaceId, id: TypeId) -> Result<u32> {
         self.ty.alias(Alias::Outer {
             count: 1,
             index: self.state.alias_instance_type_export(interface, id),
             kind: ComponentOuterAliasKind::Type,
         });
-        self.ty.type_count() - 1
+        Ok(self.ty.type_count() - 1)
     }
 }

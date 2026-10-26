@@ -1,1 +1,1 @@
-error: cannot represent this component in WIT: `a:x/k` refers to type `t` without exporting it
+error: type `t` is used before its interface `a:x/l` is imported

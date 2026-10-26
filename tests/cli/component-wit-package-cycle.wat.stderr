@@ -1,0 +1,1 @@
+error: cannot represent this component in WIT: package `a:x` creates a dependency cycle
