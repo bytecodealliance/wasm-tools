@@ -360,6 +360,7 @@ impl Printer<'_, '_> {
         mut bytes: &'a [u8],
         mut parser: Parser,
         state: &mut State,
+        parent: Option<&State>,
     ) -> Result<()> {
         loop {
             let payload = match parser.parse(bytes, true)? {
@@ -416,6 +417,23 @@ impl Printer<'_, '_> {
                 _ => {}
             }
         }
+
+        // A nested component is printed with the name its parent gives it
+        // rather than the one in its own name section, so that's the name
+        // outer aliases refer to it by.
+        #[cfg(feature = "component-model")]
+        if let Some(parent) = parent {
+            if state.encoding == Encoding::Component {
+                state.name = parent
+                    .component
+                    .component_names
+                    .index_to_name
+                    .get(&parent.component.components)
+                    .cloned();
+            }
+        }
+        #[cfg(not(feature = "component-model"))]
+        let _ = parent;
 
         Ok(())
     }
@@ -523,30 +541,16 @@ impl Printer<'_, '_> {
                     }
 
                     let len = states.len();
-                    let state = states.last_mut().unwrap();
+                    let (state, parents) = states.split_last_mut().unwrap();
 
                     // First up try to find the `name` subsection which we'll use to print
                     // pretty names everywhere.
-                    self.read_names(bytes, parser.clone(), state)?;
+                    self.read_names(bytes, parser.clone(), state, parents.last())?;
 
                     if len == 1 {
                         if let Some(name) = state.name.as_ref() {
                             self.result.write_str(" ")?;
                             name.write(self)?;
-                        }
-                    }
-
-                    // Outer aliases refer to a nested component by the name
-                    // printed above, which its parent gives it.
-                    #[cfg(feature = "component-model")]
-                    if let [.., parent, state] = &mut states[..] {
-                        if state.encoding == Encoding::Component {
-                            state.name = parent
-                                .component
-                                .component_names
-                                .index_to_name
-                                .get(&parent.component.components)
-                                .cloned();
                         }
                     }
                 }

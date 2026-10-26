@@ -1,0 +1,6 @@
+(component $a
+  (type $t (;0;) u8)
+  (component $a (;0;)
+    (alias outer 1 $t (type (;0;)))
+  )
+)

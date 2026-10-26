@@ -1,0 +1,8 @@
+(component
+  (component (;0;)
+    (type (;0;) u8)
+    (component (;0;)
+      (alias outer 1 0 (type (;0;)))
+    )
+  )
+)

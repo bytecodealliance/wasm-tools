@@ -1,0 +1,24 @@
+{
+  "source_filename": "tests/cli/component-model/outer-alias-names.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 8,
+      "filename": "outer-alias-names.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 14,
+      "name": "a",
+      "filename": "outer-alias-names.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 23,
+      "filename": "outer-alias-names.2.wasm",
+      "module_type": "binary"
+    }
+  ]
+}
