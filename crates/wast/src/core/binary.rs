@@ -856,6 +856,10 @@ pub(crate) mod custom_encoders {
         sink.i64_const(*x);
     }
 
+    pub(crate) fn atomic_fence(sink: &mut InstructionSink<'_>, ordering: &Option<Ordering>) {
+        sink.atomic_fence((&ordering.unwrap_or(Ordering::SeqCst)).into());
+    }
+
     pub(crate) fn select(sink: &mut InstructionSink<'_>, tys: &SelectTypes<'_>) {
         match &tys.tys {
             Some(tys) => {
@@ -1351,6 +1355,16 @@ impl From<&MemArg<'_>> for wasm_encoder::MemArg {
             align: m.align.trailing_zeros(),
             memory_index: m.memory.unwrap_u32(),
             offset: m.offset,
+            ordering: m.ordering.map(|o| o.into()),
+        }
+    }
+}
+
+impl From<MemArgOrdering> for wasm_encoder::MemArgOrdering {
+    fn from(o: MemArgOrdering) -> Self {
+        match o {
+            MemArgOrdering::Op(o) => Self::Op((&o).into()),
+            MemArgOrdering::Rmw(o) => Self::Rmw((&o).into()),
         }
     }
 }

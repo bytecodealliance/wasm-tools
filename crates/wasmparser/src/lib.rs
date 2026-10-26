@@ -381,7 +381,7 @@ macro_rules! _for_each_operator_group {
                 MemoryAtomicNotify { memarg: $crate::MemArg } => visit_memory_atomic_notify (arity 2 -> 1)
                 MemoryAtomicWait32 { memarg: $crate::MemArg } => visit_memory_atomic_wait32 (arity 3 -> 1)
                 MemoryAtomicWait64 { memarg: $crate::MemArg } => visit_memory_atomic_wait64 (arity 3 -> 1)
-                AtomicFence => visit_atomic_fence (arity 0 -> 0)
+                AtomicFence { ordering: $crate::Ordering } => visit_atomic_fence (arity 0 -> 0)
                 I32AtomicLoad { memarg: $crate::MemArg } => visit_i32_atomic_load (arity 1 -> 1)
                 I64AtomicLoad { memarg: $crate::MemArg } => visit_i64_atomic_load (arity 1 -> 1)
                 I32AtomicLoad8U { memarg: $crate::MemArg } => visit_i32_atomic_load8_u (arity 1 -> 1)
@@ -797,6 +797,10 @@ macro_rules! _for_each_operator_group {
                 I64MulWideS => visit_i64_mul_wide_s (arity 2 -> 2)
                 I64MulWideU => visit_i64_mul_wide_u (arity 2 -> 2)
             }
+
+            @acquire_release_atomics {
+                Pause => visit_pause (arity 0 -> 0)
+            }
         }
     };
 }
@@ -974,43 +978,22 @@ _for_each_operator_group!(define_for_each_simd_operator);
 /// - `@gc`: [Wasm `gc` proposal]
 /// - `@stack_switching`: [Wasm `stack-switching` proposal]
 /// - `@wide_arithmetic`: [Wasm `wide-arithmetic` proposal]
+/// - `@acquire_release_atomics`: [Wasm `acquire-release-atomics` proposal]
 /// - `@custom_descriptors` : [Wasm `custom-descriptors` proposal]
 ///
-/// [Wasm `exception-handling` proposal]:
-/// https://github.com/WebAssembly/exception-handling
-///
-/// [Wasm `tail-calls` proposal]:
-/// https://github.com/WebAssembly/tail-call
-///
-/// [Wasm `reference-types` proposal]:
-/// https://github.com/WebAssembly/reference-types
-///
-/// [Wasm `sign-extension-ops` proposal]:
-/// https://github.com/WebAssembly/sign-extension-ops
-///
-/// [Wasm `non_trapping_float-to-int-conversions` proposal]:
-/// https://github.com/WebAssembly/nontrapping-float-to-int-conversions
-///
-/// [Wasm `bulk-memory` proposal]:
-/// https://github.com/WebAssembly/bulk-memory-operations
-///
-/// [Wasm `simd` proposal]:
-/// https://github.com/webassembly/simd
-///
-/// [Wasm `relaxed-simd` proposal]:
-/// https://github.com/WebAssembly/relaxed-simd
-///
-/// [Wasm `threads` proposal]:
-/// https://github.com/webassembly/threads
-///
-/// [Wasm `gc` proposal]:
-/// https://github.com/WebAssembly/gc
-///
-/// [Wasm `stack-switching` proposal]:
-/// https://github.com/WebAssembly/stack-switching
-///
-/// [Wasm `wide-arithmetic` proposal]:
-/// https://github.com/WebAssembly/wide-arithmetic
+/// [Wasm `exception-handling` proposal]: https://github.com/WebAssembly/exception-handling
+/// [Wasm `tail-calls` proposal]: https://github.com/WebAssembly/tail-call
+/// [Wasm `reference-types` proposal]: https://github.com/WebAssembly/reference-types
+/// [Wasm `sign-extension-ops` proposal]: https://github.com/WebAssembly/sign-extension-ops
+/// [Wasm `non_trapping_float-to-int-conversions` proposal]: https://github.com/WebAssembly/nontrapping-float-to-int-conversions
+/// [Wasm `bulk-memory` proposal]: https://github.com/WebAssembly/bulk-memory-operations
+/// [Wasm `simd` proposal]: https://github.com/webassembly/simd
+/// [Wasm `relaxed-simd` proposal]: https://github.com/WebAssembly/relaxed-simd
+/// [Wasm `threads` proposal]: https://github.com/webassembly/threads
+/// [Wasm `gc` proposal]: https://github.com/WebAssembly/gc
+/// [Wasm `stack-switching` proposal]: https://github.com/WebAssembly/stack-switching
+/// [Wasm `wide-arithmetic` proposal]: https://github.com/WebAssembly/wide-arithmetic
+/// [Wasm `acquire-release-atomics` proposal]: https://github.com/WebAssembly/acquire-release-atomics
 ///
 /// ```
 /// fn do_nothing(op: &wasmparser::Operator) {
@@ -1103,46 +1086,26 @@ pub use _for_each_operator_impl as for_each_operator;
 /// - `@gc`: [Wasm `gc` proposal]
 /// - `@stack_switching`: [Wasm `stack-switching` proposal]
 /// - `@wide_arithmetic`: [Wasm `wide-arithmetic` proposal]
+/// - `@acquire_release_atomics`: [Wasm `acquire-release-atomics` proposal]
 ///
 /// Note that this macro does not iterate over the SIMD-related proposals. Those
 /// are provided in [`VisitSimdOperator`] and [`for_each_visit_simd_operator`].
 /// This macro only handles non-SIMD related operators and so users wanting to
 /// handle the SIMD-class of operators need to use that trait/macro as well.
 ///
-/// [Wasm `exception-handling` proposal]:
-/// https://github.com/WebAssembly/exception-handling
-///
-/// [Wasm `tail-calls` proposal]:
-/// https://github.com/WebAssembly/tail-call
-///
-/// [Wasm `reference-types` proposal]:
-/// https://github.com/WebAssembly/reference-types
-///
-/// [Wasm `sign-extension-ops` proposal]:
-/// https://github.com/WebAssembly/sign-extension-ops
-///
-/// [Wasm `non_trapping_float-to-int-conversions` proposal]:
-/// https://github.com/WebAssembly/nontrapping-float-to-int-conversions
-///
-/// [Wasm `bulk-memory` proposal]:
-/// https://github.com/WebAssembly/bulk-memory-operations
-/// [Wasm `simd` proposal]:
-/// https://github.com/webassembly/simd
-///
-/// [Wasm `relaxed-simd` proposal]:
-/// https://github.com/WebAssembly/relaxed-simd
-///
-/// [Wasm `threads` proposal]:
-/// https://github.com/webassembly/threads
-///
-/// [Wasm `gc` proposal]:
-/// https://github.com/WebAssembly/gc
-///
-/// [Wasm `stack-switching` proposal]:
-/// https://github.com/WebAssembly/stack-switching
-///
-/// [Wasm `wide-arithmetic` proposal]:
-/// https://github.com/WebAssembly/wide-arithmetic
+/// [Wasm `exception-handling` proposal]: https://github.com/WebAssembly/exception-handling
+/// [Wasm `tail-calls` proposal]: https://github.com/WebAssembly/tail-call
+/// [Wasm `reference-types` proposal]: https://github.com/WebAssembly/reference-types
+/// [Wasm `sign-extension-ops` proposal]: https://github.com/WebAssembly/sign-extension-ops
+/// [Wasm `non_trapping_float-to-int-conversions` proposal]: https://github.com/WebAssembly/nontrapping-float-to-int-conversions
+/// [Wasm `bulk-memory` proposal]: https://github.com/WebAssembly/bulk-memory-operations
+/// [Wasm `simd` proposal]: https://github.com/webassembly/simd
+/// [Wasm `relaxed-simd` proposal]: https://github.com/WebAssembly/relaxed-simd
+/// [Wasm `threads` proposal]: https://github.com/webassembly/threads
+/// [Wasm `gc` proposal]: https://github.com/WebAssembly/gc
+/// [Wasm `stack-switching` proposal]: https://github.com/WebAssembly/stack-switching
+/// [Wasm `wide-arithmetic` proposal]: https://github.com/WebAssembly/wide-arithmetic
+/// [Wasm `acquire-release-atomics` proposal]: https://github.com/WebAssembly/acquire-release-atomics
 ///
 /// ```
 /// macro_rules! define_visit_operator {

@@ -1,0 +1,73 @@
+{
+  "source_filename": "tests/cli/acquire-release-atomics-extra.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "acquire-release-atomics-extra.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 18,
+      "filename": "acquire-release-atomics-extra.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 36,
+      "filename": "acquire-release-atomics-extra.2.wasm",
+      "module_type": "binary",
+      "text": "invalid atomic consistency ordering"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 52,
+      "filename": "acquire-release-atomics-extra.3.wasm",
+      "module_type": "binary",
+      "text": "invalid atomic consistency ordering"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 65,
+      "filename": "acquire-release-atomics-extra.4.wasm",
+      "module_type": "binary",
+      "text": "invalid atomic consistency ordering"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 80,
+      "filename": "acquire-release-atomics-extra.5.wasm",
+      "module_type": "binary",
+      "text": "cannot specify atomic ordering on non-atomic instruction"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 95,
+      "filename": "acquire-release-atomics-extra.6.wasm",
+      "module_type": "binary",
+      "text": "cannot specify atomic ordering on non-atomic instruction"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 108,
+      "filename": "acquire-release-atomics-extra.7.wat",
+      "module_type": "text",
+      "text": "unexpected token"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 115,
+      "filename": "acquire-release-atomics-extra.8.wasm",
+      "module_type": "binary",
+      "text": "invalid atomic consistency ordering 0x2"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 128,
+      "filename": "acquire-release-atomics-extra.9.wasm",
+      "module_type": "binary",
+      "text": "invalid atomic consistency ordering 2"
+    }
+  ]
+}

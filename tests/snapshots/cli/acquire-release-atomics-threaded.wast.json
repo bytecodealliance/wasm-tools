@@ -1,0 +1,657 @@
+{
+  "source_filename": "tests/cli/acquire-release-atomics-threaded.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 6,
+      "name": "Mem1",
+      "filename": "acquire-release-atomics-threaded.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 9,
+      "name": "Mem1",
+      "as": "mem"
+    },
+    {
+      "type": "thread",
+      "line": 11,
+      "name": "T1",
+      "shared_module": "Mem1",
+      "commands": [
+        {
+          "type": "register",
+          "line": 12,
+          "name": "Mem1",
+          "as": "mem"
+        },
+        {
+          "type": "module",
+          "line": 13,
+          "filename": "acquire-release-atomics-threaded.1.wasm",
+          "module_type": "binary"
+        },
+        {
+          "type": "action",
+          "line": 22,
+          "action": {
+            "type": "invoke",
+            "field": "run",
+            "args": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "thread",
+      "line": 25,
+      "name": "T2",
+      "shared_module": "Mem1",
+      "commands": [
+        {
+          "type": "register",
+          "line": 26,
+          "name": "Mem1",
+          "as": "mem"
+        },
+        {
+          "type": "module",
+          "line": 27,
+          "filename": "acquire-release-atomics-threaded.2.wasm",
+          "module_type": "binary"
+        },
+        {
+          "type": "action",
+          "line": 36,
+          "action": {
+            "type": "invoke",
+            "field": "run",
+            "args": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "wait",
+      "line": 39,
+      "thread": "T1"
+    },
+    {
+      "type": "wait",
+      "line": 40,
+      "thread": "T2"
+    },
+    {
+      "type": "module",
+      "line": 42,
+      "filename": "acquire-release-atomics-threaded.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 54,
+      "action": {
+        "type": "invoke",
+        "field": "check",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "either",
+          "values": [
+            {
+              "type": "i32",
+              "value": "1"
+            },
+            {
+              "type": "i32",
+              "value": "4"
+            }
+          ]
+        },
+        {
+          "type": "either",
+          "values": [
+            {
+              "type": "i32",
+              "value": "2"
+            },
+            {
+              "type": "i32",
+              "value": "3"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 60,
+      "name": "Mem2",
+      "filename": "acquire-release-atomics-threaded.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 63,
+      "name": "Mem2",
+      "as": "mem"
+    },
+    {
+      "type": "thread",
+      "line": 65,
+      "name": "write",
+      "shared_module": "Mem2",
+      "commands": [
+        {
+          "type": "register",
+          "line": 66,
+          "name": "Mem2",
+          "as": "mem"
+        },
+        {
+          "type": "module",
+          "line": 68,
+          "filename": "acquire-release-atomics-threaded.5.wasm",
+          "module_type": "binary"
+        },
+        {
+          "type": "action",
+          "line": 77,
+          "action": {
+            "type": "invoke",
+            "field": "run",
+            "args": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "thread",
+      "line": 80,
+      "name": "read",
+      "shared_module": "Mem2",
+      "commands": [
+        {
+          "type": "register",
+          "line": 81,
+          "name": "Mem2",
+          "as": "mem"
+        },
+        {
+          "type": "module",
+          "line": 83,
+          "filename": "acquire-release-atomics-threaded.6.wasm",
+          "module_type": "binary"
+        },
+        {
+          "type": "action",
+          "line": 93,
+          "action": {
+            "type": "invoke",
+            "field": "run",
+            "args": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "wait",
+      "line": 96,
+      "thread": "write"
+    },
+    {
+      "type": "wait",
+      "line": 97,
+      "thread": "read"
+    },
+    {
+      "type": "module",
+      "line": 99,
+      "filename": "acquire-release-atomics-threaded.7.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 112,
+      "action": {
+        "type": "invoke",
+        "field": "check",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 117,
+      "name": "Mem3",
+      "filename": "acquire-release-atomics-threaded.8.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 120,
+      "name": "Mem3",
+      "as": "mem"
+    },
+    {
+      "type": "thread",
+      "line": 122,
+      "name": "write_flag",
+      "shared_module": "Mem3",
+      "commands": [
+        {
+          "type": "register",
+          "line": 123,
+          "name": "Mem3",
+          "as": "mem"
+        },
+        {
+          "type": "module",
+          "line": 125,
+          "filename": "acquire-release-atomics-threaded.9.wasm",
+          "module_type": "binary"
+        },
+        {
+          "type": "action",
+          "line": 142,
+          "action": {
+            "type": "invoke",
+            "field": "run",
+            "args": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "thread",
+      "line": 145,
+      "name": "read_flag",
+      "shared_module": "Mem3",
+      "commands": [
+        {
+          "type": "register",
+          "line": 146,
+          "name": "Mem3",
+          "as": "mem"
+        },
+        {
+          "type": "module",
+          "line": 148,
+          "filename": "acquire-release-atomics-threaded.10.wasm",
+          "module_type": "binary"
+        },
+        {
+          "type": "action",
+          "line": 163,
+          "action": {
+            "type": "invoke",
+            "field": "run",
+            "args": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "wait",
+      "line": 166,
+      "thread": "write_flag"
+    },
+    {
+      "type": "wait",
+      "line": 167,
+      "thread": "read_flag"
+    },
+    {
+      "type": "module",
+      "line": 169,
+      "filename": "acquire-release-atomics-threaded.11.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 182,
+      "action": {
+        "type": "invoke",
+        "field": "check",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 187,
+      "name": "Mem4",
+      "filename": "acquire-release-atomics-threaded.12.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 192,
+      "name": "Mem4",
+      "as": "mem"
+    },
+    {
+      "type": "thread",
+      "line": 195,
+      "name": "addOne",
+      "shared_module": "Mem4",
+      "commands": [
+        {
+          "type": "register",
+          "line": 196,
+          "name": "Mem4",
+          "as": "mem"
+        },
+        {
+          "type": "module",
+          "line": 198,
+          "filename": "acquire-release-atomics-threaded.13.wasm",
+          "module_type": "binary"
+        },
+        {
+          "type": "action",
+          "line": 228,
+          "action": {
+            "type": "invoke",
+            "field": "run",
+            "args": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "thread",
+      "line": 232,
+      "name": "addTen",
+      "shared_module": "Mem4",
+      "commands": [
+        {
+          "type": "register",
+          "line": 233,
+          "name": "Mem4",
+          "as": "mem"
+        },
+        {
+          "type": "module",
+          "line": 235,
+          "filename": "acquire-release-atomics-threaded.14.wasm",
+          "module_type": "binary"
+        },
+        {
+          "type": "action",
+          "line": 265,
+          "action": {
+            "type": "invoke",
+            "field": "run",
+            "args": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "wait",
+      "line": 268,
+      "thread": "addOne"
+    },
+    {
+      "type": "wait",
+      "line": 269,
+      "thread": "addTen"
+    },
+    {
+      "type": "module",
+      "line": 271,
+      "filename": "acquire-release-atomics-threaded.15.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 282,
+      "action": {
+        "type": "invoke",
+        "field": "check",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "11"
+        },
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 288,
+      "name": "Mem5",
+      "filename": "acquire-release-atomics-threaded.16.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 291,
+      "name": "Mem5",
+      "as": "mem"
+    },
+    {
+      "type": "thread",
+      "line": 293,
+      "name": "writeX",
+      "shared_module": "Mem5",
+      "commands": [
+        {
+          "type": "register",
+          "line": 294,
+          "name": "Mem5",
+          "as": "mem"
+        },
+        {
+          "type": "module",
+          "line": 296,
+          "filename": "acquire-release-atomics-threaded.17.wasm",
+          "module_type": "binary"
+        },
+        {
+          "type": "action",
+          "line": 303,
+          "action": {
+            "type": "invoke",
+            "field": "run",
+            "args": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "thread",
+      "line": 306,
+      "name": "writeY",
+      "shared_module": "Mem5",
+      "commands": [
+        {
+          "type": "register",
+          "line": 307,
+          "name": "Mem5",
+          "as": "mem"
+        },
+        {
+          "type": "module",
+          "line": 309,
+          "filename": "acquire-release-atomics-threaded.18.wasm",
+          "module_type": "binary"
+        },
+        {
+          "type": "action",
+          "line": 316,
+          "action": {
+            "type": "invoke",
+            "field": "run",
+            "args": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "thread",
+      "line": 319,
+      "name": "read1",
+      "shared_module": "Mem5",
+      "commands": [
+        {
+          "type": "register",
+          "line": 320,
+          "name": "Mem5",
+          "as": "mem"
+        },
+        {
+          "type": "module",
+          "line": 322,
+          "filename": "acquire-release-atomics-threaded.19.wasm",
+          "module_type": "binary"
+        },
+        {
+          "type": "action",
+          "line": 331,
+          "action": {
+            "type": "invoke",
+            "field": "run",
+            "args": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "thread",
+      "line": 334,
+      "name": "read2",
+      "shared_module": "Mem5",
+      "commands": [
+        {
+          "type": "register",
+          "line": 335,
+          "name": "Mem5",
+          "as": "mem"
+        },
+        {
+          "type": "module",
+          "line": 337,
+          "filename": "acquire-release-atomics-threaded.20.wasm",
+          "module_type": "binary"
+        },
+        {
+          "type": "action",
+          "line": 346,
+          "action": {
+            "type": "invoke",
+            "field": "run",
+            "args": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "wait",
+      "line": 349,
+      "thread": "writeX"
+    },
+    {
+      "type": "wait",
+      "line": 350,
+      "thread": "writeY"
+    },
+    {
+      "type": "wait",
+      "line": 351,
+      "thread": "read1"
+    },
+    {
+      "type": "wait",
+      "line": 352,
+      "thread": "read2"
+    },
+    {
+      "type": "module",
+      "line": 354,
+      "filename": "acquire-release-atomics-threaded.21.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 367,
+      "action": {
+        "type": "invoke",
+        "field": "check",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "either",
+          "values": [
+            {
+              "type": "i32",
+              "value": "0"
+            },
+            {
+              "type": "i32",
+              "value": "1"
+            }
+          ]
+        },
+        {
+          "type": "either",
+          "values": [
+            {
+              "type": "i32",
+              "value": "0"
+            },
+            {
+              "type": "i32",
+              "value": "1"
+            }
+          ]
+        },
+        {
+          "type": "either",
+          "values": [
+            {
+              "type": "i32",
+              "value": "0"
+            },
+            {
+              "type": "i32",
+              "value": "1"
+            }
+          ]
+        },
+        {
+          "type": "either",
+          "values": [
+            {
+              "type": "i32",
+              "value": "0"
+            },
+            {
+              "type": "i32",
+              "value": "1"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

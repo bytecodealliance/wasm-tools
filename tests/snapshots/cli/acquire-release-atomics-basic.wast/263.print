@@ -1,0 +1,269 @@
+(module
+  (type (;0;) (func))
+  (memory (;0;) 1 1)
+  (func (;0;) (type 0)
+    i32.const 0
+    i32.atomic.load acqrel
+    drop
+  )
+  (func (;1;) (type 0)
+    i32.const 0
+    i64.atomic.load acqrel
+    drop
+  )
+  (func (;2;) (type 0)
+    i32.const 0
+    i32.atomic.load16_u acqrel
+    drop
+  )
+  (func (;3;) (type 0)
+    i32.const 0
+    i64.atomic.load16_u acqrel
+    drop
+  )
+  (func (;4;) (type 0)
+    i32.const 0
+    i64.atomic.load32_u acqrel
+    drop
+  )
+  (func (;5;) (type 0)
+    i32.const 0
+    i32.const 0
+    i32.atomic.store acqrel
+  )
+  (func (;6;) (type 0)
+    i32.const 0
+    i64.const 0
+    i64.atomic.store acqrel
+  )
+  (func (;7;) (type 0)
+    i32.const 0
+    i32.const 0
+    i32.atomic.store16 acqrel
+  )
+  (func (;8;) (type 0)
+    i32.const 0
+    i64.const 0
+    i64.atomic.store16 acqrel
+  )
+  (func (;9;) (type 0)
+    i32.const 0
+    i64.const 0
+    i64.atomic.store32 acqrel
+  )
+  (func (;10;) (type 0)
+    i32.const 0
+    i32.const 0
+    i32.atomic.rmw.add acqrel
+    drop
+  )
+  (func (;11;) (type 0)
+    i32.const 0
+    i64.const 0
+    i64.atomic.rmw.add acqrel
+    drop
+  )
+  (func (;12;) (type 0)
+    i32.const 0
+    i32.const 0
+    i32.atomic.rmw16.add_u acqrel
+    drop
+  )
+  (func (;13;) (type 0)
+    i32.const 0
+    i64.const 0
+    i64.atomic.rmw16.add_u acqrel
+    drop
+  )
+  (func (;14;) (type 0)
+    i32.const 0
+    i64.const 0
+    i64.atomic.rmw32.add_u acqrel
+    drop
+  )
+  (func (;15;) (type 0)
+    i32.const 0
+    i32.const 0
+    i32.atomic.rmw.sub acqrel
+    drop
+  )
+  (func (;16;) (type 0)
+    i32.const 0
+    i64.const 0
+    i64.atomic.rmw.sub acqrel
+    drop
+  )
+  (func (;17;) (type 0)
+    i32.const 0
+    i32.const 0
+    i32.atomic.rmw16.sub_u acqrel
+    drop
+  )
+  (func (;18;) (type 0)
+    i32.const 0
+    i64.const 0
+    i64.atomic.rmw16.sub_u acqrel
+    drop
+  )
+  (func (;19;) (type 0)
+    i32.const 0
+    i64.const 0
+    i64.atomic.rmw32.sub_u acqrel
+    drop
+  )
+  (func (;20;) (type 0)
+    i32.const 0
+    i32.const 0
+    i32.atomic.rmw.and acqrel
+    drop
+  )
+  (func (;21;) (type 0)
+    i32.const 0
+    i64.const 0
+    i64.atomic.rmw.and acqrel
+    drop
+  )
+  (func (;22;) (type 0)
+    i32.const 0
+    i32.const 0
+    i32.atomic.rmw16.and_u acqrel
+    drop
+  )
+  (func (;23;) (type 0)
+    i32.const 0
+    i64.const 0
+    i64.atomic.rmw16.and_u acqrel
+    drop
+  )
+  (func (;24;) (type 0)
+    i32.const 0
+    i64.const 0
+    i64.atomic.rmw32.and_u acqrel
+    drop
+  )
+  (func (;25;) (type 0)
+    i32.const 0
+    i32.const 0
+    i32.atomic.rmw.or acqrel
+    drop
+  )
+  (func (;26;) (type 0)
+    i32.const 0
+    i64.const 0
+    i64.atomic.rmw.or acqrel
+    drop
+  )
+  (func (;27;) (type 0)
+    i32.const 0
+    i32.const 0
+    i32.atomic.rmw16.or_u acqrel
+    drop
+  )
+  (func (;28;) (type 0)
+    i32.const 0
+    i64.const 0
+    i64.atomic.rmw16.or_u acqrel
+    drop
+  )
+  (func (;29;) (type 0)
+    i32.const 0
+    i64.const 0
+    i64.atomic.rmw32.or_u acqrel
+    drop
+  )
+  (func (;30;) (type 0)
+    i32.const 0
+    i32.const 0
+    i32.atomic.rmw.xor acqrel
+    drop
+  )
+  (func (;31;) (type 0)
+    i32.const 0
+    i64.const 0
+    i64.atomic.rmw.xor acqrel
+    drop
+  )
+  (func (;32;) (type 0)
+    i32.const 0
+    i32.const 0
+    i32.atomic.rmw16.xor_u acqrel
+    drop
+  )
+  (func (;33;) (type 0)
+    i32.const 0
+    i64.const 0
+    i64.atomic.rmw16.xor_u acqrel
+    drop
+  )
+  (func (;34;) (type 0)
+    i32.const 0
+    i64.const 0
+    i64.atomic.rmw32.xor_u acqrel
+    drop
+  )
+  (func (;35;) (type 0)
+    i32.const 0
+    i32.const 0
+    i32.atomic.rmw.xchg acqrel
+    drop
+  )
+  (func (;36;) (type 0)
+    i32.const 0
+    i64.const 0
+    i64.atomic.rmw.xchg acqrel
+    drop
+  )
+  (func (;37;) (type 0)
+    i32.const 0
+    i32.const 0
+    i32.atomic.rmw16.xchg_u acqrel
+    drop
+  )
+  (func (;38;) (type 0)
+    i32.const 0
+    i64.const 0
+    i64.atomic.rmw16.xchg_u acqrel
+    drop
+  )
+  (func (;39;) (type 0)
+    i32.const 0
+    i64.const 0
+    i64.atomic.rmw32.xchg_u acqrel
+    drop
+  )
+  (func (;40;) (type 0)
+    i32.const 0
+    i32.const 0
+    i32.const 0
+    i32.atomic.rmw.cmpxchg acqrel
+    drop
+  )
+  (func (;41;) (type 0)
+    i32.const 0
+    i64.const 0
+    i64.const 0
+    i64.atomic.rmw.cmpxchg acqrel
+    drop
+  )
+  (func (;42;) (type 0)
+    i32.const 0
+    i32.const 0
+    i32.const 0
+    i32.atomic.rmw16.cmpxchg_u acqrel
+    drop
+  )
+  (func (;43;) (type 0)
+    i32.const 0
+    i64.const 0
+    i64.const 0
+    i64.atomic.rmw16.cmpxchg_u acqrel
+    drop
+  )
+  (func (;44;) (type 0)
+    i32.const 0
+    i64.const 0
+    i64.const 0
+    i64.atomic.rmw32.cmpxchg_u acqrel
+    drop
+  )
+)

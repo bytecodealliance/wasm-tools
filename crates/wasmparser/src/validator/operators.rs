@@ -2041,6 +2041,7 @@ macro_rules! validate_proposal {
     (desc legacy_exceptions) => ("legacy exceptions");
     (desc stack_switching) => ("stack switching");
     (desc wide_arithmetic) => ("wide arithmetic");
+    (desc acquire_release_atomics) => ("acquire-release atomics");
     (desc custom_descriptors) => ("custom descriptors operations");
 }
 
@@ -3303,7 +3304,20 @@ where
         self.push_operand(ValType::I32)?;
         Ok(())
     }
-    fn visit_atomic_fence(&mut self) -> Self::Output {
+    fn visit_atomic_fence(&mut self, ordering: Ordering) -> Self::Output {
+        match ordering {
+            Ordering::SeqCst => {}
+            Ordering::AcqRel => {
+                require_feature::acquire_release_atomics(
+                    self.features,
+                    "acquire-release atomics are not enabled",
+                    self.offset,
+                )?;
+            }
+        }
+        Ok(())
+    }
+    fn visit_pause(&mut self) -> Self::Output {
         Ok(())
     }
     fn visit_ref_null(&mut self, mut heap_type: HeapType) -> Self::Output {

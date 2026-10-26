@@ -92,6 +92,20 @@ pub struct MemArg {
     /// is always zero unless the multi-memory proposal of WebAssembly is
     /// enabled.
     pub memory: u32,
+
+    /// The memory ordering specified for this operation, part of the
+    /// acquire-release-atomics proposal.
+    pub ordering: Option<MemArgOrdering>,
+}
+
+/// The ordering immediate of a [`MemArg`], part of the
+/// acquire-release-atomics proposal.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum MemArgOrdering {
+    /// The ordering immediate of an atomic load or store.
+    Op(Ordering),
+    /// The ordering immediate of an atomic read-modify-write instruction.
+    Rmw(Ordering),
 }
 
 /// A br_table entries representation.

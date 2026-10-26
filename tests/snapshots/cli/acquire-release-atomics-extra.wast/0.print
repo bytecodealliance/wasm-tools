@@ -1,0 +1,29 @@
+(module
+  (type (;0;) (func))
+  (memory (;0;) 1 1)
+  (memory $m (;1;) 1 1 shared)
+  (func (;0;) (type 0)
+    i32.const 0
+    i32.atomic.load offset=8 acqrel
+    drop
+    i32.const 0
+    i32.atomic.load offset=8 seqcst
+    drop
+    i32.const 0
+    i32.atomic.load $m offset=8 acqrel
+    drop
+    i32.const 0
+    i64.const 0
+    i64.atomic.store $m offset=16 acqrel
+    i32.const 0
+    i32.const 0
+    i32.atomic.rmw.add $m offset=4 acqrel
+    drop
+    i32.const 0
+    i64.const 0
+    i64.const 0
+    i64.atomic.rmw.cmpxchg $m acqrel
+    drop
+    pause
+  )
+)

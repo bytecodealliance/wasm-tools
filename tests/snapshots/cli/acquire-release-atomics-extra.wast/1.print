@@ -1,0 +1,11 @@
+(module
+  (type (;0;) (func))
+  (memory (;0;) 1 1)
+  (memory (;1;) 1 1)
+  (memory (;2;) 1 1 shared)
+  (func (;0;) (type 0)
+    i32.const 0
+    i32.atomic.load 2 offset=8 acqrel
+    drop
+  )
+)

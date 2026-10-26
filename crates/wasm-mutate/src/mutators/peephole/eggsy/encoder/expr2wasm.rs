@@ -683,6 +683,7 @@ impl From<&MemArg> for wasm_encoder::MemArg {
             offset: arg.static_offset,
             align: arg.align.into(),
             memory_index: arg.mem,
+            ordering: None,
         }
     }
 }

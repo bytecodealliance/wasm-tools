@@ -2,7 +2,7 @@ use crate::annotation;
 use crate::core::*;
 use crate::kw;
 use crate::lexer::{Lexer, Token, TokenKind};
-use crate::parser::{Parse, Parser, Result};
+use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::*;
 use std::mem;
 
@@ -547,6 +547,8 @@ macro_rules! instructions {
     );
 
     (@ty MemArg<$amt:tt>) => (MemArg<'a>);
+    (@ty AtomicMemArg<$amt:tt>) => (MemArg<'a>);
+    (@ty RmwMemArg<$amt:tt>) => (MemArg<'a>);
     (@ty LoadOrStoreLane<$amt:tt>) => (LoadOrStoreLane<'a>);
     (@ty $other:ty) => ($other);
 
@@ -554,6 +556,8 @@ macro_rules! instructions {
 
     (@parse $parser:ident MemArg<$amt:tt>) => (MemArg::parse($parser, $amt));
     (@parse $parser:ident MemArg) => (compile_error!("must specify `MemArg` default"));
+    (@parse $parser:ident AtomicMemArg<$amt:tt>) => (MemArg::parse_atomic($parser, $amt, false));
+    (@parse $parser:ident RmwMemArg<$amt:tt>) => (MemArg::parse_atomic($parser, $amt, true));
     (@parse $parser:ident LoadOrStoreLane<$amt:tt>) => (LoadOrStoreLane::parse($parser, $amt));
     (@parse $parser:ident LoadOrStoreLane) => (compile_error!("must specify `LoadOrStoreLane` default"));
     (@parse $parser:ident $other:ty) => ($parser.parse::<$other>());
@@ -571,10 +575,14 @@ macro_rules! instructions {
     });
 
     (@get_memarg $name:ident MemArg<$amt:tt>) => (Some($name));
+    (@get_memarg $name:ident AtomicMemArg<$amt:tt>) => (Some($name));
+    (@get_memarg $name:ident RmwMemArg<$amt:tt>) => (Some($name));
     (@get_memarg $name:ident LoadOrStoreLane<$amt:tt>) => (Some(&mut $name.memarg));
     (@get_memarg $($other:tt)*) => (None);
 
     (@memarg_binding $name:ident MemArg<$amt:tt>) => ($name);
+    (@memarg_binding $name:ident AtomicMemArg<$amt:tt>) => ($name);
+    (@memarg_binding $name:ident RmwMemArg<$amt:tt>) => ($name);
     (@memarg_binding $name:ident LoadOrStoreLane<$amt:tt>) => ($name);
     (@memarg_binding $name:ident $other:ty) => (_);
 }
@@ -889,78 +897,80 @@ instructions! {
         memory_atomic_notify(MemArg<4>) : "memory.atomic.notify",
         memory_atomic_wait32(MemArg<4>) : "memory.atomic.wait32",
         memory_atomic_wait64(MemArg<8>) : "memory.atomic.wait64",
-        atomic_fence : "atomic.fence",
+        #[custom_encode]
+        atomic_fence(Option<Ordering>) : "atomic.fence",
+        pause : "pause",
 
-        i32_atomic_load(MemArg<4>) : "i32.atomic.load",
-        i64_atomic_load(MemArg<8>) : "i64.atomic.load",
-        i32_atomic_load8_u(MemArg<1>) : "i32.atomic.load8_u",
-        i32_atomic_load16_u(MemArg<2>) : "i32.atomic.load16_u",
-        i64_atomic_load8_u(MemArg<1>) : "i64.atomic.load8_u",
-        i64_atomic_load16_u(MemArg<2>) : "i64.atomic.load16_u",
-        i64_atomic_load32_u(MemArg<4>) : "i64.atomic.load32_u",
-        i32_atomic_store(MemArg<4>) : "i32.atomic.store",
-        i64_atomic_store(MemArg<8>) : "i64.atomic.store",
-        i32_atomic_store8(MemArg<1>) : "i32.atomic.store8",
-        i32_atomic_store16(MemArg<2>) : "i32.atomic.store16",
-        i64_atomic_store8(MemArg<1>) : "i64.atomic.store8",
-        i64_atomic_store16(MemArg<2>) : "i64.atomic.store16",
-        i64_atomic_store32(MemArg<4>) : "i64.atomic.store32",
+        i32_atomic_load(AtomicMemArg<4>) : "i32.atomic.load",
+        i64_atomic_load(AtomicMemArg<8>) : "i64.atomic.load",
+        i32_atomic_load8_u(AtomicMemArg<1>) : "i32.atomic.load8_u",
+        i32_atomic_load16_u(AtomicMemArg<2>) : "i32.atomic.load16_u",
+        i64_atomic_load8_u(AtomicMemArg<1>) : "i64.atomic.load8_u",
+        i64_atomic_load16_u(AtomicMemArg<2>) : "i64.atomic.load16_u",
+        i64_atomic_load32_u(AtomicMemArg<4>) : "i64.atomic.load32_u",
+        i32_atomic_store(AtomicMemArg<4>) : "i32.atomic.store",
+        i64_atomic_store(AtomicMemArg<8>) : "i64.atomic.store",
+        i32_atomic_store8(AtomicMemArg<1>) : "i32.atomic.store8",
+        i32_atomic_store16(AtomicMemArg<2>) : "i32.atomic.store16",
+        i64_atomic_store8(AtomicMemArg<1>) : "i64.atomic.store8",
+        i64_atomic_store16(AtomicMemArg<2>) : "i64.atomic.store16",
+        i64_atomic_store32(AtomicMemArg<4>) : "i64.atomic.store32",
 
-        i32_atomic_rmw_add(MemArg<4>) : "i32.atomic.rmw.add",
-        i64_atomic_rmw_add(MemArg<8>) : "i64.atomic.rmw.add",
-        i32_atomic_rmw8_add_u(MemArg<1>) : "i32.atomic.rmw8.add_u",
-        i32_atomic_rmw16_add_u(MemArg<2>) : "i32.atomic.rmw16.add_u",
-        i64_atomic_rmw8_add_u(MemArg<1>) : "i64.atomic.rmw8.add_u",
-        i64_atomic_rmw16_add_u(MemArg<2>) : "i64.atomic.rmw16.add_u",
-        i64_atomic_rmw32_add_u(MemArg<4>) : "i64.atomic.rmw32.add_u",
+        i32_atomic_rmw_add(RmwMemArg<4>) : "i32.atomic.rmw.add",
+        i64_atomic_rmw_add(RmwMemArg<8>) : "i64.atomic.rmw.add",
+        i32_atomic_rmw8_add_u(RmwMemArg<1>) : "i32.atomic.rmw8.add_u",
+        i32_atomic_rmw16_add_u(RmwMemArg<2>) : "i32.atomic.rmw16.add_u",
+        i64_atomic_rmw8_add_u(RmwMemArg<1>) : "i64.atomic.rmw8.add_u",
+        i64_atomic_rmw16_add_u(RmwMemArg<2>) : "i64.atomic.rmw16.add_u",
+        i64_atomic_rmw32_add_u(RmwMemArg<4>) : "i64.atomic.rmw32.add_u",
 
-        i32_atomic_rmw_sub(MemArg<4>) : "i32.atomic.rmw.sub",
-        i64_atomic_rmw_sub(MemArg<8>) : "i64.atomic.rmw.sub",
-        i32_atomic_rmw8_sub_u(MemArg<1>) : "i32.atomic.rmw8.sub_u",
-        i32_atomic_rmw16_sub_u(MemArg<2>) : "i32.atomic.rmw16.sub_u",
-        i64_atomic_rmw8_sub_u(MemArg<1>) : "i64.atomic.rmw8.sub_u",
-        i64_atomic_rmw16_sub_u(MemArg<2>) : "i64.atomic.rmw16.sub_u",
-        i64_atomic_rmw32_sub_u(MemArg<4>) : "i64.atomic.rmw32.sub_u",
+        i32_atomic_rmw_sub(RmwMemArg<4>) : "i32.atomic.rmw.sub",
+        i64_atomic_rmw_sub(RmwMemArg<8>) : "i64.atomic.rmw.sub",
+        i32_atomic_rmw8_sub_u(RmwMemArg<1>) : "i32.atomic.rmw8.sub_u",
+        i32_atomic_rmw16_sub_u(RmwMemArg<2>) : "i32.atomic.rmw16.sub_u",
+        i64_atomic_rmw8_sub_u(RmwMemArg<1>) : "i64.atomic.rmw8.sub_u",
+        i64_atomic_rmw16_sub_u(RmwMemArg<2>) : "i64.atomic.rmw16.sub_u",
+        i64_atomic_rmw32_sub_u(RmwMemArg<4>) : "i64.atomic.rmw32.sub_u",
 
-        i32_atomic_rmw_and(MemArg<4>) : "i32.atomic.rmw.and",
-        i64_atomic_rmw_and(MemArg<8>) : "i64.atomic.rmw.and",
-        i32_atomic_rmw8_and_u(MemArg<1>) : "i32.atomic.rmw8.and_u",
-        i32_atomic_rmw16_and_u(MemArg<2>) : "i32.atomic.rmw16.and_u",
-        i64_atomic_rmw8_and_u(MemArg<1>) : "i64.atomic.rmw8.and_u",
-        i64_atomic_rmw16_and_u(MemArg<2>) : "i64.atomic.rmw16.and_u",
-        i64_atomic_rmw32_and_u(MemArg<4>) : "i64.atomic.rmw32.and_u",
+        i32_atomic_rmw_and(RmwMemArg<4>) : "i32.atomic.rmw.and",
+        i64_atomic_rmw_and(RmwMemArg<8>) : "i64.atomic.rmw.and",
+        i32_atomic_rmw8_and_u(RmwMemArg<1>) : "i32.atomic.rmw8.and_u",
+        i32_atomic_rmw16_and_u(RmwMemArg<2>) : "i32.atomic.rmw16.and_u",
+        i64_atomic_rmw8_and_u(RmwMemArg<1>) : "i64.atomic.rmw8.and_u",
+        i64_atomic_rmw16_and_u(RmwMemArg<2>) : "i64.atomic.rmw16.and_u",
+        i64_atomic_rmw32_and_u(RmwMemArg<4>) : "i64.atomic.rmw32.and_u",
 
-        i32_atomic_rmw_or(MemArg<4>) : "i32.atomic.rmw.or",
-        i64_atomic_rmw_or(MemArg<8>) : "i64.atomic.rmw.or",
-        i32_atomic_rmw8_or_u(MemArg<1>) : "i32.atomic.rmw8.or_u",
-        i32_atomic_rmw16_or_u(MemArg<2>) : "i32.atomic.rmw16.or_u",
-        i64_atomic_rmw8_or_u(MemArg<1>) : "i64.atomic.rmw8.or_u",
-        i64_atomic_rmw16_or_u(MemArg<2>) : "i64.atomic.rmw16.or_u",
-        i64_atomic_rmw32_or_u(MemArg<4>) : "i64.atomic.rmw32.or_u",
+        i32_atomic_rmw_or(RmwMemArg<4>) : "i32.atomic.rmw.or",
+        i64_atomic_rmw_or(RmwMemArg<8>) : "i64.atomic.rmw.or",
+        i32_atomic_rmw8_or_u(RmwMemArg<1>) : "i32.atomic.rmw8.or_u",
+        i32_atomic_rmw16_or_u(RmwMemArg<2>) : "i32.atomic.rmw16.or_u",
+        i64_atomic_rmw8_or_u(RmwMemArg<1>) : "i64.atomic.rmw8.or_u",
+        i64_atomic_rmw16_or_u(RmwMemArg<2>) : "i64.atomic.rmw16.or_u",
+        i64_atomic_rmw32_or_u(RmwMemArg<4>) : "i64.atomic.rmw32.or_u",
 
-        i32_atomic_rmw_xor(MemArg<4>) : "i32.atomic.rmw.xor",
-        i64_atomic_rmw_xor(MemArg<8>) : "i64.atomic.rmw.xor",
-        i32_atomic_rmw8_xor_u(MemArg<1>) : "i32.atomic.rmw8.xor_u",
-        i32_atomic_rmw16_xor_u(MemArg<2>) : "i32.atomic.rmw16.xor_u",
-        i64_atomic_rmw8_xor_u(MemArg<1>) : "i64.atomic.rmw8.xor_u",
-        i64_atomic_rmw16_xor_u(MemArg<2>) : "i64.atomic.rmw16.xor_u",
-        i64_atomic_rmw32_xor_u(MemArg<4>) : "i64.atomic.rmw32.xor_u",
+        i32_atomic_rmw_xor(RmwMemArg<4>) : "i32.atomic.rmw.xor",
+        i64_atomic_rmw_xor(RmwMemArg<8>) : "i64.atomic.rmw.xor",
+        i32_atomic_rmw8_xor_u(RmwMemArg<1>) : "i32.atomic.rmw8.xor_u",
+        i32_atomic_rmw16_xor_u(RmwMemArg<2>) : "i32.atomic.rmw16.xor_u",
+        i64_atomic_rmw8_xor_u(RmwMemArg<1>) : "i64.atomic.rmw8.xor_u",
+        i64_atomic_rmw16_xor_u(RmwMemArg<2>) : "i64.atomic.rmw16.xor_u",
+        i64_atomic_rmw32_xor_u(RmwMemArg<4>) : "i64.atomic.rmw32.xor_u",
 
-        i32_atomic_rmw_xchg(MemArg<4>) : "i32.atomic.rmw.xchg",
-        i64_atomic_rmw_xchg(MemArg<8>) : "i64.atomic.rmw.xchg",
-        i32_atomic_rmw8_xchg_u(MemArg<1>) : "i32.atomic.rmw8.xchg_u",
-        i32_atomic_rmw16_xchg_u(MemArg<2>) : "i32.atomic.rmw16.xchg_u",
-        i64_atomic_rmw8_xchg_u(MemArg<1>) : "i64.atomic.rmw8.xchg_u",
-        i64_atomic_rmw16_xchg_u(MemArg<2>) : "i64.atomic.rmw16.xchg_u",
-        i64_atomic_rmw32_xchg_u(MemArg<4>) : "i64.atomic.rmw32.xchg_u",
+        i32_atomic_rmw_xchg(RmwMemArg<4>) : "i32.atomic.rmw.xchg",
+        i64_atomic_rmw_xchg(RmwMemArg<8>) : "i64.atomic.rmw.xchg",
+        i32_atomic_rmw8_xchg_u(RmwMemArg<1>) : "i32.atomic.rmw8.xchg_u",
+        i32_atomic_rmw16_xchg_u(RmwMemArg<2>) : "i32.atomic.rmw16.xchg_u",
+        i64_atomic_rmw8_xchg_u(RmwMemArg<1>) : "i64.atomic.rmw8.xchg_u",
+        i64_atomic_rmw16_xchg_u(RmwMemArg<2>) : "i64.atomic.rmw16.xchg_u",
+        i64_atomic_rmw32_xchg_u(RmwMemArg<4>) : "i64.atomic.rmw32.xchg_u",
 
-        i32_atomic_rmw_cmpxchg(MemArg<4>) : "i32.atomic.rmw.cmpxchg",
-        i64_atomic_rmw_cmpxchg(MemArg<8>) : "i64.atomic.rmw.cmpxchg",
-        i32_atomic_rmw8_cmpxchg_u(MemArg<1>) : "i32.atomic.rmw8.cmpxchg_u",
-        i32_atomic_rmw16_cmpxchg_u(MemArg<2>) : "i32.atomic.rmw16.cmpxchg_u",
-        i64_atomic_rmw8_cmpxchg_u(MemArg<1>) : "i64.atomic.rmw8.cmpxchg_u",
-        i64_atomic_rmw16_cmpxchg_u(MemArg<2>) : "i64.atomic.rmw16.cmpxchg_u",
-        i64_atomic_rmw32_cmpxchg_u(MemArg<4>) : "i64.atomic.rmw32.cmpxchg_u",
+        i32_atomic_rmw_cmpxchg(RmwMemArg<4>) : "i32.atomic.rmw.cmpxchg",
+        i64_atomic_rmw_cmpxchg(RmwMemArg<8>) : "i64.atomic.rmw.cmpxchg",
+        i32_atomic_rmw8_cmpxchg_u(RmwMemArg<1>) : "i32.atomic.rmw8.cmpxchg_u",
+        i32_atomic_rmw16_cmpxchg_u(RmwMemArg<2>) : "i32.atomic.rmw16.cmpxchg_u",
+        i64_atomic_rmw8_cmpxchg_u(RmwMemArg<1>) : "i64.atomic.rmw8.cmpxchg_u",
+        i64_atomic_rmw16_cmpxchg_u(RmwMemArg<2>) : "i64.atomic.rmw16.cmpxchg_u",
+        i64_atomic_rmw32_cmpxchg_u(RmwMemArg<4>) : "i64.atomic.rmw32.cmpxchg_u",
 
         // proposal: shared-everything-threads
         #[custom_encode]
@@ -1673,6 +1683,19 @@ pub struct MemArg<'a> {
     pub offset: u64,
     /// The memory index we're accessing
     pub memory: Index<'a>,
+    /// The memory ordering of this access, from the acquire-release-atomics
+    /// proposal.
+    pub ordering: Option<MemArgOrdering>,
+}
+
+/// The ordering immediate of a [`MemArg`], part of the
+/// acquire-release-atomics proposal.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum MemArgOrdering {
+    /// The ordering immediate of an atomic load or store.
+    Op(Ordering),
+    /// The ordering immediate of an atomic read-modify-write instruction.
+    Rmw(Ordering),
 }
 
 impl<'a> MemArg<'a> {
@@ -1727,7 +1750,19 @@ impl<'a> MemArg<'a> {
             offset,
             align,
             memory,
+            ordering: None,
         })
+    }
+
+    fn parse_atomic(parser: Parser<'a>, default_align: u64, rmw: bool) -> Result<Self> {
+        let mut memarg = MemArg::parse(parser, default_align)?;
+        let ordering = parser.parse::<Option<_>>()?;
+        memarg.ordering = if rmw {
+            ordering.map(MemArgOrdering::Rmw)
+        } else {
+            ordering.map(MemArgOrdering::Op)
+        };
+        Ok(memarg)
     }
 }
 
@@ -1778,6 +1813,7 @@ impl<'a> LoadOrStoreLane<'a> {
                     align: default_align,
                     offset: 0,
                     memory: Index::Num(0, parser.prev_span()),
+                    ordering: None,
                 }
             },
             lane: LaneArg::parse(parser)?,
@@ -2191,7 +2227,7 @@ impl<'a> Parse<'a> for BrOnCastDescEqFail<'a> {
 ///
 /// [`memory_order`]: https://en.cppreference.com/w/cpp/atomic/memory_order
 /// [`atomic::Ordering`]: https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Ordering {
     /// Like `AcqRel` but all threads see all sequentially consistent operations
     /// in the same order.
@@ -2213,6 +2249,15 @@ impl<'a> Parse<'a> for Ordering {
         } else {
             Err(parser.error("expected a memory ordering: `seqcst` or `acqrel`"))
         }
+    }
+}
+
+impl Peek for Ordering {
+    fn peek(cursor: Cursor<'_>) -> Result<bool> {
+        Ok(kw::seqcst::peek(cursor)? || kw::acqrel::peek(cursor)?)
+    }
+    fn display() -> &'static str {
+        "ordering"
     }
 }
 
