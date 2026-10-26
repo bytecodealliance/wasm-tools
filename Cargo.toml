@@ -275,7 +275,7 @@ validate = [
   'wasmparser/validate',
   'wasmparser/features',
 ]
-print = []
+print = ['dep:bitflags', 'wasmparser/features']
 parse = []
 smith = ['wasm-smith', 'arbitrary', 'dep:serde', 'dep:serde_derive', 'dep:serde_json']
 shrink = ['wasm-shrink', 'is_executable']

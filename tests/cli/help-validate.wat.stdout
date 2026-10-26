@@ -35,8 +35,8 @@ Options:
           Shorthand for `--generate-dwarf full`
 
   -f, --features <FEATURES>
-          Comma-separated list of WebAssembly features to enable during
-          validation.
+          Comma-separated list of WebAssembly features to enable during parsing
+          and validation.
           
           If a "-" character is present in front of a feature it will disable
           that feature. For example "-simd" will disable the simd proposal.

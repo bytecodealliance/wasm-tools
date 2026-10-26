@@ -10,6 +10,10 @@ use termcolor::{Ansi, ColorChoice, NoColor, StandardStream, WriteColor};
 
 #[cfg(any(feature = "addr2line", feature = "validate"))]
 pub mod addr2line;
+#[cfg(any(feature = "validate", feature = "print"))]
+mod features;
+#[cfg(any(feature = "validate", feature = "print"))]
+pub use features::CliFeatures;
 #[cfg(any(feature = "component", feature = "wit-dylib"))]
 pub mod wit;
 

@@ -49,9 +49,14 @@ Exit status:
     0 on success,
     nonzero if the input file fails to parse.
 ")]
+// `-f` is already taken by `--fold-instructions`, so `--features` is long-only.
+#[clap(mut_arg("features", |a| a.short(None)))]
 pub struct Opts {
     #[clap(flatten)]
     generate_dwarf: wasm_tools::GenerateDwarfArg,
+
+    #[clap(flatten)]
+    features: wasm_tools::CliFeatures,
 
     #[clap(flatten)]
     io: wasm_tools::InputOutput,
@@ -102,6 +107,7 @@ impl Opts {
         let wasm = self.io.get_input_wasm(Some(&self.generate_dwarf))?;
 
         let mut config = wasmprinter::Config::new();
+        config.features(self.features.features_from(wasmparser::WasmFeatures::all()));
         config.print_offsets(self.print_offsets);
         config.print_skeleton(self.skeleton);
         config.name_unnamed(self.name_unnamed);
