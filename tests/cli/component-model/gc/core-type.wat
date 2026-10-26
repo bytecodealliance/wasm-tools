@@ -242,5 +242,10 @@
     (core type (func))
     (core rec (type $f (func)))
     (core type (func (param (ref $f))))
+    (core type (module
+      (alias outer 1 $f (type $g))
+      (import "" "f" (func (type $g)))
+      (import "" "g" (func))
+    ))
   ))
 )
