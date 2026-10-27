@@ -27,6 +27,7 @@ pub fn generate_valid_module(
     config.custom_page_sizes_enabled = u.arbitrary()?;
     config.wide_arithmetic_enabled = u.arbitrary()?;
     config.acquire_release_atomics_enabled = u.arbitrary()?;
+    config.multibyte_array_access_enabled = u.arbitrary()?;
     config.shared_everything_threads_enabled = u.arbitrary()?;
 
     configure(&mut config, u)?;

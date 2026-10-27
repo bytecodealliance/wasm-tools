@@ -1984,27 +1984,38 @@ impl<'a> BinaryReader<'a> {
         // this should be cleaned up to just take the lower 4 bits for
         // alignment.
         let flags_and_align = self.read_var_u32()?;
-        let align_mask = if self.acquire_release_atomics() {
-            0b10_1111
-        } else {
-            0b11_1111
-        };
+        let mut align_mask = 0b11_1111;
+        if self.acquire_release_atomics() {
+            align_mask &= !(1 << 4);
+        }
+        if self.multibyte_array_access() {
+            align_mask &= !(1 << 5);
+        }
         let align = (flags_and_align & align_mask) as u8;
         let mut flags = flags_and_align & !align_mask;
 
-        // Bit 6 of `flags` indicates that a memory index immediate is present.
-        let memory = if self.multi_memory() && flags & (1 << 6) != 0 {
-            flags ^= 1 << 6;
-            self.read_var_u32()?
-        } else {
-            0
-        };
-
+        // Bit 6 of `flags` indicates a memory index is present (the
+        // multi-memory proposal.
+        //
         // Bit 5 of `flags` indicates a type index is present, but
         // multibyte-array-access isn't implemented here yet.
+        //
+        // Both flags can't be specified at the same time.
+        if flags & 0b110_0000 == 0b110_0000 {
+            bail!(flags_pos, "cannot specify both memory and array index");
+        }
+        let target = if self.multi_memory() && flags & (1 << 6) != 0 {
+            flags ^= 1 << 6;
+            MemArgTarget::Memory(self.read_var_u32()?)
+        } else if self.multibyte_array_access() && flags & (1 << 5) != 0 {
+            flags ^= 1 << 5;
+            MemArgTarget::Array(self.read_var_u32()?)
+        } else {
+            MemArgTarget::Memory(0)
+        };
 
         // Bit 4 of `flags` indicates that a memory ordering immediate is
-        // present, encoded after any memory index.
+        // present, encoded after any index.
         let ordering = if !self.acquire_release_atomics() || flags & (1 << 4) == 0 {
             None
         } else if kind == MemArgKind::Plain {
@@ -2041,7 +2052,7 @@ impl<'a> BinaryReader<'a> {
             align,
             max_align,
             offset,
-            memory,
+            target,
             ordering,
         })
     }

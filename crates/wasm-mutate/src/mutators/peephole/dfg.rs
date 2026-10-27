@@ -1255,7 +1255,10 @@ impl From<&wasmparser::MemArg> for MemArg {
     fn from(mem: &wasmparser::MemArg) -> MemArg {
         MemArg {
             align: mem.align,
-            mem: mem.memory,
+            mem: match mem.target {
+                wasmparser::MemArgTarget::Memory(i) => i,
+                wasmparser::MemArgTarget::Array(_) => unimplemented!(),
+            },
             static_offset: mem.offset,
         }
     }

@@ -398,7 +398,14 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
         use Instruction as I;
 
         if let Some(m) = instr.memarg_mut() {
-            self.resolver.resolve(&mut m.memory, Ns::Memory)?;
+            match &mut m.target {
+                MemArgTarget::Memory(memory) => {
+                    self.resolver.resolve(memory, Ns::Memory)?;
+                }
+                MemArgTarget::Array(ty) => {
+                    self.resolver.resolve(ty, Ns::Type)?;
+                }
+            }
         }
 
         match instr {

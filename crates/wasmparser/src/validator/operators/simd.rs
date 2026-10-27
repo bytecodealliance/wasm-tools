@@ -76,14 +76,6 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
-
-    /// Checks a [`V128`] common load operator.
-    fn check_v128_load_op(&mut self, memarg: MemArg) -> Result<()> {
-        let idx = self.check_memarg(memarg)?;
-        self.pop_operand(Some(idx))?;
-        self.push_operand(ValType::V128)?;
-        Ok(())
-    }
 }
 
 impl<'a, T> VisitSimdOperator<'a> for OperatorValidatorTemp<'_, '_, T>
@@ -91,15 +83,15 @@ where
     T: WasmModuleResources,
 {
     fn visit_v128_load(&mut self, memarg: MemArg) -> Self::Output {
-        let ty = self.check_memarg(memarg)?;
-        self.pop_operand(Some(ty))?;
+        let idx = self.check_load_memarg(memarg)?;
+        self.pop_address(idx)?;
         self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_v128_store(&mut self, memarg: MemArg) -> Self::Output {
-        let ty = self.check_memarg(memarg)?;
+        let ty = self.check_store_memarg(memarg)?;
         self.pop_operand(Some(ValType::V128))?;
-        self.pop_operand(Some(ty))?;
+        self.pop_address(ty)?;
         Ok(())
     }
     fn visit_v128_const(&mut self, _value: V128) -> Self::Output {
@@ -870,108 +862,99 @@ where
         Ok(())
     }
     fn visit_v128_load8_splat(&mut self, memarg: MemArg) -> Self::Output {
-        let ty = self.check_memarg(memarg)?;
-        self.pop_operand(Some(ty))?;
-        self.push_operand(ValType::V128)?;
-        Ok(())
+        self.visit_v128_load(memarg)
     }
     fn visit_v128_load16_splat(&mut self, memarg: MemArg) -> Self::Output {
-        let ty = self.check_memarg(memarg)?;
-        self.pop_operand(Some(ty))?;
-        self.push_operand(ValType::V128)?;
-        Ok(())
+        self.visit_v128_load(memarg)
     }
     fn visit_v128_load32_splat(&mut self, memarg: MemArg) -> Self::Output {
-        let ty = self.check_memarg(memarg)?;
-        self.pop_operand(Some(ty))?;
-        self.push_operand(ValType::V128)?;
-        Ok(())
+        self.visit_v128_load(memarg)
     }
     fn visit_v128_load32_zero(&mut self, memarg: MemArg) -> Self::Output {
-        self.visit_v128_load32_splat(memarg)
+        self.visit_v128_load(memarg)
     }
     fn visit_v128_load64_splat(&mut self, memarg: MemArg) -> Self::Output {
-        self.check_v128_load_op(memarg)
+        self.visit_v128_load(memarg)
     }
     fn visit_v128_load64_zero(&mut self, memarg: MemArg) -> Self::Output {
-        self.check_v128_load_op(memarg)
+        self.visit_v128_load(memarg)
     }
     fn visit_v128_load8x8_s(&mut self, memarg: MemArg) -> Self::Output {
-        self.check_v128_load_op(memarg)
+        self.visit_v128_load(memarg)
     }
     fn visit_v128_load8x8_u(&mut self, memarg: MemArg) -> Self::Output {
-        self.check_v128_load_op(memarg)
+        self.visit_v128_load(memarg)
     }
     fn visit_v128_load16x4_s(&mut self, memarg: MemArg) -> Self::Output {
-        self.check_v128_load_op(memarg)
+        self.visit_v128_load(memarg)
     }
     fn visit_v128_load16x4_u(&mut self, memarg: MemArg) -> Self::Output {
-        self.check_v128_load_op(memarg)
+        self.visit_v128_load(memarg)
     }
     fn visit_v128_load32x2_s(&mut self, memarg: MemArg) -> Self::Output {
-        self.check_v128_load_op(memarg)
+        self.visit_v128_load(memarg)
     }
     fn visit_v128_load32x2_u(&mut self, memarg: MemArg) -> Self::Output {
-        self.check_v128_load_op(memarg)
+        self.visit_v128_load(memarg)
     }
     fn visit_v128_load8_lane(&mut self, memarg: MemArg, lane: u8) -> Self::Output {
-        let idx = self.check_memarg(memarg)?;
+        let idx = self.check_load_memarg(memarg)?;
         self.check_simd_lane_index(lane, 16)?;
         self.pop_operand(Some(ValType::V128))?;
-        self.pop_operand(Some(idx))?;
+        self.pop_address(idx)?;
         self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_v128_load16_lane(&mut self, memarg: MemArg, lane: u8) -> Self::Output {
-        let idx = self.check_memarg(memarg)?;
+        let idx = self.check_load_memarg(memarg)?;
         self.check_simd_lane_index(lane, 8)?;
         self.pop_operand(Some(ValType::V128))?;
-        self.pop_operand(Some(idx))?;
+        self.pop_address(idx)?;
         self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_v128_load32_lane(&mut self, memarg: MemArg, lane: u8) -> Self::Output {
-        let idx = self.check_memarg(memarg)?;
+        let idx = self.check_load_memarg(memarg)?;
         self.check_simd_lane_index(lane, 4)?;
         self.pop_operand(Some(ValType::V128))?;
-        self.pop_operand(Some(idx))?;
+        self.pop_address(idx)?;
         self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_v128_load64_lane(&mut self, memarg: MemArg, lane: u8) -> Self::Output {
-        let idx = self.check_memarg(memarg)?;
+        let idx = self.check_load_memarg(memarg)?;
         self.check_simd_lane_index(lane, 2)?;
         self.pop_operand(Some(ValType::V128))?;
-        self.pop_operand(Some(idx))?;
+        self.pop_address(idx)?;
         self.push_operand(ValType::V128)?;
         Ok(())
     }
     fn visit_v128_store8_lane(&mut self, memarg: MemArg, lane: u8) -> Self::Output {
-        let idx = self.check_memarg(memarg)?;
+        let idx = self.check_store_memarg(memarg)?;
         self.check_simd_lane_index(lane, 16)?;
         self.pop_operand(Some(ValType::V128))?;
-        self.pop_operand(Some(idx))?;
+        self.pop_address(idx)?;
         Ok(())
     }
     fn visit_v128_store16_lane(&mut self, memarg: MemArg, lane: u8) -> Self::Output {
-        let idx = self.check_memarg(memarg)?;
+        let idx = self.check_store_memarg(memarg)?;
         self.check_simd_lane_index(lane, 8)?;
         self.pop_operand(Some(ValType::V128))?;
-        self.pop_operand(Some(idx))?;
+        self.pop_address(idx)?;
         Ok(())
     }
     fn visit_v128_store32_lane(&mut self, memarg: MemArg, lane: u8) -> Self::Output {
-        let idx = self.check_memarg(memarg)?;
+        let idx = self.check_store_memarg(memarg)?;
         self.check_simd_lane_index(lane, 4)?;
         self.pop_operand(Some(ValType::V128))?;
-        self.pop_operand(Some(idx))?;
+        self.pop_address(idx)?;
         Ok(())
     }
     fn visit_v128_store64_lane(&mut self, memarg: MemArg, lane: u8) -> Self::Output {
-        let idx = self.check_memarg(memarg)?;
+        let idx = self.check_store_memarg(memarg)?;
         self.check_simd_lane_index(lane, 2)?;
         self.pop_operand(Some(ValType::V128))?;
-        self.pop_operand(Some(idx))?;
+        self.pop_address(idx)?;
         Ok(())
     }
 }

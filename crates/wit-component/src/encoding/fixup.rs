@@ -581,7 +581,7 @@ impl FixupModule {
                                     .i32_store(MemArg {
                                         offset: 0,
                                         align: 2,
-                                        memory_index: *memory,
+                                        target: wasm_encoder::MemArgTarget::Memory(*memory),
                                         ordering: None,
                                     });
                             }

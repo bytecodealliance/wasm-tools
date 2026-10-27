@@ -1,0 +1,290 @@
+(module
+  (type $i8 (;0;) (array (mut i8)))
+  (type $i16 (;1;) (array (mut i16)))
+  (type $i32 (;2;) (array (mut i32)))
+  (type $i64 (;3;) (array (mut i64)))
+  (type $f32 (;4;) (array (mut f32)))
+  (type $f64 (;5;) (array (mut f64)))
+  (type $v128 (;6;) (array (mut v128)))
+  (type $imm (;7;) (array i8))
+  (type (;8;) (func (param (ref null $i8) i32) (result i32)))
+  (type (;9;) (func (param (ref null $i16) i32) (result i64)))
+  (type (;10;) (func (param (ref null $i32) i32) (result f32)))
+  (type (;11;) (func (param (ref null $i64) i32) (result f64)))
+  (type (;12;) (func (param (ref null $f32) i32) (result i32)))
+  (type (;13;) (func (param (ref null $f64) i32) (result i32)))
+  (type (;14;) (func (param (ref null $v128) i32) (result i32)))
+  (type (;15;) (func (param (ref $i8) i32) (result i32)))
+  (type (;16;) (func (param (ref $i8) i32) (result i64)))
+  (type (;17;) (func (param (ref null $imm) i32) (result i32)))
+  (type (;18;) (func (param (ref null $i8) i32 i32)))
+  (type (;19;) (func (param (ref null $i16) i32 i64)))
+  (type (;20;) (func (param (ref null $i32) i32 f32)))
+  (type (;21;) (func (param (ref null $i64) i32 f64)))
+  (type (;22;) (func (param (ref null $f32) i32 i32)))
+  (type (;23;) (func (param (ref null $f64) i32 i32)))
+  (type (;24;) (func (param (ref null $v128) i32 i64)))
+  (type (;25;) (func (param (ref null $i8) i32 i64)))
+  (type (;26;) (func (param (ref null $i8) i32) (result v128)))
+  (type (;27;) (func (param (ref null $i8) i32 v128)))
+  (type (;28;) (func (param (ref null $i8) i32 v128) (result v128)))
+  (func (;0;) (type 8) (param (ref null $i8) i32) (result i32)
+    local.get 0
+    local.get 1
+    i32.load (type $i8)
+  )
+  (func (;1;) (type 8) (param (ref null $i8) i32) (result i32)
+    local.get 0
+    local.get 1
+    i32.load (type $i8) offset=4 align=1
+  )
+  (func (;2;) (type 9) (param (ref null $i16) i32) (result i64)
+    local.get 0
+    local.get 1
+    i64.load (type $i16) offset=8
+  )
+  (func (;3;) (type 10) (param (ref null $i32) i32) (result f32)
+    local.get 0
+    local.get 1
+    f32.load (type $i32) align=2
+  )
+  (func (;4;) (type 11) (param (ref null $i64) i32) (result f64)
+    local.get 0
+    local.get 1
+    f64.load (type $i64)
+  )
+  (func (;5;) (type 12) (param (ref null $f32) i32) (result i32)
+    local.get 0
+    local.get 1
+    i32.load8_s (type $f32)
+  )
+  (func (;6;) (type 13) (param (ref null $f64) i32) (result i32)
+    local.get 0
+    local.get 1
+    i32.load8_u (type $f64)
+  )
+  (func (;7;) (type 14) (param (ref null $v128) i32) (result i32)
+    local.get 0
+    local.get 1
+    i32.load16_s (type $v128)
+  )
+  (func (;8;) (type 15) (param (ref $i8) i32) (result i32)
+    local.get 0
+    local.get 1
+    i32.load16_u (type $i8)
+  )
+  (func (;9;) (type 16) (param (ref $i8) i32) (result i64)
+    local.get 0
+    local.get 1
+    i64.load8_s (type $i8)
+  )
+  (func (;10;) (type 16) (param (ref $i8) i32) (result i64)
+    local.get 0
+    local.get 1
+    i64.load8_u (type $i8)
+  )
+  (func (;11;) (type 16) (param (ref $i8) i32) (result i64)
+    local.get 0
+    local.get 1
+    i64.load16_s (type $i8)
+  )
+  (func (;12;) (type 16) (param (ref $i8) i32) (result i64)
+    local.get 0
+    local.get 1
+    i64.load16_u (type $i8)
+  )
+  (func (;13;) (type 16) (param (ref $i8) i32) (result i64)
+    local.get 0
+    local.get 1
+    i64.load32_s (type $i8)
+  )
+  (func (;14;) (type 16) (param (ref $i8) i32) (result i64)
+    local.get 0
+    local.get 1
+    i64.load32_u (type $i8)
+  )
+  (func (;15;) (type 17) (param (ref null $imm) i32) (result i32)
+    local.get 0
+    local.get 1
+    i32.load8_u (type $imm)
+  )
+  (func (;16;) (type 18) (param (ref null $i8) i32 i32)
+    local.get 0
+    local.get 1
+    local.get 2
+    i32.store (type $i8)
+  )
+  (func (;17;) (type 18) (param (ref null $i8) i32 i32)
+    local.get 0
+    local.get 1
+    local.get 2
+    i32.store (type $i8) offset=4 align=1
+  )
+  (func (;18;) (type 19) (param (ref null $i16) i32 i64)
+    local.get 0
+    local.get 1
+    local.get 2
+    i64.store (type $i16)
+  )
+  (func (;19;) (type 20) (param (ref null $i32) i32 f32)
+    local.get 0
+    local.get 1
+    local.get 2
+    f32.store (type $i32)
+  )
+  (func (;20;) (type 21) (param (ref null $i64) i32 f64)
+    local.get 0
+    local.get 1
+    local.get 2
+    f64.store (type $i64)
+  )
+  (func (;21;) (type 22) (param (ref null $f32) i32 i32)
+    local.get 0
+    local.get 1
+    local.get 2
+    i32.store8 (type $f32)
+  )
+  (func (;22;) (type 23) (param (ref null $f64) i32 i32)
+    local.get 0
+    local.get 1
+    local.get 2
+    i32.store16 (type $f64)
+  )
+  (func (;23;) (type 24) (param (ref null $v128) i32 i64)
+    local.get 0
+    local.get 1
+    local.get 2
+    i64.store8 (type $v128)
+  )
+  (func (;24;) (type 25) (param (ref null $i8) i32 i64)
+    local.get 0
+    local.get 1
+    local.get 2
+    i64.store16 (type $i8)
+  )
+  (func (;25;) (type 25) (param (ref null $i8) i32 i64)
+    local.get 0
+    local.get 1
+    local.get 2
+    i64.store32 (type $i8)
+  )
+  (func (;26;) (type 26) (param (ref null $i8) i32) (result v128)
+    local.get 0
+    local.get 1
+    v128.load (type $i8)
+  )
+  (func (;27;) (type 27) (param (ref null $i8) i32 v128)
+    local.get 0
+    local.get 1
+    local.get 2
+    v128.store (type $i8) offset=16
+  )
+  (func (;28;) (type 26) (param (ref null $i8) i32) (result v128)
+    local.get 0
+    local.get 1
+    v128.load8x8_s (type $i8)
+  )
+  (func (;29;) (type 26) (param (ref null $i8) i32) (result v128)
+    local.get 0
+    local.get 1
+    v128.load8x8_u (type $i8)
+  )
+  (func (;30;) (type 26) (param (ref null $i8) i32) (result v128)
+    local.get 0
+    local.get 1
+    v128.load16x4_s (type $i8)
+  )
+  (func (;31;) (type 26) (param (ref null $i8) i32) (result v128)
+    local.get 0
+    local.get 1
+    v128.load16x4_u (type $i8)
+  )
+  (func (;32;) (type 26) (param (ref null $i8) i32) (result v128)
+    local.get 0
+    local.get 1
+    v128.load32x2_s (type $i8)
+  )
+  (func (;33;) (type 26) (param (ref null $i8) i32) (result v128)
+    local.get 0
+    local.get 1
+    v128.load32x2_u (type $i8)
+  )
+  (func (;34;) (type 26) (param (ref null $i8) i32) (result v128)
+    local.get 0
+    local.get 1
+    v128.load8_splat (type $i8)
+  )
+  (func (;35;) (type 26) (param (ref null $i8) i32) (result v128)
+    local.get 0
+    local.get 1
+    v128.load16_splat (type $i8)
+  )
+  (func (;36;) (type 26) (param (ref null $i8) i32) (result v128)
+    local.get 0
+    local.get 1
+    v128.load32_splat (type $i8)
+  )
+  (func (;37;) (type 26) (param (ref null $i8) i32) (result v128)
+    local.get 0
+    local.get 1
+    v128.load64_splat (type $i8)
+  )
+  (func (;38;) (type 26) (param (ref null $i8) i32) (result v128)
+    local.get 0
+    local.get 1
+    v128.load32_zero (type $i8)
+  )
+  (func (;39;) (type 26) (param (ref null $i8) i32) (result v128)
+    local.get 0
+    local.get 1
+    v128.load64_zero (type $i8)
+  )
+  (func (;40;) (type 28) (param (ref null $i8) i32 v128) (result v128)
+    local.get 0
+    local.get 1
+    local.get 2
+    v128.load8_lane (type $i8) 0
+  )
+  (func (;41;) (type 28) (param (ref null $i8) i32 v128) (result v128)
+    local.get 0
+    local.get 1
+    local.get 2
+    v128.load16_lane (type $i8) offset=2 align=1 7
+  )
+  (func (;42;) (type 28) (param (ref null $i8) i32 v128) (result v128)
+    local.get 0
+    local.get 1
+    local.get 2
+    v128.load32_lane (type $i8) 3
+  )
+  (func (;43;) (type 28) (param (ref null $i8) i32 v128) (result v128)
+    local.get 0
+    local.get 1
+    local.get 2
+    v128.load64_lane (type $i8) 1
+  )
+  (func (;44;) (type 27) (param (ref null $i8) i32 v128)
+    local.get 0
+    local.get 1
+    local.get 2
+    v128.store8_lane (type $i8) 15
+  )
+  (func (;45;) (type 27) (param (ref null $i8) i32 v128)
+    local.get 0
+    local.get 1
+    local.get 2
+    v128.store16_lane (type $i8) 0
+  )
+  (func (;46;) (type 27) (param (ref null $i8) i32 v128)
+    local.get 0
+    local.get 1
+    local.get 2
+    v128.store32_lane (type $i8) offset=4 0
+  )
+  (func (;47;) (type 27) (param (ref null $i8) i32 v128)
+    local.get 0
+    local.get 1
+    local.get 2
+    v128.store64_lane (type $i8) 1
+  )
+)

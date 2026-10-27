@@ -13,7 +13,8 @@ pub(crate) fn load<'a>(
     insts: &mut Vec<Instruction<'a>>,
 ) {
     let memarg = get_memarg(&inst);
-    let memory = &module.memories[memarg.memory_index as usize];
+    let memory_index = memarg_memory_index(&memarg);
+    let memory = &module.memories[memory_index as usize];
     let address_type = if memory.memory64 {
         ValType::I64
     } else {
@@ -35,7 +36,7 @@ pub(crate) fn load<'a>(
         insts.push(Instruction::Block(wasm_encoder::BlockType::Empty));
         {
             // []
-            insts.push(Instruction::MemorySize(memarg.memory_index));
+            insts.push(Instruction::MemorySize(memory_index));
             // [mem_size_in_pages:address_type]
             insts.push(int_const_inst(address_type, memory.page_size().into()));
             // [mem_size_in_pages:address_type wasm_page_size:address_type]
@@ -95,7 +96,8 @@ pub(crate) fn store<'a>(
     insts: &mut Vec<Instruction<'a>>,
 ) {
     let memarg = get_memarg(&inst);
-    let memory = &module.memories[memarg.memory_index as usize];
+    let memory_index = memarg_memory_index(&memarg);
+    let memory = &module.memories[memory_index as usize];
     let address_type = if memory.memory64 {
         ValType::I64
     } else {
@@ -114,7 +116,7 @@ pub(crate) fn store<'a>(
     // [address:address_type]
     insts.push(Instruction::LocalSet(address_local));
     // []
-    insts.push(Instruction::MemorySize(memarg.memory_index));
+    insts.push(Instruction::MemorySize(memory_index));
     // [mem_size_in_pages:address_type]
     insts.push(int_const_inst(address_type, memory.page_size().into()));
     // [mem_size_in_pages:address_type wasm_page_size:address_type]
@@ -347,6 +349,15 @@ pub(crate) fn signed_div_rem<'a>(
     insts.push(Instruction::LocalGet(temp_divisor));
     // [dividend:op_type divisor:op_type]
     insts.push(inst);
+}
+
+fn memarg_memory_index(memarg: &wasm_encoder::MemArg) -> u32 {
+    match memarg.target {
+        wasm_encoder::MemArgTarget::Memory(i) => i,
+        wasm_encoder::MemArgTarget::Array(_) => {
+            panic!("shouldn't generate array accesses when traps are disabled")
+        }
+    }
 }
 
 fn get_memarg(inst: &Instruction) -> wasm_encoder::MemArg {

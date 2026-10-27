@@ -1353,7 +1353,10 @@ impl From<&MemArg<'_>> for wasm_encoder::MemArg {
     fn from(m: &MemArg<'_>) -> Self {
         wasm_encoder::MemArg {
             align: m.align.trailing_zeros(),
-            memory_index: m.memory.unwrap_u32(),
+            target: match &m.target {
+                MemArgTarget::Memory(i) => wasm_encoder::MemArgTarget::Memory(i.unwrap_u32()),
+                MemArgTarget::Array(i) => wasm_encoder::MemArgTarget::Array(i.unwrap_u32()),
+            },
             offset: m.offset,
             ordering: m.ordering.map(|o| o.into()),
         }

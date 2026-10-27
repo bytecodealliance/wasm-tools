@@ -756,6 +756,14 @@ define_config! {
         /// Defaults to `false`.
         pub acquire_release_atomics_enabled: bool = false,
 
+        /// Determines whether the [multibyte-array-access proposal] is
+        /// enabled.
+        ///
+        /// [multibyte-array-access proposal]: https://github.com/WebAssembly/multibyte-array-access
+        ///
+        /// Defaults to `false`.
+        pub multibyte_array_access_enabled: bool = false,
+
         /// Determines whether the [extended-const proposal] is enabled.
         ///
         /// [extended-const proposal]: https://github.com/WebAssembly/extended-const
@@ -921,6 +929,7 @@ impl<'a> Arbitrary<'a> for Config {
             custom_page_sizes_enabled: false,
             wide_arithmetic_enabled: false,
             acquire_release_atomics_enabled: false,
+            multibyte_array_access_enabled: false,
             shared_everything_threads_enabled: false,
             custom_descriptors_enabled: false,
         };
@@ -956,6 +965,7 @@ impl Config {
         if !self.gc_enabled {
             self.shared_everything_threads_enabled = false;
             self.custom_descriptors_enabled = false;
+            self.multibyte_array_access_enabled = false;
         }
 
         // If simd is disabled then disable all relaxed simd instructions as
@@ -1025,6 +1035,10 @@ impl Config {
         features.set(
             WasmFeatures::ACQUIRE_RELEASE_ATOMICS,
             self.acquire_release_atomics_enabled,
+        );
+        features.set(
+            WasmFeatures::MULTIBYTE_ARRAY_ACCESS,
+            self.multibyte_array_access_enabled,
         );
         features.set(
             WasmFeatures::CUSTOM_DESCRIPTORS,

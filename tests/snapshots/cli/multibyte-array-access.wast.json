@@ -1,0 +1,115 @@
+{
+  "source_filename": "tests/cli/multibyte-array-access.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 5,
+      "filename": "multibyte-array-access.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 130,
+      "filename": "multibyte-array-access.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 146,
+      "filename": "multibyte-array-access.2.wasm",
+      "module_type": "binary",
+      "text": "cannot specify both memory and array index"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 164,
+      "filename": "multibyte-array-access.3.wasm",
+      "module_type": "binary",
+      "text": "array is immutable"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 170,
+      "filename": "multibyte-array-access.4.wasm",
+      "module_type": "binary",
+      "text": "array is immutable"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 178,
+      "filename": "multibyte-array-access.5.wasm",
+      "module_type": "binary",
+      "text": "require a numeric, vector, or packed element type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 184,
+      "filename": "multibyte-array-access.6.wasm",
+      "module_type": "binary",
+      "text": "require a numeric, vector, or packed element type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 192,
+      "filename": "multibyte-array-access.7.wasm",
+      "module_type": "binary",
+      "text": "expected array type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 198,
+      "filename": "multibyte-array-access.8.wasm",
+      "module_type": "binary",
+      "text": "expected array type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 204,
+      "filename": "multibyte-array-access.9.wasm",
+      "module_type": "binary",
+      "text": "unknown type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 212,
+      "filename": "multibyte-array-access.10.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 218,
+      "filename": "multibyte-array-access.11.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 225,
+      "filename": "multibyte-array-access.12.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 231,
+      "filename": "multibyte-array-access.13.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 239,
+      "filename": "multibyte-array-access.14.wasm",
+      "module_type": "binary",
+      "text": "alignment must not be larger than natural"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 247,
+      "filename": "multibyte-array-access.15.wasm",
+      "module_type": "binary",
+      "text": "atomic instructions cannot operate on arrays"
+    }
+  ]
+}
