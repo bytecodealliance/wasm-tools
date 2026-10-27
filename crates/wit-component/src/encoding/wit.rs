@@ -449,11 +449,17 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
     fn import_type(&mut self, owner: InterfaceId, id: TypeId) -> Result<u32> {
         let ty = &self.resolve.types[id];
         let Some(&instance) = self.import_map.get(&owner) else {
-            bail!(
-                "type `{}` is used before the world imports or exports its interface `{}`",
-                ty.name.as_deref().unwrap_or_default(),
-                self.resolve.id_of(owner).unwrap_or_default(),
-            );
+            let name = ty.name.as_deref().unwrap_or_default();
+            let dep = self.resolve.id_of(owner).unwrap_or_default();
+            match self.interface.and_then(|id| self.resolve.id_of(id)) {
+                Some(user) => bail!(
+                    "interface `{user}` uses type `{name}` from interface `{dep}`, which the \
+                     world doesn't import before `{user}`"
+                ),
+                None => bail!(
+                    "type `{name}` from interface `{dep}` is used before the world imports `{dep}`"
+                ),
+            }
         };
         let outer_idx = *self.outer_type_map.entry(id).or_insert_with(|| {
             let ret = self.outer.type_count();

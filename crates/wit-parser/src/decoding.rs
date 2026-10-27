@@ -1047,6 +1047,13 @@ impl WitPackageDecoder<'_> {
             Some(prev) => {
                 log::debug!("type export for `{name}` is an alias");
                 // An interface can only `use` types from other interfaces.
+                // Anything else, such as a type the world imports or an
+                // anonymous type, has no WIT form, and code reading a
+                // `Resolve` assumes it can't happen: `type_interface_dep`
+                // panics on it, which `finish` reaches for interfaces in
+                // foreign packages, and the WIT printer panics on it for
+                // interfaces defined in a world. Catch it here, where the
+                // `use` is created, so that both are covered.
                 if matches!(owner, TypeOwner::Interface(_))
                     && !matches!(self.resolve.types[prev].owner, TypeOwner::Interface(_))
                 {
