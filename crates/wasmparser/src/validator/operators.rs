@@ -49,9 +49,9 @@ use transaction_disabled as transaction;
 use transaction::{RollbackLogAllocations, Transaction};
 
 #[derive(Copy, Clone, Debug)]
-struct MemAddr {
+struct MemAddr<'a> {
     index_ty: ValType,
-    array_type: Option<u32>,
+    memarg: &'a MemArg,
 }
 
 #[derive(Clone, PartialEq)]
@@ -1141,26 +1141,26 @@ where
     /// Validates the `memarg` of a load instruction.
     ///
     /// Returns the shape of how to address what this `memarg` targets.
-    fn check_load_memarg(&self, memarg: MemArg) -> Result<MemAddr> {
+    fn check_load_memarg<'a>(&self, memarg: &'a MemArg) -> Result<MemAddr<'a>> {
         self.check_memarg_inner(memarg, false)
     }
 
     /// Validates the `memarg` of a store instruction.
     ///
     /// Returns the shape of how to address what this `memarg` targets.
-    fn check_store_memarg(&self, memarg: MemArg) -> Result<MemAddr> {
+    fn check_store_memarg<'a>(&self, memarg: &'a MemArg) -> Result<MemAddr<'a>> {
         self.check_memarg_inner(memarg, true)
     }
 
-    fn check_memarg_inner(&self, memarg: MemArg, is_store: bool) -> Result<MemAddr> {
+    fn check_memarg_inner<'a>(&self, memarg: &'a MemArg, is_store: bool) -> Result<MemAddr<'a>> {
         if memarg.align > memarg.max_align {
             bail!(
                 self.offset,
                 "invalid memop alignment: alignment must not be larger than natural"
             );
         }
-        let (index_ty, array_type) = match memarg.target {
-            MemArgTarget::Memory(memory_index) => (self.check_memory_index(memory_index)?, None),
+        let index_ty = match memarg.target {
+            MemArgTarget::Memory(memory_index) => self.check_memory_index(memory_index)?,
             MemArgTarget::Array(type_index) => {
                 require_feature::multibyte_array_access(
                     self.features,
@@ -1186,22 +1186,19 @@ where
                          or packed element type, found `{ty}`"
                     ),
                 }
-                (ValType::I32, Some(type_index))
+                ValType::I32
             }
         };
         if index_ty == ValType::I32 && memarg.offset > u64::from(u32::MAX) {
             bail!(self.offset, "offset out of range: must be <= 2**32");
         }
-        Ok(MemAddr {
-            index_ty,
-            array_type,
-        })
+        Ok(MemAddr { index_ty, memarg })
     }
 
     /// Pops the address operands described by `addr`.
-    fn pop_address(&mut self, addr: MemAddr) -> Result<()> {
+    fn pop_address(&mut self, addr: MemAddr<'_>) -> Result<()> {
         self.pop_operand(Some(addr.index_ty))?;
-        if let Some(type_index) = addr.array_type {
+        if let MemArgTarget::Array(type_index) = addr.memarg.target {
             self.pop_concrete_ref(true, type_index)?;
         }
         Ok(())
@@ -1223,11 +1220,13 @@ where
                 "atomic instructions must always specify maximum alignment"
             );
         }
-        let addr = self.check_load_memarg(memarg)?;
-        if addr.array_type.is_some() {
-            bail!(self.offset, "atomic instructions cannot operate on arrays");
+        match memarg.target {
+            MemArgTarget::Memory(_) => {}
+            MemArgTarget::Array(_) => {
+                bail!(self.offset, "atomic instructions cannot operate on arrays");
+            }
         }
-        Ok(addr.index_ty)
+        Ok(self.check_load_memarg(&memarg)?.index_ty)
     }
 
     /// Validates a block type, primarily with various in-flight proposals.
@@ -2592,27 +2591,27 @@ where
     }
 
     fn visit_i32_load(&mut self, memarg: MemArg) -> Self::Output {
-        let ty = self.check_load_memarg(memarg)?;
+        let ty = self.check_load_memarg(&memarg)?;
         self.pop_address(ty)?;
         self.push_operand(ValType::I32)?;
         Ok(())
     }
     fn visit_i64_load(&mut self, memarg: MemArg) -> Self::Output {
-        let ty = self.check_load_memarg(memarg)?;
+        let ty = self.check_load_memarg(&memarg)?;
         self.pop_address(ty)?;
         self.push_operand(ValType::I64)?;
         Ok(())
     }
     fn visit_f32_load(&mut self, memarg: MemArg) -> Self::Output {
         self.check_floats_enabled()?;
-        let ty = self.check_load_memarg(memarg)?;
+        let ty = self.check_load_memarg(&memarg)?;
         self.pop_address(ty)?;
         self.push_operand(ValType::F32)?;
         Ok(())
     }
     fn visit_f64_load(&mut self, memarg: MemArg) -> Self::Output {
         self.check_floats_enabled()?;
-        let ty = self.check_load_memarg(memarg)?;
+        let ty = self.check_load_memarg(&memarg)?;
         self.pop_address(ty)?;
         self.push_operand(ValType::F64)?;
         Ok(())
@@ -2648,27 +2647,27 @@ where
         self.visit_i64_load(memarg)
     }
     fn visit_i32_store(&mut self, memarg: MemArg) -> Self::Output {
-        let ty = self.check_store_memarg(memarg)?;
+        let ty = self.check_store_memarg(&memarg)?;
         self.pop_operand(Some(ValType::I32))?;
         self.pop_address(ty)?;
         Ok(())
     }
     fn visit_i64_store(&mut self, memarg: MemArg) -> Self::Output {
-        let ty = self.check_store_memarg(memarg)?;
+        let ty = self.check_store_memarg(&memarg)?;
         self.pop_operand(Some(ValType::I64))?;
         self.pop_address(ty)?;
         Ok(())
     }
     fn visit_f32_store(&mut self, memarg: MemArg) -> Self::Output {
         self.check_floats_enabled()?;
-        let ty = self.check_store_memarg(memarg)?;
+        let ty = self.check_store_memarg(&memarg)?;
         self.pop_operand(Some(ValType::F32))?;
         self.pop_address(ty)?;
         Ok(())
     }
     fn visit_f64_store(&mut self, memarg: MemArg) -> Self::Output {
         self.check_floats_enabled()?;
-        let ty = self.check_store_memarg(memarg)?;
+        let ty = self.check_store_memarg(&memarg)?;
         self.pop_operand(Some(ValType::F64))?;
         self.pop_address(ty)?;
         Ok(())
