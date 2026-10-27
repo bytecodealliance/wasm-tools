@@ -1,0 +1,4 @@
+(component $"#component0 " (@name "")
+  (type (;0;) u8)
+  (alias outer $"#component0 " 0 (type (;1;)))
+)
