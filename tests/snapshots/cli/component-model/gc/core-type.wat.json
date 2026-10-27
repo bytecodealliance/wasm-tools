@@ -108,6 +108,12 @@
       "filename": "core-type.15.wasm",
       "module_type": "binary",
       "text": "cannot specify `gc` without also specifying a `core-type` for lowerings"
+    },
+    {
+      "type": "module",
+      "line": 233,
+      "filename": "core-type.16.wasm",
+      "module_type": "binary"
     }
   ]
 }

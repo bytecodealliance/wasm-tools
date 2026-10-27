@@ -1,0 +1,28 @@
+(component
+  (type (;0;)
+    (component
+      (core rec)
+      (core rec
+        (type (;0;) (func))
+        (type (;1;) (struct (field (ref null 0))))
+      )
+    )
+  )
+  (type (;1;)
+    (instance
+      (core type (;0;) (func))
+      (core rec
+        (type (;1;) (func))
+      )
+      (core type (;2;) (func (param (ref 1))))
+      (core type (;3;)
+        (module
+          (alias outer 1 1 (type (;0;)))
+          (import "" "f" (func (type 0)))
+          (type (;1;) (func))
+          (import "" "g" (func (type 1)))
+        )
+      )
+    )
+  )
+)

@@ -498,6 +498,7 @@ impl<'a> Expander<'a> {
     fn expand_component_ty(&mut self, ty: &mut ComponentType<'a>) {
         Expander::default().expand_decls(&mut ty.decls, |e, decl| match decl {
             ComponentTypeDecl::CoreType(t) => e.expand_core_type(t),
+            ComponentTypeDecl::CoreRec(_) => {}
             ComponentTypeDecl::Type(t) => e.expand_type(t),
             ComponentTypeDecl::Alias(_) => {}
             ComponentTypeDecl::Export(t) => e.expand_item_sig(&mut t.item),
@@ -508,6 +509,7 @@ impl<'a> Expander<'a> {
     fn expand_instance_ty(&mut self, ty: &mut InstanceType<'a>) {
         Expander::default().expand_decls(&mut ty.decls, |e, decl| match decl {
             InstanceTypeDecl::CoreType(t) => e.expand_core_type(t),
+            InstanceTypeDecl::CoreRec(_) => {}
             InstanceTypeDecl::Type(t) => e.expand_type(t),
             InstanceTypeDecl::Alias(_) => {}
             InstanceTypeDecl::Export(t) => e.expand_item_sig(&mut t.item),

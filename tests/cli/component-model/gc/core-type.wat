@@ -228,3 +228,24 @@
   )
   "cannot specify `gc` without also specifying a `core-type` for lowerings"
 )
+
+;; Recursion groups in component and instance types.
+(component
+  (type (component
+    (core rec)
+    (core rec
+      (type $a (func))
+      (type (struct (field (ref null $a))))
+    )
+  ))
+  (type (instance
+    (core type (func))
+    (core rec (type $f (func)))
+    (core type (func (param (ref $f))))
+    (core type (module
+      (alias outer 1 $f (type $g))
+      (import "" "f" (func (type $g)))
+      (import "" "g" (func))
+    ))
+  ))
+)

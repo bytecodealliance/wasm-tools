@@ -852,6 +852,8 @@ impl<'a> Parse<'a> for ComponentType<'a> {
 pub enum ComponentTypeDecl<'a> {
     /// A core type definition local to the component type.
     CoreType(CoreType<'a>),
+    /// A core recursion group local to the component type.
+    CoreRec(core::Rec<'a>),
     /// A type definition local to the component type.
     Type(Type<'a>),
     /// An alias local to the component type.
@@ -866,7 +868,12 @@ impl<'a> Parse<'a> for ComponentTypeDecl<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let mut l = parser.lookahead1();
         if l.peek::<kw::core>()? {
-            Ok(Self::CoreType(parser.parse()?))
+            if parser.peek2::<kw::rec>()? {
+                parser.parse::<kw::core>()?;
+                Ok(Self::CoreRec(parser.parse()?))
+            } else {
+                Ok(Self::CoreType(parser.parse()?))
+            }
         } else if l.peek::<kw::r#type>()? {
             Ok(Self::Type(Type::parse_no_inline_exports(parser)?))
         } else if l.peek::<kw::alias>()? {
@@ -912,6 +919,8 @@ impl<'a> Parse<'a> for InstanceType<'a> {
 pub enum InstanceTypeDecl<'a> {
     /// A core type definition local to the component type.
     CoreType(CoreType<'a>),
+    /// A core recursion group local to the instance type.
+    CoreRec(core::Rec<'a>),
     /// A type definition local to the instance type.
     Type(Type<'a>),
     /// An alias local to the instance type.
@@ -924,7 +933,12 @@ impl<'a> Parse<'a> for InstanceTypeDecl<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let mut l = parser.lookahead1();
         if l.peek::<kw::core>()? {
-            Ok(Self::CoreType(parser.parse()?))
+            if parser.peek2::<kw::rec>()? {
+                parser.parse::<kw::core>()?;
+                Ok(Self::CoreRec(parser.parse()?))
+            } else {
+                Ok(Self::CoreType(parser.parse()?))
+            }
         } else if l.peek::<kw::r#type>()? {
             Ok(Self::Type(Type::parse_no_inline_exports(parser)?))
         } else if l.peek::<kw::alias>()? {

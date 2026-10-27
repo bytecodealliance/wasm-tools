@@ -777,6 +777,7 @@ impl<'a> Resolver<'a> {
             |resolver, decl| match decl {
                 ComponentTypeDecl::Alias(alias) => resolver.alias(alias),
                 ComponentTypeDecl::CoreType(ty) => resolver.core_ty(ty),
+                ComponentTypeDecl::CoreRec(rec) => resolver.core_rec(rec),
                 ComponentTypeDecl::Type(ty) => resolver.ty(ty),
                 ComponentTypeDecl::Import(import) => resolver.item_sig(&mut import.item),
                 ComponentTypeDecl::Export(export) => resolver.item_sig(&mut export.item),
@@ -788,6 +789,11 @@ impl<'a> Resolver<'a> {
                     }
                     ComponentTypeDecl::CoreType(ty) => {
                         state.core_types.register(ty.id, "core type")?;
+                    }
+                    ComponentTypeDecl::CoreRec(rec) => {
+                        for ty in rec.types.iter() {
+                            state.core_types.register(ty.id, "core type")?;
+                        }
                     }
                     ComponentTypeDecl::Type(ty) => {
                         state.types.register(ty.id, "type")?;
@@ -811,6 +817,7 @@ impl<'a> Resolver<'a> {
             |resolver, decl| match decl {
                 InstanceTypeDecl::Alias(alias) => resolver.alias(alias),
                 InstanceTypeDecl::CoreType(ty) => resolver.core_ty(ty),
+                InstanceTypeDecl::CoreRec(rec) => resolver.core_rec(rec),
                 InstanceTypeDecl::Type(ty) => resolver.ty(ty),
                 InstanceTypeDecl::Export(export) => resolver.item_sig(&mut export.item),
             },
@@ -821,6 +828,11 @@ impl<'a> Resolver<'a> {
                     }
                     InstanceTypeDecl::CoreType(ty) => {
                         state.core_types.register(ty.id, "core type")?;
+                    }
+                    InstanceTypeDecl::CoreRec(rec) => {
+                        for ty in rec.types.iter() {
+                            state.core_types.register(ty.id, "core type")?;
+                        }
                     }
                     InstanceTypeDecl::Type(ty) => {
                         state.types.register(ty.id, "type")?;
