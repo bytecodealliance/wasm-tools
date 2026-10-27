@@ -1,0 +1,5 @@
+name `point` is defined as a type, not an interface
+     --> tests/ui/parse-fail/package-scope-use-type-as-iface.wit:9:7
+      |
+    9 |   use point.{x};
+      |       ^----

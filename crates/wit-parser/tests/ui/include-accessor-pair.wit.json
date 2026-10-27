@@ -55,7 +55,8 @@
       "worlds": {
         "base": 0,
         "derived": 1
-      }
+      },
+      "types": {}
     }
   ]
 }

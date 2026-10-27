@@ -1,0 +1,43 @@
+package local:demo;
+
+record point {
+  x: u32,
+  y: u32,
+}
+
+variant shape {
+  circle(u32),
+  rect(point),
+}
+
+flags style {
+  bold,
+  italic,
+}
+
+enum direction {
+  north,
+  south,
+  east,
+  west,
+}
+
+type path = list<point>;
+
+interface api {
+  move-to: func(p: point);
+
+  heading: func() -> direction;
+
+  trail: func() -> path;
+
+  draw: func(s: shape, style: style);
+}
+
+world w {
+  import host: interface {
+    place: func(p: point);
+  }
+
+  export api;
+}

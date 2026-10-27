@@ -1,0 +1,103 @@
+{
+  "worlds": [
+    {
+      "name": "w",
+      "imports": {},
+      "exports": {
+        "interface-1": {
+          "interface": {
+            "id": 1
+          }
+        }
+      },
+      "package": 1
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "unused",
+      "types": {},
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": "api",
+      "types": {},
+      "functions": {
+        "wrap": {
+          "name": "wrap",
+          "kind": "freestanding",
+          "params": [
+            {
+              "name": "b",
+              "type": 1
+            }
+          ]
+        }
+      },
+      "package": 1
+    }
+  ],
+  "types": [
+    {
+      "name": "point",
+      "kind": {
+        "record": {
+          "fields": [
+            {
+              "name": "x",
+              "type": "u32"
+            },
+            {
+              "name": "y",
+              "type": "u32"
+            }
+          ]
+        }
+      },
+      "owner": {
+        "package": 0
+      }
+    },
+    {
+      "name": "bin",
+      "kind": {
+        "record": {
+          "fields": [
+            {
+              "name": "p",
+              "type": 0
+            }
+          ]
+        }
+      },
+      "owner": {
+        "package": 1
+      }
+    }
+  ],
+  "packages": [
+    {
+      "name": "local:types",
+      "interfaces": {
+        "unused": 0
+      },
+      "worlds": {},
+      "types": {
+        "point": 0
+      }
+    },
+    {
+      "name": "local:consumer",
+      "interfaces": {
+        "api": 1
+      },
+      "worlds": {
+        "w": 0
+      },
+      "types": {
+        "bin": 1
+      }
+    }
+  ]
+}

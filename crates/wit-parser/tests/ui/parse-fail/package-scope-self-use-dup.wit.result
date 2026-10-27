@@ -1,0 +1,5 @@
+duplicate name `point` in this file
+     --> tests/ui/parse-fail/package-scope-self-use-dup.wit:10:16
+      |
+   10 | use local:demo/point;
+      |                ^----
