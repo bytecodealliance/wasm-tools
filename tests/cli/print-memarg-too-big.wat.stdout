@@ -1,3 +1,3 @@
 (module
-  (data (;0;) (i32.atomic.load offset=1 align=140737488355328 seqcst) "")
+  (data (;0;) (i32.load align=32768) "")
 )

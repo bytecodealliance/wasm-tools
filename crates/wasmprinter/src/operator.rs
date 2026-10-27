@@ -4,8 +4,8 @@ use termcolor::{Ansi, NoColor};
 use wasmparser::VisitSimdOperator;
 use wasmparser::{
     BlockType, BrTable, Catch, CompositeInnerType, ContType, FrameKind, FuncType, Handle, MemArg,
-    MemArgOrdering, ModuleArity, Operator, OperatorsReader, Ordering, RefType, ResumeTable,
-    SubType, TryTable, VisitOperator,
+    MemArgOrdering, MemArgTarget, ModuleArity, Operator, OperatorsReader, Ordering, RefType,
+    ResumeTable, SubType, TryTable, VisitOperator,
 };
 
 pub struct OperatorState {
@@ -422,8 +422,10 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
     }
 
     fn memarg(&mut self, memarg: MemArg) -> Result<()> {
-        if memarg.memory != 0 {
-            self.memory_index(memarg.memory)?;
+        match memarg.target {
+            MemArgTarget::Memory(0) => {}
+            MemArgTarget::Memory(memory) => self.memory_index(memory)?,
+            MemArgTarget::Array(ty) => self.type_index(ty)?,
         }
         if memarg.offset != 0 {
             write!(self.result(), " offset={}", memarg.offset)?;

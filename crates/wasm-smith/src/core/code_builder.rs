@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 use wasm_encoder::{
     AbstractHeapType, ArrayType, BlockType, Catch, ConstExpr, ExportKind, FieldType, GlobalType,
-    HeapType, MemArg, MemArgOrdering, Ordering, RefType, StorageType, StructType,
+    HeapType, MemArg, MemArgOrdering, MemArgTarget, Ordering, RefType, StorageType, StructType,
 };
 mod no_traps;
 
@@ -126,20 +126,20 @@ instructions! {
     (Some(global_get_valid), global_get, Variable),
     (Some(global_set_valid), global_set, Variable),
     // Memory instructions.
-    (Some(have_memory_and_offset), i32_load, MemoryInt),
-    (Some(have_memory_and_offset), i64_load, MemoryInt),
-    (Some(have_memory_and_offset), f32_load, Memory),
-    (Some(have_memory_and_offset), f64_load, Memory),
-    (Some(have_memory_and_offset), i32_load_8_s, MemoryInt),
-    (Some(have_memory_and_offset), i32_load_8_u, MemoryInt),
-    (Some(have_memory_and_offset), i32_load_16_s, MemoryInt),
-    (Some(have_memory_and_offset), i32_load_16_u, MemoryInt),
-    (Some(have_memory_and_offset), i64_load_8_s, MemoryInt),
-    (Some(have_memory_and_offset), i64_load_16_s, MemoryInt),
-    (Some(have_memory_and_offset), i64_load_32_s, MemoryInt),
-    (Some(have_memory_and_offset), i64_load_8_u, MemoryInt),
-    (Some(have_memory_and_offset), i64_load_16_u, MemoryInt),
-    (Some(have_memory_and_offset), i64_load_32_u, MemoryInt),
+    (Some(have_load), i32_load, MemoryInt),
+    (Some(have_load), i64_load, MemoryInt),
+    (Some(have_load), f32_load, Memory),
+    (Some(have_load), f64_load, Memory),
+    (Some(have_load), i32_load_8_s, MemoryInt),
+    (Some(have_load), i32_load_8_u, MemoryInt),
+    (Some(have_load), i32_load_16_s, MemoryInt),
+    (Some(have_load), i32_load_16_u, MemoryInt),
+    (Some(have_load), i64_load_8_s, MemoryInt),
+    (Some(have_load), i64_load_16_s, MemoryInt),
+    (Some(have_load), i64_load_32_s, MemoryInt),
+    (Some(have_load), i64_load_8_u, MemoryInt),
+    (Some(have_load), i64_load_16_u, MemoryInt),
+    (Some(have_load), i64_load_32_u, MemoryInt),
     (Some(i32_store_valid), i32_store, MemoryInt),
     (Some(i64_store_valid), i64_store, MemoryInt),
     (Some(f32_store_valid), f32_store, Memory),
@@ -334,19 +334,19 @@ instructions! {
     (Some(any_convert_extern_valid), any_convert_extern, Aggregate),
     (Some(extern_convert_any_valid), extern_convert_any, Aggregate),
     // SIMD instructions.
-    (Some(simd_have_memory_and_offset), v128_load, VectorInt),
-    (Some(simd_have_memory_and_offset), v128_load8x8s, VectorInt),
-    (Some(simd_have_memory_and_offset), v128_load8x8u, VectorInt),
-    (Some(simd_have_memory_and_offset), v128_load16x4s, VectorInt),
-    (Some(simd_have_memory_and_offset), v128_load16x4u, VectorInt),
-    (Some(simd_have_memory_and_offset), v128_load32x2s, VectorInt),
-    (Some(simd_have_memory_and_offset), v128_load32x2u, VectorInt),
-    (Some(simd_have_memory_and_offset), v128_load8_splat, VectorInt),
-    (Some(simd_have_memory_and_offset), v128_load16_splat, VectorInt),
-    (Some(simd_have_memory_and_offset), v128_load32_splat, VectorInt),
-    (Some(simd_have_memory_and_offset), v128_load64_splat, VectorInt),
-    (Some(simd_have_memory_and_offset), v128_load32_zero, VectorInt),
-    (Some(simd_have_memory_and_offset), v128_load64_zero, VectorInt),
+    (Some(simd_have_load), v128_load, VectorInt),
+    (Some(simd_have_load), v128_load8x8s, VectorInt),
+    (Some(simd_have_load), v128_load8x8u, VectorInt),
+    (Some(simd_have_load), v128_load16x4s, VectorInt),
+    (Some(simd_have_load), v128_load16x4u, VectorInt),
+    (Some(simd_have_load), v128_load32x2s, VectorInt),
+    (Some(simd_have_load), v128_load32x2u, VectorInt),
+    (Some(simd_have_load), v128_load8_splat, VectorInt),
+    (Some(simd_have_load), v128_load16_splat, VectorInt),
+    (Some(simd_have_load), v128_load32_splat, VectorInt),
+    (Some(simd_have_load), v128_load64_splat, VectorInt),
+    (Some(simd_have_load), v128_load32_zero, VectorInt),
+    (Some(simd_have_load), v128_load64_zero, VectorInt),
     (Some(simd_v128_store_valid), v128_store, VectorInt),
     (Some(simd_load_lane_valid), v128_load8_lane, VectorInt),
     (Some(simd_load_lane_valid), v128_load16_lane, VectorInt),
@@ -2888,10 +2888,59 @@ fn have_memory(module: &Module, _: &mut CodeBuilder) -> bool {
     module.memories.len() > 0
 }
 
+/// Is there an address on top of the stack for a linear memory that exists?
 #[inline]
-fn have_memory_and_offset(module: &Module, builder: &mut CodeBuilder) -> bool {
+fn memory_address_on_stack(module: &Module, builder: &CodeBuilder) -> bool {
     (builder.allocs.memory32.len() > 0 && builder.type_on_stack(module, ValType::I32))
         || (builder.allocs.memory64.len() > 0 && builder.type_on_stack(module, ValType::I64))
+}
+
+/// Which kind of instruction a `MemArg` is being generated for.
+#[derive(Copy, Clone, PartialEq)]
+enum MemArgKind {
+    Load,
+    Store,
+    Atomic,
+}
+
+/// Is there an `i32` address at stack position `at` with a reference to a
+/// concrete array type beneath it which an array access from the
+/// multibyte-array-access proposal could operate on?
+fn array_address_on_stack_at(
+    module: &Module,
+    builder: &CodeBuilder,
+    at: usize,
+    kind: MemArgKind,
+) -> bool {
+    if !module.config.multibyte_array_access_enabled
+        || kind == MemArgKind::Atomic
+        // Array accesses trap on null references and out-of-bounds accesses
+        // which isn't handled by the no-traps mode yet.
+        || module.config.disallow_traps
+        || !builder.type_on_stack_at(module, at, ValType::I32)
+    {
+        return false;
+    }
+    match builder.concrete_array_ref_type_on_stack_at(module, at + 1) {
+        Some((_nullable, _idx, array_ty)) => {
+            let field = array_ty.0;
+            let element_ok = match field.element_type {
+                StorageType::I8 | StorageType::I16 => true,
+                StorageType::Val(
+                    ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128,
+                ) => true,
+                StorageType::Val(ValType::Ref(_)) => false,
+            };
+            element_ok && (kind == MemArgKind::Load || field.mutable)
+        }
+        None => false,
+    }
+}
+
+#[inline]
+fn have_load(module: &Module, builder: &mut CodeBuilder) -> bool {
+    memory_address_on_stack(module, builder)
+        || array_address_on_stack_at(module, builder, 0, MemArgKind::Load)
 }
 
 #[inline]
@@ -2905,7 +2954,7 @@ fn i32_load(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1, 2], MemArgKind::Load)?;
     builder.allocs.operands.push(Some(ValType::I32));
     if module.config.disallow_traps {
         no_traps::load(Instruction::I32Load(memarg), module, builder, instructions);
@@ -2921,7 +2970,7 @@ fn i64_load(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0, 1, 2, 3])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1, 2, 3], MemArgKind::Load)?;
     builder.allocs.operands.push(Some(ValType::I64));
     if module.config.disallow_traps {
         no_traps::load(Instruction::I64Load(memarg), module, builder, instructions);
@@ -2937,7 +2986,7 @@ fn f32_load(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1, 2], MemArgKind::Load)?;
     builder.allocs.operands.push(Some(ValType::F32));
     if module.config.disallow_traps {
         no_traps::load(Instruction::F32Load(memarg), module, builder, instructions);
@@ -2953,7 +3002,7 @@ fn f64_load(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0, 1, 2, 3])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1, 2, 3], MemArgKind::Load)?;
     builder.allocs.operands.push(Some(ValType::F64));
     if module.config.disallow_traps {
         no_traps::load(Instruction::F64Load(memarg), module, builder, instructions);
@@ -2969,7 +3018,7 @@ fn i32_load_8_s(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0])?;
+    let memarg = mem_arg(u, module, builder, &[0], MemArgKind::Load)?;
     builder.allocs.operands.push(Some(ValType::I32));
     if module.config.disallow_traps {
         no_traps::load(
@@ -2990,7 +3039,7 @@ fn i32_load_8_u(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0])?;
+    let memarg = mem_arg(u, module, builder, &[0], MemArgKind::Load)?;
     builder.allocs.operands.push(Some(ValType::I32));
     if module.config.disallow_traps {
         no_traps::load(
@@ -3011,7 +3060,7 @@ fn i32_load_16_s(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0, 1])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1], MemArgKind::Load)?;
     builder.allocs.operands.push(Some(ValType::I32));
     if module.config.disallow_traps {
         no_traps::load(
@@ -3032,7 +3081,7 @@ fn i32_load_16_u(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0, 1])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1], MemArgKind::Load)?;
     builder.allocs.operands.push(Some(ValType::I32));
     if module.config.disallow_traps {
         no_traps::load(
@@ -3053,7 +3102,7 @@ fn i64_load_8_s(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0])?;
+    let memarg = mem_arg(u, module, builder, &[0], MemArgKind::Load)?;
     builder.allocs.operands.push(Some(ValType::I64));
     if module.config.disallow_traps {
         no_traps::load(
@@ -3074,7 +3123,7 @@ fn i64_load_16_s(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0, 1])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1], MemArgKind::Load)?;
     builder.allocs.operands.push(Some(ValType::I64));
     if module.config.disallow_traps {
         no_traps::load(
@@ -3095,7 +3144,7 @@ fn i64_load_32_s(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1, 2], MemArgKind::Load)?;
     builder.allocs.operands.push(Some(ValType::I64));
     if module.config.disallow_traps {
         no_traps::load(
@@ -3116,7 +3165,7 @@ fn i64_load_8_u(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0])?;
+    let memarg = mem_arg(u, module, builder, &[0], MemArgKind::Load)?;
     builder.allocs.operands.push(Some(ValType::I64));
     if module.config.disallow_traps {
         no_traps::load(
@@ -3137,7 +3186,7 @@ fn i64_load_16_u(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0, 1])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1], MemArgKind::Load)?;
     builder.allocs.operands.push(Some(ValType::I64));
     if module.config.disallow_traps {
         no_traps::load(
@@ -3158,7 +3207,7 @@ fn i64_load_32_u(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1, 2], MemArgKind::Load)?;
     builder.allocs.operands.push(Some(ValType::I64));
     if module.config.disallow_traps {
         no_traps::load(
@@ -3175,6 +3224,13 @@ fn i64_load_32_u(
 
 #[inline]
 fn store_valid(module: &Module, builder: &mut CodeBuilder, f: impl Fn() -> ValType) -> bool {
+    memory_store_valid(module, builder, &f)
+        || (array_address_on_stack_at(module, builder, 1, MemArgKind::Store)
+            && builder.type_on_stack(module, f()))
+}
+
+#[inline]
+fn memory_store_valid(module: &Module, builder: &CodeBuilder, f: impl Fn() -> ValType) -> bool {
     (builder.allocs.memory32.len() > 0 && builder.types_on_stack(module, &[ValType::I32, f()]))
         || (builder.allocs.memory64.len() > 0
             && builder.types_on_stack(module, &[ValType::I64, f()]))
@@ -3192,7 +3248,7 @@ fn i32_store(
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
     builder.pop_operands(module, &[ValType::I32]);
-    let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1, 2], MemArgKind::Store)?;
     if module.config.disallow_traps {
         no_traps::store(Instruction::I32Store(memarg), module, builder, instructions);
     } else {
@@ -3213,7 +3269,7 @@ fn i64_store(
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
     builder.pop_operands(module, &[ValType::I64]);
-    let memarg = mem_arg(u, module, builder, &[0, 1, 2, 3])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1, 2, 3], MemArgKind::Store)?;
     if module.config.disallow_traps {
         no_traps::store(Instruction::I64Store(memarg), module, builder, instructions);
     } else {
@@ -3234,7 +3290,7 @@ fn f32_store(
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
     builder.pop_operands(module, &[ValType::F32]);
-    let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1, 2], MemArgKind::Store)?;
     if module.config.disallow_traps {
         no_traps::store(Instruction::F32Store(memarg), module, builder, instructions);
     } else {
@@ -3255,7 +3311,7 @@ fn f64_store(
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
     builder.pop_operands(module, &[ValType::F64]);
-    let memarg = mem_arg(u, module, builder, &[0, 1, 2, 3])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1, 2, 3], MemArgKind::Store)?;
     if module.config.disallow_traps {
         no_traps::store(Instruction::F64Store(memarg), module, builder, instructions);
     } else {
@@ -3271,7 +3327,7 @@ fn i32_store_8(
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
     builder.pop_operands(module, &[ValType::I32]);
-    let memarg = mem_arg(u, module, builder, &[0])?;
+    let memarg = mem_arg(u, module, builder, &[0], MemArgKind::Store)?;
     if module.config.disallow_traps {
         no_traps::store(
             Instruction::I32Store8(memarg),
@@ -3292,7 +3348,7 @@ fn i32_store_16(
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
     builder.pop_operands(module, &[ValType::I32]);
-    let memarg = mem_arg(u, module, builder, &[0, 1])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1], MemArgKind::Store)?;
     if module.config.disallow_traps {
         no_traps::store(
             Instruction::I32Store16(memarg),
@@ -3313,7 +3369,7 @@ fn i64_store_8(
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
     builder.pop_operands(module, &[ValType::I64]);
-    let memarg = mem_arg(u, module, builder, &[0])?;
+    let memarg = mem_arg(u, module, builder, &[0], MemArgKind::Store)?;
     if module.config.disallow_traps {
         no_traps::store(
             Instruction::I64Store8(memarg),
@@ -3334,7 +3390,7 @@ fn i64_store_16(
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
     builder.pop_operands(module, &[ValType::I64]);
-    let memarg = mem_arg(u, module, builder, &[0, 1])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1], MemArgKind::Store)?;
     if module.config.disallow_traps {
         no_traps::store(
             Instruction::I64Store16(memarg),
@@ -3355,7 +3411,7 @@ fn i64_store_32(
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
     builder.pop_operands(module, &[ValType::I64]);
-    let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1, 2], MemArgKind::Store)?;
     if module.config.disallow_traps {
         no_traps::store(
             Instruction::I64Store32(memarg),
@@ -5418,22 +5474,41 @@ fn mem_arg(
     module: &Module,
     builder: &mut CodeBuilder,
     alignments: &[u32],
+    kind: MemArgKind,
 ) -> Result<MemArg> {
-    let memory_index = if builder.type_on_stack(module, ValType::I32) {
+    let memory_possible = memory_address_on_stack(module, builder);
+    let array_possible = array_address_on_stack_at(module, builder, 0, kind);
+    let target = if array_possible && (!memory_possible || u.arbitrary()?) {
         builder.pop_operands(module, &[ValType::I32]);
-        memory_index(u, builder, ValType::I32)?
+        let (_nullable, array_type_index) = builder.pop_concrete_ref_type();
+        MemArgTarget::Array(array_type_index)
+    } else if builder.type_on_stack(module, ValType::I32) {
+        builder.pop_operands(module, &[ValType::I32]);
+        MemArgTarget::Memory(memory_index(u, builder, ValType::I32)?)
     } else {
         builder.pop_operands(module, &[ValType::I64]);
-        memory_index(u, builder, ValType::I64)?
+        MemArgTarget::Memory(memory_index(u, builder, ValType::I64)?)
     };
-    let offset = memory_offset(u, module, memory_index)?;
+    let offset = match target {
+        MemArgTarget::Memory(memory_index) => memory_offset(u, module, memory_index)?,
+        MemArgTarget::Array(_) => array_offset(u)?,
+    };
     let align = *u.choose(alignments)?;
     Ok(MemArg {
-        memory_index,
+        target,
         offset,
         align,
         ordering: None,
     })
+}
+
+fn array_offset(u: &mut Unstructured) -> Result<u64> {
+    // For now just bias towards small indexes.
+    if u.ratio(9, 10)? {
+        Ok(u.int_in_range(0..=64)?)
+    } else {
+        Ok(u64::from(u.arbitrary::<u32>()?))
+    }
 }
 
 fn memory_index(u: &mut Unstructured, builder: &CodeBuilder, ty: ValType) -> Result<u32> {
@@ -6845,14 +6920,12 @@ fn simd_f64_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
 }
 
 #[inline]
-fn simd_have_memory_and_offset(module: &Module, builder: &mut CodeBuilder) -> bool {
-    !module.config.disallow_traps
-        && module.config.simd_enabled
-        && have_memory_and_offset(module, builder)
+fn simd_have_load(module: &Module, builder: &mut CodeBuilder) -> bool {
+    !module.config.disallow_traps && module.config.simd_enabled && have_load(module, builder)
 }
 
 #[inline]
-fn simd_have_memory_and_offset_and_v128(module: &Module, builder: &mut CodeBuilder) -> bool {
+fn simd_have_load_and_v128(module: &Module, builder: &mut CodeBuilder) -> bool {
     !module.config.disallow_traps
         && module.config.simd_enabled
         && store_valid(module, builder, || ValType::V128)
@@ -6861,7 +6934,7 @@ fn simd_have_memory_and_offset_and_v128(module: &Module, builder: &mut CodeBuild
 #[inline]
 fn simd_load_lane_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     // The SIMD non-trapping case is not yet implemented.
-    !module.config.disallow_traps && simd_have_memory_and_offset_and_v128(module, builder)
+    !module.config.disallow_traps && simd_have_load_and_v128(module, builder)
 }
 
 #[inline]
@@ -6891,7 +6964,7 @@ macro_rules! simd_load {
 
             instructions: &mut Vec<Instruction>,
         ) -> Result<()> {
-            let memarg = mem_arg(u, module, builder, $alignments)?;
+            let memarg = mem_arg(u, module, builder, $alignments, MemArgKind::Load)?;
             builder.push_operands(&[ValType::V128]);
             if module.config.disallow_traps {
                 no_traps::load(
@@ -6929,7 +7002,7 @@ fn v128_store(
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
     builder.pop_operands(module, &[ValType::V128]);
-    let memarg = mem_arg(u, module, builder, &[0, 1, 2, 3, 4])?;
+    let memarg = mem_arg(u, module, builder, &[0, 1, 2, 3, 4], MemArgKind::Store)?;
     if module.config.disallow_traps {
         no_traps::store(
             Instruction::V128Store(memarg),
@@ -6952,7 +7025,7 @@ macro_rules! simd_load_lane {
             instructions: &mut Vec<Instruction>,
         ) -> Result<()> {
             builder.pop_operands(module, &[ValType::V128]);
-            let memarg = mem_arg(u, module, builder, $alignments)?;
+            let memarg = mem_arg(u, module, builder, $alignments, MemArgKind::Load)?;
             builder.push_operands(&[ValType::V128]);
             instructions.push(Instruction::$instruction {
                 memarg,
@@ -6977,7 +7050,7 @@ macro_rules! simd_store_lane {
             instructions: &mut Vec<Instruction>,
         ) -> Result<()> {
             builder.pop_operands(module, &[ValType::V128]);
-            let memarg = mem_arg(u, module, builder, $alignments)?;
+            let memarg = mem_arg(u, module, builder, $alignments, MemArgKind::Store)?;
             instructions.push(Instruction::$instruction {
                 memarg,
                 lane: lane_index(u, $number_of_lanes)?,
@@ -7409,17 +7482,19 @@ fn atomic_instruction_valid(module: &Module, _builder: &mut CodeBuilder) -> bool
 
 #[inline]
 fn atomic_load_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    atomic_instruction_valid(module, builder) && have_memory_and_offset(module, builder)
+    atomic_instruction_valid(module, builder) && memory_address_on_stack(module, builder)
 }
 
 #[inline]
 fn i32_atomic_store_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    atomic_instruction_valid(module, builder) && i32_store_valid(module, builder)
+    atomic_instruction_valid(module, builder)
+        && memory_store_valid(module, builder, || ValType::I32)
 }
 
 #[inline]
 fn i64_atomic_store_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    atomic_instruction_valid(module, builder) && i64_store_valid(module, builder)
+    atomic_instruction_valid(module, builder)
+        && memory_store_valid(module, builder, || ValType::I64)
 }
 
 #[inline]
@@ -7479,7 +7554,7 @@ macro_rules! atomic_load {
             builder: &mut CodeBuilder,
             instructions: &mut Vec<Instruction>,
         ) -> Result<()> {
-            let mut memarg = mem_arg(u, module, builder, &[$($memarg_align),*])?;
+            let mut memarg = mem_arg(u, module, builder, &[$($memarg_align),*], MemArgKind::Atomic)?;
             atomic_ordering(u, module, &mut memarg, MemArgOrdering::Op)?;
             builder.push_operands(&[ValType::$valtype]);
             instructions.push(Instruction::$instr(memarg));
@@ -7497,7 +7572,7 @@ macro_rules! atomic_store {
             instructions: &mut Vec<Instruction>,
         ) -> Result<()> {
             builder.pop_operands(module, &[ValType::$valtype]);
-            let mut memarg = mem_arg(u, module, builder, &[$($memarg_align),*])?;
+            let mut memarg = mem_arg(u, module, builder, &[$($memarg_align),*], MemArgKind::Atomic)?;
             atomic_ordering(u, module, &mut memarg, MemArgOrdering::Op)?;
             instructions.push(Instruction::$instr(memarg));
             Ok(())
@@ -7514,7 +7589,7 @@ macro_rules! atomic_rmw_atop {
             instructions: &mut Vec<Instruction>,
         ) -> Result<()> {
             builder.pop_operands(module, &[ValType::$valtype]);
-            let mut memarg = mem_arg(u, module, builder, &[$($memarg_align),*])?;
+            let mut memarg = mem_arg(u, module, builder, &[$($memarg_align),*], MemArgKind::Atomic)?;
             atomic_ordering(u, module, &mut memarg, MemArgOrdering::Rmw)?;
             builder.push_operands(&[ValType::$valtype]);
             instructions.push(Instruction::$instr(memarg));
@@ -7532,7 +7607,7 @@ macro_rules! atomic_rmw_cmpxchg {
             instructions: &mut Vec<Instruction>,
         ) -> Result<()> {
             builder.pop_operands(module, &[ValType::$valtype, ValType::$valtype]);
-            let mut memarg = mem_arg(u, module, builder, &[$($memarg_align),*])?;
+            let mut memarg = mem_arg(u, module, builder, &[$($memarg_align),*], MemArgKind::Atomic)?;
             atomic_ordering(u, module, &mut memarg, MemArgOrdering::Rmw)?;
             builder.push_operands(&[ValType::$valtype]);
             instructions.push(Instruction::$instr(memarg));
@@ -7621,7 +7696,7 @@ fn atomic_notify(
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
     builder.pop_operands(module, &[ValType::I32]);
-    let memarg = mem_arg(u, module, builder, &[2])?;
+    let memarg = mem_arg(u, module, builder, &[2], MemArgKind::Atomic)?;
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::MemoryAtomicNotify(memarg));
     Ok(())
@@ -7634,7 +7709,7 @@ fn atomic_wait32(
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
     builder.pop_operands(module, &[ValType::I32, ValType::I64]);
-    let memarg = mem_arg(u, module, builder, &[2])?;
+    let memarg = mem_arg(u, module, builder, &[2], MemArgKind::Atomic)?;
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::MemoryAtomicWait32(memarg));
     Ok(())
@@ -7647,7 +7722,7 @@ fn atomic_wait64(
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
     builder.pop_operands(module, &[ValType::I64, ValType::I64]);
-    let memarg = mem_arg(u, module, builder, &[3])?;
+    let memarg = mem_arg(u, module, builder, &[3], MemArgKind::Atomic)?;
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::MemoryAtomicWait64(memarg));
     Ok(())

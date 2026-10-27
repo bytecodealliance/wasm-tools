@@ -663,7 +663,7 @@ fn make_env_module<'a>(
         let mem_arg = MemArg {
             offset: u64::from(slot * 4),
             align: 2,
-            memory_index: 0,
+            target: Default::default(),
             ordering: None,
         };
 

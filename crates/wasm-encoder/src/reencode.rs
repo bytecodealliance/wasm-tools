@@ -945,7 +945,14 @@ pub mod utils {
         Ok(crate::MemArg {
             offset: arg.offset,
             align: arg.align.into(),
-            memory_index: reencoder.memory_index(arg.memory)?,
+            target: match arg.target {
+                wasmparser::MemArgTarget::Memory(i) => {
+                    crate::MemArgTarget::Memory(reencoder.memory_index(i)?)
+                }
+                wasmparser::MemArgTarget::Array(ty) => {
+                    crate::MemArgTarget::Array(reencoder.type_index(ty)?)
+                }
+            },
             ordering: match arg.ordering {
                 None => None,
                 Some(wasmparser::MemArgOrdering::Op(o)) => {

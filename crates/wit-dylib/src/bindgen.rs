@@ -2,7 +2,7 @@ use crate::metadata;
 use crate::{Adapter, ImportedStackPointer};
 use std::collections::HashMap;
 use std::slice;
-use wasm_encoder::{BlockType, Function, InstructionSink, MemArg, ValType};
+use wasm_encoder::{BlockType, Function, InstructionSink, MemArg, MemArgTarget, ValType};
 use wit_parser::abi::{AbiVariant, FlatTypes, WasmSignature, WasmType};
 use wit_parser::{
     Alignment, ArchitectureSize, FlagsRepr, Handle, Int, Resolve, Type, TypeDefKind, TypeId,
@@ -276,7 +276,7 @@ pub fn lift_async_import_results(
 }
 
 const MEMARG_32: MemArg = MemArg {
-    memory_index: 0,
+    target: MemArgTarget::Memory(0),
     align: 2,
     offset: 0,
     ordering: None,

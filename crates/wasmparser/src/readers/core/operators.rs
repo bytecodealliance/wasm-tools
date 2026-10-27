@@ -86,12 +86,8 @@ pub struct MemArg {
     /// memory immediates for 32-bit memories are guaranteed to be at most
     /// `u32::MAX` whereas 64-bit memories can use the full 64-bits.
     pub offset: u64,
-    /// The index of the memory this immediate points to.
-    ///
-    /// Note that this points within the module's own memory index space, and
-    /// is always zero unless the multi-memory proposal of WebAssembly is
-    /// enabled.
-    pub memory: u32,
+    /// What this instruction operates on: a linear memory or a GC array.
+    pub target: MemArgTarget,
 
     /// The memory ordering specified for this operation, part of the
     /// acquire-release-atomics proposal.
@@ -106,6 +102,22 @@ pub enum MemArgOrdering {
     Op(Ordering),
     /// The ordering immediate of an atomic read-modify-write instruction.
     Rmw(Ordering),
+}
+
+/// What a memory instruction's [`MemArg`] immediate operates on.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum MemArgTarget {
+    /// The instruction operates on the linear memory at this index.
+    Memory(u32),
+    /// The instruction operates on the payload of a GC array whose type is at
+    /// this index in the module's type index space.
+    Array(u32),
+}
+
+impl Default for MemArgTarget {
+    fn default() -> MemArgTarget {
+        MemArgTarget::Memory(0)
+    }
 }
 
 /// A br_table entries representation.

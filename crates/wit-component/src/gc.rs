@@ -972,7 +972,12 @@ macro_rules! define_visit {
     (mark_live $self:ident $arg:ident mem) => {$self.memory($arg);};
     (mark_live $self:ident $arg:ident src_mem) => {$self.memory($arg);};
     (mark_live $self:ident $arg:ident dst_mem) => {$self.memory($arg);};
-    (mark_live $self:ident $arg:ident memarg) => {$self.memory($arg.memory);};
+    (mark_live $self:ident $arg:ident memarg) => {
+        match $arg.target {
+            wasmparser::MemArgTarget::Memory(i) => $self.memory(i),
+            wasmparser::MemArgTarget::Array(ty) => $self.ty(ty),
+        }
+    };
     (mark_live $self:ident $arg:ident blockty) => {$self.blockty($arg);};
     (mark_live $self:ident $arg:ident ty) => {$self.valty($arg)};
     (mark_live $self:ident $arg:ident tys) => {$self.valtys(&$arg)};

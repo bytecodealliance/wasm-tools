@@ -1681,11 +1681,20 @@ pub struct MemArg<'a> {
     pub align: u64,
     /// The offset, in bytes of this access.
     pub offset: u64,
-    /// The memory index we're accessing
-    pub memory: Index<'a>,
+    /// What this access operates on: a linear memory or a GC array.
+    pub target: MemArgTarget<'a>,
     /// The memory ordering of this access, from the acquire-release-atomics
     /// proposal.
     pub ordering: Option<MemArgOrdering>,
+}
+
+/// What a memory instruction's [`MemArg`] immediate operates on.
+#[derive(Debug, Clone)]
+pub enum MemArgTarget<'a> {
+    /// The instruction accesses this linear memory.
+    Memory(Index<'a>),
+    /// The instruction accesses a GC array of this type.
+    Array(Index<'a>),
 }
 
 /// The ordering immediate of a [`MemArg`], part of the
@@ -1735,9 +1744,18 @@ impl<'a> MemArg<'a> {
             })
         }
 
-        let memory = parser
-            .parse::<Option<_>>()?
-            .unwrap_or_else(|| Index::Num(0, parser.prev_span()));
+        let target = if parser.peek2::<kw::r#type>()? {
+            MemArgTarget::Array(parser.parens(|p| {
+                p.parse::<kw::r#type>()?;
+                p.parse()
+            })?)
+        } else {
+            MemArgTarget::Memory(
+                parser
+                    .parse::<Option<_>>()?
+                    .unwrap_or_else(|| Index::Num(0, parser.prev_span())),
+            )
+        };
         let offset = parse_field("offset", parser)?.unwrap_or(0);
         let align = match parse_field("align", parser)? {
             Some(n) if !n.is_power_of_two() => {
@@ -1749,7 +1767,7 @@ impl<'a> MemArg<'a> {
         Ok(MemArg {
             offset,
             align,
-            memory,
+            target,
             ordering: None,
         })
     }
@@ -1812,7 +1830,7 @@ impl<'a> LoadOrStoreLane<'a> {
                 MemArg {
                     align: default_align,
                     offset: 0,
-                    memory: Index::Num(0, parser.prev_span()),
+                    target: MemArgTarget::Memory(Index::Num(0, parser.prev_span())),
                     ordering: None,
                 }
             },

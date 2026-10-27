@@ -378,6 +378,11 @@ define_wasm_features! {
         ///
         /// [proposal]: https://github.com/WebAssembly/acquire-release-atomics
         pub acquire_release_atomics: ACQUIRE_RELEASE_ATOMICS(1 << 44) = false;
+
+        /// The WebAssembly [multibyte-array-access proposal][proposal].
+        ///
+        /// [proposal]: https://github.com/WebAssembly/multibyte-array-access
+        pub multibyte_array_access: MULTIBYTE_ARRAY_ACCESS(1 << 45) = false;
     }
 }
 

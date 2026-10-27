@@ -77,6 +77,9 @@ impl Operator<'_> {
         #[cfg_attr(not(feature = "simd"), allow(unused_macro_rules))]
         macro_rules! operator_arity {
             ($visit:ident $args:tt arity $a:tt -> $b:tt) => (Some(($a, $b)));
+            ($visit:ident { $memarg:ident $($rest:ident)* } arity memarg $a:tt -> $b:tt) => {
+                Some(($a + memarg_extra_operands(&$memarg), $b))
+            };
             ($visit:ident { $($args:ident)* } arity custom) => ($visit(module, $($args),*));
         }
         macro_rules! define_arity {
@@ -94,6 +97,13 @@ impl Operator<'_> {
             );
         }
         crate::for_each_operator!(define_arity)
+    }
+}
+
+fn memarg_extra_operands(memarg: &crate::MemArg) -> u32 {
+    match memarg.target {
+        crate::MemArgTarget::Memory(_) => 0,
+        crate::MemArgTarget::Array(_) => 1,
     }
 }
 

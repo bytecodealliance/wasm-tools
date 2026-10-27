@@ -384,13 +384,29 @@ pub struct MemArg {
     /// The expected alignment of the instruction's dynamic address operand
     /// (expressed the exponent of a power of two).
     pub align: u32,
-    /// The index of the memory this instruction is operating upon.
-    pub memory_index: u32,
+    /// What this instruction operates on: a linear memory or a GC array.
+    pub target: MemArgTarget,
     /// The memory ordering of this instruction, from the
     /// acquire-release-atomics proposal.
     ///
     /// This should be `None` for non-atomic instructions.
     pub ordering: Option<MemArgOrdering>,
+}
+
+/// What a memory instruction's [`MemArg`] immediate operates on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum MemArgTarget {
+    /// The instruction operates on the linear memory at this index.
+    Memory(u32),
+    /// The instruction operates on the payload of a GC array whose type is at
+    /// this index, from the multibyte-array-access proposal.
+    Array(u32),
+}
+
+impl Default for MemArgTarget {
+    fn default() -> MemArgTarget {
+        MemArgTarget::Memory(0)
+    }
 }
 
 impl Encode for MemArg {
@@ -399,12 +415,15 @@ impl Encode for MemArg {
         if self.ordering.is_some() {
             flags |= 1 << 4;
         }
-        if self.memory_index != 0 {
-            flags |= 1 << 6;
+        match self.target {
+            MemArgTarget::Memory(0) => {}
+            MemArgTarget::Memory(_) => flags |= 1 << 6,
+            MemArgTarget::Array(_) => flags |= 1 << 5,
         }
         flags.encode(sink);
-        if self.memory_index != 0 {
-            self.memory_index.encode(sink);
+        match self.target {
+            MemArgTarget::Memory(0) => {}
+            MemArgTarget::Memory(i) | MemArgTarget::Array(i) => i.encode(sink),
         }
         if let Some(ordering) = self.ordering {
             ordering.encode(sink);
