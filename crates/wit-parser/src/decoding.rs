@@ -202,7 +202,7 @@ impl ComponentInfo {
         }
 
         let pkg = pkg.ok_or_else(|| anyhow!("no exported component type found"))?;
-        let (mut resolve, package) = decoder.finish(pkg);
+        let (mut resolve, package) = decoder.finish(pkg)?;
         if let Some(package_metadata) = &self.package_metadata {
             package_metadata.inject(&mut resolve, package)?;
         }
@@ -285,7 +285,7 @@ impl ComponentInfo {
             bail!("no exported component type found");
         };
 
-        let (mut resolve, package) = decoder.finish(pkg);
+        let (mut resolve, package) = decoder.finish(pkg)?;
         if let Some(package_metadata) = &self.package_metadata {
             package_metadata.inject(&mut resolve, package)?;
         }
@@ -339,7 +339,7 @@ impl ComponentInfo {
             }
         }
 
-        let (mut resolve, pkg) = decoder.finish(package);
+        let (mut resolve, pkg) = decoder.finish(package)?;
         if let Some(package_metadata) = &self.package_metadata {
             package_metadata.inject(&mut resolve, pkg)?;
         }
@@ -486,7 +486,7 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
         interfaces,
         worlds,
         docs: Default::default(),
-    });
+    })?;
     // The package decoded here should only have a single world so extract that
     // here to return.
     let world = *resolve.packages[pkg].worlds.iter().next().unwrap().1;
@@ -1046,6 +1046,22 @@ impl WitPackageDecoder<'_> {
             // prior definition.
             Some(prev) => {
                 log::debug!("type export for `{name}` is an alias");
+                // An interface can only `use` types from other interfaces.
+                // Anything else, such as a type the world imports or an
+                // anonymous type, has no WIT form, and code reading a
+                // `Resolve` assumes it can't happen: `type_interface_dep`
+                // panics on it, which `finish` reaches for interfaces in
+                // foreign packages, and the WIT printer panics on it for
+                // interfaces defined in a world. Catch it here, where the
+                // `use` is created, so that both are covered.
+                if matches!(owner, TypeOwner::Interface(_))
+                    && !matches!(self.resolve.types[prev].owner, TypeOwner::Interface(_))
+                {
+                    bail!(
+                        "cannot represent this component in WIT: type `{name}` refers to a \
+                         type that isn't defined in an interface"
+                    );
+                }
                 TypeDefKind::Type(Type::Id(prev))
             }
 
@@ -1493,12 +1509,13 @@ impl WitPackageDecoder<'_> {
     /// their topological ordering within the returned `Resolve`.
     ///
     /// Takes the root package as an argument to insert.
-    fn finish(mut self, package: Package) -> (Resolve, PackageId) {
+    fn finish(mut self, package: Package) -> Result<(Resolve, PackageId)> {
         // Build a topological ordering is then calculated by visiting all the
         // transitive dependencies of packages.
         let mut order = IndexSet::default();
+        let mut visiting = HashSet::new();
         for i in 0..self.foreign_packages.len() {
-            self.visit_package(i, &mut order);
+            self.visit_package(i, &mut order, &mut visiting)?;
         }
 
         // Using the topological ordering create a temporary map from
@@ -1529,7 +1546,7 @@ impl WitPackageDecoder<'_> {
                 .iter()
                 .all(|(_, i)| i.package.is_some())
         );
-        (self.resolve, id)
+        Ok((self.resolve, id))
     }
 
     fn insert_package(&mut self, package: Package) -> PackageId {
@@ -1588,12 +1605,22 @@ impl WitPackageDecoder<'_> {
         pkg
     }
 
-    fn visit_package(&self, idx: usize, order: &mut IndexSet<usize>) {
+    fn visit_package(
+        &self,
+        idx: usize,
+        order: &mut IndexSet<usize>,
+        visiting: &mut HashSet<usize>,
+    ) -> Result<()> {
         if order.contains(&idx) {
-            return;
+            return Ok(());
         }
 
-        let (_name, pkg) = self.foreign_packages.get_index(idx).unwrap();
+        let (name, pkg) = self.foreign_packages.get_index(idx).unwrap();
+        if !visiting.insert(idx) {
+            bail!(
+                "cannot represent this component in WIT: package `{name}` creates a dependency cycle"
+            );
+        }
         let interfaces = pkg.interfaces.values().copied().chain(
             pkg.worlds
                 .values()
@@ -1608,14 +1635,21 @@ impl WitPackageDecoder<'_> {
         );
         for iface in interfaces {
             for dep in self.resolve.interface_direct_deps(iface) {
-                let dep_idx = self.iface_to_package_index[&dep];
+                let Some(&dep_idx) = self.iface_to_package_index.get(&dep) else {
+                    bail!(
+                        "cannot represent this component in WIT: package `{name}` uses a type \
+                         from an interface it can't depend on"
+                    );
+                };
                 if dep_idx != idx {
-                    self.visit_package(dep_idx, order);
+                    self.visit_package(dep_idx, order, visiting)?;
                 }
             }
         }
 
+        visiting.remove(&idx);
         assert!(order.insert(idx));
+        Ok(())
     }
 }
 

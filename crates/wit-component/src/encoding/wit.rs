@@ -1,5 +1,5 @@
 use crate::encoding::types::{TypeEncodingMaps, ValtypeEncoder, extern_name};
-use anyhow::Result;
+use anyhow::{Result, bail};
 use indexmap::IndexSet;
 use std::collections::HashMap;
 use std::mem;
@@ -446,9 +446,21 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
     fn interface(&self) -> Option<InterfaceId> {
         self.interface
     }
-    fn import_type(&mut self, owner: InterfaceId, id: TypeId) -> u32 {
+    fn import_type(&mut self, owner: InterfaceId, id: TypeId) -> Result<u32> {
         let ty = &self.resolve.types[id];
-        let instance = self.import_map[&owner];
+        let Some(&instance) = self.import_map.get(&owner) else {
+            let name = ty.name.as_deref().unwrap_or_default();
+            let dep = self.resolve.id_of(owner).unwrap_or_default();
+            match self.interface.and_then(|id| self.resolve.id_of(id)) {
+                Some(user) => bail!(
+                    "interface `{user}` uses type `{name}` from interface `{dep}`, which the \
+                     world doesn't import before `{user}`"
+                ),
+                None => bail!(
+                    "type `{name}` from interface `{dep}` is used before the world imports `{dep}`"
+                ),
+            }
+        };
         let outer_idx = *self.outer_type_map.entry(id).or_insert_with(|| {
             let ret = self.outer.type_count();
             self.outer.alias(Alias::InstanceExport {
@@ -466,9 +478,9 @@ impl<'a> ValtypeEncoder<'a> for InterfaceEncoder<'a> {
                     index: outer_idx,
                     kind: ComponentOuterAliasKind::Type,
                 });
-                ret
+                Ok(ret)
             }
-            None => outer_idx,
+            None => Ok(outer_idx),
         }
     }
 }

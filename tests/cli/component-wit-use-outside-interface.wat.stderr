@@ -1,0 +1,1 @@
+error: cannot represent this component in WIT: type `t` refers to a type that isn't defined in an interface
