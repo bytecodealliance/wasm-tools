@@ -61,6 +61,8 @@
 mod component;
 mod config;
 mod core;
+#[cfg(feature = "component-model")]
+mod well_formed_component;
 
 pub use crate::core::{InstructionKind, InstructionKinds, Module};
 use arbitrary::{Result, Unstructured};
@@ -68,6 +70,8 @@ use arbitrary::{Result, Unstructured};
 pub use component::Component;
 pub use config::{Config, MemoryOffsetChoices};
 use std::{collections::HashSet, fmt::Write, str};
+#[cfg(feature = "component-model")]
+pub use well_formed_component::WellFormedComponent;
 
 #[doc(hidden)]
 pub use config::InternalOptionalConfig;
