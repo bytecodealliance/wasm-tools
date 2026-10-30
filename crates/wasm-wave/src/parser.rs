@@ -780,6 +780,21 @@ mod tests {
     }
 
     #[test]
+    fn reject_record_unknown_fields() {
+        let ty = Type::record([("red", Type::S32), ("green", Type::CHAR)]).unwrap();
+        for input in [
+            "{red: 0, green: 'a', blue: 1}",
+            "{blue: 1, red: 0, green: 'a'}",
+            // The value of an unknown field is not checked against anything.
+            "{red: 0, green: 'a', blue: 300}",
+            "{red: 0, green: 'a', blue: {x: 1, x: 2}}",
+        ] {
+            let err = Parser::new(input).parse_value::<Value>(&ty).unwrap_err();
+            assert_eq!(err.kind(), ParserErrorKind::InvalidValue);
+        }
+    }
+
+    #[test]
     fn parse_percent_identifiers() {
         let ty = Type::record([
             ("red", Type::S32),

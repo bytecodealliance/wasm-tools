@@ -324,12 +324,12 @@ impl Node {
     }
 
     fn to_wasm_record<V: WasmValue>(&self, ty: &V::Type, src: &str) -> Result<V, ParserError> {
-        let values = self.as_record(src)?.collect::<BTreeMap<_, _>>();
+        let mut values = self.as_record(src)?.collect::<BTreeMap<_, _>>();
         let record_fields = ty.record_fields().collect::<Vec<_>>();
         let fields = record_fields
             .iter()
             .map(|(name, field_type)| {
-                let value = match (values.get(name.as_ref()), field_type.kind()) {
+                let value = match (values.remove(name.as_ref()), field_type.kind()) {
                     (Some(node), _) => node.to_wasm_value(field_type, src)?,
                     (None, WasmTypeKind::Option) => V::make_option(field_type, None)
                         .map_err(|err| self.wasm_value_error(err))?,
@@ -342,6 +342,10 @@ impl Node {
                 Ok((name.as_ref(), value))
             })
             .collect::<Result<Vec<_>, _>>()?;
+        if !values.is_empty() {
+            // Value does not match the type, as it has more fields.
+            return Err(self.error(ParserErrorKind::InvalidValue));
+        }
         V::make_record(ty, fields).map_err(|err| self.wasm_value_error(err))
     }
 
