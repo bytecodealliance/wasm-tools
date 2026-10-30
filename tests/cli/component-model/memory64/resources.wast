@@ -69,3 +69,33 @@
     (type $x (resource (rep v128)))
   )
   "resources can only be represented by `i32` or `i64`")
+
+;; A `borrow` of a locally-defined `(rep i64)` resource is passed as its `i64`
+;; representation to a lifted function.
+(component
+  (type $x (resource (rep i64)))
+  (core module $m
+    (func (export "f") (param i64))
+    (func (export "g") (param i32 i64))
+    (func (export "h") (param i32 i64 i32))
+  )
+  (core instance $m (instantiate $m))
+  (func (param "x" (borrow $x))
+    (canon lift (core func $m "f")))
+  (func (param "x" (option (borrow $x)))
+    (canon lift (core func $m "g")))
+  (func (param "x" (tuple u32 (borrow $x) (own $x)))
+    (canon lift (core func $m "h")))
+)
+
+(assert_invalid
+  (component
+    (type $x (resource (rep i64)))
+    (core module $m
+      (func (export "f") (param i32))
+    )
+    (core instance $m (instantiate $m))
+    (func (param "x" (borrow $x))
+      (canon lift (core func $m "f")))
+  )
+  "lowered parameter types `[I64]` do not match parameter types `[I32]`")

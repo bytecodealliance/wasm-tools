@@ -1,6 +1,6 @@
 //! Types relating to type information provided by validation.
 
-use super::component::ExternKind;
+use super::component::{ComponentState, ExternKind};
 use super::{CanonicalOptions, Concurrency};
 use crate::limits::MAX_WASM_VALUE_TYPE_BYTE_SIZE;
 use crate::validator::StringEncoding;
@@ -741,13 +741,13 @@ impl ComponentValType {
 
     fn push_wasm_types(
         &self,
-        ptr_size: PtrSize,
+        cx: FlattenCx<'_>,
         types: &TypeList,
         lowered_types: &mut LoweredTypes,
     ) -> bool {
         match self {
-            Self::Primitive(ty) => push_primitive_wasm_types(ptr_size, ty, lowered_types),
-            Self::Type(id) => types[*id].push_wasm_types(ptr_size, types, lowered_types),
+            Self::Primitive(ty) => push_primitive_wasm_types(cx.ptr_size, ty, lowered_types),
+            Self::Type(id) => types[*id].push_wasm_types(cx, types, lowered_types),
         }
     }
 
@@ -1168,6 +1168,33 @@ impl Abi {
     }
 }
 
+/// Context used when determining the flat wasm types for a component model
+/// type.
+#[derive(Copy, Clone)]
+struct FlattenCx<'a> {
+    ptr_size: PtrSize,
+    abi: Abi,
+    state: &'a ComponentState,
+}
+
+impl FlattenCx<'_> {
+    fn borrow_type(&self, id: AliasableResourceId) -> ValType {
+        match self.abi {
+            // When a function is `canon lift`'d then if the instance defined
+            // the resource pointed to by `id` then it receives the `rep` of
+            // that resource. If it didn't define the resource then it gets a
+            // normal `i32` handle.
+            Abi::Lift => self
+                .state
+                .local_resource_rep(id.resource())
+                .unwrap_or(ValType::I32),
+            // When a function is `canon lower`'d then an i32 is always used to
+            // represent borrows.
+            Abi::Lower => ValType::I32,
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum ArgOrField {
     /// Lifting to, or lowering from, an argument value.
@@ -1242,6 +1269,7 @@ impl ComponentFuncType {
     pub(crate) fn lower(
         &self,
         types: &TypeList,
+        state: &ComponentState,
         options: &CanonicalOptions,
         abi: Abi,
         offset: u64,
@@ -1255,6 +1283,11 @@ impl ComponentFuncType {
         let ptr_size = match options.memory {
             None => PtrSize::Ptr32,
             Some((_, ptr_size)) => ptr_size,
+        };
+        let cx = FlattenCx {
+            ptr_size,
+            abi,
+            state,
         };
 
         if abi == Abi::Lower && options.concurrency.is_async() {
@@ -1277,7 +1310,7 @@ impl ComponentFuncType {
                 }
             }
 
-            if !ty.push_wasm_types(ptr_size, types, &mut sig.params) {
+            if !ty.push_wasm_types(cx, types, &mut sig.params) {
                 // Too many parameters to pass directly
                 // Function will have a single pointer parameter to pass the arguments
                 // via linear memory
@@ -1304,7 +1337,7 @@ impl ComponentFuncType {
         match (abi, options.concurrency) {
             (Abi::Lower | Abi::Lift, Concurrency::Sync) => {
                 if let Some(ty) = &self.result {
-                    if !ty.push_wasm_types(ptr_size, types, &mut sig.results) {
+                    if !ty.push_wasm_types(cx, types, &mut sig.results) {
                         // Too many results to return directly, either a retptr
                         // parameter will be used (import) or a single pointer
                         // will be returned (export).
@@ -1342,7 +1375,7 @@ impl ComponentFuncType {
                     // expected core signature of the lifted function.
 
                     let overflow = !ty.push_wasm_types(
-                        ptr_size,
+                        cx,
                         types,
                         &mut LoweredTypes::new(MAX_FLAT_FUNC_PARAMS),
                     );
@@ -1638,14 +1671,15 @@ impl TypeData for ComponentDefinedType {
 ///
 /// This is packed into a single `u32` as it's stored on every defined type:
 ///
-/// * bits 0..28 - `elem_size(t, 'i64')`, the number of bytes a value of this
-///   type takes up when stored in a 64-bit linear memory. Validation requires
-///   this to be less than `MAX_WASM_VALUE_TYPE_BYTE_SIZE`. Note that this only
-///   tracks 64-bit linear memory sizes because ABI information isn't needed in
+/// * bits 0..28 - the worst-case `elem_size(cx, t)`, the number of bytes a
+///   value of this type takes up when stored in a 64-bit linear memory with
+///   `borrow` handles lowered as an `i64` resource representation. Validation
+///   requires this to be less than `MAX_WASM_VALUE_TYPE_BYTE_SIZE`. Note that
+///   this only tracks this worst case because ABI information isn't needed in
 ///   validation except for ensuring sizes are beneath a certain threshold.
 ///
-/// * bits 28..30 - the base-2 logarithm of `alignment(t, 'i64')`, so 0, 1, 2,
-///   or 3 for an alignment of 1, 2, 4, or 8.
+/// * bits 28..30 - the base-2 logarithm of the worst-case `alignment(cx, t)`,
+///   so 0, 1, 2, or 3 for an alignment of 1, 2, 4, or 8.
 ///
 /// * bit 30 - whether or not this type transitively contains a `borrow`. For
 ///   example `(borrow $t)` and `(list (borrow $t))` both do but `(list u32)`
@@ -1691,8 +1725,13 @@ impl AbiInfo {
     const CHAR: AbiInfo = AbiInfo::U32;
     const ERROR_CONTEXT: AbiInfo = AbiInfo::U32.with_handle(true);
     const PTR_PAIR: AbiInfo = AbiInfo::new_unchecked(16, 8, false);
+    // Handles by default are all `i32` and encompasses things like own<T>,
+    // futures, streams, etc.
     const HANDLE: AbiInfo = AbiInfo::new_unchecked(4, 4, false).with_handle(true);
-    const BORROW: AbiInfo = AbiInfo::HANDLE.with_borrow(true);
+    // Borrows are notably 8-bytes large instead of 4 like HANDLE above because
+    // the rep of a resource might be `i64` which is what a defining component
+    // would receive.
+    const BORROW: AbiInfo = AbiInfo::new_unchecked(8, 8, true).with_handle(true);
 
     pub(crate) fn primitive(ty: PrimitiveValType) -> AbiInfo {
         match ty {
@@ -1922,58 +1961,54 @@ impl ComponentDefinedType {
 
     fn push_wasm_types(
         &self,
-        ptr_size: PtrSize,
+        cx: FlattenCx<'_>,
         types: &TypeList,
         lowered_types: &mut LoweredTypes,
     ) -> bool {
         match self {
-            Self::Primitive(ty) => push_primitive_wasm_types(ptr_size, ty, lowered_types),
+            Self::Primitive(ty) => push_primitive_wasm_types(cx.ptr_size, ty, lowered_types),
             Self::Record(r) => r
                 .fields
                 .iter()
-                .all(|(_, ty)| ty.push_wasm_types(ptr_size, types, lowered_types)),
+                .all(|(_, ty)| ty.push_wasm_types(cx, types, lowered_types)),
             Self::Variant(v) => Self::push_variant_wasm_types(
                 v.cases.iter().filter_map(|(_, case)| case.ty.as_ref()),
-                ptr_size,
+                cx,
                 types,
                 lowered_types,
             ),
             Self::List { .. } | Self::Map { .. } => {
-                lowered_types.try_push(ptr_size.core_type())
-                    && lowered_types.try_push(ptr_size.core_type())
+                lowered_types.try_push(cx.ptr_size.core_type())
+                    && lowered_types.try_push(cx.ptr_size.core_type())
             }
             Self::FixedLengthList {
                 element: ty,
                 length,
                 ..
-            } => (0..*length).all(|_n| ty.push_wasm_types(ptr_size, types, lowered_types)),
+            } => (0..*length).all(|_n| ty.push_wasm_types(cx, types, lowered_types)),
             Self::Tuple(t) => t
                 .types
                 .iter()
-                .all(|ty| ty.push_wasm_types(ptr_size, types, lowered_types)),
+                .all(|ty| ty.push_wasm_types(cx, types, lowered_types)),
             Self::Flags(names) => {
                 (0..(names.len() + 31) / 32).all(|_| lowered_types.try_push(ValType::I32))
             }
-            Self::Enum(_)
-            | Self::Own(_)
-            | Self::Borrow(_)
-            | Self::Future { .. }
-            | Self::Stream { .. } => lowered_types.try_push(ValType::I32),
-            Self::Option { ty, .. } => {
-                Self::push_variant_wasm_types([ty].into_iter(), ptr_size, types, lowered_types)
+            Self::Borrow(id) => lowered_types.try_push(cx.borrow_type(*id)),
+            Self::Enum(_) | Self::Own(_) | Self::Future { .. } | Self::Stream { .. } => {
+                lowered_types.try_push(ValType::I32)
             }
-            Self::Result { ok, err, .. } => Self::push_variant_wasm_types(
-                ok.iter().chain(err.iter()),
-                ptr_size,
-                types,
-                lowered_types,
-            ),
+            Self::Option { ty, .. } => {
+                Self::push_variant_wasm_types([ty].into_iter(), cx, types, lowered_types)
+            }
+            Self::Result { ok, err, .. } => {
+                Self::push_variant_wasm_types(ok.iter().chain(err.iter()), cx, types, lowered_types)
+            }
         }
     }
 
     fn push_variant_wasm_types<'a>(
         cases: impl Iterator<Item = &'a ComponentValType>,
-        ptr_size: PtrSize,
+        cx: FlattenCx<'_>,
         types: &TypeList,
         lowered_types: &mut LoweredTypes,
     ) -> bool {
@@ -1987,7 +2022,7 @@ impl ComponentDefinedType {
         for ty in cases {
             let mut temp = LoweredTypes::new(lowered_types.max);
 
-            if !ty.push_wasm_types(ptr_size, types, &mut temp) {
+            if !ty.push_wasm_types(cx, types, &mut temp) {
                 return false;
             }
 
