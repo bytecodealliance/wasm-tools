@@ -1340,7 +1340,7 @@ impl ComponentState {
         let mut options = self.check_options(types, options, offset)?;
         options.check_lift(types, self, core_ty_id, offset)?;
         options.check_asyncness(ty, offset)?;
-        let func_ty = ty.lower(types, &options, Abi::Lift, offset)?;
+        let func_ty = ty.lower(types, self, &options, Abi::Lift, offset)?;
         let lowered_core_ty_id = func_ty.intern(types, offset)?;
 
         if core_ty_id == lowered_core_ty_id {
@@ -1398,7 +1398,7 @@ impl ComponentState {
         options.check_lower(offset)?;
         options.check_asyncness(ty, offset)?;
 
-        let func_ty = ty.lower(types, &options, Abi::Lower, offset)?;
+        let func_ty = ty.lower(types, self, &options, Abi::Lower, offset)?;
         let ty_id = func_ty.intern(types, offset)?;
 
         self.core_funcs.push(ty_id);
@@ -1497,7 +1497,7 @@ impl ComponentState {
         options.check_lower(offset)?;
         options.require_sync(offset, "task.return")?;
 
-        let func_ty = func_ty.lower(types, &options, Abi::Lower, offset)?;
+        let func_ty = func_ty.lower(types, self, &options, Abi::Lower, offset)?;
         let ty_id = func_ty.intern(types, offset)?;
 
         self.core_funcs.push(ty_id);
@@ -2357,14 +2357,16 @@ impl ComponentState {
 
     fn check_local_resource(&self, idx: u32, types: &TypeList, offset: u64) -> Result<ValType> {
         let resource = self.resource_at(idx, types, offset)?;
-        match self
-            .defined_resources
-            .get(&resource.resource())
-            .and_then(|rep| *rep)
-        {
+        match self.local_resource_rep(resource.resource()) {
             Some(ty) => Ok(ty),
             None => bail!(offset, "type {idx} is not a local resource"),
         }
+    }
+
+    /// Returns the representation type of `resource` if it's defined locally
+    /// within this component, or `None` otherwise.
+    pub(crate) fn local_resource_rep(&self, resource: ResourceId) -> Option<ValType> {
+        self.defined_resources.get(&resource).and_then(|rep| *rep)
     }
 
     fn resource_at<'a>(
