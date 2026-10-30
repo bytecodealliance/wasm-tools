@@ -159,12 +159,16 @@ impl<'source> Parser<'source> {
             // Parse value
             let value = self.parse_node()?;
             children.extend([key, value]);
-            // Parse comma and/or end of record or map
-            if self.advance()? == Token::Comma {
-                self.advance()?;
-            }
-            if self.token() == Token::BraceClose {
-                break;
+            // Parse comma or closing brace
+            match self.advance()? {
+                Token::Comma => {
+                    self.advance()?;
+                    if self.token() == Token::BraceClose {
+                        break;
+                    }
+                }
+                Token::BraceClose => break,
+                _ => return Err(self.unexpected_token()),
             }
         }
         Ok(Node::new(
@@ -189,12 +193,15 @@ impl<'source> Parser<'source> {
                     format!("{flag:?}"),
                 ));
             }
-            // Parse comma and/or end of flags
-            if self.advance()? == Token::Comma {
-                self.advance()?;
-            }
-            if self.token() == Token::BraceClose {
-                break;
+            match self.advance()? {
+                Token::Comma => {
+                    self.advance()?;
+                    if self.token() == Token::BraceClose {
+                        break;
+                    }
+                }
+                Token::BraceClose => break,
+                _ => return Err(self.unexpected_token()),
             }
         }
         Ok(Node::new(
@@ -679,6 +686,111 @@ mod tests {
         for input in ["{write, exec}", "{exec, write}", "{%exec, write}"] {
             let Flags(names) = Parser::new(input).parse_value(&ty).unwrap();
             assert_eq!(names, ["write", "exec"], "for {input:?}");
+        }
+    }
+
+    #[test]
+    fn reject_record_missing_commas() {
+        let ty = Type::record([("red", Type::S32), ("green", Type::CHAR)]).unwrap();
+
+        for input in [
+            r#"{"red": 1 "green": 'a'}"#,
+            r#"{"red":1"green":'a'}"#,
+            "{\"red\": 1\n\"green\": 'a'}",
+        ] {
+            let err = Parser::new(input).parse_value::<Value>(&ty).unwrap_err();
+            assert_eq!(err.kind(), ParserErrorKind::UnexpectedToken);
+        }
+    }
+
+    #[test]
+    fn reject_map_missing_commas() {
+        let ty = Type::map(Type::STRING, Type::U32).unwrap();
+        for input in [
+            r#"{"a": 1 "b": 2}"#,
+            r#"{"a":1"b":2}"#,
+            "{\"a\": 1\n\"b\": 2}",
+        ] {
+            let err = Parser::new(input).parse_value::<Value>(&ty).unwrap_err();
+            assert_eq!(err.kind(), ParserErrorKind::UnexpectedToken);
+        }
+
+        let ty = Type::map(Type::S8, Type::BOOL).unwrap();
+        for input in ["{-1: true 1: false}", "{-1:true-2:false}"] {
+            let err = Parser::new(input).parse_value::<Value>(&ty).unwrap_err();
+            assert_eq!(err.kind(), ParserErrorKind::UnexpectedToken);
+        }
+    }
+
+    #[test]
+    fn reject_flags_missing_commas() {
+        let ty = Type::flags(["read", "write", "exec"]).unwrap();
+        for input in [
+            "{read write}",
+            "{read write exec}",
+            "{read, write exec}",
+            "{%read write}",
+            "{read\nwrite}",
+            "{read // comment\nwrite}",
+        ] {
+            let err = Parser::new(input).parse_value::<Value>(&ty).unwrap_err();
+            assert_eq!(err.kind(), ParserErrorKind::UnexpectedToken);
+        }
+    }
+
+    #[test]
+    fn reject_missing_commas_untyped() {
+        // The commas are also required before any type is known.
+        for input in [
+            "{a: 1 b: 2}",
+            "{a:0b:\"\"}",
+            "{a b}",
+            "{a b c}",
+            r#"{"a": 1 "b": 2}"#,
+            "{1: 2 3: 4}",
+            "{a: {b: 1 c: 2}}",
+            "{a: [{b: 1 c: 2}]}",
+        ] {
+            let err = Parser::new(input).parse_raw_value().unwrap_err();
+            assert_eq!(err.kind(), ParserErrorKind::UnexpectedToken);
+        }
+    }
+
+    #[test]
+    fn accept_commas_between_and_after_entries() {
+        let ty = Type::record([("red", Type::S32), ("green", Type::CHAR)]).unwrap();
+        for input in [
+            "{red: 0, green: 'a'}",
+            "{red: 0, green: 'a',}",
+            "{ red : 0 , green : 'a' , }",
+            "{red: 0 // c\n, green: 'a'}",
+        ] {
+            Parser::new(input).parse_value::<Value>(&ty).unwrap();
+        }
+        let ty = Type::flags(["read", "write"]).unwrap();
+        for input in [
+            "{read, write}",
+            "{read, write,}",
+            "{ read , write , }",
+            "{read}",
+            "{read,}",
+        ] {
+            Parser::new(input).parse_value::<Value>(&ty).unwrap();
+        }
+    }
+
+    #[test]
+    fn reject_record_unknown_fields() {
+        let ty = Type::record([("red", Type::S32), ("green", Type::CHAR)]).unwrap();
+        for input in [
+            "{red: 0, green: 'a', blue: 1}",
+            "{blue: 1, red: 0, green: 'a'}",
+            // The value of an unknown field is not checked against anything.
+            "{red: 0, green: 'a', blue: 300}",
+            "{red: 0, green: 'a', blue: {x: 1, x: 2}}",
+        ] {
+            let err = Parser::new(input).parse_value::<Value>(&ty).unwrap_err();
+            assert_eq!(err.kind(), ParserErrorKind::InvalidValue);
         }
     }
 
