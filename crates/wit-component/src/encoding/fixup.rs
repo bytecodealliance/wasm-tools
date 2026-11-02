@@ -1,6 +1,6 @@
 use crate::ComponentEncoder;
 use crate::encoding::{CustomModule, EncodingState, Shim, ShimKind, Shims};
-use crate::validation::Export;
+use crate::validation::{Export, IndexType};
 use anyhow::{Result, bail};
 use indexmap::IndexMap;
 use std::collections::HashMap;
@@ -46,6 +46,9 @@ pub struct FixupModule {
     /// This is deferred to get emitted until the very end so all imports have
     /// been settled and then these import indices can be known.
     defined_functions: Vec<(u32, DefinedFunction)>,
+
+    /// The index type of the component's linear memory.
+    pub index_type: IndexType,
 
     // Current counters for index spaces.
     funcs: u32,
@@ -204,8 +207,14 @@ impl FixupModule {
 
     fn type_index(&mut self, sig: &WasmSignature) -> u32 {
         self.type_intern(
-            sig.params.iter().map(super::to_val_type).collect(),
-            sig.results.iter().map(super::to_val_type).collect(),
+            sig.params
+                .iter()
+                .map(|ty| self.index_type.encoder_val_type(ty))
+                .collect(),
+            sig.results
+                .iter()
+                .map(|ty| self.index_type.encoder_val_type(ty))
+                .collect(),
         )
     }
 
@@ -724,7 +733,7 @@ impl FixupModule {
                 // Resource destructors are handled here directly inline.
                 ShimFill::ImportedResourceDtor(func) => {
                     let func = *func;
-                    let ty = self.type_intern(vec![ValType::I32], Vec::new());
+                    let ty = self.type_intern(vec![self.index_type.encoder_ptr()], Vec::new());
                     *shim = ShimFill::DefinedFunction(self.defined_functions.len());
                     self.defined_functions.push((
                         ty,
@@ -778,7 +787,8 @@ impl FixupModule {
     ) -> Result<()> {
         let instance = for_module.to_imported_instance();
         for name in state.info.exports_for(for_module).reallocs() {
-            let ty = self.type_intern(vec![ValType::I32; 4], vec![ValType::I32]);
+            let ptr = self.index_type.encoder_ptr();
+            let ty = self.type_intern(vec![ptr; 4], vec![ptr]);
             let func = self.import_func(&instance, name, ty)?;
             let index = self.defined_functions.len();
             self.defined_functions.push((

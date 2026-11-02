@@ -1,0 +1,28 @@
+package foo:foo;
+
+interface bar {
+  foo: async func(s: string) -> string;
+}
+
+interface streams {
+  foo: async func(x: future<future<u32>>, y: u32) -> stream<string>;
+}
+
+interface exp {
+  resource a {
+    constructor();
+    // FIXME: needs #2804 plus some wit-parser changes
+    //name: async func() -> string;
+  }
+}
+
+world module {
+  import bar;
+  import foo: async func(s: string) -> string;
+  import streams;
+
+  export bar;
+  export foo: async func(s: string) -> string;
+  export streams;
+  export exp;
+}

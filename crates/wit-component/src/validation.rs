@@ -17,23 +17,81 @@ use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
 };
 
-fn wasm_sig_to_func_type(signature: WasmSignature) -> FuncType {
-    fn from_wasm_type(ty: &WasmType) -> ValType {
+/// The index type of the linear memory used by a module for the canonical ABI.
+///
+/// This determines the core wasm type of pointers and lengths in lifted and
+/// lowered functions, `realloc`, and intrinsics which take pointers. An `i64`
+/// index type corresponds to the component model's 64-bit (`cm64`) feature.
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
+pub enum IndexType {
+    #[default]
+    I32,
+    I64,
+}
+
+impl fmt::Display for IndexType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            IndexType::I32 => f.write_str("i32"),
+            IndexType::I64 => f.write_str("i64"),
+        }
+    }
+}
+
+impl IndexType {
+    /// Returns the index type used for canonical ABI pointers by the memory
+    /// `ty`.
+    pub fn of_memory(ty: &MemoryType) -> IndexType {
+        if ty.memory64 {
+            IndexType::I64
+        } else {
+            IndexType::I32
+        }
+    }
+
+    /// Returns the core wasm type of pointers and lengths.
+    pub fn ptr(&self) -> ValType {
+        match self {
+            IndexType::I32 => ValType::I32,
+            IndexType::I64 => ValType::I64,
+        }
+    }
+
+    /// Returns the core wasm type that `ty` maps to with this index type.
+    pub fn val_type(&self, ty: &WasmType) -> ValType {
         match ty {
             WasmType::I32 => ValType::I32,
             WasmType::I64 => ValType::I64,
             WasmType::F32 => ValType::F32,
             WasmType::F64 => ValType::F64,
-            WasmType::Pointer => ValType::I32,
+            WasmType::Pointer | WasmType::Length => self.ptr(),
             WasmType::PointerOrI64 => ValType::I64,
-            WasmType::Length => ValType::I32,
         }
     }
 
-    FuncType::new(
-        signature.params.iter().map(from_wasm_type),
-        signature.results.iter().map(from_wasm_type),
-    )
+    /// Returns the core wasm function type that `signature` maps to with this
+    /// index type.
+    pub fn func_type(&self, signature: &WasmSignature) -> FuncType {
+        FuncType::new(
+            signature.params.iter().map(|ty| self.val_type(ty)),
+            signature.results.iter().map(|ty| self.val_type(ty)),
+        )
+    }
+
+    /// Same as [`IndexType::ptr`], but for `wasm-encoder`.
+    pub fn encoder_ptr(&self) -> wasm_encoder::ValType {
+        self.ptr().try_into().unwrap()
+    }
+
+    /// Same as [`IndexType::val_type`], but for `wasm-encoder`.
+    pub fn encoder_val_type(&self, ty: &WasmType) -> wasm_encoder::ValType {
+        self.val_type(ty).try_into().unwrap()
+    }
+
+    /// Returns the expected core wasm type of the `realloc` canonical option.
+    fn realloc_function_type(&self) -> FuncType {
+        FuncType::new([self.ptr(); 4], [self.ptr()])
+    }
 }
 
 /// Metadata about a validated module and what was found internally.
@@ -50,6 +108,9 @@ pub struct ValidatedModule {
 
     /// Information about a module's exports.
     pub exports: ExportMap,
+
+    /// The index type of this module's linear memory.
+    pub index_type: IndexType,
 }
 
 impl ValidatedModule {
@@ -59,17 +120,35 @@ impl ValidatedModule {
         exports: &IndexSet<WorldKey>,
         import_map: Option<&ModuleImportMap>,
         info: Option<&LibraryInfo>,
+        default_index_type: IndexType,
     ) -> Result<ValidatedModule> {
         let mut validator = Validator::new_with_features(WasmFeatures::all());
         let mut ret = ValidatedModule::default();
 
+        // Parse `bytes` as a wasm module here, buffering up all
+        // imports/exports. First the index type of linear memory must be
+        // determined before those can be type-checked.
+        let mut imports = Vec::new();
+        let mut module_exports = Vec::new();
+        let mut index_type = None;
+        let mut types = None;
+        let mut register_memory = |ty: &MemoryType| -> Result<()> {
+            let ty = IndexType::of_memory(ty);
+            match *index_type.get_or_insert(ty) {
+                prev if prev == ty => Ok(()),
+                prev => bail!(
+                    "linear memories with different index types, \
+                     `{prev}` and `{ty}`, are not supported"
+                ),
+            }
+        };
+
         for payload in Parser::new(0).parse_all(bytes) {
             let payload = payload?;
-            if let ValidPayload::End(_) = validator.payload(&payload)? {
+            if let ValidPayload::End(t) = validator.payload(&payload)? {
+                types = Some(t);
                 break;
             }
-
-            let types = validator.types(0).unwrap();
 
             match payload {
                 Payload::Version { encoding, .. } if encoding != Encoding::Module => {
@@ -78,19 +157,39 @@ impl ValidatedModule {
                 Payload::ImportSection(s) => {
                     for import in s.into_imports() {
                         let import = import?;
-                        ret.imports.add(import, encoder, import_map, info, types)?;
+                        if let TypeRef::Memory(ty) = import.ty {
+                            register_memory(&ty)?;
+                        }
+                        imports.push(import);
+                    }
+                }
+                Payload::MemorySection(s) => {
+                    for ty in s {
+                        register_memory(&ty?)?;
                     }
                 }
                 Payload::ExportSection(s) => {
                     for export in s {
-                        let export = export?;
-                        ret.exports.add(export, encoder, &exports, types)?;
+                        module_exports.push(export?);
                     }
                 }
                 _ => continue,
             }
         }
 
+        // Register our known index type at this point, and then subsequently
+        // register/classify all imports/exports.
+        let types = types.unwrap();
+        let types = types.as_ref();
+        ret.index_type = index_type.unwrap_or(default_index_type);
+        ret.imports.index_type = ret.index_type;
+        ret.exports.index_type = ret.index_type;
+        for import in imports {
+            ret.imports.add(import, encoder, import_map, info, types)?;
+        }
+        for export in module_exports {
+            ret.exports.add(export, encoder, &exports, types)?;
+        }
         ret.exports.validate(encoder, exports)?;
 
         Ok(ret)
@@ -111,6 +210,10 @@ pub struct ImportMap {
 
     /// Cache for the last-inserted `MainModuleMemory` into `names`
     imported_memory: Option<MemoryType>,
+
+    /// The index type of the module's memory, used to validate the types of
+    /// imports.
+    index_type: IndexType,
 }
 
 pub enum ImportInstance {
@@ -468,7 +571,12 @@ pub enum Import {
     /// A `canon thread.new-indirect` intrinsic.
     ///
     /// This allows the guest to create a new thread running a specified function.
-    ThreadNewIndirect,
+    ThreadNewIndirect {
+        /// The type of the index into the function table.
+        table_idx_ty: ValType,
+        /// The type of the closure argument passed to the new thread.
+        closure_ty: ValType,
+    },
 
     /// A `canon thread.resume-later` intrinsic.
     ThreadResumeLater,
@@ -618,8 +726,14 @@ impl ImportMap {
         }
 
         let (module, names) = match import.module.strip_prefix("cm32p2") {
-            Some(suffix) => (suffix, STANDARD),
-            None if encoder.reject_legacy_names => (import.module, STANDARD),
+            Some(suffix) => {
+                require_standard_index_type(self.index_type)?;
+                (suffix, STANDARD)
+            }
+            None if encoder.reject_legacy_names => {
+                require_standard_index_type(self.index_type)?;
+                (import.module, STANDARD)
+            }
             None => (import.module, LEGACY),
         };
         self.classify_component_model_import(module, import.name, encoder, ty, names)
@@ -638,6 +752,7 @@ impl ImportMap {
         let resolve = &encoder.metadata.resolve;
         let world_id = encoder.metadata.world;
         let world = &resolve.worlds[world_id];
+        let ptr = self.index_type.ptr();
 
         if module == names.import_root() {
             if names.error_context_drop(name) {
@@ -664,14 +779,14 @@ impl ImportMap {
                 return Ok(Import::WaitableSetNew);
             }
 
-            if let Some(result_ty) = names.waitable_set_wait(name) {
-                let expected = FuncType::new([ValType::I32, result_ty], [ValType::I32]);
+            if names.waitable_set_wait(name) {
+                let expected = FuncType::new([ValType::I32, ptr], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::WaitableSetWait);
             }
 
-            if let Some(result_ty) = names.waitable_set_poll(name) {
-                let expected = FuncType::new([ValType::I32, result_ty], [ValType::I32]);
+            if names.waitable_set_poll(name) {
+                let expected = FuncType::new([ValType::I32, ptr], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::WaitableSetPoll);
             }
@@ -703,23 +818,33 @@ impl ImportMap {
             }
 
             if let Some(encoding) = names.error_context_new(name) {
-                let expected = FuncType::new([ValType::I32; 2], [ValType::I32]);
+                let expected = FuncType::new([ptr; 2], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::ErrorContextNew { encoding });
             }
 
             if let Some(encoding) = names.error_context_debug_message(name) {
-                let expected = FuncType::new([ValType::I32; 2], []);
+                let expected = FuncType::new([ValType::I32, ptr], []);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::ErrorContextDebugMessage { encoding });
             }
 
-            if let Some((slot_ty, slot)) = names.context_get(name) {
+            // The type of context slots, `i32` or `i64`, is inferred from the
+            // signature of the import.
+            if let Some(slot) = names.context_get(name) {
+                let slot_ty = match ty.results() {
+                    [t] if is_i32_or_i64(*t) => *t,
+                    _ => ValType::I32,
+                };
                 let expected = FuncType::new([], [slot_ty]);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::ContextGet { ty: slot_ty, slot });
             }
-            if let Some((slot_ty, slot)) = names.context_set(name) {
+            if let Some(slot) = names.context_set(name) {
+                let slot_ty = match ty.params() {
+                    [t] if is_i32_or_i64(*t) => *t,
+                    _ => ValType::I32,
+                };
                 let expected = FuncType::new([slot_ty], []);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::ContextSet { ty: slot_ty, slot });
@@ -730,9 +855,25 @@ impl ImportMap {
                 return Ok(Import::ThreadIndex);
             }
             if names.thread_new_indirect(name) {
-                let expected = FuncType::new([ValType::I32; 2], [ValType::I32]);
+                // The first parameter is an index into the function table, and
+                // its type is determined by the table's address type. The
+                // second parameter is the closure argument passed to the new
+                // thread, which may be either `i32` or `i64`.
+                //
+                // Note that the table index type is not checked here against
+                // the actual `__indirect_function_table` of the module.
+                // Instead that's deferred to wasmparser's validation of the
+                // final component.
+                let (table_idx_ty, closure_ty) = match ty.params() {
+                    [a, b] if is_i32_or_i64(*a) && is_i32_or_i64(*b) => (*a, *b),
+                    _ => (ValType::I32, ValType::I32),
+                };
+                let expected = FuncType::new([table_idx_ty, closure_ty], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::ThreadNewIndirect);
+                return Ok(Import::ThreadNewIndirect {
+                    table_idx_ty,
+                    closure_ty,
+                });
             }
             if names.thread_resume_later(name) {
                 let expected = FuncType::new([ValType::I32], []);
@@ -773,7 +914,7 @@ impl ImportMap {
             let (key_name, abi) = names.world_key_name_and_abi(name);
             let key = WorldKey::Name(key_name.to_string());
             if let Some(WorldItem::Function(func)) = world.imports.get(&key) {
-                validate_func(resolve, ty, func, abi)?;
+                validate_func(resolve, ty, func, abi, self.index_type)?;
                 return Ok(Import::WorldFunc(key, func.name.clone(), abi));
             }
 
@@ -827,7 +968,7 @@ impl ImportMap {
         let interface = &resolve.interfaces[id];
         let (function_name, abi) = names.interface_function_name_and_abi(name);
         if let Some(f) = interface.functions.get(function_name) {
-            validate_func(resolve, ty, f, abi).with_context(|| {
+            validate_func(resolve, ty, f, abi, self.index_type).with_context(|| {
                 let name = resolve.name_world_key(&key);
                 format!("failed to validate import interface `{name}`")
             })?;
@@ -884,6 +1025,7 @@ impl ImportMap {
         let resolve = &encoder.metadata.resolve;
         let world_id = encoder.metadata.world;
         let world = &resolve.worlds[world_id];
+        let ptr = self.index_type.ptr();
 
         // Separate out `Option<WorldKey>` and `Option<InterfaceId>`. If an
         // interface is NOT specified then the `WorldKey` which is attached to
@@ -920,7 +1062,7 @@ impl ImportMap {
             if let Some(name) = names.resource_new_name(name) {
                 if let Some(id) = resource_test(name) {
                     let key = key.unwrap_or_else(|| WorldKey::Name(name.to_string()));
-                    let expected = FuncType::new([ValType::I32], [ValType::I32]);
+                    let expected = FuncType::new([ptr], [ValType::I32]);
                     validate_func_sig(name, &expected, ty)?;
                     return Ok(Some(Import::ExportedResourceNew(key, id)));
                 }
@@ -928,7 +1070,7 @@ impl ImportMap {
             if let Some(name) = names.resource_rep_name(name) {
                 if let Some(id) = resource_test(name) {
                     let key = key.unwrap_or_else(|| WorldKey::Name(name.to_string()));
-                    let expected = FuncType::new([ValType::I32], [ValType::I32]);
+                    let expected = FuncType::new([ValType::I32], [ptr]);
                     validate_func_sig(name, &expected, ty)?;
                     return Ok(Some(Import::ExportedResourceRep(key, id)));
                 }
@@ -936,8 +1078,8 @@ impl ImportMap {
             if let Some(name) = names.task_return_name(name) {
                 let func = get_function(resolve, world, name, id, import)?;
                 let key = key.unwrap_or_else(|| WorldKey::Name(name.to_string()));
-                // TODO: should call `validate_func_sig` but would require
-                // calculating the expected signature based of `func.result`.
+                let (_, sig) = crate::encoding::task_return_options_and_type(resolve, func);
+                validate_func_sig(name, &self.index_type.func_type(&sig), ty)?;
                 return Ok(Some(Import::ExportedTaskReturn(key, id, func.clone())));
             }
             if names.task_cancel(name) {
@@ -962,13 +1104,21 @@ impl ImportMap {
             validate_func_sig(name, &FuncType::new([], [ValType::I64]), ty)?;
             Import::FutureNew(info)
         } else if let Some(info) = names.future_write(&lookup_context, name) {
-            validate_func_sig(name, &FuncType::new([ValType::I32; 2], [ValType::I32]), ty)?;
+            validate_func_sig(
+                name,
+                &FuncType::new([ValType::I32, ptr], [ValType::I32]),
+                ty,
+            )?;
             Import::FutureWrite {
                 async_: info.async_lowered,
                 info: info.inner,
             }
         } else if let Some(info) = names.future_read(&lookup_context, name) {
-            validate_func_sig(name, &FuncType::new([ValType::I32; 2], [ValType::I32]), ty)?;
+            validate_func_sig(
+                name,
+                &FuncType::new([ValType::I32, ptr], [ValType::I32]),
+                ty,
+            )?;
             Import::FutureRead {
                 async_: info.async_lowered,
                 info: info.inner,
@@ -998,13 +1148,13 @@ impl ImportMap {
             validate_func_sig(name, &FuncType::new([], [ValType::I64]), ty)?;
             Import::StreamNew(info)
         } else if let Some(info) = names.stream_write(&lookup_context, name) {
-            validate_func_sig(name, &FuncType::new([ValType::I32; 3], [ValType::I32]), ty)?;
+            validate_func_sig(name, &FuncType::new([ValType::I32, ptr, ptr], [ptr]), ty)?;
             Import::StreamWrite {
                 async_: info.async_lowered,
                 info: info.inner,
             }
         } else if let Some(info) = names.stream_read(&lookup_context, name) {
-            validate_func_sig(name, &FuncType::new([ValType::I32; 3], [ValType::I32]), ty)?;
+            validate_func_sig(name, &FuncType::new([ValType::I32, ptr, ptr], [ptr]), ty)?;
             Import::StreamRead {
                 async_: info.async_lowered,
                 info: info.inner,
@@ -1121,6 +1271,10 @@ impl ImportMap {
 pub struct ExportMap {
     names: IndexMap<String, Export>,
     raw_exports: IndexMap<String, FuncType>,
+
+    /// The index type of the module's memory, used to validate the types of
+    /// exports.
+    index_type: IndexType,
 }
 
 /// All possible (known) exports from a core wasm module that are recognized and
@@ -1215,7 +1369,10 @@ impl ExportMap {
         }
 
         let (name, names) = match export.name.strip_prefix("cm32p2") {
-            Some(name) => (name, STANDARD),
+            Some(name) => {
+                require_standard_index_type(self.index_type)?;
+                (name, STANDARD)
+            }
             None if encoder.reject_legacy_names => return Ok(None),
             None => (export.name, LEGACY),
         };
@@ -1261,8 +1418,7 @@ impl ExportMap {
 
         // Handle a few special-cased names first.
         if name == names.export_realloc() {
-            let expected = FuncType::new([ValType::I32; 4], [ValType::I32]);
-            validate_func_sig(name, &expected, ty)?;
+            validate_func_sig(name, &self.index_type.realloc_function_type(), ty)?;
             return Ok(Some(Export::GeneralPurposeRealloc));
         } else if name == names.export_initialize() {
             let expected = FuncType::new([], []);
@@ -1285,7 +1441,7 @@ impl ExportMap {
 
         // Try to match this to a known WIT export that `exports` allows.
         if let Some((key, id, f)) = names.match_wit_export(name, resolve, world, exports) {
-            validate_func(resolve, ty, f, abi).with_context(|| {
+            validate_func(resolve, ty, f, abi, self.index_type).with_context(|| {
                 let key = resolve.name_world_key(key);
                 format!("failed to validate export for `{key}`")
             })?;
@@ -1307,7 +1463,7 @@ impl ExportMap {
         // See if this is a post-return for any known WIT export.
         if let Some(remaining) = names.strip_post_return(name) {
             if let Some((key, id, f)) = names.match_wit_export(remaining, resolve, world, exports) {
-                validate_post_return(resolve, ty, f).with_context(|| {
+                validate_post_return(resolve, ty, f, self.index_type).with_context(|| {
                     let key = resolve.name_world_key(key);
                     format!("failed to validate export for `{key}`")
                 })?;
@@ -1342,7 +1498,7 @@ impl ExportMap {
 
         // And, finally, see if it matches a known destructor.
         if let Some(dtor) = names.match_wit_resource_dtor(name, resolve, world, exports) {
-            let expected = FuncType::new([ValType::I32], []);
+            let expected = FuncType::new([self.index_type.ptr()], []);
             validate_func_sig(full_name, &expected, ty)?;
             return Ok(Some(Export::ResourceDtor(dtor)));
         }
@@ -1617,8 +1773,8 @@ trait NameMangling {
     fn backpressure_inc(&self, name: &str) -> bool;
     fn backpressure_dec(&self, name: &str) -> bool;
     fn waitable_set_new(&self, name: &str) -> bool;
-    fn waitable_set_wait(&self, name: &str) -> Option<ValType>;
-    fn waitable_set_poll(&self, name: &str) -> Option<ValType>;
+    fn waitable_set_wait(&self, name: &str) -> bool;
+    fn waitable_set_poll(&self, name: &str) -> bool;
     fn waitable_set_drop(&self, name: &str) -> bool;
     fn waitable_join(&self, name: &str) -> bool;
     fn subtask_drop(&self, name: &str) -> bool;
@@ -1629,8 +1785,8 @@ trait NameMangling {
     fn error_context_new(&self, name: &str) -> Option<StringEncoding>;
     fn error_context_debug_message(&self, name: &str) -> Option<StringEncoding>;
     fn error_context_drop(&self, name: &str) -> bool;
-    fn context_get(&self, name: &str) -> Option<(ValType, u32)>;
-    fn context_set(&self, name: &str) -> Option<(ValType, u32)>;
+    fn context_get(&self, name: &str) -> Option<u32>;
+    fn context_set(&self, name: &str) -> Option<u32>;
     fn future_new(&self, lookup_context: &PayloadLookupContext, name: &str) -> Option<PayloadInfo>;
     fn future_write(
         &self,
@@ -1742,6 +1898,14 @@ trait NameMangling {
 /// "cm32p2". Note that wasm64 is not supported at this time.
 struct Standard;
 
+/// The "cm32p2" naming scheme is only defined for 32-bit linear memories.
+fn require_standard_index_type(index_type: IndexType) -> Result<()> {
+    if index_type != IndexType::I32 {
+        bail!("the `cm32p2` naming scheme requires a 32-bit linear memory");
+    }
+    Ok(())
+}
+
 const STANDARD: &'static dyn NameMangling = &Standard;
 
 impl NameMangling for Standard {
@@ -1793,11 +1957,11 @@ impl NameMangling for Standard {
     fn waitable_set_new(&self, _name: &str) -> bool {
         false
     }
-    fn waitable_set_wait(&self, _name: &str) -> Option<ValType> {
-        None
+    fn waitable_set_wait(&self, _name: &str) -> bool {
+        false
     }
-    fn waitable_set_poll(&self, _name: &str) -> Option<ValType> {
-        None
+    fn waitable_set_poll(&self, _name: &str) -> bool {
+        false
     }
     fn waitable_set_drop(&self, _name: &str) -> bool {
         false
@@ -1829,10 +1993,10 @@ impl NameMangling for Standard {
     fn error_context_drop(&self, _name: &str) -> bool {
         false
     }
-    fn context_get(&self, _name: &str) -> Option<(ValType, u32)> {
+    fn context_get(&self, _name: &str) -> Option<u32> {
         None
     }
-    fn context_set(&self, _name: &str) -> Option<(ValType, u32)> {
+    fn context_set(&self, _name: &str) -> Option<u32> {
         None
     }
     fn thread_index(&self, _name: &str) -> bool {
@@ -2189,23 +2353,6 @@ impl Legacy {
             None
         }
     }
-
-    /// Matches a name with the given prefix and either no suffix (for backwards compat) or
-    /// "-i32" or "-i64".
-    /// Returns a `ValType` based on the suffix and defaults to `I32`.
-    fn match_with_optional_type_suffix(name: &str, match_prefix: &str) -> Option<ValType> {
-        let tail = name.strip_prefix(match_prefix)?.strip_suffix(']')?;
-        if tail.is_empty() {
-            Some(ValType::I32)
-        } else {
-            match tail.strip_prefix('-')? {
-                "i32" => Some(ValType::I32),
-                "i64" => Some(ValType::I64),
-                // Other suffixes
-                _ => None,
-            }
-        }
-    }
 }
 
 impl NameMangling for Legacy {
@@ -2257,13 +2404,11 @@ impl NameMangling for Legacy {
     fn waitable_set_new(&self, name: &str) -> bool {
         name == "[waitable-set-new]"
     }
-    fn waitable_set_wait(&self, name: &str) -> Option<ValType> {
-        let result_ty = Legacy::match_with_optional_type_suffix(name, "[waitable-set-wait")?;
-        Some(result_ty)
+    fn waitable_set_wait(&self, name: &str) -> bool {
+        name == "[waitable-set-wait]"
     }
-    fn waitable_set_poll(&self, name: &str) -> Option<ValType> {
-        let result_ty = Legacy::match_with_optional_type_suffix(name, "[waitable-set-poll")?;
-        Some(result_ty)
+    fn waitable_set_poll(&self, name: &str) -> bool {
+        name == "[waitable-set-poll]"
     }
     fn waitable_set_drop(&self, name: &str) -> bool {
         name == "[waitable-set-drop]"
@@ -2305,10 +2450,10 @@ impl NameMangling for Legacy {
     fn error_context_drop(&self, name: &str) -> bool {
         name == "[error-context-drop]"
     }
-    fn context_get(&self, name: &str) -> Option<(ValType, u32)> {
+    fn context_get(&self, name: &str) -> Option<u32> {
         parse_context_name(name, "[context-get-")
     }
-    fn context_set(&self, name: &str) -> Option<(ValType, u32)> {
+    fn context_set(&self, name: &str) -> Option<u32> {
         parse_context_name(name, "[context-set-")
     }
     fn thread_index(&self, name: &str) -> bool {
@@ -2685,6 +2830,7 @@ pub fn validate_module(
         &encoder.main_module_exports,
         import_map,
         None,
+        IndexType::default(),
     )
 }
 
@@ -2711,8 +2857,9 @@ pub fn validate_adapter_module(
     required_by_import: &IndexMap<String, FuncType>,
     exports: &IndexSet<WorldKey>,
     library_info: Option<&LibraryInfo>,
+    index_type: IndexType,
 ) -> Result<ValidatedModule> {
-    let ret = ValidatedModule::new(encoder, bytes, exports, None, library_info)?;
+    let ret = ValidatedModule::new(encoder, bytes, exports, None, library_info, index_type)?;
 
     for (name, required_ty) in required_by_import {
         let actual = match ret.exports.raw_exports.get(name) {
@@ -2782,18 +2929,17 @@ fn validate_func(
     ty: &wasmparser::FuncType,
     func: &Function,
     abi: AbiVariant,
+    index_type: IndexType,
 ) -> Result<()> {
-    validate_func_sig(
-        &func.name,
-        &wasm_sig_to_func_type(resolve.wasm_signature(abi, func)),
-        ty,
-    )
+    let sig = resolve.wasm_signature(abi, func);
+    validate_func_sig(&func.name, &index_type.func_type(&sig), ty)
 }
 
 fn validate_post_return(
     resolve: &Resolve,
     ty: &wasmparser::FuncType,
     func: &Function,
+    index_type: IndexType,
 ) -> Result<()> {
     // The expected signature of a post-return function is to take all the
     // parameters that are returned by the guest function and then return no
@@ -2804,9 +2950,13 @@ fn validate_post_return(
     sig.params = mem::take(&mut sig.results);
     validate_func_sig(
         &format!("{} post-return", func.name),
-        &wasm_sig_to_func_type(sig),
+        &index_type.func_type(&sig),
         ty,
     )
+}
+
+fn is_i32_or_i64(ty: ValType) -> bool {
+    matches!(ty, ValType::I32 | ValType::I64)
 }
 
 fn validate_func_sig(name: &str, expected: &FuncType, ty: &wasmparser::FuncType) -> Result<()> {
@@ -2834,23 +2984,14 @@ fn prefixed_intrinsic<'a>(name: &'a str, prefix: &str) -> Option<(&'a str, &'a s
     Some((&suffix[..index], rest))
 }
 
-/// Parses a `[context-get-<N>]` / `[context-set-<N>]` style name, optionally
-/// carrying a type width infix: `[context-get-i64-<N>]`.
-///
-/// Returns the value type together with the numeric slot. Additional type
-/// widths can be added here by extending the match below.
-fn parse_context_name(name: &str, prefix: &str) -> Option<(ValType, u32)> {
-    let (suffix, rest) = prefixed_intrinsic(name, prefix)?;
+/// Parses a `[context-get-<N>]` / `[context-set-<N>]` style name, returning
+/// the numeric slot.
+fn parse_context_name(name: &str, prefix: &str) -> Option<u32> {
+    let (slot, rest) = prefixed_intrinsic(name, prefix)?;
     if !rest.is_empty() {
         return None;
     }
-    let (ty, slot) = match suffix.split_once('-') {
-        Some(("i64", slot)) => (ValType::I64, slot),
-        Some(("i32", slot)) => (ValType::I32, slot),
-        _ => (ValType::I32, suffix),
-    };
-    let slot = slot.parse().ok()?;
-    Some((ty, slot))
+    slot.parse().ok()
 }
 
 fn get_function<'a>(

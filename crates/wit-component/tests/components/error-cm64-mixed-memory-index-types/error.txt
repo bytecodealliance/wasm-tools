@@ -1,0 +1,1 @@
+failed to decode world from module: module was not valid: linear memories with different index types, `i32` and `i64`, are not supported
