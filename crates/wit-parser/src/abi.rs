@@ -1,4 +1,6 @@
-use crate::{Function, Handle, Int, Resolve, Type, TypeDefKind};
+use crate::{
+    Function, Handle, Int, Resolve, Type, TypeDefKind, TypeId, TypeOwner, WorldId, WorldItem,
+};
 use alloc::vec::Vec;
 
 /// A core WebAssembly signature with params and results.
@@ -185,14 +187,31 @@ impl Resolve {
 
     /// Get the WebAssembly type signature for this interface function
     ///
-    /// The first entry returned is the list of parameters and the second entry
-    /// is the list of results for the wasm function signature.
-    pub fn wasm_signature(&self, variant: AbiVariant, func: &Function) -> WasmSignature {
+    /// This function will convert the component-model-typed WIT `func` specified
+    /// into its core wasm equivalent using the `variant` ABI specified. The
+    /// `variant` can specify whether what's happening here, such as a WIT
+    /// function being lowered with `canon lower` or a core function which
+    /// should be lifted into the WIT function with `canon `lift`.
+    ///
+    /// The `world` is the world that `func` is imported into or exported from.
+    /// This is used to handle `borrow<T>` arguments. The representation of a
+    /// borrow in core wasm is either `WasmType::I32` for a generic handle or
+    /// `WasmType::Pointer` for a resource owned by the `world` specified. The
+    /// `world` indicates which ones should be `Pointer`.
+    ///
+    /// Note that correctly assigning types to `borrow<T>` requires that the
+    /// [`Resolve::generate_nominal_type_ids`] method has been called.
+    pub fn wasm_signature(
+        &self,
+        world: WorldId,
+        variant: AbiVariant,
+        func: &Function,
+    ) -> WasmSignature {
         // Note that one extra parameter is allocated in case a return pointer
         // is needed down below for imports.
         let mut storage = [WasmType::I32; Self::MAX_FLAT_PARAMS + 1];
         let mut params = FlatTypes::new(&mut storage);
-        let ok = self.push_flat_list(func.params.iter().map(|p| &p.ty), &mut params);
+        let ok = self.push_flat_list(world, func.params.iter().map(|p| &p.ty), &mut params);
         assert_eq!(ok, !params.overflow);
 
         let max = match variant {
@@ -207,28 +226,6 @@ impl Resolve {
         if indirect_params {
             params.types[0] = WasmType::Pointer;
             params.cur = 1;
-        } else {
-            if matches!(
-                (&func.kind, variant),
-                (
-                    crate::FunctionKind::Method(_)
-                        | crate::FunctionKind::AsyncMethod(_)
-                        | crate::FunctionKind::MethodGetter(_)
-                        | crate::FunctionKind::MethodSetter(_),
-                    AbiVariant::GuestExport
-                        | AbiVariant::GuestExportAsync
-                        | AbiVariant::GuestExportAsyncStackful
-                )
-            ) {
-                // Guest exported methods always receive resource rep as first argument
-                //
-                // TODO: Ideally you would distinguish between imported and exported
-                // resource Handles and then use either I32 or Pointer in abi::push_flat().
-                // But this contextual information isn't available, yet.
-                // See https://github.com/bytecodealliance/wasm-tools/pull/1438 for more details.
-                assert!(matches!(params.types[0], WasmType::I32));
-                params.types[0] = WasmType::Pointer;
-            }
         }
 
         let mut storage = [WasmType::I32; Self::MAX_FLAT_RESULTS];
@@ -237,7 +234,7 @@ impl Resolve {
         match variant {
             AbiVariant::GuestImport | AbiVariant::GuestExport => {
                 if let Some(ty) = &func.result {
-                    self.push_flat(ty, &mut results);
+                    self.push_flat(world, ty, &mut results);
                 }
                 retptr = results.overflow;
 
@@ -289,17 +286,44 @@ impl Resolve {
         }
     }
 
+    /// Returns the flat representation of a `borrow` of the resource `id`.
+    ///
+    /// Resources defined in interfaces exported by a component are passed
+    /// as their representation, which hardcoded as a pointer for now. All
+    /// other resources are passed as an `i32` handle.
+    fn flat_borrow(&self, world: WorldId, mut id: TypeId) -> WasmType {
+        while let TypeDefKind::Type(Type::Id(next)) = self.types[id].kind {
+            id = next;
+        }
+        let TypeOwner::Interface(owner) = self.types[id].owner else {
+            return WasmType::I32;
+        };
+        let exported = self.worlds[world]
+            .exports
+            .values()
+            .any(|item| matches!(item, WorldItem::Interface { id, .. } if *id == owner));
+        if exported {
+            WasmType::Pointer
+        } else {
+            WasmType::I32
+        }
+    }
+
     fn push_flat_list<'a>(
         &self,
+        world: WorldId,
         mut list: impl Iterator<Item = &'a Type>,
         result: &mut FlatTypes<'_>,
     ) -> bool {
-        list.all(|ty| self.push_flat(ty, result))
+        list.all(|ty| self.push_flat(world, ty, result))
     }
 
     /// Appends the flat wasm types representing `ty` onto the `result`
     /// list provided.
-    pub fn push_flat(&self, ty: &Type, result: &mut FlatTypes<'_>) -> bool {
+    ///
+    /// The `world` is used to determine how `borrow<T>` handles are flattened,
+    /// as described in [`Resolve::wasm_signature`].
+    pub fn push_flat(&self, world: WorldId, ty: &Type, result: &mut FlatTypes<'_>) -> bool {
         match ty {
             Type::Bool
             | Type::S8
@@ -317,22 +341,23 @@ impl Resolve {
             Type::String => result.push(WasmType::Pointer) && result.push(WasmType::Length),
 
             Type::Id(id) => match &self.types[*id].kind {
-                TypeDefKind::Type(t) => self.push_flat(t, result),
+                TypeDefKind::Type(t) => self.push_flat(world, t, result),
 
-                TypeDefKind::Handle(Handle::Own(_) | Handle::Borrow(_)) => {
-                    result.push(WasmType::I32)
+                TypeDefKind::Handle(Handle::Own(_)) => result.push(WasmType::I32),
+                TypeDefKind::Handle(Handle::Borrow(id)) => {
+                    result.push(self.flat_borrow(world, *id))
                 }
 
                 TypeDefKind::Resource => todo!(),
 
                 TypeDefKind::Record(r) => {
-                    self.push_flat_list(r.fields.iter().map(|f| &f.ty), result)
+                    self.push_flat_list(world, r.fields.iter().map(|f| &f.ty), result)
                 }
 
-                TypeDefKind::Tuple(t) => self.push_flat_list(t.types.iter(), result),
+                TypeDefKind::Tuple(t) => self.push_flat_list(world, t.types.iter(), result),
 
                 TypeDefKind::Flags(r) => {
-                    self.push_flat_list((0..r.repr().count()).map(|_| &Type::U32), result)
+                    self.push_flat_list(world, (0..r.repr().count()).map(|_| &Type::U32), result)
                 }
 
                 TypeDefKind::List(_) => {
@@ -344,23 +369,28 @@ impl Resolve {
                 }
 
                 TypeDefKind::FixedLengthList(ty, size) => {
-                    self.push_flat_list((0..*size).map(|_| ty), result)
+                    self.push_flat_list(world, (0..*size).map(|_| ty), result)
                 }
 
                 TypeDefKind::Variant(v) => {
                     result.push(v.tag().into())
-                        && self.push_flat_variants(v.cases.iter().map(|c| c.ty.as_ref()), result)
+                        && self.push_flat_variants(
+                            world,
+                            v.cases.iter().map(|c| c.ty.as_ref()),
+                            result,
+                        )
                 }
 
                 TypeDefKind::Enum(e) => result.push(e.tag().into()),
 
                 TypeDefKind::Option(t) => {
-                    result.push(WasmType::I32) && self.push_flat_variants([None, Some(t)], result)
+                    result.push(WasmType::I32)
+                        && self.push_flat_variants(world, [None, Some(t)], result)
                 }
 
                 TypeDefKind::Result(r) => {
                     result.push(WasmType::I32)
-                        && self.push_flat_variants([r.ok.as_ref(), r.err.as_ref()], result)
+                        && self.push_flat_variants(world, [r.ok.as_ref(), r.err.as_ref()], result)
                 }
 
                 TypeDefKind::Future(_) => result.push(WasmType::I32),
@@ -373,6 +403,7 @@ impl Resolve {
 
     fn push_flat_variants<'a>(
         &self,
+        world: WorldId,
         tys: impl IntoIterator<Item = Option<&'a Type>>,
         result: &mut FlatTypes<'_>,
     ) -> bool {
@@ -388,7 +419,7 @@ impl Resolve {
         // `i32` might be the `f32` bitcasted.
         for ty in tys {
             if let Some(ty) = ty {
-                if !self.push_flat(ty, &mut temp) {
+                if !self.push_flat(world, ty, &mut temp) {
                     result.overflow = true;
                     return false;
                 }

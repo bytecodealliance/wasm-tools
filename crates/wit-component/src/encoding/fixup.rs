@@ -835,7 +835,7 @@ impl FixupModule {
                 _ => continue,
             };
 
-            let sig = resolve.wasm_signature(*abi, f);
+            let sig = resolve.wasm_signature(state.info.encoder.metadata.world, *abi, f);
             let ty = self.type_index(&sig);
             let func = self.import_func(&imported_instance, core_name, ty)?;
             let post_return = info.post_return(key, f);

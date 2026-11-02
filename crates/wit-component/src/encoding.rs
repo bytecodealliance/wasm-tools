@@ -172,8 +172,13 @@ bitflags::bitflags! {
 }
 
 impl RequiredOptions {
-    fn for_import(resolve: &Resolve, func: &Function, abi: AbiVariant) -> RequiredOptions {
-        let sig = resolve.wasm_signature(abi, func);
+    fn for_import(
+        resolve: &Resolve,
+        world: WorldId,
+        func: &Function,
+        abi: AbiVariant,
+    ) -> RequiredOptions {
+        let sig = resolve.wasm_signature(world, abi, func);
         let mut ret = RequiredOptions::empty();
         // Lift the params and lower the results for imports
         ret.add_lift(TypeContents::for_types(
@@ -193,8 +198,13 @@ impl RequiredOptions {
         ret
     }
 
-    fn for_export(resolve: &Resolve, func: &Function, abi: AbiVariant) -> RequiredOptions {
-        let sig = resolve.wasm_signature(abi, func);
+    fn for_export(
+        resolve: &Resolve,
+        world: WorldId,
+        func: &Function,
+        abi: AbiVariant,
+    ) -> RequiredOptions {
+        let sig = resolve.wasm_signature(world, abi, func);
         let mut ret = RequiredOptions::empty();
         // Lower the params and lift the results for exports
         ret.add_lower(TypeContents::for_types(
@@ -214,13 +224,14 @@ impl RequiredOptions {
         }
         if let AbiVariant::GuestExportAsync | AbiVariant::GuestExportAsyncStackful = abi {
             ret |= RequiredOptions::ASYNC;
-            ret |= task_return_options_and_type(resolve, func).0;
+            ret |= task_return_options_and_type(resolve, world, func).0;
         }
         ret
     }
 
     fn for_payload(
         resolve: &Resolve,
+        world: WorldId,
         info: &PayloadInfo,
         kind: &PayloadFuncKind,
         async_: bool,
@@ -233,6 +244,7 @@ impl RequiredOptions {
         RequiredOptions::MEMORY
             | RequiredOptions::for_import(
                 resolve,
+                world,
                 &Function {
                     name: String::new(),
                     kind: FunctionKind::Freestanding,
@@ -1125,6 +1137,7 @@ impl<'a> EncodingState<'a> {
 
         let options = RequiredOptions::for_export(
             resolve,
+            self.info.encoder.metadata.world,
             func,
             exports
                 .abi(key, func)
@@ -1935,7 +1948,8 @@ impl<'a> EncodingState<'a> {
                 )
             }
             Import::ExportedTaskReturn(key, interface, func) => {
-                let (options, _sig) = task_return_options_and_type(resolve, func);
+                let (options, _sig) =
+                    task_return_options_and_type(resolve, self.info.encoder.metadata.world, func);
                 let result_ty = func.result;
                 if options.is_empty() || self.memory_index.is_some() {
                     // Note that an "import type encoder" is used here despite
@@ -2264,7 +2278,8 @@ impl<'a> EncodingState<'a> {
             return Ok(self.materialize_shim_import(shims, &shim_kind));
         }
         let resolve = &self.info.encoder.metadata.resolve;
-        let options = RequiredOptions::for_payload(resolve, info, &kind, async_);
+        let world = self.info.encoder.metadata.world;
+        let options = RequiredOptions::for_payload(resolve, world, info, &kind, async_);
         let func = self.encode_payload_func(
             shims,
             &for_module,
@@ -2714,7 +2729,8 @@ impl<'a> Shims<'a> {
                 // for it, otherwise skip the shim and let it get materialized
                 // naturally later.
                 Import::ExportedTaskReturn(key, interface, func) => {
-                    let (options, sig) = task_return_options_and_type(resolve, func);
+                    let (options, sig) =
+                        task_return_options_and_type(resolve, world.encoder.metadata.world, func);
                     if options.is_empty() || memory_available {
                         continue;
                     }
@@ -2997,7 +3013,13 @@ impl<'a> Shims<'a> {
         let debug_name = format!("{module}-{}", info.name);
         let name = self.shims.len().to_string();
 
-        let options = RequiredOptions::for_payload(resolve, info, &kind, async_);
+        let options = RequiredOptions::for_payload(
+            resolve,
+            world.encoder.metadata.world,
+            info,
+            &kind,
+            async_,
+        );
         if !options.contains(RequiredOptions::REALLOC)
             && world.info.imports.imported_memory().is_some()
         {
@@ -3201,6 +3223,7 @@ fn payload_realloc_name<'a>(
 
 pub(crate) fn task_return_options_and_type(
     resolve: &Resolve,
+    world: WorldId,
     func: &Function,
 ) -> (RequiredOptions, WasmSignature) {
     let func_tmp = Function {
@@ -3221,10 +3244,10 @@ pub(crate) fn task_return_options_and_type(
         external_id: None,
     };
     let abi = AbiVariant::GuestImport;
-    let mut options = RequiredOptions::for_import(resolve, func, abi);
+    let mut options = RequiredOptions::for_import(resolve, world, func, abi);
     // `task.return` does not support a `realloc` canonical option.
     options.remove(RequiredOptions::REALLOC);
-    let sig = resolve.wasm_signature(abi, &func_tmp);
+    let sig = resolve.wasm_signature(world, abi, &func_tmp);
     (options, sig)
 }
 

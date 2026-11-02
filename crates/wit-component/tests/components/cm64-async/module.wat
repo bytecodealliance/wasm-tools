@@ -12,8 +12,7 @@
   (import "[export]$root" "[task-cancel]" (func))
   (import "[export]$root" "[task-return]foo" (func (param i64 i64)))
   (import "[export]foo:foo/bar" "[task-return]foo" (func (param i64 i64)))
-  ;; FIXME: needs #2804 plus some wit-parser changes
-  ;; (import "[export]foo:foo/exp" "[task-return][method]a.name" (func (param i64 i64)))
+  (import "[export]foo:foo/exp" "[task-return][method]a.name" (func (param i64 i64)))
   (import "$root" "[waitable-set-new]" (func (result i32)))
   (import "$root" "[waitable-set-wait]" (func (param i32 i64) (result i32)))
   (import "$root" "[waitable-set-poll]" (func (param i32 i64) (result i32)))
@@ -97,9 +96,8 @@
   (func (export "[async-lift]foo:foo/bar#foo") (param i64 i64) (result i32) unreachable)
   (func (export "[callback][async-lift]foo:foo/bar#foo") (param i32 i32 i32) (result i32) unreachable)
   (func (export "foo:foo/exp#[constructor]a") (result i32) unreachable)
-  ;; FIXME: needs #2804 plus some wit-parser changes
-  ;; (func (export "[async-lift]foo:foo/exp#[method]a.name") (param i64) (result i32) unreachable)
-  ;; (func (export "[callback][async-lift]foo:foo/exp#[method]a.name") (param i32 i32 i32) (result i32) unreachable)
+  (func (export "[async-lift]foo:foo/exp#[method]a.name") (param i64 i64) (result i32) unreachable)
+  (func (export "[callback][async-lift]foo:foo/exp#[method]a.name") (param i32 i32 i32) (result i32) unreachable)
   (func (export "foo:foo/exp#[dtor]a") (param i64))
 
   ;; ... and stackful exports

@@ -6,18 +6,18 @@ use wit_parser::{
 };
 
 /// Generate a dummy implementation core Wasm module for a given WIT document
-pub fn dummy_module(resolve: &Resolve, world: WorldId, mangling: ManglingAndAbi) -> Vec<u8> {
-    let world = &resolve.worlds[world];
+pub fn dummy_module(resolve: &Resolve, world_id: WorldId, mangling: ManglingAndAbi) -> Vec<u8> {
+    let world = &resolve.worlds[world_id];
     let mut wat = String::new();
     wat.push_str("(module\n");
     for (name, import) in world.imports.iter() {
         match import {
             WorldItem::Function(func) => {
-                push_imported_func(&mut wat, resolve, None, func, mangling);
+                push_imported_func(&mut wat, resolve, world_id, None, func, mangling);
             }
             WorldItem::Interface { id: import, .. } => {
                 for (_, func) in resolve.interfaces[*import].functions.iter() {
-                    push_imported_func(&mut wat, resolve, Some(name), func, mangling);
+                    push_imported_func(&mut wat, resolve, world_id, Some(name), func, mangling);
                 }
                 for (_, ty) in resolve.interfaces[*import].types.iter() {
                     push_imported_type_intrinsics(&mut wat, resolve, Some(name), *ty, mangling);
@@ -38,11 +38,18 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId, mangling: ManglingAndAbi)
     for (name, export) in world.exports.iter() {
         match export {
             WorldItem::Function(func) => {
-                push_exported_func_intrinsics(&mut wat, resolve, None, func, mangling);
+                push_exported_func_intrinsics(&mut wat, resolve, world_id, None, func, mangling);
             }
             WorldItem::Interface { id: export, .. } => {
                 for (_, func) in resolve.interfaces[*export].functions.iter() {
-                    push_exported_func_intrinsics(&mut wat, resolve, Some(name), func, mangling);
+                    push_exported_func_intrinsics(
+                        &mut wat,
+                        resolve,
+                        world_id,
+                        Some(name),
+                        func,
+                        mangling,
+                    );
                 }
                 for (_, ty) in resolve.interfaces[*export].types.iter() {
                     push_exported_type_intrinsics(&mut wat, resolve, Some(name), *ty, mangling);
@@ -55,11 +62,11 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId, mangling: ManglingAndAbi)
     for (name, export) in world.exports.iter() {
         match export {
             WorldItem::Function(func) => {
-                push_func_export(&mut wat, resolve, None, func, mangling);
+                push_func_export(&mut wat, resolve, world_id, None, func, mangling);
             }
             WorldItem::Interface { id: export, .. } => {
                 for (_, func) in resolve.interfaces[*export].functions.iter() {
-                    push_func_export(&mut wat, resolve, Some(name), func, mangling);
+                    push_func_export(&mut wat, resolve, world_id, Some(name), func, mangling);
                 }
                 for (_, ty) in resolve.interfaces[*export].types.iter() {
                     push_exported_resource_functions(&mut wat, resolve, name, *ty, mangling);
@@ -86,12 +93,13 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId, mangling: ManglingAndAbi)
 fn push_imported_func(
     wat: &mut String,
     resolve: &Resolve,
+    world: WorldId,
     interface: Option<&WorldKey>,
     func: &Function,
     mangling: ManglingAndAbi,
 ) {
     let mangling = mangling.for_func(func);
-    let sig = resolve.wasm_signature(mangling.import_variant(), func);
+    let sig = resolve.wasm_signature(world, mangling.import_variant(), func);
 
     let (module, name) = resolve.wasm_import_name(mangling, WasmImport::Func { interface, func });
     wat.push_str(&format!("(import {module:?} {name:?} (func"));
@@ -143,6 +151,7 @@ fn push_imported_type_intrinsics(
 fn push_exported_func_intrinsics(
     wat: &mut String,
     resolve: &Resolve,
+    world: WorldId,
     interface: Option<&WorldKey>,
     func: &Function,
     mangling: ManglingAndAbi,
@@ -152,7 +161,8 @@ fn push_exported_func_intrinsics(
     }
 
     // For exported async functions, generate a `task.return` intrinsic.
-    let (module, name, sig) = func.task_return_import(resolve, interface, mangling.mangling());
+    let (module, name, sig) =
+        func.task_return_import(resolve, world, interface, mangling.mangling());
     wat.push_str(&format!("(import {module:?} {name:?} (func"));
     push_tys(wat, "param", &sig.params);
     push_tys(wat, "result", &sig.results);
@@ -353,12 +363,13 @@ fn push_exported_resource_functions(
 fn push_func_export(
     wat: &mut String,
     resolve: &Resolve,
+    world: WorldId,
     interface: Option<&WorldKey>,
     func: &Function,
     mangling: ManglingAndAbi,
 ) {
     let mangling = mangling.for_func(func);
-    let sig = resolve.wasm_signature(mangling.export_variant(), func);
+    let sig = resolve.wasm_signature(world, mangling.export_variant(), func);
     let name = resolve.wasm_export_name(
         mangling,
         WasmExport::Func {

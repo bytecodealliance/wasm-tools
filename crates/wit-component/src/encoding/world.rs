@@ -307,6 +307,7 @@ impl<'a> ComponentWorld<'a> {
             add_item(
                 &mut self.import_map,
                 resolve,
+                world,
                 name,
                 item,
                 &required,
@@ -318,6 +319,7 @@ impl<'a> ComponentWorld<'a> {
         fn add_item(
             import_map: &mut IndexMap<Option<String>, ImportedInterface>,
             resolve: &Resolve,
+            world: WorldId,
             key: &WorldKey,
             item: &WorldItem,
             required: &Required<'_>,
@@ -355,7 +357,7 @@ impl<'a> ComponentWorld<'a> {
             assert_eq!(interface.external_id, external_id);
             match item {
                 WorldItem::Function(func) => {
-                    interface.add_func(required, resolve, func, info);
+                    interface.add_func(required, resolve, world, func, info);
                 }
                 WorldItem::Type { id, .. } => {
                     interface.add_type(required, resolve, *id);
@@ -365,7 +367,7 @@ impl<'a> ComponentWorld<'a> {
                         interface.add_type(required, resolve, *ty);
                     }
                     for (_name, func) in resolve.interfaces[*id].functions.iter() {
-                        interface.add_func(required, resolve, func, info);
+                        interface.add_func(required, resolve, world, func, info);
                     }
                 }
             }
@@ -602,6 +604,7 @@ impl ImportedInterface {
         &mut self,
         required: &Required<'_>,
         resolve: &Resolve,
+        world: WorldId,
         func: &Function,
         info: &ValidatedModule,
     ) {
@@ -616,11 +619,11 @@ impl ImportedInterface {
         }
         for abi in abis {
             log::trace!("add func {} {abi:?}", func.name);
-            let options = RequiredOptions::for_import(resolve, func, abi);
+            let options = RequiredOptions::for_import(resolve, world, func, abi);
             let lowering = if options_are_available_before_instantiation(options, info) {
                 Lowering::Direct { options }
             } else {
-                let sig = resolve.wasm_signature(abi, func);
+                let sig = resolve.wasm_signature(world, abi, func);
                 Lowering::Indirect { sig, options }
             };
 

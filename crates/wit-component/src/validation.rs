@@ -914,7 +914,7 @@ impl ImportMap {
             let (key_name, abi) = names.world_key_name_and_abi(name);
             let key = WorldKey::Name(key_name.to_string());
             if let Some(WorldItem::Function(func)) = world.imports.get(&key) {
-                validate_func(resolve, ty, func, abi, self.index_type)?;
+                validate_func(resolve, world_id, ty, func, abi, self.index_type)?;
                 return Ok(Import::WorldFunc(key, func.name.clone(), abi));
             }
 
@@ -968,7 +968,7 @@ impl ImportMap {
         let interface = &resolve.interfaces[id];
         let (function_name, abi) = names.interface_function_name_and_abi(name);
         if let Some(f) = interface.functions.get(function_name) {
-            validate_func(resolve, ty, f, abi, self.index_type).with_context(|| {
+            validate_func(resolve, world_id, ty, f, abi, self.index_type).with_context(|| {
                 let name = resolve.name_world_key(&key);
                 format!("failed to validate import interface `{name}`")
             })?;
@@ -1078,7 +1078,8 @@ impl ImportMap {
             if let Some(name) = names.task_return_name(name) {
                 let func = get_function(resolve, world, name, id, import)?;
                 let key = key.unwrap_or_else(|| WorldKey::Name(name.to_string()));
-                let (_, sig) = crate::encoding::task_return_options_and_type(resolve, func);
+                let (_, sig) =
+                    crate::encoding::task_return_options_and_type(resolve, world_id, func);
                 validate_func_sig(name, &self.index_type.func_type(&sig), ty)?;
                 return Ok(Some(Import::ExportedTaskReturn(key, id, func.clone())));
             }
@@ -1441,7 +1442,7 @@ impl ExportMap {
 
         // Try to match this to a known WIT export that `exports` allows.
         if let Some((key, id, f)) = names.match_wit_export(name, resolve, world, exports) {
-            validate_func(resolve, ty, f, abi, self.index_type).with_context(|| {
+            validate_func(resolve, world, ty, f, abi, self.index_type).with_context(|| {
                 let key = resolve.name_world_key(key);
                 format!("failed to validate export for `{key}`")
             })?;
@@ -1463,10 +1464,12 @@ impl ExportMap {
         // See if this is a post-return for any known WIT export.
         if let Some(remaining) = names.strip_post_return(name) {
             if let Some((key, id, f)) = names.match_wit_export(remaining, resolve, world, exports) {
-                validate_post_return(resolve, ty, f, self.index_type).with_context(|| {
-                    let key = resolve.name_world_key(key);
-                    format!("failed to validate export for `{key}`")
-                })?;
+                validate_post_return(resolve, world, ty, f, self.index_type).with_context(
+                    || {
+                        let key = resolve.name_world_key(key);
+                        format!("failed to validate export for `{key}`")
+                    },
+                )?;
                 match id {
                     Some(_id) => {
                         return Ok(Some(Export::InterfaceFuncPostReturn(
@@ -2926,17 +2929,19 @@ fn resource_test_for_world<'a>(
 
 fn validate_func(
     resolve: &Resolve,
+    world: WorldId,
     ty: &wasmparser::FuncType,
     func: &Function,
     abi: AbiVariant,
     index_type: IndexType,
 ) -> Result<()> {
-    let sig = resolve.wasm_signature(abi, func);
+    let sig = resolve.wasm_signature(world, abi, func);
     validate_func_sig(&func.name, &index_type.func_type(&sig), ty)
 }
 
 fn validate_post_return(
     resolve: &Resolve,
+    world: WorldId,
     ty: &wasmparser::FuncType,
     func: &Function,
     index_type: IndexType,
@@ -2946,7 +2951,7 @@ fn validate_post_return(
     // results. Model this by calculating the signature of `func` and then
     // moving its results into the parameters list while emptying out the
     // results.
-    let mut sig = resolve.wasm_signature(AbiVariant::GuestExport, func);
+    let mut sig = resolve.wasm_signature(world, AbiVariant::GuestExport, func);
     sig.params = mem::take(&mut sig.results);
     validate_func_sig(
         &format!("{} post-return", func.name),

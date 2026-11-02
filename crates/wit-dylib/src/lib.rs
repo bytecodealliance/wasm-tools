@@ -6,7 +6,7 @@ use wasm_encoder::{
     EntityType, ExportKind, ExportSection, Function, FunctionSection, GlobalType, ImportSection,
     MemoryType, Module, NameMap, NameSection, RefType, TableType, TypeSection, ValType,
 };
-use wit_parser::abi::{WasmSignature, WasmType};
+use wit_parser::abi::{AbiVariant, WasmSignature, WasmType};
 use wit_parser::{
     Handle, LiftLowerAbi, LiveTypes, ManglingAndAbi, Resolve, ResourceIntrinsic, SizeAlign, Type,
     TypeDefKind, TypeId, TypeOwner, WasmExport, WasmExportKind, WasmImport, WorldId, WorldItem,
@@ -105,6 +105,9 @@ struct Adapter {
     /// Elements of this list are function indices in this module which will be
     /// placed into the element segment.
     elem_segment: Vec<u32>,
+
+    /// The world that's being adapted, set in `encode`.
+    world: Option<WorldId>,
 }
 
 #[derive(Copy, Clone)]
@@ -158,7 +161,19 @@ struct PayloadData {
 }
 
 impl Adapter {
+    /// Returns the core wasm signature of `func` with `abi` in the world being
+    /// adapted.
+    fn wasm_signature(
+        &self,
+        resolve: &Resolve,
+        abi: AbiVariant,
+        func: &wit_parser::Function,
+    ) -> WasmSignature {
+        resolve.wasm_signature(self.world.unwrap(), abi, func)
+    }
+
     pub fn encode(&mut self, resolve: &Resolve, world_id: WorldId) -> anyhow::Result<Vec<u8>> {
+        self.world = Some(world_id);
         self.sizes.fill(resolve)?;
 
         // First define all imports that will go into the wasm module since
@@ -481,7 +496,7 @@ impl Adapter {
         let mangling = self.mangling(resolve, interface, func, true);
         let (module, name) =
             resolve.wasm_import_name(mangling, WasmImport::Func { interface, func });
-        let sig = resolve.wasm_signature(mangling.import_variant(), func);
+        let sig = self.wasm_signature(resolve, mangling.import_variant(), func);
         let ty = self.define_wasm_sig(sig);
         let import_index = self.import_func(&module, &name, ty);
         imports.wit_imports.push(WitImport {
@@ -600,8 +615,12 @@ impl Adapter {
     ) {
         let mangling = self.mangling(resolve, interface, func, false);
         let async_task_return_index = if mangling.is_async() {
-            let (module, name, sig) =
-                func.task_return_import(resolve, interface, mangling.mangling());
+            let (module, name, sig) = func.task_return_import(
+                resolve,
+                self.world.unwrap(),
+                interface,
+                mangling.mangling(),
+            );
             let ty = self.define_wasm_sig(sig);
             Some(self.import_func(&module, &name, ty))
         } else {
@@ -1083,16 +1102,17 @@ impl Adapter {
             return None;
         }
 
+        let world = self.world.unwrap();
         let info = self
             .sizes
-            .record(bindgen::async_import_abi_area_types(resolve, func));
+            .record(bindgen::async_import_abi_area_types(resolve, world, func));
         Some((info.size.size_wasm32(), info.align.align_wasm32()))
     }
 
     fn bindgen_world_func_export(&mut self, resolve: &Resolve, export: &WitExport<'_>) {
         let func = export.func;
         let mangling = self.mangling(resolve, export.interface, func, false);
-        let sig = resolve.wasm_signature(mangling.export_variant(), func);
+        let sig = self.wasm_signature(resolve, mangling.export_variant(), func);
         let ty = self.define_wasm_sig(sig);
         let name = resolve.wasm_export_name(
             mangling,
@@ -1134,7 +1154,7 @@ impl Adapter {
                     mangling.export_variant(),
                     metadata_func_index,
                 );
-                let mut sig = resolve.wasm_signature(mangling.export_variant(), func);
+                let mut sig = self.wasm_signature(resolve, mangling.export_variant(), func);
                 sig.params = mem::take(&mut sig.results);
                 let post_return_ty = self.define_wasm_sig(sig);
                 self.define_func(&post_return_name, post_return_ty, post_return, true);
