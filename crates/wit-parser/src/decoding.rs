@@ -788,7 +788,10 @@ impl WitPackageDecoder<'_> {
                                     self.register_defined(id, &self.types[ty])?;
                                 }
                                 ComponentAnyTypeId::Resource(_) => {}
-                                _ => unreachable!(),
+                                _ => bail!(
+                                    "cannot represent this component in WIT: type `{name}` is a \
+                                     component, instance or function type"
+                                ),
                             }
                             let prev = self.type_map.insert(created, id);
                             assert!(prev.is_none());
@@ -1069,7 +1072,10 @@ impl WitPackageDecoder<'_> {
                         .convert_defined(&self.types[ty])
                         .context("failed to convert unaliased type")?,
                     ComponentAnyTypeId::Resource(_) => TypeDefKind::Resource,
-                    _ => unreachable!(),
+                    _ => bail!(
+                        "cannot represent this component in WIT: type `{name}` is a component, \
+                         instance or function type"
+                    ),
                 }
             }
         };

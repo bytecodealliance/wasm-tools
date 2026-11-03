@@ -1,0 +1,4 @@
+error: failed to decode type from export `t`
+
+Caused by:
+    0: cannot represent this component in WIT: type `t` is a component, instance or function type
