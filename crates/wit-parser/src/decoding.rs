@@ -465,8 +465,12 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
     let mut interfaces = IndexMap::default();
     let mut worlds = IndexMap::default();
     let ty = &types[world];
-    assert_eq!(ty.imports.len(), 0);
-    assert_eq!(ty.exports.len(), 1);
+    if ty.imports.len() != 0 || ty.exports.len() != 1 {
+        bail!(
+            "cannot represent this component in WIT: expected an exported component type with \
+             no imports and one export"
+        );
+    }
     let name = ty.exports.keys().nth(0).unwrap();
     let name = decoder.decode_world(
         name,
@@ -613,7 +617,7 @@ impl WitPackageDecoder<'_> {
     ) -> Result<PackageName> {
         let ty = match item.ty {
             ComponentEntityType::Component(ty) => &self.types[ty],
-            _ => unreachable!(),
+            _ => bail!("cannot represent this component in WIT: export `{name}` is not a world"),
         };
         let kebab_name = self
             .parse_component_name(name)

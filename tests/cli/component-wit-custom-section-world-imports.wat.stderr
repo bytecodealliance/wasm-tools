@@ -1,0 +1,4 @@
+error: decoding custom section component-type:x
+
+Caused by:
+    0: cannot represent this component in WIT: expected an exported component type with no imports and one export
