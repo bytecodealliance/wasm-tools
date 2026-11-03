@@ -1,0 +1,5 @@
+error: failed to decode WIT from import `i`
+
+Caused by:
+    0: failed to register type export 't'
+    1: cannot represent this component in WIT: type `t` is a component, instance or function type
