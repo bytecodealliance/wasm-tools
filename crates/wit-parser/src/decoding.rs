@@ -1917,7 +1917,12 @@ impl Registrar<'_> {
         let wasm = match wasm {
             ComponentValType::Type(wasm) => *wasm,
             ComponentValType::Primitive(_wasm) => {
-                assert!(!matches!(wit, Type::Id(_)));
+                if let Type::Id(_) = wit {
+                    bail!(
+                        "cannot represent this component in WIT: a type is primitive here but \
+                         not in another use of its interface"
+                    );
+                }
                 return Ok(());
             }
         };
