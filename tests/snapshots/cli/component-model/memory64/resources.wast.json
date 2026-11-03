@@ -45,6 +45,19 @@
       "filename": "resources.6.wasm",
       "module_type": "binary",
       "text": "resources can only be represented by `i32` or `i64`"
+    },
+    {
+      "type": "module",
+      "line": 75,
+      "filename": "resources.7.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 92,
+      "filename": "resources.8.wasm",
+      "module_type": "binary",
+      "text": "lowered parameter types `[I64]` do not match parameter types `[I32]`"
     }
   ]
 }
