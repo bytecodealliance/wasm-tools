@@ -1195,8 +1195,13 @@ impl WitPackageDecoder<'_> {
             world.exports.insert(name, item);
         }
         let id = self.resolve.worlds.alloc(world);
-        let prev = package.worlds.insert(name, id);
-        assert!(prev.is_none());
+        let prev = package.worlds.insert(name.clone(), id);
+        if prev.is_some() {
+            bail!(
+                "cannot represent this component in WIT: world `{name}` has the same name as \
+                 another world in its package"
+            );
+        }
         Ok(id)
     }
 
