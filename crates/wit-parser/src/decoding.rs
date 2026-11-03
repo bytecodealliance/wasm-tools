@@ -1005,7 +1005,12 @@ impl WitPackageDecoder<'_> {
             // further use comes back to this original definition.
             Some(interface_name) => {
                 let prev = package.interfaces.insert(interface_name, id);
-                assert!(prev.is_none(), "duplicate interface added for {name:?}");
+                if prev.is_some() {
+                    bail!(
+                        "cannot represent this component in WIT: interface `{name}` has the same \
+                         name as another interface in its package"
+                    );
+                }
                 let prev = self.named_interfaces.insert(name.to_string(), id);
                 assert!(prev.is_none());
                 WorldKey::Interface(id)

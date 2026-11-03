@@ -1,0 +1,5 @@
+error: failed to decode document `a:b/wit`
+
+Caused by:
+    0: failed to process export `a:b/c@2.0.0`
+    1: cannot represent this component in WIT: interface `a:b/c@2.0.0` has the same name as another interface in its package
