@@ -11,8 +11,7 @@ interface streams {
 interface exp {
   resource a {
     constructor();
-    // FIXME: needs #2804 plus some wit-parser changes
-    //name: async func() -> string;
+    name: async func(other: borrow<a>) -> string;
   }
 }
 

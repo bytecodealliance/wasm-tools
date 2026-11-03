@@ -8,4 +8,5 @@ world root {
   export foo:foo/options;
   export foo:foo/variants;
   export foo:foo/exp;
+  export foo:foo/exp2;
 }

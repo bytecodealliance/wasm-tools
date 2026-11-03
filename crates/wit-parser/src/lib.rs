@@ -1512,9 +1512,12 @@ impl Function {
 
     /// Returns the `module`, `name`, and signature to use when importing this
     /// function's `task.return` intrinsic using the `mangling` specified.
+    ///
+    /// The `world` is the world that this function is exported from.
     pub fn task_return_import(
         &self,
         resolve: &Resolve,
+        world: WorldId,
         interface: Option<&WorldKey>,
         mangling: Mangling,
     ) -> (String, String, abi::WasmSignature) {
@@ -1539,7 +1542,7 @@ impl Function {
                 span: Default::default(),
             });
         }
-        let sig = resolve.wasm_signature(AbiVariant::GuestImport, &func_tmp);
+        let sig = resolve.wasm_signature(world, AbiVariant::GuestImport, &func_tmp);
         (module, name, sig)
     }
 

@@ -75,15 +75,23 @@ interface exp {
 
     other-new: static func() -> a;
 
-    // FIXME(#2804) needs more handling for resources
-    // name: func() -> string;
-    // set-name: func(name: string);
-    // with-imported: func(other: borrow<b>);
-    // many: func(
-    //   a1: string, a2: string, a3: string, a4: string,
-    //   a5: string, a6: string, a7: string, a8: string,
-    // );
+    name: func() -> string;
+    set-name: func(name: string);
+    merge: func(other: borrow<a>);
+    with-imported: func(other: borrow<b>);
+    many: func(
+      a1: string, a2: string, a3: string, a4: string,
+      a5: string, a6: string, a7: string, a8: string,
+    );
   }
+
+  take-both: func(x: borrow<a>, y: borrow<b>, z: option<borrow<a>>);
+}
+
+interface exp2 {
+  use exp.{a};
+
+  take-a: func(x: borrow<a>);
 }
 
 world module {
@@ -94,4 +102,5 @@ world module {
   export options;
   export variants;
   export exp;
+  export exp2;
 }

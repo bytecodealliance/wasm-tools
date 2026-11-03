@@ -76,20 +76,32 @@
     (call $new (i64.const 200))
   )
 
-  ;; FIXME(#2804) needs more handling for resources
-  ;; (func (export "foo:foo/exp#[method]a.name") (param i64) (result i64)
-  ;;   unreachable
-  ;; )
-  ;; (func (export "cabi_post_foo:foo/exp#[method]a.name") (param i64))
-  ;; (func (export "foo:foo/exp#[method]a.set-name") (param i64 i64 i64)
-  ;;   unreachable
-  ;; )
-  ;; (func (export "foo:foo/exp#[method]a.with-imported") (param i64 i32)
-  ;;   unreachable
-  ;; )
-  ;; (func (export "foo:foo/exp#[method]a.many") (param i64)
-  ;;   unreachable
-  ;; )
+  ;; `self` is the `i64` representation of the resource.
+  (func (export "foo:foo/exp#[method]a.name") (param i64) (result i64)
+    unreachable
+  )
+  (func (export "cabi_post_foo:foo/exp#[method]a.name") (param i64))
+  (func (export "foo:foo/exp#[method]a.set-name") (param i64 i64 i64)
+    unreachable
+  )
+  ;; A `borrow` of a locally-defined resource is its `i64` representation.
+  (func (export "foo:foo/exp#[method]a.merge") (param i64 i64)
+    unreachable
+  )
+  ;; A `borrow` of an imported resource is an `i32` handle.
+  (func (export "foo:foo/exp#[method]a.with-imported") (param i64 i32)
+    unreachable
+  )
+  (func (export "foo:foo/exp#[method]a.many") (param i64)
+    unreachable
+  )
+  (func (export "foo:foo/exp#take-both") (param i64 i32 i32 i64)
+    unreachable
+  )
+  ;; Resources from an exported dependency are also locally-defined.
+  (func (export "foo:foo/exp2#take-a") (param i64)
+    unreachable
+  )
 
   (memory (export "memory") i64 1)
   (func (export "cabi_realloc") (param i64 i64 i64 i64) (result i64) unreachable)
