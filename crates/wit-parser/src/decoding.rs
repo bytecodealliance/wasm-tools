@@ -821,8 +821,16 @@ impl WitPackageDecoder<'_> {
                                      component, instance or function type"
                                 ),
                             }
+                            // Imports sharing an instance type see the same
+                            // `created` again, which is fine if it's for the
+                            // same type of the same interface.
                             let prev = self.type_map.insert(created, id);
-                            assert!(prev.is_none());
+                            if prev.is_some_and(|prev| prev != id) {
+                                bail!(
+                                    "cannot represent this component in WIT: the type `{name}` \
+                                     appears in more than one interface"
+                                );
+                            }
                         }
 
                         // If the name is not defined, however, then there's two

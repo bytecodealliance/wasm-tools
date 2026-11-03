@@ -1,0 +1,4 @@
+error: failed to decode WIT from import `z`
+
+Caused by:
+    0: cannot represent this component in WIT: the type `t` appears in more than one interface
