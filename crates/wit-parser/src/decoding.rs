@@ -255,7 +255,10 @@ impl ComponentInfo {
                     )?;
                     package_name
                 }
-                _ => unreachable!(),
+                _ => bail!(
+                    "cannot represent this component in WIT: package export `{name}` is not an \
+                     instance or component"
+                ),
             };
 
             if let Some(pkg_name) = pkg_name.as_ref() {
