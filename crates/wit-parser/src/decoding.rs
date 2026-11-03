@@ -1230,7 +1230,19 @@ impl WitPackageDecoder<'_> {
 
                     let resource = plain
                         .resource()
-                        .map(|resource| self.resources[&owner][resource.as_str()]);
+                        .map(|resource| {
+                            self.resources
+                                .get(&owner)
+                                .and_then(|resources| resources.get(resource.as_str()))
+                                .copied()
+                                .with_context(|| {
+                                    format!(
+                                        "cannot represent this component in WIT: function \
+                                         `{name}` is not next to the definition of its resource"
+                                    )
+                                })
+                        })
+                        .transpose()?;
                     match (plain.resource_func, plain.accessor) {
                         (None, None) => {
                             if ty.async_ {
