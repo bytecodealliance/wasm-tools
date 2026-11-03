@@ -1,0 +1,4 @@
+error: failed to decode WIT from import `z`
+
+Caused by:
+    0: type export `t` was already mapped to a different type

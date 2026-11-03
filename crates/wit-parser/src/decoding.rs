@@ -820,6 +820,9 @@ impl WitPackageDecoder<'_> {
                                      component, instance or function type"
                                 ),
                             }
+                            // Imports sharing an instance type see the same
+                            // `created` again, which is fine if it's for the
+                            // same type of the same interface.
                             let prev = self.type_map.insert(created, id);
                             // `created` should map to either a new type `id` or an already known,
                             // exactly the same `id`.

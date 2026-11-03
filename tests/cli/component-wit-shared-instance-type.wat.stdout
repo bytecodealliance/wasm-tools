@@ -1,0 +1,15 @@
+package root:component;
+
+world root {
+  import primary: a:b/store@0.1.0;
+  import backup: a:b/store@0.1.0;
+}
+package a:b@0.1.0 {
+  interface store {
+    variant error {
+      other(string),
+    }
+
+    open: func() -> error;
+  }
+}
