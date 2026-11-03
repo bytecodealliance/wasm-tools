@@ -2,6 +2,7 @@
 //! library](https://github.com/WebAssembly/tool-conventions/blob/main/DynamicLinking.md) modules.
 
 use {
+    crate::validation::IndexType,
     anyhow::{Context, Error, Result, bail},
     std::{
         collections::{BTreeSet, HashMap, HashSet},
@@ -64,6 +65,15 @@ impl TryFrom<ValType> for ValueType {
             ValType::F64 => Self::F64,
             _ => bail!("{value:?} not yet supported"),
         })
+    }
+}
+
+impl From<IndexType> for ValueType {
+    fn from(value: IndexType) -> Self {
+        match value {
+            IndexType::I32 => Self::I32,
+            IndexType::I64 => Self::I64,
+        }
     }
 }
 
@@ -261,6 +271,16 @@ pub struct Metadata<'a> {
     /// The `WASM_DYLINK_MEM_INFO` value (or all zeros if not found)
     pub mem_info: MemInfo,
 
+    /// The index type of linear memory, and thus the type of pointers, used by
+    /// this library.
+    ///
+    /// This is inferred from the type of the imported `env.memory`, the
+    /// `WASM_DYLINK_TARGET_ARCH` subsection, or the type of imported
+    /// address-related globals, in that order. This is `None` if none of those
+    /// are present, in which case the library is compatible with either index
+    /// type.
+    pub index_type: Option<IndexType>,
+
     /// The `WASM_DYLINK_NEEDED` values, if any
     pub needed_libs: Vec<&'a str>,
 
@@ -353,9 +373,16 @@ impl<'a> Metadata<'a> {
         let bindgen = crate::metadata::decode(module)?.1;
         let has_component_exports = !bindgen.resolve.worlds[bindgen.world].exports.is_empty();
 
+        let index_type = infer_index_type(module)
+            .context("failed to determine the index type of linear memory")?;
+        let ptr = index_type.unwrap_or_default();
+        let ptr_val_type = ptr.ptr();
+        let ptr_value_type = ValueType::from(ptr);
+
         let mut result = Self {
             name,
             dl_openable,
+            index_type,
             mem_info: MemInfo {
                 memory_size: 0,
                 memory_alignment: 1,
@@ -419,11 +446,8 @@ impl<'a> Metadata<'a> {
                                 Dylink0Subsection::RuntimePath(runtime_path) => {
                                     result.runtime_path.extend(runtime_path.iter());
                                 }
-                                Dylink0Subsection::TargetArch(arch) => {
-                                    if arch != "wasm32" {
-                                        bail!("unsupported `dylink.0` target architecture: {arch}")
-                                    }
-                                }
+                                // Validated in `infer_index_type` above.
+                                Dylink0Subsection::TargetArch(_) => {}
                                 Dylink0Subsection::Unknown { ty, .. } => {
                                     bail!("unrecognized `dylink.0` subsection: {ty}")
                                 }
@@ -466,14 +490,19 @@ impl<'a> Metadata<'a> {
                                     return type_error();
                                 }
                             }
-                            (self::ENV, self::ASYNCIFY_DATA | self::ASYNCIFY_STATE) => {
+                            (self::ENV, name @ (self::ASYNCIFY_DATA | self::ASYNCIFY_STATE)) => {
                                 result.is_asyncified = true;
+                                // `__asyncify_state` is always an `i32` but
+                                // `__asyncify_data` is a pointer.
+                                let expected = if name == self::ASYNCIFY_DATA {
+                                    ptr_val_type
+                                } else {
+                                    ValType::I32
+                                };
                                 if !matches!(
                                     import.ty,
-                                    TypeRef::Global(wasmparser::GlobalType {
-                                        content_type: ValType::I32,
-                                        ..
-                                    })
+                                    TypeRef::Global(wasmparser::GlobalType { content_type, .. })
+                                        if content_type == expected
                                 ) {
                                     return type_error();
                                 }
@@ -487,10 +516,8 @@ impl<'a> Metadata<'a> {
                             ) => {
                                 if matches!(
                                     import.ty,
-                                    TypeRef::Global(wasmparser::GlobalType {
-                                        content_type: ValType::I32,
-                                        ..
-                                    })
+                                    TypeRef::Global(wasmparser::GlobalType { content_type, .. })
+                                        if content_type == ptr_val_type
                                 ) {
                                     match import.name {
                                         self::STACK_POINTER => result.needs_stack_pointer = true,
@@ -526,10 +553,10 @@ impl<'a> Metadata<'a> {
                             ) => {
                                 let (parameters, results) = match name {
                                     self::GET_STACK_POINTER | self::GET_TLS_BASE => {
-                                        (&[][..], &[ValueType::I32][..])
+                                        (&[][..], &[ptr_value_type][..])
                                     }
                                     self::SET_STACK_POINTER | self::SET_TLS_BASE => {
-                                        (&[ValueType::I32][..], &[][..])
+                                        (&[ptr_value_type][..], &[][..])
                                     }
                                     _ => unreachable!(),
                                 };
@@ -570,9 +597,9 @@ impl<'a> Metadata<'a> {
                             },
                             (self::GOT_MEM, name) => {
                                 if let TypeRef::Global(wasmparser::GlobalType {
-                                    content_type: ValType::I32,
-                                    ..
+                                    content_type, ..
                                 }) = import.ty
+                                    && content_type == ptr_val_type
                                 {
                                     match name {
                                         self::HEAP_BASE => result.needs_heap_base = true,
@@ -596,9 +623,9 @@ impl<'a> Metadata<'a> {
                             }
                             (self::GOT_FUNC, name) => {
                                 if let TypeRef::Global(wasmparser::GlobalType {
-                                    content_type: ValType::I32,
-                                    ..
+                                    content_type, ..
                                 }) = import.ty
+                                    && content_type == ptr_val_type
                                 {
                                     result.table_address_imports.insert(name);
                                 } else {
@@ -609,7 +636,7 @@ impl<'a> Metadata<'a> {
                                 validate_intrinsic_signature(
                                     &types,
                                     import,
-                                    &[ValueType::I32, ValueType::I32],
+                                    &[ptr_value_type, ptr_value_type],
                                     &[ValueType::I32],
                                 )?;
                                 result.uses_thread_new_indirect = true;
@@ -736,4 +763,66 @@ impl<'a> Metadata<'a> {
 
         Ok(result)
     }
+}
+
+/// Determines the index type of the linear memory used by `module`.
+///
+/// See [`Metadata::index_type`] for more information.
+fn infer_index_type(module: &[u8]) -> Result<Option<IndexType>> {
+    let mut from_memory = None;
+    let mut from_target_arch = None;
+    let mut from_globals = None;
+
+    for payload in Parser::new(0).parse_all(module) {
+        match payload? {
+            Payload::CustomSection(section) => {
+                if let KnownCustom::Dylink0(reader) = section.as_known() {
+                    for subsection in reader {
+                        if let Dylink0Subsection::TargetArch(arch) =
+                            subsection.context("failed to parse `dylink.0` subsection")?
+                        {
+                            from_target_arch = Some(match arch {
+                                "wasm32" => IndexType::I32,
+                                "wasm64" => IndexType::I64,
+                                _ => bail!("unsupported `dylink.0` target architecture: {arch}"),
+                            });
+                        }
+                    }
+                }
+            }
+            Payload::ImportSection(reader) => {
+                for import in reader.into_imports() {
+                    let import = import?;
+                    match (import.module, import.name, import.ty) {
+                        (ENV, MEMORY, TypeRef::Memory(ty)) => {
+                            from_memory = Some(IndexType::of_memory(&ty));
+                        }
+                        (ENV, MEMORY_BASE | TABLE_BASE | STACK_POINTER, TypeRef::Global(ty))
+                        | (GOT_MEM | GOT_FUNC, _, TypeRef::Global(ty)) => {
+                            if from_globals.is_none() {
+                                from_globals = match ty.content_type {
+                                    ValType::I32 => Some(IndexType::I32),
+                                    ValType::I64 => Some(IndexType::I64),
+                                    _ => None,
+                                };
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    if let (Some(memory), Some(arch)) = (from_memory, from_target_arch) {
+        if memory != arch {
+            bail!(
+                "`dylink.0` target architecture implies an index type of `{arch}` \
+                 but the imported memory has an index type of `{memory}`"
+            );
+        }
+    }
+
+    Ok(from_memory.or(from_target_arch).or(from_globals))
 }

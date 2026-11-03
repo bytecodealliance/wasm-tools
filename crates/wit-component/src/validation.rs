@@ -78,6 +78,27 @@ impl IndexType {
         )
     }
 
+    /// Returns the size, in bytes, of a pointer.
+    pub fn ptr_size(&self) -> u32 {
+        match self {
+            IndexType::I32 => 4,
+            IndexType::I64 => 8,
+        }
+    }
+
+    /// Returns the log2 of the natural alignment of a pointer.
+    pub fn ptr_align_log2(&self) -> u32 {
+        self.ptr_size().trailing_zeros()
+    }
+
+    /// Returns a constant expression of this pointer type with the value `a`.
+    pub fn const_expr(&self, a: u32) -> wasm_encoder::ConstExpr {
+        match self {
+            IndexType::I32 => wasm_encoder::ConstExpr::i32_const(a as i32),
+            IndexType::I64 => wasm_encoder::ConstExpr::i64_const(a.into()),
+        }
+    }
+
     /// Same as [`IndexType::ptr`], but for `wasm-encoder`.
     pub fn encoder_ptr(&self) -> wasm_encoder::ValType {
         self.ptr().try_into().unwrap()

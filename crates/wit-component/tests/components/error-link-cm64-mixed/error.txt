@@ -1,0 +1,1 @@
+library `foo` uses a linear memory index type of `i32` but library `bar` uses `i64`; all libraries must use the same index type

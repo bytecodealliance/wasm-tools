@@ -9,7 +9,9 @@ use std::{
     mem,
     ops::Deref,
 };
-use wasm_encoder::{Encode, EntityType, InstructionSink, RawCustomSection, reencode::Reencode};
+use wasm_encoder::{
+    Encode, EntityType, InstructionSink, MemArg, RawCustomSection, reencode::Reencode,
+};
 use wasmparser::*;
 
 const PAGE_SIZE: i32 = 64 * 1024;
@@ -54,8 +56,12 @@ pub fn run(
 
 /// Extension trait for emitting pointer-sized instructions, where the size of
 /// a pointer is determined by the `IndexType` of linear memory.
-trait PtrInstructions {
-    fn ptr_const(&mut self, index_type: IndexType, value: i32) -> &mut Self;
+pub(crate) trait PtrInstructions {
+    fn ptr_iconst(&mut self, index_type: IndexType, value: i32) -> &mut Self;
+    fn ptr_uconst(&mut self, index_type: IndexType, value: u32) -> &mut Self;
+    fn ptr_eqz(&mut self, index_type: IndexType) -> &mut Self;
+    fn ptr_load(&mut self, index_type: IndexType, memarg: MemArg) -> &mut Self;
+    fn ptr_store(&mut self, index_type: IndexType, memarg: MemArg) -> &mut Self;
     fn ptr_ne(&mut self, index_type: IndexType) -> &mut Self;
     fn ptr_eq(&mut self, index_type: IndexType) -> &mut Self;
     fn ptr_add(&mut self, index_type: IndexType) -> &mut Self;
@@ -63,10 +69,38 @@ trait PtrInstructions {
 }
 
 impl PtrInstructions for InstructionSink<'_> {
-    fn ptr_const(&mut self, index_type: IndexType, value: i32) -> &mut Self {
+    fn ptr_iconst(&mut self, index_type: IndexType, value: i32) -> &mut Self {
         match index_type {
             IndexType::I32 => self.i32_const(value),
             IndexType::I64 => self.i64_const(value.into()),
+        }
+    }
+
+    fn ptr_uconst(&mut self, index_type: IndexType, value: u32) -> &mut Self {
+        match index_type {
+            IndexType::I32 => self.i32_const(value as i32),
+            IndexType::I64 => self.i64_const(value.into()),
+        }
+    }
+
+    fn ptr_eqz(&mut self, index_type: IndexType) -> &mut Self {
+        match index_type {
+            IndexType::I32 => self.i32_eqz(),
+            IndexType::I64 => self.i64_eqz(),
+        }
+    }
+
+    fn ptr_load(&mut self, index_type: IndexType, memarg: MemArg) -> &mut Self {
+        match index_type {
+            IndexType::I32 => self.i32_load(memarg),
+            IndexType::I64 => self.i64_load(memarg),
+        }
+    }
+
+    fn ptr_store(&mut self, index_type: IndexType, memarg: MemArg) -> &mut Self {
+        match index_type {
+            IndexType::I32 => self.i32_store(memarg),
+            IndexType::I64 => self.i64_store(memarg),
         }
     }
 
@@ -106,7 +140,7 @@ fn realloc_via_memory_grow(page_size_log2: u32, index_type: IndexType) -> wasm_e
     let mut ins = func.instructions();
 
     // Assert `old_ptr` is null.
-    ins.ptr_const(index_type, 0)
+    ins.ptr_iconst(index_type, 0)
         .local_get(0)
         .ptr_ne(index_type)
         .if_(wasm_encoder::BlockType::Empty)
@@ -114,7 +148,7 @@ fn realloc_via_memory_grow(page_size_log2: u32, index_type: IndexType) -> wasm_e
         .end();
 
     // Assert `old_len` is zero.
-    ins.ptr_const(index_type, 0)
+    ins.ptr_iconst(index_type, 0)
         .local_get(1)
         .ptr_ne(index_type)
         .if_(wasm_encoder::BlockType::Empty)
@@ -125,7 +159,7 @@ fn realloc_via_memory_grow(page_size_log2: u32, index_type: IndexType) -> wasm_e
     // currently support)
     // Note: we could easily support arbitrary multiples of PAGE_SIZE here if
     // the need arises.
-    ins.ptr_const(index_type, PAGE_SIZE)
+    ins.ptr_iconst(index_type, PAGE_SIZE)
         .local_get(3)
         .ptr_ne(index_type)
         .if_(wasm_encoder::BlockType::Empty)
@@ -135,13 +169,13 @@ fn realloc_via_memory_grow(page_size_log2: u32, index_type: IndexType) -> wasm_e
     // Grow the memory by enough pages to get PAGE_SIZE bytes.
     // With default 64KiB pages this is 1; with page-size-1 this is 65536.
     let grow_pages = PAGE_SIZE >> page_size_log2;
-    ins.ptr_const(index_type, grow_pages)
+    ins.ptr_iconst(index_type, grow_pages)
         .memory_grow(0)
         .local_tee(4);
 
     // Test if the return value of the growth was -1 and, if so, trap due to a
     // failed allocation.
-    ins.ptr_const(index_type, -1)
+    ins.ptr_iconst(index_type, -1)
         .ptr_eq(index_type)
         .if_(wasm_encoder::BlockType::Empty)
         .unreachable()
@@ -150,7 +184,7 @@ fn realloc_via_memory_grow(page_size_log2: u32, index_type: IndexType) -> wasm_e
     // Convert the page index returned by memory.grow to a byte offset.
     ins.local_get(4);
     if page_size_log2 > 0 {
-        ins.ptr_const(index_type, page_size_log2 as i32)
+        ins.ptr_uconst(index_type, page_size_log2)
             .ptr_shl(index_type);
     }
     ins.end();
@@ -193,12 +227,12 @@ fn allocate_stack_via_realloc(
         // assume it defaults to zero anyway, in which case setting it would be redundant.
     }
 
-    ins.ptr_const(index_type, 0)
-        .ptr_const(index_type, 0)
-        .ptr_const(index_type, 8)
-        .ptr_const(index_type, PAGE_SIZE)
+    ins.ptr_iconst(index_type, 0)
+        .ptr_iconst(index_type, 0)
+        .ptr_iconst(index_type, 8)
+        .ptr_iconst(index_type, PAGE_SIZE)
         .call(realloc_index)
-        .ptr_const(index_type, PAGE_SIZE)
+        .ptr_iconst(index_type, PAGE_SIZE)
         .ptr_add(index_type)
         .global_set(sp);
 

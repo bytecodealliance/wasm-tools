@@ -1,18 +1,31 @@
-# This script will rebuild libdl.so from source.
+# This script will rebuild libdl32.so and libdl64.so from source, writing them
+# to the directory given as the first argument.
 #
-# To run this, you'll need to use `wasi-sdk` 21 or later, installed at
-# $WASI_SDK_PATH.
-#
-# Example: WASI_SDK_PATH=/opt/wasi-sdk bash build.sh ../libdl.so
+# Example: bash build.sh ..
 
 set -ex
 
-CARGO_PROFILE_RELEASE_LTO=true cargo build --release --target=wasm32-wasip2
-$WASI_SDK_PATH/bin/wasm32-wasip2-clang -shared \
-  -o $1 \
-  -Wl,--whole-archive \
-  ../../../target/wasm32-wasip2/release/libdl.a \
-  -Wl,--no-whole-archive \
-  -Wl,--allow-undefined
-cargo run --manifest-path ../../../Cargo.toml -- strip $1 -o $1
-cargo run --manifest-path ../../../Cargo.toml -- strip --delete name $1 -o $1
+out=$1
+target_dir=../../../target/dl
+wasm_ld=$(rustc --print sysroot)/lib/rustlib/$(rustc -vV | sed -n 's/^host: //p')/bin/gcc-ld/wasm-ld
+
+build() {
+  arch=$1
+  output=$2
+  RUSTFLAGS="-C relocation-model=pic" \
+    CARGO_PROFILE_RELEASE_LTO=true \
+    CARGO_PROFILE_RELEASE_PANIC=abort \
+    CARGO_TARGET_DIR=$target_dir \
+    cargo build --release --target=$arch-unknown-unknown -Zbuild-std=core
+  $wasm_ld -m$arch -shared --experimental-pic \
+    -o $output \
+    --whole-archive \
+    $target_dir/$arch-unknown-unknown/release/libdl.a \
+    --no-whole-archive \
+    --allow-undefined
+  cargo run --manifest-path ../../../Cargo.toml -- strip $output -o $output
+  cargo run --manifest-path ../../../Cargo.toml -- strip --delete name $output -o $output
+}
+
+build wasm32 $out/libdl32.so
+build wasm64 $out/libdl64.so

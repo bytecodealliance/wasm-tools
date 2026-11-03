@@ -25,6 +25,8 @@
 use {
     crate::encoding::fixup::{AddressDest, FixupModule, ImportedInstance, StartAction},
     crate::encoding::{ComponentEncoder, Instance, Item, LibraryInfo, MainOrAdapter},
+    crate::gc::PtrInstructions,
+    crate::validation::IndexType,
     anyhow::{Context, Result, anyhow, bail},
     indexmap::{IndexMap, IndexSet, map::Entry},
     metadata::{Export, ExportKey, FunctionType, GlobalType, Metadata, Type, ValueType},
@@ -35,9 +37,9 @@ use {
         hash::Hash,
     },
     wasm_encoder::{
-        CodeSection, ConstExpr, Elements, EntityType, ExportKind, ExportSection, Function,
-        FunctionSection, GlobalSection, ImportSection, MemArg, MemorySection, MemoryType, Module,
-        RawCustomSection, RefType, TableSection, TableType, TypeSection, ValType,
+        CodeSection, Elements, EntityType, ExportKind, ExportSection, Function, FunctionSection,
+        GlobalSection, ImportSection, MemArg, MemorySection, MemoryType, Module, RawCustomSection,
+        RefType, TableSection, TableType, TypeSection, ValType,
     },
     wasmparser::SymbolFlags,
 };
@@ -95,24 +97,29 @@ struct DlOpenables<'a> {
 impl<'a> DlOpenables<'a> {
     /// Construct a lookup table containing all "dlopen-able" libraries and their symbols using the specified table
     /// and memory offsets.
-    fn new(table_base: u32, memory_base: u32, metadata: &'a [Metadata<'a>]) -> Self {
+    ///
+    /// The layout of the table matches the `#[repr(C)]` structures in
+    /// ../dl/src/lib.rs compiled for a target whose pointers are described by
+    /// `index_type`.
+    fn new(
+        table_base: u32,
+        memory_base: u32,
+        metadata: &'a [Metadata<'a>],
+        index_type: IndexType,
+    ) -> Self {
         let mut function_count = 0;
-        let mut buffer = Vec::new();
+        let mut data = StaticData::new(memory_base, index_type);
         let mut global_addresses = Vec::new();
         let mut libraries = metadata
             .iter()
             .filter(|metadata| metadata.dl_openable)
             .map(|metadata| {
-                let name_address = memory_base + u32::try_from(buffer.len()).unwrap();
-                write_bytes_padded(&mut buffer, metadata.name.as_bytes());
+                let name_address = data.bytes(metadata.name.as_bytes());
 
                 let mut symbols = metadata
                     .exports
                     .iter()
                     .filter_map(|export| {
-                        let name_address = memory_base + u32::try_from(buffer.len()).unwrap();
-                        write_bytes_padded(&mut buffer, export.key.name.as_bytes());
-
                         let address = match &export.key.ty {
                             Type::Function(_) => Address::Function(
                                 table_base + get_and_increment(&mut function_count),
@@ -120,6 +127,7 @@ impl<'a> DlOpenables<'a> {
                             Type::Global(_) => Address::Global(export.key.name),
                             Type::Tag(_) => return None,
                         };
+                        let name_address = data.bytes(export.key.name.as_bytes());
 
                         Some((export.key.name, name_address, address))
                     })
@@ -127,20 +135,19 @@ impl<'a> DlOpenables<'a> {
 
                 symbols.sort_by_key(|(name, ..)| *name);
 
-                let start = buffer.len();
+                // struct Symbol symbols[];
+                let symbols_address = data.start_struct();
                 for (name, name_address, address) in symbols {
-                    write_u32(&mut buffer, u32::try_from(name.len()).unwrap());
-                    write_u32(&mut buffer, name_address);
+                    data.start_struct();
+                    data.u32(u32::try_from(name.len()).unwrap());
+                    data.ptr(name_address);
                     match address {
-                        Address::Function(address) => write_u32(&mut buffer, address),
+                        Address::Function(address) => {
+                            data.ptr(address);
+                        }
                         Address::Global(name) => {
-                            global_addresses.push((
-                                metadata.name,
-                                name,
-                                memory_base + u32::try_from(buffer.len()).unwrap(),
-                            ));
-
-                            write_u32(&mut buffer, 0);
+                            let address = data.ptr(0);
+                            global_addresses.push((metadata.name, name, address));
                         }
                     }
                 }
@@ -149,29 +156,32 @@ impl<'a> DlOpenables<'a> {
                     metadata.name,
                     name_address,
                     metadata.exports.len(),
-                    memory_base + u32::try_from(start).unwrap(),
+                    symbols_address,
                 )
             })
             .collect::<Vec<_>>();
 
         libraries.sort_by_key(|(name, ..)| *name);
 
-        let start = buffer.len();
+        // struct Library libraries[];
+        let libraries_array_address = data.start_struct();
         for (name, name_address, count, symbols) in &libraries {
-            write_u32(&mut buffer, u32::try_from(name.len()).unwrap());
-            write_u32(&mut buffer, *name_address);
-            write_u32(&mut buffer, u32::try_from(*count).unwrap());
-            write_u32(&mut buffer, *symbols);
+            data.start_struct();
+            data.u32(u32::try_from(name.len()).unwrap());
+            data.ptr(*name_address);
+            data.u32(u32::try_from(*count).unwrap());
+            data.ptr(*symbols);
         }
 
-        let libraries_address = memory_base + u32::try_from(buffer.len()).unwrap();
-        write_u32(&mut buffer, u32::try_from(libraries.len()).unwrap());
-        write_u32(&mut buffer, memory_base + u32::try_from(start).unwrap());
+        // struct Libraries libraries;
+        let libraries_address = data.start_struct();
+        data.u32(u32::try_from(libraries.len()).unwrap());
+        data.ptr(libraries_array_address);
 
         Self {
             table_base,
             memory_base,
-            buffer,
+            buffer: data.finish(),
             global_addresses,
             function_count,
             libraries_address,
@@ -215,14 +225,14 @@ struct TlsLayout {
 }
 
 impl TlsLayout {
-    /// Reserve linear memory and table space for the layout described above,
-    /// advancing `memory_offset` and `table_offset` past what's used.
+    /// Reserve linear memory space for the layout described above, advancing
+    /// `memory_offset` past what's used.
     ///
     /// Nothing is reserved for a program which doesn't use thread-local storage
     /// at all, and the `__wasm_program_tls_info` half is skipped unless some
     /// library actually asks for it, which is only the case when the program
     /// might spawn a thread.
-    fn new(metadata: &[Metadata], memory_offset: &mut u32) -> Self {
+    fn new(metadata: &[Metadata], memory_offset: &mut u32, index_type: IndexType) -> Self {
         let needs_tls_base = metadata
             .iter()
             .any(|m| m.needs_get_tls_base || m.needs_set_tls_base);
@@ -245,23 +255,27 @@ impl TlsLayout {
         }
         let count = u32::try_from(libraries.len()).unwrap();
 
+        let ptr_size = index_type.ptr_size();
+
         // Allocate space for `main_thread_tls_base`
-        *memory_offset = align(*memory_offset, 4);
+        *memory_offset = align(*memory_offset, ptr_size);
         let main_thread_tls_base = *memory_offset;
-        *memory_offset += count * 4;
+        *memory_offset += count * ptr_size;
 
         let mut library_info = 0;
         let mut program_info = 0;
         let mut buffer = Vec::new();
         if needs_program_info {
             library_info = *memory_offset;
-            *memory_offset += count * 4;
-            program_info = *memory_offset;
-            *memory_offset += 12;
+            *memory_offset += count * ptr_size;
 
-            write_u32(&mut buffer, count);
-            write_u32(&mut buffer, library_info);
-            write_u32(&mut buffer, main_thread_tls_base);
+            let mut data = StaticData::new(*memory_offset, index_type);
+            program_info = data.start_struct();
+            data.ptr(count);
+            data.ptr(library_info);
+            data.ptr(main_thread_tls_base);
+            *memory_offset = data.end();
+            buffer = data.finish();
         }
 
         Self {
@@ -279,16 +293,86 @@ impl TlsLayout {
     }
 }
 
-fn write_u32(buffer: &mut Vec<u8>, value: u32) {
-    buffer.extend(value.to_le_bytes());
+/// Builder for a blob of data which will be placed at the fixed address
+/// `base` in linear memory, laid out the same way that C would lay out
+/// structures for a target whose pointers are described by `index_type`.
+///
+/// All methods which write data return the address in linear memory, not the
+/// offset in the buffer, at which the data was written, after any padding
+/// needed for alignment.
+struct StaticData {
+    base: u32,
+    buffer: Vec<u8>,
+    index_type: IndexType,
 }
 
-fn write_bytes_padded(buffer: &mut Vec<u8>, bytes: &[u8]) {
-    buffer.extend(bytes);
+impl StaticData {
+    fn new(base: u32, index_type: IndexType) -> Self {
+        // Alignment within `buffer` only translates to alignment in linear
+        // memory if `base` is itself sufficiently aligned.
+        assert_eq!(
+            base % index_type.ptr_size(),
+            0,
+            "static data must be pointer-aligned"
+        );
+        Self {
+            base,
+            buffer: Vec::new(),
+            index_type,
+        }
+    }
 
-    let len = u32::try_from(bytes.len()).unwrap();
-    for _ in len..align(len, 4) {
-        buffer.push(0);
+    /// Returns the address in linear memory just past the end of the data
+    /// written so far.
+    fn end(&self) -> u32 {
+        self.base + u32::try_from(self.buffer.len()).unwrap()
+    }
+
+    /// Pads with zeros to `alignment`, returning the now-aligned address.
+    fn align(&mut self, alignment: u32) -> u32 {
+        let end = self.end();
+        let aligned = align(end, alignment);
+        self.buffer.resize(
+            self.buffer.len() + usize::try_from(aligned - end).unwrap(),
+            0,
+        );
+        aligned
+    }
+
+    /// Aligns for the start of a structure or an element of an array of
+    /// structures, returning its address.
+    ///
+    /// Every structure written here contains a pointer, so its alignment is
+    /// that of a pointer.
+    fn start_struct(&mut self) -> u32 {
+        self.align(self.index_type.ptr_size())
+    }
+
+    /// Writes unaligned raw bytes, such as a string.
+    fn bytes(&mut self, bytes: &[u8]) -> u32 {
+        let address = self.end();
+        self.buffer.extend_from_slice(bytes);
+        address
+    }
+
+    fn u32(&mut self, value: u32) -> u32 {
+        let address = self.align(4);
+        self.buffer.extend(value.to_le_bytes());
+        address
+    }
+
+    /// Writes a pointer-sized `value`, such as a pointer or a `size_t`.
+    fn ptr(&mut self, value: u32) -> u32 {
+        let address = self.align(self.index_type.ptr_size());
+        match self.index_type {
+            IndexType::I32 => self.buffer.extend(value.to_le_bytes()),
+            IndexType::I64 => self.buffer.extend(u64::from(value).to_le_bytes()),
+        }
+        address
+    }
+
+    fn finish(self) -> Vec<u8> {
+        self.buffer
     }
 }
 
@@ -301,10 +385,6 @@ fn get_and_increment(n: &mut u32) -> u32 {
     let v = *n;
     *n += 1;
     v
-}
-
-fn const_u32(a: u32) -> ConstExpr {
-    ConstExpr::i32_const(a as i32)
 }
 
 /// Helper trait for determining the size of a set or map
@@ -382,7 +462,9 @@ fn make_env_module<'a>(
     env_exports: &[EnvExport<'_>],
     cabi_realloc_exporter: Option<&str>,
     stack_size_bytes: u32,
+    index_type: IndexType,
 ) -> (Vec<u8>, DlOpenables<'a>, TlsLayout, u32) {
+    let ptr = index_type.encoder_ptr();
     // TODO: deduplicate types
     let mut types = TypeSection::new();
     let mut imports = ImportSection::new();
@@ -445,7 +527,7 @@ fn make_env_module<'a>(
 
     if let Some(exporter) = cabi_realloc_exporter {
         let index = get_and_increment(&mut function_count);
-        types.ty().function([ValType::I32; 4], [ValType::I32]);
+        types.ty().function([ptr; 4], [ptr]);
         imports.import(exporter, CABI_REALLOC, EntityType::Function(index));
         exports.export(CABI_REALLOC, ExportKind::Func, index);
     }
@@ -458,7 +540,7 @@ fn make_env_module<'a>(
         && metadata.iter().any(|m| m.uses_thread_new_indirect);
     let tls_context_get = if indirect_tls_base {
         let index = get_and_increment(&mut function_count);
-        types.ty().function([], [ValType::I32]);
+        types.ty().function([], [ptr]);
         imports.import(
             metadata::ROOT,
             metadata::CONTEXT_GET_1,
@@ -469,24 +551,28 @@ fn make_env_module<'a>(
         None
     };
 
-    let mut add_global_export = |name: &str, value, mutable| {
+    // Note that most globals here are pointers, and thus have the type of
+    // `index_type`, but `__asyncify_state` is always `i32`.
+    let mut add_global_export = |name: &str, ty: IndexType, value, mutable| {
         let index = globals.len();
         globals.global(
             wasm_encoder::GlobalType {
-                val_type: ValType::I32,
+                val_type: ty.encoder_ptr(),
                 mutable,
                 shared: false,
             },
-            &const_u32(value),
+            &ty.const_expr(value),
         );
         exports.export(name, ExportKind::Global, index);
     };
 
-    let dl_openables = DlOpenables::new(table_offset, memory_offset, metadata);
+    memory_offset = align(memory_offset, index_type.ptr_size());
+    let dl_openables = DlOpenables::new(table_offset, memory_offset, metadata, index_type);
 
     if metadata.iter().any(|m| m.needs_libdl_libraries) {
         add_global_export(
             metadata::LIBDL_LIBRARIES,
+            index_type,
             dl_openables.libraries_address,
             true,
         );
@@ -495,34 +581,44 @@ fn make_env_module<'a>(
     table_offset += dl_openables.function_count;
     memory_offset += u32::try_from(dl_openables.buffer.len()).unwrap();
 
-    let tls = TlsLayout::new(metadata, &mut memory_offset);
+    let tls = TlsLayout::new(metadata, &mut memory_offset, index_type);
 
     if metadata.iter().any(|m| m.needs_program_tls_info) {
-        add_global_export(metadata::PROGRAM_TLS_INFO, tls.program_info, true);
+        add_global_export(
+            metadata::PROGRAM_TLS_INFO,
+            index_type,
+            tls.program_info,
+            true,
+        );
     }
 
     let memory_size = {
         if metadata.iter().any(|m| m.needs_stack_pointer) {
-            add_global_export(metadata::STACK_POINTER, stack_size_bytes, true);
+            add_global_export(metadata::STACK_POINTER, index_type, stack_size_bytes, true);
         }
         if metadata.iter().any(|m| m.needs_init_stack_pointer) {
-            add_global_export(metadata::INIT_STACK_POINTER, stack_size_bytes, false);
+            add_global_export(
+                metadata::INIT_STACK_POINTER,
+                index_type,
+                stack_size_bytes,
+                false,
+            );
         }
 
         // Binaryen's Asyncify transform for shared everything linking requires these globals
         // to be provided from env module
         let has_asyncified_module = metadata.iter().any(|m| m.is_asyncified);
         if has_asyncified_module {
-            add_global_export(metadata::ASYNCIFY_STATE, 0, true);
-            add_global_export(metadata::ASYNCIFY_DATA, 0, true);
+            add_global_export(metadata::ASYNCIFY_STATE, IndexType::I32, 0, true);
+            add_global_export(metadata::ASYNCIFY_DATA, index_type, 0, true);
         }
 
         // The libc.so in WASI-SDK 28+ requires these:
         if metadata.iter().any(|m| m.needs_stack_high) {
-            add_global_export(metadata::STACK_HIGH, stack_size_bytes, true);
+            add_global_export(metadata::STACK_HIGH, index_type, stack_size_bytes, true);
         }
         if metadata.iter().any(|m| m.needs_stack_low) {
-            add_global_export(metadata::STACK_LOW, 0, true);
+            add_global_export(metadata::STACK_LOW, index_type, 0, true);
         }
 
         for metadata in metadata {
@@ -531,11 +627,13 @@ fn make_env_module<'a>(
 
             add_global_export(
                 &format!("{}:memory_base", metadata.name),
+                index_type,
                 memory_offset,
                 false,
             );
             add_global_export(
                 &format!("{}:table_base", metadata.name),
+                index_type,
                 table_offset,
                 false,
             );
@@ -546,7 +644,7 @@ fn make_env_module<'a>(
             for import in &metadata.memory_address_imports {
                 // Note that we initialize this to zero and let the init module compute the real value at
                 // instantiation time.
-                add_global_export(&format!("{}:{import}", metadata.name), 0, true);
+                add_global_export(&format!("{}:{import}", metadata.name), index_type, 0, true);
             }
         }
 
@@ -574,9 +672,19 @@ fn make_env_module<'a>(
                             .iter()
                             .any(|e| e.0 == *import && e.1.1.contains(SymbolFlags::BINDING_WEAK))
                     {
-                        add_global_export(&format!("{}:{import}", metadata.name), 0, true);
+                        add_global_export(
+                            &format!("{}:{import}", metadata.name),
+                            index_type,
+                            0,
+                            true,
+                        );
                     } else {
-                        add_global_export(&format!("{}:{import}", metadata.name), offset, true);
+                        add_global_export(
+                            &format!("{}:{import}", metadata.name),
+                            index_type,
+                            offset,
+                            true,
+                        );
                     }
                 }
             }
@@ -584,12 +692,12 @@ fn make_env_module<'a>(
 
         memory_offset = align(memory_offset, HEAP_ALIGNMENT_BYTES);
         if metadata.iter().any(|m| m.needs_heap_base) {
-            add_global_export(metadata::HEAP_BASE, memory_offset, true);
+            add_global_export(metadata::HEAP_BASE, index_type, memory_offset, true);
         }
 
         let heap_end = align(memory_offset, PAGE_SIZE_BYTES);
         if metadata.iter().any(|m| m.needs_heap_end) {
-            add_global_export(metadata::HEAP_END, heap_end, true);
+            add_global_export(metadata::HEAP_END, index_type, heap_end, true);
         }
         heap_end / PAGE_SIZE_BYTES
     };
@@ -613,7 +721,7 @@ fn make_env_module<'a>(
         }
         function
             .instructions()
-            .i32_const(i32::try_from(table_offset).unwrap())
+            .ptr_uconst(index_type, table_offset)
             .call_indirect(0, u32::try_from(index).unwrap())
             .end();
         code.function(&function);
@@ -635,12 +743,12 @@ fn make_env_module<'a>(
                     metadata.needs_get_tls_base,
                     metadata::GET_TLS_BASE,
                     &[][..],
-                    &[ValType::I32][..],
+                    &[ptr][..],
                 ),
                 (
                     metadata.needs_set_tls_base,
                     metadata::SET_TLS_BASE,
-                    &[ValType::I32][..],
+                    &[ptr][..],
                     &[][..],
                 ),
             ] {
@@ -661,15 +769,15 @@ fn make_env_module<'a>(
         };
 
         let mem_arg = MemArg {
-            offset: u64::from(slot * 4),
-            align: 2,
+            offset: u64::from(slot * index_type.ptr_size()),
+            align: index_type.ptr_align_log2(),
             target: Default::default(),
             ordering: None,
         };
 
         if metadata.needs_get_tls_base {
             let func = get_and_increment(&mut function_count);
-            types.ty().function([], [ValType::I32]);
+            types.ty().function([], [ptr]);
             functions.function(func);
             let mut function = Function::new([]);
             // With coop threads the base pointer is in `context.get 1`. Without
@@ -681,10 +789,10 @@ fn make_env_module<'a>(
                 None => {
                     function
                         .instructions()
-                        .i32_const(i32::try_from(tls.main_thread_tls_base).unwrap());
+                        .ptr_uconst(index_type, tls.main_thread_tls_base);
                 }
             }
-            function.instructions().i32_load(mem_arg).end();
+            function.instructions().ptr_load(index_type, mem_arg).end();
             code.function(&function);
             exports.export(
                 &format!("{}:{}", metadata.name, metadata::GET_TLS_BASE),
@@ -695,10 +803,10 @@ fn make_env_module<'a>(
 
         if metadata.needs_set_tls_base {
             let func = get_and_increment(&mut function_count);
-            types.ty().function([ValType::I32], []);
+            types.ty().function([ptr], []);
             functions.function(func);
             let mut function = Function::new_with_locals_types(if tls_context_get.is_some() {
-                vec![ValType::I32]
+                vec![ptr]
             } else {
                 vec![]
             });
@@ -713,24 +821,24 @@ fn make_env_module<'a>(
                         .instructions()
                         .call(get)
                         .local_tee(1)
-                        .i32_eqz()
+                        .ptr_eqz(index_type)
                         .if_(wasm_encoder::BlockType::Empty)
-                        .i32_const(i32::try_from(tls.main_thread_tls_base).unwrap())
+                        .ptr_uconst(index_type, tls.main_thread_tls_base)
                         .local_get(0)
-                        .i32_store(mem_arg)
+                        .ptr_store(index_type, mem_arg)
                         .else_()
                         .local_get(1)
                         .local_get(0)
-                        .i32_store(mem_arg)
+                        .ptr_store(index_type, mem_arg)
                         .end()
                         .end();
                 }
                 None => {
                     function
                         .instructions()
-                        .i32_const(i32::try_from(tls.main_thread_tls_base).unwrap())
+                        .ptr_uconst(index_type, tls.main_thread_tls_base)
                         .local_get(0)
-                        .i32_store(mem_arg)
+                        .ptr_store(index_type, mem_arg)
                         .end();
                 }
             }
@@ -766,7 +874,7 @@ fn make_env_module<'a>(
             element_type: RefType::FUNCREF,
             minimum: table_offset.into(),
             maximum: None,
-            table64: false,
+            table64: index_type == IndexType::I64,
             shared: false,
         });
         exports.export(metadata::INDIRECT_FUNCTION_TABLE, ExportKind::Table, 0);
@@ -778,7 +886,7 @@ fn make_env_module<'a>(
         memories.memory(MemoryType {
             minimum: u64::from(memory_size),
             maximum: None,
-            memory64: false,
+            memory64: index_type == IndexType::I64,
             shared: false,
             page_size_log2: None,
         });
@@ -811,6 +919,7 @@ fn make_init_module(
     dl_openables: &DlOpenables,
     tls: &TlsLayout,
     indirection_table_base: u32,
+    index_type: IndexType,
 ) -> Result<()> {
     let thunk_ty = fixups.type_thunk();
     let memory = fixups.import(
@@ -819,7 +928,7 @@ fn make_init_module(
         MemoryType {
             minimum: 0,
             maximum: None,
-            memory64: false,
+            memory64: index_type == IndexType::I64,
             shared: false,
             page_size_log2: None,
         }
@@ -832,7 +941,7 @@ fn make_init_module(
             element_type: RefType::FUNCREF,
             minimum: 0,
             maximum: None,
-            table64: false,
+            table64: index_type == IndexType::I64,
             shared: false,
         }
         .into(),
@@ -853,7 +962,7 @@ fn make_init_module(
                         &module_name_to_instance(module),
                         name,
                         wasm_encoder::GlobalType {
-                            val_type: ValType::I32,
+                            val_type: index_type.encoder_ptr(),
                             mutable,
                             shared: false,
                         },
@@ -899,7 +1008,7 @@ fn make_init_module(
 
     for metadata in metadata {
         for import in &metadata.memory_address_imports {
-            let (exporter, _) = find_offset_exporter(import, exporters)?;
+            let (exporter, _) = find_offset_exporter(import, exporters, index_type)?;
 
             let memory_base = add_global_import(
                 fixups,
@@ -1008,7 +1117,7 @@ fn make_init_module(
                 memory_base,
                 export: i,
                 dest: AddressDest::LinearMemory {
-                    address: tls.library_info + tls_index * 4,
+                    address: tls.library_info + tls_index * index_type.ptr_size(),
                     memory,
                 },
             });
@@ -1017,23 +1126,27 @@ fn make_init_module(
 
     fixups.elements().active(
         if table == 0 { None } else { Some(table) },
-        &const_u32(dl_openables.table_base),
+        &index_type.const_expr(dl_openables.table_base),
         Elements::Functions(dl_openable_functions.into()),
     );
     fixups.elements().active(
         if table == 0 { None } else { Some(table) },
-        &const_u32(indirection_table_base),
+        &index_type.const_expr(indirection_table_base),
         Elements::Functions(indirections.into()),
     );
 
     let data = fixups.data();
     data.active(
         memory,
-        &const_u32(dl_openables.memory_base),
+        &index_type.const_expr(dl_openables.memory_base),
         dl_openables.buffer.clone(),
     );
     if !tls.buffer.is_empty() {
-        data.active(memory, &const_u32(tls.program_info), tls.buffer.clone());
+        data.active(
+            memory,
+            &index_type.const_expr(tls.program_info),
+            tls.buffer.clone(),
+        );
     }
 
     Ok(())
@@ -1043,11 +1156,12 @@ fn make_init_module(
 fn find_offset_exporter<'a>(
     name: &str,
     exporters: &IndexMap<&ExportKey, (&'a str, &'a Export<'a>)>,
+    index_type: IndexType,
 ) -> Result<(&'a str, &'a Export<'a>)> {
     let export = ExportKey {
         name,
         ty: Type::Global(GlobalType {
-            ty: ValueType::I32,
+            ty: index_type.into(),
             mutable: false,
             shared: false,
         }),
@@ -1113,6 +1227,7 @@ fn resolve_exporters<'a>(
 fn resolve_symbols<'a>(
     metadata: &'a [Metadata<'a>],
     exporters: &'a IndexMap<&'a ExportKey<'a>, Vec<(&'a str, &'a Export<'a>)>>,
+    index_type: IndexType,
 ) -> (
     IndexMap<&'a ExportKey<'a>, (&'a str, &'a Export<'a>)>,
     Vec<(&'a str, Export<'a>)>,
@@ -1170,7 +1285,7 @@ fn resolve_symbols<'a>(
                     key: ExportKey {
                         name,
                         ty: Type::Global(GlobalType {
-                            ty: ValueType::I32,
+                            ty: index_type.into(),
                             mutable: false,
                             shared: false,
                         }),
@@ -1559,6 +1674,30 @@ fn find_reachable<'a>(
         .collect()
 }
 
+/// Determines the index type of the linear memory shared by all libraries in
+/// `metadata`, returning an error if they disagree.
+///
+/// Libraries which don't say either way are compatible with any index type,
+/// and if no library says either way then 32-bit memory is used.
+fn linked_index_type(metadata: &[Metadata]) -> Result<IndexType> {
+    let mut found: Option<(&str, IndexType)> = None;
+    for metadata in metadata {
+        let Some(ty) = metadata.index_type else {
+            continue;
+        };
+        match found {
+            None => found = Some((metadata.name, ty)),
+            Some((_, prev)) if prev == ty => {}
+            Some((prev_name, prev)) => bail!(
+                "library `{}` uses a linear memory index type of `{ty}` but \
+                 library `{prev_name}` uses `{prev}`; all libraries must use the same index type",
+                metadata.name,
+            ),
+        }
+    }
+    Ok(found.map(|(_, ty)| ty).unwrap_or_default())
+}
+
 /// Builder type for composing dynamic library modules into a component
 #[derive(Default)]
 pub struct Linker {
@@ -1619,11 +1758,6 @@ impl Linker {
 
     /// Encode the component and return the bytes
     pub fn encode(mut self) -> Result<Vec<u8>> {
-        if self.use_built_in_libdl {
-            self.use_built_in_libdl = false;
-            self.library("libdl.so", include_bytes!("../libdl.so"), false)?;
-        }
-
         let adapter_names = self
             .encoder
             .adapters
@@ -1639,6 +1773,18 @@ impl Linker {
                     .with_context(|| format!("failed to extract linking metadata from {name}"))
             })
             .collect::<Result<Vec<_>>>()?;
+
+        let index_type = linked_index_type(&metadata)?;
+
+        if self.use_built_in_libdl {
+            self.use_built_in_libdl = false;
+            let libdl: &[u8] = match index_type {
+                IndexType::I32 => include_bytes!("../libdl32.so"),
+                IndexType::I64 => include_bytes!("../libdl64.so"),
+            };
+            self.library("libdl.so", libdl, false)?;
+            return self.encode();
+        }
 
         {
             let names = self
@@ -1686,13 +1832,13 @@ impl Linker {
             .get(&ExportKey {
                 name: "cabi_realloc",
                 ty: Type::Function(FunctionType {
-                    parameters: vec![ValueType::I32; 4],
-                    results: vec![ValueType::I32],
+                    parameters: vec![index_type.into(); 4],
+                    results: vec![index_type.into()],
                 }),
             })
             .map(|exporters| exporters.first().unwrap().0);
 
-        let (exporters, missing, _) = resolve_symbols(&metadata, &exporters);
+        let (exporters, missing, _) = resolve_symbols(&metadata, &exporters, index_type);
 
         if !missing.is_empty() {
             if missing
@@ -1755,6 +1901,7 @@ impl Linker {
                 cabi_realloc_exporter
             },
             self.stack_size.unwrap_or(DEFAULT_STACK_SIZE_BYTES),
+            index_type,
         );
 
         self.encoder.module(&env_module)?;
@@ -1969,6 +2116,7 @@ impl Linker {
                 &dl_openables,
                 &tls,
                 table_base,
+                index_type,
             )
         }))
     }
