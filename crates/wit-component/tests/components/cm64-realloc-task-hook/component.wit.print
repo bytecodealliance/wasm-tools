@@ -1,0 +1,14 @@
+package root:component;
+
+world root {
+  import returns-string: func() -> string;
+  import takes-string: func(s: string);
+
+  export takes-and-returns: func(s: string) -> string;
+  export no-realloc: func();
+  export x: interface {
+    resource r;
+
+    with-string: func(s: string);
+  }
+}

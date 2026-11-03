@@ -1,0 +1,16 @@
+package root:component;
+
+world root {
+  import new2: interface {
+    get-two: func() -> tuple<u32, u32>;
+  }
+  import new: interface {
+    get-two: func() -> tuple<u32, u32>;
+
+    log: func(s: string);
+
+    read: func(amt: u32) -> list<u8>;
+  }
+
+  export entrypoint: func(args: list<string>);
+}

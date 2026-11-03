@@ -1,0 +1,9 @@
+package root:component;
+
+world root {
+  import new: interface {
+    get-two: func() -> tuple<u32, u32>;
+
+    read: func() -> list<u8>;
+  }
+}

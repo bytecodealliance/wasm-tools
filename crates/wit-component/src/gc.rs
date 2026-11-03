@@ -1,4 +1,5 @@
 use self::bitvec::BitVec;
+use crate::validation::IndexType;
 use anyhow::{Result, bail};
 use indexmap::{IndexMap, IndexSet};
 use std::{
@@ -8,7 +9,7 @@ use std::{
     mem,
     ops::Deref,
 };
-use wasm_encoder::{Encode, EntityType, RawCustomSection, reencode::Reencode};
+use wasm_encoder::{Encode, EntityType, InstructionSink, RawCustomSection, reencode::Reencode};
 use wasmparser::*;
 
 const PAGE_SIZE: i32 = 64 * 1024;
@@ -23,6 +24,7 @@ pub fn run(
     required: &IndexSet<String>,
     main_module_realloc: Option<&str>,
     page_size_log2: u32,
+    index_type: IndexType,
 ) -> Result<Vec<u8>> {
     assert!(!required.is_empty());
 
@@ -47,60 +49,111 @@ pub fn run(
     }
     assert!(!module.exports.is_empty());
     module.liveness()?;
-    module.encode(main_module_realloc, page_size_log2)
+    module.encode(main_module_realloc, page_size_log2, index_type)
+}
+
+/// Extension trait for emitting pointer-sized instructions, where the size of
+/// a pointer is determined by the `IndexType` of linear memory.
+trait PtrInstructions {
+    fn ptr_const(&mut self, index_type: IndexType, value: i32) -> &mut Self;
+    fn ptr_ne(&mut self, index_type: IndexType) -> &mut Self;
+    fn ptr_eq(&mut self, index_type: IndexType) -> &mut Self;
+    fn ptr_add(&mut self, index_type: IndexType) -> &mut Self;
+    fn ptr_shl(&mut self, index_type: IndexType) -> &mut Self;
+}
+
+impl PtrInstructions for InstructionSink<'_> {
+    fn ptr_const(&mut self, index_type: IndexType, value: i32) -> &mut Self {
+        match index_type {
+            IndexType::I32 => self.i32_const(value),
+            IndexType::I64 => self.i64_const(value.into()),
+        }
+    }
+
+    fn ptr_ne(&mut self, index_type: IndexType) -> &mut Self {
+        match index_type {
+            IndexType::I32 => self.i32_ne(),
+            IndexType::I64 => self.i64_ne(),
+        }
+    }
+
+    fn ptr_eq(&mut self, index_type: IndexType) -> &mut Self {
+        match index_type {
+            IndexType::I32 => self.i32_eq(),
+            IndexType::I64 => self.i64_eq(),
+        }
+    }
+
+    fn ptr_add(&mut self, index_type: IndexType) -> &mut Self {
+        match index_type {
+            IndexType::I32 => self.i32_add(),
+            IndexType::I64 => self.i64_add(),
+        }
+    }
+
+    fn ptr_shl(&mut self, index_type: IndexType) -> &mut Self {
+        match index_type {
+            IndexType::I32 => self.i32_shl(),
+            IndexType::I64 => self.i64_shl(),
+        }
+    }
 }
 
 /// This function generates a Wasm function body which implements `cabi_realloc` in terms of `memory.grow`.  It
 /// only accepts new, page-sized allocations.
-fn realloc_via_memory_grow(page_size_log2: u32) -> wasm_encoder::Function {
-    let mut func = wasm_encoder::Function::new([(1, wasm_encoder::ValType::I32)]);
+fn realloc_via_memory_grow(page_size_log2: u32, index_type: IndexType) -> wasm_encoder::Function {
+    let mut func = wasm_encoder::Function::new([(1, index_type.encoder_ptr())]);
+    let mut ins = func.instructions();
 
     // Assert `old_ptr` is null.
-    func.instructions().i32_const(0);
-    func.instructions().local_get(0);
-    func.instructions().i32_ne();
-    func.instructions().if_(wasm_encoder::BlockType::Empty);
-    func.instructions().unreachable();
-    func.instructions().end();
+    ins.ptr_const(index_type, 0)
+        .local_get(0)
+        .ptr_ne(index_type)
+        .if_(wasm_encoder::BlockType::Empty)
+        .unreachable()
+        .end();
 
     // Assert `old_len` is zero.
-    func.instructions().i32_const(0);
-    func.instructions().local_get(1);
-    func.instructions().i32_ne();
-    func.instructions().if_(wasm_encoder::BlockType::Empty);
-    func.instructions().unreachable();
-    func.instructions().end();
+    ins.ptr_const(index_type, 0)
+        .local_get(1)
+        .ptr_ne(index_type)
+        .if_(wasm_encoder::BlockType::Empty)
+        .unreachable()
+        .end();
 
-    // Assert `new_len` is equal to the page size (which is the only value we currently support)
-    // Note: we could easily support arbitrary multiples of PAGE_SIZE here if the need arises.
-    func.instructions().i32_const(PAGE_SIZE);
-    func.instructions().local_get(3);
-    func.instructions().i32_ne();
-    func.instructions().if_(wasm_encoder::BlockType::Empty);
-    func.instructions().unreachable();
-    func.instructions().end();
+    // Assert `new_len` is equal to the page size (which is the only value we
+    // currently support)
+    // Note: we could easily support arbitrary multiples of PAGE_SIZE here if
+    // the need arises.
+    ins.ptr_const(index_type, PAGE_SIZE)
+        .local_get(3)
+        .ptr_ne(index_type)
+        .if_(wasm_encoder::BlockType::Empty)
+        .unreachable()
+        .end();
 
     // Grow the memory by enough pages to get PAGE_SIZE bytes.
     // With default 64KiB pages this is 1; with page-size-1 this is 65536.
     let grow_pages = PAGE_SIZE >> page_size_log2;
-    func.instructions().i32_const(grow_pages);
-    func.instructions().memory_grow(0);
-    func.instructions().local_tee(4);
+    ins.ptr_const(index_type, grow_pages)
+        .memory_grow(0)
+        .local_tee(4);
 
-    // Test if the return value of the growth was -1 and, if so, trap due to a failed allocation.
-    func.instructions().i32_const(-1);
-    func.instructions().i32_eq();
-    func.instructions().if_(wasm_encoder::BlockType::Empty);
-    func.instructions().unreachable();
-    func.instructions().end();
+    // Test if the return value of the growth was -1 and, if so, trap due to a
+    // failed allocation.
+    ins.ptr_const(index_type, -1)
+        .ptr_eq(index_type)
+        .if_(wasm_encoder::BlockType::Empty)
+        .unreachable()
+        .end();
 
     // Convert the page index returned by memory.grow to a byte offset.
-    func.instructions().local_get(4);
+    ins.local_get(4);
     if page_size_log2 > 0 {
-        func.instructions().i32_const(page_size_log2 as i32);
-        func.instructions().i32_shl();
+        ins.ptr_const(index_type, page_size_log2 as i32)
+            .ptr_shl(index_type);
     }
-    func.instructions().end();
+    ins.end();
 
     func
 }
@@ -113,44 +166,49 @@ enum StackAllocationState {
     Allocated,
 }
 
+/// Generates a function which allocates a stack via `realloc_index` and
+/// stores the top of it in the `sp` global.
+///
+/// The `index_type` of memory determines the type of `sp` and of the
+/// `realloc` function. The `allocation_state` global, if present, is always an
+/// `i32` as it only stores a `StackAllocationState`.
 fn allocate_stack_via_realloc(
     realloc_index: u32,
     sp: u32,
     allocation_state: Option<u32>,
+    index_type: IndexType,
 ) -> wasm_encoder::Function {
     let mut func = wasm_encoder::Function::new([]);
+    let mut ins = func.instructions();
 
     if let Some(allocation_state) = allocation_state {
         // This means we're lazily allocating the stack, keeping track of state via `$allocation_state`
-        func.instructions().global_get(allocation_state);
-        func.instructions()
-            .i32_const(StackAllocationState::Unallocated as _);
-        func.instructions().i32_eq();
-        func.instructions().if_(wasm_encoder::BlockType::Empty);
-        func.instructions()
-            .i32_const(StackAllocationState::Allocating as _);
-        func.instructions().global_set(allocation_state);
+        ins.global_get(allocation_state)
+            .i32_const(StackAllocationState::Unallocated as _)
+            .i32_eq()
+            .if_(wasm_encoder::BlockType::Empty)
+            .i32_const(StackAllocationState::Allocating as _)
+            .global_set(allocation_state);
         // We could also set `sp` to zero here to ensure the yet-to-be-allocated stack is empty.  However, we
         // assume it defaults to zero anyway, in which case setting it would be redundant.
     }
 
-    func.instructions().i32_const(0);
-    func.instructions().i32_const(0);
-    func.instructions().i32_const(8);
-    func.instructions().i32_const(PAGE_SIZE);
-    func.instructions().call(realloc_index);
-    func.instructions().i32_const(PAGE_SIZE);
-    func.instructions().i32_add();
-    func.instructions().global_set(sp);
+    ins.ptr_const(index_type, 0)
+        .ptr_const(index_type, 0)
+        .ptr_const(index_type, 8)
+        .ptr_const(index_type, PAGE_SIZE)
+        .call(realloc_index)
+        .ptr_const(index_type, PAGE_SIZE)
+        .ptr_add(index_type)
+        .global_set(sp);
 
     if let Some(allocation_state) = allocation_state {
-        func.instructions()
-            .i32_const(StackAllocationState::Allocated as _);
-        func.instructions().global_set(allocation_state);
-        func.instructions().end();
+        ins.i32_const(StackAllocationState::Allocated as _)
+            .global_set(allocation_state)
+            .end();
     }
 
-    func.instructions().end();
+    ins.end();
 
     func
 }
@@ -515,6 +573,7 @@ impl<'a> Module<'a> {
         &mut self,
         main_module_realloc: Option<&str>,
         page_size_log2: u32,
+        index_type: IndexType,
     ) -> Result<Vec<u8>> {
         // Data structure used to track the mapping of old index to new index
         // for all live items.
@@ -629,15 +688,8 @@ impl<'a> Module<'a> {
 
         let add_realloc_type = |types: &mut wasm_encoder::TypeSection| {
             let type_index = types.len();
-            types.ty().function(
-                [
-                    wasm_encoder::ValType::I32,
-                    wasm_encoder::ValType::I32,
-                    wasm_encoder::ValType::I32,
-                    wasm_encoder::ValType::I32,
-                ],
-                [wasm_encoder::ValType::I32],
-            );
+            let ptr = index_type.encoder_ptr();
+            types.ty().function([ptr; 4], [ptr]);
             type_index
         };
 
@@ -647,8 +699,8 @@ impl<'a> Module<'a> {
             type_index
         };
 
-        let sp = self.find_mut_i32_global("__stack_pointer")?;
-        let allocation_state = self.find_mut_i32_global("allocation_state")?;
+        let sp = self.find_mut_global("__stack_pointer", index_type.ptr())?;
+        let allocation_state = self.find_mut_global("allocation_state", ValType::I32)?;
 
         let mut func_names = Vec::new();
 
@@ -678,7 +730,7 @@ impl<'a> Module<'a> {
                     // exporting it.  In this case, we need to define a local function it can call instead.
                     realloc_index = Some(num_func_imports + funcs.len());
                     funcs.function(ty);
-                    code.function(&realloc_via_memory_grow(page_size_log2));
+                    code.function(&realloc_via_memory_grow(page_size_log2, index_type));
                 }
                 Definition::Local(_) => {
                     funcs.function(ty);
@@ -741,6 +793,7 @@ impl<'a> Module<'a> {
                 realloc_index.unwrap(),
                 sp.unwrap(),
                 allocation_state,
+                index_type,
             ));
         }
 
@@ -749,7 +802,7 @@ impl<'a> Module<'a> {
             // allocation because we have no way to short-circuit reentrance, so we'll use `memory.grow` instead.
             realloc_index = Some(num_func_imports + funcs.len());
             funcs.function(add_realloc_type(&mut types));
-            code.function(&realloc_via_memory_grow(page_size_log2));
+            code.function(&realloc_via_memory_grow(page_size_log2, index_type));
         }
 
         // Inject a start function to initialize the stack pointer which will be local to this module. This only
@@ -781,6 +834,7 @@ impl<'a> Module<'a> {
                     realloc_index.unwrap(),
                     sp,
                     allocation_state,
+                    index_type,
                 ));
 
                 start = Some(wasm_encoder::StartSection { function_index });
@@ -911,14 +965,11 @@ impl<'a> Module<'a> {
         Ok(ret.finish())
     }
 
-    fn find_mut_i32_global(&self, name: &str) -> Result<Option<u32>> {
+    fn find_mut_global(&self, name: &str, ty: ValType) -> Result<Option<u32>> {
         let matches = &self
             .live_globals()
             .filter_map(|(i, g)| {
-                if g.ty.mutable
-                    && g.ty.content_type == ValType::I32
-                    && *self.global_names.get(&i)? == name
-                {
+                if g.ty.mutable && g.ty.content_type == ty && *self.global_names.get(&i)? == name {
                     Some(i)
                 } else {
                     None
@@ -930,7 +981,7 @@ impl<'a> Module<'a> {
             [] => Ok(None),
             [i] => Ok(Some(*i)),
             _ => bail!(
-                "found {} mutable i32 globals with name {name}",
+                "found {} mutable {ty} globals with name {name}",
                 matches.len()
             ),
         }

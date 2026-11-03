@@ -1,0 +1,97 @@
+package foo:foo;
+
+interface options {
+  record r {
+      s: string
+  }
+
+  record r-no-string {
+      s: u32
+  }
+
+  variant v {
+      s(string)
+  }
+
+  variant v-no-string {
+      s(u32)
+  }
+
+  a: func();
+  b: func(x: list<string>);
+  c: func(x: r);
+  d: func(x: v);
+  e: func(x: r-no-string);
+  f: func(x: v-no-string);
+  g: func(x: list<r>);
+  h: func(x: list<v>);
+  i: func(x: list<u32>);
+  j: func(x: u32);
+  k: func() -> tuple<u32, u32>;
+  l: func() -> string;
+  m: func() -> list<u32>;
+  n: func() -> u32;
+  o: func() -> v;
+  p: func() -> list<v-no-string>;
+}
+
+interface variants {
+  variant mixed {
+    a(f32),
+    b(string),
+    c(u64),
+    d(f64),
+    e(list<u8>),
+  }
+
+  record big {
+    a: string, b: string, c: string, d: string,
+    e: string, f: string, g: string, h: string,
+    i: u32,
+  }
+
+  option-string: func(x: option<string>) -> option<string>;
+  result-string-u64: func(x: result<string, u64>) -> result<string, u64>;
+  result-list-f32: func(x: result<list<u8>, f32>);
+  take-mixed: func(x: mixed);
+  tup: func(x: tuple<u8, string, u64, list<u16>>);
+  many-params: func(x: big);
+}
+
+interface imp {
+  resource b {
+    constructor(name: string);
+    name: func() -> string;
+    set-name: func(name: string);
+    from-list: static func(l: list<b>) -> b;
+  }
+}
+
+interface exp {
+  use imp.{b};
+
+  resource a {
+    constructor(name: string);
+
+    other-new: static func() -> a;
+
+    // FIXME(#2804) needs more handling for resources
+    // name: func() -> string;
+    // set-name: func(name: string);
+    // with-imported: func(other: borrow<b>);
+    // many: func(
+    //   a1: string, a2: string, a3: string, a4: string,
+    //   a5: string, a6: string, a7: string, a8: string,
+    // );
+  }
+}
+
+world module {
+  import options;
+  import variants;
+  import imp;
+
+  export options;
+  export variants;
+  export exp;
+}

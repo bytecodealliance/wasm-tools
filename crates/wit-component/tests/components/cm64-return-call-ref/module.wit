@@ -1,0 +1,11 @@
+package foo:foo;
+
+interface foo {
+  b: func(x: list<string>);
+  l: func() -> string;
+  m: func() -> list<u32>;
+}
+
+world module {
+  import foo;
+}

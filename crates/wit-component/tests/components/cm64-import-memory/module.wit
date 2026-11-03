@@ -1,0 +1,23 @@
+package foo:foo;
+
+interface bar {
+  foo: async func(s: string) -> string;
+}
+
+world module {
+  import returns-string: func() -> string;
+  import returns-list: func() -> list<u32>;
+  import returns-string2: func(a: u32) -> string;
+  import takes-string: func(s: string);
+  import no-options: func(a: u32) -> u32;
+
+  import a: func() -> future<u32>;
+  import b: func() -> stream<u32>;
+  import c: func() -> future<string>;
+  import d: func() -> stream<string>;
+
+  export takes-and-returns: func(s: string) -> string;
+  export run: func();
+  export bar;
+  export foo: async func(s: string) -> string;
+}

@@ -1,0 +1,1 @@
+failed to decode world from module: module was not valid: failed to resolve import `foo:foo/foo::f`: failed to validate import interface `foo:foo/foo`: type mismatch for function `f`: expected `[I64, I64] -> []` but found `[I32, I32] -> []`

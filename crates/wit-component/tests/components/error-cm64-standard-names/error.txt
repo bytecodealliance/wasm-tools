@@ -1,0 +1,1 @@
+failed to decode world from module: module was not valid: failed to resolve import `cm32p2|foo:foo/foo::f`: the `cm32p2` naming scheme requires a 32-bit linear memory

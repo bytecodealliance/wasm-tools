@@ -1,0 +1,9 @@
+package foo:foo;
+
+interface foo {
+  f: func(s: string);
+}
+
+world module {
+  import foo;
+}

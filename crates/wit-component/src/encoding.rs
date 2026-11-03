@@ -111,15 +111,13 @@ mod dedupe;
 pub(crate) use dedupe::ModuleImportMap;
 use wasm_metadata::AddMetadataField;
 
-fn to_val_type(ty: &WasmType) -> ValType {
+fn to_wasm_type(ty: &wasmparser::ValType) -> WasmType {
     match ty {
-        WasmType::I32 => ValType::I32,
-        WasmType::I64 => ValType::I64,
-        WasmType::F32 => ValType::F32,
-        WasmType::F64 => ValType::F64,
-        WasmType::Pointer => ValType::I32,
-        WasmType::PointerOrI64 => ValType::I64,
-        WasmType::Length => ValType::I32,
+        wasmparser::ValType::I32 => WasmType::I32,
+        wasmparser::ValType::I64 => WasmType::I64,
+        wasmparser::ValType::F32 => WasmType::F32,
+        wasmparser::ValType::F64 => WasmType::F64,
+        _ => unreachable!(),
     }
 }
 
@@ -1166,6 +1164,7 @@ impl<'a> EncodingState<'a> {
     fn encode_shim_instantiation(&mut self) -> Result<(Shims<'a>, fixup::FixupModule)> {
         let mut ret = Shims::default();
         let mut fixups = fixup::FixupModule::default();
+        fixups.index_type = self.info.index_type();
 
         ret.append_indirect(self.info, CustomModule::Main)
             .context("failed to register indirect shims for main module")?;
@@ -1250,8 +1249,16 @@ impl<'a> EncodingState<'a> {
         for shim in ret.shims.values() {
             let type_index = intern_type(
                 &mut types,
-                shim.sig.params.iter().map(to_val_type).collect(),
-                shim.sig.results.iter().map(to_val_type).collect(),
+                shim.sig
+                    .params
+                    .iter()
+                    .map(|ty| self.info.index_type().encoder_val_type(ty))
+                    .collect(),
+                shim.sig
+                    .results
+                    .iter()
+                    .map(|ty| self.info.index_type().encoder_val_type(ty))
+                    .collect(),
             );
 
             let trapping_stub = if self.info.encoder.shim_return_call_ref {
@@ -1720,12 +1727,17 @@ impl<'a> EncodingState<'a> {
                             )
                         });
 
-                        // Declare the resource with this destructor and register it in
-                        // our internal map. This should be the first and only time this
-                        // type is inserted into this map.
+                        // Declare the resource with this destructor and
+                        // register it in our internal map. This should be the
+                        // first and only time this type is inserted into this
+                        // map.
+                        //
+                        // Note that the `rep` of this resource is the index
+                        // type for linear memory and isn't otherwise
+                        // customizable at this time.
                         let resource_idx = self.component.type_resource(
                             Some(def.name.as_ref().unwrap()),
-                            ValType::I32,
+                            self.info.index_type().encoder_ptr(),
                             dtor,
                         );
                         let prev = self
@@ -2162,11 +2174,10 @@ impl<'a> EncodingState<'a> {
                 let index = self.component.thread_index();
                 Ok((ExportKind::Func, index))
             }
-            Import::ThreadNewIndirect => Ok(self.materialize_shim_import(
+            Import::ThreadNewIndirect { closure_ty, .. } => Ok(self.materialize_shim_import(
                 shims,
                 &ShimKind::ThreadNewIndirect {
-                    // This is fixed for now
-                    func_ty: FuncType::new([ValType::I32], []),
+                    func_ty: FuncType::new([(*closure_ty).try_into()?], []),
                 },
             )),
             Import::ThreadResumeLater => {
@@ -2741,7 +2752,7 @@ impl<'a> Shims<'a> {
                         *async_,
                         info,
                         PayloadFuncKind::FutureWrite,
-                        vec![WasmType::I32; 2],
+                        vec![WasmType::I32, WasmType::Pointer],
                         vec![WasmType::I32],
                     );
                 }
@@ -2753,7 +2764,7 @@ impl<'a> Shims<'a> {
                         *async_,
                         info,
                         PayloadFuncKind::FutureRead,
-                        vec![WasmType::I32; 2],
+                        vec![WasmType::I32, WasmType::Pointer],
                         vec![WasmType::I32],
                     );
                 }
@@ -2765,8 +2776,8 @@ impl<'a> Shims<'a> {
                         *async_,
                         info,
                         PayloadFuncKind::StreamWrite,
-                        vec![WasmType::I32; 3],
-                        vec![WasmType::I32],
+                        vec![WasmType::I32, WasmType::Pointer, WasmType::Length],
+                        vec![WasmType::Length],
                     );
                 }
                 Import::StreamRead { async_, info } => {
@@ -2777,8 +2788,8 @@ impl<'a> Shims<'a> {
                         *async_,
                         info,
                         PayloadFuncKind::StreamRead,
-                        vec![WasmType::I32; 3],
-                        vec![WasmType::I32],
+                        vec![WasmType::I32, WasmType::Pointer, WasmType::Length],
+                        vec![WasmType::Length],
                     );
                 }
 
@@ -2793,7 +2804,7 @@ impl<'a> Shims<'a> {
                         options: RequiredOptions::empty(),
                         kind: ShimKind::WaitableSetWait,
                         sig: WasmSignature {
-                            params: vec![WasmType::I32; 2],
+                            params: vec![WasmType::I32, WasmType::Pointer],
                             results: vec![WasmType::I32],
                             indirect_params: false,
                             retptr: false,
@@ -2812,7 +2823,7 @@ impl<'a> Shims<'a> {
                         options: RequiredOptions::empty(),
                         kind: ShimKind::WaitableSetPoll,
                         sig: WasmSignature {
-                            params: vec![WasmType::I32; 2],
+                            params: vec![WasmType::I32, WasmType::Pointer],
                             results: vec![WasmType::I32],
                             indirect_params: false,
                             retptr: false,
@@ -2833,7 +2844,7 @@ impl<'a> Shims<'a> {
                             encoding: *encoding,
                         },
                         sig: WasmSignature {
-                            params: vec![WasmType::I32; 2],
+                            params: vec![WasmType::Pointer, WasmType::Length],
                             results: vec![WasmType::I32],
                             indirect_params: false,
                             retptr: false,
@@ -2855,7 +2866,7 @@ impl<'a> Shims<'a> {
                             encoding: *encoding,
                         },
                         sig: WasmSignature {
-                            params: vec![WasmType::I32; 2],
+                            params: vec![WasmType::I32, WasmType::Pointer],
                             results: vec![],
                             indirect_params: false,
                             retptr: false,
@@ -2871,18 +2882,20 @@ impl<'a> Shims<'a> {
                     );
                 }
 
-                Import::ThreadNewIndirect => {
+                Import::ThreadNewIndirect {
+                    table_idx_ty,
+                    closure_ty,
+                } => {
                     let name = self.shims.len().to_string();
                     self.push(Shim {
                         name,
                         debug_name: "thread.new-indirect".to_string(),
                         options: RequiredOptions::empty(),
                         kind: ShimKind::ThreadNewIndirect {
-                            // This is fixed for now
-                            func_ty: FuncType::new([ValType::I32], vec![]),
+                            func_ty: FuncType::new([(*closure_ty).try_into()?], vec![]),
                         },
                         sig: WasmSignature {
-                            params: vec![WasmType::I32; 2],
+                            params: vec![to_wasm_type(table_idx_ty), to_wasm_type(closure_ty)],
                             results: vec![WasmType::I32],
                             indirect_params: false,
                             retptr: false,
@@ -2910,16 +2923,6 @@ impl<'a> Shims<'a> {
                             retptr: false,
                         },
                     });
-
-                    fn to_wasm_type(ty: &wasmparser::ValType) -> WasmType {
-                        match ty {
-                            wasmparser::ValType::I32 => WasmType::I32,
-                            wasmparser::ValType::I64 => WasmType::I64,
-                            wasmparser::ValType::F32 => WasmType::F32,
-                            wasmparser::ValType::F64 => WasmType::F64,
-                            _ => unreachable!(),
-                        }
-                    }
                 }
 
                 // WIT-level functions may require an indirection, so yield some
@@ -2966,7 +2969,7 @@ impl<'a> Shims<'a> {
                     export: export_name,
                 },
                 sig: WasmSignature {
-                    params: vec![WasmType::I32],
+                    params: vec![WasmType::Pointer],
                     results: Vec::new(),
                     indirect_params: false,
                     retptr: false,
@@ -3132,8 +3135,8 @@ impl<'a> Shims<'a> {
                 export,
             },
             sig: WasmSignature {
-                params: vec![WasmType::I32; 4],
-                results: vec![WasmType::I32],
+                params: vec![WasmType::Pointer; 4],
+                results: vec![WasmType::Pointer],
                 indirect_params: false,
                 retptr: false,
             },
@@ -3196,7 +3199,7 @@ fn payload_realloc_name<'a>(
     }
 }
 
-fn task_return_options_and_type(
+pub(crate) fn task_return_options_and_type(
     resolve: &Resolve,
     func: &Function,
 ) -> (RequiredOptions, WasmSignature) {

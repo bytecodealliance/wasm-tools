@@ -1,0 +1,5 @@
+world adapt-nostate {
+  import new2: interface {
+    get-two: func() -> tuple<u32, u32>;
+  }
+}

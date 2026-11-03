@@ -1,0 +1,12 @@
+package root:component;
+
+world root {
+  import foo:foo/bar;
+  import foo:foo/streams;
+  import foo: async func(s: string) -> string;
+
+  export foo: async func(s: string) -> string;
+  export foo:foo/bar;
+  export foo:foo/streams;
+  export foo:foo/exp;
+}

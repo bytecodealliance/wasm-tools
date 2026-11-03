@@ -1,6 +1,7 @@
 use super::{Adapter, ComponentEncoder, LibraryInfo, RequiredOptions};
 use crate::validation::{
-    Import, ImportMap, PayloadType, ValidatedModule, validate_adapter_module, validate_module,
+    Import, ImportMap, IndexType, PayloadType, ValidatedModule, validate_adapter_module,
+    validate_module,
 };
 use anyhow::{Context, Result, bail};
 use indexmap::{IndexMap, IndexSet};
@@ -92,6 +93,13 @@ impl<'a> ComponentWorld<'a> {
         Ok(ret)
     }
 
+    /// Returns the index type of the main module's linear memory, which
+    /// determines the core wasm type of pointers in the canonical ABI for the
+    /// whole component.
+    pub fn index_type(&self) -> IndexType {
+        self.info.index_type
+    }
+
     /// Returns whether the component encoding process should use context slot 1
     /// in tasks, generally reserved for TLS.
     ///
@@ -101,7 +109,7 @@ impl<'a> ComponentWorld<'a> {
     pub fn can_use_context_slot_1(&self) -> bool {
         let uses = |info: &ValidatedModule| {
             info.imports.imports().any(|(_, _, import)| match import {
-                Import::ThreadNewIndirect
+                Import::ThreadNewIndirect { .. }
                 | Import::ContextGet { slot: 1, .. }
                 | Import::ContextSet { slot: 1, .. } => true,
                 _ => false,
@@ -184,6 +192,7 @@ impl<'a> ComponentWorld<'a> {
                     &required_by_import,
                     required_exports,
                     library_info.as_ref(),
+                    self.info.index_type,
                 )
                 .with_context(|| {
                     format!("failed to validate the imports of the adapter module `{name}`")
@@ -211,6 +220,7 @@ impl<'a> ComponentWorld<'a> {
                             self.info.exports.realloc_to_import_into_adapter()
                         },
                         page_size_log2,
+                        info.index_type,
                     )
                     .context("failed to reduce input adapter module to its minimal size")?,
                 )
@@ -221,10 +231,19 @@ impl<'a> ComponentWorld<'a> {
                 &required_by_import,
                 required_exports,
                 library_info.as_ref(),
+                self.info.index_type,
             )
             .with_context(|| {
                 format!("failed to validate the imports of the minimized adapter module `{name}`")
             })?;
+            if info.index_type != self.info.index_type {
+                bail!(
+                    "adapter module `{name}` memory index type ({}) does not match \
+                     main module's memory index type ({})",
+                    info.index_type,
+                    self.info.index_type,
+                );
+            }
             if let Some(adapter_memory) = info.imports.imported_memory() {
                 let adapter_page_size = adapter_memory.page_size();
                 if main_memory_page_size != adapter_page_size {

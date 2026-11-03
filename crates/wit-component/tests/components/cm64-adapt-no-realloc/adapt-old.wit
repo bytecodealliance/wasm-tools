@@ -1,0 +1,6 @@
+world adapt-old {
+  import new: interface {
+    get-two: func() -> tuple<u32, u32>;
+    read: func() -> list<u8>;
+  }
+}
