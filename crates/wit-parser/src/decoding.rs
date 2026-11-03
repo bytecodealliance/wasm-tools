@@ -1274,8 +1274,11 @@ impl WitPackageDecoder<'_> {
                     }
                 }
 
-                // Functions shouldn't have ID-based names at this time.
-                ComponentNameKind::Interface(_) => unreachable!(),
+                // Functions can't have ID-based names in WIT.
+                ComponentNameKind::Interface(_) => bail!(
+                    "cannot represent this component in WIT: function `{name}` has an interface's \
+                     name"
+                ),
             },
 
             // Note that this name includes "name mangling" such as
