@@ -1,0 +1,4 @@
+error: failed to decode WIT from import `a:b/e`
+
+Caused by:
+    0: cannot represent this component in WIT: function `[method]r.f` is not next to the definition of its resource
