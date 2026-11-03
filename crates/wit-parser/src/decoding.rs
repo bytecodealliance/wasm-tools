@@ -572,8 +572,16 @@ impl WitPackageDecoder<'_> {
         for (name, ty) in ty.exports.iter() {
             match ty.ty {
                 ComponentEntityType::Instance(_) => {
-                    self.register_interface(name.as_str(), ty, &mut fields)
+                    let (key, _) = self
+                        .register_interface(name.as_str(), ty, &mut fields)
                         .with_context(|| format!("failed to process export `{name}`"))?;
+                    // An interface in a package needs a name to be part of it.
+                    if let WorldKey::Name(_) = key {
+                        bail!(
+                            "cannot represent this component in WIT: package export `{name}` \
+                             doesn't have an interface's name"
+                        );
+                    }
                 }
                 ComponentEntityType::Component(idx) => {
                     let ty = &self.types[idx];
