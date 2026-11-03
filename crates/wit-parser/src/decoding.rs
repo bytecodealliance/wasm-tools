@@ -1589,10 +1589,10 @@ impl WitPackageDecoder<'_> {
         // .. and finally insert the packages, in their final topological
         // ordering, into the returned array.
         for (_idx, (_url, pkg)) in deps {
-            self.insert_package(pkg);
+            self.insert_package(pkg)?;
         }
 
-        let id = self.insert_package(package);
+        let id = self.insert_package(package)?;
         assert!(self.resolve.worlds.iter().all(|(_, w)| w.package.is_some()));
         assert!(
             self.resolve
@@ -1603,7 +1603,7 @@ impl WitPackageDecoder<'_> {
         Ok((self.resolve, id))
     }
 
-    fn insert_package(&mut self, package: Package) -> PackageId {
+    fn insert_package(&mut self, package: Package) -> Result<PackageId> {
         let Package {
             name,
             interfaces,
@@ -1634,8 +1634,16 @@ impl WitPackageDecoder<'_> {
             });
 
         for (name, id) in interfaces {
-            let prev = self.resolve.packages[pkg].interfaces.insert(name, id);
-            assert!(prev.is_none());
+            let prev = self.resolve.packages[pkg]
+                .interfaces
+                .insert(name.clone(), id);
+            if prev.is_some() {
+                bail!(
+                    "cannot represent this component in WIT: interface `{name}` is both imported \
+                     from and defined by package `{}`",
+                    self.resolve.packages[pkg].name
+                );
+            }
             self.resolve.interfaces[id].package = Some(pkg);
         }
 
@@ -1656,7 +1664,7 @@ impl WitPackageDecoder<'_> {
             }
         }
 
-        pkg
+        Ok(pkg)
     }
 
     fn visit_package(
