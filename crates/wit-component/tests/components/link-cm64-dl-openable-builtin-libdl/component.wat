@@ -35,8 +35,8 @@
     (type (;3;) (func (param i64 i32) (result i64)))
     (type (;4;) (func (param i64 i64)))
     (type (;5;) (func (param i64 i64) (result i64)))
-    (type (;6;) (func (param i64 i64 i64) (result i32)))
-    (type (;7;) (func (param i64) (result i64)))
+    (type (;6;) (func (param i64) (result i64)))
+    (type (;7;) (func (param i64 i64 i64) (result i32)))
     (import "env" "memory" (memory (;0;) i64 1))
     (import "env" "__memory_base" (global (;0;) i64))
     (import "env" "__table_base" (global (;1;) i64))
@@ -132,7 +132,7 @@
           global.get 2
           local.set 4
           local.get 0
-          call 9
+          call 8
           local.set 2
           local.get 4
           i64.load32_u
@@ -190,7 +190,7 @@
               local.get 2
               i64.gt_u
               select
-              call 8
+              call 9
               local.tee 1
               i64.extend_i32_s
               local.get 9
@@ -229,7 +229,7 @@
           local.get 2
           i64.gt_u
           select
-          call 8
+          call 9
           local.set 1
           global.get 0
           local.set 9
@@ -324,7 +324,7 @@
                   br_if 0 (;@6;)
                 end
                 local.get 1
-                call 9
+                call 8
                 local.set 2
                 local.get 0
                 i64.load offset=24
@@ -384,7 +384,7 @@
               local.get 2
               i64.gt_u
               select
-              call 8
+              call 9
               local.tee 9
               i64.extend_i32_s
               local.get 8
@@ -423,7 +423,7 @@
           local.get 2
           i64.gt_u
           select
-          call 8
+          call 9
           local.tee 9
           i64.extend_i32_s
           local.get 0
@@ -462,7 +462,39 @@
     (func (;7;) (type 0)
       unreachable
     )
-    (func (;8;) (type 6) (param i64 i64 i64) (result i32)
+    (func (;8;) (type 6) (param i64) (result i64)
+      (local i64 i64)
+      block ;; label = @1
+        block ;; label = @2
+          local.get 0
+          i32.load8_u
+          br_if 0 (;@2;)
+          i64.const 0
+          local.set 0
+          br 1 (;@1;)
+        end
+        local.get 0
+        i64.const 1
+        i64.add
+        local.set 1
+        i64.const 0
+        local.set 0
+        loop ;; label = @2
+          local.get 0
+          local.tee 2
+          i64.const 1
+          i64.add
+          local.set 0
+          local.get 1
+          local.get 2
+          i64.add
+          i32.load8_u
+          br_if 0 (;@2;)
+        end
+      end
+      local.get 0
+    )
+    (func (;9;) (type 7) (param i64 i64 i64) (result i32)
       (local i32 i32 i32)
       i32.const 0
       local.set 3
@@ -503,38 +535,6 @@
         local.set 3
       end
       local.get 3
-    )
-    (func (;9;) (type 7) (param i64) (result i64)
-      (local i64 i64)
-      block ;; label = @1
-        block ;; label = @2
-          local.get 0
-          i32.load8_u
-          br_if 0 (;@2;)
-          i64.const 0
-          local.set 0
-          br 1 (;@1;)
-        end
-        local.get 0
-        i64.const 1
-        i64.add
-        local.set 1
-        i64.const 0
-        local.set 0
-        loop ;; label = @2
-          local.get 0
-          local.tee 2
-          i64.const 1
-          i64.add
-          local.set 0
-          local.get 1
-          local.get 2
-          i64.add
-          i32.load8_u
-          br_if 0 (;@2;)
-        end
-      end
-      local.get 0
     )
     (data (;0;) (global.get 0) "invalid library handle\00library not found\00symbol not found\00dlopen flags not yet supported\00dlsym RTLD_NEXT and RTLD_DEFAULT not yet supported\00")
   )
