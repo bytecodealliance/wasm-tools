@@ -25,8 +25,23 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     sa32.fill(r1);
     sa64.fill(r1);
 
+    // Use an empty world to force `borrow<T>` to always be a 32-bit handle.
+    // The `wit_parser_old` crate used here didn't have support for having a
+    // different size for owned/imported resources based on the pointer width.
+    let mut r2 = r2.clone();
+    let world = r2.worlds.alloc(wit_parser_new::World {
+        name: "dummy".to_string(),
+        imports: Default::default(),
+        exports: Default::default(),
+        package: None,
+        docs: Default::default(),
+        stability: Default::default(),
+        includes: Default::default(),
+        span: Default::default(),
+    });
+    let r2 = &r2;
     let mut alt = wit_parser_new::SizeAlign::default();
-    alt.fill(r2).unwrap();
+    alt.fill(r2, world).unwrap();
 
     for ((t1, _), (t2, _)) in r1.types.iter().zip(r2.types.iter()) {
         let t1 = &wit_parser_old::Type::Id(t1);

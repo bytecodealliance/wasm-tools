@@ -291,22 +291,31 @@ impl Resolve {
     /// Resources defined in interfaces exported by a component are passed
     /// as their representation, which hardcoded as a pointer for now. All
     /// other resources are passed as an `i32` handle.
-    fn flat_borrow(&self, world: WorldId, mut id: TypeId) -> WasmType {
-        while let TypeDefKind::Type(Type::Id(next)) = self.types[id].kind {
-            id = next;
-        }
-        let TypeOwner::Interface(owner) = self.types[id].owner else {
-            return WasmType::I32;
-        };
-        let exported = self.worlds[world]
-            .exports
-            .values()
-            .any(|item| matches!(item, WorldItem::Interface { id, .. } if *id == owner));
-        if exported {
+    fn flat_borrow(&self, world: WorldId, id: TypeId) -> WasmType {
+        if self.borrow_is_rep(world, id) {
             WasmType::Pointer
         } else {
             WasmType::I32
         }
+    }
+
+    /// Returns whether a `borrow` of the resource `id` is represented as the
+    /// resource's own representation (as opposed to an `i32` handle) within
+    /// `world`.
+    ///
+    /// This is the case for resources defined in interfaces exported by
+    /// `world`, and their representation is currently hardcoded as a pointer.
+    pub(crate) fn borrow_is_rep(&self, world: WorldId, mut id: TypeId) -> bool {
+        while let TypeDefKind::Type(Type::Id(next)) = self.types[id].kind {
+            id = next;
+        }
+        let TypeOwner::Interface(owner) = self.types[id].owner else {
+            return false;
+        };
+        self.worlds[world]
+            .exports
+            .values()
+            .any(|item| matches!(item, WorldItem::Interface { id, .. } if *id == owner))
     }
 
     fn push_flat_list<'a>(
