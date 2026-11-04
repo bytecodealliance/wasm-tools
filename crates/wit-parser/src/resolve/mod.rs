@@ -4442,20 +4442,30 @@ impl Remap {
     }
 
     fn type_has_borrow(&mut self, resolve: &Resolve, ty: &Type) -> bool {
-        let id = match ty {
-            Type::Id(id) => *id,
-            _ => return false,
+        // A chain of aliases is as long as the source makes it, so it is walked
+        // here and not recursed down.
+        let mut ty = *ty;
+        let mut walked = Vec::new();
+        let result = loop {
+            let id = match ty {
+                Type::Id(id) => id,
+                _ => break false,
+            };
+            if let Some(Some(has_borrow)) = self.type_has_borrow.get(id.index()) {
+                break *has_borrow;
+            }
+            walked.push(id);
+            match &resolve.types[id].kind {
+                TypeDefKind::Type(next) => ty = *next,
+                _ => break self.typedef_has_borrow(resolve, &resolve.types[id]),
+            }
         };
-
-        if let Some(Some(has_borrow)) = self.type_has_borrow.get(id.index()) {
-            return *has_borrow;
+        for id in walked {
+            if self.type_has_borrow.len() <= id.index() {
+                self.type_has_borrow.resize(id.index() + 1, None);
+            }
+            self.type_has_borrow[id.index()] = Some(result);
         }
-
-        let result = self.typedef_has_borrow(resolve, &resolve.types[id]);
-        if self.type_has_borrow.len() <= id.index() {
-            self.type_has_borrow.resize(id.index() + 1, None);
-        }
-        self.type_has_borrow[id.index()] = Some(result);
         result
     }
 
