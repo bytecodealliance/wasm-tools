@@ -119,7 +119,8 @@ Options:
           This flag is the same as `--dummy` where if specified a core wasm
           module is not read but is instead generated. The value of the option
           here is the name mangling scheme to use for core wasm names generated.
-          Current options are `legacy|standard32`.
+          
+          [possible values: standard32, legacy, legacy64]
 
       --async-callback
           With `--dummy-names legacy`, this will generate a core module such

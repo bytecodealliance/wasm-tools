@@ -34,6 +34,7 @@ Options:
           module as a placeholder
       --dummy-names <DUMMY_NAMES>
           Same as `--dummy`, but the style of core wasm names is specified
+          [possible values: standard32, legacy, legacy64]
       --async-callback
           With `--dummy-names legacy`, this will generate a core module such
           that all the imports are lowered using the async ABI and the exports

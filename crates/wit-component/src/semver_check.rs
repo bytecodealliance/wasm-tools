@@ -65,7 +65,12 @@ pub fn semver_check(mut resolve: Resolve, prev: WorldId, new: WorldId) -> Result
     let mut root_component = ComponentBuilder::default();
 
     // (1) above - create a dummy component which has the shape of `prev`.
-    let mut prev_as_module = dummy_module(&resolve, prev, ManglingAndAbi::Standard32);
+    let mut prev_as_module = dummy_module(
+        &resolve,
+        prev,
+        ManglingAndAbi::Standard32,
+        crate::IndexType::I32,
+    );
     embed_component_metadata(
         &mut prev_as_module,
         &resolve,

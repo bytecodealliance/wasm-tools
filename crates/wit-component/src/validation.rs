@@ -24,8 +24,10 @@ use wit_parser::{
 /// index type corresponds to the component model's 64-bit (`cm64`) feature.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub enum IndexType {
+    /// A 32-bit linear memory, where pointers and lengths are `i32`.
     #[default]
     I32,
+    /// A 64-bit linear memory, where pointers and lengths are `i64`.
     I64,
 }
 
@@ -41,7 +43,7 @@ impl fmt::Display for IndexType {
 impl IndexType {
     /// Returns the index type used for canonical ABI pointers by the memory
     /// `ty`.
-    pub fn of_memory(ty: &MemoryType) -> IndexType {
+    pub(crate) fn of_memory(ty: &MemoryType) -> IndexType {
         if ty.memory64 {
             IndexType::I64
         } else {
@@ -50,7 +52,7 @@ impl IndexType {
     }
 
     /// Returns the core wasm type of pointers and lengths.
-    pub fn ptr(&self) -> ValType {
+    pub(crate) fn ptr(&self) -> ValType {
         match self {
             IndexType::I32 => ValType::I32,
             IndexType::I64 => ValType::I64,
@@ -58,7 +60,7 @@ impl IndexType {
     }
 
     /// Returns the core wasm type that `ty` maps to with this index type.
-    pub fn val_type(&self, ty: &WasmType) -> ValType {
+    pub(crate) fn val_type(&self, ty: &WasmType) -> ValType {
         match ty {
             WasmType::I32 => ValType::I32,
             WasmType::I64 => ValType::I64,
@@ -71,7 +73,7 @@ impl IndexType {
 
     /// Returns the core wasm function type that `signature` maps to with this
     /// index type.
-    pub fn func_type(&self, signature: &WasmSignature) -> FuncType {
+    pub(crate) fn func_type(&self, signature: &WasmSignature) -> FuncType {
         FuncType::new(
             signature.params.iter().map(|ty| self.val_type(ty)),
             signature.results.iter().map(|ty| self.val_type(ty)),
@@ -79,7 +81,7 @@ impl IndexType {
     }
 
     /// Returns the size, in bytes, of a pointer.
-    pub fn ptr_size(&self) -> u32 {
+    pub(crate) fn ptr_size(&self) -> u32 {
         match self {
             IndexType::I32 => 4,
             IndexType::I64 => 8,
@@ -87,12 +89,12 @@ impl IndexType {
     }
 
     /// Returns the log2 of the natural alignment of a pointer.
-    pub fn ptr_align_log2(&self) -> u32 {
+    pub(crate) fn ptr_align_log2(&self) -> u32 {
         self.ptr_size().trailing_zeros()
     }
 
     /// Returns a constant expression of this pointer type with the value `a`.
-    pub fn const_expr(&self, a: u32) -> wasm_encoder::ConstExpr {
+    pub(crate) fn const_expr(&self, a: u32) -> wasm_encoder::ConstExpr {
         match self {
             IndexType::I32 => wasm_encoder::ConstExpr::i32_const(a as i32),
             IndexType::I64 => wasm_encoder::ConstExpr::i64_const(a.into()),
@@ -100,12 +102,12 @@ impl IndexType {
     }
 
     /// Same as [`IndexType::ptr`], but for `wasm-encoder`.
-    pub fn encoder_ptr(&self) -> wasm_encoder::ValType {
+    pub(crate) fn encoder_ptr(&self) -> wasm_encoder::ValType {
         self.ptr().try_into().unwrap()
     }
 
     /// Same as [`IndexType::val_type`], but for `wasm-encoder`.
-    pub fn encoder_val_type(&self, ty: &WasmType) -> wasm_encoder::ValType {
+    pub(crate) fn encoder_val_type(&self, ty: &WasmType) -> wasm_encoder::ValType {
         self.val_type(ty).try_into().unwrap()
     }
 

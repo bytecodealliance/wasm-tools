@@ -1,0 +1,36 @@
+// RUN[embed]: component embed -t --dummy-names legacy64 % | strip -t
+// RUN[new]: component embed --dummy-names legacy64 % | \
+//        component new | \
+//        validate -f cm64
+
+package a:b;
+
+interface imp {
+  resource r {
+    constructor(name: string);
+    name: func() -> string;
+    take: func(other: borrow<r>, l: list<u8>);
+  }
+
+  f: func(a: string, b: option<string>, c: result<list<u64>, string>) -> tuple<string, u32>;
+  many: func(a: u32, b: u32, c: u32, d: u32, e: u32, f: u32, g: u32, h: u32, i: u32, j: u32, k: u32, l: u32, m: u32, n: u32, o: u32, p: u32, q: u32, r: u32);
+}
+
+interface exp {
+  use imp.{r as imported};
+
+  resource r {
+    constructor(name: string);
+    name: func() -> string;
+    merge: func(other: borrow<r>, imported: borrow<imported>);
+  }
+
+  f: func(a: string, b: option<string>) -> list<string>;
+}
+
+world w {
+  import imp;
+  import g: func(x: string) -> string;
+  export exp;
+  export g: func(x: string) -> option<string>;
+}
