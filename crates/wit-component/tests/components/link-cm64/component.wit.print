@@ -1,0 +1,8 @@
+package root:component;
+
+world root {
+  import test:test/test;
+
+  export test:test/dl;
+  export test:test/test;
+}

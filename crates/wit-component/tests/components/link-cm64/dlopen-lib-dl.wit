@@ -1,0 +1,9 @@
+package test:test;
+
+interface dl {
+  f: func(v: s32) -> s32;
+}
+
+world dlopen-lib-dl {
+  export dl;
+}

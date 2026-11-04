@@ -1,5 +1,6 @@
 use crate::ComponentEncoder;
 use crate::encoding::{CustomModule, EncodingState, Shim, ShimKind, Shims};
+use crate::gc::PtrInstructions;
 use crate::validation::{Export, IndexType};
 use anyhow::{Result, bail};
 use indexmap::IndexMap;
@@ -579,30 +580,36 @@ impl FixupModule {
                             memory_base,
                             export,
                             dest,
-                        } => match dest {
-                            AddressDest::LinearMemory { address, memory } => {
-                                start
-                                    .instructions()
-                                    .i32_const(*address as i32)
-                                    .global_get(*memory_base)
-                                    .global_get(*export)
-                                    .i32_add()
-                                    .i32_store(MemArg {
-                                        offset: 0,
-                                        align: 2,
-                                        target: wasm_encoder::MemArgTarget::Memory(*memory),
-                                        ordering: None,
-                                    });
+                        } => {
+                            let index_type = self.index_type;
+                            match dest {
+                                AddressDest::LinearMemory { address, memory } => {
+                                    start
+                                        .instructions()
+                                        .ptr_uconst(index_type, *address)
+                                        .global_get(*memory_base)
+                                        .global_get(*export)
+                                        .ptr_add(index_type)
+                                        .ptr_store(
+                                            index_type,
+                                            MemArg {
+                                                offset: 0,
+                                                align: index_type.ptr_align_log2(),
+                                                target: wasm_encoder::MemArgTarget::Memory(*memory),
+                                                ordering: None,
+                                            },
+                                        );
+                                }
+                                AddressDest::Global(global) => {
+                                    start
+                                        .instructions()
+                                        .global_get(*memory_base)
+                                        .global_get(*export)
+                                        .ptr_add(index_type)
+                                        .global_set(*global);
+                                }
                             }
-                            AddressDest::Global(global) => {
-                                start
-                                    .instructions()
-                                    .global_get(*memory_base)
-                                    .global_get(*export)
-                                    .i32_add()
-                                    .global_set(*global);
-                            }
-                        },
+                        }
                     }
                 }
                 start.instructions().end();

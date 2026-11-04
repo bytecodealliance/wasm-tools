@@ -188,7 +188,7 @@ jobs:
     - run: cmake --build examples/build --config Release
 
   testdl:
-    name: Test libdl.so
+    name: Test libdl{32,64}.so
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v7
@@ -196,8 +196,8 @@ jobs:
         submodules: true
     - uses: ./.github/actions/install-rust
       with:
-        toolchain: 1.97.0
-    - run: rustup target add wasm32-wasip1
+        toolchain: nightly-2026-09-18
+    - run: rustup component add rust-src
     - run: cd crates/wit-component/dl && bash check.sh
 
   wasm:
