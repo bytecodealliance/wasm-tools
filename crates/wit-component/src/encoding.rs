@@ -3764,7 +3764,12 @@ world test {
             .unwrap();
         let world = resolve.select_world(&[pkg], None).unwrap();
 
-        let mut module = dummy_module(&resolve, world, ManglingAndAbi::Standard32);
+        let mut module = dummy_module(
+            &resolve,
+            world,
+            ManglingAndAbi::Standard32,
+            crate::IndexType::I32,
+        );
 
         embed_component_metadata(&mut module, &resolve, world, StringEncoding::UTF8, true).unwrap();
 

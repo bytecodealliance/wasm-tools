@@ -14,10 +14,10 @@ use wasmparser::types::{CoreTypeId, EntityType, Types};
 use wasmparser::{Payload, ValidPayload, WasmFeatures};
 use wat::Detect;
 use wit_component::{
-    ComponentEncoder, DecodedWasm, Linker, StringEncoding, WitPrinter, embed_component_metadata,
-    metadata,
+    ComponentEncoder, DecodedWasm, IndexType, Linker, StringEncoding, WitPrinter,
+    embed_component_metadata, metadata,
 };
-use wit_parser::{LiftLowerAbi, Mangling, ManglingAndAbi, WorldItem, WorldKey};
+use wit_parser::{LiftLowerAbi, ManglingAndAbi, WorldItem, WorldKey};
 
 /// WebAssembly wit-based component tooling.
 #[derive(Parser)]
@@ -422,10 +422,9 @@ pub struct EmbedOpts {
     ///
     /// This flag is the same as `--dummy` where if specified a core wasm module
     /// is not read but is instead generated. The value of the option here is
-    /// the name mangling scheme to use for core wasm names generated. Current
-    /// options are `legacy|standard32`.
+    /// the name mangling scheme to use for core wasm names generated.
     #[clap(long, conflicts_with = "dummy")]
-    dummy_names: Option<Mangling>,
+    dummy_names: Option<DummyNames>,
 
     /// With `--dummy-names legacy`, this will generate a core module such that
     /// all the imports are lowered using the async ABI and the exports are
@@ -461,6 +460,13 @@ pub struct EmbedOpts {
     only_custom: bool,
 }
 
+#[derive(clap::ValueEnum, Debug, Copy, Clone, PartialEq, Eq)]
+enum DummyNames {
+    Standard32,
+    Legacy,
+    Legacy64,
+}
+
 impl EmbedOpts {
     fn general_opts(&self) -> &wasm_tools::GeneralOpts {
         self.io.general_opts()
@@ -493,29 +499,28 @@ impl EmbedOpts {
             if self.async_callback || self.async_stackful {
                 bail!("non-legacy mangling not yet supported when generating async dummy modules");
             }
-            wit_component::dummy_module(&resolve, world, ManglingAndAbi::Standard32)
-        } else if let Some(mangling) = self.dummy_names {
-            wit_component::dummy_module(
-                &resolve,
-                world,
-                match mangling {
-                    Mangling::Standard32 => {
-                        if self.async_callback || self.async_stackful {
-                            bail!(
-                                "non-legacy mangling not yet supported when generating async dummy modules"
-                            );
-                        }
-                        ManglingAndAbi::Standard32
+            wit_component::dummy_module(&resolve, world, ManglingAndAbi::Standard32, IndexType::I32)
+        } else if let Some(names) = self.dummy_names {
+            let legacy = ManglingAndAbi::Legacy(if self.async_callback {
+                LiftLowerAbi::AsyncCallback
+            } else if self.async_stackful {
+                LiftLowerAbi::AsyncStackful
+            } else {
+                LiftLowerAbi::Sync
+            });
+            let (mangling, index_type) = match names {
+                DummyNames::Standard32 => {
+                    if self.async_callback || self.async_stackful {
+                        bail!(
+                            "non-legacy mangling not yet supported when generating async dummy modules"
+                        );
                     }
-                    Mangling::Legacy => ManglingAndAbi::Legacy(if self.async_callback {
-                        LiftLowerAbi::AsyncCallback
-                    } else if self.async_stackful {
-                        LiftLowerAbi::AsyncStackful
-                    } else {
-                        LiftLowerAbi::Sync
-                    }),
-                },
-            )
+                    (ManglingAndAbi::Standard32, IndexType::I32)
+                }
+                DummyNames::Legacy => (legacy, IndexType::I32),
+                DummyNames::Legacy64 => (legacy, IndexType::I64),
+            };
+            wit_component::dummy_module(&resolve, world, mangling, index_type)
         } else {
             self.io.get_input_wasm(Some(&self.generate_dwarf))?
         };

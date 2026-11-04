@@ -1,0 +1,17 @@
+// RUN: component embed --dummy-names legacy64 % | \
+//        component new | \
+//        validate -f cm64
+
+package a:b;
+
+interface i {
+  resource r {
+    name: func();
+  }
+  f: func(x: borrow<r>);
+}
+
+world w {
+  import i;
+  export i;
+}

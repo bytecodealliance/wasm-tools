@@ -47,11 +47,17 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
             3 => ManglingAndAbi::Standard32,
             _ => unreachable!(),
         };
+        // 64-bit memories are only supported with legacy names at this time.
+        let index_type = match mangling {
+            ManglingAndAbi::Legacy(_) if u.arbitrary()? => IndexType::I64,
+            _ => IndexType::I32,
+        };
         log::debug!(
-            "embedding world {} as in a dummy module with abi {mangling:?}",
+            "embedding world {} as in a dummy module with abi {mangling:?} \
+             and index type {index_type}",
             world.name
         );
-        let mut dummy = wit_component::dummy_module(&resolve, id, mangling);
+        let mut dummy = wit_component::dummy_module(&resolve, id, mangling, index_type);
         if u.arbitrary()? {
             let mut dst = Module::default();
             let mut reencode = RemoveImports {
