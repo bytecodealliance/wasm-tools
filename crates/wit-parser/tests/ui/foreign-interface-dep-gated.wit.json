@@ -19,21 +19,24 @@
     {
       "name": "a:b3",
       "interfaces": {},
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "a:b2",
       "interfaces": {},
       "worlds": {
         "the-world": 0
-      }
+      },
+      "types": {}
     },
     {
       "name": "a:b1",
       "interfaces": {},
       "worlds": {
         "the-world": 1
-      }
+      },
+      "types": {}
     }
   ]
 }

@@ -1,0 +1,5 @@
+failed to resolve directory while parsing WIT for path [tests/ui/parse-fail/package-scope-use-type-as-iface-foreign]: name `point` is defined as a type, not an interface
+     --> tests/ui/parse-fail/package-scope-use-type-as-iface-foreign/root.wit:4:19
+      |
+    4 |   use local:types/point.{x};
+      |                   ^----

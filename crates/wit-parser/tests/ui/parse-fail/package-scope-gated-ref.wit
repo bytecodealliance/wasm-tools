@@ -1,0 +1,10 @@
+package local:demo;
+
+@unstable(feature = inactive)
+record hidden {
+  x: u32,
+}
+
+interface api {
+  use-hidden: func(h: hidden);
+}

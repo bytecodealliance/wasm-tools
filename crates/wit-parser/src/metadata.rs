@@ -68,6 +68,11 @@ pub struct PackageMetadata {
         serde(default, skip_serializing_if = "StringMap::is_empty")
     )]
     interfaces: StringMap<InterfaceMetadata>,
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "StringMap::is_empty")
+    )]
+    types: StringMap<TypeMetadata>,
 }
 
 impl PackageMetadata {
@@ -89,11 +94,18 @@ impl PackageMetadata {
             .map(|(name, id)| (name.to_string(), InterfaceMetadata::extract(resolve, *id)))
             .filter(|(_, item)| !item.is_empty())
             .collect();
+        let types = package
+            .types
+            .iter()
+            .map(|(name, id)| (name.to_string(), TypeMetadata::extract(resolve, *id)))
+            .filter(|(_, item)| !item.is_empty())
+            .collect();
 
         Self {
             docs: package.docs.contents.as_deref().map(Into::into),
             worlds,
             interfaces,
+            types,
         }
     }
 
@@ -110,6 +122,12 @@ impl PackageMetadata {
         for (name, docs) in &self.interfaces {
             let Some(&id) = resolve.packages[package].interfaces.get(name) else {
                 bail!("missing interface {name:?}");
+            };
+            docs.inject(resolve, id)?;
+        }
+        for (name, docs) in &self.types {
+            let Some(&id) = resolve.packages[package].types.get(name) else {
+                bail!("missing package type {name:?}");
             };
             docs.inject(resolve, id)?;
         }

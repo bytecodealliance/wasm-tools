@@ -638,7 +638,8 @@
       },
       "worlds": {
         "imports": 0
-      }
+      },
+      "types": {}
     },
     {
       "name": "wasi:dep-unversioned",
@@ -647,7 +648,8 @@
       },
       "worlds": {
         "imports": 1
-      }
+      },
+      "types": {}
     },
     {
       "name": "wasi:dep2@0.2.3",
@@ -656,14 +658,16 @@
       },
       "worlds": {
         "imports": 2
-      }
+      },
+      "types": {}
     },
     {
       "name": "wasi:foo@0.2.3",
       "interfaces": {},
       "worlds": {
         "imports": 3
-      }
+      },
+      "types": {}
     },
     {
       "name": "wasi:someother@0.2.3",
@@ -672,14 +676,16 @@
       },
       "worlds": {
         "imports": 4
-      }
+      },
+      "types": {}
     },
     {
       "name": "wasi:unstable@0.2.3",
       "interfaces": {},
       "worlds": {
         "imports": 5
-      }
+      },
+      "types": {}
     },
     {
       "name": "wasmtime:test",
@@ -691,7 +697,8 @@
         "test-only-stable": 9,
         "test-only-stable-with-feature": 10,
         "test-only-stable-with-in-active-feature": 11
-      }
+      },
+      "types": {}
     }
   ]
 }

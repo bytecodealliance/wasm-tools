@@ -1,0 +1,5 @@
+duplicate item named `point`
+     --> tests/ui/parse-fail/package-scope-type-world-clash.wit:8:7
+      |
+    8 | world point {
+      |       ^----

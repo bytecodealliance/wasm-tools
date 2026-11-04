@@ -349,28 +349,32 @@
       "interfaces": {
         "other-interface": 0
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "foo:corp",
       "interfaces": {
         "saas": 1
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "foo:different-pkg",
       "interfaces": {
         "i": 2
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "foo:foreign-pkg",
       "interfaces": {
         "the-default": 3
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "foo:wasi",
@@ -380,7 +384,8 @@
       },
       "worlds": {
         "wasi": 0
-      }
+      },
+      "types": {}
     },
     {
       "name": "foo:some-pkg",
@@ -389,7 +394,8 @@
         "some-interface": 7,
         "another-interface": 8
       },
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     },
     {
       "name": "foo:root",
@@ -404,7 +410,8 @@
         "my-world2": 2,
         "bars-world": 3,
         "unionw-world": 4
-      }
+      },
+      "types": {}
     }
   ]
 }

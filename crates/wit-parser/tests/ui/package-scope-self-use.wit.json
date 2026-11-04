@@ -1,0 +1,71 @@
+{
+  "worlds": [
+    {
+      "name": "w",
+      "imports": {},
+      "exports": {
+        "interface-0": {
+          "interface": {
+            "id": 0
+          }
+        }
+      },
+      "package": 0
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "api",
+      "types": {},
+      "functions": {
+        "move-to": {
+          "name": "move-to",
+          "kind": "freestanding",
+          "params": [
+            {
+              "name": "p",
+              "type": 0
+            }
+          ]
+        }
+      },
+      "package": 0
+    }
+  ],
+  "types": [
+    {
+      "name": "point",
+      "kind": {
+        "record": {
+          "fields": [
+            {
+              "name": "x",
+              "type": "u32"
+            },
+            {
+              "name": "y",
+              "type": "u32"
+            }
+          ]
+        }
+      },
+      "owner": {
+        "package": 0
+      }
+    }
+  ],
+  "packages": [
+    {
+      "name": "local:demo",
+      "interfaces": {
+        "api": 0
+      },
+      "worlds": {
+        "w": 0
+      },
+      "types": {
+        "point": 0
+      }
+    }
+  ]
+}

@@ -6,7 +6,8 @@
     {
       "name": "foo:empty",
       "interfaces": {},
-      "worlds": {}
+      "worlds": {},
+      "types": {}
     }
   ]
 }

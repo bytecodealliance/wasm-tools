@@ -1,0 +1,11 @@
+package local:consumer;
+
+use local:types/point@1.0.0;
+
+interface api {
+  move-to: func(p: point);
+}
+
+world w {
+  export api;
+}
