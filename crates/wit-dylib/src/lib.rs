@@ -174,7 +174,7 @@ impl Adapter {
 
     pub fn encode(&mut self, resolve: &Resolve, world_id: WorldId) -> anyhow::Result<Vec<u8>> {
         self.world = Some(world_id);
-        self.sizes.fill(resolve)?;
+        self.sizes.fill(resolve, world_id)?;
 
         // First define all imports that will go into the wasm module since
         // they're required to be first in their index spaces anyway. This will
