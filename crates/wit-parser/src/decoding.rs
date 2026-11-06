@@ -2,8 +2,7 @@ use crate::*;
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
-use anyhow::Result;
-use anyhow::{Context, anyhow, bail};
+use anyhow::{Context, Result, anyhow, bail, ensure};
 use core::mem;
 use std::io::Read;
 use wasmparser::Chunk;
@@ -796,7 +795,10 @@ impl WitPackageDecoder<'_> {
                                 _ => unreachable!(),
                             }
                             let prev = self.type_map.insert(created, id);
-                            assert!(prev.is_none());
+                            ensure!(
+                                prev.is_none() || prev == Some(id),
+                                "type export `{name}` was already mapped to a different type",
+                            );
                         }
 
                         // If the name is not defined, however, then there's two
@@ -820,7 +822,7 @@ impl WitPackageDecoder<'_> {
                             let prev = self.resolve.interfaces[interface]
                                 .types
                                 .insert(name.to_string(), id);
-                            assert!(prev.is_none());
+                            ensure!(prev.is_none());
                         }
                     }
                 }
@@ -844,7 +846,7 @@ impl WitPackageDecoder<'_> {
                     let prev = self.resolve.interfaces[interface]
                         .functions
                         .insert(name.to_string(), func);
-                    assert!(prev.is_none());
+                    ensure!(prev.is_none());
                 }
 
                 _ => bail!("instance type export `{name}` is not a type"),
