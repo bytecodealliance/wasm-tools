@@ -796,7 +796,10 @@ impl WitPackageDecoder<'_> {
                                 _ => unreachable!(),
                             }
                             let prev = self.type_map.insert(created, id);
-                            assert!(prev.is_none());
+                            assert!(
+                                prev.is_none() || prev == Some(id),
+                                "type export `{name}` was already mapped to a different type",
+                            );
                         }
 
                         // If the name is not defined, however, then there's two
