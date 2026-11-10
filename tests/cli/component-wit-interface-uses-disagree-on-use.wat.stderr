@@ -1,0 +1,4 @@
+error: failed to decode WIT from import `x`
+
+Caused by:
+    0: cannot represent this component in WIT: uses of interface `a:b/bar` disagree on where its type `t` comes from
