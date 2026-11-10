@@ -686,6 +686,7 @@ impl WitPackageDecoder<'_> {
                 let func = self
                     .convert_function(name, item, owner)
                     .with_context(|| format!("failed to decode function from import `{name}`"))?;
+                self.add_component_world_uses(world, &func)?;
                 (WorldKey::Name(name.to_string()), WorldItem::Function(func))
             }
             ComponentEntityType::Type { .. } => {
@@ -720,6 +721,7 @@ impl WitPackageDecoder<'_> {
                 let func = self
                     .convert_function(name, item, TypeOwner::World(world))
                     .with_context(|| format!("failed to decode function from export `{name}`"))?;
+                self.add_component_world_uses(world, &func)?;
 
                 (WorldKey::Name(name.to_string()), WorldItem::Function(func))
             }
@@ -732,6 +734,85 @@ impl WitPackageDecoder<'_> {
         };
         self.resolve.worlds[world].exports.insert(name, item);
         Ok(())
+    }
+
+    /// Adds a `use` to `world` for each type of an interface that `func`
+    /// refers to, unless the world already has one.
+    ///
+    /// A world's functions can only refer to interfaces' types through the
+    /// world's `use`s, which components encode as type imports. A component
+    /// can refer to an imported instance's type directly instead.
+    fn add_world_uses(
+        &mut self,
+        owner: TypeOwner,
+        imports: &mut IndexMap<WorldKey, WorldItem>,
+        func: &Function,
+    ) -> Result<()> {
+        struct Named<'a>(&'a Resolve, Vec<TypeId>);
+        impl TypeIdVisitor for Named<'_> {
+            fn before_visit_type_id(&mut self, id: TypeId) -> bool {
+                if self.0.types[id].name.is_some() {
+                    self.1.push(id);
+                    return false;
+                }
+                true
+            }
+        }
+        let mut named = Named(&self.resolve, Vec::new());
+        for ty in func.parameter_and_result_types() {
+            named.visit_type(&self.resolve, &ty);
+        }
+        for ty in named.1 {
+            let def = &self.resolve.types[ty];
+            let (TypeOwner::Interface(iface), Some(name)) = (def.owner, def.name.clone()) else {
+                continue;
+            };
+            let key = WorldKey::Name(name.clone());
+            match imports.get(&key) {
+                Some(WorldItem::Type { id, .. })
+                    if self.resolve.types[*id].kind == TypeDefKind::Type(Type::Id(ty)) =>
+                {
+                    continue;
+                }
+                Some(_) => bail!(
+                    "cannot represent this component in WIT: function `{}` uses type `{name}` \
+                     of an interface, but the world has another item named `{name}`",
+                    func.name
+                ),
+                None => {}
+            }
+            if !imports.contains_key(&WorldKey::Interface(iface)) {
+                bail!(
+                    "cannot represent this component in WIT: function `{}` uses type `{name}` \
+                     of an interface the world doesn't import under its name",
+                    func.name
+                );
+            }
+            let id = self.resolve.types.alloc(TypeDef {
+                name: Some(name),
+                kind: TypeDefKind::Type(Type::Id(ty)),
+                docs: Default::default(),
+                stability: Default::default(),
+                owner,
+                span: Default::default(),
+                external_id: None,
+            });
+            imports.insert(
+                key,
+                WorldItem::Type {
+                    id,
+                    span: Default::default(),
+                },
+            );
+        }
+        Ok(())
+    }
+
+    fn add_component_world_uses(&mut self, world: WorldId, func: &Function) -> Result<()> {
+        let mut imports = mem::take(&mut self.resolve.worlds[world].imports);
+        let result = self.add_world_uses(TypeOwner::World(world), &mut imports, func);
+        self.resolve.worlds[world].imports = imports;
+        result
     }
 
     /// Decodes a component instance import/export name into a
@@ -1276,6 +1357,7 @@ impl WitPackageDecoder<'_> {
                 }
                 ComponentEntityType::Func(_) => {
                     let func = self.convert_function(name.as_str(), item, owner)?;
+                    self.add_world_uses(owner, &mut world.imports, &func)?;
                     (WorldKey::Name(name.to_string()), WorldItem::Function(func))
                 }
                 _ => bail!("component import `{name}` is not an instance, func, or type"),
@@ -1291,6 +1373,7 @@ impl WitPackageDecoder<'_> {
 
                 ComponentEntityType::Func(_) => {
                     let func = self.convert_function(name.as_str(), item, owner)?;
+                    self.add_world_uses(owner, &mut world.imports, &func)?;
                     (WorldKey::Name(name.to_string()), WorldItem::Function(func))
                 }
 

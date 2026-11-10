@@ -1,0 +1,17 @@
+package root:component;
+
+world root {
+  import a:b/i;
+  use a:b/i.{r, t};
+  import f: func(x: r, y: t);
+  import g: func() -> list<t>;
+}
+package a:b {
+  interface i {
+    resource r;
+
+    flags t {
+      a,
+    }
+  }
+}
