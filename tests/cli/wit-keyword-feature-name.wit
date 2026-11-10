@@ -1,0 +1,8 @@
+// RUN: component wit --all-features % | component wit --all-features
+
+package a:b;
+
+interface i {
+  @unstable(feature = %func)
+  f: func();
+}

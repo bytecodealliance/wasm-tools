@@ -1208,7 +1208,7 @@ impl<O: Output> WitPrinter<O> {
                 self.output.str("(");
                 self.output.keyword("feature");
                 self.output.str(" = ");
-                self.output.str(feature);
+                self.output.str(&Self::escape_name(feature));
                 self.output.str(")");
                 self.output.newline();
                 if let Some(version) = deprecated {
