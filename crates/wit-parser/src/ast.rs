@@ -1436,9 +1436,10 @@ fn parse_docs<'a>(tokens: &mut Tokenizer<'a>) -> Result<Docs<'a>, lex::Error> {
     Ok(docs)
 }
 
-/// Maximum nesting depth of types parsed with `Type::parse`, e.g.
-/// `list<list<list<...>>>`.
-const MAX_TYPE_DEPTH: usize = 100;
+/// Maximum nesting depth of types, both within one type parsed with
+/// `Type::parse`, e.g. `list<list<list<...>>>`, and through named types and
+/// aliases once a package is resolved.
+pub(crate) const MAX_TYPE_DEPTH: usize = 100;
 
 impl<'a> Type<'a> {
     fn parse(tokens: &mut Tokenizer<'a>) -> ParseResult<Self> {

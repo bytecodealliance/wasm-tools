@@ -3535,6 +3535,7 @@ impl Remap {
         // order should be sufficient. Also note though that the interface
         // owner of a type isn't updated here due to interfaces not being known
         // yet.
+        let first_new_type = resolve.types.len();
         for (id, mut ty) in unresolved.types.into_iter().skip(foreign_types) {
             let span = ty.span;
             if !resolve.include_stability(&ty.stability, &pkgid, span)? {
@@ -3567,6 +3568,8 @@ impl Remap {
             };
             self.types.push(Some(new_id));
         }
+
+        check_type_depth(resolve, first_new_type)?;
 
         // Next transfer all interfaces into `Resolve`, updating type ids
         // referenced along the way.
@@ -4493,6 +4496,43 @@ impl Remap {
             TypeDefKind::Unknown => unreachable!(),
         }
     }
+}
+
+/// Errors if a type at index `first_new` or later in `resolve.types` is
+/// nested `MAX_TYPE_DEPTH` or more types deep, counting aliases.
+///
+/// Types are topologically sorted, so each type's depth follows from the
+/// depths of the earlier types it refers to in one pass, without recursion.
+fn check_type_depth(resolve: &Resolve, first_new: usize) -> ResolveResult<()> {
+    struct Deepest<'a> {
+        depths: &'a [usize],
+        deepest: usize,
+    }
+    impl TypeIdVisitor for Deepest<'_> {
+        fn before_visit_type_id(&mut self, id: TypeId) -> bool {
+            self.deepest = self.deepest.max(self.depths[id.index()]);
+            // Only look at the types referred to directly.
+            false
+        }
+    }
+    let mut depths = Vec::with_capacity(resolve.types.len());
+    for (id, ty) in resolve.types.iter() {
+        let mut deepest = Deepest {
+            depths: &depths,
+            deepest: 0,
+        };
+        deepest.visit_type_def(resolve, ty);
+        let depth = deepest.deepest + 1;
+        if id.index() >= first_new && depth >= crate::ast::MAX_TYPE_DEPTH {
+            let msg = match &ty.name {
+                Some(name) => format!("type `{name}` is nested too deep"),
+                None => "type nesting too deep".to_string(),
+            };
+            return Err(ResolveError::new_semantic(ty.span, msg));
+        }
+        depths.push(depth);
+    }
+    Ok(())
 }
 
 struct MergeMap<'a> {

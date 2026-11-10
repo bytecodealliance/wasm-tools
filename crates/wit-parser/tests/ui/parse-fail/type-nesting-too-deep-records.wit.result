@@ -1,0 +1,5 @@
+type `r99` is nested too deep
+     --> tests/ui/parse-fail/type-nesting-too-deep-records.wit:107:10
+      |
+  107 |   record r99 { x: r98 }
+      |          ^--

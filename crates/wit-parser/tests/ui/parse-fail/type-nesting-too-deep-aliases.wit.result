@@ -1,0 +1,5 @@
+type `t99` is nested too deep
+     --> tests/ui/parse-fail/type-nesting-too-deep-aliases.wit:107:8
+      |
+  107 |   type t99 = t98;
+      |        ^--
