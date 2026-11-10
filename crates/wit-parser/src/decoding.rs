@@ -895,6 +895,26 @@ impl WitPackageDecoder<'_> {
                         bail!("instance function export `{name}` not defined in interface");
                     }
                     let func = self.convert_function(name.as_str(), item, owner)?;
+                    // Another use of this interface may have this function
+                    // as another kind, such as `[method]r.f` for
+                    // `[static]r.f`, under the same name in WIT. A getter and
+                    // setter of one name are fine together.
+                    let wit_name = |f: &Function| {
+                        let setter = matches!(
+                            f.kind,
+                            FunctionKind::Setter
+                                | FunctionKind::MethodSetter(_)
+                                | FunctionKind::StaticSetter(_)
+                        );
+                        (f.kind.resource(), f.item_name().to_string(), setter)
+                    };
+                    let functions = &self.resolve.interfaces[interface].functions;
+                    if functions.values().any(|f| wit_name(f) == wit_name(&func)) {
+                        bail!(
+                            "cannot represent this component in WIT: uses of interface `{iface}` \
+                             disagree on what kind of function `{name}` is"
+                        );
+                    }
                     let prev = self.resolve.interfaces[interface]
                         .functions
                         .insert(name.to_string(), func);
