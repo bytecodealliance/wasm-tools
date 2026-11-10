@@ -1031,6 +1031,13 @@ impl WitPackageDecoder<'_> {
         item: &ComponentItem,
         owner: TypeOwner,
     ) -> Result<TypeId> {
+        // A WIT type has a plain name, not one like `a:b/c` or `[method]r.f`.
+        match self.parse_component_name(name)?.kind() {
+            ComponentNameKind::Plain(n) if n.is_bare() => {}
+            _ => bail!(
+                "cannot represent this component in WIT: type `{name}` doesn't have a plain name"
+            ),
+        }
         let (referenced, created) = match item.ty {
             ComponentEntityType::Type {
                 referenced,
