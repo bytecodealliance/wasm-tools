@@ -1789,6 +1789,11 @@ impl WitPackageDecoder<'_> {
                 .all(|(_, i)| i.package.is_some()),
             "an interface isn't in any package"
         );
+        for (name, world) in self.resolve.packages[id].worlds.iter() {
+            self.resolve.check_world_exports(*world).map_err(|e| {
+                anyhow!("cannot represent this component in WIT: world `{name}`: {e}")
+            })?;
+        }
         Ok((self.resolve, id))
     }
 
