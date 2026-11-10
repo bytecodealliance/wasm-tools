@@ -1859,11 +1859,41 @@ impl WitPackageDecoder<'_> {
             "an interface isn't in any package"
         );
         for (name, world) in self.resolve.packages[id].worlds.iter() {
+            self.check_world_imports(name, *world)?;
             self.resolve.check_world_exports(*world).map_err(|e| {
                 anyhow!("cannot represent this component in WIT: world `{name}`: {e}")
             })?;
         }
         Ok((self.resolve, id))
+    }
+
+    /// Errors if `world` imports an interface without importing the named
+    /// interfaces it uses types from, which WIT would import implicitly.
+    ///
+    /// A component doesn't need those imports for its own instance of the
+    /// interface, but one can be missing when another, such as an export of
+    /// the same interface, gives the interface more `use`s.
+    fn check_world_imports(&self, name: &str, world: WorldId) -> Result<()> {
+        let resolve = &self.resolve;
+        let imports = &resolve.worlds[world].imports;
+        for (key, item) in imports.iter() {
+            let WorldItem::Interface { id, .. } = item else {
+                continue;
+            };
+            for dep in resolve.interface_direct_deps(*id) {
+                if imports.contains_key(&WorldKey::Interface(dep)) {
+                    continue;
+                }
+                if let Some(dep_name) = resolve.id_of(dep) {
+                    bail!(
+                        "cannot represent this component in WIT: world `{name}` imports `{}`, \
+                         which uses `{dep_name}`, without importing it",
+                        resolve.name_world_key(key),
+                    );
+                }
+            }
+        }
+        Ok(())
     }
 
     fn insert_package(&mut self, package: Package) -> Result<PackageId> {
