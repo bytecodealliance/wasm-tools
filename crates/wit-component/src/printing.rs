@@ -566,15 +566,20 @@ impl<O: Output> WitPrinter<O> {
         cur_pkg: PackageId,
     ) -> Result<()> {
         let iface = &resolve.interfaces[interface];
+        // A `Resolve` decoded from a component can have an interface use
+        // types from an unnamed one, which encodes but has no WIT text form.
+        let Some(iface_name) = &iface.name else {
+            bail!("cannot print WIT: an interface uses types from an unnamed interface");
+        };
         if iface.package == Some(cur_pkg) {
-            self.print_name_type(iface.name.as_ref().unwrap(), TypeKind::InterfacePath);
+            self.print_name_type(iface_name, TypeKind::InterfacePath);
         } else {
             let pkg = &resolve.packages[iface.package.unwrap()].name;
             self.print_name_type(&pkg.namespace, TypeKind::NamespacePath);
             self.output.str(":");
             self.print_name_type(&pkg.name, TypeKind::PackageNamePath);
             self.output.str("/");
-            self.print_name_type(iface.name.as_ref().unwrap(), TypeKind::InterfacePath);
+            self.print_name_type(iface_name, TypeKind::InterfacePath);
             if let Some(version) = &pkg.version {
                 self.print_name_type(&format!("@{version}"), TypeKind::VersionPath);
             }
