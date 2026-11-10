@@ -780,6 +780,7 @@ impl WitPackageDecoder<'_> {
             None => (false, self.extract_dep_interface(name, item)?),
         };
         let owner = TypeOwner::Interface(interface);
+        let iface = name;
         for (name, item) in ty.exports.iter() {
             log::debug!("decoding import instance export `{name}`");
             match item.ty {
@@ -811,6 +812,25 @@ impl WitPackageDecoder<'_> {
                         // roundtripping assertions during fuzzing.
                         Some(id) => {
                             log::debug!("type already exist");
+                            // Every use of an interface has to agree on which
+                            // other interface's type, if any, this one `use`s.
+                            let used_here = self
+                                .find_alias(referenced)
+                                .filter(|t| self.is_from_other_interface(*t, interface));
+                            let used_before = match self.resolve.types[id].kind {
+                                TypeDefKind::Type(Type::Id(t))
+                                    if self.is_from_other_interface(t, interface) =>
+                                {
+                                    Some(t)
+                                }
+                                _ => None,
+                            };
+                            if used_here != used_before {
+                                bail!(
+                                    "cannot represent this component in WIT: uses of interface \
+                                     `{iface}` disagree on where its type `{name}` comes from"
+                                );
+                            }
                             match referenced {
                                 ComponentAnyTypeId::Defined(ty) => {
                                     self.register_defined(id, &self.types[ty])?;
@@ -886,6 +906,13 @@ impl WitPackageDecoder<'_> {
         }
 
         Ok(interface)
+    }
+
+    /// Returns whether `ty` is a named type of an interface other than
+    /// `interface`, meaning that `interface` can only refer to it via a `use`.
+    fn is_from_other_interface(&self, ty: TypeId, interface: InterfaceId) -> bool {
+        let ty = &self.resolve.types[ty];
+        ty.name.is_some() && matches!(ty.owner, TypeOwner::Interface(i) if i != interface)
     }
 
     fn find_alias(&self, id: ComponentAnyTypeId) -> Option<TypeId> {
