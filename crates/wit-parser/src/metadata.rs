@@ -116,7 +116,7 @@ impl PackageMetadata {
         if let Some(docs) = &self.docs {
             resolve.packages[package].docs.contents = Some(docs.to_string());
         }
-        Ok(())
+        check_since_versions(resolve, package)
     }
 
     /// Encode package docs as a package-docs custom section.
@@ -881,6 +881,51 @@ fn check_printable(value: &serde_json::Value, key: Option<&str>) -> Result<()> {
             }
         }
         Value::Null | Value::Bool(_) | Value::Number(_) => {}
+    }
+    Ok(())
+}
+
+/// Errors if `package` has an `@since` that WIT would reject: one in a package
+/// without a version, or one newer than the package's version.
+fn check_since_versions(resolve: &Resolve, package: PackageId) -> Result<()> {
+    let pkg = &resolve.packages[package];
+    let check = |stability: &Stability| -> Result<()> {
+        let Stability::Stable { since, .. } = stability else {
+            return Ok(());
+        };
+        match &pkg.name.version {
+            None => bail!(
+                "package-docs gives package `{}`, which has no version, an `@since` of {since}",
+                pkg.name
+            ),
+            Some(version) if since > version => bail!(
+                "package-docs gives package `{}` an `@since` of {since}, after its version",
+                pkg.name
+            ),
+            Some(_) => Ok(()),
+        }
+    };
+    let check_func = |f: &Function| check(&f.stability);
+    for (_, id) in pkg.interfaces.iter() {
+        let iface = &resolve.interfaces[*id];
+        check(&iface.stability)?;
+        for (_, ty) in iface.types.iter() {
+            check(&resolve.types[*ty].stability)?;
+        }
+        for (_, f) in iface.functions.iter() {
+            check_func(f)?;
+        }
+    }
+    for (_, id) in pkg.worlds.iter() {
+        let world = &resolve.worlds[*id];
+        check(&world.stability)?;
+        for (_, item) in world.imports.iter().chain(world.exports.iter()) {
+            match item {
+                WorldItem::Interface { stability, .. } => check(stability)?,
+                WorldItem::Function(f) => check_func(f)?,
+                WorldItem::Type { id, .. } => check(&resolve.types[*id].stability)?,
+            }
+        }
     }
     Ok(())
 }
