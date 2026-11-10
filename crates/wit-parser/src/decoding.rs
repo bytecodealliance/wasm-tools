@@ -1150,6 +1150,20 @@ impl WitPackageDecoder<'_> {
             _ => unreachable!(),
         };
         let kind = match find_alias(&self.types, &self.type_map, referenced) {
+            // An anonymous type, such as the `own<r>` in an earlier
+            // `list<own<r>>`, is part of another type's definition, not
+            // something this one can `use`. This type is defined as the same
+            // thing instead, as long as an interface doesn't end up naming a
+            // type it neither defines nor `use`s.
+            Some(prev)
+                if self.resolve.types[prev].name.is_none()
+                    && (!matches!(owner, TypeOwner::Interface(_))
+                        || self.only_names_types_of(prev, owner)) =>
+            {
+                log::debug!("type export for `{name}` is an anonymous type");
+                self.resolve.types[prev].kind.clone()
+            }
+
             // If this `TypeId` points to a type which has
             // previously been defined, meaning we're aliasing a
             // prior definition.
@@ -1224,6 +1238,33 @@ impl WitPackageDecoder<'_> {
             );
         }
         Ok(ty)
+    }
+
+    /// Returns whether every named type that the anonymous type `id` refers
+    /// to, looking through other anonymous types, belongs to `owner`.
+    fn only_names_types_of(&self, id: TypeId, owner: TypeOwner) -> bool {
+        struct Check<'a> {
+            resolve: &'a Resolve,
+            owner: TypeOwner,
+            ok: bool,
+        }
+        impl TypeIdVisitor for Check<'_> {
+            // Look into anonymous types only; a named type ends the walk.
+            fn before_visit_type_id(&mut self, id: TypeId) -> bool {
+                let ty = &self.resolve.types[id];
+                if ty.name.is_some() && ty.owner != self.owner {
+                    self.ok = false;
+                }
+                self.ok && ty.name.is_none()
+            }
+        }
+        let mut check = Check {
+            resolve: &self.resolve,
+            owner,
+            ok: true,
+        };
+        check.visit_type_def(&self.resolve, &self.resolve.types[id]);
+        check.ok
     }
 
     fn register_world<'a>(
