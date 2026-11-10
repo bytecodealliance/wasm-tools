@@ -62,15 +62,10 @@ impl ComponentInfo {
                 Chunk::NeedMoreData(hint) => {
                     assert!(!eof); // otherwise an error would be returned
 
-                    // Use the hint to preallocate more space, then read
-                    // some more data into our buffer.
-                    //
-                    // Note that the buffer management here is not ideal,
-                    // but it's compact enough to fit in an example!
-                    let len = buffer.len();
-                    buffer.extend((0..hint).map(|_| 0u8));
-                    let n = reader.read(&mut buffer[len..])?;
-                    buffer.truncate(len + n);
+                    // Read up to the hint into our buffer, which grows with
+                    // what is read: the hint comes from the input, so it may
+                    // be far more than there is.
+                    let n = (&mut reader).take(hint as u64).read_to_end(&mut buffer)?;
                     eof = n == 0;
                     continue;
                 }
