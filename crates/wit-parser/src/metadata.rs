@@ -152,7 +152,9 @@ impl PackageMetadata {
                 );
             }
         }
-        Ok(serde_json::from_slice(&data[1..])?)
+        let metadata = serde_json::from_slice(&data[1..])?;
+        check_printable(&serde_json::from_slice(&data[1..])?, None)?;
+        Ok(metadata)
     }
 
     #[cfg(feature = "serde")]
@@ -848,4 +850,37 @@ impl TypeMetadata {
     fn is_compatible_with_v0(&self) -> bool {
         self.stability.is_unknown()
     }
+}
+
+/// Errors if `value`, the JSON of a package-docs section, has docs or feature
+/// names that WIT can't write: text with codepoints the WIT lexer rejects,
+/// or a feature name that isn't an identifier.
+#[cfg(feature = "serde")]
+fn check_printable(value: &serde_json::Value, key: Option<&str>) -> Result<()> {
+    use serde_json::Value;
+    match value {
+        Value::String(s) => {
+            if let Err(e) = crate::ast::lex::detect_invalid_input(s) {
+                bail!("package-docs has text that WIT can't write: {e}");
+            }
+            if key == Some("feature") {
+                if let Err(e) = crate::validate_id(s) {
+                    bail!("package-docs feature {s:?} isn't an identifier: {e}");
+                }
+            }
+        }
+        Value::Array(values) => {
+            for v in values {
+                check_printable(v, key)?;
+            }
+        }
+        Value::Object(map) => {
+            for (k, v) in map {
+                check_printable(&Value::String(k.clone()), None)?;
+                check_printable(v, Some(k))?;
+            }
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) => {}
+    }
+    Ok(())
 }

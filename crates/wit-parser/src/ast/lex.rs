@@ -582,7 +582,7 @@ impl<'a> Iterator for CrlfFold<'a> {
     }
 }
 
-fn detect_invalid_input(input: &str) -> Result<(), Error> {
+pub(crate) fn detect_invalid_input(input: &str) -> Result<(), Error> {
     // Disallow specific codepoints.
     for (pos, ch) in input.char_indices() {
         match ch {
