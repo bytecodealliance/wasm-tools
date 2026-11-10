@@ -975,6 +975,9 @@ impl WitPackageDecoder<'_> {
             }
         }
 
+        if !is_local {
+            self.check_interface_scope(iface, interface)?;
+        }
         Ok(interface)
     }
 
@@ -1173,6 +1176,9 @@ impl WitPackageDecoder<'_> {
             };
         }
         let id = self.resolve.interfaces.alloc(interface);
+        if interface_name.is_some() {
+            self.check_interface_scope(name, id)?;
+        }
         let key = match interface_name {
             // If this interface is named then it's part of the package, so
             // insert it. Additionally register it in `named_interfaces` so
@@ -1325,28 +1331,50 @@ impl WitPackageDecoder<'_> {
     /// Returns whether every named type that the anonymous type `id` refers
     /// to, looking through other anonymous types, belongs to `owner`.
     fn only_names_types_of(&self, id: TypeId, owner: TypeOwner) -> bool {
-        struct Check<'a> {
-            resolve: &'a Resolve,
-            owner: TypeOwner,
-            ok: bool,
-        }
-        impl TypeIdVisitor for Check<'_> {
-            // Look into anonymous types only; a named type ends the walk.
-            fn before_visit_type_id(&mut self, id: TypeId) -> bool {
-                let ty = &self.resolve.types[id];
-                if ty.name.is_some() && ty.owner != self.owner {
-                    self.ok = false;
+        let mut check = OutsideOwner::new(&self.resolve, owner);
+        check.visit_type_def(&self.resolve, &self.resolve.types[id]);
+        check.found.is_none()
+    }
+
+    /// Errors if the named interface `interface` refers to a named type it
+    /// neither defines nor `use`s under that type's name, which WIT has no way
+    /// to write.
+    ///
+    /// Unnamed interfaces aren't checked: WIT can't print them referring to
+    /// other interfaces' types either, but they still encode, and
+    /// `wasm-compose` makes them.
+    fn check_interface_scope(&self, name: &str, interface: InterfaceId) -> Result<()> {
+        let iface = &self.resolve.interfaces[interface];
+        let mut check = OutsideOwner::new(&self.resolve, TypeOwner::Interface(interface));
+        // A type that the interface `use`s under its own name can be referred
+        // to directly, as that name refers to it.
+        for (name, ty) in iface.types.iter() {
+            if let TypeDefKind::Type(Type::Id(t)) = self.resolve.types[*ty].kind {
+                if self.resolve.types[t].name.as_deref() == Some(name.as_str()) {
+                    check.allowed.insert(t);
                 }
-                self.ok && ty.name.is_none()
             }
         }
-        let mut check = Check {
-            resolve: &self.resolve,
-            owner,
-            ok: true,
-        };
-        check.visit_type_def(&self.resolve, &self.resolve.types[id]);
-        check.ok
+        for ty in iface.types.values() {
+            let def = &self.resolve.types[*ty];
+            match def.kind {
+                // A `use`, or an alias of another named type, which is checked
+                // where it's decoded.
+                TypeDefKind::Type(Type::Id(t)) if self.resolve.types[t].name.is_some() => {}
+                _ => check.visit_type_def(&self.resolve, def),
+            }
+        }
+        for func in iface.functions.values() {
+            check.visit_func(&self.resolve, func);
+        }
+        if let Some(ty) = check.found {
+            bail!(
+                "cannot represent this component in WIT: interface `{name}` refers to type `{}` \
+                 without defining or `use`ing it",
+                self.resolve.types[ty].name.as_deref().unwrap_or("")
+            );
+        }
+        Ok(())
     }
 
     fn register_world<'a>(
@@ -1951,6 +1979,41 @@ fn find_alias(
         };
     }
     prev
+}
+
+/// Finds a named type that doesn't belong to `owner`, looking through
+/// anonymous types to the named types they refer to.
+struct OutsideOwner<'a> {
+    resolve: &'a Resolve,
+    owner: TypeOwner,
+    /// Types of other owners that are in scope anyway.
+    allowed: HashSet<TypeId>,
+    found: Option<TypeId>,
+}
+
+impl<'a> OutsideOwner<'a> {
+    fn new(resolve: &'a Resolve, owner: TypeOwner) -> Self {
+        OutsideOwner {
+            resolve,
+            owner,
+            allowed: HashSet::new(),
+            found: None,
+        }
+    }
+}
+
+impl TypeIdVisitor for OutsideOwner<'_> {
+    fn before_visit_type_id(&mut self, id: TypeId) -> bool {
+        let ty = &self.resolve.types[id];
+        if ty.name.is_some()
+            && ty.owner != self.owner
+            && !self.allowed.contains(&id)
+            && self.found.is_none()
+        {
+            self.found = Some(id);
+        }
+        self.found.is_none() && ty.name.is_none()
+    }
 }
 
 /// Helper type to register the structure of a wasm-defined type against a

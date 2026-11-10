@@ -1,1 +1,1 @@
-error: interface `a:x/k` uses type `t` from interface `a:x/l`, which the world doesn't import before `a:x/k`
+error: cannot represent this component in WIT: interface `a:x/k` refers to type `t` without defining or `use`ing it
