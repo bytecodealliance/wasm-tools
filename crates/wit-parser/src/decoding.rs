@@ -1952,11 +1952,42 @@ impl Registrar<'_> {
                 }
             }
 
+            // A handle has to be for the same resource in both uses.
+            ComponentDefinedType::Own(r) | ComponentDefinedType::Borrow(r) => {
+                let wit = match &self.resolve.types[id].kind {
+                    TypeDefKind::Handle(Handle::Own(t) | Handle::Borrow(t)) => *t,
+                    TypeDefKind::Type(Type::Id(_)) => return Ok(()),
+                    _ => bail!("expected a handle"),
+                };
+                let mut cur = ComponentAnyTypeId::from(*r);
+                let wasm = loop {
+                    if let Some(t) = self.type_map.get(&cur) {
+                        break Some(*t);
+                    }
+                    match self.types.as_ref().peel_alias(cur) {
+                        Some(next) => cur = next,
+                        None => break None,
+                    }
+                };
+                // Either may be a `use` of the resource, so compare what the
+                // `use`s refer to.
+                let peel = |mut t: TypeId| {
+                    while let TypeDefKind::Type(Type::Id(next)) = self.resolve.types[t].kind {
+                        t = next;
+                    }
+                    t
+                };
+                match wasm {
+                    Some(wasm) if peel(wasm) != peel(wit) => bail!(
+                        "cannot represent this component in WIT: uses of an interface disagree \
+                         on which resource a handle is for"
+                    ),
+                    _ => Ok(()),
+                }
+            }
+
             // These have no recursive structure so they can bail out.
-            ComponentDefinedType::Flags(_)
-            | ComponentDefinedType::Enum(_)
-            | ComponentDefinedType::Own(_)
-            | ComponentDefinedType::Borrow(_) => Ok(()),
+            ComponentDefinedType::Flags(_) | ComponentDefinedType::Enum(_) => Ok(()),
         }
     }
 
