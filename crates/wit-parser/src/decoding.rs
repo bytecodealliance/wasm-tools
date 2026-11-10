@@ -1648,6 +1648,14 @@ impl WitPackageDecoder<'_> {
         }
 
         for (name, id) in worlds {
+            // Interfaces and worlds share one namespace in a package.
+            if self.resolve.packages[pkg].interfaces.contains_key(&name) {
+                bail!(
+                    "cannot represent this component in WIT: world `{name}` has the same name as \
+                     an interface in package `{}`",
+                    self.resolve.packages[pkg].name
+                );
+            }
             let prev = self.resolve.packages[pkg].worlds.insert(name, id);
             assert!(prev.is_none());
             let world = &mut self.resolve.worlds[id];
