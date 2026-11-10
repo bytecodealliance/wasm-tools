@@ -570,6 +570,19 @@ impl WitPackageDecoder<'_> {
         };
 
         for (name, ty) in ty.exports.iter() {
+            // Everything a package exports is part of that package, so its
+            // name must agree with the package's, version included.
+            if let Ok(parsed) = crate::parse_component_name(name) {
+                if let ComponentNameKind::Interface(iface) = parsed.kind() {
+                    if iface.to_package_name(ty)? != package.name {
+                        bail!(
+                            "cannot represent this component in WIT: package export `{name}` \
+                             is not in package `{}`",
+                            package.name
+                        );
+                    }
+                }
+            }
             match ty.ty {
                 ComponentEntityType::Instance(_) => {
                     let (key, _) = self

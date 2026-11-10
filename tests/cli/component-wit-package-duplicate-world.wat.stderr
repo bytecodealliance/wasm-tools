@@ -1,5 +1,1 @@
-error: failed to decode document `a:b/wit`
-
-Caused by:
-    0: failed to process export `a:b/w@2.0.0`
-    1: cannot represent this component in WIT: world `w` has the same name as another world in its package
+error: cannot represent this component in WIT: world `w` has the same name as another world in its package

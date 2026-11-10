@@ -2,9 +2,12 @@
 
 (component
     (type $w (component))
-    (type $p (component
+    (type $x (component
         (export "a:b/w@1.0.0" (component (type $w)))
+    ))
+    (type $y (component
         (export "a:b/w@2.0.0" (component (type $w)))
     ))
-    (export "a:b/wit" (type $p))
+    (export "x" (type $x))
+    (export "y" (type $y))
 )
