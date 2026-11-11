@@ -63,6 +63,78 @@ fn smoke_test_swarm_config() {
     }
 }
 
+#[test]
+fn smoke_test_branch_hints() {
+    let mut rng = SmallRng::seed_from_u64(0);
+    let mut buf = vec![0; 2048];
+    let mut modules_with_hints = 0;
+    for _ in 0..1024 {
+        rng.fill_bytes(&mut buf);
+        let mut u = Unstructured::new(&buf);
+        let mut config = Config::default();
+        config.branch_hinting_enabled = true;
+        let Ok(mut module) = Module::new(config, &mut u) else {
+            continue;
+        };
+        if u.arbitrary().unwrap_or(false) {
+            module.ensure_termination(10).unwrap();
+        }
+        let wasm_bytes = module.to_bytes();
+
+        if validate_with_custom_sections(&wasm_bytes) {
+            modules_with_hints += 1;
+        }
+
+        // Byte offsets can change on reassembly (e.g. locals get run-length
+        // encoded), so compare the printed text to check that each hint is
+        // still attached to the same instruction.
+        let wat = wasmprinter::print_bytes(&wasm_bytes).unwrap();
+        let wasm_bytes2 = wat::parse_str(&wat).unwrap();
+        validate_with_custom_sections(&wasm_bytes2);
+        let wat2 = wasmprinter::print_bytes(&wasm_bytes2).unwrap();
+        assert_eq!(wat, wat2);
+    }
+    assert!(modules_with_hints > 0);
+}
+
+/// Validates `bytes`, including its custom sections, and returns whether it
+/// contains a branch hint section.
+fn validate_with_custom_sections(bytes: &[u8]) -> bool {
+    use wasmparser::{CustomSectionValidator, KnownCustom, Payload, ValidPayload};
+
+    let result = (|| -> wasmparser::Result<bool> {
+        let mut validator = Validator::new_with_features(WasmFeatures::all());
+        let mut custom = CustomSectionValidator::new();
+        let mut funcs = Vec::new();
+        let mut has_hints = false;
+        for payload in Parser::new(0).parse_all(bytes) {
+            let payload = payload?;
+            if let Payload::CustomSection(c) = &payload {
+                has_hints |= matches!(c.as_known(), KnownCustom::BranchHints(_));
+            }
+            if let ValidPayload::Func(func, body) = validator.payload(&payload)? {
+                funcs.push((func, body, custom.current_module_id()));
+            }
+            custom.payload(&payload, &validator)?;
+        }
+        for (func, body, module_id) in funcs {
+            let index = func.index;
+            func.into_validator(Default::default()).validate(&body)?;
+            custom.code_section_entry(module_id, index, &body)?;
+        }
+        Ok(has_hints)
+    })();
+    match result {
+        Ok(has_hints) => has_hints,
+        Err(e) => {
+            if let Ok(wat) = wasmprinter::print_bytes(bytes) {
+                eprintln!("{wat}");
+            }
+            panic!("wasm failed to validate: {e}");
+        }
+    }
+}
+
 #[derive(Default)]
 struct ImportStats {
     import_count: usize,

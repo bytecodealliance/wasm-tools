@@ -439,6 +439,9 @@ enum Elements {
 struct Code {
     locals: Vec<ValType>,
     instructions: Instructions,
+    /// Branch hints for this function as `(instruction index, taken)` pairs,
+    /// sorted by instruction index.
+    branch_hints: Vec<(usize, bool)>,
 }
 
 #[derive(Debug)]
@@ -3097,6 +3100,35 @@ impl Module {
             self.code.push(body);
         }
         allocs.finish(u, self)?;
+        if self.config.branch_hinting_enabled {
+            self.arbitrary_branch_hints(u)?;
+        }
+        Ok(())
+    }
+
+    fn arbitrary_branch_hints(&mut self, u: &mut Unstructured) -> Result<()> {
+        for code in &mut self.code {
+            let Instructions::Generated(instrs) = &code.instructions else {
+                continue;
+            };
+            for (i, instr) in instrs.iter().enumerate() {
+                if !matches!(instr, Instruction::If(_) | Instruction::BrIf(_)) {
+                    continue;
+                }
+                match u.int_in_range(0..=2)? {
+                    // Hint unlikely.
+                    0 => code.branch_hints.push((i, false)),
+
+                    // Hint likely.
+                    1 => code.branch_hints.push((i, true)),
+
+                    // No hint.
+                    2 => {}
+
+                    _ => unreachable!(),
+                }
+            }
+        }
         Ok(())
     }
 
@@ -3118,6 +3150,7 @@ impl Module {
         Ok(Code {
             locals,
             instructions,
+            branch_hints: Vec::new(),
         })
     }
 
