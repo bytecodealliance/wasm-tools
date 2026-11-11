@@ -1229,70 +1229,76 @@ impl WitPackageDecoder<'_> {
             kind: match name.kind() {
                 ComponentNameKind::Plain(plain) => {
                     if plain.accessor.is_some() && ty.async_ {
-                        panic!("function `{name}` is an async accessor (should be impossible)");
+                        bail!("function `{name}` is an async accessor (should be impossible)");
                     }
 
-                    let resource = plain
-                        .resource()
-                        .map(|resource| {
-                            self.resources
+                    match plain.resource_func {
+                        None => match plain.accessor {
+                            None => {
+                                if ty.async_ {
+                                    FunctionKind::AsyncFreestanding
+                                } else {
+                                    FunctionKind::Freestanding
+                                }
+                            }
+                            Some(ComponentAccessorKind::Get) => FunctionKind::Getter,
+                            Some(ComponentAccessorKind::Set) => FunctionKind::Setter,
+                        },
+
+                        Some(resource_func) => {
+                            let Some(resource) = plain.resource() else {
+                                bail!("function `{name}` has no resource (should be impossible)");
+                            };
+                            let Some(&resource) = self
+                                .resources
                                 .get(&owner)
                                 .and_then(|resources| resources.get(resource.as_str()))
-                                .copied()
-                                .with_context(|| {
-                                    format!(
-                                        "cannot represent this component in WIT: function \
-                                         `{name}` is not next to the definition of its resource"
-                                    )
-                                })
-                        })
-                        .transpose()?;
-                    match (plain.resource_func, plain.accessor) {
-                        (None, None) => {
-                            if ty.async_ {
-                                FunctionKind::AsyncFreestanding
-                            } else {
-                                FunctionKind::Freestanding
-                            }
-                        }
-                        (None, Some(ComponentAccessorKind::Get)) => FunctionKind::Getter,
-                        (None, Some(ComponentAccessorKind::Set)) => FunctionKind::Setter,
+                            else {
+                                bail!(
+                                    "cannot represent this component in WIT: function `{name}` \
+                                     is not next to the definition of its resource `{resource}`"
+                                );
+                            };
 
-                        (Some(ResourceFuncKind::Constructor), None) => {
-                            FunctionKind::Constructor(resource.unwrap())
-                        }
-                        (Some(ResourceFuncKind::Constructor), Some(_)) => {
-                            panic!(
-                                "function `{name}` is a constructor with an accessor (should be impossible)"
-                            );
-                        }
+                            match (resource_func, plain.accessor) {
+                                (ResourceFuncKind::Constructor, None) => {
+                                    FunctionKind::Constructor(resource)
+                                }
+                                (ResourceFuncKind::Constructor, Some(_)) => {
+                                    bail!(
+                                        "function `{name}` is a constructor with an accessor \
+                                         (should be impossible)"
+                                    );
+                                }
 
-                        (Some(ResourceFuncKind::Method), None) => {
-                            if ty.async_ {
-                                FunctionKind::AsyncMethod(resource.unwrap())
-                            } else {
-                                FunctionKind::Method(resource.unwrap())
-                            }
-                        }
-                        (Some(ResourceFuncKind::Method), Some(ComponentAccessorKind::Get)) => {
-                            FunctionKind::MethodGetter(resource.unwrap())
-                        }
-                        (Some(ResourceFuncKind::Method), Some(ComponentAccessorKind::Set)) => {
-                            FunctionKind::MethodSetter(resource.unwrap())
-                        }
+                                (ResourceFuncKind::Method, None) => {
+                                    if ty.async_ {
+                                        FunctionKind::AsyncMethod(resource)
+                                    } else {
+                                        FunctionKind::Method(resource)
+                                    }
+                                }
+                                (ResourceFuncKind::Method, Some(ComponentAccessorKind::Get)) => {
+                                    FunctionKind::MethodGetter(resource)
+                                }
+                                (ResourceFuncKind::Method, Some(ComponentAccessorKind::Set)) => {
+                                    FunctionKind::MethodSetter(resource)
+                                }
 
-                        (Some(ResourceFuncKind::Static), None) => {
-                            if ty.async_ {
-                                FunctionKind::AsyncStatic(resource.unwrap())
-                            } else {
-                                FunctionKind::Static(resource.unwrap())
+                                (ResourceFuncKind::Static, None) => {
+                                    if ty.async_ {
+                                        FunctionKind::AsyncStatic(resource)
+                                    } else {
+                                        FunctionKind::Static(resource)
+                                    }
+                                }
+                                (ResourceFuncKind::Static, Some(ComponentAccessorKind::Get)) => {
+                                    FunctionKind::StaticGetter(resource)
+                                }
+                                (ResourceFuncKind::Static, Some(ComponentAccessorKind::Set)) => {
+                                    FunctionKind::StaticSetter(resource)
+                                }
                             }
-                        }
-                        (Some(ResourceFuncKind::Static), Some(ComponentAccessorKind::Get)) => {
-                            FunctionKind::StaticGetter(resource.unwrap())
-                        }
-                        (Some(ResourceFuncKind::Static), Some(ComponentAccessorKind::Set)) => {
-                            FunctionKind::StaticSetter(resource.unwrap())
                         }
                     }
                 }
