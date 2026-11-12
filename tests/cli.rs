@@ -179,6 +179,10 @@ fn new_command(exe: &Path, should_fail: bool) -> Command {
     // spawned the test suite.
     cmd.env("WAST_STRICT_COMPONENT_INDICES", "1");
 
+    // Log lines include timestamps, so an inherited `RUST_LOG` makes stderr
+    // snapshots nondeterministic. A directive can still set `RUST_LOG=...`.
+    cmd.env_remove("RUST_LOG");
+
     // When a test should fail we don't want to insert backtraces into blessed
     // output so forcibly remove this env var.
     if should_fail {
