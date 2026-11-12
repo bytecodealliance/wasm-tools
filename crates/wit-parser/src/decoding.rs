@@ -821,6 +821,8 @@ impl WitPackageDecoder<'_> {
                                 ),
                             }
                             let prev = self.type_map.insert(created, id);
+                            // `created` maps to either a new type `id` or an already known,
+                            // exactly the same `id`.
                             ensure!(
                                 prev.is_none() || prev == Some(id),
                                 "type export `{name}` was already mapped to a different type",
@@ -848,7 +850,10 @@ impl WitPackageDecoder<'_> {
                             let prev = self.resolve.interfaces[interface]
                                 .types
                                 .insert(name.to_string(), id);
-                            ensure!(prev.is_none());
+                            ensure!(
+                                prev.is_none(),
+                                "type export `{name}` is already defined in this interface",
+                            );
                         }
                     }
                 }
@@ -872,7 +877,10 @@ impl WitPackageDecoder<'_> {
                     let prev = self.resolve.interfaces[interface]
                         .functions
                         .insert(name.to_string(), func);
-                    ensure!(prev.is_none());
+                    ensure!(
+                        prev.is_none(),
+                        "function export `{name}` is already defined in this interface",
+                    );
                 }
 
                 _ => bail!("instance type export `{name}` is not a type"),
