@@ -1,4 +1,0 @@
-error: decoding custom section component-type:x
-
-Caused by:
-    0: cannot represent this component in WIT: export `a:b/w` is not a world
