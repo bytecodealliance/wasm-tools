@@ -568,6 +568,20 @@ impl Printer<'_, '_> {
                             name.write(self)?;
                         }
                     }
+
+                    // Outer aliases refer to a nested component by the name
+                    // printed above, which its parent gives it.
+                    #[cfg(feature = "component-model")]
+                    if let [.., parent, state] = &mut states[..] {
+                        if state.encoding == Encoding::Component {
+                            state.name = parent
+                                .component
+                                .component_names
+                                .index_to_name
+                                .get(&parent.component.components)
+                                .cloned();
+                        }
+                    }
                 }
                 Payload::CustomSection(c) => {
                     // If the custom printing trait handles this section, keep
@@ -2567,9 +2581,19 @@ naming_namespaces! {
 }
 
 fn name_map<K>(into: &mut NamingMap<u32, K>, names: NameMap<'_>, name: &str) -> Result<()> {
-    let mut used = HashSet::new();
+    let names = names.into_iter().collect::<Result<Vec<_>, _>>()?;
+    // The names that earlier subsections gave other indices are taken too.
+    let renamed: HashSet<u32> = names.iter().map(|naming| naming.index).collect();
+    let earlier: Vec<String> = into
+        .index_to_name
+        .iter()
+        .filter(|(index, naming)| {
+            !renamed.contains(index) && !matches!(naming.kind, NamingKind::SyntheticPrefix(_))
+        })
+        .map(|(_, naming)| naming.name.clone())
+        .collect();
+    let mut used: HashSet<&str> = earlier.iter().map(|name| &name[..]).collect();
     for naming in names {
-        let naming = naming?;
         into.index_to_name.insert(
             naming.index,
             Naming::new(naming.name, naming.index, name, Some(&mut used)),
