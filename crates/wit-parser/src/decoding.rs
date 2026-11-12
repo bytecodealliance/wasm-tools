@@ -780,6 +780,7 @@ impl WitPackageDecoder<'_> {
             None => (false, self.extract_dep_interface(name, item)?),
         };
         let owner = TypeOwner::Interface(interface);
+        let iface = name;
         for (name, item) in ty.exports.iter() {
             log::debug!("decoding import instance export `{name}`");
             match item.ty {
@@ -811,6 +812,25 @@ impl WitPackageDecoder<'_> {
                         // roundtripping assertions during fuzzing.
                         Some(id) => {
                             log::debug!("type already exist");
+                            // Every use of an interface has to agree on which
+                            // other interface's type, if any, this one `use`s.
+                            let used_here = self
+                                .find_alias(referenced)
+                                .filter(|t| self.is_from_other_interface(*t, interface));
+                            let used_before = match self.resolve.types[id].kind {
+                                TypeDefKind::Type(Type::Id(t))
+                                    if self.is_from_other_interface(t, interface) =>
+                                {
+                                    Some(t)
+                                }
+                                _ => None,
+                            };
+                            if used_here != used_before {
+                                bail!(
+                                    "cannot represent this component in WIT: uses of interface \
+                                     `{iface}` disagree on where its type `{name}` comes from"
+                                );
+                            }
                             match referenced {
                                 ComponentAnyTypeId::Defined(ty) => {
                                     self.register_defined(id, &self.types[ty])?;
@@ -821,8 +841,16 @@ impl WitPackageDecoder<'_> {
                                      component, instance or function type"
                                 ),
                             }
+                            // Imports sharing an instance type see the same
+                            // `created` again, which is fine if it's for the
+                            // same type of the same interface.
                             let prev = self.type_map.insert(created, id);
-                            assert!(prev.is_none());
+                            if prev.is_some_and(|prev| prev != id) {
+                                bail!(
+                                    "cannot represent this component in WIT: the type `{name}` \
+                                     appears in more than one interface"
+                                );
+                            }
                         }
 
                         // If the name is not defined, however, then there's two
@@ -867,6 +895,26 @@ impl WitPackageDecoder<'_> {
                         bail!("instance function export `{name}` not defined in interface");
                     }
                     let func = self.convert_function(name.as_str(), item, owner)?;
+                    // Another use of this interface may have this function
+                    // as another kind, such as `[method]r.f` for
+                    // `[static]r.f`, under the same name in WIT. A getter and
+                    // setter of one name are fine together.
+                    let wit_name = |f: &Function| {
+                        let setter = matches!(
+                            f.kind,
+                            FunctionKind::Setter
+                                | FunctionKind::MethodSetter(_)
+                                | FunctionKind::StaticSetter(_)
+                        );
+                        (f.kind.resource(), f.item_name().to_string(), setter)
+                    };
+                    let functions = &self.resolve.interfaces[interface].functions;
+                    if functions.values().any(|f| wit_name(f) == wit_name(&func)) {
+                        bail!(
+                            "cannot represent this component in WIT: uses of interface `{iface}` \
+                             disagree on what kind of function `{name}` is"
+                        );
+                    }
                     let prev = self.resolve.interfaces[interface]
                         .functions
                         .insert(name.to_string(), func);
@@ -878,6 +926,13 @@ impl WitPackageDecoder<'_> {
         }
 
         Ok(interface)
+    }
+
+    /// Returns whether `ty` is a named type of an interface other than
+    /// `interface`, meaning that `interface` can only refer to it via a `use`.
+    fn is_from_other_interface(&self, ty: TypeId, interface: InterfaceId) -> bool {
+        let ty = &self.resolve.types[ty];
+        ty.name.is_some() && matches!(ty.owner, TypeOwner::Interface(i) if i != interface)
     }
 
     fn find_alias(&self, id: ComponentAnyTypeId) -> Option<TypeId> {
@@ -1897,11 +1952,42 @@ impl Registrar<'_> {
                 }
             }
 
+            // A handle has to be for the same resource in both uses.
+            ComponentDefinedType::Own(r) | ComponentDefinedType::Borrow(r) => {
+                let wit = match &self.resolve.types[id].kind {
+                    TypeDefKind::Handle(Handle::Own(t) | Handle::Borrow(t)) => *t,
+                    TypeDefKind::Type(Type::Id(_)) => return Ok(()),
+                    _ => bail!("expected a handle"),
+                };
+                let mut cur = ComponentAnyTypeId::from(*r);
+                let wasm = loop {
+                    if let Some(t) = self.type_map.get(&cur) {
+                        break Some(*t);
+                    }
+                    match self.types.as_ref().peel_alias(cur) {
+                        Some(next) => cur = next,
+                        None => break None,
+                    }
+                };
+                // Either may be a `use` of the resource, so compare what the
+                // `use`s refer to.
+                let peel = |mut t: TypeId| {
+                    while let TypeDefKind::Type(Type::Id(next)) = self.resolve.types[t].kind {
+                        t = next;
+                    }
+                    t
+                };
+                match wasm {
+                    Some(wasm) if peel(wasm) != peel(wit) => bail!(
+                        "cannot represent this component in WIT: uses of an interface disagree \
+                         on which resource a handle is for"
+                    ),
+                    _ => Ok(()),
+                }
+            }
+
             // These have no recursive structure so they can bail out.
-            ComponentDefinedType::Flags(_)
-            | ComponentDefinedType::Enum(_)
-            | ComponentDefinedType::Own(_)
-            | ComponentDefinedType::Borrow(_) => Ok(()),
+            ComponentDefinedType::Flags(_) | ComponentDefinedType::Enum(_) => Ok(()),
         }
     }
 
@@ -1909,7 +1995,12 @@ impl Registrar<'_> {
         let wasm = match wasm {
             ComponentValType::Type(wasm) => *wasm,
             ComponentValType::Primitive(_wasm) => {
-                assert!(!matches!(wit, Type::Id(_)));
+                if let Type::Id(_) = wit {
+                    bail!(
+                        "cannot represent this component in WIT: a type is primitive here but \
+                         not in another use of its interface"
+                    );
+                }
                 return Ok(());
             }
         };

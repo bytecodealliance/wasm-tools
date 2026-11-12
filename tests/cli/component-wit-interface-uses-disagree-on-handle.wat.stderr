@@ -1,0 +1,4 @@
+error: failed to decode WIT from import `x`
+
+Caused by:
+    0: cannot represent this component in WIT: uses of an interface disagree on which resource a handle is for
