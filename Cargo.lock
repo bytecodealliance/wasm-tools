@@ -2519,9 +2519,6 @@ version = "0.0.0"
 dependencies = [
  "arbitrary",
  "wasm-smith",
- "wasmparser 0.263.0",
- "wast",
- "wat",
 ]
 
 [[package]]

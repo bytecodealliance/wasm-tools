@@ -23,6 +23,15 @@
 //            false   |                     true   |      btree
 //             true   |                     true   |      btree
 
+// `hash-collections` brings `indexmap`. `prefer-btree-collections` selects
+// the btree backends instead. Cargo features are additive, so the dependency
+// cannot be turned off.
+//
+// Naming the crate here for when both features are on to avoid the
+// unused dependency warning.
+#[cfg(all(feature = "hash-collections", feature = "prefer-btree-collections"))]
+use indexmap as _;
+
 #[cfg(feature = "hash-collections")]
 pub mod hash;
 pub mod index_map;

@@ -161,10 +161,10 @@ wit-dylib = { version = "0.263.0", path = "crates/wit-dylib" }
 anyhow = { workspace = true }
 clap = { workspace = true, features = ['wrap_help'] }
 clap_complete = { workspace = true, optional = true }
-comfy-table = { workspace = true }
+comfy-table = { workspace = true, optional = true }
 env_logger = { workspace = true }
 log = { workspace = true }
-tempfile = { workspace = true }
+tempfile = { workspace = true, optional = true }
 termcolor = { workspace = true }
 wasmparser = { workspace = true, features = ['std', 'component-model', 'simd'] }
 wat = { workspace = true, features = ['dwarf', 'component-model'] }
@@ -182,9 +182,6 @@ serde = { workspace = true, optional = true }
 serde_derive = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 wasm-smith = { workspace = true, features = ["_internal_cli", "wasmparser"], optional = true }
-
-# Dependencies of `shrink`
-wasm-shrink = { workspace = true, features = ["clap"], optional = true }
 
 # Dependencies of `mutate`
 wasm-mutate = { workspace = true, features = ["clap"], optional = true }
@@ -207,7 +204,7 @@ wit-parser = { workspace = true, optional = true, features = ['decoding', 'wat',
 
 # Dependencies of `metadata`
 wasm-metadata = { workspace = true, features = ["clap", "default"], optional = true }
-bytesize = { workspace = true }
+bytesize = { workspace = true, optional = true }
 
 # Dependencies of `wit-smith`
 wit-smith = { workspace = true, features = ["clap"], optional = true }
@@ -227,6 +224,8 @@ wit-dylib = { workspace = true, optional = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 is_executable = { version = "1.0.1", optional = true }
+# The shrink subcommand is omitted on wasm, so keep its crate off that target.
+wasm-shrink = { workspace = true, features = ["clap"], optional = true }
 
 [dev-dependencies]
 indexmap = { workspace = true }
@@ -278,7 +277,7 @@ validate = [
 print = ['dep:bitflags', 'wasmparser/features']
 parse = []
 smith = ['wasm-smith', 'arbitrary', 'dep:serde', 'dep:serde_derive', 'dep:serde_json']
-shrink = ['wasm-shrink', 'is_executable']
+shrink = ['wasm-shrink', 'is_executable', 'dep:tempfile']
 mutate = ['wasm-mutate']
 dump = []
 objdump = []
@@ -292,7 +291,7 @@ component = [
   'wasm-encoder',
   'dep:serde_json',
 ]
-metadata = ['wasm-metadata', 'dep:serde_json']
+metadata = ['wasm-metadata', 'dep:serde_json', 'dep:bytesize', 'dep:comfy-table']
 wit-smith = ['dep:wit-smith', 'arbitrary']
 addr2line = ['dep:addr2line', 'dep:gimli']
 completion = ['dep:clap_complete']
@@ -302,6 +301,7 @@ wast = [
   'wast/component-model',
   'wasm-encoder/wasmparser',
   'dep:pretty_assertions',
+  'dep:tempfile',
   'validate',
   # These subcommands are executed from `wasm-tools wast` so make sure they're
   # built-in if this is enabled.
