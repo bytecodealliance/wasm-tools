@@ -821,7 +821,7 @@ impl WitPackageDecoder<'_> {
                                 ),
                             }
                             let prev = self.type_map.insert(created, id);
-                            // `created` maps to either a new type `id` or an already known,
+                            // `created` should map to either a new type `id` or an already known,
                             // exactly the same `id`.
                             ensure!(
                                 prev.is_none() || prev == Some(id),
