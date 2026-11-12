@@ -1,0 +1,19 @@
+package local:demo;
+
+@unstable(feature = inactive)
+record hidden {
+  x: u32,
+}
+
+@unstable(feature = inactive)
+flags style {
+  bold,
+}
+
+interface api {
+  ping: func();
+}
+
+world w {
+  export api;
+}

@@ -340,7 +340,8 @@
         "dup-include-in-package": 5,
         "dup-use-package": 6,
         "dup-use-package-ordered": 7
-      }
+      },
+      "types": {}
     }
   ]
 }

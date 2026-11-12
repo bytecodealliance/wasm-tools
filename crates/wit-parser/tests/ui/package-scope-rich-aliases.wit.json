@@ -1,0 +1,132 @@
+{
+  "worlds": [
+    {
+      "name": "w",
+      "imports": {},
+      "exports": {
+        "interface-0": {
+          "interface": {
+            "id": 0
+          }
+        }
+      },
+      "package": 0
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "api",
+      "types": {},
+      "functions": {
+        "f": {
+          "name": "f",
+          "kind": "freestanding",
+          "params": [],
+          "result": 6
+        }
+      },
+      "package": 0
+    }
+  ],
+  "types": [
+    {
+      "name": "pair",
+      "kind": {
+        "tuple": {
+          "types": [
+            "u32",
+            "u32"
+          ]
+        }
+      },
+      "owner": {
+        "package": 0
+      }
+    },
+    {
+      "name": "maybe",
+      "kind": {
+        "option": 0
+      },
+      "owner": {
+        "package": 0
+      }
+    },
+    {
+      "name": "either",
+      "kind": {
+        "result": {
+          "ok": 0,
+          "err": "string"
+        }
+      },
+      "owner": {
+        "package": 0
+      }
+    },
+    {
+      "name": "pipe",
+      "kind": {
+        "stream": "u8"
+      },
+      "owner": {
+        "package": 0
+      }
+    },
+    {
+      "name": "job",
+      "kind": {
+        "future": 0
+      },
+      "owner": {
+        "package": 0
+      }
+    },
+    {
+      "name": "table",
+      "kind": {
+        "map": [
+          "string",
+          0
+        ]
+      },
+      "owner": {
+        "package": 0
+      }
+    },
+    {
+      "name": null,
+      "kind": {
+        "tuple": {
+          "types": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        }
+      },
+      "owner": null
+    }
+  ],
+  "packages": [
+    {
+      "name": "local:demo",
+      "interfaces": {
+        "api": 0
+      },
+      "worlds": {
+        "w": 0
+      },
+      "types": {
+        "pair": 0,
+        "maybe": 1,
+        "either": 2,
+        "pipe": 3,
+        "job": 4,
+        "table": 5
+      }
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+package local:demo;
+
+type a = list<b>;
+type b = list<a>;

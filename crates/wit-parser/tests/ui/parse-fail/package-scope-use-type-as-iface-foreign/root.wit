@@ -1,0 +1,6 @@
+package local:consumer;
+
+interface api {
+  use local:types/point.{x};
+  f: func();
+}
