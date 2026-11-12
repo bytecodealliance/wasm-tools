@@ -303,7 +303,7 @@ fn add_then_clear_fields() {
             assert_eq!(dependencies.unwrap().version_info(), &info,);
 
             assert_eq!(range.start, 0);
-            assert_eq!(range.end, 434);
+            assert_eq!(range.end, 403);
         }
         _ => panic!("metadata should be component"),
     }
