@@ -465,8 +465,12 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
     let mut interfaces = IndexMap::default();
     let mut worlds = IndexMap::default();
     let ty = &types[world];
-    assert_eq!(ty.imports.len(), 0);
-    assert_eq!(ty.exports.len(), 1);
+    if ty.imports.len() != 0 || ty.exports.len() != 1 {
+        bail!(
+            "cannot represent this component in WIT: expected an exported component type with \
+             no imports and one export"
+        );
+    }
     let name = ty.exports.keys().nth(0).unwrap();
     let name = decoder.decode_world(
         name,
@@ -613,7 +617,7 @@ impl WitPackageDecoder<'_> {
     ) -> Result<PackageName> {
         let ty = match item.ty {
             ComponentEntityType::Component(ty) => &self.types[ty],
-            _ => unreachable!(),
+            _ => bail!("cannot represent this component in WIT: export `{name}` is not a world"),
         };
         let kebab_name = self
             .parse_component_name(name)
@@ -788,7 +792,10 @@ impl WitPackageDecoder<'_> {
                                     self.register_defined(id, &self.types[ty])?;
                                 }
                                 ComponentAnyTypeId::Resource(_) => {}
-                                _ => unreachable!(),
+                                _ => bail!(
+                                    "cannot represent this component in WIT: type `{name}` is a \
+                                     component, instance or function type"
+                                ),
                             }
                             let prev = self.type_map.insert(created, id);
                             assert!(prev.is_none());
@@ -1028,6 +1035,13 @@ impl WitPackageDecoder<'_> {
         item: &ComponentItem,
         owner: TypeOwner,
     ) -> Result<TypeId> {
+        // A WIT type has a plain name, not one like `a:b/c` or `[method]r.f`.
+        match self.parse_component_name(name)?.kind() {
+            ComponentNameKind::Plain(n) if n.is_bare() => {}
+            _ => bail!(
+                "cannot represent this component in WIT: type `{name}` doesn't have a plain name"
+            ),
+        }
         let (referenced, created) = match item.ty {
             ComponentEntityType::Type {
                 referenced,
@@ -1069,7 +1083,10 @@ impl WitPackageDecoder<'_> {
                         .convert_defined(&self.types[ty])
                         .context("failed to convert unaliased type")?,
                     ComponentAnyTypeId::Resource(_) => TypeDefKind::Resource,
-                    _ => unreachable!(),
+                    _ => bail!(
+                        "cannot represent this component in WIT: type `{name}` is a component, \
+                         instance or function type"
+                    ),
                 }
             }
         };
@@ -1212,64 +1229,85 @@ impl WitPackageDecoder<'_> {
             kind: match name.kind() {
                 ComponentNameKind::Plain(plain) => {
                     if plain.accessor.is_some() && ty.async_ {
-                        panic!("function `{name}` is an async accessor (should be impossible)");
+                        bail!("function `{name}` is an async accessor (should be impossible)");
                     }
 
-                    let resource = plain
-                        .resource()
-                        .map(|resource| self.resources[&owner][resource.as_str()]);
-                    match (plain.resource_func, plain.accessor) {
-                        (None, None) => {
-                            if ty.async_ {
-                                FunctionKind::AsyncFreestanding
-                            } else {
-                                FunctionKind::Freestanding
+                    match plain.resource_func {
+                        None => match plain.accessor {
+                            None => {
+                                if ty.async_ {
+                                    FunctionKind::AsyncFreestanding
+                                } else {
+                                    FunctionKind::Freestanding
+                                }
                             }
-                        }
-                        (None, Some(ComponentAccessorKind::Get)) => FunctionKind::Getter,
-                        (None, Some(ComponentAccessorKind::Set)) => FunctionKind::Setter,
+                            Some(ComponentAccessorKind::Get) => FunctionKind::Getter,
+                            Some(ComponentAccessorKind::Set) => FunctionKind::Setter,
+                        },
 
-                        (Some(ResourceFuncKind::Constructor), None) => {
-                            FunctionKind::Constructor(resource.unwrap())
-                        }
-                        (Some(ResourceFuncKind::Constructor), Some(_)) => {
-                            panic!(
-                                "function `{name}` is a constructor with an accessor (should be impossible)"
-                            );
-                        }
+                        Some(resource_func) => {
+                            let Some(resource) = plain.resource() else {
+                                bail!("function `{name}` has no resource (should be impossible)");
+                            };
+                            let Some(&resource) = self
+                                .resources
+                                .get(&owner)
+                                .and_then(|resources| resources.get(resource.as_str()))
+                            else {
+                                bail!(
+                                    "cannot represent this component in WIT: function `{name}` \
+                                     is not next to the definition of its resource `{resource}`"
+                                );
+                            };
 
-                        (Some(ResourceFuncKind::Method), None) => {
-                            if ty.async_ {
-                                FunctionKind::AsyncMethod(resource.unwrap())
-                            } else {
-                                FunctionKind::Method(resource.unwrap())
+                            match (resource_func, plain.accessor) {
+                                (ResourceFuncKind::Constructor, None) => {
+                                    FunctionKind::Constructor(resource)
+                                }
+                                (ResourceFuncKind::Constructor, Some(_)) => {
+                                    bail!(
+                                        "function `{name}` is a constructor with an accessor \
+                                         (should be impossible)"
+                                    );
+                                }
+
+                                (ResourceFuncKind::Method, None) => {
+                                    if ty.async_ {
+                                        FunctionKind::AsyncMethod(resource)
+                                    } else {
+                                        FunctionKind::Method(resource)
+                                    }
+                                }
+                                (ResourceFuncKind::Method, Some(ComponentAccessorKind::Get)) => {
+                                    FunctionKind::MethodGetter(resource)
+                                }
+                                (ResourceFuncKind::Method, Some(ComponentAccessorKind::Set)) => {
+                                    FunctionKind::MethodSetter(resource)
+                                }
+
+                                (ResourceFuncKind::Static, None) => {
+                                    if ty.async_ {
+                                        FunctionKind::AsyncStatic(resource)
+                                    } else {
+                                        FunctionKind::Static(resource)
+                                    }
+                                }
+                                (ResourceFuncKind::Static, Some(ComponentAccessorKind::Get)) => {
+                                    FunctionKind::StaticGetter(resource)
+                                }
+                                (ResourceFuncKind::Static, Some(ComponentAccessorKind::Set)) => {
+                                    FunctionKind::StaticSetter(resource)
+                                }
                             }
-                        }
-                        (Some(ResourceFuncKind::Method), Some(ComponentAccessorKind::Get)) => {
-                            FunctionKind::MethodGetter(resource.unwrap())
-                        }
-                        (Some(ResourceFuncKind::Method), Some(ComponentAccessorKind::Set)) => {
-                            FunctionKind::MethodSetter(resource.unwrap())
-                        }
-
-                        (Some(ResourceFuncKind::Static), None) => {
-                            if ty.async_ {
-                                FunctionKind::AsyncStatic(resource.unwrap())
-                            } else {
-                                FunctionKind::Static(resource.unwrap())
-                            }
-                        }
-                        (Some(ResourceFuncKind::Static), Some(ComponentAccessorKind::Get)) => {
-                            FunctionKind::StaticGetter(resource.unwrap())
-                        }
-                        (Some(ResourceFuncKind::Static), Some(ComponentAccessorKind::Set)) => {
-                            FunctionKind::StaticSetter(resource.unwrap())
                         }
                     }
                 }
 
-                // Functions shouldn't have ID-based names at this time.
-                ComponentNameKind::Interface(_) => unreachable!(),
+                // Functions can't have ID-based names in WIT.
+                ComponentNameKind::Interface(_) => bail!(
+                    "cannot represent this component in WIT: function `{name}` has an interface's \
+                     name"
+                ),
             },
 
             // Note that this name includes "name mangling" such as

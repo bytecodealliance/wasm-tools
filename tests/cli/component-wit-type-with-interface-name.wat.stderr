@@ -1,0 +1,4 @@
+error: failed to decode type from export `a:b/c`
+
+Caused by:
+    0: cannot represent this component in WIT: type `a:b/c` doesn't have a plain name

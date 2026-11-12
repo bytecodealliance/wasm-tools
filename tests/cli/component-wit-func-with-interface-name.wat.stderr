@@ -1,0 +1,4 @@
+error: failed to decode function from import `a:b/c`
+
+Caused by:
+    0: cannot represent this component in WIT: function `a:b/c` has an interface's name
