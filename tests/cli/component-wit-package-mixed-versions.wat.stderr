@@ -1,0 +1,4 @@
+error: failed to decode document `a:b/wit`
+
+Caused by:
+    0: cannot represent this component in WIT: package export `a:b/c@1.0.0` is not in package `a:b`

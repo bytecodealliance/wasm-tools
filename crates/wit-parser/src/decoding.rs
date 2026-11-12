@@ -255,7 +255,10 @@ impl ComponentInfo {
                     )?;
                     package_name
                 }
-                _ => unreachable!(),
+                _ => bail!(
+                    "cannot represent this component in WIT: package export `{name}` is not an \
+                     instance or component"
+                ),
             };
 
             if let Some(pkg_name) = pkg_name.as_ref() {
@@ -567,10 +570,31 @@ impl WitPackageDecoder<'_> {
         };
 
         for (name, ty) in ty.exports.iter() {
+            // Everything a package exports is part of that package, so its
+            // name must agree with the package's, version included.
+            if let Ok(parsed) = crate::parse_component_name(name) {
+                if let ComponentNameKind::Interface(iface) = parsed.kind() {
+                    if iface.to_package_name(ty)? != package.name {
+                        bail!(
+                            "cannot represent this component in WIT: package export `{name}` \
+                             is not in package `{}`",
+                            package.name
+                        );
+                    }
+                }
+            }
             match ty.ty {
                 ComponentEntityType::Instance(_) => {
-                    self.register_interface(name.as_str(), ty, &mut fields)
+                    let (key, _) = self
+                        .register_interface(name.as_str(), ty, &mut fields)
                         .with_context(|| format!("failed to process export `{name}`"))?;
+                    // An interface in a package needs a name to be part of it.
+                    if let WorldKey::Name(_) = key {
+                        bail!(
+                            "cannot represent this component in WIT: package export `{name}` \
+                             doesn't have an interface's name"
+                        );
+                    }
                 }
                 ComponentEntityType::Component(idx) => {
                     let ty = &self.types[idx];
@@ -1002,7 +1026,12 @@ impl WitPackageDecoder<'_> {
             // further use comes back to this original definition.
             Some(interface_name) => {
                 let prev = package.interfaces.insert(interface_name, id);
-                assert!(prev.is_none(), "duplicate interface added for {name:?}");
+                if prev.is_some() {
+                    bail!(
+                        "cannot represent this component in WIT: interface `{name}` has the same \
+                         name as another interface in its package"
+                    );
+                }
                 let prev = self.named_interfaces.insert(name.to_string(), id);
                 assert!(prev.is_none());
                 WorldKey::Interface(id)
@@ -1187,8 +1216,13 @@ impl WitPackageDecoder<'_> {
             world.exports.insert(name, item);
         }
         let id = self.resolve.worlds.alloc(world);
-        let prev = package.worlds.insert(name, id);
-        assert!(prev.is_none());
+        let prev = package.worlds.insert(name.clone(), id);
+        if prev.is_some() {
+            bail!(
+                "cannot represent this component in WIT: world `{name}` has the same name as \
+                 another world in its package"
+            );
+        }
         Ok(id)
     }
 
@@ -1568,10 +1602,10 @@ impl WitPackageDecoder<'_> {
         // .. and finally insert the packages, in their final topological
         // ordering, into the returned array.
         for (_idx, (_url, pkg)) in deps {
-            self.insert_package(pkg);
+            self.insert_package(pkg)?;
         }
 
-        let id = self.insert_package(package);
+        let id = self.insert_package(package)?;
         assert!(self.resolve.worlds.iter().all(|(_, w)| w.package.is_some()));
         assert!(
             self.resolve
@@ -1582,7 +1616,7 @@ impl WitPackageDecoder<'_> {
         Ok((self.resolve, id))
     }
 
-    fn insert_package(&mut self, package: Package) -> PackageId {
+    fn insert_package(&mut self, package: Package) -> Result<PackageId> {
         let Package {
             name,
             interfaces,
@@ -1613,12 +1647,28 @@ impl WitPackageDecoder<'_> {
             });
 
         for (name, id) in interfaces {
-            let prev = self.resolve.packages[pkg].interfaces.insert(name, id);
-            assert!(prev.is_none());
+            let prev = self.resolve.packages[pkg]
+                .interfaces
+                .insert(name.clone(), id);
+            if prev.is_some() {
+                bail!(
+                    "cannot represent this component in WIT: interface `{name}` is both imported \
+                     from and defined by package `{}`",
+                    self.resolve.packages[pkg].name
+                );
+            }
             self.resolve.interfaces[id].package = Some(pkg);
         }
 
         for (name, id) in worlds {
+            // Interfaces and worlds share one namespace in a package.
+            if self.resolve.packages[pkg].interfaces.contains_key(&name) {
+                bail!(
+                    "cannot represent this component in WIT: world `{name}` has the same name as \
+                     an interface in package `{}`",
+                    self.resolve.packages[pkg].name
+                );
+            }
             let prev = self.resolve.packages[pkg].worlds.insert(name, id);
             assert!(prev.is_none());
             let world = &mut self.resolve.worlds[id];
@@ -1635,7 +1685,7 @@ impl WitPackageDecoder<'_> {
             }
         }
 
-        pkg
+        Ok(pkg)
     }
 
     fn visit_package(
