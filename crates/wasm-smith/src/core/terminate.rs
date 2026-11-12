@@ -122,7 +122,14 @@ impl Module {
             // recursion.
             check_fuel_1(&mut new_insts);
 
-            for inst in mem::replace(instrs, vec![]) {
+            // Remap branch hints from old instruction indices to new ones.
+            let mut hints = code.branch_hints.iter_mut().peekable();
+
+            for (i, inst) in mem::replace(instrs, vec![]).into_iter().enumerate() {
+                if let Some((idx, _)) = hints.next_if(|(idx, _)| *idx == i) {
+                    debug_assert!(matches!(inst, Instruction::If(_) | Instruction::BrIf(_)));
+                    *idx = new_insts.len();
+                }
                 match &inst {
                     // Check fuel at loop heads to deal with infinite loops.
                     Instruction::Loop(_) => {

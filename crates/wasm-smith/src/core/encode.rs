@@ -236,15 +236,26 @@ impl Module {
             return;
         }
         let mut code = wasm_encoder::CodeSection::new();
-        for c in &self.code {
+        let mut branch_hints = wasm_encoder::BranchHints::new();
+        let first_defined_func = self.funcs.len() - self.num_defined_funcs;
+        for (i, c) in self.code.iter().enumerate() {
             // Skip the run-length encoding because it is a little
             // annoying to compute; use a length of one for every local.
             let mut func = wasm_encoder::Function::new(c.locals.iter().map(|l| (1, *l)));
+            let mut func_hints = Vec::with_capacity(c.branch_hints.len());
             match &c.instructions {
                 Instructions::Generated(instrs) => {
-                    for instr in instrs {
+                    let mut hints = c.branch_hints.iter().peekable();
+                    for (j, instr) in instrs.iter().enumerate() {
+                        if let Some((_, taken)) = hints.next_if(|(idx, _)| *idx == j) {
+                            func_hints.push(wasm_encoder::BranchHint {
+                                branch_func_offset: u32::try_from(func.byte_len()).unwrap(),
+                                branch_hint_value: u32::from(*taken),
+                            });
+                        }
                         func.instruction(instr);
                     }
+                    debug_assert!(hints.next().is_none());
                     func.instructions().end();
                 }
                 Instructions::Arbitrary(body) => {
@@ -252,6 +263,15 @@ impl Module {
                 }
             }
             code.function(&func);
+            if !func_hints.is_empty() {
+                let func_index = u32::try_from(first_defined_func + i).unwrap();
+                branch_hints.function_hints(func_index, func_hints);
+            }
+        }
+        // Match where `wast` places this section, directly before the code
+        // section, so that text round-trips are byte-for-byte identical.
+        if !branch_hints.is_empty() {
+            module.section(&branch_hints);
         }
         module.section(&code);
     }

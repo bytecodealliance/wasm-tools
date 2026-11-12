@@ -457,6 +457,16 @@ define_config! {
         /// Defaults to `false`.
         pub custom_page_sizes_enabled: bool = false,
 
+        /// Determines whether the [branch-hinting proposal] is enabled.
+        ///
+        /// When enabled, a `metadata.code.branch_hint` custom section is
+        /// generated with random hints for `if` and `br_if` instructions.
+        ///
+        /// [branch-hinting proposal]: https://github.com/WebAssembly/branch-hinting
+        ///
+        /// Defaults to `false`.
+        pub branch_hinting_enabled: bool = false,
+
         /// Returns whether we should generate custom sections or not. Defaults
         /// to false.
         pub generate_custom_sections: bool = false,
@@ -877,6 +887,7 @@ impl<'a> Arbitrary<'a> for Config {
             gc_enabled: u.arbitrary()?,
             compact_imports_enabled: u.arbitrary()?,
             memory64_enabled: u.arbitrary()?,
+            branch_hinting_enabled: u.arbitrary()?,
             allowed_instructions: {
                 use flagset::Flags;
                 let mut allowed = Vec::new();
