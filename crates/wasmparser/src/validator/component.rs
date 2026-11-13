@@ -1076,6 +1076,7 @@ impl ComponentState {
         let mut new_ty = ComponentInstanceType {
             // Copied from the input verbatim
             info: ty.info,
+            core_types: ty.core_types.clone(),
 
             // Copied over as temporary storage for now, and this is filled out
             // and expanded below.
@@ -3137,6 +3138,7 @@ impl ComponentState {
                 .collect(),
 
             exports: mem::take(&mut state.exports),
+            core_types: mem::take(&mut state.core_types),
         })
     }
 
@@ -3528,6 +3530,7 @@ impl ComponentState {
             info,
             defined_resources: Default::default(),
             exports,
+            core_types: Default::default(),
         }))
     }
 
@@ -3629,6 +3632,9 @@ impl ComponentState {
             // time, though, so this still remains empty and
             // `self.defined_resources` remains unperturbed.
             defined_resources: Default::default(),
+
+            // A bag-of-exports instance declares no core types of its own.
+            core_types: Default::default(),
         }))
     }
 
@@ -4565,6 +4571,7 @@ impl ComponentState {
             info: self.type_info,
             imports: self.imports.clone(),
             exports: self.exports.clone(),
+            core_types: self.core_types.clone(),
 
             // This is filled in as a subset of `self.defined_resources`
             // depending on what's actually used by the exports. See the
