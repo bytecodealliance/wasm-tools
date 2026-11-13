@@ -66,8 +66,8 @@ prefer-btree-collections = []
 validate = []
 
 # Enable Serialize/Deserialize implementations for types in
-# `wasmparser::collections`
-serde = ['dep:serde', 'indexmap?/serde', 'hashbrown?/serde']
+# `wasmparser::collections`. Those types are built with `validate`.
+serde = ['dep:serde', 'validate', 'indexmap?/serde', 'hashbrown?/serde']
 
 # A feature that enables the guts of the `WasmFeatures` type in this crate.
 #
@@ -80,7 +80,10 @@ features = []
 # A feature that enables parsing and validating the component-model proposal for
 # WebAssembly. This is enabled by default but if your use case is only
 # interested in working with core modules then this feature can be disabled.
-component-model = ['dep:semver']
+#
+# Interface versions are checked with `semver` in the validator, so this
+# enables `validate`.
+component-model = ['dep:semver', 'validate']
 
 # A feature that enables parsing and validating the `simd` and `relaxed-simd`
 # proposals for WebAssembly. This is enabled by default but if your use case is

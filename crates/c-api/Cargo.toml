@@ -23,6 +23,3 @@ workspace = true
 [dependencies]
 arbitrary = { workspace = true, features = ["derive"] }
 wasm-smith = { workspace = true }
-wasmparser = { workspace = true, features = ["std"] }
-wast = { workspace = true }
-wat = { workspace = true }
