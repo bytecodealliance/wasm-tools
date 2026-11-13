@@ -249,3 +249,19 @@
     ))
   ))
 )
+
+;; Named types used in the globals and tables of a module type, both local and
+;; outer-aliased.
+(component
+  (type (instance
+    (core type $s (struct))
+    (core type (module
+      (alias outer 1 $s (type $outer))
+      (type $local (struct))
+      (import "" "g" (global (ref null $outer)))
+      (import "" "t" (table 1 (ref null $local)))
+      (export "g2" (global (mut (ref null $local))))
+      (export "t2" (table 1 (ref null $outer)))
+    ))
+  ))
+)

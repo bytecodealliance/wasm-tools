@@ -1084,7 +1084,7 @@ impl<'a> Resolver<'a> {
         );
 
         fn resolve_item_sig<'a>(
-            resolver: &Resolver<'a>,
+            resolver: &mut Resolver<'a>,
             sig: &mut core::ItemSig<'a>,
         ) -> Result<(), Error> {
             match &mut sig.kind {
@@ -1092,16 +1092,15 @@ impl<'a> Resolver<'a> {
                 | core::ItemKind::FuncExact(ty)
                 | core::ItemKind::Tag(core::TagType::Exception(ty)) => {
                     let idx = ty.index.as_mut().expect("index should be filled in");
-                    resolver
-                        .stack
-                        .last()
-                        .unwrap()
-                        .core_types
-                        .resolve(idx, "type")?;
+                    resolver.current().core_types.resolve(idx, "type")?;
                 }
-                core::ItemKind::Memory(_)
-                | core::ItemKind::Global(_)
-                | core::ItemKind::Table(_) => {}
+                core::ItemKind::Global(ty) => {
+                    resolver.current().resolve_valtype(&mut ty.ty)?;
+                }
+                core::ItemKind::Table(ty) => {
+                    resolver.current().resolve_reftype(&mut ty.elem)?;
+                }
+                core::ItemKind::Memory(_) => {}
             }
             Ok(())
         }

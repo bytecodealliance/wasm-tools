@@ -114,6 +114,12 @@
       "line": 233,
       "filename": "core-type.16.wasm",
       "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 255,
+      "filename": "core-type.17.wasm",
+      "module_type": "binary"
     }
   ]
 }
