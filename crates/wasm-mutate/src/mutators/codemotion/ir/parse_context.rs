@@ -35,9 +35,9 @@ impl Ast {
         self.root
     }
 
-    /// Returns all Ast nodes
-    pub fn get_nodes(&self) -> Vec<Node> {
-        self.nodes.clone()
+    /// Borrows all Ast nodes without cloning the tree.
+    pub fn get_nodes(&self) -> &[Node] {
+        &self.nodes
     }
 }
 

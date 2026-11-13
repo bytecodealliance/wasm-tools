@@ -170,6 +170,70 @@ impl Mutator for CodemotionMutator {
 mod tests {
     use crate::{WasmMutate, mutators::codemotion::CodemotionMutator};
 
+    #[test]
+    fn test_ast_writer_borrows_nested_nodes() {
+        use super::{
+            OperatorAndByteOffset,
+            ir::{
+                AstBuilder, AstWriter,
+                parse_context::{Ast, Node},
+            },
+        };
+        use std::cell::Cell;
+        use wasm_encoder::Function;
+        use wasmparser::{BinaryReader, BlockType, FunctionBody};
+
+        struct BorrowCheckingWriter(Cell<usize>);
+
+        impl AstWriter for BorrowCheckingWriter {
+            fn write_block<'a>(
+                &self,
+                ast: &Ast,
+                nodeidx: usize,
+                body: &[usize],
+                newfunc: &mut Function,
+                operators: &Vec<OperatorAndByteOffset>,
+                input_wasm: &'a [u8],
+                ty: &BlockType,
+            ) -> crate::Result<()> {
+                let nodes = ast.get_nodes();
+                let Node::Block { body: original, .. } = &nodes[nodeidx] else {
+                    panic!("expected a block");
+                };
+                // A cloned child list here means recursive writing retains an
+                // entire cloned AST per nesting level, using quadratic memory.
+                assert!(
+                    std::ptr::eq(body, original.as_slice()),
+                    "AST writing must borrow child lists instead of cloning the tree"
+                );
+                self.0.set(self.0.get() + 1);
+                self.write_block_default(ast, nodeidx, body, newfunc, operators, input_wasm, ty)
+            }
+        }
+
+        let depth = 128;
+        let mut input = vec![0]; // No locals.
+        for _ in 0..depth {
+            input.extend([0x02, 0x40]); // block
+        }
+        input.push(0x01); // nop
+        input.extend(std::iter::repeat_n(0x0b, depth + 1));
+        let operators = FunctionBody::new(BinaryReader::new(&input, 0))
+            .get_operators_reader()
+            .unwrap()
+            .into_iter_with_offsets()
+            .collect::<wasmparser::Result<Vec<_>>>()
+            .unwrap();
+        let ast = AstBuilder.build_ast(&operators).unwrap();
+        let writer = BorrowCheckingWriter(Cell::new(0));
+        let mut output = Function::new([]);
+        writer
+            .write(&ast, ast.get_root(), &mut output, &operators, &input)
+            .unwrap();
+        assert_eq!(writer.0.get(), depth);
+        assert_eq!(output.into_raw_body(), input);
+    }
+
     fn test_motion_mutator(original: &str, expected: &str, seed: u64) {
         let mut config = WasmMutate::default();
         config.seed(seed);
