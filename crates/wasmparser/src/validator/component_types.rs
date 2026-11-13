@@ -1038,6 +1038,14 @@ pub struct ComponentType {
     /// create fresh new versions of all of these resources. The path here is
     /// within the `exports` array.
     pub defined_resources: Vec<(ResourceId, Vec<usize>)>,
+
+    /// The core type index space of this type.
+    ///
+    /// This is technically not part of the type itself, but can be useful for
+    /// users to look at and inspect. Core types declared within this type,
+    /// such as with `core type`, are listed here, and core module types
+    /// nested within this type may refer to them through outer aliases.
+    pub core_types: Vec<ComponentCoreTypeId>,
 }
 
 /// Either an import or an export within [`ComponentType`] or
@@ -1122,6 +1130,14 @@ pub struct ComponentInstanceType {
     /// instance then this list is always empty. For concrete instances
     /// defined resources are tracked in the component state or component type.
     pub defined_resources: Vec<ResourceId>,
+
+    /// The core type index space of this type.
+    ///
+    /// This is technically not part of the type itself, but can be useful for
+    /// users to look at and inspect. Core types declared within this type,
+    /// such as with `core type`, are listed here, and core module types
+    /// nested within this type may refer to them through outer aliases.
+    pub core_types: Vec<ComponentCoreTypeId>,
 }
 
 impl TypeData for ComponentInstanceType {
