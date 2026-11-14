@@ -36,8 +36,8 @@ impl Ast {
     }
 
     /// Returns all Ast nodes
-    pub fn get_nodes(&self) -> Vec<Node> {
-        self.nodes.clone()
+    pub fn get_nodes(&self) -> &[Node] {
+        &self.nodes
     }
 }
 
