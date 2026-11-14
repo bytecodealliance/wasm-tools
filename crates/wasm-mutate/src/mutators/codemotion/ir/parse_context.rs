@@ -35,7 +35,7 @@ impl Ast {
         self.root
     }
 
-    /// Borrows all Ast nodes without cloning the tree.
+    /// Returns all Ast nodes
     pub fn get_nodes(&self) -> &[Node] {
         &self.nodes
     }
