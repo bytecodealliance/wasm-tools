@@ -1291,6 +1291,7 @@ impl<'a> BinaryReader<'a> {
             0x1c => visitor.visit_ref_i31(),
             0x1d => visitor.visit_i31_get_s(),
             0x1e => visitor.visit_i31_get_u(),
+            0x1f => visitor.visit_ref_i31_shared(),
 
             0x20 => {
                 let type_index = self.read_var_u32()?;
@@ -1844,32 +1845,31 @@ impl<'a> BinaryReader<'a> {
             0x4f => visitor.visit_global_atomic_get(self.read_ordering()?, self.read_var_u32()?),
             0x50 => visitor.visit_global_atomic_set(self.read_ordering()?, self.read_var_u32()?),
             0x51 => {
-                visitor.visit_global_atomic_rmw_add(self.read_ordering()?, self.read_var_u32()?)
+                visitor.visit_global_atomic_rmw_add(self.read_rmw_ordering()?, self.read_var_u32()?)
             }
             0x52 => {
-                visitor.visit_global_atomic_rmw_sub(self.read_ordering()?, self.read_var_u32()?)
+                visitor.visit_global_atomic_rmw_sub(self.read_rmw_ordering()?, self.read_var_u32()?)
             }
             0x53 => {
-                visitor.visit_global_atomic_rmw_and(self.read_ordering()?, self.read_var_u32()?)
+                visitor.visit_global_atomic_rmw_and(self.read_rmw_ordering()?, self.read_var_u32()?)
             }
-            0x54 => visitor.visit_global_atomic_rmw_or(self.read_ordering()?, self.read_var_u32()?),
+            0x54 => {
+                visitor.visit_global_atomic_rmw_or(self.read_rmw_ordering()?, self.read_var_u32()?)
+            }
             0x55 => {
-                visitor.visit_global_atomic_rmw_xor(self.read_ordering()?, self.read_var_u32()?)
+                visitor.visit_global_atomic_rmw_xor(self.read_rmw_ordering()?, self.read_var_u32()?)
             }
-            0x56 => {
-                visitor.visit_global_atomic_rmw_xchg(self.read_ordering()?, self.read_var_u32()?)
-            }
-            0x57 => {
-                visitor.visit_global_atomic_rmw_cmpxchg(self.read_ordering()?, self.read_var_u32()?)
-            }
+            0x56 => visitor
+                .visit_global_atomic_rmw_xchg(self.read_rmw_ordering()?, self.read_var_u32()?),
+            0x57 => visitor
+                .visit_global_atomic_rmw_cmpxchg(self.read_rmw_ordering()?, self.read_var_u32()?),
             0x58 => visitor.visit_table_atomic_get(self.read_ordering()?, self.read_var_u32()?),
             0x59 => visitor.visit_table_atomic_set(self.read_ordering()?, self.read_var_u32()?),
             0x5a => {
-                visitor.visit_table_atomic_rmw_xchg(self.read_ordering()?, self.read_var_u32()?)
+                visitor.visit_table_atomic_rmw_xchg(self.read_rmw_ordering()?, self.read_var_u32()?)
             }
-            0x5b => {
-                visitor.visit_table_atomic_rmw_cmpxchg(self.read_ordering()?, self.read_var_u32()?)
-            }
+            0x5b => visitor
+                .visit_table_atomic_rmw_cmpxchg(self.read_rmw_ordering()?, self.read_var_u32()?),
             0x5c => visitor.visit_struct_atomic_get(
                 self.read_ordering()?,
                 self.read_var_u32()?,
@@ -1891,37 +1891,37 @@ impl<'a> BinaryReader<'a> {
                 self.read_var_u32()?,
             ),
             0x60 => visitor.visit_struct_atomic_rmw_add(
-                self.read_ordering()?,
+                self.read_rmw_ordering()?,
                 self.read_var_u32()?,
                 self.read_var_u32()?,
             ),
             0x61 => visitor.visit_struct_atomic_rmw_sub(
-                self.read_ordering()?,
+                self.read_rmw_ordering()?,
                 self.read_var_u32()?,
                 self.read_var_u32()?,
             ),
             0x62 => visitor.visit_struct_atomic_rmw_and(
-                self.read_ordering()?,
+                self.read_rmw_ordering()?,
                 self.read_var_u32()?,
                 self.read_var_u32()?,
             ),
             0x63 => visitor.visit_struct_atomic_rmw_or(
-                self.read_ordering()?,
+                self.read_rmw_ordering()?,
                 self.read_var_u32()?,
                 self.read_var_u32()?,
             ),
             0x64 => visitor.visit_struct_atomic_rmw_xor(
-                self.read_ordering()?,
+                self.read_rmw_ordering()?,
                 self.read_var_u32()?,
                 self.read_var_u32()?,
             ),
             0x65 => visitor.visit_struct_atomic_rmw_xchg(
-                self.read_ordering()?,
+                self.read_rmw_ordering()?,
                 self.read_var_u32()?,
                 self.read_var_u32()?,
             ),
             0x66 => visitor.visit_struct_atomic_rmw_cmpxchg(
-                self.read_ordering()?,
+                self.read_rmw_ordering()?,
                 self.read_var_u32()?,
                 self.read_var_u32()?,
             ),
@@ -1929,19 +1929,26 @@ impl<'a> BinaryReader<'a> {
             0x68 => visitor.visit_array_atomic_get_s(self.read_ordering()?, self.read_var_u32()?),
             0x69 => visitor.visit_array_atomic_get_u(self.read_ordering()?, self.read_var_u32()?),
             0x6a => visitor.visit_array_atomic_set(self.read_ordering()?, self.read_var_u32()?),
-            0x6b => visitor.visit_array_atomic_rmw_add(self.read_ordering()?, self.read_var_u32()?),
-            0x6c => visitor.visit_array_atomic_rmw_sub(self.read_ordering()?, self.read_var_u32()?),
-            0x6d => visitor.visit_array_atomic_rmw_and(self.read_ordering()?, self.read_var_u32()?),
-            0x6e => visitor.visit_array_atomic_rmw_or(self.read_ordering()?, self.read_var_u32()?),
-            0x6f => visitor.visit_array_atomic_rmw_xor(self.read_ordering()?, self.read_var_u32()?),
+            0x6b => {
+                visitor.visit_array_atomic_rmw_add(self.read_rmw_ordering()?, self.read_var_u32()?)
+            }
+            0x6c => {
+                visitor.visit_array_atomic_rmw_sub(self.read_rmw_ordering()?, self.read_var_u32()?)
+            }
+            0x6d => {
+                visitor.visit_array_atomic_rmw_and(self.read_rmw_ordering()?, self.read_var_u32()?)
+            }
+            0x6e => {
+                visitor.visit_array_atomic_rmw_or(self.read_rmw_ordering()?, self.read_var_u32()?)
+            }
+            0x6f => {
+                visitor.visit_array_atomic_rmw_xor(self.read_rmw_ordering()?, self.read_var_u32()?)
+            }
             0x70 => {
-                visitor.visit_array_atomic_rmw_xchg(self.read_ordering()?, self.read_var_u32()?)
+                visitor.visit_array_atomic_rmw_xchg(self.read_rmw_ordering()?, self.read_var_u32()?)
             }
-            0x71 => {
-                visitor.visit_array_atomic_rmw_cmpxchg(self.read_ordering()?, self.read_var_u32()?)
-            }
-            0x72 => visitor.visit_ref_i31_shared(),
-
+            0x71 => visitor
+                .visit_array_atomic_rmw_cmpxchg(self.read_rmw_ordering()?, self.read_var_u32()?),
             _ => bail!(pos, "unknown 0xfe subopcode: 0x{code:x}"),
         })
     }
@@ -2025,13 +2032,10 @@ impl<'a> BinaryReader<'a> {
             )
         } else {
             flags ^= 1 << 4;
-            let pos = self.original_position();
-            Some(match (kind, self.read_u8()?) {
-                (MemArgKind::Op, 0x00) => MemArgOrdering::Op(Ordering::SeqCst),
-                (MemArgKind::Op, 0x01) => MemArgOrdering::Op(Ordering::AcqRel),
-                (MemArgKind::Rmw, 0x00) => MemArgOrdering::Rmw(Ordering::SeqCst),
-                (MemArgKind::Rmw, 0x11) => MemArgOrdering::Rmw(Ordering::AcqRel),
-                (_, byte) => bail!(pos, "invalid atomic consistency ordering 0x{byte:x}"),
+            Some(match kind {
+                MemArgKind::Op => MemArgOrdering::Op(self.read_ordering()?),
+                MemArgKind::Rmw => MemArgOrdering::Rmw(self.read_rmw_ordering()?),
+                MemArgKind::Plain => unreachable!(),
             })
         };
 
@@ -2064,6 +2068,18 @@ impl<'a> BinaryReader<'a> {
             1 => Ok(Ordering::AcqRel),
             x => Err(Error::new(
                 format!("invalid atomic consistency ordering {x}"),
+                self.original_position() - 1,
+            )),
+        }
+    }
+
+    fn read_rmw_ordering(&mut self) -> Result<Ordering> {
+        let byte = self.read_u8()?;
+        match byte {
+            0x00 => Ok(Ordering::SeqCst),
+            0x11 => Ok(Ordering::AcqRel),
+            x => Err(Error::new(
+                format!("invalid atomic consistency ordering 0x{x:x}"),
                 self.original_position() - 1,
             )),
         }

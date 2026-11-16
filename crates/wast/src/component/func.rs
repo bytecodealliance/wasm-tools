@@ -529,6 +529,8 @@ impl<'a> Parse<'a> for CanonResourceRep<'a> {
 /// Information relating to the `thread.spawn-ref` intrinsic.
 #[derive(Debug)]
 pub struct CanonThreadSpawnRef<'a> {
+    /// Whether the built-in function itself is `shared`.
+    pub shared: bool,
     /// The function type that is being spawned.
     pub ty: CoreItemRef<'a, kw::r#type>,
 }
@@ -538,6 +540,7 @@ impl<'a> Parse<'a> for CanonThreadSpawnRef<'a> {
         parser.parse::<kw::thread_spawn_ref>()?;
 
         Ok(Self {
+            shared: parser.parse::<Option<kw::shared>>()?.is_some(),
             ty: parser.parse::<CorePrefixedRef<'_, _, false>>()?.0,
         })
     }
@@ -548,6 +551,8 @@ impl<'a> Parse<'a> for CanonThreadSpawnRef<'a> {
 /// This should look quite similar to parsing of `CallIndirect`.
 #[derive(Debug)]
 pub struct CanonThreadSpawnIndirect<'a> {
+    /// Whether the built-in function itself is `shared`.
+    pub shared: bool,
     /// The function type that is being spawned.
     pub ty: CoreItemRef<'a, kw::r#type>,
     /// The table that this spawn is going to be indexing.
@@ -557,20 +562,26 @@ pub struct CanonThreadSpawnIndirect<'a> {
 impl<'a> Parse<'a> for CanonThreadSpawnIndirect<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::thread_spawn_indirect>()?;
+        let shared = parser.parse::<Option<kw::shared>>()?.is_some();
         let ty = parser.parse::<CorePrefixedRef<'_, _, false>>()?.0;
         let table = parser.parse::<CorePrefixedRef<'_, _, true>>()?.0;
-        Ok(Self { ty, table })
+        Ok(Self { shared, ty, table })
     }
 }
 
-/// Information relating to the `thread.spawn` intrinsic.
+/// Information relating to the `thread.available_parallelism` intrinsic.
 #[derive(Debug)]
-pub struct CanonThreadAvailableParallelism;
+pub struct CanonThreadAvailableParallelism {
+    /// Whether the built-in function itself is `shared`.
+    pub shared: bool,
+}
 
 impl<'a> Parse<'a> for CanonThreadAvailableParallelism {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::thread_available_parallelism>()?;
-        Ok(Self)
+        Ok(Self {
+            shared: parser.parse::<Option<kw::shared>>()?.is_some(),
+        })
     }
 }
 

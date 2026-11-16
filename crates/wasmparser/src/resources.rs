@@ -14,8 +14,8 @@
  */
 
 use crate::{
-    Error, FuncType, GlobalType, HeapType, MemoryType, RefType, SubType, TableType, ValType,
-    WasmFeatures, types::CoreTypeId,
+    Error, GlobalType, HeapType, MemoryType, RefType, SubType, TableType, ValType, WasmFeatures,
+    types::CoreTypeId,
 };
 
 /// Types that qualify as Wasm validation database.
@@ -35,10 +35,10 @@ pub trait WasmModuleResources {
     /// Returns the linear memory at given index.
     fn memory_at(&self, at: u32) -> Option<MemoryType>;
 
-    /// Returns the tag at given index.
+    /// Returns the type ID of the tag at given index.
     ///
-    /// The tag's function type must be canonicalized.
-    fn tag_at(&self, at: u32) -> Option<&FuncType>;
+    /// The tag's type is always a function type.
+    fn tag_type_id_at(&self, at: u32) -> Option<CoreTypeId>;
 
     /// Returns the global variable at given index.
     ///
@@ -134,8 +134,8 @@ where
     fn memory_at(&self, at: u32) -> Option<MemoryType> {
         T::memory_at(self, at)
     }
-    fn tag_at(&self, at: u32) -> Option<&FuncType> {
-        T::tag_at(self, at)
+    fn tag_type_id_at(&self, at: u32) -> Option<CoreTypeId> {
+        T::tag_type_id_at(self, at)
     }
     fn global_at(&self, at: u32) -> Option<GlobalType> {
         T::global_at(self, at)
@@ -193,8 +193,8 @@ where
         T::memory_at(self, at)
     }
 
-    fn tag_at(&self, at: u32) -> Option<&FuncType> {
-        T::tag_at(self, at)
+    fn tag_type_id_at(&self, at: u32) -> Option<CoreTypeId> {
+        T::tag_type_id_at(self, at)
     }
 
     fn global_at(&self, at: u32) -> Option<GlobalType> {

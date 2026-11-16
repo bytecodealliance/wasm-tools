@@ -576,6 +576,18 @@
       "filename": "arrays.90.wasm",
       "module_type": "binary",
       "text": "invalid type: `array.atomic.set` only allows `i8`, `i16`, `i32`, `i64` and subtypes of `anyref`"
+    },
+    {
+      "type": "module",
+      "line": 899,
+      "filename": "arrays.91.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 912,
+      "filename": "arrays.92.wasm",
+      "module_type": "binary"
     }
   ]
 }

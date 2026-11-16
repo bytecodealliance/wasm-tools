@@ -44,10 +44,10 @@
 ;; Check that unshared arrays cannot be accessed from shared functions.
 (assert_invalid
   (module
-    (type $unshared_array (array anyref))
+    (type $unshared_array (array i32))
     (type $shared_func (shared (func)))
     (func (type $shared_func)
-      (array.new $unshared_array (ref.null any) (i32.const 0))
+      (array.new $unshared_array (i32.const 0) (i32.const 0))
       (array.get $unshared_array (i32.const 0))
       drop)
     )
@@ -64,3 +64,114 @@
       drop)
     )
   "shared functions cannot access unshared structs")
+
+;; Check that unshared memories cannot be accessed from shared functions.
+(assert_invalid
+  (module
+    (memory 1)
+    (type $shared_func (shared (func)))
+    (func (type $shared_func)
+      (drop (i32.load (i32.const 0)))
+    )
+  )
+  "shared functions cannot access unshared memories")
+(assert_invalid
+  (module
+    (memory 1)
+    (type $shared_func (shared (func)))
+    (func (type $shared_func)
+      (drop (memory.size))
+    )
+  )
+  "shared functions cannot access unshared memories")
+
+;; Check that unshared functions cannot be referenced from shared functions.
+(assert_invalid
+  (module
+    (type $unshared_func (func))
+    (type $shared_func (shared (func)))
+    (func $unshared (type $unshared_func))
+    (elem declare func $unshared)
+    (func (type $shared_func)
+      (drop (ref.func $unshared))
+    )
+  )
+  "shared functions cannot access unshared functions")
+
+;; Check that unshared tags cannot be used from shared functions.
+(assert_invalid
+  (module
+    (type $unshared_func (func))
+    (type $shared_func (shared (func)))
+    (tag $t (type $unshared_func))
+    (func (type $shared_func)
+      (throw $t)
+    )
+  )
+  "shared functions cannot access unshared tags")
+
+;; Check that shared functions cannot use unshared value types.
+(assert_invalid
+  (module
+    (type $shared_func (shared (func)))
+    (func (type $shared_func) (local anyref))
+  )
+  "shared functions cannot use unshared value types")
+(assert_invalid
+  (module
+    (type $shared_func (shared (func)))
+    (func (type $shared_func)
+      (drop (ref.null any))
+    )
+  )
+  "shared functions cannot use unshared value types")
+(assert_invalid
+  (module
+    (type $shared_func (shared (func)))
+    (func (type $shared_func)
+      (drop (ref.i31 (i32.const 0)))
+    )
+  )
+  "shared functions cannot use unshared value types")
+(assert_invalid
+  (module
+    (type $shared_func (shared (func)))
+    (func (type $shared_func)
+      (drop (block (result anyref) (unreachable)))
+    )
+  )
+  "shared functions cannot use unshared value types")
+
+;; Block types need not be shared in shared functions.
+(module
+  (type $unshared_block (func (param i32) (result i32)))
+  (type $shared_func (shared (func)))
+  (func (type $shared_func)
+    i32.const 0
+    block (type $unshared_block)
+    end
+    drop
+  )
+)
+
+;; Shared functions can make indirect calls through shared tables.
+(module
+  (type $shared_func (shared (func)))
+  (table $t shared 1 (ref null (shared func)))
+  (func (type $shared_func)
+    (call_indirect $t (type $shared_func) (i32.const 0))
+    (return_call_indirect $t (type $shared_func) (i32.const 0))
+  )
+)
+
+;; In unreachable code, `any.convert_extern` pushes a reference of unknown
+;; sharedness (`bot-share`), which may flow into a shared type.
+(module
+  (type $shared_func (shared (func)))
+  (func (type $shared_func)
+    (drop (block (result (ref null (shared any)))
+      unreachable
+      any.convert_extern
+    ))
+  )
+)

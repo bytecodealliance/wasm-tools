@@ -1062,9 +1062,8 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
         self.module.memories.get(at as usize).cloned()
     }
 
-    fn tag_at(&self, at: u32) -> Option<&FuncType> {
-        let type_id = *self.module.tags.get(at as usize)?;
-        Some(self.types[type_id].unwrap_func())
+    fn tag_type_id_at(&self, at: u32) -> Option<CoreTypeId> {
+        self.module.tags.get(at as usize).copied()
     }
 
     fn global_at(&self, at: u32) -> Option<GlobalType> {
@@ -1140,13 +1139,8 @@ impl WasmModuleResources for ValidatorResources {
         self.0.memories.get(at as usize).cloned()
     }
 
-    fn tag_at(&self, at: u32) -> Option<&FuncType> {
-        let id = *self.0.tags.get(at as usize)?;
-        let types = self.0.snapshot.as_ref().unwrap();
-        match &types[id].composite_type.inner {
-            CompositeInnerType::Func(f) => Some(f),
-            _ => None,
-        }
+    fn tag_type_id_at(&self, at: u32) -> Option<CoreTypeId> {
+        self.0.tags.get(at as usize).copied()
     }
 
     fn global_at(&self, at: u32) -> Option<GlobalType> {

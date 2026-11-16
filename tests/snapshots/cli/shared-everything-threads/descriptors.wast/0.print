@@ -1,0 +1,6 @@
+(module
+  (rec
+    (type $a (;0;) (shared (descriptor $b) (struct)))
+    (type $b (;1;) (shared (describes $a) (struct)))
+  )
+)

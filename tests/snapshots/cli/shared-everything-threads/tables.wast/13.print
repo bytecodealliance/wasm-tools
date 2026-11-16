@@ -1,0 +1,22 @@
+(module
+  (type (;0;) (func (param anyref eqref)))
+  (table $any (;0;) 1 anyref)
+  (table $eq (;1;) 1 eqref)
+  (func (;0;) (type 0) (param $x anyref) (param $y eqref)
+    i32.const 0
+    table.atomic.get seqcst $any
+    drop
+    i32.const 0
+    local.get $x
+    table.atomic.set seqcst $any
+    i32.const 0
+    local.get $x
+    table.atomic.rmw.xchg seqcst $any
+    drop
+    i32.const 0
+    local.get $y
+    local.get $y
+    table.atomic.rmw.cmpxchg seqcst $eq
+    drop
+  )
+)

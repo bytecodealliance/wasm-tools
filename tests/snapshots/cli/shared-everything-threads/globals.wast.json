@@ -260,6 +260,24 @@
       "line": 495,
       "filename": "globals.37.wasm",
       "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 506,
+      "filename": "globals.38.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 519,
+      "filename": "globals.39.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 526,
+      "filename": "globals.40.wasm",
+      "module_type": "binary"
     }
   ]
 }

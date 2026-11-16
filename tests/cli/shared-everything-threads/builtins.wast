@@ -15,13 +15,13 @@
 
 (component
   (core type $start (shared (func (param $context i32))))
-  (core func $spawn-ref (canon thread.spawn-ref $start))
+  (core func $spawn-ref (canon thread.spawn-ref shared $start))
 
   (core module $libc (table (export "start-table") shared 1 (ref null (shared func))))
   (core instance $libc (instantiate $libc))
-  (core func $spawn-indirect (canon thread.spawn-indirect $start (core table $libc "start-table")))
+  (core func $spawn-indirect (canon thread.spawn-indirect shared $start (core table $libc "start-table")))
 
-  (core func $parallelism (canon thread.available_parallelism))
+  (core func $parallelism (canon thread.available_parallelism shared))
 
   (core module $m
     (type $spawned_func_ty (shared (func (param $context i32))))
@@ -41,6 +41,46 @@
     ))
   ))
 )
+
+(component
+  (core type $start (shared (func (param $context i32))))
+  (core func $spawn-ref (canon thread.spawn-ref $start))
+
+  (core module $libc (table (export "start-table") shared 1 (ref null (shared func))))
+  (core instance $libc (instantiate $libc))
+  (core func $spawn-indirect (canon thread.spawn-indirect $start (core table $libc "start-table")))
+
+  (core func $parallelism (canon thread.available_parallelism))
+
+  ;; Without `shared` the built-ins themselves are unshared functions.
+  (core module $m
+    (type $spawned_func_ty (shared (func (param $context i32))))
+    (type $spawn_ref_ty (func (param (ref null $spawned_func_ty)) (param i32) (result i32)))
+    (type $spawn_indirect_ty (func (param i32) (param i32) (result i32)))
+    (type $parallelism_ty (func (result i32)))
+    (import "" "spawn-ref" (func (type $spawn_ref_ty)))
+    (import "" "spawn-indirect" (func (type $spawn_indirect_ty)))
+    (import "" "parallelism" (func (type $parallelism_ty)))
+  )
+
+  (core instance (instantiate $m
+    (with "" (instance
+      (export "spawn-ref" (func $spawn-ref))
+      (export "spawn-indirect" (func $spawn-indirect))
+      (export "parallelism" (func $parallelism))
+    ))
+  ))
+)
+
+(assert_malformed
+  (component binary
+    "\00asm" "\0d\00\01\00"  ;; component header
+    "\08\03"                  ;; canonical function section, 3 bytes
+    "\01"                      ;;   1 entry
+    "\42"                      ;;   thread.available_parallelism
+    "\02"                      ;;   sh? = invalid
+  )
+  "invalid boolean value")
 
 (assert_invalid
   (component

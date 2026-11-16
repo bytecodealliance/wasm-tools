@@ -165,8 +165,11 @@ impl CanonicalFunctionSection {
 
     /// Defines a function which will spawn a new thread by invoking a shared
     /// function of type `ty_index`.
-    pub fn thread_spawn_ref(&mut self, ty_index: u32) -> &mut Self {
+    ///
+    /// The defined function is itself `shared` if `shared` is true.
+    pub fn thread_spawn_ref(&mut self, shared: bool, ty_index: u32) -> &mut Self {
         self.bytes.push(0x40);
+        self.bytes.push(shared as u8);
         ty_index.encode(&mut self.bytes);
         self.num_added += 1;
         self
@@ -174,8 +177,16 @@ impl CanonicalFunctionSection {
 
     /// Defines a function which will spawn a new thread by invoking a shared
     /// function indirectly through a `funcref` table.
-    pub fn thread_spawn_indirect(&mut self, ty_index: u32, table_index: u32) -> &mut Self {
+    ///
+    /// The defined function is itself `shared` if `shared` is true.
+    pub fn thread_spawn_indirect(
+        &mut self,
+        shared: bool,
+        ty_index: u32,
+        table_index: u32,
+    ) -> &mut Self {
         self.bytes.push(0x41);
+        self.bytes.push(shared as u8);
         ty_index.encode(&mut self.bytes);
         table_index.encode(&mut self.bytes);
         self.num_added += 1;
@@ -184,8 +195,11 @@ impl CanonicalFunctionSection {
 
     /// Defines a function which will return the number of threads that can be
     /// expected to execute concurrently.
-    pub fn thread_available_parallelism(&mut self) -> &mut Self {
+    ///
+    /// The defined function is itself `shared` if `shared` is true.
+    pub fn thread_available_parallelism(&mut self, shared: bool) -> &mut Self {
         self.bytes.push(0x42);
+        self.bytes.push(shared as u8);
         self.num_added += 1;
         self
     }

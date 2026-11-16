@@ -30,7 +30,7 @@ use crate::{
     FuncType, GlobalType, Handle, HeapType, Ieee32, Ieee64, MemArg, MemArgTarget, ModuleArity,
     PackedIndex, RefType, Result, ResumeTable, StorageType, StructType, SubType, TableType,
     TryTable, UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources,
-    limits::MAX_WASM_FUNCTION_LOCALS,
+    limits::MAX_WASM_FUNCTION_LOCALS, types::CoreTypeId,
 };
 use crate::{CompositeInnerType, Ordering, prelude::*};
 use core::ops::{Deref, DerefMut};
@@ -460,6 +460,13 @@ impl OperatorValidator {
         resources: &impl WasmModuleResources,
     ) -> Result<()> {
         resources.check_value_type(&mut ty, &self.features, offset)?;
+        if self.shared {
+            if let ValType::Ref(r) = ty {
+                if !resources.is_shared(r) {
+                    bail!(offset, "shared functions cannot use unshared value types");
+                }
+            }
+        }
         if count == 0 {
             return Ok(());
         }
@@ -698,8 +705,29 @@ where
             }
         }
 
+        if self.inner.shared {
+            self.check_shared_operand(maybe_ty)?;
+        }
+
         self.operands.push(maybe_ty);
         self.record_push();
+        Ok(())
+    }
+
+    fn check_shared_operand(&self, ty: MaybeType) -> Result<()> {
+        let shared = match ty {
+            MaybeType::Bottom | MaybeType::UnknownRef(_) => true,
+            MaybeType::Known(
+                ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128,
+            ) => true,
+            MaybeType::Known(ValType::Ref(r)) => self.resources.is_shared(r),
+        };
+        if !shared {
+            bail!(
+                self.offset,
+                "shared functions cannot use unshared value types"
+            );
+        }
         Ok(())
     }
 
@@ -1133,7 +1161,10 @@ where
     /// type of address used to index the memory specified.
     fn check_memory_index(&self, memory_index: u32) -> Result<ValType> {
         match self.resources.memory_at(memory_index) {
-            Some(mem) => Ok(mem.index_type()),
+            Some(mem) => {
+                self.check_shared_access(mem.shared, "memories")?;
+                Ok(mem.index_type())
+            }
             None => bail!(self.offset, "unknown memory {}", memory_index),
         }
     }
@@ -1243,23 +1274,24 @@ where
                      when multi-value is not enabled",
                     self.offset,
                 )?;
-                self.func_type_at(*idx)?;
+                self.block_func_type_at(*idx)?;
                 Ok(())
             }
         }
     }
 
-    /// Returns the corresponding function type for the `func` item located at
-    /// `function_index`.
-    fn type_of_function(&self, function_index: u32) -> Result<&'resources FuncType> {
-        if let Some(type_index) = self.resources.type_index_of_function(function_index) {
-            self.func_type_at(type_index)
-        } else {
+    /// Returns the type id and the corresponding function type for the `func`
+    /// item located at `function_index`.
+    fn type_of_function(&self, function_index: u32) -> Result<(CoreTypeId, &'resources FuncType)> {
+        let Some(id) = self.resources.type_id_of_function(function_index) else {
             bail!(
                 self.offset,
                 "unknown function {function_index}: function index out of bounds",
             )
-        }
+        };
+        let sub_ty = self.resources.sub_type_at_id(id);
+        self.check_shared_access(sub_ty.composite_type.shared, "functions")?;
+        Ok((id, sub_ty.unwrap_func()))
     }
 
     /// Checks a call-style instruction which will be invoking the function `ty`
@@ -1328,9 +1360,9 @@ where
         table_index: u32,
     ) -> Result<&'resources FuncType> {
         let tab = self.table_type_at(table_index)?;
-        if !self
-            .resources
-            .is_subtype(ValType::Ref(tab.element_type), ValType::FUNCREF)
+        if self
+            .abstract_supertype(ValType::Ref(tab.element_type), AbstractHeapType::Func)
+            .is_none()
         {
             bail!(
                 self.offset,
@@ -1632,6 +1664,45 @@ where
         })
     }
 
+    /// Returns `(ref null (shared? ty))`, with the same sharedness as `of`, if
+    /// `of` is a subtype of it.
+    ///
+    /// This is used to check that `of` is, for example, some sort of `anyref`
+    /// regardless of whether it's shared or not.
+    fn abstract_supertype(&self, of: ValType, ty: AbstractHeapType) -> Option<ValType> {
+        let ValType::Ref(r) = of else {
+            return None;
+        };
+        let shared = self.resources.is_shared(r);
+        let supertype = ValType::Ref(RefType::new(true, HeapType::Abstract { shared, ty })?);
+        self.resources
+            .is_subtype(of, supertype)
+            .then_some(supertype)
+    }
+
+    /// Common helper for `*.atomic.rmw.cmpxchg` instructions operating on a
+    /// location of type `ty`.
+    ///
+    /// Pops the replacement/expected operands from the stack while validating
+    /// them.
+    fn pop_cmpxchg_operands(&mut self, ty: StorageType, instr: &str) -> Result<ValType> {
+        let expected = match ty {
+            StorageType::Val(ValType::I32 | ValType::I64) => Some(ty.unpack()),
+            StorageType::Val(ty) => self.abstract_supertype(ty, AbstractHeapType::Eq),
+            StorageType::I8 | StorageType::I16 => None,
+        };
+        let Some(expected) = expected else {
+            bail!(
+                self.offset,
+                "invalid type: `{instr}` only allows `i32`, `i64` and subtypes of `eqref`"
+            );
+        };
+        let ty = ty.unpack();
+        self.pop_operand(Some(ty))?;
+        self.pop_operand(Some(expected))?;
+        Ok(ty)
+    }
+
     /// Common helper for checking the types of globals accessed with atomic RMW
     /// instructions, which only allow `i32` and `i64`.
     fn check_atomic_global_rmw_ty(&self, global_index: u32) -> Result<ValType> {
@@ -1716,12 +1787,7 @@ where
     fn struct_type_at(&self, at: u32) -> Result<&'resources StructType> {
         let sub_ty = self.sub_type_at(at)?;
         if let CompositeInnerType::Struct(struct_ty) = &sub_ty.composite_type.inner {
-            if self.inner.shared && !sub_ty.composite_type.shared {
-                bail!(
-                    self.offset,
-                    "shared functions cannot access unshared structs",
-                );
-            }
+            self.check_shared_access(sub_ty.composite_type.shared, "structs")?;
             Ok(struct_ty)
         } else {
             bail!(
@@ -1759,12 +1825,7 @@ where
     fn array_type_at(&self, at: u32) -> Result<FieldType> {
         let sub_ty = self.sub_type_at(at)?;
         if let CompositeInnerType::Array(array_ty) = &sub_ty.composite_type.inner {
-            if self.inner.shared && !sub_ty.composite_type.shared {
-                bail!(
-                    self.offset,
-                    "shared functions cannot access unshared arrays",
-                );
-            }
+            self.check_shared_access(sub_ty.composite_type.shared, "arrays")?;
             Ok(array_ty.0)
         } else {
             bail!(
@@ -1785,15 +1846,32 @@ where
         Ok(field)
     }
 
+    /// Validates the type index `at` is a function type and returns it.
     fn func_type_at(&self, at: u32) -> Result<&'resources FuncType> {
+        let func_ty = self.block_func_type_at(at)?;
+        self.check_shared_access(self.sub_type_at(at)?.composite_type.shared, "functions")?;
+        Ok(func_ty)
+    }
+
+    /// Checks that a shared function only accesses shared items: `shared` is
+    /// the sharedness of the accessed item.
+    fn check_shared_access(&self, shared: bool, kind: &str) -> Result<()> {
+        if self.inner.shared && !shared {
+            bail!(
+                self.offset,
+                "shared functions cannot access unshared {kind}"
+            );
+        }
+        Ok(())
+    }
+
+    /// Validates the type index `at` is a function type and returns it.
+    ///
+    /// Distinct from `func_type_at` in that checks about sharedness are
+    /// skipped, as is required for block types.
+    fn block_func_type_at(&self, at: u32) -> Result<&'resources FuncType> {
         let sub_ty = self.sub_type_at(at)?;
         if let CompositeInnerType::Func(func_ty) = &sub_ty.composite_type.inner {
-            if self.inner.shared && !sub_ty.composite_type.shared {
-                bail!(
-                    self.offset,
-                    "shared functions cannot access unshared functions",
-                );
-            }
             Ok(func_ty)
         } else {
             bail!(
@@ -1806,12 +1884,7 @@ where
     fn cont_type_at(&self, at: u32) -> Result<&ContType> {
         let sub_ty = self.sub_type_at(at)?;
         if let CompositeInnerType::Cont(cont_ty) = &sub_ty.composite_type.inner {
-            if self.inner.shared && !sub_ty.composite_type.shared {
-                bail!(
-                    self.offset,
-                    "shared continuations cannot access unshared continuations",
-                );
-            }
+            self.check_shared_access(sub_ty.composite_type.shared, "continuations")?;
             Ok(cont_ty)
         } else {
             bail!(self.offset, "non-continuation type {at}",)
@@ -1824,9 +1897,12 @@ where
     }
 
     fn tag_at(&self, at: u32) -> Result<&'resources FuncType> {
-        self.resources
-            .tag_at(at)
-            .ok_or_else(|| format_err!(self.offset, "unknown tag {}: tag index out of bounds", at))
+        let Some(id) = self.resources.tag_type_id_at(at) else {
+            bail!(self.offset, "unknown tag {}: tag index out of bounds", at);
+        };
+        let sub_ty = self.resources.sub_type_at_id(id);
+        self.check_shared_access(sub_ty.composite_type.shared, "tags")?;
+        Ok(sub_ty.unwrap_func())
     }
 
     // Similar to `tag_at`, but checks that the result type is
@@ -1845,12 +1921,7 @@ where
 
     fn global_type_at(&self, at: u32) -> Result<GlobalType> {
         if let Some(ty) = self.resources.global_at(at) {
-            if self.inner.shared && !ty.shared {
-                bail!(
-                    self.offset,
-                    "shared functions cannot access unshared globals",
-                );
-            }
+            self.check_shared_access(ty.shared, "globals")?;
             Ok(ty)
         } else {
             bail!(self.offset, "unknown global: global index out of bounds");
@@ -1861,12 +1932,7 @@ where
     fn table_type_at(&self, table: u32) -> Result<TableType> {
         match self.resources.table_at(table) {
             Some(ty) => {
-                if self.inner.shared && !ty.shared {
-                    bail!(
-                        self.offset,
-                        "shared functions cannot access unshared tables",
-                    );
-                }
+                self.check_shared_access(ty.shared, "tables")?;
                 Ok(ty)
             }
             None => bail!(
@@ -1879,7 +1945,9 @@ where
     fn params(&self, ty: BlockType) -> Result<impl PreciseIterator<Item = ValType> + 'resources> {
         Ok(match ty {
             BlockType::Empty | BlockType::Type(_) => Either::B(None.into_iter()),
-            BlockType::FuncType(t) => Either::A(self.func_type_at(t)?.params().iter().copied()),
+            BlockType::FuncType(t) => {
+                Either::A(self.block_func_type_at(t)?.params().iter().copied())
+            }
         })
     }
 
@@ -1887,7 +1955,9 @@ where
         Ok(match ty {
             BlockType::Empty => Either::B(None.into_iter()),
             BlockType::Type(t) => Either::B(Some(t).into_iter()),
-            BlockType::FuncType(t) => Either::A(self.func_type_at(t)?.results().iter().copied()),
+            BlockType::FuncType(t) => {
+                Either::A(self.block_func_type_at(t)?.results().iter().copied())
+            }
         })
     }
 
@@ -2350,12 +2420,12 @@ where
         Ok(())
     }
     fn visit_call(&mut self, function_index: u32) -> Self::Output {
-        let ty = self.type_of_function(function_index)?;
+        let (_, ty) = self.type_of_function(function_index)?;
         self.check_call_ty(ty)?;
         Ok(())
     }
     fn visit_return_call(&mut self, function_index: u32) -> Self::Output {
-        let ty = self.type_of_function(function_index)?;
+        let (_, ty) = self.type_of_function(function_index)?;
         self.check_return_call_ty(ty)?;
         Ok(())
     }
@@ -2467,8 +2537,10 @@ where
         // be used on both shared and unshared globals. But we do need to limit
         // which types can be used with this instruction.
         let ty = self.global_type_at(global_index)?.content_type;
-        let supertype = RefType::ANYREF.into();
-        if !(ty == ValType::I32 || ty == ValType::I64 || self.resources.is_subtype(ty, supertype)) {
+        if !(ty == ValType::I32
+            || ty == ValType::I64
+            || self.abstract_supertype(ty, AbstractHeapType::Any).is_some())
+        {
             bail!(
                 self.offset,
                 "invalid type: `global.atomic.get` only allows `i32`, `i64` and subtypes of `anyref`"
@@ -2492,8 +2564,10 @@ where
         // No validation of `ordering` is needed because `global.atomic.get` can
         // be used on both shared and unshared globals.
         let ty = self.global_type_at(global_index)?.content_type;
-        let supertype = RefType::ANYREF.into();
-        if !(ty == ValType::I32 || ty == ValType::I64 || self.resources.is_subtype(ty, supertype)) {
+        if !(ty == ValType::I32
+            || ty == ValType::I64
+            || self.abstract_supertype(ty, AbstractHeapType::Any).is_some())
+        {
             bail!(
                 self.offset,
                 "invalid type: `global.atomic.set` only allows `i32`, `i64` and subtypes of `anyref`"
@@ -2556,7 +2630,7 @@ where
         let ty = global.content_type;
         if !(ty == ValType::I32
             || ty == ValType::I64
-            || self.resources.is_subtype(ty, RefType::ANYREF.into()))
+            || self.abstract_supertype(ty, AbstractHeapType::Any).is_some())
         {
             bail!(
                 self.offset,
@@ -2577,17 +2651,12 @@ where
                 "global is immutable: cannot modify it with `global.atomic.rmw.cmpxchg`"
             );
         }
-        let ty = global.content_type;
-        if !(ty == ValType::I32
-            || ty == ValType::I64
-            || self.resources.is_subtype(ty, RefType::EQREF.into()))
-        {
-            bail!(
-                self.offset,
-                "invalid type: `global.atomic.rmw.cmpxchg` only allows `i32`, `i64` and subtypes of `eqref`"
-            );
-        }
-        self.check_binary_op(ty)
+        let ty = self.pop_cmpxchg_operands(
+            StorageType::Val(global.content_type),
+            "global.atomic.rmw.cmpxchg",
+        )?;
+        self.push_operand(ty)?;
+        Ok(())
     }
 
     fn visit_i32_load(&mut self, memarg: MemArg) -> Self::Output {
@@ -3404,14 +3473,7 @@ where
         Ok(())
     }
     fn visit_ref_func(&mut self, function_index: u32) -> Self::Output {
-        let type_id = match self.resources.type_id_of_function(function_index) {
-            Some(id) => id,
-            None => bail!(
-                self.offset,
-                "unknown function {}: function index out of bounds",
-                function_index,
-            ),
-        };
+        let (type_id, _) = self.type_of_function(function_index)?;
         if !self.resources.is_function_referenced(function_index) {
             bail!(self.offset, "undeclared function reference");
         }
@@ -3557,8 +3619,10 @@ where
         // be used on both shared and unshared tables. But we do need to limit
         // which types can be used with this instruction.
         let ty = self.table_type_at(table)?.element_type;
-        let supertype = RefType::ANYREF.shared().unwrap();
-        if !self.resources.is_subtype(ty.into(), supertype.into()) {
+        if !self
+            .abstract_supertype(ty.into(), AbstractHeapType::Any)
+            .is_some()
+        {
             bail!(
                 self.offset,
                 "invalid type: `table.atomic.get` only allows subtypes of `anyref`"
@@ -3579,8 +3643,10 @@ where
         // be used on both shared and unshared tables. But we do need to limit
         // which types can be used with this instruction.
         let ty = self.table_type_at(table)?.element_type;
-        let supertype = RefType::ANYREF.shared().unwrap();
-        if !self.resources.is_subtype(ty.into(), supertype.into()) {
+        if !self
+            .abstract_supertype(ty.into(), AbstractHeapType::Any)
+            .is_some()
+        {
             bail!(
                 self.offset,
                 "invalid type: `table.atomic.set` only allows subtypes of `anyref`"
@@ -3613,8 +3679,10 @@ where
         let table = self.table_type_at(table)?;
         let elem_ty = table.element_type.into();
         debug_assert_type_indices_are_ids(elem_ty);
-        let supertype = RefType::ANYREF.shared().unwrap();
-        if !self.resources.is_subtype(elem_ty, supertype.into()) {
+        if !self
+            .abstract_supertype(elem_ty, AbstractHeapType::Any)
+            .is_some()
+        {
             bail!(
                 self.offset,
                 "invalid type: `table.atomic.rmw.xchg` only allows subtypes of `anyref`"
@@ -3629,15 +3697,8 @@ where
         let table = self.table_type_at(table)?;
         let elem_ty = table.element_type.into();
         debug_assert_type_indices_are_ids(elem_ty);
-        let supertype = RefType::EQREF.shared().unwrap();
-        if !self.resources.is_subtype(elem_ty, supertype.into()) {
-            bail!(
-                self.offset,
-                "invalid type: `table.atomic.rmw.cmpxchg` only allows subtypes of `eqref`"
-            );
-        }
-        self.pop_operand(Some(elem_ty))?;
-        self.pop_operand(Some(elem_ty))?;
+        let elem_ty =
+            self.pop_cmpxchg_operands(StorageType::Val(elem_ty), "table.atomic.rmw.cmpxchg")?;
         self.pop_operand(Some(table.index_type()))?;
         self.push_operand(elem_ty)?;
         Ok(())
@@ -3750,9 +3811,7 @@ where
             .element_type;
         let is_valid_type = match ty {
             StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
-            StorageType::Val(v) => self
-                .resources
-                .is_subtype(v, RefType::ANYREF.shared().unwrap().into()),
+            StorageType::Val(v) => self.abstract_supertype(v, AbstractHeapType::Any).is_some(),
             _ => false,
         };
         if !is_valid_type {
@@ -3835,9 +3894,7 @@ where
         let is_valid_type = match ty {
             StorageType::I8 | StorageType::I16 => true,
             StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
-            StorageType::Val(v) => self
-                .resources
-                .is_subtype(v, RefType::ANYREF.shared().unwrap().into()),
+            StorageType::Val(v) => self.abstract_supertype(v, AbstractHeapType::Any).is_some(),
         };
         if !is_valid_type {
             bail!(
@@ -3896,9 +3953,7 @@ where
         let field = self.mutable_struct_field_at(struct_type_index, field_index)?;
         let is_valid_type = match field.element_type {
             StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
-            StorageType::Val(v) => self
-                .resources
-                .is_subtype(v, RefType::ANYREF.shared().unwrap().into()),
+            StorageType::Val(v) => self.abstract_supertype(v, AbstractHeapType::Any).is_some(),
             _ => false,
         };
         if !is_valid_type {
@@ -3920,22 +3975,8 @@ where
         field_index: u32,
     ) -> Self::Output {
         let field = self.mutable_struct_field_at(struct_type_index, field_index)?;
-        let is_valid_type = match field.element_type {
-            StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
-            StorageType::Val(v) => self
-                .resources
-                .is_subtype(v, RefType::EQREF.shared().unwrap().into()),
-            _ => false,
-        };
-        if !is_valid_type {
-            bail!(
-                self.offset,
-                "invalid type: `struct.atomic.rmw.cmpxchg` only allows `i32`, `i64` and subtypes of `eqref`"
-            );
-        }
-        let field_ty = field.element_type.unpack();
-        self.pop_operand(Some(field_ty))?;
-        self.pop_operand(Some(field_ty))?;
+        let field_ty =
+            self.pop_cmpxchg_operands(field.element_type, "struct.atomic.rmw.cmpxchg")?;
         self.pop_concrete_ref(true, struct_type_index)?;
         self.push_operand(field_ty)?;
         Ok(())
@@ -4042,9 +4083,7 @@ where
         let elem_ty = self.array_type_at(type_index)?.element_type;
         let is_valid_type = match elem_ty {
             StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
-            StorageType::Val(v) => self
-                .resources
-                .is_subtype(v, RefType::ANYREF.shared().unwrap().into()),
+            StorageType::Val(v) => self.abstract_supertype(v, AbstractHeapType::Any).is_some(),
             _ => false,
         };
         if !is_valid_type {
@@ -4113,9 +4152,7 @@ where
         let is_valid_type = match elem_ty {
             StorageType::I8 | StorageType::I16 => true,
             StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
-            StorageType::Val(v) => self
-                .resources
-                .is_subtype(v, RefType::ANYREF.shared().unwrap().into()),
+            StorageType::Val(v) => self.abstract_supertype(v, AbstractHeapType::Any).is_some(),
         };
         if !is_valid_type {
             bail!(
@@ -4243,9 +4280,7 @@ where
         let field = self.mutable_array_type_at(type_index)?;
         let is_valid_type = match field.element_type {
             StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
-            StorageType::Val(v) => self
-                .resources
-                .is_subtype(v, RefType::ANYREF.shared().unwrap().into()),
+            StorageType::Val(v) => self.abstract_supertype(v, AbstractHeapType::Any).is_some(),
             _ => false,
         };
         if !is_valid_type {
@@ -4267,22 +4302,7 @@ where
         type_index: u32,
     ) -> Self::Output {
         let field = self.mutable_array_type_at(type_index)?;
-        let is_valid_type = match field.element_type {
-            StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
-            StorageType::Val(v) => self
-                .resources
-                .is_subtype(v, RefType::EQREF.shared().unwrap().into()),
-            _ => false,
-        };
-        if !is_valid_type {
-            bail!(
-                self.offset,
-                "invalid type: `array.atomic.rmw.cmpxchg` only allows `i32`, `i64` and subtypes of `eqref`"
-            );
-        }
-        let elem_ty = field.element_type.unpack();
-        self.pop_operand(Some(elem_ty))?;
-        self.pop_operand(Some(elem_ty))?;
+        let elem_ty = self.pop_cmpxchg_operands(field.element_type, "array.atomic.rmw.cmpxchg")?;
         self.pop_operand(Some(ValType::I32))?;
         self.pop_concrete_ref(true, type_index)?;
         self.push_operand(elem_ty)?;
@@ -4850,10 +4870,12 @@ where
     R: WasmModuleResources,
 {
     fn tag_type_arity(&self, at: u32) -> Option<(u32, u32)> {
-        self.0
+        let ty = self
+            .0
             .resources
-            .tag_at(at)
-            .map(|x| (x.params().len() as u32, x.results().len() as u32))
+            .sub_type_at_id(self.0.resources.tag_type_id_at(at)?)
+            .unwrap_func();
+        Some((ty.params().len() as u32, ty.results().len() as u32))
     }
 
     fn type_index_of_function(&self, function_idx: u32) -> Option<u32> {
