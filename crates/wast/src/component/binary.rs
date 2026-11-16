@@ -356,8 +356,7 @@ impl<'a> Encoder<'a> {
                 }
                 CoreFuncKind::ThreadSpawnRef(info) => {
                     self.core_func_names.push(name);
-                    self.funcs
-                        .thread_spawn_ref(info.shared, info.ty.idx.into());
+                    self.funcs.thread_spawn_ref(info.shared, info.ty.idx.into());
                 }
                 CoreFuncKind::ThreadSpawnIndirect(info) => {
                     self.core_func_names.push(name);
