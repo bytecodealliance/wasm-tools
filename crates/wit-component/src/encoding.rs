@@ -3254,16 +3254,22 @@ pub(crate) fn task_return_options_and_type(
 /// Alias argument to an instantiation
 #[derive(Clone, Debug)]
 pub struct Item {
+    /// The alias name for this export
     pub alias: String,
+    /// The kind of export being aliased
     pub kind: ExportKind,
+    /// Which module or adapter the export comes from
     pub which: MainOrAdapter,
+    /// The name of the export in the source module
     pub name: String,
 }
 
 /// Module argument to an instantiation
 #[derive(Debug, PartialEq, Clone)]
 pub enum MainOrAdapter {
+    /// The main module
     Main,
+    /// An adapter module, identified by name
     Adapter(String),
 }
 
