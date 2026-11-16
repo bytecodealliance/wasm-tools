@@ -3621,7 +3621,22 @@ impl<'a> SubtypeCx<'a> {
             (Value(_), b) => bail!(offset, "expected {}, found value", b.desc()),
 
             (Type { referenced: a, .. }, Type { referenced: b, .. }) => {
-                self.component_any_type_id(*a, *b, offset)
+                self.component_any_type_id(*a, *b, offset)?;
+
+                match a {
+                    // When `a <: b` for these types that implies `b <: a`, so
+                    // no need to check the other direction.
+                    ComponentAnyTypeId::Resource(_)
+                    | ComponentAnyTypeId::Defined(_)
+                    | ComponentAnyTypeId::Func(_) => Ok(()),
+
+                    // ... such an implication does not hold true for these
+                    // types, however, so check the other direction as type
+                    // imports are `eq`-bounded.
+                    ComponentAnyTypeId::Instance(_) | ComponentAnyTypeId::Component(_) => {
+                        self.swapped(|this| this.component_any_type_id(*b, *a, offset))
+                    }
+                }
             }
             (Type { .. }, b) => bail!(offset, "expected {}, found type", b.desc()),
 
