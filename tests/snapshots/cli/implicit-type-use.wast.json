@@ -1,0 +1,17 @@
+{
+  "source_filename": "tests/cli/implicit-type-use.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 7,
+      "filename": "implicit-type-use.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 16,
+      "filename": "implicit-type-use.1.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

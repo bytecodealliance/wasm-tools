@@ -50,13 +50,10 @@ impl<'a> Expander<'a> {
     fn expand_header(&mut self, item: &mut ModuleField<'a>) {
         match item {
             ModuleField::Type(ty) => {
-                let id = gensym::fill(ty.span, &mut ty.id);
-                match &mut ty.def.kind {
-                    InnerTypeKind::Func(f) => {
-                        f.key().insert(self, Index::Id(id));
-                    }
-                    InnerTypeKind::Array(_) | InnerTypeKind::Struct(_) | InnerTypeKind::Cont(_) => {
-                    }
+                if let Some(f) = ty.def.implicit_func_type() {
+                    let key = f.key();
+                    let id = gensym::fill(ty.span, &mut ty.id);
+                    key.insert(self, Index::Id(id));
                 }
             }
             _ => {}
@@ -224,6 +221,29 @@ impl<'a> Expander<'a> {
         let idx = Index::Id(id);
         key.insert(self, idx);
         idx
+    }
+}
+
+impl<'a> TypeDef<'a> {
+    /// Returns the function type defined here if a type use with only inline
+    /// params and results can refer to it.
+    pub(crate) fn implicit_func_type(&self) -> Option<&FunctionType<'a>> {
+        match &self.kind {
+            InnerTypeKind::Func(f) => {
+                // The only candidates for deduplicating with inline-defined
+                // types are those that are:
+                //
+                // * not shared
+                // * have not supertype (parents empty)
+                // * are final
+                if !self.shared && self.parents.is_empty() && self.final_type != Some(false) {
+                    Some(f)
+                } else {
+                    None
+                }
+            }
+            InnerTypeKind::Struct(_) | InnerTypeKind::Array(_) | InnerTypeKind::Cont(_) => None,
+        }
     }
 }
 

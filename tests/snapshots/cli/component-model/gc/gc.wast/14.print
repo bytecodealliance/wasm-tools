@@ -1,0 +1,10 @@
+(component
+  (core type (;0;)
+    (module
+      (type (;0;) (sub (func)))
+      (type (;1;) (func))
+      (type (;2;) (func))
+      (import "" "f" (func (type 1)))
+    )
+  )
+)

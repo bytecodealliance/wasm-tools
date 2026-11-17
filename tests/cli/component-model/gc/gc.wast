@@ -163,3 +163,14 @@
   (core type $t (func))
   (core type (func (param (ref $t))))
 )
+
+;; Inline type uses in module types refer to the first singular, final,
+;; function type with the same signature.
+(component
+  (core type (module
+    (type (sub (func)))
+    (type (func))
+    (type (func))
+    (import "" "f" (func))
+  ))
+)
