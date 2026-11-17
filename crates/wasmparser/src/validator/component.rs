@@ -76,6 +76,13 @@ pub(crate) struct ComponentState {
     /// resources, so this is used to bound the total amount of work done.
     outer_alias_type_size: u32,
 
+    /// The total size of the imports of all components instantiated within
+    /// this component.
+    ///
+    /// Type-checking the arguments to an instantiation walks the imports'
+    /// types, so this is used to bound the total amount of work done.
+    instantiate_type_size: u32,
+
     /// A mapping of imported resources in this component.
     ///
     /// This mapping represents all "type variables" imported into the
@@ -485,6 +492,7 @@ impl ComponentState {
             has_start: Default::default(),
             type_info: TypeInfo::new(),
             outer_alias_type_size: 0,
+            instantiate_type_size: 0,
             imported_resources: Default::default(),
             defined_resources: Default::default(),
             exported_types: Default::default(),
@@ -3290,6 +3298,18 @@ impl ComponentState {
         offset: u64,
     ) -> Result<ComponentInstanceTypeId> {
         let component_type_id = self.component_at(component_index, offset)?;
+
+        // Type-checking the arguments below is proportional to the size of
+        // the imports of the component, so that's charged to this component to
+        // bound the total amount of work done.
+        for import in types[component_type_id].imports.values() {
+            self.instantiate_type_size = combine_type_sizes(
+                self.instantiate_type_size,
+                import.ty.info(types).size(),
+                offset,
+            )?;
+        }
+
         let mut args = IndexMap::default();
 
         // Populate the arguments
