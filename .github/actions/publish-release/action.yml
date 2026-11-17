@@ -66,20 +66,20 @@ runs:
 
     # Generate attestations for release artifacts
     - name: Generate artifact attestation
-      uses: actions/attest-build-provenance@v3
+      uses: actions/attest-build-provenance@v3.0.0
       if: steps.tag.outputs.push_tag == 'yes'
       with:
         subject-path: 'dist/*'
 
     # Publish wasm-tools.wasm as an OCI artifact to GHCR
     - name: Install ORAS
-      uses: oras-project/setup-oras@v1
+      uses: oras-project/setup-oras@v1.2.4
       if: steps.tag.outputs.push_tag == 'yes'
       with:
         version: '1.2.2'
 
     - name: Install cosign
-      uses: sigstore/cosign-installer@v3
+      uses: sigstore/cosign-installer@v3.9.1
       if: steps.tag.outputs.push_tag == 'yes'
       with:
         cosign-release: 'v2.4.1'
@@ -128,7 +128,7 @@ runs:
     - run: rustup update stable && rustup default stable
       shell: bash
 
-    - uses: rust-lang/crates-io-auth-action@v1
+    - uses: rust-lang/crates-io-auth-action@v1.0.6
       id: auth
       if: steps.tag.outputs.push_tag == 'yes'
 

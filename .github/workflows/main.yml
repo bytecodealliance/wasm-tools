@@ -84,14 +84,14 @@ jobs:
             CARGO_BUILD_TARGET: wasm32-wasip1
     env: ${{ matrix.env }}
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@v7.0.1
       with:
         submodules: true
-    - uses: ./.github/actions/install-rust
+    - uses: $/.github/actions/install-rust
     - run: rustup target add $CARGO_BUILD_TARGET
     - run: ./ci/build-release-artifacts.sh
     - run: ./ci/build-tarballs.sh "${{ matrix.build }}"
-    - uses: actions/upload-artifact@v7
+    - uses: actions/upload-artifact@v7.0.2
       with:
         name: bins-${{ matrix.build }}
         path: dist
@@ -100,10 +100,10 @@ jobs:
     name: Test (no-hash-maps)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           submodules: true
-      - uses: ./.github/actions/install-rust
+      - uses: $/.github/actions/install-rust
       - name: Test (prefer-btree-collections)
         run: cargo test --workspace --locked --features prefer-btree-collections
 
@@ -147,10 +147,10 @@ jobs:
             flags: -F wasmparser/try-op
     env: ${{ matrix.env || fromJSON('{}') }}
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@v7.0.1
       with:
         submodules: true
-    - uses: ./.github/actions/install-rust
+    - uses: $/.github/actions/install-rust
       with:
         toolchain: ${{ matrix.rust }}
     - run: cargo test --locked --all ${{ matrix.flags }}
@@ -159,10 +159,10 @@ jobs:
     name: Test with extra Cargo features
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@v7.0.1
       with:
         submodules: true
-    - uses: ./.github/actions/install-rust
+    - uses: $/.github/actions/install-rust
     - run: cargo test --locked -p wasmparser --benches
     - run: cargo test --locked --all-features --manifest-path crates/wasm-encoder/Cargo.toml
     - run: cargo test -p wasm-smith --features wasmparser
@@ -180,10 +180,10 @@ jobs:
           - os: macos-latest
           - os: windows-latest
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@v7.0.1
       with:
         submodules: true
-    - uses: ./.github/actions/install-rust
+    - uses: $/.github/actions/install-rust
     - run: cmake -S examples -B examples/build -DCMAKE_BUILD_TYPE=Release
     - run: cmake --build examples/build --config Release
 
@@ -191,10 +191,10 @@ jobs:
     name: Test libdl{32,64}.so
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@v7.0.1
       with:
         submodules: true
-    - uses: ./.github/actions/install-rust
+    - uses: $/.github/actions/install-rust
       with:
         toolchain: nightly-2026-09-18
     - run: rustup component add rust-src
@@ -204,10 +204,10 @@ jobs:
     name: Test on WebAssembly
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@v7.0.1
       with:
         submodules: true
-    - uses: ./.github/actions/install-rust
+    - uses: $/.github/actions/install-rust
     - run: rustup target add wasm32-wasip1
     - run: |
         tag=v10.0.1
@@ -228,8 +228,8 @@ jobs:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v7
-    - uses: ./.github/actions/install-rust
+    - uses: actions/checkout@v7.0.1
+    - uses: $/.github/actions/install-rust
     - run: rustup component add rustfmt
     - run: printf "\n" > playground/component/src/bindings.rs
     # Note that this doesn't use `cargo fmt` because that doesn't format
@@ -241,10 +241,10 @@ jobs:
     name: Fuzz
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@v7.0.1
       with:
         submodules: true
-    - uses: ./.github/actions/install-rust
+    - uses: $/.github/actions/install-rust
       with:
         toolchain: nightly-2026-09-18
     - run: cargo install cargo-fuzz
@@ -254,8 +254,8 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/install-rust
+      - uses: actions/checkout@v7.0.1
+      - uses: $/.github/actions/install-rust
       - run: rustup target add x86_64-unknown-none
       - run: cargo check --benches -p wasm-smith
       - run: cargo check --no-default-features
@@ -342,10 +342,10 @@ jobs:
     name: Check generated files are up-to-date
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           submodules: true
-      - uses: ./.github/actions/install-rust
+      - uses: $/.github/actions/install-rust
       - run: rm -rf tests/snapshots
       - run: rustc ci/generate-spec-tests.rs && ./generate-spec-tests
       - run: find tests/cli -name '*.stderr' | xargs rm
@@ -355,15 +355,15 @@ jobs:
   doc:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/install-rust
+      - uses: actions/checkout@v7.0.1
+      - uses: $/.github/actions/install-rust
       - run: RUSTDOCFLAGS="-Dwarnings" cargo doc --all
 
   clippy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/install-rust
+      - uses: actions/checkout@v7.0.1
+      - uses: $/.github/actions/install-rust
       - run: rustup component add clippy
       - run: cargo clippy --workspace --all-targets --exclude dl --exclude component
 
@@ -371,15 +371,26 @@ jobs:
     if: github.repository_owner == 'bytecodealliance'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@v7.0.1
       with:
         submodules: true
-    - uses: ./.github/actions/install-rust
+    - uses: $/.github/actions/install-rust
     - run: rustc ci/publish.rs
     # Make sure we can bump version numbers for the next release
     - run: ./publish bump
     # Make sure the tree is publish-able as-is
     - run: ./publish verify
+
+  verify-lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Verify actions.lock is up to date
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh extension install github/gh-actions-lock
+          gh actions-lock --verify
 
   # "Join node" which the merge queue waits on.
   ci-status:
@@ -400,6 +411,7 @@ jobs:
       - test-prefer-btree-collections
       - clippy
       - generated_files_up_to_date
+      - verify-lockfile
     if: always()
 
     steps:
@@ -429,10 +441,10 @@ jobs:
       && github.event_name == 'push'
       && startsWith(github.ref, 'refs/heads/release-')
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@v7.0.1
       with:
         submodules: true
         fetch-depth: 0
-    - uses: ./.github/actions/publish-release
+    - uses: $/.github/actions/publish-release
       with:
         cargo_token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
