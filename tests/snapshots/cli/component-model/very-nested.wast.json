@@ -84,6 +84,20 @@
       "filename": "very-nested.11.wasm",
       "module_type": "binary",
       "text": "effective type size exceeds the limit"
+    },
+    {
+      "type": "module",
+      "line": 2572,
+      "name": "c",
+      "filename": "very-nested.12.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 2599,
+      "filename": "very-nested.13.wasm",
+      "module_type": "binary",
+      "text": "effective type size exceeds the limit"
     }
   ]
 }
