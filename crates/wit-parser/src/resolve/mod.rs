@@ -1029,11 +1029,12 @@ impl Resolve {
         // First make sure that all of this item's dependencies are either
         // exported or the entire chain of imports rooted at that dependency are
         // all imported.
+        let mut visited = HashSet::new();
         for dep in self.world_item_direct_deps(item) {
             if into.exports.contains_key(&WorldKey::Interface(dep)) {
                 continue;
             }
-            self.ensure_not_exported(into, dep)
+            self.ensure_not_exported(into, dep, &mut visited)
                 .with_context(|| format!("failed validating export of `{name}`"))?;
         }
 
@@ -1054,10 +1055,18 @@ impl Resolve {
         Ok(())
     }
 
-    fn ensure_not_exported(&self, world: &World, id: InterfaceId) -> anyhow::Result<()> {
+    fn ensure_not_exported(
+        &self,
+        world: &World,
+        id: InterfaceId,
+        visited: &mut HashSet<InterfaceId>,
+    ) -> anyhow::Result<()> {
+        if !visited.insert(id) {
+            return Ok(());
+        }
         let key = WorldKey::Interface(id);
-        let name = self.name_world_key(&key);
         if world.exports.contains_key(&key) {
+            let name = self.name_world_key(&key);
             bail!(
                 "world exports `{name}` but it's also transitively used by an \
                      import \
@@ -1065,8 +1074,11 @@ impl Resolve {
             )
         }
         for dep in self.interface_direct_deps(id) {
-            self.ensure_not_exported(world, dep)
-                .with_context(|| format!("failed validating transitive import dep `{name}`"))?;
+            self.ensure_not_exported(world, dep, visited)
+                .with_context(|| {
+                    let name = self.name_world_key(&key);
+                    format!("failed validating transitive import dep `{name}`")
+                })?;
         }
         Ok(())
     }
