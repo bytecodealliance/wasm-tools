@@ -10,7 +10,7 @@
   (elem (;0;) (table 0) (i32.const 0) (ref null $t2) (ref.func $f2) (ref.func $f3))
   (func $f2 (;0;) (type $t2))
   (func $f3 (;1;) (type $t3))
-  (func (;2;) (type $t1)
+  (func (;2;) (type $t4)
     i32.const 0
     call_indirect (type $t1)
     i32.const 1
@@ -22,11 +22,11 @@
     i32.const 1
     call_indirect (type $t3)
   )
-  (func (;3;) (type $t1)
+  (func (;3;) (type $t4)
     i32.const 0
     call_indirect (type $t3)
   )
-  (func (;4;) (type $t1)
+  (func (;4;) (type $t4)
     i32.const 0
     call_indirect (type $t4)
   )

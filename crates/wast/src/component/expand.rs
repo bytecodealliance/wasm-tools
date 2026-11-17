@@ -425,15 +425,13 @@ impl<'a> Expander<'a> {
         let mut i = 0;
         while i < ty.decls.len() {
             match &mut ty.decls[i] {
-                ModuleTypeDecl::Type(ty) => match &ty.def.kind {
-                    core::InnerTypeKind::Func(f) => {
+                ModuleTypeDecl::Type(ty) => {
+                    if let Some(f) = ty.def.implicit_func_type() {
+                        let key = f.key();
                         let id = gensym::fill(ty.span, &mut ty.id);
-                        func_type_to_idx.insert(f.key(), Index::Id(id));
+                        func_type_to_idx.entry(key).or_insert(Index::Id(id));
                     }
-                    core::InnerTypeKind::Struct(_) => {}
-                    core::InnerTypeKind::Array(_) => {}
-                    core::InnerTypeKind::Cont(_) => {}
-                },
+                }
                 ModuleTypeDecl::Rec(_) => {}
                 ModuleTypeDecl::Alias(_) => {}
                 ModuleTypeDecl::Import(imports) => {

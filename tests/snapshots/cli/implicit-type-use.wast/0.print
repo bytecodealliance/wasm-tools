@@ -1,0 +1,11 @@
+(module
+  (type $nonfinal (;0;) (sub (func)))
+  (type $shared (;1;) (shared (func)))
+  (type $g (;2;) (func))
+  (type (;3;) (func (result (ref $g))))
+  (elem (;0;) declare func $u)
+  (func $u (;0;) (type $g))
+  (func (;1;) (type 3) (result (ref $g))
+    ref.func $u
+  )
+)

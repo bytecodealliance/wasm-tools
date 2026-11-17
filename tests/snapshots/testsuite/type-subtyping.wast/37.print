@@ -9,25 +9,25 @@
   (elem (;0;) (table 0) (i32.const 0) func $f1 $f2)
   (func $f1 (;0;) (type $t1))
   (func $f2 (;1;) (type $t2))
-  (func (;2;) (type $t1)
+  (func (;2;) (type $t2)
     block ;; label = @1
       i32.const 1
       call_indirect (type $t1)
     end
   )
-  (func (;3;) (type $t1)
+  (func (;3;) (type $t2)
     block ;; label = @1
       i32.const 0
       call_indirect (type $t2)
     end
   )
-  (func (;4;) (type $t1)
+  (func (;4;) (type $t2)
     i32.const 1
     table.get 0
     ref.cast (ref $t1)
     drop
   )
-  (func (;5;) (type $t1)
+  (func (;5;) (type $t2)
     i32.const 0
     table.get 0
     ref.cast (ref $t2)
