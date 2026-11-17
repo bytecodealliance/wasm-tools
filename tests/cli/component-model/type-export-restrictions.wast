@@ -567,3 +567,43 @@
   (import "a" (type $a (sub resource)))
   (export $b "b" (type $a))
   (import "c" (type $c (eq $a))))
+
+;; Types exported from an instance nested within an instance type are named for
+;; the rest of that instance type.
+(component
+  (type $I (instance
+    (type $J (instance (type $r (record (field "a" u32))) (export "t" (type (eq $r)))))
+    (export "inner" (instance $inner (type $J)))
+    (alias export $inner "t" (type $t))
+    (export "f" (func (param "x" $t)))))
+  (import "i" (type (eq $I)))
+  (export "j" (type $I)))
+
+(component
+  (type $I (instance
+    (type $J (instance (export "t" (type (sub resource)))))
+    (export "inner" (instance $inner (type $J)))
+    (alias export $inner "t" (type $t))
+    (export "f" (func (param "x" (own $t))))))
+  (export "i" (type $I)))
+
+(component
+  (type $I (instance
+    (type $K (instance (type $r (record (field "a" u32))) (export "t" (type (eq $r)))))
+    (type $J (instance (export "k" (instance (type $K)))))
+    (export "inner" (instance $inner (type $J)))
+    (alias export $inner "k" (instance $k))
+    (alias export $k "t" (type $t))
+    (export "f" (func (param "x" $t)))))
+  (export "i" (type $I)))
+
+(assert_invalid
+  (component
+    (type $I (instance
+      (type $J (instance (type $r (record (field "a" u32))) (export "t" (type (eq $r)))))
+      (export "inner" (instance $inner (type $J)))
+      (alias export $inner "t" (type $t))
+      (type $r2 (record (field "b" $t)))
+      (export "f" (func (param "x" $r2)))))
+    (export "i" (type $I)))
+  "type not valid to be used as export")

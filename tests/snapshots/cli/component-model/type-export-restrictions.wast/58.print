@@ -1,0 +1,17 @@
+(component
+  (type $I (;0;)
+    (instance
+      (type (;0;)
+        (instance
+          (export (;0;) "t" (type (sub resource)))
+        )
+      )
+      (export (;0;) "inner" (instance (type 0)))
+      (alias export 0 "t" (type (;1;)))
+      (type (;2;) (own 1))
+      (type (;3;) (func (param "x" 2)))
+      (export (;0;) "f" (func (type 3)))
+    )
+  )
+  (export (;1;) "i" (type $I))
+)

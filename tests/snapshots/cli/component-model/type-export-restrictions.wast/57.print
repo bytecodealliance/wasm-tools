@@ -1,0 +1,18 @@
+(component
+  (type $I (;0;)
+    (instance
+      (type (;0;)
+        (instance
+          (type (;0;) (record (field "a" u32)))
+          (export (;1;) "t" (type (eq 0)))
+        )
+      )
+      (export (;0;) "inner" (instance (type 0)))
+      (alias export 0 "t" (type (;1;)))
+      (type (;2;) (func (param "x" 1)))
+      (export (;0;) "f" (func (type 2)))
+    )
+  )
+  (import "i" (type (;1;) (eq $I)))
+  (export (;2;) "j" (type $I))
+)
