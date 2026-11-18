@@ -1,0 +1,17 @@
+(component
+  (type (;0;)
+    (instance
+      (core type (;0;) (struct))
+      (core type (;1;)
+        (module
+          (alias outer 1 0 (type (;0;)))
+          (type (;1;) (struct))
+          (import "" "g" (global (ref null 0)))
+          (import "" "t" (table 1 (ref null 1)))
+          (export "g2" (global (mut (ref null 1))))
+          (export "t2" (table 1 (ref null 0)))
+        )
+      )
+    )
+  )
+)
