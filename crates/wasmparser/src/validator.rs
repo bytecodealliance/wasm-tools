@@ -707,8 +707,14 @@ impl Validator {
                 )?;
                 #[cfg(feature = "component-model")]
                 if num == crate::WASM_COMPONENT_VERSION {
-                    self.components
-                        .push(ComponentState::new(ComponentKind::Component, self.features));
+                    let mut component =
+                        ComponentState::new(ComponentKind::Component, self.features);
+                    // Inherit the instantiation budget which will be
+                    // re-inherited back again in the `end` function below.
+                    if let Some(parent) = self.components.last() {
+                        component.instantiate_type_size = parent.instantiate_type_size;
+                    }
+                    self.components.push(component);
                     State::Component
                 } else if num < crate::WASM_COMPONENT_VERSION {
                     bail!(range.start, "unsupported component version: {num:#x}");
@@ -1394,6 +1400,7 @@ impl Validator {
                 // and continue to validate the component
                 let ty = component.finish(&self.types, offset)?;
                 if let Some(parent) = self.components.last_mut() {
+                    parent.instantiate_type_size = component.instantiate_type_size;
                     parent.add_component(ty, &mut self.types)?;
                     self.state = State::Component;
                 }
