@@ -376,6 +376,31 @@
       "line": 566,
       "filename": "type-export-restrictions.56.wasm",
       "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 573,
+      "filename": "type-export-restrictions.57.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 582,
+      "filename": "type-export-restrictions.58.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 590,
+      "filename": "type-export-restrictions.59.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 601,
+      "filename": "type-export-restrictions.60.wasm",
+      "module_type": "binary",
+      "text": "type not valid to be used as export"
     }
   ]
 }
