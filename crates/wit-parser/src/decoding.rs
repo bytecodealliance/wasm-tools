@@ -811,25 +811,7 @@ impl WitPackageDecoder<'_> {
                         // roundtripping assertions during fuzzing.
                         Some(id) => {
                             log::debug!("type already exist");
-                            // Every use of an interface has to agree on which
-                            // other interface's type, if any, this one `use`s.
-                            let used_here = self
-                                .find_alias(referenced)
-                                .filter(|t| self.is_from_other_interface(*t, interface));
-                            let used_before = match self.resolve.types[id].kind {
-                                TypeDefKind::Type(Type::Id(t))
-                                    if self.is_from_other_interface(t, interface) =>
-                                {
-                                    Some(t)
-                                }
-                                _ => None,
-                            };
-                            if used_here != used_before {
-                                bail!(
-                                    "cannot represent this component in WIT: uses of interface \
-                                     `{iface}` disagree on where its type `{name}` comes from"
-                                );
-                            }
+                            self.check_type_origin_agrees(interface, iface, id, name, referenced)?;
                             match referenced {
                                 ComponentAnyTypeId::Defined(ty) => {
                                     self.register_defined(id, &self.types[ty])?;
@@ -897,26 +879,7 @@ impl WitPackageDecoder<'_> {
                         bail!("instance function export `{name}` not defined in interface");
                     }
                     let func = self.convert_function(name.as_str(), item, owner)?;
-                    // Another use of this interface may have this function
-                    // as another kind, such as `[method]r.f` for
-                    // `[static]r.f`, under the same name in WIT. A getter and
-                    // setter of one name are fine together.
-                    let wit_name = |f: &Function| {
-                        let setter = matches!(
-                            f.kind,
-                            FunctionKind::Setter
-                                | FunctionKind::MethodSetter(_)
-                                | FunctionKind::StaticSetter(_)
-                        );
-                        (f.kind.resource(), f.item_name().to_string(), setter)
-                    };
-                    let functions = &self.resolve.interfaces[interface].functions;
-                    if functions.values().any(|f| wit_name(f) == wit_name(&func)) {
-                        bail!(
-                            "cannot represent this component in WIT: uses of interface `{iface}` \
-                             disagree on what kind of function `{name}` is"
-                        );
-                    }
+                    self.check_function_kind_agrees(interface, iface, name, &func)?;
                     let prev = self.resolve.interfaces[interface]
                         .functions
                         .insert(name.to_string(), func);
@@ -940,23 +903,71 @@ impl WitPackageDecoder<'_> {
         ty.name.is_some() && matches!(ty.owner, TypeOwner::Interface(i) if i != interface)
     }
 
-    fn find_alias(&self, id: ComponentAnyTypeId) -> Option<TypeId> {
-        // Consult `type_map` for `referenced` or anything in its
-        // chain of aliases to determine what it maps to. This may
-        // bottom out in `None` in the case that this type is
-        // just now being defined, but this should otherwise follow
-        // chains of aliases to determine what exactly this was a
-        // `use` of if it exists.
-        let mut prev = None;
-        let mut cur = id;
-        while prev.is_none() {
-            prev = self.type_map.get(&cur).copied();
-            cur = match self.types.as_ref().peel_alias(cur) {
-                Some(next) => next,
-                None => break,
-            };
+    /// Checks that this use of `interface` takes its type `name` from the same
+    /// place as the use that first defined it.
+    ///
+    /// Decoding merges every use of an interface into one, and the type
+    /// recorded for `name` (`existing`) keeps whatever `use` the first use of
+    /// the interface had.
+    fn check_type_origin_agrees(
+        &self,
+        interface: InterfaceId,
+        iface: &str,
+        existing: TypeId,
+        name: &str,
+        referenced: ComponentAnyTypeId,
+    ) -> Result<()> {
+        let used_here = find_alias(&self.types, &self.type_map, referenced)
+            .filter(|t| self.is_from_other_interface(*t, interface));
+        let used_before = match self.resolve.types[existing].kind {
+            TypeDefKind::Type(Type::Id(t)) if self.is_from_other_interface(t, interface) => Some(t),
+            _ => None,
+        };
+        if used_here != used_before {
+            bail!(
+                "cannot represent this component in WIT: uses of interface \
+                 `{iface}` disagree on where its type `{name}` comes from"
+            );
         }
-        prev
+        Ok(())
+    }
+
+    /// Checks that `func`, a function of `interface` being added lazily, doesn't
+    /// clash in WIT with one an earlier use of `interface` already added.
+    ///
+    /// The `functions` map is keyed by the core wasm name, so the
+    /// "already defined" check on insertion only catches two uses with the very
+    /// same name. Different kinds of function have different core names but can
+    /// share one name in WIT, e.g. `[method]r.f` and `[static]r.f` are both `f`
+    /// on resource `r`. Merging uses of an interface can combine them, and
+    /// that is only a problem later: nothing fails on the merged `Resolve`, but
+    /// its WIT would have two functions `f` on `r`. So it has to be caught here,
+    /// while the uses are still being merged. A getter and a setter of one name
+    /// are fine together.
+    fn check_function_kind_agrees(
+        &self,
+        interface: InterfaceId,
+        iface: &str,
+        name: &str,
+        func: &Function,
+    ) -> Result<()> {
+        let wit_name = |f: &Function| {
+            let setter = matches!(
+                f.kind,
+                FunctionKind::Setter
+                    | FunctionKind::MethodSetter(_)
+                    | FunctionKind::StaticSetter(_)
+            );
+            (f.kind.resource(), f.item_name().to_string(), setter)
+        };
+        let functions = &self.resolve.interfaces[interface].functions;
+        if functions.values().any(|f| wit_name(f) == wit_name(func)) {
+            bail!(
+                "cannot represent this component in WIT: uses of interface `{iface}` \
+                 disagree on what kind of function `{name}` is"
+            );
+        }
+        Ok(())
     }
 
     /// This will parse the `name_string` as a component model ID string and
@@ -1138,7 +1149,7 @@ impl WitPackageDecoder<'_> {
             } => (referenced, created),
             _ => unreachable!(),
         };
-        let kind = match self.find_alias(referenced) {
+        let kind = match find_alias(&self.types, &self.type_map, referenced) {
             // If this `TypeId` points to a type which has
             // previously been defined, meaning we're aliasing a
             // prior definition.
@@ -1796,6 +1807,27 @@ impl WitPackageDecoder<'_> {
     }
 }
 
+/// Consults `type_map` for `id` or anything in its chain of aliases to
+/// determine what it maps to. This may bottom out in `None` in the case that
+/// this type is just now being defined, but this should otherwise follow chains
+/// of aliases to determine what exactly this was a `use` of if it exists.
+fn find_alias(
+    types: &Types,
+    type_map: &HashMap<ComponentAnyTypeId, TypeId>,
+    id: ComponentAnyTypeId,
+) -> Option<TypeId> {
+    let mut prev = None;
+    let mut cur = id;
+    while prev.is_none() {
+        prev = type_map.get(&cur).copied();
+        cur = match types.as_ref().peel_alias(cur) {
+            Some(next) => next,
+            None => break,
+        };
+    }
+    prev
+}
+
 /// Helper type to register the structure of a wasm-defined type against a
 /// wit-defined type.
 struct Registrar<'a> {
@@ -1964,26 +1996,9 @@ impl Registrar<'_> {
                     TypeDefKind::Type(Type::Id(_)) => return Ok(()),
                     _ => bail!("expected a handle"),
                 };
-                let mut cur = ComponentAnyTypeId::from(*r);
-                let wasm = loop {
-                    if let Some(t) = self.type_map.get(&cur) {
-                        break Some(*t);
-                    }
-                    match self.types.as_ref().peel_alias(cur) {
-                        Some(next) => cur = next,
-                        None => break None,
-                    }
-                };
-                // Either may be a `use` of the resource, so compare what the
-                // `use`s refer to.
-                let peel = |mut t: TypeId| {
-                    while let TypeDefKind::Type(Type::Id(next)) = self.resolve.types[t].kind {
-                        t = next;
-                    }
-                    t
-                };
+                let wasm = find_alias(self.types, self.type_map, ComponentAnyTypeId::from(*r));
                 match wasm {
-                    Some(wasm) if peel(wasm) != peel(wit) => bail!(
+                    Some(wasm) if wasm != wit => bail!(
                         "cannot represent this component in WIT: uses of an interface disagree \
                          on which resource a handle is for"
                     ),
