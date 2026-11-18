@@ -1,0 +1,26 @@
+{
+  "source_filename": "tests/cli/component-model/instantiate-type-size.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 8,
+      "filename": "instantiate-type-size.0.wasm",
+      "module_type": "binary",
+      "text": "effective type size exceeds the limit"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 56,
+      "filename": "instantiate-type-size.1.wasm",
+      "module_type": "binary",
+      "text": "effective type size exceeds the limit"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 185,
+      "filename": "instantiate-type-size.2.wasm",
+      "module_type": "binary",
+      "text": "effective type size exceeds the limit"
+    }
+  ]
+}

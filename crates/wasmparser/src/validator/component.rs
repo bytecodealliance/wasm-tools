@@ -76,12 +76,25 @@ pub(crate) struct ComponentState {
     /// resources, so this is used to bound the total amount of work done.
     outer_alias_type_size: u32,
 
-    /// The total size of the imports of all components instantiated within
-    /// this component.
+    /// A rough measure of budget spent on validating instantiations of
+    /// components and core modules for this component and its parents.
     ///
-    /// Type-checking the arguments to an instantiation walks the imports'
-    /// types, so this is used to bound the total amount of work done.
-    instantiate_type_size: u32,
+    /// This field is intended to be a coarse measure of work spent in
+    /// validation. Small binary constructs, such as instantiation, can often
+    /// require outsize work in a validator when considering things like
+    /// type-checking, type substitution, etc. As a result we ideally don't want
+    /// small components to be able to consume outsize amounts of resources in
+    /// niche situations. The field here specifically tracks the "type size" of
+    /// all instantiations that have been performed. The type size metric is a
+    /// rough proxy for the amount of work performed per-instantiation within
+    /// the validator, so having a fixed budget limits both time spent
+    /// validating and memory allocated.
+    ///
+    /// This metric is inherited from the parent when a sub-component is
+    /// validated, When the sub-component is finished the parent's cost is
+    /// updated here. Basically this represents an entire binary component, not
+    /// just a single sub-component within that.
+    pub(crate) instantiate_type_size: u32,
 
     /// A mapping of imported resources in this component.
     ///
@@ -3214,7 +3227,7 @@ impl ComponentState {
     }
 
     fn instantiate_core_module(
-        &self,
+        &mut self,
         module_index: u32,
         module_args: Vec<crate::InstantiationArg>,
         types: &mut TypeAlloc,
@@ -3237,6 +3250,18 @@ impl ComponentState {
         }
 
         let module_type_id = self.module_at(module_index, offset)?;
+
+        // Type-checking the arguments below is proportional to the number of
+        // imports of the module, and creating the instance's type below walks
+        // its exports. The size of the module's type covers both, so it's
+        // charged to this component to bound the total amount of work done
+        // across all instantiations.
+        self.instantiate_type_size = combine_type_sizes(
+            self.instantiate_type_size,
+            types[module_type_id].info.size(),
+            offset,
+        )?;
+
         let mut args = IndexMap::default();
 
         // Populate the arguments
@@ -3300,15 +3325,16 @@ impl ComponentState {
         let component_type_id = self.component_at(component_index, offset)?;
 
         // Type-checking the arguments below is proportional to the size of
-        // the imports of the component, so that's charged to this component to
-        // bound the total amount of work done.
-        for import in types[component_type_id].imports.values() {
-            self.instantiate_type_size = combine_type_sizes(
-                self.instantiate_type_size,
-                import.ty.info(types).size(),
-                offset,
-            )?;
-        }
+        // the imports of the component, and creating the type of the instance
+        // below copies and remaps the exports of the component. The size of
+        // the component's type covers both, so it's charged to this component
+        // to bound the total amount of work done and memory used across all
+        // instantiations.
+        self.instantiate_type_size = combine_type_sizes(
+            self.instantiate_type_size,
+            types[component_type_id].info.size(),
+            offset,
+        )?;
 
         let mut args = IndexMap::default();
 
