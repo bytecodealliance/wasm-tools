@@ -131,6 +131,20 @@
       "filename": "adapt.18.wat",
       "module_type": "text",
       "text": "unknown core func: failed to find name `$f`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 292,
+      "filename": "adapt.19.wasm",
+      "module_type": "binary",
+      "text": "canonical option `realloc` uses a core function with an incorrect signature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 310,
+      "filename": "adapt.20.wasm",
+      "module_type": "binary",
+      "text": "canonical option `post-return` uses a core function with an incorrect signature"
     }
   ]
 }

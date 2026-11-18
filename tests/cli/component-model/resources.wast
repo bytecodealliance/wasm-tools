@@ -1332,3 +1332,16 @@
     (instance (instantiate $C (with "r" (type $R)) (with "c" (instance $c))))
   )
   "missing expected import `a::b`")
+
+;; The destructor must have exactly the canonical function type, so a
+;; non-final type with the right parameters and results is invalid.
+(assert_invalid
+  (component
+    (core module $m
+      (type $d (sub (func (param i32))))
+      (func (export "dtor") (type $d))
+    )
+    (core instance $m (instantiate $m))
+    (type $x (resource (rep i32) (dtor (core func $m "dtor"))))
+  )
+  "wrong signature for a destructor")

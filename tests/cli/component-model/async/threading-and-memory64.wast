@@ -70,4 +70,4 @@
     (alias core export $i "t" (core table $t))
     (core func $new (canon thread.new-indirect $start (core table $t)))
   )
-  "start function must take a single `i32` argument")
+  "start function has an incorrect type")

@@ -285,3 +285,44 @@
     "(func (export \"foo\") (canon lift (core func $f)))"
   )
   "unknown core func: failed to find name `$f`")
+
+;; Option functions must have exactly the canonical function type, so a
+;; non-final type with the right parameters and results is invalid.
+(assert_invalid
+  (component
+    (core module $m
+      (type $r (sub (func (param i32 i32 i32 i32) (result i32))))
+      (memory (export "m") 1)
+      (func (export "f") (param i32 i32))
+      (func (export "r") (type $r) unreachable)
+    )
+    (core instance $i (instantiate $m))
+    (func (param "p1" (list u8))
+      (canon lift (core func $i "f")
+        (memory (core memory $i "m"))
+        (realloc (core func $i "r"))
+      )
+    )
+  )
+  "canonical option `realloc` uses a core function with an incorrect signature")
+
+(assert_invalid
+  (component
+    (core module $m
+      (type $p (sub (func (param i32))))
+      (memory (export "m") 1)
+      (func (export "f") (result i32) unreachable)
+      (func (export "r") (param i32 i32 i32 i32) (result i32) unreachable)
+      (func (export "p") (type $p))
+    )
+    (core instance $i (instantiate $m))
+    (func (result string)
+      (canon lift (core func $i "f")
+        (memory (core memory $i "m"))
+        (realloc (core func $i "r"))
+        (post-return (core func $i "p"))
+      )
+    )
+  )
+  "canonical option `post-return` uses a core function with an incorrect signature")
+

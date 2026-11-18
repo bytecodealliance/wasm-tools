@@ -92,7 +92,7 @@
     (core instance $libc (instantiate $libc))
     (core func $new-indirect (canon thread.new-indirect $start (core table $libc "start-table")))
   )
-  "start function must take a single `i32` argument"
+  "start function has an incorrect type"
 )
 
 ;; thead.index
@@ -275,7 +275,7 @@
     (core instance $libc (instantiate $libc))
     (core func (canon thread.new-indirect $start (core table $libc "t")))
   )
-  "start function must take a single `i32` argument"
+  "start function has an incorrect type"
 )
 
 ;; 64-bit tables require cm64
@@ -287,4 +287,16 @@
     (core func (canon thread.new-indirect $start (core table $libc "t")))
   )
   "64-bit tables require the component model 64-bit feature"
+)
+
+;; The start function type must be exactly the canonical function type, so a
+;; non-final type with the right parameters and results is invalid.
+(assert_invalid
+  (component
+    (core type $start (sub (func (param i32))))
+    (core module $libc (table (export "start-table") 1 (ref null func)))
+    (core instance $libc (instantiate $libc))
+    (core func $new-indirect (canon thread.new-indirect $start (core table $libc "start-table")))
+  )
+  "start function has an incorrect type"
 )

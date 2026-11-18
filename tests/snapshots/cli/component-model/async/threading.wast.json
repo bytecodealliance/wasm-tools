@@ -73,7 +73,7 @@
       "line": 89,
       "filename": "threading.10.wasm",
       "module_type": "binary",
-      "text": "start function must take a single `i32` argument"
+      "text": "start function has an incorrect type"
     },
     {
       "type": "module",
@@ -183,7 +183,7 @@
       "line": 272,
       "filename": "threading.27.wasm",
       "module_type": "binary",
-      "text": "start function must take a single `i32` argument"
+      "text": "start function has an incorrect type"
     },
     {
       "type": "assert_invalid",
@@ -191,6 +191,13 @@
       "filename": "threading.28.wasm",
       "module_type": "binary",
       "text": "64-bit tables require the component model 64-bit feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 295,
+      "filename": "threading.29.wasm",
+      "module_type": "binary",
+      "text": "start function has an incorrect type"
     }
   ]
 }

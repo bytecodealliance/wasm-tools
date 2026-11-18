@@ -835,6 +835,13 @@
       "filename": "resources.125.wasm",
       "module_type": "binary",
       "text": "missing expected import `a::b`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1339,
+      "filename": "resources.126.wasm",
+      "module_type": "binary",
+      "text": "wrong signature for a destructor"
     }
   ]
 }
