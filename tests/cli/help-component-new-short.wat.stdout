@@ -23,6 +23,8 @@ Options:
       --adapt <[NAME=]MODULE>
           The path to an adapter module to satisfy imports not otherwise bound
           to WIT interfaces
+      --library <[NAME=]MODULE>
+          The path to a core wasm module to link into the component
       --validate[=<true|false>]
           Whether or not to validate the output component [possible values:
           true, false]
@@ -84,3 +86,14 @@ Examples:
     # is initialized.
     $ wasm-tools component new foo.wasm --realloc-via-memory-grow --adapt
     wasi_snapshot_preview1.reactor.wasm -o foo.component.wasm
+
+    # Link a core wasm module into the component. The linked module and the
+    # main module satisfy each other's imports: the linked module receives
+    # the main module as an instance named `env`, and the main module
+    # imports from the linked module's exports.
+    $ wasm-tools component new foo.wasm --library bar.wasm -o foo.component.wasm
+
+    # The `NAME=` prefix is optional; when omitted, it is inferred from the
+    # filename (e.g. `bar.wasm` implies the name `bar`).
+    $ wasm-tools component new foo.wasm --library bar=bar.wasm -o
+    foo.component.wasm
