@@ -219,11 +219,6 @@ impl PrimitiveValType {
         })
     }
 
-    #[cfg(feature = "validate")]
-    pub(crate) fn contains_ptr(&self) -> bool {
-        matches!(self, Self::String)
-    }
-
     /// Determines if primitive value type `a` is a subtype of `b`.
     pub fn is_subtype_of(a: Self, b: Self) -> bool {
         // Note that this intentionally diverges from the upstream specification
