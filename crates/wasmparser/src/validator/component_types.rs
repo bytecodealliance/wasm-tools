@@ -15,6 +15,7 @@ use crate::{
     Error, FuncType, GlobalType, MemoryType, PrimitiveValType, Result, TableType, ValType,
 };
 use alloc::borrow::Cow;
+use alloc::sync::Arc;
 use core::fmt;
 use core::ops::Index;
 use core::sync::atomic::{AtomicUsize, Ordering};
@@ -1045,7 +1046,7 @@ pub struct ComponentType {
     /// users to look at and inspect. Core types declared within this type,
     /// such as with `core type`, are listed here, and core module types
     /// nested within this type may refer to them through outer aliases.
-    pub core_types: Vec<ComponentCoreTypeId>,
+    pub core_types: Arc<[ComponentCoreTypeId]>,
 }
 
 /// Either an import or an export within [`ComponentType`] or
@@ -1137,7 +1138,7 @@ pub struct ComponentInstanceType {
     /// users to look at and inspect. Core types declared within this type,
     /// such as with `core type`, are listed here, and core module types
     /// nested within this type may refer to them through outer aliases.
-    pub core_types: Vec<ComponentCoreTypeId>,
+    pub core_types: Arc<[ComponentCoreTypeId]>,
 }
 
 impl TypeData for ComponentInstanceType {

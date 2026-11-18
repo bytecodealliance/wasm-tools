@@ -3149,7 +3149,7 @@ impl ComponentState {
                 .collect(),
 
             exports: mem::take(&mut state.exports),
-            core_types: mem::take(&mut state.core_types),
+            core_types: mem::take(&mut state.core_types).into(),
         })
     }
 
@@ -4594,7 +4594,7 @@ impl ComponentState {
             info: self.type_info,
             imports: self.imports.clone(),
             exports: self.exports.clone(),
-            core_types: self.core_types.clone(),
+            core_types: self.core_types.as_slice().into(),
 
             // This is filled in as a subset of `self.defined_resources`
             // depending on what's actually used by the exports. See the
