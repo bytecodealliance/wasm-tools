@@ -3601,7 +3601,9 @@ impl ComponentEncoder {
         for name in self.adapters.keys() {
             state.encode_exports(CustomModule::Adapter(name))?;
         }
-        state.component.append_names();
+        if self.debug_names {
+            state.component.append_names();
+        }
         state
             .component
             .raw_custom_section(&crate::base_producers().raw_custom_section());
