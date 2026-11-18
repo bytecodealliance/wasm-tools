@@ -312,3 +312,22 @@
     (with "b" (instance $i))
   ))
 )
+
+;; An `eq` bound requires type equality, so a subtype of an instance or
+;; component type doesn't satisfy it.
+(assert_invalid
+  (component
+    (type $t (instance (export "f" (func))))
+    (component $c
+      (type $empty (instance))
+      (import "t" (type (eq $empty))))
+    (instance (instantiate $c (with "t" (type $t)))))
+  "missing expected export `f`")
+(assert_invalid
+  (component
+    (type $t (component (export "f" (func))))
+    (component $c
+      (type $empty (component))
+      (import "t" (type (eq $empty))))
+    (instance (instantiate $c (with "t" (type $t)))))
+  "missing export named `f`")
