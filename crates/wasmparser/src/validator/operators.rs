@@ -459,6 +459,11 @@ impl OperatorValidator {
         mut ty: ValType,
         resources: &impl WasmModuleResources,
     ) -> Result<()> {
+        // Note that the type is validated even when `count` is zero. The spec
+        // says that a zero-count group declares no locals, so its type is
+        // never validated, but V8 and SpiderMonkey both validate it, and this
+        // matches them. See WebAssembly/spec#2258 for some more discussion, but
+        // in general it seems good to validate bytes present...
         resources.check_value_type(&mut ty, &self.features, offset)?;
         if count == 0 {
             return Ok(());
