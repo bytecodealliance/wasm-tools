@@ -734,10 +734,7 @@ impl TypeData for ComponentValType {
 
 impl ComponentValType {
     pub(crate) fn contains_ptr(&self, types: &TypeList) -> bool {
-        match self {
-            ComponentValType::Primitive(ty) => ty.contains_ptr(),
-            ComponentValType::Type(ty) => types[*ty].contains_ptr(types),
-        }
+        self.abi(types).contains_ptr()
     }
 
     fn push_wasm_types(
@@ -1686,7 +1683,7 @@ impl TypeData for ComponentDefinedType {
 
 /// ABI information about defined value types in the component model.
 ///
-/// This is packed into a single `u32` as it's stored on every defined type:
+/// This is packed into a single `u64` as it's stored on every defined type:
 ///
 /// * bits 0..28 - the worst-case `elem_size(cx, t)`, the number of bytes a
 ///   value of this type takes up when stored in a 64-bit linear memory with
@@ -1706,33 +1703,41 @@ impl TypeData for ComponentDefinedType {
 /// * bit 31 - whether or not this type transitively contains a handle: an
 ///   `own`, `borrow`, `future`, `stream` or `error-context`. Used to validate
 ///   that map values don't contain handles.
+///
+/// * bit 32 - whether or not this type transitively contains a pointer into
+///   linear memory: a `string`, `list` or `map`. Used to determine whether
+///   the `memory` and `realloc` canonical options are required.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[doc(hidden)]
-pub struct AbiInfo(u32);
+pub struct AbiInfo(u64);
 
 impl AbiInfo {
     const ELEM_SIZE_BITS: u32 = 28;
     const ALIGN_LOG2_BITS: u32 = 2;
     const CONTAINS_BORROW_BITS: u32 = 1;
     const CONTAINS_HANDLE_BITS: u32 = 1;
+    const CONTAINS_PTR_BITS: u32 = 1;
 
     const ELEM_SIZE_OFFSET: u32 = 0;
     const ALIGN_LOG2_OFFSET: u32 = Self::ELEM_SIZE_OFFSET + Self::ELEM_SIZE_BITS;
     const CONTAINS_BORROW_OFFSET: u32 = Self::ALIGN_LOG2_OFFSET + Self::ALIGN_LOG2_BITS;
     const CONTAINS_HANDLE_OFFSET: u32 = Self::CONTAINS_BORROW_OFFSET + Self::CONTAINS_BORROW_BITS;
+    const CONTAINS_PTR_OFFSET: u32 = Self::CONTAINS_HANDLE_OFFSET + Self::CONTAINS_HANDLE_BITS;
 
-    const ELEM_SIZE_MASK: u32 = ((1 << Self::ELEM_SIZE_BITS) - 1) << Self::ELEM_SIZE_OFFSET;
-    const ALIGN_LOG2_MASK: u32 = ((1 << Self::ALIGN_LOG2_BITS) - 1) << Self::ALIGN_LOG2_OFFSET;
-    const CONTAINS_BORROW_MASK: u32 =
+    const ELEM_SIZE_MASK: u64 = ((1 << Self::ELEM_SIZE_BITS) - 1) << Self::ELEM_SIZE_OFFSET;
+    const ALIGN_LOG2_MASK: u64 = ((1 << Self::ALIGN_LOG2_BITS) - 1) << Self::ALIGN_LOG2_OFFSET;
+    const CONTAINS_BORROW_MASK: u64 =
         ((1 << Self::CONTAINS_BORROW_BITS) - 1) << Self::CONTAINS_BORROW_OFFSET;
-    const CONTAINS_HANDLE_MASK: u32 =
+    const CONTAINS_HANDLE_MASK: u64 =
         ((1 << Self::CONTAINS_HANDLE_BITS) - 1) << Self::CONTAINS_HANDLE_OFFSET;
+    const CONTAINS_PTR_MASK: u64 =
+        ((1 << Self::CONTAINS_PTR_BITS) - 1) << Self::CONTAINS_PTR_OFFSET;
 
-    const BOOL: AbiInfo = AbiInfo::new_unchecked(1, 1, false);
-    const U8: AbiInfo = AbiInfo::new_unchecked(1, 1, false);
-    const U16: AbiInfo = AbiInfo::new_unchecked(2, 2, false);
-    const U32: AbiInfo = AbiInfo::new_unchecked(4, 4, false);
-    const U64: AbiInfo = AbiInfo::new_unchecked(8, 8, false);
+    const BOOL: AbiInfo = AbiInfo::new_unchecked(1, 1);
+    const U8: AbiInfo = AbiInfo::new_unchecked(1, 1);
+    const U16: AbiInfo = AbiInfo::new_unchecked(2, 2);
+    const U32: AbiInfo = AbiInfo::new_unchecked(4, 4);
+    const U64: AbiInfo = AbiInfo::new_unchecked(8, 8);
     const S8: AbiInfo = AbiInfo::U8;
     const S16: AbiInfo = AbiInfo::U16;
     const S32: AbiInfo = AbiInfo::U32;
@@ -1741,14 +1746,16 @@ impl AbiInfo {
     const F64: AbiInfo = AbiInfo::U64;
     const CHAR: AbiInfo = AbiInfo::U32;
     const ERROR_CONTEXT: AbiInfo = AbiInfo::U32.with_handle(true);
-    const PTR_PAIR: AbiInfo = AbiInfo::new_unchecked(16, 8, false);
+    const PTR_PAIR: AbiInfo = AbiInfo::new_unchecked(16, 8).with_ptr(true);
     // Handles by default are all `i32` and encompasses things like own<T>,
     // futures, streams, etc.
-    const HANDLE: AbiInfo = AbiInfo::new_unchecked(4, 4, false).with_handle(true);
+    const HANDLE: AbiInfo = AbiInfo::new_unchecked(4, 4).with_handle(true);
     // Borrows are notably 8-bytes large instead of 4 like HANDLE above because
     // the rep of a resource might be `i64` which is what a defining component
     // would receive.
-    const BORROW: AbiInfo = AbiInfo::new_unchecked(8, 8, true).with_handle(true);
+    const BORROW: AbiInfo = AbiInfo::new_unchecked(8, 8)
+        .with_borrow(true)
+        .with_handle(true);
 
     pub(crate) fn primitive(ty: PrimitiveValType) -> AbiInfo {
         match ty {
@@ -1792,19 +1799,21 @@ impl AbiInfo {
     pub(crate) fn record(fields: impl Iterator<Item = AbiInfo>, offset: u64) -> Result<AbiInfo> {
         let mut size = 0;
         let mut align = 1;
+        let mut contains_ptr = false;
         let mut contains_borrow = false;
         let mut contains_handle = false;
         for field in fields {
             size = align_to(size, field.alignment()) + u64::from(field.elem_size());
             align = align.max(field.alignment());
+            contains_ptr |= field.contains_ptr();
             contains_borrow |= field.contains_borrow();
             contains_handle |= field.contains_handle();
         }
         debug_assert!(size > 0);
-        Ok(
-            AbiInfo::new(align_to(size, align), align, contains_borrow, offset)?
-                .with_handle(contains_handle),
-        )
+        Ok(AbiInfo::new(align_to(size, align), align, offset)?
+            .with_ptr(contains_ptr)
+            .with_borrow(contains_borrow)
+            .with_handle(contains_handle))
     }
 
     pub(crate) fn variant(
@@ -1814,20 +1823,22 @@ impl AbiInfo {
         let discriminant = AbiInfo::discriminant(payloads.len());
         let mut payload_size = 0;
         let mut payload_align = 1;
+        let mut contains_ptr = false;
         let mut contains_borrow = false;
         let mut contains_handle = false;
         for payload in payloads.flatten() {
             payload_size = payload_size.max(u64::from(payload.elem_size()));
             payload_align = payload_align.max(payload.alignment());
+            contains_ptr |= payload.contains_ptr();
             contains_borrow |= payload.contains_borrow();
             contains_handle |= payload.contains_handle();
         }
         let align = discriminant.alignment().max(payload_align);
         let size = align_to(u64::from(discriminant.elem_size()), payload_align) + payload_size;
-        Ok(
-            AbiInfo::new(align_to(size, align), align, contains_borrow, offset)?
-                .with_handle(contains_handle),
-        )
+        Ok(AbiInfo::new(align_to(size, align), align, offset)?
+            .with_ptr(contains_ptr)
+            .with_borrow(contains_borrow)
+            .with_handle(contains_handle))
     }
 
     pub(crate) fn list(element: AbiInfo) -> AbiInfo {
@@ -1846,10 +1857,10 @@ impl AbiInfo {
         // Note that this multiplication cannot overflow since it's a 32x32-bit
         // multiplication done in the 64-bit integer space.
         let size = u64::from(element.elem_size()) * u64::from(length);
-        Ok(
-            AbiInfo::new(size, element.alignment(), element.contains_borrow(), offset)?
-                .with_handle(element.contains_handle()),
-        )
+        Ok(AbiInfo::new(size, element.alignment(), offset)?
+            .with_ptr(element.contains_ptr())
+            .with_borrow(element.contains_borrow())
+            .with_handle(element.contains_handle()))
     }
 
     pub(crate) fn future_or_stream(payload: Option<AbiInfo>) -> AbiInfo {
@@ -1861,49 +1872,60 @@ impl AbiInfo {
 
     /// Creates an `AbiInfo` of `size` bytes with an alignment of `align`, returning
     /// an error if the size is at or above the component model's limit.
-    fn new(size: u64, align: u32, contains_borrow: bool, offset: u64) -> Result<AbiInfo> {
+    fn new(size: u64, align: u32, offset: u64) -> Result<AbiInfo> {
         if size >= u64::from(MAX_WASM_VALUE_TYPE_BYTE_SIZE) {
             bail!(
                 offset,
                 "value type's maximum in-memory size exceeds maximum byte size"
             );
         }
-        Ok(AbiInfo::new_unchecked(size as u32, align, contains_borrow))
+        Ok(AbiInfo::new_unchecked(size as u32, align))
     }
 
     /// Same as `new` but for sizes which are statically known to be in-bounds.
-    const fn new_unchecked(size: u32, align: u32, contains_borrow: bool) -> AbiInfo {
+    const fn new_unchecked(size: u32, align: u32) -> AbiInfo {
         debug_assert!(size < MAX_WASM_VALUE_TYPE_BYTE_SIZE);
         debug_assert!(align.is_power_of_two() && align <= 8);
         AbiInfo(
-            (size << Self::ELEM_SIZE_OFFSET)
-                | (align.trailing_zeros() << Self::ALIGN_LOG2_OFFSET)
-                | ((contains_borrow as u32) << Self::CONTAINS_BORROW_OFFSET),
+            ((size as u64) << Self::ELEM_SIZE_OFFSET)
+                | ((align.trailing_zeros() as u64) << Self::ALIGN_LOG2_OFFSET),
+        )
+    }
+
+    const fn with_ptr(&self, contains_ptr: bool) -> AbiInfo {
+        AbiInfo(
+            (self.0 & !Self::CONTAINS_PTR_MASK)
+                | ((contains_ptr as u64) << Self::CONTAINS_PTR_OFFSET),
         )
     }
 
     const fn with_borrow(&self, contains_borrow: bool) -> AbiInfo {
         AbiInfo(
             (self.0 & !Self::CONTAINS_BORROW_MASK)
-                | ((contains_borrow as u32) << Self::CONTAINS_BORROW_OFFSET),
+                | ((contains_borrow as u64) << Self::CONTAINS_BORROW_OFFSET),
         )
     }
 
     const fn with_handle(&self, contains_handle: bool) -> AbiInfo {
         AbiInfo(
             (self.0 & !Self::CONTAINS_HANDLE_MASK)
-                | ((contains_handle as u32) << Self::CONTAINS_HANDLE_OFFSET),
+                | ((contains_handle as u64) << Self::CONTAINS_HANDLE_OFFSET),
         )
     }
 
     /// The size of this value as it resides in a 64-bit linear memory.
     fn elem_size(&self) -> u32 {
-        (self.0 & Self::ELEM_SIZE_MASK) >> Self::ELEM_SIZE_OFFSET
+        ((self.0 & Self::ELEM_SIZE_MASK) >> Self::ELEM_SIZE_OFFSET) as u32
     }
 
     /// The alignment of this value as it resides in a 64-bit linear memory.
     fn alignment(&self) -> u32 {
-        1 << ((self.0 & Self::ALIGN_LOG2_MASK) >> Self::ALIGN_LOG2_OFFSET)
+        1 << (((self.0 & Self::ALIGN_LOG2_MASK) >> Self::ALIGN_LOG2_OFFSET) as u32)
+    }
+
+    /// Whether this type transitively contains a pointer into linear memory.
+    pub(crate) fn contains_ptr(&self) -> bool {
+        (self.0 & Self::CONTAINS_PTR_MASK) != 0
     }
 
     /// Whether this type transitively contains a `borrow`.
@@ -1947,32 +1969,6 @@ impl ComponentDefinedType {
             | Self::Result { abi, .. }
             | Self::Future { abi, .. }
             | Self::Stream { abi, .. } => *abi,
-        }
-    }
-
-    pub(crate) fn contains_ptr(&self, types: &TypeList) -> bool {
-        match self {
-            Self::Primitive(ty) => ty.contains_ptr(),
-            Self::Record(r) => r.fields.values().any(|ty| ty.contains_ptr(types)),
-            Self::Variant(v) => v
-                .cases
-                .values()
-                .any(|case| case.ty.map(|ty| ty.contains_ptr(types)).unwrap_or(false)),
-            Self::List { .. } | Self::Map { .. } => true,
-            Self::Tuple(t) => t.types.iter().any(|ty| ty.contains_ptr(types)),
-            Self::Flags(_)
-            | Self::Enum(_)
-            | Self::Own(_)
-            | Self::Borrow(_)
-            | Self::Future { .. }
-            | Self::Stream { .. } => false,
-            Self::Option { ty, .. } | Self::FixedLengthList { element: ty, .. } => {
-                ty.contains_ptr(types)
-            }
-            Self::Result { ok, err, .. } => {
-                ok.map(|ty| ty.contains_ptr(types)).unwrap_or(false)
-                    || err.map(|ty| ty.contains_ptr(types)).unwrap_or(false)
-            }
         }
     }
 
