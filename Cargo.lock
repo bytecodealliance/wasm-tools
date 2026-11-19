@@ -17,7 +17,7 @@ version = "0.27.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e567177890eb1617b1f774005b66b26b2377afd138a2ca37aae7d8f0c81429d4"
 dependencies = [
- "cpp_demangle",
+ "cpp_demangle 0.5.1",
  "fallible-iterator",
  "gimli 0.34.0",
  "memmap2",
@@ -450,6 +450,15 @@ name = "cpp_demangle"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0667304c32ea56cb4cd6d2d7c0cfe9a2f8041229db8c033af7f8d69492429def"
+dependencies = [
+ "cfg-if",
+]
+
+[[package]]
+name = "cpp_demangle"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b0fa7b695ebf7023a5af95490233db9d2987c212ce56ec1cf831763f9deaf80"
 dependencies = [
  "cfg-if",
 ]
@@ -2480,7 +2489,7 @@ dependencies = [
  "clap",
  "clap_complete",
  "comfy-table",
- "cpp_demangle",
+ "cpp_demangle 0.6.0",
  "env_logger",
  "gimli 0.34.0",
  "indexmap 2.14.2",
@@ -2683,7 +2692,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34fd44c205ef29cc3c254253dceb916be586887602e0e380361ed022776cfc10"
 dependencies = [
  "anyhow",
- "cpp_demangle",
+ "cpp_demangle 0.5.1",
  "cranelift-bforest",
  "cranelift-bitset",
  "cranelift-entity",
