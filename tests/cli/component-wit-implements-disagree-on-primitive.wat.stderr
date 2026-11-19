@@ -1,0 +1,4 @@
+error: failed to decode WIT from import `y`
+
+Caused by:
+    0: cannot represent this component in WIT: a type is primitive here but not in another use of its interface
