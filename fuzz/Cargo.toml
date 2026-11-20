@@ -22,7 +22,7 @@ wasmparser = { workspace = true, features = ['std', 'features'] }
 wasmprinter = { workspace = true, features = ['component-model'] }
 wasmtime = { workspace = true, optional = true }
 wast = { workspace = true }
-wat = { workspace = true }
+wat = { workspace = true, features = ['component-model'] }
 wit-component = { workspace = true, features = ['dummy-module'] }
 wit-parser = { workspace = true }
 wit-smith = { workspace = true }
