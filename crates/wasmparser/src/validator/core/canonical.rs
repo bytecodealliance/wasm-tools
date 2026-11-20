@@ -310,6 +310,12 @@ pub(crate) trait InternRecGroup {
                     "descriptor and described type must have the same finality",
                 );
             }
+            if types[id].composite_type.shared != types[descriptor_idx].composite_type.shared {
+                bail!(
+                    offset,
+                    "descriptor and described type must have the same sharedness",
+                );
+            }
         }
         Ok(())
     }

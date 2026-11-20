@@ -1,0 +1,26 @@
+(module
+  (type $any (;0;) (array (mut anyref)))
+  (type $eq (;1;) (array (mut eqref)))
+  (type (;2;) (func (param (ref $any) (ref $eq) anyref eqref)))
+  (func (;0;) (type 2) (param $a (ref $any)) (param $b (ref $eq)) (param $x anyref) (param $y eqref)
+    local.get $a
+    i32.const 0
+    array.atomic.get seqcst $any
+    drop
+    local.get $a
+    i32.const 0
+    local.get $x
+    array.atomic.set seqcst $any
+    local.get $a
+    i32.const 0
+    local.get $x
+    array.atomic.rmw.xchg seqcst $any
+    drop
+    local.get $b
+    i32.const 0
+    local.get $y
+    local.get $y
+    array.atomic.rmw.cmpxchg seqcst $eq
+    drop
+  )
+)

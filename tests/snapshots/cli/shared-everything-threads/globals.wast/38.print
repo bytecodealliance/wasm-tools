@@ -1,0 +1,18 @@
+(module
+  (type (;0;) (func (param (ref null (shared any)) (ref null (shared eq)))))
+  (global $any (;0;) (shared mut (ref null (shared any))) ref.null (shared any))
+  (global $eq (;1;) (shared mut (ref null (shared eq))) ref.null (shared eq))
+  (func (;0;) (type 0) (param $x (ref null (shared any))) (param $y (ref null (shared eq)))
+    global.atomic.get seqcst $any
+    drop
+    local.get $x
+    global.atomic.set seqcst $any
+    local.get $x
+    global.atomic.rmw.xchg seqcst $any
+    drop
+    local.get $y
+    local.get $y
+    global.atomic.rmw.cmpxchg seqcst $eq
+    drop
+  )
+)

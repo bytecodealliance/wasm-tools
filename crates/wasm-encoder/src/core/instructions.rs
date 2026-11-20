@@ -1,8 +1,8 @@
 #[allow(unused_imports)]
 use crate::Instruction;
 use crate::{
-    BlockType, Catch, Encode, Handle, HeapType, Ieee32, Ieee64, Lane, MemArg, Ordering, RefType,
-    ValType, encode_vec,
+    BlockType, Catch, Encode, Handle, HeapType, Ieee32, Ieee64, Lane, MemArg, MemArgOrdering,
+    Ordering, RefType, ValType, encode_vec,
 };
 use alloc::vec::Vec;
 
@@ -4161,7 +4161,7 @@ impl<'a> InstructionSink<'a> {
     pub fn global_atomic_rmw_add(&mut self, ordering: Ordering, global_index: u32) -> &mut Self {
         self.sink.push(0xFE);
         self.sink.push(0x51);
-        ordering.encode(self.sink);
+        MemArgOrdering::Rmw(ordering).encode(self.sink);
         global_index.encode(self.sink);
         self
     }
@@ -4170,7 +4170,7 @@ impl<'a> InstructionSink<'a> {
     pub fn global_atomic_rmw_sub(&mut self, ordering: Ordering, global_index: u32) -> &mut Self {
         self.sink.push(0xFE);
         self.sink.push(0x52);
-        ordering.encode(self.sink);
+        MemArgOrdering::Rmw(ordering).encode(self.sink);
         global_index.encode(self.sink);
         self
     }
@@ -4179,7 +4179,7 @@ impl<'a> InstructionSink<'a> {
     pub fn global_atomic_rmw_and(&mut self, ordering: Ordering, global_index: u32) -> &mut Self {
         self.sink.push(0xFE);
         self.sink.push(0x53);
-        ordering.encode(self.sink);
+        MemArgOrdering::Rmw(ordering).encode(self.sink);
         global_index.encode(self.sink);
         self
     }
@@ -4188,7 +4188,7 @@ impl<'a> InstructionSink<'a> {
     pub fn global_atomic_rmw_or(&mut self, ordering: Ordering, global_index: u32) -> &mut Self {
         self.sink.push(0xFE);
         self.sink.push(0x54);
-        ordering.encode(self.sink);
+        MemArgOrdering::Rmw(ordering).encode(self.sink);
         global_index.encode(self.sink);
         self
     }
@@ -4197,7 +4197,7 @@ impl<'a> InstructionSink<'a> {
     pub fn global_atomic_rmw_xor(&mut self, ordering: Ordering, global_index: u32) -> &mut Self {
         self.sink.push(0xFE);
         self.sink.push(0x55);
-        ordering.encode(self.sink);
+        MemArgOrdering::Rmw(ordering).encode(self.sink);
         global_index.encode(self.sink);
         self
     }
@@ -4206,7 +4206,7 @@ impl<'a> InstructionSink<'a> {
     pub fn global_atomic_rmw_xchg(&mut self, ordering: Ordering, global_index: u32) -> &mut Self {
         self.sink.push(0xFE);
         self.sink.push(0x56);
-        ordering.encode(self.sink);
+        MemArgOrdering::Rmw(ordering).encode(self.sink);
         global_index.encode(self.sink);
         self
     }
@@ -4219,7 +4219,7 @@ impl<'a> InstructionSink<'a> {
     ) -> &mut Self {
         self.sink.push(0xFE);
         self.sink.push(0x57);
-        ordering.encode(self.sink);
+        MemArgOrdering::Rmw(ordering).encode(self.sink);
         global_index.encode(self.sink);
         self
     }
@@ -4246,7 +4246,7 @@ impl<'a> InstructionSink<'a> {
     pub fn table_atomic_rmw_xchg(&mut self, ordering: Ordering, table_index: u32) -> &mut Self {
         self.sink.push(0xFE);
         self.sink.push(0x5A);
-        ordering.encode(self.sink);
+        MemArgOrdering::Rmw(ordering).encode(self.sink);
         table_index.encode(self.sink);
         self
     }
@@ -4255,7 +4255,7 @@ impl<'a> InstructionSink<'a> {
     pub fn table_atomic_rmw_cmpxchg(&mut self, ordering: Ordering, table_index: u32) -> &mut Self {
         self.sink.push(0xFE);
         self.sink.push(0x5B);
-        ordering.encode(self.sink);
+        MemArgOrdering::Rmw(ordering).encode(self.sink);
         table_index.encode(self.sink);
         self
     }
@@ -4329,7 +4329,7 @@ impl<'a> InstructionSink<'a> {
     ) -> &mut Self {
         self.sink.push(0xFE);
         self.sink.push(0x60);
-        ordering.encode(self.sink);
+        MemArgOrdering::Rmw(ordering).encode(self.sink);
         struct_type_index.encode(self.sink);
         field_index.encode(self.sink);
         self
@@ -4344,7 +4344,7 @@ impl<'a> InstructionSink<'a> {
     ) -> &mut Self {
         self.sink.push(0xFE);
         self.sink.push(0x61);
-        ordering.encode(self.sink);
+        MemArgOrdering::Rmw(ordering).encode(self.sink);
         struct_type_index.encode(self.sink);
         field_index.encode(self.sink);
         self
@@ -4359,7 +4359,7 @@ impl<'a> InstructionSink<'a> {
     ) -> &mut Self {
         self.sink.push(0xFE);
         self.sink.push(0x62);
-        ordering.encode(self.sink);
+        MemArgOrdering::Rmw(ordering).encode(self.sink);
         struct_type_index.encode(self.sink);
         field_index.encode(self.sink);
         self
@@ -4374,7 +4374,7 @@ impl<'a> InstructionSink<'a> {
     ) -> &mut Self {
         self.sink.push(0xFE);
         self.sink.push(0x63);
-        ordering.encode(self.sink);
+        MemArgOrdering::Rmw(ordering).encode(self.sink);
         struct_type_index.encode(self.sink);
         field_index.encode(self.sink);
         self
@@ -4389,7 +4389,7 @@ impl<'a> InstructionSink<'a> {
     ) -> &mut Self {
         self.sink.push(0xFE);
         self.sink.push(0x64);
-        ordering.encode(self.sink);
+        MemArgOrdering::Rmw(ordering).encode(self.sink);
         struct_type_index.encode(self.sink);
         field_index.encode(self.sink);
         self
@@ -4404,7 +4404,7 @@ impl<'a> InstructionSink<'a> {
     ) -> &mut Self {
         self.sink.push(0xFE);
         self.sink.push(0x65);
-        ordering.encode(self.sink);
+        MemArgOrdering::Rmw(ordering).encode(self.sink);
         struct_type_index.encode(self.sink);
         field_index.encode(self.sink);
         self
@@ -4419,7 +4419,7 @@ impl<'a> InstructionSink<'a> {
     ) -> &mut Self {
         self.sink.push(0xFE);
         self.sink.push(0x66);
-        ordering.encode(self.sink);
+        MemArgOrdering::Rmw(ordering).encode(self.sink);
         struct_type_index.encode(self.sink);
         field_index.encode(self.sink);
         self
@@ -4465,7 +4465,7 @@ impl<'a> InstructionSink<'a> {
     pub fn array_atomic_rmw_add(&mut self, ordering: Ordering, array_type_index: u32) -> &mut Self {
         self.sink.push(0xFE);
         self.sink.push(0x6B);
-        ordering.encode(self.sink);
+        MemArgOrdering::Rmw(ordering).encode(self.sink);
         array_type_index.encode(self.sink);
         self
     }
@@ -4474,7 +4474,7 @@ impl<'a> InstructionSink<'a> {
     pub fn array_atomic_rmw_sub(&mut self, ordering: Ordering, array_type_index: u32) -> &mut Self {
         self.sink.push(0xFE);
         self.sink.push(0x6C);
-        ordering.encode(self.sink);
+        MemArgOrdering::Rmw(ordering).encode(self.sink);
         array_type_index.encode(self.sink);
         self
     }
@@ -4483,7 +4483,7 @@ impl<'a> InstructionSink<'a> {
     pub fn array_atomic_rmw_and(&mut self, ordering: Ordering, array_type_index: u32) -> &mut Self {
         self.sink.push(0xFE);
         self.sink.push(0x6D);
-        ordering.encode(self.sink);
+        MemArgOrdering::Rmw(ordering).encode(self.sink);
         array_type_index.encode(self.sink);
         self
     }
@@ -4492,7 +4492,7 @@ impl<'a> InstructionSink<'a> {
     pub fn array_atomic_rmw_or(&mut self, ordering: Ordering, array_type_index: u32) -> &mut Self {
         self.sink.push(0xFE);
         self.sink.push(0x6E);
-        ordering.encode(self.sink);
+        MemArgOrdering::Rmw(ordering).encode(self.sink);
         array_type_index.encode(self.sink);
         self
     }
@@ -4501,7 +4501,7 @@ impl<'a> InstructionSink<'a> {
     pub fn array_atomic_rmw_xor(&mut self, ordering: Ordering, array_type_index: u32) -> &mut Self {
         self.sink.push(0xFE);
         self.sink.push(0x6F);
-        ordering.encode(self.sink);
+        MemArgOrdering::Rmw(ordering).encode(self.sink);
         array_type_index.encode(self.sink);
         self
     }
@@ -4514,7 +4514,7 @@ impl<'a> InstructionSink<'a> {
     ) -> &mut Self {
         self.sink.push(0xFE);
         self.sink.push(0x70);
-        ordering.encode(self.sink);
+        MemArgOrdering::Rmw(ordering).encode(self.sink);
         array_type_index.encode(self.sink);
         self
     }
@@ -4527,15 +4527,15 @@ impl<'a> InstructionSink<'a> {
     ) -> &mut Self {
         self.sink.push(0xFE);
         self.sink.push(0x71);
-        ordering.encode(self.sink);
+        MemArgOrdering::Rmw(ordering).encode(self.sink);
         array_type_index.encode(self.sink);
         self
     }
 
     /// Encode [`Instruction::RefI31Shared`].
     pub fn ref_i31_shared(&mut self) -> &mut Self {
-        self.sink.push(0xFE);
-        self.sink.push(0x72);
+        self.sink.push(0xFB);
+        self.sink.push(0x1F);
         self
     }
 

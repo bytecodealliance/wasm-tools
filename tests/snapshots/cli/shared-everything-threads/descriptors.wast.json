@@ -1,0 +1,25 @@
+{
+  "source_filename": "tests/cli/shared-everything-threads/descriptors.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 4,
+      "filename": "descriptors.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 11,
+      "filename": "descriptors.1.wasm",
+      "module_type": "binary",
+      "text": "descriptor and described type must have the same sharedness"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 19,
+      "filename": "descriptors.2.wasm",
+      "module_type": "binary",
+      "text": "descriptor and described type must have the same sharedness"
+    }
+  ]
+}

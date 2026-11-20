@@ -356,16 +356,19 @@ impl<'a> Encoder<'a> {
                 }
                 CoreFuncKind::ThreadSpawnRef(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.thread_spawn_ref(info.ty.idx.into());
+                    self.funcs.thread_spawn_ref(info.shared, info.ty.idx.into());
                 }
                 CoreFuncKind::ThreadSpawnIndirect(info) => {
                     self.core_func_names.push(name);
-                    self.funcs
-                        .thread_spawn_indirect(info.ty.idx.into(), info.table.idx.into());
+                    self.funcs.thread_spawn_indirect(
+                        info.shared,
+                        info.ty.idx.into(),
+                        info.table.idx.into(),
+                    );
                 }
-                CoreFuncKind::ThreadAvailableParallelism(_info) => {
+                CoreFuncKind::ThreadAvailableParallelism(info) => {
                     self.core_func_names.push(name);
-                    self.funcs.thread_available_parallelism();
+                    self.funcs.thread_available_parallelism(info.shared);
                 }
                 CoreFuncKind::BackpressureInc => {
                     self.core_func_names.push(name);

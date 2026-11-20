@@ -1,0 +1,12 @@
+(module
+  (type $e (;0;) (shared (struct)))
+  (type $a (;1;) (shared (array (mut (ref null $e)))))
+  (type (;2;) (func (param (ref $a) (ref null (shared eq)) (ref null $e)) (result (ref null $e))))
+  (func (;0;) (type 2) (param $a (ref $a)) (param $expected (ref null (shared eq))) (param $replacement (ref null $e)) (result (ref null $e))
+    local.get $a
+    i32.const 0
+    local.get $expected
+    local.get $replacement
+    array.atomic.rmw.cmpxchg seqcst $a
+  )
+)

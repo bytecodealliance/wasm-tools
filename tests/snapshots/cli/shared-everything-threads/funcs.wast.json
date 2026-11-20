@@ -41,6 +41,80 @@
       "filename": "funcs.5.wasm",
       "module_type": "binary",
       "text": "shared functions cannot access unshared structs"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 70,
+      "filename": "funcs.6.wasm",
+      "module_type": "binary",
+      "text": "shared functions cannot access unshared memories"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 79,
+      "filename": "funcs.7.wasm",
+      "module_type": "binary",
+      "text": "shared functions cannot access unshared memories"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 90,
+      "filename": "funcs.8.wasm",
+      "module_type": "binary",
+      "text": "shared functions cannot access unshared functions"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 103,
+      "filename": "funcs.9.wasm",
+      "module_type": "binary",
+      "text": "shared functions cannot access unshared tags"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 115,
+      "filename": "funcs.10.wasm",
+      "module_type": "binary",
+      "text": "shared functions cannot use unshared value types"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 121,
+      "filename": "funcs.11.wasm",
+      "module_type": "binary",
+      "text": "shared functions cannot use unshared value types"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 129,
+      "filename": "funcs.12.wasm",
+      "module_type": "binary",
+      "text": "shared functions cannot use unshared value types"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 137,
+      "filename": "funcs.13.wasm",
+      "module_type": "binary",
+      "text": "shared functions cannot use unshared value types"
+    },
+    {
+      "type": "module",
+      "line": 146,
+      "filename": "funcs.14.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 158,
+      "filename": "funcs.15.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 169,
+      "filename": "funcs.16.wasm",
+      "module_type": "binary"
     }
   ]
 }

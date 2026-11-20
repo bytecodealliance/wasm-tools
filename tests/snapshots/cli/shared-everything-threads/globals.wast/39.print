@@ -1,0 +1,10 @@
+(module
+  (type $s (;0;) (struct))
+  (type (;1;) (func (param eqref (ref null $s)) (result (ref null $s))))
+  (global $g (;0;) (mut (ref null $s)) ref.null $s)
+  (func (;0;) (type 1) (param $expected eqref) (param $replacement (ref null $s)) (result (ref null $s))
+    local.get $expected
+    local.get $replacement
+    global.atomic.rmw.cmpxchg seqcst $g
+  )
+)

@@ -969,23 +969,36 @@ impl Printer<'_, '_> {
                         me.print_idx(&state.component.type_names, resource)
                     })?;
                 }
-                CanonicalFunction::ThreadSpawnRef { func_ty_index } => {
+                CanonicalFunction::ThreadSpawnRef {
+                    shared,
+                    func_ty_index,
+                } => {
                     self.print_intrinsic(state, "canon thread.spawn-ref ", &|me, state| {
+                        if shared {
+                            me.result.write_str("shared ")?;
+                        }
                         me.print_idx(&state.core.type_names, func_ty_index)
                     })?;
                 }
                 CanonicalFunction::ThreadSpawnIndirect {
+                    shared,
                     func_ty_index,
                     table_index,
                 } => {
                     self.print_intrinsic(state, "canon thread.spawn-indirect ", &|me, state| {
+                        if shared {
+                            me.result.write_str("shared ")?;
+                        }
                         me.print_idx(&state.core.type_names, func_ty_index)?;
                         me.result.write_str(" ")?;
                         me.print_idx(&state.core.table_names, table_index)
                     })?;
                 }
-                CanonicalFunction::ThreadAvailableParallelism => {
-                    self.print_intrinsic(state, "canon thread.available_parallelism", &|_, _| {
+                CanonicalFunction::ThreadAvailableParallelism { shared } => {
+                    self.print_intrinsic(state, "canon thread.available_parallelism", &|me, _| {
+                        if shared {
+                            me.result.write_str(" shared")?;
+                        }
                         Ok(())
                     })?;
                 }

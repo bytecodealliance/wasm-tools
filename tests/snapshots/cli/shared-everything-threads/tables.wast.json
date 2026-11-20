@@ -87,6 +87,18 @@
       "filename": "tables.12.wasm",
       "module_type": "binary",
       "text": "invalid type: `table.atomic.rmw.xchg` only allows subtypes of `anyref`"
+    },
+    {
+      "type": "module",
+      "line": 211,
+      "filename": "tables.13.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 224,
+      "filename": "tables.14.wasm",
+      "module_type": "binary"
     }
   ]
 }

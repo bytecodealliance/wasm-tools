@@ -1247,15 +1247,17 @@ impl ComponentState {
             CanonicalFunction::ResourceRep { resource } => {
                 self.resource_rep(resource, types, offset)
             }
-            CanonicalFunction::ThreadSpawnRef { func_ty_index } => {
-                self.thread_spawn_ref(func_ty_index, types, offset)
-            }
+            CanonicalFunction::ThreadSpawnRef {
+                shared,
+                func_ty_index,
+            } => self.thread_spawn_ref(shared, func_ty_index, types, offset),
             CanonicalFunction::ThreadSpawnIndirect {
+                shared,
                 func_ty_index,
                 table_index,
-            } => self.thread_spawn_indirect(func_ty_index, table_index, types, offset),
-            CanonicalFunction::ThreadAvailableParallelism => {
-                self.thread_available_parallelism(types, offset)
+            } => self.thread_spawn_indirect(shared, func_ty_index, table_index, types, offset),
+            CanonicalFunction::ThreadAvailableParallelism { shared } => {
+                self.thread_available_parallelism(shared, types, offset)
             }
             CanonicalFunction::BackpressureInc => self.backpressure_inc(types, offset),
             CanonicalFunction::BackpressureDec => self.backpressure_dec(types, offset),
@@ -2404,6 +2406,7 @@ impl ComponentState {
 
     fn thread_spawn_ref(
         &mut self,
+        shared: bool,
         func_ty_index: u32,
         types: &mut TypeAlloc,
         offset: u64,
@@ -2421,7 +2424,7 @@ impl ComponentState {
         })?;
         let start_func_ref = RefType::concrete(true, packed_index);
         let func_ty = FuncType::new([ValType::Ref(start_func_ref), ValType::I32], [ValType::I32]);
-        let core_ty = SubType::func(func_ty, true);
+        let core_ty = SubType::func(func_ty, shared);
         let id = types.intern_sub_type(core_ty, offset)?;
         self.core_funcs.push(id);
 
@@ -2430,6 +2433,7 @@ impl ComponentState {
 
     fn thread_spawn_indirect(
         &mut self,
+        shared: bool,
         func_ty_index: u32,
         table_index: u32,
         types: &mut TypeAlloc,
@@ -2469,7 +2473,7 @@ impl ComponentState {
 
         // Insert the core function.
         let func_ty = FuncType::new([ValType::I32, ValType::I32], [ValType::I32]);
-        let core_ty = SubType::func(func_ty, true);
+        let core_ty = SubType::func(func_ty, shared);
         let id = types.intern_sub_type(core_ty, offset)?;
         self.core_funcs.push(id);
 
@@ -2513,7 +2517,12 @@ impl ComponentState {
         Ok(core_type_id)
     }
 
-    fn thread_available_parallelism(&mut self, types: &mut TypeAlloc, offset: u64) -> Result<()> {
+    fn thread_available_parallelism(
+        &mut self,
+        shared: bool,
+        types: &mut TypeAlloc,
+        offset: u64,
+    ) -> Result<()> {
         require_feature::shared_everything_threads(
             self.features,
             "`thread.available_parallelism` requires the shared-everything-threads proposal",
@@ -2521,7 +2530,7 @@ impl ComponentState {
         )?;
 
         let func_ty = FuncType::new([], [ValType::I32]);
-        let core_ty = SubType::func(func_ty, true);
+        let core_ty = SubType::func(func_ty, shared);
         let id = types.intern_sub_type(core_ty, offset)?;
         self.core_funcs.push(id);
 

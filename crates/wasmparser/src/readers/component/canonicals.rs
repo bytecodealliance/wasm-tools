@@ -72,12 +72,16 @@ pub enum CanonicalFunction {
     },
     /// A function which spawns a new thread by invoking the shared function.
     ThreadSpawnRef {
+        /// Whether the built-in function itself is `shared`.
+        shared: bool,
         /// The index of the function type to spawn.
         func_ty_index: u32,
     },
     /// A function which spawns a new thread by invoking the shared function
     /// passed as an index into a `funcref` table.
     ThreadSpawnIndirect {
+        /// Whether the built-in function itself is `shared`.
+        shared: bool,
         /// The index of the function type to spawn.
         func_ty_index: u32,
         /// The index of the table to use for the indirect spawn.
@@ -85,7 +89,10 @@ pub enum CanonicalFunction {
     },
     /// A function which returns the number of threads that can be expected to
     /// execute concurrently
-    ThreadAvailableParallelism,
+    ThreadAvailableParallelism {
+        /// Whether the built-in function itself is `shared`.
+        shared: bool,
+    },
     /// A function which tells the host to enable backpressure by incrementing
     /// the component's counter by 1.
     BackpressureInc,
@@ -446,13 +453,17 @@ impl<'a> FromReader<'a> for CanonicalFunction {
                 CanonicalFunction::ThreadYieldThenPromote
             }
             0x40 => CanonicalFunction::ThreadSpawnRef {
+                shared: reader.read()?,
                 func_ty_index: reader.read()?,
             },
             0x41 => CanonicalFunction::ThreadSpawnIndirect {
+                shared: reader.read()?,
                 func_ty_index: reader.read()?,
                 table_index: reader.read()?,
             },
-            0x42 => CanonicalFunction::ThreadAvailableParallelism,
+            0x42 => CanonicalFunction::ThreadAvailableParallelism {
+                shared: reader.read()?,
+            },
             x => return reader.invalid_leading_byte(x, "canonical function"),
         })
     }

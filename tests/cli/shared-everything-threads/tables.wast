@@ -206,3 +206,25 @@
     )
   )
   "invalid type: `table.atomic.rmw.xchg` only allows subtypes of `anyref`")
+
+;; Atomic accesses to unshared tables of unshared reference types.
+(module
+  (table $any 1 anyref)
+  (table $eq 1 eqref)
+  (func (param $x anyref) (param $y eqref)
+    (drop (table.atomic.get seqcst $any (i32.const 0)))
+    (table.atomic.set seqcst $any (i32.const 0) (local.get $x))
+    (drop (table.atomic.rmw.xchg seqcst $any (i32.const 0) (local.get $x)))
+    (drop (table.atomic.rmw.cmpxchg seqcst $eq (i32.const 0) (local.get $y) (local.get $y)))
+  )
+)
+
+;; The expected operand of `table.atomic.rmw.cmpxchg` is typed `eqref` (or its
+;; shared form), not the table's element type.
+(module
+  (type $s (shared (struct)))
+  (table $t shared 1 (ref null $s))
+  (func (param $expected (ref null (shared eq))) (param $replacement (ref null $s)) (result (ref null $s))
+    (table.atomic.rmw.cmpxchg seqcst $t (i32.const 0) (local.get $expected) (local.get $replacement))
+  )
+)

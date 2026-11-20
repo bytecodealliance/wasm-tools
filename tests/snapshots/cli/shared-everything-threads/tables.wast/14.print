@@ -1,0 +1,11 @@
+(module
+  (type $s (;0;) (shared (struct)))
+  (type (;1;) (func (param (ref null (shared eq)) (ref null $s)) (result (ref null $s))))
+  (table $t (;0;) shared 1 (ref null $s))
+  (func (;0;) (type 1) (param $expected (ref null (shared eq))) (param $replacement (ref null $s)) (result (ref null $s))
+    i32.const 0
+    local.get $expected
+    local.get $replacement
+    table.atomic.rmw.cmpxchg seqcst $t
+  )
+)

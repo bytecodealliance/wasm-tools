@@ -60,7 +60,7 @@
       "line": 115,
       "filename": "acquire-release-atomics-extra.8.wasm",
       "module_type": "binary",
-      "text": "invalid atomic consistency ordering 0x2"
+      "text": "invalid atomic consistency ordering"
     },
     {
       "type": "assert_malformed",

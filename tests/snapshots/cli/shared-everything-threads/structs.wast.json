@@ -246,6 +246,18 @@
       "filename": "structs.35.wasm",
       "module_type": "binary",
       "text": "invalid type: `struct.atomic.set` only allows `i8`, `i16`, `i32`, `i64` and subtypes of `anyref`"
+    },
+    {
+      "type": "module",
+      "line": 577,
+      "filename": "structs.36.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 589,
+      "filename": "structs.37.wasm",
+      "module_type": "binary"
     }
   ]
 }
