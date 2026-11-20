@@ -7,5 +7,5 @@
       (export (;0;) "f" (func (type 2)))
     )
   )
-  (import "it" (type (;1;) (eq $it)))
+  (export (;1;) "it" (type $it))
 )

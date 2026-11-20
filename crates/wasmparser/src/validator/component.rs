@@ -3976,40 +3976,36 @@ impl ComponentState {
         // in then it would prevent that.
         //
         // This check is done by calculating the `pos` within `components` that
-        // our target `component` above was selected at. Once this is acquired
-        // the component to the "right" is checked, and if that's a component
-        // then it's considered as crossing a component boundary meaning the
-        // free variables check runs.
-        //
-        // The reason this works is that in the list of `ComponentState` types
-        // it's guaranteed that any `is_type` components are contiguous at the
-        // end of the array. This means that if state one level deeper than the
-        // target of this alias is a `!is_type` component, then the target must
-        // be a component as well. If the one-level deeper state `is_type` then
-        // the target is either a type or a component, both of which are valid
-        // (as aliases can reach the enclosing component and have as many free
-        // variables as they want).
+        // our target `component` above was selected at. All states after that
+        // position are those that the alias is crossing through, and if any of
+        // them is a component or component type then the free variables check
+        // runs.
         //
         // Note that the free variables check is proportional to the size of
-        // `ty`, so the size of `ty` is charged to the component that the
+        // `ty`, so the size of `ty` is charged to the outermost state that the
         // alias crosses into to bound the total amount of work done.
         let pos_after_component = components.len() - (count as usize);
-        if let Some(component) = components.get_mut(pos_after_component) {
-            if component.kind == ComponentKind::Component {
-                component.outer_alias_type_size = combine_type_sizes(
-                    component.outer_alias_type_size,
-                    ty.info(types).size(),
+        let crosses_component_boundary = components[pos_after_component..].iter().any(|c| {
+            matches!(
+                c.kind,
+                ComponentKind::Component | ComponentKind::ComponentType
+            )
+        });
+        if crosses_component_boundary {
+            let component = &mut components[pos_after_component];
+            component.outer_alias_type_size = combine_type_sizes(
+                component.outer_alias_type_size,
+                ty.info(types).size(),
+                offset,
+            )?;
+            let mut free = IndexSet::default();
+            types.free_variables_any_type_id(ty, &mut free);
+            if !free.is_empty() {
+                bail!(
                     offset,
-                )?;
-                let mut free = IndexSet::default();
-                types.free_variables_any_type_id(ty, &mut free);
-                if !free.is_empty() {
-                    bail!(
-                        offset,
-                        "cannot alias outer type which transitively refers \
-                         to resources not defined in the current component"
-                    );
-                }
+                    "cannot alias outer type which transitively refers \
+                     to resources not defined in the current component"
+                );
             }
         }
 

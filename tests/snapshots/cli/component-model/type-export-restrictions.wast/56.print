@@ -1,5 +1,5 @@
 (component
-  (import "a" (type $a (;0;) (sub resource)))
-  (export $b (;1;) "b" (type $a))
-  (import "c" (type $c (;2;) (eq $a)))
+  (type $r (;0;) (record (field "x" u32)))
+  (export $b (;1;) "b" (type $r))
+  (import "c" (type $c (;2;) (eq $r)))
 )

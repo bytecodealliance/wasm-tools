@@ -23,9 +23,9 @@
   )
   (type $r (;4;) (resource (rep i32)))
   (type (;5;)
-    (component
+    (instance
       (alias outer 1 $r (type (;0;)))
-      (import "r" (type (;1;) (eq 0)))
+      (export (;1;) "r" (type (eq 0)))
     )
   )
 )

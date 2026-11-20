@@ -315,7 +315,8 @@
   )
   "func not valid to be used as export")
 
-;; outer aliases work for components, modules, and resources
+;; outer aliases work for components, modules, and resources (but resources
+;; only into instance types, not component types)
 (component
   (type $c (component))
   (type (component
@@ -330,10 +331,18 @@
   ))
 
   (type $r (resource (rep i32)))
-  (type (component
-    (import "r" (type (eq $r)))
+  (type (instance
+    (export "r" (type (eq $r)))
   ))
 )
+(assert_invalid
+  (component
+    (type $r (resource (rep i32)))
+    (type (component
+      (import "r" (type (eq $r)))
+    ))
+  )
+  "refers to resources not defined in the current component")
 
 ;; reexport of an import is fine
 (component

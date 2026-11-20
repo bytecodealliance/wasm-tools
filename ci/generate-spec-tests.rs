@@ -96,6 +96,11 @@ fn copy_test(src: &Path, dst: &Path, features: fn(&Path) -> &str) {
         // still run the test but for now wait for that discussion.
         Some("name.wast") if dst.ends_with("extended-name-section/custom/name.wast") => "FAIL",
 
+        // Fix pending https://github.com/WebAssembly/component-model/issues/771
+        Some("outer-alias.wast") if dst.ends_with("components/validation/outer-alias.wast") => {
+            "FAIL"
+        }
+
         Some(_) | None => "RUN",
     };
 
