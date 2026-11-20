@@ -1,0 +1,5 @@
+package hello:foo;
+
+interface test {
+  use wasi:io/streams.{input-stream};
+}

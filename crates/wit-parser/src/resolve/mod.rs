@@ -320,7 +320,13 @@ impl Resolve {
             let (pkg, source_map_index) = pkg_details_map.remove(&name).unwrap();
             let span_offset = source_map_offsets[source_map_index];
             let is_main = pkg.name == main_name;
-            let id = self.push(pkg, span_offset)?;
+            let id = self.push(pkg, span_offset).map_err(|mut e| {
+                // Also list the packages that haven't been pushed yet.
+                if let ResolveErrorKind::PackageNotFound { known, .. } = e.kind_mut() {
+                    known.extend(pkg_details_map.keys().cloned());
+                }
+                e
+            })?;
             if is_main {
                 assert!(main_pkg_id.is_none());
                 main_pkg_id = Some(id);
