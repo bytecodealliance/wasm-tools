@@ -374,7 +374,7 @@ impl CanonicalOptions {
 
     pub(crate) fn check_lift(
         &mut self,
-        types: &TypeList,
+        types: &mut TypeAlloc,
         state: &ComponentState,
         core_ty_id: CoreTypeId,
         offset: u64,
@@ -385,11 +385,10 @@ impl CanonicalOptions {
         ));
 
         if let Some(idx) = self.post_return {
-            let post_return_func_ty = types[state.core_function_at(idx, offset)?].unwrap_func();
+            let post_return_ty_id = state.core_function_at(idx, offset)?;
             let core_ty = types[core_ty_id].unwrap_func();
-            if post_return_func_ty.params() != core_ty.results()
-                || !post_return_func_ty.results().is_empty()
-            {
+            let expected = FuncType::new(core_ty.results().iter().copied(), []);
+            if post_return_ty_id != types.intern_func_type(expected, offset)? {
                 bail!(
                     offset,
                     "canonical option `post-return` uses a core function with an incorrect signature"
@@ -411,8 +410,9 @@ impl CanonicalOptions {
             Concurrency::Async {
                 callback: Some(idx),
             } => {
-                let func_ty = types[state.core_function_at(idx, offset)?].unwrap_func();
-                if func_ty.params() != [ValType::I32; 3] || func_ty.results() != [ValType::I32] {
+                let ty_id = state.core_function_at(idx, offset)?;
+                let expected = FuncType::new([ValType::I32; 3], [ValType::I32]);
+                if ty_id != types.intern_func_type(expected, offset)? {
                     return Err(Error::new(
                         "canonical option `callback` uses a core function with an incorrect signature",
                         offset,
@@ -659,8 +659,7 @@ impl ComponentState {
                 // function and has the correct signature.
                 if let Some(dtor) = dtor {
                     let ty = component.core_function_at(dtor, offset)?;
-                    let ty = types[ty].composite_type.unwrap_func();
-                    if ty.params() != [rep] || ty.results() != [] {
+                    if ty != types.intern_func_type(FuncType::new([rep], []), offset)? {
                         bail!(
                             offset,
                             "core function {dtor} has wrong signature for a destructor"
@@ -1357,13 +1356,13 @@ impl ComponentState {
         types: &mut TypeAlloc,
         offset: u64,
     ) -> Result<()> {
-        let ty = self.function_type_at(type_index, types, offset)?;
         let core_ty_id = self.core_function_at(core_func_index, offset)?;
 
         // Lifting a function is for an export, so match the expected canonical ABI
         // export signature
         let mut options = self.check_options(types, options, offset)?;
         options.check_lift(types, self, core_ty_id, offset)?;
+        let ty = self.function_type_at(type_index, types, offset)?;
         options.check_asyncness(ty, offset)?;
         let func_ty = ty.lower(types, self, &options, Abi::Lift, offset)?;
         let lowered_core_ty_id = func_ty.intern(types, offset)?;
@@ -1415,12 +1414,13 @@ impl ComponentState {
         types: &mut TypeAlloc,
         offset: u64,
     ) -> Result<()> {
-        let ty = &types[self.function_at(func_index, offset)?];
+        let ty_id = self.function_at(func_index, offset)?;
 
         // Lowering a function is for an import, so use a function type that matches
         // the expected canonical ABI import signature.
         let options = self.check_options(types, options, offset)?;
         options.check_lower(offset)?;
+        let ty = &types[ty_id];
         options.check_asyncness(ty, offset)?;
 
         let func_ty = ty.lower(types, self, &options, Abi::Lower, offset)?;
@@ -1695,7 +1695,7 @@ impl ComponentState {
         )?;
 
         let ty = self.defined_type_at(ty, offset)?;
-        let ComponentDefinedType::Stream { ty: elem_ty, .. } = &types[ty] else {
+        let ComponentDefinedType::Stream { ty: elem_ty, .. } = types[ty] else {
             bail!(offset, "`stream.read` requires a stream type")
         };
 
@@ -1736,7 +1736,7 @@ impl ComponentState {
         )?;
 
         let ty = self.defined_type_at(ty, offset)?;
-        let ComponentDefinedType::Stream { ty: elem_ty, .. } = &types[ty] else {
+        let ComponentDefinedType::Stream { ty: elem_ty, .. } = types[ty] else {
             bail!(offset, "`stream.write` requires a stream type")
         };
 
@@ -1909,7 +1909,7 @@ impl ComponentState {
         )?;
 
         let ty = self.defined_type_at(ty, offset)?;
-        let ComponentDefinedType::Future { ty: elem_ty, .. } = &types[ty] else {
+        let ComponentDefinedType::Future { ty: elem_ty, .. } = types[ty] else {
             bail!(offset, "`future.read` requires a future type")
         };
 
@@ -1950,7 +1950,7 @@ impl ComponentState {
         )?;
 
         let ty = self.defined_type_at(ty, offset)?;
-        let ComponentDefinedType::Future { ty: elem_ty, .. } = &types[ty] else {
+        let ComponentDefinedType::Future { ty: elem_ty, .. } = types[ty] else {
             bail!(offset, "`future.write` requires a future type")
         };
 
@@ -2252,22 +2252,18 @@ impl ComponentState {
         };
         let sub_ty = &types[core_type_id];
         let closure_ty = match &sub_ty.composite_type.inner {
-            CompositeInnerType::Func(func_ty) => {
-                let closure_ty = match func_ty.params() {
-                    [ValType::I32] => ValType::I32,
-                    [ValType::I64] if self.features.cm64() => ValType::I64,
-                    _ => bail!(
-                        offset,
-                        "start function must take a single `i32` argument (currently)"
-                    ),
-                };
-                if func_ty.results() != [] {
-                    bail!(offset, "start function must not return any values");
-                }
-                closure_ty
-            }
-            _ => bail!(offset, "start type must be a function"),
+            CompositeInnerType::Func(func_ty) => match func_ty.params() {
+                [ValType::I32] => ValType::I32,
+                [ValType::I64] if self.features.cm64() => ValType::I64,
+                // fall through to the below type-check to generate an error.
+                _ => ValType::I32,
+            },
+            // fall through to the below type-check to generate an error.
+            _ => ValType::I32,
         };
+        if core_type_id != types.intern_func_type(FuncType::new([closure_ty], []), offset)? {
+            bail!(offset, "start function has an incorrect type");
+        }
 
         let table = self.table_at(table_index, offset)?;
 
@@ -2678,7 +2674,7 @@ impl ComponentState {
 
     fn check_options(
         &self,
-        types: &TypeList,
+        types: &mut TypeAlloc,
         options: &[CanonicalOption],
         offset: u64,
     ) -> Result<CanonicalOptions> {
@@ -2879,10 +2875,8 @@ impl ComponentState {
                 }
             };
             let ty_id = self.core_function_at(realloc_idx, offset)?;
-            let func_ty = types[ty_id].unwrap_func();
-            if func_ty.params() != [addr_type, addr_type, addr_type, addr_type]
-                || func_ty.results() != [addr_type]
-            {
+            let expected = FuncType::new([addr_type; 4], [addr_type]);
+            if ty_id != types.intern_func_type(expected, offset)? {
                 return Err(Error::new(
                     "canonical option `realloc` uses a core function with an incorrect signature",
                     offset,

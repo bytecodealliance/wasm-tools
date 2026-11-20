@@ -45,7 +45,7 @@
       "line": 66,
       "filename": "threading-and-memory64.6.wasm",
       "module_type": "binary",
-      "text": "start function must take a single `i32` argument"
+      "text": "start function has an incorrect type"
     }
   ]
 }

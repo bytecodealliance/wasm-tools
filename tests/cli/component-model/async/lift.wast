@@ -65,6 +65,20 @@
   "canonical option `callback` uses a core function with an incorrect signature"
 )
 
+;; async lift; with a callback of a non-final type
+(assert_invalid
+  (component
+    (core module $m
+      (type $cb (sub (func (param i32 i32 i32) (result i32))))
+      (func (export "run") (result i32) unreachable)
+      (func (export "cb") (type $cb) unreachable))
+    (core instance $i (instantiate $m))
+    (func (export "run") async
+      (canon lift (core func $i "run") async (callback (core func $i "cb"))))
+  )
+  "canonical option `callback` uses a core function with an incorrect signature"
+)
+
 ;; async lift; with callback and post-return
 (assert_invalid
   (component
