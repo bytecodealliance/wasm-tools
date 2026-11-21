@@ -1,0 +1,36 @@
+package root:component;
+
+world root {
+  import i: interface {
+    resource r;
+
+    type l = list<r>;
+
+    type t = own<r>;
+  }
+  import a:x/y;
+  import a:x/k;
+  import a:x/z;
+
+  resource r;
+
+  type l = list<r>;
+
+  type t = own<r>;
+  import f: func(x: list<u32>);
+}
+package a:x {
+  interface y {
+    resource t;
+  }
+  interface k {
+    use y.{t};
+
+    type l = list<t>;
+
+    type x = own<t>;
+  }
+  interface z {
+    type u = list<u32>;
+  }
+}

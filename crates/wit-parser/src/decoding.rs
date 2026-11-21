@@ -673,6 +673,7 @@ impl WitPackageDecoder<'_> {
                 let func = self
                     .convert_function(name, item, owner)
                     .with_context(|| format!("failed to decode function from import `{name}`"))?;
+                self.add_component_world_uses(world, &func)?;
                 (WorldKey::Name(name.to_string()), WorldItem::Function(func))
             }
             ComponentEntityType::Type { .. } => {
@@ -707,6 +708,7 @@ impl WitPackageDecoder<'_> {
                 let func = self
                     .convert_function(name, item, TypeOwner::World(world))
                     .with_context(|| format!("failed to decode function from export `{name}`"))?;
+                self.add_component_world_uses(world, &func)?;
 
                 (WorldKey::Name(name.to_string()), WorldItem::Function(func))
             }
@@ -719,6 +721,86 @@ impl WitPackageDecoder<'_> {
         };
         self.resolve.worlds[world].exports.insert(name, item);
         Ok(())
+    }
+
+    /// Adds a `use` to `world` for each type of an interface that `func`
+    /// refers to, unless the world already has one.
+    ///
+    /// A world's functions can only refer to interfaces' types through the
+    /// world's `use`s, which components encode as type imports. A component
+    /// can refer to an imported instance's type directly instead.
+    fn add_world_uses(
+        &mut self,
+        owner: TypeOwner,
+        imports: &mut IndexMap<WorldKey, WorldItem>,
+        func: &Function,
+    ) -> Result<()> {
+        struct Named<'a>(&'a Resolve, Vec<TypeId>);
+        impl TypeIdVisitor for Named<'_> {
+            fn before_visit_type_id(&mut self, id: TypeId) -> bool {
+                if self.0.types[id].name.is_some() {
+                    self.1.push(id);
+                    return false;
+                }
+                true
+            }
+        }
+        let mut named = Named(&self.resolve, Vec::new());
+        for ty in func.parameter_and_result_types() {
+            named.visit_type(&self.resolve, &ty);
+        }
+        for ty in named.1 {
+            let def = &self.resolve.types[ty];
+            let TypeOwner::Interface(iface) = def.owner else {
+                continue;
+            };
+            let name = def.name.clone().unwrap();
+            let key = WorldKey::Name(name.clone());
+            match imports.get(&key) {
+                Some(WorldItem::Type { id, .. })
+                    if self.resolve.types[*id].kind == TypeDefKind::Type(Type::Id(ty)) =>
+                {
+                    continue;
+                }
+                Some(_) => bail!(
+                    "cannot represent this component in WIT: function `{}` uses type `{name}` \
+                     of an interface, but the world has another item named `{name}`",
+                    func.name
+                ),
+                None => {}
+            }
+            if !imports.contains_key(&WorldKey::Interface(iface)) {
+                bail!(
+                    "cannot represent this component in WIT: function `{}` uses type `{name}` \
+                     of an interface the world doesn't import under its name",
+                    func.name
+                );
+            }
+            let id = self.resolve.types.alloc(TypeDef {
+                name: Some(name),
+                kind: TypeDefKind::Type(Type::Id(ty)),
+                docs: Default::default(),
+                stability: Default::default(),
+                owner,
+                span: Default::default(),
+                external_id: None,
+            });
+            imports.insert(
+                key,
+                WorldItem::Type {
+                    id,
+                    span: Default::default(),
+                },
+            );
+        }
+        Ok(())
+    }
+
+    fn add_component_world_uses(&mut self, world: WorldId, func: &Function) -> Result<()> {
+        let mut imports = mem::take(&mut self.resolve.worlds[world].imports);
+        let result = self.add_world_uses(TypeOwner::World(world), &mut imports, func);
+        self.resolve.worlds[world].imports = imports;
+        result
     }
 
     /// Decodes a component instance import/export name into a
@@ -893,6 +975,9 @@ impl WitPackageDecoder<'_> {
             }
         }
 
+        if !is_local {
+            self.check_interface_scope(iface, interface)?;
+        }
         Ok(interface)
     }
 
@@ -1091,6 +1176,9 @@ impl WitPackageDecoder<'_> {
             };
         }
         let id = self.resolve.interfaces.alloc(interface);
+        if interface_name.is_some() {
+            self.check_interface_scope(name, id)?;
+        }
         let key = match interface_name {
             // If this interface is named then it's part of the package, so
             // insert it. Additionally register it in `named_interfaces` so
@@ -1150,6 +1238,20 @@ impl WitPackageDecoder<'_> {
             _ => unreachable!(),
         };
         let kind = match find_alias(&self.types, &self.type_map, referenced) {
+            // An anonymous type, such as the `own<r>` in an earlier
+            // `list<own<r>>`, is part of another type's definition, not
+            // something this one can `use`. This type is defined as the same
+            // thing instead, as long as an interface doesn't end up naming a
+            // type it neither defines nor `use`s.
+            Some(prev)
+                if self.resolve.types[prev].name.is_none()
+                    && (!matches!(owner, TypeOwner::Interface(_))
+                        || self.only_names_types_of(prev, owner)) =>
+            {
+                log::debug!("type export for `{name}` is an anonymous type");
+                self.resolve.types[prev].kind.clone()
+            }
+
             // If this `TypeId` points to a type which has
             // previously been defined, meaning we're aliasing a
             // prior definition.
@@ -1226,6 +1328,55 @@ impl WitPackageDecoder<'_> {
         Ok(ty)
     }
 
+    /// Returns whether every named type that the anonymous type `id` refers
+    /// to, looking through other anonymous types, belongs to `owner`.
+    fn only_names_types_of(&self, id: TypeId, owner: TypeOwner) -> bool {
+        let mut check = OutsideOwner::new(&self.resolve, owner);
+        check.visit_type_def(&self.resolve, &self.resolve.types[id]);
+        check.found.is_none()
+    }
+
+    /// Errors if the named interface `interface` refers to a named type it
+    /// neither defines nor `use`s under that type's name, which WIT has no way
+    /// to write.
+    ///
+    /// Unnamed interfaces aren't checked: WIT can't print them referring to
+    /// other interfaces' types either, but they still encode, and
+    /// `wasm-compose` makes them.
+    fn check_interface_scope(&self, name: &str, interface: InterfaceId) -> Result<()> {
+        let iface = &self.resolve.interfaces[interface];
+        let mut check = OutsideOwner::new(&self.resolve, TypeOwner::Interface(interface));
+        // A type that the interface `use`s under its own name can be referred
+        // to directly, as that name refers to it.
+        for (name, ty) in iface.types.iter() {
+            if let TypeDefKind::Type(Type::Id(t)) = self.resolve.types[*ty].kind {
+                if self.resolve.types[t].name.as_deref() == Some(name.as_str()) {
+                    check.allowed.insert(t);
+                }
+            }
+        }
+        for ty in iface.types.values() {
+            let def = &self.resolve.types[*ty];
+            match def.kind {
+                // A `use`, or an alias of another named type, which is checked
+                // where it's decoded.
+                TypeDefKind::Type(Type::Id(t)) if self.resolve.types[t].name.is_some() => {}
+                _ => check.visit_type_def(&self.resolve, def),
+            }
+        }
+        for func in iface.functions.values() {
+            check.visit_func(&self.resolve, func);
+        }
+        if let Some(ty) = check.found {
+            bail!(
+                "cannot represent this component in WIT: interface `{name}` refers to type `{}` \
+                 without defining or `use`ing it",
+                self.resolve.types[ty].name.as_deref().unwrap_or("")
+            );
+        }
+        Ok(())
+    }
+
     fn register_world<'a>(
         &mut self,
         name: &str,
@@ -1264,6 +1415,7 @@ impl WitPackageDecoder<'_> {
                 }
                 ComponentEntityType::Func(_) => {
                     let func = self.convert_function(name.as_str(), item, owner)?;
+                    self.add_world_uses(owner, &mut world.imports, &func)?;
                     (WorldKey::Name(name.to_string()), WorldItem::Function(func))
                 }
                 _ => bail!("component import `{name}` is not an instance, func, or type"),
@@ -1279,6 +1431,7 @@ impl WitPackageDecoder<'_> {
 
                 ComponentEntityType::Func(_) => {
                     let func = self.convert_function(name.as_str(), item, owner)?;
+                    self.add_world_uses(owner, &mut world.imports, &func)?;
                     (WorldKey::Name(name.to_string()), WorldItem::Function(func))
                 }
 
@@ -1826,6 +1979,41 @@ fn find_alias(
         };
     }
     prev
+}
+
+/// Finds a named type that doesn't belong to `owner`, looking through
+/// anonymous types to the named types they refer to.
+struct OutsideOwner<'a> {
+    resolve: &'a Resolve,
+    owner: TypeOwner,
+    /// Types of other owners that are in scope anyway.
+    allowed: HashSet<TypeId>,
+    found: Option<TypeId>,
+}
+
+impl<'a> OutsideOwner<'a> {
+    fn new(resolve: &'a Resolve, owner: TypeOwner) -> Self {
+        OutsideOwner {
+            resolve,
+            owner,
+            allowed: HashSet::new(),
+            found: None,
+        }
+    }
+}
+
+impl TypeIdVisitor for OutsideOwner<'_> {
+    fn before_visit_type_id(&mut self, id: TypeId) -> bool {
+        let ty = &self.resolve.types[id];
+        if ty.name.is_some()
+            && ty.owner != self.owner
+            && !self.allowed.contains(&id)
+            && self.found.is_none()
+        {
+            self.found = Some(id);
+        }
+        self.found.is_none() && ty.name.is_none()
+    }
 }
 
 /// Helper type to register the structure of a wasm-defined type against a

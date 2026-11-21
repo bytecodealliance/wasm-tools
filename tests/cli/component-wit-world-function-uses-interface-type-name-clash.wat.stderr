@@ -1,0 +1,1 @@
+error: cannot represent this component in WIT: function `f` uses type `t` of an interface, but the world has another item named `t`
