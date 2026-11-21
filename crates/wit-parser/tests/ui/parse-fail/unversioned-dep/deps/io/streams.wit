@@ -1,0 +1,5 @@
+package wasi:io@0.2.12;
+
+interface streams {
+  resource input-stream;
+}

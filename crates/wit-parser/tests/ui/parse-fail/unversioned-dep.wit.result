@@ -1,0 +1,7 @@
+failed to resolve directory while parsing WIT for path [tests/ui/parse-fail/unversioned-dep]: package 'wasi:io' not found. known packages:
+    hello:foo
+    wasi:io@0.2.12
+     --> tests/ui/parse-fail/unversioned-dep/root.wit:4:7
+      |
+    4 |   use wasi:io/streams.{input-stream};
+      |       ^------
