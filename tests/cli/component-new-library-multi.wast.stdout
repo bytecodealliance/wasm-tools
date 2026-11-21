@@ -1,0 +1,49 @@
+(component
+  (core module $main (;0;)
+    (type (;0;) (func (param i32 i32) (result i32)))
+    (export "add" (func 0))
+    (export "mul" (func 1))
+    (func (;0;) (type 0) (param i32 i32) (result i32)
+      local.get 0
+      local.get 1
+      i32.add
+    )
+    (func (;1;) (type 0) (param i32 i32) (result i32)
+      local.get 0
+      local.get 1
+      i32.mul
+    )
+  )
+  (core module $foo (;1;)
+    (type (;0;) (func (param i32 i32) (result i32)))
+    (import "env" "add" (func $add (;0;) (type 0) (param i32 i32) (result i32)))
+    (export "sum" (func 1))
+    (func (;1;) (type 0) (param i32 i32) (result i32)
+      local.get 0
+      local.get 1
+      call $add
+    )
+  )
+  (core module $bar (;2;)
+    (type (;0;) (func (param i32 i32) (result i32)))
+    (import "env" "mul" (func $mul (;0;) (type 0) (param i32 i32) (result i32)))
+    (export "product" (func 1))
+    (func (;1;) (type 0) (param i32 i32) (result i32)
+      local.get 0
+      local.get 1
+      call $mul
+    )
+  )
+  (core instance $main (;0;) (instantiate $main))
+  (core instance $foo (;1;) (instantiate $foo
+      (with "env" (instance $main))
+    )
+  )
+  (core instance $bar (;2;) (instantiate $bar
+      (with "env" (instance $main))
+    )
+  )
+  (@producers
+    (processed-by "wit-component" "%version")
+  )
+)

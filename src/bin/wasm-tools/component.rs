@@ -109,6 +109,16 @@ Examples:
     # is initialized.
     $ wasm-tools component new foo.wasm --realloc-via-memory-grow \
         --adapt wasi_snapshot_preview1.reactor.wasm -o foo.component.wasm
+
+    # Link a core wasm module into the component. The linked module and the
+    # main module satisfy each other's imports: the linked module receives
+    # the main module as an instance named `env`, and the main module
+    # imports from the linked module's exports.
+    $ wasm-tools component new foo.wasm --library bar.wasm -o foo.component.wasm
+
+    # The `NAME=` prefix is optional; when omitted, it is inferred from the
+    # filename (e.g. `bar.wasm` implies the name `bar`).
+    $ wasm-tools component new foo.wasm --library bar=bar.wasm -o foo.component.wasm
 ")]
 pub struct NewOpts {
     /// Rename an instance import in the output component.
@@ -173,6 +183,18 @@ struct ComponentEncoderOpts {
     /// The second part of this argument is the path to the adapter module.
     #[clap(long = "adapt", value_name = "[NAME=]MODULE", value_parser = parse_adapter)]
     pub adapters: Vec<(String, Vec<u8>)>,
+
+    /// The path to a core wasm module to link into the component.
+    ///
+    /// A linked module is instantiated as part of the component, and the linked
+    /// module and main module satisfy each other's imports. The linked
+    /// module receives the main module as an instance argument named `env`,
+    /// and the main module imports from the linked module using the library
+    /// name (the `[NAME=]` prefix, or the filename stem when omitted).
+    ///
+    /// Multiple `--library` flags may link multiple modules.
+    #[clap(long = "library", value_name = "[NAME=]MODULE", value_parser = parse_library)]
+    pub libraries: Vec<(String, Vec<u8>)>,
 
     /// Deprecated, use `--validate=false` instead.
     #[clap(long, hide = true, conflicts_with = "validate")]
@@ -284,6 +306,18 @@ impl ComponentEncoderOpts {
             .emit_canonical_names(self.emit_canonical_names);
         for (name, wasm) in self.adapters.iter() {
             encoder.adapter(name, wasm)?;
+        }
+        for (name, wasm) in self.libraries.iter() {
+            encoder.library(
+                name,
+                wasm,
+                wit_component::LibraryInfo {
+                    arguments: vec![(
+                        "env".to_string(),
+                        wit_component::Instance::MainOrAdapter(wit_component::MainOrAdapter::Main),
+                    )],
+                },
+            )?;
         }
         Ok(())
     }
